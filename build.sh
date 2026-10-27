@@ -21,13 +21,16 @@ BINARY="$APP/Contents/MacOS/Scoreline"
 # so build against the newest SDK that doesn't need them.
 SDK=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX26*.sdk 2>/dev/null | sort -V | tail -1)
 [[ -z "$SDK" ]] && SDK=$(xcrun --show-sdk-path)
+# Sparkle (auto-updates), the pinned release, checksum-verified on first fetch.
+SPARKLE=$(Support/fetch-sparkle.sh)
 
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 
 compile() {  # compile <arch> <output>
   swiftc -parse-as-library -Osize -wmo \
     -sdk "$SDK" -target "$1-apple-macos15.0" -swift-version 5 \
+    -F "$SPARKLE" -framework Sparkle -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
     Sources/Scoreline/*.swift -o "$2"
 }
 
@@ -44,6 +47,15 @@ fi
 strip -x "$BINARY"
 
 cp Support/Info.plist "$APP/Contents/"
+cp "$SPARKLE/LICENSE" "$APP/Contents/Resources/Sparkle-LICENSE.txt"
+
+# Embed Sparkle (ditto keeps the framework's symlinks). Its XPC services are
+# only for sandboxed apps, and the headers only for compiling against it.
+FRAMEWORK="$APP/Contents/Frameworks/Sparkle.framework"
+ditto "$SPARKLE/Sparkle.framework" "$FRAMEWORK"
+for part in XPCServices Headers PrivateHeaders Modules; do
+  rm -rf "$FRAMEWORK/$part" "$FRAMEWORK/Versions/B/$part"
+done
 
 echo "Rendering icon…"
 ICONSET=build/AppIcon.iconset
@@ -55,7 +67,14 @@ for s in 16 32 128 256 512; do
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 
+# Ad-hoc sign inside-out: Sparkle's helpers, the framework, then the app.
+# Sparkle ships these ad-hoc signed with the hardened runtime; keep its flags
+# and entitlements.
+for code in "$FRAMEWORK/Versions/B/Autoupdate" "$FRAMEWORK/Versions/B/Updater.app" "$FRAMEWORK"; do
+  codesign --force --sign - --preserve-metadata=entitlements,flags "$code"
+done
 codesign --force --sign - "$APP"
+codesign --verify --deep --strict "$APP"
 echo "Built $APP ($(du -sh "$APP" | cut -f1), $(lipo -archs "$BINARY"))"
 
 if $INSTALL; then

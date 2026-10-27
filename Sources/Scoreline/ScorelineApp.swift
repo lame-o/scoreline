@@ -25,6 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             TeamColors.shared.isEnabled = true
             let controller = PanelController(store: ScoreStore())
             self.controller = controller
+            // Sparkle's daily check (Updater.swift). Smoke runs skip it: an
+            // update alert would land on top of what they're capturing.
+            if ProcessInfo.processInfo.environment["SCORELINE_SMOKE"] == nil {
+                Updater.shared.start()
+            }
             if ProcessInfo.processInfo.environment["SCORELINE_SMOKE"] == "open" {
                 controller.smokeOpen(snapshot: ProcessInfo.processInfo.environment["SCORELINE_SMOKE_PNG"])
             } else if ProcessInfo.processInfo.environment["SCORELINE_SMOKE"] == "1" {

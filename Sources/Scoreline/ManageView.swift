@@ -13,6 +13,7 @@ struct ManageView: View {
 
     var body: some View {
         @Bindable var store = store
+        @Bindable var updater = Updater.shared
         VStack(spacing: 0) {
             header.stackIn().pageChrome()
 
@@ -73,7 +74,14 @@ struct ManageView: View {
                         }
                     }
 
-                    caption("Data from ESPN, bo3.gg and IFSC. Streams from YouTube and Twitch. Win probability by ESPN. Scoreline \(appVersion)")
+                    groupLabel("Updates", "arrow.down.circle")
+                    GroupBox {
+                        versionRow
+                        ToggleRow(title: "Check automatically", subtitle: "Once a day, from GitHub",
+                                  isOn: $updater.checksAutomatically)
+                    }
+
+                    caption("Data from ESPN, bo3.gg and IFSC. Streams from YouTube and Twitch. Win probability by ESPN.")
                         .padding(.top, 8)
                 }
                 // One centred column however wide the panel: forms read top to
@@ -113,6 +121,18 @@ struct ManageView: View {
         }
         .buttonStyle(ListRowStyle(hovering: addHovering))
         .onHover { addHovering = $0 }
+    }
+
+    /// "Version 1.0" with the manual check beside it, as in Software Update.
+    private var versionRow: some View {
+        HStack(spacing: 8) {
+            Text("Version \(appVersion)").font(.system(size: 13))
+            Spacer(minLength: 8)
+            Button("Check for Updates…") { Updater.shared.checkForUpdates() }
+                .controlSize(.small)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
     }
 
     @ViewBuilder

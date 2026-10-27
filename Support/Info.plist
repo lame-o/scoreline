@@ -2,29 +2,39 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleName</key>
-	<string>Scoreline</string>
 	<key>CFBundleDisplayName</key>
 	<string>Scoreline</string>
-	<key>CFBundleIdentifier</key>
-	<string>io.github.lame-o.Scoreline</string>
 	<key>CFBundleExecutable</key>
 	<string>Scoreline</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.lame-o.Scoreline</string>
+	<key>CFBundleName</key>
+	<string>Scoreline</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.sports</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
 	<key>LSUIElement</key>
 	<true/>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.sports</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Personal build.</string>
+	<string>© 2026 lame-o. MIT License.</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/lame-o/scoreline/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>53aHEYxnEXD4/m6K1oEEeF8AFvCF6rV3GsqTEyCQ8Qs=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>
