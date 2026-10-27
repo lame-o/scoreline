@@ -79,6 +79,12 @@ const GLYPHS = {
   ),
   grip: <path {...stroke} strokeWidth={1.5} d="M3 5h10M3 8h10M3 11h10" />,
   check: <path {...stroke} strokeWidth={1.9} d="M3.2 8.4 6.5 11.6 12.8 4.6" />,
+  search: (
+    <g {...stroke} strokeWidth={1.6}>
+      <circle cx="7" cy="7" r="4.6" />
+      <path d="M10.4 10.4 14 14" />
+    </g>
+  ),
   xmark: <path {...stroke} strokeWidth={1.8} d="M4 4l8 8M12 4l-8 8" />,
   ellipsis: (
     <g fill="currentColor">

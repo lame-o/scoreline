@@ -149,7 +149,7 @@ function TeamPicks({ league }: { league: League }) {
     <FormSection title={noun} icon={climbing ? "flag" : "star"}>
       {options.length > SEARCH_FROM ? (
         <label className={styles.search}>
-          <Icon name="ellipsis" size={10} />
+          <Icon name="search" size={11} />
           <span className="visually-hidden">Search {noun.toLowerCase()}</span>
           <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${noun.toLowerCase()}`} autoComplete="off" />
         </label>

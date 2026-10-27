@@ -55,6 +55,7 @@ web/
     features/              one folder per area: scores/, game/, settings/, placeholders/
   test/
     unit/                  Vitest
+    worker/                Vitest, the proxy with the Cache API and fetch stubbed
     e2e/                   Playwright (smoke.spec.ts, live.spec.ts)
     fixtures/              small trimmed JSON (recorded, plus *.synthetic.json live states)
   scripts/record-fixtures.mjs
@@ -273,7 +274,7 @@ The owner can run `/review-animations` on the motion code for an independent rev
 
 ## Testing
 
-- **Unit** (`pnpm test`, Vitest, in Node with TZ America/New_York): every parser against `test/fixtures` (ESPN soccer, NFL, college, MLB, NBA; bo3; IFSC; team lists), plus the scoreboard logic, formatting and clocks, soccer marks, the allowlist and cache policies, team colors, settings, and token contrast.
+- **Unit** (`pnpm test`, Vitest, in Node with TZ America/New_York): every parser against `test/fixtures` (ESPN soccer, NFL, college, MLB, NBA; bo3; IFSC; team lists), plus the scoreboard logic, formatting and clocks, soccer marks, the allowlist and cache policies, team colors read from crests, settings, and token contrast. `test/worker/` covers the proxy with the Cache API and fetch stubbed (type-checked with the Worker's program).
 - **Fixtures:** the recorded files come from `pnpm fixtures`, trimmed to the fields the parsers read (each records its `_source` URL and `_recorded` time). Files named `*.synthetic.json` are live states derived by hand from a recorded file, because a recording session rarely finds every sport live. Each says how it was derived in `_note`. Re-recording changes the games, so tests assert structure and rules rather than today's scores wherever they can.
 - **End to end** (`pnpm test:e2e`, Playwright against `pnpm dev`, or `SCORELINE_URL`):
   - `smoke.spec.ts` covers 390, 1024 and 1440 pixels in light and dark: list, tiles, a game, Esc back, keyboard ↓ and Return, and Settings, with no console errors.
