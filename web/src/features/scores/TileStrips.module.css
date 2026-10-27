@@ -1,0 +1,148 @@
+/* Each sport's situation in a 28pt strip under a large live tile (TileStrips.swift). Viz ink; team colors for marks only. */
+
+.strip {
+  position: relative;
+  width: 100%;
+  height: calc(28 * var(--pt));
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* A glyph placed at a field position (left: x%). */
+.at {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  /* The ball and lines glide as the drive moves (Motion.travel, eased). */
+  transition: left 400ms var(--ease-out);
+}
+
+.ball {
+  color: var(--label);
+}
+
+/* MARK: Baseball */
+
+.bases {
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--pt));
+  height: 100%;
+}
+
+.diamond {
+  position: relative;
+  width: calc(30 * var(--pt));
+  height: calc(26 * var(--pt));
+  flex: none;
+}
+
+.base {
+  position: absolute;
+  width: calc(8 * var(--pt));
+  height: calc(8 * var(--pt));
+  margin: calc(-4 * var(--pt)) 0 0 calc(-4 * var(--pt));
+  border-radius: calc(1.5 * var(--pt));
+  background: var(--viz-track);
+  box-shadow: inset 0 0 0 1px var(--viz-reference);
+  transform: rotate(45deg);
+  transition:
+    background-color var(--dur-quick) var(--ease-out),
+    box-shadow var(--dur-quick) var(--ease-out);
+}
+
+.base[data-on="true"] {
+  background: var(--label);
+  box-shadow: none;
+}
+
+.plate {
+  position: absolute;
+  left: 50%;
+  top: calc(22 * var(--pt));
+  width: calc(6 * var(--pt));
+  height: calc(5 * var(--pt));
+  margin-left: calc(-3 * var(--pt));
+  background: var(--label-secondary);
+  clip-path: polygon(0 0, 100% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.counts {
+  display: flex;
+  gap: calc(10 * var(--pt));
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  font-size: calc(9 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.pip {
+  width: calc(6 * var(--pt));
+  height: calc(6 * var(--pt));
+  border-radius: 50%;
+  background: var(--viz-track);
+  box-shadow: inset 0 0 0 0.5px var(--viz-grid);
+  transition: background-color var(--dur-quick) var(--ease-out);
+}
+
+/* MARK: Basketball */
+
+.lead {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  height: 100%;
+  font-size: calc(9 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.leadTrack {
+  position: relative;
+  flex: 1;
+  height: calc(6 * var(--pt));
+  border-radius: 999px;
+  background: var(--viz-track);
+}
+
+.leadTrack::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: calc(-3 * var(--pt));
+  bottom: calc(-3 * var(--pt));
+  width: 1px;
+  background: var(--viz-reference);
+}
+
+.leadBar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  transition:
+    left var(--dur-standard) var(--ease-out),
+    width var(--dur-standard) var(--ease-out);
+}
+
+/* MARK: Wall (climbing) */
+
+.wall {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  height: 100%;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}

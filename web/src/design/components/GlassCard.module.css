@@ -1,0 +1,28 @@
+.glass {
+  position: relative;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-hero);
+  /* A hairline edge, light catching the top, and a soft shadow seating it. */
+  box-shadow:
+    inset 0 calc(1 * var(--pt)) 0 var(--glass-highlight),
+    inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
+    var(--shadow-glass);
+}
+
+.clear {
+  background: var(--glass-fill-clear);
+}
+
+.strong {
+  background: var(--glass-fill-strong);
+}
+
+.capsule {
+  border-radius: 999px;
+  box-shadow:
+    inset 0 calc(1 * var(--pt)) 0 var(--glass-highlight),
+    inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
+    var(--shadow-control);
+}

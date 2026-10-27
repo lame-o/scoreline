@@ -1,0 +1,161 @@
+/*
+ * Design tokens: the Mac app's metrics, colors, materials and motion as CSS
+ * custom properties. Read ARCHITECTURE.md § Design tokens before adding one.
+ *
+ * Units. `--pt` is one Mac point: the root font size is the Mac's 13pt body
+ * (81.25% of the browser default, so it follows the user's text size), and
+ * every length is written in Mac points, so a Swift layout ports number for
+ * number: `padding: calc(7 * var(--pt)) calc(8 * var(--pt))`. Touch screens
+ * get a larger root (15px), and the whole layout scales with it.
+ *
+ * Color. Every color is defined once with `light-dark()`; the theme is just
+ * `color-scheme` (system by default, or Settings → Appearance via
+ * `data-theme` on <html>). Secondary ink and accent text are tuned to clear
+ * 4.5:1 on their surfaces in both themes (test/unit/contrast.test.ts).
+ */
+
+:root {
+  color-scheme: light dark;
+  --pt: calc(1rem / 13);
+
+  /* MARK: Type (SF on Apple devices, the system UI face elsewhere) */
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Scores and countdowns: SF Rounded where the browser has it (Swift `.design(.rounded)`). */
+  --font-rounded: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  --text-hero-score: calc(30 * var(--pt)); /* the match hero's score */
+  --text-tile-score: calc(28 * var(--pt)); /* a large tile's score */
+  --text-title: calc(20 * var(--pt)); /* a field event's hero title */
+  --text-body: calc(13 * var(--pt)); /* names, rows, page titles */
+  --text-callout: calc(11.5 * var(--pt)); /* summaries, empty-state messages */
+  --text-status: calc(11 * var(--pt)); /* the status column, footers */
+  --text-caption: calc(10.5 * var(--pt)); /* context lines, section titles */
+  --text-small: calc(10 * var(--pt)); /* a status's second line */
+  --tracking-caps: 0.05em; /* small caps titles (0.5pt at 10.5pt) */
+
+  /* MARK: Ink */
+  --label: light-dark(rgb(0 0 0 / 0.86), rgb(255 255 255 / 0.88));
+  --label-secondary: light-dark(rgb(0 0 0 / 0.56), rgb(255 255 255 / 0.58));
+  /* Glyphs only (chevrons, separators): never text. */
+  --label-tertiary: light-dark(rgb(0 0 0 / 0.26), rgb(255 255 255 / 0.26));
+  --separator: light-dark(rgb(0 0 0 / 0.1), rgb(255 255 255 / 0.1));
+
+  /* Primary-ink washes for hover, press and plain surfaces (Swift `Color.primary.opacity`). */
+  --fill-hover: light-dark(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.07));
+  --fill-press: light-dark(rgb(0 0 0 / 0.11), rgb(255 255 255 / 0.12));
+  --fill-surface: light-dark(rgb(0 0 0 / 0.045), rgb(255 255 255 / 0.055));
+  --fill-skeleton: light-dark(rgb(0 0 0 / 0.07), rgb(255 255 255 / 0.08));
+  --stroke-hairline: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.09));
+
+  /* MARK: System colors (Apple's, with text variants deep enough to read) */
+  --accent: light-dark(#007aff, #0a84ff);
+  --accent-text: light-dark(#0062cc, #409cff);
+  --accent-fill: light-dark(rgb(0 122 255 / 0.14), rgb(10 132 255 / 0.2));
+  --accent-ring: light-dark(rgb(0 122 255 / 0.5), rgb(10 132 255 / 0.6));
+  --live: light-dark(#ff3b30, #ff453a);
+  --live-text: light-dark(#d70015, #ff6961);
+  --live-wash: light-dark(rgb(255 59 48 / 0.13), rgb(255 69 58 / 0.16));
+  --live-pill: light-dark(rgb(255 59 48 / 0.14), rgb(255 69 58 / 0.18));
+  --delayed-text: light-dark(#b93e00, #ffb340);
+  --star: light-dark(#f5b800, #ffd60a);
+  --on-live: #fff;
+  /* What shows through a filled glyph's cut-outs (a football's laces). */
+  --icon-cutout: light-dark(#fff, #1e1e21);
+
+  /* Charts (VizKit.swift `Viz`): neutrals are ink opacities, team colors are for marks only. */
+  --viz-grid: light-dark(rgb(0 0 0 / 0.1), rgb(255 255 255 / 0.1));
+  --viz-reference: light-dark(rgb(0 0 0 / 0.35), rgb(255 255 255 / 0.35));
+  --viz-track: light-dark(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.07));
+  --viz-neutral: light-dark(rgb(0 0 0 / 0.55), rgb(255 255 255 / 0.55));
+
+  /* MARK: Surfaces and materials */
+  --page: light-dark(#f2f2f5, #121214);
+  /* The ambient light behind the glass: two soft, distant fields, so the materials have something to refract. */
+  --ambient-a: light-dark(rgb(0 122 255 / 0.1), rgb(64 120 255 / 0.16));
+  --ambient-b: light-dark(rgb(255 149 0 / 0.07), rgb(175 82 222 / 0.12));
+
+  /* Glass: the floating layer only (header controls, chips, the hero card, the sidebar). Never glass on glass. */
+  --glass-fill: light-dark(rgb(255 255 255 / 0.62), rgb(40 40 44 / 0.58));
+  --glass-fill-strong: light-dark(rgb(255 255 255 / 0.78), rgb(44 44 48 / 0.78));
+  /* Clear glass lets a team-color wash refract through (the hero card). */
+  --glass-fill-clear: light-dark(rgb(255 255 255 / 0.34), rgb(30 30 34 / 0.3));
+  --glass-blur: blur(calc(24 * var(--pt))) saturate(180%);
+  --glass-edge: light-dark(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.08));
+  /* Light catching the top edge of the material. */
+  --glass-highlight: light-dark(rgb(255 255 255 / 0.85), rgb(255 255 255 / 0.14));
+  --shadow-glass: 0 calc(1 * var(--pt)) calc(2 * var(--pt)) light-dark(rgb(0 0 0 / 0.04), rgb(0 0 0 / 0.3)),
+    0 calc(8 * var(--pt)) calc(24 * var(--pt)) light-dark(rgb(0 0 0 / 0.07), rgb(0 0 0 / 0.35));
+  --shadow-control: 0 calc(1 * var(--pt)) calc(3 * var(--pt)) light-dark(rgb(0 0 0 / 0.08), rgb(0 0 0 / 0.35));
+
+  /* MARK: Metrics (Components.swift `Metrics`, TileBoard.swift `TileMetrics`) */
+  --gutter: calc(14 * var(--pt));
+  --page-header-inset: calc(10 * var(--pt));
+  --radius-hero: calc(18 * var(--pt));
+  --radius-tile: calc(12 * var(--pt));
+  --radius-row: calc(6 * var(--pt));
+  --radius-group: calc(8 * var(--pt));
+  --control-size: calc(28 * var(--pt));
+  --logo-row: calc(16 * var(--pt));
+  --logo-preview: calc(14 * var(--pt));
+  --logo-hero: calc(34 * var(--pt));
+  --tile-gap: calc(8 * var(--pt));
+  --tile-small: calc(84 * var(--pt));
+  --tile-large: calc(144 * var(--pt));
+  --sidebar-width: clamp(calc(340 * var(--pt)), 30vw, calc(420 * var(--pt)));
+  --phone-max: calc(440 * var(--pt));
+  --form-width: calc(480 * var(--pt));
+  --readable-width: calc(560 * var(--pt));
+
+  /* MARK: Motion (Components.swift `Motion`). Springs live in motion.ts. */
+  /* Emil Kowalski's strong ease-out: entering, leaving, fades, presses. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* On-screen changes of light (a wash taking a new color). */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-press: 120ms; /* Motion.press */
+  --dur-exit: 120ms; /* Motion.exit: leaving is faster than arriving */
+  --dur-fade: 150ms; /* Motion.fade: hairlines, logos loading */
+  --dur-quick: 200ms; /* Motion.quick */
+  --dur-reveal: 250ms; /* Motion.reveal: text arriving */
+  --dur-standard: 300ms; /* Motion.standard */
+  --dur-decay: 1200ms; /* Motion.decay: an ambient highlight fading on its own */
+  --stagger: 40ms; /* Motion.stagger */
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Increase Contrast: visible edges, stronger secondary ink, solid-ish glass. */
+@media (prefers-contrast: more) {
+  :root {
+    --label-secondary: light-dark(rgb(0 0 0 / 0.7), rgb(255 255 255 / 0.72));
+    --stroke-hairline: light-dark(rgb(0 0 0 / 0.25), rgb(255 255 255 / 0.3));
+    --glass-edge: light-dark(rgb(0 0 0 / 0.25), rgb(255 255 255 / 0.3));
+    --fill-hover: light-dark(rgb(0 0 0 / 0.12), rgb(255 255 255 / 0.14));
+    --glass-fill-clear: var(--glass-fill);
+  }
+}
+
+/* Reduce Transparency: materials turn solid. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-fill: light-dark(#fbfbfd, #2a2a2e);
+    --glass-fill-strong: var(--glass-fill);
+    --glass-fill-clear: var(--glass-fill);
+    --glass-blur: none;
+  }
+}
+
+/* Reduce Motion: anything that moves becomes a gentle fade (motion.ts follows the same rule). */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-reveal: 150ms;
+    --dur-standard: 150ms;
+    --dur-decay: 150ms;
+    --stagger: 0ms;
+  }
+}

@@ -1,12 +1,14 @@
+/**
+ * Entry: styles, then the app. Everything else starts in app/App.tsx.
+ */
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-
-function Probe() {
-  return <p>Scoreline</p>;
-}
+import "./design/tokens.css";
+import "./design/base.css";
+import { App } from "./app/App";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Probe />
+    <App />
   </StrictMode>,
 );

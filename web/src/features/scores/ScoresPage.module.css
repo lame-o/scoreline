@@ -1,0 +1,125 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* The header stays put; content dissolves under it once scrolled (a soft scroll edge, not a rule). */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-height: calc(44 * var(--pt));
+  padding: calc(8 * var(--pt)) var(--page-header-inset);
+}
+
+.header::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 calc(-12 * var(--pt));
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--page);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 12 * var(--pt)), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 12 * var(--pt)), transparent);
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.page[data-variant="sidebar"] .header::before {
+  background: transparent;
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.header[data-scrolled="true"]::before {
+  opacity: 1;
+}
+
+.title {
+  padding-left: calc(4 * var(--pt));
+  font-size: var(--text-body);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.headerSpacer {
+  flex: 1;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+}
+
+.sentinel {
+  height: 1px;
+  margin-bottom: -1px;
+}
+
+.content {
+  flex: 1;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  padding: calc(8 * var(--pt)) var(--gutter) calc(12 * var(--pt));
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+/* MARK: Skeletons (static, shaped like the real thing so nothing jumps) */
+
+.skeletonTitle {
+  margin: calc(14 * var(--pt)) var(--gutter) calc(8 * var(--pt));
+}
+
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--pt));
+  padding: calc(9 * var(--pt)) var(--gutter);
+}
+
+.skeletonTeams {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+  flex: 1;
+}
+
+.skeletonLine {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+}
+
+.skeletonTiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--tile-gap);
+  padding: 0 calc(10 * var(--pt));
+}
+
+.skeletonTile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--tile-small);
+  padding: 0 calc(10 * var(--pt));
+  border-radius: var(--radius-tile);
+  background: var(--fill-surface);
+}
+
+.skeletonTile[data-large="true"] {
+  grid-column: 1 / -1;
+  height: var(--tile-large);
+  justify-content: center;
+  gap: calc(40 * var(--pt));
+}

@@ -1,0 +1,61 @@
+/* Skeleton: static placeholder shapes (the Mac's are deliberately still). */
+.skeleton {
+  display: block;
+  flex: none;
+  background: var(--fill-skeleton);
+  border-radius: calc(3 * var(--pt));
+}
+
+.circle {
+  border-radius: 50%;
+}
+
+/* EmptyState / ErrorState */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  padding: calc(36 * var(--pt)) calc(24 * var(--pt));
+  text-align: center;
+  /* Joins the page's entrance: a short slide and fade from the left (StackIn). */
+  animation: stack-in var(--dur-reveal) var(--ease-out) both;
+}
+
+.emptyIcon {
+  color: var(--label-tertiary);
+  margin-bottom: calc(4 * var(--pt));
+}
+
+.emptyTitle {
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
+.emptyMessage {
+  max-width: calc(300 * var(--pt));
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  gap: calc(8 * var(--pt));
+  padding-top: calc(6 * var(--pt));
+}
+
+@keyframes stack-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-10 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes stack-in {
+    from {
+      opacity: 0;
+    }
+  }
+}

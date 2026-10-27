@@ -1,0 +1,379 @@
+/*
+ * The Tiles view (TileBoard.swift, Tiles.swift): the list's games regrouped
+ * by state, each tier a band of large tiles then a band of small ones, at
+ * fixed heights so live updates never move the grid.
+ */
+
+.board {
+  padding-bottom: calc(8 * var(--pt));
+}
+
+.grid {
+  display: grid;
+  gap: var(--tile-gap);
+  padding: 0 calc(10 * var(--pt));
+}
+
+.grid + .grid {
+  padding-top: var(--tile-gap);
+}
+
+.large {
+  grid-auto-rows: var(--tile-large);
+}
+
+.small {
+  grid-auto-rows: var(--tile-small);
+}
+
+.span {
+  grid-column: 1 / -1;
+}
+
+/* MARK: Tile surface (plain, not glass: glass never stacks on glass) */
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  padding: calc(9 * var(--pt)) calc(10 * var(--pt));
+  border-radius: var(--radius-tile);
+  background: var(--fill-surface);
+  box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) var(--stroke-hairline);
+  color: var(--label);
+  isolation: isolate;
+  /* One notch gentler than a row's press: tiles are bigger. */
+  transition: transform var(--dur-press) var(--ease-out);
+}
+
+.tile[data-size="large"] {
+  padding: calc(10 * var(--pt)) calc(12 * var(--pt));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tile:hover {
+    background: light-dark(rgb(0 0 0 / 0.075), rgb(255 255 255 / 0.085));
+  }
+}
+
+.tile:active {
+  background: var(--fill-press);
+  transform: scale(0.98);
+}
+
+.tile[data-keyboard="true"] {
+  background: var(--accent-fill);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
+
+.tile[aria-current="page"] {
+  background: var(--accent-fill);
+}
+
+.tile:focus-visible {
+  outline-offset: calc(-2 * var(--pt));
+}
+
+/* Team colors meeting in the middle, fading downward so the strip stays calm. */
+.wash {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000, rgb(0 0 0 / 0.4));
+  mask-image: linear-gradient(to bottom, #000, rgb(0 0 0 / 0.4));
+}
+
+/* MARK: Header */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  height: calc(13 * var(--pt));
+  color: var(--label-secondary);
+  flex: none;
+}
+
+.league {
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  min-width: 0;
+}
+
+.tile[data-size="large"] .league {
+  font-size: var(--text-caption);
+  letter-spacing: var(--tracking-caps);
+}
+
+.headerSpacer {
+  flex: 1;
+  min-width: calc(4 * var(--pt));
+}
+
+.headerStatus {
+  flex: none;
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tile[data-size="large"] .headerStatus {
+  font-size: var(--text-caption);
+}
+
+/* MARK: Face-off */
+
+.fill {
+  flex: 1;
+  min-height: calc(2 * var(--pt));
+}
+
+.faceoff {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: calc(360 * var(--pt));
+  margin: 0 auto;
+  gap: calc(6 * var(--pt));
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  flex: 1;
+  min-width: 0;
+}
+
+.center {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nameLine {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(3 * var(--pt));
+  max-width: 100%;
+  font-size: calc(11.5 * var(--pt));
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.nameLine > .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dimmed {
+  color: var(--label-secondary);
+}
+
+.rank {
+  font-size: var(--text-small);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.star {
+  color: var(--star);
+  align-self: center;
+}
+
+.ball {
+  color: var(--label-secondary);
+  align-self: center;
+}
+
+.record {
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+/* Small tiles: crests at the edges, the center between, names under them. */
+.smallFaceoff {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+}
+
+.smallRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(3 * var(--pt));
+}
+
+.smallNames {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(10 * var(--pt));
+}
+
+.smallNames .nameLine {
+  font-size: var(--text-small);
+  min-width: calc(28 * var(--pt));
+  justify-content: center;
+}
+
+.smallNames .rank {
+  font-size: calc(9 * var(--pt));
+}
+
+/* MARK: Scores and times */
+
+.score {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-rounded);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.dash {
+  color: var(--label-tertiary);
+}
+
+.countdown {
+  font-family: var(--font-rounded);
+  font-size: calc(15 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+
+.smallCountdown {
+  font-size: calc(12 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+
+.smallTime {
+  font-size: var(--text-body);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.note {
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--label-secondary);
+  text-align: center;
+  max-width: calc(60 * var(--pt));
+  line-height: 1.15;
+}
+
+.delayed {
+  color: var(--delayed-text);
+}
+
+/* One line under a large tile: the situation, last goal, last play. */
+.detail {
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: none;
+}
+
+/* MARK: Field events (climbing) */
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+}
+
+.fieldGlyph {
+  display: grid;
+  place-items: center;
+  width: calc(34 * var(--pt));
+  height: calc(34 * var(--pt));
+  color: var(--label-secondary);
+  flex: none;
+}
+
+.fieldText {
+  display: flex;
+  flex-direction: column;
+  gap: calc(1 * var(--pt));
+  min-width: 0;
+  flex: 1;
+}
+
+.fieldTitle {
+  font-size: var(--text-body);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fieldSubtitle {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.smallTitle {
+  font-size: calc(12 * var(--pt));
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.smallLine {
+  margin-top: calc(2 * var(--pt));
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reveal {
+  animation: reveal var(--dur-reveal) var(--ease-out) both;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(calc(4 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes reveal {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+.tile {
+  scroll-margin-block: calc(56 * var(--pt)) calc(12 * var(--pt));
+}

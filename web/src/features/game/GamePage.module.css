@@ -1,0 +1,322 @@
+.page {
+  position: relative;
+  min-height: 100%;
+  isolation: isolate;
+  padding-bottom: calc(24 * var(--pt));
+}
+
+.inner {
+  max-width: calc(760 * var(--pt));
+  margin: 0 auto;
+}
+
+/*
+ * The team-colored wash behind the page's top (SharedUI.swift `HeroWash`):
+ * the two colors meeting in the middle over a soft base of page color, so
+ * the clear glass card refracts the teams, never what's behind the page. It
+ * melts into the page below with no hard edge.
+ */
+.wash {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: calc(250 * var(--pt));
+  z-index: -1;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.75) 45%, rgb(0 0 0 / 0.25) 75%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.75) 45%, rgb(0 0 0 / 0.25) 75%, transparent 100%);
+}
+
+.washBase {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--page) 55%, transparent);
+}
+
+.washColors {
+  position: absolute;
+  inset: 0;
+}
+
+/* MARK: Hero card */
+
+.heroWrap {
+  padding: calc(6 * var(--pt)) calc(10 * var(--pt)) calc(4 * var(--pt));
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  padding: calc(14 * var(--pt)) calc(8 * var(--pt));
+}
+
+.caption {
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  padding: 0 calc(8 * var(--pt));
+}
+
+.scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Capped, so on a wide pane the scoreboard stays one tight, centered group. */
+.team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  flex: 1;
+  min-width: 0;
+  max-width: calc(220 * var(--pt));
+}
+
+/* A soft glow in the team's color seats the crest on the wash: a drawn falloff, not a blur. */
+.crest {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: calc(70 * var(--pt));
+  height: calc(34 * var(--pt));
+}
+
+.glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(70 * var(--pt));
+  height: calc(70 * var(--pt));
+  margin: calc(-35 * var(--pt)) 0 0 calc(-35 * var(--pt));
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.nameLine {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: calc(3 * var(--pt));
+  max-width: 100%;
+  padding: 0 calc(4 * var(--pt));
+  text-align: center;
+}
+
+.name {
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.dimmed {
+  color: var(--label-secondary);
+}
+
+.rank {
+  font-size: var(--text-small);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.ball {
+  color: var(--label-secondary);
+  align-self: center;
+}
+
+.follow {
+  display: inline-grid;
+  place-items: center;
+  width: calc(18 * var(--pt));
+  height: calc(18 * var(--pt));
+  margin: calc(-3 * var(--pt)) 0;
+  border-radius: 50%;
+  color: var(--label-tertiary);
+  align-self: center;
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    color var(--dur-fade) var(--ease-out);
+}
+
+.follow[aria-pressed="true"] {
+  color: var(--star);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .follow:hover {
+    color: var(--label-secondary);
+    background: var(--fill-hover);
+  }
+  .follow[aria-pressed="true"]:hover {
+    color: var(--star);
+  }
+}
+
+.follow:active {
+  transform: scale(0.88);
+}
+
+.record {
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  min-width: calc(110 * var(--pt));
+  flex: none;
+}
+
+.score {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  font-family: var(--font-rounded);
+  font-size: var(--text-hero-score);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.dash {
+  color: var(--label-tertiary);
+}
+
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(1 * var(--pt));
+  font-size: var(--text-callout);
+  text-align: center;
+}
+
+.statusSecond {
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown {
+  font-family: var(--font-rounded);
+  font-size: calc(15 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-text);
+}
+
+.finalWord {
+  font-weight: 500;
+  color: var(--label-secondary);
+}
+
+/* Field events (climbing) */
+.fieldHero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(3 * var(--pt));
+  padding: calc(14 * var(--pt));
+}
+
+.fieldTitle {
+  font-size: var(--text-title);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.fieldSummary {
+  font-size: calc(12 * var(--pt));
+  color: var(--label-secondary);
+}
+
+/* MARK: Below the hero */
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: calc(16 * var(--pt));
+  padding: calc(14 * var(--pt)) var(--gutter) 0;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: calc(6 * var(--pt)) calc(14 * var(--pt));
+  margin-top: calc(8 * var(--pt));
+  font-size: var(--text-callout);
+}
+
+.factLabel {
+  color: var(--label-secondary);
+}
+
+.watch {
+  color: var(--accent-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .watch:hover {
+    text-decoration: underline;
+  }
+}
+
+.note {
+  margin-top: calc(8 * var(--pt));
+  padding: calc(12 * var(--pt));
+  border-radius: var(--radius-group);
+  background: var(--fill-surface);
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+/* The page assembles top to bottom when clicked into; keyboard arrivals are instant. */
+.page[data-entrance="stack"] .heroWrap {
+  animation: stack-in var(--dur-reveal) var(--ease-out) both;
+}
+
+.page[data-entrance="stack"] .sections {
+  animation: stack-in var(--dur-reveal) var(--ease-out) 60ms both;
+}
+
+.page[data-entrance="stack"] .wash {
+  animation: fade-in var(--dur-reveal) var(--ease-out) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes stack-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-10 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes stack-in {
+    from {
+      opacity: 0;
+    }
+  }
+}

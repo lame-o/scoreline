@@ -1,0 +1,99 @@
+.score {
+  position: relative;
+  display: inline-flex;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  isolation: isolate;
+}
+
+.dimmed {
+  color: var(--label-secondary);
+}
+
+/* The flash: a soft red pill behind the number, fading in, holding, decaying (TileFlash). */
+.flash {
+  position: absolute;
+  inset: calc(-2 * var(--pt)) calc(-6 * var(--pt));
+  z-index: -1;
+  border-radius: var(--radius-row);
+  background: var(--live-pill);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.slot {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  /* Room for the roll without clipping ascenders. */
+  padding-block: 0.1em;
+  margin-block: -0.1em;
+}
+
+.out {
+  position: absolute;
+  inset: 0.1em 0 auto 0;
+}
+
+/* Digits roll with the change: up for a rise, down for a correction (SwiftUI's numericText). */
+.inUp {
+  animation: inUp var(--dur-quick) var(--ease-out) both;
+}
+.outUp {
+  animation: outUp var(--dur-quick) var(--ease-out) both;
+}
+.inDown {
+  animation: inDown var(--dur-quick) var(--ease-out) both;
+}
+.outDown {
+  animation: outDown var(--dur-quick) var(--ease-out) both;
+}
+
+@keyframes inUp {
+  from {
+    transform: translateY(0.6em);
+    opacity: 0;
+  }
+}
+@keyframes outUp {
+  to {
+    transform: translateY(-0.6em);
+    opacity: 0;
+  }
+}
+@keyframes inDown {
+  from {
+    transform: translateY(-0.6em);
+    opacity: 0;
+  }
+}
+@keyframes outDown {
+  to {
+    transform: translateY(0.6em);
+    opacity: 0;
+  }
+}
+
+/* Reduce Motion: the digits cross-fade in place. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes inUp {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes outUp {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes inDown {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes outDown {
+    to {
+      opacity: 0;
+    }
+  }
+}
