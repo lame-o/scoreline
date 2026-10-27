@@ -96,7 +96,7 @@ export interface Pitch {
   readonly x: number;
   readonly y: number;
   readonly result: PitchResult;
-  /** The pitch's code, as the app shows it ("FB", "SL"): MLB's codes with the four-seamer as FB. */
+  /** ESPN's abbreviation ("FF"); shown through `pitchCode` ("FB"). */
   readonly type: string | null;
   /** Full name ("Four-seam fastball"). */
   readonly typeName: string | null;
@@ -113,10 +113,35 @@ export const PITCH_NAMES: Readonly<Record<string, string>> = {
   EP: "Eephus", PO: "Pitchout", IN: "Intentional ball", UN: "Unknown",
 };
 
-/** The code the app shows for a pitch: the four-seam fastball reads "FB", as broadcasts write it. */
+/** Codes as fans read them: a fastball is "FB", not Statcast's "FF" (StrikeZoneView.codes). */
 export function pitchCode(code: string | null | undefined): string | null {
   if (!code) return null;
-  return code === "FF" ? "FB" : code;
+  return code === "FF" || code === "FA" ? "FB" : code;
+}
+
+/** A pitch's names, longest first: full ("Four-seam fastball"), short ("Four-seam"), code ("FB") (StrikeZoneView.names). */
+export function pitchNames(pitch: Pitch): readonly [string, string, string] {
+  const short = pitch.type ? PITCH_NAMES[pitch.type] : undefined;
+  const full = pitch.typeName ?? short ?? pitch.type ?? "Pitch";
+  return [full, short ?? full, pitchCode(pitch.type) ?? short ?? full];
+}
+
+/** What the pitch did, in the list: how a strike came, not just "Strike" (StrikeZoneView.resultWord). */
+export function pitchResultWord(pitch: Pitch): string {
+  if (pitch.result === "ball") return "Ball";
+  if (pitch.result === "inPlay") return "In play";
+  switch (pitch.strike) {
+    case "called":
+      return "Called";
+    case "swinging":
+      return "Swinging";
+    case "foul":
+      return "Foul";
+    case "foulTip":
+      return "Foul tip";
+    default:
+      return "Strike";
+  }
 }
 
 export type BattedOutcome = "single" | "extraBases" | "homeRun" | "out";
@@ -581,7 +606,7 @@ export function currentAtBat(plays: readonly JSONValue[]): Pitch[] {
         x,
         y,
         result,
-        type: pitchCode(code),
+        type: code,
         typeName: str(at(p, "pitchType", "text")) ?? (code ? (PITCH_NAMES[code] ?? null) : null),
         mph: intOf(at(p, "pitchVelocity")),
         strike,

@@ -48,3 +48,16 @@ export function TeamPlaceholder() {
 export function PlayerPlaceholder() {
   return <Placeholder title="Player" icon="sportscourt" heading="Player Pages Are Coming" message="Season stats, game logs, career and awards for every player." />;
 }
+
+export function BracketPlaceholder() {
+  const { league: id, season } = useParams();
+  const league = id ? leagueWithID(id) : undefined;
+  return (
+    <Placeholder
+      title={[league?.shortName, season, "Bracket"].filter(Boolean).join(" ")}
+      icon="trophy"
+      heading="Brackets Are Coming"
+      message="The postseason round by round, with this series' teams ringed."
+    />
+  );
+}

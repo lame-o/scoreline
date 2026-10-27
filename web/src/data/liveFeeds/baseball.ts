@@ -74,7 +74,7 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
   private fetched: number | null = null;
   private lastPlayRef: string | null = null;
   private newestID: string | null = null;
-  private updating = false;
+  private inflight: Promise<void> | null = null;
   private listeners = new Set<() => void>();
   private readonly theaterOf: TheaterOf<T> | null;
   private readonly now: () => number;
@@ -94,16 +94,28 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
   }
 
   /** One look: the situation and status, then new plays if the last play changed. One update at a time. */
-  async update(fetcher: Fetcher, { path, eventID, names, side, signal }: BaseballUpdate): Promise<void> {
-    if (this.updating) return;
-    this.updating = true;
+  async update(fetcher: Fetcher, options: BaseballUpdate): Promise<void> {
+    // One update at a time: a second caller waits for the first (an abandoned
+    // page's look finishes, but commits nothing once its signal is aborted).
+    while (this.inflight) await this.inflight.catch(() => {});
+    if (options.signal?.aborted) return;
+    this.inflight = this.look(fetcher, options);
     try {
+      await this.inflight;
+    } finally {
+      this.inflight = null;
+    }
+  }
+
+  private async look(fetcher: Fetcher, { path, eventID, names, side, signal }: BaseballUpdate): Promise<void> {
+    {
       const league = path.split("/").pop() ?? path;
       const base = `https://sports.core.api.espn.com/v2/sports/baseball/leagues/${league}/events/${eventID}/competitions/${eventID}`;
       const [s, status] = await Promise.all([
         fetcher(`${base}/situation`, { signal }).catch(() => null),
         fetcher(`${base}/status`, { signal }).catch(() => null),
       ]);
+      if (signal?.aborted) return;
       let changed = false;
       if (status != null && str(at(status, "type", "state")) === "in") {
         const inning = str(at(status, "type", "shortDetail")) ?? null;
@@ -122,6 +134,10 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
         const lastID = lastRef ? playIDFromRef(lastRef) : null;
         if (!signal?.aborted && (lastID == null || lastID === this.newestID)) this.lastPlayRef = lastRef;
       }
+      if (signal?.aborted) {
+        if (changed) this.emit();
+        return;
+      }
       const last = findLast(this.window, (p) => str(at(p, "type", "type")) === "play-result");
       const next = baseballSituation(s, names, str(at(last, "text")) ?? null);
       if (!sameSituation(next, this.situation)) {
@@ -129,8 +145,6 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
         changed = true;
       }
       if (changed) this.emit();
-    } finally {
-      this.updating = false;
     }
   }
 
@@ -174,8 +188,9 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
       }
       page += 1;
     }
-    this.fetched = start;
+    // An abandoned look keeps nothing, so the next one reads the same plays again.
     if (signal?.aborted) return scoreChanged;
+    this.fetched = start;
     // Until a complete look it's history; after, at-bat results are news.
     const news = this.primed;
     if (this.primed) this.moments.push(...fresh.flatMap((item) => baseballMoment(item, side) ?? []));

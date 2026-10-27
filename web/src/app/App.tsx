@@ -3,11 +3,12 @@
  *
  * Routes (React Router, lazy-loaded so the scores list paints first):
  *   /                       the scores (phone) or "no game selected" (split)
- *   /game/:id               a game's page (a hero placeholder for now)
+ *   /game/:id               a game's page (`?league=` lets one off the scoreboards load; `gameHref`)
  *   /settings               Settings; /settings/league/:id a league's teams and options
  *   /schedule[/:scope]      schedules (placeholder)
  *   /standings/:league      tables (placeholder)
  *   /team/:id, /player/:id  profiles (placeholders)
+ *   /bracket/:league/:season?  a postseason bracket (placeholder; game pages link it)
  */
 import { QueryClientProvider } from "@tanstack/react-query";
 import { LazyMotion, MotionConfig } from "motion/react";
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
       { path: "standings/:league", lazy: () => import("../features/placeholders/Placeholders").then((m) => ({ Component: m.StandingsPlaceholder })) },
       { path: "team/:id", lazy: () => import("../features/placeholders/Placeholders").then((m) => ({ Component: m.TeamPlaceholder })) },
       { path: "player/:id", lazy: () => import("../features/placeholders/Placeholders").then((m) => ({ Component: m.PlayerPlaceholder })) },
+      { path: "bracket/:league/:season?", lazy: () => import("../features/placeholders/Placeholders").then((m) => ({ Component: m.BracketPlaceholder })) },
       { path: "*", element: <NotFound /> },
     ],
   },

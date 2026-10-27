@@ -8,6 +8,8 @@ import {
   magnitude,
   parseESPNDetail,
   pitchCode,
+  pitchNames,
+  pitchResultWord,
   scoreAfter,
   sideMapper,
 } from "../../src/data/gameDetail";
@@ -132,7 +134,7 @@ describe("the ESPN summary, baseball", () => {
     expect(pitches.map((p) => p.number)).toEqual(pitches.map((_, i) => i + 1));
     for (const p of pitches) {
       expect(["ball", "strike", "inPlay"]).toContain(p.result);
-      expect(p.type).not.toBe("FF");
+      expect(pitchNames(p)[2]).not.toBe("FF");
     }
   });
 });
@@ -176,7 +178,9 @@ describe("pitches", () => {
 
   it("writes the four-seamer as FB, with its speed", () => {
     const [p] = currentAtBat([pitch("ball")]);
-    expect(p!.type).toBe("FB");
+    expect(p!.type).toBe("FF");
+    expect(pitchNames(p!)).toEqual(["Four-seam FB", "Four-seam", "FB"]);
+    expect(pitchResultWord(p!)).toBe("Ball");
     expect(p!.typeName).toBe("Four-seam FB");
     expect(p!.mph).toBe(97);
     expect(pitchCode("SL")).toBe("SL");

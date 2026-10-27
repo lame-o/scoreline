@@ -1,44 +1,75 @@
 /**
- * A game's page: for now the hero, a faithful start that later work builds
- * the per-sport page under (DetailView.swift `hero`). Glass over the teams'
- * colors, crests with a soft glow, the score (digits roll live), the status
- * (a ticking clock, a countdown, the final word), records and AP ranks, and
- * a star to follow each team. Below it, where to watch and the venue.
+ * A game's page (DetailView.swift): the hero, then the sport's sections in
+ * one column, or from 680pt in two (data/sections.ts), with a docked
+ * scorebar that settles in as the hero scrolls away.
  *
- * The event comes from the scoreboard (so it stays live); a game that's
- * left the scoreboards says so until game pages fetch their own summary.
+ * The core runs what every sport shares: the event and its detail by ID
+ * (`useGame`: any game loads, not only the scoreboard's), the moment slot,
+ * linked focus across charts, the hero's beats, the page's geometry. Each
+ * sport is a hook in `SPORT_PAGES` (core/sport.tsx explains the seam) that
+ * returns its sections and runs its own fast lane.
  */
-import { useLocation, useParams } from "react-router";
-import { BackButton, EmptyState, GlassCard, Icon, IconButton, LiveStatus, PageHeader, ScoreDigits, Skeleton, SectionTitle, TeamLogo, Button } from "../../design/components";
-import { broadcaster } from "../../data/broadcasters";
-import { countdown, countdownClock, dayAndTime, enDash, scoreLine, spokenStatus, spokenSummary } from "../../data/format";
-import { dayKeyOf, mediumDayLabel } from "../../data/days";
-import { eventSport, stepsBack, type Competitor, type ScoreEvent } from "../../data/models";
-import { teamPalette, washStrength, NEUTRAL, type TeamPalette } from "../../data/teamColors";
-import { useNow } from "../../state/clock";
-import { useScoreboard } from "../../state/scores";
-import { settings, useIsFollowing } from "../../state/settings";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useLocation, useParams, useSearchParams } from "react-router";
+import { BackButton, Button, EmptyState, IconButton, PageHeader } from "../../design/components";
+import { spokenStatus, scoreLine } from "../../data/format";
+import { beatFinal, beatScore, beatScoreRose, finalAnnouncement, NO_BEATS, winner, type HeroBeats } from "../../data/matchRules";
+import { decisive, scorer, Tier } from "../../data/moments";
+import { stepsBack, type ScoreEvent } from "../../data/models";
+import { arrangement, pageKind, sectionOrder, type PageKind, type PlacedSection } from "../../data/sections";
+import { NEUTRAL, teamPalette, type TeamPalette } from "../../data/teamColors";
 import { useColorScheme } from "../../state/theme";
 import { useSplit, type NavState } from "../../app/layout";
 import { useGoBack } from "../../app/navigation";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
+import { announce } from "./core/announce";
+import { DockedScorebar } from "./core/DockedScorebar";
+import { usePageGeometry, useRemeasure, useSurface } from "./core/geometry";
+import { Hero, HeroSkeleton, HeroWash } from "./core/Hero";
+import { LinkedFocusProvider, LinkedFocusStore } from "./core/linked";
+import { MomentProvider, useCurrentMoment, useMomentSlot } from "./core/moments";
+import type { GameContext, SportPage, UseSportPage } from "./core/sport";
+import { useCommonSections } from "./core/useCommonSections";
+import { useGame, type GameData } from "./core/useGame";
+import { useWidth } from "../../design/useWidth";
+import { useBaseballPage } from "./mlb/BaseballPage";
+import { ErrorCopy } from "../../design/components";
 import styles from "./GamePage.module.css";
+
+/** The generic ESPN page: the shared sections only (football, soccer, NBA and the rest until their agents land). */
+const useGenericPage: UseSportPage = (game) => ({ sections: useCommonSections(game) });
+
+/**
+ * Each page kind's hook. A page's kind never changes while it's mounted (the
+ * body is keyed by event and kind), so each renders one hook consistently.
+ */
+const SPORT_PAGES: Readonly<Record<PageKind, UseSportPage>> = {
+  baseball: useBaseballPage,
+  soccer: useGenericPage,
+  nba: useGenericPage,
+  espn: useGenericPage,
+  counterStrike: useGenericPage,
+  climbing: useGenericPage,
+  none: useGenericPage,
+};
+
+/** Two columns from 680pt of page, with 12pt of hysteresis (PanelLayout.resolve). */
+const SPLIT_WIDTH = 680;
 
 export function GamePage() {
   const { id: raw } = useParams();
   const id = raw ? decodeURIComponent(raw) : "";
+  const [search] = useSearchParams();
   const split = useSplit();
-  // Beside the sidebar, the sidebar's list polls; on a phone this page does.
-  const scores = useScoreboard({ poll: !split });
-  const event = scores.event(id);
   const goBack = useGoBack();
-  const scheme = useColorScheme();
-  const viaKeyboard = (useLocation().state as NavState | null)?.viaKeyboard === true;
-  // The tab says the game: "ARS 2–1 CHE (67')".
+  // Beside the sidebar, the sidebar's list polls; on a phone this page does.
+  const game = useGame(id, { poll: !split, league: search.get("league") });
+  const event = game.event;
   useDocumentTitle(event ? statusLineShort(event) : null);
 
   const header = (
     <PageHeader
+      className={styles.header}
       leading={split ? null : <BackButton to="Scores" onClick={() => goBack()} />}
       trailing={event?.link ? <IconButton icon="external" label="Open in Browser" onClick={() => window.open(event.link!, "_blank", "noopener,noreferrer")} /> : null}
     />
@@ -48,33 +79,20 @@ export function GamePage() {
     return (
       <div className={styles.page}>
         {header}
-        {scores.status === "loading" ? (
+        {game.status === "loading" ? (
           <HeroSkeleton />
         ) : (
           <EmptyState
             icon="sportscourt"
-            title="Game Not on the Scoreboard"
-            message="This game isn't in your leagues' current scores. Game pages will soon load any game directly."
+            title="Game Not Found"
+            message="This game isn't on any scoreboard Scoreline reads, and its source didn't answer."
             actions={<Button onClick={() => goBack()}>Back to Scores</Button>}
           />
         )}
       </div>
     );
   }
-
-  const palette = event.content.kind === "match" ? teamPalette(event.content.top.color, event.content.bottom.color, scheme) : null;
-  return (
-    <article className={styles.page} data-entrance={viaKeyboard ? "none" : "stack"} key={event.id}>
-      <HeroWash palette={palette} />
-      <div className={styles.inner}>
-        {header}
-        <div className={styles.heroWrap}>
-          <GlassCard variant="clear">{event.content.kind === "match" && palette ? <MatchHero event={event} top={event.content.top} bottom={event.content.bottom} palette={palette} stale={scores.status === "offline"} /> : <FieldHero event={event} stale={scores.status === "offline"} />}</GlassCard>
-        </div>
-        <Details event={event} />
-      </div>
-    </article>
-  );
+  return <GameBody key={`${event.id}|${pageKind(event.ref)}`} game={game} event={event} header={header} split={split} />;
 }
 
 /** "ARS 2–1 CHE (67')", "ARS v CHE": the game for a tab title. */
@@ -83,192 +101,295 @@ function statusLineShort(event: ScoreEvent): string {
   return event.state === "live" ? `${line} (${event.detail ?? "Live"})` : line;
 }
 
-/** The team colors behind the page's top, melting into the page (HeroWash). Climbing: the accent, softly. */
-function HeroWash({ palette }: { palette: TeamPalette | null }) {
-  const left = palette?.top ?? "var(--accent)";
-  const right = palette?.bottom ?? "var(--accent)";
-  const intensity = palette ? 1 : 0.6;
-  const strength = (c: string) => Math.round((c.startsWith("#") ? washStrength(c, intensity) : 0.6 * intensity) * 100);
-  const mix = (c: string, pct: number) => `color-mix(in srgb, ${c === NEUTRAL ? "var(--viz-neutral)" : c} ${pct}%, transparent)`;
-  const inner = Math.round(12 * intensity);
-  return (
-    <div className={styles.wash} aria-hidden="true">
-      <div className={styles.washBase} />
-      <div className={styles.washColors} style={{ background: `linear-gradient(to right, ${mix(left, strength(left))}, ${mix(left, inner)}, ${mix(right, inner)}, ${mix(right, strength(right))})` }} />
-    </div>
-  );
-}
+function GameBody({ game, event, header, split }: { game: GameData; event: ScoreEvent; header: ReactNode; split: boolean }) {
+  const scheme = useColorScheme();
+  const viaKeyboard = (useLocation().state as NavState | null)?.viaKeyboard === true;
+  const moments = useMomentSlot();
+  const linked = useMemo(() => new LinkedFocusStore(), []);
+  useEffect(() => () => linked.dispose(), [linked]);
+  const inner = useRef<HTMLDivElement>(null);
+  const width = useWidth(inner, 400);
+  const [columns, setColumns] = useState(false);
+  const wide = width >= SPLIT_WIDTH - (columns ? 12 : 0);
+  if (wide !== columns) setColumns(wide);
+  const geometry = usePageGeometry(split);
+  // The hero's beats: one value for the hero, the docked bar and the wash.
+  const [beats, setBeats] = useState(NO_BEATS);
 
-function MatchHero({ event, top, bottom, palette, stale }: { event: ScoreEvent; top: Competitor; bottom: Competitor; palette: TeamPalette; stale: boolean }) {
-  const scored = top.score != null || bottom.score != null;
-  return (
-    <div className={styles.hero}>
-      {/* The hero is the page's heading: one spoken summary. */}
-      <h1 className="visually-hidden">{spokenSummary(event, eventSport(event), Date.now())}</h1>
-      {event.caption ? <p className={styles.caption}>{event.caption}</p> : null}
-      <div className={styles.scoreboard}>
-        <TeamColumn event={event} c={top} color={palette.top} />
-        <div className={styles.center}>
-          {scored ? (
-            <span className={styles.score}>
-              <ScoreDigits value={top.score} live={event.state === "live"} dimmed={stepsBack(event, top)} />
-              <span className={styles.dash}>–</span>
-              <ScoreDigits value={bottom.score} live={event.state === "live"} dimmed={stepsBack(event, bottom)} />
-            </span>
-          ) : null}
-          <HeroStatus event={event} stale={stale} />
-        </div>
-        <TeamColumn event={event} c={bottom} color={palette.bottom} />
-      </div>
-    </div>
-  );
-}
+  // Esc drops a pin before it goes back (DetailView.back).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && linked.unpin()) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    };
+    window.addEventListener("keydown", onKey, { capture: true });
+    return () => window.removeEventListener("keydown", onKey, { capture: true });
+  }, [linked]);
 
-function TeamColumn({ event, c, color }: { event: ScoreEvent; c: Competitor; color: string }) {
-  const following = useIsFollowing(c.id);
-  const hasBall = event.state === "live" && event.possession != null && event.possession === c.id;
-  const glow = color === NEUTRAL ? "var(--viz-neutral)" : color;
-  const g = (pct: number) => `color-mix(in srgb, ${glow} ${pct}%, transparent)`;
+  const palette: TeamPalette = useMemo(
+    () => (event.content.kind === "match" ? teamPalette(event.content.top.color, event.content.bottom.color, scheme) : { top: NEUTRAL, bottom: NEUTRAL }),
+    [event.content, scheme],
+  );
+
   return (
-    <div className={styles.team}>
-      <span className={styles.crest}>
-        <span
-          className={styles.glow}
-          style={{ background: `radial-gradient(circle, ${g(35)} 0%, ${g(33)} 25%, ${g(17)} 34%, ${g(5)} 42%, transparent 50%)` }}
-          aria-hidden="true"
-        />
-        <TeamLogo url={c.logo} size={34} />
-      </span>
-      <span className={styles.nameLine}>
-        {c.rank != null ? <span className={styles.rank}>{c.rank}</span> : null}
-        <span className={[styles.name, stepsBack(event, c) ? styles.dimmed : null].filter(Boolean).join(" ")}>{c.name}</span>
-        {hasBall ? <Icon name="football" size={8} className={styles.ball} label="Has the ball" /> : null}
-        {c.id ? (
-          <button
-            type="button"
-            className={styles.follow}
-            aria-pressed={following}
-            aria-label={following ? `Unfollow ${c.name}` : `Follow ${c.name}`}
-            title={following ? `Unfollow ${c.name}` : `Follow ${c.name}`}
-            onClick={() => settings.toggleFollow({ id: c.id!, name: c.name, logo: c.logo })}
+    <article
+      className={styles.page}
+      data-entrance={viaKeyboard ? "none" : "stack"}
+      ref={(el) => {
+        geometry.root = el;
+      }}
+      onPointerLeave={() => linked.clear()}
+    >
+      <LinkedFocusProvider store={linked}>
+        <MomentProvider slot={moments}>
+          <div className={styles.washSlot}>
+            <HeroWash palette={event.content.kind === "match" ? palette : null} pulses={beats.washPulses} side={beats.washSide} />
+          </div>
+          <div
+            ref={(el) => {
+              geometry.header = el;
+            }}
+            className={styles.headerSlot}
           >
-            <Icon name={following ? "star" : "starOutline"} size={9} />
-          </button>
-        ) : null}
-      </span>
-      {c.record ? <span className={styles.record}>{[enDash(c.record), c.conferenceRecord ? `${enDash(c.conferenceRecord)} conf` : null].filter(Boolean).join(" · ")}</span> : null}
-    </div>
+            {header}
+          </div>
+          <div className={styles.inner} ref={inner} data-columns={columns}>
+            {game.detail ? (
+              <Loaded game={game} event={event} palette={palette} columns={columns} geometry={geometry} moments={moments} beats={beats} setBeats={setBeats} />
+            ) : (
+              <>
+                <StaticHero event={event} palette={palette} geometry={geometry} />
+                {game.detailFailed ? <p className={styles.note}>{ErrorCopy.inline("match details")}</p> : null}
+              </>
+            )}
+          </div>
+        </MomentProvider>
+      </LinkedFocusProvider>
+    </article>
   );
 }
 
-/** Live: the dot and clock. Scheduled: a countdown inside a day, then the day and time. Final: the word and the date. */
-function HeroStatus({ event, stale }: { event: ScoreEvent; stale: boolean }) {
-  const soon = event.state === "scheduled" && event.start - Date.now() < 86_400_000;
-  const now = useNow(soon ? 1000 : 30_000, event.state === "scheduled");
-  switch (event.state) {
-    case "live":
-      return (
-        <div className={styles.status}>
-          <LiveStatus clock={event.clock} fallback={event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live")} size={11.5} animated={!stale} />
-          {event.liveLine ? <span className={styles.statusSecond}>{event.liveLine}</span> : null}
-        </div>
-      );
-    case "scheduled": {
-      const clock = countdownClock(event.start, now);
-      return (
-        <div className={styles.status}>
-          {event.detail === "Delayed" && event.start < now ? (
-            <span className={styles.finalWord} style={{ color: "var(--delayed-text)" }}>
-              Delayed
-            </span>
-          ) : clock ? (
-            <span className={styles.countdown}>Starts in {clock}</span>
-          ) : (
-            <span className={styles.countdown}>{countdown(event.start, now) ?? "Upcoming"}</span>
-          )}
-          <span className={styles.statusSecond}>{dayAndTime(event.start, now)}</span>
-        </div>
-      );
-    }
-    case "final":
-      return (
-        <div className={styles.status}>
-          <span className={styles.finalWord}>{spokenStatus(event.detail ?? "Final")}</span>
-          <span className={styles.statusSecond}>{mediumDayLabel(dayKeyOf(event.start))}</span>
-        </div>
-      );
-  }
-}
-
-function FieldHero({ event, stale }: { event: ScoreEvent; stale: boolean }) {
-  if (event.content.kind !== "field") return null;
+/** The hero before the detail has loaded (the event is known): no sections yet. */
+function StaticHero({ event, palette, geometry }: { event: ScoreEvent; palette: TeamPalette; geometry: ReturnType<typeof usePageGeometry> }) {
+  const scores = event.content.kind === "match" ? { top: event.content.top.score, bottom: event.content.bottom.score } : { top: null, bottom: null };
   return (
-    <div className={styles.fieldHero}>
-      {event.caption ? <p className={styles.caption} style={{ padding: 0 }}>{event.caption}</p> : null}
-      <h1 className={styles.fieldTitle}>{event.content.title}</h1>
-      {event.content.summary ? <p className={styles.fieldSummary}>{event.content.summary}</p> : null}
-      <div style={{ paddingTop: "calc(4 * var(--pt))" }}>
-        <HeroStatus event={event} stale={stale} />
-      </div>
+    <div className={styles.heroSlot}>
+      <Hero
+        event={event}
+        palette={event.content.kind === "match" ? palette : null}
+        scores={scores}
+        beats={NO_BEATS}
+        surface="hero"
+        clockFallback={event.detail ?? "Live"}
+        staleSince={null}
+        spoken={spokenHero(event, scores, event.detail ?? "Live", null)}
+        caption={event.caption}
+        heroRef={(el) => {
+          geometry.hero = el;
+        }}
+      />
     </div>
   );
 }
 
-/** Where to watch and where it's played; the rest of the page lands here next. */
-function Details({ event }: { event: ScoreEvent }) {
-  const networks = event.broadcast ? event.broadcast.split(" · ").map((n) => broadcaster(n)) : [];
+function Loaded({ game, event, palette, columns, geometry, moments, beats, setBeats }: {
+  game: GameData;
+  event: ScoreEvent;
+  palette: TeamPalette;
+  columns: boolean;
+  geometry: ReturnType<typeof usePageGeometry>;
+  moments: ReturnType<typeof useMomentSlot>;
+  beats: HeroBeats;
+  setBeats: React.Dispatch<React.SetStateAction<HeroBeats>>;
+}) {
+  const detail = game.detail!;
+  const live = event.state === "live";
+  const top = event.content.kind === "match" ? event.content.top : null;
+  const bottom = event.content.kind === "match" ? event.content.bottom : null;
+  const context: GameContext = {
+    event,
+    detail,
+    palette,
+    names: { top: top?.abbreviation ?? "", bottom: bottom?.abbreviation ?? "" },
+    spoken: { top: top?.name ?? "", bottom: bottom?.name ?? "" },
+    live,
+    split: columns,
+    moments,
+    geometry,
+    leagueID: game.leagueID,
+    refresh: game.refresh,
+  };
+  const sport: SportPage = SPORT_PAGES[pageKind(event.ref)](context);
+
+  // The hero's numbers (the lane's while it's ahead).
+  const scores = { top: sport.laneScores?.top ?? top?.score ?? null, bottom: sport.laneScores?.bottom ?? bottom?.score ?? null };
+  useBeatTriggers(event, scores, setBeats);
+  const surface = useSurface(geometry);
+  const fallback = sport.clockFallback ?? (event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live"));
+
+  const shown = sectionOrder(event.ref, event.state).filter((s) => sport.sections[s] != null);
+  const placed = arrangement(shown, event.ref, event.state, columns);
+  useRemeasure(geometry, `${placed.map((p) => p.section).join()}|${columns}`);
+
+  return (
+    <>
+      <div className={styles.heroSlot}>
+        <Hero
+          event={event}
+          palette={event.content.kind === "match" ? palette : null}
+          scores={scores}
+          beats={beats}
+          surface={surface}
+          clockFallback={fallback}
+          liveSecond={sport.heroSecond}
+          possession={sport.possession ?? null}
+          staleSince={game.staleSince}
+          spoken={spokenHero(event, scores, fallback, sport.heroSpoken ?? null)}
+          caption={event.caption ?? detail.roundName}
+          heroRef={(el) => {
+            geometry.hero = el;
+          }}
+          tuckRef={(el) => {
+            geometry.tuck = el;
+          }}
+        />
+      </div>
+      <DockedScorebar
+        geometry={geometry}
+        event={event}
+        palette={event.content.kind === "match" ? palette : null}
+        scores={scores}
+        beats={beats}
+        surface={surface}
+        clockFallback={fallback}
+        stale={game.staleSince != null}
+        detail={sport.dockDetail}
+        chip={sport.chip ?? null}
+      />
+      <Sections placed={placed} sections={sport.sections} columns={columns} empty={emptyMessage(event)} />
+      {detail.venue ? <p className={styles.venue}>{detail.venue}</p> : null}
+    </>
+  );
+}
+
+/**
+ * The hero's beats: a score-tier moment, the hero's number rising, the final
+ * whistle while the page is open (never when it opens on a final).
+ */
+function useBeatTriggers(event: ScoreEvent, scores: { top: string | null; bottom: string | null }, setBeats: React.Dispatch<React.SetStateAction<HeroBeats>>): void {
+  const moment = useCurrentMoment();
+  const seenMoment = useRef<string | null>(null);
+  const lastScores = useRef(scores);
+  const lastState = useRef(event.state);
+
+  useEffect(() => {
+    if (!moment || moment.tier !== Tier.score || seenMoment.current === moment.id) return;
+    seenMoment.current = moment.id;
+    setBeats((b) => beatScore(b, scorer(moment), decisive(moment), Date.now()));
+  }, [moment]);
+
+  useEffect(() => {
+    const was = lastScores.current;
+    lastScores.current = scores;
+    for (const side of ["top", "bottom"] as const) {
+      const before = Number(was[side]);
+      const now = Number(scores[side]);
+      if (was[side] != null && scores[side] != null && Number.isFinite(before) && Number.isFinite(now) && now > before) {
+        setBeats((b) => beatScoreRose(b, side, Date.now()));
+      }
+    }
+  }, [scores.top, scores.bottom]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const was = lastState.current;
+    lastState.current = event.state;
+    if (was !== "live" || event.state !== "final" || event.content.kind !== "match") return;
+    const { top, bottom } = event.content;
+    const side = winner(top, bottom, scores);
+    setBeats((b) => beatFinal(b, side, false, false, Date.now()));
+    announce(finalAnnouncement({ name: top.name, score: scores.top }, { name: bottom.name, score: scores.bottom }, side));
+  }, [event.state]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+/** The sections in one column, or blocks of two columns with spans between them. */
+function Sections({ placed, sections, columns, empty }: { placed: readonly PlacedSection[]; sections: SportPage["sections"]; columns: boolean; empty: string }) {
+  if (placed.length === 0) return <p className={styles.empty}>{empty}</p>;
+  if (!columns) {
+    return (
+      <div className={styles.sections}>
+        {placed.map((p) => (
+          <div key={p.section} className={styles.slot}>
+            {sections[p.section]}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  // Runs of left/right sections form a block; a span closes it.
+  const blocks: { left: PlacedSection[]; right: PlacedSection[]; span: PlacedSection | null }[] = [];
+  let current = { left: [] as PlacedSection[], right: [] as PlacedSection[], span: null as PlacedSection | null };
+  for (const p of placed) {
+    if (p.column === "span") {
+      blocks.push({ ...current, span: p });
+      current = { left: [], right: [], span: null };
+    } else (p.column === "left" ? current.left : current.right).push(p);
+  }
+  if (current.left.length || current.right.length) blocks.push(current);
   return (
     <div className={styles.sections}>
-      {networks.length > 0 || event.venue ? (
-        <section>
-          <SectionTitle>Game</SectionTitle>
-          <dl className={styles.facts}>
-            {networks.length > 0 ? (
-              <>
-                <dt className={styles.factLabel}>Where to watch</dt>
-                <dd style={{ margin: 0 }}>
-                  {networks.map((b, i) => (
-                    <span key={b.name}>
-                      {i > 0 ? " · " : null}
-                      {b.url ? (
-                        <a className={styles.watch} href={b.url} target="_blank" rel="noopener noreferrer">
-                          {b.name}
-                        </a>
-                      ) : (
-                        b.name
-                      )}
-                    </span>
-                  ))}
-                </dd>
-              </>
-            ) : null}
-            {event.venue ? (
-              <>
-                <dt className={styles.factLabel}>Venue</dt>
-                <dd style={{ margin: 0 }}>{event.venue}</dd>
-              </>
-            ) : null}
-          </dl>
-        </section>
-      ) : null}
-      <p className={styles.note}>The full game page (live charts, plays, stats and tables for each sport) is on its way.</p>
+      {blocks.map((b, i) => (
+        <div key={i}>
+          <div className={styles.columns}>
+            <div className={styles.column}>
+              {b.left.map((p) => (
+                <div key={p.section} className={styles.slot}>
+                  {sections[p.section]}
+                </div>
+              ))}
+            </div>
+            <div className={styles.column}>
+              {b.right.map((p) => (
+                <div key={p.section} className={styles.slot}>
+                  {sections[p.section]}
+                </div>
+              ))}
+            </div>
+          </div>
+          {b.span ? <div className={styles.slot}>{sections[b.span.section]}</div> : null}
+        </div>
+      ))}
     </div>
   );
 }
 
-function HeroSkeleton() {
-  return (
-    <div className={styles.heroWrap}>
-      <GlassCard variant="clear">
-        <div className={styles.hero} role="status" aria-label="Loading game">
-          <Skeleton width={120} height={8} />
-          <div className={styles.scoreboard} style={{ gap: "calc(40 * var(--pt))", padding: "calc(8 * var(--pt)) 0" }}>
-            <Skeleton circle width={34} height={34} />
-            <Skeleton width={70} height={24} />
-            <Skeleton circle width={34} height={34} />
-          </div>
-        </div>
-      </GlassCard>
-    </div>
-  );
+function emptyMessage(event: ScoreEvent): string {
+  const kind = event.ref?.kind;
+  if (event.state === "scheduled") {
+    if (kind === "counterStrike") return "Map picks appear before the match; rounds once it starts.";
+    if (kind === "climbing") return "Results appear once the first round starts.";
+    return "Stats and live data appear once the game starts.";
+  }
+  return event.state === "live" ? "Live details aren't available for this game yet." : "No further details for this game.";
+}
+
+/**
+ * The hero in one sentence: "Brewers 10, Rays 1. Final. World Series, Game 3."
+ * A heading, read when the page opens (DetailView.heroSpoken).
+ */
+function spokenHero(event: ScoreEvent, scores: { top: string | null; bottom: string | null }, clock: string, extra: string | null): string {
+  if (event.content.kind !== "match") return event.content.title;
+  const { top, bottom } = event.content;
+  const parts: string[] = [];
+  parts.push(scores.top != null && scores.bottom != null ? `${top.name} ${scores.top}, ${bottom.name} ${scores.bottom}` : `${top.name} versus ${bottom.name}`);
+  if (event.state === "live") parts.push(spokenStatus(clock));
+  else if (event.state === "final") {
+    parts.push(spokenStatus(event.detail ?? "Final"));
+    const won = stepsBack(event, bottom) ? top : stepsBack(event, top) ? bottom : null;
+    if (won) parts.push(`${won.name} won`);
+  } else parts.push(new Intl.DateTimeFormat(undefined, { weekday: "long", hour: "numeric", minute: "2-digit" }).format(event.start));
+  if (event.caption) parts.push(event.caption);
+  if (extra) parts.push(extra);
+  return `${parts.join(". ")}.`;
 }

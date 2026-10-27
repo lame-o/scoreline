@@ -1,0 +1,213 @@
+.atPlate {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+  /* The count's system colors, deep enough on both themes. */
+  --ball: light-dark(#34c759, #30d158);
+  --strike: light-dark(#ff9500, #ff9f0a);
+  --out: var(--live);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: calc(18 * var(--pt));
+}
+
+.diamond {
+  position: relative;
+  width: calc(52 * var(--pt));
+  height: calc(48 * var(--pt));
+  flex: none;
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.base {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: rotate(45deg);
+  fill: color-mix(in srgb, var(--label) 8%, transparent);
+  stroke: color-mix(in srgb, var(--label) 25%, transparent);
+  stroke-width: 1;
+  transition:
+    fill var(--dur-quick) var(--ease-out),
+    stroke var(--dur-quick) var(--ease-out),
+    transform var(--dur-quick) var(--ease-out);
+}
+
+.base[data-on="true"] {
+  fill: var(--fill);
+  stroke: transparent;
+}
+
+/* The runner being read out below. */
+.base[data-lit="true"] {
+  transform: rotate(45deg) scale(1.15);
+}
+
+.turn {
+  stroke: color-mix(in srgb, var(--label) 80%, transparent);
+  stroke-width: 1;
+  stroke-linecap: round;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.plate {
+  fill: var(--label-secondary);
+  transition: fill var(--dur-fade) var(--ease-out);
+}
+
+.plate[data-scored="true"] {
+  fill: var(--plate);
+}
+
+/* One stroke ring that grows and fades, once: "here" (Moments.swift `MomentPing`). */
+.ping {
+  fill: none;
+  stroke: var(--plate);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ping 600ms cubic-bezier(0.23, 1, 0.32, 1) both;
+  pointer-events: none;
+}
+
+@keyframes ping {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ping {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.counts {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+  flex: none;
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+}
+
+.countLabel {
+  width: calc(10 * var(--pt));
+  font-size: calc(10 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.countDot {
+  width: calc(8 * var(--pt));
+  height: calc(8 * var(--pt));
+  border-radius: 50%;
+  background: var(--viz-track);
+  transition: background-color var(--dur-quick) var(--ease-out);
+}
+
+.countDot[data-on="true"][data-tone="ball"] {
+  background: var(--ball);
+}
+
+.countDot[data-on="true"][data-tone="strike"] {
+  background: var(--strike);
+}
+
+.countDot[data-on="true"][data-tone="out"] {
+  background: var(--out);
+}
+
+.matchup {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  min-width: 0;
+}
+
+.person {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.role {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  height: calc(12 * var(--pt));
+  font-size: calc(9.5 * var(--pt));
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.teamDot {
+  width: calc(6 * var(--pt));
+  height: calc(6 * var(--pt));
+  border-radius: 50%;
+  flex: none;
+}
+
+.chip {
+  padding: calc(1 * var(--pt)) calc(5 * var(--pt));
+  border-radius: 999px;
+  font-size: calc(8.5 * var(--pt));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: light-dark(#a63700, #ffb340);
+  background: light-dark(rgb(255 149 0 / 0.14), rgb(255 159 10 / 0.18));
+  animation: chip-in var(--dur-quick) var(--ease-out);
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+.name {
+  font-size: var(--text-callout);
+  font-weight: 500;
+  color: var(--label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  a.name:hover {
+    text-decoration: underline;
+    text-decoration-thickness: calc(1 * var(--pt));
+    text-underline-offset: calc(2 * var(--pt));
+  }
+}
+
+.lastPlay {
+  padding-top: calc(6 * var(--pt));
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

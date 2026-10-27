@@ -42,3 +42,18 @@
   font-weight: 600;
   color: var(--live-text);
 }
+
+/* Baseball's live count beside the title: 13pt bold, balls first; each number rolls to the next. */
+.count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(3 * var(--pt));
+  font-size: var(--text-body);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--label);
+}
+
+.countDash {
+  color: var(--label-secondary);
+}

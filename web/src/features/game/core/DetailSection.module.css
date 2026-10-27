@@ -1,0 +1,141 @@
+/* A titled block on the game page (Visualizations.swift `DetailSection`): 16pt above, the gutter at the sides. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+  padding: calc(16 * var(--pt)) var(--gutter) 0;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+}
+
+.caption {
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  max-width: var(--readable-width);
+  text-wrap: pretty;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The quiet surface behind spatial charts (VizKit.swift `VizWell`): light, a faint tint; dark, a plate. */
+.well {
+  position: relative;
+  border-radius: calc(12 * var(--pt));
+  background: light-dark(rgb(0 0 0 / 0.045), rgb(0 0 0 / 0.45));
+  box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.08));
+}
+
+@media (prefers-contrast: more) {
+  .well {
+    box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) light-dark(rgb(0 0 0 / 0.25), rgb(255 255 255 / 0.25));
+  }
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(4 * var(--pt)) calc(12 * var(--pt));
+  padding-top: calc(6 * var(--pt));
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  font-size: calc(10 * var(--pt));
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.swatch {
+  display: inline-grid;
+  place-items: center;
+  min-width: calc(8 * var(--pt));
+  min-height: calc(8 * var(--pt));
+}
+
+/* The footer keeps the legend's space while a readout or a caption covers it. */
+.footer {
+  display: grid;
+  min-width: 0;
+}
+
+.footer > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+.footerLegend {
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.readout {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding-top: calc(6 * var(--pt));
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  animation: fade-in var(--dur-fade) var(--ease-out);
+}
+
+.readout strong {
+  font-weight: 600;
+  color: var(--label);
+  flex: none;
+}
+
+.readout span:not(.dot) {
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.moment {
+  gap: calc(5 * var(--pt));
+  animation: rise-in var(--dur-reveal) var(--ease-out);
+}
+
+.moment span:not(.dot) {
+  margin-left: calc(-5 * var(--pt));
+}
+
+.dot {
+  width: calc(5 * var(--pt));
+  height: calc(5 * var(--pt));
+  border-radius: 50%;
+  background: var(--live);
+  flex: none;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(4 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
