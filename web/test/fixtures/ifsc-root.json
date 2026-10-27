@@ -1,0 +1,41 @@
+{
+ "_source": "https://ifsc.results.info/api/v1/",
+ "_recorded": "2026-10-27T07:15:31.910Z",
+ "current": {
+  "id": 38,
+  "season": "2026",
+  "url": "/api/v1/seasons/38",
+  "leagues": [
+   {
+    "id": 457,
+    "league_id": 1,
+    "name": "World Cups and World Championships",
+    "url": "/api/v1/season_leagues/457"
+   },
+   {
+    "id": 458,
+    "league_id": 2,
+    "name": "IFSC Youth",
+    "url": "/api/v1/season_leagues/458"
+   },
+   {
+    "id": 459,
+    "league_id": 4,
+    "name": "IFSC Asia Adults",
+    "url": "/api/v1/season_leagues/459"
+   }
+  ]
+ },
+ "seasons": [
+  {
+   "id": 40,
+   "name": "2027",
+   "url": "/api/v1/seasons/40"
+  },
+  {
+   "id": 38,
+   "name": "2026",
+   "url": "/api/v1/seasons/38"
+  }
+ ]
+}

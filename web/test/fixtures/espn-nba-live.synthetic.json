@@ -1,0 +1,269 @@
+{
+ "_source": "synthetic",
+ "_note": "Derived from espn-nba-scoreboard.json: status set to 3:10 - 2nd. The first event's last play is a made three (notable), the second's a defensive rebound (routine, type 155).",
+ "events": [
+  {
+   "id": "401909868",
+   "date": "2026-10-26T23:00Z",
+   "name": "Washington Wizards at Charlotte Hornets",
+   "shortName": "WSH @ CHA",
+   "season": {
+    "slug": "regular-season",
+    "year": 2027,
+    "type": 2
+   },
+   "status": {
+    "clock": 190.0,
+    "displayClock": "3:10",
+    "period": 2,
+    "type": {
+     "state": "in",
+     "completed": false,
+     "shortDetail": "3:10 - 2nd",
+     "detail": "3:10 - 2nd Quarter",
+     "name": "STATUS_IN_PROGRESS"
+    }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "51",
+       "records": [
+        {
+         "type": "total",
+         "summary": "3-1"
+        },
+        {
+         "type": "home",
+         "summary": "2-1"
+        },
+        {
+         "type": "road",
+         "summary": "1-0"
+        }
+       ],
+       "team": {
+        "id": "30",
+        "abbreviation": "CHA",
+        "shortDisplayName": "Hornets",
+        "displayName": "Charlotte Hornets",
+        "logo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/cha.png",
+        "color": "008ca8",
+        "alternateColor": "1d1060"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "48",
+       "records": [
+        {
+         "type": "total",
+         "summary": "2-2"
+        },
+        {
+         "type": "home",
+         "summary": "1-1"
+        },
+        {
+         "type": "road",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "27",
+        "abbreviation": "WSH",
+        "shortDisplayName": "Wizards",
+        "displayName": "Washington Wizards",
+        "logo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/wsh.png",
+        "color": "e31837",
+        "alternateColor": "002b5c"
+       }
+      }
+     ],
+     "notes": [],
+     "venue": {
+      "fullName": "Spectrum Center"
+     },
+     "broadcasts": [
+      {
+       "market": "away",
+       "names": [
+        "MNMT",
+        "NBA League Pass"
+       ]
+      }
+     ],
+     "situation": {
+      "lastPlay": {
+       "id": "1",
+       "type": {
+        "id": "92",
+        "text": "Jump Shot"
+       },
+       "text": "LaMelo Ball makes 26-foot three point jumper (Brandon Miller assists)",
+       "scoreValue": 3,
+       "athletesInvolved": [
+        {
+         "fullName": "LaMelo Ball",
+         "displayName": "LaMelo Ball",
+         "shortName": "L. Ball"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "links": [
+    {
+     "href": "https://www.espn.com/nba/game/_/gameId/401909868/wizards-hornets",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ]
+    },
+    {
+     "href": "https://www.espn.com/nba/boxscore/_/gameId/401909868",
+     "rel": [
+      "boxscore",
+      "desktop",
+      "event"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401900001",
+   "date": "2026-10-26T23:00Z",
+   "name": "Washington Wizards at Charlotte Hornets",
+   "shortName": "WSH @ CHA",
+   "season": {
+    "slug": "regular-season",
+    "year": 2027,
+    "type": 2
+   },
+   "status": {
+    "clock": 190.0,
+    "displayClock": "3:10",
+    "period": 2,
+    "type": {
+     "state": "in",
+     "completed": false,
+     "shortDetail": "3:10 - 2nd",
+     "detail": "3:10 - 2nd Quarter",
+     "name": "STATUS_IN_PROGRESS"
+    }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "51",
+       "records": [
+        {
+         "type": "total",
+         "summary": "3-1"
+        },
+        {
+         "type": "home",
+         "summary": "2-1"
+        },
+        {
+         "type": "road",
+         "summary": "1-0"
+        }
+       ],
+       "team": {
+        "id": "30",
+        "abbreviation": "CHA",
+        "shortDisplayName": "Hornets",
+        "displayName": "Charlotte Hornets",
+        "logo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/cha.png",
+        "color": "008ca8",
+        "alternateColor": "1d1060"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "48",
+       "records": [
+        {
+         "type": "total",
+         "summary": "2-2"
+        },
+        {
+         "type": "home",
+         "summary": "1-1"
+        },
+        {
+         "type": "road",
+         "summary": "1-1"
+        }
+       ],
+       "team": {
+        "id": "27",
+        "abbreviation": "WSH",
+        "shortDisplayName": "Wizards",
+        "displayName": "Washington Wizards",
+        "logo": "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/wsh.png",
+        "color": "e31837",
+        "alternateColor": "002b5c"
+       }
+      }
+     ],
+     "notes": [],
+     "venue": {
+      "fullName": "Spectrum Center"
+     },
+     "broadcasts": [
+      {
+       "market": "away",
+       "names": [
+        "MNMT",
+        "NBA League Pass"
+       ]
+      }
+     ],
+     "situation": {
+      "lastPlay": {
+       "id": "2",
+       "type": {
+        "id": "155",
+        "text": "Defensive Rebound"
+       },
+       "text": "Brandon Miller defensive rebound",
+       "scoreValue": 0,
+       "athletesInvolved": [
+        {
+         "fullName": "Brandon Miller",
+         "shortName": "B. Miller"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "links": [
+    {
+     "href": "https://www.espn.com/nba/game/_/gameId/401909868/wizards-hornets",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ]
+    },
+    {
+     "href": "https://www.espn.com/nba/boxscore/_/gameId/401909868",
+     "rel": [
+      "boxscore",
+      "desktop",
+      "event"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,482 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80",
+ "_recorded": "2026-10-27T07:02:10.788Z",
+ "events": [
+  {
+   "id": "401856842",
+   "date": "2026-10-31T16:00Z",
+   "name": "Arizona Wildcats at Texas Tech Red Raiders",
+   "shortName": "ARIZ @ TTU",
+   "season": {
+    "slug": "regular-season",
+    "year": 2026,
+    "type": 2
+   },
+   "status": {
+    "clock": 0,
+    "displayClock": "0:00",
+    "period": 0,
+    "type": {
+     "state": "pre",
+     "completed": false,
+     "shortDetail": "10/31 - 12:00 PM EDT",
+     "detail": "Sat, October 31st at 12:00 PM EDT",
+     "name": "STATUS_SCHEDULED"
+    }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "curatedRank": {
+        "current": 13
+       },
+       "records": [
+        {
+         "type": "total",
+         "summary": "6-1"
+        },
+        {
+         "type": "homerecord",
+         "summary": "4-0"
+        },
+        {
+         "type": "awayrecord",
+         "summary": "2-1"
+        },
+        {
+         "type": "vsconf",
+         "summary": "3-1"
+        }
+       ],
+       "team": {
+        "id": "2641",
+        "abbreviation": "TTU",
+        "shortDisplayName": "Texas Tech",
+        "displayName": "Texas Tech Red Raiders",
+        "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2641.png",
+        "color": "da291c",
+        "alternateColor": "000000"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "curatedRank": {
+        "current": 22
+       },
+       "records": [
+        {
+         "type": "total",
+         "summary": "6-1"
+        },
+        {
+         "type": "homerecord",
+         "summary": "4-0"
+        },
+        {
+         "type": "awayrecord",
+         "summary": "2-1"
+        },
+        {
+         "type": "vsconf",
+         "summary": "3-1"
+        }
+       ],
+       "team": {
+        "id": "12",
+        "abbreviation": "ARIZ",
+        "shortDisplayName": "Arizona",
+        "displayName": "Arizona Wildcats",
+        "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/12.png",
+        "color": "cc0033",
+        "alternateColor": "003366"
+       }
+      }
+     ],
+     "notes": [],
+     "venue": {
+      "fullName": "Galaxy Stadium"
+     },
+     "broadcasts": [
+      {
+       "market": "national",
+       "names": [
+        "ESPN"
+       ]
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "href": "https://www.espn.com/college-football/game/_/gameId/401856842/arizona-texas-tech",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401856734",
+   "date": "2026-10-31T19:30Z",
+   "name": "Florida Gators at Georgia Bulldogs",
+   "shortName": "FLA VS UGA",
+   "season": {
+    "slug": "regular-season",
+    "year": 2026,
+    "type": 2
+   },
+   "status": {
+    "clock": 0,
+    "displayClock": "0:00",
+    "period": 0,
+    "type": {
+     "state": "pre",
+     "completed": false,
+     "shortDetail": "10/31 - 3:30 PM EDT",
+     "detail": "Sat, October 31st at 3:30 PM EDT",
+     "name": "STATUS_SCHEDULED"
+    }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "curatedRank": {
+        "current": 3
+       },
+       "records": [
+        {
+         "type": "total",
+         "summary": "6-1"
+        },
+        {
+         "type": "homerecord",
+         "summary": "4-1"
+        },
+        {
+         "type": "awayrecord",
+         "summary": "2-0"
+        },
+        {
+         "type": "vsconf",
+         "summary": "4-1"
+        }
+       ],
+       "team": {
+        "id": "61",
+        "abbreviation": "UGA",
+        "shortDisplayName": "Georgia",
+        "displayName": "Georgia Bulldogs",
+        "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/61.png",
+        "color": "ba0c2f",
+        "alternateColor": "2c2a29"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "curatedRank": {
+        "current": 17
+       },
+       "records": [
+        {
+         "type": "total",
+         "summary": "5-2"
+        },
+        {
+         "type": "homerecord",
+         "summary": "3-1"
+        },
+        {
+         "type": "awayrecord",
+         "summary": "2-1"
+        },
+        {
+         "type": "vsconf",
+         "summary": "3-2"
+        }
+       ],
+       "team": {
+        "id": "57",
+        "abbreviation": "FLA",
+        "shortDisplayName": "Florida",
+        "displayName": "Florida Gators",
+        "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/57.png",
+        "color": "0021a5",
+        "alternateColor": "fa4616"
+       }
+      }
+     ],
+     "notes": [],
+     "venue": {
+      "fullName": "Mercedes-Benz Stadium"
+     },
+     "broadcasts": [
+      {
+       "market": "national",
+       "names": [
+        "ABC"
+       ]
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "href": "https://www.espn.com/college-football/game/_/gameId/401856734/florida-georgia",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401859185",
+   "date": "2026-10-31T16:00Z",
+   "name": "Notre Dame Fighting Irish at Navy Midshipmen",
+   "shortName": "ND VS NAVY",
+   "season": {
+    "slug": "regular-season",
+    "year": 2026,
+    "type": 2
+   },
+   "status": {
+    "clock": 0,
+    "displayClock": "0:00",
+    "period": 0,
+    "type": {
+     "state": "pre",
+     "completed": false,
+     "shortDetail": "10/31 - 12:00 PM EDT",
+     "detail": "Sat, October 31st at 12:00 PM EDT",
+     "name": "STATUS_SCHEDULED"
+    }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "curatedRank": {
+        "current": 99
+       },
+       "records": [
+        {
+         "type": "total",
+         "summary": "2-5"
+        },
+        {
+         "type": "homerecord",
+         "summary": "2-1"
+        },
+        {
+         "type": "awayrecord",
+         "summary": "0-4"
+        },
+        {
+         "type": "vsconf",
+         "summary": "1-4"
+        }
+       ],
+       "team": {
+        "id": "2426",
+        "abbreviation": "NAVY",
+        "shortDisplayName": "Navy",
+        "displayName": "Navy Midshipmen",
+        "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2426.png",
+        "color": "00225b",
+        "alternateColor": "b5a67c"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "curatedRank": {
+        "current": 5
+       },
+       "records": [
+        {
+         "type": "total",
+         "summary": "6-1"
+        },
+        {
+         "type": "homerecord",
+         "summary": "3-0"
+        },
+        {
+         "type": "awayrecord",
+         "summary": "2-1"
+        },
+        {
+         "type": "vsconf",
+         "summary": "0-0"
+        }
+       ],
+       "team": {
+        "id": "87",
+        "abbreviation": "ND",
+        "shortDisplayName": "Notre Dame",
+        "displayName": "Notre Dame Fighting Irish",
+        "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/87.png",
+        "color": "062340",
+        "alternateColor": "c99700"
+       }
+      }
+     ],
+     "notes": [],
+     "venue": {
+      "fullName": "Gillette Stadium"
+     },
+     "broadcasts": [
+      {
+       "market": "national",
+       "names": [
+        "ABC"
+       ]
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "href": "https://www.espn.com/college-football/game/_/gameId/401859185/notre-dame-navy",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401858278",
+   "date": "2026-10-31T16:00Z",
+   "name": "SMU Mustangs at Syracuse Orange",
+   "shortName": "SMU @ SYR",
+   "season": {
+    "slug": "regular-season",
+    "year": 2026,
+    "type": 2
+   },
+   "status": {
+    "clock": 0,
+    "displayClock": "0:00",
+    "period": 0,
+    "type": {
+     "state": "pre",
+     "completed": false,
+     "shortDetail": "10/31 - 12:00 PM EDT",
+     "detail": "Sat, October 31st at 12:00 PM EDT",
+     "name": "STATUS_SCHEDULED"
+    }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "curatedRank": {
+        "current": 99
+       },
+       "records": [
+        {
+         "type": "total",
+         "summary": "3-4"
+        },
+        {
+         "type": "homerecord",
+         "summary": "1-2"
+        },
+        {
+         "type": "awayrecord",
+         "summary": "2-2"
+        },
+        {
+         "type": "vsconf",
+         "summary": "1-4"
+        }
+       ],
+       "team": {
+        "id": "183",
+        "abbreviation": "SYR",
+        "shortDisplayName": "Syracuse",
+        "displayName": "Syracuse Orange",
+        "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/183.png",
+        "color": "000e54",
+        "alternateColor": "ff431b"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "curatedRank": {
+        "current": 19
+       },
+       "records": [
+        {
+         "type": "total",
+         "summary": "6-1"
+        },
+        {
+         "type": "homerecord",
+         "summary": "5-0"
+        },
+        {
+         "type": "awayrecord",
+         "summary": "1-1"
+        },
+        {
+         "type": "vsconf",
+         "summary": "4-1"
+        }
+       ],
+       "team": {
+        "id": "2567",
+        "abbreviation": "SMU",
+        "shortDisplayName": "SMU",
+        "displayName": "SMU Mustangs",
+        "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2567.png",
+        "color": "a80000",
+        "alternateColor": "0033a1"
+       }
+      }
+     ],
+     "notes": [],
+     "venue": {
+      "fullName": "JMA Wireless Dome"
+     },
+     "broadcasts": [
+      {
+       "market": "national",
+       "names": [
+        "ESPN2"
+       ]
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "href": "https://www.espn.com/college-football/game/_/gameId/401858278/smu-syracuse",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,654 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard",
+ "_recorded": "2026-10-27T07:02:10.643Z",
+ "events": [
+  {
+   "id": "401879254",
+   "date": "2026-10-25T14:00Z",
+   "name": "Newcastle United at Crystal Palace",
+   "shortName": "NEW @ CRY",
+   "season": {
+    "slug": "2026-27-english-premier-league",
+    "year": 2026,
+    "type": 14308
+   },
+   "status": {
+    "clock": 5400,
+    "displayClock": "90'+9'",
+    "period": 2,
+    "type": {
+     "state": "post",
+     "completed": true,
+     "shortDetail": "FT",
+     "detail": "FT",
+     "name": "STATUS_FULL_TIME"
+    }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "winner": false,
+       "records": [
+        {
+         "type": "total",
+         "summary": "2-1-5"
+        }
+       ],
+       "team": {
+        "id": "384",
+        "abbreviation": "CRY",
+        "shortDisplayName": "C Palace",
+        "displayName": "Crystal Palace",
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/384.png",
+        "color": "0202fb",
+        "alternateColor": "000000"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "2",
+       "winner": true,
+       "records": [
+        {
+         "type": "total",
+         "summary": "3-2-3"
+        }
+       ],
+       "team": {
+        "id": "361",
+        "abbreviation": "NEW",
+        "shortDisplayName": "Newcastle",
+        "displayName": "Newcastle United",
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/361.png",
+        "color": "000000",
+        "alternateColor": "0B1B3D"
+       }
+      }
+     ],
+     "notes": [],
+     "details": [
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 2126,
+        "displayValue": "36'"
+       },
+       "team": {
+        "id": "361"
+       },
+       "scoringPlay": false,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "N. González",
+         "displayName": "Nico González"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 2700,
+        "displayValue": "45'+1'"
+       },
+       "team": {
+        "id": "361"
+       },
+       "scoringPlay": false,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "F. Schär",
+         "displayName": "Fabian Schär"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "70",
+        "text": "Goal"
+       },
+       "clock": {
+        "value": 2810,
+        "displayValue": "47'"
+       },
+       "team": {
+        "id": "361"
+       },
+       "scoringPlay": true,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "W. Osula",
+         "displayName": "William Osula"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "70",
+        "text": "Goal"
+       },
+       "clock": {
+        "value": 3438,
+        "displayValue": "58'"
+       },
+       "team": {
+        "id": "361"
+       },
+       "scoringPlay": true,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "H. Barnes",
+         "displayName": "Harvey Barnes"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 4450,
+        "displayValue": "75'"
+       },
+       "team": {
+        "id": "384"
+       },
+       "scoringPlay": false,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "Y. Pino",
+         "displayName": "Yéremy Pino"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 4638,
+        "displayValue": "78'"
+       },
+       "team": {
+        "id": "361"
+       },
+       "scoringPlay": false,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "L. Hall",
+         "displayName": "Lewis Hall"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 4720,
+        "displayValue": "79'"
+       },
+       "team": {
+        "id": "384"
+       },
+       "scoringPlay": false,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "A. Khalaili",
+         "displayName": "Anan Khalaili"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 5400,
+        "displayValue": "90'+3'"
+       },
+       "team": {
+        "id": "384"
+       },
+       "scoringPlay": false,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "J. Canvot",
+         "displayName": "Jaydee Canvot"
+        }
+       ]
+      }
+     ],
+     "venue": {
+      "fullName": "Selhurst Park"
+     },
+     "broadcasts": [
+      {
+       "market": "national",
+       "names": [
+        "USA Net",
+        "Tele"
+       ]
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "href": "https://www.espn.com/soccer/match/_/gameId/401879254/newcastle-united-crystal-palace",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ]
+    },
+    {
+     "href": "https://www.espn.com/soccer/report/_/gameId/401879254",
+     "rel": [
+      "recap",
+      "desktop",
+      "event"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401878766",
+   "date": "2026-10-25T14:00Z",
+   "name": "Brentford at Hull City",
+   "shortName": "BRE @ HUL",
+   "season": {
+    "slug": "2026-27-english-premier-league",
+    "year": 2026,
+    "type": 14308
+   },
+   "status": {
+    "clock": 5400,
+    "displayClock": "90'+4'",
+    "period": 2,
+    "type": {
+     "state": "post",
+     "completed": true,
+     "shortDetail": "FT",
+     "detail": "FT",
+     "name": "STATUS_FULL_TIME"
+    }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "1",
+       "winner": false,
+       "records": [
+        {
+         "type": "total",
+         "summary": "2-4-2"
+        }
+       ],
+       "team": {
+        "id": "306",
+        "abbreviation": "HUL",
+        "shortDisplayName": "Hull",
+        "displayName": "Hull City",
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/306.png",
+        "color": "f28800",
+        "alternateColor": "ffffff"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "1",
+       "winner": false,
+       "records": [
+        {
+         "type": "total",
+         "summary": "2-5-1"
+        }
+       ],
+       "team": {
+        "id": "337",
+        "abbreviation": "BRE",
+        "shortDisplayName": "Brentford",
+        "displayName": "Brentford",
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/337.png",
+        "color": "f42727",
+        "alternateColor": "0f1c3f"
+       }
+      }
+     ],
+     "notes": [],
+     "details": [
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 1335,
+        "displayValue": "23'"
+       },
+       "team": {
+        "id": "337"
+       },
+       "scoringPlay": false,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "A. Hickey",
+         "displayName": "Aaron Hickey"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "98",
+        "text": "Penalty - Scored"
+       },
+       "clock": {
+        "value": 1430,
+        "displayValue": "24'"
+       },
+       "team": {
+        "id": "306"
+       },
+       "scoringPlay": true,
+       "ownGoal": false,
+       "penaltyKick": true,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "O. McBurnie",
+         "displayName": "Oliver McBurnie"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "173",
+        "text": "Goal - Volley"
+       },
+       "clock": {
+        "value": 3724,
+        "displayValue": "63'"
+       },
+       "team": {
+        "id": "337"
+       },
+       "scoringPlay": true,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "D. Ouattara",
+         "displayName": "Dango Ouattara"
+        }
+       ]
+      }
+     ],
+     "venue": {
+      "fullName": "The MKM Stadium"
+     },
+     "broadcasts": [
+      {
+       "market": "national",
+       "names": [
+        "Peacock"
+       ]
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "href": "https://www.espn.com/soccer/match/_/gameId/401878766/brentford-hull-city",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ]
+    },
+    {
+     "href": "https://www.espn.com/soccer/report/_/gameId/401878766",
+     "rel": [
+      "recap",
+      "desktop",
+      "event"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401878765",
+   "date": "2026-10-25T14:00Z",
+   "name": "Brighton & Hove Albion at Liverpool",
+   "shortName": "BHA @ LIV",
+   "season": {
+    "slug": "2026-27-english-premier-league",
+    "year": 2026,
+    "type": 14308
+   },
+   "status": {
+    "clock": 5400,
+    "displayClock": "90'+5'",
+    "period": 2,
+    "type": {
+     "state": "post",
+     "completed": true,
+     "shortDetail": "FT",
+     "detail": "FT",
+     "name": "STATUS_FULL_TIME"
+    }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "2",
+       "winner": true,
+       "records": [
+        {
+         "type": "total",
+         "summary": "4-3-1"
+        }
+       ],
+       "team": {
+        "id": "364",
+        "abbreviation": "LIV",
+        "shortDisplayName": "Liverpool",
+        "displayName": "Liverpool",
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/364.png",
+        "color": "d11317",
+        "alternateColor": "FFFFFF"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "winner": false,
+       "records": [
+        {
+         "type": "total",
+         "summary": "5-1-2"
+        }
+       ],
+       "team": {
+        "id": "331",
+        "abbreviation": "BHA",
+        "shortDisplayName": "Brighton",
+        "displayName": "Brighton & Hove Albion",
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/331.png",
+        "color": "0606fa",
+        "alternateColor": "005F60"
+       }
+      }
+     ],
+     "notes": [],
+     "details": [
+      {
+       "type": {
+        "id": "97",
+        "text": "Own Goal"
+       },
+       "clock": {
+        "value": 976,
+        "displayValue": "17'"
+       },
+       "team": {
+        "id": "364"
+       },
+       "scoringPlay": true,
+       "ownGoal": true,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "P. Gross",
+         "displayName": "Pascal Gross"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "173",
+        "text": "Goal - Volley"
+       },
+       "clock": {
+        "value": 1247,
+        "displayValue": "21'"
+       },
+       "team": {
+        "id": "364"
+       },
+       "scoringPlay": true,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "A. Isak",
+         "displayName": "Alexander Isak"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 2700,
+        "displayValue": "45'+3'"
+       },
+       "team": {
+        "id": "331"
+       },
+       "scoringPlay": false,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "O. Boscagli",
+         "displayName": "Olivier Boscagli"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 4332,
+        "displayValue": "73'"
+       },
+       "team": {
+        "id": "331"
+       },
+       "scoringPlay": false,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "Costinha",
+         "displayName": "Costinha"
+        }
+       ]
+      }
+     ],
+     "venue": {
+      "fullName": "Anfield"
+     },
+     "broadcasts": [
+      {
+       "market": "national",
+       "names": [
+        "Peacock"
+       ]
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "href": "https://www.espn.com/soccer/match/_/gameId/401878765/brighton-hove-albion-liverpool",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ]
+    },
+    {
+     "href": "https://www.espn.com/soccer/video/_/gameId/401878765",
+     "rel": [
+      "highlights",
+      "desktop"
+     ]
+    }
+   ]
+  }
+ ]
+}

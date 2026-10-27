@@ -1,0 +1,102 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/matches?filter%5Bmatches.discipline_id%5D%5Beq%5D=1&filter%5Bmatches.status%5D%5Bin%5D=upcoming%2Cpostponed&filter%5Bmatches.tier%5D%5Bin%5D=s&sort=start_date&page%5Blimit%5D=12&with=teams%2Ctournament&filter%5Bmatches.start_date%5D%5Bgte%5D=2026-10-25T07%3A01%3A48.587Z",
+ "_recorded": "2026-10-27T07:01:49.382Z",
+ "results": [
+  {
+   "id": 132240,
+   "slug": "liquid-vs-aurora-gaming-27-10-2026",
+   "status": "upcoming",
+   "bo_type": 3,
+   "start_date": "2026-10-27T11:00:00.000+00:00",
+   "team1_score": 0,
+   "team2_score": 0,
+   "winner_team_id": null,
+   "tier": "s",
+   "team1": {
+    "id": 790,
+    "name": "Liquid",
+    "image_url": "https://files.bo3.gg/uploads/team/790/image/webp-01cca8d35079cb4b21bc25268ac75bae.webp"
+   },
+   "team2": {
+    "id": 3598,
+    "name": "Aurora",
+    "image_url": "https://files.bo3.gg/uploads/team/3598/image/webp-49b8df76b0d121cc89c760c1ec16ebea.webp"
+   },
+   "tournament": {
+    "name": "PGL Masters Bucharest 2026"
+   }
+  },
+  {
+   "id": 132239,
+   "slug": "nemiga-vs-dendele-cs-27-10-2026",
+   "status": "upcoming",
+   "bo_type": 3,
+   "start_date": "2026-10-27T11:00:00.000+00:00",
+   "team1_score": 0,
+   "team2_score": 0,
+   "winner_team_id": null,
+   "tier": "s",
+   "team1": {
+    "id": 655,
+    "name": "Nemiga",
+    "image_url": "https://files.bo3.gg/uploads/team/655/image/webp-998a59d1bbae3fd5e32b1e46a3f6204e.webp"
+   },
+   "team2": {
+    "id": 24956,
+    "name": "DENDELE",
+    "image_url": "https://files.bo3.gg/uploads/team/24956/image/webp-faa4b489f27e86c29c5d66ca95c14082.webp"
+   },
+   "tournament": {
+    "name": "PGL Masters Bucharest 2026"
+   }
+  },
+  {
+   "id": 132241,
+   "slug": "spirit-vs-mouz-cs2-27-10-2026",
+   "status": "upcoming",
+   "bo_type": 3,
+   "start_date": "2026-10-27T14:00:00.000+00:00",
+   "team1_score": 0,
+   "team2_score": 0,
+   "winner_team_id": null,
+   "tier": "s",
+   "team1": {
+    "id": 654,
+    "name": "Spirit",
+    "image_url": "https://files.bo3.gg/uploads/team/654/image/webp-41b22d18a871d982f8ff87652bbb0fe6.webp"
+   },
+   "team2": {
+    "id": 765,
+    "name": "MOUZ",
+    "image_url": "https://files.bo3.gg/uploads/team/765/image/bcbdcf50fb2c79b6ab45b0014300b9e0.png"
+   },
+   "tournament": {
+    "name": "PGL Masters Bucharest 2026"
+   }
+  },
+  {
+   "id": 132242,
+   "slug": "the-mongolz-vs-legacy-br-27-10-2026",
+   "status": "upcoming",
+   "bo_type": 3,
+   "start_date": "2026-10-27T14:00:00.000+00:00",
+   "team1_score": 0,
+   "team2_score": 0,
+   "winner_team_id": null,
+   "tier": "s",
+   "team1": {
+    "id": 736,
+    "name": "The MongolZ",
+    "image_url": "https://files.bo3.gg/uploads/team/736/image/webp-499cad826b4cd83ce22f8bd2b13261d6.webp"
+   },
+   "team2": {
+    "id": 8118,
+    "name": "Legacy",
+    "image_url": "https://files.bo3.gg/uploads/team/8118/image/webp-e4a3b023443f1f3ba4ef588164e73111.webp"
+   },
+   "tournament": {
+    "name": "PGL Masters Bucharest 2026"
+   }
+  }
+ ]
+}
