@@ -162,7 +162,7 @@ function TeamView({ teamRef: ref, viaKeyboard }: { readonly teamRef: TeamRef; re
             </div>
           ) : null}
           {failedEverything ? (
-            <ErrorState subject="Team" onRetry={team.reload} />
+            <ErrorState subject="Team" retriesAutomatically retrying={team.fetching} onRetry={team.reload} />
           ) : (
             <SectionColumns sections={sections} layout={layout} slot={slot} render={(s, width) => renderSection(s, width, team, tint, lightInkOn(tint), ref, rosterSpans, injured)} />
           )}

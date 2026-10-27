@@ -169,12 +169,12 @@ export function ClimbingResultsPage({ scope, mode, onMode, switched, crossfade }
           {ready ? <SeasonDockBar summary={summary} axis={axis} hover={hover} onSelect={reveal} barRef={barRef} onTop={() => scrollToTop(root.current, !reduce)} /> : null}
         </ScheduleHeader>
       }
-      footer={<SeasonFooter updated={data.updated} stale={false} loading={data.fetching} subject="results" />}
+      footer={<SeasonFooter updated={data.updated} stale={data.stale} loading={data.fetching} subject="results" />}
     >
       {data.status === "loading" ? (
         <SeasonSkeleton label="Loading results" />
       ) : data.events.length === 0 && data.status === "failed" ? (
-        <ErrorState subject="Results" onRetry={data.refresh} />
+        <ErrorState subject="Results" retriesAutomatically retrying={data.fetching} onRetry={data.refresh} />
       ) : finished.length === 0 ? (
         <EmptyState icon="flag" title="No Results Yet" message={`No finished competitions in ${data.season ?? "this season"} yet.`} actions={<Button onClick={() => onMode("upcoming", false)}>Show Upcoming</Button>} />
       ) : (

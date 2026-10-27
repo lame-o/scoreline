@@ -134,12 +134,12 @@ export function TournamentResultsPage({ scope, mode, onMode, switched, crossfade
           {ready ? <SeasonDockBar summary={summary} axis={axis} hover={hover} onSelect={reveal} barRef={barRef} onTop={() => scrollToTop(root.current, !reduce)} /> : null}
         </ScheduleHeader>
       }
-      footer={<SeasonFooter updated={data.updated} stale={false} loading={data.status === "loading"} subject="results" />}
+      footer={<SeasonFooter updated={data.updated} stale={data.stale} loading={data.status === "loading"} subject="results" />}
     >
       {data.status === "loading" ? (
         <SeasonSkeleton label="Loading results" />
       ) : data.items.length === 0 && data.status === "failed" ? (
-        <ErrorState subject="Results" onRetry={data.refresh} />
+        <ErrorState subject="Results" retriesAutomatically retrying={data.fetching} onRetry={data.refresh} />
       ) : data.items.length === 0 ? (
         <EmptyState icon="trophy" title="No Results" message="No finished S-tier tournaments yet." />
       ) : (

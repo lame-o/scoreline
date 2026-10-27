@@ -74,9 +74,14 @@ const todayEastern = () => dayKeyIn(Date.now(), EASTERN);
 
 // MARK: - Fetching through the cache
 
-/** A query read through the shared client: a fresh entry answers at once, a stale one refetches. */
+/**
+ * A query read through the shared client: a fresh entry answers at once, a
+ * stale one refetches. It fails at its first failure (no retries of its own):
+ * the page's query answers `ok: false` at once and retries on the ladder
+ * (state/retry.ts), asking again only for what failed.
+ */
 function cached<T>(queryKey: readonly unknown[], staleTime: number, fn: () => Promise<T>): Promise<T> {
-  return queryClient.fetchQuery({ queryKey, queryFn: fn, staleTime, gcTime: Math.max(staleTime, 30 * MINUTE) });
+  return queryClient.fetchQuery({ queryKey, queryFn: fn, staleTime, gcTime: Math.max(staleTime, 30 * MINUTE), retry: false });
 }
 
 export interface Board {

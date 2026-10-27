@@ -11,7 +11,7 @@
  */
 import { memo, useCallback, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { DisclosureHeader, EmptyState, ErrorState, OutlineGlide, useGroupFlag, useOutline, type OutlineStore } from "../../design/components";
+import { DisclosureHeader, EmptyState, ErrorState, OutlineGlide, StaleNote, useGroupFlag, useOutline, type OutlineStore } from "../../design/components";
 import { leagueWithID } from "../../data/leagues";
 import type { League, ScoreEvent } from "../../data/models";
 import {
@@ -29,6 +29,7 @@ import {
 import { apRanks } from "../../data/college";
 import { useScoreboard } from "../../state/scores";
 import { useSettings } from "../../state/settings";
+import { loadState } from "../../state/retry";
 import { useRankings, useStandings } from "../../state/standings";
 import { useSplit } from "../../app/layout";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
@@ -58,6 +59,7 @@ function Standings({ league }: { league: League }) {
   // A ringed team from the match this was opened from isn't necessarily yours.
   const word = useCallback((id: string) => (mine.has(id) ? "your team" : "in this match"), [mine]);
   const table = useStandings(league);
+  const load = loadState(table);
   const kind = tableKind(league);
   // Beside the sidebar its list polls; on a phone this page does.
   const scores = useScoreboard({ poll: !split });
@@ -66,14 +68,14 @@ function Standings({ league }: { league: League }) {
 
   return (
     <HighlightWord.Provider value={word}>
-      <TablePage title={league.name}>
+      <TablePage title={league.name} footer={load.stale ? <StaleNote updated={load.updated} subject="table" /> : null}>
         {(layout) =>
           kind === "none" ? (
             <EmptyState icon="list" title="No Table Yet" message={`${league.name} doesn't have a table in Scoreline.`} />
-          ) : table.isPending ? (
+          ) : load.failed ? (
+            <ErrorState subject="Table" retriesAutomatically retrying={load.retrying} onRetry={() => void table.refetch()} />
+          ) : load.loading ? (
             <SkeletonTable rows={kind === "nba" ? 15 : 20} />
-          ) : table.isError && !table.data ? (
-            <ErrorState subject="Table" onRetry={() => void table.refetch()} />
           ) : !table.data || table.data.length === 0 ? (
             <EmptyState icon="list" title="No Table Yet" message={`${league.name} hasn't published a table yet.`} />
           ) : kind === "college" ? (

@@ -33,7 +33,8 @@ import { CATALOG, espnPath, leagueWithID } from "../../../data/leagues";
 import type { League, ScoreEvent, Sport } from "../../../data/models";
 import { pageKind } from "../../../data/sections";
 import { useLogoColorsVersion, wearColors } from "../../../state/logoColors";
-import { queryClient, retryOnline, useScoreboard } from "../../../state/scores";
+import { hasFailed, retrying } from "../../../state/retry";
+import { queryClient, useScoreboard } from "../../../state/scores";
 
 export interface GameData {
   /** The freshest copy of the event, or null while loading or when it can't be found. */
@@ -41,6 +42,8 @@ export interface GameData {
   readonly detail: GameDetail | null;
   /** "loading" until the event is known; "missing" when no source has it; "failed" when its sources couldn't be reached. */
   readonly status: "loading" | "ready" | "missing" | "failed";
+  /** Failed and asking again (the error state's "Retrying…"). */
+  readonly retrying: boolean;
   readonly detailFailed: boolean;
   /** When the detail last loaded (epoch ms). */
   readonly lastLoaded: number | null;
@@ -158,7 +161,8 @@ export function useGame(id: string, { poll, league }: { poll: boolean; league: s
     queryFn: ({ signal }) => (csID != null ? resolveCS(csID, signal) : resolveESPN(espnID!, hint, signal)),
     enabled: !boardEvent && (espnID != null || csID != null) && scores.status !== "loading",
     staleTime: Infinity,
-    retry: retryOnline(1),
+    // Its first failure shows at once; it asks again on the retry ladder (state/retry.ts).
+    ...retrying(),
   });
 
   const failures = useRef(0);
@@ -197,12 +201,13 @@ export function useGame(id: string, { poll, league }: { poll: boolean; league: s
   const lastLoaded = detail.dataUpdatedAt || null;
   const staleSince = event?.state === "live" && loaded && failures.current >= 2 ? lastLoaded : event?.state === "live" && scores.status === "offline" ? scores.lastUpdated : null;
 
+  const lookupFailed = hasFailed(lookup);
   const status: GameData["status"] = event
     ? "ready"
-    : scores.status === "loading" || lookup.isLoading || lookup.fetchStatus === "fetching"
-      ? "loading"
-      : lookup.isError
-        ? "failed"
+    : lookupFailed
+      ? "failed"
+      : scores.status === "loading" || lookup.isLoading || lookup.fetchStatus === "fetching"
+        ? "loading"
         : (espnID == null && csID == null) || lookup.isFetched
           ? "missing"
           : "loading";
@@ -211,6 +216,7 @@ export function useGame(id: string, { poll, league }: { poll: boolean; league: s
     event,
     detail: loaded,
     status,
+    retrying: lookupFailed && lookup.isFetching,
     detailFailed: detail.isError && !detail.data,
     lastLoaded,
     staleSince,

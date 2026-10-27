@@ -141,6 +141,42 @@ test.describe("offline", () => {
   });
 });
 
+test.describe("failing upstream, online", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  // Online, an upstream answering 502 used to hold a page's placeholders for the 20–50 s
+  // of its retries. Now the first failure shows, and the page keeps trying behind it.
+  for (const { path, upstream, title, recovered } of [
+    { path: "/standings/nba", upstream: "**/api/site.api.espn.com/apis/v2/sports/basketball/nba/standings**", title: "Can't Load Table", recovered: /Eastern|Western/ },
+    { path: "/schedule/nba", upstream: "**/api/site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard**", title: "Can't Load Schedule", recovered: null },
+    { path: "/team/espn-football-12", upstream: "**/api/site.api.espn.com/apis/site/v2/sports/football/nfl/teams/12**", title: "Can't Load Team", recovered: null },
+  ]) {
+    test(`${path} says it can't load at its first failure, and keeps trying`, async ({ page, context }) => {
+      let failing = true;
+      let asked = 0;
+      await context.route(upstream, (route) => {
+        asked += 1;
+        return failing ? route.fulfill({ status: 502, body: "{}" }) : route.fallback();
+      });
+      const start = Date.now();
+      await page.goto(path);
+      await expect(page.getByRole("heading", { name: title })).toBeVisible({ timeout: 8_000 });
+      expect(Date.now() - start).toBeLessThan(8_000);
+      await expect(page.getByText("Scoreline will try again automatically.")).toBeVisible();
+      const first = asked;
+      // The first attempt after it comes at 5 s; the error stays up through it.
+      await page.waitForTimeout(6_000);
+      expect(asked).toBeGreaterThan(first);
+      await expect(page.getByRole("heading", { name: title })).toBeVisible();
+      if (recovered) {
+        failing = false;
+        await expect(page.getByText(recovered).first()).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByRole("heading", { name: title })).toHaveCount(0);
+      }
+    });
+  }
+});
+
 test.describe("worst-case names", () => {
   const fixture = JSON.parse(readFileSync(join(import.meta.dirname, "..", "fixtures", "espn-eng1-scoreboard.json"), "utf8")) as { events: Record<string, unknown>[] };
   const event = structuredClone(fixture.events[0]!) as { id: string; date: string; status: unknown; competitions: { competitors: { team: Record<string, unknown>; score: string }[]; details: unknown[] }[] };

@@ -271,7 +271,7 @@ export function AgendaPage({ scope, mode, onMode, switched, crossfade }: Schedul
         {data.loading ? (
           <AgendaSkeleton />
         ) : data.failed ? (
-          <ErrorState subject="Schedule" onRetry={data.refresh} />
+          <ErrorState subject="Schedule" retriesAutomatically retrying={data.fetching} onRetry={data.refresh} />
         ) : (
           <LayoutGroup>
             {chips ? (

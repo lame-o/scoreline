@@ -124,12 +124,12 @@ function ClimbingCategoryPage() {
             {results.discipline === "speed" ? <p className={styles.footnote}>Final times in seconds. In brackets, the qualification time, which orders athletes out in the same round.</p> : null}
           </>
         ) : page.status === "failed" ? (
-          <ErrorState subject="Results" onRetry={page.refresh} />
+          <ErrorState subject="Results" retriesAutomatically retrying={page.fetching} onRetry={page.refresh} />
         ) : (
           <RankingSkeleton />
         )}
       </div>
-      <SeasonFooter updated={page.updated} stale={false} loading={page.status === "loading"} subject="results" />
+      <SeasonFooter updated={page.updated} stale={page.stale} loading={page.status === "loading"} subject="results" />
     </div>
   );
 }
@@ -423,12 +423,12 @@ function TournamentResultsDetailPage() {
             </>
           )
         ) : page.status === "failed" ? (
-          <ErrorState subject="Results" onRetry={page.refresh} />
+          <ErrorState subject="Results" retriesAutomatically retrying={page.fetching} onRetry={page.refresh} />
         ) : (
           <SeasonSkeleton label="Loading results" />
         )}
       </div>
-      <SeasonFooter updated={page.updated} stale={false} loading={page.status === "loading"} subject="results" />
+      <SeasonFooter updated={page.updated} stale={page.stale} loading={page.status === "loading"} subject="results" />
     </div>
   );
 }

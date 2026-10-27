@@ -178,12 +178,12 @@ function ClimbingUpcoming({ scope, mode, onMode, switched, crossfade }: Schedule
           {ready ? <SeasonDockBar summary={summary} axis={axis} hover={hover} onSelect={reveal} barRef={barRef} onTop={() => scrollToTop(root.current, !reduce)} /> : null}
         </ScheduleHeader>
       }
-      footer={<SeasonFooter updated={data.updated} stale={false} loading={data.fetching} />}
+      footer={<SeasonFooter updated={data.updated} stale={data.stale} loading={data.fetching} />}
     >
       {data.status === "loading" ? (
         <SeasonSkeleton />
       ) : events.length === 0 && data.status === "failed" ? (
-        <ErrorState subject="Calendar" onRetry={data.refresh} />
+        <ErrorState subject="Calendar" retriesAutomatically retrying={data.fetching} onRetry={data.refresh} />
       ) : events.length === 0 ? (
         <EmptyState icon="climbing" title="No Competitions" message={data.events.length === 0 && data.seasons.length > 0 ? "No competitions in the disciplines you follow. Choose them in Settings → Climbing." : "The next season's calendar isn't published yet."} />
       ) : (

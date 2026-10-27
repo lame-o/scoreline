@@ -50,7 +50,8 @@ import { espnPhoto, fotMobPhoto, heroPhotoURL } from "../data/profiles/photos";
 import { formMarks, parseStandings, parseTeamResults, standingsPath, standingsURL, standingsWindow, teamScheduleURL, type FormMark, type StandingsRow } from "../data/profiles/results";
 import type { Sport } from "../data/models";
 import { preloadPhoto } from "./profilePhotos";
-import { queryClient, retryOnline } from "./scores";
+import { hasFailed, isAnswer, retrying } from "./retry";
+import { queryClient } from "./scores";
 
 /** How long each kind of response stays fresh (ProfileStore.swift `TTL`). */
 export const TTL = {
@@ -97,10 +98,10 @@ function profileQuery(url: string | null, ttl: number) {
     enabled: url != null,
     staleTime: ttl,
     gcTime: Math.max(ttl, 30 * 60_000),
-    // A profile loads once per visit (the Mac's rule): one quick retry, then the page says what failed.
-    // A 404 is an answer (nobody by that ID), never retried.
-    retry: (count: number, error: Error) => retryOnline(1)(count) && !(error instanceof HTTPError && error.status === 404),
-    retryDelay: 1500,
+    // A profile loads once per visit (the Mac's rule). A failure shows at once (the page, or a part's
+    // footnote) and is asked again on the retry ladder while the page is open (state/retry.ts).
+    // A 404 is an answer (nobody by that ID), never asked again.
+    ...retrying(),
     refetchOnWindowFocus: false,
   };
 }
@@ -111,7 +112,8 @@ function useParsed<T>(query: UseQueryResult<unknown>, parse: (json: unknown) => 
   return useMemo(() => (query.data === undefined ? null : parse(query.data)), [query.data, ...deps]);
 }
 
-const settled = (q: UseQueryResult<unknown>) => !q.isLoading;
+/** Answered, or failed (its retries go on behind the page, which shows what failed meanwhile). */
+const settled = (q: UseQueryResult<unknown>) => !q.isLoading || hasFailed(q);
 
 // Stable empties, so a missing part never looks like a change.
 const NO_LEADERS: Readonly<Record<string, readonly { id: string; value: string }[]>> = {};
@@ -145,6 +147,8 @@ export interface TeamProfile {
   /** Every first request has answered. */
   readonly loaded: boolean;
   readonly failed: ReadonlySet<TeamPart>;
+  /** A first request is out (the error state's "Retrying…"). */
+  readonly fetching: boolean;
   readonly reload: () => void;
 }
 
@@ -270,18 +274,19 @@ export function useTeamProfile(ref: TeamRef): TeamProfile {
 
   const failed = useMemo(() => {
     const out = new Set<TeamPart>();
-    if (headerQ.isError || csTeamQ!.isError || lookupQ.isError || (lookupQ.isSuccess && slug == null) || (source == null)) out.add("header");
-    if (rosterQ!.isError || (rosterQ!.isSuccess && (roster?.players.length ?? 0) === 0)) out.add("roster");
+    // Failed with nothing to show: a refresh failing under data the page shows isn't a failed part.
+    if (hasFailed(headerQ) || hasFailed(csTeamQ!) || hasFailed(lookupQ) || (lookupQ.isSuccess && slug == null) || (source == null)) out.add("header");
+    if (hasFailed(rosterQ!) || (rosterQ!.isSuccess && (roster?.players.length ?? 0) === 0)) out.add("roster");
     // A soccer team whose league isn't one with rosters.
     if (e && e.path == null && headerQ.isSuccess && path == null) out.add("roster");
-    if (leadersQ!.isError) out.add("leaders");
-    if (statsQ!.isError) out.add("stats");
+    if (hasFailed(leadersQ!)) out.add("leaders");
+    if (hasFailed(statsQ!)) out.add("stats");
     return out;
-  }, [headerQ.isError, headerQ.isSuccess, csTeamQ, lookupQ.isError, lookupQ.isSuccess, slug, source, rosterQ, roster, e, path, leadersQ, statsQ]);
+  }, [headerQ, csTeamQ, lookupQ, slug, source, rosterQ, roster, e, path, leadersQ, statsQ]);
 
   const form = useMemo(() => formMarks(results ?? NONE), [results]);
   const primary = [headerQ, lookupQ, rosterQ!, csTeamQ!, leadersQ!, statsQ!];
-  const loaded = primary.every(settled) && !(e && e.path == null && !headerQ.isFetched && !headerQ.isError);
+  const loaded = primary.every(settled) && !(e && e.path == null && !headerQ.isFetched && !hasFailed(headerQ));
   const reload = useCallback(() => {
     void queryClient.refetchQueries({ predicate: (q) => q.queryKey[0] === "profile" && Object.values(urls).includes(String(q.queryKey[1])) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -306,6 +311,7 @@ export function useTeamProfile(ref: TeamRef): TeamProfile {
     rosterLoaded: settled(rosterQ!) && settled(csTeamQ!) && (e == null || path != null || headerQ.isFetched),
     loaded,
     failed,
+    fetching: primary.some((q) => q.isFetching),
     reload,
   };
 }
@@ -332,6 +338,8 @@ export interface PlayerView {
   readonly career: { readonly table: PlayerProfile["season"]; readonly loading: boolean; readonly failed: boolean };
   readonly loaded: boolean;
   readonly failed: ReadonlySet<PlayerPart>;
+  /** A first request is out (the error state's "Retrying…"). */
+  readonly fetching: boolean;
   readonly reload: () => void;
 }
 
@@ -487,9 +495,9 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
   const failed = useMemo(() => {
     const out = new Set<PlayerPart>();
     // A 404 is the source answering that there's nobody by that ID: not a failure to retry (the page says so).
-    const failedRequest = (q: UseQueryResult<unknown>) => q.isError && !(q.error instanceof HTTPError && q.error.status === 404);
+    const failedRequest = (q: UseQueryResult<unknown>) => hasFailed(q) && !isAnswer(q.error);
     if (failedRequest(athleteQ!) || (college && failedRequest(coreQ!)) || failedRequest(csPlayerQ!) || failedRequest(climberQ!)) out.add("bio");
-    if (overviewQ!.isError) out.add("season");
+    if (hasFailed(overviewQ!)) out.add("season");
     // An empty log (a player yet to appear) is an answer, not a failure: retrying wouldn't help.
     if (failedRequest(gameLogQ!) || failedRequest(csMatchesQ!)) out.add("gameLog");
     return out;
@@ -506,9 +514,10 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
     bio: withFotMob.bio ?? fallbackBio,
     profile: withFotMob,
     otherLog,
-    career: { table: careerTable, loading: careerQ.isLoading, failed: careerQ.isError },
+    career: { table: careerTable, loading: careerQ.isLoading && !hasFailed(careerQ), failed: hasFailed(careerQ) },
     loaded: primary.every(settled),
     failed,
+    fetching: primary.some((q) => q.isFetching),
     reload,
   };
 }

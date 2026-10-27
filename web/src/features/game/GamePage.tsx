@@ -67,7 +67,7 @@ export function GamePage() {
         {game.status === "loading" ? (
           <HeroSkeleton />
         ) : game.status === "failed" ? (
-          <ErrorState level={1} subject="Game" onRetry={game.refresh} />
+          <ErrorState level={1} subject="Game" retriesAutomatically retrying={game.retrying} onRetry={game.refresh} />
         ) : (
           <EmptyState
             level={1}
