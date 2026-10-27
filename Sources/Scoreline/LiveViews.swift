@@ -900,6 +900,9 @@ struct SprayChartView: View {
     let palette: TeamPalette
     let topName: String
     let bottomName: String
+    /// A home run's fireworks: off when the play theater on the page owns them
+    /// (`PlateCelebration`); the ball still flies in.
+    var celebrates = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.widthClass) private var widthClass
     @Environment(MomentCenter.self) private var moments: MomentCenter?
@@ -1005,9 +1008,10 @@ struct SprayChartView: View {
                         Focus(play: balls[$0].id, period: balls[$0].period, side: balls[$0].side)
                     }
                 // A home run's fireworks over where it landed: one shell, two for a
-                // grand slam, three in gold for a walk-off. Runs scoring spark at
-                // the diamond's plate, not here (one stage per moment).
-                let homer = flying.flatMap { ball in ball.outcome == .homeRun && moment?.kind == .homeRun ? ball : nil }
+                // grand slam, three in gold for a walk-off; unless the play theater
+                // is on the page, which bursts them at the wall. Runs scoring spark
+                // at the diamond's plate, not here (one stage per moment).
+                let homer = flying.flatMap { ball in celebrates && ball.outcome == .homeRun && moment?.kind == .homeRun ? ball : nil }
                 CelebrationStage(moment: homer == nil ? nil : moment, origin: homer.map { map($0.x, $0.y) }, size: geo.size,
                                  colors: .team(homer?.side == .bottom ? palette.bottom : palette.top))
             }

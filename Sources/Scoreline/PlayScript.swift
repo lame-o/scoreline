@@ -7,12 +7,16 @@ import SwiftUI
 // without playing 0…1.4, and the tests can check that a 6-3's throw beats
 // the runner.
 //
-// Time is a broadcast replay's, not the game's: the pitch flies in real
-// time (0.4 s at 95 mph), everything after it about four times faster, and
-// the runners are paced to the outcome the scorer recorded (out by a step at
-// first; safe with room to spare). A replay runs 2–4 s, then the field
-// settles: fielders walk back, runners take their leads, the next batter
-// steps in.
+// Time is a broadcast replay's, not the game's: the delivery and the pitch
+// in real time (0.4 s at 95 mph), everything after it about four times
+// faster, and the runners are paced to the outcome the scorer recorded (out
+// by a step at first; safe with room to spare). A replay runs 2–4 s, then the
+// field settles: fielders walk back, runners take their leads, the next
+// batter steps in.
+//
+// The script also says what each figure does (the windup, a catch, a throw,
+// a slide), when the headline lands, and where the broadcast camera looks
+// (PlayCamera.swift).
 
 // MARK: - The field
 
@@ -173,8 +177,34 @@ struct PlayScript: Equatable {
     }
 
     struct Actor: Equatable {
+        /// Who he is on this play: his pose follows from it.
+        enum Role: Equatable {
+            /// By scorer's number (1: the pitcher, 2: the catcher).
+            case fielder(Int)
+            case batter
+            case runner
+        }
+
+        /// A moment of the play in his hands.
+        struct Action: Equatable {
+            enum Kind: Equatable {
+                /// A fly or a pop-up, gloved over his head.
+                case catchHigh
+                /// A ground ball, gloved at his feet.
+                case scoop
+                /// A throw or a liner taken at his chest.
+                case glove
+                case throwBall
+            }
+            var kind: Kind
+            var at: Double
+            /// Where the ball comes from or goes: he turns to face it.
+            var toward: CGPoint
+        }
+
         var team: Team
         var at: CGPoint
+        var role: Role = .runner
         var moves: [Move] = []
         /// Fades in from `appear` and out from `vanish`, over `Self.fade`.
         var appear = -Double.infinity
@@ -184,6 +214,9 @@ struct PlayScript: Equatable {
         var bats: PlayScene.Hand?
         var swing: Double?
         var dropsBat: Double?
+        var actions: [Action] = []
+        /// Feet first into a base, from this moment until he's gone or settled.
+        var slide: Double?
 
         static let fade = 0.3
 
@@ -203,6 +236,19 @@ struct PlayScript: Equatable {
         /// Running, not walking: a stride's bob.
         func running(at t: Double) -> Bool {
             moves.contains { t > $0.start && t < $0.end && $0.length / ($0.end - $0.start) > 40 }
+        }
+
+        /// Feet a second along the ground at t, and which way (nil: standing).
+        func motion(at t: Double) -> (speed: Double, heading: CGPoint)? {
+            guard let move = moves.last(where: { t >= $0.start }), t < move.end, move.length > 0.5 else { return nil }
+            let a = move.point(at: max(t - 0.02, move.start)), b = move.point(at: min(t + 0.02, move.end))
+            let d = hypot(b.x - a.x, b.y - a.y), dt = min(t + 0.02, move.end) - max(t - 0.02, move.start)
+            guard d > 0.01, dt > 0 else { return nil }
+            return (d / dt, CGPoint(x: (b.x - a.x) / d, y: (b.y - a.y) / d))
+        }
+
+        mutating func act(_ kind: Action.Kind, at time: Double, toward point: CGPoint) {
+            actions.append(Action(kind: kind, at: time, toward: point))
         }
 
         mutating func move(to path: [CGPoint], from start: Double, to end: Double, ease: Ease = .inOut) {
@@ -249,6 +295,50 @@ struct PlayScript: Equatable {
             }
             return p
         }
+
+        /// When a bouncing ball touches down between hops, and where: the
+        /// dust puffs. (Found once, by sampling: the ease has no inverse.)
+        var bounces: [(at: Double, point: CGPoint)] {
+            guard case let .bounce(hops) = arc, hops > 1, end > start else { return [] }
+            var out: [(Double, CGPoint)] = []
+            var hop = 0
+            for i in 1...96 {
+                let raw = Double(i) / 96, phase = ease.value(raw) * Double(hops)
+                guard Int(phase) > hop, Int(phase) < hops else { continue }
+                hop = Int(phase)
+                let t = start + raw * (end - start)
+                out.append((t, point(at: t).ground))
+            }
+            return out
+        }
+    }
+
+    /// Dust kicked up where a grounder touches down.
+    struct Puff: Equatable {
+        var at: Double
+        var point: CGPoint
+    }
+
+    /// The headline across the top of the field for a marquee play: HOME
+    /// RUN, TRIPLE, DOUBLE PLAY. It lands with the payoff and clears as the
+    /// field settles.
+    struct Banner: Equatable {
+        enum Tone: Equatable {
+            /// The batting team's color: a hit.
+            case hit
+            /// A grand slam or a walk-off.
+            case gold
+            /// Outs: neutral ink.
+            case out
+            /// The app's red.
+            case strikeout
+        }
+        var text: String
+        var tone: Tone
+        var at: Double
+        var until: Double
+        /// It brings its own confetti (a triple, a home run, a walk-off).
+        var confetti: Bool
     }
 
     enum Beat { case contact, out, run, catchBall, hitBatter }
@@ -290,6 +380,16 @@ struct PlayScript: Equatable {
     var ballGone = Double.infinity
     var settle = 0.0
     var duration = 0.0
+    /// When the pitcher lets the pitch go (nil: nobody pitched).
+    var release: Double?
+    var puffs: [Puff] = []
+    var banner: Banner?
+    /// The scorer's mark's corner of the view (bottom left), as fractions
+    /// of its width and height: the camera keeps the play out of it.
+    var corner = CGSize.zero
+    /// The broadcast camera, shot by shot, and where it looks at each frame.
+    var shots: [Shot] = []
+    var camera = CameraTrack()
 
     /// Between plays: who's where.
     struct Rest: Equatable {
@@ -322,8 +422,8 @@ struct PlayScript: Equatable {
 extension PlayScript {
     /// The field with nobody moving: no play yet.
     init(rest: Rest) {
-        for n in 1...9 { actors.append(Actor(team: .fielding, at: Ballpark.position(n), crouch: n == 2)) }
-        if let bats = rest.bats { actors.append(Actor(team: .batting, at: Ballpark.box(bats), bats: bats)) }
+        for n in 1...9 { actors.append(Actor(team: .fielding, at: Ballpark.position(n), role: .fielder(n), crouch: n == 2)) }
+        if let bats = rest.bats { actors.append(Actor(team: .batting, at: Ballpark.box(bats), role: .batter, bats: bats)) }
         for base in 1...3 where rest.bases[base - 1] { actors.append(Actor(team: .batting, at: Ballpark.lead(base))) }
     }
 
@@ -341,6 +441,9 @@ extension PlayScript {
         }
         b.finish()
         b.settle(rest)
+        b.headline()
+        b.measureStamp()
+        b.shoot()
         self = b.script
     }
 
@@ -352,9 +455,13 @@ extension PlayScript {
         var runner: [Int: Int] = [:]
         let batter: Int
         let hand: PlayScene.Hand
-        let pitchStart = 0.15
+        /// The pitch leaves his hand after a 0.4 s delivery from the set,
+        /// so the replay opens on the battery before anything flies.
+        let pitchStart = 0.5
         /// When the pitch reaches the plate.
         let contact: Double
+        /// An extra-base hit's batter reaches his base no sooner than this.
+        var gathered: Double?
 
         init(scene: PlayScene) {
             self.scene = scene
@@ -362,16 +469,19 @@ extension PlayScript {
             // A 92 mph fastball reaches the plate in 0.42 s; slower pitches take longer.
             let mph = Double(scene.pitch?.mph ?? 91)
             contact = pitchStart + min(max(0.42 * 92 / mph, 0.34), 0.62)
-            for n in 1...9 { script.actors.append(Actor(team: .fielding, at: Ballpark.position(n), crouch: n == 2)) }
+            for n in 1...9 {
+                script.actors.append(Actor(team: .fielding, at: Ballpark.position(n), role: .fielder(n), crouch: n == 2))
+            }
             // On a runner's play the batter is still in the box.
             batter = script.actors.count
-            script.actors.append(Actor(team: .batting, at: Ballpark.box(hand), bats: hand))
+            script.actors.append(Actor(team: .batting, at: Ballpark.box(hand), role: .batter, bats: hand))
             runner[0] = batter
             for r in scene.runners where r.from > 0 {
                 runner[r.from] = script.actors.count
                 script.actors.append(Actor(team: .batting, at: Ballpark.lead(r.from)))
             }
-            if scene.pitch?.mph != nil || scene.pitch?.code != nil { script.label = pitchStart...(contact + 1.1) }
+            // The pitch's type and speed, until the ball's in play: after that it's in the way.
+            if scene.pitch?.mph != nil || scene.pitch?.code != nil { script.label = pitchStart...(contact + 0.45) }
         }
 
         func fielder(_ n: Int) -> Int { min(max(n, 1), 9) - 1 }
@@ -393,6 +503,7 @@ extension PlayScript {
         var contactPoint: FieldPoint { FieldPoint(x: hand == .left ? 1.5 : -1.5, y: 2, z: 3) }
 
         mutating func pitch(to end: FieldPoint, at time: Double) {
+            script.release = pitchStart
             script.flights.append(Flight(start: pitchStart, end: time, from: FieldPoint(x: 0, y: 54, z: 6), to: end, arc: .arc(0.6)))
         }
 
@@ -462,7 +573,7 @@ extension PlayScript {
                 script.ballGone = land + 0.15
                 script.stamp = over + 0.05
                 // The trot: quicker than the game's, so the replay ends with him crossing the plate.
-                runners(start: contact + 0.3, pace: 125, outs: [:])
+                runners(start: contact + 0.3, pace: 140, outs: [:])
                 return
             }
 
@@ -470,16 +581,19 @@ extension PlayScript {
             var holder = target, held = land
             if caught {
                 script.actors[f1].move(to: [target], from: contact + 0.08, to: land, ease: .out)
+                script.actors[f1].act(trajectory == .line ? .glove : .catchHigh, at: land, toward: .zero)
                 script.flashes.append(Flash(beat: .catchBall, at: land, point: to))
                 script.landing = Landing(point: target, mark: .out, at: land)
             } else if trajectory == .ground && distance < 165 {
                 // Fielded where ESPN marks it.
                 script.actors[f1].move(to: [target], from: contact + 0.05, to: land, ease: .out)
+                script.actors[f1].act(.scoop, at: land, toward: .zero)
                 script.landing = Landing(point: target, mark: scene.runners.contains(where: \.isOut) ? .out : .hit, at: land)
             } else {
                 // A hit falls in; the fielder gets to it a beat later.
                 held = land + 0.3
                 script.actors[f1].move(to: [target], from: contact + 0.1, to: held, ease: .out)
+                script.actors[f1].act(.scoop, at: held, toward: .zero)
                 script.landing = Landing(point: target, mark: .hit, at: land)
             }
 
@@ -495,7 +609,7 @@ extension PlayScript {
             } else if throwing, scene.fielders.count <= 1 {
                 // A throwing error: wide of first, and on into foul ground.
                 script.actors[fielder(3)].move(to: [Ballpark.bag(1)], from: contact + 0.1, to: held)
-                throwBall(from: holder, to: Ballpark.bag(1), at: held + 0.16, overshoot: true)
+                throwBall(from: holder, to: Ballpark.bag(1), at: held + 0.16, overshoot: true, by: first)
             }
 
             // The throws, to where the outs were made.
@@ -509,14 +623,18 @@ extension PlayScript {
                     let relay = target.x < 0 ? 6 : 4
                     let cutoff = Ballpark.polar(150, degrees * 0.8)
                     script.actors[fielder(relay)].move(to: [cutoff], from: contact + 0.2, to: held)
-                    throwBall(from: holder, to: cutoff, at: held + 0.25)
+                    throwBall(from: holder, to: cutoff, at: held + 0.25, by: first, catcher: relay)
                 } else if scene.kind == .single {
                     // An infield single: the throw to first, a step late.
                     let beat = contact + 0.16 + Ballpark.baseline / 95 + 0.12
                     let bag = Ballpark.bag(1)
                     script.actors[fielder(3)].move(to: [bag], from: contact + 0.1, to: contact + 0.6)
-                    throwBall(from: holder, to: bag, at: max(beat - throwTime(from: holder, to: bag), held + 0.1))
+                    throwBall(from: holder, to: bag, at: max(beat - throwTime(from: holder, to: bag), held + 0.1), by: first, catcher: 3)
                 }
+            }
+            // An extra-base hit: the batter pulls in just after the ball's gathered (the camera cuts to him as it is).
+            if !caught, scene.error == nil, case let .base(b)? = scene.batter?.end, b >= 2, !scene.runners.contains(where: \.isOut) {
+                gathered = held + 0.5
             }
             runners(start: caught ? land + 0.05 : contact + 0.12, pace: 95, outs: chain.outs)
             if caught, scene.batter?.isOut == true {
@@ -543,8 +661,11 @@ extension PlayScript {
             min(max(hypot(to.x - from.x, to.y - from.y) / 175 + 0.08, 0.22), 0.85)
         }
 
+        /// A throw, by and to fielders by scorer's number when they're known
+        /// (the thrower's arm comes through; the receiver gloves it).
         @discardableResult
-        mutating func throwBall(from: CGPoint, to: CGPoint, at start: Double, overshoot: Bool = false) -> Double {
+        mutating func throwBall(from: CGPoint, to: CGPoint, at start: Double, overshoot: Bool = false,
+                                by thrower: Int? = nil, catcher receiver: Int? = nil) -> Double {
             let d = hypot(to.x - from.x, to.y - from.y)
             let time = throwTime(from: from, to: to)
             var end = FieldPoint(to, z: 4)
@@ -553,6 +674,8 @@ extension PlayScript {
             }
             script.flights.append(Flight(start: start, end: start + time * (overshoot ? 1.3 : 1), from: FieldPoint(from, z: 5), to: end,
                                          arc: .arc(3 + d * 0.035)))
+            if let thrower { script.actors[fielder(thrower)].act(.throwBall, at: start, toward: to) }
+            if let receiver, !overshoot { script.actors[fielder(receiver)].act(.glove, at: start + time, toward: from) }
             return start + time
         }
 
@@ -587,7 +710,7 @@ extension PlayScript {
                     let bag = Ballpark.bag(next)
                     let cutoff = CGPoint(x: holder.x + (bag.x - holder.x) * 0.45, y: holder.y + (bag.y - holder.y) * 0.45)
                     script.actors[fielder(r)].move(to: [cutoff], from: contact + 0.15, to: held)
-                    let arrive = throwBall(from: holder, to: cutoff, at: held)
+                    let arrive = throwBall(from: holder, to: cutoff, at: held, by: number, catcher: r)
                     holder = cutoff; number = r; held = arrive + 0.1
                     continue
                 }
@@ -595,7 +718,8 @@ extension PlayScript {
                 let near = hypot(bag.x - holder.x, bag.y - holder.y) < 32
                 if let receiver = step.receiver ?? (near ? nil : PlayScene.coverer(of: base, after: number)), receiver != number {
                     script.actors[fielder(receiver)].move(to: [bag], from: contact + 0.1, to: max(contact + 0.7, held - 0.05))
-                    let arrive = throwBall(from: holder, to: bag, at: held, overshoot: wild && i == steps.count - 1)
+                    let arrive = throwBall(from: holder, to: bag, at: held, overshoot: wild && i == steps.count - 1,
+                                           by: number, catcher: receiver)
                     if wild && i == steps.count - 1 { wild = false; continue }
                     outs[base] = arrive
                     script.flashes.append(Flash(beat: .out, at: arrive, point: FieldPoint(Ballpark.base(base))))
@@ -628,8 +752,10 @@ extension PlayScript {
                 let leave = r.from == 0 ? start + 0.04 : start
                 switch r.end {
                 case let .base(b) where b > r.from:
-                    script.actors[index].move(to: basePath(from: r.from, to: b), from: leave,
-                                              to: leave + Double(b - r.from) * Ballpark.baseline / pace)
+                    let arrive = max(leave + Double(b - r.from) * Ballpark.baseline / pace, r.from == 0 ? gathered ?? 0 : 0)
+                    script.actors[index].move(to: basePath(from: r.from, to: b), from: leave, to: arrive)
+                    // A steal, and a triple's last few strides: feet first.
+                    if scene.kind == .stolenBase || (r.from == 0 && b == 3) { script.actors[index].slide = arrive - 0.26 }
                 case .base:
                     break
                 case .scored:
@@ -652,6 +778,8 @@ extension PlayScript {
                         let arrive = max(when + 0.1, leave + 0.35)
                         script.actors[index].move(to: basePath(from: r.from, to: target), from: leave, to: arrive)
                         script.actors[index].vanish = arrive + 0.25
+                        // A close play at second, third or home: he slides into the tag.
+                        if target >= 2 { script.actors[index].slide = max(arrive - 0.26, leave + 0.1) }
                     }
                 }
             }
@@ -661,6 +789,7 @@ extension PlayScript {
 
         mutating func strikeout() {
             pitch(to: mitt, at: contact + 0.05)
+            script.actors[fielder(2)].act(.glove, at: contact + 0.05, toward: Ballpark.rubber)
             if scene.kind == .strikeout(looking: false) { script.actors[batter].swing = contact - 0.03 }
             // Strike three pops the mitt.
             script.flashes.append(Flash(beat: .catchBall, at: contact + 0.05, point: mitt))
@@ -681,6 +810,7 @@ extension PlayScript {
                 script.flashes.append(Flash(beat: .hitBatter, at: contact - 0.02, point: at))
             } else {
                 pitch(to: mitt, at: contact + 0.05)
+                script.actors[fielder(2)].act(.glove, at: contact + 0.05, toward: Ballpark.rubber)
             }
             script.actors[batter].dropsBat = contact + 0.22
             script.stamp = contact + 0.3
@@ -706,6 +836,7 @@ extension PlayScript {
                 holder = backstop; held = contact + 0.9
             } else {
                 pitch(to: mitt, at: contact + 0.05)
+                script.actors[fielder(2)].act(.glove, at: contact + 0.05, toward: Ballpark.rubber)
             }
             let thrown = scene.kind == .caughtStealing || scene.kind == .pickoff || scene.runners.contains(where: \.isOut)
             let chain = thrown ? throwChain(from: holder, holding: holding, at: held, inferred: scene.fielders.isEmpty)
@@ -718,7 +849,8 @@ extension PlayScript {
                 let bag = Ballpark.bag(b)
                 script.actors[fielder(PlayScene.coverer(of: b, after: 2))].move(to: [bag], from: contact, to: contact + 0.6)
                 let safe = leave + Double(b - r.from) * Ballpark.baseline / 85 + 0.12
-                throwBall(from: holder, to: bag, at: max(safe - throwTime(from: holder, to: bag), held + 0.1))
+                throwBall(from: holder, to: bag, at: max(safe - throwTime(from: holder, to: bag), held + 0.1),
+                          by: holding, catcher: PlayScene.coverer(of: b, after: 2))
             }
         }
 
@@ -737,6 +869,54 @@ extension PlayScript {
                         script.actors.flatMap { $0.moves.map(\.end) }.max() ?? 0]
             script.settle = max(ends.max() ?? 0, 1.2) + 0.75
             script.ballGone = min(script.ballGone, script.settle)
+            script.puffs = script.flights.flatMap { flight in flight.bounces.map { Puff(at: $0.at, point: $0.point) } }
+        }
+
+        /// The banner for a marquee play, landing with its payoff: off the
+        /// bat for a home run, the batter reaching his base for a double or a
+        /// triple, the last out of a double play, strike three. A single, a
+        /// walk and a routine out keep to the stamp.
+        mutating func headline() {
+            let moves = script.actors[batter].moves
+            func reached(_ base: Int) -> Double? { moves.first { $0.path.last == Ballpark.base(base) }?.end }
+            func banner(_ text: String, _ tone: Banner.Tone, at time: Double, confetti: Bool = false) {
+                script.banner = Banner(text: text, tone: tone, at: time, until: max(script.settle, time + 1.2), confetti: confetti)
+            }
+            if scene.walkOff {
+                let run = script.flashes.filter { $0.beat == .run }.map(\.at).max()
+                banner("WALK-OFF", .gold, at: scene.kind == .homeRun ? contact + 0.3 : run ?? script.stamp, confetti: true)
+                return
+            }
+            switch scene.kind {
+            case .homeRun:
+                let slam = scene.runs == 4
+                banner(slam ? "GRAND SLAM" : "HOME RUN", slam ? .gold : .hit, at: contact + 0.3, confetti: true)
+            case .triple: banner("TRIPLE", .hit, at: reached(3) ?? script.stamp, confetti: true)
+            case .double: banner("DOUBLE", .hit, at: reached(2) ?? script.stamp)
+            case .doublePlay: banner("DOUBLE PLAY", .out, at: script.stamp)
+            case .triplePlay: banner("TRIPLE PLAY", .out, at: script.stamp)
+            case .strikeout: banner("STRIKEOUT", .strikeout, at: script.stamp)
+            default: break
+            }
+        }
+
+        /// The scorer's mark's corner, measured from its type: the code at a
+        /// fifth of the view's height, the title under it at about a
+        /// eighteenth, in a view twice as wide as tall.
+        mutating func measureStamp() {
+            let notation = scene.notation
+            guard !notation.code.isEmpty else { return }
+            let marks: Set<String> = ["HR", "BB", "HBP", "IBB", "SB", "WP", "PB", "BK", "DI", "K"]
+            var code = 0.0
+            for part in notation.code.split(separator: " ") {
+                let bold = part.contains(where: \.isNumber) || marks.contains(String(part))
+                code += part.reduce(0.0) { width, c in width + (c.isNumber ? 0.6 : c == "-" ? 0.5 : 0.68) } * (bold ? 1 : 0.5) + 0.25
+            }
+            if scene.runs > 0 { code += 1.15 }
+            // The title is at most about a third of the view (it steps down when longer).
+            let title = min(Double(scene.title.count + (scene.kind == .homeRun && scene.distance != nil ? 9 : 0)) * 0.72 * 0.28, 3.4)
+            let width = 0.055 + max(code, title) * 0.2
+            script.corner = CGSize(width: width / CameraFrame.aspect + 0.03, height: 0.3)
         }
 
         /// After the hold: fielders walk back, runners take their leads, the
@@ -747,11 +927,15 @@ extension PlayScript {
             if rest.swapped {
                 for i in script.actors.indices { script.actors[i].vanish = min(script.actors[i].vanish, s) }
                 // The team that batted takes the field.
-                for n in 1...9 { script.actors.append(Actor(team: .batting, at: Ballpark.position(n), appear: s + 0.15, crouch: n == 2)) }
+                for n in 1...9 {
+                    script.actors.append(Actor(team: .batting, at: Ballpark.position(n), role: .fielder(n), appear: s + 0.15, crouch: n == 2))
+                }
                 for base in 1...3 where rest.bases[base - 1] {
                     script.actors.append(Actor(team: .fielding, at: Ballpark.lead(base), appear: s + 0.4))
                 }
-                if let bats = rest.bats { script.actors.append(Actor(team: .fielding, at: Ballpark.box(bats), appear: s + 0.4, bats: bats)) }
+                if let bats = rest.bats {
+                    script.actors.append(Actor(team: .fielding, at: Ballpark.box(bats), role: .batter, appear: s + 0.4, bats: bats))
+                }
             } else {
                 for n in 1...9 { script.actors[fielder(n)].move(to: [Ballpark.position(n)], from: s, to: back) }
                 // A runner stays where the live bases have one; anyone else leaves.
@@ -772,7 +956,7 @@ extension PlayScript {
                     // A runner's play: the batter is still up.
                     if rest.bats == nil { script.actors[batter].vanish = min(script.actors[batter].vanish, s) }
                 } else if let bats = rest.bats {
-                    script.actors.append(Actor(team: .batting, at: Ballpark.box(bats), appear: s + 0.3, bats: bats))
+                    script.actors.append(Actor(team: .batting, at: Ballpark.box(bats), role: .batter, appear: s + 0.3, bats: bats))
                 }
             }
             script.duration = back + Actor.fade

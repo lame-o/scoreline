@@ -97,6 +97,8 @@ struct PlayScene: Equatable, Identifiable {
     /// "Turang grounded out to shortstop."
     var text = ""
     var wallclock: Date?
+    /// The home team went ahead in the bottom of the 9th or later: the game ends on it.
+    var walkOff = false
 
     var batter: Runner? { runners.first { $0.from == 0 } }
     /// Bases taken before the play (first, second, third).
@@ -285,6 +287,7 @@ extension PlayScene {
         }
         scene.wallclock = result["wallclock"].string.flatMap(parseDate)
         scene.runs = max(result["scoreValue"].int ?? 0, 0)
+        scene.walkOff = scene.runs > 0 && walkOff(result)
         scene.outsAfter = min(max(result["outs"].int ?? 0, 0), 3)
 
         // Fielders: the scorer's version names every one in order; the short
@@ -463,6 +466,16 @@ extension PlayScene {
         guard let ref = p["athlete"]["$ref"].string, let range = ref.range(of: "/athletes/") else { return nil }
         let id = ref[range.upperBound...].prefix { $0.isNumber }
         return id.isEmpty ? nil : String(id)
+    }
+
+    /// The home team takes the lead in the bottom of the 9th or later: the
+    /// game is over. A scoring result's score fields are the score after it.
+    static func walkOff(_ entry: JSON) -> Bool {
+        guard entry["period"]["type"].string?.lowercased().hasPrefix("bot") == true,
+              let inning = entry["period"]["number"].int, inning >= 9,
+              let home = entry["homeScore"].int, let away = entry["awayScore"].int else { return false }
+        let runs = entry["scoreValue"].int ?? 1
+        return home > away && home - runs <= away
     }
 
     static func hand(_ entry: JSON) -> Hand? {

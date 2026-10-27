@@ -308,9 +308,16 @@ enum Celebration {
     }
 
     /// Whether this moment's celebration would be a particle burst at Full, so
-    /// `MomentCenter` can hold it to one burst every 10 s.
+    /// `MomentCenter` can hold it to one burst every 10 s. The play theater's
+    /// banner confetti (a triple, a walk-off) counts with the table's bursts.
     static func wantsBurst(_ m: LiveMoment) -> Bool {
-        table(m, geometry: .medium, direction: .degrees(-90)).bursts
+        table(m, geometry: .medium, direction: .degrees(-90)).bursts || theaterBursts(m)
+    }
+
+    /// The plays the theater's banner celebrates with confetti beyond the
+    /// table: a triple, and a walk-off that isn't a home run.
+    static func theaterBursts(_ m: LiveMoment) -> Bool {
+        m.chart == .plate && (m.accents.contains(.triple) || (m.decisive && m.tier == .score))
     }
 
     /// Spec §8.4 at Full, before substitutions.

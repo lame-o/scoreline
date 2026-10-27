@@ -59,6 +59,7 @@ struct ScorelineTests {
         chartHygiene()
         outline()
         playTheater()
+        playBroadcast()
         statcast()
 
         print("\n\(passes) passed, \(failures) failed")

@@ -62,6 +62,8 @@ struct LiveMoment: Equatable, Identifiable {
         static let newLeader = Accents(rawValue: 1 << 11)
         /// Climbing final: into the top three for the first time this climb.
         static let podium = Accents(rawValue: 1 << 12)
+        /// Baseball: a triple (the play theater's banner brings confetti).
+        static let triple = Accents(rawValue: 1 << 13)
     }
 
     let id: String

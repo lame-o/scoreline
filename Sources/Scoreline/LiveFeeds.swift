@@ -779,6 +779,12 @@ final class BaseballFeed {
             LiveMoment(id: id, chart: .plate, tier: tier, kind: kind, lead: lead, detail: text, side: batting)
         }
         let runs = item["scoreValue"].int ?? 1
+        // The play theater's banner brings confetti for a triple, scored or not.
+        func accented(_ m: LiveMoment) -> LiveMoment {
+            var m = m
+            if result == "triple" { m.accents.insert(.triple) }
+            return m
+        }
         if result == "home-run" {
             var m = moment(.homeRun, .score, runs == 4 ? "Grand slam" : walkOff(item) ? "Walk-off home run" : "Home run")
             if runs == 4 { m.accents.insert(.grandSlam) }
@@ -788,7 +794,7 @@ final class BaseballFeed {
         if item["scoringPlay"].bool == true {
             var m = moment(.runScored, .score, walkOff(item) ? "Walk-off" : runs > 1 ? "\(runs) runs score" : "Run scores")
             if walkOff(item) { m.accents.insert(.decisive) }
-            return m
+            return accented(m)
         }
         // Two outs on one play outranks the strikeout it may include (K + caught stealing).
         if item["doublePlay"].bool == true { return moment(.doublePlay, .swing, "Double play") }
@@ -798,7 +804,7 @@ final class BaseballFeed {
         switch result {
         case "single", "bunt-single": return moment(.hit, .swing, "Single")
         case "double": return moment(.hit, .swing, "Double")
-        case "triple": return moment(.hit, .swing, "Triple")
+        case "triple": return accented(moment(.hit, .swing, "Triple"))
         default: break
         }
         let outs: Set<String> = ["ground-out", "fly-out", "line-out", "pop-out", "foul-out", "bunt-ground-out", "sacrifice",
@@ -808,13 +814,7 @@ final class BaseballFeed {
 
     /// The home team takes the lead in the bottom of the 9th or later: the
     /// game is over. A scoring result's score fields are the score after it.
-    static func walkOff(_ item: JSON) -> Bool {
-        guard item["period"]["type"].string?.lowercased().hasPrefix("bot") == true,
-              let inning = item["period"]["number"].int, inning >= 9,
-              let home = item["homeScore"].int, let away = item["awayScore"].int else { return false }
-        let runs = item["scoreValue"].int ?? 1
-        return home > away && home - runs <= away
-    }
+    static func walkOff(_ item: JSON) -> Bool { PlayScene.walkOff(item) }
 
     /// Core plays name their team by link; the summary parsers expect `team.id`.
     private static func normalized(_ item: JSON) -> JSON {

@@ -1142,7 +1142,8 @@ struct DetailView: View {
                               totals: isBaseball ? 3 : 1, palette: palette)
             }
         case .battedBalls:
-            SprayChartView(balls: battedBalls(d), palette: palette, topName: names.top, bottomName: names.bottom)
+            SprayChartView(balls: battedBalls(d), palette: palette, topName: names.top, bottomName: names.bottom,
+                           celebrates: PlateCelebration.sprayChartBursts(theaterShown: has(.atPlate, d)))
         case .wall:
             ClimbingWallView(routes: excerpt?.athlete.map { Self.wallExcerpt(d.wall, athlete: $0) } ?? d.wall,
                              live: roundLive(d), yours: Set(store.climbingCountries))
@@ -1198,7 +1199,7 @@ struct DetailView: View {
                             // Reads the live lane's last play itself, so a play redraws only the theater.
                             PlayTheater(feed: baseballFeed, preloaded: d.theater,
                                         bases: [baseball.onFirst, baseball.onSecond, baseball.onThird], batting: battingSide,
-                                        palette: palette)
+                                        palette: palette, kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last))
                         }
                     }
                 }
