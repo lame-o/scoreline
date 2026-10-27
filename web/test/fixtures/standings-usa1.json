@@ -1,0 +1,602 @@
+{
+ "_source": "https://site.api.espn.com/apis/v2/sports/soccer/usa.1/standings",
+ "_recorded": "2026-10-27T08:37:38.000Z",
+ "_note": "Trimmed: two conferences, first five entries each, parser fields only.",
+ "children": [
+  {
+   "name": "Eastern Conference",
+   "standings": {
+    "entries": [
+     {
+      "team": {
+       "id": "182",
+       "location": "Chicago Fire FC",
+       "shortDisplayName": "Chicago",
+       "displayName": "Chicago Fire FC",
+       "abbreviation": "CHI",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/soccer/500/182.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "name": "gamesPlayed",
+        "value": 31.0,
+        "displayValue": "31"
+       },
+       {
+        "name": "losses",
+        "value": 10.0,
+        "displayValue": "10"
+       },
+       {
+        "name": "pointDifferential",
+        "value": 9.0,
+        "displayValue": "+9"
+       },
+       {
+        "name": "points",
+        "value": 51.0,
+        "displayValue": "51"
+       },
+       {
+        "name": "pointsFor",
+        "value": 55.0,
+        "displayValue": "55"
+       },
+       {
+        "name": "ties",
+        "value": 6.0,
+        "displayValue": "6"
+       },
+       {
+        "name": "wins",
+        "value": 15.0,
+        "displayValue": "15"
+       },
+       {
+        "name": "rank",
+        "value": 4.0,
+        "displayValue": "4"
+       }
+      ],
+      "note": {
+       "description": "Qualifies for MLS Cup Playoffs - Round One Best-of-3 series"
+      }
+     },
+     {
+      "team": {
+       "id": "183",
+       "location": "Columbus Crew",
+       "shortDisplayName": "Columbus",
+       "displayName": "Columbus Crew",
+       "abbreviation": "CLB",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/soccer/500/183.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "name": "gamesPlayed",
+        "value": 31.0,
+        "displayValue": "31"
+       },
+       {
+        "name": "losses",
+        "value": 15.0,
+        "displayValue": "15"
+       },
+       {
+        "name": "pointDifferential",
+        "value": 1.0,
+        "displayValue": "+1"
+       },
+       {
+        "name": "points",
+        "value": 38.0,
+        "displayValue": "38"
+       },
+       {
+        "name": "pointsFor",
+        "value": 50.0,
+        "displayValue": "50"
+       },
+       {
+        "name": "ties",
+        "value": 5.0,
+        "displayValue": "5"
+       },
+       {
+        "name": "wins",
+        "value": 11.0,
+        "displayValue": "11"
+       },
+       {
+        "name": "rank",
+        "value": 10.0,
+        "displayValue": "10"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "189",
+       "location": "New England Revolution",
+       "shortDisplayName": "New England",
+       "displayName": "New England Revolution",
+       "abbreviation": "NE",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/soccer/500/189.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "name": "gamesPlayed",
+        "value": 31.0,
+        "displayValue": "31"
+       },
+       {
+        "name": "losses",
+        "value": 10.0,
+        "displayValue": "10"
+       },
+       {
+        "name": "pointDifferential",
+        "value": 9.0,
+        "displayValue": "+9"
+       },
+       {
+        "name": "points",
+        "value": 55.0,
+        "displayValue": "55"
+       },
+       {
+        "name": "pointsFor",
+        "value": 51.0,
+        "displayValue": "51"
+       },
+       {
+        "name": "ties",
+        "value": 4.0,
+        "displayValue": "4"
+       },
+       {
+        "name": "wins",
+        "value": 17.0,
+        "displayValue": "17"
+       },
+       {
+        "name": "rank",
+        "value": 2.0,
+        "displayValue": "2"
+       }
+      ],
+      "note": {
+       "description": "Qualifies for MLS Cup Playoffs - Round One Best-of-3 series"
+      }
+     },
+     {
+      "team": {
+       "id": "190",
+       "location": "Red Bull New York",
+       "shortDisplayName": "Red Bull NY",
+       "displayName": "Red Bull New York",
+       "abbreviation": "RBNY",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/soccer/500/190.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "name": "gamesPlayed",
+        "value": 31.0,
+        "displayValue": "31"
+       },
+       {
+        "name": "losses",
+        "value": 14.0,
+        "displayValue": "14"
+       },
+       {
+        "name": "pointDifferential",
+        "value": -15.0,
+        "displayValue": "-15"
+       },
+       {
+        "name": "points",
+        "value": 39.0,
+        "displayValue": "39"
+       },
+       {
+        "name": "pointsFor",
+        "value": 41.0,
+        "displayValue": "41"
+       },
+       {
+        "name": "ties",
+        "value": 6.0,
+        "displayValue": "6"
+       },
+       {
+        "name": "wins",
+        "value": 11.0,
+        "displayValue": "11"
+       },
+       {
+        "name": "rank",
+        "value": 9.0,
+        "displayValue": "9"
+       }
+      ],
+      "note": {
+       "description": "Qualifies for MLS Cup Playoffs - Wild Card Matches"
+      }
+     },
+     {
+      "team": {
+       "id": "193",
+       "location": "D.C. United",
+       "shortDisplayName": "D.C. United",
+       "displayName": "D.C. United",
+       "abbreviation": "DC",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/soccer/500/193.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "name": "gamesPlayed",
+        "value": 31.0,
+        "displayValue": "31"
+       },
+       {
+        "name": "losses",
+        "value": 12.0,
+        "displayValue": "12"
+       },
+       {
+        "name": "pointDifferential",
+        "value": -17.0,
+        "displayValue": "-17"
+       },
+       {
+        "name": "points",
+        "value": 33.0,
+        "displayValue": "33"
+       },
+       {
+        "name": "pointsFor",
+        "value": 38.0,
+        "displayValue": "38"
+       },
+       {
+        "name": "ties",
+        "value": 12.0,
+        "displayValue": "12"
+       },
+       {
+        "name": "wins",
+        "value": 7.0,
+        "displayValue": "7"
+       },
+       {
+        "name": "rank",
+        "value": 13.0,
+        "displayValue": "13"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "Western Conference",
+   "standings": {
+    "entries": [
+     {
+      "team": {
+       "id": "184",
+       "location": "Colorado Rapids",
+       "shortDisplayName": "Colorado",
+       "displayName": "Colorado Rapids",
+       "abbreviation": "COL",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/soccer/500/184.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "name": "gamesPlayed",
+        "value": 31.0,
+        "displayValue": "31"
+       },
+       {
+        "name": "losses",
+        "value": 13.0,
+        "displayValue": "13"
+       },
+       {
+        "name": "pointDifferential",
+        "value": 1.0,
+        "displayValue": "+1"
+       },
+       {
+        "name": "points",
+        "value": 42.0,
+        "displayValue": "42"
+       },
+       {
+        "name": "pointsFor",
+        "value": 42.0,
+        "displayValue": "42"
+       },
+       {
+        "name": "ties",
+        "value": 6.0,
+        "displayValue": "6"
+       },
+       {
+        "name": "wins",
+        "value": 12.0,
+        "displayValue": "12"
+       },
+       {
+        "name": "rank",
+        "value": 8.0,
+        "displayValue": "8"
+       }
+      ],
+      "note": {
+       "description": "Qualifies for MLS Cup Playoffs - Wild Card Matches"
+      }
+     },
+     {
+      "team": {
+       "id": "185",
+       "location": "FC Dallas",
+       "shortDisplayName": "Dallas",
+       "displayName": "FC Dallas",
+       "abbreviation": "DAL",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/soccer/500/185.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "name": "gamesPlayed",
+        "value": 31.0,
+        "displayValue": "31"
+       },
+       {
+        "name": "losses",
+        "value": 7.0,
+        "displayValue": "7"
+       },
+       {
+        "name": "pointDifferential",
+        "value": 11.0,
+        "displayValue": "+11"
+       },
+       {
+        "name": "points",
+        "value": 54.0,
+        "displayValue": "54"
+       },
+       {
+        "name": "pointsFor",
+        "value": 58.0,
+        "displayValue": "58"
+       },
+       {
+        "name": "ties",
+        "value": 9.0,
+        "displayValue": "9"
+       },
+       {
+        "name": "wins",
+        "value": 15.0,
+        "displayValue": "15"
+       },
+       {
+        "name": "rank",
+        "value": 2.0,
+        "displayValue": "2"
+       }
+      ],
+      "note": {
+       "description": "Qualifies for MLS Cup Playoffs - Round One Best-of-3 series"
+      }
+     },
+     {
+      "team": {
+       "id": "186",
+       "location": "Sporting Kansas City",
+       "shortDisplayName": "Kansas City",
+       "displayName": "Sporting Kansas City",
+       "abbreviation": "SKC",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/soccer/500/186.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "name": "gamesPlayed",
+        "value": 31.0,
+        "displayValue": "31"
+       },
+       {
+        "name": "losses",
+        "value": 21.0,
+        "displayValue": "21"
+       },
+       {
+        "name": "pointDifferential",
+        "value": -40.0,
+        "displayValue": "-40"
+       },
+       {
+        "name": "points",
+        "value": 22.0,
+        "displayValue": "22"
+       },
+       {
+        "name": "pointsFor",
+        "value": 37.0,
+        "displayValue": "37"
+       },
+       {
+        "name": "ties",
+        "value": 4.0,
+        "displayValue": "4"
+       },
+       {
+        "name": "wins",
+        "value": 6.0,
+        "displayValue": "6"
+       },
+       {
+        "name": "rank",
+        "value": 15.0,
+        "displayValue": "15"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "187",
+       "location": "LA Galaxy",
+       "shortDisplayName": "LA Galaxy",
+       "displayName": "LA Galaxy",
+       "abbreviation": "LA",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/soccer/500/187.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "name": "gamesPlayed",
+        "value": 32.0,
+        "displayValue": "32"
+       },
+       {
+        "name": "losses",
+        "value": 11.0,
+        "displayValue": "11"
+       },
+       {
+        "name": "pointDifferential",
+        "value": -9.0,
+        "displayValue": "-9"
+       },
+       {
+        "name": "points",
+        "value": 41.0,
+        "displayValue": "41"
+       },
+       {
+        "name": "pointsFor",
+        "value": 45.0,
+        "displayValue": "45"
+       },
+       {
+        "name": "ties",
+        "value": 11.0,
+        "displayValue": "11"
+       },
+       {
+        "name": "wins",
+        "value": 10.0,
+        "displayValue": "10"
+       },
+       {
+        "name": "rank",
+        "value": 9.0,
+        "displayValue": "9"
+       }
+      ],
+      "note": {
+       "description": "Qualifies for MLS Cup Playoffs - Wild Card Matches"
+      }
+     },
+     {
+      "team": {
+       "id": "191",
+       "location": "San Jose Earthquakes",
+       "shortDisplayName": "San Jose",
+       "displayName": "San Jose Earthquakes",
+       "abbreviation": "SJ",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/soccer/500/191.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "name": "gamesPlayed",
+        "value": 31.0,
+        "displayValue": "31"
+       },
+       {
+        "name": "losses",
+        "value": 9.0,
+        "displayValue": "9"
+       },
+       {
+        "name": "pointDifferential",
+        "value": 7.0,
+        "displayValue": "+7"
+       },
+       {
+        "name": "points",
+        "value": 48.0,
+        "displayValue": "48"
+       },
+       {
+        "name": "pointsFor",
+        "value": 52.0,
+        "displayValue": "52"
+       },
+       {
+        "name": "ties",
+        "value": 9.0,
+        "displayValue": "9"
+       },
+       {
+        "name": "wins",
+        "value": 13.0,
+        "displayValue": "13"
+       },
+       {
+        "name": "rank",
+        "value": 4.0,
+        "displayValue": "4"
+       }
+      ],
+      "note": {
+       "description": "Qualifies for MLS Cup Playoffs - Round One Best-of-3 series"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}
