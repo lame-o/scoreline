@@ -1,0 +1,492 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/12/roster",
+ "_recorded": "2026-10-27T08:46:29.693Z",
+ "athletes": [
+  {
+   "position": "offense",
+   "items": [
+    {
+     "id": "3139477",
+     "displayName": "Patrick Mahomes",
+     "jersey": "15",
+     "age": 31,
+     "dateOfBirth": "1995-09-17T07:00Z",
+     "displayHeight": "6' 2\"",
+     "displayWeight": "225 lbs",
+     "position": {
+      "abbreviation": "QB",
+      "displayName": "Quarterback"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/3139477.png"
+     },
+     "college": {
+      "name": "Texas Tech"
+     },
+     "experience": {
+      "years": 10
+     },
+     "injuries": []
+    },
+    {
+     "id": "4912218",
+     "displayName": "Cyrus Allen",
+     "jersey": "13",
+     "age": 23,
+     "dateOfBirth": "2003-02-11T08:00Z",
+     "displayHeight": "5' 11\"",
+     "displayWeight": "180 lbs",
+     "position": {
+      "abbreviation": "WR",
+      "displayName": "Wide Receiver"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4912218.png"
+     },
+     "college": {
+      "name": "Cincinnati"
+     },
+     "experience": {
+      "years": 0
+     },
+     "injuries": []
+    },
+    {
+     "id": "5093923",
+     "displayName": "Andrew Armstrong",
+     "jersey": "85",
+     "age": 25,
+     "dateOfBirth": "2000-10-31T08:00Z",
+     "displayHeight": "6' 4\"",
+     "displayWeight": "210 lbs",
+     "position": {
+      "abbreviation": "WR",
+      "displayName": "Wide Receiver"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/5093923.png"
+     },
+     "college": {
+      "name": "Arkansas"
+     },
+     "experience": {
+      "years": 1
+     },
+     "injuries": []
+    },
+    {
+     "id": "4566190",
+     "displayName": "Kahlil Benson",
+     "jersey": "70",
+     "age": 24,
+     "dateOfBirth": "2002-08-20T07:00Z",
+     "displayHeight": "6' 6\"",
+     "displayWeight": "319 lbs",
+     "position": {
+      "abbreviation": "OT",
+      "displayName": "Offensive Tackle"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4566190.png"
+     },
+     "college": {
+      "name": "Indiana"
+     },
+     "experience": {
+      "years": 0
+     },
+     "injuries": []
+    }
+   ]
+  },
+  {
+   "position": "defense",
+   "items": [
+    {
+     "id": "4426659",
+     "displayName": "George Karlaftis",
+     "jersey": "56",
+     "age": 25,
+     "dateOfBirth": "2001-04-03T07:00Z",
+     "displayHeight": "6' 4\"",
+     "displayWeight": "263 lbs",
+     "position": {
+      "abbreviation": "DE",
+      "displayName": "Defensive End"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4426659.png"
+     },
+     "college": {
+      "name": "Purdue"
+     },
+     "experience": {
+      "years": 5
+     },
+     "injuries": []
+    },
+    {
+     "id": "4612387",
+     "displayName": "Felix Anudike-Uzomah",
+     "jersey": "91",
+     "age": 24,
+     "dateOfBirth": "2002-01-24T08:00Z",
+     "displayHeight": "6' 4\"",
+     "displayWeight": "255 lbs",
+     "position": {
+      "abbreviation": "DE",
+      "displayName": "Defensive End"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4612387.png"
+     },
+     "college": {
+      "name": "Kansas State"
+     },
+     "experience": {
+      "years": 4
+     },
+     "injuries": []
+    },
+    {
+     "id": "4602389",
+     "displayName": "Jeffrey Bassa",
+     "jersey": "31",
+     "age": 24,
+     "dateOfBirth": "2002-09-20T07:00Z",
+     "displayHeight": "6' 2\"",
+     "displayWeight": "235 lbs",
+     "position": {
+      "abbreviation": "LB",
+      "displayName": "Linebacker"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4602389.png"
+     },
+     "college": {
+      "name": "Oregon"
+     },
+     "experience": {
+      "years": 2
+     },
+     "injuries": []
+    },
+    {
+     "id": "4362759",
+     "displayName": "Nick Bolton",
+     "jersey": "32",
+     "age": 26,
+     "dateOfBirth": "2000-03-10T08:00Z",
+     "displayHeight": "5' 11\"",
+     "displayWeight": "237 lbs",
+     "position": {
+      "abbreviation": "LB",
+      "displayName": "Linebacker"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4362759.png"
+     },
+     "college": {
+      "name": "Missouri"
+     },
+     "experience": {
+      "years": 6
+     },
+     "injuries": []
+    }
+   ]
+  },
+  {
+   "position": "specialTeam",
+   "items": [
+    {
+     "id": "3055899",
+     "displayName": "Harrison Butker",
+     "jersey": "7",
+     "age": 31,
+     "dateOfBirth": "1995-07-14T07:00Z",
+     "displayHeight": "6' 4\"",
+     "displayWeight": "205 lbs",
+     "position": {
+      "abbreviation": "PK",
+      "displayName": "Place Kicker"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/3055899.png"
+     },
+     "college": {
+      "name": "Georgia Tech"
+     },
+     "experience": {
+      "years": 10
+     },
+     "injuries": []
+    },
+    {
+     "id": "4361496",
+     "displayName": "Matt Araiza",
+     "jersey": "14",
+     "age": 26,
+     "dateOfBirth": "2000-05-16T07:00Z",
+     "displayHeight": "6' 1\"",
+     "displayWeight": "200 lbs",
+     "position": {
+      "abbreviation": "P",
+      "displayName": "Punter"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4361496.png"
+     },
+     "college": {
+      "name": "San Diego State"
+     },
+     "experience": {
+      "years": 3
+     },
+     "injuries": []
+    },
+    {
+     "id": "16665",
+     "displayName": "James Winchester",
+     "jersey": "41",
+     "age": 37,
+     "dateOfBirth": "1989-08-06T07:00Z",
+     "displayHeight": "6' 3\"",
+     "displayWeight": "240 lbs",
+     "position": {
+      "abbreviation": "LS",
+      "displayName": "Long Snapper"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/16665.png"
+     },
+     "college": {
+      "name": "Oklahoma"
+     },
+     "experience": {
+      "years": 12
+     },
+     "injuries": []
+    }
+   ]
+  },
+  {
+   "position": "injuredReserveOrOut",
+   "items": [
+    {
+     "id": "4885466",
+     "displayName": "Jeff Caldwell",
+     "jersey": "8",
+     "age": 23,
+     "dateOfBirth": "2003-03-02T08:00Z",
+     "displayHeight": "6' 5\"",
+     "displayWeight": "215 lbs",
+     "position": {
+      "abbreviation": "WR",
+      "displayName": "Wide Receiver"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4885466.png"
+     },
+     "college": {
+      "name": "Cincinnati"
+     },
+     "experience": {
+      "years": 0
+     },
+     "injuries": [
+      {
+       "status": "Injured Reserve"
+      }
+     ]
+    },
+    {
+     "id": "4431534",
+     "displayName": "Ethan Downs",
+     "jersey": "40",
+     "age": 24,
+     "dateOfBirth": "2002-10-13T07:00Z",
+     "displayHeight": "6' 4\"",
+     "displayWeight": "263 lbs",
+     "position": {
+      "abbreviation": "LB",
+      "displayName": "Linebacker"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4431534.png"
+     },
+     "college": {
+      "name": "Oklahoma"
+     },
+     "experience": {
+      "years": 1
+     },
+     "injuries": [
+      {
+       "status": "Injured Reserve"
+      }
+     ]
+    },
+    {
+     "id": "4708490",
+     "displayName": "John Michael Gyllenborg",
+     "jersey": "84",
+     "age": 24,
+     "dateOfBirth": "2002-08-07T07:00Z",
+     "displayHeight": "6' 5\"",
+     "displayWeight": "251 lbs",
+     "position": {
+      "abbreviation": "TE",
+      "displayName": "Tight End"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4708490.png"
+     },
+     "college": {
+      "name": "Wyoming"
+     },
+     "experience": {
+      "years": 0
+     },
+     "injuries": [
+      {
+       "status": "Injured Reserve"
+      }
+     ]
+    },
+    {
+     "id": "4431142",
+     "displayName": "Jimmy Holiday",
+     "jersey": "82",
+     "age": 24,
+     "dateOfBirth": "2001-12-16T08:00Z",
+     "displayHeight": "6' 1\"",
+     "displayWeight": "211 lbs",
+     "position": {
+      "abbreviation": "WR",
+      "displayName": "Wide Receiver"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4431142.png"
+     },
+     "college": {
+      "name": "Louisiana Tech"
+     },
+     "experience": {
+      "years": 1
+     },
+     "injuries": [
+      {
+       "status": "Injured Reserve"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "position": "practiceSquad",
+   "items": [
+    {
+     "id": "4605841",
+     "displayName": "Nate Carter",
+     "jersey": "35",
+     "age": 24,
+     "dateOfBirth": "2002-05-22T07:00Z",
+     "displayHeight": "5' 10\"",
+     "displayWeight": "202 lbs",
+     "position": {
+      "abbreviation": "RB",
+      "displayName": "Running Back"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4605841.png"
+     },
+     "college": {
+      "name": "Michigan State"
+     },
+     "experience": {
+      "years": 2
+     },
+     "injuries": []
+    },
+    {
+     "id": "4571627",
+     "displayName": "Ethan Driskell",
+     "jersey": "75",
+     "age": 26,
+     "dateOfBirth": "2000-06-29T07:00Z",
+     "displayHeight": "6' 8\"",
+     "displayWeight": "313 lbs",
+     "position": {
+      "abbreviation": "OT",
+      "displayName": "Offensive Tackle"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4571627.png"
+     },
+     "college": {
+      "name": "Marshall"
+     },
+     "experience": {
+      "years": 2
+     },
+     "injuries": []
+    },
+    {
+     "id": "4702908",
+     "displayName": "Omari Evans",
+     "jersey": "7",
+     "age": 22,
+     "dateOfBirth": "2003-12-31T08:00Z",
+     "displayHeight": "6' 0\"",
+     "displayWeight": "195 lbs",
+     "position": {
+      "abbreviation": "WR",
+      "displayName": "Wide Receiver"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4702908.png"
+     },
+     "college": {
+      "name": "Washington"
+     },
+     "experience": {
+      "years": 0
+     },
+     "injuries": []
+    },
+    {
+     "id": "4912338",
+     "displayName": "Aiden Fisher",
+     "age": 22,
+     "dateOfBirth": "2003-12-23T08:00Z",
+     "displayHeight": "6' 1\"",
+     "displayWeight": "231 lbs",
+     "position": {
+      "abbreviation": "LB",
+      "displayName": "Linebacker"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/nfl/players/full/4912338.png"
+     },
+     "college": {
+      "name": "Indiana"
+     },
+     "experience": {
+      "years": 0
+     },
+     "injuries": []
+    }
+   ]
+  }
+ ],
+ "coach": [
+  {
+   "firstName": "Andy",
+   "lastName": "Reid"
+  }
+ ],
+ "season": {
+  "year": 2026
+ }
+}

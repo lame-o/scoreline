@@ -1,0 +1,201 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/players/zywoo/matches_list_stats/general?limit=10",
+ "_recorded": "2026-10-27T08:46:44.771Z",
+ "items": [
+  {
+   "match_id": 132234,
+   "match_slug": "vitality-vs-fut-cs2-26-10-2026",
+   "match_start_date": "2026-10-26T10:25:00.000+00:00",
+   "game_wins": [
+    0,
+    0,
+    1
+   ],
+   "game_numbers": [
+    3,
+    2,
+    1
+   ],
+   "for_game_map_name": [
+    "de_anubis",
+    "de_dust2",
+    "de_mirage"
+   ],
+   "rounds_count": 67,
+   "enemy_team_id": 20832,
+   "enemy_team_name": "FUT",
+   "enemy_team_image_url": "https://files.bo3.gg/uploads/team/20832/image/webp-3c31da5dd03e58f5041420c56c14ed52.webp",
+   "tournament_slug": "pgl-masters-bucharest-2026",
+   "stats": [
+    {
+     "player_rating": 7.562790546312986,
+     "kills": 63,
+     "death": 43,
+     "damage": 6362,
+     "headshots": 25
+    }
+   ]
+  },
+  {
+   "match_id": 132225,
+   "match_slug": "vitality-vs-the-mongolz-25-10-2026",
+   "match_start_date": "2026-10-25T09:50:00.000+00:00",
+   "game_wins": [
+    1,
+    1
+   ],
+   "game_numbers": [
+    2,
+    1
+   ],
+   "for_game_map_name": [
+    "de_cache",
+    "de_inferno"
+   ],
+   "rounds_count": 35,
+   "enemy_team_id": 736,
+   "enemy_team_name": "The MongolZ",
+   "enemy_team_image_url": "https://files.bo3.gg/uploads/team/736/image/webp-499cad826b4cd83ce22f8bd2b13261d6.webp",
+   "tournament_slug": "pgl-masters-bucharest-2026",
+   "stats": [
+    {
+     "player_rating": 8.787408141557346,
+     "kills": 35,
+     "death": 16,
+     "damage": 4039,
+     "headshots": 16
+    }
+   ]
+  },
+  {
+   "match_id": 132174,
+   "match_slug": "vitality-vs-9z-24-10-2026",
+   "match_start_date": "2026-10-24T14:00:00.000+00:00",
+   "game_wins": [
+    1,
+    1
+   ],
+   "game_numbers": [
+    2,
+    1
+   ],
+   "for_game_map_name": [
+    "de_cache",
+    "de_mirage"
+   ],
+   "rounds_count": 46,
+   "enemy_team_id": 324,
+   "enemy_team_name": "9z",
+   "enemy_team_image_url": "https://files.bo3.gg/uploads/team/324/image/webp-847d6324439266b5de80bcb2e23fa38e.webp",
+   "tournament_slug": "pgl-masters-bucharest-2026",
+   "stats": [
+    {
+     "player_rating": 5.995153812140448,
+     "kills": 31,
+     "death": 30,
+     "damage": 3779,
+     "headshots": 12
+    }
+   ]
+  },
+  {
+   "match_id": 130754,
+   "match_slug": "vitality-vs-mouz-cs2-11-10-2026",
+   "match_start_date": "2026-10-11T15:00:00.000+00:00",
+   "game_wins": [
+    1,
+    1,
+    1
+   ],
+   "game_numbers": [
+    3,
+    2,
+    1
+   ],
+   "for_game_map_name": [
+    "de_cache",
+    "de_dust2",
+    "de_inferno"
+   ],
+   "rounds_count": 69,
+   "enemy_team_id": 765,
+   "enemy_team_name": "MOUZ",
+   "enemy_team_image_url": "https://files.bo3.gg/uploads/team/765/image/bcbdcf50fb2c79b6ab45b0014300b9e0.png",
+   "tournament_slug": "esl-pro-league-season-24",
+   "stats": [
+    {
+     "player_rating": 7.695054337370017,
+     "kills": 64,
+     "death": 33,
+     "damage": 6250,
+     "headshots": 28
+    }
+   ]
+  },
+  {
+   "match_id": 130751,
+   "match_slug": "aurora-gaming-vs-vitality-10-10-2026",
+   "match_start_date": "2026-10-10T13:45:00.000+00:00",
+   "game_wins": [
+    1,
+    1,
+    0
+   ],
+   "game_numbers": [
+    3,
+    2,
+    1
+   ],
+   "for_game_map_name": [
+    "de_anubis",
+    "de_cache",
+    "de_mirage"
+   ],
+   "rounds_count": 61,
+   "enemy_team_id": 3598,
+   "enemy_team_name": "Aurora",
+   "enemy_team_image_url": "https://files.bo3.gg/uploads/team/3598/image/webp-49b8df76b0d121cc89c760c1ec16ebea.webp",
+   "tournament_slug": "esl-pro-league-season-24",
+   "stats": [
+    {
+     "player_rating": 6.831360237686653,
+     "kills": 52,
+     "death": 36,
+     "damage": 5117,
+     "headshots": 25
+    }
+   ]
+  },
+  {
+   "match_id": 130748,
+   "match_slug": "vitality-vs-parivision-09-10-2026",
+   "match_start_date": "2026-10-09T11:30:00.000+00:00",
+   "game_wins": [
+    1,
+    1
+   ],
+   "game_numbers": [
+    2,
+    1
+   ],
+   "for_game_map_name": [
+    "de_dust2",
+    "de_inferno"
+   ],
+   "rounds_count": 38,
+   "enemy_team_id": 8171,
+   "enemy_team_name": "PARIVISION",
+   "enemy_team_image_url": "https://files.bo3.gg/uploads/team/8171/image/webp-735594256ca5670882480debe25ffb69.webp",
+   "tournament_slug": "esl-pro-league-season-24",
+   "stats": [
+    {
+     "player_rating": 6.999911535590151,
+     "kills": 33,
+     "death": 15,
+     "damage": 3279,
+     "headshots": 6
+    }
+   ]
+  }
+ ]
+}

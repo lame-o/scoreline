@@ -1,0 +1,76 @@
+{
+ "_source": "https://site.web.api.espn.com/apis/common/v3/sports/baseball/mlb/athletes/39832",
+ "_recorded": "2026-10-27T08:46:29.599Z",
+ "athlete": {
+  "id": "39832",
+  "displayName": "Shohei Ohtani",
+  "jersey": "17",
+  "active": true,
+  "age": 32,
+  "displayBirthPlace": "Oshu, Japan",
+  "displayHeight": "6' 4\"",
+  "displayWeight": "210 lbs",
+  "displayExperience": "9th Season",
+  "displayBatsThrows": "Left/Right",
+  "debutYear": 2018,
+  "position": {
+   "displayName": "Designated Hitter",
+   "abbreviation": "DH"
+  },
+  "headshot": {
+   "href": "https://a.espncdn.com/i/headshots/mlb/players/full/39832.png"
+  },
+  "team": {
+   "id": "19",
+   "displayName": "Los Angeles Dodgers",
+   "shortDisplayName": "Dodgers",
+   "abbreviation": "LAD",
+   "color": "005a9c",
+   "alternateColor": "ffffff",
+   "logos": [
+    {
+     "href": "https://a.espncdn.com/i/teamlogos/mlb/500/lad.png"
+    }
+   ]
+  },
+  "links": [
+   {
+    "rel": [
+     "playercard",
+     "desktop",
+     "athlete"
+    ],
+    "href": "https://www.espn.com/mlb/player/_/id/39832"
+   }
+  ],
+  "statsSummary": {
+   "displayName": "2026 season stats",
+   "statistics": [
+    {
+     "abbreviation": "AVG",
+     "shortDisplayName": "AVG",
+     "displayValue": ".275",
+     "rankDisplayValue": "Tied-38th"
+    },
+    {
+     "abbreviation": "HR",
+     "shortDisplayName": "HR",
+     "displayValue": "30",
+     "rankDisplayValue": "Tied-17th"
+    },
+    {
+     "abbreviation": "RBI",
+     "shortDisplayName": "RBI",
+     "displayValue": "81",
+     "rankDisplayValue": "Tied-46th"
+    },
+    {
+     "abbreviation": "OPS",
+     "shortDisplayName": "OPS",
+     "displayValue": ".889",
+     "rankDisplayValue": "6th"
+    }
+   ]
+  }
+ }
+}

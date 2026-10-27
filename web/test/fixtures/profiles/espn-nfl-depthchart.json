@@ -1,0 +1,122 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/12/depthcharts",
+ "_recorded": "2026-10-27T08:46:29.720Z",
+ "depthchart": [
+  {
+   "name": "Base 4-3 D",
+   "positions": {
+    "lde": {
+     "position": {
+      "abbreviation": "LDE"
+     },
+     "athletes": [
+      {
+       "id": "4426659",
+       "displayName": "George Karlaftis"
+      },
+      {
+       "id": "4684432",
+       "displayName": "Ashton Gillotte"
+      }
+     ]
+    },
+    "mlb": {
+     "position": {
+      "abbreviation": "MLB"
+     },
+     "athletes": [
+      {
+       "id": "4362759",
+       "displayName": "Nick Bolton"
+      },
+      {
+       "id": "4249766",
+       "displayName": "Jack Cochrane"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "Special Teams",
+   "positions": {
+    "pk": {
+     "position": {
+      "abbreviation": "PK"
+     },
+     "athletes": [
+      {
+       "id": "3055899",
+       "displayName": "Harrison Butker"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "3WR 1TE",
+   "positions": {
+    "wr1": {
+     "position": {
+      "abbreviation": "WR"
+     },
+     "athletes": [
+      {
+       "id": "4428331",
+       "displayName": "Rashee Rice"
+      },
+      {
+       "id": "4912218",
+       "displayName": "Cyrus Allen"
+      }
+     ]
+    },
+    "lt": {
+     "position": {
+      "abbreviation": "LT"
+     },
+     "athletes": [
+      {
+       "id": "4566190",
+       "displayName": "Kahlil Benson"
+      },
+      {
+       "id": "4043041",
+       "displayName": "Jaylon Moore"
+      }
+     ]
+    },
+    "qb": {
+     "position": {
+      "abbreviation": "QB"
+     },
+     "athletes": [
+      {
+       "id": "3139477",
+       "displayName": "Patrick Mahomes"
+      },
+      {
+       "id": "4362887",
+       "displayName": "Justin Fields"
+      }
+     ]
+    },
+    "rb": {
+     "position": {
+      "abbreviation": "RB"
+     },
+     "athletes": [
+      {
+       "id": "4567048",
+       "displayName": "Kenneth Walker III"
+      },
+      {
+       "id": "4832955",
+       "displayName": "Emmett Johnson"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

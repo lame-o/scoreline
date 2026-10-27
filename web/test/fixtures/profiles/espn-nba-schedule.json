@@ -1,0 +1,354 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/13/schedule",
+ "_recorded": "2026-10-27T08:46:29.312Z",
+ "events": [
+  {
+   "id": "401909092",
+   "date": "2026-10-22T02:00Z",
+   "seasonType": {
+    "type": 2
+   },
+   "competitions": [
+    {
+     "status": {
+      "type": {
+       "state": "post",
+       "name": "STATUS_FINAL"
+      }
+     },
+     "broadcasts": [
+      {
+       "media": {
+        "shortName": "ESPN"
+       }
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": true,
+       "score": {
+        "displayValue": "127"
+       },
+       "team": {
+        "id": "13",
+        "displayName": "Los Angeles Lakers",
+        "shortDisplayName": "Lakers",
+        "abbreviation": "LAL",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nba/500/lal.png"
+         }
+        ]
+       }
+      },
+      {
+       "homeAway": "away",
+       "winner": false,
+       "score": {
+        "displayValue": "105"
+       },
+       "team": {
+        "id": "9",
+        "displayName": "Golden State Warriors",
+        "shortDisplayName": "Warriors",
+        "abbreviation": "GS",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nba/500/gs.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401909851",
+   "date": "2026-10-24T02:00Z",
+   "seasonType": {
+    "type": 2
+   },
+   "competitions": [
+    {
+     "status": {
+      "type": {
+       "state": "post",
+       "name": "STATUS_FINAL"
+      }
+     },
+     "broadcasts": [
+      {
+       "media": {
+        "shortName": "NBA League Pass"
+       }
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": true,
+       "score": {
+        "displayValue": "125"
+       },
+       "team": {
+        "id": "13",
+        "displayName": "Los Angeles Lakers",
+        "shortDisplayName": "Lakers",
+        "abbreviation": "LAL",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nba/500/lal.png"
+         }
+        ]
+       }
+      },
+      {
+       "homeAway": "away",
+       "winner": false,
+       "score": {
+        "displayValue": "117"
+       },
+       "team": {
+        "id": "12",
+        "displayName": "LA Clippers",
+        "shortDisplayName": "Clippers",
+        "abbreviation": "LAC",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nba/500/lac.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401909861",
+   "date": "2026-10-25T21:00Z",
+   "seasonType": {
+    "type": 2
+   },
+   "competitions": [
+    {
+     "status": {
+      "type": {
+       "state": "post",
+       "name": "STATUS_FINAL"
+      }
+     },
+     "broadcasts": [
+      {
+       "media": {
+        "shortName": "NBA League Pass"
+       }
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": false,
+       "score": {
+        "displayValue": "123"
+       },
+       "team": {
+        "id": "26",
+        "displayName": "Utah Jazz",
+        "shortDisplayName": "Jazz",
+        "abbreviation": "UTAH",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nba/500/utah.png"
+         }
+        ]
+       }
+      },
+      {
+       "homeAway": "away",
+       "winner": true,
+       "score": {
+        "displayValue": "132"
+       },
+       "team": {
+        "id": "13",
+        "displayName": "Los Angeles Lakers",
+        "shortDisplayName": "Lakers",
+        "abbreviation": "LAL",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nba/500/lal.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401909880",
+   "date": "2026-10-28T03:00Z",
+   "seasonType": {
+    "type": 2
+   },
+   "competitions": [
+    {
+     "status": {
+      "type": {
+       "state": "pre",
+       "name": "STATUS_SCHEDULED"
+      }
+     },
+     "broadcasts": [
+      {
+       "media": {
+        "shortName": "Peacock"
+       }
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "13",
+        "displayName": "Los Angeles Lakers",
+        "shortDisplayName": "Lakers",
+        "abbreviation": "LAL",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nba/500/lal.png"
+         }
+        ]
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "22",
+        "displayName": "Portland Trail Blazers",
+        "shortDisplayName": "Trail Blazers",
+        "abbreviation": "POR",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nba/500/por.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401909892",
+   "date": "2026-10-29T02:30Z",
+   "seasonType": {
+    "type": 2
+   },
+   "competitions": [
+    {
+     "status": {
+      "type": {
+       "state": "pre",
+       "name": "STATUS_SCHEDULED"
+      }
+     },
+     "broadcasts": [
+      {
+       "media": {
+        "shortName": "NBA League Pass"
+       }
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "12",
+        "displayName": "LA Clippers",
+        "shortDisplayName": "Clippers",
+        "abbreviation": "LAC",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nba/500/lac.png"
+         }
+        ]
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "13",
+        "displayName": "Los Angeles Lakers",
+        "shortDisplayName": "Lakers",
+        "abbreviation": "LAL",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nba/500/lal.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401909285",
+   "date": "2026-10-31T02:00Z",
+   "seasonType": {
+    "type": 2
+   },
+   "competitions": [
+    {
+     "status": {
+      "type": {
+       "state": "pre",
+       "name": "STATUS_SCHEDULED"
+      }
+     },
+     "broadcasts": [
+      {
+       "media": {
+        "shortName": "Prime Video"
+       }
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "9",
+        "displayName": "Golden State Warriors",
+        "shortDisplayName": "Warriors",
+        "abbreviation": "GS",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nba/500/gs.png"
+         }
+        ]
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "13",
+        "displayName": "Los Angeles Lakers",
+        "shortDisplayName": "Lakers",
+        "abbreviation": "LAL",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nba/500/lal.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

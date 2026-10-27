@@ -1,0 +1,86 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/players/zywoo/map_stats",
+ "_recorded": "2026-10-27T08:46:45.195Z",
+ "items": [
+  {
+   "map_name": "de_ancient",
+   "maps_count": 3,
+   "avg_player_rating_value": 1161.4602210360722,
+   "avg_player_rating": 7.259126381475451,
+   "avg_kills": 1.0106382978723405,
+   "avg_damage": 87.82978723404256
+  },
+  {
+   "map_name": "de_anubis",
+   "maps_count": 74,
+   "avg_player_rating_value": 1075.6199333186203,
+   "avg_player_rating": 6.722624583241377,
+   "avg_kills": 0.7813599062133646,
+   "avg_damage": 80.58030480656507
+  },
+  {
+   "map_name": "de_cache",
+   "maps_count": 10,
+   "avg_player_rating_value": 1225.6847718938707,
+   "avg_player_rating": 7.660529824336692,
+   "avg_kills": 0.9375,
+   "avg_damage": 96.77403846153847
+  },
+  {
+   "map_name": "de_dust2",
+   "maps_count": 178,
+   "avg_player_rating_value": 1139.9789177486136,
+   "avg_player_rating": 7.124868235928836,
+   "avg_kills": 0.8422447013487476,
+   "avg_damage": 87.75867052023122
+  },
+  {
+   "map_name": "de_inferno",
+   "maps_count": 201,
+   "avg_player_rating_value": 1121.7008387816438,
+   "avg_player_rating": 7.010630242385274,
+   "avg_kills": 0.8183540307303726,
+   "avg_damage": 84.55693538202483
+  },
+  {
+   "map_name": "de_mirage",
+   "maps_count": 200,
+   "avg_player_rating_value": 1119.6275170492602,
+   "avg_player_rating": 6.997671981557876,
+   "avg_kills": 0.8374974608978265,
+   "avg_damage": 85.42981921592525
+  },
+  {
+   "map_name": "de_nuke",
+   "maps_count": 192,
+   "avg_player_rating_value": 1111.0704831137161,
+   "avg_player_rating": 6.944190519460726,
+   "avg_kills": 0.8299132642267824,
+   "avg_damage": 86.76560186164586
+  },
+  {
+   "map_name": "de_overpass",
+   "maps_count": 98,
+   "avg_player_rating_value": 1090.299381288888,
+   "avg_player_rating": 6.814371133055551,
+   "avg_kills": 0.8078859060402684,
+   "avg_damage": 82.78901006711409
+  },
+  {
+   "map_name": "de_train",
+   "maps_count": 22,
+   "avg_player_rating_value": 1115.2485146708461,
+   "avg_player_rating": 6.9703032166927885,
+   "avg_kills": 0.8474945533769063,
+   "avg_damage": 87.119825708061
+  },
+  {
+   "map_name": "de_vertigo",
+   "maps_count": 89,
+   "avg_player_rating_value": 1095.14891924653,
+   "avg_player_rating": 6.844680745290813,
+   "avg_kills": 0.8182208852599914,
+   "avg_damage": 85.16630855178342
+  }
+ ]
+}

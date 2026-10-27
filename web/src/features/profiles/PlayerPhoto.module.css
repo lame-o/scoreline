@@ -1,0 +1,73 @@
+/* A person's photo or monogram (ProfileLinks.swift `PlayerPhoto`). */
+.photo {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  overflow: hidden;
+  border-radius: 50%;
+  /* The quiet disc: the team's color at 16%, or ink at 7%. */
+  background: var(--fill-skeleton);
+  isolation: isolate;
+}
+
+.photo[data-tinted="true"] {
+  background: color-mix(in srgb, var(--tint) 16%, transparent);
+}
+
+/* A hero's monogram: a solid disc in the team color, light from the top. It steps back as a photo arrives. */
+.boldDisc {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--tint) 95%, transparent), color-mix(in srgb, var(--tint) 70%, transparent));
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.monogram {
+  position: relative;
+  font-family: var(--font-rounded);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--label-secondary);
+  transition: opacity var(--dur-fade) var(--ease-out);
+  user-select: none;
+}
+
+.photo[data-tinted="true"] .monogram {
+  color: var(--tint);
+}
+
+.photo[data-bold="true"] .monogram {
+  color: #fff;
+}
+
+.photo[data-bold="true"] .monogram[data-light="false"] {
+  color: rgb(0 0 0 / 0.8);
+}
+
+.img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  /* Only a photo arriving from the network fades in, once. */
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.photo[data-loaded="true"] .img {
+  opacity: 1;
+}
+
+.photo[data-loaded="true"] .monogram,
+.photo[data-loaded="true"] .boldDisc {
+  opacity: 0;
+}
+
+.photo[data-instant="true"] .img,
+.photo[data-instant="true"] .monogram,
+.photo[data-instant="true"] .boldDisc {
+  transition: none;
+}

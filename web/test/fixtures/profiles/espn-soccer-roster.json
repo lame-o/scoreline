@@ -1,0 +1,376 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/teams/359/roster",
+ "_recorded": "2026-10-27T08:46:30.055Z",
+ "athletes": [
+  {
+   "id": "196176",
+   "displayName": "David Raya",
+   "jersey": "1",
+   "age": 31,
+   "dateOfBirth": "1995-09-15T07:00Z",
+   "displayHeight": "6' 0\"",
+   "displayWeight": "174 lbs",
+   "citizenship": "Spain",
+   "position": {
+    "abbreviation": "G",
+    "displayName": "Goalkeeper"
+   },
+   "injuries": [],
+   "statistics": {
+    "splits": {
+     "categories": [
+      {
+       "stats": [
+        {
+         "name": "appearances",
+         "displayValue": "8"
+        }
+       ]
+      },
+      {
+       "stats": [
+        {
+         "name": "goalAssists",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalShots",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalGoals",
+         "displayValue": "0"
+        }
+       ]
+      },
+      {
+       "stats": [
+        {
+         "name": "saves",
+         "displayValue": "18"
+        },
+        {
+         "name": "goalsConceded",
+         "displayValue": "5"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "236322",
+   "displayName": "Gabriel Magalhães",
+   "jersey": "6",
+   "age": 28,
+   "dateOfBirth": "1997-12-19T08:00Z",
+   "displayHeight": "6' 3\"",
+   "displayWeight": "203 lbs",
+   "citizenship": "Brazil",
+   "position": {
+    "abbreviation": "D",
+    "displayName": "Defender"
+   },
+   "injuries": [],
+   "statistics": {
+    "splits": {
+     "categories": [
+      {
+       "stats": [
+        {
+         "name": "appearances",
+         "displayValue": "8"
+        }
+       ]
+      },
+      {
+       "stats": [
+        {
+         "name": "goalAssists",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalShots",
+         "displayValue": "9"
+        },
+        {
+         "name": "totalGoals",
+         "displayValue": "1"
+        }
+       ]
+      },
+      {
+       "stats": [
+        {
+         "name": "saves",
+         "displayValue": "0"
+        },
+        {
+         "name": "goalsConceded",
+         "displayValue": "5"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "277385",
+   "displayName": "William Saliba",
+   "jersey": "2",
+   "age": 25,
+   "dateOfBirth": "2001-03-24T08:00Z",
+   "displayHeight": "6' 4\"",
+   "displayWeight": "203 lbs",
+   "citizenship": "France",
+   "position": {
+    "abbreviation": "D",
+    "displayName": "Defender"
+   },
+   "injuries": []
+  },
+  {
+   "id": "282716",
+   "displayName": "Jurriën Timber",
+   "jersey": "12",
+   "age": 25,
+   "dateOfBirth": "2001-06-17T07:00Z",
+   "displayHeight": "5' 10\"",
+   "displayWeight": "172 lbs",
+   "citizenship": "Netherlands",
+   "position": {
+    "abbreviation": "D",
+    "displayName": "Defender"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/soccer/players/full/282716.png"
+   },
+   "injuries": [],
+   "statistics": {
+    "splits": {
+     "categories": [
+      {
+       "stats": [
+        {
+         "name": "appearances",
+         "displayValue": "4"
+        }
+       ]
+      },
+      {
+       "stats": [
+        {
+         "name": "goalAssists",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalShots",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalGoals",
+         "displayValue": "0"
+        }
+       ]
+      },
+      {
+       "stats": [
+        {
+         "name": "saves",
+         "displayValue": "0"
+        },
+        {
+         "name": "goalsConceded",
+         "displayValue": "3"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "203669",
+   "displayName": "Martin Ødegaard",
+   "jersey": "8",
+   "age": 27,
+   "dateOfBirth": "1998-12-17T08:00Z",
+   "displayHeight": "5' 10\"",
+   "displayWeight": "150 lbs",
+   "citizenship": "Norway",
+   "position": {
+    "abbreviation": "M",
+    "displayName": "Midfielder"
+   },
+   "injuries": [],
+   "statistics": {
+    "splits": {
+     "categories": [
+      {
+       "stats": [
+        {
+         "name": "appearances",
+         "displayValue": "8"
+        }
+       ]
+      },
+      {
+       "stats": [
+        {
+         "name": "goalAssists",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalShots",
+         "displayValue": "14"
+        },
+        {
+         "name": "totalGoals",
+         "displayValue": "2"
+        }
+       ]
+      },
+      {
+       "stats": [
+        {
+         "name": "saves",
+         "displayValue": "0"
+        },
+        {
+         "name": "goalsConceded",
+         "displayValue": "5"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "238262",
+   "displayName": "Declan Rice",
+   "jersey": "41",
+   "age": 27,
+   "dateOfBirth": "1999-01-14T08:00Z",
+   "displayHeight": "6' 2\"",
+   "displayWeight": "168 lbs",
+   "citizenship": "England",
+   "position": {
+    "abbreviation": "M",
+    "displayName": "Midfielder"
+   },
+   "injuries": [],
+   "statistics": {
+    "splits": {
+     "categories": [
+      {
+       "stats": [
+        {
+         "name": "appearances",
+         "displayValue": "8"
+        }
+       ]
+      },
+      {
+       "stats": [
+        {
+         "name": "goalAssists",
+         "displayValue": "4"
+        },
+        {
+         "name": "totalShots",
+         "displayValue": "6"
+        },
+        {
+         "name": "totalGoals",
+         "displayValue": "0"
+        }
+       ]
+      },
+      {
+       "stats": [
+        {
+         "name": "saves",
+         "displayValue": "0"
+        },
+        {
+         "name": "goalsConceded",
+         "displayValue": "5"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "280555",
+   "displayName": "Bukayo Saka",
+   "jersey": "7",
+   "age": 25,
+   "dateOfBirth": "2001-09-05T07:00Z",
+   "displayHeight": "5' 10\"",
+   "displayWeight": "141 lbs",
+   "citizenship": "England",
+   "position": {
+    "abbreviation": "F",
+    "displayName": "Forward"
+   },
+   "injuries": [],
+   "statistics": {
+    "splits": {
+     "categories": [
+      {
+       "stats": [
+        {
+         "name": "appearances",
+         "displayValue": "7"
+        }
+       ]
+      },
+      {
+       "stats": [
+        {
+         "name": "goalAssists",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalShots",
+         "displayValue": "17"
+        },
+        {
+         "name": "totalGoals",
+         "displayValue": "3"
+        }
+       ]
+      },
+      {
+       "stats": [
+        {
+         "name": "saves",
+         "displayValue": "0"
+        },
+        {
+         "name": "goalsConceded",
+         "displayValue": "5"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  }
+ ],
+ "coach": [
+  {
+   "id": "5",
+   "firstName": "Arsene",
+   "lastName": "Wenger"
+  }
+ ],
+ "season": {
+  "year": 2026
+ }
+}

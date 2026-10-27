@@ -1,0 +1,210 @@
+{
+ "_source": "https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/teams/13/depthcharts",
+ "_recorded": "2026-10-27T08:46:28.921Z",
+ "items": [
+  {
+   "positions": {
+    "pg": {
+     "athletes": [
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/3945274?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4277811?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4066457?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4397014?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4683774?lang=en&region=us"
+       }
+      }
+     ]
+    },
+    "sg": {
+     "athletes": [
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4066457?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4397014?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4277811?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4433137?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/5113969?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/3907498?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4592691?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4683774?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4868423?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4702972?lang=en&region=us"
+       }
+      }
+     ]
+    },
+    "sf": {
+     "athletes": [
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4433137?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4592691?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4397014?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/3907498?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/5113969?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/5060631?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4868423?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4702972?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4433599?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/5114350?lang=en&region=us"
+       }
+      }
+     ]
+    },
+    "pf": {
+     "athletes": [
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/3907498?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4278580?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4592691?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4278077?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4433137?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/5060631?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4433599?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/5114350?lang=en&region=us"
+       }
+      }
+     ]
+    },
+    "c": {
+     "athletes": [
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4433136?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/3155535?lang=en&region=us"
+       }
+      },
+      {
+       "athlete": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/athletes/4278580?lang=en&region=us"
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

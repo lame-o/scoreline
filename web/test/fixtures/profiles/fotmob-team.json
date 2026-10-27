@@ -1,0 +1,157 @@
+{
+ "_source": "https://www.fotmob.com/api/data/teams?id=9825",
+ "_recorded": "2026-10-27T08:46:31.855Z",
+ "squad": {
+  "squad": [
+   {
+    "title": "coach",
+    "members": [
+     {
+      "id": 24011,
+      "name": "Mikel Arteta"
+     }
+    ]
+   },
+   {
+    "title": "keepers",
+    "members": [
+     {
+      "id": 562727,
+      "name": "David Raya",
+      "shirtNumber": 1,
+      "injury": null
+     },
+     {
+      "id": 317564,
+      "name": "Kepa Arrizabalaga",
+      "shirtNumber": 13,
+      "injury": null
+     },
+     {
+      "id": 952029,
+      "name": "Illan Meslier",
+      "shirtNumber": 30,
+      "injury": null
+     }
+    ]
+   },
+   {
+    "title": "defenders",
+    "members": [
+     {
+      "id": 955406,
+      "name": "William Saliba",
+      "shirtNumber": 2,
+      "injury": {
+       "id": "45",
+       "expectedReturn": "Late November 2026"
+      }
+     },
+     {
+      "id": 1298907,
+      "name": "Cristhian Mosquera",
+      "shirtNumber": 3,
+      "injury": null
+     },
+     {
+      "id": 776151,
+      "name": "Ben White",
+      "shirtNumber": 4,
+      "injury": null
+     },
+     {
+      "id": 1137667,
+      "name": "Piero Hincapié",
+      "shirtNumber": 5,
+      "injury": {
+       "id": "30",
+       "expectedReturn": "Doubtful"
+      }
+     },
+     {
+      "id": 955406,
+      "name": "William Saliba",
+      "shirtNumber": 2,
+      "injury": {
+       "id": "45",
+       "expectedReturn": "Late November 2026"
+      }
+     }
+    ]
+   },
+   {
+    "title": "midfielders",
+    "members": [
+     {
+      "id": 534670,
+      "name": "Martin Ødegaard",
+      "shirtNumber": 8,
+      "injury": null
+     },
+     {
+      "id": 818975,
+      "name": "Eberechi Eze",
+      "shirtNumber": 10,
+      "injury": null
+     },
+     {
+      "id": 574645,
+      "name": "Mikel Merino",
+      "shirtNumber": 23,
+      "injury": null
+     },
+     {
+      "id": 1031325,
+      "name": "Martín Zubimendi",
+      "shirtNumber": 36,
+      "injury": null
+     }
+    ]
+   },
+   {
+    "title": "attackers",
+    "members": [
+     {
+      "id": 961995,
+      "name": "Bukayo Saka",
+      "shirtNumber": 7,
+      "injury": {
+       "id": "87",
+       "expectedReturn": "Early December 2026"
+      }
+     },
+     {
+      "id": 664500,
+      "name": "Viktor Gyökeres",
+      "shirtNumber": 14,
+      "injury": null
+     },
+     {
+      "id": 1157237,
+      "name": "Christos Tzolis",
+      "shirtNumber": 17,
+      "injury": {
+       "id": "42",
+       "expectedReturn": "Early November 2026"
+      }
+     },
+     {
+      "id": 1084981,
+      "name": "Noni Madueke",
+      "shirtNumber": 20,
+      "injury": null
+     },
+     {
+      "id": 961995,
+      "name": "Bukayo Saka",
+      "shirtNumber": 7,
+      "injury": {
+       "id": "87",
+       "expectedReturn": "Early December 2026"
+      }
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -13,7 +13,6 @@
  * Reduce Motion turns movement into fades.
  */
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Link } from "react-router";
 import { ordinal } from "../../../data/format";
 import type { Baseball } from "../../../data/gameDetail";
 import type { Side } from "../../../data/models";
@@ -24,6 +23,7 @@ import { ChartFooter } from "../core/DetailSection";
 import { useChartMoment } from "../core/moments";
 import { popScale, sample } from "../../../data/celebrations";
 import { useReducedMotion } from "../core/useMedia";
+import { PlayerLink, type PlayerRef } from "../../profiles/ProfileLinks";
 import styles from "./BaseballDiamond.module.css";
 
 /** Home plate and the bases, in the diamond's 52 × 48 frame. */
@@ -37,12 +37,13 @@ export interface BaseballDiamondProps {
   readonly batting: Side | null;
   readonly palette: TeamPalette;
   /** A player's page (batter, pitcher). */
-  readonly playerHref: (athleteID: string) => string | null;
+  /** A player's page from the feed's athlete ID and name (null: no page). */
+  readonly player: (athleteID: string, name: string) => PlayerRef | null;
   /** Under the diamond, over the footer: the play theater. */
   readonly children?: ReactNode;
 }
 
-export function BaseballDiamond({ situation, batting, palette, playerHref, children }: BaseballDiamondProps) {
+export function BaseballDiamond({ situation, batting, palette, player, children }: BaseballDiamondProps) {
   const moment = useChartMoment("plate");
   const level = useSettings((s) => s.celebrationLevel);
   const reduce = useReducedMotion();
@@ -161,9 +162,9 @@ export function BaseballDiamond({ situation, batting, palette, playerHref, child
           <Count label="O" value={situation.outs} of={2} tone="out" help="Outs" stagger={outStagger} />
         </div>
         <div className={styles.matchup}>
-          {situation.batter ? <Matchup role="At bat" name={situation.batter} href={situation.batterID ? playerHref(situation.batterID) : null} dot={color(batting)} chip={loaded} /> : null}
+          {situation.batter ? <Matchup role="At bat" name={situation.batter} player={situation.batterID ? player(situation.batterID, situation.batter) : null} dot={color(batting)} chip={loaded} /> : null}
           {situation.pitcher ? (
-            <Matchup role="Pitching" name={situation.pitcher} href={situation.pitcherID ? playerHref(situation.pitcherID) : null} dot={color(batting === "top" ? "bottom" : batting === "bottom" ? "top" : null)} />
+            <Matchup role="Pitching" name={situation.pitcher} player={situation.pitcherID ? player(situation.pitcherID, situation.pitcher) : null} dot={color(batting === "top" ? "bottom" : batting === "bottom" ? "top" : null)} />
           ) : null}
         </div>
       </div>
@@ -192,7 +193,7 @@ function Count({ label, value, of, tone, help, stagger = 0 }: { label: string; v
 }
 
 /** "At bat" with the batting team's dot (and BASES LOADED on the label's line, so nothing moves when it comes and goes). */
-function Matchup({ role, name, href, dot, chip = false }: { role: string; name: string; href: string | null; dot: string | null; chip?: boolean }) {
+function Matchup({ role, name, player, dot, chip = false }: { role: string; name: string; player: PlayerRef | null; dot: string | null; chip?: boolean }) {
   return (
     <span className={styles.person}>
       <span className={styles.role}>
@@ -200,13 +201,10 @@ function Matchup({ role, name, href, dot, chip = false }: { role: string; name: 
         {role}
         {chip ? <span className={styles.chip}>BASES LOADED</span> : null}
       </span>
-      {href ? (
-        <Link className={styles.name} to={href}>
-          {name}
-        </Link>
-      ) : (
-        <span className={styles.name}>{name}</span>
-      )}
+      {/* The name opens the player's page (PlayerNameLink: a dwell prefetches it); plain text without one. */}
+      <PlayerLink player={player} variant="plain" className={styles.name}>
+        {name}
+      </PlayerLink>
     </span>
   );
 }

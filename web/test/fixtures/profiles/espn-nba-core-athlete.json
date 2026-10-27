@@ -1,0 +1,26 @@
+{
+ "_source": "https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/athletes/1966",
+ "_recorded": "2026-10-27T08:46:28.567Z",
+ "dateOfBirth": "1984-12-30T08:00Z",
+ "age": 41,
+ "displayHeight": "6' 9\"",
+ "displayWeight": "250 lbs",
+ "jersey": "23",
+ "birthPlace": {
+  "city": "Akron",
+  "state": "OH",
+  "country": "USA"
+ },
+ "position": {
+  "displayName": "Forward",
+  "abbreviation": "F"
+ },
+ "experience": {
+  "years": 24
+ },
+ "draft": {
+  "year": 2003,
+  "round": 1,
+  "selection": 1
+ }
+}

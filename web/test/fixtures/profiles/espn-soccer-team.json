@@ -1,0 +1,102 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/359",
+ "_recorded": "2026-10-27T08:46:29.872Z",
+ "team": {
+  "id": "359",
+  "displayName": "Arsenal",
+  "shortDisplayName": "Arsenal",
+  "abbreviation": "ARS",
+  "color": "e20520",
+  "alternateColor": "003399",
+  "standingSummary": "2nd in English Premier League",
+  "leagueAbbrev": "eng.1",
+  "logos": [
+   {
+    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png"
+   }
+  ],
+  "record": {
+   "items": [
+    {
+     "type": "total",
+     "summary": "7-0-1"
+    }
+   ]
+  },
+  "franchise": {
+   "venue": {}
+  },
+  "links": [
+   {
+    "rel": [
+     "clubhouse",
+     "desktop",
+     "team"
+    ],
+    "href": "https://www.espn.com/soccer/club/_/id/359/arsenal"
+   }
+  ],
+  "nextEvent": [
+   {
+    "id": "401921835",
+    "date": "2026-10-27T20:00Z",
+    "league": {
+     "abbreviation": "Carabao Cup",
+     "slug": "eng.league_cup"
+    },
+    "seasonType": {
+     "type": 14281
+    },
+    "competitions": [
+     {
+      "status": {
+       "type": {
+        "state": "pre",
+        "name": "STATUS_SCHEDULED"
+       }
+      },
+      "broadcasts": [
+       {
+        "media": {
+         "shortName": "Paramount+"
+        }
+       }
+      ],
+      "competitors": [
+       {
+        "homeAway": "home",
+        "winner": false,
+        "team": {
+         "id": "3891",
+         "displayName": "Fleetwood Town",
+         "shortDisplayName": "Fleetwood Town",
+         "abbreviation": "FLE",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/soccer/500/3891.png"
+          }
+         ]
+        }
+       },
+       {
+        "homeAway": "away",
+        "winner": false,
+        "team": {
+         "id": "359",
+         "displayName": "Arsenal",
+         "shortDisplayName": "Arsenal",
+         "abbreviation": "ARS",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}
