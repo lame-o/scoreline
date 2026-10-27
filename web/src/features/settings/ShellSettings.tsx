@@ -19,7 +19,7 @@ import styles from "./Settings.module.css";
 export function TabSection() {
   const scoreInTitle = useSettings((s) => s.scoreInTitle);
   return (
-    <FormSection title="Tab" icon="pin" caption="Any game can show its score in the tab: right-click it and choose Show in Tab, or press P.">
+    <FormSection title="Tab" icon="pin" caption="Any game can show its score in the tab: choose Show in Tab from its menu.">
       <GroupBox>
         <ToggleRow title="Live score" subtitle="In the tab's title and icon when a team you follow is playing" checked={scoreInTitle} onChange={(v) => settings.set("scoreInTitle", v)} />
       </GroupBox>
