@@ -234,12 +234,21 @@ export interface MatchMark {
   readonly clock: string;
 }
 
-/** bo3.gg's live round score of the map being played (Swift `GameDetail.CSLive`, subset). */
+/**
+ * bo3.gg's live feed for the map being played (Swift `GameDetail.CSLive`).
+ * It exists only while bo3.gg's parser covers the match; otherwise rounds
+ * arrive after each map. Read by `parseLive` (providers/counterStrike.ts).
+ */
 export interface CSLive {
   readonly mapName: string | null;
+  /** Which map of the series (1-based). */
+  readonly mapNumber: number | null;
+  readonly round: number | null;
   readonly topScore: number;
   readonly bottomScore: number;
-  readonly round: number | null;
+  /** "CT" or "T". */
+  readonly topSide: "CT" | "T" | null;
+  readonly bottomSide: "CT" | "T" | null;
   readonly mapEnded: boolean;
 }
 
@@ -263,10 +272,9 @@ export interface WallAscent {
 export type WallReach = "none" | "lowZone" | "zone" | "top";
 
 /**
- * Who's on the wall in a live climbing round (Swift `WallState`). The type is
- * ported whole; reading it from IFSC results (`WallState.from`, which leans
- * on ClimbingDetail's boulder cards and wall routes) is still to do, so the
- * provider leaves climbing snapshots null for now.
+ * Who's on the wall in a live climbing round (Swift `WallState`), read from
+ * the IFSC results the provider already fetches for the leader
+ * (`wallStateFrom`, data/wallState.ts).
  */
 export interface WallState {
   readonly phase:

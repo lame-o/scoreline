@@ -274,9 +274,111 @@ async function mlb() {
   await save("espn-mlb-core-plays.json", { count: head.count, pages }, base);
 }
 
+// MARK: Match pages (a CS2 match, IFSC rounds)
+//
+// A bo3.gg match as its page loads it (GameDetail.swift `CSDetail.load`):
+// the match with games and streams, each map's rounds, both rosters. And
+// IFSC rounds as `ClimbingDetail.load` reads them: a lead final, a lead
+// qualification on two routes, a boulder final. The live lead final the Mac
+// app recorded (Tests/Fixtures/tiles) is trimmed the same way.
+
+const BO3 = "https://api.bo3.gg/api/v1";
+const clan = (c) => pick(c, ["team_id", "clan_name"]);
+
+function trimBo3Match(m) {
+  return {
+    ...pick(m, ["id", "slug", "status", "bo_type", "start_date", "team1_id", "team2_id", "team1_score", "team2_score", "winner_team_id"]),
+    team1: pick(m.team1, ["id", "slug", "name", "image_url"]),
+    team2: pick(m.team2, ["id", "slug", "name", "image_url"]),
+    stage: pick(m.stage, ["name", "title"]),
+    round: pick(m.round, ["name"]),
+    tournament: pick(m.tournament, ["slug", "name"]),
+    games: m.games?.map((g) => ({
+      ...pick(g, ["id", "number", "map_name", "status", "state", "winner_clan_score", "loser_clan_score"]),
+      winner_team_clan: clan(g.winner_team_clan),
+      loser_team_clan: clan(g.loser_team_clan),
+    })),
+    streams: m.streams?.map((s) => pick(s, ["id", "name", "raw_url", "viewers_number", "official", "language", "platform"])),
+  };
+}
+
+function trimBo3Game(g) {
+  return {
+    ...pick(g, ["id", "number", "map_name", "status"]),
+    winner_team_clan: clan(g.winner_team_clan),
+    loser_team_clan: clan(g.loser_team_clan),
+    game_rounds: g.game_rounds?.map((r) => ({
+      ...pick(r, ["round_number", "end_reason", "winner_clan_name", "winner_clan_side"]),
+      game_round_team_clans: r.game_round_team_clans?.map((c) => pick(c, ["clan_name", "equipment_value"])),
+    })),
+  };
+}
+
+function trimBo3Team(t) {
+  return {
+    ...pick(t, ["id", "slug", "name", "acronym"]),
+    players: t.players?.map((p) => ({ ...pick(p, ["id", "slug", "nickname", "first_name", "last_name", "status", "is_coach", "image_url"]), country: pick(p.country, ["code"]) })),
+  };
+}
+
+function trimIFSCRound(r) {
+  return {
+    ...pick(r, ["id", "event", "event_id", "discipline", "status", "status_as_of", "category", "round"]),
+    routes: r.routes?.map((x) => pick(x, ["id", "name"])),
+    ranking: r.ranking?.map((a) => ({
+      ...pick(a, ["athlete_id", "firstname", "lastname", "country", "rank", "score", "active"]),
+      ascents: a.ascents?.map((s) => pick(s, ["route_name", "top", "plus", "score", "status", "rank", "top_tries", "zone", "zone_tries", "low_zone", "low_zone_tries", "points", "time_ms"])),
+    })),
+    startlist: r.startlist?.map((s) => ({
+      ...pick(s, ["athlete_id", "firstname", "lastname", "country"]),
+      route_start_positions: s.route_start_positions?.map((p) => pick(p, ["route_name", "position"])),
+    })),
+  };
+}
+
+async function bo3Match(prefix, slug, rosters = null) {
+  const url = `${BO3}/matches/${slug}?with=games,streams`;
+  const match = await get(url);
+  await save(`${prefix}-match.json`, trimBo3Match(match), url);
+  for (const game of match.games ?? []) {
+    if (game.status === "upcoming" || game.status === "defwin") continue;
+    const gameURL = `${BO3}/games/${game.id}`;
+    await save(`${prefix}-game-${game.number}.json`, trimBo3Game(await get(gameURL)), gameURL);
+  }
+  for (const team of rosters ?? [match.team1.slug, match.team2.slug]) {
+    const teamURL = `${BO3}/teams/${team}?with=players.country`;
+    await save(`${prefix}-team-${team}.json`, trimBo3Team(await get(teamURL)), teamURL);
+  }
+}
+
+async function ifscRound(name, id) {
+  const url = `${IFSC}/api/v1/category_rounds/${id}/results`;
+  await save(name, trimIFSCRound(await get(url, ifscHeaders)), url);
+}
+
+async function matches() {
+  // PGL Masters Bucharest 2026: three maps, the second to overtime (16–14).
+  await bo3Match("bo3-detail", "g2-vs-dendele-cs-26-10-2026");
+  // The demo's live match is built from this one (bo3-live-*.synthetic.json).
+  // Its rosters are the demo's teams: Liquid and Aurora (bo3-matches-current.synthetic.json).
+  await bo3Match("bo3-demo", "liquid-vs-legacy-br-26-10-2026", ["liquid", "aurora-gaming"]);
+
+  await ifscRound("ifsc-round-lead-final.json", 11362); // Santiago 2026, Lead Women Final
+  await ifscRound("ifsc-round-lead-final-men.json", 11361); // Santiago 2026, Lead Men Final
+  await ifscRound("ifsc-round-lead-qualification.json", 10451); // Santiago 2026, Lead Women Qualification (two routes)
+  await ifscRound("ifsc-round-boulder-final.json", 11031); // Salt Lake City 2026, Boulder Women Final
+
+  // Recorded live by the Mac app (25 Oct 2026): a lead final with a climber on the wall.
+  const { readFile } = await import("node:fs/promises");
+  const live = JSON.parse(await readFile(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "Tests", "Fixtures", "tiles", "ifsc-11361.json"), "utf8"));
+  const body = { _source: `${IFSC}/api/v1/category_rounds/${live.id}/results`, _recorded: "2026-10-25 (live; the Mac app's Tests/Fixtures/tiles/ifsc-11361.json)", ...trimIFSCRound(live) };
+  await writeFile(join(out, "ifsc-round-lead-live.json"), JSON.stringify(body, null, 1) + "\n");
+  console.log("ifsc-round-lead-live.json");
+}
+
 // MARK: Run
 //
-// `pnpm fixtures` records everything; `pnpm fixtures ifsc` (or espn, bo3, teams, mlb) one source.
+// `pnpm fixtures` records everything; `pnpm fixtures ifsc` (or espn, bo3, teams, mlb, matches) one source.
 const only = process.argv[2];
 const want = (source) => !only || only === source;
 
@@ -300,3 +402,4 @@ if (want("teams")) await teams();
 if (want("mlb")) await mlb();
 // Team and player pages (test/fixtures/profiles).
 if (want("profiles")) await (await import("./record-profile-fixtures.mjs")).recordProfiles();
+if (want("matches")) await matches();

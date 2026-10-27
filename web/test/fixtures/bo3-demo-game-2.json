@@ -1,0 +1,354 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/games/190573",
+ "_recorded": "2026-10-27T09:58:12.492Z",
+ "id": 190573,
+ "number": 2,
+ "map_name": "de_inferno",
+ "status": "finished",
+ "winner_team_clan": {
+  "team_id": 790,
+  "clan_name": "Team Liquid"
+ },
+ "loser_team_clan": {
+  "team_id": 8118,
+  "clan_name": "Legacy"
+ },
+ "game_rounds": [
+  {
+   "round_number": 1,
+   "end_reason": "BombDefused",
+   "winner_clan_name": "Legacy",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 4300
+    },
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 4400
+    }
+   ]
+  },
+  {
+   "round_number": 2,
+   "end_reason": "CTWin",
+   "winner_clan_name": "Legacy",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 21350
+    },
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 14650
+    }
+   ]
+  },
+  {
+   "round_number": 3,
+   "end_reason": "CTWin",
+   "winner_clan_name": "Legacy",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 25000
+    },
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 3100
+    }
+   ]
+  },
+  {
+   "round_number": 4,
+   "end_reason": "TargetBombed",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 25300
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 28500
+    }
+   ]
+  },
+  {
+   "round_number": 5,
+   "end_reason": "CTWin",
+   "winner_clan_name": "Legacy",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 29750
+    },
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 25400
+    }
+   ]
+  },
+  {
+   "round_number": 6,
+   "end_reason": "BombDefused",
+   "winner_clan_name": "Legacy",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 30750
+    },
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 25100
+    }
+   ]
+  },
+  {
+   "round_number": 7,
+   "end_reason": "TerroristsWin",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 8400
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 30450
+    }
+   ]
+  },
+  {
+   "round_number": 8,
+   "end_reason": "TargetBombed",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 27700
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 30250
+    }
+   ]
+  },
+  {
+   "round_number": 9,
+   "end_reason": "TargetBombed",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 27950
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 28150
+    }
+   ]
+  },
+  {
+   "round_number": 10,
+   "end_reason": "TargetBombed",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 27950
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 26300
+    }
+   ]
+  },
+  {
+   "round_number": 11,
+   "end_reason": "TargetBombed",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 28050
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 17050
+    }
+   ]
+  },
+  {
+   "round_number": 12,
+   "end_reason": "CTWin",
+   "winner_clan_name": "Legacy",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 31350
+    },
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 28550
+    }
+   ]
+  },
+  {
+   "round_number": 13,
+   "end_reason": "CTWin",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 4350
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 4400
+    }
+   ]
+  },
+  {
+   "round_number": 14,
+   "end_reason": "CTWin",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 20250
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 9450
+    }
+   ]
+  },
+  {
+   "round_number": 15,
+   "end_reason": "CTWin",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 25050
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 5500
+    }
+   ]
+  },
+  {
+   "round_number": 16,
+   "end_reason": "CTWin",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 27300
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 23900
+    }
+   ]
+  },
+  {
+   "round_number": 17,
+   "end_reason": "CTWin",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 28700
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 13700
+    }
+   ]
+  },
+  {
+   "round_number": 18,
+   "end_reason": "TargetBombed",
+   "winner_clan_name": "Legacy",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 22650
+    },
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 28850
+    }
+   ]
+  },
+  {
+   "round_number": 19,
+   "end_reason": "CTWin",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 30000
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 25100
+    }
+   ]
+  },
+  {
+   "round_number": 20,
+   "end_reason": "TerroristsWin",
+   "winner_clan_name": "Legacy",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 21950
+    },
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 31250
+    }
+   ]
+  },
+  {
+   "round_number": 21,
+   "end_reason": "CTWin",
+   "winner_clan_name": "Team Liquid",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "Team Liquid",
+     "equipment_value": 25500
+    },
+    {
+     "clan_name": "Legacy",
+     "equipment_value": 26750
+    }
+   ]
+  }
+ ]
+}

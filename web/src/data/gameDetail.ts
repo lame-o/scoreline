@@ -18,6 +18,8 @@ import type { Fetcher } from "./http";
 import { arr, at, bool, has, num, str, type JSONValue } from "./json";
 import type { Competitor, CSLive, ScoreEvent, Side, Sport } from "./models";
 import { makeEvent } from "./providers/espn";
+import { EMPTY_ROSTER, loadCSDetail, type CSRound, type Roster } from "./cs2";
+import { loadClimbingDetail, type BoulderCard, type UpNext, type WallRoute } from "./climbing";
 
 // MARK: - Model
 
@@ -228,15 +230,31 @@ export interface GameDetail {
   readonly broadcast: string | null;
   /** Official broadcasters (US market, as ESPN reports them), radio last. */
   readonly broadcasters: readonly Broadcaster[];
-  // CS2 (CSDetail; to port)
+  // CS2 (CSDetail: data/cs2.ts)
   readonly maps: readonly MapResult[];
   readonly streams: readonly Stream[];
   readonly csLive: CSLive | null;
   readonly tournament: Tournament | null;
-  // Climbing (ClimbingDetail; to port)
+  /** Rosters, in top/bottom order. */
+  readonly topRoster: Roster;
+  readonly bottomRoster: Roster;
+  /** Round history per map number. */
+  readonly rounds: Readonly<Record<number, readonly CSRound[]>>;
+  // Climbing (ClimbingDetail: data/climbing.ts)
   readonly ranking: readonly Athlete[];
   readonly roundName: string | null;
   readonly roundStatus: string | null;
+  /** "lead", "boulder", "speed", as IFSC names the round's discipline. */
+  readonly discipline: string | null;
+  /** Lead: each route's high points. */
+  readonly wall: readonly WallRoute[];
+  /** Lead, live: who climbs next. */
+  readonly upNext: UpNext | null;
+  readonly boulders: readonly BoulderCard[];
+  readonly boulderProblems: readonly string[];
+  /** The order for a round with no results yet: this round before anyone finishes, or the next round. */
+  readonly startlist: readonly Athlete[];
+  readonly startlistRound: string | null;
 }
 
 export const EMPTY_DETAIL: GameDetail = {
@@ -261,9 +279,19 @@ export const EMPTY_DETAIL: GameDetail = {
   streams: [],
   csLive: null,
   tournament: null,
+  topRoster: EMPTY_ROSTER,
+  bottomRoster: EMPTY_ROSTER,
+  rounds: {},
   ranking: [],
   roundName: null,
   roundStatus: null,
+  discipline: null,
+  wall: [],
+  upNext: null,
+  boulders: [],
+  boulderProblems: [],
+  startlist: [],
+  startlistRound: null,
 };
 
 /** Maps a source's team IDs onto the event's top/bottom order. */
@@ -319,37 +347,21 @@ export async function fetchESPNDetail(event: ScoreEvent, path: string, id: strin
 }
 
 /**
- * CS2 (CSDetail.load): bo3.gg's match with games and streams, rosters, rounds
- * and the live snapshot.
- * TODO(cs2 agent): port CSDetail (GameDetail.swift) here: maps, streams,
- * tournament, rosters, round history (with its finished-map cache) and
- * `parseLive`. Returns an empty detail until then.
+ * CS2 (CSDetail.load, data/cs2.ts): bo3.gg's match with games and streams,
+ * rosters, rounds (finished maps cached) and, while live, the snapshot.
  */
-export async function fetchCSDetail(slug: string, _event: ScoreEvent, fetcher: Fetcher, options: DetailOptions = {}): Promise<GameDetail> {
-  const match = await fetcher(`https://api.bo3.gg/api/v1/matches/${slug}?with=games,streams`, { signal: options.signal });
-  return { ...EMPTY_DETAIL, roundName: str(at(match, "stage", "name")) ?? null };
+export async function fetchCSDetail(slug: string, event: ScoreEvent, fetcher: Fetcher, options: DetailOptions = {}): Promise<GameDetail> {
+  return { ...EMPTY_DETAIL, ...(await loadCSDetail(slug, event, fetcher, options)) };
 }
 
 /**
- * Climbing (ClimbingDetail.load): an IFSC round's results and the next
- * round's starting order.
- * TODO(climbing agent): port ClimbingDetail (GameDetail.swift): ranking,
- * wall routes, boulder cards, up next, startlist. Returns the ranking only.
+ * Climbing (ClimbingDetail.load, data/climbing.ts): an IFSC round's results
+ * (ranking, wall routes, boulder cards, who's next) and the next round's
+ * starting order.
  */
-export async function fetchClimbingDetail(resultURL: string | null, _nextURL: string | null, fetcher: Fetcher, options: DetailOptions = {}): Promise<GameDetail> {
-  if (!resultURL) return EMPTY_DETAIL;
-  const results = await fetcher(new URL(resultURL, "https://ifsc.results.info").href, { signal: options.signal });
-  const ranking = arr(at(results, "ranking")).flatMap((a): Athlete[] => {
-    const id = num(at(a, "athlete_id")) ?? num(at(a, "id"));
-    if (id == null) return [];
-    const last = capitalized(str(at(a, "lastname")) ?? "");
-    const score = str(at(a, "score"));
-    return [{ id, rank: num(at(a, "rank")) ?? null, name: `${str(at(a, "firstname")) ?? ""} ${last}`, country: str(at(a, "country")) ?? null, score: score ? score : null }];
-  });
-  return { ...EMPTY_DETAIL, ranking, roundName: str(at(results, "round")) ?? null, roundStatus: str(at(results, "status")) ?? null };
+export async function fetchClimbingDetail(resultURL: string | null, nextURL: string | null, fetcher: Fetcher, options: DetailOptions = {}): Promise<GameDetail> {
+  return { ...EMPTY_DETAIL, ...(await loadClimbingDetail(resultURL, nextURL, fetcher, options)) };
 }
-
-const capitalized = (s: string) => s.toLowerCase().replace(/(^|[\s-])\p{L}/gu, (m) => m.toUpperCase());
 
 // MARK: - A game from its summary
 
