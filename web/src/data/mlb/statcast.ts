@@ -69,7 +69,8 @@ const rounded = (v: number) => Math.sign(v) * Math.round(Math.abs(v));
 export function battedLine(b: StatcastBatted): string | null {
   const parts = [
     b.launchSpeed != null ? `${b.launchSpeed.toFixed(1)} MPH` : null,
-    b.launchAngle != null ? `${rounded(b.launchAngle)}°` : null,
+    // A true minus for a ball hit into the ground ("−29°").
+    b.launchAngle != null ? `${rounded(b.launchAngle)}°`.replace("-", "\u2212") : null,
     b.distance != null ? `${rounded(b.distance)} FT` : null,
   ].filter((p): p is string => p != null);
   return parts.length === 0 ? null : parts.join(" · ");
