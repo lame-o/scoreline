@@ -315,3 +315,78 @@
     }
   }
 }
+
+/* MARK: The shell's settings (ShellSettings.tsx) */
+
+.permission {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.permission[data-tone="warning"] {
+  color: var(--delayed-text);
+}
+
+.keys {
+  display: inline-flex;
+  gap: calc(3 * var(--pt));
+}
+
+.keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: calc(18 * var(--pt));
+  height: calc(18 * var(--pt));
+  padding: 0 calc(5 * var(--pt));
+  border-radius: calc(4 * var(--pt));
+  background: var(--fill-press);
+  box-shadow: inset 0 calc(-0.5 * var(--pt)) 0 var(--stroke-hairline);
+  font: inherit;
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--label-secondary);
+}
+
+/* Touch screens without a keyboard don't need the keys. */
+@media (pointer: coarse) {
+  .pointerOnly {
+    display: none;
+  }
+}
+
+.credits {
+  padding-top: calc(18 * var(--pt));
+  padding-bottom: calc(8 * var(--pt));
+  text-align: center;
+}
+
+.credits a {
+  color: var(--accent-text);
+}
+
+/* The pick list's keyboard highlight wears the accent (LeagueSettingsView's rows). */
+.pick[data-keyboard="true"] {
+  background: var(--accent-fill);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
+
+.pick:focus-visible {
+  outline-offset: calc(-2 * var(--pt));
+}
+
+.showAll {
+  display: flex;
+  justify-content: center;
+  padding-top: calc(6 * var(--pt));
+}
+
+.noMatches {
+  padding: calc(18 * var(--pt)) calc(16 * var(--pt));
+  text-align: center;
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+}

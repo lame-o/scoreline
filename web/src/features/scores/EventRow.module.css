@@ -253,3 +253,78 @@
 .row {
   scroll-margin-block: calc(56 * var(--pt)) calc(12 * var(--pt));
 }
+
+/* MARK: The game's menu (GameMenu.tsx) */
+
+/*
+ * The row and its "…" share a cell: the wrapper takes the row's place in the
+ * section's grid (a subgrid, so scores still line up), the button sits in
+ * the row's top-right corner, over the padding, clear of the status.
+ */
+.rowWrap {
+  position: relative;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  /* A long press opens the menu, not the link's callout or a text selection. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.more {
+  position: absolute;
+  top: calc(1 * var(--pt));
+  right: calc(3 * var(--pt));
+  display: none;
+  place-items: center;
+  width: calc(22 * var(--pt));
+  height: calc(12 * var(--pt));
+  border-radius: calc(4 * var(--pt));
+  color: var(--label-secondary);
+  opacity: 0;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .more {
+    display: grid;
+  }
+
+  .rowWrap:hover .more,
+  .rowWrap[data-menu-open="true"] .more {
+    opacity: 1;
+  }
+
+  .more:hover,
+  .more[aria-expanded="true"] {
+    background: var(--fill-press);
+    color: var(--label);
+  }
+}
+
+/* While its menu is open, the row keeps its hover wash (the Mac's context-menu outline). */
+.rowWrap[data-menu-open="true"] .row:not([data-keyboard="true"]):not([aria-current="page"]) {
+  background: var(--fill-hover);
+}
+
+/* MARK: Pinned (shown in the tab) */
+
+.statusLine {
+  display: flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+}
+
+.statusStack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: calc(1 * var(--pt));
+  min-width: 0;
+}
+
+.pin {
+  flex: none;
+  color: var(--label-tertiary);
+}

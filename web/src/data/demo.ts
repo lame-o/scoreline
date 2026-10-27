@@ -414,6 +414,18 @@ const demo: Fetcher = async (url) => {
     if (path.includes("college-football")) return fixture("standings-college.json");
   }
   if (u.host === "site.api.espn.com" && path.endsWith("/rankings")) return fixture("standings-rankings.json");
+  // CS2's live round: the race moves a round per refresh, then a map is won and it starts over.
+  if (u.host === "api.bo3.gg" && path.includes("/live/matches/") && path.endsWith("/last_snapshot")) {
+    const n = (polls.get(path) ?? -1) + 1;
+    polls.set(path, n);
+    const snap = await fixture("bo3-live-snapshot.synthetic.json");
+    const one = snap.team_one as { score: number };
+    const two = snap.team_two as { score: number };
+    one.score = (one.score + Math.floor((n + 1) / 2)) % 14;
+    two.score = (two.score + Math.floor(n / 2)) % 14;
+    snap.round_number = one.score + two.score + 1;
+    return snap;
+  }
   if (u.host === "api.bo3.gg" && path.endsWith("/matches")) {
     const status = u.searchParams.get("filter[matches.status][in]") ?? "";
     if (status === "current") return fixture("bo3-matches-current.synthetic.json");

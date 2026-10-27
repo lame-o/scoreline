@@ -6,7 +6,8 @@
  */
 import { LayoutGroup, m } from "motion/react";
 import { useMemo, useRef } from "react";
-import type { IconName } from "../../design/components";
+import { Link } from "react-router";
+import { Icon, type IconName } from "../../design/components";
 import { revealDelay, spring } from "../../design/motion";
 import type { League } from "../../data/models";
 import { planTiles, TIER_TITLE, tierID, type Board, type TierKind, type TierPlan } from "../../data/scoreboard";
@@ -69,6 +70,7 @@ export function TileBoard({ board, collapsed, followed, quietLeagues, hasFollowe
                 onToggle={toggle}
                 maxLogos={PREVIEW_LOGOS}
                 controls={`tiles-${id}`}
+                link={plan.tier.kind === "next" ? <ScheduleLink /> : undefined}
               />
               {isCollapsed ? null : (
                 <TierTiles
@@ -93,6 +95,16 @@ export function TileBoard({ board, collapsed, followed, quietLeagues, hasFollowe
         </m.div>
       </LayoutGroup>
     </div>
+  );
+}
+
+/** Up Next's "Schedule ›": the agenda beyond the next 36 hours (TileBoard.onOpenSchedule). */
+function ScheduleLink() {
+  return (
+    <Link className={styles.scheduleLink} to="/schedule" state={{ from: "Scores" }} title="Schedule (S)">
+      Schedule
+      <Icon name="chevronRight" size={8} />
+    </Link>
   );
 }
 

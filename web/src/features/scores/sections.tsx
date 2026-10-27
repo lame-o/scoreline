@@ -9,7 +9,7 @@
  * keyboard toggle, or one faster than the choreography can play, is instant.
  */
 import { m } from "motion/react";
-import { useCallback, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { Icon, LiveDot, TeamLogo, type IconName } from "../../design/components";
 import { spring } from "../../design/motion";
 import { countdown, dayAndTime, plural } from "../../data/format";
@@ -61,7 +61,23 @@ export function useSectionToggle() {
     });
   }, []);
 
-  return { toggling, toggle };
+  /**
+   * A change of order (Move Up, Move Down, Hide): the sections glide to their
+   * new places (Motion.rearrange). Tracking turns on first, so this frame
+   * records where everything starts; the change lands on the next.
+   */
+  const rearrange = useCallback((change: () => void) => {
+    const mine = ++generation.current;
+    setToggling({ id: null, animating: true });
+    requestAnimationFrame(() => {
+      change();
+      window.setTimeout(() => {
+        if (generation.current === mine) setToggling({ id: null, animating: false });
+      }, CHOREOGRAPHY_MS);
+    });
+  }, []);
+
+  return { toggling, toggle, rearrange };
 }
 
 /** A crest that travels between a collapsed preview and its row while its section toggles. */
@@ -108,24 +124,71 @@ export interface SectionHeaderProps {
   readonly controls?: string;
   /** The section's menu (Schedule, Results, Table…), shown beside the chevron on hover and by right-click. */
   readonly menu?: ReactNode;
+  /** A link beside the chevron, always shown (Up Next's "Schedule ›"): its own control, never inside the toggle. */
+  readonly link?: ReactNode;
 }
 
 /**
  * A section's (or tier's) header: the small caps label with its glyph and
  * a chevron. Collapsed, a preview hints at what's inside.
  */
-export function SectionHeader({ id, title, icon, events, collapsed, toggling, onToggle, maxLogos = 7, accessory, controls, menu }: SectionHeaderProps) {
+export function SectionHeader({ id, title, icon, events, collapsed, toggling, onToggle, maxLogos = 7, accessory, controls, menu, link }: SectionHeaderProps) {
   const linking = toggling.id === id;
-  const onClick = (event: MouseEvent) => onToggle(id, event.detail === 0);
-  // Right-click opens the section's menu, as on the Mac.
-  const onContextMenu = (event: MouseEvent<HTMLElement>) => {
-    const trigger = event.currentTarget.querySelector<HTMLButtonElement>("[data-section-menu] button");
-    if (!trigger) return;
-    event.preventDefault();
-    trigger.click();
+  const press = useRef<number | undefined>(undefined);
+  const swallow = useRef(false);
+  const onClick = (event: MouseEvent) => {
+    // The tap that ended a long press doesn't also fold the section.
+    if (swallow.current) {
+      swallow.current = false;
+      return;
+    }
+    onToggle(id, event.detail === 0);
   };
+  // Right-click (or a long press on touch) opens the section's menu, as on the Mac: a pointer's open, so it grows.
+  const openMenu = (heading: HTMLElement) => {
+    const trigger = heading.querySelector<HTMLButtonElement>("[data-section-menu] button");
+    if (!trigger || trigger.getAttribute("aria-expanded") === "true") return false;
+    trigger.dispatchEvent(new window.MouseEvent("click", { bubbles: true, detail: 1 }));
+    return true;
+  };
+  const onContextMenu = (event: MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    openMenu(event.currentTarget);
+  };
+  const onPointerDown = (event: PointerEvent<HTMLElement>) => {
+    swallow.current = false;
+    window.clearTimeout(press.current);
+    if (event.pointerType === "mouse" || (event.target as HTMLElement).closest("[data-section-menu]")) return;
+    const heading = event.currentTarget;
+    const { clientX: x, clientY: y } = event;
+    const cancel = (e: globalThis.PointerEvent) => {
+      if (e.type !== "pointermove" || Math.hypot(e.clientX - x, e.clientY - y) > 10) stop();
+    };
+    const stop = () => {
+      window.clearTimeout(press.current);
+      heading.removeEventListener("pointermove", cancel);
+      heading.removeEventListener("pointerup", cancel);
+      heading.removeEventListener("pointercancel", cancel);
+    };
+    heading.addEventListener("pointermove", cancel);
+    heading.addEventListener("pointerup", cancel);
+    heading.addEventListener("pointercancel", cancel);
+    press.current = window.setTimeout(() => {
+      stop();
+      if (openMenu(heading)) {
+        swallow.current = true;
+        navigator.vibrate?.(8);
+      }
+    }, 480);
+  };
+  useEffect(() => () => window.clearTimeout(press.current), []);
   return (
-    <h2 className={styles.heading} data-has-menu={menu != null} onContextMenu={menu ? onContextMenu : undefined}>
+    <h2
+      className={styles.heading}
+      data-has-menu={menu != null}
+      onContextMenu={menu ? onContextMenu : undefined}
+      onPointerDown={menu ? onPointerDown : undefined}
+    >
       <button
         type="button"
         className={styles.header}
@@ -157,6 +220,7 @@ export function SectionHeader({ id, title, icon, events, collapsed, toggling, on
           {menu}
         </span>
       ) : null}
+      {link ? <span className={styles.sectionLinkSlot}>{link}</span> : null}
     </h2>
   );
 }

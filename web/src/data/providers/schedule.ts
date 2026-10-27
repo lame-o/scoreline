@@ -514,3 +514,19 @@ export function parseCSMatches(json: JSONValue, now = Date.now()): ScheduleItem[
     ];
   });
 }
+
+/**
+ * A quiet league's next game day past the scores list's window, for its
+ * footnote ("Premier League: next Sat, Nov 1"; ScheduleStore.nextDay): a
+ * weekly league's next week (it has no games this one), a daily league's
+ * next game day from the day after tomorrow (the list shows today and
+ * tomorrow).
+ */
+export function nextDayAfterWindow(c: ScheduleCalendar, weekly: boolean, now: number): DayKey | null {
+  if (weekly) {
+    const current = weekAt(c, now);
+    const next = current ? weekAfter(c, current) : null;
+    return next ? dayKeyOf(next.start) : null;
+  }
+  return nextGameDay(c, addingDays(dayKeyOf(now), 2));
+}

@@ -146,3 +146,311 @@
   font-size: var(--text-caption);
   color: var(--label-secondary);
 }
+
+/* MARK: Moments (each a layer that exists only while it plays; opacity and transform only) */
+
+/* A touchdown lights the end zone it went into: in on the fade, hold, a slow decay (TileFlash). */
+.endZone {
+  position: absolute;
+  top: calc(100% * 20 / 28);
+  height: calc(100% * 8 / 28);
+  width: calc(100% * 10 / 120);
+  pointer-events: none;
+  animation: end-zone calc(var(--dur-fade) + 1600ms + var(--dur-decay)) linear both;
+}
+
+.endZone[data-side="left"] {
+  left: 0;
+  border-radius: 2px 0 0 2px;
+}
+
+.endZone[data-side="right"] {
+  right: 0;
+  border-radius: 0 2px 2px 0;
+}
+
+@keyframes end-zone {
+  0% {
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  5% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The chevron changing hands: it swings 180° over the top of the ball, crossfading to the other team's color. */
+.sweep {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  animation: sweep-left var(--dur-standard) cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.sweep[data-to="right"] {
+  animation-name: sweep-right;
+}
+
+/* Each chevron rides 8.5pt out from the ball's center; the swing turns them about it. */
+.sweepFrom,
+.sweepTo {
+  position: absolute;
+  left: calc(8.5 * var(--pt));
+  top: 0;
+  transform: translate(-50%, -50%);
+}
+
+.sweep[data-to="right"] .sweepFrom,
+.sweep[data-to="right"] .sweepTo {
+  left: calc(-8.5 * var(--pt));
+}
+
+.sweepFrom {
+  animation: fade-out var(--dur-standard) var(--ease-out) both;
+}
+
+.sweepTo {
+  animation: fade-in var(--dur-standard) var(--ease-out) both;
+}
+
+@keyframes sweep-left {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-180deg);
+  }
+}
+
+@keyframes sweep-right {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(180deg);
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* "Here": one ring that grows from 0.6× and fades, once (Moments.swift `MomentPing`, Motion.ping). */
+.ping {
+  position: absolute;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+  transform: translate(-50%, -50%) scale(0.6);
+  pointer-events: none;
+  animation: ping 600ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes ping {
+  from {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1.8);
+    opacity: 0;
+  }
+}
+
+/* Where a goal's ping sits along the track (a zero-size anchor at the mark's center). */
+.markPing {
+  position: absolute;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform: translateX(calc(var(--x) * 1cqw));
+}
+
+/* A new goal or card arrives like a badge: from 92%, fading in (Motion.quick). */
+.at[data-arriving] {
+  animation: mark-in var(--dur-quick) cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes mark-in {
+  from {
+    opacity: 0;
+    transform: translate(calc(var(--x) * 1cqw - 50%), -50%) scale(0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sweep,
+  .sweep[data-to="right"] {
+    animation: none;
+  }
+
+  /* The two chevrons crossfade in place: the old one where it was, the new one where it goes. */
+  .sweep[data-to="left"] .sweepTo {
+    left: calc(-8.5 * var(--pt));
+  }
+
+  .sweep[data-to="right"] .sweepTo {
+    left: calc(8.5 * var(--pt));
+  }
+
+  /* Turned to face the way the new side attacks. */
+  .sweep .sweepTo {
+    transform: translate(-50%, -50%) rotate(180deg);
+  }
+
+  .sweep .sweepFrom,
+  .sweep .sweepTo {
+    animation-duration: var(--dur-fade);
+  }
+
+  /* No growing: a softer ring that fades where it is. */
+  @keyframes ping {
+    from {
+      transform: translate(-50%, -50%) scale(1.2);
+      opacity: 0.6;
+    }
+    to {
+      transform: translate(-50%, -50%) scale(1.2);
+      opacity: 0;
+    }
+  }
+
+  @keyframes mark-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* MARK: CS2 race */
+
+.race {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(4 * var(--pt));
+}
+
+.raceHead {
+  display: flex;
+  align-items: baseline;
+  gap: calc(6 * var(--pt));
+  font-size: calc(10 * var(--pt));
+  white-space: nowrap;
+}
+
+.raceMap {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.raceLabel {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.raceRow {
+  display: flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  font-size: calc(9 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.raceScore {
+  min-width: calc(13 * var(--pt));
+  flex: none;
+}
+
+.raceMid {
+  flex: none;
+  width: 1px;
+  height: calc(10 * var(--pt));
+  background: var(--viz-reference);
+}
+
+.raceCells {
+  position: relative;
+  flex: 1;
+  display: flex;
+  gap: calc(1.5 * var(--pt));
+  min-width: 0;
+}
+
+.raceCell {
+  position: relative;
+  flex: 1;
+  height: calc(6 * var(--pt));
+  border-radius: calc(1.5 * var(--pt));
+  background: var(--viz-track);
+  overflow: hidden;
+}
+
+.raceCell[data-ghost] {
+  background: transparent;
+}
+
+.raceFill {
+  position: absolute;
+  inset: 0;
+  transition: opacity var(--dur-quick) var(--ease-out);
+}
+
+.raceFill[data-instant] {
+  transition: none;
+}
+
+/* A map won: the race empties at once and the won cells' ghost leaves on the exit's timing. */
+.raceGhost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: calc(1.5 * var(--pt));
+  pointer-events: none;
+  animation: fade-out var(--dur-exit) var(--ease-out) both;
+}
+
+/* MARK: Mini bases (a small live tile's batting line) */
+
+.miniBases {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: calc(13 * var(--pt));
+  height: calc(9 * var(--pt));
+  margin-left: calc(1 * var(--pt));
+  transform: translateY(calc(1 * var(--pt)));
+}
+
+.miniBases > span {
+  position: absolute;
+  width: calc(3.5 * var(--pt));
+  height: calc(3.5 * var(--pt));
+  margin: calc(-1.75 * var(--pt)) 0 0 calc(-1.75 * var(--pt));
+  background: color-mix(in srgb, var(--label) 18%, transparent);
+  transform: rotate(45deg);
+}
+
+.miniBases > span[data-on="true"] {
+  background: var(--label);
+}

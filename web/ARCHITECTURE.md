@@ -43,18 +43,21 @@ Deploying is `pnpm deploy` (`cf deploy`). The config has no `accountId` on purpo
 web/
   cloudflare.config.ts     Worker, SPA assets, /api/* first, Workers Caching, observability
   vite.config.ts           React and Cloudflare plugins, library chunks
-  index.html               theme applied before first paint
+  index.html               theme applied before first paint, the manifest and icons
+  public/                  manifest.webmanifest, sw.js (offline shell, alert clicks), icons (scripts/make-icons.mjs)
   shared/upstreams.ts      the upstream allowlist and cache policies (Worker and client share it)
   worker/                  index.ts (routes /api/*), proxy.ts (allowlist, Cache API, headers)
   src/
-    main.tsx               styles, the ?demo harness (dev only), <App/>
-    app/                   App (router, providers), AppShell (split view), navigation, IndexRoute, errors
+    main.tsx               styles, the ?demo harness (dev only), the service worker (production), <App/>
+    app/                   App (router, providers), AppShell (split view), navigation, IndexRoute, errors,
+                           LiveServices (tab score, alerts), commands (R , S), scrollMemory, favicon
     data/                  pure TypeScript ported from Swift: models, catalog, parsers, formatting
       providers/           one file per source: espn.ts, counterStrike.ts, ifsc.ts, teams.ts
       profiles/            team and player pages: models, ESPN, bo3, IFSC and FotMob parsers, rules
       liveFeeds/           game pages' fast lanes (baseball.ts, football.ts; soccer, NBA to come)
       mlb/                 the play theater's model (scene, script, camera, field, poses, dress) and Statcast
     state/                 settings (localStorage store), scores (TanStack Query), clock tickers, theme,
+                           pin (the pinned game), nextGames (My Teams' schedule fallback), notifications,
                            profiles (one query per URL, prefetch, page session), profilePhotos
     design/                tokens.css, base.css, motion.ts, icons.tsx, useWidth.ts
       components/          the design system (index.ts exports it all)
@@ -63,9 +66,10 @@ web/
   test/
     unit/                  Vitest
     worker/                Vitest, the proxy with the Cache API and fetch stubbed
-    e2e/                   Playwright (smoke, live, schedules, seasons, standings, game, profiles)
+    e2e/                   Playwright (smoke, live, schedules, seasons, standings, game, profiles, shell)
     fixtures/              small trimmed JSON (recorded, plus *.synthetic.json live states); profiles/ for the team and player pages
   scripts/record-fixtures.mjs   (and record-profile-fixtures.mjs, run as `pnpm fixtures profiles`)
+  scripts/make-icons.mjs        the app icons, from ../Support/make-icon.swift's algorithm (`node scripts/make-icons.mjs`)
 ```
 
 Four TypeScript programs with different globals:
@@ -170,8 +174,9 @@ Settings live in `src/state/settings.ts`: one typed, versioned store in `localSt
 | `collapsed` | [] | `collapsedSections` (league IDs, "my-teams", "tiles.live"…) |
 | `landingView` | list | same |
 | `theme` | system | new on the web |
-| `celebrationLevel` / `celebrationSounds` | full / false | same (the level drives game pages' celebrations; Settings → Live Games sets it; sounds are stored, not played yet) |
-| `notifyFollowed` | true | same (stored; notifications to do) |
+| `celebrationLevel` / `celebrationSounds` | full / false | same. Settings → Live Games sets both (Sounds is disabled while the level is Off). Game pages own playing them: read `useSettings((s) => s.celebrationLevel)` and `useSettings((s) => s.celebrationSounds)`; sounds aren't played yet |
+| `notifyFollowed` | true | same. Alerts post only when this is on **and** the browser allows them; Settings shows the toggle on only then |
+| `scoreInTitle` | true | `scoreInMenuBar`: the tab's title and favicon carry a followed team's live score (a pinned game shows regardless) |
 | `showCoStream` / `coStreamer` | true / ohnepixel | same (stored; co-streams to do) |
 | `resultsDetails` | true | same (Results' Show Details: scorers, pitchers, performers under rows) |
 
@@ -182,16 +187,21 @@ To add a setting:
 3. Add an action if it has a rule.
 4. Add a row to the table above.
 
-A change of shape bumps `VERSION` and needs a migration in `sanitize`. The Mac-only settings (menu bar label, live count, open at login, updates) have no web equivalent.
+A change of shape bumps `VERSION` and needs a migration in `sanitize`. The Mac-only settings (live count, open at login, updates) have no web equivalent; the menu bar's live score is the tab's (`scoreInTitle`).
+
+Per-tab state that isn't a setting: the pinned game (`state/pin.ts`, `pin.toggle(id)`, `useIsPinned(id)`), kept in `sessionStorage` (`scoreline.pinned`) as the Mac keeps its pin until quit.
 
 Live scores live in `src/state/scores.ts`, where `useScoreboard()` makes one TanStack Query per enabled league:
 
 - Cadence, from ScoreStore: every 30s while anything you'd see is live, 60s before a start, otherwise 5 minutes.
 - A failing league retries at 5s, 15s and 30s, then keeps its last good games, marked failed.
-- Polling pauses while the tab is hidden, and refetches on return if the data is older than 30s.
+- Polling pauses while the tab is hidden, and refetches on return if the data is older than 30s. The exception is the shell's own reader (below).
 - Each poll is merged onto the last. Clocks learn whether they run. The NBA's routine plays don't replace the last line worth reading. An unchanged game keeps its object identity, so its row doesn't re-render.
 
-`useScoreboard()` returns the derived sections, the tile board, quiet leagues, the live count, status, `event(id)` and `leagueOf(id)`. A second reader beside one that already polls passes `{ poll: false }`, so the feeds aren't polled twice; the game page does this in the split view, where the sidebar polls. Results are recomputed only when a league's data changes, the settings change or the minute turns (ScoreStore's `version`). Game pages read their event from it, so they stay live.
+- CS2: live matches with a followed team or pinned read bo3.gg's live snapshot (`data/providers/csLive.ts`, loaded only while a match is live): their rows say "Mirage 5–8", and in Tiles the first four live matches carry the round race.
+- My Teams reaches into each followed team's schedule for its next game within 21 days when the scoreboards have none (`state/nextGames.ts`, `fallbackGames`); the pin orders the Live tier after your teams.
+
+`useScoreboard()` returns the derived sections, the tile board, quiet leagues, the live count, status, `event(id)` and `leagueOf(id)`. A second reader beside one that already polls passes `{ poll: false }`, so the feeds aren't polled twice; the game page does this in the split view, where the sidebar polls. The shell's reader (app/LiveServices.tsx) passes `{ poll: "auto", background }`: it polls only when no page polls (Settings on a phone), and keeps polling a hidden tab while the tab's title or alerts need the news, at `backgroundInterval` (30s while a followed or pinned game is live, 60s before one starts, else 5 minutes). Results are recomputed only when a league's data changes, the settings change or the minute turns (ScoreStore's `version`). Game pages read their event from it, so they stay live.
 
 `useNow(period)` (`state/clock.ts`) is the only way to tick. Every component on the same period ticks in the same frame, on the whole period, and tickers stop while the tab is hidden.
 
@@ -276,7 +286,8 @@ Text tokens clear 4.5:1 on the page, the glass and a pressed row, in both themes
 | `Skeleton`, `EmptyState`, `ErrorState` (+ `ErrorCopy`) | static placeholders, empty and error states in the app's one wording |
 | `GroupBox`, `FormSection`, `ToggleRow`, `Toggle`, `Row` | System Settings building blocks |
 | `Icon` | the app's glyphs (SF Symbols-like, on a 16 grid); add new ones in `icons.tsx`, never inline SVG |
-| `Menu` | a pull-down on near-opaque glass (`--menu-fill`) that grows from its trigger: items, sections, checks, shortcuts; ↑/↓, Return, Esc; keyboard opens are instant |
+| `Menu` | a pull-down on near-opaque glass (`--menu-fill`) that grows from its trigger: items, sections, checks, shortcuts (hidden on touch), disabled items; ↑/↓, Return, Esc; keyboard opens are instant |
+| `ContextMenu` | the same menu at a point (`{ x, y, instant }`), in a portal so no scrolling pane clips it; flips at the window's edges and grows from the corner nearest the point; scrolling, resizing or leaving the window closes it; returns focus after a keyboard close |
 | `Outline` (`useOutline`, `DisclosureHeader`, `CrestStrip`, `OutlineBox`, `OutlineCrest`, `ShowAllButton`, `outlineReveal`, `OutlineGlide`) | long lists as an outline (OutlineList.swift): groups collapse to a header and a line of crests, "Show All N" past 24; each group's state is its own subscription, so opening one re-renders it alone; the decisions are pure in `data/outline.ts` |
 
 Feature components (rows, tiles, strips) live with their feature, not here. Promote one to the design system when a second feature needs it.
@@ -299,6 +310,8 @@ What's built:
 - **Collapsing or expanding a section or tier by click** runs in two phases, like ScoresView.toggle. First the crests are linked and layout tracking turns on; on the next frame the section toggles. The crests then travel between the rows and the collapsed preview (shared layout), the sections below glide (layout spring), and the rows' text rises in, staggered 40ms per row and capped at four. A toggle within 450ms of the last, or from the keyboard, is instant.
 - **Live:** a score change flashes the row (a soft red wash plus the scorer's dot) or the tile digit (a red pill), and the digits roll. Clocks tick on the second. Dots breathe in phase.
 - **List ⇄ Tiles:** a click stacks the new view in; the keyboard switches instantly.
+- **Menus:** a pull-down grows from its trigger, a context menu from the corner nearest the pointer (both 96% → 100% on the quick curve, out on the exit's); keyboard opens are instant. Move Up, Move Down and Hide glide the sections to their new order (`rearrange` in `features/scores/sections.tsx`). A tile's hover "…" arrives from 92%.
+- **Strip moments** (TileStrips.swift), each a layer that exists only while it plays, on a visible page only: a touchdown lights the end zone it went into in the scorer's color on the flash's timings; a change of possession swings the chevron 180° over the ball, crossfading colors (Reduce Motion: a crossfade in place); a run scoring pings home plate and a goal pings in its team's color (`Motion.ping`: 0.6× → 1.8× over 600ms; Reduce Motion: a softer ring fading in place); a new goal or card arrives like a badge; a map won empties the CS2 race with a ghost of the won cells leaving on the exit's timing.
 
 The owner can run `/review-animations` on the motion code for an independent review; agents can't invoke that skill.
 
@@ -315,7 +328,10 @@ The owner can run `/review-animations` on the motion code for an independent rev
   - Team and player pages: build their paths with `teamHref` and `playerHref` (or drop in `TeamLink` and `PlayerLink`); the formats, and the older ones the pages also accept, are in [Team and player pages](#team-and-player-pages).
   - Navigations may carry `state.from` (Back's label: "Schedule"); without it Back says "Scores". Every route but the scores is lazy. To add a page: create `src/features/<area>/<Page>.tsx` that exports the component, point its route's `lazy` at it, use `PageHeader` with `BackButton` (hidden in the split view, where Esc goes back), and use `useScoreboard()` or a new query for data. Placeholders live in `features/placeholders`; replace one by repointing its route.
 - **Back** (`useGoBack`) returns to whichever page opened this one. A page opened directly goes back to the scores. Esc does the same from anywhere except a text field.
-- **Keyboard:** on the scores, ↑/↓ move the highlight (←/→ too in Tiles, by on-screen geometry), Return opens the game, Esc goes back. The keyboard highlight wears the accent; the pointer's hover is a quiet gray and takes the highlight back.
+- **Keyboard:** on the scores, ↑/↓ move the highlight (←/→ too in Tiles, by on-screen geometry), Return opens the game, P shows it in the tab (the Mac's ⌘P), Shift-F10 or the Menu key opens a focused game's menu, Esc goes back. The keyboard highlight wears the accent; the pointer's hover is a quiet gray and takes the highlight back.
+- **Commands** (`app/commands.ts`, PanelCommands.swift): R refreshes every query on screen, comma opens Settings, S opens the Schedule. The Mac's ⌘R, ⌘, and ⌘U are the browser's, so these are bare keys; they stand aside while typing, with any modifier, inside an open menu, and for a key a page already took. Header buttons name their key in the tooltip ("Refresh (R)"); Settings → Keyboard lists them all (pointer devices only).
+- **Context menus:** a game's (`features/scores/GameMenu.tsx`; its items load as their own chunk, warmed at idle) and a section's (`SectionMenu.tsx`) open by right-click, by the "…" that shows on hover (always shown for sections on touch), and by a long press on touch (480ms, 10px of slop, a tick of `navigator.vibrate` where there is one; the tap that ends it is swallowed, and the link's own callout is off). Build menus from `MenuEntry`; open one at a point with `ContextMenu`.
+- **Scroll memory** (`app/scrollMemory.ts`, RootView's `scrollMemory`): beside the sidebar, the detail pane scrolls on its own, so it keeps its own memory: a fresh visit starts at the top, Back and Forward land where the page was, and the same page turned the other way in time (Upcoming | Results, a replace on the same path) keeps each way's place. On a phone the window scrolls and React Router's `ScrollRestoration` does the same.
 - **Schedule pages:** ↑/↓ through the rows, ←/→ step the navigator (a day, a week, a month, a round), Return opens, T goes to Today (Results: the latest round), ⌥1 / ⌥2 face Upcoming / Results (the Mac's ⌘1 / ⌘2, which browsers keep for tabs). The page in front takes the keys (capture phase) unless focus is in the sidebar.
 
 ## Game pages
@@ -345,12 +361,22 @@ A game's page (`features/game/GamePage.tsx`, DetailView.swift) is a core that ev
 
 **The football page** (`features/game/football/`, NFL and college): the Field (`FootballField`, Visualizations.swift): who has the ball, the down and distance, RED ZONE and 2-MIN DRILL (fitted to the row by measured text, the Mac's ViewThatFits with layout priorities), each team's timeouts, then a top-down field (the top team defends the left end zone) with the drive snap by snap (a bar per play from start to end: a gain filled in the team's color, a loss outlined, a penalty flag-yellow, a turnover neutral, a score ending in a dot), the line of scrimmage, the line to gain, the red zone, the ball with its heading and the room cleared around it; the footer (a pointed-at snap in words, the moment, else the legend) and the drive list, newest first, whose rows light their bars. Its beats, each as the ball's own motion lands: a pass or kick hops the ball, a sack drives it into the turf, a turnover knocks it with a ping in the new team's color, a big play glints along its bar and sparks, the uprights flash for a kick, a touchdown lights its end zone and bursts into confetti (gold when decisive), a safety blooms, entering the red zone the tint breathes once. The score by quarter (with overtime) lights the scoring plays it holds; win probability; scoring plays and the drive list link players' names (`names.tsx`: the box score's full names matched in ESPN's texts); team stats; college, the conference table around both teams (`collegeWindow`, the standings page's `ConferenceTable`) with AP ranks and live scores, Full Standings and Top 25. The lane (`data/liveFeeds/football.ts`) runs the hero's clock and the bar's down (red in the red zone), possession and 2-MIN DRILL, and keeps every raw core entry (`items`) for the play theater, which is still to port: its slot is the `theater` section under the field, and `FootballField celebrates={false}` hands it the burst.
 
+## The tab, alerts and the installed app
+
+What the Mac's menu bar item, Notifier and panel do, a browser does through the tab, Web Notifications and a manifest. `app/LiveServices.tsx` runs beside every page (loaded after the first paint, rendering nothing).
+
+- **The tab's live score** (MenuBarLabel.swift; `data/tabScore.ts`): the pinned game, or else (Settings → Tab → Live score) the first followed live game in your league order, or a followed final for ten minutes. The title leads with "ARS 2–1 CHE · 67'" ahead of the page's own title (`setTitleScore`, composed in `app/useDocumentTitle.ts`; a page that is that game keeps its title), and the favicon draws the score on the icon's night (`app/favicon.ts`: "2–1", or two stacked scores past three digits, a red dot while live). A pin lets go four hours after its game, once over.
+- **Alerts** (Notifier.swift; words in `data/notifier.ts`, delivery in `state/notifications.ts`): each poll is compared with the last for games involving a followed team: "Started", "Goal · 23rd minute", "{Team} scored · 3:10 left in the 2nd", "Score updated · …" for a correction, and the final ("Full time"); a final without scores is a postponement and says nothing. One alert per game (`tag` is the event ID, with `renotify`), titled with the score line. Several open tabs post each alert once (a Web Lock around a note in localStorage). Permission is asked only from Settings → Notifications, which shows the browser's answer and stays current. A click focuses the tab and opens the game (`gameHref`): through the service worker's `notificationclick` (which posts `{ type: "open", path }` to the tab) when one is installed, else the page's own `Notification.onclick`.
+- **They work while a tab is open**, even hidden: the shell's reader keeps polling a background tab while alerts are on, a game is pinned or a followed team's score belongs in the title (browsers throttle hidden timers to about once a minute). **Push**, for alerts with no tab open, would need: a Worker cron that polls the followed teams' leagues and diffs them (it holds no per-user state today); a store of push subscriptions and each one's followed teams (KV or D1, keyed by the subscription endpoint); VAPID keys as Worker secrets and Web Push encryption (RFC 8291) to send; `PushManager.subscribe` in Settings; and a `push` handler in sw.js calling `showNotification` with the same tags. On iPhone and iPad it also needs the app added to the Home Screen.
+- **The installed app** (`public/manifest.webmanifest`): standalone, Schedule and Settings shortcuts, icons rendered from the Mac's icon algorithm by `scripts/make-icons.mjs` (192 and 512 with the macOS squircle for installed windows and the Dock; a full-bleed 512 maskable; a full-bleed 180 apple-touch-icon, since iOS rounds corners itself and turns transparency black). The light and dark `theme-color`s match the page and follow Settings → Appearance (`useApplyTheme`).
+- **Offline shell** (`public/sw.js`, registered in production only): pages are network first, falling back to the last good `index.html`, so the app opens offline and says it can't connect; `/assets/` (hashed) and the icons are cache first, the shell's own assets fetched on install, 80 kept. `/api/` is never touched: scores always come from the network.
+
 ## Accessibility
 
 - **Landmarks:** `aside` for the scores and `main` for the page.
 - **Headings:** `h1` per page. On a game, the hero's `h1` is the game in words.
 - **Sections** are disclosure buttons inside `h2`s, with `aria-expanded` and a spoken preview when collapsed.
-- **Rows and tiles** are links labeled with the game in words: "Liverpool 3, Brighton 1, 67th minute", then follows, the situation and the caption, built by `spokenSummary`.
+- **Rows and tiles** are links labeled with the game in words: "Liverpool 3, Brighton 1, 67th minute", then "In the tab" when pinned, follows, the situation and the caption, built by `spokenSummary`. Their menu is reachable with Shift-F10 or the Menu key; the hover "…" is out of the tab order (one stop per game).
 - **Controls:** segmented controls are radio groups and switches use `role="switch"`. Live and status text is announced politely.
 - **Focus** rings show for keyboard users only (`:focus-visible`).
 - **Contrast** is tested, and Increase Contrast and Reduce Transparency are honored.
@@ -363,15 +389,17 @@ A game's page (`features/game/GamePage.tsx`, DetailView.swift) is a core that ev
 - **Motion cost:** live dots are compositor-only CSS. Layout animation is turned on only during a toggle, and crest links exist only for the section being toggled; each costs a measurement.
 - **No layout thrash:** text is measured with a shared canvas (`features/scores/measure.ts`, RecordFit), widths come from one ResizeObserver per board, and arrow keys read geometry only on a key press.
 - **Logos** are CDN-resized to 40/64/96/160px buckets, lazy-loaded and decoded asynchronously.
+- **The shell's share of the first paint** is about 7.6 KB gzipped (the strips' moments and the CS2 race, the context menu host, the pin, scroll memory and commands). What it can defer, it does: the game menu's items and the team-page helpers (`GameMenuContent`), CS2's live rounds (`csLive.ts`, only while a match is live), the tab score and alerts (`LiveServices`), and the schedule code behind My Teams' fallback and the footnotes' next game days (imported inside their query functions).
 
 ## Testing
 
-- **Unit** (`pnpm test`, Vitest, in Node with TZ America/New_York): every parser against `test/fixtures` (ESPN soccer, NFL, college, MLB, NBA; bo3; IFSC; team lists), plus the scoreboard logic, formatting and clocks, soccer marks, the allowlist and cache policies, team colors read from crests, settings, and token contrast. Game pages: the MLB summary and a game built from it, pitches and balls in play (`gameDetail.test.ts`), the baseball lane against the core API's pages (`baseballFeed.test.ts`), the football lane (`footballFeed.test.ts`: snaps, drives, the situation, the clock, moments, retractions, the spot held for its play; on `espn-nfl-core-plays.json` and the Swift app's MNF fixture) and the football detail, conference window, section plan, names, possession toss and football's moments (`footballDetail.test.ts`, on `espn-nfl-summary.json` and `espn-cfb-summary.json` from `pnpm fixtures football`), the section plan, hero beats, docking math, the moment slot and celebrations (`gameCore.test.ts`), linked focus (`linkedFocus.test.ts`), and the play theater's scene, notation, script, camera and Statcast matcher (`playScene`, `playScript`, `playCamera`, `statcast`), on World Series fixtures (`espn-mlb-summary.json`, `espn-mlb-core-plays.json` from `pnpm fixtures mlb`; `mlb-ws-g2-summary-plays.json`, `mlb-ws-g3-plays.json` and `statcast-849804.json` trimmed from the Swift app's Tests/Fixtures). Team and player pages (`profiles-*.test.ts`, on `test/fixtures/profiles` from `pnpm fixtures profiles`): athletes, overviews, game logs with the MLB category and two-way rule, career, rosters and their grouping, the NFL depth chart, team stats, CS2 teams and players, a climber, FotMob matching, results, the table window, routes, the hero photo rule, the dock's steps and the strip's geometry. `test/worker/` covers the proxy with the Cache API and fetch stubbed (type-checked with the Worker's program).
+- **Unit** (`pnpm test`, Vitest, in Node with TZ America/New_York): every parser against `test/fixtures` (ESPN soccer, NFL, college, MLB, NBA; bo3; IFSC; team lists), plus the scoreboard logic, formatting and clocks, soccer marks, the allowlist and cache policies, team colors read from crests, settings, and token contrast. The shell (`shell.test.ts`): CS2's live snapshot and which matches read it, the Notifier's words, My Teams' schedule fallback, the pin's place in the Live tier and when it lapses, the tab's title and favicon text, background polling, the keys, scroll memory, the race to 13, the pick list's outline and a quiet league's next game day. Game pages: the MLB summary and a game built from it, pitches and balls in play (`gameDetail.test.ts`), the baseball lane against the core API's pages (`baseballFeed.test.ts`), the football lane (`footballFeed.test.ts`: snaps, drives, the situation, the clock, moments, retractions, the spot held for its play; on `espn-nfl-core-plays.json` and the Swift app's MNF fixture) and the football detail, conference window, section plan, names, possession toss and football's moments (`footballDetail.test.ts`, on `espn-nfl-summary.json` and `espn-cfb-summary.json` from `pnpm fixtures football`), the section plan, hero beats, docking math, the moment slot and celebrations (`gameCore.test.ts`), linked focus (`linkedFocus.test.ts`), and the play theater's scene, notation, script, camera and Statcast matcher (`playScene`, `playScript`, `playCamera`, `statcast`), on World Series fixtures (`espn-mlb-summary.json`, `espn-mlb-core-plays.json` from `pnpm fixtures mlb`; `mlb-ws-g2-summary-plays.json`, `mlb-ws-g3-plays.json` and `statcast-849804.json` trimmed from the Swift app's Tests/Fixtures). Team and player pages (`profiles-*.test.ts`, on `test/fixtures/profiles` from `pnpm fixtures profiles`): athletes, overviews, game logs with the MLB category and two-way rule, career, rosters and their grouping, the NFL depth chart, team stats, CS2 teams and players, a climber, FotMob matching, results, the table window, routes, the hero photo rule, the dock's steps and the strip's geometry. `test/worker/` covers the proxy with the Cache API and fetch stubbed (type-checked with the Worker's program).
 - **Fixtures:** the recorded files come from `pnpm fixtures`, trimmed to the fields the parsers read (each records its `_source` URL and `_recorded` time). Files named `*.synthetic.json` are live states derived by hand from a recorded file, because a recording session rarely finds every sport live. Each says how it was derived in `_note`. Re-recording changes the games, so tests assert structure and rules rather than today's scores wherever they can.
 - **End to end** (`pnpm test:e2e`, Playwright against `pnpm dev`, or `SCORELINE_URL`):
   - `smoke.spec.ts` covers 390, 1024 and 1440 pixels in light and dark: list, tiles, a game, Esc back, keyboard ↓ and Return, and Settings, with no console errors.
   - `schedules.spec.ts`, `seasons.spec.ts` and `standings.spec.ts` screenshot every schedule, results, season, standings, poll and bracket page type at the three widths in both schemes, and drive their interactions (folding a day, the keys, ⌥2, stepping rounds, the section menu, the docked season card, opening a conference).
   - `live.spec.ts` uses `?demo` to cover the live count, clocks, strips and the score flash.
+  - `shell.spec.ts` uses `?demo` for a game's menu by right-click, Shift-F10 and a long press on touch (CDP touch events), Show in Tab with the title and favicon, the section menu's Move Down and Hide, R, comma, S and P, an alert for a followed team's goal (a stand-in `Notification` that grants and records), Settings' new toggles and the permission row, the detail pane's Back position, the CS2 race on a pinned tile, and the PWA manifest and its icons (sizes and alpha read from the PNG headers).
   - `game.spec.ts` uses `?demo` for the live MLB page at 390, 1024 and 1440 in light and dark: the hero, At the Plate and the theater, This At-Bat and its count, the line score, the docked bar, and linked focus from a scoring play to its inning.
   - `football.spec.ts` uses `?demo` for the NFL page live and final at 390, 1024 and 1440 in light and dark (the field, its chips and drive, the hero's possession, linked focus from a drive row to its bar and from a scoring play to its quarter), plus the college final with the conference table and its links, the docked bar's down and possession, and a touchdown's moment.
   - `profiles.spec.ts` covers a team page and six player pages (NBA, MLB starter, MLB two-way, NFL, soccer, CS2) at 390 and 1440 in light and dark, the MLB two-way rule, the hero photo's size, the docked bar and Back from a roster row.
@@ -402,9 +430,9 @@ A game's page (`features/game/GamePage.tsx`, DetailView.swift) is a core that ev
 - [x] Split view (sidebar plus detail) and the phone layout; routes with placeholders; Back and Esc; keyboard ↑/↓/←/→/Return
 - [x] Fixture tests, smoke and live e2e, the `?demo` harness
 - [x] TeamColors from logos: each crest is read once through a canvas (both logo CDNs send CORS headers) with the OKLab reading from TeamColors.swift, cached in localStorage (`src/data/logoColors.ts`, `src/state/logoColors.ts`). Teams repaint as their colors arrive.
-- [ ] Web notifications for followed teams (Notifier.swift); `notifyFollowed` is stored
-- [ ] The pinned game: the Mac's menu bar item. The web equivalent could be the tab title and favicon showing a pinned or followed live score. It orders the Live tier too.
-- [ ] PWA manifest, icons and offline shell; an app icon (the dithered ice crescent planet)
+- [x] Web notifications for followed teams (Notifier.swift): start, every score, final; one per game; click opens it; deduped across tabs; while a tab is open (push: see [The tab, alerts and the installed app](#the-tab-alerts-and-the-installed-app))
+- [x] The pinned game (the Mac's menu bar item): the tab's title and favicon carry the pinned game's score, else a followed live game's (Settings → Tab); it orders the Live tier after your teams; it lets go four hours after its game
+- [x] PWA: manifest, icons from make-icon.swift's algorithm (any, maskable, apple-touch), theme colors for light and dark, an offline shell service worker (data always from the network)
 
 ### Scores list (ScoresView, EventRow, ListLayout, OutlineList)
 
@@ -414,23 +442,24 @@ A game's page (`features/game/GamePage.tsx`, DetailView.swift) is a core that ev
 - [x] Score-change flash and scorer dot; live dots that hold still when stale; empty, loading and error states; "Updated…" footer
 - [x] Collapse and expand with a preview (crests, "N more", live count or next start); crests travel; stagger
 - [~] Width classes: records at medium. Not yet: the detail lane at large and xlarge (`laneLines` is ported) and the two-up grid at 680pt, which only matters if the sidebar grows.
-- [~] Context menus. A section's menu is built (`SectionMenu`: "…" on hover, always on touch, and right-click): Schedule, Results, Table, Standings, Top 25, Choose Teams. Still to do: Move Up/Down and Hide on it, and a game's menu (Open in Browser, Follow/Unfollow each team, Go to team, team's schedule, Copy Score) with long-press on touch.
-- [ ] CS2 live round line on rows ("Mirage 5–8"), for followed or pinned matches, from bo3 `last_snapshot`
+- [x] Context menus. A section's (`SectionMenu`): Collapse/Expand, Schedule, Results, Table, Standings, Top 25, Choose Teams, Move Up, Move Down, Hide (the list glides). A game's (`GameMenu`, rows and tiles): Open in Browser, Show in Tab, Follow/Unfollow each team, Go to each team (`teamHref`), each team's schedule, Copy Score. Right-click, the "…" on hover, a long press on touch, Shift-F10.
+- [x] CS2 live round line on rows ("Mirage 5–8"), for followed or pinned matches, from bo3 `last_snapshot` (`data/providers/csLive.ts`)
 - [ ] Climbing: YouTube live mark and stream overlay (ClimbingBroadcast; needs YouTube on the allowlist)
 - [ ] CS2 co-stream marks (CoStream; needs decapi.me or Twitch)
-- [ ] My Teams fallback to a team's next scheduled game within 21 days (the schedule layer is ready: `fetchTeam` in `state/schedule.ts`)
-- [ ] Footnote links "{League}: next Sat Nov 1" (league calendars are ready: `fetchCalendar`, `nextGameDay`; the schedule's own footnotes already link)
+- [x] My Teams fallback to a team's next scheduled game within 21 days (`state/nextGames.ts`, `fallbackGames`; a game the scoreboard says has ended never stands in)
+- [x] Footnote links "{League}: next Sat, Nov 1" to the league's schedule (`nextDayAfterWindow`); the follow hint names the gesture (right-click, or touch and hold)
+- [x] Pinned rows wear a pin; P pins the highlighted game
 
 ### Tiles (TileBoard, Tiles, TileStrips)
 
 - [x] Tiers (Live, Your Teams, Up Next, Final), collapsible, sharing the collapsed set; large live budget (4/6) and next-up large; columns by width
 - [x] Large live (team wash, face-off, rolling score with flash), large next-up (records, countdown that ticks inside the last hour), small tiles (full names or abbreviations), field tiles
 - [x] Strips: football field (ball, chevron, line to gain, red zone), bases and count, soccer goal track, basketball lead bar
-- [ ] Mini bases after the batting team's name in small live tiles (`MiniBases`)
-- [ ] CS2 round race strip (needs `CSLive` from bo3 `last_snapshot`)
+- [x] Mini bases after the batting team's name in small live tiles (`MiniBases`; the Mac always puts them after the top team's)
+- [x] CS2 round race strip (`RaceStrip`, `raceOf`: to 13, overtime blocks to 4; a map won leaves a ghost)
 - [ ] Climbing wall strip and `WallState.from` (needs ClimbingDetail's boulder cards and wall routes)
-- [ ] Strip moments: touchdown end zone, possession chevron sweep, run-scores ping, goal ping
-- [ ] Up Next "Schedule ›" link
+- [x] Strip moments: touchdown end zone, possession chevron sweep, run-scores ping, goal ping and arrival
+- [x] Up Next "Schedule ›" link; pinned tiles wear a pin; the hover "…" for the game's menu
 
 ### Game pages (DetailView, GameDetail, LiveViews, Visualizations, LiveFeeds), one agent per sport
 
@@ -475,7 +504,7 @@ A game's page (`features/game/GamePage.tsx`, DetailView.swift) is a core that ev
 - [x] Name links in the standings and poll rows and on At the Plate's batter and pitcher (`TeamLink`, `PlayerLink`, with dwell prefetch); the routes accept every path built by hand elsewhere
 - [ ] Name links still built by hand or missing: the game hero's team names (a plain `Link`, no prefetch), scoring plays, box scores and leaders on the coming sport pages, the season pages' climbers and CS2 teams (`seasons/links.ts`): drop in `TeamLink` and `PlayerLink`
 - [ ] Results' "All Results" link to the team's schedule (needs the schedule scope format), and taking the season and the table from the schedules and standings layers once they land (same URLs, so the caches are shared already)
-- [ ] Context menus: "Go to {team}" and "Go to {player}" on rows, the next game's opponent
+- [~] Context menus: "Go to {team}" is on every game's menu (rows and tiles). Still to do: "Go to {player}", the next game's opponent
 - [ ] LinkedPeek is a game-page feature (charts on match pages), not a profile one
 - [ ] Profile disk cache with ETag revalidation (ProfileCache): on the web, the HTTP cache and the edge stand in; Query persistence would add offline reloads
 - [ ] College football team and player pages are wired but not yet reviewed against live data; WNBA teams have no pages, as on the Mac
@@ -485,13 +514,14 @@ A game's page (`features/game/GamePage.tsx`, DetailView.swift) is a core that ev
 - [x] My Teams (unfollow), Your Sports (drag, or ↑/↓ on the handle, with an announcement), filter summaries, All Sports toggles, Show finished games, Live leagues move to top, Appearance
 - [x] League page: All Games | Only My Teams, team picks (search above 12, college by conference, Selected first), follow stars, college Top 25, climbing disciplines and countries, CS2 co-stream channel (stored), Hide league
 - [x] League page's Upcoming and Results sections (ScheduleHub, ResultsHub: `features/schedule/LeagueHub.tsx`)
-- [x] Live Games: celebration level
-- [ ] Keyboard navigation in the pick list (↑/↓, →/← groups, Return, Esc clears search); the pick list could use the design system's `Outline`
-- [ ] Celebration sounds; Notifications (with the browser permission state); credits
+- [x] Live Games: celebration level and sounds (stored; `celebrationSounds` for the game pages to play)
+- [x] The pick list as an outline (`features/settings/PickList.tsx`, `data/pickOutline.ts`): Selected first, college conferences fold with crests, long flat lists show twelve and "Show All"; keys ↑/↓, →/← groups, Return, Esc clears the search, then Back
+- [x] Tab (live score in the title), Notifications (the toggle asks; the browser's permission shown and kept current), Keyboard (the shortcuts), credits
 
 ### Notifications (Notifier)
 
-- [ ] Followed teams: started, every score ("Goal · 23rd minute", "{Team} scored · 3:10 left in the 2nd"), final; one per game, replacing itself; click opens the game. Web Notifications only work while a tab is open; push would need a Worker cron and the Push API.
+- [x] Followed teams: started, every score ("Goal · 23rd minute", "{Team} scored · 3:10 left in the 2nd"), final; one per game, replacing itself; click opens the game. They work while a tab is open, including hidden.
+- [ ] Push, for alerts with no tab open: a Worker cron, stored subscriptions, VAPID and a `push` handler (see [The tab, alerts and the installed app](#the-tab-alerts-and-the-installed-app))
 
 ### Celebrations and moments (Moments, Celebrations, LiveCelebrations, BasketballCelebrations, CelebrateMatch)
 
@@ -501,8 +531,9 @@ A game's page (`features/game/GamePage.tsx`, DetailView.swift) is a core that ev
 ### Panel and menu bar equivalents (MenuBarLabel, PanelController, PanelCommands, RootView)
 
 - [x] Pages and back stack (router history); Esc goes back
-- [~] Commands: schedule pages take ⌥1/⌥2 (Upcoming/Results) and T (Today). Still to do: Refresh and Settings shortcuts that don't collide with the browser (⌘R and ⌘, are taken)
-- [ ] Scroll memory per page in the split view's detail pane (the sidebar keeps its own)
+- [x] Commands: R (Refresh), comma (Settings), S (Schedule), P (show the highlighted game in the tab) as bare keys, standing aside while typing; schedule pages take ⌥1/⌥2 and T
+- [x] Scroll memory per page in the split view's detail pane (`app/scrollMemory.ts`; the sidebar keeps its own)
+- [x] The menu bar item: the tab's title and favicon (see Foundation)
 
 #**The football page** (`features/game/football/`, NFL and college): the Field (`FootballField`, Visualizations.swift): who has the ball, the down and distance, RED ZONE and 2-MIN DRILL (fitted to the row by measured text, the Mac's ViewThatFits with layout priorities), each team's timeouts, then a top-down field (the top team defends the left end zone) with the drive snap by snap (a bar per play from start to end: a gain filled in the team's color, a loss outlined, a penalty flag-yellow, a turnover neutral, a score ending in a dot), the line of scrimmage, the line to gain, the red zone, the ball with its heading and the room cleared around it; the footer (a pointed-at snap in words, the moment, else the legend) and the drive list, newest first, whose rows light their bars. Its beats, each as the ball's own motion lands: a pass or kick hops the ball, a sack drives it into the turf, a turnover knocks it with a ping in the new team's color, a big play glints along its bar and sparks, the uprights flash for a kick, a touchdown lights its end zone and bursts into confetti (gold when decisive), a safety blooms, entering the red zone the tint breathes once. The score by quarter (with overtime) lights the scoring plays it holds; win probability; scoring plays and the drive list link players' names (`names.tsx`: the box score's full names matched in ESPN's texts); team stats; college, the conference table around both teams (`collegeWindow`, the standings page's `ConferenceTable`) with AP ranks and live scores, Full Standings and Top 25. The lane (`data/liveFeeds/football.ts`) runs the hero's clock and the bar's down (red in the red zone), possession and 2-MIN DRILL, and keeps every raw core entry (`items`) for the play theater, which is still to port: its slot is the `theater` section under the field, and `FootballField celebrates={false}` hands it the burst.
 
