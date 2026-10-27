@@ -1,5 +1,7 @@
 /* A titled block on the game page (Visualizations.swift `DetailSection`): 16pt above, the gutter at the sides. */
+/* Each section is a size container, so its charts add detail by the room they have (the Mac's width classes). */
 .section {
+  container: section / inline-size;
   display: flex;
   flex-direction: column;
   gap: calc(8 * var(--pt));

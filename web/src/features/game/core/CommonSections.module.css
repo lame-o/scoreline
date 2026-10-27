@@ -381,3 +381,64 @@ a.watchRow:active,
   gap: calc(3 * var(--pt));
   color: var(--label-secondary);
 }
+
+/* MARK: Team stats */
+
+.stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(10 * var(--pt)) calc(24 * var(--pt));
+}
+
+/* From xlarge (560pt inside the section's gutters), two columns filled row by row. */
+@container section (min-width: 43.08rem) {
+  .stats {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+}
+
+.statValues {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(8 * var(--pt));
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.statValues [data-leads="true"] {
+  font-weight: 600;
+  color: var(--label);
+}
+
+.statLabel {
+  text-align: center;
+}
+
+.splitBar {
+  position: relative;
+  display: block;
+  height: calc(4 * var(--pt));
+  border-radius: 999px;
+  overflow: clip;
+}
+
+.splitTrack {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--viz-track);
+}
+
+.splitSegment {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  transition: transform var(--dur-standard) var(--ease-out);
+}

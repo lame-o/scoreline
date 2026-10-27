@@ -18,7 +18,7 @@ import { Link } from "react-router";
 import { Icon, TeamLogo } from "../../../design/components";
 import type { Broadcaster } from "../../../data/broadcasters";
 import { ordinal, plural } from "../../../data/format";
-import type { DetailMoment, Linescore } from "../../../data/gameDetail";
+import type { DetailMoment, Linescore, Stat } from "../../../data/gameDetail";
 import { shortened } from "../../../data/moments";
 import type { Competitor, Side } from "../../../data/models";
 import { NEUTRAL, type TeamPalette } from "../../../data/teamColors";
@@ -203,6 +203,54 @@ export function WinProbability({ topShare, draw, topName, bottomName, palette, s
         <span className={styles.wpTick} />
       </div>
     </div>
+  );
+}
+
+// MARK: - Team stats
+
+/**
+ * Team stats as split bars (Visualizations.swift `StatBars`): the leader's
+ * side in full team color, the other side faded; a zero draws nothing. From
+ * xlarge, two columns filled row by row in ESPN's order.
+ */
+export function StatBars({ stats, palette, spokenTop, spokenBottom }: { stats: readonly Stat[]; palette: TeamPalette; spokenTop: string; spokenBottom: string }) {
+  return (
+    <ul className={styles.stats}>
+      {stats.map((stat) => {
+        const topLeads = stat.topShare > 0.5;
+        const bottomLeads = stat.topShare < 0.5;
+        const leader = topLeads ? spokenTop : bottomLeads ? spokenBottom : null;
+        const zero = (v: string) => Number.parseFloat(v) === 0;
+        return (
+          <li key={stat.label} className={styles.stat} aria-label={`${stat.label}: ${spokenTop} ${stat.top}, ${spokenBottom} ${stat.bottom}.${leader ? ` ${leader} leads.` : ""}`}>
+            <span className={styles.statValues} aria-hidden="true">
+              <span data-leads={topLeads}>{stat.top}</span>
+              <span className={styles.statLabel}>{stat.label}</span>
+              <span data-leads={bottomLeads}>{stat.bottom}</span>
+            </span>
+            <SplitBar share={stat.topShare} palette={palette} topZero={zero(stat.top)} bottomZero={zero(stat.bottom)} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Two bars meeting at the share, each a full-width capsule slid into place (a change glides on the compositor). */
+export function SplitBar({ share, palette, topZero = false, bottomZero = false }: { share: number; palette: TeamPalette; topZero?: boolean; bottomZero?: boolean }) {
+  const tie = Math.abs(share - 0.5) < 0.001;
+  const gap = topZero || bottomZero ? 0 : 1;
+  const opacity = (leads: boolean) => (tie ? 0.75 : leads ? 1 : 0.4);
+  return (
+    <span className={styles.splitBar} aria-hidden="true" style={{ "--gap": `calc(${gap} * var(--pt))` } as CSSProperties}>
+      {topZero && bottomZero ? <span className={styles.splitTrack} /> : null}
+      {!topZero ? (
+        <span className={styles.splitSegment} style={{ ...mark(palette.top), opacity: opacity(share > 0.5), transform: `translateX(calc(${((bottomZero ? 1 : share) - 1) * 100}% - var(--gap)))` }} />
+      ) : null}
+      {!bottomZero ? (
+        <span className={styles.splitSegment} style={{ ...mark(palette.bottom), opacity: opacity(share < 0.5), transform: `translateX(calc(${(topZero ? 0 : share) * 100}% + var(--gap)))` }} />
+      ) : null}
+    </span>
   );
 }
 

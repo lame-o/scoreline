@@ -1,14 +1,14 @@
 /**
  * The shared sections, with the Mac's titles and captions per sport
- * (DetailView.swift `section(_:_:)`): line score, win probability, scoring
- * plays or key events, latest plays, where to watch, and the series. A
+ * (DetailView.swift `section(_:_:)`): line score, win probability, team
+ * stats, scoring plays or key events, latest plays, where to watch, and the series. A
  * sport's page calls this and adds its own; `overrides` replaces any of
  * them (the NBA's live line score, soccer's key events).
  */
 import type { ReactNode } from "react";
 import type { DetailMoment } from "../../../data/gameDetail";
 import { pageKind, type Section } from "../../../data/sections";
-import { LatestPlays, LinescoreGrid, MomentList, SeriesLink, WhereToWatch, WinProbability } from "./CommonSections";
+import { LatestPlays, LinescoreGrid, MomentList, SeriesLink, StatBars, WhereToWatch, WinProbability } from "./CommonSections";
 import { DetailSection } from "./DetailSection";
 import type { GameContext } from "./sport";
 
@@ -66,6 +66,15 @@ export function useCommonSections(game: GameContext, options: CommonOptions = {}
         spokenCaption={soccer ? undefined : nba ? "Runs of 8 or more, late lead changes and each break, newest first." : "Every scoring play, newest first, with the score after it."}
       >
         <MomentList moments={moments} topName={names.top} bottomName={names.bottom} topTeam={top} bottomTeam={bottom} />
+      </DetailSection>
+    );
+  }
+
+  if (detail.stats.length > 0) {
+    const unit = nba ? "game" : "match";
+    sections.stats = (
+      <DetailSection id="stats" title="Team Stats" caption={live ? `${unit[0]!.toUpperCase()}${unit.slice(1)} totals so far, from ESPN.` : `Final ${unit} totals, from ESPN.`}>
+        <StatBars stats={detail.stats} palette={palette} spokenTop={spoken.top} spokenBottom={spoken.bottom} />
       </DetailSection>
     );
   }
