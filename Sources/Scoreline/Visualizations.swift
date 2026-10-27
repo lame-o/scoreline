@@ -1324,8 +1324,10 @@ struct BaseballDiamond: View {
                 count("O", situation.outs, of: 2, color: .red, help: "Outs", stagger: moment?.kind == .doublePlay ? 0.12 : 0)
             }
             VStack(alignment: .leading, spacing: 3) {
-                if let batter = situation.batter { matchup("At bat", batter, team: color(batting), chip: loaded) }
-                if let pitcher = situation.pitcher { matchup("Pitching", pitcher, team: color(batting.map(MatchRules.opposite))) }
+                if let batter = situation.batter { matchup("At bat", batter, id: situation.batterID, team: color(batting), chip: loaded) }
+                if let pitcher = situation.pitcher {
+                    matchup("Pitching", pitcher, id: situation.pitcherID, team: color(batting.map(MatchRules.opposite)))
+                }
             }
             .animation(reduceMotion ? nil : Motion.quick, value: loaded)
             Spacer(minLength: 0)
@@ -1408,7 +1410,7 @@ struct BaseballDiamond: View {
 
     /// "At bat" with the batting team's dot (and BASES LOADED beside it, on the
     /// label's line, so nothing moves when it comes and goes); "Pitching" with the fielding team's.
-    private func matchup(_ role: String, _ name: String, team: Color?, chip: Bool = false) -> some View {
+    private func matchup(_ role: String, _ name: String, id: String?, team: Color?, chip: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 4) {
                 if let team { Circle().fill(team).frame(width: 6, height: 6) }
@@ -1419,7 +1421,10 @@ struct BaseballDiamond: View {
                 }
             }
             .frame(height: 12)
-            Text(name).font(.system(size: 11.5, weight: .medium)).lineLimit(1)
+            // A click on the name opens the player's page.
+            PlayerNameLink(espn: (id, name, nil)) {
+                Text(name).font(.system(size: 11.5, weight: .medium)).lineLimit(1)
+            }
         }
     }
 

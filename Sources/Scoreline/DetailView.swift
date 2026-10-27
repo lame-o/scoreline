@@ -1685,7 +1685,10 @@ struct DetailView: View {
         return GameDetail.Baseball(balls: s.balls, strikes: s.strikes, outs: s.outs,
                                    onFirst: s.onFirst, onSecond: s.onSecond, onThird: s.onThird,
                                    batter: s.batter ?? d.baseball?.batter, pitcher: s.pitcher ?? d.baseball?.pitcher,
-                                   lastPlay: s.lastPlay ?? d.baseball?.lastPlay, runners: s.runners)
+                                   lastPlay: s.lastPlay ?? d.baseball?.lastPlay, runners: s.runners,
+                                   // An ID goes with the name shown: the fast lane's, or the full load's it fell back to.
+                                   batterID: s.batter == nil ? d.baseball?.batterID : s.batterID,
+                                   pitcherID: s.pitcher == nil ? d.baseball?.pitcherID : s.pitcherID)
     }
 
     /// Every ball in play: the full load's, plus any the fast lane has seen since.

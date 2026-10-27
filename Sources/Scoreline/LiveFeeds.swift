@@ -804,7 +804,8 @@ final class BaseballFeed {
             balls: min(s["balls"].int ?? 0, 3), strikes: min(s["strikes"].int ?? 0, 2), outs: min(s["outs"].int ?? 0, 3),
             onFirst: s["onFirst"].exists, onSecond: s["onSecond"].exists, onThird: s["onThird"].exists,
             batter: name("batter"), pitcher: name("pitcher"), lastPlay: lastPlay,
-            runners: GameDetail.Baseball.runners(s, names: names))
+            runners: GameDetail.Baseball.runners(s, names: names),
+            batterID: s["batter"]["playerId"].int.map(String.init), pitcherID: s["pitcher"]["playerId"].int.map(String.init))
     }
 }
 

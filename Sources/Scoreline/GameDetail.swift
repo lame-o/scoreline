@@ -61,6 +61,9 @@ struct GameDetail {
         let lastPlay: String?
         /// Who's on first, second and third, by short name, where ESPN says.
         var runners: [String?] = [nil, nil, nil]
+        /// ESPN athlete IDs for the matchup (their names open their pages).
+        var batterID: String? = nil
+        var pitcherID: String? = nil
 
         /// ESPN situations name each runner by `playerId` (the box score has the names).
         static func runners(_ s: JSON, names: [String: String]) -> [String?] {
@@ -711,7 +714,9 @@ enum ESPNDetail {
             onFirst: s["onFirst"].bool ?? false, onSecond: s["onSecond"].bool ?? false, onThird: s["onThird"].bool ?? false,
             batter: s["batter"]["athlete"]["shortName"].string ?? s["batter"]["athlete"]["displayName"].string,
             pitcher: s["pitcher"]["athlete"]["shortName"].string ?? s["pitcher"]["athlete"]["displayName"].string,
-            lastPlay: s["lastPlay"]["text"].string)
+            lastPlay: s["lastPlay"]["text"].string,
+            batterID: s["batter"]["athlete"]["id"].string ?? s["batter"]["playerId"].int.map(String.init),
+            pitcherID: s["pitcher"]["athlete"]["id"].string ?? s["pitcher"]["playerId"].int.map(String.init))
     }
 }
 

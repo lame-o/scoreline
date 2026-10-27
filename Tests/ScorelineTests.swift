@@ -237,6 +237,7 @@ struct ScorelineTests {
         check(diamond?.balls == 2 && diamond?.strikes == 1 && diamond?.outs == 1, "count and outs")
         check(diamond?.onThird == true && diamond?.onFirst == false, "runners from occupied bases")
         check(diamond?.batter == "Y. Diaz" && diamond?.pitcher == "D. Williams", "batter and pitcher named from the box score")
+        check(diamond?.batterID == "33481" && diamond?.pitcherID == "41325", "batter and pitcher carry their IDs (their names open their pages)")
         // ESPN's pitch entry names the pitching team; the at-bat's result names the batting one.
         let spray = ESPNDetail.battedBalls([
             JSON(["id": "p5", "atBatId": "ab1", "summaryType": "P", "type": ["type": "single", "text": "Single"],
