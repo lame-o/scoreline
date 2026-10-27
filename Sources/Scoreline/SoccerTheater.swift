@@ -349,8 +349,8 @@ struct SoccerFrame: View, Equatable {
             case let .actor(i):
                 let actor = script.actors[i]
                 let figure = place(actor, i, f)
-                TheaterDraw.figure(figure.figure, inks: actor.team == .attacking ? attacking : defending, opacity: 1, height: figure.height,
-                                   in: &context)
+                TheaterDraw.figure(figure.figure, inks: actor.team == .attacking ? attacking : defending, height: figure.height, opacity: 1,
+                                   in: context)
                 if script.heldBy == i, t >= script.heldFrom { hands = figure.hands }
             }
         }
@@ -524,7 +524,7 @@ struct SoccerFrame: View, Equatable {
         if hands == nil, let flight = script.flights.last(where: { $0.start < t && t <= $0.end }), flight.kind != .carry {
             trail = (1...6).map { f.point(flight.point(at: max(t - Double($0) * 0.014, flight.start))) }
         }
-        TheaterDraw.ball(at: p, radius: r, trail: trail, ink: ink, opacity: o, in: &context)
+        TheaterDraw.ball(at: p, radius: r, trail: trail, ink: ink, opacity: o, in: context)
     }
 
     // MARK: Beats

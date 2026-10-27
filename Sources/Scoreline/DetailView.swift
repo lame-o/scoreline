@@ -1187,9 +1187,17 @@ struct DetailView: View {
                                   caption: "This drive, snap by snap. \(names.top) defends the left end zone.",
                                   accessory: .live,
                                   spokenCaption: "This drive, snap by snap. \(full.top) defending the left end zone.") {
-                        FootballField(situation: football, topLabel: names.top, bottomLabel: names.bottom, palette: palette,
-                                      drive: fieldDrive, possession: footballFeed.possession ?? football.possession,
-                                      twoMinuteDrill: twoMinuteDrill)
+                        VStack(alignment: .leading, spacing: 10) {
+                            // Reads the live lane's last snap itself, so a play redraws only the theater.
+                            let rest = FootballTheater.rest(football)
+                            FootballTheater(feed: footballFeed, rest: rest?.rest, restOffense: rest?.offense, palette: palette,
+                                            kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last),
+                                            topName: names.top, bottomName: names.bottom)
+                            FootballField(situation: football, topLabel: names.top, bottomLabel: names.bottom, palette: palette,
+                                          drive: fieldDrive, possession: footballFeed.possession ?? football.possession,
+                                          twoMinuteDrill: twoMinuteDrill,
+                                          celebrates: FootballCelebration.driveChartBursts(theaterShown: true))
+                        }
                     }
                 }
             case .atPlate:

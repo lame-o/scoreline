@@ -60,6 +60,7 @@ struct ScorelineTests {
         outline()
         playTheater()
         playBroadcast()
+        footballTheater()
         soccerTheater()
         statcast()
         playStatcast()

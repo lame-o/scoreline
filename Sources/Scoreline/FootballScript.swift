@@ -1,0 +1,1605 @@
+import SwiftUI
+
+// The football theater's choreography: a `FootballScene` turned into every
+// player's path, the ball's flights and carries, the beats (the catch, the
+// hit, the flag), the lines on the field and the camera's shots, in feet and
+// seconds from the start of the replay. Built once per play; any frame is a
+// pure function of the script and t, so the harness can draw t = 2.1
+// without playing 0…2.1, and the tests can check that a pass reaches its
+// receiver where ESPN says it was caught.
+//
+// The field is drawn from behind the offense, as a broadcast's end-zone
+// camera sees it: x across (the offense's right is +), y downfield from its
+// own goal line, z up. Time is a replay's: the snap after a beat on the
+// formation, everything after it about one and a half times the game's
+// speed, so a snap runs 2–5 s. Then the field settles: on a new down the two
+// teams jog back to the new line; after a score, a kick or a turnover they
+// hold where it ended.
+
+// MARK: - The field
+
+/// The field in feet, in the offense's frame: its own goal line at y = 0,
+/// the one it attacks at 300, the sidelines at x = ±80.
+enum Gridiron {
+    static let yard = 3.0
+    static let half = 80.0
+    static let endZone = 30.0
+    /// The inbound lines (hash marks): 70 ft 9 in from each sideline.
+    static let hash = 9.25
+    /// The yard numbers' centers across: about 10 yards in from the sidelines.
+    static let numbers = 50.0
+    static let crossbar = 10.0
+    /// The uprights: 18 ft 6 in apart, 35 ft above the crossbar.
+    static let upright = 9.25
+    static let uprightTop = 45.0
+    /// The goalposts stand on the end lines.
+    static let backLine = 330.0
+
+    static func y(_ yard: Double) -> Double { yard * Self.yard }
+
+    /// The camera's yaw: the field turned a third of the way round, so the
+    /// offense attacks up and to the right and the field reads in depth
+    /// (straight from behind, a squashed rectangle reads flat). A kick at the
+    /// posts is shot straight from behind, as broadcasts do, so its line
+    /// through (or past) the uprights is plain.
+    static let yaw = 30.0 * .pi / 180
+
+    /// A point on the field as the camera's projection takes it (x across the view, y into it).
+    static func view(_ p: CGPoint, yaw: Double = yaw) -> CGPoint {
+        CGPoint(x: p.x * cos(yaw) + p.y * sin(yaw), y: -p.x * sin(yaw) + p.y * cos(yaw))
+    }
+
+    static func view(_ p: FieldPoint, yaw: Double = yaw) -> FieldPoint { FieldPoint(view(p.ground, yaw: yaw), z: p.z) }
+
+    /// The room the camera keeps round a spot on the field.
+    static func room(_ p: FieldPoint, figure: Bool, yaw: Double = yaw) -> CGRect { CameraRig.room(view(p, yaw: yaw), figure: figure) }
+}
+
+/// The field's projection through the camera at a yaw.
+struct GridProjection {
+    let f: FieldProjection
+    let yaw: Double
+
+    init(size: CGSize, camera: CameraFrame, yaw: Double) {
+        f = FieldProjection(size: size, camera: camera)
+        self.yaw = yaw
+    }
+
+    func point(_ p: CGPoint, z: Double = 0) -> CGPoint { f.point(Gridiron.view(p, yaw: yaw), z: z) }
+    func point(_ p: FieldPoint) -> CGPoint { f.point(Gridiron.view(p, yaw: yaw)) }
+
+    var size: CGSize { f.size }
+    var camera: CameraFrame { f.camera }
+    var scale: CGFloat { f.scale }
+    var figure: CGFloat { f.figure }
+    var bounds: Path { f.bounds }
+}
+
+// MARK: - Script
+
+struct FootballScript: Equatable {
+    enum Team { case offense, defense }
+
+    /// Who he is on the play: his stance and pose follow from it.
+    enum Role: Equatable {
+        case line, quarterback, back, receiver, tightEnd
+        case front, backer, corner, safety
+        case kicker, holder, punter, returner, cover
+    }
+
+    /// A moment of the play in his hands.
+    struct Action: Equatable {
+        enum Kind: Equatable { case catchHigh, catchChest, throwBall, handoff, kick, tackle, block, spike, scoop }
+        var kind: Kind
+        var at: Double
+        /// Where the ball comes from or goes: he turns to face it.
+        var toward: CGPoint
+    }
+
+    /// A pose held from a moment on: on a knee, down after the tackle, both
+    /// arms up in the end zone, a hand up for the fair catch.
+    struct Hold: Equatable {
+        enum Kind: Equatable { case kneel, down, touchdown, fairCatch }
+        var kind: Kind
+        var from: Double
+        var until = Double.infinity
+    }
+
+    struct Player: Equatable {
+        var team: Team
+        var at: CGPoint
+        var role: Role
+        var moves: [PlayScript.Move] = []
+        var actions: [Action] = []
+        var holds: [Hold] = []
+        /// In his stance until the snap, and again once he's set at the new line.
+        var set: Double?
+        var resets: Double?
+        var appear = -Double.infinity
+        var vanish = Double.infinity
+
+        static let fade = 0.3
+
+        /// The newest move that has begun wins: a later move starts from
+        /// wherever the one before had got to.
+        func position(at t: Double) -> CGPoint {
+            guard let move = moves.last(where: { t >= $0.start }) else { return at }
+            return t < move.end ? move.point(at: t) : move.path.last ?? at
+        }
+
+        func opacity(at t: Double) -> Double {
+            let fadeIn = appear.isFinite ? min(max((t - appear) / Self.fade, 0), 1) : 1
+            let fadeOut = vanish.isFinite ? 1 - min(max((t - vanish) / Self.fade, 0), 1) : 1
+            return fadeIn * fadeOut
+        }
+
+        /// Feet a second along the ground at t, and which way (nil: standing).
+        func motion(at t: Double) -> (speed: Double, heading: CGPoint)? {
+            guard let move = moves.last(where: { t >= $0.start }), t < move.end, move.length > 0.5 else { return nil }
+            let a = move.point(at: max(t - 0.02, move.start)), b = move.point(at: min(t + 0.02, move.end))
+            let d = hypot(b.x - a.x, b.y - a.y), dt = min(t + 0.02, move.end) - max(t - 0.02, move.start)
+            guard d > 0.01, dt > 0 else { return nil }
+            return (d / dt, CGPoint(x: (b.x - a.x) / d, y: (b.y - a.y) / d))
+        }
+
+        func hold(at t: Double) -> Hold? { holds.last { t >= $0.from && (t < $0.until || !$0.until.isFinite) } }
+
+        func inStance(at t: Double) -> Bool { set.map { t < $0 } == true || resets.map { t >= $0 } == true }
+
+        mutating func act(_ kind: Action.Kind, at time: Double, toward point: CGPoint) {
+            actions.append(Action(kind: kind, at: time, toward: point))
+        }
+
+        mutating func move(to path: [CGPoint], from start: Double, to end: Double, ease: PlayScript.Ease = .inOut) {
+            moves.removeAll { $0.start >= start }
+            let origin = position(at: start)
+            guard let last = path.last, hypot(last.x - origin.x, last.y - origin.y) > 0.5 || path.count > 1 else { return }
+            moves.append(PlayScript.Move(start: start, end: max(end, start + 0.05), path: [origin] + path, ease: ease))
+        }
+    }
+
+    /// Where the ball is, leg by leg: in the air, in someone's hands, on the ground.
+    struct Leg: Equatable {
+        enum Hand: Equatable {
+            case flight(Int)
+            case carry(Int)
+            case spot(FieldPoint)
+            /// Slid along the ground between two spots (a flag's yards walked off).
+            case slide(from: FieldPoint, to: FieldPoint)
+        }
+        var from: Double
+        var until: Double
+        var hand: Hand
+    }
+
+    enum Beat { case snap, kick, catchBall, hit, deflect, flag }
+
+    struct Flash: Equatable {
+        var beat: Beat
+        var at: Double
+        var point: FieldPoint
+    }
+
+    /// The broadcast's lines: the line of scrimmage (blue) and the line to
+    /// gain (yellow), in feet down the field; nil: not drawn.
+    struct Lines: Equatable {
+        var scrimmage: Double?
+        var gain: Double?
+    }
+
+    /// A flag thrown in: from where, to where, when it lands.
+    struct Flag: Equatable {
+        var thrown: Double
+        var lands: Double
+        var from: FieldPoint
+        var to: CGPoint
+    }
+
+    /// A flag's yards walked off: the spot moves from one line to another.
+    struct March: Equatable {
+        var from: Double
+        var to: Double
+        var start: Double
+        var end: Double
+    }
+
+    /// The headline across the top for a marquee play: TOUCHDOWN, FIELD
+    /// GOAL, INTERCEPTION. It lands with the payoff and clears as the field settles.
+    struct Banner: Equatable {
+        enum Tone: Equatable {
+            /// A team's own color: its score.
+            case side(GameDetail.Side?)
+            /// Turnovers and misses: neutral ink.
+            case neutral
+            /// A game-winner.
+            case gold
+        }
+        var text: String
+        var tone: Tone
+        var at: Double
+        var until: Double
+        /// It brings its own confetti (a touchdown).
+        var confetti: Bool
+    }
+
+    var players: [Player] = []
+    var flights: [PlayScript.Flight] = []
+    var legs: [Leg] = []
+    var flashes: [Flash] = []
+    /// The lines through the snap, and after the play (they move at `linesMove`).
+    var lines = Lines()
+    var next = Lines()
+    var linesMove = Double.infinity
+    var flag: Flag?
+    var march: March?
+    var banner: Banner?
+    /// When the stamp lands.
+    var stamp = Double.infinity
+    /// The touchdown's moment (the ball crossing the goal line) or the kick's
+    /// (crossing the crossbar), and where: the celebration's.
+    var score: Double?
+    var scorePoint: FieldPoint?
+    /// Where the play ended: the end spot.
+    var end: FieldPoint?
+    var settle = 0.0
+    var duration = 0.0
+    /// The stamp's corner of the view (bottom left), as fractions of its
+    /// width and height: the camera keeps the play out of it.
+    var corner = CGSize.zero
+    var shots: [Shot] = []
+    var camera = CameraPath(rest: CameraFrame(x: 0, y: 60, span: 80))
+    var yaw = Gridiron.yaw
+    /// The ball is put away from here (a kick that's through the posts).
+    var ballGone = Double.infinity
+
+    /// The room the camera keeps round a spot, at this script's yaw.
+    func room(_ p: FieldPoint, figure: Bool) -> CGRect { Gridiron.room(p, figure: figure, yaw: yaw) }
+
+    /// The ball at t: in the air, in hand, on the ground.
+    func ball(at t: Double) -> FieldPoint? {
+        guard let first = legs.first, !(ballGone.isFinite && t >= ballGone) else { return nil }
+        let leg = t < first.from ? first : legs.last { t >= $0.from } ?? first
+        let at = min(max(t, leg.from), leg.until)
+        switch leg.hand {
+        case let .flight(i):
+            return i < flights.count ? flights[i].point(at: at) : nil
+        case let .carry(p):
+            return p < players.count ? FieldPoint(players[p].position(at: at), z: 3.4) : nil
+        case let .spot(point):
+            return point
+        case let .slide(from, to):
+            let u = PlayScript.Ease.inOut.value(leg.until > leg.from ? (at - leg.from) / (leg.until - leg.from) : 1)
+            return FieldPoint(x: from.x + (to.x - from.x) * u, y: from.y + (to.y - from.y) * u, z: from.z)
+        }
+    }
+
+    /// The ball's flight at t, when it's in the air.
+    func flight(at t: Double) -> PlayScript.Flight? {
+        guard let leg = legs.last(where: { t >= $0.from }), t <= leg.until, case let .flight(i) = leg.hand, i < flights.count else { return nil }
+        return flights[i]
+    }
+
+    /// A line at t: where it is, and how strongly it's drawn (it fades in or
+    /// out when there's a line on only one side of the move).
+    static func line(_ a: Double?, _ b: Double?, u: Double) -> (y: Double, opacity: Double)? {
+        switch (a, b) {
+        case let (a?, b?): return (a + (b - a) * u, 1)
+        case let (a?, nil): return u < 1 ? (a, 1 - u) : nil
+        case let (nil, b?): return u > 0 ? (b, u) : nil
+        default: return nil
+        }
+    }
+
+    /// How far the lines have moved at t (0 to 1, eased).
+    func linesProgress(at t: Double) -> Double {
+        guard linesMove.isFinite else { return 0 }
+        return PlayScript.Ease.inOut.value((t - linesMove) / 0.45)
+    }
+}
+
+// MARK: - Building
+
+extension FootballScript {
+    /// Between plays with nothing replayed: the offense set at its line.
+    struct Rest: Equatable {
+        /// Yards from the offense's own goal line.
+        var yard: Double
+        var gain: Double?
+    }
+
+    init(rest: Rest) {
+        var b = Builder(scene: nil, line: Gridiron.y(rest.yard), shotgun: true)
+        b.scrimmage()
+        for i in b.script.players.indices where b.script.players[i].set != nil { b.script.players[i].resets = 0 }
+        b.script.lines = Lines(scrimmage: Gridiron.y(rest.yard), gain: rest.gain.map(Gridiron.y))
+        b.script.next = b.script.lines
+        b.script.legs = [Leg(from: 0, until: 0, hand: .spot(FieldPoint(x: 0, y: Gridiron.y(rest.yard), z: 0.6)))]
+        b.script.camera = CameraPath(rest: b.restFrame())
+        self = b.script
+    }
+
+    init(_ scene: FootballScene) {
+        var b = Builder(scene: scene, line: Gridiron.y(scene.from), shotgun: scene.shotgun)
+        b.build()
+        self = b.script
+    }
+
+    /// Assembles a script beat by beat.
+    struct Builder {
+        let scene: FootballScene?
+        var script = FootballScript()
+        /// The line of scrimmage, in feet.
+        let line: Double
+        let shotgun: Bool
+        /// The ball is snapped a beat after the replay opens on the formation.
+        let snap = 0.6
+        /// Players by their place in the formation.
+        var slots: [Slot: Int] = [:]
+        /// When the action is over (the tackle, the ball coming down), before a flag's walk.
+        var over = 0.0
+        /// Shots to come.
+        var shots: [Shot] = []
+
+        enum Slot: Hashable {
+            case center, guardLeft, guardRight, tackleLeft, tackleRight, tightEnd, quarterback, back, wideLeft, wideRight, slot
+            case front(Int), backer(Int), corner(Int), safety(Int)
+            case kicker, holder, punter, returner, deep, gunner(Int), protector(Int), lineman(Int), rusher(Int), cover(Int), setup(Int)
+        }
+
+        init(scene: FootballScene?, line: Double, shotgun: Bool) {
+            self.scene = scene
+            self.line = line
+            self.shotgun = shotgun
+        }
+
+        var offense: [Int] { script.players.indices.filter { script.players[$0].team == .offense } }
+        var defense: [Int] { script.players.indices.filter { script.players[$0].team == .defense } }
+
+        mutating func add(_ slot: Slot, _ team: Team, _ role: Role, x: Double, dy: Double, set: Bool = false) {
+            slots[slot] = script.players.count
+            script.players.append(Player(team: team, at: CGPoint(x: x, y: line + dy), role: role, set: set ? snap : nil))
+        }
+
+        // MARK: Formations
+
+        /// Eleven on eleven at the line: five linemen, a tight end on the
+        /// right, the quarterback under center (or in the gun with the back
+        /// beside him), two wide and a slot; four down, three linebackers,
+        /// two corners off the wide receivers, two safeties deep.
+        mutating func scrimmage() {
+            add(.center, .offense, .line, x: 0, dy: -2, set: true)
+            add(.guardLeft, .offense, .line, x: -5.5, dy: -2.5, set: true)
+            add(.guardRight, .offense, .line, x: 5.5, dy: -2.5, set: true)
+            add(.tackleLeft, .offense, .line, x: -11, dy: -3, set: true)
+            add(.tackleRight, .offense, .line, x: 11, dy: -3, set: true)
+            add(.tightEnd, .offense, .tightEnd, x: 17, dy: -3, set: true)
+            add(.quarterback, .offense, .quarterback, x: 0, dy: shotgun ? -15 : -5, set: !shotgun)
+            add(.back, .offense, .back, x: shotgun ? 6 : 0, dy: shotgun ? -15 : -19)
+            add(.wideLeft, .offense, .receiver, x: -62, dy: -2)
+            add(.wideRight, .offense, .receiver, x: 60, dy: -2)
+            add(.slot, .offense, .receiver, x: 38, dy: -4)
+            for (i, x) in [-15.0, -5.5, 5.5, 19].enumerated() { add(.front(i), .defense, .front, x: x, dy: 3, set: true) }
+            for (i, (x, dy)) in [(-14.0, 16.0), (1, 15), (16, 16)].enumerated() { add(.backer(i), .defense, .backer, x: x, dy: dy) }
+            add(.corner(0), .defense, .corner, x: -62, dy: 18)
+            add(.corner(1), .defense, .corner, x: 60, dy: 18)
+            add(.safety(0), .defense, .safety, x: -24, dy: 40)
+            add(.safety(1), .defense, .safety, x: 28, dy: 42)
+        }
+
+        /// The punt: the snapper and six on the line, three protectors, the
+        /// punter fifteen yards back, a gunner wide each side; across from
+        /// them six at the line, a jammer on each gunner, the returner deep.
+        mutating func puntFormation(returner: CGPoint) {
+            add(.center, .offense, .line, x: 0, dy: -2, set: true)
+            for (i, x) in [-5.5, 5.5, -11, 11, -16.5, 16.5].enumerated() { add(.lineman(i), .offense, .line, x: x, dy: -2.5, set: true) }
+            for (i, (x, dy)) in [(-4.0, -15.0), (4, -15), (0, -21)].enumerated() { add(.protector(i), .offense, .back, x: x, dy: dy) }
+            add(.punter, .offense, .punter, x: 0, dy: -45)
+            add(.gunner(0), .offense, .cover, x: -64, dy: -2)
+            add(.gunner(1), .offense, .cover, x: 62, dy: -2)
+            for (i, x) in [-20.0, -11, -4, 4, 11, 20].enumerated() { add(.rusher(i), .defense, .front, x: x, dy: 3, set: true) }
+            add(.corner(0), .defense, .corner, x: -60, dy: 5)
+            add(.corner(1), .defense, .corner, x: 58, dy: 5)
+            add(.backer(0), .defense, .backer, x: 0, dy: 30)
+            slots[.returner] = script.players.count
+            script.players.append(Player(team: .defense, at: returner, role: .returner))
+        }
+
+        /// The field goal: the snapper and eight on the line with a wing at
+        /// each end, the holder seven yards back, the kicker a step off him;
+        /// nine across the line to block it, two back.
+        mutating func kickFormation() {
+            add(.center, .offense, .line, x: 0, dy: -2, set: true)
+            for (i, x) in [-4.5, 4.5, -9, 9, -13.5, 13.5, -18, 18].enumerated() {
+                add(.lineman(i), .offense, .line, x: x, dy: -2.5, set: true)
+            }
+            add(.holder, .offense, .holder, x: 0, dy: -21)
+            add(.kicker, .offense, .kicker, x: -7, dy: -30)
+            for (i, x) in [-17.0, -12, -7, -2.5, 2.5, 7, 12, 17, 22].enumerated() { add(.rusher(i), .defense, .front, x: x, dy: 3, set: true) }
+            add(.safety(0), .defense, .safety, x: -14, dy: 24)
+            add(.safety(1), .defense, .safety, x: 14, dy: 24)
+        }
+
+        /// The kickoff as the NFL sets it now: the kicker behind the ball on
+        /// his 35, ten teammates across the field at the other team's 40;
+        /// nine of theirs in the setup zone five yards beyond, two deep.
+        mutating func kickoffFormation(returner: CGPoint) {
+            add(.kicker, .offense, .kicker, x: -4, dy: -15)
+            for (i, x) in [-66.0, -52, -38, -24, -10, 10, 24, 38, 52, 66].enumerated() { add(.cover(i), .offense, .cover, x: x, dy: 75) }
+            for (i, x) in [-58.0, -40, -24, -10, 4, 18, 32, 46, 62].enumerated() {
+                add(.setup(i), .defense, .front, x: x, dy: 93 + Double(i % 2) * 9)
+            }
+            add(.deep, .defense, .returner, x: returner.x > 0 ? -18 : 18, dy: max(returner.y - line - 24, 120))
+            slots[.returner] = script.players.count
+            script.players.append(Player(team: .defense, at: returner, role: .returner))
+        }
+
+        // MARK: Helpers
+
+        func at(_ slot: Slot) -> Int? { slots[slot] }
+
+        func position(_ i: Int, _ t: Double) -> CGPoint { script.players[i].position(at: t) }
+
+        mutating func move(_ i: Int?, to path: [CGPoint], from start: Double, to end: Double, ease: PlayScript.Ease = .inOut) {
+            guard let i else { return }
+            script.players[i].move(to: path, from: start, to: end, ease: ease)
+        }
+
+        /// Moves someone part of the way toward a point.
+        mutating func drift(_ i: Int, toward p: CGPoint, by fraction: Double, max cap: Double = 40, from start: Double, to end: Double) {
+            let here = position(i, start)
+            let dx = p.x - here.x, dy = p.y - here.y, d = hypot(dx, dy)
+            guard d > 1 else { return }
+            let step = min(d * fraction, cap)
+            move(i, to: [CGPoint(x: here.x + dx / d * step, y: here.y + dy / d * step)], from: start, to: end, ease: .out)
+        }
+
+        @discardableResult
+        mutating func fly(from: FieldPoint, to: FieldPoint, start: Double, time: Double, arc: PlayScript.Flight.Arc,
+                          ease: PlayScript.Ease = .linear) -> Int {
+            script.flights.append(PlayScript.Flight(start: start, end: start + time, from: from, to: to, arc: arc, ease: ease))
+            script.legs.append(Leg(from: start, until: start + time, hand: .flight(script.flights.count - 1)))
+            return script.flights.count - 1
+        }
+
+        mutating func carry(_ i: Int, from start: Double, until end: Double) {
+            script.legs.append(Leg(from: start, until: end, hand: .carry(i)))
+        }
+
+        /// The ball on the ground at the line before the snap.
+        var spot: FieldPoint { FieldPoint(x: 0, y: line, z: 0.6) }
+
+        /// The snap: to the quarterback's hands, or back to the holder or the punter.
+        mutating func snapBall(to receiver: Int, height: Double = 3.4) -> Double {
+            script.legs.append(Leg(from: 0, until: snap, hand: .spot(spot)))
+            let target = position(receiver, snap)
+            let d = abs(target.y - line)
+            script.flashes.append(Flash(beat: .snap, at: snap, point: spot))
+            if d < 8 {
+                // Under center: in his hands at once.
+                carry(receiver, from: snap, until: snap + 0.05)
+                return snap + 0.05
+            }
+            let time = min(max(d / 75, 0.22), 0.5)
+            fly(from: FieldPoint(x: 0, y: line - 1, z: 1), to: FieldPoint(target, z: height), start: snap, time: time, arc: .arc(d > 30 ? 3 : 1.5))
+            return snap + time
+        }
+
+        /// Of the players on a team and in a position, the nearest a spot at t.
+        func nearest(_ team: Team, to p: CGPoint, at t: Double, roles: [Role] = [], excluding: Set<Int> = []) -> Int? {
+            script.players.indices
+                .filter { script.players[$0].team == team && !excluding.contains($0) && (roles.isEmpty || roles.contains(script.players[$0].role)) }
+                .min { a, b in
+                    let pa = position(a, t), pb = position(b, t)
+                    return hypot(pa.x - p.x, pa.y - p.y) < hypot(pb.x - p.x, pb.y - p.y)
+                }
+        }
+
+        static func roles(_ position: FootballScene.Position?) -> [Role] {
+            switch position {
+            case .defensiveLine?: [.front]
+            case .linebacker?: [.backer]
+            case .corner?: [.corner]
+            case .safety?: [.safety]
+            case .receiver?: [.receiver]
+            case .tightEnd?: [.tightEnd]
+            case .back?, .fullback?: [.back]
+            case .quarterback?: [.quarterback]
+            case .lineman?: [.line]
+            case .kicker?: [.kicker]
+            case .punter?: [.punter]
+            default: []
+            }
+        }
+
+        /// The ones credited with the stop, by position (the nearest of each),
+        /// else the nearest defender: they arrive with the ball carrier.
+        mutating func tackle(_ runner: Int, at time: Double, spot: CGPoint, by team: Team, credited: [FootballScene.Position?],
+                             from start: Double) -> [Int] {
+            var taken: Set<Int> = [runner]
+            var tacklers: [Int] = []
+            for position in credited.prefix(3) {
+                if let i = nearest(team, to: spot, at: start, roles: Self.roles(position), excluding: taken)
+                    ?? nearest(team, to: spot, at: start, excluding: taken) {
+                    taken.insert(i)
+                    tacklers.append(i)
+                }
+            }
+            for (k, i) in tacklers.enumerated() {
+                let here = position(i, start)
+                let dx = here.x - spot.x, dy = here.y - spot.y, d = max(hypot(dx, dy), 1)
+                let side = k == 0 ? 0.0 : (k % 2 == 0 ? 1.0 : -1.0)
+                let contact = CGPoint(x: spot.x + dx / d * 3 + side * 3, y: spot.y + dy / d * 3)
+                move(i, to: [contact], from: start, to: time, ease: .inOut)
+                script.players[i].act(.tackle, at: time, toward: spot)
+            }
+            if !tacklers.isEmpty {
+                script.flashes.append(Flash(beat: .hit, at: time, point: FieldPoint(spot, z: 3)))
+                script.players[runner].holds.append(Hold(kind: .down, from: time + 0.12))
+            }
+            return tacklers
+        }
+
+        /// Everyone near the ball closes on it a little, defenders more.
+        mutating func converge(on p: CGPoint, from start: Double, to end: Double, except: Set<Int>) {
+            for i in script.players.indices where !except.contains(i) {
+                let here = position(i, start)
+                let d = hypot(here.x - p.x, here.y - p.y)
+                guard d > 12, d < 160 else { continue }
+                let defense = script.players[i].team == .defense
+                drift(i, toward: p, by: defense ? 0.35 : 0.12, max: defense ? 30 : 14, from: start, to: end)
+            }
+        }
+
+        /// The receiver for a pass of this side, depth and receiving position.
+        func target(_ position: FootballScene.Position?, lane: FootballScene.Lane) -> Int? {
+            switch position {
+            case .tightEnd?: return at(.tightEnd)
+            case .back?, .fullback?: return at(.back)
+            default:
+                switch lane {
+                case .left: return at(.wideLeft)
+                case .right: return scene?.depth == .short ? at(.slot) : at(.wideRight)
+                case .middle: return at(.slot)
+                }
+            }
+        }
+
+        static func sign(_ lane: FootballScene.Lane?) -> Double { lane == .left ? -1 : lane == .right ? 1 : 0 }
+
+        /// Where a play ended on the field: its yard line, and across, by the
+        /// side it went to (over the sideline when he went out of bounds).
+        func endPoint(from p: CGPoint, toward lane: FootballScene.Lane?, y: Double) -> CGPoint {
+            guard let scene else { return CGPoint(x: p.x, y: y) }
+            let side = p.x == 0 ? Self.sign(lane) : (p.x > 0 ? 1.0 : -1.0)
+            if scene.outOfBounds { return CGPoint(x: (side == 0 ? 1 : side) * (Gridiron.half + 3), y: y) }
+            let x = p.x + side * abs(y - p.y) * 0.12
+            return CGPoint(x: min(max(x, -70), 70), y: y)
+        }
+
+        /// The end spot in feet: in the end zone for a touchdown.
+        var endY: Double {
+            guard let scene else { return line }
+            if scene.scoring == .touchdown { return scene.to <= 0.5 ? -12 : 312 }
+            return Gridiron.y(scene.to)
+        }
+
+        // MARK: Build
+
+        mutating func build() {
+            guard let scene else { return }
+            if case .fieldGoal = scene.kind { script.yaw = 0 }
+            if case .extraPoint = scene.kind { script.yaw = 0 }
+            switch scene.kind {
+            case .pass, .incomplete, .interception: scrimmage(); pass()
+            case .rush, .other: scrimmage(); rush()
+            case .kneel: scrimmage(); kneel()
+            case .spike: scrimmage(); spike()
+            case .sack: scrimmage(); sack()
+            case .fumble: scrimmage(); fumble()
+            case .punt: punt()
+            case .kickoff: kickoff()
+            case .fieldGoal, .extraPoint: fieldGoal()
+            case .penalty: scrimmage(); penalty()
+            }
+            flagAfter()
+            finish()
+            headline()
+            measureStamp()
+            settle()
+            shoot()
+        }
+
+        // MARK: Pass
+
+        /// The quarterback's drop, the routes, the throw to where it was
+        /// caught (or broken up, or picked off), the run after the catch and the stop.
+        mutating func pass() {
+            guard let scene, let qb = at(.quarterback) else { return }
+            let caught = scene.kind == .pass, picked = scene.kind == .interception
+            let deep = scene.depth == .deep || (scene.air ?? 0) >= 18
+            let lane = scene.lane ?? .middle
+            let receiver = target(scene.position("receiver"), lane: lane) ?? at(.wideRight)!
+            let inHand = snapBall(to: qb)
+            // The drop: seven yards deep from under center, a step or two in the gun.
+            let pocket = CGPoint(x: 0, y: line - 21)
+            move(qb, to: [pocket], from: snap + 0.08, to: snap + (shotgun ? 0.6 : 0.85), ease: .out)
+            let release = snap + (deep ? 1.5 : 1.1) + (shotgun ? 0 : 0.1)
+            carry(qb, from: inHand, until: release)
+            script.players[qb].act(.throwBall, at: release, toward: CGPoint(x: 0, y: line + 60))
+
+            // Where it was caught, picked off or thrown to.
+            let air = scene.air ?? (deep ? 24 : 7)
+            let side = Self.sign(lane)
+            let start = position(receiver, 0)
+            let back = receiver == at(.back) || receiver == at(.tightEnd)
+            var catchX = side == 0 ? (deep ? 4 : -6) : side * (deep ? 50 : back ? 26 : 38)
+            if air < 0 { catchX = (side == 0 ? 1 : side) * 30 }
+            let catchPoint = CGPoint(x: min(max(catchX, -72), 72), y: line + Gridiron.y(air))
+            let from = FieldPoint(x: pocket.x + 1.5, y: pocket.y + 1, z: 7)
+            let d = hypot(catchPoint.x - from.x, catchPoint.y - from.y)
+            let time = min(max(0.26 + d / 150, 0.38), 1.25)
+            let arrive = release + time
+            let flight = fly(from: from, to: FieldPoint(catchPoint, z: caught || picked ? 5 : 4), start: release, time: time,
+                             arc: .arc(deep ? 12 + d * 0.11 : 3 + d * 0.045))
+            // The route: a stem upfield, then the break to the ball.
+            let stem = CGPoint(x: start.x + (catchPoint.x - start.x) * 0.2, y: start.y + max((catchPoint.y - start.y) * 0.6, 0))
+            move(receiver, to: catchPoint.y - start.y > 24 ? [stem, catchPoint] : [catchPoint], from: snap + 0.05,
+                 to: picked || !caught ? arrive + 0.05 : arrive, ease: .inOut)
+            decoys(except: [receiver, qb], release: release)
+            protect(rush: snap + 0.85)
+
+            var taken: Set<Int> = [qb, receiver]
+            if picked {
+                interception(receiver: receiver, at: arrive, point: catchPoint, flight: flight, taken: &taken)
+                return
+            }
+            // The defender on him closes as the ball arrives.
+            let coverRoles: [Role] = deep ? [.corner, .safety] : [.corner, .backer, .safety]
+            let defender = nearest(.defense, to: catchPoint, at: snap, roles: Self.roles(scene.position("passDefender")).isEmpty ? coverRoles
+                                   : Self.roles(scene.position("passDefender")))
+            if !caught {
+                // Broken up, or just out of reach: it comes down on the grass.
+                if let defender {
+                    move(defender, to: [CGPoint(x: catchPoint.x + 3, y: catchPoint.y + 2)], from: snap + 0.1, to: arrive - 0.02)
+                }
+                let broken = scene.position("passDefender") != nil
+                if broken, let defender {
+                    script.players[defender].act(.block, at: arrive, toward: catchPoint)
+                    script.flashes.append(Flash(beat: .deflect, at: arrive, point: FieldPoint(catchPoint, z: 5)))
+                }
+                let away = CGPoint(x: catchPoint.x + (broken ? -side * 10 : side * 6), y: catchPoint.y + (broken ? -6 : 14))
+                fly(from: FieldPoint(catchPoint, z: 4), to: FieldPoint(away), start: arrive, time: 0.5, arc: .bounce(2), ease: .out)
+                script.players[receiver].act(.catchHigh, at: arrive, toward: from.ground)
+                over = arrive + 0.5
+                script.stamp = arrive + 0.4
+                return
+            }
+            script.players[receiver].act(deep ? .catchHigh : .catchChest, at: arrive, toward: from.ground)
+            script.flashes.append(Flash(beat: .catchBall, at: arrive, point: FieldPoint(catchPoint, z: 5)))
+            if let defender {
+                move(defender, to: [CGPoint(x: catchPoint.x + (catchPoint.x > 0 ? 6 : -6), y: catchPoint.y + 9)], from: snap + 0.1,
+                     to: arrive + 0.15)
+                taken.insert(defender)
+            }
+            run(receiver, from: catchPoint, at: arrive + 0.04, taken: taken)
+        }
+
+        /// The other receivers run their routes; the backs and the tight end
+        /// release; corners and safeties turn and run with them.
+        mutating func decoys(except: Set<Int>, release: Double) {
+            for slot in [Slot.wideLeft, .wideRight, .slot, .tightEnd, .back] {
+                guard let i = at(slot), !except.contains(i) else { continue }
+                let p = position(i, 0)
+                let depth = slot == .back ? 10.0 : slot == .tightEnd ? 24 : 42
+                let lean = slot == .back ? (p.x >= 0 ? 16.0 : -16) : (p.x > 0 ? -8 : 8)
+                move(i, to: [CGPoint(x: p.x + lean, y: max(p.y, line) + depth)], from: snap + 0.05, to: release + 0.4, ease: .inOut)
+            }
+            for slot in [Slot.corner(0), .corner(1)] {
+                guard let i = at(slot) else { continue }
+                let p = position(i, 0)
+                move(i, to: [CGPoint(x: p.x * 0.92, y: p.y + 26)], from: snap + 0.08, to: release + 0.5, ease: .out)
+            }
+            for slot in [Slot.safety(0), .safety(1), .backer(0), .backer(1), .backer(2)] {
+                guard let i = at(slot) else { continue }
+                let p = position(i, 0)
+                move(i, to: [CGPoint(x: p.x * 0.85, y: p.y + (slot == .safety(0) || slot == .safety(1) ? 10 : 12))],
+                     from: snap + 0.08, to: snap + 0.9, ease: .out)
+            }
+        }
+
+        /// The pocket: the line sets back, the front four rush into it.
+        mutating func protect(rush: Double) {
+            for slot in [Slot.center, .guardLeft, .guardRight, .tackleLeft, .tackleRight] {
+                guard let i = at(slot) else { continue }
+                let p = position(i, 0)
+                move(i, to: [CGPoint(x: p.x * 1.1, y: p.y - 6)], from: snap + 0.04, to: snap + 0.55, ease: .out)
+                script.players[i].act(.block, at: snap + 0.55, toward: CGPoint(x: p.x, y: line + 10))
+            }
+            for k in 0..<4 {
+                guard let i = at(.front(k)), !script.players[i].moves.contains(where: { $0.start > snap }) else { continue }
+                let p = position(i, 0)
+                move(i, to: [CGPoint(x: p.x * 0.85, y: line - 5)], from: snap + 0.04, to: rush, ease: .out)
+            }
+        }
+
+        mutating func interception(receiver: Int, at arrive: Double, point: CGPoint, flight: Int, taken: inout Set<Int>) {
+            guard let scene else { return }
+            let roles = Self.roles(scene.position("returner") ?? scene.position("passDefender"))
+            guard let taker = nearest(.defense, to: point, at: snap, roles: roles.isEmpty ? [.corner, .safety, .backer] : roles) else { return }
+            // He jumps the route: in front of the receiver as the ball arrives.
+            let jump = CGPoint(x: point.x - (point.x > 0 ? 2 : -2), y: point.y - 3)
+            move(taker, to: [jump], from: snap + 0.15, to: arrive, ease: .inOut)
+            script.flights[flight].to = FieldPoint(jump, z: 5)
+            script.players[taker].act(.catchChest, at: arrive, toward: CGPoint(x: 0, y: line - 20))
+            script.flashes.append(Flash(beat: .catchBall, at: arrive, point: FieldPoint(jump, z: 5)))
+            script.players[receiver].act(.catchHigh, at: arrive - 0.04, toward: CGPoint(x: 0, y: line - 20))
+            taken.insert(taker)
+            script.score = nil
+            run(taker, from: jump, at: arrive + 0.05, taken: taken, returning: true)
+        }
+
+        /// The ball carrier from where he got it to where he was stopped: the
+        /// tacklers arrive with him, everyone else closes in. Into the end zone
+        /// with both arms up for a touchdown; out over the sideline when he went out.
+        mutating func run(_ runner: Int, from start: CGPoint, at time: Double, taken: Set<Int>, returning: Bool = false,
+                          path: [CGPoint] = []) {
+            guard let scene else { return }
+            carry(runner, from: time, until: .infinity)
+            // Stopped where the text says when a flag's yards come after; else at the end spot.
+            let y = scene.scoring == .touchdown ? endY : Gridiron.y((scene.penalty != nil ? scene.stopped : nil) ?? scene.to)
+            let stop = endPoint(from: path.last ?? start, toward: scene.lane, y: y)
+            let finish = scene.scoring == .touchdown ? CGPoint(x: stop.x * 0.6, y: endY) : stop
+            let route = path + [finish]
+            var length = 0.0, previous = start
+            for p in route { length += hypot(p.x - previous.x, p.y - previous.y); previous = p }
+            let duration = min(max(length / 44, 0.35), 2.6)
+            let arrive = time + duration
+            move(runner, to: route, from: time, to: arrive, ease: .out)
+            over = arrive
+            let opponents: Team = script.players[runner].team == .offense ? .defense : .offense
+            if scene.scoring == .touchdown {
+                script.players[runner].holds.append(Hold(kind: .touchdown, from: arrive + 0.05))
+                // The moment the ball crosses the goal line.
+                let goal = returning || scene.to <= 0.5 ? 0.0 : 300
+                let u = min(max(abs(goal - start.y) / max(abs(finish.y - start.y), 1), 0), 1)
+                script.score = time + duration * min(max(u * 0.82, 0), 1)
+                script.scorePoint = FieldPoint(x: finish.x * 0.8, y: goal, z: 0)
+                converge(on: finish, from: time, to: arrive + 0.2, except: taken.union([runner]))
+                script.end = FieldPoint(finish)
+                script.stamp = arrive + 0.15
+                return
+            }
+            let credited = scene.tacklers
+            let tacklers = scene.outOfBounds && credited.isEmpty ? []
+                : tackle(runner, at: arrive, spot: finish, by: opponents, credited: credited.isEmpty ? [nil] : credited,
+                         from: max(time - 0.3, snap))
+            converge(on: finish, from: time, to: arrive + 0.15, except: taken.union(tacklers).union([runner]))
+            script.end = FieldPoint(finish)
+            script.stamp = arrive + 0.12
+        }
+
+        // MARK: Run
+
+        /// The handoff at the mesh, the back through the hole ESPN names (a
+        /// guard's, a tackle's, outside the end, up the middle) and on to the
+        /// spot; the quarterback keeps it on a scramble or a sneak.
+        mutating func rush() {
+            guard let scene, let qb = at(.quarterback), let back = at(.back) else { return }
+            let side = Self.sign(scene.lane)
+            let keeper = scene.position("rusher") == .quarterback
+            let runner: Int
+            switch scene.position("rusher") {
+            case .quarterback?: runner = qb
+            case .receiver?: runner = side < 0 ? at(.wideLeft)! : at(.slot)!
+            case .tightEnd?: runner = at(.tightEnd)!
+            default: runner = back
+            }
+            let inHand = snapBall(to: qb)
+            let hole: Double = switch scene.gap {
+            case .guard?: 7
+            case .tackle?: 13.5
+            case .end?: 26
+            default: 0
+            }
+            let holeX = side * hole
+            let gain = scene.to - scene.from
+            let through = CGPoint(x: holeX, y: line + (gain > 0 ? 3 : -1))
+            var meshTime = snap + (shotgun ? 0.36 : 0.45)
+            var mesh = position(qb, snap)
+            if keeper {
+                // A scramble: he drops, then runs for it.
+                let scrambles = scene.text.contains("scrambles")
+                let pocket = CGPoint(x: 0, y: line - (scrambles ? 19 : 6))
+                move(qb, to: [pocket], from: snap + 0.08, to: snap + (scrambles ? 0.7 : 0.25), ease: .out)
+                meshTime = snap + (scrambles ? 1.3 : 0.3)
+                mesh = pocket
+                carry(qb, from: inHand, until: meshTime)
+                if scrambles { protect(rush: snap + 1.1) }
+            } else {
+                // The quarterback opens to the back; they meet a few yards deep.
+                mesh = CGPoint(x: side * 2.5, y: line - (shotgun ? 13 : 10))
+                move(qb, to: [CGPoint(x: mesh.x - side * 1.5, y: mesh.y + 1)], from: snap + 0.05, to: meshTime - 0.05, ease: .out)
+                move(runner, to: [mesh], from: snap + 0.02, to: meshTime, ease: .inOut)
+                carry(qb, from: inHand, until: meshTime)
+                script.players[qb].act(.handoff, at: meshTime, toward: mesh)
+                // The fake: he carries out the boot the other way.
+                move(qb, to: [CGPoint(x: -side * 14 + (side == 0 ? 8 : 0), y: line - 16)], from: meshTime + 0.1, to: meshTime + 0.9, ease: .out)
+            }
+            // The line drives the way of the run and opens the hole.
+            for slot in [Slot.center, .guardLeft, .guardRight, .tackleLeft, .tackleRight, .tightEnd] {
+                guard let i = at(slot) else { continue }
+                let p = position(i, 0)
+                let away = p.x == holeX ? 0 : (p.x < holeX ? -2.5 : 2.5)
+                move(i, to: [CGPoint(x: p.x + side * 2 + away, y: p.y + 6)], from: snap + 0.03, to: snap + 0.7, ease: .out)
+                script.players[i].act(.block, at: snap + 0.5, toward: CGPoint(x: p.x, y: line + 10))
+            }
+            for k in 0..<4 {
+                guard let i = at(.front(k)) else { continue }
+                let p = position(i, 0)
+                move(i, to: [CGPoint(x: p.x + (p.x < holeX ? -2 : 2), y: line + 1)], from: snap + 0.03, to: snap + 0.6, ease: .out)
+            }
+            // The receivers block downfield.
+            for slot in [Slot.wideLeft, .wideRight, .slot] {
+                guard let i = at(slot), i != runner else { continue }
+                let p = position(i, 0)
+                move(i, to: [CGPoint(x: p.x * 0.9, y: line + 14)], from: snap + 0.05, to: snap + 1.1, ease: .out)
+            }
+            // The linebackers fill toward the hole.
+            for k in 0..<3 {
+                guard let i = at(.backer(k)) else { continue }
+                drift(i, toward: through, by: 0.45, max: 16, from: snap + 0.1, to: meshTime + 0.45)
+            }
+            run(runner, from: mesh, at: meshTime, taken: [qb, runner], path: [through])
+        }
+
+        mutating func kneel() {
+            guard let qb = at(.quarterback) else { return }
+            let inHand = snapBall(to: qb)
+            carry(qb, from: inHand, until: .infinity)
+            let spot = CGPoint(x: 0, y: Gridiron.y(scene?.to ?? line / 3) - 1)
+            move(qb, to: [spot], from: snap + 0.05, to: snap + 0.35, ease: .out)
+            script.players[qb].holds.append(Hold(kind: .kneel, from: snap + 0.4))
+            over = snap + 0.6
+            script.end = FieldPoint(spot)
+            script.stamp = snap + 0.7
+        }
+
+        mutating func spike() {
+            guard let qb = at(.quarterback) else { return }
+            let inHand = snapBall(to: qb)
+            let throwAt = inHand + 0.18
+            carry(qb, from: inHand, until: throwAt)
+            script.players[qb].act(.spike, at: throwAt, toward: CGPoint(x: 0, y: line))
+            let p = position(qb, throwAt)
+            fly(from: FieldPoint(p, z: 6), to: FieldPoint(x: p.x + 1, y: p.y + 3, z: 0), start: throwAt, time: 0.14, arc: .straight)
+            fly(from: FieldPoint(x: p.x + 1, y: p.y + 3, z: 0), to: FieldPoint(x: p.x + 4, y: p.y + 12), start: throwAt + 0.14, time: 0.5,
+                arc: .bounce(3), ease: .out)
+            over = throwAt + 0.6
+            script.end = FieldPoint(CGPoint(x: 0, y: line))
+            script.stamp = throwAt + 0.2
+        }
+
+        /// The pocket collapses: the rusher ESPN credits gets free round the
+        /// edge and takes the quarterback down where the sack was spotted.
+        mutating func sack() {
+            guard let scene, let qb = at(.quarterback) else { return }
+            let inHand = snapBall(to: qb)
+            let pocket = CGPoint(x: 0, y: line - 21)
+            move(qb, to: [pocket], from: snap + 0.08, to: snap + (shotgun ? 0.6 : 0.85), ease: .out)
+            let down = CGPoint(x: scene.lane == .left ? -6 : 6, y: Gridiron.y(scene.stopped ?? scene.to))
+            let hit = snap + 1.75
+            move(qb, to: [down], from: snap + 1.05, to: hit, ease: .inOut)
+            carry(qb, from: inHand, until: .infinity)
+            decoys(except: [qb], release: snap + 1.5)
+            protect(rush: snap + 0.85)
+            let roles = Self.roles(scene.position("sackedBy"))
+            let sacker = nearest(.defense, to: CGPoint(x: 15, y: line), at: 0, roles: roles.isEmpty ? [.front] : roles) ?? at(.front(3))!
+            let start = position(sacker, 0)
+            let edge = CGPoint(x: (start.x >= 0 ? 1 : -1) * max(abs(start.x) + 6, 18), y: line - 8)
+            move(sacker, to: [edge, CGPoint(x: down.x + (start.x >= 0 ? 3 : -3), y: down.y + 2)], from: snap + 0.04, to: hit, ease: .inOut)
+            script.players[sacker].act(.tackle, at: hit, toward: down)
+            script.players[qb].holds.append(Hold(kind: .down, from: hit + 0.12))
+            script.flashes.append(Flash(beat: .hit, at: hit, point: FieldPoint(down, z: 3)))
+            over = hit + 0.2
+            script.end = FieldPoint(down)
+            script.stamp = hit + 0.15
+        }
+
+        /// The ball carrier to where the ball came out; it bounces loose to
+        /// where the other team fell on it, then any return.
+        mutating func fumble() {
+            guard let scene, let qb = at(.quarterback), let back = at(.back) else { return }
+            let quarterback = scene.position("fumbler") == .quarterback || scene.position("rusher") == .quarterback
+            let carrier = quarterback ? qb : back
+            let inHand = snapBall(to: qb)
+            let looseY = Gridiron.y(scene.loose ?? scene.turn ?? scene.from)
+            let loose = CGPoint(x: Self.sign(scene.lane) * 8, y: looseY)
+            let meshTime = snap + 0.42
+            if carrier == back {
+                move(back, to: [CGPoint(x: 2, y: line - 11)], from: snap + 0.02, to: meshTime)
+                carry(qb, from: inHand, until: meshTime)
+            }
+            let reach = meshTime + min(max(abs(looseY - line) / 40, 0.3), 1.6)
+            move(carrier, to: [loose], from: meshTime, to: reach, ease: .inOut)
+            carry(carrier, from: carrier == back ? meshTime : inHand, until: reach)
+            let recovery = CGPoint(x: loose.x + 6, y: Gridiron.y(scene.turn ?? scene.to))
+            fly(from: FieldPoint(loose, z: 3), to: FieldPoint(recovery, z: 0.6), start: reach, time: 0.6, arc: .bounce(3), ease: .out)
+            script.flashes.append(Flash(beat: .hit, at: reach, point: FieldPoint(loose, z: 3)))
+            if let hitter = nearest(.defense, to: loose, at: snap) {
+                move(hitter, to: [CGPoint(x: loose.x + 2, y: loose.y + 3)], from: snap + 0.1, to: reach)
+                script.players[hitter].act(.tackle, at: reach, toward: loose)
+            }
+            script.players[carrier].holds.append(Hold(kind: .down, from: reach + 0.12))
+            let roles = Self.roles(scene.position("recoverer"))
+            guard let taker = nearest(.defense, to: recovery, at: reach, roles: roles, excluding: []) else { return }
+            move(taker, to: [recovery], from: reach - 0.2, to: reach + 0.6, ease: .inOut)
+            script.players[taker].act(.scoop, at: reach + 0.6, toward: recovery)
+            if abs(Gridiron.y(scene.to) - recovery.y) > 4 || scene.scoring == .touchdown {
+                run(taker, from: recovery, at: reach + 0.65, taken: [carrier, taker], returning: true)
+            } else {
+                carry(taker, from: reach + 0.6, until: .infinity)
+                over = reach + 0.8
+                script.end = FieldPoint(recovery)
+                script.stamp = reach + 0.75
+            }
+        }
+
+        // MARK: Kicks
+
+        /// The long snap, the punt's arc to where it came down, and what
+        /// became of it: a fair catch, a return, downed, out of bounds, a touchback.
+        mutating func punt() {
+            guard let scene else { return }
+            let landingY = Gridiron.y(scene.turn ?? scene.from + 40)
+            let outside = scene.kick == .outOfBounds
+            let landing = CGPoint(x: outside ? 74 : 8, y: scene.kick == .downed ? landingY - 14 : landingY)
+            puntFormation(returner: CGPoint(x: landing.x * 0.5, y: landingY + 18))
+            guard let punter = at(.punter), let returner = at(.returner) else { return }
+            let inHand = snapBall(to: punter, height: 3.2)
+            let kickAt = inHand + 0.55
+            carry(punter, from: inHand, until: kickAt)
+            script.players[punter].act(.kick, at: kickAt, toward: CGPoint(x: 0, y: line + 60))
+            let foot = FieldPoint(x: 0, y: line - 42, z: 2.5)
+            script.flashes.append(Flash(beat: .kick, at: kickAt, point: foot))
+            let d = hypot(landing.x - foot.x, landing.y - foot.y)
+            let caught = scene.kick == .fairCatch || scene.kick == .returned
+            let hang = min(max(d / 88, 1.3), 2.3)
+            fly(from: foot, to: FieldPoint(landing, z: caught ? 5 : 0), start: kickAt, time: hang, arc: .arc(40 + d * 0.08))
+            let land = kickAt + hang
+            kickCoverage(kickAt: kickAt, land: land, landing: landing, gunners: [at(.gunner(0)), at(.gunner(1))].compactMap { $0 })
+            receive(returner: returner, landing: landing, land: land, kickAt: kickAt)
+        }
+
+        /// The kicker's run-up and kick from the tee, the ball's flight to where
+        /// it came down (in the end zone for a touchback), and the return.
+        mutating func kickoff() {
+            guard let scene else { return }
+            let landingY = Gridiron.y(scene.turn ?? scene.from + 60)
+            let landing = CGPoint(x: -6, y: landingY)
+            kickoffFormation(returner: CGPoint(x: landing.x + 4, y: landingY + 9))
+            guard let kicker = at(.kicker), let returner = at(.returner) else { return }
+            let tee = CGPoint(x: 0, y: line)
+            let kickAt = snap + 0.2
+            move(kicker, to: [CGPoint(x: -1.5, y: line - 2)], from: 0.1, to: kickAt, ease: .inOut)
+            script.players[kicker].act(.kick, at: kickAt, toward: CGPoint(x: 0, y: line + 60))
+            script.legs.append(Leg(from: 0, until: kickAt, hand: .spot(FieldPoint(tee, z: 0.9))))
+            script.flashes.append(Flash(beat: .kick, at: kickAt, point: FieldPoint(tee, z: 1)))
+            let d = landing.y - tee.y
+            let caught = scene.kick == .returned || scene.kick == .fairCatch
+            let hang = min(max(d / 95, 1.5), 2.5)
+            fly(from: FieldPoint(tee, z: 0.9), to: FieldPoint(landing, z: caught ? 5 : 0), start: kickAt, time: hang, arc: .arc(52 + d * 0.05))
+            let land = kickAt + hang
+            // Nobody moves until the ball comes down (the rule), then they go.
+            for k in 0..<10 {
+                guard let i = at(.cover(k)) else { continue }
+                drift(i, toward: landing, by: 0.45, max: 70, from: land - 0.15, to: land + 1.2)
+            }
+            for k in 0..<9 {
+                guard let i = at(.setup(k)) else { continue }
+                let p = position(i, 0)
+                move(i, to: [CGPoint(x: p.x * 0.75, y: p.y + 6)], from: land - 0.1, to: land + 0.8, ease: .out)
+            }
+            receive(returner: returner, landing: landing, land: land, kickAt: kickAt)
+        }
+
+        /// The coverage on a punt: the gunners sprint down at the snap, the
+        /// line releases once it's kicked.
+        mutating func kickCoverage(kickAt: Double, land: Double, landing: CGPoint, gunners: [Int]) {
+            for i in gunners {
+                let p = position(i, 0)
+                move(i, to: [CGPoint(x: landing.x + (p.x > 0 ? 9 : -9), y: landing.y - 16)], from: snap + 0.05, to: land + 0.1, ease: .inOut)
+            }
+            for k in 0..<6 {
+                guard let i = at(.lineman(k)) else { continue }
+                drift(i, toward: landing, by: 0.45, max: 90, from: kickAt + 0.1, to: land + 0.6)
+            }
+            for k in 0..<6 {
+                guard let i = at(.rusher(k)) else { continue }
+                let p = position(i, 0)
+                move(i, to: [CGPoint(x: p.x * 0.8, y: line - 14)], from: snap + 0.04, to: kickAt + 0.1, ease: .out)
+            }
+            for slot in [Slot.corner(0), .corner(1)] {
+                guard let i = at(slot), let g = gunners.first(where: { (position($0, 0).x > 0) == (position(i, 0).x > 0) }) else { continue }
+                move(i, to: [CGPoint(x: landing.x + (position(g, 0).x > 0 ? 16 : -16), y: landing.y - 6)], from: snap + 0.1, to: land + 0.2)
+            }
+        }
+
+        /// The returner under the kick: a hand up and a fair catch, a catch and
+        /// a return, or he lets it go (downed, out of bounds, a touchback).
+        mutating func receive(returner: Int, landing: CGPoint, land: Double, kickAt: Double) {
+            guard let scene else { return }
+            switch scene.kick {
+            case .fairCatch?:
+                move(returner, to: [CGPoint(x: landing.x, y: landing.y + 1)], from: kickAt + 0.3, to: land - 0.1, ease: .out)
+                script.players[returner].holds.append(Hold(kind: .fairCatch, from: land - 0.7, until: land - 0.08))
+                script.players[returner].act(.catchHigh, at: land, toward: CGPoint(x: 0, y: line))
+                script.flashes.append(Flash(beat: .catchBall, at: land, point: FieldPoint(landing, z: 5)))
+                carry(returner, from: land, until: .infinity)
+                over = land + 0.3
+                script.end = FieldPoint(landing)
+                script.stamp = land + 0.25
+            case .returned?, nil:
+                move(returner, to: [CGPoint(x: landing.x, y: landing.y + 1)], from: kickAt + 0.3, to: land - 0.05, ease: .out)
+                script.players[returner].act(.catchHigh, at: land, toward: CGPoint(x: 0, y: line))
+                script.flashes.append(Flash(beat: .catchBall, at: land, point: FieldPoint(landing, z: 5)))
+                run(returner, from: landing, at: land + 0.06, taken: [returner], returning: true)
+            case .downed?:
+                // It lands short of him and rolls on until the coverage downs it.
+                let stop = CGPoint(x: landing.x - 3, y: Gridiron.y(scene.stopped ?? scene.to))
+                fly(from: FieldPoint(landing), to: FieldPoint(stop, z: 0.6), start: land, time: 0.8, arc: .bounce(3), ease: .out)
+                move(returner, to: [CGPoint(x: landing.x + 18, y: landing.y + 24)], from: land - 0.6, to: land + 0.6, ease: .out)
+                if let downer = nearest(.offense, to: stop, at: land, roles: [.cover]) {
+                    move(downer, to: [CGPoint(x: stop.x + 2, y: stop.y - 2)], from: land - 0.2, to: land + 0.85)
+                    script.players[downer].act(.scoop, at: land + 0.9, toward: stop)
+                }
+                over = land + 0.95
+                script.end = FieldPoint(stop)
+                script.stamp = land + 0.95
+            case .outOfBounds?:
+                let out = CGPoint(x: Gridiron.half + 6, y: landing.y + 6)
+                fly(from: FieldPoint(landing), to: FieldPoint(out, z: 0.6), start: land, time: 0.5, arc: .bounce(2), ease: .out)
+                over = land + 0.5
+                script.end = FieldPoint(out)
+                script.stamp = land + 0.5
+            case .touchback?:
+                let back = CGPoint(x: landing.x + 2, y: max(landing.y + 14, 314))
+                fly(from: FieldPoint(landing), to: FieldPoint(back, z: 0.6), start: land, time: 0.55, arc: .bounce(2), ease: .out)
+                move(returner, to: [CGPoint(x: landing.x - 6, y: landing.y + 4)], from: kickAt + 0.3, to: land, ease: .out)
+                script.players[returner].holds.append(Hold(kind: .kneel, from: land + 0.1))
+                over = land + 0.55
+                script.end = FieldPoint(back)
+                script.stamp = land + 0.45
+            }
+        }
+
+        /// The snap to the holder, the kicker's approach and kick, and the
+        /// ball's flight through (or past) the uprights from the real spot.
+        mutating func fieldGoal() {
+            guard let scene else { return }
+            kickFormation()
+            guard let holder = at(.holder), let kicker = at(.kicker) else { return }
+            let inHand = snapBall(to: holder, height: 1.2)
+            script.players[holder].holds.append(Hold(kind: .kneel, from: 0))
+            let ballSpot = CGPoint(x: 0, y: line - 21)
+            let kickAt = inHand + 0.42
+            carry(holder, from: inHand, until: kickAt)
+            move(kicker, to: [CGPoint(x: -3, y: ballSpot.y - 4), CGPoint(x: -1.2, y: ballSpot.y - 1)], from: inHand - 0.15, to: kickAt,
+                 ease: .inOut)
+            script.players[kicker].act(.kick, at: kickAt, toward: CGPoint(x: 0, y: Gridiron.backLine))
+            let foot = FieldPoint(ballSpot, z: 0.8)
+            script.flashes.append(Flash(beat: .kick, at: kickAt, point: foot))
+            // Past the posts and on: between the uprights over the bar when it's
+            // good; outside an upright, or short of the bar, when it isn't.
+            let miss = scene.miss
+            let past = Gridiron.backLine + 22
+            let target: FieldPoint = switch miss {
+            case .wideRight?: FieldPoint(x: Gridiron.upright + 7, y: past, z: 12)
+            case .wideLeft?: FieldPoint(x: -Gridiron.upright - 7, y: past, z: 12)
+            case .short?: FieldPoint(x: 1, y: Gridiron.backLine - 12, z: 0)
+            case .blocked?: FieldPoint(x: 6, y: line - 6, z: 0)
+            default: FieldPoint(x: 1.2, y: past, z: 14)
+            }
+            let d = hypot(target.x - foot.x, target.y - foot.y)
+            let time = miss == .blocked ? 0.45 : min(max(0.5 + d / 190, 0.8), 1.65)
+            let peak = miss == .blocked ? 3 : miss == .short ? 10 + d * 0.06 : max(12, d * 0.1)
+            let flight = fly(from: foot, to: target, start: kickAt, time: time, arc: .arc(peak))
+            if miss != .blocked, miss != .short {
+                // On into the net behind the posts, and put away.
+                fly(from: target, to: FieldPoint(x: target.x * 1.2, y: target.y + 14, z: 0), start: kickAt + time, time: 0.35, arc: .straight)
+                script.ballGone = kickAt + time + 0.3
+            }
+            if miss == .blocked, let blocker = at(.rusher(4)) {
+                script.players[blocker].act(.block, at: kickAt + 0.1, toward: ballSpot)
+                script.flashes.append(Flash(beat: .deflect, at: kickAt + 0.08, point: FieldPoint(x: 2, y: line - 4, z: 7)))
+            } else if miss != .short {
+                // Crossing the end line: the crossbar's moment.
+                let f = script.flights[flight]
+                let u = (Gridiron.backLine - foot.y) / max(target.y - foot.y, 1)
+                let at = kickAt + time * min(max(u, 0), 1)
+                script.score = at
+                script.scorePoint = f.point(at: at)
+            }
+            // The rush: the line surges, the middle leaps.
+            for k in 0..<9 {
+                guard let i = at(.rusher(k)) else { continue }
+                let p = position(i, 0)
+                move(i, to: [CGPoint(x: p.x * 0.9, y: line - 3)], from: snap + 0.03, to: snap + 0.6, ease: .out)
+            }
+            over = kickAt + time
+            script.end = FieldPoint(target.ground)
+            script.stamp = (script.score ?? kickAt + time) + 0.1
+        }
+
+        // MARK: Flags
+
+        /// A flag that stopped the snap: it's thrown in at the line, the
+        /// players straighten up, and the yards are walked off.
+        mutating func penalty() {
+            guard let scene else { return }
+            script.legs.append(Leg(from: 0, until: 0, hand: .spot(spot)))
+            let onDefense = scene.to >= scene.from
+            let lands = 1.0
+            throwFlag(at: CGPoint(x: onDefense ? 9 : -9, y: line + (onDefense ? 4 : -4)), lands: lands)
+            for i in script.players.indices { script.players[i].set = min(script.players[i].set ?? lands, lands + 0.15) }
+            walk(from: line, to: Gridiron.y(scene.to), start: lands + 0.45, moving: true)
+        }
+
+        /// A flag on a play that stood (a hold on the return): after it's run,
+        /// the flag, and the yards walked off from where he was stopped.
+        mutating func flagAfter() {
+            guard let scene, scene.kind != .penalty, let flag = scene.penalty, !flag.noPlay, let stopped = scene.stopped,
+                  abs(stopped - scene.to) > 0.5, scene.scoring == nil else { return }
+            let from = Gridiron.y(stopped), to = Gridiron.y(scene.to)
+            let lands = over + 0.4
+            throwFlag(at: CGPoint(x: -14, y: (from + to) / 2), lands: lands)
+            // The ball goes to the official's spot, then walks.
+            if let ball = script.ball(at: over) {
+                fly(from: ball, to: FieldPoint(x: 0, y: from, z: 0.6), start: over + 0.25, time: 0.45, arc: .arc(5))
+            }
+            walk(from: from, to: to, start: lands + 0.45, moving: false)
+        }
+
+        mutating func throwFlag(at spot: CGPoint, lands: Double) {
+            let from = FieldPoint(x: spot.x > 0 ? Gridiron.half + 14 : -Gridiron.half - 14, y: spot.y + 12, z: 16)
+            script.flag = Flag(thrown: lands - 0.45, lands: lands, from: from, to: spot)
+            script.flashes.append(Flash(beat: .flag, at: lands, point: FieldPoint(spot)))
+        }
+
+        /// The ball slides from one spot to the other; with `moving`, the
+        /// players walk with it.
+        mutating func walk(from: Double, to: Double, start: Double, moving: Bool) {
+            // At a walk.
+            let time = min(max(abs(to - from) / 16, 0.8), 1.8)
+            script.march = March(from: from, to: to, start: start, end: start + time)
+            script.legs.append(Leg(from: start, until: start + time, hand: .slide(from: FieldPoint(x: 0, y: from, z: 0.6),
+                                                                                  to: FieldPoint(x: 0, y: to, z: 0.6))))
+            if moving {
+                for i in script.players.indices {
+                    let p = position(i, start)
+                    move(i, to: [CGPoint(x: p.x, y: p.y + to - from)], from: start, to: start + time)
+                }
+            }
+            over = start + time
+            script.end = FieldPoint(x: 0, y: to, z: 0)
+            script.stamp = start + time + 0.05
+        }
+
+        // MARK: End and settle
+
+        /// The action ends when the last thing stops; the stamp lands as it
+        /// resolves; the lines move to the new spot with it.
+        mutating func finish() {
+            guard let scene else { return }
+            script.legs.sort { $0.from < $1.from }
+            if !script.stamp.isFinite { script.stamp = max(over, snap + 0.6) }
+            let ends = [script.stamp + 0.5, over, (script.flashes.map(\.at).max() ?? 0) + 0.45,
+                        script.flights.map(\.end).max() ?? 0]
+            script.settle = max(ends.max() ?? 0, 1.4) + 0.7
+            // No lines on a kickoff: there's no line of scrimmage yet.
+            script.lines = scene.kind == .kickoff ? Lines() : Lines(scrimmage: line, gain: scene.gainBefore.map(Gridiron.y))
+            script.next = Lines(scrimmage: scene.scoring == nil && !isKick ? Gridiron.y(scene.to) : nil, gain: scene.gainAfter.map(Gridiron.y))
+            if isKick, scene.scoring == nil, scene.kind == .punt || scene.kind == .kickoff {
+                script.next = Lines(scrimmage: Gridiron.y(scene.to), gain: scene.gainAfter.map(Gridiron.y))
+            }
+            script.linesMove = script.stamp - 0.05
+        }
+
+        var isKick: Bool {
+            switch scene?.kind {
+            case .punt?, .kickoff?, .fieldGoal?, .extraPoint?: true
+            default: false
+            }
+        }
+
+        /// The headline for a marquee play, landing with its payoff: the ball
+        /// crossing the goal line, the kick over the bar, the pick, the
+        /// recovery. A gain, an incompletion and a punt keep to the stamp.
+        mutating func headline() {
+            guard let scene else { return }
+            func banner(_ text: String, _ tone: Banner.Tone, at time: Double, confetti: Bool = false) {
+                script.banner = Banner(text: text, tone: tone, at: time, until: max(script.settle, time + 1.4), confetti: confetti)
+            }
+            let catchAt = script.flashes.last { $0.beat == .catchBall }?.at
+            switch (scene.scoring, scene.kind) {
+            case (.touchdown?, .interception):
+                banner("PICK SIX", .side(scene.scorer), at: script.score ?? script.stamp, confetti: true)
+            case (.touchdown?, _):
+                banner("TOUCHDOWN", .side(scene.scorer), at: script.score ?? script.stamp, confetti: true)
+            case (.safety?, _):
+                banner("SAFETY", .side(scene.scorer), at: script.stamp)
+            case (_, .fieldGoal(true)):
+                banner("FIELD GOAL", .side(scene.offense), at: script.score ?? script.stamp)
+            case (_, .fieldGoal(false)):
+                banner("NO GOOD", .neutral, at: script.score ?? script.stamp)
+            case (_, .interception):
+                banner("INTERCEPTION", .neutral, at: (catchAt ?? script.stamp) + 0.05)
+            case (_, .fumble):
+                banner("FUMBLE", .neutral, at: script.stamp - 0.1)
+            default:
+                if scene.onDowns { banner("TURNOVER ON DOWNS", .neutral, at: script.stamp) }
+            }
+        }
+
+        /// The stamp's corner, measured from its type: the code at a fifth of
+        /// the view's height, the title under it at about an eighteenth, in a
+        /// view twice as wide as tall.
+        mutating func measureStamp() {
+            guard let scene else { return }
+            let stamp = FootballStamp(scene)
+            guard !stamp.parts.isEmpty else { return }
+            var code = 0.0
+            for part in stamp.parts {
+                code += part.text.reduce(0.0) { width, c in width + (c.isNumber ? 0.6 : c == "+" || c == "−" ? 0.62 : 0.7) }
+                    * (part.heavy ? 1 : 0.5) + 0.22
+            }
+            let title = min(Double(stamp.title.count) * 0.72 * 0.28, 3.4)
+            let width = 0.055 + max(code, title) * 0.2
+            script.corner = CGSize(width: width / CameraFrame.aspect + 0.03, height: 0.3)
+        }
+
+        /// After the hold: on a new down both teams jog back to the new line
+        /// and the ball is spotted there; after a score, a kick or a change of
+        /// possession they stay where it ended.
+        mutating func settle() {
+            guard let scene else { return }
+            let s = script.settle, back = s + 0.9
+            let reform = scene.scoring == nil && !scene.flips && !isKick
+            if reform {
+                let to = Gridiron.y(scene.to), dy = to - line
+                for i in script.players.indices {
+                    let home = script.players[i].at
+                    script.players[i].move(to: [CGPoint(x: home.x, y: home.y + dy)], from: s, to: back)
+                    script.players[i].holds = script.players[i].holds.map { var h = $0; h.until = min(h.until, s); return h }
+                    if script.players[i].set != nil { script.players[i].resets = back }
+                }
+                if let ball = script.ball(at: s) {
+                    fly(from: ball, to: FieldPoint(x: 0, y: to, z: 0.6), start: s + 0.1, time: 0.6, arc: .arc(6))
+                }
+                script.legs.sort { $0.from < $1.from }
+            }
+            script.duration = (reform ? back : s + 0.3) + Player.fade
+        }
+
+        // MARK: Camera
+
+        /// Cuts the play into shots: the formation from behind the offense for
+        /// the snap; the ball in the air with the man going for it; the ball
+        /// carrier with the men closing on him; then the end spot and the new
+        /// line to gain, where it rests.
+        mutating func shoot() {
+            guard let scene else { return }
+            let everyone = Array(script.players.indices)
+            let opening: [Int] = switch scene.kind {
+            case .punt: everyone.filter { $0 != at(.returner) }
+            case .kickoff: everyone.filter { $0 != at(.returner) && $0 != at(.deep) }
+            default: everyone
+            }
+            var points: [FieldPoint] = [spot]
+            if let gain = scene.gainBefore.map(Gridiron.y), gain - line < 45 { points.append(FieldPoint(x: 0, y: gain)) }
+            var shots = [Shot(from: 0, actors: opening, points: points, closest: 60, at: 0)]
+            // The ball's flights (the snap's aside): each followed with whoever's going for it.
+            for (i, f) in script.flights.enumerated() where f.end - f.start > 0.3 && f.start > snap + 0.1 && f.start < over {
+                let near = script.players.indices.min { a, b in
+                    hypot(position(a, f.end).x - f.to.x, position(a, f.end).y - f.to.y)
+                        < hypot(position(b, f.end).x - f.to.x, position(b, f.end).y - f.to.y)
+                }
+                let kept: [FieldPoint] = script.yaw == 0 ? Self.posts : []
+                shots.append(Shot(from: max(f.start - 0.3, (shots.last?.from ?? 0) + 0.25), flight: i, actors: near.map { [$0] } ?? [],
+                                  points: kept, closest: f.to.y - f.from.y > 90 ? 80 : 55))
+            }
+            // The ball carrier, from when he has it, with the men closing on him.
+            if let carry = script.legs.last(where: { if case .carry = $0.hand { return $0.until.isInfinite }; return false }),
+               case let .carry(runner) = carry.hand, carry.from < over {
+                let closing = script.players.indices.filter { i in
+                    script.players[i].actions.contains { $0.kind == .tackle }
+                }
+                shots.append(Shot(from: max(carry.from, (shots.last?.from ?? 0) + 0.25), actors: [runner] + closing,
+                                  points: script.end.map { [$0] } ?? [], closest: 75))
+            }
+            // A flag's walk: both spots.
+            if let march = script.march {
+                shots.append(Shot(from: max(march.start - 0.3, (shots.last?.from ?? 0) + 0.25),
+                                  points: [FieldPoint(x: -24, y: march.from), FieldPoint(x: 24, y: march.from),
+                                           FieldPoint(x: -24, y: march.to), FieldPoint(x: 24, y: march.to)], closest: 60))
+            }
+            // The end: the spot and the new line to gain.
+            var ending: [FieldPoint] = script.end.map { [$0] } ?? []
+            // The lines where they cross the field by the spot.
+            let across = min(max(script.end?.x ?? 0, -Gridiron.half), Gridiron.half)
+            if let line = script.next.scrimmage { ending += [FieldPoint(x: across - 18, y: line), FieldPoint(x: across + 18, y: line)] }
+            if let gain = script.next.gain, abs(gain - (script.next.scrimmage ?? gain)) < 45 { ending.append(FieldPoint(x: across, y: gain)) }
+            if scene.scoring == .fieldGoal || isKick, scene.kind != .punt, scene.kind != .kickoff { ending = Self.posts + ending }
+            if scene.scoring == .touchdown, let p = script.scorePoint {
+                // Room above the goal line for the fireworks.
+                ending += [FieldPoint(x: p.x - 30, y: p.y, z: 30), FieldPoint(x: p.x + 30, y: p.y, z: 30)]
+            }
+            let carrier = script.legs.last.flatMap { leg -> Int? in if case let .carry(i) = leg.hand { return i }; return nil }
+            let endFrom = min(max(script.stamp - 0.4, (shots.last?.from ?? 0) + 0.3), script.settle - 0.2)
+            shots.append(Shot(from: endFrom, actors: carrier.map { [$0] } ?? [], points: ending, closest: 60))
+            script.shots = shots
+
+            let restRegion = restRegion()
+            let banner = script.banner.map { $0.at...$0.until }
+            let corner = script.corner, stamp = script.stamp
+            let script = self.script
+            func goal(_ t: Double) -> CameraFrame {
+                let k = shots.lastIndex { $0.from <= t } ?? 0
+                let shot = shots[k]
+                var items = shot.region(in: script, at: t)
+                var region = items.isEmpty ? restRegion : items.reduce(items[0]) { $0.union($1) }
+                var closest = shot.closest
+                if k > 0, !shot.cut {
+                    let before = shots[k - 1].region(in: script, at: t)
+                    if !before.isEmpty {
+                        let a = before.reduce(before[0]) { $0.union($1) }
+                        let blend = CameraRig.blend(from: a, to: region, elapsed: t - shot.from)
+                        if blend.u < 1 {
+                            region = blend.region
+                            closest = shots[k - 1].closest + (closest - shots[k - 1].closest) * blend.u
+                            items += before
+                        }
+                    }
+                }
+                let headroom = CameraRig.headroom(at: t, banner: banner)
+                guard stamp.isFinite, t >= stamp - 0.3 else { return CameraFrame.fitting(region, headroom: headroom, closest: closest) }
+                // The stamp never sits on the play, or on anyone near it.
+                let end = script.end ?? FieldPoint(x: 0, y: 0)
+                let others = script.players.indices.filter { i in
+                    let p = script.players[i].position(at: t)
+                    return script.players[i].opacity(at: t) > 0.5 && hypot(p.x - end.x, p.y - end.y) < 70
+                }.map { script.room(FieldPoint(script.players[$0].position(at: t)), figure: true) }
+                return CameraFrame.fitting(region, items: items, others: others, headroom: headroom, closest: closest, corner: corner)
+            }
+            let rest = restFrame()
+            let samples = CameraRig.follow(until: script.settle, goal: goal)
+            // The move to where it rests takes as long as the camera's caps need
+            // (an eased move peaks at one and a half times its average speed).
+            let last = samples.last ?? rest
+            let pan = hypot(last.x - rest.x, last.y - rest.y) / min(last.span, rest.span), zoom = log(rest.span / last.span)
+            let glide = max(script.duration - Player.fade - script.settle, 1.5 * pan / 1.25, 1.5 * abs(zoom) / (zoom > 0 ? 2 : 1))
+            self.script.duration = script.settle + glide + Player.fade
+            self.script.camera = CameraPath(samples: samples, settle: script.settle, back: script.settle + glide, rest: rest)
+        }
+
+        /// The goalposts at the far end: the base, the crossbar, the tops of the uprights.
+        static let posts: [FieldPoint] = [FieldPoint(x: 0, y: Gridiron.backLine), FieldPoint(x: -Gridiron.upright, y: Gridiron.backLine, z: 30),
+                                          FieldPoint(x: Gridiron.upright, y: Gridiron.backLine, z: 30)]
+
+        /// What the camera rests on: everyone where they stand at the end, and the lines.
+        func restRegion() -> CGRect {
+            let t = script.duration + 1
+            var items = script.players.indices.filter { script.players[$0].opacity(at: t) > 0.5 }
+                .map { script.room(FieldPoint(script.players[$0].position(at: t)), figure: true) }
+            let reform = scene.map { $0.scoring == nil && !$0.flips && !isKick } ?? true
+            if !reform {
+                // After a score, a kick or a turnover: the end of it, not the whole field.
+                let end = script.end ?? spot
+                items = items.filter { abs($0.midX - end.x) < 70 && abs($0.minY + 3 - end.y * 0.5) < 45 }
+                items.append(script.room(end, figure: true))
+                if scene?.scoring == .fieldGoal || scene.map({ if case .fieldGoal = $0.kind { return true }; return false }) == true {
+                    items += Self.posts.map { script.room($0, figure: false) }
+                }
+            }
+            for line in [script.next.scrimmage, script.next.gain].compactMap({ $0 }) {
+                items.append(script.room(FieldPoint(x: 0, y: line), figure: false))
+            }
+            guard let first = items.first else { return script.room(spot, figure: true) }
+            return items.dropFirst().reduce(first) { $0.union($1) }
+        }
+
+        func restFrame() -> CameraFrame {
+            let t = script.duration + 1
+            let region = restRegion()
+            let items = script.players.indices.filter { script.players[$0].opacity(at: t) > 0.5 }
+                .map { script.room(FieldPoint(script.players[$0].position(at: t)), figure: true) }
+            // The stamp sits on nobody at rest.
+            return CameraFrame.fitting(region, items: items.filter { region.intersects($0) }, others: items, headroom: CameraFrame.headroom,
+                                       closest: 60, corner: script.corner)
+        }
+    }
+}
+
+// MARK: - Shots
+
+extension FootballScript {
+    /// One shot of the broadcast: from when, and what it keeps in frame.
+    struct Shot: Equatable {
+        var from: Double
+        /// A flight's ball, now and a beat ahead, and its shadow.
+        var flight: Int? = nil
+        /// Players by index, now and a beat ahead.
+        var actors: [Int] = []
+        /// Fixed spots: the goalposts, a line.
+        var points: [FieldPoint] = []
+        /// No closer than this (feet top to bottom).
+        var closest = 60.0
+        /// A cut, not a move.
+        var cut = false
+        /// Players framed where they stood at this moment (the formation), not as they move.
+        var at: Double? = nil
+
+        /// What it keeps in frame at t: each figure's or ball's room.
+        func region(in script: FootballScript, at t: Double) -> [CGRect] {
+            var items = points.map { script.room($0, figure: $0.z == 0) }
+            if let flight, flight < script.flights.count {
+                let f = script.flights[flight]
+                for dt in [0, 0.2, 0.45] {
+                    let p = f.point(at: min(max(t + dt, f.start), f.end))
+                    items.append(script.room(p, figure: false))
+                    items.append(script.room(FieldPoint(p.ground), figure: false))
+                }
+            }
+            for index in actors where index < script.players.count {
+                let player = script.players[index]
+                if let fixed = at {
+                    items.append(script.room(FieldPoint(player.position(at: fixed)), figure: true))
+                    continue
+                }
+                for dt in [0, 0.25] where player.opacity(at: t + dt) > 0.5 {
+                    items.append(script.room(FieldPoint(player.position(at: t + dt)), figure: true))
+                }
+            }
+            return items
+        }
+    }
+}
+
+// MARK: - Stamp
+
+/// The stamp for a play, low on the left as it resolves: the number big and
+/// heavy in the play's color ("+12", "−7", "INC", "FG 47 ✓"), a tag lighter
+/// beside it ("1ST DOWN", "SACK", "TD"), the play in small capitals under it.
+/// (pure; tested)
+struct FootballStamp: Equatable {
+    struct Part: Equatable {
+        var text: String
+        var heavy: Bool
+    }
+
+    enum Tone: Equatable {
+        /// The offense's color: a gain.
+        case gain
+        /// The scoring team's color.
+        case score
+        /// The app's red: a sack, a turnover.
+        case loss
+        /// A flag's yellow.
+        case flag
+        case neutral
+    }
+
+    var parts: [Part] = []
+    var title = ""
+    var tone = Tone.neutral
+    /// A miss's ✗ in red, beside its kick.
+    var missed = false
+
+    init(_ scene: FootballScene) {
+        func yards(_ n: Int) -> String { n > 0 ? "+\(n)" : n < 0 ? "−\(-n)" : "0" }
+        let names = scene.names
+        func titled(_ words: String?...) -> String { words.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ") }
+        let way: String? = switch (scene.depth, scene.lane) {
+        case let (depth?, lane?): "\(depth == .deep ? "Deep" : "Short") \(Self.word(lane))"
+        case let (nil, lane?): scene.gap.map { gap in gap == .middle ? "up the middle" : "\(Self.word(lane)) \(Self.word(gap))" }
+        default: nil
+        }
+        let thrown = [way, names["target"].map { "to \($0)" }].compactMap { $0 }.joined(separator: " ")
+        let td = scene.scoring == .touchdown
+        switch scene.kind {
+        case .pass:
+            parts = [Part(text: yards(scene.yards), heavy: true)]
+            title = thrown
+            tone = td ? .score : scene.yards > 0 ? .gain : .neutral
+        case .rush, .other:
+            parts = scene.kind == .other && scene.yards == 0 ? [] : [Part(text: yards(scene.yards), heavy: true)]
+            title = [names["lead"], way].compactMap { $0 }.joined(separator: ", ")
+            tone = td ? .score : scene.yards > 0 ? .gain : .neutral
+        case .incomplete:
+            parts = [Part(text: "INC", heavy: true)]
+            title = thrown
+        case .sack:
+            parts = [Part(text: yards(scene.yards), heavy: true), Part(text: "SACK", heavy: false)]
+            title = names["stop"].map { "By \($0)" } ?? ""
+            tone = .loss
+        case .kneel:
+            parts = [Part(text: yards(scene.yards), heavy: true), Part(text: "KNEEL", heavy: false)]
+        case .spike:
+            parts = [Part(text: "INC", heavy: true), Part(text: "SPIKE", heavy: false)]
+        case .interception:
+            parts = [Part(text: "INT", heavy: true)]
+            title = titled(names["taker"], scene.yards > 0 && !td ? "\(scene.yards) yd return" : nil)
+            tone = td ? .score : .loss
+        case .fumble:
+            parts = [Part(text: "FUM", heavy: true)]
+            title = titled(names["taker"].map { "Recovered by \($0)" })
+            tone = td ? .score : .loss
+        case .punt:
+            parts = [Part(text: "PUNT", heavy: false), Part(text: "\(scene.kickYards ?? abs(Int(scene.to - scene.from)))", heavy: true)]
+            title = Self.kick(scene)
+        case .kickoff:
+            if let back = scene.returnYards, back != 0 || td {
+                parts = [Part(text: yards(back), heavy: true), Part(text: "RETURN", heavy: false)]
+                tone = td ? .score : .neutral
+                title = names["returner"] ?? ""
+            } else {
+                parts = [Part(text: "KICK", heavy: false), Part(text: "\(scene.kickYards ?? 0)", heavy: true)]
+                title = Self.kick(scene)
+            }
+        case let .fieldGoal(good):
+            parts = [Part(text: "FG", heavy: false), Part(text: "\(scene.kickYards ?? Int(117 - scene.from))", heavy: true),
+                     Part(text: good ? "✓" : "✗", heavy: true)]
+            title = titled(names["lead"], good ? nil : Self.miss(scene.miss))
+            tone = good ? .score : .neutral
+            missed = !good
+        case let .extraPoint(good):
+            parts = [Part(text: "XP", heavy: false), Part(text: good ? "✓" : "✗", heavy: true)]
+            tone = good ? .score : .neutral
+            missed = !good
+        case .penalty:
+            let gained = Int((scene.to - scene.from).rounded())
+            parts = [Part(text: yards(gained == 0 ? scene.yards : gained), heavy: true), Part(text: "FLAG", heavy: false)]
+            title = titled(scene.penalty?.name, scene.penalty?.noPlay == true ? "No play" : nil)
+            tone = .flag
+        }
+        if td {
+            parts.append(Part(text: "TD", heavy: false))
+        } else if scene.firstDown, scene.kind != .penalty || parts.count < 3 {
+            parts.append(Part(text: "1ST DOWN", heavy: false))
+        } else if scene.onDowns {
+            title = titled("Turnover on downs")
+        }
+    }
+
+    private static func word(_ lane: FootballScene.Lane) -> String { lane == .left ? "left" : lane == .right ? "right" : "middle" }
+    private static func word(_ gap: FootballScene.Gap) -> String {
+        switch gap {
+        case .middle: "middle"
+        case .guard: "guard"
+        case .tackle: "tackle"
+        case .end: "end"
+        }
+    }
+
+    private static func miss(_ miss: FootballScene.Miss?) -> String {
+        switch miss {
+        case .wideLeft?: "Wide left"
+        case .wideRight?: "Wide right"
+        case .short?: "Short"
+        case .blocked?: "Blocked"
+        case nil: "No good"
+        }
+    }
+
+    private static func kick(_ scene: FootballScene) -> String {
+        switch scene.kick {
+        case .touchback?: return "Touchback"
+        case .fairCatch?: return "Fair catch"
+        case .downed?: return "Downed"
+        case .outOfBounds?: return "Out of bounds"
+        case .returned?, nil:
+            if scene.scoring == .touchdown { return scene.names["returner"].map { "\($0) returns it" } ?? "Returned" }
+            let back = scene.returnYards ?? scene.yards
+            return scene.names["returner"].map { back == 0 ? "\($0), no return" : "\($0), \(back) yd return" } ?? "Returned"
+        }
+    }
+}

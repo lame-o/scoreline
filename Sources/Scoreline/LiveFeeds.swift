@@ -427,6 +427,12 @@ final class FootballFeed {
     private(set) var score: LiveScore?
     /// Moments from plays that arrived since the page opened, for the page to take.
     @ObservationIgnored private(set) var moments: [LiveMoment] = []
+    /// The play theater's last snap and whether it's news. Assigned only
+    /// when it changes, so a clock reading doesn't redraw the theater (and
+    /// the page never reads it: the theater does).
+    private(set) var theater = FootballTheaterState()
+    /// The sequence number of the theater's snap: an older entry never replaces it.
+    @ObservationIgnored private var theaterSequence: Double = -1
     @ObservationIgnored private var primed = false
     @ObservationIgnored private var updating = false
 
@@ -496,6 +502,8 @@ final class FootballFeed {
         var page = max(fetched - 1, 0) / Self.pageSize + 1
         var new: [DrivePlay] = []
         var complete = false
+        /// Entries newer than the theater's snap: only the newest that is one gets parsed.
+        var newer: [(item: JSON, sequence: Double)] = []
         while !Task.isCancelled, let url = URL(string: "\(base)/plays?limit=\(Self.pageSize)&page=\(page)"),
               let json = try? await JSON.fetch(url) {
             let items = json["items"].array
@@ -511,6 +519,7 @@ final class FootballFeed {
                     }
                 }
                 if let play = Self.play(item, teams: teams) { new.append(play) }
+                if sequence >= theaterSequence { newer.append((item, sequence)) }
             }
             fetched = max(fetched, (page - 1) * Self.pageSize + items.count)
             if page >= (json["pageCount"].int ?? page) || items.isEmpty {
@@ -541,6 +550,13 @@ final class FootballFeed {
             plays = (merged + fresh).enumerated()
                 .sorted { ($0.element.sequence, $0.offset) < ($1.element.sequence, $1.offset) }
                 .map(\.element)
+        }
+        let snap = newer.sorted { $0.sequence > $1.sequence }.lazy
+            .compactMap { entry in FootballScene.parse(entry.item, teams: teams).map { (scene: $0, sequence: entry.sequence) } }.first
+        if let snap, !Task.isCancelled {
+            theaterSequence = snap.sequence
+            let next = Self.theater(snap.scene, after: theater, primed: primed, now: .now)
+            if next != theater { theater = next }
         }
         // Only a complete first load counts as history; after it, new plays
         // (and plays edited into a score) are news. A play older than one
@@ -582,6 +598,15 @@ final class FootballFeed {
     func takeMoments() -> [LiveMoment] {
         defer { moments = [] }
         return moments
+    }
+
+    /// The theater after a look at the plays. Its snap is news if it arrived
+    /// after the first complete look, or if it only just happened (a page
+    /// opened right after it); otherwise it's history, shown as it ended. A
+    /// snap already showing keeps what it was, edits and all. (pure; tested)
+    static func theater(_ scene: FootballScene, after previous: FootballTheaterState, primed: Bool, now: Date) -> FootballTheaterState {
+        FootballTheaterState(play: scene, news: scene.id == previous.play?.id ? previous.news
+                                 : primed || scene.wallclock.map { now.timeIntervalSince($0) < BaseballFeed.recent } == true)
     }
 
     /// Play IDs whose score was taken back since the last call.

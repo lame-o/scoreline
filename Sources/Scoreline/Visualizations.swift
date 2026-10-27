@@ -647,6 +647,9 @@ struct FootballField: View {
     var possession: GameDetail.Side? = nil
     /// Late and one score down with the ball: the 2-MIN DRILL chip.
     var twoMinuteDrill = false
+    /// False when the play theater above it owns the moment's burst
+    /// (`FootballCelebration`); the marks still play.
+    var celebrates = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.widthClass) private var widthClass
     @Environment(\.panelResizing) private var resizing
@@ -779,7 +782,8 @@ struct FootballField: View {
                     // The burst, over the marks and outside their group (the field isn't
                     // redrawn each frame), reaching down over the yard numbers to the well's edge.
                     .overlay(alignment: .topLeading) {
-                        CelebrationStage(moment: moment, origin: moment.flatMap { stageOrigin($0, size: geo.size, x: x, ballY: ballY) },
+                        CelebrationStage(moment: celebrates ? moment : nil,
+                                         origin: moment.flatMap { stageOrigin($0, size: geo.size, x: x, ballY: ballY) },
                                          size: CGSize(width: geo.size.width, height: geo.size.height + Self.yardRow),
                                          colors: .team(color(moment.flatMap(MatchRules.scorer(of:))) ?? .accentColor),
                                          direction: .degrees(moment.flatMap(MatchRules.scorer(of:)) == .top ? -150 : -30),
