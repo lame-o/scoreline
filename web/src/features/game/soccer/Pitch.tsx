@@ -35,6 +35,7 @@ import { colorResolver, fitCanvas } from "../core/canvasColors";
 import { CelebrationStage } from "../core/CelebrationStage";
 import { ChartFooter, Legend, LegendItem, VizWell } from "../core/DetailSection";
 import { useFocus, useLinkedMarks, type HoverMark } from "../core/linked";
+import { pitchBursts } from "../../../data/theater/goalCelebrationRules";
 import { useChartMoment } from "../core/moments";
 import { pointSize, useReducedMotion } from "../core/useMedia";
 import styles from "./Pitch.module.css";
@@ -56,6 +57,8 @@ export interface PitchProps {
   readonly spokenBottom: string;
   /** The section's width in points (the shots in numbers show from large). */
   readonly width: number;
+  /** The play theater is on the page: it bursts for the moments it replays, so the pitch doesn't (GoalCelebration.pitchBursts). */
+  readonly theaterShown?: boolean;
 }
 
 interface Size {
@@ -65,7 +68,7 @@ interface Size {
 
 const point = (size: Size, x: number, y: number) => ({ x: (size.width * x) / 100, y: (size.height * (100 - y)) / 100 });
 
-export const Pitch = memo(function Pitch({ trail, shots, cards, live, palette, topName, bottomName, spokenTop, spokenBottom, width }: PitchProps) {
+export const Pitch = memo(function Pitch({ trail, shots, cards, live, palette, topName, bottomName, spokenTop, spokenBottom, width, theaterShown = false }: PitchProps) {
   const box = useRef<HTMLDivElement>(null);
   const lines = useRef<HTMLCanvasElement>(null);
   const marks = useRef<HTMLCanvasElement>(null);
@@ -150,7 +153,7 @@ export const Pitch = memo(function Pitch({ trail, shots, cards, live, palette, t
 
   // The burst: confetti from where the ball crossed the line, a save's glint at the stop, sparks at the post it rattled.
   const stage = (() => {
-    if (!moment || !momentAction || size.width === 0) return null;
+    if (!moment || !momentAction || size.width === 0 || !pitchBursts(moment, theaterShown)) return null;
     const a = momentAction;
     const end = a.endX != null && a.endY != null ? point(size, a.endX, a.endY) : null;
     switch (moment.kind) {

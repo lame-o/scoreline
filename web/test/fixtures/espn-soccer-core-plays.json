@@ -1,7 +1,7 @@
 {
  "_source": "https://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/events/401879256/competitions/401879256/plays",
  "_recorded": "2026-10-27T09:56:54.656Z",
- "_note": "Every shot, goal, card and carded foul, plus 48'–62' in full.",
+ "_note": "Every shot, goal, card and carded foul, plus 48'–62' in full. The play theater fields (text, wallclock, penaltyKick, ownGoal) added from the same match's core API on 2026-10-27.",
  "count": 240,
  "items": [
   {
@@ -26,7 +26,9 @@
     "$ref": "/teams/382"
    },
    "homeScore": 0,
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Marc Guéhi (Manchester City) Goal Kick at 3'",
+   "wallclock": "2026-10-24T11:34:03Z"
   },
   {
    "id": "54146038",
@@ -53,7 +55,9 @@
     "$ref": "/teams/362"
    },
    "homeScore": 0,
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Attempt missed. Ian Maatsen (Aston Villa) left footed shot from the left side of the box is high and wide to the left. Assisted by John McGinn following a corner.",
+   "wallclock": "2026-10-24T11:35:32Z"
   },
   {
    "id": "54146077",
@@ -80,7 +84,9 @@
     "$ref": "/teams/362"
    },
    "homeScore": 0,
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Attempt blocked. Alysson (Aston Villa) left footed shot from the centre of the box is blocked. Assisted by John McGinn.",
+   "wallclock": "2026-10-24T11:36:50Z"
   },
   {
    "id": "54146134",
@@ -108,7 +114,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Goal! Aston Villa 1, Manchester City 0. Nicolas Jackson (Aston Villa) right footed shot from the left side of the box to the top left corner. Assisted by John McGinn.",
+   "wallclock": "2026-10-24T11:37:40Z"
   },
   {
    "id": "54146476",
@@ -135,7 +143,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Attempt blocked. Enzo Fernández (Manchester City) right footed shot from the centre of the box is blocked. Assisted by Josko Gvardiol with a headed pass.",
+   "wallclock": "2026-10-24T11:43:42Z"
   },
   {
    "id": "54146575",
@@ -162,7 +172,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Attempt saved. Iliman Ndiaye (Manchester City) left footed shot from the right side of the box is saved in the bottom left corner by Zion Suzuki (Aston Villa). Assisted by Rayan Cherki.",
+   "wallclock": "2026-10-24T11:44:24Z"
   },
   {
    "id": "54146979",
@@ -189,7 +201,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Attempt missed. Nicolas Jackson (Aston Villa) right footed shot from outside the box misses to the left following a fast break.",
+   "wallclock": "2026-10-24T11:50:21Z"
   },
   {
    "id": "54147053",
@@ -213,7 +227,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Gianluigi Donnarumma (Manchester City) Goal Kick at 19'",
+   "wallclock": "2026-10-24T11:50:42Z"
   },
   {
    "id": "54147163",
@@ -240,7 +256,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Attempt saved. Rayan Cherki (Manchester City) left footed shot from the centre of the box is saved in the centre of the goal by Zion Suzuki (Aston Villa). Assisted by Jérémy Doku.",
+   "wallclock": "2026-10-24T11:52:24Z"
   },
   {
    "id": "54147326",
@@ -267,7 +285,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Attempt saved. Abdukodir Khusanov (Manchester City) right footed shot from outside the box is saved in the bottom left corner by Zion Suzuki (Aston Villa). Assisted by Enzo Fernández.",
+   "wallclock": "2026-10-24T11:55:22Z"
   },
   {
    "id": "54147513",
@@ -291,7 +311,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Rúben Dias (Manchester City) Goal Kick at 27'",
+   "wallclock": "2026-10-24T11:58:00Z"
   },
   {
    "id": "54147619",
@@ -318,7 +340,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Iliman Ndiaye (Manchester City) hits the left post with a left footed shot from the right side of the box. Assisted by Rayan Cherki.",
+   "wallclock": "2026-10-24T11:59:34Z"
   },
   {
    "id": "54147704",
@@ -342,7 +366,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Zion Suzuki (Aston Villa) Goal Kick at 29'",
+   "wallclock": "2026-10-24T11:59:55Z"
   },
   {
    "id": "54147874",
@@ -366,7 +392,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Victor Lindelöf (Aston Villa) Goal Kick at 31'",
+   "wallclock": "2026-10-24T12:02:39Z"
   },
   {
    "id": "54147891",
@@ -388,7 +416,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Foul by Marc Guéhi (Manchester City).",
+   "wallclock": "2026-10-24T12:03:37Z"
   },
   {
    "id": "54147949",
@@ -409,7 +439,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Marc Guéhi (Manchester City) is shown the yellow card for a bad foul.",
+   "wallclock": "2026-10-24T12:03:39Z"
   },
   {
    "id": "54148001",
@@ -436,7 +468,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Attempt missed. Johan Manzambi (Aston Villa) right footed shot from outside the box is too high from a direct free kick.",
+   "wallclock": "2026-10-24T12:05:24Z"
   },
   {
    "id": "54148084",
@@ -460,7 +494,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Rúben Dias (Manchester City) Goal Kick at 34'",
+   "wallclock": "2026-10-24T12:05:42Z"
   },
   {
    "id": "54148107",
@@ -487,7 +523,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Attempt blocked. Jérémy Doku (Manchester City) right footed shot from the left side of the box is blocked. Assisted by Elliot Anderson.",
+   "wallclock": "2026-10-24T12:06:54Z"
   },
   {
    "id": "54148184",
@@ -511,7 +549,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Zion Suzuki (Aston Villa) Goal Kick at 37'",
+   "wallclock": "2026-10-24T12:08:27Z"
   },
   {
    "id": "54148434",
@@ -533,7 +573,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Foul by Rayan Cherki (Manchester City).",
+   "wallclock": "2026-10-24T12:09:37Z"
   },
   {
    "id": "54148435",
@@ -554,7 +596,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Rayan Cherki (Manchester City) is shown the yellow card for a bad foul.",
+   "wallclock": "2026-10-24T12:09:42Z"
   },
   {
    "id": "54148448",
@@ -581,7 +625,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Attempt blocked. Alysson (Aston Villa) left footed shot from the centre of the box is blocked. Assisted by Matty Cash.",
+   "wallclock": "2026-10-24T12:10:49Z"
   },
   {
    "id": "54149614",
@@ -608,7 +654,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Attempt blocked. Ian Maatsen (Aston Villa) left footed shot from the left side of the box is blocked. Assisted by John McGinn.",
+   "wallclock": "2026-10-24T12:33:58Z"
   },
   {
    "id": "54149733",
@@ -632,7 +680,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Josko Gvardiol (Manchester City) Throw In at 49'",
+   "wallclock": "2026-10-24T12:36:07Z"
   },
   {
    "id": "54149734",
@@ -654,7 +704,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Erling Haaland (Manchester City) Ball touch at 49'",
+   "wallclock": "2026-10-24T12:36:10Z"
   },
   {
    "id": "54149735",
@@ -678,7 +730,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Pau Torres (Aston Villa) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:13Z"
   },
   {
    "id": "54149736",
@@ -702,7 +756,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Zion Suzuki (Aston Villa) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:17Z"
   },
   {
    "id": "54149737",
@@ -726,7 +782,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Boubacar Kamara (Aston Villa) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:18Z"
   },
   {
    "id": "54149740",
@@ -750,7 +808,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Victor Lindelöf (Aston Villa) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:21Z"
   },
   {
    "id": "54151555",
@@ -772,7 +832,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Alysson (Aston Villa) Take On at 49'",
+   "wallclock": "2026-10-24T12:36:25Z"
   },
   {
    "id": "54149742",
@@ -794,7 +856,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Enzo Fernández (Manchester City) Attempted tackle at 49'",
+   "wallclock": "2026-10-24T12:36:25Z"
   },
   {
    "id": "54149743",
@@ -818,7 +882,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Alysson (Aston Villa) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:25Z"
   },
   {
    "id": "54149859",
@@ -842,7 +908,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Victor Lindelöf (Aston Villa) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:31Z"
   },
   {
    "id": "54149860",
@@ -866,7 +934,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Zion Suzuki (Aston Villa) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:36Z"
   },
   {
    "id": "54149861",
@@ -890,7 +960,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Pau Torres (Aston Villa) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:39Z"
   },
   {
    "id": "54149862",
@@ -914,7 +986,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Ian Maatsen (Aston Villa) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:42Z"
   },
   {
    "id": "54149863",
@@ -938,7 +1012,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Elliot Anderson (Manchester City) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:45Z"
   },
   {
    "id": "54149864",
@@ -962,7 +1038,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Rúben Dias (Manchester City) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:47Z"
   },
   {
    "id": "54149865",
@@ -986,7 +1064,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Gianluigi Donnarumma (Manchester City) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:52Z"
   },
   {
    "id": "54149866",
@@ -1010,7 +1090,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Rúben Dias (Manchester City) Pass at 49'",
+   "wallclock": "2026-10-24T12:36:53Z"
   },
   {
    "id": "54149867",
@@ -1034,7 +1116,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 50'",
+   "wallclock": "2026-10-24T12:36:56Z"
   },
   {
    "id": "54149868",
@@ -1058,7 +1142,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Rúben Dias (Manchester City) Pass at 50'",
+   "wallclock": "2026-10-24T12:36:59Z"
   },
   {
    "id": "54149869",
@@ -1082,7 +1168,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Enzo Fernández (Manchester City) Pass at 50'",
+   "wallclock": "2026-10-24T12:37:03Z"
   },
   {
    "id": "54149870",
@@ -1104,7 +1192,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Jérémy Doku (Manchester City) Take On at 50'",
+   "wallclock": "2026-10-24T12:37:11Z"
   },
   {
    "id": "54149871",
@@ -1126,7 +1216,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Boubacar Kamara (Aston Villa) Tackle at 50'",
+   "wallclock": "2026-10-24T12:37:11Z"
   },
   {
    "id": "54149872",
@@ -1150,7 +1242,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Jérémy Doku (Manchester City) Pass at 50'",
+   "wallclock": "2026-10-24T12:37:14Z"
   },
   {
    "id": "54149873",
@@ -1174,7 +1268,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Enzo Fernández (Manchester City) Pass at 50'",
+   "wallclock": "2026-10-24T12:37:17Z"
   },
   {
    "id": "54149874",
@@ -1198,7 +1294,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Iliman Ndiaye (Manchester City) Pass at 50'",
+   "wallclock": "2026-10-24T12:37:23Z"
   },
   {
    "id": "54149875",
@@ -1222,7 +1320,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Phil Foden (Manchester City) Pass at 50'",
+   "wallclock": "2026-10-24T12:37:25Z"
   },
   {
    "id": "54149876",
@@ -1246,7 +1346,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Elliot Anderson (Manchester City) Pass at 50'",
+   "wallclock": "2026-10-24T12:37:26Z"
   },
   {
    "id": "54149877",
@@ -1270,7 +1372,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Iliman Ndiaye (Manchester City) Pass at 50'",
+   "wallclock": "2026-10-24T12:37:29Z"
   },
   {
    "id": "54149878",
@@ -1294,7 +1398,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Elliot Anderson (Manchester City) Cross at 50'",
+   "wallclock": "2026-10-24T12:37:31Z"
   },
   {
    "id": "54149879",
@@ -1316,7 +1422,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Elliot Anderson (Manchester City) Out at 50'",
+   "wallclock": "2026-10-24T12:37:33Z"
   },
   {
    "id": "54149880",
@@ -1340,7 +1448,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Pau Torres (Aston Villa) Goal Kick at 50'",
+   "wallclock": "2026-10-24T12:37:52Z"
   },
   {
    "id": "54149881",
@@ -1364,7 +1474,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Zion Suzuki (Aston Villa) Pass at 51'",
+   "wallclock": "2026-10-24T12:37:55Z"
   },
   {
    "id": "54149882",
@@ -1388,7 +1500,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Victor Lindelöf (Aston Villa) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:01Z"
   },
   {
    "id": "54149883",
@@ -1412,7 +1526,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Alysson (Aston Villa) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:04Z"
   },
   {
    "id": "54149884",
@@ -1436,7 +1552,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:05Z"
   },
   {
    "id": "54149885",
@@ -1460,7 +1578,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Josko Gvardiol (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:06Z"
   },
   {
    "id": "54149886",
@@ -1484,7 +1604,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Gianluigi Donnarumma (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:09Z"
   },
   {
    "id": "54149887",
@@ -1508,7 +1630,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Josko Gvardiol (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:13Z"
   },
   {
    "id": "54149888",
@@ -1532,7 +1656,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Rúben Dias (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:15Z"
   },
   {
    "id": "54149889",
@@ -1556,7 +1682,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Josko Gvardiol (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:16Z"
   },
   {
    "id": "54149890",
@@ -1580,7 +1708,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Enzo Fernández (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:19Z"
   },
   {
    "id": "54149891",
@@ -1604,7 +1734,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:25Z"
   },
   {
    "id": "54149892",
@@ -1628,7 +1760,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Phil Foden (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:26Z"
   },
   {
    "id": "54149893",
@@ -1652,7 +1786,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:28Z"
   },
   {
    "id": "54149894",
@@ -1676,7 +1812,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Rico Lewis (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:30Z"
   },
   {
    "id": "54149895",
@@ -1700,7 +1838,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Elliot Anderson (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:33Z"
   },
   {
    "id": "54149896",
@@ -1724,7 +1864,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Rúben Dias (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:37Z"
   },
   {
    "id": "54149897",
@@ -1746,7 +1888,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Jérémy Doku (Manchester City) Take On at 51'",
+   "wallclock": "2026-10-24T12:38:39Z"
   },
   {
    "id": "54149898",
@@ -1768,7 +1912,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Matty Cash (Aston Villa) Tackle at 51'",
+   "wallclock": "2026-10-24T12:38:39Z"
   },
   {
    "id": "54149899",
@@ -1792,7 +1938,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Enzo Fernández (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:46Z"
   },
   {
    "id": "54149900",
@@ -1816,7 +1964,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Elliot Anderson (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:50Z"
   },
   {
    "id": "54149901",
@@ -1840,7 +1990,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Phil Foden (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:52Z"
   },
   {
    "id": "54149902",
@@ -1864,7 +2016,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 51'",
+   "wallclock": "2026-10-24T12:38:53Z"
   },
   {
    "id": "54149903",
@@ -1888,7 +2042,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Iliman Ndiaye (Manchester City) Pass at 52'",
+   "wallclock": "2026-10-24T12:38:56Z"
   },
   {
    "id": "54149904",
@@ -1912,7 +2068,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "João Gomes (Aston Villa) Pass at 52'",
+   "wallclock": "2026-10-24T12:38:58Z"
   },
   {
    "id": "54149905",
@@ -1934,7 +2092,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Abdukodir Khusanov (Manchester City) Attempted tackle at 52'",
+   "wallclock": "2026-10-24T12:38:59Z"
   },
   {
    "id": "54149906",
@@ -1958,7 +2118,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Nicolas Jackson (Aston Villa) Pass at 52'",
+   "wallclock": "2026-10-24T12:39:00Z"
   },
   {
    "id": "54149907",
@@ -1980,7 +2142,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Phil Foden (Manchester City) Blocked Pass at 52'",
+   "wallclock": "2026-10-24T12:39:00Z"
   },
   {
    "id": "54149908",
@@ -2002,7 +2166,9 @@
    "team": {
     "$ref": "/teams/362"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Iliman Ndiaye (Manchester City) wins a free kick in the attacking half.",
+   "wallclock": "2026-10-24T12:39:02Z"
   },
   {
    "id": "54149972",
@@ -2026,7 +2192,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Enzo Fernández (Manchester City) Free Kick at 52'",
+   "wallclock": "2026-10-24T12:39:46Z"
   },
   {
    "id": "54149973",
@@ -2050,7 +2218,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Iliman Ndiaye (Manchester City) Cross at 52'",
+   "wallclock": "2026-10-24T12:39:48Z"
   },
   {
    "id": "54149974",
@@ -2072,7 +2242,9 @@
    "team": {
     "$ref": "/teams/382"
    },
-   "awayScore": 0
+   "awayScore": 0,
+   "text": "Erling Haaland (Manchester City) Aerial at 52'",
+   "wallclock": "2026-10-24T12:39:49Z"
   },
   {
    "id": "54149975",
@@ -2100,7 +2272,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Goal! Aston Villa 1, Manchester City 1. Erling Haaland (Manchester City) header from very close range to the bottom left corner. Assisted by Iliman Ndiaye with a cross following a set piece situation.",
+   "wallclock": "2026-10-24T12:39:50Z"
   },
   {
    "id": "54149978",
@@ -2120,7 +2294,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Assist at 52'",
+   "wallclock": "2026-10-24T12:39:51Z"
   },
   {
    "id": "54149979",
@@ -2144,7 +2320,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Nicolas Jackson (Aston Villa) Pass at 53'",
+   "wallclock": "2026-10-24T12:40:32Z"
   },
   {
    "id": "54149980",
@@ -2168,7 +2346,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Pass at 53'",
+   "wallclock": "2026-10-24T12:40:33Z"
   },
   {
    "id": "54149981",
@@ -2192,7 +2372,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Zion Suzuki (Aston Villa) Pass at 53'",
+   "wallclock": "2026-10-24T12:40:36Z"
   },
   {
    "id": "54149982",
@@ -2216,7 +2398,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "João Gomes (Aston Villa) Pass at 53'",
+   "wallclock": "2026-10-24T12:40:37Z"
   },
   {
    "id": "54149983",
@@ -2240,7 +2424,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Victor Lindelöf (Aston Villa) Pass at 53'",
+   "wallclock": "2026-10-24T12:40:41Z"
   },
   {
    "id": "54149984",
@@ -2264,7 +2450,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Matty Cash (Aston Villa) Pass at 53'",
+   "wallclock": "2026-10-24T12:40:42Z"
   },
   {
    "id": "54149995",
@@ -2288,7 +2476,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Boubacar Kamara (Aston Villa) Pass at 53'",
+   "wallclock": "2026-10-24T12:40:44Z"
   },
   {
    "id": "54149996",
@@ -2312,7 +2502,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Matty Cash (Aston Villa) Pass at 53'",
+   "wallclock": "2026-10-24T12:40:46Z"
   },
   {
    "id": "54149997",
@@ -2336,7 +2528,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Pass at 53'",
+   "wallclock": "2026-10-24T12:40:51Z"
   },
   {
    "id": "54149998",
@@ -2358,7 +2552,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Johan Manzambi (Aston Villa) Ball touch at 53'",
+   "wallclock": "2026-10-24T12:40:54Z"
   },
   {
    "id": "54149999",
@@ -2380,7 +2576,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Nicolas Jackson (Aston Villa) Take On at 54'",
+   "wallclock": "2026-10-24T12:40:56Z"
   },
   {
    "id": "54150000",
@@ -2402,7 +2600,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "John McGinn (Aston Villa) Attempted tackle at 54'",
+   "wallclock": "2026-10-24T12:40:59Z"
   },
   {
    "id": "54150001",
@@ -2424,7 +2624,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Ball touch at 54'",
+   "wallclock": "2026-10-24T12:40:59Z"
   },
   {
    "id": "54150002",
@@ -2448,7 +2650,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Enzo Fernández (Manchester City) Pass at 54'",
+   "wallclock": "2026-10-24T12:41:01Z"
   },
   {
    "id": "54150003",
@@ -2470,7 +2674,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Jérémy Doku (Manchester City) Take On at 54'",
+   "wallclock": "2026-10-24T12:41:03Z"
   },
   {
    "id": "54150004",
@@ -2492,7 +2698,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Jérémy Doku (Manchester City) Take On at 54'",
+   "wallclock": "2026-10-24T12:41:04Z"
   },
   {
    "id": "54150005",
@@ -2514,7 +2722,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Matty Cash (Aston Villa) Tackle at 54'",
+   "wallclock": "2026-10-24T12:41:04Z"
   },
   {
    "id": "54150065",
@@ -2536,7 +2746,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Matty Cash (Aston Villa) Out at 54'",
+   "wallclock": "2026-10-24T12:41:06Z"
   },
   {
    "id": "54150066",
@@ -2560,7 +2772,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Josko Gvardiol (Manchester City) Throw In at 54'",
+   "wallclock": "2026-10-24T12:41:21Z"
   },
   {
    "id": "54150067",
@@ -2584,7 +2798,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rúben Dias (Manchester City) Pass at 54'",
+   "wallclock": "2026-10-24T12:41:22Z"
   },
   {
    "id": "54150068",
@@ -2608,7 +2824,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Enzo Fernández (Manchester City) Pass at 54'",
+   "wallclock": "2026-10-24T12:41:24Z"
   },
   {
    "id": "54150069",
@@ -2632,7 +2850,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rúben Dias (Manchester City) Pass at 54'",
+   "wallclock": "2026-10-24T12:41:26Z"
   },
   {
    "id": "54150070",
@@ -2656,7 +2876,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Elliot Anderson (Manchester City) Pass at 54'",
+   "wallclock": "2026-10-24T12:41:29Z"
   },
   {
    "id": "54150071",
@@ -2678,7 +2900,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Take On at 54'",
+   "wallclock": "2026-10-24T12:41:34Z"
   },
   {
    "id": "54150072",
@@ -2700,7 +2924,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Ian Maatsen (Aston Villa) Tackle at 54'",
+   "wallclock": "2026-10-24T12:41:34Z"
   },
   {
    "id": "54150073",
@@ -2722,7 +2948,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Ball touch at 54'",
+   "wallclock": "2026-10-24T12:41:35Z"
   },
   {
    "id": "54150074",
@@ -2744,7 +2972,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Attempted tackle at 54'",
+   "wallclock": "2026-10-24T12:41:38Z"
   },
   {
    "id": "54150075",
@@ -2768,7 +2998,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Ian Maatsen (Aston Villa) Pass at 54'",
+   "wallclock": "2026-10-24T12:41:43Z"
   },
   {
    "id": "54150076",
@@ -2790,7 +3022,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Ian Maatsen (Aston Villa) Out at 54'",
+   "wallclock": "2026-10-24T12:41:43Z"
   },
   {
    "id": "54150125",
@@ -2811,7 +3045,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Johan Manzambi (Aston Villa) is shown the yellow card.",
+   "wallclock": "2026-10-24T12:41:50Z"
   },
   {
    "id": "54150126",
@@ -2834,7 +3070,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rico Lewis (Manchester City) Throw In at 55'",
+   "wallclock": "2026-10-24T12:42:14Z"
   },
   {
    "id": "54150127",
@@ -2858,7 +3096,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Enzo Fernández (Manchester City) Pass at 55'",
+   "wallclock": "2026-10-24T12:42:17Z"
   },
   {
    "id": "54150128",
@@ -2882,7 +3122,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rico Lewis (Manchester City) Pass at 55'",
+   "wallclock": "2026-10-24T12:42:18Z"
   },
   {
    "id": "54150129",
@@ -2906,7 +3148,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 55'",
+   "wallclock": "2026-10-24T12:42:22Z"
   },
   {
    "id": "54150130",
@@ -2928,7 +3172,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Matty Cash (Aston Villa) Clear at 55'",
+   "wallclock": "2026-10-24T12:42:25Z"
   },
   {
    "id": "54150131",
@@ -2952,7 +3198,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Josko Gvardiol (Manchester City) Pass at 55'",
+   "wallclock": "2026-10-24T12:42:31Z"
   },
   {
    "id": "54150132",
@@ -2976,7 +3224,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rúben Dias (Manchester City) Pass at 55'",
+   "wallclock": "2026-10-24T12:42:34Z"
   },
   {
    "id": "54150133",
@@ -2998,7 +3248,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Matty Cash (Aston Villa) Attempted tackle at 55'",
+   "wallclock": "2026-10-24T12:42:38Z"
   },
   {
    "id": "54150134",
@@ -3020,7 +3272,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Jérémy Doku (Manchester City) wins a free kick on the left wing.",
+   "wallclock": "2026-10-24T12:42:39Z"
   },
   {
    "id": "54150135",
@@ -3041,7 +3295,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Matty Cash (Aston Villa) is shown the yellow card for a bad foul.",
+   "wallclock": "2026-10-24T12:42:48Z"
   },
   {
    "id": "54150229",
@@ -3065,7 +3321,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rúben Dias (Manchester City) Free Kick at 56'",
+   "wallclock": "2026-10-24T12:43:10Z"
   },
   {
    "id": "54150230",
@@ -3089,7 +3347,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Enzo Fernández (Manchester City) Pass at 56'",
+   "wallclock": "2026-10-24T12:43:11Z"
   },
   {
    "id": "54150231",
@@ -3113,7 +3373,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 56'",
+   "wallclock": "2026-10-24T12:43:12Z"
   },
   {
    "id": "54150232",
@@ -3137,7 +3399,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Enzo Fernández (Manchester City) Pass at 56'",
+   "wallclock": "2026-10-24T12:43:14Z"
   },
   {
    "id": "54150233",
@@ -3161,7 +3425,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Pass at 56'",
+   "wallclock": "2026-10-24T12:43:20Z"
   },
   {
    "id": "54150234",
@@ -3185,7 +3451,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Phil Foden (Manchester City) Pass at 56'",
+   "wallclock": "2026-10-24T12:43:21Z"
   },
   {
    "id": "54150235",
@@ -3209,7 +3477,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 56'",
+   "wallclock": "2026-10-24T12:43:23Z"
   },
   {
    "id": "54150236",
@@ -3233,7 +3503,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Elliot Anderson (Manchester City) Pass at 56'",
+   "wallclock": "2026-10-24T12:43:25Z"
   },
   {
    "id": "54150237",
@@ -3257,7 +3529,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 56'",
+   "wallclock": "2026-10-24T12:43:26Z"
   },
   {
    "id": "54150238",
@@ -3281,7 +3555,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rúben Dias (Manchester City) Pass at 56'",
+   "wallclock": "2026-10-24T12:43:28Z"
   },
   {
    "id": "54150239",
@@ -3305,7 +3581,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Jérémy Doku (Manchester City) Pass at 56'",
+   "wallclock": "2026-10-24T12:43:33Z"
   },
   {
    "id": "54150241",
@@ -3332,7 +3610,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Attempt saved. Josko Gvardiol (Manchester City) left footed shot from the left side of the box is saved in the top centre of the goal by Zion Suzuki (Aston Villa). Assisted by Jérémy Doku with a through ball.",
+   "wallclock": "2026-10-24T12:43:36Z"
   },
   {
    "id": "54150240",
@@ -3352,7 +3632,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Jérémy Doku (Manchester City) Assists Shot at 56'",
+   "wallclock": "2026-10-24T12:43:36Z"
   },
   {
    "id": "54150242",
@@ -3374,7 +3656,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Zion Suzuki (Aston Villa) Save at 56'",
+   "wallclock": "2026-10-24T12:43:36Z"
   },
   {
    "id": "54150243",
@@ -3395,7 +3679,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Corner, Manchester City. Conceded by Zion Suzuki.",
+   "wallclock": "2026-10-24T12:43:39Z"
   },
   {
    "id": "54150285",
@@ -3419,7 +3705,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Phil Foden (Manchester City) Cross at 57'",
+   "wallclock": "2026-10-24T12:44:08Z"
   },
   {
    "id": "54150286",
@@ -3441,7 +3729,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Foul by Rúben Dias (Manchester City).",
+   "wallclock": "2026-10-24T12:44:10Z"
   },
   {
    "id": "54150287",
@@ -3465,7 +3755,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Free Kick at 57'",
+   "wallclock": "2026-10-24T12:44:29Z"
   },
   {
    "id": "54150288",
@@ -3487,7 +3779,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rúben Dias (Manchester City) Aerial at 57'",
+   "wallclock": "2026-10-24T12:44:32Z"
   },
   {
    "id": "54150289",
@@ -3509,7 +3803,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rúben Dias (Manchester City) Clear at 57'",
+   "wallclock": "2026-10-24T12:44:33Z"
   },
   {
    "id": "54150290",
@@ -3531,7 +3827,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Alysson (Aston Villa) Ball touch at 57'",
+   "wallclock": "2026-10-24T12:44:34Z"
   },
   {
    "id": "54150291",
@@ -3553,7 +3851,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Josko Gvardiol (Manchester City) wins a free kick in the defensive half.",
+   "wallclock": "2026-10-24T12:44:34Z"
   },
   {
    "id": "54150292",
@@ -3577,7 +3877,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rúben Dias (Manchester City) Free Kick at 57'",
+   "wallclock": "2026-10-24T12:44:44Z"
   },
   {
    "id": "54150293",
@@ -3601,7 +3903,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Elliot Anderson (Manchester City) Pass at 57'",
+   "wallclock": "2026-10-24T12:44:48Z"
   },
   {
    "id": "54150294",
@@ -3625,7 +3929,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 57'",
+   "wallclock": "2026-10-24T12:44:49Z"
   },
   {
    "id": "54150295",
@@ -3649,7 +3955,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rico Lewis (Manchester City) Pass at 57'",
+   "wallclock": "2026-10-24T12:44:52Z"
   },
   {
    "id": "54150296",
@@ -3673,7 +3981,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Cross at 58'",
+   "wallclock": "2026-10-24T12:44:59Z"
   },
   {
    "id": "54150297",
@@ -3697,7 +4007,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Zion Suzuki (Aston Villa) Pass at 58'",
+   "wallclock": "2026-10-24T12:45:07Z"
   },
   {
    "id": "54150298",
@@ -3721,7 +4033,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Ian Maatsen (Aston Villa) Pass at 58'",
+   "wallclock": "2026-10-24T12:45:08Z"
   },
   {
    "id": "54150299",
@@ -3745,7 +4059,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "João Gomes (Aston Villa) Pass at 58'",
+   "wallclock": "2026-10-24T12:45:14Z"
   },
   {
    "id": "54150300",
@@ -3769,7 +4085,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Ian Maatsen (Aston Villa) Pass at 58'",
+   "wallclock": "2026-10-24T12:45:14Z"
   },
   {
    "id": "54150363",
@@ -3793,7 +4111,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Pass at 58'",
+   "wallclock": "2026-10-24T12:45:17Z"
   },
   {
    "id": "54150364",
@@ -3815,7 +4135,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Abdukodir Khusanov (Manchester City) Clear at 58'",
+   "wallclock": "2026-10-24T12:45:22Z"
   },
   {
    "id": "54150365",
@@ -3839,7 +4161,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Johan Manzambi (Aston Villa) Pass at 58'",
+   "wallclock": "2026-10-24T12:45:25Z"
   },
   {
    "id": "54150366",
@@ -3861,7 +4185,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rico Lewis (Manchester City) Ball touch at 58'",
+   "wallclock": "2026-10-24T12:45:25Z"
   },
   {
    "id": "54150367",
@@ -3883,7 +4209,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Johan Manzambi (Aston Villa) Ball touch at 58'",
+   "wallclock": "2026-10-24T12:45:27Z"
   },
   {
    "id": "54150368",
@@ -3907,7 +4235,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 58'",
+   "wallclock": "2026-10-24T12:45:27Z"
   },
   {
    "id": "54150369",
@@ -3929,7 +4259,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Johan Manzambi (Aston Villa) Out at 58'",
+   "wallclock": "2026-10-24T12:45:29Z"
   },
   {
    "id": "54150370",
@@ -3952,7 +4284,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rico Lewis (Manchester City) Throw In at 58'",
+   "wallclock": "2026-10-24T12:45:54Z"
   },
   {
    "id": "54150371",
@@ -3976,7 +4310,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "João Gomes (Aston Villa) Pass at 58'",
+   "wallclock": "2026-10-24T12:45:54Z"
   },
   {
    "id": "54150372",
@@ -3998,7 +4334,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "John McGinn (Aston Villa) Take On at 59'",
+   "wallclock": "2026-10-24T12:45:55Z"
   },
   {
    "id": "54150373",
@@ -4020,7 +4358,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Abdukodir Khusanov (Manchester City) Tackle at 59'",
+   "wallclock": "2026-10-24T12:45:55Z"
   },
   {
    "id": "54150374",
@@ -4044,7 +4384,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Pass at 59'",
+   "wallclock": "2026-10-24T12:45:59Z"
   },
   {
    "id": "54150375",
@@ -4068,7 +4410,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Elliot Anderson (Manchester City) Pass at 59'",
+   "wallclock": "2026-10-24T12:46:01Z"
   },
   {
    "id": "54150377",
@@ -4095,7 +4439,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Attempt missed. Jérémy Doku (Manchester City) right footed shot from outside the box is close, but misses to the right. Assisted by Elliot Anderson following a fast break.",
+   "wallclock": "2026-10-24T12:46:09Z"
   },
   {
    "id": "54150376",
@@ -4115,7 +4461,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Elliot Anderson (Manchester City) Assists Shot at 59'",
+   "wallclock": "2026-10-24T12:46:10Z"
   },
   {
    "id": "54150378",
@@ -4137,7 +4485,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Jérémy Doku (Manchester City) Out at 59'",
+   "wallclock": "2026-10-24T12:46:12Z"
   },
   {
    "id": "54150526",
@@ -4157,7 +4507,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Substitution, Aston Villa. Ibrahim Mbaye replaces Alysson.",
+   "wallclock": "2026-10-24T12:46:48Z"
   },
   {
    "id": "54150514",
@@ -4181,7 +4533,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Goal Kick at 60'",
+   "wallclock": "2026-10-24T12:47:02Z"
   },
   {
    "id": "54150515",
@@ -4205,7 +4559,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Zion Suzuki (Aston Villa) Pass at 60'",
+   "wallclock": "2026-10-24T12:47:12Z"
   },
   {
    "id": "54150516",
@@ -4229,7 +4585,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 60'",
+   "wallclock": "2026-10-24T12:47:15Z"
   },
   {
    "id": "54150517",
@@ -4253,7 +4611,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Pass at 60'",
+   "wallclock": "2026-10-24T12:47:18Z"
   },
   {
    "id": "54150518",
@@ -4277,7 +4637,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Pass at 60'",
+   "wallclock": "2026-10-24T12:47:21Z"
   },
   {
    "id": "54150519",
@@ -4301,7 +4663,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Boubacar Kamara (Aston Villa) Pass at 60'",
+   "wallclock": "2026-10-24T12:47:23Z"
   },
   {
    "id": "54150520",
@@ -4325,7 +4689,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Matty Cash (Aston Villa) Pass at 60'",
+   "wallclock": "2026-10-24T12:47:27Z"
   },
   {
    "id": "54150521",
@@ -4349,7 +4715,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Pass at 60'",
+   "wallclock": "2026-10-24T12:47:35Z"
   },
   {
    "id": "54150522",
@@ -4373,7 +4741,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Nicolas Jackson (Aston Villa) Pass at 60'",
+   "wallclock": "2026-10-24T12:47:37Z"
   },
   {
    "id": "54150523",
@@ -4397,7 +4767,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Ibrahim Mbaye (Aston Villa) Pass at 60'",
+   "wallclock": "2026-10-24T12:47:42Z"
   },
   {
    "id": "54150525",
@@ -4425,7 +4797,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Goal! Aston Villa 2, Manchester City 1. Nicolas Jackson (Aston Villa) right footed shot from the centre of the box to the centre of the goal. Assisted by Ibrahim Mbaye.",
+   "wallclock": "2026-10-24T12:47:44Z"
   },
   {
    "id": "54150524",
@@ -4445,7 +4819,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Ibrahim Mbaye (Aston Villa) Assist at 60'",
+   "wallclock": "2026-10-24T12:47:44Z"
   },
   {
    "id": "54150599",
@@ -4469,7 +4845,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Erling Haaland (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:48:56Z"
   },
   {
    "id": "54150688",
@@ -4493,7 +4871,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Phil Foden (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:48:57Z"
   },
   {
    "id": "54150689",
@@ -4517,7 +4897,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rúben Dias (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:48:59Z"
   },
   {
    "id": "54150690",
@@ -4541,7 +4923,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Enzo Fernández (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:02Z"
   },
   {
    "id": "54150691",
@@ -4565,7 +4949,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Phil Foden (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:03Z"
   },
   {
    "id": "54150692",
@@ -4589,7 +4975,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Enzo Fernández (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:04Z"
   },
   {
    "id": "54150693",
@@ -4613,7 +5001,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Abdukodir Khusanov (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:06Z"
   },
   {
    "id": "54150694",
@@ -4637,7 +5027,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:08Z"
   },
   {
    "id": "54150695",
@@ -4661,7 +5053,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Enzo Fernández (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:10Z"
   },
   {
    "id": "54150696",
@@ -4685,7 +5079,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:15Z"
   },
   {
    "id": "54150697",
@@ -4707,7 +5103,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rico Lewis (Manchester City) Blocked Pass at 62'",
+   "wallclock": "2026-10-24T12:49:15Z"
   },
   {
    "id": "54150698",
@@ -4731,7 +5129,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:18Z"
   },
   {
    "id": "54150699",
@@ -4755,7 +5155,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Enzo Fernández (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:19Z"
   },
   {
    "id": "54150700",
@@ -4777,7 +5179,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Take On at 62'",
+   "wallclock": "2026-10-24T12:49:21Z"
   },
   {
    "id": "54150701",
@@ -4799,7 +5203,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Johan Manzambi (Aston Villa) Tackle at 62'",
+   "wallclock": "2026-10-24T12:49:21Z"
   },
   {
    "id": "54150703",
@@ -4821,7 +5227,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Johan Manzambi (Aston Villa) Out at 62'",
+   "wallclock": "2026-10-24T12:49:22Z"
   },
   {
    "id": "54150704",
@@ -4844,7 +5252,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Throw In at 62'",
+   "wallclock": "2026-10-24T12:49:30Z"
   },
   {
    "id": "54150705",
@@ -4868,7 +5278,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Enzo Fernández (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:33Z"
   },
   {
    "id": "54150706",
@@ -4892,7 +5304,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rúben Dias (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:41Z"
   },
   {
    "id": "54150707",
@@ -4916,7 +5330,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Iliman Ndiaye (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:44Z"
   },
   {
    "id": "54150708",
@@ -4940,7 +5356,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Rico Lewis (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:47Z"
   },
   {
    "id": "54150709",
@@ -4962,7 +5380,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "João Gomes (Aston Villa) Clear at 62'",
+   "wallclock": "2026-10-24T12:49:48Z"
   },
   {
    "id": "54150710",
@@ -4984,7 +5404,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Josko Gvardiol (Manchester City) Dispossessed at 62'",
+   "wallclock": "2026-10-24T12:49:51Z"
   },
   {
    "id": "54150711",
@@ -5006,7 +5428,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Boubacar Kamara (Aston Villa) Tackle at 62'",
+   "wallclock": "2026-10-24T12:49:51Z"
   },
   {
    "id": "54150712",
@@ -5028,7 +5452,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "John McGinn (Aston Villa) Aerial at 62'",
+   "wallclock": "2026-10-24T12:49:52Z"
   },
   {
    "id": "54150713",
@@ -5050,7 +5476,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "John McGinn (Aston Villa) Clear at 62'",
+   "wallclock": "2026-10-24T12:49:52Z"
   },
   {
    "id": "54150714",
@@ -5074,7 +5502,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Enzo Fernández (Manchester City) Pass at 62'",
+   "wallclock": "2026-10-24T12:49:54Z"
   },
   {
    "id": "54150718",
@@ -5098,7 +5528,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Goal Kick at 63'",
+   "wallclock": "2026-10-24T12:50:25Z"
   },
   {
    "id": "54150848",
@@ -5125,7 +5557,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Attempt missed. Josko Gvardiol (Manchester City) header from the centre of the box misses to the left. Assisted by Enzo Fernández with a cross following a corner.",
+   "wallclock": "2026-10-24T12:52:45Z"
   },
   {
    "id": "54150978",
@@ -5149,7 +5583,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Goal Kick at 66'",
+   "wallclock": "2026-10-24T12:53:04Z"
   },
   {
    "id": "54151169",
@@ -5176,7 +5612,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Attempt saved. Josko Gvardiol (Manchester City) left footed shot from the centre of the box is saved in the centre of the goal by Zion Suzuki (Aston Villa).",
+   "wallclock": "2026-10-24T12:55:42Z"
   },
   {
    "id": "54151248",
@@ -5200,7 +5638,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Goal Kick at 70'",
+   "wallclock": "2026-10-24T12:57:17Z"
   },
   {
    "id": "54151480",
@@ -5224,7 +5664,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Zion Suzuki (Aston Villa) Goal Kick at 74'",
+   "wallclock": "2026-10-24T13:01:12Z"
   },
   {
    "id": "54151557",
@@ -5246,7 +5688,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Foul by Elliot Anderson (Manchester City).",
+   "wallclock": "2026-10-24T13:01:17Z"
   },
   {
    "id": "54151558",
@@ -5267,7 +5711,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Elliot Anderson (Manchester City) is shown the yellow card for a bad foul.",
+   "wallclock": "2026-10-24T13:01:24Z"
   },
   {
    "id": "54151737",
@@ -5289,7 +5735,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Foul by Ryan McAidoo (Manchester City).",
+   "wallclock": "2026-10-24T13:03:35Z"
   },
   {
    "id": "54151738",
@@ -5310,7 +5758,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Ryan McAidoo (Manchester City) is shown the yellow card for a bad foul.",
+   "wallclock": "2026-10-24T13:03:38Z"
   },
   {
    "id": "54152002",
@@ -5334,7 +5784,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Goal Kick at 78'",
+   "wallclock": "2026-10-24T13:05:31Z"
   },
   {
    "id": "54152100",
@@ -5358,7 +5810,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Pau Torres (Aston Villa) Goal Kick at 79'",
+   "wallclock": "2026-10-24T13:06:39Z"
   },
   {
    "id": "54152614",
@@ -5380,7 +5834,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Abdukodir Khusanov (Manchester City) wins a free kick in the defensive half.",
+   "wallclock": "2026-10-24T13:10:44Z"
   },
   {
    "id": "54152615",
@@ -5401,7 +5857,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Brian Madjo (Aston Villa) is shown the yellow card.",
+   "wallclock": "2026-10-24T13:10:48Z"
   },
   {
    "id": "54152768",
@@ -5428,7 +5886,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Attempt blocked. Phil Foden (Manchester City) left footed shot from outside the box is blocked. Assisted by Josko Gvardiol.",
+   "wallclock": "2026-10-24T13:13:47Z"
   },
   {
    "id": "54152860",
@@ -5452,7 +5912,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Gianluigi Donnarumma (Manchester City) Goal Kick at 87'",
+   "wallclock": "2026-10-24T13:14:52Z"
   },
   {
    "id": "54153145",
@@ -5479,7 +5941,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Attempt blocked. Erling Haaland (Manchester City) header from the centre of the box is blocked. Assisted by Phil Foden with a cross.",
+   "wallclock": "2026-10-24T13:16:36Z"
   },
   {
    "id": "54153243",
@@ -5506,7 +5970,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Attempt missed. Jérémy Doku (Manchester City) right footed shot from the left side of the box misses to the left. Assisted by Ryan McAidoo with a cross.",
+   "wallclock": "2026-10-24T13:16:44Z"
   },
   {
    "id": "54153245",
@@ -5530,7 +5996,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Zion Suzuki (Aston Villa) Goal Kick at 90'",
+   "wallclock": "2026-10-24T13:17:14Z"
   },
   {
    "id": "54153367",
@@ -5554,7 +6022,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Zion Suzuki (Aston Villa) Goal Kick at 90'+1'",
+   "wallclock": "2026-10-24T13:18:47Z"
   },
   {
    "id": "54153499",
@@ -5578,7 +6048,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Gianluigi Donnarumma (Manchester City) Goal Kick at 90'+2'",
+   "wallclock": "2026-10-24T13:19:32Z"
   },
   {
    "id": "54153513",
@@ -5605,7 +6077,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Attempt saved. Erling Haaland (Manchester City) header from the centre of the box is saved in the bottom right corner by Zion Suzuki (Aston Villa). Assisted by Elliot Anderson.",
+   "wallclock": "2026-10-24T13:20:10Z"
   },
   {
    "id": "54153762",
@@ -5629,7 +6103,9 @@
    },
    "team": {
     "$ref": "/teams/382"
-   }
+   },
+   "text": "Gianluigi Donnarumma (Manchester City) Goal Kick at 90'+4'",
+   "wallclock": "2026-10-24T13:21:38Z"
   },
   {
    "id": "54153769",
@@ -5651,7 +6127,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Rico Lewis (Manchester City) wins a free kick in the defensive half.",
+   "wallclock": "2026-10-24T13:21:58Z"
   },
   {
    "id": "54153802",
@@ -5672,7 +6150,9 @@
    },
    "team": {
     "$ref": "/teams/362"
-   }
+   },
+   "text": "Emiliano Buendía (Aston Villa) is shown the yellow card for a bad foul.",
+   "wallclock": "2026-10-24T13:22:03Z"
   }
  ]
 }
