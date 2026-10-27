@@ -98,6 +98,13 @@ function ZoneLine({ label, help }: { label: string | null; help?: string }) {
   );
 }
 
+/**
+ * What a highlighted row says after its line: "your team" for a followed
+ * team; a game page's table says "in this match" for the two teams playing,
+ * and the standings page says that for the match it was opened from (`?ring=`).
+ */
+export const HighlightWord = createContext<(id: string) => string>(() => "your team");
+
 /** A table's groups sit under the page's h1, or under a column's h2 title (GroupColumns): headings never skip a level. */
 const UnderColumnTitle = createContext(false);
 
@@ -182,8 +189,9 @@ export const StandingsTable = memo(function StandingsTable({ rows, highlight, wi
 });
 
 const SoccerRow = memo(function SoccerRow({ r, columns, zones, mine, order }: { r: LiveStandingsRow; columns: readonly TableColumn[]; zones: boolean; mine: boolean; order: string }) {
+  const word = useContext(HighlightWord);
   return (
-    <TableRow id={r.id} label={spokenTableRow(r, columns, zones, mine)} mine={mine} order={order}>
+    <TableRow id={r.id} label={spokenTableRow(r, columns, zones, false) + (mine ? `, ${word(r.id)}` : "")} mine={mine} order={order}>
       <span className={styles.rank} style={pt(30)}>
         <span>{r.liveRank}</span>
         <Movement value={r.movement} />
@@ -250,8 +258,9 @@ export const NBAStandingsTable = memo(function NBAStandingsTable({ rows, highlig
 });
 
 const NBARow = memo(function NBARow({ r, mine, order }: { r: NBALiveRow; mine: boolean; order: string }) {
+  const word = useContext(HighlightWord);
   return (
-    <TableRow id={r.id} label={spokenNBARow(r) + (mine ? ", your team" : "")} mine={mine} order={order}>
+    <TableRow id={r.id} label={spokenNBARow(r) + (mine ? `, ${word(r.id)}` : "")} mine={mine} order={order}>
       <span className={styles.rank} style={pt(30)}>
         <span>{r.liveRank}</span>
         <Movement value={r.movement} against="the official seeding" />
@@ -301,6 +310,7 @@ export const ConferenceTable = memo(function ConferenceTable({
   revealing?: boolean;
   linking?: boolean;
 }) {
+  const word = useContext(HighlightWord);
   const columns = conferenceColumns(width, rows);
   const grouped = new Set(rows.map((r) => r.group).filter(Boolean)).size > 1;
   const head = outlineReveal(0, revealing);
@@ -350,7 +360,7 @@ export const ConferenceTable = memo(function ConferenceTable({
         return (
           <Fragment key={r.id}>
             {grouped && r.group !== (prev?.group ?? null) && r.group ? <GroupLabel title={r.group} first={index === 0} /> : prev && prev.group === r.group && prev.rank + 1 < r.rank ? <Gap /> : null}
-            <TableRow id={r.id} label={spokenConferenceRow(r, columns, ranks[r.id], live[r.id]) + (mine ? ", your team" : "")} mine={mine} order={order} reveal={outlineReveal(index + 1, revealing)}>
+            <TableRow id={r.id} label={spokenConferenceRow(r, columns, ranks[r.id], live[r.id]) + (mine ? `, ${word(r.id)}` : "")} mine={mine} order={order} reveal={outlineReveal(index + 1, revealing)}>
               <span className={styles.rank} style={pt(22)}>
                 {r.rank}
               </span>

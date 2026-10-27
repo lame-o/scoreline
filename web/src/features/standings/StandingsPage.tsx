@@ -9,7 +9,7 @@
  *
  *     /standings/eng.1      /standings/nba      /standings/college-football?ring=espn-ncaaf-26
  */
-import { memo, useMemo } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { DisclosureHeader, EmptyState, ErrorState, OutlineGlide, useGroupFlag, useOutline, type OutlineStore } from "../../design/components";
 import { leagueWithID } from "../../data/leagues";
@@ -33,7 +33,7 @@ import { useRankings, useStandings } from "../../state/standings";
 import { useSplit } from "../../app/layout";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { NotFound } from "../../app/NotFound";
-import { ConferenceTable, GroupColumns, LeaderLine, NBAStandingsTable, ProjectedNote, StandingsTable } from "./Tables";
+import { ConferenceTable, GroupColumns, HighlightWord, LeaderLine, NBAStandingsTable, ProjectedNote, StandingsTable } from "./Tables";
 import { SkeletonTable, TablePage, type PageLayout } from "./TablePage";
 import styles from "./StandingsPage.module.css";
 
@@ -55,6 +55,8 @@ function Standings({ league }: { league: League }) {
   const followed = useSettings(followedIDs);
   const mine = useMemo(() => new Set(followed.map((t) => t.id)), [followed]);
   const highlight = useMemo(() => new Set([...mine, ...focus]), [mine, focus]);
+  // A ringed team from the match this was opened from isn't necessarily yours.
+  const word = useCallback((id: string) => (mine.has(id) ? "your team" : "in this match"), [mine]);
   const table = useStandings(league);
   const kind = tableKind(league);
   // Beside the sidebar its list polls; on a phone this page does.
@@ -63,25 +65,27 @@ function Standings({ league }: { league: League }) {
   const live = useMemo(() => events?.filter((e) => e.state === "live") ?? EMPTY, [events]);
 
   return (
-    <TablePage title={league.name}>
-      {(layout) =>
-        kind === "none" ? (
-          <EmptyState icon="list" title="No Table Yet" message={`${league.name} doesn't have a table in Scoreline.`} />
-        ) : table.isPending ? (
-          <SkeletonTable rows={kind === "nba" ? 15 : 20} />
-        ) : table.isError && !table.data ? (
-          <ErrorState subject="Table" onRetry={() => void table.refetch()} />
-        ) : !table.data || table.data.length === 0 ? (
-          <EmptyState icon="list" title="No Table Yet" message={`${league.name} hasn't published a table yet.`} />
-        ) : kind === "college" ? (
-          <College league={league} rows={table.data} live={live} focus={focus} mine={mine} highlight={highlight} layout={layout} />
-        ) : kind === "nba" ? (
-          <NBA rows={table.data} live={live} highlight={highlight} layout={layout} />
-        ) : (
-          <Soccer rows={table.data} live={live} highlight={highlight} layout={layout} />
-        )
-      }
-    </TablePage>
+    <HighlightWord.Provider value={word}>
+      <TablePage title={league.name}>
+        {(layout) =>
+          kind === "none" ? (
+            <EmptyState icon="list" title="No Table Yet" message={`${league.name} doesn't have a table in Scoreline.`} />
+          ) : table.isPending ? (
+            <SkeletonTable rows={kind === "nba" ? 15 : 20} />
+          ) : table.isError && !table.data ? (
+            <ErrorState subject="Table" onRetry={() => void table.refetch()} />
+          ) : !table.data || table.data.length === 0 ? (
+            <EmptyState icon="list" title="No Table Yet" message={`${league.name} hasn't published a table yet.`} />
+          ) : kind === "college" ? (
+            <College league={league} rows={table.data} live={live} focus={focus} mine={mine} highlight={highlight} layout={layout} />
+          ) : kind === "nba" ? (
+            <NBA rows={table.data} live={live} highlight={highlight} layout={layout} />
+          ) : (
+            <Soccer rows={table.data} live={live} highlight={highlight} layout={layout} />
+          )
+        }
+      </TablePage>
+    </HighlightWord.Provider>
   );
 }
 
