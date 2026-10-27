@@ -127,7 +127,6 @@
   display: flex;
   justify-content: center;
   padding: 0 calc(10 * var(--pt));
-  transform-origin: 50% 0;
 }
 
 .dockBar {
@@ -149,11 +148,14 @@
     inset 0 calc(1 * var(--pt)) 0 var(--glass-highlight),
     inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
     var(--shadow-glass);
-  transition: transform var(--dur-press) var(--ease-out);
+  /* The dock's progress (set on the slot by the host), applied here, on the glass. */
+  opacity: var(--dock-opacity, 1);
+  transform: var(--dock-transform, none);
+  transform-origin: 50% 0;
 }
 
 .dockBar:active {
-  transform: scale(0.98);
+  transform: var(--dock-transform, none) scale(0.98);
 }
 
 .dockLine {
@@ -221,8 +223,8 @@
   padding: calc(6 * var(--pt)) calc(10 * var(--pt)) calc(4 * var(--pt));
 }
 
-/* The hero tucks under the header as the page scrolls: scaled toward its top edge (written by DockedBar). */
-.heroTuck {
+/* The hero tucks under the header as the page scrolls: its glass scaled toward its top edge (written by DockedBar). */
+.heroTuck > * {
   transform-origin: 50% 0;
 }
 

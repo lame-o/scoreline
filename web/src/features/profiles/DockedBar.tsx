@@ -49,7 +49,8 @@ export function DockedBarHost({ hero, card, children }: { readonly hero: RefObje
       const minY = rect.top - top - HEADER_PT * pt;
       const next = dockStep(0, rect.height, -minY);
       setStep((s) => (s === next ? s : next));
-      const el = card.current;
+      // The tuck goes on the glass itself: a transformed ancestor would cut the glass off from what's behind it (no blur).
+      const el = (card.current?.firstElementChild as HTMLElement | null) ?? card.current;
       if (el) {
         const tuck = heroTuck(minY, rect.height);
         el.style.transform = reduce.current || tuck.scale === 1 ? "" : `scale(${tuck.scale})`;
@@ -83,9 +84,12 @@ export function DockedBarHost({ hero, card, children }: { readonly hero: RefObje
       {p > 0 ? (
         <div
           className={styles.dockSlot}
+          // The bar takes these itself (a transformed or translucent ancestor would cut its glass off from
+          // the content behind it): custom properties, so the memoized bar never renders again.
           style={{
-            opacity: motion.opacity,
-            transform: reduce.current ? undefined : `translateY(calc(${motion.offset} * var(--pt))) scale(${motion.scale})`,
+            ["--dock-opacity" as string]: motion.opacity,
+            // Docked, no transform at all: Chromium's glass loses its blur under any transform, even an identity one.
+            ["--dock-transform" as string]: reduce.current || p >= 1 ? "none" : `translateY(calc(${motion.offset} * var(--pt))) scale(${motion.scale})`,
             pointerEvents: motion.interactive ? "auto" : "none",
           }}
         >
