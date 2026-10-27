@@ -1,0 +1,31 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/matches?filter%5Bmatches.team_ids%5D%5Boverlap%5D=667&filter%5Bmatches.status%5D%5Bin%5D=upcoming%2Ccurrent&filter%5Bmatches.tier%5D%5Bin%5D=s&sort=start_date&page%5Blimit%5D=3&with=teams%2Ctournament",
+ "_recorded": "2026-10-27T08:46:39.042Z",
+ "results": [
+  {
+   "id": 132243,
+   "slug": "vitality-vs-natus-vincere-27-10-2026",
+   "status": "upcoming",
+   "bo_type": 3,
+   "start_date": "2026-10-27T17:00:00.000+00:00",
+   "team1_id": 667,
+   "team2_id": 787,
+   "team1_score": 0,
+   "team2_score": 0,
+   "winner_team_id": null,
+   "team1": {
+    "id": 667,
+    "name": "Vitality",
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp"
+   },
+   "team2": {
+    "id": 787,
+    "name": "Natus Vincere",
+    "image_url": "https://files.bo3.gg/uploads/team/787/image/webp-ea9885f81f1572c7a6c9fb6cbf747c99.webp"
+   },
+   "tournament": {
+    "name": "PGL Masters Bucharest 2026"
+   }
+  }
+ ]
+}

@@ -211,3 +211,5 @@ if (want("bo3")) {
 }
 if (want("ifsc")) await ifsc();
 if (want("teams")) await teams();
+// Team and player pages (test/fixtures/profiles).
+if (want("profiles")) await (await import("./record-profile-fixtures.mjs")).recordProfiles();

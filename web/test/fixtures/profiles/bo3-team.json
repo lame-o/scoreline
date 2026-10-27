@@ -1,0 +1,175 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/teams/vitality?with=players.country",
+ "_recorded": "2026-10-27T08:46:32.639Z",
+ "id": 667,
+ "name": "Vitality",
+ "slug": "vitality",
+ "acronym": "VIT",
+ "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+ "rank": 3,
+ "rank_diff": 2,
+ "players": [
+  {
+   "id": 17515,
+   "slug": "apex",
+   "nickname": "apEX",
+   "first_name": "Dan",
+   "last_name": "Madesclaire",
+   "status": 2,
+   "is_coach": false,
+   "six_month_avg_rating": 5.739047346919297,
+   "birthday": "1993-02-22",
+   "image_url": "https://files.bo3.gg/uploads/player/17515/image/webp-40cbbee856c5e6cf7d2417d0d373b083.webp",
+   "country": {
+    "code": "FR",
+    "name": "France"
+   }
+  },
+  {
+   "id": 17663,
+   "slug": "ropz",
+   "nickname": "ropz",
+   "first_name": "Robin",
+   "last_name": "Kool",
+   "status": 1,
+   "is_coach": false,
+   "six_month_avg_rating": 6.282850330756596,
+   "birthday": "1999-12-22",
+   "image_url": "https://files.bo3.gg/uploads/player/17663/image/webp-f55fceb4244e40bfc61741c05cd937dd.webp",
+   "country": {
+    "code": "EE",
+    "name": "Estonia"
+   }
+  },
+  {
+   "id": 18452,
+   "slug": "zywoo",
+   "nickname": "ZywOo",
+   "first_name": "Mathieu",
+   "last_name": "Herbaut",
+   "status": 1,
+   "is_coach": false,
+   "six_month_avg_rating": 7.142691965341368,
+   "birthday": "2000-11-09",
+   "image_url": "https://files.bo3.gg/uploads/player/18452/image/webp-d6b68be0a5a6fc73186bf1e6894f9b14.webp",
+   "country": {
+    "code": "FR",
+    "name": "France"
+   }
+  },
+  {
+   "id": 24881,
+   "slug": "flamez",
+   "nickname": "flameZ",
+   "first_name": "Shahar",
+   "last_name": "Shushan",
+   "status": 1,
+   "is_coach": false,
+   "six_month_avg_rating": 6.276060762472899,
+   "birthday": "2003-06-22",
+   "image_url": "https://files.bo3.gg/uploads/player/24881/image/webp-fd9f82f23bf62141bb4878ac8336457a.webp",
+   "country": {
+    "code": "IL",
+    "name": "Israel"
+   }
+  },
+  {
+   "id": 26564,
+   "slug": "jl-cs-go",
+   "nickname": "jL",
+   "first_name": "Justinas",
+   "last_name": "Lekavicius",
+   "status": 1,
+   "is_coach": false,
+   "six_month_avg_rating": 5.904364841450926,
+   "birthday": "1999-09-29",
+   "image_url": "https://files.bo3.gg/uploads/player/26564/image/webp-c651b7776b5b2608601e86bc3dfc0201.webp",
+   "country": {
+    "code": "LT",
+    "name": "Lithuania"
+   }
+  },
+  {
+   "id": 30095,
+   "slug": "mezil",
+   "nickname": "mezii",
+   "first_name": "William",
+   "last_name": "Merriman",
+   "status": 1,
+   "is_coach": false,
+   "six_month_avg_rating": 5.892681154127212,
+   "birthday": "1998-10-15",
+   "image_url": "https://files.bo3.gg/uploads/player/30095/image/webp-a72229d32eb57d467b4b0e9c4a147310.webp",
+   "country": {
+    "code": "GB",
+    "name": "United Kingdom"
+   }
+  },
+  {
+   "id": 31378,
+   "slug": "xtqzzz-cs-go",
+   "nickname": "XTQZZZ",
+   "first_name": "Rémy",
+   "last_name": "Quoniam",
+   "status": 1,
+   "is_coach": true,
+   "six_month_avg_rating": null,
+   "birthday": "1988-12-23",
+   "image_url": "https://files.bo3.gg/uploads/player/31378/image/webp-0a5971f9089b66ebf680a213e1cf573c.webp",
+   "country": {
+    "code": "FR",
+    "name": "France"
+   }
+  }
+ ],
+ "achievements": [
+  {
+   "date": "2021-12-12",
+   "title": "winner",
+   "tournament": {
+    "name": "IEM XVI Winter 2021",
+    "tier": "s"
+   }
+  },
+  {
+   "date": "2020-12-13",
+   "title": "winner",
+   "tournament": {
+    "name": "BLAST Premier Finals Fall 2020",
+    "tier": "s"
+   }
+  },
+  {
+   "date": "2020-11-04",
+   "title": "winner",
+   "tournament": {
+    "name": "BLAST Premier Regular Season Fall 2020",
+    "tier": "a"
+   }
+  },
+  {
+   "date": "2020-11-22",
+   "title": "winner",
+   "tournament": {
+    "name": "IEM Beijing Online: Europe 2020",
+    "tier": "a"
+   }
+  },
+  {
+   "date": "2021-09-26",
+   "title": "winner",
+   "tournament": {
+    "name": "BLAST Premier Groups Fall 2021",
+    "tier": "a"
+   }
+  },
+  {
+   "date": "2022-02-07",
+   "title": "winner",
+   "tournament": {
+    "name": "BLAST Premier Groups Spring 2022",
+    "tier": "s"
+   }
+  }
+ ]
+}
