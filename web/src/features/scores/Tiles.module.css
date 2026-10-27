@@ -154,6 +154,11 @@
   min-width: 0;
 }
 
+/* Centered children size to their content; capped at the column, so a long name truncates inside its tile. */
+.column > * {
+  max-width: 100%;
+}
+
 .center {
   flex: none;
   display: flex;
@@ -171,7 +176,9 @@
   white-space: nowrap;
 }
 
+/* A flex item won't shrink below its text without min-width: 0, so a long name spilled out of its tile instead of truncating. */
 .nameLine > .name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
