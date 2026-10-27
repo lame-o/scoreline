@@ -13,6 +13,7 @@ import { decisive, type LiveMoment } from "../moments";
 import { CameraFrame } from "../mlb/playCamera";
 import type { FieldPoint, Point } from "../mlb/theaterField";
 import { attacksRight, goalOf, isMoment, keepers, parse, Pitch, playID, scored, type SoccerScene, type SoccerTheaterState } from "./soccerScene";
+import { pitchBursts, theaterOwns } from "./goalCelebrationRules";
 import { PitchCamera, type Basis, type SoccerScript } from "./soccerScript";
 
 export { stampDetail } from "./soccerScene";
@@ -89,25 +90,10 @@ export const burstEnd = (b: Burst): number => b.at + cueDuration(b.cue);
  */
 export const GoalCelebration = {
   /** The moments the theater replays (and so celebrates): goals, saves, blocks, the woodwork, big chances. Cards stay the Live Pitch's. */
-  theaterOwns(m: LiveMoment): boolean {
-    if (m.chart !== "pitch") return false;
-    switch (m.kind) {
-      case "goal":
-      case "shotSaved":
-      case "shotBlocked":
-        return true;
-      case "shotWide":
-        return m.accents.has("woodwork") || m.accents.has("bigChance");
-      default:
-        return false;
-    }
-  },
+  theaterOwns,
 
   /** The Live Pitch bursts over a moment only when there's no theater to. */
-  pitchBursts(m: LiveMoment | null, theaterShown: boolean): boolean {
-    if (!m) return false;
-    return !theaterShown || !GoalCelebration.theaterOwns(m);
-  },
+  pitchBursts,
 
   /**
    * The theater's bursts for this moment, in script time: fireworks over
