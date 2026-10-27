@@ -356,3 +356,50 @@
     opacity: 0;
   }
 }
+
+/* The live clock and its state chip (DetailView's CLUTCH: the last five minutes, within five). */
+.liveLine {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+}
+
+.chip {
+  padding: calc(1.5 * var(--pt)) calc(5 * var(--pt));
+  border-radius: 999px;
+  font-size: calc(9 * var(--pt));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: light-dark(#a63700, #ffb340);
+  background: light-dark(rgb(255 149 0 / 0.14), rgb(255 159 10 / 0.18));
+  white-space: nowrap;
+  animation: chip-in var(--dur-quick) var(--ease-out);
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    scale: 0.92;
+  }
+}
+
+/* A two-legged tie's aggregate, a shootout: under the status in any state. */
+.note {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--label-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-top: calc(1 * var(--pt));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip {
+    animation-name: chip-fade;
+  }
+  @keyframes chip-fade {
+    from {
+      opacity: 0;
+    }
+  }
+}

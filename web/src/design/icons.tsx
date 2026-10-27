@@ -295,6 +295,23 @@ const GLYPHS = {
       <path d="M13.6 1.6v12.8" strokeWidth={1.1} opacity=".45" />
     </g>
   ),
+  /** A player on fire (StreakFlame's flame.fill). */
+  flame: <path fill="currentColor" d="M8.2 1.2c.5 2.1-.4 3.4-1.4 4.6C5.7 7.1 4.6 8.3 4.6 10.2a3.4 3.4 0 0 0 6.8.2c0-1.2-.5-2.2-1.2-3 .1 1-.3 1.8-1 2.2.4-2.3-.3-4.9-1-8.4z" />,
+  /** The replay's play button (play.fill). */
+  playFill: <path fill="currentColor" d="M5.2 3.1c0-.6.6-.9 1.1-.6l7 4.9c.4.3.4.9 0 1.2l-7 4.9c-.5.3-1.1 0-1.1-.6z" />,
+  pause: (
+    <g fill="currentColor">
+      <rect x="4.2" y="3.2" width="2.6" height="9.6" rx=".8" />
+      <rect x="9.2" y="3.2" width="2.6" height="9.6" rx=".8" />
+    </g>
+  ),
+  /** A headshot's placeholder (person.fill). */
+  person: (
+    <g fill="currentColor">
+      <circle cx="8" cy="5.2" r="2.9" />
+      <path d="M2.6 14c.4-3 2.6-4.9 5.4-4.9s5 1.9 5.4 4.9z" />
+    </g>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof GLYPHS;

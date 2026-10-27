@@ -1,0 +1,25 @@
+/* "Full Table ›" (DetailView.linkButton): the accent, a chevron, no underline until pointed at. */
+.more {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  padding: calc(4 * var(--pt)) 0;
+  font-size: var(--text-callout);
+  font-weight: 500;
+  color: var(--accent-text);
+  text-decoration: none;
+  border-radius: calc(4 * var(--pt));
+  transition: opacity var(--dur-press) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .more:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+.more:active {
+  opacity: 0.6;
+}

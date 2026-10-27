@@ -56,3 +56,39 @@ export function reconcileMarks(marks: readonly MatchMark[], topScore: number | n
   // Mixed, and the counts can't say which is which: no side.
   return withSide(null);
 }
+
+/** A knockout tie as a match page says it: the leg, the aggregate and the shootout, top first. */
+export interface SoccerTie {
+  /** "2nd Leg" (two-legged ties only). */
+  readonly leg: string | null;
+  readonly aggregate: readonly [number, number] | null;
+  readonly shootout: readonly [number, number] | null;
+}
+
+const score = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.round(v) : typeof v === "string" && /^\d+$/.test(v) ? Number(v) : null);
+
+/**
+ * The tie from a summary's competition (its competitors' `aggregateScore` and
+ * `shootoutScore`, its `leg`), with the competitors in top/bottom order.
+ * Null for a league match.
+ */
+export function soccerTie(competition: unknown, top: unknown, bottom: unknown): SoccerTie | null {
+  const field = (c: unknown, key: string) => score((c as Record<string, unknown> | null | undefined)?.[key]);
+  const pair = (key: string): [number, number] | null => {
+    const a = field(top, key);
+    const b = field(bottom, key);
+    return a != null && b != null ? [a, b] : null;
+  };
+  const leg = (competition as { leg?: { value?: unknown; displayValue?: unknown } } | null | undefined)?.leg;
+  const legText = typeof leg?.displayValue === "string" && leg.displayValue ? leg.displayValue : null;
+  const tie = { leg: legText, aggregate: pair("aggregateScore"), shootout: pair("shootoutScore") };
+  return tie.leg || tie.aggregate || tie.shootout ? tie : null;
+}
+
+/** "2nd Leg · Agg 3–1 · Pens 4–2": the hero's line under the status. */
+export function tieLine(tie: SoccerTie | null): string | null {
+  if (!tie) return null;
+  const parts = [tie.leg, tie.aggregate && tie.leg !== "1st Leg" ? `Agg ${tie.aggregate[0]}–${tie.aggregate[1]}` : null, tie.shootout ? `Pens ${tie.shootout[0]}–${tie.shootout[1]}` : null];
+  const line = parts.filter(Boolean).join(" · ");
+  return line || null;
+}

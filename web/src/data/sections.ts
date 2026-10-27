@@ -11,9 +11,14 @@
 import type { EventRef, EventState } from "./models";
 import { NBA_PATH } from "./providers/espn";
 
+/** The WNBA reads the NBA's feed: it gets the NBA page, with the parts its data has. */
+const WNBA_PATH = "basketball/wnba";
+
 export type Section =
   | "field"
-  // Football: the per-play replay (the Mac's play theater, to port).
+  // Football and soccer: the play theater (football's per-play replay; soccer's
+  // broadcast replay of goals and big chances with their build-ups). TODO: both
+  // are still to port; the slots are planned so they land without moving the page.
   | "theater"
   | "atPlate"
   | "atBat"
@@ -53,7 +58,7 @@ export function pageKind(ref: EventRef | null): PageKind {
     case "espn":
       if (ref.sport === "soccer") return "soccer";
       if (ref.sport === "baseball") return "baseball";
-      if (ref.sport === "basketball" && ref.path === NBA_PATH) return "nba";
+      if (ref.sport === "basketball" && (ref.path === NBA_PATH || ref.path === WNBA_PATH)) return "nba";
       if (ref.sport === "football") return "football";
       return "espn";
     case "counterStrike":
@@ -70,9 +75,9 @@ export function sectionOrder(ref: EventRef | null, state: EventState): readonly 
   switch (pageKind(ref)) {
     case "soccer":
       return state === "live"
-        ? ["pitch", "timeline", "winProbability", "stats", "table", "moments", "plays", "whereToWatch"]
+        ? ["pitch", "theater", "timeline", "winProbability", "stats", "table", "moments", "plays", "whereToWatch"]
         : state === "final"
-          ? ["timeline", "pitch", "moments", "stats", "table", "plays"]
+          ? ["timeline", "pitch", "theater", "moments", "stats", "table", "plays"]
           : ["table", "whereToWatch"];
     case "baseball":
       return state === "live"
@@ -136,9 +141,9 @@ export function widePlan(ref: EventRef | null, state: EventState): readonly Wide
   switch (pageKind(ref)) {
     case "soccer":
       return state === "live"
-        ? [columns(["pitch", "stats", "plays"], ["timeline", "moments", "winProbability", "table", "whereToWatch"])]
+        ? [columns(["pitch", "theater", "stats", "plays"], ["timeline", "moments", "winProbability", "table", "whereToWatch"])]
         : state === "final"
-          ? [columns(["pitch", "stats"], ["timeline", "moments", "table", "plays"])]
+          ? [columns(["pitch", "theater", "stats"], ["timeline", "moments", "table", "plays"])]
           : [columns(["table"], ["whereToWatch"])];
     case "baseball":
       return state === "live"

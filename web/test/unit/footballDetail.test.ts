@@ -135,7 +135,7 @@ describe("the football section plan", () => {
   });
 
   it("keeps the generic ESPN page for other ESPN sports", () => {
-    expect(pageKind({ kind: "espn", path: "basketball/wnba", id: "1", sport: "basketball" })).toBe("espn");
+    expect(pageKind({ kind: "espn", path: "basketball/mens-college-basketball", id: "1", sport: "basketball" })).toBe("espn");
   });
 });
 

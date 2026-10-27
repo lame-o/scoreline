@@ -49,6 +49,10 @@ export interface DockedScorebarProps {
   readonly detail?: (tier: AccessoryTier) => ReactNode;
   /** One state chip (2-MIN DRILL, CLUTCH, BASES LOADED…). */
   readonly chip?: string | null;
+  /** NBA: a shot in the air (the ball dims, still the shooting team's). */
+  readonly possessionInAir?: boolean;
+  /** Beside each team's name: what the sport adds there besides the ball (soccer's red cards). */
+  readonly slot?: (side: Side, tier: AccessoryTier) => ReactNode;
 }
 
 /** The bar's slot: sticky under the header, zero height, so the page never moves for it. */
@@ -70,7 +74,7 @@ export function DockedScorebar(props: DockedScorebarProps) {
   );
 }
 
-const BarContent = memo(function BarContent({ geometry, event, palette, scores, beats, surface, clockFallback, clock, possession, stale, detail, chip }: DockedScorebarProps) {
+const BarContent = memo(function BarContent({ geometry, event, palette, scores, beats, surface, clockFallback, clock, possession, possessionInAir = false, stale, detail, chip, slot }: DockedScorebarProps) {
   const box = useRef<HTMLButtonElement>(null);
   const width = useWidth(box, 360);
   const moment = useCurrentMoment();
@@ -90,7 +94,7 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
   const glyph = event.ref?.kind === "espn" && event.ref.sport === "basketball" ? "basketball" : "football";
   const slots = live && possession !== undefined && tier >= Accessory.glyph;
   return (
-    <button ref={box} type="button" className={styles.bar} onClick={() => geometry.scrollToTop()} title="Back to top" aria-hidden="true" tabIndex={-1}>
+    <button ref={box} type="button" className={styles.bar} data-in-air={possessionInAir} onClick={() => geometry.scrollToTop()} title="Back to top" aria-hidden="true" tabIndex={-1}>
       <span className={styles.lead}>
         {event.content.kind === "match" ? (
           <>
@@ -99,6 +103,7 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
               {event.content.top.rank != null ? <span className={styles.rank}>{event.content.top.rank}</span> : null}
               <span className={styles.abbr}>{event.content.top.abbreviation}</span>
               {slots ? <PossessionSlot side="top" toss={toss} glyph={glyph} /> : null}
+              {live && slot ? <span className={styles.teamSlot}>{slot("top", tier)}</span> : null}
             </span>
             <span className={styles.scores}>
               {event.state === "scheduled" || (scores.top == null && scores.bottom == null) ? (
@@ -112,6 +117,7 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
               )}
             </span>
             <span className={styles.team}>
+              {live && slot ? <span className={styles.teamSlot}>{slot("bottom", tier)}</span> : null}
               {slots ? <PossessionSlot side="bottom" toss={toss} glyph={glyph} /> : null}
               {event.content.bottom.rank != null ? <span className={styles.rank}>{event.content.bottom.rank}</span> : null}
               <span className={styles.abbr}>{event.content.bottom.abbreviation}</span>
