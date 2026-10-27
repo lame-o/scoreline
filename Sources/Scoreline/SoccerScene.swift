@@ -106,6 +106,9 @@ struct SoccerScene: Equatable, Identifiable {
         var clock: Double
         /// The other team's: a deflection, a header won, a save.
         var defending = false
+        /// The defending keeper's own: a save, a punch, coming off his line
+        /// (whether or not the feed has learned his name yet).
+        var keeper = false
     }
 
     /// Where a shot crossed (or would have crossed) the goal line: metres
@@ -335,6 +338,14 @@ extension SoccerScene {
                                 lofting: shot.technique != .foot)
             scene.touches = chain.touches
             scene.start = chain.start
+            // His touches are the keeper's, by name or by what only a keeper does; one the feed
+            // hasn't learned yet is named by them.
+            for i in scene.touches.indices where scene.touches[i].defending && scene.touches[i].player == scene.keeper.name {
+                scene.touches[i].keeper = true
+            }
+            if scene.keeper.name == nil, let his = scene.touches.last(where: \.keeper), !his.player.isEmpty {
+                scene.keeper.name = his.player
+            }
         }
         return scene
     }
@@ -419,6 +430,7 @@ extension SoccerScene {
                 switch type {
                 case "aerial", "ball-touch", "blocked-pass", "attempted-tackle", "save", "punch", "keeper-sweeper", "challenge",
                      "shield-ball-opp":
+                    touch.keeper = keeperOnly(type) || (type == "save" && keeperSave(plays, at: i))
                     touches.append(touch)
                 case "pass" where length < 6 && last - time <= 4:
                     // A pass of a few yards straight back to the attack: a header won and lost, really.
@@ -478,6 +490,17 @@ extension SoccerScene {
     /// "…is saved in the bottom left corner by Zion Suzuki (Aston Villa)." → "Zion Suzuki".
     static func savedBy(_ text: String) -> String? {
         text.firstMatch(of: #/saved [^.]*? by ([^(.]+?) \(/#).map { String($0.1) }
+    }
+
+    /// A save entry is the keeper's when the shot just before it was on
+    /// target; after a block it's the blocker's.
+    static func keeperSave(_ plays: [JSON], at index: Int) -> Bool {
+        for item in plays[max(index - 3, 0)..<index].reversed() {
+            let type = item["type"]["type"].string ?? ""
+            guard type.hasPrefix("shot-") || type.hasPrefix("goal") || type.hasPrefix("penalty") else { continue }
+            return type != "shot-blocked" || item["text"].string?.contains(" saved ") == true
+        }
+        return false
     }
 
     static func keeperOnly(_ type: String) -> Bool {

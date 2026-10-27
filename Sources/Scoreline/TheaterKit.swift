@@ -80,6 +80,42 @@ enum CameraRig {
     }
 }
 
+extension CameraFrame {
+    /// The framing that fits a region and keeps its corner clear (the
+    /// stamp's), checked again after every move: sliding the play over or
+    /// up can bring someone else into the corner (a pile trailing the play,
+    /// a man jogging back to the line), and then it moves again, or widens.
+    /// `items` must stay in view; `others` need only stay out of the corner.
+    /// (The ballpark's `fitting(_:items:others:…)` with a field's crowd in mind.)
+    static func clearing(_ region: CGRect, items: [CGRect], others: [CGRect], headroom: Double, closest: Double,
+                         corner: CGSize) -> CameraFrame {
+        var frame = fitting(region, headroom: headroom, closest: closest)
+        guard corner.width > 0, corner.height > 0 else { return frame }
+        for _ in 0..<10 {
+            let w = frame.span * aspect
+            func across(_ x: Double) -> Double { 0.5 + (x - frame.x) / w }
+            func up(_ y: Double) -> Double { 0.5 + (y - frame.y) / frame.span }
+            func inView(_ r: CGRect) -> Bool { across(r.maxX) > 0 && across(r.minX) < 1 && up(r.maxY) > 0 && up(r.minY) < 1 }
+            let shown = items.filter(inView)
+            let inside = (shown + others.filter(inView)).filter { across($0.minX) < corner.width && up($0.minY) < corner.height }
+            guard !inside.isEmpty else { break }
+            let right = inside.map { corner.width - across($0.minX) }.max() ?? 0
+            let raise = inside.map { corner.height - up($0.minY) }.max() ?? 0
+            let roomRight = 1 - margin - (shown.map { across($0.maxX) }.max() ?? 0)
+            let roomUp = 1 - headroom - (shown.map { up($0.maxY) }.max() ?? 0)
+            // The smaller move that keeps the play in view: across (by its share of the width) or up.
+            if right <= roomRight, right * aspect <= raise || raise > roomUp {
+                frame.x -= (right + 0.005) * w
+            } else if raise <= roomUp {
+                frame.y -= (raise + 0.005) * frame.span
+            } else {
+                frame.span = min(frame.span * 1.12, widest)
+            }
+        }
+        return frame
+    }
+}
+
 /// A camera's path through a replay: framings every 1/60 s until the play
 /// settles, then an eased move to where it rests, reached exactly at `back`.
 struct CameraPath: Equatable {
@@ -148,6 +184,18 @@ enum CameraFollow {
         let lower = min(Int(i), samples.count - 1), upper = min(lower + 1, samples.count - 1)
         return samples[lower].mix(samples[upper], min(i - Double(lower), 1))
     }
+}
+
+// MARK: - Turf
+
+extension TheaterInk {
+    /// The grass of a field marked out in lines (the gridiron, the pitch):
+    /// the ballpark's tint in the dark; in the light a deeper green, so
+    /// white chalk has something to stand on.
+    var turf: Color { dark ? grass : Color(hue: 0.37, saturation: 0.4, brightness: 0.52).opacity(0.36) }
+    /// Under the chalk in the light: a soft edge that keeps a white line
+    /// crisp on pale grass (nothing in the dark).
+    var chalkEdge: Color? { dark ? nil : Color(hue: 0.37, saturation: 0.5, brightness: 0.25).opacity(0.16) }
 }
 
 // MARK: - Figures and ball
@@ -235,6 +283,44 @@ enum TheaterDraw {
     }
 }
 
+// MARK: - Bursts
+
+/// A celebration on a theater's stage (a touchdown's or a goal's fireworks,
+/// the headline's confetti), sized by the well: its spread in proportion to
+/// the well's height, as big in the compact panel as in a wide one, its
+/// strokes growing more slowly so a big burst stays finely drawn; and kept
+/// far enough inside the well that it isn't cut off at an edge.
+enum TheaterBurst {
+    /// How far a burst spreads, as a multiple of the charts' bursts: about
+    /// two fifths of the well's height either way.
+    static func scale(_ height: CGFloat) -> Double { 2.7 * pow(max(Double(height), 120) / 156, 0.75) }
+
+    /// The particles of a burst at the origin, spread by `scale`.
+    static func spread(_ particles: [Celebration.Particle], by scale: Double) -> [Celebration.Particle] {
+        let fine = pow(scale, 0.6)
+        func far(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x * scale, y: p.y * scale) }
+        return particles.map { p in
+            var q = p
+            q.center = far(p.center)
+            switch p.shape {
+            case let .piece(size, corner): q.shape = .piece(CGSize(width: size.width * fine, height: size.height * fine), corner: corner * fine)
+            case let .streak(from, to, width): q.shape = .streak(from: far(from), to: far(to), width: width * fine)
+            case let .ring(radius, width): q.shape = .ring(radius: radius * scale, width: width * fine)
+            case let .disc(radius): q.shape = .disc(radius: radius * fine)
+            case let .ball(radius): q.shape = .ball(radius: radius * fine)
+            }
+            return q
+        }
+    }
+
+    /// A burst's origin, moved in from the well's edges so most of it
+    /// shows, and down clear of the headline's band.
+    static func inside(_ p: CGPoint, _ size: CGSize) -> CGPoint {
+        let m = min(size.height * 0.3, size.width * 0.2)
+        return CGPoint(x: min(max(p.x, m), size.width - m), y: min(max(p.y, size.height * 0.36), size.height - m))
+    }
+}
+
 // MARK: - Type
 
 /// The headline and the stamp: how big, where, and how they land.
@@ -246,6 +332,13 @@ enum TheaterType {
     static func height(_ size: CGSize) -> CGFloat { max(size.height, 120) }
     static func inset(_ size: CGSize) -> CGFloat { max(size.height * 0.055, 9) }
     static func banner(_ size: CGSize) -> CGFloat { min(max(height(size) * 0.13, 17), 40) }
+    /// The headline's size for its words: stepped down for a long one in a
+    /// narrow well (TURNOVER ON DOWNS in the compact panel), so it never
+    /// runs off the sides. (Wide heavy capitals and their tracking about
+    /// 0.92 of the size each; the rules either side about 3.1.)
+    static func banner(_ size: CGSize, fitting text: String) -> CGFloat {
+        min(banner(size), size.width * 0.92 / (0.92 * CGFloat(text.count) + 3.1))
+    }
     static func stamp(_ size: CGSize) -> CGFloat { min(max(height(size) * 0.2, 24), 54) }
     static func title(_ size: CGSize) -> CGFloat { min(max(height(size) * 0.056, 8), 14) }
 

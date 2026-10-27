@@ -272,7 +272,7 @@ extension ScorelineTests {
         // MARK: The camera
 
         let size = CGSize(width: 640, height: 320)
-        func inView(_ p: FieldPoint, _ frame: CameraFrame, slack: Double = 0) -> Bool {
+        func inView(_ p: FieldPoint, _ frame: PitchFrame, slack: Double = 0) -> Bool {
             let q = PitchProjection(size: size, camera: frame).point(p)
             return q.x >= -slack * size.width && q.x <= size.width * (1 + slack) && q.y >= -slack * size.height && q.y <= size.height * (1 + slack)
         }
@@ -313,6 +313,130 @@ extension ScorelineTests {
         check(calm, "the camera never pans faster than 1.4 view-heights a second")
         check(PitchCamera.fitting([PitchCamera.Room(FieldPoint(x: 52.5, y: 34), figure: true)], headroom: CameraFrame.headroom, closest: 12).span >= 12,
               "no closer than it's asked")
+
+        // MARK: Behind the goal
+
+        let onTarget = scripts.filter { $0.0.outcome == .goal || $0.0.outcome == .saved }
+        let cuts = onTarget.filter { scene, s in
+            guard let r = s.reverse else { return false }
+            return r.from > s.strike && r.from < s.strike + 0.2 && r.until > s.arrive + 0.5 && r.until < s.stamp && r.right == scene.attacksRight
+                && s.frame(at: s.arrive).angle == .behind(right: scene.attacksRight) && s.frame(at: r.until).angle == .stand
+        }
+        check(onTarget.count >= 8 && cuts.count == onTarget.count,
+              "a shot on target cuts behind the net just after the strike, holds through the finish, and is back before the stamp",
+              "\(cuts.count) of \(onTarget.count)")
+        check(scripts.filter { $0.0.outcome != .goal && $0.0.outcome != .saved }.allSatisfy { $0.1.reverse == nil },
+              "…a block, a miss, the woodwork and an own goal stay on the main camera")
+        let fromBehind = onTarget.filter { scene, s in
+            let f = s.frame(at: s.arrive)
+            let keeper = s.actors.first { $0.role == .keeper }
+            return SoccerScript.goalFrame(right: scene.attacksRight).prefix(4).allSatisfy { inView($0, f, slack: 0.02) }
+                && keeper.map { inView(FieldPoint($0.position(at: s.strike)), f, slack: 0.02) } == true
+                && s.shot.map { inView(s.flights[$0].to, f) } == true
+        }
+        check(fromBehind.count == onTarget.count, "…from there: the goal mouth, the keeper and where the ball ends up, all in view",
+              "\(fromBehind.count) of \(onTarget.count)")
+        if let s = header?.scene, let r = SoccerScript(s).reverse {
+            let script = SoccerScript(s)
+            let still = stride(from: r.from, to: r.until, by: 0.05).allSatisfy { script.frame(at: $0) == script.frame(at: r.from) }
+            let eye = PitchCamera.eye(r.frame, .behind(right: true))
+            check(still && eye.x > Pitch.length + 2 && eye.z > Pitch.goalHeight, "…a camera held still in the stand behind the net, above the bar")
+        }
+
+        // MARK: The keeper, once
+
+        // The feed learns keepers' names over a match: with none known, a keeper who touched the
+        // ball in the move is still one man, and his touch names him.
+        var twice: [String] = []
+        for clip in clips {
+            for i in clip.plays.indices where SoccerScene.isMoment(clip.plays[i]) {
+                guard let scene = SoccerScene.parse(clip.plays, at: i, homeTeamID: clip.home, keepers: [:]) else { continue }
+                let s = SoccerScript(scene)
+                let his = Set(scene.touches.filter(\.keeper).map(\.player))
+                if s.actors.filter({ $0.role == .keeper }).count != 1
+                    || s.actors.contains(where: { $0.team == .defending && $0.role == .outfield && his.contains($0.name) }) {
+                    twice.append(scene.shooter)
+                }
+            }
+        }
+        check(twice.isEmpty, "with no keeper's name known yet, the keeper is never drawn twice", twice.joined(separator: ", "))
+        if let clip = find("Ezri Konsa (Arsenal) right footed shot from very close range")?.clip,
+           let i = clip.plays.firstIndex(where: { ($0["text"].string ?? "").contains("Ezri Konsa (Arsenal) right footed shot from very close range") }),
+           let unknown = SoccerScene.parse(clip.plays, at: i, homeTeamID: clip.home, keepers: [:]) {
+            let s = SoccerScript(unknown)
+            check(unknown.keeper.name == "Jordan Pickford" && s.actors.filter { $0.name == "Jordan Pickford" }.count == 1
+                  && s.actors.first { $0.role == .keeper }?.name == "Jordan Pickford",
+                  "Konsa's goal, Pickford unknown: his save of Gabriel's header makes him the keeper, once",
+                  s.actors.map { "\($0.role == .keeper ? "GK " : "")\($0.name)" }.joined(separator: ", "))
+        }
+        let blockedSave = clips.flatMap { clip in clip.plays.indices.filter { clip.plays[$0]["type"]["type"].string == "save" }.map { (clip, $0) } }
+            .filter { clip, i in (max(i - 3, 0)..<i).contains { clip.plays[$0]["type"]["type"].string == "shot-blocked"
+                && clip.plays[$0]["text"].string?.contains(" saved ") != true } }
+        check(!blockedSave.isEmpty && blockedSave.allSatisfy { !SoccerScene.keeperSave($0.0.plays, at: $0.1) },
+              "…but the save credited after a block is the blocker's, not the keeper's")
+
+        // MARK: The dive
+
+        let lines = stride(from: 0.6, through: 1.8, by: 0.3).allSatisfy { a in
+            let f = Figure(Pose.stretch(a), at: .zero, height: 40)
+            func angle(_ p: CGPoint, _ q: CGPoint) -> Double { atan2(q.x - p.x, p.y - q.y) }
+            let reach = hypot(f.near.hand.x - f.hip.x, f.near.hand.y - f.hip.y), head = hypot(f.head.x - f.hip.x, f.head.y - f.hip.y)
+            return abs(angle(f.hip, f.neck) - a) < 0.01 && abs(angle(f.neck, f.near.hand) - a) < 0.15 && abs(angle(f.near.foot, f.hip) - a) < 0.15
+                && reach > head
+        }
+        check(lines && Pose.stretch(0.7).lean < Pose.stretch(1.6).lean,
+              "a dive at full stretch: one line from the trailing foot through the body to the leading hand, beyond his head; "
+                + "leaning for a top corner, flat for a ball along the grass")
+        let dives = scripts.compactMap { _, s in s.actors.first { $0.dive != nil }.flatMap(\.dive).map { (s, $0) } }
+        check(dives.count >= 8 && dives.allSatisfy { s, d in d.reach - d.start <= 0.61 && d.start >= s.strike },
+              "…a dive takes half a second, whatever the shot's flight: from distance he reads it first")
+
+        // MARK: The pace of a move
+
+        if let s = header?.scene {
+            let script = SoccerScript(s)
+            let passes = script.flights.filter { $0.kind == .pass && $0.end <= script.strike + 0.01 }
+            let cross = passes.last
+            let d = cross.map { hypot($0.to.x - $0.from.x, $0.to.y - $0.from.y) } ?? 0
+            let full = min(max(d / SoccerScript.loftSpeed + 0.25, 0.6), 1.5)
+            let early = passes.dropLast(2).map { f in (f.end - f.start) / min(max(hypot(f.to.x - f.from.x, f.to.y - f.from.y) / SoccerScript.passSpeed, 0.28), 1.1) }
+            let closing = cross.map { ($0.end - $0.start) / full } ?? 0
+            let opens = script.flights.first.map { first in s.touches.firstIndex { near($0.at, first.from.ground, 0.1) } ?? -1 } ?? -1
+            check(script.strike < 5.6 && closing > 0.99 && early.allSatisfy { $0 < 0.95 } && opens > 0,
+                  "a nine-pass move, as a replay cuts it: picked up a few passes in, the early ones hurried, White's cross into the header "
+                    + "at the game's pace, the header inside 5.6 s",
+                  String(format: "strike %.2f, cross at %.2f, early at %.2f, opens on touch %d", script.strike, closing, early.max() ?? 0, opens))
+        }
+        check(scripts.allSatisfy { _, s in s.flights.filter { $0.kind == .pass }.allSatisfy { $0.end - $0.start >= 0.2 - 1e-9 } },
+              "no pass so hurried it reads as a jump")
+        check(scripts.allSatisfy { scene, s in s.strike <= (scene.start == .openPlay ? 0.5 : 1.3) + SoccerScript.buildUpLimit + 0.6 },
+              "every build-up comes in around five seconds")
+
+        // MARK: The stamp's corner
+
+        func crowded(_ s: SoccerScript) -> Int {
+            stride(from: s.stamp + 0.4, through: s.duration, by: 0.05).filter { t in
+                let f = PitchProjection(size: size, camera: s.frame(at: t))
+                return s.actors.contains { a in
+                    let foot = f.point(FieldPoint(a.position(at: t)))
+                    let x = foot.x / size.width, y = foot.y / size.height
+                    let across = s.cornerRight ? x > 1 - s.corner.width + 0.02 : x < s.corner.width - 0.02
+                    return across && x > 0 && x < 1 && y > 1 - s.corner.height + 0.03 && y < 1
+                }
+            }.count
+        }
+        let crowdedFrames = scripts.map { crowded($0.1) }
+        check(crowdedFrames.reduce(0, +) == 0, "once the stamp has landed, nobody stands in its corner (a teammate running to the scorer)",
+              "\(crowdedFrames.filter { $0 > 0 }.count) moments, \(crowdedFrames.reduce(0, +)) frames")
+
+        // MARK: Bursts by the well
+
+        let compact = TheaterBurst.scale(156), roomy = TheaterBurst.scale(306)
+        check(compact > 2.5 && roomy / compact > 1.55 && roomy / compact < 1.96,
+              "a celebration grows with the well: larger in the compact panel than it was (2.2), in proportion in a wide one",
+              String(format: "%.2f, %.2f", compact, roomy))
+        let kept = TheaterBurst.inside(CGPoint(x: -20, y: -10), CGSize(width: 312, height: 156))
+        check(kept.x >= 46 && kept.y >= 156 * 0.36, "…and starts far enough inside the well not to be cut off, clear of the headline")
 
         // MARK: Who celebrates
 
