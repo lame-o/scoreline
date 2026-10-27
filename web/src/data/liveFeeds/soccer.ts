@@ -251,6 +251,8 @@ export class SoccerFeed {
    * SoccerScript.swift) reads its build-ups from here.
    */
   plays: readonly JSONValue[] = [];
+  /** The score as of the newest play, home (top) first: ahead of the scoreboard's 30 s poll (a web-only addition: the Mac's hero waits for the poll). */
+  score: { readonly top: number; readonly bottom: number } | null = null;
   loaded = false;
   version = 0;
 
@@ -350,6 +352,13 @@ export class SoccerFeed {
     if (raw.length > 0) {
       this.plays = [...this.plays, ...raw].slice(-THEATER_WINDOW);
       changed = true;
+      for (let i = raw.length - 1; i >= 0; i--) {
+        const home = intOf(at(raw[i], "homeScore"));
+        const away = intOf(at(raw[i], "awayScore"));
+        if (home == null || away == null) continue;
+        if (this.score?.top !== home || this.score?.bottom !== away) this.score = { top: home, bottom: away };
+        break;
+      }
     }
     if (Object.keys(newCards).length > 0) {
       this.cards = { ...this.cards, ...newCards };

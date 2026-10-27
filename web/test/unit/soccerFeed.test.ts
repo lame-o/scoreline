@@ -163,3 +163,12 @@ describe("an archived match's unit-scale feed", () => {
     expect(goal!.x).toBeCloseTo(37.6);
   });
 });
+
+describe("the lane's score", () => {
+  it("is the newest play's, home first", () => {
+    const feed = new SoccerFeed();
+    const upTo = core.items.findIndex((p) => (p.type as { type: string }).type === "goal---header");
+    feed.read([{ page: 1, items: core.items.slice(0, upTo + 1) }], 200, true, HOME);
+    expect(feed.score).toEqual({ top: 1, bottom: 1 });
+  });
+});

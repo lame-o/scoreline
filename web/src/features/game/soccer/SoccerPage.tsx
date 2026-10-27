@@ -130,8 +130,16 @@ export function useSoccerPage(game: GameContext): SportPage {
         }
       : undefined;
 
+  // The lane's score while it's ahead of the scoreboard (never behind it), so the hero and the pitch tell a goal together.
+  const laneScores = useMemo(() => {
+    if (!live || !feed.score || event.content.kind !== "match") return null;
+    const known = (Number(event.content.top.score) || 0) + (Number(event.content.bottom.score) || 0);
+    return feed.score.top + feed.score.bottom > known ? { top: String(feed.score.top), bottom: String(feed.score.bottom) } : null;
+  }, [live, feed.score, event.content]);
+
   return {
     sections,
+    laneScores,
     clockFallback: event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live"),
     heroNote: tieLine(detail.soccerTie),
     dockSlot,
