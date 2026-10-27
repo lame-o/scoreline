@@ -8,7 +8,7 @@
  * The lane speaks once the first full load has named the box score's
  * players; until then the full load's situation, at-bat and theater stand in.
  */
-import { useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { lazy, Suspense, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { battingSide, Accessory, shortInning, type AccessoryTier } from "../../../data/matchRules";
 import type { Baseball, BattedBall } from "../../../data/gameDetail";
 import { espnTeamIDs, sideMapper } from "../../../data/gameDetail";
@@ -22,8 +22,11 @@ import { useCommonSections } from "../core/useCommonSections";
 import { BaseballDiamond } from "./BaseballDiamond";
 import { SprayChart } from "./SprayChart";
 import { StrikeZone } from "./StrikeZone";
-import { PlayTheater } from "./theater/PlayTheater";
 import dock from "../core/DockedScorebar.module.css";
+import diamond from "./BaseballDiamond.module.css";
+
+/** The theater's renderer loads with the first live MLB page (its well holds the space meanwhile). */
+const PlayTheater = lazy(() => import("./theater/PlayTheater").then((m) => ({ default: m.PlayTheater })));
 
 /** A player's page: ESPN athletes by sport, with the league so it loads directly. */
 export function playerHref(sport: string, leagueID: string | null, athleteID: string): string {
@@ -122,15 +125,17 @@ export function useBaseballPage(game: GameContext): SportPage {
     sections.atPlate = (
       <DetailSection id="atPlate" title="At the Plate" caption="Live count, runners and matchup from ESPN." accessory="live">
         <BaseballDiamond situation={situation} batting={batting} palette={palette} playerHref={(id) => playerHref("baseball", game.leagueID, id)}>
-          <PlayTheater
-            state={theater}
-            bases={[situation.onFirst, situation.onSecond, situation.onThird]}
-            batting={batting}
-            palette={palette}
-            kits={kits}
-            event={event}
-            names={detail.athleteNames}
-          />
+          <Suspense fallback={<div className={diamond.theaterFallback} aria-hidden="true" />}>
+            <PlayTheater
+              state={theater}
+              bases={[situation.onFirst, situation.onSecond, situation.onThird]}
+              batting={batting}
+              palette={palette}
+              kits={kits}
+              event={event}
+              names={detail.athleteNames}
+            />
+          </Suspense>
         </BaseballDiamond>
       </DetailSection>
     );

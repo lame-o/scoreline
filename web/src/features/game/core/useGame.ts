@@ -17,12 +17,13 @@
  *     const game = useGame(id, { poll: !split, league: search.get("league") });
  */
 import { useQuery } from "@tanstack/react-query";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { eventFromSummary, fetchDetail, parseESPNDetail, scoreboardURL, summaryURL, type GameDetail } from "../../../data/gameDetail";
 import { getJSON } from "../../../data/http";
 import { CATALOG, espnPath, leagueWithID } from "../../../data/leagues";
 import type { League, ScoreEvent, Sport } from "../../../data/models";
 import { pageKind } from "../../../data/sections";
+import { useLogoColorsVersion, wearColors } from "../../../state/logoColors";
 import { queryClient, useScoreboard } from "../../../state/scores";
 
 export interface GameData {
@@ -155,9 +156,13 @@ export function useGame(id: string, { poll, league }: { poll: boolean; league: s
     refetchInterval: (query) => (latest.current ? detailInterval(latest.current, query.state.data != null) : false),
   });
 
-  // A game off the scoreboards stays current through its own summary.
+  // A game off the scoreboards stays current through its own summary, and wears its crests' colors like the rest.
   const summaryEvent = detail.data?.event ?? null;
-  const event = boardEvent ?? (summaryEvent && lookup.data ? summaryEvent : lookup.data?.event) ?? null;
+  const offBoard = boardEvent ? null : ((summaryEvent && lookup.data ? summaryEvent : lookup.data?.event) ?? null);
+  const colors = useLogoColorsVersion();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const worn = useMemo(() => (offBoard ? (wearColors([offBoard])[0] ?? offBoard) : null), [offBoard, colors]);
+  const event = boardEvent ?? worn;
   const loaded = detail.data?.detail ?? null;
   const lastLoaded = detail.dataUpdatedAt || null;
   const staleSince = event?.state === "live" && loaded && failures.current >= 2 ? lastLoaded : event?.state === "live" && scores.status === "offline" ? scores.lastUpdated : null;

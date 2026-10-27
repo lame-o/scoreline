@@ -10,6 +10,7 @@ Scoreline for the web is the macOS app (`../Sources/Scoreline`) as a web app on 
 - [Design system](#design-system)
 - [Motion](#motion)
 - [Layout, navigation and keyboard](#layout-navigation-and-keyboard)
+- [Game pages](#game-pages)
 - [Accessibility](#accessibility)
 - [Performance](#performance)
 - [Testing](#testing)
@@ -31,7 +32,7 @@ pnpm test:e2e        # Playwright smoke and live-state tests against `pnpm dev`
 pnpm fixtures [src]  # re-record trimmed fixtures from the live feeds (espn | bo3 | ifsc | teams)
 ```
 
-`http://localhost:5173/?demo` (development only) replays the fixtures with games in progress: clocks run, scores change on every Refresh, strips draw. Use it to see and screenshot live states at any hour. It stays on for the tab until the tab closes. See `src/data/demo.ts`.
+`http://localhost:5173/?demo` (development only) replays the fixtures with games in progress: clocks run, scores change on every Refresh, strips draw. Use it to see and screenshot live states at any hour. It stays on for the tab until the tab closes. See `src/data/demo.ts`. The demo's live MLB game (`/game/espn-401908044?demo`) replays the bottom of the 9th of World Series Game 3 through the game page's own fast lane, one entry every 5 s: Yandy Díaz's full-count at-bat pitch by pitch, his RBI double (the play theater's DOUBLE, a run scoring), the last out. `&mlb=<n>` starts n entries in (`mlb=8` lands the double about 5 s after the page opens). `/dev/theater` (development only) shows the play theater on recorded World Series plays.
 
 Deploying is `pnpm deploy` (`cf deploy`). The config has no `accountId` on purpose, because the repo is public: choose the account at deploy time. Workers Logs and Traces are on, with traces sampled at 10%.
 
@@ -49,10 +50,13 @@ web/
     app/                   App (router, providers), AppShell (split view), navigation, IndexRoute, errors
     data/                  pure TypeScript ported from Swift: models, catalog, parsers, formatting
       providers/           one file per source: espn.ts, counterStrike.ts, ifsc.ts, teams.ts
+      liveFeeds/           game pages' fast lanes (baseball.ts; football, soccer, NBA to come)
+      mlb/                 the play theater's model (scene, script, camera, field, poses, dress) and Statcast
     state/                 settings (localStorage store), scores (TanStack Query), clock tickers, theme
     design/                tokens.css, base.css, motion.ts, icons.tsx, useWidth.ts
       components/          the design system (index.ts exports it all)
     features/              one folder per area: scores/, game/, settings/, placeholders/
+      game/                GamePage (the route), core/ (what every sport shares), mlb/ (the MLB page, theater/)
   test/
     unit/                  Vitest
     worker/                Vitest, the proxy with the Cache API and fetch stubbed
@@ -131,6 +135,7 @@ URLs whose query changes on every call defeat the cache. The CS2 provider rounds
   - poll cadence and retry delays;
   - what carries over between polls (`mergePoll`).
 - `format.ts`: ordinals, plurals, `periodLabel`, days and times ("Today 7:00 PM", "Tomorrow", "Nov 5, 1:00 PM"), countdowns, "Updated 5 minutes ago", and `spokenStatus` and its siblings, which turn source shorthand into words for screen readers.
+- Game pages: `gameDetail.ts` (GameDetail.swift: the detail model, ESPN's summary by ID, a game built from its summary, the baseball parsers; CS2 and climbing loaders are typed stubs), `liveFeeds/baseball.ts` (LiveFeeds.swift `BaseballFeed`), `moments.ts` (Moments.swift's moment model and single slot), `celebrations.ts` (Celebrations.swift's cues and closed-form particles, plus the mark family's keyframes as functions of time), `sections.ts` (DetailView's section order, two-column plan and arrangement), `matchRules.ts` (CelebrateMatch.swift `MatchRules` and `HeroBeats`, DockedScorebar.swift `DockRules`, PageGeometry's math), and `mlb/` (PlayScene, PlayScript, PlayCamera, the theater's field, poses and dress, Statcast).
 - Also: `clock.ts` (GameClock ticking and running inference), `soccer.ts` (marks and own-goal reconciliation), `teams.ts` (`espnTeamID`, flags, climbing nations), `teamColors.ts` (OKLab, `teamTone`, `teamPalette`, wash strength), `logoColors.ts` (a team's colors read from its crest), `days.ts` (DayKey), `broadcasters.ts` (names and official watch pages), `images.ts`, and `demo.ts` (development only).
 
 ### How to port a Swift parser
@@ -158,7 +163,7 @@ Settings live in `src/state/settings.ts`: one typed, versioned store in `localSt
 | `collapsed` | [] | `collapsedSections` (league IDs, "my-teams", "tiles.live"…) |
 | `landingView` | list | same |
 | `theme` | system | new on the web |
-| `celebrationLevel` / `celebrationSounds` | full / false | same (stored; nothing uses them yet) |
+| `celebrationLevel` / `celebrationSounds` | full / false | same (the level drives game pages' celebrations; Settings → Live Games sets it; sounds are stored, not played yet) |
 | `notifyFollowed` | true | same (stored; notifications to do) |
 | `showCoStream` / `coStreamer` | true / ohnepixel | same (stored; co-streams to do) |
 | `resultsDetails` | true | same (for the results pages) |
@@ -249,9 +254,34 @@ The owner can run `/review-animations` on the motion code for an independent rev
 - **Phones** (under 760px): one column, at most 440pt, like the Mac panel. The window scrolls; headers are sticky, with a soft scroll edge once content is underneath.
 - **From 760px:** a split view. The scores are a glass sidebar (340–420pt, the Mac's compact and medium widths) beside a detail pane, each scrolling on its own. The sidebar stays mounted across pages, so it keeps its scroll, highlight and polling, as the Mac keeps Scores built under every page. With nothing selected, the pane says "No Game Selected" (Mail's pattern).
 - **Width classes:** blocks add detail as they widen, from the Mac's thresholds of 380pt of content (medium), 460 (large) and 560 (xlarge). `useWidth(ref)` gives a block's width in points from one ResizeObserver. Rows show records from medium. Tiles go to 3 small columns from large, and 4 small plus 2 large from 680.
-- **Routes** (`src/app/App.tsx`): `/`, `/game/:id`, `/settings`, `/settings/league/:id`, `/schedule/:scope?`, `/standings/:league`, `/team/:id` and `/player/:id`. Every route but the scores is lazy. To add a page: create `src/features/<area>/<Page>.tsx` that exports the component, point its route's `lazy` at it, use `PageHeader` with `BackButton` (hidden in the split view, where Esc goes back), and use `useScoreboard()` or a new query for data. Placeholders live in `features/placeholders`; replace one by repointing its route.
+- **Routes** (`src/app/App.tsx`): `/`, `/game/:id`, `/settings`, `/settings/league/:id`, `/schedule/:scope?`, `/standings/:league`, `/team/:id`, `/player/:id` and `/bracket/:league/:season?` (a placeholder the MLB series links to). A game's link should carry its league so the page loads even when the game isn't on today's scoreboards: `gameHref(eventID, leagueID)` (features/game/core/useGame.ts) gives `/game/espn-401908043?league=mlb`. Game pages link players as `/player/espn-<sport>-<athleteID>?league=<league>` (`playerHref`, features/game/mlb/BaseballPage.tsx) and teams as `/team/<competitor id>`. Every route but the scores is lazy. To add a page: create `src/features/<area>/<Page>.tsx` that exports the component, point its route's `lazy` at it, use `PageHeader` with `BackButton` (hidden in the split view, where Esc goes back), and use `useScoreboard()` or a new query for data. Placeholders live in `features/placeholders`; replace one by repointing its route.
 - **Back** (`useGoBack`) returns to whichever page opened this one. A page opened directly goes back to the scores. Esc does the same from anywhere except a text field.
 - **Keyboard:** on the scores, ↑/↓ move the highlight (←/→ too in Tiles, by on-screen geometry), Return opens the game, Esc goes back. The keyboard highlight wears the accent; the pointer's hover is a quiet gray and takes the highlight back.
+
+## Game pages
+
+A game's page (`features/game/GamePage.tsx`, DetailView.swift) is a core that every sport shares and one hook per sport. The core owns what's common; a sport owns its sections and its live lane.
+
+**What the core does**
+
+- **The event and its detail, by ID** (`core/useGame.ts`). The event is the scoreboard's copy when there is one (it stays live with the sidebar's polls); otherwise it's built from the game's own ESPN summary (`eventFromSummary`), with the league from `?league=` or, failing that, every ESPN league asked in parallel. The detail (`GameDetail`, data/gameDetail.ts) is one TanStack query per game on DetailView's cadence: 30 s while live with a fast lane, 15 s without, 2 min otherwise, once for a final more than six hours old, 5 s after a failed first load. Two failed refreshes on a live game make it stale: the hero says "Can't connect · Updated 10:42 AM" and the live dots hold still. bo3.gg matches and IFSC rounds have typed loaders with TODOs (`fetchCSDetail`, `fetchClimbingDetail`).
+- **The section plan** (data/sections.ts). `sectionOrder(ref, state)` is the Mac's single-column order per sport and state; `widePlan` is its two-column plan from 680pt of page (12pt of hysteresis), linked partners side by side; `wideArrangement` places what's shown, never leaving a column empty. A section with nothing to show leaves no hole.
+- **The hero** (`core/Hero.tsx`) with the scoreboard's beats, decided by `HeroBeats` (data/matchRules.ts): a score's digits pop over a pill in the scorer's color when the number actually changes (whichever of the moment and the number arrives second fires it), the scorer's side of the wash lifts and settles, and a decisive score or the final whistle sweeps one glint. The final whistle is announced. Full plays all of it, Subtle keeps the pill, Off keeps nothing that moves.
+- **The docked scorebar** (`core/DockedScorebar.tsx`, `core/geometry.ts`). A zero-height sticky slot under the header holds a glass bar with the score, the clock and the sport's detail. One passive scroll listener turns the position into a 1/64 dock step and writes the bar's (and the hero card's tuck's) `transform` and `opacity` only when the step changes; React hears only the surface flipping at half docked (which scoreboard plays the beats and ticks the clock) and sections crossing visibility thresholds (a captioned moment whose chart is out of view takes the bar's status slot: the news line). The glass takes the opacity itself: an ancestor with opacity would leave the blur nothing to see. A click goes back to the top.
+- **Moments** (`core/moments.tsx`, data/moments.ts). One slot per page: the most important moment wins, a catch-up plays only its newest score, a lesser one never interrupts a greater one, scores hold 6 s (others 4 s) and are announced politely. Charts read `useChartMoment(chart)` and caption it under themselves (`ChartFooter`: pointing beats news, news beats the legend).
+- **Celebrations** (`core/CelebrationStage.tsx`, data/celebrations.ts). A canvas over a chart plays a moment's cue: confetti, fireworks (baseball), sparks, swish, rim pulse, embers, or with Reduce Motion a soft bloom. Particles are closed-form functions of time, at most 36 per burst; requestAnimationFrame runs only while one plays. Subtle and the 10 s cooldown trade confetti and fireworks for sparks; Off draws nothing; pointing at a chart wins (a burst yields to the pointer).
+- **Linked focus** (`core/linked.tsx`). One store per page, outside React: `Focus` (a play, a period and side, an athlete, a player, a span). Rows report hover with `useLinkedRow(focus, { pinnable })`, canvas marks with `useLinkedMarks(points, focusOf)`; readers subscribe to one primitive with `useFocus(selector)`, so a hover re-renders only what it lights. Links show once the pointer settles (80 ms) and follow it at once after; a click pins; Esc unpins before it goes back. The chart peek (LinkedPeek.swift) isn't built yet.
+- **The fast lane** (`useFastLane(active, interval, tick)` in `core/sport.tsx`): one tick at a time while live and the tab is visible, 5 s apart (soccer 8 s, climbing 4 s), catching up when the tab returns.
+- **Shared sections** (`core/useCommonSections.tsx`, `core/CommonSections.tsx`): the line score (cells light their plays; extra periods scroll between names and totals, starting at the latest), win probability, scoring plays or key events (pinnable rows), the latest plays, where to watch, and the postseason series. `DetailSection` is the titled block (title, accessory, caption, spoken caption); `VizWell`, `ChartFooter`, `Legend` and `LegendItem` are the chart chrome.
+
+**Adding a sport** (the seam is `core/sport.tsx`):
+
+1. Port its detail into `GameDetail` (data/gameDetail.ts or `data/<sport>.ts`) and its live lane into `data/liveFeeds/<sport>.ts`, pure, with fixture tests. A lane is a class with `update(fetcher, …)`, `subscribe` and `takeMoments()`; replace fields only when they change.
+2. Write `features/game/<sport>/<Sport>Page.tsx` exporting `use<Sport>Page(game: GameContext): SportPage`. Call `useCommonSections(game)` for the shared sections, add the sport's own (each a `DetailSection` keyed by its `Section`), run the lane with `useFastLane` and offer its moments to `game.moments`, and return the hero's clock text and second line, possession, the docked bar's detail (`dockDetail(tier)`) and a chip. `features/game/mlb/BaseballPage.tsx` is the worked example.
+3. Register it in `SPORT_PAGES` (GamePage.tsx) under its `PageKind`. Until then a sport gets the generic page (the shared sections).
+4. Add its live state to the `?demo` harness and a case to `test/e2e/game.spec.ts`.
+
+**The MLB page** (`features/game/mlb/`): At the Plate (the diamond with the batting team's runners, the count, batter and pitcher linking to their pages, the play theater, and the footer naming a hovered runner), This At-Bat (the strike zone with numbered pitches and the list with type, speed and result; the live count beside the title), the score by inning with R/H/E, win probability, the series, scoring plays, balls in play (colored by the batting team: ESPN's pitch entry names the pitching team, the at-bat's result names the batting one) and the latest plays. The play theater (`mlb/theater/`, PlayTheater.swift) replays each play on an isometric field through a broadcast camera on one canvas, with the banners, the scorer's stamp and Statcast's batted-ball line ("104.4 MPH · 12° · 273 FT") when MLB has the at-bat.
 
 ## Accessibility
 
@@ -274,11 +304,12 @@ The owner can run `/review-animations` on the motion code for an independent rev
 
 ## Testing
 
-- **Unit** (`pnpm test`, Vitest, in Node with TZ America/New_York): every parser against `test/fixtures` (ESPN soccer, NFL, college, MLB, NBA; bo3; IFSC; team lists), plus the scoreboard logic, formatting and clocks, soccer marks, the allowlist and cache policies, team colors read from crests, settings, and token contrast. `test/worker/` covers the proxy with the Cache API and fetch stubbed (type-checked with the Worker's program).
+- **Unit** (`pnpm test`, Vitest, in Node with TZ America/New_York): every parser against `test/fixtures` (ESPN soccer, NFL, college, MLB, NBA; bo3; IFSC; team lists), plus the scoreboard logic, formatting and clocks, soccer marks, the allowlist and cache policies, team colors read from crests, settings, and token contrast. Game pages: the MLB summary and a game built from it, pitches and balls in play (`gameDetail.test.ts`), the baseball lane against the core API's pages (`baseballFeed.test.ts`), the section plan, hero beats, docking math, the moment slot and celebrations (`gameCore.test.ts`), linked focus (`linkedFocus.test.ts`), and the play theater's scene, notation, script, camera and Statcast matcher (`playScene`, `playScript`, `playCamera`, `statcast`), on World Series fixtures (`espn-mlb-summary.json`, `espn-mlb-core-plays.json` from `pnpm fixtures mlb`; `mlb-ws-g2-summary-plays.json`, `mlb-ws-g3-plays.json` and `statcast-849804.json` trimmed from the Swift app's Tests/Fixtures). `test/worker/` covers the proxy with the Cache API and fetch stubbed (type-checked with the Worker's program).
 - **Fixtures:** the recorded files come from `pnpm fixtures`, trimmed to the fields the parsers read (each records its `_source` URL and `_recorded` time). Files named `*.synthetic.json` are live states derived by hand from a recorded file, because a recording session rarely finds every sport live. Each says how it was derived in `_note`. Re-recording changes the games, so tests assert structure and rules rather than today's scores wherever they can.
 - **End to end** (`pnpm test:e2e`, Playwright against `pnpm dev`, or `SCORELINE_URL`):
   - `smoke.spec.ts` covers 390, 1024 and 1440 pixels in light and dark: list, tiles, a game, Esc back, keyboard ↓ and Return, and Settings, with no console errors.
   - `live.spec.ts` uses `?demo` to cover the live count, clocks, strips and the score flash.
+  - `game.spec.ts` uses `?demo` for the live MLB page at 390, 1024 and 1440 in light and dark: the hero, At the Plate and the theater, This At-Bat and its count, the line score, the docked bar, and linked focus from a scoring play to its inning.
   - Screenshots go to `SCORELINE_SCREENSHOTS` (default `test-results/screenshots`).
   - `@playwright/test` is pinned to 1.63 to reuse the Chromium already installed on this machine. After upgrading it, run `npx playwright install chromium`.
 
@@ -338,12 +369,14 @@ The owner can run `/review-animations` on the motion code for an independent rev
 
 ### Game pages (DetailView, GameDetail, LiveViews, Visualizations, LiveFeeds), one agent per sport
 
-- [x] Hero placeholder: clear glass over the team wash, crests with glow, names, AP ranks, possession, follow stars, records, rolling score, live clock, countdown, final word and date; Where to Watch with official links, venue
-- [ ] Shared: game detail fetch by ID (ESPN `summary`, bo3 match, IFSC round) so any game loads, not only the scoreboard's; hero beats (digit pop with pill, wash pulse, glint); trophy; stale note; per-sport two-column plan at wide widths; fast lane polling (5s; soccer 8s; climbing 4s); linked focus across charts and the peek (LinkedPeek); Open in Browser; pin
-- [ ] Docked scorebar (DockedScorebar, PageGeometry): docks as the hero scrolls away; per-sport detail; chips; beats; back to top
+- [x] Hero: clear glass over the team wash, crests with glow, names (linking to team pages), AP ranks, possession, follow stars, records, rolling score, live clock, countdown, final word and date; venue
+- [x] Shared: detail fetch by ID (ESPN `summary`; a game off the scoreboards is built from its summary); hero beats (digit pop with pill, wash pulse, glint, final whistle); stale note; the section plan with the two-column layout from 680pt; fast lane polling (5s; soccer 8s; climbing 4s); linked focus across charts (rows, cells, canvas marks, pins); the moment slot and captions; celebration stages; Open in Browser
+- [~] Shared, still to do: bo3 match and IFSC round detail (typed stubs in data/gameDetail.ts), the chart peek (LinkedPeek), the trophy, pin (the Mac's menu bar item), the possession toss in the docked bar
+- [x] Docked scorebar (DockedScorebar, PageGeometry): docks as the hero scrolls away on quantized scroll progress; the hero tucks; per-sport detail (bases, outs and count for MLB) by width tier; a chip; beats on whichever surface shows; the news line; back to top
 - [ ] **Soccer:** live pitch, timeline, win probability (with draw), team stats, projected live table, key events, commentary, shot map (FotMob/ESPN)
 - [ ] **NFL and college:** field with drive chart, score by quarter, scoring plays, win probability, team stats, conference table with Top 25 links, RED ZONE and 2-MIN DRILL chips
-- [ ] **MLB:** At the Plate (diamond, count, runners, batter and pitcher), the play theater (PlayTheater, PlayScene, PlayScript), strike zone, spray chart, line score with R/H/E, series and bracket link, scoring, balls in play. Statcast (statsapi.mlb.com) is allowlisted but not wired up in the Mac app either.
+- [x] **MLB:** At the Plate (diamond, count, runners with names on hover, batter and pitcher links, BASES LOADED, the turn two, the plate lighting on a run), the play theater (PlayTheater, PlayScene, PlayScript, PlayCamera: broadcast camera, figures, glowing ball, banners, the stamp with Statcast's batted-ball line), This At-Bat (strike zone and pitch list, FB, Called/Swinging/Foul/Foul tip, the live count, the punch-out and the verdict flash), line score with R/H/E and linked innings, win probability, series and bracket link (placeholder route), scoring plays, balls in play (by batting team, flying in live, fireworks when no theater), latest plays, where to watch; the baseball fast lane
+- [ ] MLB, still to do: Differentiate Without Color shapes on the spray chart (no web media query); celebration sounds
 - [ ] **NBA:** court with shot chart and replay scrubber, game flow and runs, leaders, key plays, box score, injury report, standings with seeds, the clutch chip. **WNBA:** the generic ESPN page.
 - [ ] **CS2:** maps, round history with economy, streams (official first), tournament bracket link, rosters, MAP POINT
 - [ ] **Climbing:** on the wall (lead ascent), high points, boulder scorecards, live results with your countries, starting order, YouTube watch
@@ -373,7 +406,8 @@ The owner can run `/review-animations` on the motion code for an independent rev
 - [x] My Teams (unfollow), Your Sports (drag, or ↑/↓ on the handle, with an announcement), filter summaries, All Sports toggles, Show finished games, Live leagues move to top, Appearance
 - [x] League page: All Games | Only My Teams, team picks (search above 12, college by conference, Selected first), follow stars, college Top 25, climbing disciplines and countries, CS2 co-stream channel (stored), Hide league
 - [ ] League page's Upcoming and Results sections (ScheduleHub, ResultsHub); keyboard navigation in the pick list (↑/↓, →/← groups, Return, Esc clears search)
-- [ ] Live Games: celebration level and sounds; Notifications (with the browser permission state); credits
+- [x] Live Games: celebration level
+- [ ] Celebration sounds; Notifications (with the browser permission state); credits
 
 ### Notifications (Notifier)
 
@@ -381,7 +415,8 @@ The owner can run `/review-animations` on the motion code for an independent rev
 
 ### Celebrations and moments (Moments, Celebrations, LiveCelebrations, BasketballCelebrations, CelebrateMatch)
 
-- [ ] Moment model (routine, swing, score; accents), captions under charts, confetti and fireworks and sparks by sport, NBA swish and rim and embers, the decisive moment, levels (Full, Subtle, Off), Reduce Motion bloom, sounds (opt-in, at most one every 8s)
+- [x] Moment model (routine, swing, score; accents), the single slot, captions under charts, confetti, fireworks and sparks, NBA swish, rim and embers (in data/celebrations.ts, for the NBA page to use), the decisive moment, levels (Full, Subtle, Off; Settings → Live Games), Reduce Motion bloom, the 10 s burst cooldown
+- [ ] Sounds (opt-in, at most one every 8s); the knock, fill sweep and summit flag (Celebrations.swift's mark family beyond pop, pill, wash and glint)
 
 ### Panel and menu bar equivalents (MenuBarLabel, PanelController, PanelCommands, RootView)
 

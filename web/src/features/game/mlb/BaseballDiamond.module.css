@@ -211,3 +211,12 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* The theater's well while its renderer loads: the same size, so nothing moves when it arrives. */
+.theaterFallback {
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  max-height: calc(320 * var(--pt));
+  border-radius: calc(12 * var(--pt));
+  background: light-dark(rgb(0 0 0 / 0.045), rgb(0 0 0 / 0.45));
+}

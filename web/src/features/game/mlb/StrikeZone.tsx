@@ -45,7 +45,9 @@ export function StrikeZone({ pitches, width }: { pitches: readonly Pitch[]; widt
   const moment = useChartMoment("plate");
   const level = useSettings((s) => s.celebrationLevel);
   const reduce = useReducedMotion();
-  const focused = useFocus((f) => f?.play ?? null);
+  // A pitch in focus (from the zone or the list); a play elsewhere on the page leaves the zone as it is.
+  const focusedPlay = useFocus((f) => f?.play ?? null);
+  const focused = focusedPlay != null && pitches.some((p) => p.id === focusedPlay) ? focusedPlay : null;
   const latest = pitches.at(-1)?.id ?? null;
   const verdict = moment?.kind === "strikeout" ? "strikeout" : moment?.kind === "walk" ? "walk" : null;
 

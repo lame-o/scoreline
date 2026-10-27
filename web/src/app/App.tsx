@@ -9,6 +9,7 @@
  *   /standings/:league      tables (placeholder)
  *   /team/:id, /player/:id  profiles (placeholders)
  *   /bracket/:league/:season?  a postseason bracket (placeholder; game pages link it)
+ *   /dev/theater            development only: the play theater's preview
  */
 import { QueryClientProvider } from "@tanstack/react-query";
 import { LazyMotion, MotionConfig } from "motion/react";
@@ -35,6 +36,10 @@ const router = createBrowserRouter([
       { path: "team/:id", lazy: () => import("../features/placeholders/Placeholders").then((m) => ({ Component: m.TeamPlaceholder })) },
       { path: "player/:id", lazy: () => import("../features/placeholders/Placeholders").then((m) => ({ Component: m.PlayerPlaceholder })) },
       { path: "bracket/:league/:season?", lazy: () => import("../features/placeholders/Placeholders").then((m) => ({ Component: m.BracketPlaceholder })) },
+      // Development only: the play theater on recorded World Series plays (the render harness).
+      ...(import.meta.env.DEV
+        ? [{ path: "dev/theater", lazy: () => import("../features/game/mlb/theater/PlayTheaterPreview").then((m) => ({ Component: () => <m.PlayTheaterPreview /> })) }]
+        : []),
       { path: "*", element: <NotFound /> },
     ],
   },
