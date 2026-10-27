@@ -700,10 +700,20 @@ final class BaseballFeed {
     /// batter, not missing data.
     private(set) var loaded = false
     /// The play theater's last play on the field and who's up now. Assigned
-    /// only when they change, so a pitch doesn't redraw the theater.
+    /// only when they change, so a pitch doesn't redraw the theater. A new
+    /// plate appearance waits briefly for what Statcast measured of it.
     private(set) var theater = TheaterState()
     /// The most recent plays, enough to hold the current at-bat.
     @ObservationIgnored private var window: [JSON] = []
+    /// The theater as ESPN's plays have it, before Statcast's measurements.
+    @ObservationIgnored private var espnTheater = TheaterState()
+    /// Statcast's measurements by play ID, and the plays already looked up (once each).
+    @ObservationIgnored private var measured: [String: PlayScene.Measured] = [:]
+    @ObservationIgnored private var lookedUp: Set<String> = []
+    /// A new plate appearance held back (up to `measureHold`) for its measurements.
+    @ObservationIgnored private var holding: String?
+    /// This game in MLB's feed (nil: not an MLB game).
+    @ObservationIgnored private var lookup: Statcast.Lookup?
     /// At-bat results that arrived since the page opened.
     @ObservationIgnored private var moments: [LiveMoment] = []
     @ObservationIgnored private var primed = false
@@ -715,10 +725,12 @@ final class BaseballFeed {
     private static let pageSize = 25
     private static let windowSize = 80
 
-    func update(path: String, eventID: String, names: [String: String], side: @escaping (String?) -> GameDetail.Side?) async {
+    func update(path: String, eventID: String, names: [String: String], statcast: Statcast.Lookup? = nil,
+                side: @escaping (String?) -> GameDetail.Side?) async {
         guard !updating else { return }
         updating = true
         defer { updating = false }
+        lookup = statcast
         let league = path.split(separator: "/").last.map(String.init) ?? path
         let base = "https://sports.core.api.espn.com/v2/sports/baseball/leagues/\(league)/events/\(eventID)/competitions/\(eventID)"
         guard let situationURL = URL(string: "\(base)/situation"), let statusURL = URL(string: "\(base)/status") else { return }
@@ -781,9 +793,60 @@ final class BaseballFeed {
     }
 
     private func updateTheater(news: Bool, names: [String: String], side: (String?) -> GameDetail.Side?) {
-        let next = Self.theater(window, after: theater, primed: news, now: .now, names: names, side: side)
+        espnTheater = Self.theater(window, after: espnTheater, primed: news, now: .now, names: names, side: side)
+        if let play = espnTheater.play, let lookup, play.appearance != nil, !lookedUp.contains(play.id) {
+            lookedUp.insert(play.id)
+            measure(play, lookup)
+        }
+        publish()
+    }
+
+    /// The theater: ESPN's, with whatever Statcast measured. While a new
+    /// plate appearance is held for its measurements, the field keeps the last play.
+    private func publish() {
+        var next = espnTheater
+        if let id = next.play?.id {
+            if id == holding, id != theater.play?.id { return }
+            next.play?.measured = measured[id]
+        }
         if next != theater { theater = next }
     }
+
+    /// Statcast for a new plate appearance: asked at once, then a few times
+    /// more as its feed catches up (only for a new result, never on the
+    /// poll's clock). The replay waits up to `measureHold`, then goes with
+    /// ESPN's account alone; a measurement that lands later reaches the play
+    /// once its replay is done (the theater never swaps one mid-replay).
+    private func measure(_ play: PlayScene, _ lookup: Statcast.Lookup) {
+        let id = play.id
+        holding = id
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.measureHold)
+            guard let self, self.holding == id else { return }
+            self.holding = nil
+            self.publish()
+        }
+        Task { [weak self] in
+            for wait in Self.measureRetries {
+                if wait > .zero { try? await Task.sleep(for: wait) }
+                guard !Task.isCancelled, self != nil else { return }
+                if let found = await play.measure(lookup), let self {
+                    self.measured[id] = found
+                    if self.holding == id { self.holding = nil }
+                    self.publish()
+                    return
+                }
+            }
+            guard let self, self.holding == id else { return }
+            self.holding = nil
+            self.publish()
+        }
+    }
+
+    /// How long a new plate appearance waits for Statcast before it replays.
+    static let measureHold: Duration = .seconds(3)
+    /// Waits between asks: at once, then as Statcast's feed catches up.
+    private static let measureRetries: [Duration] = [.zero, .seconds(2.2), .seconds(4), .seconds(9)]
 
     /// The theater after a look at the plays. Its play is news if it arrived
     /// after the first complete look, or if it only just happened (a page

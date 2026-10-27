@@ -1929,7 +1929,7 @@ struct DetailView: View {
                 let ids = current.competitors.map { $0.id?.split(separator: "-").last.map(String.init) }
                 let top = ids.first ?? nil, bottom = ids.last ?? nil
                 let before = baseballFeed.score
-                await baseballFeed.update(path: path, eventID: id, names: names) { team in
+                await baseballFeed.update(path: path, eventID: id, names: names, statcast: Statcast.Lookup(current)) { team in
                     team == top ? .top : team == bottom ? .bottom : nil
                 }
                 moments.offer(baseballFeed.takeMoments())

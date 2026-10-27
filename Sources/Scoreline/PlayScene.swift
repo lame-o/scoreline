@@ -15,6 +15,11 @@ import Foundation
 // after it). Runners are matched by athlete ID across the two, so the
 // movements never depend on reading names; the text only settles who scored
 // and who was out when both happened on one play.
+//
+// A plate appearance can also carry what MLB's Statcast measured of it (the
+// ball's launch and distance, the deciding pitch's flight), matched by
+// half-inning, batter and trip to the plate. The parse never needs it: the
+// theater replays ESPN's account alone until it's there.
 
 struct PlayScene: Equatable, Identifiable {
     enum Kind: Equatable {
@@ -49,6 +54,24 @@ struct PlayScene: Equatable, Identifiable {
         /// ESPN pitch coordinates (zone ≈ x 91…141, y 148…192).
         var x: Double?
         var y: Double?
+    }
+
+    /// What MLB's Statcast measured of a plate appearance: the ball off the
+    /// bat (exit velocity, launch angle, distance, spot) and the pitch that
+    /// decided it, as tracked.
+    struct Measured: Equatable {
+        var batted: Statcast.Batted?
+        var pitch: Statcast.Pitch?
+    }
+
+    /// A plate appearance as MLB's feed has it: the half-inning, the batter's
+    /// surname, and which of his trips to the plate in that half it is (a
+    /// team that bats around sends him up twice).
+    struct Appearance: Equatable {
+        var inning: Int
+        var top: Bool
+        var surname: String
+        var occurrence = 0
     }
 
     /// Where the play took a runner (or the batter, from base 0).
@@ -93,6 +116,10 @@ struct PlayScene: Equatable, Identifiable {
     var runs = 0
     var bats: Hand?
     var pitch: Pitch?
+    /// Who batted, to find the play in Statcast (nil: a runner's play).
+    var appearance: Appearance?
+    /// What Statcast measured, once it's been found.
+    var measured: Measured?
     var batting: GameDetail.Side?
     /// "Turang grounded out to shortstop."
     var text = ""
@@ -167,6 +194,14 @@ struct PlayScene: Equatable, Identifiable {
         case .indifference: return Notation(code: "DI")
         case .other: return Notation(code: "")
         }
+    }
+
+    /// What Statcast measured of the ball in play, as the stamp's third
+    /// line has it: "104.4 MPH · 12° · 273 FT" (a grounder's distance is
+    /// only its first hop, so it's left off). Nil unless it was measured.
+    var readout: String? {
+        guard inPlay, let batted = measured?.batted, batted.launchSpeed != nil else { return nil }
+        return batted.line(distance: batted.trajectory != "ground_ball" && flight != .ground)
     }
 
     /// The play in two or three words, for the stamp's second line.
@@ -285,6 +320,7 @@ extension PlayScene {
             scene.pitch = Pitch(code: code, name: p["pitchType"]["text"].string ?? code.flatMap { GameDetail.Pitch.names[$0] },
                                 mph: p["pitchVelocity"].int, x: p["pitchCoordinate"]["x"].double, y: p["pitchCoordinate"]["y"].double)
         }
+        scene.appearance = appearance(plays, at: index, text: scene.text, names: names)
         scene.wallclock = result["wallclock"].string.flatMap(parseDate)
         scene.runs = max(result["scoreValue"].int ?? 0, 0)
         scene.walkOff = scene.runs > 0 && walkOff(result)
@@ -321,6 +357,40 @@ extension PlayScene {
             scene.fielders.append(coverer(of: base, after: scene.fielders[0]))
         }
         return scene
+    }
+
+    /// The plate appearance a result closes: its half-inning, the batter's
+    /// surname (from the box score's names, else the text's opening words),
+    /// and how many trips he'd already made in that half. Nil for a runner's
+    /// play: nobody batted.
+    static func appearance(_ plays: [JSON], at index: Int, text: String, names: [String: String]) -> Appearance? {
+        let result = plays[index]
+        guard let batter = participant(result, "batter"), let inning = result["period"]["number"].int,
+              let name = names[batter].map(surname) ?? leadingName(text) else { return nil }
+        let half = halfInning(result)
+        // His earlier at-bats in the half-inning, by ID (a result ESPN rewrote is still one).
+        var earlier = Set<String>()
+        for entry in plays[..<index].reversed() {
+            guard halfInning(entry) == half, entry["type"]["type"].string != "start-inning" else { break }
+            if entry["type"]["type"].string == "play-result", participant(entry, "batter") == batter,
+               let id = entry["atBatId"].string ?? entry["id"].string, id != result["atBatId"].string {
+                earlier.insert(id)
+            }
+        }
+        return Appearance(inning: inning, top: result["period"]["type"].string?.lowercased().hasPrefix("top") ?? true,
+                          surname: name, occurrence: earlier.count)
+    }
+
+    /// A short name's surname: "J. Chourio" → "Chourio"; "V. Mesa Jr." → "Mesa Jr".
+    static func surname(_ name: String) -> String {
+        let rest = name.split(separator: " ").drop { $0.hasSuffix(".") && $0.count <= 3 }
+        return (rest.isEmpty ? name : rest.joined(separator: " ")).trimmingCharacters(in: CharacterSet(charactersIn: "."))
+    }
+
+    /// The name a result's text opens with: "Mesa Jr. lined out to center." → "Mesa Jr".
+    static func leadingName(_ text: String) -> String? {
+        let words = text.split(separator: " ").prefix { $0.first?.isUppercase == true }
+        return words.isEmpty ? nil : surname(words.joined(separator: " "))
     }
 
     /// Who takes a throw at a base (0: home) from a fielder: the first
@@ -523,9 +593,7 @@ extension PlayScene {
         let parts = clauses(text)
         func surname(_ id: String?) -> String? {
             guard let id, let name = names[id] else { return nil }
-            // "J. Chourio" → "Chourio"; "V. Mesa Jr." → "Mesa Jr".
-            let rest = name.split(separator: " ").drop { $0.hasSuffix(".") && $0.count <= 3 }
-            return (rest.isEmpty ? name : rest.joined(separator: " ")).trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            return Self.surname(name)
         }
         func base(in clause: String) -> Int? {
             guard let m = clause.firstMatch(of: #/(?:at|stealing|off) (first|1st|second|2nd|third|3rd|home)/#) else { return nil }
@@ -610,5 +678,88 @@ extension PlayScene {
         case .triple: 3
         default: nil
         }
+    }
+}
+
+// MARK: - Statcast
+
+extension PlayScene {
+    /// Statcast's at-bat for this plate appearance: the same half-inning,
+    /// the batter by surname, his nth trip to the plate in it.
+    func atBat(in atBats: [Statcast.AtBat]) -> Statcast.AtBat? {
+        guard let a = appearance else { return nil }
+        return Statcast.match(inning: a.inning, top: a.top, surname: a.surname, occurrence: a.occurrence, in: atBats)
+    }
+
+    /// What Statcast measured of this plate appearance, once its at-bat is
+    /// over and agrees with ESPN's account: the same result, a ball in play
+    /// only for a play in play, fielded at the same spot (ESPN's spot is
+    /// MLB's, truncated). Nil otherwise: the theater keeps to ESPN's. (pure; tested)
+    func measurement(in atBats: [Statcast.AtBat]) -> Measured? {
+        guard let atBat = atBat(in: atBats), let event = atBat.event, agrees(with: event) else { return nil }
+        let batted = inPlay ? atBat.batted : nil
+        if let spot, let measured = batted?.spot, hypot(measured.x - spot.x, measured.y - spot.y) > 3 { return nil }
+        // (An intentional walk has nothing to measure, and that's found too: nobody asks again.)
+        return Measured(batted: batted, pitch: atBat.pitches.last)
+    }
+
+    /// Whether Statcast's name for a result could be this play: a hit the
+    /// same hit, a strikeout, walk or hit batter the same, an out any out.
+    func agrees(with event: String) -> Bool {
+        let e = event.lowercased()
+        let reached: Set<String> = ["single", "double", "triple", "home run", "walk", "intent walk", "hit by pitch"]
+        switch kind {
+        case .single: return e == "single"
+        case .double: return e == "double"
+        case .triple: return e == "triple"
+        case .homeRun: return e == "home run"
+        case .strikeout: return e.hasPrefix("strikeout")
+        case .walk: return e.hasSuffix("walk")
+        case .hitByPitch: return e == "hit by pitch"
+        default: return !reached.contains(e) && !e.hasPrefix("strikeout")
+        }
+    }
+
+    /// Looks the plate appearance up in MLB's feed: what's cached, else the
+    /// feed again (Statcast posts a few seconds after ESPN). Nil until it's
+    /// there, for a runner's play, or for a game MLB's feed doesn't have.
+    @MainActor
+    func measure(_ lookup: Statcast.Lookup) async -> Measured? {
+        guard appearance != nil else { return nil }
+        let store = StatcastStore.shared
+        let cached = await store.atBats(espnEvent: lookup.espnEvent, start: lookup.start, teams: lookup.teams)
+        if let found = measurement(in: cached) { return found }
+        let next = atBat(in: cached)?.index ?? (cached.map(\.index).max() ?? -1) + 1
+        let fresh = await store.atBats(espnEvent: lookup.espnEvent, start: lookup.start, teams: lookup.teams, through: next)
+        return measurement(in: fresh)
+    }
+
+    /// The same, waiting no longer than `limit` (the full load can't hold
+    /// the page up); the lookup runs on either way, so what it fetches is
+    /// cached for the live lane.
+    @MainActor
+    func measure(_ lookup: Statcast.Lookup, within limit: Duration) async -> Measured? {
+        let work = Task { await measure(lookup) }
+        return await withCheckedContinuation { (result: CheckedContinuation<Measured?, Never>) in
+            let once = Once(result)
+            Task { once.resume(await work.value) }
+            Task {
+                try? await Task.sleep(for: limit)
+                once.resume(nil)
+            }
+        }
+    }
+}
+
+/// A continuation resumed by whichever finishes first.
+@MainActor
+private final class Once<T> {
+    private var continuation: CheckedContinuation<T, Never>?
+
+    init(_ continuation: CheckedContinuation<T, Never>) { self.continuation = continuation }
+
+    func resume(_ value: T) {
+        continuation?.resume(returning: value)
+        continuation = nil
     }
 }
