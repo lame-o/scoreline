@@ -36,6 +36,7 @@ import {
   type TeamStat,
   type Transaction,
   DEPTH_UNIT_ORDER,
+  leagueForPath,
   playerRef,
 } from "./models";
 import { espnPhoto } from "./photos";
@@ -113,21 +114,7 @@ export function leagueLeadersURL(path: string, now = Date.now()): string {
   return `${corePrefix(path)}/seasons/${season.year}/types/${season.type}/leaders?limit=25`;
 }
 
-/** The league slug for a player's ESPN path ("basketball/nba" → "nba"). */
-export function leagueForPath(path: string): string | null {
-  switch (path) {
-    case "basketball/nba":
-      return "nba";
-    case "football/nfl":
-      return "nfl";
-    case "football/college-football":
-      return "college-football";
-    case "baseball/mlb":
-      return "mlb";
-    default:
-      return path.startsWith("soccer/") ? path.slice(7) : null;
-  }
-}
+export { leagueForPath };
 
 /** The first link with a `rel`. */
 function linkWith(value: JSONValue, rel: string): string | null {
@@ -897,10 +884,4 @@ function ordinalRank(n: number): string {
   return `${n}${suffix}`;
 }
 
-/** An ESPN player with a page (NBA, NFL, college football, MLB, soccer; not the WNBA or college basketball), from a match page's IDs. */
-export function espnPlayerRef(path: string | null | undefined, id: string | null | undefined, name: string, fields: Partial<PlayerRef> = {}): PlayerRef | null {
-  if (!path || !id) return null;
-  if (!["basketball/nba", "football/nfl", "football/college-football", "baseball/mlb"].includes(path) && !path.startsWith("soccer/")) return null;
-  return playerRef({ ...fields, source: { kind: "espn", path }, id, name });
-}
-
+export { espnPlayerRef } from "./espnRef";

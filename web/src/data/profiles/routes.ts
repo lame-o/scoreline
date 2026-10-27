@@ -13,8 +13,7 @@
  * Links pass the full reference in the history state as well, so the hero
  * paints the name, photo and team on the first frame (TeamLink, PlayerLink).
  */
-import { leagueForPath } from "./espn";
-import { playerRef, teamRef, type PlayerRef, type TeamRef } from "./models";
+import { leagueForPath, playerRef, teamRef, type PlayerRef, type TeamRef } from "./models";
 
 const US_LEAGUES: Readonly<Record<string, string>> = {
   nba: "basketball/nba",
@@ -70,5 +69,8 @@ export function playerFromRoute(slug: string): PlayerRef | null {
 export interface ProfileNavState {
   readonly team?: TeamRef;
   readonly player?: PlayerRef;
+  /** The page the link was on, for the Back button's title ("‹ Chiefs"). */
+  readonly from?: string;
+  /** Reached with the keyboard: no entrance animation. */
   readonly viaKeyboard?: boolean;
 }

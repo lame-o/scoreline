@@ -7,7 +7,7 @@
  *   /settings               Settings; /settings/league/:id a league's teams and options
  *   /schedule[/:scope]      schedules (placeholder)
  *   /standings/:league      tables (placeholder)
- *   /team/:id, /player/:id  profiles (placeholders)
+ *   /team/:id, /player/:id  team and player pages (features/profiles)
  */
 import { QueryClientProvider } from "@tanstack/react-query";
 import { LazyMotion, MotionConfig } from "motion/react";
@@ -31,8 +31,8 @@ const router = createBrowserRouter([
       { path: "settings/league/:id", lazy: () => import("../features/settings/LeaguePage").then((m) => ({ Component: m.LeaguePage })) },
       { path: "schedule/:scope?", lazy: () => import("../features/placeholders/Placeholders").then((m) => ({ Component: m.SchedulePlaceholder })) },
       { path: "standings/:league", lazy: () => import("../features/placeholders/Placeholders").then((m) => ({ Component: m.StandingsPlaceholder })) },
-      { path: "team/:id", lazy: () => import("../features/placeholders/Placeholders").then((m) => ({ Component: m.TeamPlaceholder })) },
-      { path: "player/:id", lazy: () => import("../features/placeholders/Placeholders").then((m) => ({ Component: m.PlayerPlaceholder })) },
+      { path: "team/:id", lazy: () => import("../features/profiles/TeamPage").then((m) => ({ Component: m.TeamPage })) },
+      { path: "player/:id", lazy: () => import("../features/profiles/PlayerPage").then((m) => ({ Component: m.PlayerPage })) },
       { path: "*", element: <NotFound /> },
     ],
   },

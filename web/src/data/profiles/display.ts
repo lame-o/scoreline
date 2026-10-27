@@ -211,6 +211,12 @@ export function seasonColumns(sport: Sport, position: string | null): [string, W
           return [["totalTackles", "compact"], ["sacks", "compact"], ["interceptions", "compact"], ["passesDefended", "medium"]];
       }
     case "baseball":
+      // Web addition: a pitcher's overview has no ERA or wins (only GP, IP, H, ER, HR, BB, K), so the
+      // hitter's columns would show hits and home runs allowed; a pitcher reads innings and strikeouts.
+      if (["SP", "RP", "P", "CL"].includes((position ?? "").toUpperCase())) {
+        return [["gamesPlayed", "compact"], ["innings", "compact"], ["strikeouts", "compact"], ["walks", "compact"], ["earnedRuns", "medium"],
+          ["hits", "large"], ["homeRuns", "large"]];
+      }
       return [["gamesPlayed", "compact"], ["hits", "compact"], ["homeRuns", "compact"], ["RBIs", "compact"], ["atBats", "medium"], ["walks", "large"],
         ["strikeouts", "large"], ["ERA", "compact"], ["wins", "compact"], ["innings", "medium"]];
     default:

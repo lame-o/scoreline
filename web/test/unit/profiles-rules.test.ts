@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { drawsStrip, entryContext, mapDomain, monthTicks, nearestBar, rankPosition, stripLayout } from "../../src/data/profiles/charts";
-import { aboutFacts, dockDetail, dockMotion, dockStep, footballStatLine, gameLogColumns, heroTuck, rosterSubtitle, spokenHeight, tableColumnIndices, widthClassOf, height } from "../../src/data/profiles/display";
+import { aboutFacts, seasonColumns, dockDetail, dockMotion, dockStep, footballStatLine, gameLogColumns, heroTuck, rosterSubtitle, spokenHeight, tableColumnIndices, widthClassOf, height } from "../../src/data/profiles/display";
 import { emptyBio, EMPTY_PROFILE, initials, isSupportedTeam, lastName, playerKey, playerRef, profileRank, properCase, teamRef, teamSource, type GameLog, type RosterPlayer } from "../../src/data/profiles/models";
 import { espnPhoto, heroPhotoURL, initialHeroPhoto, nextHeroPhoto } from "../../src/data/profiles/photos";
 import { playerFromRoute, playerHref, teamFromRoute, teamHref } from "../../src/data/profiles/routes";
@@ -122,6 +122,9 @@ describe("display rules", () => {
     const pitching = gameLogColumns("baseball", "SP", true).map((c) => c.key);
     expect(pitching.slice(0, 3)).toEqual(["innings", "earnedRuns", "strikeouts"]);
     expect(gameLogColumns("baseball", "DH", false)[0]!.key).toBe("hits");
+    // A pitcher's season line: innings and strikeouts, not hits allowed.
+    expect(seasonColumns("baseball", "SP").map(([k]) => k).slice(0, 3)).toEqual(["gamesPlayed", "innings", "strikeouts"]);
+    expect(seasonColumns("baseball", "1B").map(([k]) => k).slice(0, 3)).toEqual(["gamesPlayed", "hits", "homeRuns"]);
     expect(tableColumnIndices(["a", "gamesPlayed", "avgPoints"], 3, [["gamesPlayed", "compact"], ["avgPoints", "compact"], ["fieldGoalPct", "medium"]], "compact")).toEqual([1, 2]);
     // Nothing preferred exists: the first few columns.
     expect(tableColumnIndices(["x", "y", "z", "w", "v"], 5, [["q", "compact"]], "compact")).toEqual([0, 1, 2, 3]);

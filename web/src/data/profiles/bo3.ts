@@ -285,7 +285,8 @@ export function parseMatches(json: JSONValue): GameLog | null {
       stats.maps = ordered.join(", ");
       const enemy = i(at(m, "enemy_team_id"));
       return [{
-        eventID: sAt(m, "match_slug") ?? `cs-${id}`,
+        // The web's game pages address bo3 matches as the scoreboard does (`cs-<id>`); the Mac's use the slug.
+        eventID: `cs-${id}`,
         date,
         opponent: enemy != null ? teamRef({ id: `cs-${enemy}`, name: sAt(m, "enemy_team_name") ?? "", logo: sAt(m, "enemy_team_image_url"), league: "cs2" }) : null,
         home: true,

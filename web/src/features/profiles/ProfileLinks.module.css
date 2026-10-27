@@ -1,0 +1,59 @@
+/*
+ * Name links (ProfileLinks.swift). A quiet link is a name until you point at
+ * it: no color, an underline under a fine pointer, a little dim while pressed.
+ */
+.quiet {
+  color: inherit;
+  text-decoration-line: none;
+  text-decoration-color: var(--label-tertiary);
+  text-decoration-thickness: calc(1 * var(--pt));
+  text-underline-offset: calc(2 * var(--pt));
+  border-radius: calc(3 * var(--pt));
+  transition: opacity var(--dur-press) var(--ease-out);
+  -webkit-touch-callout: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .quiet:hover {
+    text-decoration-line: underline;
+  }
+}
+
+.quiet:active {
+  opacity: 0.6;
+}
+
+/*
+ * A row link: the list's quiet hover fill reaching 6pt past the content (the
+ * Mac's RowLink insets), and its name underlining while it's hovered.
+ */
+.row {
+  position: relative;
+  display: block;
+  margin: 0 calc(-6 * var(--pt));
+  padding: calc(4 * var(--pt)) calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+  color: inherit;
+  -webkit-touch-callout: none;
+  transition: background-color var(--dur-fade) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background-color: var(--fill-hover);
+  }
+  .row:hover .name {
+    text-decoration-line: underline;
+  }
+}
+
+.row:active {
+  background-color: var(--fill-press);
+  transition-duration: 0ms;
+}
+
+.name {
+  text-decoration-color: var(--label-tertiary);
+  text-decoration-thickness: calc(1 * var(--pt));
+  text-underline-offset: calc(2 * var(--pt));
+}

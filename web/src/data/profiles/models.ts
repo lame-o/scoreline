@@ -137,6 +137,22 @@ export function playerMemoryKey(ref: Pick<PlayerRef, "source" | "id">): string {
   return `player:${playerKey(ref)}`;
 }
 
+/** The league slug for a player's ESPN path ("basketball/nba" → "nba"). */
+export function leagueForPath(path: string): string | null {
+  switch (path) {
+    case "basketball/nba":
+      return "nba";
+    case "football/nfl":
+      return "nfl";
+    case "football/college-football":
+      return "college-football";
+    case "baseball/mlb":
+      return "mlb";
+    default:
+      return path.startsWith("soccer/") ? path.slice(7) : null;
+  }
+}
+
 export function sportOfPath(path: string): Sport {
   return path.startsWith("basketball") ? "basketball" : path.startsWith("football") ? "football" : path.startsWith("baseball") ? "baseball" : "soccer";
 }

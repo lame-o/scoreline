@@ -1,0 +1,418 @@
+/*
+ * The profile charts (ProfileCharts.swift, VizKit.swift `Viz`). Neutrals are
+ * ink opacities; the team's color is for marks only. Nothing under 9pt;
+ * numbers tabular.
+ */
+
+.footer {
+  position: relative;
+  min-height: calc(14 * var(--pt));
+  padding-top: calc(6 * var(--pt));
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  color: var(--label-secondary);
+  min-width: 0;
+}
+
+/* The legend keeps its space while a readout shows. */
+.legend[data-hidden="true"] {
+  visibility: hidden;
+}
+
+.readout {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(6 * var(--pt));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.readout strong {
+  font-weight: 600;
+  color: var(--label);
+}
+
+.readout span {
+  white-space: pre;
+  color: var(--label-secondary);
+}
+
+/* MARK: Game-log strip */
+
+.strip {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.plot {
+  display: block;
+  overflow: visible;
+  touch-action: pan-y;
+}
+
+.plot[data-clickable="true"] {
+  cursor: pointer;
+}
+
+.baseline {
+  fill: light-dark(rgb(0 0 0 / 0.18), rgb(255 255 255 / 0.18));
+}
+
+.track {
+  fill: var(--viz-track);
+}
+
+.ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--label) 80%, transparent);
+  stroke-width: 1.5;
+}
+
+.reference {
+  stroke: var(--viz-reference);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.refLabel {
+  font-size: 9px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  fill: var(--label-secondary);
+}
+
+.ticks {
+  position: relative;
+  height: calc(13 * var(--pt));
+}
+
+.ticks span {
+  position: absolute;
+  top: calc(1 * var(--pt));
+  font-size: calc(9 * var(--pt));
+  font-weight: 500;
+  color: var(--label-secondary);
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.last {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lastLabel {
+  color: var(--label-secondary);
+  opacity: 0.8;
+}
+
+.last strong {
+  font-weight: 600;
+  color: var(--label);
+}
+
+.lastContext {
+  white-space: pre;
+}
+
+/* MARK: Match strip */
+
+.matchStrip {
+  min-width: 0;
+}
+
+.cells {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(4 * var(--pt));
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  padding: calc(2 * var(--pt)) 0;
+  border-radius: calc(5 * var(--pt));
+  transition:
+    opacity var(--dur-fade) var(--ease-out),
+    transform var(--dur-press) var(--ease-out);
+}
+
+.cell[data-dim="true"] {
+  opacity: 0.55;
+  transition-duration: 0ms;
+}
+
+.cell:active {
+  transform: scale(0.94);
+}
+
+.letter {
+  display: grid;
+  place-items: center;
+  width: calc(18 * var(--pt));
+  height: calc(18 * var(--pt));
+  border-radius: calc(4 * var(--pt));
+  background: var(--viz-track);
+  font-size: calc(9 * var(--pt));
+  font-weight: 600;
+  color: var(--label);
+}
+
+.letter[data-draw="true"] {
+  color: var(--label-secondary);
+}
+
+.dots {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  height: calc(16 * var(--pt));
+}
+
+.dot,
+.ringDot {
+  display: inline-block;
+  width: calc(4 * var(--pt));
+  height: calc(4 * var(--pt));
+  border-radius: 50%;
+  flex: none;
+}
+
+.dot {
+  background: color-mix(in srgb, var(--label) 75%, transparent);
+}
+
+.ringDot {
+  box-shadow: inset 0 0 0 calc(1 * var(--pt)) color-mix(in srgb, var(--label) 60%, transparent);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  font-size: calc(10 * var(--pt));
+}
+
+.legendItem .dot,
+.legendItem .ringDot {
+  width: calc(5 * var(--pt));
+  height: calc(5 * var(--pt));
+}
+
+/* MARK: Form strip */
+
+.form {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  min-width: 0;
+}
+
+.marks {
+  display: flex;
+  margin: 0 calc(-1.5 * var(--pt));
+}
+
+.mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: calc(19 * var(--pt));
+  height: calc(16 * var(--pt));
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  color: var(--label);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+
+/* The mark itself, inset by half the gap so the pointer never falls between marks. */
+.mark::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(1.5 * var(--pt));
+  border-radius: calc(4 * var(--pt));
+  z-index: -1;
+}
+
+.mark[data-letter="W"] {
+  color: var(--page);
+}
+
+.mark[data-letter="W"]::before {
+  background: color-mix(in srgb, var(--label) 88%, transparent);
+}
+
+.mark[data-letter="D"]::before,
+.mark[data-letter="T"]::before {
+  background: light-dark(rgb(0 0 0 / 0.12), rgb(255 255 255 / 0.13));
+}
+
+.mark[data-letter="L"] {
+  color: var(--label-secondary);
+}
+
+.mark[data-letter="L"]::before {
+  box-shadow: inset 0 0 0 calc(1 * var(--pt)) light-dark(rgb(0 0 0 / 0.28), rgb(255 255 255 / 0.3));
+}
+
+/* The pointed-at mark: an accent ring just outside it (instant). */
+.mark[data-lit="true"]::after {
+  content: "";
+  position: absolute;
+  inset: calc(-2 * var(--pt)) calc(-0.5 * var(--pt));
+  border-radius: calc(6 * var(--pt));
+  box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) var(--accent);
+}
+
+.mark:active {
+  transform: scale(0.94);
+}
+
+.formReadout {
+  min-width: 0;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* MARK: Rank track */
+
+.rankRow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  padding: calc(3 * var(--pt)) 0;
+  font-size: var(--text-callout);
+}
+
+.rankLabel {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rankValue {
+  width: calc(44 * var(--pt));
+  text-align: right;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.rankTrack {
+  width: calc(84 * var(--pt));
+  height: calc(12 * var(--pt));
+  flex: none;
+}
+
+.rankText {
+  width: calc(38 * var(--pt));
+  text-align: right;
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+/* MARK: Map pool */
+
+.mapPool {
+  display: flex;
+  flex-direction: column;
+  gap: calc(5 * var(--pt));
+}
+
+.mapRow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  font-size: var(--text-callout);
+}
+
+.mapRow[data-small="true"] {
+  opacity: 0.6;
+}
+
+.mapName {
+  width: calc(62 * var(--pt));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mapTrack {
+  position: relative;
+  flex: 1;
+  height: calc(14 * var(--pt));
+}
+
+.mapTrack::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - 1 * var(--pt));
+  height: calc(2 * var(--pt));
+  border-radius: calc(1 * var(--pt));
+  background: var(--viz-track);
+}
+
+.mapOverall {
+  position: absolute;
+  top: calc(50% - 6 * var(--pt));
+  width: calc(1 * var(--pt));
+  height: calc(12 * var(--pt));
+  background: var(--viz-reference);
+}
+
+.mapDot {
+  position: absolute;
+  top: calc(50% - 3.5 * var(--pt));
+  width: calc(7 * var(--pt));
+  height: calc(7 * var(--pt));
+  border-radius: 50%;
+}
+
+.mapRow[data-small="true"] .mapDot {
+  opacity: 0.45;
+}
+
+.mapRating {
+  width: calc(32 * var(--pt));
+  text-align: right;
+  font-size: var(--text-status);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.mapCount {
+  width: calc(56 * var(--pt));
+  text-align: right;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell:active,
+  .mark:active {
+    transform: none;
+  }
+}
