@@ -105,11 +105,13 @@ for (const size of WIDTHS) {
         await expect(page.locator('[data-section="climbingWatch"] a')).toHaveAttribute("href", "https://www.youtube.com/@WorldClimbing/streams");
         if (!size.mobile) {
           // A result lights that climber on the wall.
-          const row = page.locator('[data-section="results"] [role="button"]', { hasText: "Fisher" });
+          const row = page.locator('[data-section="results"] [role="group"]', { hasText: "Fisher" });
           await row.hover();
           await expect(page.locator('[data-section="ascent"] [data-lit="true"]')).toHaveCount(1);
+          // A click beside the name pins; the name itself opens the climber's page.
           await row.click({ position: { x: 4, y: 4 } });
-          await expect(row).toHaveAttribute("aria-pressed", "true");
+          await expect(row).toHaveAttribute("data-pinned", "true");
+          await expect(row.getByRole("link", { name: /Fisher/ })).toHaveAttribute("href", /^\/player\/ifsc-\d+/);
         }
         await page.waitForTimeout(600);
         await page.screenshot({ path: join(OUT, `${size.name}-${scheme}-climbing-live.png`) });
@@ -133,7 +135,7 @@ for (const size of WIDTHS) {
 
         await page.goto("/game/ifsc-1488-0?demo");
         await expect(page.getByRole("heading", { name: /^Final · Scorecard\s?, Final/ })).toBeAttached({ timeout: 20_000 });
-        await expect(page.getByRole("button", { name: /^1st, O\. Bertone, 84\.6 points, 3 tops, 4 zones/ })).toBeAttached();
+        await expect(page.getByRole("group", { name: /^1st, O\. Bertone, 84\.6 points, 3 tops, 4 zones/ })).toBeAttached();
         await page.waitForTimeout(400);
         await page.screenshot({ path: join(OUT, `${size.name}-${scheme}-climbing-final-boulder.png`) });
         expect(errors, errors.join("\n")).toEqual([]);

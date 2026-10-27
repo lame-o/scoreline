@@ -817,7 +817,8 @@
   transition: background-color var(--dur-fade) var(--ease-out);
 }
 
-.rankRow[role="button"] {
+.rankRow,
+.cardRow {
   cursor: default;
 }
 
@@ -996,10 +997,4 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   background: light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.1));
-}
-
-/* The name inside a pinnable row: its own link, truncating before anything else gives way. */
-.nameSlot {
-  display: flex;
-  min-width: 0;
 }

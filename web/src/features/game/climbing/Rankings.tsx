@@ -14,8 +14,8 @@
  * - `ClimbingWatch`: World Climbing's official YouTube channel.
  *
  * Every row is a linked row: pointing at it lights that climber on the wall
- * and the scorecard; a click pins them (again, or Esc, unpins). The name
- * opens the climber's page.
+ * and the scorecard; a click beside the name pins them (again, or Esc,
+ * unpins). The name opens the climber's page.
  */
 import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { m } from "motion/react";
@@ -83,15 +83,6 @@ function useWash(trigger: number | undefined) {
   return ref;
 }
 
-/** The name opens the climber's page; the rest of the row pins them. A click or Return on the name stays the link's. */
-function NameLink({ children }: { children: React.ReactNode }) {
-  return (
-    <span className={styles.nameSlot} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-      {children}
-    </span>
-  );
-}
-
 // MARK: - Boulder scorecard
 
 export const BoulderScorecard = memo(function BoulderScorecard({ cards, problems, yours, live }: { cards: readonly BoulderCard[]; problems: readonly string[]; yours: ReadonlySet<string>; live: boolean }) {
@@ -134,7 +125,7 @@ export const BoulderScorecard = memo(function BoulderScorecard({ cards, problems
 
 function CardRow({ card, problems, mine, delta, moment }: { card: BoulderCard; problems: readonly string[]; mine: boolean; delta: number | null; moment: LiveMoment | null }) {
   const focus: Focus = { athlete: card.id };
-  const linked = useLinkedRow(focus, { pinnable: true });
+  const linked = useLinkedRow(focus, { pinnable: true, links: true });
   const lit = useFocus((f) => f?.athlete === card.id);
   const washRef = useWash(delta != null && delta > 0 ? delta : undefined);
   const totals = boulderTotals(card);
@@ -144,7 +135,7 @@ function CardRow({ card, problems, mine, delta, moment }: { card: BoulderCard; p
     .join(", ");
   const ref = climberRef(card.id, card.name, { country: card.country });
   return (
-    <div className={styles.cardRow} data-mine={mine} data-onwall={card.onWall} data-lit={lit} {...linked} aria-label={said}>
+    <div className={styles.cardRow} data-mine={mine} data-onwall={card.onWall} data-lit={lit} {...linked} role="group" aria-label={said}>
       <span ref={washRef} className={styles.wash} />
       <span className={styles.cardRank} aria-hidden="true">
         {card.rank ?? "–"}
@@ -153,11 +144,9 @@ function CardRow({ card, problems, mine, delta, moment }: { card: BoulderCard; p
         {card.flag ?? ""}
       </span>
       {/* Every name at one size: a long one truncates. A click on it opens the climber's page. */}
-      <NameLink>
-        <PlayerLink player={ref} className={[styles.cardName, linkNameClass].join(" ")} title={`Go to ${card.name}`}>
-          {card.name}
-        </PlayerLink>
-      </NameLink>
+      <PlayerLink player={ref} className={[styles.cardName, linkNameClass].join(" ")} title={`Go to ${card.name}`}>
+        {card.name}
+      </PlayerLink>
       {card.onWall ? (
         <span title="Climbing now">
           <LiveDot />
@@ -249,13 +238,13 @@ export const RankingList = memo(function RankingList({ athletes, yours, live }: 
 });
 
 function RankRow({ athlete: a, mine, delta }: { athlete: Athlete; mine: boolean; delta: number | null }) {
-  const linked = useLinkedRow({ athlete: a.id }, { pinnable: true });
+  const linked = useLinkedRow({ athlete: a.id }, { pinnable: true, links: true });
   const lit = useFocus((f) => f?.athlete === a.id);
   const washRef = useWash(delta != null && delta > 0 ? delta : undefined);
   const country = a.country ? countryName(a.country) : null;
   const said = [a.rank != null ? ordinal(a.rank) : null, delta ? (delta > 0 ? `up ${delta}` : `down ${-delta}`) : null, a.name, country, a.score ? `score ${a.score}` : null, mine ? "Your country" : null].filter(Boolean).join(", ");
   return (
-    <div className={styles.rankRow} data-mine={mine} data-lit={lit} {...linked} aria-label={said}>
+    <div className={styles.rankRow} data-mine={mine} data-lit={lit} {...linked} role="group" aria-label={said}>
       <span ref={washRef} className={styles.wash} />
       <span className={styles.rankNumber} data-podium={a.rank != null && a.rank <= 3} aria-hidden="true">
         {a.rank ?? "–"}
@@ -264,11 +253,9 @@ function RankRow({ athlete: a, mine, delta }: { athlete: Athlete; mine: boolean;
       <span className={styles.rankFlag} title={country ?? undefined} aria-hidden="true">
         {flagFromIOC(a.country) ?? ""}
       </span>
-      <NameLink>
-        <PlayerLink player={climberRef(a.id, a.name, { country: a.country })} className={[styles.rankName, linkNameClass].join(" ")} title={`Go to ${a.name}`}>
-          {a.name}
-        </PlayerLink>
-      </NameLink>
+      <PlayerLink player={climberRef(a.id, a.name, { country: a.country })} className={[styles.rankName, linkNameClass].join(" ")} title={`Go to ${a.name}`}>
+        {a.name}
+      </PlayerLink>
       {/* After the name, so nothing else in the row moves when it comes and goes. */}
       {delta ? <DeltaChip delta={delta} className={styles.deltaIn} /> : null}
       {a.score ? (
