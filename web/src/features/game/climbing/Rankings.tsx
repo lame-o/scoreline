@@ -47,18 +47,25 @@ function useRankShift(ranks: ReadonlyMap<number, number>, live: boolean): Readon
   useEffect(() => {
     const before = last.current;
     last.current = ranks;
-    if (!live) return;
+    // No longer live: the chips from the last change go.
+    if (!live) {
+      setDeltas((d) => (d.size === 0 ? d : new Map()));
+      return;
+    }
     const moved = new Map<number, number>();
     for (const [id, now] of ranks) {
       const was = before.get(id);
       if (was != null && was !== now) moved.set(id, was - now);
     }
-    if (moved.size === 0) return;
-    setDeltas(moved);
-    const timer = setTimeout(() => setDeltas(new Map()), DELTA_HOLD_MS);
-    return () => clearTimeout(timer);
+    if (moved.size > 0) setDeltas(moved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, live]);
+  // Held like a moment (4 s), then out; a newer change restarts the hold.
+  useEffect(() => {
+    if (deltas.size === 0) return;
+    const timer = setTimeout(() => setDeltas(new Map()), DELTA_HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [deltas]);
   return deltas;
 }
 

@@ -21,7 +21,7 @@ import { EMPTY_DETAIL } from "../../../data/gameDetail";
 import { getJSON } from "../../../data/http";
 import { Accessory, type AccessoryTier } from "../../../data/matchRules";
 import { competitors, type CSLive, type Side } from "../../../data/models";
-import { csLiveLine } from "../../../data/providers/counterStrike";
+import { csLiveLine } from "../../../data/providers/csLive";
 import { bracketPath } from "../../../data/schedule";
 import type { Section } from "../../../data/sections";
 import { useSettings } from "../../../state/settings";

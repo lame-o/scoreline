@@ -38,7 +38,8 @@ import {
 } from "../../src/data/cs2";
 import { fetchDetail, type MapResult } from "../../src/data/gameDetail";
 import type { CSLive, ScoreEvent, Side } from "../../src/data/models";
-import { csLiveLine, makeMatchEvent, mapName, parseLive } from "../../src/data/providers/counterStrike";
+import { makeMatchEvent } from "../../src/data/providers/counterStrike";
+import { csLiveLine, mapName, parseLive } from "../../src/data/providers/csLive";
 import { fixture, replay } from "./fixtures";
 
 const MATCH = "g2-vs-dendele-cs-26-10-2026";

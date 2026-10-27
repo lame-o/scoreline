@@ -7,7 +7,7 @@
  */
 import { arr, at, int, str, type JSONValue } from "../json";
 import type { Fetcher } from "../http";
-import type { Competitor, CSLive, EventState, ScoreEvent } from "../models";
+import type { Competitor, EventState, ScoreEvent } from "../models";
 import { parseDate } from "./espn";
 
 /** bo3.gg's `tier` filter value. S-tier only, everywhere. */
@@ -146,69 +146,4 @@ export function makeMatchEvent(m: JSONValue): ScoreEvent | null {
     venue: null,
     snapshot: null,
   };
-}
-
-// MARK: - Live rounds (GameDetail.swift `CSDetail.liveState`, ScoreStore.updateCSLive)
-
-/** bo3.gg's live snapshot of a match: the map being played, round by round. A 404 when bo3.gg isn't covering it. */
-export function liveSnapshotURL(matchID: number): string {
-  return `https://api.bo3.gg/api/v1/live/matches/${matchID}/last_snapshot?discipline_id=1`;
-}
-
-const MAPS: Readonly<Record<string, string>> = {
-  de_dust2: "Dust II",
-  de_mirage: "Mirage",
-  de_inferno: "Inferno",
-  de_nuke: "Nuke",
-  de_ancient: "Ancient",
-  de_anubis: "Anubis",
-  de_vertigo: "Vertigo",
-  de_train: "Train",
-  de_overpass: "Overpass",
-  de_cache: "Cache",
-};
-
-/** "de_mirage" → "Mirage"; an unknown map loses its prefix and is capitalized (CSDetail.mapName). */
-export function mapName(raw: string | null | undefined): string {
-  if (!raw) return "TBD";
-  const known = MAPS[raw];
-  if (known) return known;
-  return raw.replace("de_", "").replace(/\b\p{L}/gu, (c) => c.toUpperCase());
-}
-
-/**
- * The live snapshot, oriented to the event's teams (CSDetail.parseLive).
- * `team_one` is whoever bo3.gg's feed lists first, not necessarily team1:
- * the fixture's team IDs decide. Null without both scores.
- */
-export function parseLive(json: JSONValue, topTeamID: number | null, bottomTeamID: number | null): CSLive | null {
-  const one = at(json, "team_one");
-  const two = at(json, "team_two");
-  const oneScore = int(at(one, "score"));
-  const twoScore = int(at(two, "score"));
-  if (oneScore == null || twoScore == null) return null;
-  const oneID = int(at(one, "fixture", "team_id"));
-  const twoID = int(at(two, "fixture", "team_id"));
-  const swapped = (oneID != null && oneID === bottomTeamID) || (twoID != null && twoID === topTeamID);
-  const [top, bottom] = swapped ? [two, one] : [one, two];
-  const side = (team: JSONValue): "CT" | "T" | null => {
-    const raw = str(at(team, "side"))?.toLowerCase();
-    return raw?.startsWith("c") ? "CT" : raw?.startsWith("t") ? "T" : null;
-  };
-  const rawMap = str(at(json, "map_name"));
-  return {
-    mapName: rawMap ? mapName(rawMap) : null,
-    mapNumber: int(at(json, "game_number")) ?? null,
-    round: int(at(json, "round_number")) ?? null,
-    topScore: swapped ? twoScore : oneScore,
-    bottomScore: swapped ? oneScore : twoScore,
-    topSide: side(top),
-    bottomSide: side(bottom),
-    mapEnded: at(json, "game_ended") === true,
-  };
-}
-
-/** "Mirage 5–8", a list row's live status (top team first). */
-export function csLiveLine(live: CSLive): string {
-  return [live.mapName, `${live.topScore}–${live.bottomScore}`].filter(Boolean).join(" ");
 }

@@ -5,8 +5,8 @@
  *
  * - The match with its games and streams, both rosters, each started map's
  *   rounds (finished maps are cached: they never change), and while live,
- *   bo3.gg's last snapshot of the map being played (`parseLive`, shared with
- *   the scores list in providers/counterStrike.ts).
+ *   bo3.gg's last snapshot of the map being played (`parseLive`, the scores
+ *   list's own parser in providers/csLive.ts).
  * - The rules the page draws: who's on map point (13, then 16, 19… in
  *   overtime), the series, rounds won and maps won as moments, the round
  *   grid's halves and overtimes, rounds the live score has but the round
@@ -21,7 +21,8 @@ import type { Fetcher } from "./http";
 import type { DetailOptions, MapResult, Stream, Tournament } from "./gameDetail";
 import { liveMoment, Tier, type LiveMoment } from "./moments";
 import type { CSLive, ScoreEvent, Side } from "./models";
-import { liveSnapshotURL, makeMatchEvent, mapName, parseLive, TIER } from "./providers/counterStrike";
+import { makeMatchEvent, TIER } from "./providers/counterStrike";
+import { liveSnapshotURL, mapName, parseLive } from "./providers/csLive";
 import { flagFromISO } from "./teams";
 
 const BO3 = "https://api.bo3.gg/api/v1";
