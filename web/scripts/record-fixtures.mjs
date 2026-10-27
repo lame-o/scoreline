@@ -252,7 +252,8 @@ async function mlb() {
         return all
           .filter((p, i) => i >= tail || p.type?.type === "play-result" || (p.hitCoordinate && !["end-batterpitcher", "foul-ball", "start-batterpitcher"].includes(p.type?.type)))
           .map(trimPlay)
-          .map(({ participants, wallclock, sequenceNumber, pitchCount, resultCount, ...rest }) => (rest.type?.type === "play-result" ? { participants, wallclock, ...rest } : rest));
+          // Pitches keep their runners (the theater reads who was on as the pitch was thrown) and count.
+          .map(({ wallclock, sequenceNumber, ...rest }) => (rest.type?.type === "play-result" ? { wallclock, ...rest } : rest));
       })(),
     },
     url,

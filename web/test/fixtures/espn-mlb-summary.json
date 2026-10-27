@@ -1,6 +1,6 @@
 {
  "_source": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=401908044",
- "_recorded": "2026-10-27T08:38:59.231Z",
+ "_recorded": "2026-10-27T08:43:28.739Z",
  "header": {
   "id": "401908044",
   "gameNote": "World Series - Game 3",
@@ -500,6 +500,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440001",
    "bats": {
     "abbreviation": "R"
@@ -518,30 +532,18 @@
    },
    "pitchVelocity": 97,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "L",
    "outs": 0
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4917869"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "4917869"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:11:53Z",
    "id": "4019080440001990057",
    "type": {
@@ -566,6 +568,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440001",
    "bats": {
     "abbreviation": "R"
@@ -579,30 +601,18 @@
     "y": 58
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "L",
    "outs": 0
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "35013"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "4917869"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:13:39Z",
    "id": "4019080440002990057",
    "type": {
@@ -627,6 +637,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440002",
    "bats": {
     "abbreviation": "L"
@@ -636,6 +666,14 @@
     "y": 156
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 3
+   },
    "outs": 1
   },
   {
@@ -658,6 +696,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440003",
    "bats": {
     "abbreviation": "L"
@@ -676,36 +734,18 @@
    },
    "pitchVelocity": 95,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "F",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "31283"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "31283"
-     }
-    },
-    {
-     "type": "onSecond",
-     "athlete": {
-      "id": "4917869"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:14:14Z",
    "id": "4019080440003990057",
    "type": {
@@ -730,6 +770,32 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440003",
    "bats": {
     "abbreviation": "L"
@@ -743,6 +809,14 @@
     "y": 142
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "F",
    "outs": 1
   },
@@ -766,28 +840,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080440004",
-   "bats": {
-    "abbreviation": "R"
-   },
-   "pitchCoordinate": {
-    "x": 154,
-    "y": 145
-   },
-   "hitCoordinate": {
-    "x": 115,
-    "y": 140
-   },
-   "pitchType": {
-    "abbreviation": "FF",
-    "text": "Four-seam FB"
-   },
-   "pitchVelocity": 97,
-   "summaryType": "P",
-   "trajectory": "P",
-   "outs": 2
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -814,6 +866,36 @@
      }
     }
    ],
+   "atBatId": "4019080440004",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 154,
+    "y": 145
+   },
+   "hitCoordinate": {
+    "x": 115,
+    "y": 140
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 97,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "trajectory": "P",
+   "outs": 2
+  },
+  {
    "wallclock": "2026-10-27T00:16:26Z",
    "id": "4019080440004990057",
    "type": {
@@ -838,6 +920,32 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440004",
    "bats": {
     "abbreviation": "R"
@@ -847,6 +955,14 @@
     "y": 145
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
    "trajectory": "P",
    "outs": 2
   },
@@ -870,28 +986,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080440005",
-   "bats": {
-    "abbreviation": "L"
-   },
-   "pitchCoordinate": {
-    "x": 166,
-    "y": 160
-   },
-   "hitCoordinate": {
-    "x": 117,
-    "y": 154
-   },
-   "pitchType": {
-    "abbreviation": "CH",
-    "text": "Changeup"
-   },
-   "pitchVelocity": 87,
-   "summaryType": "P",
-   "trajectory": "G",
-   "outs": 3
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -918,6 +1012,36 @@
      }
     }
    ],
+   "atBatId": "4019080440005",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 166,
+    "y": 160
+   },
+   "hitCoordinate": {
+    "x": 117,
+    "y": 154
+   },
+   "pitchType": {
+    "abbreviation": "CH",
+    "text": "Changeup"
+   },
+   "pitchVelocity": 87,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
    "wallclock": "2026-10-27T00:19:02Z",
    "id": "4019080440005990057",
    "type": {
@@ -942,6 +1066,32 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440005",
    "bats": {
     "abbreviation": "L"
@@ -951,6 +1101,14 @@
     "y": 160
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
    "trajectory": "G",
    "outs": 3
   },
@@ -974,6 +1132,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
    "atBatId": "4019080440101",
    "bats": {
     "abbreviation": "R"
@@ -992,30 +1164,18 @@
    },
    "pitchVelocity": 93,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
    "trajectory": "L",
    "outs": 0
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "33481"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "33481"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:23:20Z",
    "id": "4019080440101990057",
    "type": {
@@ -1040,6 +1200,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
    "atBatId": "4019080440101",
    "bats": {
     "abbreviation": "R"
@@ -1053,6 +1233,14 @@
     "y": 50
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
    "trajectory": "L",
    "outs": 0
   },
@@ -1076,28 +1264,6 @@
    "team": {
     "id": "8"
    },
-   "atBatId": "4019080440102",
-   "bats": {
-    "abbreviation": "R"
-   },
-   "pitchCoordinate": {
-    "x": 109,
-    "y": 176
-   },
-   "hitCoordinate": {
-    "x": 175,
-    "y": 97
-   },
-   "pitchType": {
-    "abbreviation": "ST",
-    "text": "Sweeper"
-   },
-   "pitchVelocity": 82,
-   "summaryType": "P",
-   "trajectory": "F",
-   "outs": 1
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -1118,6 +1284,36 @@
      }
     }
    ],
+   "atBatId": "4019080440102",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 109,
+    "y": 176
+   },
+   "hitCoordinate": {
+    "x": 175,
+    "y": 97
+   },
+   "pitchType": {
+    "abbreviation": "ST",
+    "text": "Sweeper"
+   },
+   "pitchVelocity": 82,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
    "wallclock": "2026-10-27T00:25:38Z",
    "id": "4019080440102990057",
    "type": {
@@ -1142,6 +1338,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40960"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
    "atBatId": "4019080440102",
    "bats": {
     "abbreviation": "R"
@@ -1151,6 +1367,14 @@
     "y": 176
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 1
   },
@@ -1174,6 +1398,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4679983"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
    "atBatId": "4019080440103",
    "bats": {
     "abbreviation": "L"
@@ -1192,30 +1436,18 @@
    },
    "pitchVelocity": 94,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "G",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4679983"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "4679983"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:27:43Z",
    "id": "4019080440103990057",
    "type": {
@@ -1240,6 +1472,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4679983"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4679983"
+     }
+    }
+   ],
    "atBatId": "4019080440103",
    "bats": {
     "abbreviation": "L"
@@ -1249,18 +1501,18 @@
     "y": 165
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "G",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:30:02Z",
    "id": "4019080440104040298",
    "type": {
@@ -1285,31 +1537,27 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080440104",
-   "summaryType": "N",
-   "outs": 3
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
      "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4313442"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "4313442"
+      "id": "4918251"
      }
     }
    ],
+   "atBatId": "4019080440104",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 3
+  },
+  {
    "wallclock": "2026-10-27T00:35:17Z",
    "id": "4019080440201990057",
    "type": {
@@ -1334,18 +1582,6 @@
    "team": {
     "id": "8"
    },
-   "atBatId": "4019080440201",
-   "bats": {
-    "abbreviation": "L"
-   },
-   "pitchCoordinate": {
-    "x": 143,
-    "y": 125
-   },
-   "summaryType": "N",
-   "outs": 0
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -1356,7 +1592,7 @@
     {
      "type": "batter",
      "athlete": {
-      "id": "5149101"
+      "id": "4313442"
      }
     },
     {
@@ -1366,6 +1602,26 @@
      }
     }
    ],
+   "atBatId": "4019080440201",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 143,
+    "y": 125
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 4,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 4,
+    "strikes": 2
+   },
+   "outs": 0
+  },
+  {
    "wallclock": "2026-10-27T00:36:29Z",
    "id": "4019080440202990057",
    "type": {
@@ -1390,6 +1646,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4313442"
+     }
+    }
+   ],
    "atBatId": "4019080440202",
    "bats": {
     "abbreviation": "R"
@@ -1399,6 +1675,14 @@
     "y": 204
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 3
+   },
    "outs": 1
   },
   {
@@ -1421,28 +1705,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080440203",
-   "bats": {
-    "abbreviation": "L"
-   },
-   "pitchCoordinate": {
-    "x": 132,
-    "y": 162
-   },
-   "hitCoordinate": {
-    "x": 38,
-    "y": 105
-   },
-   "pitchType": {
-    "abbreviation": "FF",
-    "text": "Four-seam FB"
-   },
-   "pitchVelocity": 96,
-   "summaryType": "P",
-   "trajectory": "L",
-   "outs": 2
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -1463,6 +1725,36 @@
      }
     }
    ],
+   "atBatId": "4019080440203",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 132,
+    "y": 162
+   },
+   "hitCoordinate": {
+    "x": 38,
+    "y": 105
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 96,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 2
+  },
+  {
    "wallclock": "2026-10-27T00:38:26Z",
    "id": "4019080440203990057",
    "type": {
@@ -1487,6 +1779,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4313442"
+     }
+    }
+   ],
    "atBatId": "4019080440203",
    "bats": {
     "abbreviation": "L"
@@ -1496,18 +1808,18 @@
     "y": 162
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
    "trajectory": "L",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:40:28Z",
    "id": "4019080440204050298",
    "type": {
@@ -1532,8 +1844,24 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    }
+   ],
    "atBatId": "4019080440204",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 3
   },
   {
@@ -1556,6 +1884,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4905921"
+     }
+    }
+   ],
    "atBatId": "4019080440301",
    "bats": {
     "abbreviation": "R"
@@ -1574,24 +1916,18 @@
    },
    "pitchVelocity": 89,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "P",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4905921"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:43:52Z",
    "id": "4019080440301990057",
    "type": {
@@ -1616,6 +1952,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4905921"
+     }
+    }
+   ],
    "atBatId": "4019080440301",
    "bats": {
     "abbreviation": "R"
@@ -1625,6 +1975,14 @@
     "y": 188
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "P",
    "outs": 1
   },
@@ -1648,6 +2006,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4626239"
+     }
+    }
+   ],
    "atBatId": "4019080440302",
    "bats": {
     "abbreviation": "R"
@@ -1666,24 +2038,18 @@
    },
    "pitchVelocity": 94,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4626239"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:44:59Z",
    "id": "4019080440302990057",
    "type": {
@@ -1708,6 +2074,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4626239"
+     }
+    }
+   ],
    "atBatId": "4019080440302",
    "bats": {
     "abbreviation": "R"
@@ -1717,6 +2097,14 @@
     "y": 186
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 2
   },
@@ -1740,6 +2128,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5005912"
+     }
+    }
+   ],
    "atBatId": "4019080440303",
    "bats": {
     "abbreviation": "R"
@@ -1758,24 +2160,18 @@
    },
    "pitchVelocity": 94,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "L",
    "outs": 3
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "5005912"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:45:30Z",
    "id": "4019080440303990057",
    "type": {
@@ -1800,6 +2196,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5005912"
+     }
+    }
+   ],
    "atBatId": "4019080440303",
    "bats": {
     "abbreviation": "R"
@@ -1809,6 +2219,14 @@
     "y": 183
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "L",
    "outs": 3
   },
@@ -1832,6 +2250,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42987"
+     }
+    }
+   ],
    "atBatId": "4019080440401",
    "bats": {
     "abbreviation": "L"
@@ -1850,24 +2282,18 @@
    },
    "pitchVelocity": 95,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "P",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "42987"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:49:13Z",
    "id": "4019080440401990057",
    "type": {
@@ -1892,6 +2318,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42987"
+     }
+    }
+   ],
    "atBatId": "4019080440401",
    "bats": {
     "abbreviation": "L"
@@ -1901,6 +2341,14 @@
     "y": 156
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "P",
    "outs": 1
   },
@@ -1924,6 +2372,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440402",
    "bats": {
     "abbreviation": "R"
@@ -1942,30 +2404,18 @@
    },
    "pitchVelocity": 83,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "G",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4917869"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "4917869"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:49:48Z",
    "id": "4019080440402990057",
    "type": {
@@ -1990,6 +2440,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440402",
    "bats": {
     "abbreviation": "R"
@@ -2003,36 +2473,18 @@
     "y": 140
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "G",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "35013"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "35013"
-     }
-    },
-    {
-     "type": "onSecond",
-     "athlete": {
-      "id": "4917869"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:51:44Z",
    "id": "4019080440403990057",
    "type": {
@@ -2057,6 +2509,32 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440403",
    "bats": {
     "abbreviation": "L"
@@ -2066,6 +2544,14 @@
     "y": 181
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 4,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 4,
+    "strikes": 1
+   },
    "outs": 1
   },
   {
@@ -2088,6 +2574,32 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440404",
    "bats": {
     "abbreviation": "L"
@@ -2106,36 +2618,18 @@
    },
    "pitchVelocity": 95,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "F",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "31283"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "31283"
-     }
-    },
-    {
-     "type": "onSecond",
-     "athlete": {
-      "id": "35013"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:53:50Z",
    "id": "4019080440404990057",
    "type": {
@@ -2160,6 +2654,32 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35013"
+     }
+    }
+   ],
    "atBatId": "4019080440404",
    "bats": {
     "abbreviation": "L"
@@ -2173,6 +2693,14 @@
     "y": 129
    },
    "summaryType": "S",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "F",
    "outs": 1
   },
@@ -2196,6 +2724,32 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35013"
+     }
+    }
+   ],
    "atBatId": "4019080440405",
    "bats": {
     "abbreviation": "R"
@@ -2214,30 +2768,18 @@
    },
    "pitchVelocity": 96,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "L",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "39895"
-     }
-    },
-    {
-     "type": "onThird",
-     "athlete": {
-      "id": "31283"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:54:56Z",
    "id": "4019080440405990057",
    "type": {
@@ -2262,6 +2804,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "31283"
+     }
+    }
+   ],
    "atBatId": "4019080440405",
    "bats": {
     "abbreviation": "R"
@@ -2275,6 +2837,14 @@
     "y": 121
    },
    "summaryType": "S",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "L",
    "outs": 2
   },
@@ -2298,28 +2868,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080440406",
-   "bats": {
-    "abbreviation": "L"
-   },
-   "pitchCoordinate": {
-    "x": 133,
-    "y": 176
-   },
-   "hitCoordinate": {
-    "x": 142,
-    "y": 147
-   },
-   "pitchType": {
-    "abbreviation": "CU",
-    "text": "Curve"
-   },
-   "pitchVelocity": 82,
-   "summaryType": "P",
-   "trajectory": "G",
-   "outs": 3
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -2340,6 +2888,36 @@
      }
     }
    ],
+   "atBatId": "4019080440406",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 133,
+    "y": 176
+   },
+   "hitCoordinate": {
+    "x": 142,
+    "y": 147
+   },
+   "pitchType": {
+    "abbreviation": "CU",
+    "text": "Curve"
+   },
+   "pitchVelocity": 82,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
    "wallclock": "2026-10-27T00:55:49Z",
    "id": "4019080440406990057",
    "type": {
@@ -2364,6 +2942,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "31283"
+     }
+    }
+   ],
    "atBatId": "4019080440406",
    "bats": {
     "abbreviation": "L"
@@ -2373,6 +2971,14 @@
     "y": 176
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 0
+   },
    "trajectory": "G",
    "outs": 3
   },
@@ -2396,6 +3002,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917849"
+     }
+    }
+   ],
    "atBatId": "4019080440501",
    "bats": {
     "abbreviation": "L"
@@ -2414,24 +3034,18 @@
    },
    "pitchVelocity": 94,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
    "trajectory": "L",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4917849"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T00:59:28Z",
    "id": "4019080440501990057",
    "type": {
@@ -2456,6 +3070,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917849"
+     }
+    }
+   ],
    "atBatId": "4019080440501",
    "bats": {
     "abbreviation": "L"
@@ -2465,6 +3093,14 @@
     "y": 174
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
    "trajectory": "L",
    "outs": 1
   },
@@ -2488,6 +3124,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41674"
+     }
+    }
+   ],
    "atBatId": "4019080440502",
    "bats": {
     "abbreviation": "R"
@@ -2506,24 +3156,18 @@
    },
    "pitchVelocity": 93,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "G",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "41674"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:01:11Z",
    "id": "4019080440502990057",
    "type": {
@@ -2548,19 +3192,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080440502",
-   "bats": {
-    "abbreviation": "R"
-   },
-   "pitchCoordinate": {
-    "x": 81,
-    "y": 170
-   },
-   "summaryType": "N",
-   "trajectory": "G",
-   "outs": 2
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -2571,10 +3202,31 @@
     {
      "type": "batter",
      "athlete": {
-      "id": "40576"
+      "id": "41674"
      }
     }
    ],
+   "atBatId": "4019080440502",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 81,
+    "y": 170
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
    "wallclock": "2026-10-27T01:03:12Z",
    "id": "4019080440503990057",
    "type": {
@@ -2599,6 +3251,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40576"
+     }
+    }
+   ],
    "atBatId": "4019080440503",
    "bats": {
     "abbreviation": "R"
@@ -2608,23 +3274,17 @@
     "y": 189
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 3
+   },
    "outs": 3
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4313442"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:06:53Z",
    "id": "4019080440601990057",
    "type": {
@@ -2649,18 +3309,6 @@
    "team": {
     "id": "8"
    },
-   "atBatId": "4019080440601",
-   "bats": {
-    "abbreviation": "L"
-   },
-   "pitchCoordinate": {
-    "x": 149,
-    "y": 147
-   },
-   "summaryType": "N",
-   "outs": 1
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -2671,10 +3319,30 @@
     {
      "type": "batter",
      "athlete": {
-      "id": "5149101"
+      "id": "4313442"
      }
     }
    ],
+   "atBatId": "4019080440601",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 149,
+    "y": 147
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 3
+   },
+   "outs": 1
+  },
+  {
    "wallclock": "2026-10-27T01:08:30Z",
    "id": "4019080440602990057",
    "type": {
@@ -2699,6 +3367,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    }
+   ],
    "atBatId": "4019080440602",
    "bats": {
     "abbreviation": "R"
@@ -2708,6 +3390,14 @@
     "y": 191
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 3
+   },
    "outs": 2
   },
   {
@@ -2730,6 +3420,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    }
+   ],
    "atBatId": "4019080440603",
    "bats": {
     "abbreviation": "L"
@@ -2748,24 +3452,18 @@
    },
    "pitchVelocity": 82,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "L",
    "outs": 3
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4417795"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:09:28Z",
    "id": "4019080440603990057",
    "type": {
@@ -2790,6 +3488,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    }
+   ],
    "atBatId": "4019080440603",
    "bats": {
     "abbreviation": "L"
@@ -2799,6 +3511,14 @@
     "y": 157
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "L",
    "outs": 3
   },
@@ -2822,6 +3542,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
    "atBatId": "4019080440701",
    "bats": {
     "abbreviation": "R"
@@ -2840,24 +3574,18 @@
    },
    "pitchVelocity": 92,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "P",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "33481"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:12:46Z",
    "id": "4019080440701990057",
    "type": {
@@ -2882,19 +3610,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080440701",
-   "bats": {
-    "abbreviation": "R"
-   },
-   "pitchCoordinate": {
-    "x": 141,
-    "y": 151
-   },
-   "summaryType": "N",
-   "trajectory": "P",
-   "outs": 1
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -2905,10 +3620,31 @@
     {
      "type": "batter",
      "athlete": {
-      "id": "40960"
+      "id": "33481"
      }
     }
    ],
+   "atBatId": "4019080440701",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 141,
+    "y": 151
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "P",
+   "outs": 1
+  },
+  {
    "wallclock": "2026-10-27T01:14:51Z",
    "id": "4019080440702990057",
    "type": {
@@ -2933,6 +3669,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40960"
+     }
+    }
+   ],
    "atBatId": "4019080440702",
    "bats": {
     "abbreviation": "R"
@@ -2942,6 +3692,14 @@
     "y": 193
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 3
+   },
    "outs": 2
   },
   {
@@ -2964,6 +3722,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4679983"
+     }
+    }
+   ],
    "atBatId": "4019080440703",
    "bats": {
     "abbreviation": "L"
@@ -2982,24 +3754,18 @@
    },
    "pitchVelocity": 93,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 3
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4679983"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:16:06Z",
    "id": "4019080440703990057",
    "type": {
@@ -3024,6 +3790,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4679983"
+     }
+    }
+   ],
    "atBatId": "4019080440703",
    "bats": {
     "abbreviation": "L"
@@ -3033,6 +3813,14 @@
     "y": 168
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 3
   },
@@ -3056,6 +3844,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42987"
+     }
+    }
+   ],
    "atBatId": "4019080440801",
    "bats": {
     "abbreviation": "L"
@@ -3074,24 +3876,18 @@
    },
    "pitchVelocity": 87,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "L",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "42987"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:20:23Z",
    "id": "4019080440801990057",
    "type": {
@@ -3116,6 +3912,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42987"
+     }
+    }
+   ],
    "atBatId": "4019080440801",
    "bats": {
     "abbreviation": "L"
@@ -3125,6 +3935,14 @@
     "y": 159
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "L",
    "outs": 1
   },
@@ -3148,6 +3966,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440802",
    "bats": {
     "abbreviation": "R"
@@ -3166,30 +3998,18 @@
    },
    "pitchVelocity": 88,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "L",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4917869"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "4917869"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:21:28Z",
    "id": "4019080440802990057",
    "type": {
@@ -3214,6 +4034,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440802",
    "bats": {
     "abbreviation": "R"
@@ -3227,6 +4067,14 @@
     "y": 68
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "L",
    "outs": 1
   },
@@ -3250,28 +4098,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080440803",
-   "bats": {
-    "abbreviation": "L"
-   },
-   "pitchCoordinate": {
-    "x": 144,
-    "y": 166
-   },
-   "hitCoordinate": {
-    "x": 51,
-    "y": 86
-   },
-   "pitchType": {
-    "abbreviation": "FF",
-    "text": "Four-seam FB"
-   },
-   "pitchVelocity": 96,
-   "summaryType": "P",
-   "trajectory": "F",
-   "outs": 2
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -3292,6 +4118,36 @@
      }
     }
    ],
+   "atBatId": "4019080440803",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 144,
+    "y": 166
+   },
+   "hitCoordinate": {
+    "x": 51,
+    "y": 86
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 96,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
    "wallclock": "2026-10-27T01:23:46Z",
    "id": "4019080440803990057",
    "type": {
@@ -3316,6 +4172,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440803",
    "bats": {
     "abbreviation": "L"
@@ -3325,24 +4201,18 @@
     "y": 166
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
    "trajectory": "F",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "39825"
-     }
-    },
-    {
-     "type": "onSecond",
-     "athlete": {
-      "id": "4917869"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:25:41Z",
    "id": "4019080440804050298",
    "type": {
@@ -3367,28 +4237,11 @@
    "team": {
     "id": "8"
    },
-   "atBatId": "4019080440804",
-   "summaryType": "N",
-   "outs": 2
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
      "athlete": {
       "id": "39825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "31283"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "31283"
      }
     },
     {
@@ -3398,6 +4251,19 @@
      }
     }
    ],
+   "atBatId": "4019080440804",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 2
+  },
+  {
    "wallclock": "2026-10-27T01:26:29Z",
    "id": "4019080440804990057",
    "type": {
@@ -3422,6 +4288,32 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440804",
    "bats": {
     "abbreviation": "L"
@@ -3431,6 +4323,14 @@
     "y": 138
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 4,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 4,
+    "strikes": 2
+   },
    "outs": 2
   },
   {
@@ -3453,6 +4353,32 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440805",
    "bats": {
     "abbreviation": "R"
@@ -3471,10 +4397,42 @@
    },
    "pitchVelocity": 95,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 2
   },
   {
+   "wallclock": "2026-10-27T01:28:36Z",
+   "id": "4019080440805990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Contreras reached on infield single to third, Yelich to second, Chourio to third. Milwaukee Brewers challenged: call on the field was overturned.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
    "participants": [
     {
      "type": "pitcher",
@@ -3507,30 +4465,6 @@
      }
     }
    ],
-   "wallclock": "2026-10-27T01:28:36Z",
-   "id": "4019080440805990057",
-   "type": {
-    "id": "57",
-    "text": "Play Result",
-    "type": "play-result"
-   },
-   "alternativeType": {
-    "type": "single",
-    "text": "Single"
-   },
-   "text": "Contreras reached on infield single to third, Yelich to second, Chourio to third. Milwaukee Brewers challenged: call on the field was overturned.",
-   "awayScore": 2,
-   "homeScore": 0,
-   "period": {
-    "type": "Top",
-    "number": 5,
-    "displayValue": "5th Inning"
-   },
-   "scoringPlay": false,
-   "scoreValue": 0,
-   "team": {
-    "id": "8"
-   },
    "atBatId": "4019080440805",
    "bats": {
     "abbreviation": "R"
@@ -3544,18 +4478,18 @@
     "y": 158
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "2560565"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:32:51Z",
    "id": "4019080440806001157",
    "type": {
@@ -3580,8 +4514,24 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    }
+   ],
    "atBatId": "4019080440806",
    "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -3604,6 +4554,38 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440806",
    "bats": {
     "abbreviation": "L"
@@ -3622,36 +4604,18 @@
    },
    "pitchVelocity": 96,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "G",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "2560565"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "41179"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "41179"
-     }
-    },
-    {
-     "type": "onSecond",
-     "athlete": {
-      "id": "39895"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:34:46Z",
    "id": "4019080440806990057",
    "type": {
@@ -3676,6 +4640,32 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
    "atBatId": "4019080440806",
    "bats": {
     "abbreviation": "L"
@@ -3689,6 +4679,14 @@
     "y": 117
    },
    "summaryType": "S",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "G",
    "outs": 2
   },
@@ -3712,6 +4710,32 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4313442"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
    "atBatId": "4019080440807",
    "bats": {
     "abbreviation": "L"
@@ -3730,36 +4754,18 @@
    },
    "pitchVelocity": 96,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "G",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "2560565"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4313442"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "4313442"
-     }
-    },
-    {
-     "type": "onSecond",
-     "athlete": {
-      "id": "41179"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:35:21Z",
    "id": "4019080440807990057",
    "type": {
@@ -3784,6 +4790,32 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4313442"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4313442"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
    "atBatId": "4019080440807",
    "bats": {
     "abbreviation": "L"
@@ -3797,6 +4829,14 @@
     "y": 118
    },
    "summaryType": "S",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "G",
    "outs": 2
   },
@@ -3820,6 +4860,32 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4313442"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
    "atBatId": "4019080440808",
    "bats": {
     "abbreviation": "R"
@@ -3838,30 +4904,18 @@
    },
    "pitchVelocity": 87,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "G",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "2560565"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "5149101"
-     }
-    },
-    {
-     "type": "onSecond",
-     "athlete": {
-      "id": "5149101"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:36:23Z",
    "id": "4019080440808990057",
    "type": {
@@ -3886,6 +4940,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "5149101"
+     }
+    }
+   ],
    "atBatId": "4019080440808",
    "bats": {
     "abbreviation": "R"
@@ -3899,6 +4973,14 @@
     "y": 127
    },
    "summaryType": "S",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "G",
    "outs": 2
   },
@@ -3922,6 +5004,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "5149101"
+     }
+    }
+   ],
    "atBatId": "4019080440809",
    "bats": {
     "abbreviation": "L"
@@ -3940,30 +5042,18 @@
    },
    "pitchVelocity": 94,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
    "trajectory": "L",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "2560565"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4417795"
-     }
-    },
-    {
-     "type": "onSecond",
-     "athlete": {
-      "id": "4417795"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:38:19Z",
    "id": "4019080440809990057",
    "type": {
@@ -3988,6 +5078,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4417795"
+     }
+    }
+   ],
    "atBatId": "4019080440809",
    "bats": {
     "abbreviation": "L"
@@ -4001,18 +5111,18 @@
     "y": 115
    },
    "summaryType": "S",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
    "trajectory": "L",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "37825"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:41:17Z",
    "id": "4019080440810001157",
    "type": {
@@ -4037,8 +5147,24 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    }
+   ],
    "atBatId": "4019080440810",
    "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -4061,6 +5187,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42987"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4417795"
+     }
+    }
+   ],
    "atBatId": "4019080440810",
    "bats": {
     "abbreviation": "L"
@@ -4079,30 +5225,18 @@
    },
    "pitchVelocity": 92,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "L",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "37825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "42987"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "42987"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:42:31Z",
    "id": "4019080440810990057",
    "type": {
@@ -4127,6 +5261,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42987"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "42987"
+     }
+    }
+   ],
    "atBatId": "4019080440810",
    "bats": {
     "abbreviation": "L"
@@ -4140,6 +5294,14 @@
     "y": 79
    },
    "summaryType": "S",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "L",
    "outs": 2
   },
@@ -4163,6 +5325,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "42987"
+     }
+    }
+   ],
    "atBatId": "4019080440811",
    "bats": {
     "abbreviation": "R"
@@ -4181,30 +5363,18 @@
    },
    "pitchVelocity": 84,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "37825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4917869"
-     }
-    },
-    {
-     "type": "onSecond",
-     "athlete": {
-      "id": "4917869"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:44:33Z",
    "id": "4019080440811990057",
    "type": {
@@ -4229,6 +5399,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440811",
    "bats": {
     "abbreviation": "R"
@@ -4242,6 +5432,14 @@
     "y": 66
    },
    "summaryType": "S",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 2
   },
@@ -4265,28 +5463,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080440812",
-   "bats": {
-    "abbreviation": "L"
-   },
-   "pitchCoordinate": {
-    "x": 134,
-    "y": 161
-   },
-   "hitCoordinate": {
-    "x": 87,
-    "y": 83
-   },
-   "pitchType": {
-    "abbreviation": "FF",
-    "text": "Four-seam FB"
-   },
-   "pitchVelocity": 92,
-   "summaryType": "P",
-   "trajectory": "F",
-   "outs": 3
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -4307,6 +5483,36 @@
      }
     }
    ],
+   "atBatId": "4019080440812",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 134,
+    "y": 161
+   },
+   "hitCoordinate": {
+    "x": 87,
+    "y": 83
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 92,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "trajectory": "F",
+   "outs": 3
+  },
+  {
    "wallclock": "2026-10-27T01:45:28Z",
    "id": "4019080440812990057",
    "type": {
@@ -4331,6 +5537,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080440812",
    "bats": {
     "abbreviation": "L"
@@ -4340,6 +5566,14 @@
     "y": 161
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
    "trajectory": "F",
    "outs": 3
   },
@@ -4363,6 +5597,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4905921"
+     }
+    }
+   ],
    "atBatId": "4019080440901",
    "bats": {
     "abbreviation": "R"
@@ -4381,24 +5629,18 @@
    },
    "pitchVelocity": 89,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "G",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4905921"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:50:03Z",
    "id": "4019080440901990057",
    "type": {
@@ -4423,19 +5665,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080440901",
-   "bats": {
-    "abbreviation": "R"
-   },
-   "pitchCoordinate": {
-    "x": 104,
-    "y": 203
-   },
-   "summaryType": "N",
-   "trajectory": "G",
-   "outs": 1
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -4446,10 +5675,31 @@
     {
      "type": "batter",
      "athlete": {
-      "id": "4626239"
+      "id": "4905921"
      }
     }
    ],
+   "atBatId": "4019080440901",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 104,
+    "y": 203
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 1
+  },
+  {
    "wallclock": "2026-10-27T01:53:10Z",
    "id": "4019080440902990057",
    "type": {
@@ -4474,6 +5724,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4626239"
+     }
+    }
+   ],
    "atBatId": "4019080440902",
    "bats": {
     "abbreviation": "R"
@@ -4483,6 +5747,14 @@
     "y": 149
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 3
+   },
    "outs": 2
   },
   {
@@ -4505,6 +5777,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5005912"
+     }
+    }
+   ],
    "atBatId": "4019080440903",
    "bats": {
     "abbreviation": "R"
@@ -4523,24 +5809,18 @@
    },
    "pitchVelocity": 81,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 3
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "5005912"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:54:58Z",
    "id": "4019080440903990057",
    "type": {
@@ -4565,6 +5845,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5005912"
+     }
+    }
+   ],
    "atBatId": "4019080440903",
    "bats": {
     "abbreviation": "R"
@@ -4574,6 +5868,14 @@
     "y": 181
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 3
   },
@@ -4597,6 +5899,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    }
+   ],
    "atBatId": "4019080441001",
    "bats": {
     "abbreviation": "L"
@@ -4615,24 +5931,18 @@
    },
    "pitchVelocity": 91,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 0
+   },
    "trajectory": "F",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "37825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "31283"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T01:59:25Z",
    "id": "4019080441001990057",
    "type": {
@@ -4657,6 +5967,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    }
+   ],
    "atBatId": "4019080441001",
    "bats": {
     "abbreviation": "L"
@@ -4666,6 +5990,14 @@
     "y": 167
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 0
+   },
    "trajectory": "F",
    "outs": 1
   },
@@ -4689,6 +6021,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
    "atBatId": "4019080441002",
    "bats": {
     "abbreviation": "R"
@@ -4707,30 +6053,18 @@
    },
    "pitchVelocity": 88,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "37825"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "39895"
-     }
-    },
-    {
-     "type": "onSecond",
-     "athlete": {
-      "id": "39895"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:01:08Z",
    "id": "4019080441002990057",
    "type": {
@@ -4755,6 +6089,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
    "atBatId": "4019080441002",
    "bats": {
     "abbreviation": "R"
@@ -4768,6 +6122,14 @@
     "y": 179
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 1
   },
@@ -4791,6 +6153,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
    "atBatId": "4019080441003",
    "bats": {
     "abbreviation": "L"
@@ -4809,10 +6191,42 @@
    },
    "pitchVelocity": 84,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 1
   },
   {
+   "wallclock": "2026-10-27T02:02:02Z",
+   "id": "4019080441003990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Turang reached on infield single to pitcher, Contreras to third.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
    "participants": [
     {
      "type": "pitcher",
@@ -4839,30 +6253,6 @@
      }
     }
    ],
-   "wallclock": "2026-10-27T02:02:02Z",
-   "id": "4019080441003990057",
-   "type": {
-    "id": "57",
-    "text": "Play Result",
-    "type": "play-result"
-   },
-   "alternativeType": {
-    "type": "single",
-    "text": "Single"
-   },
-   "text": "Turang reached on infield single to pitcher, Contreras to third.",
-   "awayScore": 10,
-   "homeScore": 0,
-   "period": {
-    "type": "Top",
-    "number": 6,
-    "displayValue": "6th Inning"
-   },
-   "scoringPlay": false,
-   "scoreValue": 0,
-   "team": {
-    "id": "8"
-   },
    "atBatId": "4019080441003",
    "bats": {
     "abbreviation": "L"
@@ -4876,10 +6266,42 @@
     "y": 189
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 1
   },
   {
+   "wallclock": "2026-10-27T02:05:21Z",
+   "id": "4019080441004990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-looking---overturned",
+    "text": "Strike Looking - Overturned"
+   },
+   "text": "Mitchell struck out looking. Tampa Bay Rays challenged: call on the field was overturned.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
    "participants": [
     {
      "type": "pitcher",
@@ -4906,30 +6328,6 @@
      }
     }
    ],
-   "wallclock": "2026-10-27T02:05:21Z",
-   "id": "4019080441004990057",
-   "type": {
-    "id": "57",
-    "text": "Play Result",
-    "type": "play-result"
-   },
-   "alternativeType": {
-    "type": "strike-looking---overturned",
-    "text": "Strike Looking - Overturned"
-   },
-   "text": "Mitchell struck out looking. Tampa Bay Rays challenged: call on the field was overturned.",
-   "awayScore": 10,
-   "homeScore": 0,
-   "period": {
-    "type": "Top",
-    "number": 6,
-    "displayValue": "6th Inning"
-   },
-   "scoringPlay": false,
-   "scoreValue": 0,
-   "team": {
-    "id": "8"
-   },
    "atBatId": "4019080441004",
    "bats": {
     "abbreviation": "L"
@@ -4939,6 +6337,14 @@
     "y": 169
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 3
+   },
    "outs": 2
   },
   {
@@ -4961,28 +6367,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080441005",
-   "bats": {
-    "abbreviation": "R"
-   },
-   "pitchCoordinate": {
-    "x": 110,
-    "y": 197
-   },
-   "hitCoordinate": {
-    "x": 140,
-    "y": 153
-   },
-   "pitchType": {
-    "abbreviation": "CH",
-    "text": "Changeup"
-   },
-   "pitchVelocity": 85,
-   "summaryType": "P",
-   "trajectory": "G",
-   "outs": 3
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -5009,6 +6393,36 @@
      }
     }
    ],
+   "atBatId": "4019080441005",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 110,
+    "y": 197
+   },
+   "hitCoordinate": {
+    "x": 140,
+    "y": 153
+   },
+   "pitchType": {
+    "abbreviation": "CH",
+    "text": "Changeup"
+   },
+   "pitchVelocity": 85,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
    "wallclock": "2026-10-27T02:06:45Z",
    "id": "4019080441005990057",
    "type": {
@@ -5033,6 +6447,32 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
    "atBatId": "4019080441005",
    "bats": {
     "abbreviation": "R"
@@ -5042,30 +6482,18 @@
     "y": 197
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 3
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4917849"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "4917849"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:12:07Z",
    "id": "4019080441101990057",
    "type": {
@@ -5090,6 +6518,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917849"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917849"
+     }
+    }
+   ],
    "atBatId": "4019080441101",
    "bats": {
     "abbreviation": "L"
@@ -5099,6 +6547,14 @@
     "y": 212
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 4,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 4,
+    "strikes": 2
+   },
    "outs": 0
   },
   {
@@ -5121,6 +6577,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41674"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917849"
+     }
+    }
+   ],
    "atBatId": "4019080441102",
    "bats": {
     "abbreviation": "R"
@@ -5139,24 +6615,18 @@
    },
    "pitchVelocity": 93,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 2
+   },
    "trajectory": "G",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "41674"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:13:54Z",
    "id": "4019080441102990057",
    "type": {
@@ -5181,6 +6651,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41674"
+     }
+    }
+   ],
    "atBatId": "4019080441102",
    "bats": {
     "abbreviation": "R"
@@ -5190,6 +6674,14 @@
     "y": 183
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 2
+   },
    "trajectory": "G",
    "outs": 2
   },
@@ -5213,6 +6705,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40576"
+     }
+    }
+   ],
    "atBatId": "4019080441103",
    "bats": {
     "abbreviation": "R"
@@ -5231,24 +6737,18 @@
    },
    "pitchVelocity": 90,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
    "trajectory": "G",
    "outs": 3
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4918251"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "40576"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:14:52Z",
    "id": "4019080441103990057",
    "type": {
@@ -5273,6 +6773,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40576"
+     }
+    }
+   ],
    "atBatId": "4019080441103",
    "bats": {
     "abbreviation": "R"
@@ -5282,18 +6796,18 @@
     "y": 173
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
    "trajectory": "G",
    "outs": 3
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "36429"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:15:27Z",
    "id": "4019080441201001157",
    "type": {
@@ -5318,8 +6832,24 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "36429"
+     }
+    }
+   ],
    "atBatId": "4019080441201",
    "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -5342,6 +6872,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "36429"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    }
+   ],
    "atBatId": "4019080441201",
    "bats": {
     "abbreviation": "L"
@@ -5360,24 +6904,18 @@
    },
    "pitchVelocity": 78,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "P",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "36429"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4417795"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:19:02Z",
    "id": "4019080441201990057",
    "type": {
@@ -5402,6 +6940,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "36429"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    }
+   ],
    "atBatId": "4019080441201",
    "bats": {
     "abbreviation": "L"
@@ -5411,6 +6963,14 @@
     "y": 176
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "P",
    "outs": 1
   },
@@ -5441,6 +7001,14 @@
    },
    "atBatId": "4019080441202",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -5463,6 +7031,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "36429"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42958"
+     }
+    }
+   ],
    "atBatId": "4019080441202",
    "bats": {
     "abbreviation": "R"
@@ -5481,24 +7063,18 @@
    },
    "pitchVelocity": 85,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "36429"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "42958"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:20:15Z",
    "id": "4019080441202990057",
    "type": {
@@ -5523,19 +7099,6 @@
    "team": {
     "id": "8"
    },
-   "atBatId": "4019080441202",
-   "bats": {
-    "abbreviation": "R"
-   },
-   "pitchCoordinate": {
-    "x": 96,
-    "y": 175
-   },
-   "summaryType": "N",
-   "trajectory": "G",
-   "outs": 2
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -5546,10 +7109,31 @@
     {
      "type": "batter",
      "athlete": {
-      "id": "4917869"
+      "id": "42958"
      }
     }
    ],
+   "atBatId": "4019080441202",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 96,
+    "y": 175
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
    "wallclock": "2026-10-27T02:22:19Z",
    "id": "4019080441203990057",
    "type": {
@@ -5574,6 +7158,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "36429"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
    "atBatId": "4019080441203",
    "bats": {
     "abbreviation": "R"
@@ -5583,6 +7181,14 @@
     "y": 209
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 3
+   },
    "outs": 3
   },
   {
@@ -5612,17 +7218,17 @@
    },
    "atBatId": "4019080441301",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "33750"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:24:11Z",
    "id": "4019080441301001157",
    "type": {
@@ -5647,8 +7253,24 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    }
+   ],
    "atBatId": "4019080441301",
    "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -5671,6 +7293,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
    "atBatId": "4019080441301",
    "bats": {
     "abbreviation": "R"
@@ -5689,24 +7325,18 @@
    },
    "pitchVelocity": 91,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "33750"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "33481"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:26:39Z",
    "id": "4019080441301990057",
    "type": {
@@ -5731,6 +7361,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
    "atBatId": "4019080441301",
    "bats": {
     "abbreviation": "R"
@@ -5740,6 +7384,14 @@
     "y": 173
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 1
   },
@@ -5770,6 +7422,14 @@
    },
    "atBatId": "4019080441302",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -5792,6 +7452,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40810"
+     }
+    }
+   ],
    "atBatId": "4019080441302",
    "bats": {
     "abbreviation": "L"
@@ -5810,24 +7484,18 @@
    },
    "pitchVelocity": 93,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "P",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "33750"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "40810"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:29:09Z",
    "id": "4019080441302990057",
    "type": {
@@ -5852,6 +7520,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40810"
+     }
+    }
+   ],
    "atBatId": "4019080441302",
    "bats": {
     "abbreviation": "L"
@@ -5861,6 +7543,14 @@
     "y": 163
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "P",
    "outs": 2
   },
@@ -5884,6 +7574,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4679983"
+     }
+    }
+   ],
    "atBatId": "4019080441303",
    "bats": {
     "abbreviation": "L"
@@ -5902,24 +7606,18 @@
    },
    "pitchVelocity": 90,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
    "trajectory": "G",
    "outs": 3
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "33750"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4679983"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:30:02Z",
    "id": "4019080441303990057",
    "type": {
@@ -5944,6 +7642,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4679983"
+     }
+    }
+   ],
    "atBatId": "4019080441303",
    "bats": {
     "abbreviation": "L"
@@ -5953,6 +7665,14 @@
     "y": 171
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
    "trajectory": "G",
    "outs": 3
   },
@@ -5983,17 +7703,17 @@
    },
    "atBatId": "4019080441401",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4717904"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:31:08Z",
    "id": "4019080441401001157",
    "type": {
@@ -6018,8 +7738,24 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4717904"
+     }
+    }
+   ],
    "atBatId": "4019080441401",
    "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -6042,6 +7778,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4717904"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    }
+   ],
    "atBatId": "4019080441401",
    "bats": {
     "abbreviation": "L"
@@ -6060,24 +7810,18 @@
    },
    "pitchVelocity": 93,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4717904"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "35013"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:35:16Z",
    "id": "4019080441401990057",
    "type": {
@@ -6102,6 +7846,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4717904"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    }
+   ],
    "atBatId": "4019080441401",
    "bats": {
     "abbreviation": "L"
@@ -6111,6 +7869,14 @@
     "y": 168
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 1
   },
@@ -6141,6 +7907,14 @@
    },
    "atBatId": "4019080441402",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -6163,6 +7937,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4717904"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42394"
+     }
+    }
+   ],
    "atBatId": "4019080441402",
    "bats": {
     "abbreviation": "R"
@@ -6181,24 +7969,18 @@
    },
    "pitchVelocity": 92,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
    "trajectory": "F",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "4717904"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "42394"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:36:21Z",
    "id": "4019080441402990057",
    "type": {
@@ -6223,19 +8005,6 @@
    "team": {
     "id": "8"
    },
-   "atBatId": "4019080441402",
-   "bats": {
-    "abbreviation": "R"
-   },
-   "pitchCoordinate": {
-    "x": 151,
-    "y": 141
-   },
-   "summaryType": "N",
-   "trajectory": "F",
-   "outs": 2
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -6246,10 +8015,31 @@
     {
      "type": "batter",
      "athlete": {
-      "id": "39895"
+      "id": "42394"
      }
     }
    ],
+   "atBatId": "4019080441402",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 151,
+    "y": 141
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
    "wallclock": "2026-10-27T02:39:35Z",
    "id": "4019080441403990057",
    "type": {
@@ -6274,6 +8064,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4717904"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
    "atBatId": "4019080441403",
    "bats": {
     "abbreviation": "R"
@@ -6283,6 +8087,14 @@
     "y": 161
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 3
+   },
    "outs": 3
   },
   {
@@ -6312,6 +8124,14 @@
    },
    "atBatId": "4019080441501",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -6334,6 +8154,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4905921"
+     }
+    }
+   ],
    "atBatId": "4019080441501",
    "bats": {
     "abbreviation": "R"
@@ -6352,24 +8186,18 @@
    },
    "pitchVelocity": 97,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
    "trajectory": "F",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "33750"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4905921"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:43:22Z",
    "id": "4019080441501990057",
    "type": {
@@ -6394,6 +8222,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4905921"
+     }
+    }
+   ],
    "atBatId": "4019080441501",
    "bats": {
     "abbreviation": "R"
@@ -6403,6 +8245,14 @@
     "y": 164
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
    "trajectory": "F",
    "outs": 1
   },
@@ -6426,6 +8276,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4626239"
+     }
+    }
+   ],
    "atBatId": "4019080441502",
    "bats": {
     "abbreviation": "R"
@@ -6444,24 +8308,18 @@
    },
    "pitchVelocity": 88,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "33750"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4626239"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:46:05Z",
    "id": "4019080441502990057",
    "type": {
@@ -6486,19 +8344,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080441502",
-   "bats": {
-    "abbreviation": "R"
-   },
-   "pitchCoordinate": {
-    "x": 66,
-    "y": 184
-   },
-   "summaryType": "N",
-   "trajectory": "F",
-   "outs": 2
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -6509,10 +8354,31 @@
     {
      "type": "batter",
      "athlete": {
-      "id": "5005912"
+      "id": "4626239"
      }
     }
    ],
+   "atBatId": "4019080441502",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 66,
+    "y": 184
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
    "wallclock": "2026-10-27T02:48:33Z",
    "id": "4019080441503990057",
    "type": {
@@ -6537,6 +8403,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5005912"
+     }
+    }
+   ],
    "atBatId": "4019080441503",
    "bats": {
     "abbreviation": "R"
@@ -6546,17 +8426,17 @@
     "y": 179
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 3
+   },
    "outs": 3
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "33106"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:48:50Z",
    "id": "4019080441601001157",
    "type": {
@@ -6581,8 +8461,24 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    }
+   ],
    "atBatId": "4019080441601",
    "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -6605,6 +8501,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
    "atBatId": "4019080441601",
    "bats": {
     "abbreviation": "L"
@@ -6623,30 +8533,18 @@
    },
    "pitchVelocity": 94,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "L",
    "outs": 0
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "33106"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "41179"
-     }
-    },
-    {
-     "type": "onSecond",
-     "athlete": {
-      "id": "41179"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T02:53:10Z",
    "id": "4019080441601990057",
    "type": {
@@ -6671,6 +8569,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
    "atBatId": "4019080441601",
    "bats": {
     "abbreviation": "L"
@@ -6684,6 +8602,14 @@
     "y": 106
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "L",
    "outs": 0
   },
@@ -6714,6 +8640,14 @@
    },
    "atBatId": "4019080441602",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -6736,28 +8670,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080441602",
-   "bats": {
-    "abbreviation": "R"
-   },
-   "pitchCoordinate": {
-    "x": 112,
-    "y": 181
-   },
-   "hitCoordinate": {
-    "x": 170,
-    "y": 182
-   },
-   "pitchType": {
-    "abbreviation": "CH",
-    "text": "Changeup"
-   },
-   "pitchVelocity": 85,
-   "summaryType": "P",
-   "trajectory": "P",
-   "outs": 1
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -6778,6 +8690,36 @@
      }
     }
    ],
+   "atBatId": "4019080441602",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 112,
+    "y": 181
+   },
+   "hitCoordinate": {
+    "x": 170,
+    "y": 182
+   },
+   "pitchType": {
+    "abbreviation": "CH",
+    "text": "Changeup"
+   },
+   "pitchVelocity": 85,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "P",
+   "outs": 1
+  },
+  {
    "wallclock": "2026-10-27T02:54:03Z",
    "id": "4019080441602990057",
    "type": {
@@ -6802,6 +8744,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5138536"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
    "atBatId": "4019080441602",
    "bats": {
     "abbreviation": "R"
@@ -6811,6 +8773,14 @@
     "y": 181
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "P",
    "outs": 1
   },
@@ -6834,28 +8804,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080441603",
-   "bats": {
-    "abbreviation": "R"
-   },
-   "pitchCoordinate": {
-    "x": 132,
-    "y": 154
-   },
-   "hitCoordinate": {
-    "x": 169,
-    "y": 90
-   },
-   "pitchType": {
-    "abbreviation": "SI",
-    "text": "Sinker"
-   },
-   "pitchVelocity": 94,
-   "summaryType": "P",
-   "trajectory": "F",
-   "outs": 2
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -6876,6 +8824,36 @@
      }
     }
    ],
+   "atBatId": "4019080441603",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 132,
+    "y": 154
+   },
+   "hitCoordinate": {
+    "x": 169,
+    "y": 90
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 94,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
    "wallclock": "2026-10-27T02:56:10Z",
    "id": "4019080441603990057",
    "type": {
@@ -6900,6 +8878,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
    "atBatId": "4019080441603",
    "bats": {
     "abbreviation": "R"
@@ -6909,10 +8907,42 @@
     "y": 154
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 2
   },
   {
+   "wallclock": "2026-10-27T02:56:41Z",
+   "id": "4019080441604990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "hit-by-pitch",
+    "text": "Hit By Pitch"
+   },
+   "text": "Frelick hit by pitch.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
    "participants": [
     {
      "type": "pitcher",
@@ -6939,30 +8969,6 @@
      }
     }
    ],
-   "wallclock": "2026-10-27T02:56:41Z",
-   "id": "4019080441604990057",
-   "type": {
-    "id": "57",
-    "text": "Play Result",
-    "type": "play-result"
-   },
-   "alternativeType": {
-    "type": "hit-by-pitch",
-    "text": "Hit By Pitch"
-   },
-   "text": "Frelick hit by pitch.",
-   "awayScore": 10,
-   "homeScore": 0,
-   "period": {
-    "type": "Top",
-    "number": 9,
-    "displayValue": "9th Inning"
-   },
-   "scoringPlay": false,
-   "scoreValue": 0,
-   "team": {
-    "id": "8"
-   },
    "atBatId": "4019080441604",
    "bats": {
     "abbreviation": "L"
@@ -6972,6 +8978,14 @@
     "y": 157
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
    "outs": 2
   },
   {
@@ -6994,28 +9008,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080441605",
-   "bats": {
-    "abbreviation": "R"
-   },
-   "pitchCoordinate": {
-    "x": 125,
-    "y": 152
-   },
-   "hitCoordinate": {
-    "x": 120,
-    "y": 106
-   },
-   "pitchType": {
-    "abbreviation": "SI",
-    "text": "Sinker"
-   },
-   "pitchVelocity": 94,
-   "summaryType": "P",
-   "trajectory": "F",
-   "outs": 3
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -7042,6 +9034,36 @@
      }
     }
    ],
+   "atBatId": "4019080441605",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 125,
+    "y": 152
+   },
+   "hitCoordinate": {
+    "x": 120,
+    "y": 106
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 94,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 3
+  },
+  {
    "wallclock": "2026-10-27T02:58:24Z",
    "id": "4019080441605990057",
    "type": {
@@ -7066,6 +9088,32 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42958"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4417795"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
    "atBatId": "4019080441605",
    "bats": {
     "abbreviation": "R"
@@ -7075,6 +9123,14 @@
     "y": 152
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 3
   },
@@ -7105,6 +9161,14 @@
    },
    "atBatId": "4019080441701",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -7134,17 +9198,17 @@
    },
    "atBatId": "4019080441701",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "37515"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T03:01:34Z",
    "id": "4019080441701001157",
    "type": {
@@ -7169,8 +9233,24 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    }
+   ],
    "atBatId": "4019080441701",
    "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -7193,6 +9273,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917849"
+     }
+    }
+   ],
    "atBatId": "4019080441701",
    "bats": {
     "abbreviation": "L"
@@ -7211,24 +9305,18 @@
    },
    "pitchVelocity": 89,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "L",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "37515"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "4917849"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T03:01:55Z",
    "id": "4019080441701990057",
    "type": {
@@ -7253,6 +9341,20 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917849"
+     }
+    }
+   ],
    "atBatId": "4019080441701",
    "bats": {
     "abbreviation": "L"
@@ -7262,6 +9364,14 @@
     "y": 179
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "L",
    "outs": 1
   },
@@ -7292,6 +9402,14 @@
    },
    "atBatId": "4019080441702",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
@@ -7314,6 +9432,20 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441702",
    "bats": {
     "abbreviation": "L"
@@ -7332,30 +9464,18 @@
    },
    "pitchVelocity": 82,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 1
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "37515"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "35578"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "35578"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T03:02:40Z",
    "id": "4019080441702990057",
    "type": {
@@ -7380,6 +9500,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35578"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441702",
    "bats": {
     "abbreviation": "L"
@@ -7393,6 +9533,14 @@
     "y": 182
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
    "trajectory": "G",
    "outs": 1
   },
@@ -7423,29 +9571,17 @@
    },
    "atBatId": "4019080441703",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "37515"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "33832"
-     }
-    },
-    {
-     "type": "onFirst",
-     "athlete": {
-      "id": "35578"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T03:05:33Z",
    "id": "4019080441703990057",
    "type": {
@@ -7470,6 +9606,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33832"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441703",
    "bats": {
     "abbreviation": "R"
@@ -7479,6 +9635,14 @@
     "y": 182
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 3
+   },
    "outs": 2
   },
   {
@@ -7500,6 +9664,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33832"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441703",
    "bats": {
     "abbreviation": "R"
@@ -7507,6 +9691,14 @@
    "pitchCoordinate": {
     "x": 93,
     "y": 182
+   },
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 3
    },
    "outs": 2
   },
@@ -7530,11 +9722,39 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441704",
    "bats": {
     "abbreviation": "R"
    },
    "summaryType": "A",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 2
   },
   {
@@ -7557,6 +9777,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441704",
    "bats": {
     "abbreviation": "R"
@@ -7571,6 +9811,14 @@
    },
    "pitchVelocity": 92,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
    "trajectory": "F",
    "outs": 2
   },
@@ -7594,10 +9842,6 @@
    "team": {
     "id": "30"
    },
-   "atBatId": "4019080441704",
-   "outs": 2
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -7612,6 +9856,18 @@
      }
     }
    ],
+   "atBatId": "4019080441704",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 2
+  },
+  {
    "wallclock": "2026-10-27T03:06:09Z",
    "id": "4019080441704020298",
    "type": {
@@ -7636,8 +9892,30 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441704",
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 2
   },
   {
@@ -7660,6 +9938,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441704",
    "bats": {
     "abbreviation": "R"
@@ -7674,6 +9972,14 @@
    },
    "pitchVelocity": 93,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
    "trajectory": "F",
    "outs": 2
   },
@@ -7697,6 +10003,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441704",
    "bats": {
     "abbreviation": "R"
@@ -7711,6 +10037,14 @@
    },
    "pitchVelocity": 89,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
    "trajectory": "F",
    "outs": 2
   },
@@ -7734,6 +10068,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441704",
    "bats": {
     "abbreviation": "R"
@@ -7748,6 +10102,14 @@
    },
    "pitchVelocity": 92,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
    "trajectory": "F",
    "outs": 2
   },
@@ -7771,6 +10133,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441704",
    "bats": {
     "abbreviation": "R"
@@ -7785,6 +10167,14 @@
    },
    "pitchVelocity": 90,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 2
   },
@@ -7808,6 +10198,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441704",
    "bats": {
     "abbreviation": "R"
@@ -7826,6 +10236,14 @@
    },
    "pitchVelocity": 90,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 2
   },
@@ -7849,6 +10267,26 @@
    "team": {
     "id": "8"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
    "atBatId": "4019080441704",
    "bats": {
     "abbreviation": "R"
@@ -7867,30 +10305,18 @@
    },
    "pitchVelocity": 90,
    "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 2
   },
   {
-   "participants": [
-    {
-     "type": "pitcher",
-     "athlete": {
-      "id": "37515"
-     }
-    },
-    {
-     "type": "batter",
-     "athlete": {
-      "id": "33481"
-     }
-    },
-    {
-     "type": "onSecond",
-     "athlete": {
-      "id": "33481"
-     }
-    }
-   ],
    "wallclock": "2026-10-27T03:08:42Z",
    "id": "4019080441704990057",
    "type": {
@@ -7915,6 +10341,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
    "atBatId": "4019080441704",
    "bats": {
     "abbreviation": "R"
@@ -7928,6 +10374,14 @@
     "y": 49
    },
    "summaryType": "S",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
    "trajectory": "F",
    "outs": 2
   },
@@ -7950,6 +10404,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
    "atBatId": "4019080441704",
    "bats": {
     "abbreviation": "R"
@@ -7961,6 +10435,14 @@
    "hitCoordinate": {
     "x": 112,
     "y": 49
+   },
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
    },
    "trajectory": "F",
    "outs": 2
@@ -7985,11 +10467,39 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40810"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
    "atBatId": "4019080441705",
    "bats": {
     "abbreviation": "L"
    },
    "summaryType": "A",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 3
   },
   {
@@ -8012,28 +10522,6 @@
    "team": {
     "id": "8"
    },
-   "atBatId": "4019080441705",
-   "bats": {
-    "abbreviation": "L"
-   },
-   "pitchCoordinate": {
-    "x": 98,
-    "y": 183
-   },
-   "hitCoordinate": {
-    "x": 133,
-    "y": 144
-   },
-   "pitchType": {
-    "abbreviation": "FF",
-    "text": "Four-seam FB"
-   },
-   "pitchVelocity": 89,
-   "summaryType": "P",
-   "trajectory": "G",
-   "outs": 3
-  },
-  {
    "participants": [
     {
      "type": "pitcher",
@@ -8054,6 +10542,36 @@
      }
     }
    ],
+   "atBatId": "4019080441705",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 98,
+    "y": 183
+   },
+   "hitCoordinate": {
+    "x": 133,
+    "y": 144
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 89,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
    "wallclock": "2026-10-27T03:10:20Z",
    "id": "4019080441705990057",
    "type": {
@@ -8078,6 +10596,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40810"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
    "atBatId": "4019080441705",
    "bats": {
     "abbreviation": "L"
@@ -8087,6 +10625,14 @@
     "y": 183
    },
    "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "trajectory": "G",
    "outs": 3
   },
@@ -8109,6 +10655,26 @@
    "team": {
     "id": "30"
    },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40810"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
    "atBatId": "4019080441705",
    "bats": {
     "abbreviation": "L"
@@ -8120,6 +10686,14 @@
    "hitCoordinate": {
     "x": 133,
     "y": 144
+   },
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
    },
    "trajectory": "G",
    "outs": 3
@@ -8145,6 +10719,14 @@
     "id": "30"
    },
    "atBatId": "4019080441705",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
    "outs": 0
   }
  ]
