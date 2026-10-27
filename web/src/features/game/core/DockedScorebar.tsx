@@ -16,7 +16,7 @@
  *
  * Screen readers skip it: the hero stays the page's one scoreboard.
  */
-import { memo, useRef, type ReactNode } from "react";
+import { memo, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LiveStatus, TeamLogo } from "../../../design/components";
 import { countdownClock, dayAndTime } from "../../../data/format";
 import { Accessory, finalText, newsLineShows, type AccessoryTier, type HeroBeats, type Surface } from "../../../data/matchRules";
@@ -122,10 +122,7 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
           <span className={styles.abbr}>{event.content.title}</span>
         )}
       </span>
-      <span className={styles.accessories}>
-        {live && detail ? detail(tier) : null}
-        {live && chip && tier >= Accessory.text ? <span className={styles.chip}>{chip}</span> : null}
-      </span>
+      {live ? <Accessories tier={tier} detail={detail} chip={chip ?? null} /> : <span className={styles.accessories} />}
       <span className={styles.status}>
         {news ? <NewsLine moment={news} full={tier >= Accessory.full} /> : <Status event={event} clock={clock ?? event.clock} clockFallback={clockFallback} stale={stale} ticking={onBar} />}
       </span>
@@ -133,6 +130,47 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
     </button>
   );
 });
+
+/**
+ * The sport's detail and the chip, as much as fits (the Mac's ViewThatFits
+ * over three rows): the fullest the width tier allows, then the short text
+ * with the chip, then the glyphs alone. Each row is measured off screen
+ * after every render (a few spans), so a longer down or a chip arriving
+ * steps down before it can clip.
+ */
+function Accessories({ tier, detail, chip }: { tier: AccessoryTier; detail?: (tier: AccessoryTier) => ReactNode; chip: string | null }) {
+  const host = useRef<HTMLSpanElement>(null);
+  const rows = useRef<HTMLSpanElement>(null);
+  const [pick, setPick] = useState(0);
+  const variants: { tier: AccessoryTier; chip: boolean }[] = [
+    { tier, chip: true },
+    { tier: Math.min(tier, Accessory.text) as AccessoryTier, chip: true },
+    { tier: Math.min(tier, Accessory.glyph) as AccessoryTier, chip: false },
+  ];
+  const row = (v: { tier: AccessoryTier; chip: boolean }) => (
+    <>
+      {detail ? detail(v.tier) : null}
+      {v.chip && chip && v.tier >= Accessory.text ? <span className={styles.chip}>{chip}</span> : null}
+    </>
+  );
+  useLayoutEffect(() => {
+    const room = host.current?.clientWidth ?? 0;
+    const measured = [...(rows.current?.children ?? [])].map((el) => el.getBoundingClientRect().width);
+    let next = measured.findIndex((w) => w <= room + 0.5);
+    if (next < 0) next = measured.length - 1;
+    if (next !== pick && next >= 0) setPick(next);
+  });
+  return (
+    <span ref={host} className={styles.accessories}>
+      {row(variants[Math.min(pick, 2)]!)}
+      <span ref={rows} className={styles.measure} aria-hidden="true">
+        {variants.map((v, i) => (
+          <span key={i}>{row(v)}</span>
+        ))}
+      </span>
+    </span>
+  );
+}
 
 /** `MomentCaption`'s type: a red dot, the outcome, then (with room) the play. */
 function NewsLine({ moment, full }: { moment: LiveMoment; full: boolean }) {

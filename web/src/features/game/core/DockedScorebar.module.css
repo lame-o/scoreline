@@ -105,6 +105,7 @@
 }
 
 .accessories {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: inline-flex;
@@ -313,4 +314,24 @@
   color: var(--label-secondary);
   opacity: 0;
   pointer-events: none;
+}
+
+/* The accessory rows measured off screen (ViewThatFits): laid out at their natural width, never seen. */
+.measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.measure > span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  width: max-content;
+  white-space: nowrap;
 }
