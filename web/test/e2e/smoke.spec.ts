@@ -58,11 +58,17 @@ for (const size of WIDTHS) {
 
         // Scrolling: beside a page the sidebar scrolls on its own; on a phone the window does.
         // Either way the header stays, and content dissolves under it.
-        if (size.mobile) await page.evaluate(() => window.scrollBy(0, 200));
-        else await page.locator("aside").evaluate((aside) => aside.scrollBy(0, 200));
-        await expect(page.locator('header[data-scrolled="true"]')).toBeVisible();
-        await page.waitForTimeout(300);
-        await shot(page, `${size.name}-${scheme}-scrolled`);
+        // (Only when today's games are more than a screenful.)
+        const scrolls = size.mobile
+          ? await page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight + 40)
+          : await page.locator("aside").evaluate((aside) => aside.scrollHeight > aside.clientHeight + 40);
+        if (scrolls) {
+          if (size.mobile) await page.evaluate(() => window.scrollBy(0, 200));
+          else await page.locator("aside").evaluate((aside) => aside.scrollBy(0, 200));
+          await expect(page.locator('header[data-scrolled="true"]')).toBeVisible();
+          await page.waitForTimeout(300);
+          await shot(page, `${size.name}-${scheme}-scrolled`);
+        }
         if (size.mobile) await page.evaluate(() => window.scrollTo(0, 0));
         else await page.locator("aside").evaluate((aside) => aside.scrollTo(0, 0));
 

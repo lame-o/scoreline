@@ -3,10 +3,11 @@
  * with the scores beside the selected page (AppShell.module.css). The
  * sidebar stays mounted across pages, so the list keeps its scroll, its
  * highlight and its polling, as the Mac app keeps Scores built under every
- * page. Esc goes back from anywhere but the scores.
+ * page. On a phone the window scrolls and Back restores where the list was.
+ * Esc goes back from anywhere but the scores.
  */
-import { useEffect } from "react";
-import { Outlet } from "react-router";
+import { useEffect, useRef } from "react";
+import { Outlet, ScrollRestoration, useLocation } from "react-router";
 import { ScoresPage } from "../features/scores/ScoresPage";
 import { isTyping, useGoBack } from "./navigation";
 import { useSplit } from "./layout";
@@ -15,6 +16,13 @@ import styles from "./AppShell.module.css";
 export function AppShell() {
   const split = useSplit();
   const goBack = useGoBack();
+  const { pathname } = useLocation();
+  const detail = useRef<HTMLElement>(null);
+
+  // Beside the sidebar, the detail pane scrolls on its own: a new page starts at its top.
+  useEffect(() => {
+    if (split && detail.current) detail.current.scrollTop = 0;
+  }, [pathname, split]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -48,9 +56,11 @@ export function AppShell() {
           <ScoresPage variant="sidebar" />
         </aside>
       ) : null}
-      <main className={styles.detail} id="main">
+      <main className={styles.detail} id="main" ref={detail}>
         <Outlet />
       </main>
+      {/* On a phone the window scrolls: Back lands where you left the list, a new page at its top. */}
+      <ScrollRestoration />
     </div>
   );
 }
