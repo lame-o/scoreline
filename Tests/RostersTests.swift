@@ -172,10 +172,17 @@ extension ScorelineTests {
               "Ohtani: bats/throws, OPS 6th")
         let pitching = ESPNProfiles.gamelog(fixture("espn_ath_mlb_39832_gamelog_pitching"), path: "baseball/mlb",
                                             position: "DH", pitching: true)
-        check(pitching?.columns.prefix(4).map(\.label) == ["IP", "H", "R", "ER"] && pitching?.categories.contains("pitching") == true,
-              "two-way: a pitching log, and both categories offered")
+        check(pitching?.columns.prefix(4).map(\.label) == ["IP", "H", "R", "ER"] && pitching?.category == "pitching",
+              "two-way: a pitching log, asked for by category")
         let glasnow = ESPNProfiles.gamelog(fixture("espn_ath_mlb_33190_gamelog"), path: "baseball/mlb", position: "SP")
         check(glasnow?.stripKey == "avgGameScore" && glasnow?.reference == 50, "starters' strip is Game Score against 50")
+        let zeros = Profile.GameLog.Entry(eventID: "1", date: .now, home: true, stats: ["atBats": "0", "hits": "0", "avg": ".000"])
+        var idle = Profile.GameLog(columns: [], entries: [zeros], stripKey: nil, stripLabel: "")
+        check(!idle.hasPlay, "a pitcher's batting log of all-zero appearances isn't a role they play")
+        idle.entries.append(.init(eventID: "2", date: .now, home: true, stats: ["atBats": "1", "hits": "0"]))
+        check(idle.hasPlay, "one plate appearance is")
+        check(glasnow?.category == "pitching", "a pitcher's default log is pitching (the page opens on it)",
+              glasnow?.category ?? "-")
 
         let sakaOverview = ESPNProfiles.overview(fixture("espn_ath_soc_280555_overview"), sport: .soccer)
         let comps = sakaOverview.competitions?.rows.map(\.title) ?? []

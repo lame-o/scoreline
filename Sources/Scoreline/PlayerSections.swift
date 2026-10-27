@@ -117,15 +117,17 @@ struct GameLogSection: View {
     @Environment(\.widthClass) private var widthClass
     @Environment(ProfileNavigator.self) private var navigator: ProfileNavigator?
 
-    private var pitching: Bool { session.pitching && profile.canPitch }
-    private var log: Profile.GameLog? { pitching ? profile.pitchingLog : profile.gameLog }
+    /// MLB: the player's role first (pitching for a pitcher); the other role
+    /// only for a two-way player, by choice.
+    private var rolePitches: Bool { profile.gameLog?.category == "pitching" }
+    private var pitching: Bool { profile.otherLog == nil ? rolePitches : session.pitching ?? rolePitches }
+    private var log: Profile.GameLog? { pitching == rolePitches ? profile.gameLog : profile.otherLog }
 
     var body: some View {
         DetailSection(title: ref.sport == .esports ? "Recent Matches" : "Game Log", caption: caption) {
-            if profile.canPitch, profile.canBat, ref.sport == .baseball {
-                Picker("Category", selection: Binding(get: { session.pitching }, set: { value in
+            if profile.otherLog != nil {
+                Picker("Category", selection: Binding(get: { pitching }, set: { value in
                     store.session[ref.memoryKey, default: .init()].pitching = value
-                    if value { Task { await store.loadPitching(ref) } }
                 })) {
                     Text("Batting").tag(false)
                     Text("Pitching").tag(true)
@@ -142,11 +144,10 @@ struct GameLogSection: View {
                     GameLogStrip(log: log, tint: tint, onOpen: opener)
                 }
                 table(log)
-            } else if pitching {
-                ProgressView().controlSize(.small).frame(maxWidth: .infinity).padding(.vertical, 20)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Loading pitching")
             }
+        }
+        .task(id: profile.gameLog?.category) {
+            if ref.sport == .baseball { await store.loadOtherLog(ref) }
         }
     }
 
@@ -168,7 +169,7 @@ struct GameLogSection: View {
     @ViewBuilder
     private func table(_ log: Profile.GameLog) -> some View {
         let columns = PlayerColumns.gameLog(sport: ref.sport, position: profile.bio?.positionAbbreviation ?? ref.position,
-                                            pitching: pitching || (log.stripKey == "avgGameScore"))
+                                            pitching: log.category == "pitching" || log.stripKey == "avgGameScore")
             .filter { column in column.from <= widthClass && (log.columns.contains { $0.key == column.key } || column.key == "cmpatt") }
         let all = session.allGames
         let rows = Array(log.entries.reversed().prefix(all ? log.entries.count : 5))

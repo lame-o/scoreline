@@ -705,7 +705,7 @@ enum ESPNProfiles {
         default: break
         }
         log.season = g["filters"].array.first { $0["name"].string == "season" }?["value"].string
-        log.categories = g["filters"].array.first { $0["name"].string == "category" }?["options"].array.compactMap { $0["value"].string } ?? []
+        log.category = g["filters"].array.first { $0["name"].string == "category" }?["value"].string
         return log
     }
 

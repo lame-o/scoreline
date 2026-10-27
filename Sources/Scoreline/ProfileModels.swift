@@ -439,8 +439,13 @@ extension Profile {
         /// Soccer: a result strip instead of bars.
         var matchStrip = false
         var season: String?
-        /// MLB: the categories ESPN offers ("batting", "pitching"): two-way players have both.
-        var categories: [String] = []
+        /// MLB: "batting" or "pitching". ESPN offers both to every player; a log
+        /// asked for without one is in the player's role (pitching for a pitcher).
+        var category: String?
+
+        /// Any game with something in it. A hitter's pitching log is empty, but a
+        /// pitcher's batting log lists every appearance, all zeros.
+        var hasPlay: Bool { entries.contains { $0.stats.values.contains { (Double($0) ?? 0) > 0 } } }
     }
 
     struct MapStat: Equatable, Sendable, Identifiable {
@@ -480,10 +485,10 @@ extension Profile {
         var gameLog: GameLog?
         var awards: [String] = []
         var career: StatTable?
-        /// MLB two-way players: the pitching log, loaded on demand.
-        var pitchingLog: GameLog?
-        var canPitch = false
-        var canBat = true
+        /// MLB: the log in the player's other role (a hitter's pitching, a pitcher's
+        /// batting), only when they have games in it this season (two-way players).
+        var otherLog: GameLog?
+        var otherLogChecked = false
         // CS2
         var mapPool: [MapStat] = []
         var roles: [String] = []

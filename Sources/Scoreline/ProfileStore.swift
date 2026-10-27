@@ -23,7 +23,8 @@ final class ProfileStore {
     struct PageSession: Equatable {
         var depthChart = false
         var allGames = false
-        var pitching = false
+        /// MLB: nil shows the player's role (pitching for a pitcher).
+        var pitching: Bool?
         var expanded: Set<String> = []
     }
 
@@ -345,16 +346,22 @@ final class ProfileStore {
     }
 
     /// MLB two-way players: the pitching log, on first switch.
-    func loadPitching(_ ref: Profile.PlayerRef) async {
+    /// MLB: the log in the player's other role, kept only if they've played it
+    /// this season (ESPN offers pitching even to a first baseman, and batting
+    /// to a pitcher who never came to the plate).
+    func loadOtherLog(_ ref: Profile.PlayerRef) async {
         let state = state(for: ref)
-        guard state.profile.pitchingLog == nil, case let .espn(path) = ref.source,
-              let url = ESPNProfiles.gamelogURL(path: path, id: ref.id, category: "pitching") else { return }
+        guard !state.profile.otherLogChecked, case let .espn(path) = ref.source,
+              let role = state.profile.gameLog?.category else { return }
+        state.profile.otherLogChecked = true
+        let other = role == "pitching" ? "batting" : "pitching"
+        guard let url = ESPNProfiles.gamelogURL(path: path, id: ref.id, category: other) else { return }
         let cache = self.cache
         let log: Profile.GameLog? = await Task.detached {
             guard let data = try? await cache.data(url, ttl: TTL.athlete) else { return nil }
-            return ESPNProfiles.gamelog(data, path: path, position: "SP", pitching: true)
+            return ESPNProfiles.gamelog(data, path: path, position: other == "pitching" ? "SP" : nil, pitching: other == "pitching")
         }.value
-        state.profile.pitchingLog = log
+        state.profile.otherLog = log.flatMap { $0.hasPlay ? $0 : nil }
     }
 
     /// Career by season, when its section is opened.
@@ -593,8 +600,6 @@ final class PlayerState {
             collegeTiles()
         case let .gameLog(log):
             profile.gameLog = log
-            profile.canPitch = log.categories.contains("pitching")
-            profile.canBat = log.categories.isEmpty || log.categories.contains("batting")
         case .leagueLeaders: break
         case let .counterStrike(p):
             profile.bio = p.bio
