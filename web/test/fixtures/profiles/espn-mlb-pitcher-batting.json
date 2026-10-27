@@ -1,0 +1,222 @@
+{
+ "_source": "https://site.web.api.espn.com/apis/common/v3/sports/baseball/mlb/athletes/33190/gamelog?category=batting",
+ "_recorded": "2026-10-27T08:46:29.462Z",
+ "filters": [
+  {
+   "name": "season",
+   "value": "2026"
+  },
+  {
+   "name": "category",
+   "value": "batting"
+  }
+ ],
+ "names": [
+  "atBats",
+  "runs",
+  "hits",
+  "doubles",
+  "triples",
+  "homeRuns",
+  "RBIs",
+  "walks",
+  "hitByPitch",
+  "strikeouts",
+  "stolenBases",
+  "caughtStealing",
+  "avg",
+  "onBasePct",
+  "slugAvg",
+  "OPS"
+ ],
+ "labels": [
+  "AB",
+  "R",
+  "H",
+  "2B",
+  "3B",
+  "HR",
+  "RBI",
+  "BB",
+  "HBP",
+  "SO",
+  "SB",
+  "CS",
+  "AVG",
+  "OBP",
+  "SLG",
+  "OPS"
+ ],
+ "events": {
+  "401814718": {
+   "gameDate": "2026-03-29T01:10:00.000+00:00",
+   "homeTeamId": "19",
+   "awayTeamId": "29",
+   "homeTeamScore": "3",
+   "awayTeamScore": "2",
+   "gameResult": "W",
+   "leagueShortName": "MLB",
+   "leagueName": "Major League Baseball",
+   "opponent": {
+    "id": "29",
+    "displayName": "Arizona Diamondbacks",
+    "abbreviation": "ARI",
+    "logo": "https://a.espncdn.com/i/teamlogos/mlb/500/ari.png"
+   }
+  },
+  "401815064": {
+   "gameDate": "2026-04-23T19:45:00.000+00:00",
+   "homeTeamId": "26",
+   "awayTeamId": "19",
+   "homeTeamScore": "0",
+   "awayTeamScore": "3",
+   "gameResult": "W",
+   "leagueShortName": "MLB",
+   "leagueName": "Major League Baseball",
+   "opponent": {
+    "id": "26",
+    "displayName": "San Francisco Giants",
+    "abbreviation": "SF",
+    "logo": "https://a.espncdn.com/i/teamlogos/mlb/500/sf.png"
+   }
+  },
+  "401815147": {
+   "gameDate": "2026-04-29T19:10:00.000+00:00",
+   "homeTeamId": "19",
+   "awayTeamId": "28",
+   "homeTeamScore": "2",
+   "awayTeamScore": "3",
+   "gameResult": "L",
+   "leagueShortName": "MLB",
+   "leagueName": "Major League Baseball",
+   "opponent": {
+    "id": "28",
+    "displayName": "Miami Marlins",
+    "abbreviation": "MIA",
+    "logo": "https://a.espncdn.com/i/teamlogos/mlb/500/mia.png"
+   }
+  },
+  "401816826": {
+   "gameDate": "2026-09-06T01:10:00.000+00:00",
+   "homeTeamId": "19",
+   "awayTeamId": "20",
+   "homeTeamScore": "6",
+   "awayTeamScore": "5",
+   "gameResult": "W",
+   "leagueShortName": "MLB",
+   "leagueName": "Major League Baseball",
+   "opponent": {
+    "id": "20",
+    "displayName": "Washington Nationals",
+    "abbreviation": "WSH",
+    "logo": "https://a.espncdn.com/i/teamlogos/mlb/500/wsh.png"
+   }
+  }
+ },
+ "seasonTypes": [
+  {
+   "displayName": "2026 Regular Season",
+   "categories": [
+    {
+     "displayName": "september",
+     "events": [
+      {
+       "eventId": "401816826",
+       "stats": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        ".000",
+        ".000",
+        ".000",
+        ".000"
+       ]
+      }
+     ]
+    },
+    {
+     "displayName": "april",
+     "events": [
+      {
+       "eventId": "401815147",
+       "stats": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        ".000",
+        ".000",
+        ".000",
+        ".000"
+       ]
+      },
+      {
+       "eventId": "401815064",
+       "stats": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        ".000",
+        ".000",
+        ".000",
+        ".000"
+       ]
+      }
+     ]
+    },
+    {
+     "displayName": "march",
+     "events": [
+      {
+       "eventId": "401814718",
+       "stats": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "0",
+        ".000",
+        ".000",
+        ".000",
+        ".000"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

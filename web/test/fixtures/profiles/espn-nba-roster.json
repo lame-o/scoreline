@@ -1,0 +1,428 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/13/roster",
+ "_recorded": "2026-10-27T08:46:28.879Z",
+ "athletes": [
+  {
+   "id": "5113969",
+   "displayName": "Cameron Carr",
+   "jersey": "43",
+   "age": 21,
+   "dateOfBirth": "2004-11-21T08:00Z",
+   "displayHeight": "6' 5\"",
+   "displayWeight": "184 lbs",
+   "position": {
+    "abbreviation": "G",
+    "displayName": "Guard"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/5113969.png"
+   },
+   "college": {
+    "name": "Baylor"
+   },
+   "experience": {
+    "years": 0
+   },
+   "injuries": []
+  },
+  {
+   "id": "3945274",
+   "displayName": "Luka Doncic",
+   "jersey": "77",
+   "age": 27,
+   "dateOfBirth": "1999-02-28T08:00Z",
+   "displayHeight": "6' 8\"",
+   "displayWeight": "230 lbs",
+   "position": {
+    "abbreviation": "G",
+    "displayName": "Guard"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/3945274.png"
+   },
+   "experience": {
+    "years": 9
+   },
+   "injuries": []
+  },
+  {
+   "id": "4397014",
+   "displayName": "Quentin Grimes",
+   "jersey": "5",
+   "age": 26,
+   "dateOfBirth": "2000-05-08T07:00Z",
+   "displayHeight": "6' 4\"",
+   "displayWeight": "210 lbs",
+   "position": {
+    "abbreviation": "G",
+    "displayName": "Guard"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/4397014.png"
+   },
+   "college": {
+    "name": "Houston"
+   },
+   "experience": {
+    "years": 6
+   },
+   "injuries": []
+  },
+  {
+   "id": "4868423",
+   "displayName": "Jaden Hardy",
+   "jersey": "7",
+   "age": 24,
+   "dateOfBirth": "2002-07-05T07:00Z",
+   "displayHeight": "6' 3\"",
+   "displayWeight": "198 lbs",
+   "position": {
+    "abbreviation": "G",
+    "displayName": "Guard"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/4868423.png"
+   },
+   "experience": {
+    "years": 5
+   },
+   "injuries": []
+  },
+  {
+   "id": "4683774",
+   "displayName": "Bronny James",
+   "jersey": "9",
+   "age": 22,
+   "dateOfBirth": "2004-10-06T07:00Z",
+   "displayHeight": "6' 2\"",
+   "displayWeight": "210 lbs",
+   "position": {
+    "abbreviation": "G",
+    "displayName": "Guard"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/4683774.png"
+   },
+   "college": {
+    "name": "USC"
+   },
+   "experience": {
+    "years": 3
+   },
+   "injuries": []
+  },
+  {
+   "id": "4433599",
+   "displayName": "Arthur Kaluma",
+   "jersey": "47",
+   "age": 24,
+   "dateOfBirth": "2002-03-01T08:00Z",
+   "displayHeight": "6' 6\"",
+   "displayWeight": "223 lbs",
+   "position": {
+    "abbreviation": "F",
+    "displayName": "Forward"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/4433599.png"
+   },
+   "college": {
+    "name": "Texas"
+   },
+   "experience": {
+    "years": 2
+   },
+   "injuries": []
+  },
+  {
+   "id": "4433136",
+   "displayName": "Walker Kessler",
+   "jersey": "14",
+   "age": 25,
+   "dateOfBirth": "2001-07-26T07:00Z",
+   "displayHeight": "7' 2\"",
+   "displayWeight": "245 lbs",
+   "position": {
+    "abbreviation": "C",
+    "displayName": "Center"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/4433136.png"
+   },
+   "college": {
+    "name": "Auburn"
+   },
+   "experience": {
+    "years": 5
+   },
+   "injuries": []
+  },
+  {
+   "id": "4592691",
+   "displayName": "Jake LaRavia",
+   "jersey": "12",
+   "age": 24,
+   "dateOfBirth": "2001-11-03T08:00Z",
+   "displayHeight": "6' 7\"",
+   "displayWeight": "235 lbs",
+   "position": {
+    "abbreviation": "F",
+    "displayName": "Forward"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/4592691.png"
+   },
+   "college": {
+    "name": "Wake Forest"
+   },
+   "experience": {
+    "years": 5
+   },
+   "injuries": []
+  },
+  {
+   "id": "3155535",
+   "displayName": "Kevon Looney",
+   "jersey": "55",
+   "age": 30,
+   "dateOfBirth": "1996-02-06T08:00Z",
+   "displayHeight": "6' 9\"",
+   "displayWeight": "222 lbs",
+   "position": {
+    "abbreviation": "F",
+    "displayName": "Forward"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/3155535.png"
+   },
+   "college": {
+    "name": "UCLA"
+   },
+   "experience": {
+    "years": 12
+   },
+   "injuries": []
+  },
+  {
+   "id": "4278580",
+   "displayName": "Sandro Mamukelashvili",
+   "jersey": "54",
+   "age": 27,
+   "dateOfBirth": "1999-05-23T07:00Z",
+   "displayHeight": "6' 9\"",
+   "displayWeight": "240 lbs",
+   "citizenship": "Georgia",
+   "position": {
+    "abbreviation": "F",
+    "displayName": "Forward"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/4278580.png"
+   },
+   "college": {
+    "name": "Seton Hall"
+   },
+   "experience": {
+    "years": 6
+   },
+   "injuries": []
+  },
+  {
+   "id": "4702972",
+   "displayName": "Chris Manon",
+   "jersey": "30",
+   "age": 24,
+   "dateOfBirth": "2001-12-09T08:00Z",
+   "displayHeight": "6' 4\"",
+   "displayWeight": "209 lbs",
+   "position": {
+    "abbreviation": "G",
+    "displayName": "Guard"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/4702972.png"
+   },
+   "college": {
+    "name": "Vanderbilt"
+   },
+   "experience": {
+    "years": 2
+   },
+   "injuries": []
+  },
+  {
+   "id": "5114350",
+   "displayName": "AK Okereke",
+   "jersey": "31",
+   "age": 23,
+   "dateOfBirth": "2003-07-02T07:00Z",
+   "displayHeight": "6' 7\"",
+   "displayWeight": "244 lbs",
+   "position": {
+    "abbreviation": "F",
+    "displayName": "Forward"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/5114350.png"
+   },
+   "college": {
+    "name": "Vanderbilt"
+   },
+   "experience": {
+    "years": 0
+   },
+   "injuries": []
+  },
+  {
+   "id": "4066457",
+   "displayName": "Austin Reaves",
+   "jersey": "15",
+   "age": 28,
+   "dateOfBirth": "1998-05-29T07:00Z",
+   "displayHeight": "6' 5\"",
+   "displayWeight": "197 lbs",
+   "position": {
+    "abbreviation": "G",
+    "displayName": "Guard"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/4066457.png"
+   },
+   "college": {
+    "name": "Oklahoma"
+   },
+   "experience": {
+    "years": 6
+   },
+   "injuries": []
+  },
+  {
+   "id": "4277811",
+   "displayName": "Collin Sexton",
+   "jersey": "10",
+   "age": 27,
+   "dateOfBirth": "1999-01-04T08:00Z",
+   "displayHeight": "6' 3\"",
+   "displayWeight": "190 lbs",
+   "position": {
+    "abbreviation": "G",
+    "displayName": "Guard"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/4277811.png"
+   },
+   "college": {
+    "name": "Alabama"
+   },
+   "experience": {
+    "years": 9
+   },
+   "injuries": []
+  },
+  {
+   "id": "5060631",
+   "displayName": "Adou Thiero",
+   "jersey": "1",
+   "age": 22,
+   "dateOfBirth": "2004-05-08T07:00Z",
+   "displayHeight": "6' 8\"",
+   "displayWeight": "220 lbs",
+   "position": {
+    "abbreviation": "F",
+    "displayName": "Forward"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/5060631.png"
+   },
+   "college": {
+    "name": "Arkansas"
+   },
+   "experience": {
+    "years": 2
+   },
+   "injuries": [
+    {
+     "status": "Out"
+    }
+   ]
+  },
+  {
+   "id": "3907498",
+   "displayName": "Matisse Thybulle",
+   "jersey": "4",
+   "age": 29,
+   "dateOfBirth": "1997-03-04T08:00Z",
+   "displayHeight": "6' 5\"",
+   "displayWeight": "202 lbs",
+   "position": {
+    "abbreviation": "G",
+    "displayName": "Guard"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/3907498.png"
+   },
+   "college": {
+    "name": "Washington"
+   },
+   "experience": {
+    "years": 8
+   },
+   "injuries": []
+  },
+  {
+   "id": "4278077",
+   "displayName": "Jarred Vanderbilt",
+   "jersey": "2",
+   "age": 27,
+   "dateOfBirth": "1999-04-03T08:00Z",
+   "displayHeight": "6' 8\"",
+   "displayWeight": "214 lbs",
+   "position": {
+    "abbreviation": "F",
+    "displayName": "Forward"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/4278077.png"
+   },
+   "college": {
+    "name": "Kentucky"
+   },
+   "experience": {
+    "years": 9
+   },
+   "injuries": []
+  },
+  {
+   "id": "4433137",
+   "displayName": "Ziaire Williams",
+   "jersey": "11",
+   "age": 25,
+   "dateOfBirth": "2001-09-12T07:00Z",
+   "displayHeight": "6' 9\"",
+   "displayWeight": "185 lbs",
+   "position": {
+    "abbreviation": "F",
+    "displayName": "Forward"
+   },
+   "headshot": {
+    "href": "https://a.espncdn.com/i/headshots/nba/players/full/4433137.png"
+   },
+   "college": {
+    "name": "Stanford"
+   },
+   "experience": {
+    "years": 6
+   },
+   "injuries": []
+  }
+ ],
+ "coach": [
+  {
+   "firstName": "JJ",
+   "lastName": "Redick"
+  }
+ ],
+ "season": {
+  "year": 2027
+ }
+}

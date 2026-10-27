@@ -1,0 +1,24 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/players/zywoo",
+ "_recorded": "2026-10-27T08:46:41.373Z",
+ "nickname": "ZywOo",
+ "slug": "zywoo",
+ "first_name": "Mathieu",
+ "last_name": "Herbaut",
+ "image_url": "https://files.bo3.gg/uploads/player/18452/image/webp-d6b68be0a5a6fc73186bf1e6894f9b14.webp",
+ "birthday": "2000-11-09",
+ "joined_team_at": "2018-10-08T00:00:00.000+00:00",
+ "total_prize": 1615290,
+ "is_coach": false,
+ "six_month_avg_rating": 7.142691965341368,
+ "country": {
+  "code": "FR",
+  "name": "France"
+ },
+ "team": {
+  "id": 667,
+  "name": "Vitality",
+  "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+  "acronym": "VIT"
+ }
+}

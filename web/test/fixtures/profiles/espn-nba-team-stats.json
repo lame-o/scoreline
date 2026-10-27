@@ -1,0 +1,63 @@
+{
+ "_source": "https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/2027/types/2/teams/13/statistics",
+ "_recorded": "2026-10-27T08:46:29.024Z",
+ "splits": {
+  "categories": [
+   {
+    "name": "defensive",
+    "stats": [
+     {
+      "name": "blocks",
+      "displayValue": "20",
+      "rankDisplayValue": "1st"
+     },
+     {
+      "name": "steals",
+      "displayValue": "33",
+      "rankDisplayValue": "3rd"
+     }
+    ]
+   },
+   {
+    "name": "general",
+    "stats": [
+     {
+      "name": "reboundRate",
+      "displayValue": "61.0",
+      "rankDisplayValue": "1st"
+     }
+    ]
+   },
+   {
+    "name": "offensive",
+    "stats": [
+     {
+      "name": "assists",
+      "displayValue": "76",
+      "rankDisplayValue": "2nd"
+     },
+     {
+      "name": "fieldGoalPct",
+      "displayValue": "54.5",
+      "rankDisplayValue": "1st"
+     },
+     {
+      "name": "turnovers",
+      "displayValue": "49",
+      "rankDisplayValue": "3rd"
+     },
+     {
+      "name": "threePointPct",
+      "displayValue": "42.1",
+      "rankDisplayValue": "1st"
+     },
+     {
+      "name": "trueShootingPct",
+      "displayValue": "68.2",
+      "rankDisplayValue": "1st"
+     }
+    ]
+   }
+  ]
+ }
+}

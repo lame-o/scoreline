@@ -8,7 +8,7 @@
  *     /rankings/college-football?ring=espn-ncaaf-26,espn-ncaaf-84
  */
 import { memo, useMemo, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { useParams, useSearchParams } from "react-router";
 import { EmptyState, ErrorState, Icon, SegmentedControl, TeamLogo } from "../../design/components";
 import { leagueWithID } from "../../data/leagues";
 import { movement, perColumn, pollLabel, pollPoints, spokenPollEntry, type Poll, type PollEntry } from "../../data/college";
@@ -16,7 +16,8 @@ import { useSettings } from "../../state/settings";
 import { useRankings } from "../../state/standings";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { NotFound } from "../../app/NotFound";
-import { teamPath } from "./Tables";
+import { teamRef } from "../../data/profiles/models";
+import { TeamLink } from "../profiles/ProfileLinks";
 import { Section, SkeletonTable, TablePage } from "./TablePage";
 import styles from "./RankingsPage.module.css";
 
@@ -82,7 +83,14 @@ const PollRow = memo(function PollRow({ entry, mine }: { entry: PollEntry; mine:
   const points = pollPoints(entry);
   return (
     <li>
-      <Link to={teamPath(entry.teamID)} className={styles.row} data-mine={mine} aria-label={spokenPollEntry(entry) + (mine ? ", your team" : "")} draggable={false}>
+      <TeamLink
+        team={teamRef({ id: entry.teamID, name: entry.name, logo: entry.logo, league: "college-football" })}
+        variant="plain"
+        className={styles.row}
+        dataset={{ mine }}
+        label={spokenPollEntry(entry) + (mine ? ", your team" : "")}
+        draggable={false}
+      >
         <span className={styles.rank}>{entry.rank}</span>
         <span className={styles.move}>
           <Move entry={entry} />
@@ -94,7 +102,7 @@ const PollRow = memo(function PollRow({ entry, mine }: { entry: PollEntry; mine:
         {entry.record ? <span className={styles.record}>{entry.record.replaceAll("-", "–")}</span> : null}
         <span className={styles.spacer} />
         {points ? <span className={styles.points}>{points}</span> : null}
-      </Link>
+      </TeamLink>
     </li>
   );
 });

@@ -417,3 +417,5 @@ if (want("ifsc")) await ifsc();
 if (want("teams")) await teams();
 if (want("mlb")) await mlb();
 if (want("football")) await football();
+// Team and player pages (test/fixtures/profiles).
+if (want("profiles")) await (await import("./record-profile-fixtures.mjs")).recordProfiles();

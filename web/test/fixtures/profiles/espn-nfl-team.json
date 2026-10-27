@@ -1,0 +1,116 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/12",
+ "_recorded": "2026-10-27T08:46:29.620Z",
+ "team": {
+  "id": "12",
+  "displayName": "Kansas City Chiefs",
+  "shortDisplayName": "Chiefs",
+  "abbreviation": "KC",
+  "color": "e31837",
+  "alternateColor": "ffb612",
+  "standingSummary": "1st in AFC West",
+  "logos": [
+   {
+    "href": "https://a.espncdn.com/i/teamlogos/nfl/500/kc.png"
+   }
+  ],
+  "record": {
+   "items": [
+    {
+     "type": "total",
+     "summary": "5-1"
+    },
+    {
+     "type": "home",
+     "summary": "3-0"
+    },
+    {
+     "type": "road",
+     "summary": "2-1"
+    }
+   ]
+  },
+  "franchise": {
+   "venue": {
+    "fullName": "Arrowhead Stadium",
+    "address": {
+     "city": "Kansas City"
+    }
+   }
+  },
+  "links": [
+   {
+    "rel": [
+     "clubhouse",
+     "desktop",
+     "team"
+    ],
+    "href": "https://www.espn.com/nfl/team/_/name/kc/kansas-city-chiefs"
+   }
+  ],
+  "nextEvent": [
+   {
+    "id": "401873022",
+    "date": "2026-10-26T00:20Z",
+    "seasonType": {
+     "type": 2
+    },
+    "competitions": [
+     {
+      "status": {
+       "type": {
+        "state": "post",
+        "name": "STATUS_FINAL"
+       }
+      },
+      "broadcasts": [
+       {
+        "media": {
+         "shortName": "NBC"
+        }
+       }
+      ],
+      "competitors": [
+       {
+        "homeAway": "home",
+        "winner": true,
+        "score": {
+         "displayValue": "20"
+        },
+        "team": {
+         "id": "26",
+         "displayName": "Seattle Seahawks",
+         "shortDisplayName": "Seahawks",
+         "abbreviation": "SEA",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/nfl/500/sea.png"
+          }
+         ]
+        }
+       },
+       {
+        "homeAway": "away",
+        "winner": false,
+        "score": {
+         "displayValue": "3"
+        },
+        "team": {
+         "id": "12",
+         "displayName": "Kansas City Chiefs",
+         "shortDisplayName": "Chiefs",
+         "abbreviation": "KC",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/nfl/500/kc.png"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

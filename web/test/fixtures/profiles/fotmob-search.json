@@ -1,0 +1,69 @@
+{
+ "_source": "https://www.fotmob.com/api/data/search/suggest?term=Arsenal&lang=en",
+ "_recorded": "2026-10-27T08:46:30.702Z",
+ "items": [
+  {
+   "suggestions": [
+    {
+     "type": "team",
+     "id": "9825",
+     "name": "Arsenal",
+     "leagueId": 47
+    },
+    {
+     "type": "team",
+     "id": "258657",
+     "name": "Arsenal (W)",
+     "leagueId": 9227
+    },
+    {
+     "type": "team",
+     "id": "950214",
+     "name": "Arsenal U21",
+     "leagueId": 9084
+    }
+   ]
+  },
+  {
+   "suggestions": [
+    {
+     "type": "match",
+     "id": "6275367",
+     "leagueId": 133
+    },
+    {
+     "type": "match",
+     "id": "5795501",
+     "leagueId": 47
+    },
+    {
+     "type": "match",
+     "id": "6106389",
+     "leagueId": 42
+    }
+   ]
+  },
+  {
+   "suggestions": [
+    {
+     "type": "team",
+     "id": "9825",
+     "name": "Arsenal",
+     "leagueId": 47
+    },
+    {
+     "type": "team",
+     "id": "258657",
+     "name": "Arsenal (W)",
+     "leagueId": 9227
+    },
+    {
+     "type": "team",
+     "id": "950214",
+     "name": "Arsenal U21",
+     "leagueId": 9084
+    }
+   ]
+  }
+ ]
+}

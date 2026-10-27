@@ -1,0 +1,66 @@
+{
+ "_source": "https://site.web.api.espn.com/apis/common/v3/sports/soccer/eng.1/athletes/280555",
+ "_recorded": "2026-10-27T08:46:30.331Z",
+ "athlete": {
+  "id": "280555",
+  "displayName": "Bukayo Saka",
+  "jersey": "7",
+  "active": true,
+  "age": 25,
+  "displayHeight": "5' 10\"",
+  "displayWeight": "141 lbs",
+  "citizenship": "England",
+  "position": {
+   "displayName": "Forward",
+   "abbreviation": "F"
+  },
+  "team": {
+   "id": "359",
+   "displayName": "Arsenal",
+   "shortDisplayName": "Arsenal",
+   "abbreviation": "ARS",
+   "color": "e20520",
+   "alternateColor": "003399",
+   "logos": [
+    {
+     "href": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png"
+    }
+   ]
+  },
+  "links": [
+   {
+    "rel": [
+     "playercard",
+     "desktop",
+     "athlete"
+    ],
+    "href": "https://www.espn.com/soccer/player/_/id/280555/bukayo-saka"
+   }
+  ],
+  "statsSummary": {
+   "displayName": "2026-27 Premier League Stats",
+   "statistics": [
+    {
+     "abbreviation": "START (SUB)",
+     "shortDisplayName": "STRT-SUBIN",
+     "displayValue": "7 (0)"
+    },
+    {
+     "abbreviation": "G",
+     "shortDisplayName": "G",
+     "displayValue": "3"
+    },
+    {
+     "abbreviation": "A",
+     "shortDisplayName": "A",
+     "displayValue": "0"
+    },
+    {
+     "abbreviation": "SHOT",
+     "shortDisplayName": "SHOT",
+     "displayValue": "17"
+    }
+   ]
+  }
+ }
+}

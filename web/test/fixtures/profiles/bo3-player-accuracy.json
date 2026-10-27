@@ -1,0 +1,60 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/players/zywoo/accuracy_stats",
+ "_recorded": "2026-10-27T08:46:43.954Z",
+ "items": [
+  {
+   "hit_group": "",
+   "hits_sum": 157,
+   "damage_sum": 4440,
+   "kills_sum": 21
+  },
+  {
+   "hit_group": "RightLeg",
+   "hits_sum": 1269,
+   "damage_sum": 31571,
+   "kills_sum": 212
+  },
+  {
+   "hit_group": "LeftLeg",
+   "hits_sum": 955,
+   "damage_sum": 24196,
+   "kills_sum": 165
+  },
+  {
+   "hit_group": "Chest",
+   "hits_sum": 24388,
+   "damage_sum": 822211,
+   "kills_sum": 7298
+  },
+  {
+   "hit_group": "Head",
+   "hits_sum": 10792,
+   "damage_sum": 762080,
+   "kills_sum": 8842
+  },
+  {
+   "hit_group": "Stomach",
+   "hits_sum": 7632,
+   "damage_sum": 279131,
+   "kills_sum": 2926
+  },
+  {
+   "hit_group": "LeftArm",
+   "hits_sum": 1240,
+   "damage_sum": 44859,
+   "kills_sum": 419
+  },
+  {
+   "hit_group": "RightArm",
+   "hits_sum": 3900,
+   "damage_sum": 138117,
+   "kills_sum": 1208
+  },
+  {
+   "hit_group": "Generic",
+   "hits_sum": 12909,
+   "damage_sum": 110475,
+   "kills_sum": 280
+  }
+ ]
+}

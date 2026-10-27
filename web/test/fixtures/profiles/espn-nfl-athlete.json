@@ -1,0 +1,79 @@
+{
+ "_source": "https://site.web.api.espn.com/apis/common/v3/sports/football/nfl/athletes/3139477",
+ "_recorded": "2026-10-27T08:46:29.807Z",
+ "athlete": {
+  "id": "3139477",
+  "displayName": "Patrick Mahomes",
+  "jersey": "15",
+  "active": true,
+  "age": 31,
+  "displayBirthPlace": "Whitehouse, TX",
+  "displayHeight": "6' 2\"",
+  "displayWeight": "225 lbs",
+  "displayDraft": "2017: Rd 1, Pk 10 (KC)",
+  "displayExperience": "10th Season",
+  "debutYear": 2017,
+  "position": {
+   "displayName": "Quarterback",
+   "abbreviation": "QB"
+  },
+  "headshot": {
+   "href": "https://a.espncdn.com/i/headshots/nfl/players/full/3139477.png"
+  },
+  "college": {
+   "name": "Texas Tech"
+  },
+  "team": {
+   "id": "12",
+   "displayName": "Kansas City Chiefs",
+   "shortDisplayName": "Chiefs",
+   "abbreviation": "KC",
+   "color": "e31837",
+   "alternateColor": "ffb612",
+   "logos": [
+    {
+     "href": "https://a.espncdn.com/i/teamlogos/nfl/500/kc.png"
+    }
+   ]
+  },
+  "links": [
+   {
+    "rel": [
+     "playercard",
+     "desktop",
+     "athlete"
+    ],
+    "href": "https://www.espn.com/nfl/player/_/id/3139477/patrick-mahomes"
+   }
+  ],
+  "statsSummary": {
+   "displayName": "2026 regular season stats",
+   "statistics": [
+    {
+     "abbreviation": "YDS",
+     "shortDisplayName": "Pass Yards",
+     "displayValue": "1,474",
+     "rankDisplayValue": "18th"
+    },
+    {
+     "abbreviation": "TD",
+     "shortDisplayName": "Touchdowns",
+     "displayValue": "9",
+     "rankDisplayValue": "Tied-16th"
+    },
+    {
+     "abbreviation": "INT",
+     "shortDisplayName": "INT",
+     "displayValue": "4",
+     "rankDisplayValue": "Tied-14th"
+    },
+    {
+     "abbreviation": "QBR",
+     "shortDisplayName": "QBR",
+     "displayValue": "67.2",
+     "rankDisplayValue": "8th"
+    }
+   ]
+  }
+ }
+}
