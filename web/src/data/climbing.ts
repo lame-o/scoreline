@@ -25,7 +25,7 @@ import { liveMoment, Tier, type Accent, type LiveMoment } from "./moments";
 import type { EventState } from "./models";
 import { IFSC_BASE } from "./providers/ifsc";
 import { flagFromIOC } from "./teams";
-import { boulderCard, capitalized, kindOf, upNext, wallRoute, type BoulderCard, type Climber, type Reach, type UpNext, type WallRoute } from "./wallState";
+import { boulderCard, capitalized, climberShort, kindOf, upNext, wallRoute, type BoulderCard, type Climber, type Reach, type UpNext, type WallRoute } from "./wallState";
 
 export { boulderCard, upNext, wallCountry, wallDomain, wallRoute, wallStateFrom } from "./wallState";
 
@@ -57,9 +57,11 @@ export function parseRanking(results: JSONValue): Athlete[] {
   return arr(at(results, "ranking")).flatMap((a): Athlete[] => {
     const id = int(at(a, "athlete_id")) ?? int(at(a, "id"));
     if (id == null) return [];
-    const name = `${str(at(a, "firstname")) ?? ""} ${capitalized(str(at(a, "lastname")) ?? "")}`.trim();
+    const first = str(at(a, "firstname"));
+    const last = str(at(a, "lastname"));
+    const name = `${first ?? ""} ${capitalized(last ?? "")}`.trim();
     const score = str(at(a, "score"));
-    return [{ id, rank: int(at(a, "rank")) ?? null, name, country: str(at(a, "country")) ?? null, score: score ? score : null }];
+    return [{ id, rank: int(at(a, "rank")) ?? null, name, country: str(at(a, "country")) ?? null, score: score ? score : null, short: climberShort(first, last) }];
   });
 }
 
@@ -472,6 +474,23 @@ export const REACH_LABEL: Readonly<Record<Reach, string>> = { top: "Top", zone: 
 
 /** IFSC marks a round active hours early; it's live once the page's event is. */
 export const roundLive = (d: Pick<ClimbingDetailPart, "roundStatus">, state: EventState): boolean => d.roundStatus === "active" && state === "live";
+
+/**
+ * The hero's line from the round's own ranking, worded as the scores list
+ * words it from the same IFSC results (Providers.swift's summary): "Final ·
+ * Leader 🇸🇮 L. Rakovec". The page reads the round every 4 s and the list's
+ * copy can lag it by a poll, so the hero's leader and the results' first
+ * place always agree. A climber still on the wall has no place yet: the
+ * ascent shows her provisional one, as the Mac's does. Null when the round
+ * isn't live or nobody is placed (the scoreboard's line stands).
+ */
+export function liveFieldSummary(d: Pick<ClimbingDetailPart, "roundName" | "roundStatus" | "ranking">, state: EventState): string | null {
+  if (!roundLive(d, state)) return null;
+  const first = d.ranking.find((a) => a.rank === 1);
+  if (!first) return null;
+  const leader = [flagFromIOC(first.country), first.short ?? first.name].filter(Boolean).join(" ");
+  return [d.roundName, `Leader ${leader}`].filter(Boolean).join(" · ");
+}
 
 /**
  * The country the page is dressed in (DetailView.washCountry): whoever is on

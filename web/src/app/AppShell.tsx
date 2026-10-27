@@ -12,14 +12,27 @@
  */
 import { lazy, Suspense, useEffect, useRef } from "react";
 import { Outlet, ScrollRestoration } from "react-router";
+import { leagueWithID } from "../data/leagues";
 import { ScoresPage } from "../features/scores/ScoresPage";
+import { getSettings } from "../state/settings";
 import { useAppCommands } from "./commands";
-import { isTyping, useGoBack } from "./navigation";
+import { isTyping, markSidebarNavigation, useGoBack, useTrail } from "./navigation";
 import { useSplit } from "./layout";
 import { useDetailScrollMemory } from "./scrollMemory";
 import styles from "./AppShell.module.css";
 
 const LiveServices = lazy(() => import("./LiveServices"));
+
+/** The shell's frame alone (the sidebar's glass beside an empty pane): what a deep link shows while its page's code arrives. */
+export function ShellFrame() {
+  const split = useSplit();
+  return (
+    <div className={styles.shell} data-split={split}>
+      {split ? <div className={styles.sidebar} /> : null}
+      <div className={styles.detail} />
+    </div>
+  );
+}
 
 export function AppShell() {
   const split = useSplit();
@@ -29,6 +42,8 @@ export function AppShell() {
   // Beside the sidebar, the detail pane scrolls on its own: a new page starts at its top, Back lands where it was.
   useDetailScrollMemory(detail, split);
   useAppCommands();
+  // Every page visited, for Back's label (navigation.ts).
+  useTrail();
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -41,10 +56,12 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [goBack]);
 
-  // Warm the pages a click is likely to open next, once the list has painted.
+  // Warm the pages a click is likely to open next, once the list has painted:
+  // the game page and the pages of the sports you follow (each sport's is its own chunk).
   useEffect(() => {
     const warm = () => {
       void import("../features/game/GamePage");
+      void import("../features/game/sportPages").then((m) => m.warmSportPages(getSettings().enabledLeagues.flatMap((id) => leagueWithID(id) ?? [])));
       void import("../features/settings/SettingsPage");
       // A game's menu, so the first right-click opens it at once.
       void import("../features/scores/GameMenuContent");
@@ -60,11 +77,31 @@ export function AppShell() {
   return (
     <div className={styles.shell} data-split={split}>
       {split ? (
-        <aside className={styles.sidebar} aria-label="Scores">
-          <ScoresPage variant="sidebar" />
-        </aside>
+        <>
+          {/* The sidebar comes first: a keyboard can skip its games to the page beside it. */}
+          <a
+            className={styles.skip}
+            href="#main"
+            onClick={(e) => {
+              e.preventDefault();
+              detail.current?.focus({ preventScroll: true });
+            }}
+          >
+            Skip to Page
+          </a>
+          <aside
+            className={styles.sidebar}
+            aria-label="Scores"
+            onClickCapture={markSidebarNavigation}
+            onKeyDownCapture={(e) => {
+              if (e.key === "Enter") markSidebarNavigation();
+            }}
+          >
+            <ScoresPage variant="sidebar" />
+          </aside>
+        </>
       ) : null}
-      <main className={styles.detail} id="main" ref={detail}>
+      <main className={styles.detail} id="main" ref={detail} tabIndex={-1}>
         <Outlet />
       </main>
       {/* On a phone the window scrolls: Back lands where you left the list, a new page at its top. */}

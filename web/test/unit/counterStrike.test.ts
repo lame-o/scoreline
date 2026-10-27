@@ -15,7 +15,11 @@ describe("CS2 (bo3.gg)", () => {
     const a = scoreURLs(Date.parse("2026-10-27T07:01:00Z"));
     const b = scoreURLs(Date.parse("2026-10-27T07:59:59Z"));
     expect(a).toEqual(b);
-    expect(new URL(a.upcoming).searchParams.get("filter[matches.start_date][gte]")).toBe("2026-10-25T07:00:00Z");
+    // Strict bounds: bo3.gg ignores [gte] and [lte] on start_date (every match since 2020 comes back).
+    expect(new URL(a.upcoming).searchParams.get("filter[matches.start_date][gt]")).toBe("2026-10-25T06:59:59Z");
+    expect(new URL(a.upcoming).searchParams.has("filter[matches.start_date][gte]")).toBe(false);
+    expect(new URL(a.finished).searchParams.get("filter[matches.start_date][lt]")).toMatch(/^2026-10-29T\d\d:00:00Z$/);
+    expect(a.finished).not.toContain("%5Blte%5D");
     expect(new URL(a.finished).searchParams.get("sort")).toBe("-start_date");
     expect(listURL("current", "start_date", 20)).toContain("with=teams%2Ctournament");
   });

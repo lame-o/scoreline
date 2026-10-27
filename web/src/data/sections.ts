@@ -8,7 +8,7 @@
  * `sectionOrder` and its two-column plan to `widePlan`, then renders them in
  * its page module (features/game/<sport>/).
  */
-import type { EventRef, EventState } from "./models";
+import type { EventRef, EventState, League } from "./models";
 import { NBA_PATH } from "./providers/espn";
 
 /** The WNBA reads the NBA's feed: it gets the NBA page, with the parts its data has. */
@@ -67,6 +67,18 @@ export function pageKind(ref: EventRef | null): PageKind {
       return "climbing";
     default:
       return "none";
+  }
+}
+
+/** The page kind a league's games open on, so its page's code can be warmed before a click. */
+export function leaguePageKind(league: League): PageKind {
+  switch (league.source.kind) {
+    case "espn":
+      return pageKind({ kind: "espn", path: league.source.path, id: "", sport: league.sport });
+    case "counterStrike":
+      return "counterStrike";
+    case "ifsc":
+      return "climbing";
   }
 }
 

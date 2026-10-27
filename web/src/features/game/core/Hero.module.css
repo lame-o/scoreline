@@ -135,7 +135,16 @@
   text-align: center;
 }
 
+/* Two lines at most (the Mac's lineLimit(2)); a name with no break points breaks anywhere rather than run across the score. */
 .name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  hyphens: auto;
   font-size: var(--text-body);
   font-weight: 500;
   line-height: 1.2;

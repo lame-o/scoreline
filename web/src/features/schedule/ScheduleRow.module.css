@@ -33,7 +33,16 @@
   scroll-margin-block: calc(140 * var(--pt)) calc(12 * var(--pt));
 }
 
-.row[data-dimmed="true"] > * {
+/*
+ * If-necessary and canceled games recede (ScheduleRows.swift). The Mac fades
+ * the whole row to 55%; here the ink steps down to secondary and the crests
+ * fade, so the row still recedes but every word still reads at 4.5:1.
+ */
+.row[data-dimmed="true"] {
+  color: var(--label-secondary);
+}
+
+.row[data-dimmed="true"] img {
   opacity: 0.55;
 }
 

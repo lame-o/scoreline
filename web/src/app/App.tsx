@@ -16,7 +16,7 @@ import { LazyMotion, MotionConfig } from "motion/react";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import { queryClient } from "../state/scores";
 import { useApplyTheme } from "../state/theme";
-import { AppShell } from "./AppShell";
+import { AppShell, ShellFrame } from "./AppShell";
 import { IndexRoute } from "./IndexRoute";
 import { NotFound } from "./NotFound";
 import { RouteError } from "./RouteError";
@@ -25,6 +25,8 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <AppShell />,
+    // A link straight to a page waits for that page's chunk: the frame paints meanwhile, never a blank window.
+    hydrateFallbackElement: <ShellFrame />,
     errorElement: <RouteError />,
     children: [
       { index: true, element: <IndexRoute /> },

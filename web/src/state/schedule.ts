@@ -604,7 +604,11 @@ async function findLatest(league: League, calendar: ScheduleCalendar | null): Pr
 /** A league's results page: its rounds and the requested round (or the latest), loaded. */
 export async function loadLeagueResults(league: League, requested: string | null, back: string | null): Promise<ResultsPage> {
   if (league.source.kind !== "espn") return emptyResults(false);
-  const calendar = await fetchCalendar(league.source.path).catch(() => null);
+  let calendarFailed = false;
+  const calendar = await fetchCalendar(league.source.path).catch(() => {
+    calendarFailed = true;
+    return null;
+  });
   let round: ResultRound | null = null;
   let ok = true;
   if (back) {
@@ -632,7 +636,8 @@ export async function loadLeagueResults(league: League, requested: string | null
     summary: roundSummary(items, league.sport),
     byes: resolved?.kind === "week" ? (used[0]?.byes ?? []) : [],
     more: false,
-    ok: ok || (resolved ? isLoaded(league, resolved) : false),
+    // No calendar and no rounds (offline): a failure to load, not a season without results.
+    ok: (ok || (resolved ? isLoaded(league, resolved) : false)) && !(calendarFailed && rounds.length === 0),
     fetchedAt: used.length ? Math.min(...used.map((b) => b.fetchedAt)) : null,
   };
 }

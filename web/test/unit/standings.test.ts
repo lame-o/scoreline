@@ -35,6 +35,7 @@ import {
   tableLinks,
   widthClassFrom,
   widthClassOf,
+  withLaneScore,
   zoneBoundary,
   type StandingsRow,
 } from "../../src/data/standings";
@@ -139,6 +140,22 @@ describe("the live projection", () => {
     expect(get("a").zone).toBe("Champions League");
     expect(get("d").liveScore).toBe("3–1");
     expect(get("c").liveScore).toBe("1–3");
+  });
+
+  it("counts a goal the game page's lane has before the scoreboard does", () => {
+    // The scoreboard says d 1–1 c; the soccer lane already has d's second goal (the hero shows 2–1).
+    const scoreboard = [live("d", 1, "c", 1), live("e", 2, "a", 2)];
+    const lane = withLaneScore(scoreboard, "dc", { top: "2", bottom: "1" });
+    const d = liveTable(table, lane).find((r) => r.id === "d")!;
+    expect(d.liveScore).toBe("2–1");
+    expect(d.points).toBe(16);
+    // The other games, and the scoreboard's own copy, are left alone.
+    expect(lane[1]).toBe(scoreboard[1]);
+    expect(scoreboard[0]!.content.kind === "match" && scoreboard[0]!.content.top.score).toBe("1");
+    // No lane score, or one that agrees: the same array back (nothing re-projects).
+    expect(withLaneScore(scoreboard, "dc", null)).toBe(scoreboard);
+    expect(withLaneScore(scoreboard, "dc", { top: "1", bottom: "1" })).toBe(scoreboard);
+    expect(withLaneScore(scoreboard, "zz", { top: "2", bottom: "1" })).toBe(scoreboard);
   });
 
   it("knockout ties don't count toward a table", () => {

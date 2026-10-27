@@ -15,7 +15,7 @@ import type { Uniform } from "../../../../data/mlb/theaterTeams";
 import type { Side } from "../../../../data/models";
 import type { FootballScene } from "../../../../data/theater/footballScene";
 import { FootballScript, footballStamp, Gridiron, type Player } from "../../../../data/theater/footballScript";
-import { FieldProjection } from "../../mlb/theater/drawTheater";
+import { FieldProjection } from "../../core/theater/fieldProjection";
 import { hsb, rgba, type TheaterInk } from "../../mlb/theater/theaterInk";
 import {
   accentOf,

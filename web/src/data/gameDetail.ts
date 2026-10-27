@@ -191,6 +191,8 @@ export interface Athlete {
   readonly name: string;
   readonly country: string | null;
   readonly score: string | null;
+  /** "L. Rakovec", as the scores list names a climber (a round's ranking only). */
+  readonly short?: string;
 }
 
 /** A CS2 tournament a match belongs to, for its bracket. */

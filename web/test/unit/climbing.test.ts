@@ -19,6 +19,7 @@ import {
   labelCapacity,
   labeled,
   labelPositions,
+  liveFieldSummary,
   loadClimbingDetail,
   medalName,
   nextTarget,
@@ -41,6 +42,7 @@ import {
 import { fetchDetail, type Athlete } from "../../src/data/gameDetail";
 import { categoryEvent } from "../../src/data/providers/ifsc";
 import { capitalized, wallDomain, wallStateFrom } from "../../src/data/wallState";
+import { flagFromIOC } from "../../src/data/teams";
 import { fixture, replay } from "./fixtures";
 
 const clone = <T,>(name: string) => structuredClone(fixture(name)) as T;
@@ -59,7 +61,7 @@ describe("climbing: a round's results", () => {
     expect(route.climbers[1]!.height).toBe(48.5);
     // Ties keep the route's rank order.
     expect(route.climbers.slice(2, 5).map((c) => c.rank)).toEqual([3, 4, 5]);
-    expect(d.ranking[0]).toEqual({ id: 1147, rank: 1, name: "Janja Garnbret", country: "SLO", score: "TOP" });
+    expect(d.ranking[0]).toEqual({ id: 1147, rank: 1, name: "Janja Garnbret", country: "SLO", score: "TOP", short: "J. Garnbret" });
     expect(d.boulders).toEqual([]);
     expect(d.upNext).toBeNull();
   });
@@ -103,6 +105,23 @@ describe("climbing: a round's results", () => {
     expect(route.climbers.map((c) => c.label)).toEqual(["41+", "7"]);
     expect(route.total).toBe(8);
     expect(d.upNext).toMatchObject({ name: "S. Anraku", position: 3, total: 8 });
+  });
+
+  it("names the hero's leader from the round's own ranking, as the scores list words it", () => {
+    const d = parseRound(fixture("ifsc-round-lead-live.json"));
+    const first = d.ranking.find((a) => a.rank === 1)!;
+    const line = liveFieldSummary(d, "live");
+    // "Final · Leader 🇯🇵 R. Hamada": the results' first place, the scoreboard's wording (Providers.swift).
+    expect(line).toBe(`${d.roundName} · Leader ${[flagFromIOC(first.country), first.short].filter(Boolean).join(" ")}`);
+    expect(first.short).toMatch(/^\p{L}\. \S/u);
+    // A climber on the wall has no place yet: the line names whoever IFSC ranks first.
+    const climbing = { ...d, ranking: [{ ...first, rank: null, score: "48+" }, ...d.ranking.filter((a) => a !== first).map((a) => (a.rank === 2 ? { ...a, rank: 1 } : a))] };
+    const next = climbing.ranking.find((a) => a.rank === 1);
+    expect(liveFieldSummary(climbing, "live")).toBe(next ? `${d.roundName} · Leader ${[flagFromIOC(next.country), next.short].filter(Boolean).join(" ")}` : null);
+    // Not live, or nobody placed: the scoreboard's line stands.
+    expect(liveFieldSummary(d, "final")).toBeNull();
+    expect(liveFieldSummary({ ...d, roundStatus: "finished" }, "live")).toBeNull();
+    expect(liveFieldSummary({ ...d, ranking: d.ranking.map((a) => ({ ...a, rank: null })) }, "live")).toBeNull();
   });
 
   it("loads the next round's starting order before it begins", async () => {

@@ -15,7 +15,7 @@
  * `climbingMoments`). Untracked disciplines are never fetched (useGame).
  */
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
-import { climbingMoments, decided, dockClimber, isFinalRound, resultsCaption, roundLive, wallCaption, washCountry } from "../../../data/climbing";
+import { climbingMoments, decided, dockClimber, isFinalRound, liveFieldSummary, resultsCaption, roundLive, wallCaption, washCountry } from "../../../data/climbing";
 import { dayAndTime, ordinal } from "../../../data/format";
 import { EMPTY_DETAIL, type GameDetail } from "../../../data/gameDetail";
 import { Accessory, type AccessoryTier } from "../../../data/matchRules";
@@ -138,6 +138,7 @@ export function useClimbingPage(game: GameContext): SportPage {
   return {
     sections,
     clockFallback: event.detail ?? "Live",
+    fieldSummary: loaded ? liveFieldSummary(detail, event.state) : null,
     heroSpoken: live && onWall ? `${onWall.name} is climbing, at ${onWall.label}` : null,
     wash,
     trophy,

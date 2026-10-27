@@ -8,10 +8,11 @@
  * with the Mac's keys (PickList.tsx).
  */
 import { useParams } from "react-router";
-import { BackButton, Button, FormSection, GroupBox, PageHeader, SegmentedControl, ToggleRow, formStyles } from "../../design/components";
+import { Button, FormSection, GroupBox, PageHeader, SegmentedControl, ToggleRow, formStyles } from "../../design/components";
 import { leagueWithID } from "../../data/leagues";
 import type { League } from "../../data/models";
 import { useGoBack } from "../../app/navigation";
+import { PageBack } from "../../app/PageBack";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { NotFound } from "../../app/NotFound";
 import { settings, useSettings, type Settings } from "../../state/settings";
@@ -29,7 +30,7 @@ export function LeaguePage() {
   if (!league) return <NotFound />;
   return (
     <div className={styles.page}>
-      <PageHeader title={league.name} icon={undefined} leading={<BackButton to="Settings" onClick={() => goBack()} />} />
+      <PageHeader title={league.name} icon={undefined} leading={<PageBack />} />
       <div className={`${styles.column} ${styles.entrance}`}>
         {/* What's next and what just happened lead, as on the Mac's league page (ScheduleHub, ResultsHub). */}
         <LeagueHub league={league} />

@@ -56,8 +56,9 @@ describe("text contrast", () => {
     const page = token("page")[scheme];
     // The sidebar: glass over the page (the ambient light is faint enough to ignore here).
     const glass = over(token("glass-fill")[scheme], page);
-    // A hovered or tinted row.
+    // A hovered or tinted row, in the sidebar's glass or on the page (a selected round, a pressed row).
     const tinted = over(token("fill-press")[scheme], glass);
+    const pressedOnPage = over(token("fill-press")[scheme], page);
     for (const name of TEXT) {
       it(`--${name} reads at 4.5:1 or better in ${scheme}`, () => {
         const ink = token(name)[scheme];
@@ -65,10 +66,26 @@ describe("text contrast", () => {
           ["page", page],
           ["glass", glass],
           ["a pressed row", tinted],
+          ["a pressed row on the page", pressedOnPage],
         ] as const) {
           expect(contrast(ink, bg), `${name} on ${surface}`).toBeGreaterThanOrEqual(4.5);
         }
       });
     }
+  }
+});
+
+describe("white on the live badge", () => {
+  // The live count ("3 Live"): white type on a red capsule, at 94% over the page or the sidebar's glass.
+  for (const scheme of ["light", "dark"] as const) {
+    it(`reads at 4.5:1 or better in ${scheme}`, () => {
+      const page = token("page")[scheme];
+      const glass = over(token("glass-fill")[scheme], page);
+      const badge = token("live-badge")[scheme];
+      for (const bg of [page, glass]) {
+        const fill = over([badge[0], badge[1], badge[2], 0.94], bg);
+        expect(contrast([255, 255, 255, 1], fill)).toBeGreaterThanOrEqual(4.5);
+      }
+    });
   }
 });

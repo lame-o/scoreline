@@ -9,18 +9,19 @@
  * sport is a hook in `SPORT_PAGES` (core/sport.tsx explains the seam) that
  * returns its sections and runs its own fast lane.
  */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Suspense, use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useParams, useSearchParams } from "react-router";
-import { BackButton, Button, EmptyState, IconButton, PageHeader } from "../../design/components";
+import { Button, EmptyState, ErrorState, IconButton, PageHeader } from "../../design/components";
 import { spokenStatus, scoreLine } from "../../data/format";
 import { beatFinal, beatScore, beatScoreRose, finalAnnouncement, NO_BEATS, winner, type HeroBeats } from "../../data/matchRules";
 import { decisive, scorer, Tier } from "../../data/moments";
 import { stepsBack, type ScoreEvent } from "../../data/models";
-import { arrangement, pageKind, sectionOrder, type PageKind, type PlacedSection } from "../../data/sections";
+import { arrangement, pageKind, sectionOrder, type PlacedSection } from "../../data/sections";
 import { NEUTRAL, teamPalette, type TeamPalette } from "../../data/teamColors";
 import { useColorScheme } from "../../state/theme";
 import { useSplit, type NavState } from "../../app/layout";
 import { useGoBack } from "../../app/navigation";
+import { PageBack } from "../../app/PageBack";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { announce } from "./core/announce";
 import { DockedScorebar } from "./core/DockedScorebar";
@@ -28,38 +29,14 @@ import { usePageGeometry, useRemeasure, useSurface } from "./core/geometry";
 import { Hero, HeroSkeleton, HeroWash } from "./core/Hero";
 import { LinkedFocusProvider, LinkedFocusStore } from "./core/linked";
 import { MomentProvider, useCurrentMoment, useMomentSlot } from "./core/moments";
-import type { GameContext, SportPage, UseSportPage } from "./core/sport";
-import { useCommonSections } from "./core/useCommonSections";
+import type { GameContext, SportPage } from "./core/sport";
 import { useGame, type GameData } from "./core/useGame";
 import { EMPTY_DETAIL } from "../../data/gameDetail";
 import { useWidth } from "../../design/useWidth";
-import { useBaseballPage } from "./mlb/BaseballPage";
-import { useCounterStrikePage } from "./cs2/CounterStrikePage";
-import { useClimbingPage } from "./climbing/ClimbingPage";
-import { useBasketballPage } from "./nba/BasketballPage";
 import { nbaPalette } from "../../data/basketball";
-import { useSoccerPage } from "./soccer/SoccerPage";
-import { useFootballPage } from "./football/FootballPage";
 import { ErrorCopy } from "../../design/components";
+import { sportPage } from "./sportPages";
 import styles from "./GamePage.module.css";
-
-/** The generic ESPN page: the shared sections only (football, soccer, NBA and the rest until their agents land). */
-const useGenericPage: UseSportPage = (game) => ({ sections: useCommonSections(game) });
-
-/**
- * Each page kind's hook. A page's kind never changes while it's mounted (the
- * body is keyed by event and kind), so each renders one hook consistently.
- */
-const SPORT_PAGES: Readonly<Record<PageKind, UseSportPage>> = {
-  baseball: useBaseballPage,
-  football: useFootballPage,
-  soccer: useSoccerPage,
-  nba: useBasketballPage,
-  espn: useGenericPage,
-  counterStrike: useCounterStrikePage,
-  climbing: useClimbingPage,
-  none: useGenericPage,
-};
 
 /** Two columns from 680pt of page, with 12pt of hysteresis (PanelLayout.resolve). */
 const SPLIT_WIDTH = 680;
@@ -78,7 +55,7 @@ export function GamePage() {
   const header = (
     <PageHeader
       className={styles.header}
-      leading={split ? null : <BackButton to="Scores" onClick={() => goBack()} />}
+      leading={<PageBack />}
       trailing={event?.link ? <IconButton icon="external" label="Open in Browser" onClick={() => window.open(event.link!, "_blank", "noopener,noreferrer")} /> : null}
     />
   );
@@ -89,8 +66,11 @@ export function GamePage() {
         {header}
         {game.status === "loading" ? (
           <HeroSkeleton />
+        ) : game.status === "failed" ? (
+          <ErrorState level={1} subject="Game" onRetry={game.refresh} />
         ) : (
           <EmptyState
+            level={1}
             icon="sportscourt"
             title="Game Not Found"
             message="This game isn't on any scoreboard Scoreline reads, and its source didn't answer."
@@ -100,7 +80,19 @@ export function GamePage() {
       </div>
     );
   }
-  return <GameBody key={`${event.id}|${pageKind(event.ref)}`} game={game} event={event} header={header} split={split} />;
+  // Each sport's page is its own chunk (sportPages.ts): until it's here, the page looks as it does while the game loads.
+  return (
+    <Suspense
+      fallback={
+        <div className={styles.page}>
+          {header}
+          <HeroSkeleton />
+        </div>
+      }
+    >
+      <GameBody key={`${event.id}|${pageKind(event.ref)}`} game={game} event={event} header={header} split={split} />
+    </Suspense>
+  );
 }
 
 /** "ARS 2–1 CHE (67')", "ARS v CHE": the game for a tab title. */
@@ -210,7 +202,9 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
     leagueID: game.leagueID,
     refresh: game.refresh,
   };
-  const sport: SportPage = SPORT_PAGES[pageKind(event.ref)](context);
+  // A page's kind never changes while it's mounted (the body is keyed by event and kind), so this is always the same hook.
+  const useSportPage = use(sportPage(pageKind(event.ref)));
+  const sport: SportPage = useSportPage(context);
 
   // The hero's numbers (the lane's while it's ahead).
   const scores = { top: sport.laneScores?.top ?? top?.score ?? null, bottom: sport.laneScores?.bottom ?? bottom?.score ?? null };
@@ -223,6 +217,13 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
   const surface = useSurface(geometry);
   const fallback = sport.clockFallback ?? (event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live"));
 
+  // A field event's line from the page's own lane when it says something newer (the climbing leader).
+  const fieldSummary = sport.fieldSummary;
+  const heroEvent = useMemo(
+    () => (fieldSummary && event.content.kind === "field" && event.content.summary !== fieldSummary ? { ...event, content: { ...event.content, summary: fieldSummary } } : event),
+    [event, fieldSummary],
+  );
+
   const shown = sectionOrder(event.ref, event.state).filter((s) => sport.sections[s] != null);
   const placed = arrangement(shown, event.ref, event.state, columns);
   useRemeasure(geometry, `${placed.map((p) => p.section).join()}|${columns}`);
@@ -231,7 +232,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
     <>
       <div className={styles.heroSlot}>
         <Hero
-          event={event}
+          event={heroEvent}
           palette={event.content.kind === "match" ? palette : null}
           scores={scores}
           beats={beats}
@@ -244,7 +245,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
           chip={sport.heroChip ?? null}
           note={sport.heroNote ?? null}
           staleSince={game.staleSince}
-          spoken={spokenHero(event, scores, fallback, sport.heroSpoken ?? null)}
+          spoken={spokenHero(heroEvent, scores, fallback, sport.heroSpoken ?? null)}
           caption={event.caption ?? detail.roundName}
           trophy={sport.trophy ?? null}
           badge={sport.heroBadge ?? null}

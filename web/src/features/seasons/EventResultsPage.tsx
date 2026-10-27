@@ -9,7 +9,7 @@
 import { AnimatePresence, m } from "motion/react";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
-import { BackButton, ErrorState, Icon, IconButton, Menu, PageHeader, SectionTitle, type MenuEntry } from "../../design/components";
+import { ErrorState, Icon, IconButton, Menu, PageHeader, SectionTitle, type MenuEntry } from "../../design/components";
 import { tween } from "../../design/motion";
 import { useWidth } from "../../design/useWidth";
 import { dayRangeLabel } from "../../data/days";
@@ -18,8 +18,7 @@ import { itemEvent, type ScheduleItem, type SeasonEvent } from "../../data/sched
 import { tracking } from "../../data/seasons";
 import { displayName, lastScore, roundEvent, scoreIn, shownGroups, winnerShortName, type CategoryResults, type CategoryRound, type CategoryRow } from "../../data/seasonResults";
 import { countryName, flagFromIOC } from "../../data/teams";
-import { useSplit } from "../../app/layout";
-import { useGoBack } from "../../app/navigation";
+import { PageBack } from "../../app/PageBack";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { useCategoryResults, useClimbingCountries, useTournamentResults } from "../../state/seasons";
 import { useSettings } from "../../state/settings";
@@ -36,11 +35,6 @@ export function EventResultsPage() {
   return pathname.startsWith("/results/climbing") ? <ClimbingCategoryPage /> : <TournamentResultsDetailPage />;
 }
 
-function useBack() {
-  const split = useSplit();
-  const goBack = useGoBack();
-  return split ? null : <BackButton to="Back" onClick={() => goBack()} />;
-}
 
 // MARK: - Climbing: a category's full results
 
@@ -75,7 +69,7 @@ function ClimbingCategoryPage() {
   const eventName = page.event?.shortName ?? search.get("event") ?? "";
   const title = eventName ? `${name} · ${eventName}` : name;
   useDocumentTitle(title);
-  const back = useBack();
+  const back = <PageBack />;
 
   // Another category of the same competition, in place: no Back step.
   const entries: MenuEntry[] = categories.map((c) => ({
@@ -319,7 +313,7 @@ function TournamentResultsDetailPage() {
   const t = page.tournament;
   const name = t?.event.name ?? search.get("name") ?? "Tournament";
   useDocumentTitle(displayName(name));
-  const back = useBack();
+  const back = <PageBack />;
   const bracket = t ? tournamentBracketPath(t.event, followed) : null;
   const onHover = useCallback(() => {}, []);
 

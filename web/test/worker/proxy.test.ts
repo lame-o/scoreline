@@ -78,6 +78,30 @@ describe("the /api proxy", () => {
     expect(upstream).not.toHaveBeenCalled();
   });
 
+  it("serves the upstream when the cache fails, and never fails a response over a cache write", async () => {
+    fakeCache.match.mockRejectedValueOnce(new Error("cache unavailable"));
+    fakeCache.put.mockRejectedValueOnce(new Error("quota"));
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const response = await call("/api/site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ events: [] });
+    const events = log.mock.calls.map(([line]) => JSON.parse(String(line)).event);
+    expect(events).toEqual(expect.arrayContaining(["cache_match_failed", "cache_put_failed", "miss"]));
+    log.mockRestore();
+  });
+
+  it("says when an upstream took too long (504), apart from one that's down (502)", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    upstream.mockRejectedValueOnce(new DOMException("The operation timed out.", "TimeoutError"));
+    const slow = await call("/api/site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard");
+    expect(slow.status).toBe(504);
+    expect(slow.headers.get("Cache-Control")).toBe("no-store");
+    upstream.mockRejectedValueOnce(new TypeError("fetch failed"));
+    expect((await call("/api/site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard")).status).toBe(502);
+    expect(log.mock.calls.map(([line]) => JSON.parse(String(line)).event)).toEqual(["upstream_timeout", "upstream_unreachable"]);
+    log.mockRestore();
+  });
+
   it("answers HEAD without a body", async () => {
     const response = await call("/api/statsapi.mlb.com/api/v1/schedule?sportId=1", "HEAD");
     expect(response.status).toBe(200);

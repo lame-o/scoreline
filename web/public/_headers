@@ -1,0 +1,15 @@
+# Response headers for the static assets (Workers Static Assets reads this file; /api/* is the
+# Worker's, which sets its own in worker/proxy.ts). test/unit/headers.test.ts checks the CSP's
+# script hash against index.html's inline theme script: edit one, update the other.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-xP+w9z/DXpuc4zcg5e+XrkuBk40lCIseUUlmMyhaoiQ='; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self'; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin
+
+# Hashed bundles never change under their names: cache them for a year, never revalidate.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

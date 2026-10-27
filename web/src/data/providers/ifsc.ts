@@ -13,7 +13,7 @@ import { arr, at, bool, int, str, type JSONValue } from "../json";
 import { resolveURL, type Fetcher } from "../http";
 import type { EventState, LiveSnapshot, ScoreEvent } from "../models";
 import { flagFromIOC, isoFromIOC } from "../teams";
-import { capitalized, wallStateFrom } from "../wallState";
+import { capitalized, climberShort, wallStateFrom } from "../wallState";
 import { parseDate } from "./espn";
 
 export const IFSC_BASE = "https://ifsc.results.info";
@@ -128,7 +128,7 @@ export async function categoryEvent(
   const state: EventState = live && !ended ? "live" : !next || ended ? "final" : "scheduled";
   const focus = live ?? lastFinished;
 
-  const short = (first: string | undefined, last: string | undefined) => `${first ? `${[...first][0]}. ` : ""}${capitalized(last ?? "")}`;
+  const short = climberShort;
   let leader: string | null = null;
   let yours: string | null = null;
   let snapshot: LiveSnapshot | null = null;

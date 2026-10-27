@@ -24,11 +24,11 @@ import styles from "./ResultRows.module.css";
  */
 export function FormStrip({ marks, hovered, onHover, href }: { marks: readonly FormMark[]; hovered: string | null; onHover: (id: string | null) => void; href: (id: string) => string }) {
   return (
-    <div className={styles.strip} role="list" aria-label={`Form, last ${marks.length}, oldest to newest`} onPointerLeave={() => onHover(null)}>
+    // A labeled group of links: a link given the listitem role stops being a link.
+    <div className={styles.strip} role="group" aria-label={`Form, last ${marks.length}, oldest to newest`} onPointerLeave={() => onHover(null)}>
       {marks.map((mark, i) => (
         <Link
           key={`${mark.itemID}-${i}`}
-          role="listitem"
           to={href(mark.itemID)}
           className={styles.mark}
           data-letter={mark.letter}
