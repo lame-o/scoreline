@@ -1,0 +1,298 @@
+/* League tables (StandingsTable, NBAStandingsTable, ConferenceTable): fixed numeric columns, the team column gives way. */
+
+.table {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: calc(6 * var(--pt));
+  padding: 0 calc(6 * var(--pt)) calc(4 * var(--pt));
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.teamHead {
+  flex: 1;
+  min-width: 0;
+  /* Past the crest: "Team" sits over the names. */
+  padding-left: calc(21 * var(--pt));
+}
+
+.num {
+  flex: none;
+  text-align: right;
+}
+
+.rowWrap {
+  position: relative;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+  padding: calc(4 * var(--pt)) calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+  font-size: calc(11.5 * var(--pt));
+  font-variant-numeric: tabular-nums;
+  color: var(--label);
+  scroll-margin-block: calc(56 * var(--pt)) calc(12 * var(--pt));
+}
+
+/* A followed team (or the match's): the quiet accent plate. */
+.row[data-mine="true"] {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background: var(--fill-hover);
+  }
+  .row[data-mine="true"]:hover {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+  }
+}
+
+.row:active {
+  background: var(--fill-press);
+}
+
+.row:focus-visible {
+  outline-offset: calc(-2 * var(--pt));
+}
+
+.rank {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  flex: none;
+  font-size: calc(11 * var(--pt));
+  font-weight: 600;
+}
+
+.identity {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(4 * var(--pt));
+  min-width: 0;
+}
+
+.apRank {
+  flex: none;
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.name {
+  font-size: calc(12 * var(--pt));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name[data-mine="true"] {
+  font-weight: 600;
+}
+
+.spacer {
+  flex: 1;
+  min-width: calc(4 * var(--pt));
+}
+
+.cell {
+  flex: none;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--label-secondary);
+}
+
+.points {
+  flex: none;
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.up,
+.down {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+}
+
+.up {
+  color: var(--up-text);
+}
+
+.down {
+  color: var(--live-text);
+}
+
+.liveScore {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  flex: none;
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  color: var(--live-text);
+}
+
+.projected {
+  display: flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  max-width: var(--readable-width);
+  padding: calc(4 * var(--pt)) calc(16 * var(--pt)) 0;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}
+
+.gap {
+  display: flex;
+  justify-content: center;
+  height: calc(10 * var(--pt));
+  color: var(--label-secondary);
+}
+
+.zone {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  height: calc(13 * var(--pt));
+  margin: calc(1 * var(--pt)) 0;
+  padding: 0 calc(6 * var(--pt));
+}
+
+.zone[data-labeled="false"] {
+  height: calc(7 * var(--pt));
+}
+
+.zoneLabel {
+  flex: none;
+  font-size: calc(9 * var(--pt));
+  font-weight: 500;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.zoneRule {
+  flex: 1;
+  height: calc(0.5 * var(--pt));
+  background: var(--viz-reference);
+  opacity: 0.5;
+}
+
+.groupLabel {
+  padding: calc(12 * var(--pt)) calc(6 * var(--pt)) calc(3 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.groupLabel[data-first="true"] {
+  padding-top: calc(2 * var(--pt));
+}
+
+/* MARK: Conference leader line */
+
+.leader {
+  display: flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  min-height: calc(16 * var(--pt));
+  min-width: 0;
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderWord {
+  flex: none;
+  color: var(--label-secondary);
+}
+
+.leaderName {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(4 * var(--pt));
+  min-width: 0;
+  margin-left: calc(2 * var(--pt));
+}
+
+.leaderTeam {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderRecords {
+  flex: none;
+  color: var(--label-secondary);
+}
+
+/* Just collapsed by a click: the line waits for the crest to land, then rises in. */
+.leaderReveal {
+  animation: reveal var(--dur-reveal) var(--ease-out) 0.12s both;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(calc(4 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes reveal {
+    from {
+      opacity: 0;
+    }
+  }
+  .leaderReveal {
+    animation-delay: 0s;
+  }
+}
+
+/* MARK: Two columns */
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.titledGroup {
+  padding: 0 calc(10 * var(--pt));
+}
+
+.columnTitle {
+  padding: calc(18 * var(--pt)) calc(6 * var(--pt)) calc(5 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.columnTitle[data-first="true"] {
+  padding-top: calc(6 * var(--pt));
+}

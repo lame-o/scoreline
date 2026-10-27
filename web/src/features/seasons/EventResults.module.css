@@ -1,0 +1,346 @@
+/* Results deeper than a row: a climbing category's ranking, a CS2 tournament's placings and matches. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: color-mix(in srgb, var(--page) 88%, transparent);
+  -webkit-backdrop-filter: blur(calc(12 * var(--pt)));
+  backdrop-filter: blur(calc(12 * var(--pt)));
+}
+
+.content {
+  flex: 1;
+  padding-bottom: calc(14 * var(--pt));
+}
+
+.titleTrigger {
+  max-width: 100%;
+  padding: calc(3 * var(--pt)) calc(6 * var(--pt));
+  font-size: var(--text-body);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .titleTrigger:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.titleText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.titleChevron {
+  flex: none;
+  color: var(--label-tertiary);
+}
+
+.titlePlain {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
+.more28 {
+  display: inline-grid;
+  place-items: center;
+  width: var(--control-size);
+  height: var(--control-size);
+  border-radius: 50%;
+  color: color-mix(in srgb, var(--label) 80%, transparent);
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    inset 0 calc(1 * var(--pt)) 0 var(--glass-highlight),
+    inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
+    var(--shadow-control);
+}
+
+.summary {
+  padding: calc(4 * var(--pt)) var(--gutter) 0;
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.rounds {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+  padding: calc(14 * var(--pt)) var(--gutter) 0;
+}
+
+.roundLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(14 * var(--pt));
+}
+
+/* MARK: Ranking */
+
+.ranking {
+  padding: calc(16 * var(--pt)) var(--gutter) 0;
+}
+
+/* Wide: one table the eye can cross, not names at one edge and scores at the other. */
+.rankingWide {
+  max-width: calc(var(--readable-width) + 2 * var(--gutter));
+}
+
+.groupHeader {
+  display: flex;
+  align-items: baseline;
+  gap: calc(8 * var(--pt));
+  padding-bottom: calc(4 * var(--pt));
+}
+
+.columns {
+  display: flex;
+  margin-left: auto;
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
+
+.columns > span {
+  text-align: right;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-width: 0;
+  margin: 0 calc(-6 * var(--pt));
+  padding: calc(3 * var(--pt)) calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+}
+
+.row[data-wide="true"] {
+  padding: calc(2 * var(--pt)) calc(6 * var(--pt));
+}
+
+.row[data-yours="true"] {
+  background: var(--accent-fill);
+}
+
+.row[data-yours="true"] .name {
+  font-weight: 600;
+}
+
+.rank {
+  flex: none;
+  width: calc(24 * var(--pt));
+  text-align: right;
+  font-size: var(--text-status);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.top {
+  color: var(--label);
+}
+
+.flag {
+  flex: none;
+  width: calc(18 * var(--pt));
+  font-size: var(--text-body);
+  text-align: center;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(12 * var(--pt));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .name:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--label-tertiary);
+    text-underline-offset: 2px;
+  }
+}
+
+.spacer {
+  flex: 1;
+  min-width: calc(6 * var(--pt));
+}
+
+.score {
+  flex: none;
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cellRank {
+  font-size: var(--text-small);
+  color: var(--label-secondary);
+}
+
+.boundary,
+.yoursBelow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  padding: calc(8 * var(--pt)) 0 calc(2 * var(--pt));
+}
+
+.yoursBelow {
+  padding: calc(5 * var(--pt)) 0;
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.rule {
+  flex: 1;
+  height: calc(0.5 * var(--pt));
+  background: var(--viz-grid);
+}
+
+.footnote {
+  max-width: var(--readable-width);
+  padding: calc(12 * var(--pt)) var(--gutter) 0;
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+  padding-top: calc(6 * var(--pt));
+}
+
+.moreButton {
+  display: inline-flex;
+  align-items: center;
+  padding: calc(6 * var(--pt)) calc(12 * var(--pt));
+  border-radius: 999px;
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--accent-text);
+  background: var(--fill-surface);
+  transition:
+    background-color var(--dur-fade) var(--ease-out),
+    transform var(--dur-press) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .moreButton:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.moreButton:active {
+  transform: scale(0.97);
+}
+
+/* MARK: Tournament */
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.cardWrap {
+  padding: calc(4 * var(--pt)) calc(10 * var(--pt)) 0;
+}
+
+.block {
+  padding: calc(18 * var(--pt)) var(--gutter) 0;
+}
+
+.blockBody {
+  padding-top: calc(4 * var(--pt));
+}
+
+.note {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+  padding: calc(4 * var(--pt)) 0;
+}
+
+.matches {
+  padding-top: calc(18 * var(--pt));
+}
+
+.split .matches {
+  padding-top: calc(4 * var(--pt));
+}
+
+.matchesTitle {
+  padding: 0 var(--gutter) calc(2 * var(--pt));
+}
+
+.groupTitle {
+  padding: calc(10 * var(--pt)) var(--gutter) calc(2 * var(--pt));
+}
+
+/* MARK: Skeleton */
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--gutter);
+}
+
+.skeleton > span,
+.skeletonRow > span {
+  display: block;
+  height: calc(8 * var(--pt));
+  border-radius: calc(3 * var(--pt));
+  background: var(--fill-skeleton);
+}
+
+.skeletonRow {
+  display: flex !important;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  height: auto !important;
+  margin-top: calc(13 * var(--pt));
+  background: none !important;
+}
+
+.skeletonRow > span:nth-child(2) {
+  height: calc(12 * var(--pt));
+}

@@ -1,0 +1,116 @@
+/* The polls (RankingsView, PollList). */
+
+.picker {
+  display: flex;
+  padding: calc(6 * var(--pt)) var(--gutter) 0;
+}
+
+/* Read down each column, as in print: 1–13 on the left, 14–25 on the right. */
+.list {
+  display: grid;
+  grid-auto-flow: column;
+  column-gap: calc(28 * var(--pt));
+  row-gap: calc(2 * var(--pt));
+  margin: 0 calc(-6 * var(--pt));
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+  padding: calc(3 * var(--pt)) calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+  font-variant-numeric: tabular-nums;
+  color: var(--label);
+}
+
+.row[data-mine="true"] {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.row:active {
+  background: var(--fill-press);
+}
+
+.row:focus-visible {
+  outline-offset: calc(-2 * var(--pt));
+}
+
+.rank {
+  flex: none;
+  width: calc(20 * var(--pt));
+  text-align: right;
+  font-size: calc(11 * var(--pt));
+  font-weight: 600;
+}
+
+.move {
+  flex: none;
+  width: calc(28 * var(--pt));
+  display: inline-flex;
+}
+
+.up,
+.down {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+}
+
+.up {
+  color: var(--up-text);
+}
+
+.down {
+  color: var(--live-text);
+}
+
+.new {
+  font-size: calc(8.5 * var(--pt));
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--accent-text);
+}
+
+.same {
+  font-size: var(--text-small);
+  color: var(--label-secondary);
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(12 * var(--pt));
+}
+
+.name[data-mine="true"] {
+  font-weight: 600;
+}
+
+.record {
+  flex: none;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}
+
+.spacer {
+  flex: 1;
+  min-width: calc(4 * var(--pt));
+}
+
+.points {
+  flex: none;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}

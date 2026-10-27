@@ -1,0 +1,138 @@
+/* ChampionCard and PlacementsTable (EventResultsPage.swift). */
+
+.champion {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(10 * var(--pt));
+  padding: calc(12 * var(--pt));
+  border-radius: var(--radius-group);
+  background: var(--fill-surface);
+}
+
+.championText {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  flex: 1;
+  min-width: 0;
+}
+
+.championLine {
+  display: flex;
+  align-items: baseline;
+  gap: calc(6 * var(--pt));
+  font-size: var(--text-body);
+}
+
+.championName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(15 * var(--pt));
+  font-weight: 600;
+}
+
+.championWord {
+  margin-left: auto;
+  flex: none;
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.final {
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+}
+
+.sharedLine {
+  font-size: var(--text-body);
+  font-weight: 600;
+  text-wrap: pretty;
+}
+
+.facts {
+  padding-top: calc(1 * var(--pt));
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-width: 0;
+  margin: 0 calc(-6 * var(--pt));
+  padding: calc(3 * var(--pt)) calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+  font-size: calc(12 * var(--pt));
+}
+
+.row[data-gap="true"] {
+  margin-top: calc(3 * var(--pt));
+}
+
+.row[data-followed="true"] {
+  background: var(--accent-fill);
+}
+
+.row[data-followed="true"] .team {
+  font-weight: 600;
+}
+
+.place {
+  flex: none;
+  width: var(--place-width);
+  font-size: var(--text-status);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.podium {
+  color: var(--label);
+}
+
+.team {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .team:hover,
+  .championName:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--label-tertiary);
+    text-underline-offset: 2px;
+  }
+}
+
+.star {
+  flex: none;
+  color: var(--star);
+}
+
+.spacer {
+  flex: 1;
+  min-width: calc(6 * var(--pt));
+}
+
+.money {
+  flex: none;
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}

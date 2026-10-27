@@ -52,11 +52,11 @@ web/
     state/                 settings (localStorage store), scores (TanStack Query), clock tickers, theme
     design/                tokens.css, base.css, motion.ts, icons.tsx, useWidth.ts
       components/          the design system (index.ts exports it all)
-    features/              one folder per area: scores/, game/, settings/, placeholders/
+    features/              one folder per area: scores/, game/, settings/, schedule/, seasons/, standings/, brackets/, placeholders/
   test/
     unit/                  Vitest
     worker/                Vitest, the proxy with the Cache API and fetch stubbed
-    e2e/                   Playwright (smoke.spec.ts, live.spec.ts)
+    e2e/                   Playwright (smoke, live, schedules, seasons, standings)
     fixtures/              small trimmed JSON (recorded, plus *.synthetic.json live states)
   scripts/record-fixtures.mjs
 ```
@@ -87,7 +87,7 @@ const board = await getJSON("https://site.api.espn.com/apis/site/v2/sports/footb
 | `site.api.espn.com` | `/apis/site/v2/sports/`, `/apis/v2/sports/` | scoreboards, summaries, teams, rankings, standings |
 | `sports.core.api.espn.com` | `/v2/` | plays, probabilities, seasons, brackets |
 | `site.web.api.espn.com` | `/apis/common/v3/` | athlete and team profiles |
-| `api.bo3.gg` | `/api/v1/` | CS2, S-tier only (`CounterStrike.TIER`) |
+| `api.bo3.gg` | `/api/v1/` | CS2, S-tier only (`CounterStrike.TIER`). It ignores `[gte]`/`[lte]` on `start_date` (every match since 2020 comes back): bound a window with `[gt]`/`[lt]` |
 | `ifsc.results.info` | `/api/v1/` | the Worker adds the `Referer` the service requires |
 | `statsapi.mlb.com` | `/api/` | Statcast |
 
@@ -161,7 +161,7 @@ Settings live in `src/state/settings.ts`: one typed, versioned store in `localSt
 | `celebrationLevel` / `celebrationSounds` | full / false | same (stored; nothing uses them yet) |
 | `notifyFollowed` | true | same (stored; notifications to do) |
 | `showCoStream` / `coStreamer` | true / ohnepixel | same (stored; co-streams to do) |
-| `resultsDetails` | true | same (for the results pages) |
+| `resultsDetails` | true | same (Results' Show Details: scorers, pitchers, performers under rows) |
 
 To add a setting:
 
@@ -220,6 +220,8 @@ Text tokens clear 4.5:1 on the page, the glass and a pressed row, in both themes
 | `Skeleton`, `EmptyState`, `ErrorState` (+ `ErrorCopy`) | static placeholders, empty and error states in the app's one wording |
 | `GroupBox`, `FormSection`, `ToggleRow`, `Toggle`, `Row` | System Settings building blocks |
 | `Icon` | the app's glyphs (SF Symbols-like, on a 16 grid); add new ones in `icons.tsx`, never inline SVG |
+| `Menu` | a pull-down on near-opaque glass (`--menu-fill`) that grows from its trigger: items, sections, checks, shortcuts; ↑/↓, Return, Esc; keyboard opens are instant |
+| `Outline` (`useOutline`, `DisclosureHeader`, `CrestStrip`, `OutlineBox`, `OutlineCrest`, `ShowAllButton`, `outlineReveal`, `OutlineGlide`) | long lists as an outline (OutlineList.swift): groups collapse to a header and a line of crests, "Show All N" past 24; each group's state is its own subscription, so opening one re-renders it alone; the decisions are pure in `data/outline.ts` |
 
 Feature components (rows, tiles, strips) live with their feature, not here. Promote one to the design system when a second feature needs it.
 
@@ -249,9 +251,14 @@ The owner can run `/review-animations` on the motion code for an independent rev
 - **Phones** (under 760px): one column, at most 440pt, like the Mac panel. The window scrolls; headers are sticky, with a soft scroll edge once content is underneath.
 - **From 760px:** a split view. The scores are a glass sidebar (340–420pt, the Mac's compact and medium widths) beside a detail pane, each scrolling on its own. The sidebar stays mounted across pages, so it keeps its scroll, highlight and polling, as the Mac keeps Scores built under every page. With nothing selected, the pane says "No Game Selected" (Mail's pattern).
 - **Width classes:** blocks add detail as they widen, from the Mac's thresholds of 380pt of content (medium), 460 (large) and 560 (xlarge). `useWidth(ref)` gives a block's width in points from one ResizeObserver. Rows show records from medium. Tiles go to 3 small columns from large, and 4 small plus 2 large from 680.
-- **Routes** (`src/app/App.tsx`): `/`, `/game/:id`, `/settings`, `/settings/league/:id`, `/schedule/:scope?`, `/standings/:league`, `/team/:id` and `/player/:id`. Every route but the scores is lazy. To add a page: create `src/features/<area>/<Page>.tsx` that exports the component, point its route's `lazy` at it, use `PageHeader` with `BackButton` (hidden in the split view, where Esc goes back), and use `useScoreboard()` or a new query for data. Placeholders live in `features/placeholders`; replace one by repointing its route.
+- **Routes** (`src/app/App.tsx`): `/`, `/game/:id`, `/settings`, `/settings/league/:id`, `/team/:id`, `/player/:id`, and the schedule world, built by the helpers in `data/schedule.ts`:
+  - `/schedule` (everything), `/schedule/your-teams`, `/schedule/<league>`, `/schedule/team/<id>?name=&logo=`, `/schedule/climbing`, `/schedule/tournaments`; each faces back in time with `?mode=results` (`schedulePath`).
+  - `/results/climbing/<event>/<dcat>?category=&event=` and `/results/tournament/<slug>?name=` (`eventResultsPath`).
+  - `/standings/<league>`, `/rankings/<league>`, `/bracket/mlb/<year>`, `/bracket/cs2/<slug>?name=`, each with `?ring=<team ids>` for the match it was opened from (`standingsPath`, `rankingsPath`, `bracketPath`).
+  - Navigations may carry `state.from` (Back's label: "Schedule"); without it Back says "Scores". Every route but the scores is lazy. To add a page: create `src/features/<area>/<Page>.tsx` that exports the component, point its route's `lazy` at it, use `PageHeader` with `BackButton` (hidden in the split view, where Esc goes back), and use `useScoreboard()` or a new query for data. Placeholders live in `features/placeholders`; replace one by repointing its route.
 - **Back** (`useGoBack`) returns to whichever page opened this one. A page opened directly goes back to the scores. Esc does the same from anywhere except a text field.
 - **Keyboard:** on the scores, ↑/↓ move the highlight (←/→ too in Tiles, by on-screen geometry), Return opens the game, Esc goes back. The keyboard highlight wears the accent; the pointer's hover is a quiet gray and takes the highlight back.
+- **Schedule pages:** ↑/↓ through the rows, ←/→ step the navigator (a day, a week, a month, a round), Return opens, T goes to Today (Results: the latest round), ⌥1 / ⌥2 face Upcoming / Results (the Mac's ⌘1 / ⌘2, which browsers keep for tabs). The page in front takes the keys (capture phase) unless focus is in the sidebar.
 
 ## Accessibility
 
@@ -266,7 +273,7 @@ The owner can run `/review-animations` on the motion code for an independent rev
 
 ## Performance
 
-- **First paint:** the scores list is the only eager route. The initial JS is about 165 KB gzipped: React 68, the router 30, Query 11, and the app with motion's core. motion's layout features (about 32 KB) load after paint. Libraries sit in their own chunks for long-term caching.
+- **First paint:** the scores list is the only eager route. The initial JS is about 170 KB gzipped: React 68, the router 30, Query 11, and the app with motion's core. motion's layout features (about 32 KB) load after paint. Libraries sit in their own chunks for long-term caching.
 - **Rendering:** rows and tiles are memoized on their game, and unchanged games keep their identity across polls. Derived lists are recomputed only on a data, settings or minute change.
 - **Motion cost:** live dots are compositor-only CSS. Layout animation is turned on only during a toggle, and crest links exist only for the section being toggled; each costs a measurement.
 - **No layout thrash:** text is measured with a shared canvas (`features/scores/measure.ts`, RecordFit), widths come from one ResizeObserver per board, and arrow keys read geometry only on a key press.
@@ -278,6 +285,7 @@ The owner can run `/review-animations` on the motion code for an independent rev
 - **Fixtures:** the recorded files come from `pnpm fixtures`, trimmed to the fields the parsers read (each records its `_source` URL and `_recorded` time). Files named `*.synthetic.json` are live states derived by hand from a recorded file, because a recording session rarely finds every sport live. Each says how it was derived in `_note`. Re-recording changes the games, so tests assert structure and rules rather than today's scores wherever they can.
 - **End to end** (`pnpm test:e2e`, Playwright against `pnpm dev`, or `SCORELINE_URL`):
   - `smoke.spec.ts` covers 390, 1024 and 1440 pixels in light and dark: list, tiles, a game, Esc back, keyboard ↓ and Return, and Settings, with no console errors.
+  - `schedules.spec.ts`, `seasons.spec.ts` and `standings.spec.ts` screenshot every schedule, results, season, standings, poll and bracket page type at the three widths in both schemes, and drive their interactions (folding a day, the keys, ⌥2, stepping rounds, the section menu, the docked season card, opening a conference).
   - `live.spec.ts` uses `?demo` to cover the live count, clocks, strips and the score flash.
   - Screenshots go to `SCORELINE_SCREENSHOTS` (default `test-results/screenshots`).
   - `@playwright/test` is pinned to 1.63 to reuse the Chromium already installed on this machine. After upgrading it, run `npx playwright install chromium`.
@@ -318,12 +326,12 @@ The owner can run `/review-animations` on the motion code for an independent rev
 - [x] Score-change flash and scorer dot; live dots that hold still when stale; empty, loading and error states; "Updated…" footer
 - [x] Collapse and expand with a preview (crests, "N more", live count or next start); crests travel; stagger
 - [~] Width classes: records at medium. Not yet: the detail lane at large and xlarge (`laneLines` is ported) and the two-up grid at 680pt, which only matters if the sidebar grows.
-- [ ] Context menus for a game (Open in Browser, Follow/Unfollow each team, Go to team, team's schedule, Copy Score) and for a section (Table, Standings, Top 25, Schedule, Results, Choose Teams…, Move Up/Down, Hide). On the web: a "…" button and right-click menu, plus long-press on touch.
+- [~] Context menus. A section's menu is built (`SectionMenu`: "…" on hover, always on touch, and right-click): Schedule, Results, Table, Standings, Top 25, Choose Teams. Still to do: Move Up/Down and Hide on it, and a game's menu (Open in Browser, Follow/Unfollow each team, Go to team, team's schedule, Copy Score) with long-press on touch.
 - [ ] CS2 live round line on rows ("Mirage 5–8"), for followed or pinned matches, from bo3 `last_snapshot`
 - [ ] Climbing: YouTube live mark and stream overlay (ClimbingBroadcast; needs YouTube on the allowlist)
 - [ ] CS2 co-stream marks (CoStream; needs decapi.me or Twitch)
-- [ ] My Teams fallback to a team's next scheduled game within 21 days (needs the schedule layer)
-- [ ] Footnote links "{League}: next Sat Nov 1" (needs league calendars)
+- [ ] My Teams fallback to a team's next scheduled game within 21 days (the schedule layer is ready: `fetchTeam` in `state/schedule.ts`)
+- [ ] Footnote links "{League}: next Sat Nov 1" (league calendars are ready: `fetchCalendar`, `nextGameDay`; the schedule's own footnotes already link)
 
 ### Tiles (TileBoard, Tiles, TileStrips)
 
@@ -350,17 +358,21 @@ The owner can run `/review-animations` on the motion code for an independent rev
 
 ### Schedules and results (Schedule\*, Results\*, SeasonResults\*, SeasonTimeline, EventResultsPage, TournamentsPage, ClimbingSeasonPage)
 
-- [ ] Schedule hub with scopes (all, your teams, league, team, climbing, tournaments) and an Upcoming | Results switch
-- [ ] Navigators: week strip, NFL and college week picker, daily game days, month bar; days that fold like sections; Today; scroll spy
-- [ ] Schedule and result rows (scorers, performers, pitchers, series, aggregate, shootouts), "Show Details", team season picker
-- [ ] Climbing season page (timeline lanes, competitions by month, rounds by day, podiums), tournaments page (S-tier timeline, brackets), event results pages
-- [ ] Disk caches with ETag revalidation (ScheduleCache, ProfileCache); on the web, Query persistence or the HTTP cache
+- [x] Schedule page for every scope (all, your teams, league, team, climbing, tournaments) with the title menu, More, scope chips (All, Your Teams, teams, leagues) and Upcoming | Results (⌥1/⌥2; a click crossfades, keys are instant). Session memory per page (week, round, folds, Show All Games) in `state/schedule.ts`.
+- [x] Navigators: week strip with dots (games, followed, live), NFL and college week picker, daily game days with "Next: Sat, Oct 31", month bar with the team's summary; days that fold like sections (crests travel, text staggers); Today; scroll spy; a team's season two-up on wide panes
+- [x] Rows: networks and "Where to Watch" in the status column, provisional and TBA/TBC times, if-necessary and canceled games receding, live state from the scores list; results with the loser dimmed by the score, scorers (red cards drawn), performers, pitchers, series, aggregate, shootouts, forfeits and abandoned games, "Show Details"
+- [x] Results: rounds (matchweeks, cup stage blocks, football weeks) with the round picker and summary line, the week strip by game day (everything, daily leagues), the rounds list beside the round from 680pt with your teams' form, a team's season card and form strip with the season picker and Include Friendlies, your teams' last 30 days
+- [x] Climbing season page (timeline lanes, competitions by month, rounds by day, podiums, your countries; untracked disciplines neither shown nor fetched), tournaments page (S-tier timeline, bracket links), event results pages (climbing category, CS2 tournament), the sticky glass season card that docks into a slim bar
+- [ ] Climbing round times and Watch buttons (World Climbing's YouTube streams: YouTube isn't on the allowlist, so rounds say "Time TBA")
+- [ ] The mode switch's height easing (the Mac's panel resizes; here the content crossfades and the page reflows)
+- [~] Disk caches with ETag revalidation (ScheduleCache, ProfileCache): TanStack Query keeps each board, calendar and team schedule with its own freshness (final days 30 days, the coming week 30 minutes, further 6 hours) over the HTTP and edge caches; nothing persists across visits yet
 
 ### Standings, polls and brackets (StandingsView, College, Brackets, BasketballViews)
 
-- [ ] League tables re-ranked live; grouped tables in two columns; college conferences as an outline; columns by width (streak, home and away, PF and PA)
-- [ ] NBA seeds with play-in and lottery lines; AP Top 25 and Coaches Poll (movement, votes)
-- [ ] Brackets: MLB postseason from daily boards; CS2 Swiss ladder and playoff tree; the originating match's teams ringed
+- [x] League tables re-ranked live; grouped tables in two columns; college conferences as an outline (the shared `Outline` in the design system); columns by width (streak, home and away, PF and PA)
+- [x] NBA seeds with play-in and lottery lines; AP Top 25 and Coaches Poll (movement, votes)
+- [x] Brackets: MLB postseason from daily boards; CS2 Swiss ladder and playoff tree; the originating match's teams ringed; wide trees scroll sideways, opening on the round being played
+- [ ] Game pages link in: "Full Standings" (`standingsPath(league, [top, bottom])`), the series or tournament bracket (`bracketPath`), the NBA standings window (`nbaWindow`, `NBAStandingsTable` are ready)
 
 ### Profiles (TeamPage, TeamSections, PlayerPage, PlayerSections, Profile\*, ProfileCharts, LinkedPeek, ProfileLinks, FotMob)
 
@@ -372,7 +384,8 @@ The owner can run `/review-animations` on the motion code for an independent rev
 
 - [x] My Teams (unfollow), Your Sports (drag, or ↑/↓ on the handle, with an announcement), filter summaries, All Sports toggles, Show finished games, Live leagues move to top, Appearance
 - [x] League page: All Games | Only My Teams, team picks (search above 12, college by conference, Selected first), follow stars, college Top 25, climbing disciplines and countries, CS2 co-stream channel (stored), Hide league
-- [ ] League page's Upcoming and Results sections (ScheduleHub, ResultsHub); keyboard navigation in the pick list (↑/↓, →/← groups, Return, Esc clears search)
+- [x] League page's Upcoming and Results sections (ScheduleHub, ResultsHub: `features/schedule/LeagueHub.tsx`)
+- [ ] Keyboard navigation in the pick list (↑/↓, →/← groups, Return, Esc clears search); the pick list could use the design system's `Outline`
 - [ ] Live Games: celebration level and sounds; Notifications (with the browser permission state); credits
 
 ### Notifications (Notifier)
@@ -386,7 +399,7 @@ The owner can run `/review-animations` on the motion code for an independent rev
 ### Panel and menu bar equivalents (MenuBarLabel, PanelController, PanelCommands, RootView)
 
 - [x] Pages and back stack (router history); Esc goes back
-- [ ] Commands: Refresh, Settings and Schedule shortcuts that don't collide with the browser (⌘R, ⌘, and ⌘1/⌘2 are taken)
+- [~] Commands: schedule pages take ⌥1/⌥2 (Upcoming/Results) and T (Today). Still to do: Refresh and Settings shortcuts that don't collide with the browser (⌘R and ⌘, are taken)
 - [ ] Scroll memory per page in the split view's detail pane (the sidebar keeps its own)
 
 ### Accessibility and quality

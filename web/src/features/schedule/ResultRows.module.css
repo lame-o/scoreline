@@ -1,0 +1,293 @@
+/* Results row by row (ResultRows.swift). */
+
+.flex {
+  flex: 1;
+}
+
+/* MARK: Form strip: W filled, D tinted, L outlined (weight carries the outcome; red is for live). */
+
+.strip {
+  display: flex;
+  gap: calc(3 * var(--pt));
+}
+
+.mark {
+  display: inline-grid;
+  place-items: center;
+  width: calc(16 * var(--pt));
+  height: calc(16 * var(--pt));
+  border-radius: calc(4 * var(--pt));
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  color: var(--label);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+
+.mark[data-letter="W"] {
+  background: color-mix(in srgb, var(--label) 86%, transparent);
+  color: var(--page);
+}
+
+.mark[data-letter="D"],
+.mark[data-letter="T"] {
+  background: var(--fill-press);
+}
+
+.mark[data-letter="L"] {
+  box-shadow: inset 0 0 0 1px light-dark(rgb(0 0 0 / 0.28), rgb(255 255 255 / 0.3));
+  color: var(--label-secondary);
+}
+
+/* The pointed-at mark: an accent ring just outside it (instant). */
+.mark[data-lit="true"] {
+  outline: calc(1.5 * var(--pt)) solid var(--accent);
+  outline-offset: calc(2 * var(--pt));
+}
+
+.mark:active {
+  transform: scale(0.94);
+}
+
+@media (prefers-contrast: more) {
+  .mark[data-letter="L"] {
+    box-shadow: inset 0 0 0 1px light-dark(rgb(0 0 0 / 0.5), rgb(255 255 255 / 0.5));
+  }
+}
+
+.readout {
+  margin-top: calc(4 * var(--pt));
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* MARK: Season card */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+  margin: calc(6 * var(--pt)) calc(10 * var(--pt)) 0;
+  padding: calc(12 * var(--pt));
+  border-radius: var(--radius-group);
+  background: var(--fill-surface);
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: calc(7 * var(--pt));
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cardTitle > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardLine {
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.cardLabel {
+  margin-right: calc(4 * var(--pt));
+}
+
+.formRow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  margin-top: calc(4 * var(--pt));
+}
+
+.formLabel {
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
+
+/* MARK: Team result row */
+
+.teamRow {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  margin: 0 calc(6 * var(--pt));
+  padding: calc(6 * var(--pt)) calc(8 * var(--pt));
+  border-radius: var(--radius-row);
+  scroll-margin-block: var(--schedule-chrome, calc(140 * var(--pt))) calc(12 * var(--pt));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .teamRow:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.teamRow:active {
+  background: var(--fill-press);
+}
+
+.teamRow[data-keyboard="true"] {
+  background: var(--accent-fill);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
+
+.teamLine {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+}
+
+.date {
+  flex: none;
+  width: calc(42 * var(--pt));
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.opponent {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(12 * var(--pt));
+}
+
+.outcome {
+  flex: none;
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.outcome strong {
+  font-weight: 600;
+}
+
+.outcome[data-lost="true"] {
+  color: var(--label-secondary);
+}
+
+.quiet {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.warn {
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--delayed-text);
+}
+
+.teamSecond {
+  padding-left: calc(48 * var(--pt));
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.redCard {
+  display: inline-block;
+  width: calc(5 * var(--pt));
+  height: calc(7 * var(--pt));
+  margin-right: calc(3 * var(--pt));
+  border-radius: calc(1 * var(--pt));
+  background: var(--live);
+}
+
+/* MARK: Rounds beside the round */
+
+.rounds {
+  padding-top: calc(4 * var(--pt));
+}
+
+.roundsTitle {
+  display: flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  padding: calc(14 * var(--pt)) var(--gutter) calc(3 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
+
+.round {
+  display: flex;
+  align-items: baseline;
+  gap: calc(8 * var(--pt));
+  width: calc(100% - 12 * var(--pt));
+  margin: 0 calc(6 * var(--pt));
+  padding: calc(5 * var(--pt)) calc(8 * var(--pt));
+  border-radius: var(--radius-row);
+  text-align: left;
+  font-size: calc(12 * var(--pt));
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .round:hover:not([aria-current]) {
+    background: var(--fill-hover);
+  }
+}
+
+.round[aria-current="true"] {
+  background: var(--fill-press);
+  font-weight: 600;
+}
+
+.roundTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.roundDetail,
+.roundMine {
+  flex: none;
+  font-size: var(--text-status);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.yourTeams {
+  padding-top: calc(4 * var(--pt));
+}
+
+.yourTeam {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  padding: calc(5 * var(--pt)) var(--gutter);
+}
+
+.yourTeamLine {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-width: 0;
+}
+
+.yourTeamName {
+  font-size: calc(12 * var(--pt));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

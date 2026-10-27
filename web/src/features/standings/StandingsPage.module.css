@@ -1,0 +1,12 @@
+/* A single table spans the page, 10pt in from either edge (its rows add 6 more). */
+.single {
+  padding: calc(8 * var(--pt)) calc(10 * var(--pt)) 0;
+}
+
+.outline {
+  padding-top: calc(2 * var(--pt));
+}
+
+.conference {
+  padding: calc(2 * var(--pt)) calc(10 * var(--pt)) calc(4 * var(--pt));
+}

@@ -25,7 +25,46 @@
 /* MARK: Section header */
 
 .heading {
+  position: relative;
   margin: 0;
+}
+
+/* The section's menu: beside the chevron, shown on hover or focus (always on touch). */
+.sectionMenu {
+  position: absolute;
+  top: calc(8 * var(--pt));
+  right: calc(30 * var(--pt));
+  display: inline-flex;
+  opacity: 0;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.heading:hover .sectionMenu,
+.sectionMenu:focus-within,
+.sectionMenu:has([aria-expanded="true"]) {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .sectionMenu {
+    opacity: 1;
+  }
+}
+
+.sectionMenuButton {
+  display: inline-grid;
+  place-items: center;
+  width: calc(22 * var(--pt));
+  height: calc(18 * var(--pt));
+  border-radius: calc(5 * var(--pt));
+  color: var(--label-secondary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sectionMenuButton:hover {
+    background: var(--fill-hover);
+    color: var(--label);
+  }
 }
 
 .header {

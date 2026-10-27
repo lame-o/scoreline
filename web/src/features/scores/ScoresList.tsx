@@ -13,6 +13,7 @@ import type { Section } from "../../data/scoreboard";
 import { ErrorCopy } from "../../design/components";
 import { EventRow } from "./EventRow";
 import { firstAppearances, SectionHeader, useSectionToggle } from "./sections";
+import { SectionMenu } from "./SectionMenu";
 import styles from "./ScoresList.module.css";
 
 export interface ScoresListProps {
@@ -55,6 +56,7 @@ export function ScoresList({ sections, collapsed, quietLeagues, hasFollowed, hig
                 onToggle={toggle}
                 maxLogos={PREVIEW_LOGOS}
                 controls={`rows-${section.id}`}
+                menu={<SectionMenu id={section.id} title={section.title} />}
               />
               {isCollapsed ? null : (
                 <SectionRows

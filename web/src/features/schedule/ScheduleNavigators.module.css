@@ -1,0 +1,226 @@
+/* The schedule's sticky date: week strip, period picker, month bar (ScheduleNavigators.swift). */
+
+.flex {
+  flex: 1;
+}
+
+.strip {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+  padding-bottom: calc(6 * var(--pt));
+}
+
+.stripHeader {
+  display: flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  padding: 0 calc(8 * var(--pt)) 0 var(--gutter);
+}
+
+.month {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  padding: 0 calc(8 * var(--pt));
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  justify-self: center;
+  width: 100%;
+  max-width: calc(40 * var(--pt));
+  padding: calc(4 * var(--pt)) 0;
+  border-radius: calc(7 * var(--pt));
+  transition: background-color var(--dur-fade) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .day:hover:not(:disabled) {
+    background: var(--fill-hover);
+  }
+}
+
+.day[data-selected="true"] {
+  background: var(--fill-press);
+}
+
+.day:active:not(:disabled) {
+  background: var(--fill-press);
+}
+
+.weekday {
+  font-size: calc(9 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.number {
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
+  color: var(--label);
+}
+
+.day[data-past="true"] .number {
+  color: var(--label-secondary);
+}
+
+.day[data-today="true"] .number {
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.day:disabled .number,
+.day:disabled .weekday {
+  opacity: 0.45;
+}
+
+.dot {
+  width: calc(4 * var(--pt));
+  height: calc(4 * var(--pt));
+  border-radius: 50%;
+  background: var(--viz-neutral);
+  opacity: 0;
+}
+
+.dot[data-dot="games"] {
+  opacity: 0.75;
+}
+
+.dot[data-dot="followed"] {
+  opacity: 1;
+  background: var(--accent);
+}
+
+.dot[data-dot="live"] {
+  opacity: 1;
+  background: var(--live);
+}
+
+.arrow {
+  display: inline-grid;
+  place-items: center;
+  width: calc(24 * var(--pt));
+  height: calc(22 * var(--pt));
+  flex: none;
+  border-radius: calc(5 * var(--pt));
+  color: var(--label-secondary);
+  transition:
+    background-color var(--dur-fade) var(--ease-out),
+    transform var(--dur-press) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .arrow:hover:not(:disabled) {
+    background: var(--fill-hover);
+    color: var(--label);
+  }
+}
+
+.arrow:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.arrow:disabled {
+  opacity: 0.35;
+}
+
+@media (pointer: coarse) {
+  .arrow {
+    width: calc(32 * var(--pt));
+    height: calc(30 * var(--pt));
+  }
+}
+
+/* MARK: Period picker */
+
+.period {
+  display: flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  padding: 0 calc(8 * var(--pt)) calc(8 * var(--pt));
+}
+
+.periodMenu {
+  flex: 1;
+  justify-content: center;
+}
+
+.periodTrigger {
+  justify-content: center;
+  gap: calc(5 * var(--pt));
+  max-width: 100%;
+  padding: calc(3 * var(--pt)) calc(8 * var(--pt));
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .periodTrigger:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.periodTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.periodDetail {
+  flex: none;
+  font-size: calc(12 * var(--pt));
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+/* A long round drops its dates before its name truncates. */
+@container schedule (max-width: 22rem) {
+  .periodDetail {
+    display: none;
+  }
+}
+
+.periodChevron {
+  flex: none;
+  color: var(--label-tertiary);
+}
+
+/* MARK: Month bar */
+
+.monthBar {
+  display: flex;
+  flex-direction: column;
+  gap: calc(1 * var(--pt));
+  padding-bottom: calc(8 * var(--pt));
+}
+
+.monthBar .period {
+  padding-bottom: 0;
+}
+
+.monthTitle {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+}
+
+.summary {
+  padding: 0 var(--gutter);
+  text-align: center;
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

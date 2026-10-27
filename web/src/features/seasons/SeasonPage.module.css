@@ -1,0 +1,43 @@
+/* A season page's frame: header, content, footer; the split columns. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  container: season / inline-size;
+}
+
+.page:focus,
+.page:focus-visible {
+  outline: none;
+}
+
+.content {
+  flex: 1;
+  padding-bottom: calc(12 * var(--pt));
+}
+
+/* A mode switched by click: the new content fades in over the old one's place. */
+.crossfade {
+  animation: crossfade var(--dur-quick) var(--ease-out) both;
+}
+
+@keyframes crossfade {
+  from {
+    opacity: 0;
+  }
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.column {
+  min-width: 0;
+}
+
+.detailColumn {
+  padding-top: calc(18 * var(--pt));
+}
