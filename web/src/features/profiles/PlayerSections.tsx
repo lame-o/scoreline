@@ -146,7 +146,8 @@ function GameLogRow({ entry: e, columns }: { readonly entry: GameLogEntry; reado
 export function StatTableView({ table, keys, width, titleWidth = 104 }: { readonly table: StatTable; readonly keys: readonly [string, WidthClass][]; readonly width: WidthClass; readonly titleWidth?: number }) {
   const indices = tableColumnIndices(table.keys, table.columns.length, keys, width);
   return (
-    <div className={styles.statTable} role="table">
+    // A list of spoken lines, not an ARIA table: each row is read whole ("2025-26: 71 games, 25.3 points"), so it has no cells.
+    <div className={styles.statTable} role="list">
       <div className={styles.statHead} aria-hidden="true">
         <span style={{ minWidth: `calc(${titleWidth} * var(--pt))`, flex: 1 }} />
         {indices.map((i) => (
@@ -159,7 +160,7 @@ export function StatTableView({ table, keys, width, titleWidth = 104 }: { readon
         <div
           key={row.title}
           className={styles.statRow}
-          role="row"
+          role="listitem"
           // "2025-26: 71 games, 25.3 points, 5.2 rebounds", not cell by cell.
           aria-label={`${row.title}: ${indices
             .map((i) => {

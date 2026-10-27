@@ -16,6 +16,11 @@ export function capitalized(s: string): string {
   return s.toLowerCase().replace(/(^|[\s\-&/])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase());
 }
 
+/** "L. Rakovec": a climber as the scores list and the hero name them (Providers.swift `short`). */
+export function climberShort(first: string | null | undefined, last: string | null | undefined): string {
+  return `${first ? `${[...first][0]}. ` : ""}${capitalized(last ?? "")}`;
+}
+
 // MARK: - Model
 
 /** A climber on a lead route: their high point (GameDetail.WallRoute.Climber). */

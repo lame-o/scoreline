@@ -12,7 +12,7 @@ export function IndexRoute() {
   if (!split) return <ScoresPage variant="page" />;
   return (
     <div className={styles.none}>
-      <EmptyState icon="sportscourt" title="No Game Selected" message="Pick a game from the list. Use ↑ and ↓ to move through the games and Return to open one." />
+      <EmptyState level={1} icon="sportscourt" title="No Game Selected" message="Pick a game from the list. Use ↑ and ↓ to move through the games and Return to open one." />
     </div>
   );
 }

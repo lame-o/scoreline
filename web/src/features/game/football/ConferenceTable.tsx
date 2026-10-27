@@ -10,7 +10,10 @@ import { useMemo, useRef } from "react";
 import { collegeWindow, liveScores, widthClassOf, type StandingsRow } from "../../../data/standings";
 import { useWidth, WIDTH } from "../../../design/useWidth";
 import { useScoreboard } from "../../../state/scores";
-import { ConferenceTable } from "../../standings/Tables";
+import { ConferenceTable, HighlightWord } from "../../standings/Tables";
+
+/** The highlighted rows are the two teams playing. */
+const inThisMatch = () => "in this match";
 
 export function CollegeTable({ rows, ids, ranks, leagueID }: { rows: readonly StandingsRow[]; ids: readonly (string | null)[]; ranks: Readonly<Record<string, number>>; leagueID: string }) {
   const box = useRef<HTMLDivElement>(null);
@@ -24,7 +27,9 @@ export function CollegeTable({ rows, ids, ranks, leagueID }: { rows: readonly St
   const live = useMemo(() => liveScores(events ?? []), [events]);
   return (
     <div ref={box}>
-      <ConferenceTable group={shown[0]?.group ?? ""} rows={shown} highlight={highlight} ranks={ranks} live={live} width={widthClassOf(width)} />
+      <HighlightWord.Provider value={inThisMatch}>
+        <ConferenceTable group={shown[0]?.group ?? ""} rows={shown} highlight={highlight} ranks={ranks} live={live} width={widthClassOf(width)} />
+      </HighlightWord.Provider>
     </div>
   );
 }

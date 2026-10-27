@@ -101,8 +101,9 @@ export const StrikeZone = memo(function StrikeZone({ pitches, width }: { pitches
   const maskID = `zone-clear-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
 
   return (
-    <div className={styles.atBat} role="img" aria-label={spoken(pitches)}>
-      <VizWell className={styles.well} style={{ width: `calc(${plot.width + 20} * var(--pt))` }}>
+    // A labeled group: the zone is a picture of the pitches, but the list beside it is buttons (pin a pitch).
+    <div className={styles.atBat} role="group" aria-label={spoken(pitches)}>
+      <VizWell className={styles.well} style={{ width: `calc(${plot.width + 20} * var(--pt))` }} aria-hidden>
         <div className={styles.plot} style={{ width: `calc(${plot.width} * var(--pt))`, height: `calc(${plot.height} * var(--pt))` }}>
           <svg viewBox={`0 0 ${plot.width} ${plot.height}`} className={styles.lines} aria-hidden="true">
             <defs>

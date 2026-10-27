@@ -12,6 +12,7 @@ export function RouteError() {
   return (
     <div role="alert">
       <EmptyState
+        level={1}
         icon="wifiSlash"
         title="Something Went Wrong"
         message="This page hit a problem. Try again, or go back to the scores."

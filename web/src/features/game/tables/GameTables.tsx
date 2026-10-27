@@ -20,7 +20,10 @@ import { liveTable, nbaWindow, projectNBA, widthClassOf, type LiveStandingsRow, 
 import { standingsPath } from "../../../data/schedule";
 import { useScoreboard } from "../../../state/scores";
 import { useStandings } from "../../../state/standings";
-import { NBAStandingsTable, StandingsTable } from "../../standings/Tables";
+import { HighlightWord, NBAStandingsTable, StandingsTable } from "../../standings/Tables";
+
+/** The highlighted rows on a game page are the two teams playing, not necessarily yours. */
+const inThisMatch = () => "in this match";
 import { DetailSection } from "../core/DetailSection";
 import styles from "./GameTables.module.css";
 
@@ -90,7 +93,9 @@ export const SoccerTableWindow = memo(function SoccerTableWindow({ league, rows,
       caption={projected ? "Projected if live scores hold. Arrows show moves from the official table." : final && !recent ? "Table today, from ESPN." : "Official table from ESPN. New results can take a few minutes."}
       accessory={projected ? "live" : undefined}
     >
-      <StandingsTable rows={window} highlight={new Set(ids)} width={widthClassOf(width)} />
+      <HighlightWord.Provider value={inThisMatch}>
+        <StandingsTable rows={window} highlight={new Set(ids)} width={widthClassOf(width)} />
+      </HighlightWord.Provider>
       <FullTableLink to={standingsPath(league.id, ids)} label="Full Table" />
     </DetailSection>
   );
@@ -108,7 +113,9 @@ export const NBATableWindow = memo(function NBATableWindow({ rows, live, ids }: 
       caption={projected ? "Projected if live scores hold. Arrows show moves from the official seeding." : "By conference seed. Top 6 make the playoffs; 7–10 go to the play-in."}
       accessory={projected ? "live" : undefined}
     >
-      <NBAStandingsTable rows={window} highlight={new Set(ids)} />
+      <HighlightWord.Provider value={inThisMatch}>
+        <NBAStandingsTable rows={window} highlight={new Set(ids)} />
+      </HighlightWord.Provider>
       <FullTableLink to={standingsPath("nba", ids)} label="Full Standings" />
     </DetailSection>
   );

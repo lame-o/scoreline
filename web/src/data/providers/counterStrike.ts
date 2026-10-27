@@ -22,7 +22,11 @@ const HOUR = 3_600_000;
  *
  * Web addition: the bounds are rounded down to the hour. Swift sends the
  * exact second, which would give every poll a new URL and defeat the edge
- * cache; an hour is nothing against a two-day window.
+ * cache; an hour is nothing against a two-day window. And they're strict
+ * (`[gt]`, `[lt]`): bo3.gg ignores `[gte]` and `[lte]` on `start_date`
+ * (re-verified 2026-10-27: `[lte]=2025-01-01` still answered this week's
+ * matches), so Swift's inclusive bounds were never applied; `after` steps
+ * back a second to stay inclusive (data/providers/schedule.ts does the same).
  */
 export function listURL(status: string, sort: string, limit: number, bounds: { after?: number; before?: number } = {}): string {
   const url = new URL(MATCHES);
@@ -33,8 +37,8 @@ export function listURL(status: string, sort: string, limit: number, bounds: { a
   url.searchParams.set("page[limit]", String(limit));
   url.searchParams.set("with", "teams,tournament");
   const hour = (ms: number) => new Date(Math.floor(ms / HOUR) * HOUR).toISOString().replace(".000Z", "Z");
-  if (bounds.after != null) url.searchParams.set("filter[matches.start_date][gte]", hour(bounds.after));
-  if (bounds.before != null) url.searchParams.set("filter[matches.start_date][lte]", hour(bounds.before));
+  if (bounds.after != null) url.searchParams.set("filter[matches.start_date][gt]", new Date(Math.floor(bounds.after / HOUR) * HOUR - 1000).toISOString().replace(".000Z", "Z"));
+  if (bounds.before != null) url.searchParams.set("filter[matches.start_date][lt]", hour(bounds.before));
   return url.href;
 }
 

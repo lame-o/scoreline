@@ -74,7 +74,7 @@ import {
 } from "../data/seasons";
 import { climbingCountries } from "../data/scoreboard";
 import { useNow } from "./clock";
-import { queryClient } from "./scores";
+import { queryClient, retryOnline } from "./scores";
 import { useSettings } from "./settings";
 
 const MINUTE = 60_000;
@@ -102,7 +102,7 @@ const climbingID = (e: SeasonEvent) => (e.kind.kind === "climbing" ? e.kind.id :
 const slugOf = (e: SeasonEvent) => (e.kind.kind === "tournament" ? e.kind.slug : null);
 
 /** Season data never polls on its own: it refreshes on return to the tab when stale, and with Refresh. */
-const quiet = { refetchOnWindowFocus: true, refetchInterval: false as const, retry: 2 };
+const quiet = { refetchOnWindowFocus: true, refetchInterval: false as const, retry: retryOnline(2) };
 
 function useDisciplines() {
   return useSettings((s) => s.climbingDisciplines);

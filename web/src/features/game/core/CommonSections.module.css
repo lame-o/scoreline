@@ -200,6 +200,10 @@
   margin: 0 calc(-6 * var(--pt));
 }
 
+.momentItem {
+  display: block;
+}
+
 .momentRow {
   display: flex;
   align-items: center;

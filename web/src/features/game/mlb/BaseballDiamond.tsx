@@ -97,7 +97,9 @@ export function BaseballDiamond({ situation, batting, palette, player, children 
 
   return (
     <div className={styles.atPlate}>
-      <div className={styles.row} role="img" aria-label={spoken(situation)}>
+      {/* A labeled group, not an image: an image's children are hidden from
+          screen readers, and the batter's and pitcher's names are links. */}
+      <div className={styles.row} role="group" aria-label={spoken(situation)}>
         <div className={styles.diamond} aria-hidden="true">
           <svg viewBox="0 0 52 48" className={styles.svg}>
             {[

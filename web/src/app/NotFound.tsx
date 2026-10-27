@@ -5,6 +5,7 @@ export function NotFound() {
   const navigate = useNavigate();
   return (
     <EmptyState
+      level={1}
       icon="sportscourt"
       title="Page Not Found"
       message="This address doesn't lead anywhere in Scoreline."

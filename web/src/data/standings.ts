@@ -302,6 +302,23 @@ export function liveTable(rows: readonly StandingsRow[], liveEvents: readonly Sc
   return project(rows, liveEvents);
 }
 
+/**
+ * The live games with one game's score taken from its page's fast lane while
+ * the lane is ahead of the scoreboard, so the projected table counts the goal
+ * the hero and the pitch already show. Unchanged (the same array) otherwise.
+ */
+export function withLaneScore(liveEvents: readonly ScoreEvent[], eventID: string, scores: { readonly top: string; readonly bottom: string } | null): readonly ScoreEvent[] {
+  if (!scores) return liveEvents;
+  const i = liveEvents.findIndex((e) => e.id === eventID);
+  const event = liveEvents[i];
+  if (!event || event.content.kind !== "match") return liveEvents;
+  const { top, bottom } = event.content;
+  if (top.score === scores.top && bottom.score === scores.bottom) return liveEvents;
+  const next = [...liveEvents];
+  next[i] = { ...event, content: { ...event.content, top: { ...top, score: scores.top }, bottom: { ...bottom, score: scores.bottom } } };
+  return next;
+}
+
 function project(rows: readonly StandingsRow[], liveEvents: readonly ScoreEvent[]): LiveStandingsRow[] {
   const adjust = new Map<string, LiveResult>();
   // Knockout ties are played outside the league table.

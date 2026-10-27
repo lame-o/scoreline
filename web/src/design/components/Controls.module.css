@@ -39,6 +39,13 @@
   transition: transform var(--dur-standard) var(--ease-out);
 }
 
+/* Reduce Motion: no turn (a whole turn ends where it began, so it simply doesn't move). */
+@media (prefers-reduced-motion: reduce) {
+  .turn {
+    transition: none;
+  }
+}
+
 /* BackButton: "‹ Scores", a glass capsule; Esc goes back too. */
 .back {
   display: inline-flex;

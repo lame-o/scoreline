@@ -33,7 +33,11 @@ export async function proxy(request: Request, url: URL, ctx: ExecutionContext): 
 
   const cache = caches.default;
   const key = new Request(target.href, { method: "GET" });
-  const cached = await cache.match(key);
+  // The cache is an optimization: if it fails, fetch as on a miss rather than fail the request.
+  const cached = await cache.match(key).catch((error: unknown) => {
+    log("cache_match_failed", { host: target.host, path: target.pathname, error: String(error) });
+    return undefined;
+  });
   if (cached) return respond(cached, policy, "HIT", request.method);
 
   const started = Date.now();
@@ -44,8 +48,9 @@ export async function proxy(request: Request, url: URL, ctx: ExecutionContext): 
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
   } catch (error) {
-    log("upstream_unreachable", { host: target.host, path: target.pathname, ms: Date.now() - started, error: String(error) });
-    return problem(502, "The upstream didn't answer.");
+    const timedOut = error instanceof DOMException && error.name === "TimeoutError";
+    log(timedOut ? "upstream_timeout" : "upstream_unreachable", { host: target.host, path: target.pathname, ms: Date.now() - started, error: String(error) });
+    return problem(timedOut ? 504 : 502, timedOut ? "The upstream took too long to answer." : "The upstream didn't answer.");
   }
   if (!response.ok) {
     log("upstream_status", { host: target.host, path: target.pathname, status: response.status, ms: Date.now() - started });
@@ -61,7 +66,9 @@ export async function proxy(request: Request, url: URL, ctx: ExecutionContext): 
     "Cache-Control": `public, max-age=${policy.edge}`,
   });
   const fresh = new Response(response.body, { status: 200, headers });
-  ctx.waitUntil(cache.put(key, fresh.clone()));
+  ctx.waitUntil(
+    cache.put(key, fresh.clone()).catch((error: unknown) => log("cache_put_failed", { host: target.host, path: target.pathname, error: String(error) })),
+  );
   log("miss", { host: target.host, path: target.pathname, ms: Date.now() - started });
   return respond(fresh, policy, "MISS", request.method);
 }

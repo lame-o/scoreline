@@ -18,7 +18,10 @@ for (const { name, width, height, mobile } of [
 
       test("live games: clocks, strips and the score flash", async ({ page }) => {
         await page.goto("/?demo");
-        await expect(page.getByRole("status", { name: /games? in progress/ })).toBeVisible({ timeout: 20_000 });
+        // The live count says itself in words, but isn't a live region (the list never announces).
+        await expect(page.getByText(/^\d+ Live$/)).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByText(/games? in progress/).first()).toBeAttached();
+        await expect(page.locator("aside [role=status], aside [aria-live]:not([aria-live=off])")).toHaveCount(0);
         await page.waitForTimeout(800);
         await page.screenshot({ path: join(OUT, `${name}-${scheme}-live-list.png`) });
 

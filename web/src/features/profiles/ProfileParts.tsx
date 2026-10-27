@@ -19,7 +19,7 @@ import { luminance, teamPalette, washStrength, NEUTRAL } from "../../data/teamCo
 import { logoColorsFor, useLogoColorsVersion } from "../../state/logoColors";
 import { useColorScheme } from "../../state/theme";
 import { useWidth } from "../../design/useWidth";
-import { useGoBack } from "../../app/navigation";
+import { useBack, useGoBack } from "../../app/navigation";
 import styles from "./Profile.module.css";
 
 // MARK: - Colors (ProfileLinks.swift `ProfileColors`)
@@ -155,8 +155,9 @@ export function scrollerOf(el: Element | null): HTMLElement | null {
  * stays put, and once content is underneath it gains a soft edge for the
  * content to dissolve under.
  */
-export function ProfileHeader({ split, backTitle, trailing }: { readonly split: boolean; readonly backTitle: string; readonly trailing?: ReactNode }) {
+export function ProfileHeader({ trailing }: { readonly trailing?: ReactNode }) {
   const goBack = useGoBack();
+  const back = useBack();
   const sentinel = useRef<HTMLSpanElement>(null);
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -170,7 +171,7 @@ export function ProfileHeader({ split, backTitle, trailing }: { readonly split: 
     <>
       <span ref={sentinel} className={styles.sentinel} aria-hidden="true" />
       <div className={styles.header} data-scrolled={scrolled}>
-        <PageHeader className={styles.headerBar} leading={split ? null : <BackButton to={backTitle} onClick={() => goBack()} />} trailing={trailing} />
+        <PageHeader className={styles.headerBar} leading={back.visible ? <BackButton to={back.title} onClick={() => goBack()} /> : null} trailing={trailing} />
       </div>
     </>
   );

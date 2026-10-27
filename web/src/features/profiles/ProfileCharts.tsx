@@ -13,7 +13,7 @@
  * the footer. Geometry is in src/data/profiles/charts.ts.
  */
 import { memo, useMemo, useRef, useState, type PointerEvent } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import {
   barMid,
   entryContext,
@@ -172,28 +172,26 @@ export const GameLogStrip = memo(function GameLogStrip({ log, tint }: { readonly
 
 /** One cell per match: the result letter, then a dot per goal (filled) and per assist (ring). Goalkeepers: a dot for a clean sheet. */
 export const MatchStrip = memo(function MatchStrip({ log, width }: { readonly log: GameLog; readonly width: WidthClass }) {
-  const navigate = useNavigate();
   const [hovered, setHovered] = useState<string | null>(null);
   const shown = log.entries.slice(-matchStripCount(width));
   const pointed = hovered ? shown.find((e) => e.eventID === hovered) : undefined;
   const cleanSheets = log.stripKey === "cleanSheet";
   return (
     <div className={styles.matchStrip}>
-      <div className={styles.cells} role="list" aria-label={`Last ${shown.length} matches: ${shown.map((e) => e.result ?? "–").join(" ")}.`}>
+      {/* A labeled group of links (each opens its game); a link given the listitem role stops being a link. */}
+      <div className={styles.cells} role="group" aria-label={`Last ${shown.length} matches: ${shown.map((e) => e.result ?? "–").join(" ")}.`}>
         {shown.map((e) => {
           const primary = Math.min(3, Math.trunc(entryValue(e, log.stripKey ?? "") ?? 0));
           const secondary = Math.min(3 - primary, Math.trunc(entryValue(e, log.markKey ?? "") ?? 0));
           return (
-            <button
+            <Link
               key={e.eventID}
-              type="button"
-              role="listitem"
+              to={gameHref(e.eventID)}
               className={styles.cell}
               data-dim={hovered != null && hovered !== e.eventID}
               aria-label={`${entryContext(e)}, ${matchReadout(log, e)}`}
               onPointerEnter={() => setHovered(e.eventID)}
               onPointerLeave={() => setHovered((h) => (h === e.eventID ? null : h))}
-              onClick={() => navigate(gameHref(e.eventID))}
             >
               <span className={styles.letter} data-draw={e.result === "D"}>
                 {e.result ?? "–"}
@@ -206,7 +204,7 @@ export const MatchStrip = memo(function MatchStrip({ log, width }: { readonly lo
                   <span key={`a${k}`} className={styles.ringDot} />
                 ))}
               </span>
-            </button>
+            </Link>
           );
         })}
       </div>
@@ -228,17 +226,16 @@ export const MatchStrip = memo(function MatchStrip({ log, width }: { readonly lo
 
 /** The last results as marks: a win filled, a draw shaded, a loss outlined (never color alone). The pointed-at mark reads out beside. */
 export function FormStrip({ marks }: { readonly marks: readonly FormMark[] }) {
-  const navigate = useNavigate();
   const [hovered, setHovered] = useState<string | null>(null);
   const pointed = marks.find((m) => m.id === hovered);
   return (
     <div className={styles.form}>
-      <div className={styles.marks} role="list" aria-label={`Form, last ${marks.length}, oldest to newest`}>
+      {/* A labeled group of links, as the schedule's form strip (ResultRows.FormStrip). */}
+      <div className={styles.marks} role="group" aria-label={`Form, last ${marks.length}, oldest to newest`}>
         {marks.map((m) => (
-          <button
+          <Link
             key={m.id}
-            type="button"
-            role="listitem"
+            to={gameHref(m.id)}
             className={styles.mark}
             data-letter={m.letter}
             data-lit={hovered === m.id}
@@ -248,10 +245,9 @@ export function FormStrip({ marks }: { readonly marks: readonly FormMark[] }) {
             onPointerLeave={() => setHovered((h) => (h === m.id ? null : h))}
             onFocus={() => setHovered(m.id)}
             onBlur={() => setHovered((h) => (h === m.id ? null : h))}
-            onClick={() => navigate(gameHref(m.id))}
           >
             {m.letter}
-          </button>
+          </Link>
         ))}
       </div>
       <span className={styles.formReadout} aria-hidden="true">

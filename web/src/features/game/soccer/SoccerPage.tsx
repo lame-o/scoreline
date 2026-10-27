@@ -25,6 +25,7 @@ import { Accessory, type AccessoryTier } from "../../../data/matchRules";
 import type { Side } from "../../../data/models";
 import type { Section } from "../../../data/sections";
 import { tieLine } from "../../../data/soccer";
+import { withLaneScore } from "../../../data/standings";
 import { espnPlayerRef } from "../../profiles/ProfileLinks";
 import { DetailSection } from "../core/DetailSection";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
@@ -107,8 +108,16 @@ export function useSoccerPage(game: GameContext): SportPage {
       </DetailSection>
     );
   }
+  // The lane's score while it's ahead of the scoreboard (never behind it), so the hero and the pitch tell a goal together.
+  const laneScores = useMemo(() => {
+    if (!live || !feed.score || event.content.kind !== "match") return null;
+    const known = (Number(event.content.top.score) || 0) + (Number(event.content.bottom.score) || 0);
+    return feed.score.top + feed.score.bottom > known ? { top: String(feed.score.top), bottom: String(feed.score.bottom) } : null;
+  }, [live, feed.score, event.content]);
+  // The projected table counts it too, so the table and the hero agree once the goal lands.
+  const tableLive = useMemo(() => withLaneScore(leagueLive, event.id, laneScores), [leagueLive, event.id, laneScores]);
   if (league && tableRows && detail.seasonIsCurrent !== false) {
-    sections.table = <SoccerTableWindow league={league} rows={tableRows} live={leagueLive} ids={ids} final={event.state === "final"} recent={event.start > Date.now() - 86_400_000} width={game.split ? 320 : 380} />;
+    sections.table = <SoccerTableWindow league={league} rows={tableRows} live={tableLive} ids={ids} final={event.state === "final"} recent={event.start > Date.now() - 86_400_000} width={game.split ? 320 : 380} />;
   }
 
   // Red cards beside each side's name on the docked bar (a count where there's room, or for two and more).
@@ -130,13 +139,6 @@ export function useSoccerPage(game: GameContext): SportPage {
           );
         }
       : undefined;
-
-  // The lane's score while it's ahead of the scoreboard (never behind it), so the hero and the pitch tell a goal together.
-  const laneScores = useMemo(() => {
-    if (!live || !feed.score || event.content.kind !== "match") return null;
-    const known = (Number(event.content.top.score) || 0) + (Number(event.content.bottom.score) || 0);
-    return feed.score.top + feed.score.bottom > known ? { top: String(feed.score.top), bottom: String(feed.score.bottom) } : null;
-  }, [live, feed.score, event.content]);
 
   return {
     sections,

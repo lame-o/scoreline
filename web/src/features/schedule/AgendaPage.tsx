@@ -428,7 +428,7 @@ function DaySection({ day, today, folds, open, scope, mode, toggling, onToggle, 
     return d != null ? { className: rowStyles.reveal, style: { animationDelay: `${d}s` } } : {};
   };
   return (
-    <m.section layout={toggling.animating ? "position" : false} transition={spring.standard} className={entrance != null ? "stack-in" : undefined} style={entrance != null ? { animationDelay: `${Math.min(entrance, 8) * 30}ms` } : undefined} aria-label={id}>
+    <m.section layout={toggling.animating ? "position" : false} transition={spring.standard} className={entrance != null ? "stack-in" : undefined} style={entrance != null ? { animationDelay: `${Math.min(entrance, 8) * 30}ms` } : undefined}>
       {folds ? (
         <FoldingDayHeader
           day={day}

@@ -57,9 +57,9 @@ export function DetailSection({ id, title, caption, spokenCaption, accessory, ch
 }
 
 /** The quiet surface behind spatial charts (pitch, field, zone): a faint tint in light, a plate in dark. */
-export function VizWell({ children, className, padding = 10, style }: { children: ReactNode; className?: string; padding?: number; style?: React.CSSProperties }) {
+export function VizWell({ children, className, padding = 10, style, "aria-hidden": hidden }: { children: ReactNode; className?: string; padding?: number; style?: React.CSSProperties; "aria-hidden"?: boolean }) {
   return (
-    <div className={[styles.well, className].filter(Boolean).join(" ")} style={{ padding: `calc(${padding} * var(--pt))`, ...style }}>
+    <div className={[styles.well, className].filter(Boolean).join(" ")} style={{ padding: `calc(${padding} * var(--pt))`, ...style }} aria-hidden={hidden}>
       {children}
     </div>
   );

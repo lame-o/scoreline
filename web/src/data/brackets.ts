@@ -129,6 +129,8 @@ export async function loadPostseason(path: string, year: number, fetcher: Fetche
   const days = postseasonDays(start, end, now);
   const recent = new Set(days.slice(-3));
   const all: PostseasonGame[] = [];
+  let answered = 0;
+  let firstFailure: unknown = null;
   // A few at a time: a polite burst, not thirty at once.
   for (let i = 0; i < days.length; i += 6) {
     const chunk = days.slice(i, i + 6);
@@ -142,8 +144,15 @@ export async function loadPostseason(path: string, year: number, fetcher: Fetche
         return games;
       }),
     );
-    for (const r of settled) if (r.status === "fulfilled") all.push(...r.value);
+    for (const r of settled) {
+      if (r.status === "fulfilled") {
+        answered++;
+        all.push(...r.value);
+      } else firstFailure ??= r.reason;
+    }
   }
+  // Not one day answered (offline, ESPN down): a failure to load, not an empty bracket ("No Bracket Yet").
+  if (answered === 0 && firstFailure != null) throw firstFailure;
   all.sort((a, b) => a.date.localeCompare(b.date));
   return { title: `${year} Postseason`, swiss: null, bracket: postseasonBracket(all) };
 }
