@@ -287,13 +287,22 @@ export class SoccerFeed {
     let page = Math.floor(this.fetched / size) + 1;
     const pages: { page: number; items: readonly JSONValue[] }[] = [];
     let complete = false;
+    const get = (n: number) => fetcher(`${base}?limit=${size}&page=${n}`, { signal }).catch(() => null);
     while (!signal?.aborted) {
-      const json = await fetcher(`${base}?limit=${size}&page=${page}`, { signal }).catch(() => null);
+      const json = await get(page);
       if (json == null) break;
       const items = arr(at(json, "items"));
       pages.push({ page, items });
       const pageCount = intOf(at(json, "pageCount")) ?? page;
       if (page >= pageCount || items.length === 0) {
+        complete = true;
+        break;
+      }
+      // The first load knows how many pages there are: the rest come in together (the Mac reads them one by one).
+      if (!this.loaded && pageCount > page + 1) {
+        const rest = await Promise.all(Array.from({ length: pageCount - page }, (_, i) => get(page + 1 + i)));
+        if (rest.some((r) => r == null)) break;
+        rest.forEach((r, i) => pages.push({ page: page + 1 + i, items: arr(at(r, "items")) }));
         complete = true;
         break;
       }

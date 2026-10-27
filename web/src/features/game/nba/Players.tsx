@@ -176,9 +176,9 @@ export const BoxScore = memo(function BoxScore({
           <BoxRow key={p.id} p={p} columns={columns} grid={grid} highs={highs} floor={floor} live={live} streak={live ? (streaks[p.id] ?? 0) : 0} playerRef={playerRef} />
         ))}
         {bench.length > 0 && starters.length > 0 ? (
-          <h3 className={styles.bench} role="listitem">
-            Bench
-          </h3>
+          <div role="listitem">
+            <h3 className={styles.bench}>Bench</h3>
+          </div>
         ) : null}
         {bench.map((p) => (
           <BoxRow key={p.id} p={p} columns={columns} grid={grid} highs={highs} floor={floor} live={live} streak={live ? (streaks[p.id] ?? 0) : 0} playerRef={playerRef} />
