@@ -83,6 +83,11 @@ export interface SportPage {
   readonly heroChip?: string | null;
   /** A line under the hero's status, in any state: a two-legged tie's aggregate, a shootout ("Agg 3–2 · Pens 4–3"). */
   readonly heroNote?: string | null;
+  /**
+   * A field event's summary from the page's own lane ("Final · Leader 🇸🇮 L. Rakovec"), in place of the
+   * scoreboard's, which can lag it by a poll: the hero then names the leader the results list ranks first.
+   */
+  readonly fieldSummary?: string | null;
   /** What sits beside each team's name on the docked bar (the possession glyph, red cards), given its room. */
   readonly dockSlot?: (side: Side, tier: AccessoryTier) => ReactNode;
 }

@@ -214,6 +214,13 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
   const surface = useSurface(geometry);
   const fallback = sport.clockFallback ?? (event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live"));
 
+  // A field event's line from the page's own lane when it says something newer (the climbing leader).
+  const fieldSummary = sport.fieldSummary;
+  const heroEvent = useMemo(
+    () => (fieldSummary && event.content.kind === "field" && event.content.summary !== fieldSummary ? { ...event, content: { ...event.content, summary: fieldSummary } } : event),
+    [event, fieldSummary],
+  );
+
   const shown = sectionOrder(event.ref, event.state).filter((s) => sport.sections[s] != null);
   const placed = arrangement(shown, event.ref, event.state, columns);
   useRemeasure(geometry, `${placed.map((p) => p.section).join()}|${columns}`);
@@ -222,7 +229,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
     <>
       <div className={styles.heroSlot}>
         <Hero
-          event={event}
+          event={heroEvent}
           palette={event.content.kind === "match" ? palette : null}
           scores={scores}
           beats={beats}
@@ -235,7 +242,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
           chip={sport.heroChip ?? null}
           note={sport.heroNote ?? null}
           staleSince={game.staleSince}
-          spoken={spokenHero(event, scores, fallback, sport.heroSpoken ?? null)}
+          spoken={spokenHero(heroEvent, scores, fallback, sport.heroSpoken ?? null)}
           caption={event.caption ?? detail.roundName}
           trophy={sport.trophy ?? null}
           badge={sport.heroBadge ?? null}
