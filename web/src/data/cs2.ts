@@ -68,6 +68,8 @@ export interface CSRound {
 
 /** What a CS2 match adds to the game page's detail. */
 export interface CSDetailPart {
+  /** The format (bo3.gg's `bo_type`): a best of three lists only the maps played so far once it's decided. */
+  readonly bestOf: number | null;
   readonly roundName: string | null;
   readonly tournament: Tournament | null;
   readonly maps: readonly MapResult[];
@@ -108,6 +110,7 @@ interface Team {
 
 export interface ParsedMatch {
   readonly id: number | null;
+  readonly bestOf: number | null;
   readonly top: Team;
   readonly bottom: Team;
   readonly roundName: string | null;
@@ -163,6 +166,7 @@ export function parseMatch(match: JSONValue): ParsedMatch {
 
   return {
     id: int(at(match, "id")) ?? null,
+    bestOf: int(at(match, "bo_type")) ?? null,
     top,
     bottom,
     roundName: str(at(match, "stage", "name")) ?? null,
@@ -410,6 +414,7 @@ export async function loadCSMatch(slug: string, event: ScoreEvent, fetcher: Fetc
     if (list) rounds[number] = list;
   }
   const part: CSDetailPart = {
+    bestOf: match.bestOf,
     roundName: match.roundName,
     tournament: match.tournament,
     maps: match.maps,
@@ -449,13 +454,18 @@ export function mapPoint(top: number, bottom: number): Side | null {
   return null;
 }
 
-/** Maps each side has won once map `number` goes to `winner`, and whether that wins the series (best of `maps.length`). */
-export function series(number: number | null, winner: Side, maps: readonly MapResult[]): { wins: number; losses: number; clinched: boolean } | null {
+/**
+ * Maps each side has won once map `number` goes to `winner`, and whether
+ * that wins the series: best of `bestOf` when bo3.gg says (web addition: a
+ * decided series lists only the maps it played), else of `maps.length`.
+ */
+export function series(number: number | null, winner: Side, maps: readonly MapResult[], bestOf: number | null = null): { wins: number; losses: number; clinched: boolean } | null {
   if (maps.length === 0) return null;
   const others = maps.filter((m) => m.number !== number);
   const wins = others.filter((m) => m.winner === winner).length + 1;
   const losses = others.filter((m) => m.winner != null && m.winner !== winner).length;
-  return { wins, losses, clinched: wins >= Math.floor(maps.length / 2) + 1 };
+  const of = Math.max(bestOf ?? 0, maps.length);
+  return { wins, losses, clinched: wins >= Math.floor(of / 2) + 1 };
 }
 
 /**
@@ -464,11 +474,11 @@ export function series(number: number | null, winner: Side, maps: readonly MapRe
  * shows MAP POINT only; MATCH POINT is the web's addition, the same rule
  * one step further.)
  */
-export function pointChip(reading: CSLive | null, maps: readonly MapResult[]): { text: "MAP POINT" | "MATCH POINT"; side: Side } | null {
+export function pointChip(reading: CSLive | null, maps: readonly MapResult[], bestOf: number | null = null): { text: "MAP POINT" | "MATCH POINT"; side: Side } | null {
   if (!reading || reading.mapEnded) return null;
   const side = mapPoint(reading.topScore, reading.bottomScore);
   if (!side) return null;
-  const clinch = series(reading.mapNumber, side, maps)?.clinched ?? false;
+  const clinch = series(reading.mapNumber, side, maps, bestOf)?.clinched ?? false;
   return { text: clinch ? "MATCH POINT" : "MAP POINT", side };
 }
 
@@ -485,7 +495,7 @@ export function newerReading(a: CSLive, b: CSLive): boolean {
  * A round won (the score moved), a map won, or the series won, between two
  * live readings of the map being played (MatchRules.csMoments).
  */
-export function csMoments(old: CSLive, next: CSLive, names: { top: string; bottom: string }, maps: readonly MapResult[]): LiveMoment[] {
+export function csMoments(old: CSLive, next: CSLive, names: { top: string; bottom: string }, maps: readonly MapResult[], bestOf: number | null = null): LiveMoment[] {
   if (old.mapNumber !== next.mapNumber) return [];
   const score = `${next.topScore}–${next.bottomScore}`;
   // The map's over (the final round may have come in a reading earlier).
@@ -494,12 +504,13 @@ export function csMoments(old: CSLive, next: CSLive, names: { top: string; botto
     const winner = side === "top" ? names.top : names.bottom;
     const map = next.mapName ?? "the map";
     const id = `cs:${next.mapNumber ?? 0}:end`;
-    const s = series(next.mapNumber, side, maps);
+    const s = series(next.mapNumber, side, maps, bestOf);
+    const isSeries = Math.max(bestOf ?? 0, maps.length) > 1;
     if (s?.clinched) {
       // The map that wins it: decisive (gold, the hero's glint, the trophy).
-      const match = maps.length > 1 ? `the series ${s.wins}–${s.losses}` : "the match";
+      const match = isSeries ? `the series ${s.wins}–${s.losses}` : "the match";
       return [
-        liveMoment({ id, chart: "rounds", tier: Tier.score, kind: "mapWon", lead: maps.length > 1 ? "Series won" : "Match won", detail: `${winner} take ${map} ${score} and ${match}`, side, accents: ["decisive"] }),
+        liveMoment({ id, chart: "rounds", tier: Tier.score, kind: "mapWon", lead: isSeries ? "Series won" : "Match won", detail: `${winner} take ${map} ${score} and ${match}`, side, accents: ["decisive"] }),
       ];
     }
     return [liveMoment({ id, chart: "rounds", tier: Tier.score, kind: "mapWon", lead: "Map won", detail: `${winner} take ${map} ${score}`, side })];
@@ -611,9 +622,9 @@ export function roundReadout(round: CSRound, names: { top: string; bottom: strin
   };
 }
 
-/** The maps section's caption (DetailView.mapsCaption). */
-export function mapsCaption(maps: readonly MapResult[]): string {
-  const bestOf = maps.length;
+/** The maps section's caption (DetailView.mapsCaption), on the format bo3.gg names when it does. */
+export function mapsCaption(maps: readonly MapResult[], format: number | null = null): string {
+  const bestOf = Math.max(format ?? 0, maps.length);
   if (bestOf <= 1) return "Rounds won on each map.";
   return `Best of ${bestOf}: first to ${Math.floor(bestOf / 2) + 1} maps wins. Rounds won on each map.`;
 }

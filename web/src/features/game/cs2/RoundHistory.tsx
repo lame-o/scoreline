@@ -60,6 +60,8 @@ function teamStyle(color: string): CSSProperties {
 export interface RoundHistoryProps {
   readonly rounds: Readonly<Record<number, readonly CSRound[]>>;
   readonly maps: readonly MapResult[];
+  /** The series' format, when bo3.gg says (MATCH POINT reads it). */
+  readonly bestOf: number | null;
   readonly palette: TeamPalette;
   /** Short names (bo3.gg's acronyms first) and full names for screen readers. */
   readonly names: { readonly top: string; readonly bottom: string };
@@ -68,7 +70,7 @@ export interface RoundHistoryProps {
   readonly reading: CSLive | null;
 }
 
-export const RoundHistory = memo(function RoundHistory({ rounds, maps, palette, names, spoken, reading }: RoundHistoryProps) {
+export const RoundHistory = memo(function RoundHistory({ rounds, maps, bestOf, palette, names, spoken, reading }: RoundHistoryProps) {
   const numbers = useMemo(() => Object.keys(rounds).map(Number).sort((a, b) => a - b), [rounds]);
   const [selected, setSelected] = useState<number | null>(null);
   const current = selected != null && rounds[selected] != null ? selected : defaultMap(rounds, maps);
@@ -89,7 +91,7 @@ export const RoundHistory = memo(function RoundHistory({ rounds, maps, palette, 
   const all = blocks.flat();
   const state = isLive ? blockState(all) : null;
   const point: Side | null = !state ? null : mapReading ? (mapReading.mapEnded ? null : mapPoint(mapReading.topScore, mapReading.bottomScore)) : state.mapPoint;
-  const clinch = point ? (series(current, point, maps)?.clinched ?? false) : false;
+  const clinch = point ? (series(current, point, maps, bestOf)?.clinched ?? false) : false;
 
   return (
     <div className={styles.rounds}>

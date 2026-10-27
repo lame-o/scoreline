@@ -355,12 +355,20 @@
   }
 }
 
+/* Reduce Motion: positions jump; what changes fades (the house fade), never nothing. */
 @media (prefers-reduced-motion: reduce) {
   .fill,
   .dot,
   .pointer,
-  .tip {
-    transition-duration: 0s;
+  .tip,
+  .markHit,
+  .label,
+  .lane,
+  .laneFill,
+  .laneNub,
+  .laneValue {
+    transition-property: opacity, background-color;
+    transition-duration: var(--dur-fade);
   }
   .pole,
   .pennant {

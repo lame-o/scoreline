@@ -710,8 +710,13 @@ const demo: Fetcher = async (url) => {
     return snap;
   }
   if (u.host === "api.bo3.gg" && path.endsWith("/matches")) {
-    // A match by ID (a page opened off the scoreboards): the demo's, when it's asked for.
-    if (u.searchParams.get("filter[matches.id][eq]") === String(CS_MATCH.id)) return { results: [await csMatch()] };
+    // A match by ID (a page opened off the scoreboards): the demo's live one, else whichever list has it.
+    const byID = u.searchParams.get("filter[matches.id][eq]");
+    if (byID === String(CS_MATCH.id)) return { results: [await csMatch()] };
+    if (byID) {
+      const lists = await Promise.all(["bo3-matches-current.synthetic.json", "bo3-matches-upcoming.json", "bo3-matches-finished.json"].map(fixture));
+      return { results: lists.flatMap((l) => l.results as Record<string, unknown>[]).filter((m) => String(m.id) === byID) };
+    }
     return csList(u.searchParams.get("filter[matches.status][in]") ?? "");
   }
   if (u.host === "api.bo3.gg") {

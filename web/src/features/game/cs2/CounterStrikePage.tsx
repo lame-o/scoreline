@@ -54,8 +54,8 @@ export function useCounterStrikePage(game: GameContext): SportPage {
   // The reading on show: the lane's or the full load's, whichever is further on (DetailView.apply).
   const [reading, setReading] = useState<CSLive | null>(detail.csLive);
   const current = useRef(reading);
-  const maps = useRef(detail.maps);
-  maps.current = detail.maps;
+  const maps = useRef({ maps: detail.maps, bestOf: detail.bestOf });
+  maps.current = { maps: detail.maps, bestOf: detail.bestOf };
   const refresh = useRef(game.refresh);
   refresh.current = game.refresh;
   const accept = useCallback(
@@ -64,7 +64,7 @@ export function useCounterStrikePage(game: GameContext): SportPage {
       // A full load never takes the lane's reading back, nor away.
       if (!fromLane && was && (!next || !newerReading(next, was))) return;
       if (sameReading(was, next)) return;
-      const moments = was && next ? csMoments(was, next, spoken, maps.current) : [];
+      const moments = was && next ? csMoments(was, next, spoken, maps.current.maps, maps.current.bestOf) : [];
       if (moments.length > 0) game.moments.offer(moments);
       current.current = next;
       setReading(next);
@@ -110,7 +110,7 @@ export function useCounterStrikePage(game: GameContext): SportPage {
   const sections: Partial<Record<Section, ReactNode>> = {};
   if (top && bottom && detail.maps.length > 0) {
     sections.maps = (
-      <DetailSection id="maps" title="Maps" caption={mapsCaption(detail.maps)}>
+      <DetailSection id="maps" title="Maps" caption={mapsCaption(detail.maps, detail.bestOf)}>
         <MapList maps={detail.maps} final={event.state === "final"} live={shown} top={top} bottom={bottom} />
       </DetailSection>
     );
@@ -124,7 +124,7 @@ export function useCounterStrikePage(game: GameContext): SportPage {
         spokenCaption="Each square is a round, filled in the winner's row. First to 13; overtime first to 4."
         accessory={live ? "live" : "final"}
       >
-        <RoundHistory rounds={detail.rounds} maps={detail.maps} palette={palette} names={names} spoken={spoken} reading={shown} />
+        <RoundHistory rounds={detail.rounds} maps={detail.maps} bestOf={detail.bestOf} palette={palette} names={names} spoken={spoken} reading={shown} />
       </DetailSection>
     );
   }
@@ -152,8 +152,8 @@ export function useCounterStrikePage(game: GameContext): SportPage {
   }
 
   // The series winner, once it's over (one map isn't a series).
-  const trophy = event.state === "final" && detail.maps.length > 1 && top && bottom ? (top.isWinner ? "top" : bottom.isWinner ? "bottom" : null) : null;
-  const chip = live ? (pointChip(onMap, detail.maps)?.text ?? null) : null;
+  const trophy = event.state === "final" && Math.max(detail.bestOf ?? 0, detail.maps.length) > 1 && top && bottom ? (top.isWinner ? "top" : bottom.isWinner ? "bottom" : null) : null;
+  const chip = live ? (pointChip(onMap, detail.maps, detail.bestOf)?.text ?? null) : null;
 
   return {
     sections,

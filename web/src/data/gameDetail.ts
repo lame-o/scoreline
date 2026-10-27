@@ -236,6 +236,8 @@ export interface GameDetail {
   /** Official broadcasters (US market, as ESPN reports them), radio last. */
   readonly broadcasters: readonly Broadcaster[];
   // CS2 (CSDetail: data/cs2.ts)
+  /** The series' format (best of 1, 3, 5), when bo3.gg says. */
+  readonly bestOf: number | null;
   readonly maps: readonly MapResult[];
   readonly streams: readonly Stream[];
   readonly csLive: CSLive | null;
@@ -281,6 +283,7 @@ export const EMPTY_DETAIL: GameDetail = {
   seasonIsCurrent: null,
   broadcast: null,
   broadcasters: [],
+  bestOf: null,
   maps: [],
   streams: [],
   csLive: null,

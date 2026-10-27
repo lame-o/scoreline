@@ -209,6 +209,10 @@ describe("CS2 rules", () => {
     expect(series(2, "bottom", bo3)?.clinched).toBe(false);
     expect(series(1, "bottom", [map(1, null, true)])?.clinched).toBe(true);
     expect(series(1, "top", [])).toBeNull();
+    // A decided best of three lists only the maps it played: the format, not the list, says what wins it.
+    expect(series(1, "top", [map(1, null, true)], 3)?.clinched).toBe(false);
+    expect(mapsCaption([map(1, "top"), map(2, "top")], 3)).toBe("Best of 3: first to 2 maps wins. Rounds won on each map.");
+    expect(parseMatch(fixture("bo3-detail-match.json")).bestOf).toBe(3);
   });
 
   it("says MATCH POINT when the map point would take the series, else MAP POINT", () => {

@@ -101,6 +101,9 @@ for (const size of WIDTHS) {
         await expect(page.getByRole("heading", { name: /^On the Wall\s?, Live/ })).toBeAttached();
         await expect(page.getByRole("img", { name: /is climbing, at \d+\+?, \d+(st|nd|rd|th) for now\./ })).toBeAttached();
         await expect(page.getByRole("heading", { name: /^Final · Live/ })).toBeAttached();
+        // Four seconds on, Rogora holds 48+: past three climbers and into the lead (a final's score).
+        await expect(page.locator('[data-section="ascent"] p strong').first()).toHaveText(/^(Takes the lead|Passes .+)$/, { timeout: 15_000 });
+        await expect(page.locator('[data-section="ascent"] [role="img"][aria-label^="Down"]').first()).toBeAttached();
         // The hero wears the climber's flag; Watch links World Climbing's own channel.
         await expect(page.locator('[data-section="climbingWatch"] a')).toHaveAttribute("href", "https://www.youtube.com/@WorldClimbing/streams");
         if (!size.mobile) {
