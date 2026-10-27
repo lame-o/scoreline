@@ -8,8 +8,9 @@ import SwiftUI
 // frames the end spot and the new line to gain as the stamp lands ("+12",
 // "1ST DOWN", "−7 SACK", "INC", "FG 47 ✓"). Marquee plays get a headline
 // across the top (TOUCHDOWN, FIELD GOAL, INTERCEPTION), and a touchdown's
-// fireworks burst over the goal line it crossed. The drive chart under it,
-// and its play-by-play, is its caption.
+// fireworks burst over the goal line it crossed; its extra point or
+// two-point try follows as a short beat of its own once ESPN has it. The
+// drive chart under it, and its play-by-play, is its caption.
 //
 // Built from the baseball theater's parts: its projection, camera framing,
 // pictogram figures, ball and type (TheaterKit.swift). Drawn in two
@@ -67,7 +68,7 @@ struct GridironLayer: View, Equatable {
             }
 
             // The turf runs on past the sidelines (a chase to the sideline never looks into a void); the field is mowed.
-            context.fill(quad(-h - 110, -Gridiron.endZone - 110, h + 110, Gridiron.backLine + 130), with: .color(ink.grass))
+            context.fill(quad(-h - 110, -Gridiron.endZone - 110, h + 110, Gridiron.backLine + 130), with: .color(ink.turf))
             // Mowed in five-yard bands, every other one lighter.
             var bands = Path()
             for k in stride(from: 0, to: 20, by: 2) where shown(Double(k) * 15) || shown(Double(k + 1) * 15) {
@@ -96,7 +97,15 @@ struct GridironLayer: View, Equatable {
                 stripe.addLine(to: f.point(CGPoint(x: h, y: y)))
                 if k == 0 || k == 20 { goals.addPath(stripe) } else { lines.addPath(stripe) }
             }
-            context.stroke(lines, with: .color(ink.chalk.opacity(0.75)), lineWidth: line)
+            let border = quad(-h, -Gridiron.endZone, h, Gridiron.backLine)
+            if let edge = ink.chalkEdge {
+                // On pale grass, each line sits in a soft edge of its own.
+                var all = lines
+                all.addPath(goals)
+                context.stroke(all, with: .color(edge), lineWidth: line * 1.3 + 1.2)
+                context.stroke(border, with: .color(edge), lineWidth: line * 1.8 + 1.2)
+            }
+            context.stroke(lines, with: .color(ink.chalk.opacity(ink.dark ? 0.75 : 1)), lineWidth: line)
             context.stroke(goals, with: .color(ink.chalk), lineWidth: line * 1.6)
             // Hash marks every yard, where there's room to see them.
             if f.scale >= 1.1 {
@@ -126,7 +135,7 @@ struct GridironLayer: View, Equatable {
                 }
             }
             // The sidelines and end lines.
-            context.stroke(quad(-h, -Gridiron.endZone, h, Gridiron.backLine), with: .color(ink.chalk), lineWidth: line * 1.8)
+            context.stroke(border, with: .color(ink.chalk), lineWidth: line * 1.8)
 
             // The goalposts on the end lines: the post, the crossbar, the uprights.
             for y in [-Gridiron.endZone, Gridiron.backLine] where shown(y) {
@@ -137,15 +146,16 @@ struct GridironLayer: View, Equatable {
                 post.addLine(to: f.point(CGPoint(x: -Gridiron.upright, y: y), z: Gridiron.crossbar))
                 post.addLine(to: f.point(CGPoint(x: Gridiron.upright, y: y), z: Gridiron.crossbar))
                 post.addLine(to: f.point(CGPoint(x: Gridiron.upright, y: y), z: Gridiron.uprightTop))
-                context.stroke(post, with: .color(Celebrate.gold.opacity(0.85)),
+                context.stroke(post, with: .color(ink.dark ? Celebrate.gold.opacity(0.85) : ink.gold),
                                style: StrokeStyle(lineWidth: line + 0.35, lineCap: .round, lineJoin: .round))
             }
         } symbols: {
             ForEach([10, 20, 30, 40, 50], id: \.self) { n in
                 Text("\(n)").font(.system(size: 40, weight: .bold).monospacedDigit()).foregroundStyle(ink.chalk).tag(Symbol.number(n))
             }
-            Text(near.name).font(.system(size: 60, weight: .black).width(.expanded)).foregroundStyle(ink.chalk).tag(Symbol.near)
-            Text(far.name).font(.system(size: 60, weight: .black).width(.expanded)).foregroundStyle(ink.chalk).tag(Symbol.far)
+            // On one line whatever the well's width (a narrow one would wrap a long name).
+            Text(near.name).font(.system(size: 60, weight: .black).width(.expanded)).foregroundStyle(ink.chalk).fixedSize().tag(Symbol.near)
+            Text(far.name).font(.system(size: 60, weight: .black).width(.expanded)).foregroundStyle(ink.chalk).fixedSize().tag(Symbol.far)
         }
     }
 
@@ -564,7 +574,7 @@ struct FootballFrame: View, Equatable {
             case .neutral: .primary
             case .gold: ink.gold
             }
-            TheaterBanner(text: banner.text, color: color, size: TheaterType.banner(size))
+            TheaterBanner(text: banner.text, color: color, size: TheaterType.banner(size, fitting: banner.text))
         }
     }
 }
@@ -615,6 +625,8 @@ private struct FootballStage: View {
     @Environment(\.colorScheme) private var scheme
     /// The replay on screen: which play, when it began, and whether it's over.
     @State private var replay: Replay?
+    /// The play's script, built once (a body run for anything else reuses it).
+    @State private var built = FootballScripts()
 
     struct Replay: Equatable {
         let id: String
@@ -625,7 +637,13 @@ private struct FootballStage: View {
     /// Half as tall as wide, up to this.
     static let maxHeight: CGFloat = 320
 
-    private var offense: GameDetail.Side { state.play?.offense ?? restOffense ?? .top }
+    /// The play on screen: the last snap, or a touchdown's try once its beat has begun.
+    private var shown: FootballScene? {
+        if let attempt = state.play?.conversion, replay?.id == attempt.id { return attempt }
+        return state.play
+    }
+
+    private var offense: GameDetail.Side { shown?.offense ?? restOffense ?? .top }
 
     private var teams: FootballTeams {
         let dressed: (top: Uniform, bottom: Uniform)
@@ -649,14 +667,14 @@ private struct FootballStage: View {
     /// Seconds into the play on screen; infinity once it has ended (or was never replayed).
     private func time(at date: Date) -> Double {
         if case let .frozen(t) = clock { return t }
-        guard let play = state.play else { return .infinity }
+        guard let play = shown else { return .infinity }
         if let replay, replay.id == play.id { return replay.done ? .infinity : date.timeIntervalSince(replay.start) }
         // News not yet begun: its first frame (onChange begins it).
         return state.news && !reduceMotion ? 0 : .infinity
     }
 
     private var playing: Bool {
-        guard clock == .live, let play = state.play else { return false }
+        guard clock == .live, let play = shown else { return false }
         if let replay, replay.id == play.id { return !replay.done }
         return state.news && !reduceMotion
     }
@@ -665,7 +683,8 @@ private struct FootballStage: View {
     private var moving: Bool { playing || clock != .live }
 
     var body: some View {
-        let script = state.play.map(FootballScript.init) ?? FootballScript(rest: rest ?? FootballScript.Rest(yard: 25, gain: 35))
+        let play = shown
+        let script = play.map(built.script(for:)) ?? FootballScript(rest: rest ?? FootballScript.Rest(yard: 25, gain: 35))
         let ink = TheaterInk(scheme)
         let teams = teams, zones = zones
         GeometryReader { geo in
@@ -677,22 +696,22 @@ private struct FootballStage: View {
                         TimelineView(.animation) { context in
                             let t = time(at: context.date)
                             GridironLayer(ink: ink, camera: script.camera.frame(at: t), near: zones.near, far: zones.far, yaw: script.yaw).equatable()
-                            FootballFrame(scene: state.play, script: script, t: t, teams: teams, ink: ink, size: geo.size).equatable()
+                            FootballFrame(scene: play, script: script, t: t, teams: teams, ink: ink, size: geo.size).equatable()
                         }
                         .transition(.identity)
                     } else {
                         let t = time(at: .now)
                         ZStack {
                             if moving { GridironLayer(ink: ink, camera: script.camera.frame(at: t), near: zones.near, far: zones.far, yaw: script.yaw).equatable() }
-                            FootballFrame(scene: state.play, script: script, t: t, teams: teams, ink: ink, size: geo.size).equatable()
+                            FootballFrame(scene: play, script: script, t: t, teams: teams, ink: ink, size: geo.size).equatable()
                         }
                         .transition(.identity)
                     }
                 }
-                .id(state.play?.id)
+                .id(play?.id)
                 // A replay cuts in; a play that isn't replayed crossfades to how it ended.
                 .transition(playing ? .identity : .opacity.animation(.easeInOut(duration: 0.35)))
-                if let play = state.play {
+                if let play {
                     FootballCelebrationStage(play: play, script: script, size: geo.size, colors: (teams.offense.accent, teams.defense.accent),
                                              start: replay?.id == play.id ? replay?.start : nil)
                         .id(play.id)
@@ -705,6 +724,9 @@ private struct FootballStage: View {
         .accessibilityHidden(true)
         .onAppear(perform: begin)
         .onChange(of: state.play?.id) { _, _ in begin() }
+        // A touchdown's try follows it once the touchdown's replay is done and the try is in.
+        .onChange(of: replay) { _, _ in follow() }
+        .onChange(of: state.play?.conversion?.id) { _, _ in follow() }
         .task(id: replay) {
             guard let replay, !replay.done else { return }
             try? await Task.sleep(for: .seconds(max(script.duration - Date.now.timeIntervalSince(replay.start), 0) + 0.05))
@@ -717,6 +739,30 @@ private struct FootballStage: View {
     private func begin() {
         guard clock == .live, !reduceMotion, state.news, let play = state.play, replay?.id != play.id else { return }
         replay = Replay(id: play.id, start: .now)
+    }
+
+    /// A touchdown replayed here is followed by its try, as a short beat of
+    /// its own: a cut to the try's formation, a breath, the snap.
+    private func follow() {
+        guard clock == .live, !reduceMotion, let play = state.play, let attempt = play.conversion, let replay, replay.id == play.id,
+              replay.done else { return }
+        self.replay = Replay(id: attempt.id, start: .now + 0.3)
+    }
+}
+
+/// The last play's script. A reference, so keeping it isn't a change
+/// anything observes: building one (its camera track) takes a millisecond
+/// or so, and a body run that isn't about a new play shouldn't.
+private final class FootballScripts {
+    private var scene: FootballScene?
+    private var script: FootballScript?
+
+    func script(for scene: FootballScene) -> FootballScript {
+        if scene != self.scene || script == nil {
+            self.scene = scene
+            script = FootballScript(scene)
+        }
+        return script!
     }
 }
 
@@ -774,7 +820,7 @@ enum FootballCelebration {
             if gold { cue?.gold = true }
             return cue
         }
-        let scale = max(2.2, height / 95)
+        let scale = TheaterBurst.scale(height)
         var bursts: [Burst] = []
         switch moment.kind {
         case .touchdown:
@@ -876,13 +922,12 @@ private struct FootballCelebrationStage: View {
             context.clip(to: f.bounds)
             for burst in bursts where t >= burst.at && t <= burst.end {
                 let origin = switch burst.anchor {
-                case let .field(p): f.point(p)
+                case let .field(p): TheaterBurst.inside(f.point(p), size)
                 case .banner: TheaterType.bannerOrigin(size)
                 }
                 var layer = context
                 layer.translateBy(x: origin.x, y: origin.y)
-                layer.scaleBy(x: burst.scale, y: burst.scale)
-                Celebration.draw(Celebration.particles(burst.cue, origin: .zero, t: t - burst.at), in: layer,
+                Celebration.draw(TheaterBurst.spread(Celebration.particles(burst.cue, origin: .zero, t: t - burst.at), by: burst.scale), in: layer,
                                  palette: CelebrationColors.team(color(burst.side)).palette)
             }
         }

@@ -46,6 +46,31 @@ struct FootballScene: Equatable, Identifiable {
 
     enum Miss: Equatable { case wideLeft, wideRight, short, blocked }
 
+    /// How the offense lined up, as far as the play says (in the gun or
+    /// under center is `shotgun`).
+    enum Formation: Equatable {
+        /// Three wide and a tight end; under center on a run, a fullback and two wide.
+        case base
+        /// An extra lineman reported in as eligible: two tight ends, a fullback, one wide.
+        case heavy
+        /// Nobody behind the quarterback: five out wide.
+        case empty
+        /// Three receivers bunched tight on one side.
+        case bunch
+        /// The kneel: a back at each of the quarterback's hips, one deep.
+        case victory
+    }
+
+    /// The try after a touchdown, as the touchdown's entry tells it (ESPN
+    /// adds it once it's taken): a kick, or a pass or a run from the 2.
+    struct Attempt: Equatable {
+        enum Kind: Equatable { case kick, pass, rush }
+        var kind: Kind
+        var good: Bool
+        /// Its own words ("B.Aubrey extra point is GOOD, Center-T.Sieg, Holder-B.Anger.").
+        var text: String
+    }
+
     /// ESPN's positions, as the theater stands them up.
     enum Position: Equatable {
         case quarterback, back, fullback, receiver, tightEnd, lineman
@@ -113,6 +138,11 @@ struct FootballScene: Equatable, Identifiable {
     var gap: Gap?
     var depth: Depth?
     var shotgun = false
+    var formation = Formation.base
+    /// Where the ball was spotted across the field, in the offense's frame:
+    /// on the left or right hash, or between them. The text never says: the
+    /// feed works it out from the plays before (`FootballFeed.spot`).
+    var hash = Lane.middle
     var outOfBounds = false
     /// A pass: yards past the line where it was caught or thrown to (ESPN's
     /// yards after the catch, else the text's depth).
@@ -133,6 +163,10 @@ struct FootballScene: Equatable, Identifiable {
     var flips = false
     var onDowns = false
     var penalty: Penalty?
+    /// A touchdown's try, once its entry has it.
+    var attempt: Attempt?
+    /// On a try's own scene: how the point (or two) after was tried.
+    var pointAfter: Attempt.Kind?
     var participants: [Participant] = []
     /// Short names by part, from the text ("Barkley").
     var names: [String: String] = [:]
@@ -189,6 +223,71 @@ struct FootballScene: Equatable, Identifiable {
 
     /// Everyone credited with the stop, by position.
     var tacklers: [Position?] { participants.filter { $0.role == "tackler" || $0.role == "assistedBy" }.map(\.position) }
+
+    /// A touchdown's try as a scene of its own, replayed as a short beat
+    /// after it: the kick from the 15, or the pass or run from the 2, by the
+    /// team that scored, from the middle of the field.
+    var conversion: FootballScene? {
+        guard let attempt, scoring == .touchdown, let side = scorer else { return nil }
+        let kick = attempt.kind == .kick
+        let from: Double = kick ? 85 : 98
+        let kind: Kind = switch attempt.kind {
+        case .kick: .extraPoint(good: attempt.good)
+        case .pass: attempt.good ? .pass : .incomplete
+        case .rush: .rush
+        }
+        var scene = FootballScene(id: id + "-try", kind: kind, offense: side, from: from,
+                                  to: kick ? from : attempt.good ? 100 : attempt.kind == .rush ? 99 : from)
+        scene.pointAfter = attempt.kind
+        scene.text = attempt.text
+        scene.wallclock = wallclock
+        scene.scoring = attempt.good && !kick ? .touchdown : nil
+        scene.yards = attempt.good && !kick ? 2 : 0
+        scene.shotgun = attempt.kind == .pass
+        let lower = attempt.text.lowercased()
+        if let m = lower.firstMatch(of: #/(left|right) (end|tackle|guard)/#) {
+            scene.lane = Self.lane(m.1)
+            scene.gap = m.2 == "end" ? .end : m.2 == "tackle" ? .tackle : .guard
+        } else if let m = lower.firstMatch(of: #/pass (?:short |deep )?(left|middle|right)/#) {
+            scene.lane = Self.lane(m.1)
+            scene.depth = .short
+        } else if lower.contains("middle") {
+            scene.lane = .middle
+            scene.gap = .middle
+        }
+        scene.names = Self.names(attempt.text)
+        // The quarterback who threw the touchdown keeps it himself.
+        if attempt.kind == .rush, kind == .rush, self.kind == .pass, let passer = names["lead"], scene.names["lead"] == passer {
+            scene.participants = [Participant(role: "rusher", id: nil, position: .quarterback)]
+        }
+        return scene
+    }
+
+    /// Where the next snap is spotted across the field, in the next
+    /// offense's frame: on the hash nearest where this play ended (between
+    /// the hashes, where it lay; over the side it went out of bounds); back
+    /// where it was after an incompletion or a flag; in the middle after a
+    /// score, a kick off or a return. The other way round when the ball
+    /// changed hands. (pure; tested)
+    var nextHash: Lane {
+        if scoring != nil { return .middle }
+        let side: Lane
+        switch kind {
+        case .kickoff, .extraPoint: return .middle
+        case .punt:
+            // Out of bounds where the punter aimed it (his right); else the return's end isn't known.
+            side = kick == .outOfBounds ? .right : .middle
+        case .fieldGoal:
+            // A miss: the spot of the kick, the holder's.
+            side = hash
+        case .incomplete, .spike, .penalty, .kneel, .sack:
+            side = hash
+        case .pass, .rush, .other, .fumble, .interception:
+            side = lane ?? hash
+        }
+        guard flips else { return side }
+        return side == .left ? .right : side == .right ? .left : .middle
+    }
 }
 
 /// What the football theater shows: the last snap, and whether to replay it.
@@ -277,6 +376,7 @@ extension FootballScene {
         // What only the text says.
         let lower = play.lowercased()
         scene.shotgun = text.contains("Shotgun")
+        scene.formation = formation(text, kind: scene.kind)
         scene.outOfBounds = lower.contains(" ob ") || lower.contains(" ob at") || lower.contains("out of bounds")
         if let m = lower.firstMatch(of: #/pass (?:incomplete )?(short|deep) (left|middle|right)/#) {
             scene.depth = m.1 == "deep" ? .deep : .short
@@ -335,7 +435,58 @@ extension FootballScene {
         default:
             break
         }
+        if scene.scoring == .touchdown { scene.attempt = attempt(item, text: text) }
+        // A try logged as its own entry: from the 15 or the 2, whatever the spot says.
+        if case .extraPoint = scene.kind {
+            scene.pointAfter = .kick
+            if !(80...99).contains(scene.from) { (scene.from, scene.to) = (85, 85) }
+        } else if type.contains("two point") || type.contains("two-point") || type.contains("2pt") {
+            let good = type.contains("good") || type.contains("succeed") || lower.contains("succeeds") || lower.contains("is good")
+            let pass = type.contains("pass") || lower.contains(" pass ")
+            scene.pointAfter = pass ? .pass : .rush
+            scene.kind = pass ? (good ? .pass : .incomplete) : .rush
+            scene.scoring = good ? .touchdown : nil
+            if !(95...99).contains(scene.from) { scene.from = 98 }
+            scene.to = good ? 100 : min(scene.from + 1, 99)
+            scene.before = nil
+            scene.after = nil
+        }
         return scene
+    }
+
+    /// The set the text implies: an extra lineman reported in (a heavy
+    /// set), an empty backfield, a bunch; the kneel's victory formation.
+    static func formation(_ text: String, kind: Kind) -> Formation {
+        if kind == .kneel { return .victory }
+        let lower = text.lowercased()
+        if lower.contains("reported in as eligible") || lower.contains("jumbo") { return .heavy }
+        // The formation's own words, in its parentheses ("(Shotgun, Empty)").
+        let hints = text.matches(of: #/\(([^)]*)\)/#).map { $0.1.lowercased() }.joined(separator: " ")
+        if hints.contains("empty") { return .empty }
+        if hints.contains("bunch") || hints.contains("trips") { return .bunch }
+        return .base
+    }
+
+    /// The try in a touchdown's entry: "J.Elliott extra point is GOOD, …",
+    /// "TWO-POINT CONVERSION ATTEMPT. D.Prescott rushes left guard. ATTEMPT
+    /// SUCCEEDS."; else as `pointAfterAttempt` names it ("Extra Point Good").
+    static func attempt(_ item: JSON, text: String) -> Attempt? {
+        let named = (item["pointAfterAttempt"]["text"].string ?? "").lowercased()
+        if let r = text.range(of: "TWO-POINT CONVERSION ATTEMPT", options: .caseInsensitive) {
+            let words = text[r.upperBound...].trimmingCharacters(in: CharacterSet(charactersIn: ". "))
+            let lower = words.lowercased()
+            let good = lower.contains("succeeds") || (!lower.contains("fails") && (item["pointAfterAttempt"]["value"].int ?? 0) == 2)
+            let pass = lower.contains(" pass") || named.contains("pass")
+            return Attempt(kind: pass ? .pass : .rush, good: good, text: words)
+        }
+        if let r = text.range(of: #"[A-Z]\.[\w'\-]+ extra point is"#, options: .regularExpression) {
+            let words = String(text[r.lowerBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            return Attempt(kind: .kick, good: words.lowercased().contains("is good"), text: words)
+        }
+        guard !named.isEmpty else { return nil }
+        let kind: Attempt.Kind = named.contains("pass") ? .pass : named.contains("rush") ? .rush : .kick
+        let good = !(named.contains("miss") || named.contains("block") || named.contains("fail") || named.contains("no good"))
+        return Attempt(kind: kind, good: good, text: item["pointAfterAttempt"]["text"].string ?? "")
     }
 
     /// The type of play, from ESPN's type (the text only for kneels and

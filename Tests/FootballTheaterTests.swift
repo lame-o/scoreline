@@ -363,6 +363,167 @@ extension ScorelineTests {
                   && s.banner?.text == banner && s.banner?.confetti == false, "\(banner): the banner alone")
         }
 
+        // MARK: Formations
+
+        func lineup(_ s: FootballScript, _ team: FootballScript.Team, _ roles: FootballScript.Role...) -> [CGPoint] {
+            s.players.filter { $0.team == team && roles.contains($0.role) }.map(\.at)
+        }
+        if let gun = script("2186"), let heavy = script("3403"), let td = script("1152") {
+            let line = Gridiron.y(deep?.from ?? 0)
+            check(deep?.shotgun == true && deep?.formation == .base && lineup(gun, .offense, .quarterback).first.map { abs($0.y - (line - 15)) < 0.01 } == true
+                  && lineup(gun, .defense, .corner).count == 3,
+                  "(Shotgun): the quarterback five yards deep, three wide; the defense in its nickel")
+            check(lineup(gun, .offense, .tightEnd, .receiver).filter { $0.x > 0 }.count == 3,
+                  "…its strength (the tight end and the slot) to the side the pass went, the right")
+            let under = Gridiron.y(run?.from ?? 0)
+            check(run?.formation == .heavy && lineup(heavy, .offense, .line).count == 6 && lineup(heavy, .offense, .receiver).isEmpty
+                  && lineup(heavy, .offense, .quarterback).first.map { abs($0.y - under) < 8 } == true,
+                  "an extra lineman reported in as eligible: a heavy set, six on the line, no one wide, under center")
+            let box = heavy.players.filter { $0.team == .defense && abs($0.at.x) < 26 && $0.at.y - under < 30 }.count
+            check(box >= 8, "…and eight in the box against it", "\(box)")
+            let backs = lineup(td, .offense, .back)
+            check(touchdown?.formation == .base && !(touchdown?.shotgun ?? true) && backs.count == 2 && backs.allSatisfy { abs($0.x) < 0.01 }
+                  && lineup(td, .defense, .backer).count == 3 && lineup(td, .offense, .tightEnd).first.map { $0.x < 0 } == true,
+                  "a run under center: the I (a fullback in front of the back), the tight end to the side it went; base defense")
+        }
+        if let k = kneel {
+            let s = FootballScript(k)
+            let qb = lineup(s, .offense, .quarterback).first ?? .zero
+            check(k.formation == .victory && lineup(s, .offense, .back).count == 3 && lineup(s, .offense, .receiver).isEmpty
+                  && lineup(s, .offense, .back).allSatisfy { $0.y < qb.y }, "the kneel: the victory formation, three backs behind the quarterback")
+        }
+        let emptySet = FootballScene.parse(entry("Pass Reception", "(Shotgun, Empty) T.McKee pass short right to D.Smith to PHI 46 for 6 yards (D.Bland).",
+                                                 to: 46), teams: teams)
+        let bunchSet = FootballScene.parse(entry("Pass Reception", "(Shotgun, Bunch) T.McKee pass short left to A.Brown to PHI 45 for 5 yards (D.Bland).",
+                                                 to: 45), teams: teams)
+        if let e = emptySet, let b = bunchSet {
+            let empty = FootballScript(e), bunch = FootballScript(b)
+            let line = Gridiron.y(40)
+            check(e.formation == .empty && empty.players.filter { $0.team == .offense && $0.role != .quarterback && $0.at.y < line - 6 }.isEmpty
+                  && lineup(empty, .defense, .corner).count == 4, "(Empty): nobody behind the quarterback but him; dime against it")
+            let trio = lineup(bunch, .offense, .tightEnd, .receiver).filter { $0.x < -20 }
+            check(b.formation == .bunch && trio.count == 3 && (trio.map(\.x).max()! - trio.map(\.x).min()!) < 10,
+                  "(Bunch): three receivers within a few yards of each other, on the side it went")
+        }
+
+        // MARK: The hash
+
+        let onHashes: [FootballScene] = FootballFeed.spot(scenes, after: nil)
+        check(onHashes.first?.hash == .middle, "the first snap with nothing before it: in the middle")
+        if let i = onHashes.firstIndex(where: { $0.id.hasSuffix("9274") }), i + 1 < onHashes.count {
+            check(onHashes[i + 1].hash == .right, "after a pass pushed out on the right: the next snap on the right hash",
+                  "\(onHashes[i + 1].hash)")
+        }
+        if let i = items.firstIndex(where: { $0["id"].string?.hasSuffix("9304") == true }) {
+            check(FootballFeed.spotted(items[...i], teams: teams)?.hash == .right,
+                  "…as the feed spots it from the plays before it (Barkley's run off the right hash)")
+        }
+        let incompletions = zip(onHashes, onHashes.dropFirst()).filter { $0.0.kind == .incomplete && !$0.0.flips }
+        check(!incompletions.isEmpty && incompletions.allSatisfy { $1.hash == $0.hash }, "after an incompletion: the same spot")
+        let afterScores = zip(onHashes, onHashes.dropFirst()).filter { $0.0.scoring != nil }
+        check(!afterScores.isEmpty && afterScores.allSatisfy { $1.hash == .middle }, "after a score: from the middle")
+        var turned = FootballScene(id: "t", kind: .pass, offense: .top, from: 30, to: 40)
+        turned.lane = .left
+        turned.flips = true
+        check(turned.nextHash == .right && { var s = turned; s.flips = false; return s.nextHash }() == .left,
+              "when the ball changes hands, the hash turns round with the offense")
+        let hashed: [FootballScript] = onHashes.map(FootballScript.init)
+        let onHash = zip(onHashes, hashed).filter { (scene: FootballScene, _: FootballScript) in scene.kind != .kickoff && scene.hash != .middle }
+        let snappedThere = onHash.allSatisfy { (scene: FootballScene, s: FootballScript) -> Bool in
+            guard let ball = s.ball(at: 0) else { return false }
+            return abs(ball.x - Gridiron.spot(scene.hash)) < 0.01
+        }
+        check(onHash.count > 30 && snappedThere, "the ball snapped from its hash", "\(onHash.count) snaps on a hash")
+        check(hashed.allSatisfy { s in s.players.allSatisfy { abs($0.at.x) < Gridiron.half } }, "…and everyone lines up inside the sidelines")
+        if let i = onHashes.firstIndex(where: { $0.id.hasSuffix("9274") }), i + 1 < onHashes.count {
+            let next: FootballScript = hashed[i + 1]
+            let center: CGPoint? = next.players.first { (p: FootballScript.Player) in p.role == .line && p.team == .offense }?.at
+            check(center.map { abs($0.x - Gridiron.spot(.right)) < 0.01 } == true, "…the formation round it")
+        }
+        if var kick = fieldGoal {
+            kick.hash = .left
+            let s = FootballScript(kick)
+            let through = crossing(s)
+            check(through.map { abs($0.x) < Gridiron.upright && $0.z > Gridiron.crossbar } == true
+                  && s.ball(at: 0).map { $0.x < -5 } == true, "a field goal from the left hash still splits the uprights")
+        }
+
+        // MARK: The try
+
+        if let play = touchdown, let attempt = play.conversion {
+            let s = FootballScript(attempt)
+            let kick = s.flights.first { $0.end - $0.start > 0.6 }
+            let through = kick.flatMap { k in stride(from: k.start, through: k.end, by: 1 / 600).first { k.point(at: $0).y >= Gridiron.backLine }
+                .map { k.point(at: $0) } }
+            check(play.attempt == FootballScene.Attempt(kind: .kick, good: true, text: "J.Elliott extra point is GOOD, Center-R.Underwood, Holder-B.Mann.")
+                  && attempt.kind == .extraPoint(good: true) && attempt.pointAfter == .kick && attempt.from == 85 && attempt.id == play.id + "-try"
+                  && attempt.offense == .bottom,
+                  "a touchdown's extra point, from its entry: a kick from the 15 by the team that scored", "\(String(describing: play.attempt))")
+            check(s.yaw == 0 && through.map { abs($0.x) < Gridiron.upright && $0.z > Gridiron.crossbar } == true && s.banner == nil
+                  && stamp(attempt) == "XP ✓" && FootballStamp(attempt).title == "Elliott",
+                  "…replayed as its own beat: through the uprights, no headline, XP ✓ by Elliott")
+            check(s.duration < 3.6 && s.duration < (script("9213")?.duration ?? 0), "…and a short one, shorter than a field goal's",
+                  String(format: "%.2f s", s.duration))
+        } else {
+            check(false, "the touchdown's extra point")
+        }
+        if let two = scene("3048"), let attempt = two.conversion {
+            let s = FootballScript(attempt)
+            let carrier = s.players.indices.first { i in s.legs.contains { $0.hand == .carry(i) && $0.until.isInfinite } }
+            check(two.attempt?.kind == .rush && two.attempt?.good == true && attempt.kind == .rush && attempt.scoring == .touchdown
+                  && attempt.lane == .left && attempt.gap == .guard && attempt.from == 98,
+                  "a two-point try: Prescott rushes left guard from the 2, and it succeeds")
+            check(carrier.map { s.players[$0].role == .quarterback } == true && s.end.map { $0.y > 300 } == true
+                  && stamp(attempt) == "2PT ✓" && FootballStamp(attempt).title == "Prescott, left guard" && s.banner == nil,
+                  "…the quarterback who threw the touchdown keeps it, into the end zone: 2PT ✓")
+        }
+        let separate = FootballScene.parse(entry("Extra Point Good", "C.Dicker extra point is GOOD, Center-C.Johnson, Holder-B.Mann.", from: 0, to: 0),
+                                           teams: teams)
+        let failed = FootballScene.parse(entry("Two Point Pass", "TWO-POINT CONVERSION ATTEMPT. J.Hurts pass to D.Smith is incomplete. ATTEMPT FAILS.",
+                                               from: 98, to: 98), teams: teams)
+        check(separate?.pointAfter == .kick && separate?.from == 85 && stamp(separate) == "XP ✓"
+              && failed?.pointAfter == .pass && failed?.kind == .incomplete && stamp(failed) == "2PT ✗" && failed.map { FootballScript($0).banner == nil } == true,
+              "a try logged as its own entry replays as one: XP ✓ from the 15, a failed two-point pass 2PT ✗")
+        if var bare = touchdown {
+            bare.attempt = nil
+            check(bare.conversion == nil, "a touchdown before ESPN adds its try has none to replay (the edit brings it)")
+        }
+
+        // MARK: The stamp's corner and the pace
+
+        // From the moment the stamp has landed, nobody in view stands in its corner (as measured from its
+        // type): not while the play holds, not at rest; the camera's move to rest only rarely brushes it.
+        var hold = (crowded: 0, frames: 0), toRest = (crowded: 0, frames: 0), atRest = 0
+        for s in all where s.stamp.isFinite && s.corner.width > 0 {
+            func crowded(_ t: Double) -> Bool {
+                let c = s.camera.frame(at: t)
+                return s.players.contains { p in
+                    guard p.opacity(at: t) > 0.5 else { return false }
+                    // His figure: a couple of feet either side of him, from his feet up.
+                    let v = Gridiron.view(FieldPoint(p.position(at: t)), yaw: s.yaw)
+                    let left = 0.5 + (v.x - 2 - c.x) / (c.span * CameraFrame.aspect), right = 0.5 + (v.x + 2 - c.x) / (c.span * CameraFrame.aspect)
+                    let low = 0.5 + (v.y * 0.5 - c.y) / c.span, high = low + 9 / c.span
+                    // (The corner as measured, less the margin it keeps beside the type.)
+                    return right > 0 && left < s.corner.width - 0.03 && high > 0 && low < s.corner.height
+                }
+            }
+            for t in stride(from: s.stamp + 0.4, through: s.settle, by: 0.05) {
+                hold.frames += 1
+                if crowded(t) { hold.crowded += 1 }
+            }
+            for t in stride(from: s.settle, through: s.duration, by: 0.05) {
+                toRest.frames += 1
+                if crowded(t) { toRest.crowded += 1 }
+            }
+            if crowded(.infinity) { atRest += 1 }
+        }
+        check(atRest == 0 && Double(hold.crowded) / Double(max(hold.frames, 1)) < 0.005
+              && Double(toRest.crowded) / Double(max(toRest.frames, 1)) < 0.03,
+              "once the stamp has landed nobody stands in its corner: not the pile as the play holds, not at rest; the camera's move to rest rarely brushes it",
+              "hold \(hold.crowded) of \(hold.frames), to rest \(toRest.crowded) of \(toRest.frames), at rest \(atRest)")
+        let median = lengths.sorted()[lengths.count / 2]
+        check(median < 4.6, "the replays are brisk: half of them done in under 4.6 s", String(format: "median %.2f s", median))
+
         // MARK: Drawn
 
         // The last frame of a replay is the field at rest, pixel for pixel.

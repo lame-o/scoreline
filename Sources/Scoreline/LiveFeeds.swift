@@ -551,12 +551,26 @@ final class FootballFeed {
                 .sorted { ($0.element.sequence, $0.offset) < ($1.element.sequence, $1.offset) }
                 .map(\.element)
         }
-        let snap = newer.sorted { $0.sequence > $1.sequence }.lazy
-            .compactMap { entry in FootballScene.parse(entry.item, teams: teams).map { (scene: $0, sequence: entry.sequence) } }.first
-        if let snap, !Task.isCancelled {
+        // The newest few snaps, oldest first: each is spotted on its hash from the one before.
+        let recent = Array(newer.sorted { $0.sequence > $1.sequence }.lazy
+            .compactMap { entry in FootballScene.parse(entry.item, teams: teams).map { (scene: $0, sequence: entry.sequence) } }
+            .prefix(5).reversed())
+        if let snap = recent.last, !Task.isCancelled {
             theaterSequence = snap.sequence
-            let next = Self.theater(snap.scene, after: theater, primed: primed, now: .now)
-            if next != theater { theater = next }
+            let snaps = recent.map(\.scene)
+            // The snap showing keeps the hash its own plays put it on (an edit doesn't move it).
+            let spotted: FootballScene?
+            if let shown = theater.play, let i = snaps.firstIndex(where: { $0.id == shown.id }) {
+                var kept = snaps[i]
+                kept.hash = shown.hash
+                spotted = Self.spot(Array(snaps[(i + 1)...]), after: kept).last ?? kept
+            } else {
+                spotted = Self.spot(snaps, after: theater.play).last
+            }
+            if let spotted {
+                let next = Self.theater(spotted, after: theater, primed: primed, now: .now)
+                if next != theater { theater = next }
+            }
         }
         // Only a complete first load counts as history; after it, new plays
         // (and plays edited into a score) are news. A play older than one
@@ -607,6 +621,25 @@ final class FootballFeed {
     static func theater(_ scene: FootballScene, after previous: FootballTheaterState, primed: Bool, now: Date) -> FootballTheaterState {
         FootballTheaterState(play: scene, news: scene.id == previous.play?.id ? previous.news
                                  : primed || scene.wallclock.map { now.timeIntervalSince($0) < BaseballFeed.recent } == true)
+    }
+
+    /// Spots each snap on its hash from the one before it (oldest first;
+    /// the first from `previous`, or in the middle with nothing before it).
+    /// (pure; tested)
+    static func spot(_ snaps: [FootballScene], after previous: FootballScene?) -> [FootballScene] {
+        var before = previous
+        return snaps.map { snap in
+            var spotted = snap
+            spotted.hash = before?.nextHash ?? .middle
+            before = spotted
+            return spotted
+        }
+    }
+
+    /// The last snap in a run of entries, spotted from the few before it. (pure; tested)
+    static func spotted(_ items: ArraySlice<JSON>, teams: Teams) -> FootballScene? {
+        let recent = items.reversed().lazy.compactMap { FootballScene.parse($0, teams: teams) }.prefix(6)
+        return spot(Array(recent.reversed()), after: nil).last
     }
 
     /// Play IDs whose score was taken back since the last call.
