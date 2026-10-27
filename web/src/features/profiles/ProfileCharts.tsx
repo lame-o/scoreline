@@ -16,7 +16,6 @@ import { memo, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useNavigate } from "react-router";
 import {
   barMid,
-  drawsStrip,
   entryContext,
   formatValue,
   mapDomain,
@@ -36,7 +35,7 @@ import {
   stripValues,
 } from "../../data/profiles/charts";
 import type { WidthClass } from "../../data/profiles/display";
-import { entryValue, type GameLog, type GameLogEntry, type MapStat, type TeamStat } from "../../data/profiles/models";
+import { entryValue, type GameLog, type MapStat, type TeamStat } from "../../data/profiles/models";
 import type { FormMark } from "../../data/profiles/results";
 import { useWidth } from "../../design/useWidth";
 import styles from "./Charts.module.css";
@@ -168,7 +167,6 @@ export const GameLogStrip = memo(function GameLogStrip({ log, tint }: { readonly
   );
 });
 
-export { drawsStrip };
 
 // MARK: - Soccer match strip
 
@@ -329,4 +327,3 @@ export function MapPoolBars({ maps, tint }: { readonly maps: readonly MapStat[];
   );
 }
 
-export type { GameLogEntry };

@@ -24,7 +24,6 @@ import {
   type InjuryNote,
   type Leaders,
   type Note,
-  type PlayerRef,
   type RosterGroup,
   type RosterGroupKind,
   type RosterPlayer,

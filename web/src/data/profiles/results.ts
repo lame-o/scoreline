@@ -8,7 +8,6 @@
  * season and table from them; the URLs are the same, so the HTTP and edge
  * caches are shared either way.
  */
-import { dayAndTime } from "../format";
 import { espnTeamID } from "../teams";
 import type { Sport } from "../models";
 import { parseGame } from "./espn";
@@ -80,9 +79,6 @@ export function formMarks(results: readonly GameRef[], count = 5): FormMark[] {
       };
     });
 }
-
-/** "Today 7:00 PM" for a game's subtitle (When.dayAndTime). */
-export const gameWhen = (date: number, now = Date.now()) => dayAndTime(date, now);
 
 // MARK: - Standings window
 

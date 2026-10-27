@@ -10,7 +10,6 @@
   text-underline-offset: calc(2 * var(--pt));
   border-radius: calc(3 * var(--pt));
   transition: opacity var(--dur-press) var(--ease-out);
-  -webkit-touch-callout: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -34,7 +33,6 @@
   padding: calc(4 * var(--pt)) calc(6 * var(--pt));
   border-radius: var(--radius-row);
   color: inherit;
-  -webkit-touch-callout: none;
   transition: background-color var(--dur-fade) var(--ease-out);
 }
 
