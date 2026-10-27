@@ -118,12 +118,6 @@ struct RootView: View {
             else if let event = store.sections.flatMap(\.events).first(where: { $0.state == .live })
                         ?? store.sections.first?.events.first { go(.detail(event)) }
         }
-        #if STUDIO
-        // Scoreline Studio (the launch-video build) films any page: open it, or open it deeper (object: [page, true]).
-        .onReceive(NotificationCenter.default.publisher(for: .scorelineStudioPage)) { note in
-            if let page = note.object as? Page { go(page) } else if let deeper = note.object as? [Page], let page = deeper.last { open(page) }
-        }
-        #endif
         // A schedule asked for from the game menu (rows and tiles share it).
         .onChange(of: schedule.openRequest) { _, scope in
             guard let scope else { return }
@@ -479,8 +473,4 @@ extension RootView.Page {
 extension Notification.Name {
     /// Smoke test only: open a match (object nil) or go back (object true).
     static let scorelineSmokeNavigate = Notification.Name("ScorelineSmokeNavigate")
-    #if STUDIO
-    /// Scoreline Studio only: go to the page in the object.
-    static let scorelineStudioPage = Notification.Name("ScorelineStudioPage")
-    #endif
 }

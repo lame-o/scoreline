@@ -227,12 +227,12 @@ extension Event {
     var spokenStatus: String {
         switch state {
         case .live:
-            return Spoken.status(clock?.text(at: AppClock.now) ?? detail ?? "Live")
+            return Spoken.status(clock?.text(at: .now) ?? detail ?? "Live")
         case .final:
             return Spoken.status(detail ?? "Final")
         case .scheduled:
             if detail == "Delayed" { return "Delayed" }
-            if start < AppClock.now { return competitors.isEmpty ? "Time to be announced" : "Starting soon" }
+            if start < .now { return competitors.isEmpty ? "Time to be announced" : "Starting soon" }
             return "Starts \(When.dayAndTime(start))"
         }
     }

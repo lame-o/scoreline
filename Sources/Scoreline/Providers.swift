@@ -394,7 +394,7 @@ private enum ESPN {
             // which would hide an unranked team you follow).
             urls = [try URL.api(path.hasSuffix("college-football") ? "\(base)?groups=80" : base)]
         } else {
-            let today = AppClock.now
+            let today = Date()
             // Yesterday through tomorrow, plus the undated board: ESPN fills it
             // with the current or next matchday, so the next fixture is known
             // even midweek.
@@ -483,7 +483,7 @@ private enum ESPN {
         var clock: GameClock?
         if state == .live, let seconds = e.status?.clock, let period = e.status?.period,
            let display = e.status?.type?.shortDetail, [.soccer, .football, .basketball].contains(sport) {
-            clock = GameClock(seconds: seconds, sampledAt: AppClock.now, period: period,
+            clock = GameClock(seconds: seconds, sampledAt: .now, period: period,
                               direction: sport == .soccer ? .up : .down, display: display,
                               running: sport == .soccer && display.contains("'"))
         }

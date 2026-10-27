@@ -423,7 +423,7 @@ final class FootballFeed {
         if let status {
             clock = Self.clock(status)
             if let text = clock, let seconds = status["clock"].double, let period = status["period"].int {
-                gameClock = GameClock(seconds: seconds, sampledAt: AppClock.now, period: period, direction: .down,
+                gameClock = GameClock(seconds: seconds, sampledAt: .now, period: period, direction: .down,
                                       display: text, running: false).reading(after: gameClock)
             } else {
                 gameClock = nil
@@ -442,8 +442,8 @@ final class FootballFeed {
         // The ball moves with its play: hold a new spot back (briefly) until
         // the play that put it there is in, so the two animate together.
         let caughtUp = lastRef == lastPlayRef
-        if caughtUp { behindSince = nil } else if behindSince == nil { behindSince = AppClock.now }
-        guard caughtUp || situation == nil || AppClock.now.timeIntervalSince(behindSince ?? AppClock.now) > 15 else { return }
+        if caughtUp { behindSince = nil } else if behindSince == nil { behindSince = .now }
+        guard caughtUp || situation == nil || Date.now.timeIntervalSince(behindSince ?? .now) > 15 else { return }
         possession = teams.side(possessionTeam)
         situation = Self.situation(situationJSON, possessionTeam: possessionTeam, teams: teams, lastPlay: plays.last?.text,
                                    afterScore: plays.last?.kind == .score)
@@ -740,7 +740,7 @@ final class BaseballFeed {
     }
 
     private func updateTheater(news: Bool, names: [String: String], side: (String?) -> GameDetail.Side?) {
-        let next = Self.theater(window, after: theater, primed: news, now: AppClock.now, names: names, side: side)
+        let next = Self.theater(window, after: theater, primed: news, now: .now, names: names, side: side)
         if next != theater { theater = next }
     }
 

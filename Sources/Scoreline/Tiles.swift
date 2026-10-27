@@ -340,7 +340,7 @@ struct TileStatus: View {
             LiveStatus(event, size: large ? 11 : 10.5, animated: !stale)
         case .scheduled:
             TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: 30)) { context in
-                if let text = Self.scheduledText(event: event, large: large, now: AppClock.time(at: context.date)) {
+                if let text = Self.scheduledText(event: event, large: large, now: context.date) {
                     Text(text)
                         .font(.system(size: large ? 10.5 : 10).monospacedDigit())
                         .foregroundStyle(.secondary)
@@ -747,7 +747,7 @@ private struct SmallCenter: View {
             }
         case .scheduled:
             TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: 30)) { context in
-                let now = AppClock.time(at: context.date)
+                let now = context.date
                 if RowStatus.delayed(event, now: now) {
                     Text("Delayed")
                         .font(.system(size: 11, weight: .medium))
@@ -783,9 +783,9 @@ struct NextUpCountdown: View {
 
     var body: some View {
         TimelineView(CountdownSchedule(start: start)) { context in
-            Text(text(now: AppClock.time(at: context.date)))
+            Text(text(now: context.date))
                 .font(.system(size: 15, weight: .semibold).monospacedDigit())
-                .foregroundStyle(delayed && start <= AppClock.time(at: context.date) ? Color.orange : Color.accentColor)
+                .foregroundStyle(delayed && start <= context.date ? Color.orange : Color.accentColor)
         }
     }
 

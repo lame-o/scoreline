@@ -168,11 +168,11 @@ enum RowStatus {
     }
 
     /// The scores list's rows (see `StatusView` in EventRow.swift).
-    static func width(for events: [Event], now: Date = AppClock.now, accessories: (Event) -> CGFloat = { _ in 0 }) -> CGFloat {
+    static func width(for events: [Event], now: Date = .now, accessories: (Event) -> CGFloat = { _ in 0 }) -> CGFloat {
         clamp(events.reduce(0) { widest, event in max(widest, width(of: event, now: now) + accessories(event)) })
     }
 
-    static func width(of event: Event, now: Date = AppClock.now) -> CGFloat {
+    static func width(of event: Event, now: Date = .now) -> CGFloat {
         switch event.state {
         case .live:
             return measure(event.clock?.display ?? event.detail ?? "Live") + 10
@@ -190,7 +190,7 @@ enum RowStatus {
 
     /// Past its start and the source says it's delayed (rain, a late game
     /// before it): "Delayed" in orange, never "Starting soon" for hours.
-    static func delayed(_ event: Event, now: Date = AppClock.now) -> Bool {
+    static func delayed(_ event: Event, now: Date = .now) -> Bool {
         event.state == .scheduled && event.detail == "Delayed" && event.start < now
     }
 

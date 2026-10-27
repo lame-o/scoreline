@@ -459,7 +459,7 @@ private struct StatusView: View {
             LiveStatus(event, animated: !stale)
         case .scheduled:
             TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: 30)) { context in
-                ScheduledStatus(event: event, now: AppClock.time(at: context.date))
+                ScheduledStatus(event: event, now: context.date)
             }
         case .final:
             Text(event.detail ?? "Final")

@@ -166,13 +166,13 @@ final class StatcastStore {
         guard let game = await game(espnEvent: espnEvent, start: start, teams: teams) else { return [] }
         let cached = feeds[game]
         let missing = through.map { index in !(cached?.atBats.contains { $0.index == index } ?? false) } ?? (cached == nil)
-        let due = cached.map { AppClock.now.timeIntervalSince($0.fetched) > Self.minimumInterval } ?? true
+        let due = cached.map { Date().timeIntervalSince($0.fetched) > Self.minimumInterval } ?? true
         guard missing, due, !inFlight.contains(game), let url = Statcast.feedURL(game: game) else { return cached?.atBats ?? [] }
         inFlight.insert(game)
         defer { inFlight.remove(game) }
         guard let feed = try? await JSON.fetch(url) else { return cached?.atBats ?? [] }
         let atBats = Statcast.atBats(feed)
-        feeds[game] = (atBats, AppClock.now)
+        feeds[game] = (atBats, Date())
         return atBats
     }
 
