@@ -7,8 +7,9 @@
  * the drawing half of TheaterKit (figures, the ball, the type) is
  * features/game/core/theater/theaterKit.ts.
  */
+import type { Particle } from "../celebrations";
 import { CameraFrame, union, type Rect } from "../mlb/playCamera";
-import type { FieldPoint } from "../mlb/theaterField";
+import type { FieldPoint, Point } from "../mlb/theaterField";
 
 // MARK: - Camera
 
@@ -133,6 +134,51 @@ function follow(end: number, goal: (t: number) => CameraFrame, cuts: readonly nu
 }
 
 /**
+ * The framing that fits a region and keeps its corner clear (the stamp's),
+ * checked again after every move: sliding the play over or up can bring
+ * someone else into the corner (a pile trailing the play, a man jogging
+ * back to the line), and then it moves again, or widens. `items` must stay
+ * in view; `others` need only stay out of the corner. (The ballpark's
+ * `fitClear` with a field's crowd in mind: TheaterKit.swift's
+ * `CameraFrame.clearing`.)
+ */
+export function clearing(
+  region: Rect,
+  items: readonly Rect[],
+  others: readonly Rect[],
+  headroom: number,
+  closest: number,
+  corner: { readonly width: number; readonly height: number },
+): CameraFrame {
+  let frame = CameraFrame.fit(region, headroom, closest);
+  if (!(corner.width > 0 && corner.height > 0)) return frame;
+  const { aspect, margin, widest } = CameraFrame;
+  for (let pass = 0; pass < 10; pass++) {
+    const w = frame.span * aspect;
+    const f = frame;
+    const across = (x: number) => 0.5 + (x - f.x) / w;
+    const up = (y: number) => 0.5 + (y - f.y) / f.span;
+    const inView = (r: Rect) => across(maxX(r)) > 0 && across(r.x) < 1 && up(maxY(r)) > 0 && up(r.y) < 1;
+    const shown = items.filter(inView);
+    const inside = [...shown, ...others.filter(inView)].filter((r) => across(r.x) < corner.width && up(r.y) < corner.height);
+    if (inside.length === 0) break;
+    const right = Math.max(...inside.map((r) => corner.width - across(r.x)));
+    const raise = Math.max(...inside.map((r) => corner.height - up(r.y)));
+    const roomRight = 1 - margin - (shown.length > 0 ? Math.max(...shown.map((r) => across(maxX(r)))) : 0);
+    const roomUp = 1 - headroom - (shown.length > 0 ? Math.max(...shown.map((r) => up(maxY(r)))) : 0);
+    // The smaller move that keeps the play in view: across (by its share of the width) or up.
+    if (right <= roomRight && (right * aspect <= raise || raise > roomUp)) {
+      frame = { ...frame, x: frame.x - (right + 0.005) * w };
+    } else if (raise <= roomUp) {
+      frame = { ...frame, y: frame.y - (raise + 0.005) * frame.span };
+    } else {
+      frame = { ...frame, span: Math.min(frame.span * 1.12, widest) };
+    }
+  }
+  return frame;
+}
+
+/**
  * A camera's path through a replay: framings every 1/60 s until the play
  * settles, then an eased move to where it rests, reached exactly at `back`.
  */
@@ -187,5 +233,49 @@ export const CameraFollow = {
     const lower = Math.min(Math.trunc(i), samples.length - 1);
     const upper = Math.min(lower + 1, samples.length - 1);
     return CameraFrame.mix(samples[lower]!, samples[upper]!, Math.min(i - lower, 1));
+  },
+};
+
+// MARK: - Bursts
+
+/**
+ * A celebration on a theater's stage (a touchdown's or a goal's fireworks,
+ * the headline's confetti), sized by the well (TheaterKit.swift
+ * `TheaterBurst`): its spread in proportion to the well's height, as big in
+ * the compact panel as in a wide one, its strokes growing more slowly so a
+ * big burst stays finely drawn; and kept far enough inside the well that it
+ * isn't cut off at an edge. Heights in points.
+ */
+export const TheaterBurst = {
+  /** How far a burst spreads, as a multiple of the charts' bursts: about two fifths of the well's height either way. */
+  scale(height: number): number {
+    return 2.7 * (Math.max(height, 120) / 156) ** 0.75;
+  },
+
+  /** The particles of a burst at the origin, spread by `scale`. */
+  spread(particles: readonly Particle[], scale: number): Particle[] {
+    const fine = scale ** 0.6;
+    return particles.map((p) => {
+      const s = p.shape;
+      const moved = { ...p, x: p.x * scale, y: p.y * scale };
+      switch (s.kind) {
+        case "piece":
+          return { ...moved, shape: { ...s, w: s.w * fine, h: s.h * fine, corner: s.corner * fine } };
+        case "streak":
+          return { ...moved, shape: { ...s, x0: s.x0 * scale, y0: s.y0 * scale, x1: s.x1 * scale, y1: s.y1 * scale, width: s.width * fine } };
+        case "ring":
+          return { ...moved, shape: { ...s, radius: s.radius * scale, width: s.width * fine } };
+        case "disc":
+          return { ...moved, shape: { ...s, radius: s.radius * fine } };
+        case "ball":
+          return { ...moved, shape: { ...s, radius: s.radius * fine } };
+      }
+    });
+  },
+
+  /** A burst's origin, moved in from the well's edges so most of it shows, and down clear of the headline's band. */
+  inside(p: Point, size: { readonly width: number; readonly height: number }): Point {
+    const m = Math.min(size.height * 0.3, size.width * 0.2);
+    return { x: Math.min(Math.max(p.x, m), size.width - m), y: Math.min(Math.max(p.y, size.height * 0.36), size.height - m) };
   },
 };

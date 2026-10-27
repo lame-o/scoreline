@@ -7,16 +7,19 @@
  * the depth and side, the downs, the flag), what's news, the choreography (a
  * pass comes down where it was caught, a run goes through the hole it names,
  * a field goal through the uprights), the broadcast camera, the stamp, and
- * one celebration per moment.
+ * one celebration per moment; and the Mac's polish: formations from the
+ * text, the ball on its hash, the try as its own beat, the stamp's corner
+ * kept clear, the pace.
  */
 import { describe, expect, it } from "vitest";
 import { footballPlay, type FootballTeams } from "../../src/data/liveFeeds/football";
 import { CameraFrame } from "../../src/data/mlb/playCamera";
+import { dress } from "../../src/data/mlb/theaterTeams";
 import { fieldPoint, type FieldPoint } from "../../src/data/mlb/theaterField";
 import { liveMoment, Tier, type LiveMoment } from "../../src/data/moments";
 import { FootballScene, kindIs, parse } from "../../src/data/theater/footballScene";
-import { FootballScript, footballStamp, Gridiron } from "../../src/data/theater/footballScript";
-import { FootballCelebration, FootballTheaterWatch, footballRest, footballTheaterState } from "../../src/data/theater/footballTheater";
+import { FootballScript, footballStamp, Gridiron, type Role, type Team } from "../../src/data/theater/footballScript";
+import { FootballCelebration, FootballTheaterWatch, footballRest, footballTheaterState, spot, spotted } from "../../src/data/theater/footballTheater";
 import { fixture } from "./fixtures";
 
 const items = (fixture("mnf-dal-phi-plays.json") as { items: Record<string, unknown>[] }).items;
@@ -546,5 +549,267 @@ describe("one celebration per moment", () => {
       expect(s.banner?.text).toBe(banner);
       expect(s.banner?.confetti).toBe(false);
     }
+  });
+});
+
+// The same entries the Swift tests make up for what the game doesn't have.
+const entry = (type: string, text: string, from = 40, to = 40) => ({
+  id: `x${type}`,
+  type: { text: type },
+  text,
+  statYardage: Math.trunc(to - from),
+  start: { yardLine: from, down: 1, distance: 10, team: { $ref: "/teams/21" } },
+  end: { yardLine: to, down: 2, distance: 10, team: { $ref: "/teams/21" } },
+});
+
+const lineup = (s: FootballScript, team: Team, ...roles: Role[]) => s.players.filter((p) => p.team === team && roles.includes(p.role)).map((p) => p.at);
+
+const crossingOf = (s: FootballScript): FieldPoint | null => {
+  const kick = s.flights.find((f) => f.end - f.start > 0.6);
+  if (!kick) return null;
+  const t = range(kick.start, kick.end, 1 / 600).find((u) => kick.point(u).y >= Gridiron.backLine);
+  return t != null ? kick.point(t) : null;
+};
+
+describe("formations", () => {
+  it("(Shotgun): the quarterback five yards deep, three wide, the strength to the side the pass went; the defense in its nickel", () => {
+    const deep = scene("2186")!;
+    const gun = script("2186")!;
+    const line = Gridiron.y(deep.from);
+    expect([deep.shotgun, deep.formation]).toEqual([true, "base"]);
+    expect(Math.abs(lineup(gun, "offense", "quarterback")[0]!.y - (line - 15))).toBeLessThan(0.01);
+    expect(lineup(gun, "defense", "corner").length).toBe(3);
+    expect(lineup(gun, "offense", "tightEnd", "receiver").filter((p) => p.x > 0).length).toBe(3);
+  });
+
+  it("an extra lineman reported in as eligible: a heavy set, six on the line, no one wide, under center; eight in the box against it", () => {
+    const run = scene("3403")!;
+    const heavy = script("3403")!;
+    const under = Gridiron.y(run.from);
+    expect(run.formation).toBe("heavy");
+    expect(lineup(heavy, "offense", "line").length).toBe(6);
+    expect(lineup(heavy, "offense", "receiver")).toEqual([]);
+    expect(Math.abs(lineup(heavy, "offense", "quarterback")[0]!.y - under)).toBeLessThan(8);
+    expect(heavy.players.filter((p) => p.team === "defense" && Math.abs(p.at.x) < 26 && p.at.y - under < 30).length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("a run under center: the I (a fullback in front of the back), the tight end to the side it went; base defense", () => {
+    const td = script("1152")!;
+    const backs = lineup(td, "offense", "back");
+    expect([scene("1152")!.formation, scene("1152")!.shotgun]).toEqual(["base", false]);
+    expect(backs.length).toBe(2);
+    expect(backs.every((b) => Math.abs(b.x) < 0.01)).toBe(true);
+    expect(lineup(td, "defense", "backer").length).toBe(3);
+    expect(lineup(td, "offense", "tightEnd")[0]!.x).toBeLessThan(0);
+  });
+
+  it("the kneel: the victory formation, three backs behind the quarterback", () => {
+    const k = parse(entry("Rush", "T.McKee kneels to PHI 39 for -1 yards.", 40, 39), teams)!;
+    const s = FootballScript.play(k);
+    const qb = lineup(s, "offense", "quarterback")[0]!;
+    expect(k.formation).toBe("victory");
+    expect(lineup(s, "offense", "back").length).toBe(3);
+    expect(lineup(s, "offense", "receiver")).toEqual([]);
+    expect(lineup(s, "offense", "back").every((b) => b.y < qb.y)).toBe(true);
+  });
+
+  it("(Empty): nobody behind the quarterback but him, dime against it; (Bunch): three receivers within a few yards, on the side it went", () => {
+    const e = parse(entry("Pass Reception", "(Shotgun, Empty) T.McKee pass short right to D.Smith to PHI 46 for 6 yards (D.Bland).", 40, 46), teams)!;
+    const b = parse(entry("Pass Reception", "(Shotgun, Bunch) T.McKee pass short left to A.Brown to PHI 45 for 5 yards (D.Bland).", 40, 45), teams)!;
+    const empty = FootballScript.play(e);
+    const bunch = FootballScript.play(b);
+    const line = Gridiron.y(40);
+    expect(e.formation).toBe("empty");
+    expect(empty.players.filter((p) => p.team === "offense" && p.role !== "quarterback" && p.at.y < line - 6)).toEqual([]);
+    expect(lineup(empty, "defense", "corner").length).toBe(4);
+    const trio = lineup(bunch, "offense", "tightEnd", "receiver").filter((p) => p.x < -20);
+    expect(b.formation).toBe("bunch");
+    expect(trio.length).toBe(3);
+    expect(Math.max(...trio.map((p) => p.x)) - Math.min(...trio.map((p) => p.x))).toBeLessThan(10);
+  });
+});
+
+describe("the hash", () => {
+  const onHashes = spot(scenes, null);
+  const pairs = onHashes.slice(1).map((next, i) => [onHashes[i]!, next] as const);
+
+  it("the first snap with nothing before it: in the middle; after a pass pushed out on the right, the right hash; as the feed spots it", () => {
+    expect(onHashes[0]!.hash).toBe("middle");
+    const i = onHashes.findIndex((s) => s.id.endsWith("9274"));
+    expect(onHashes[i + 1]!.hash).toBe("right");
+    const j = items.findIndex((x) => String(x.id).endsWith("9304"));
+    expect(spotted(items.slice(0, j + 1), teams)?.hash).toBe("right");
+  });
+
+  it("after an incompletion: the same spot; after a score: from the middle", () => {
+    const incompletions = pairs.filter(([a]) => a.kind.type === "incomplete" && !a.flips);
+    expect(incompletions.length).toBeGreaterThan(0);
+    expect(incompletions.every(([a, b]) => b.hash === a.hash)).toBe(true);
+    const afterScores = pairs.filter(([a]) => a.scoring != null);
+    expect(afterScores.length).toBeGreaterThan(0);
+    expect(afterScores.every(([, b]) => b.hash === "middle")).toBe(true);
+  });
+
+  it("when the ball changes hands, the hash turns round with the offense", () => {
+    const turned = new FootballScene("t", { type: "pass" }, "top", 30, 40);
+    turned.lane = "left";
+    turned.flips = true;
+    expect(turned.nextHash).toBe("right");
+    turned.flips = false;
+    expect(turned.nextHash).toBe("left");
+  });
+
+  it("the ball snapped from its hash, everyone inside the sidelines, the formation round it", () => {
+    const hashed = onHashes.map((s) => FootballScript.play(s));
+    const onHash = onHashes.map((s, i) => [s, hashed[i]!] as const).filter(([s]) => s.kind.type !== "kickoff" && s.hash !== "middle");
+    expect(onHash.length).toBeGreaterThan(30);
+    expect(onHash.every(([s, script]) => Math.abs((script.ball(0)?.x ?? Infinity) - Gridiron.spot(s.hash)) < 0.01)).toBe(true);
+    expect(hashed.every((s) => s.players.every((p) => Math.abs(p.at.x) < Gridiron.half))).toBe(true);
+    const i = onHashes.findIndex((s) => s.id.endsWith("9274"));
+    const center = hashed[i + 1]!.players.find((p) => p.role === "line" && p.team === "offense")!.at;
+    expect(Math.abs(center.x - Gridiron.spot("right"))).toBeLessThan(0.01);
+  });
+
+  it("a field goal from the left hash still splits the uprights", () => {
+    const kick = scene("9213")!.clone();
+    kick.hash = "left";
+    const s = FootballScript.play(kick);
+    const through = crossingOf(s)!;
+    expect(Math.abs(through.x)).toBeLessThan(Gridiron.upright);
+    expect(through.z).toBeGreaterThan(Gridiron.crossbar);
+    expect(s.ball(0)!.x).toBeLessThan(-5);
+  });
+
+  it("beside the lane: the snap showing keeps its hash; the next one is spotted from it", () => {
+    const watch = new FootballTheaterWatch();
+    const i = items.findIndex((x) => String(x.id).endsWith("9274"));
+    watch.update(items.slice(0, i + 1), teams, false, Number.MAX_SAFE_INTEGER);
+    const shown = watch.state.play!;
+    let k = i + 1;
+    while (k < items.length && !parse(items[k]!, teams)) k++;
+    watch.update(items.slice(0, k + 1), teams, true, Number.MAX_SAFE_INTEGER);
+    expect(watch.state.play!.hash).toBe(shown.nextHash);
+  });
+});
+
+describe("the try", () => {
+  it("a touchdown's extra point, from its entry: a kick from the 15 by the team that scored, its own short beat, XP ✓ by Elliott", () => {
+    const play = scene("1152")!;
+    const attempt = play.conversion!;
+    const s = FootballScript.play(attempt);
+    expect(play.attempt).toEqual({ kind: "kick", good: true, text: "J.Elliott extra point is GOOD, Center-R.Underwood, Holder-B.Mann." });
+    expect(kindIs(attempt.kind, "extraPoint", true)).toBe(true);
+    expect([attempt.pointAfter, attempt.from, attempt.id, attempt.offense]).toEqual(["kick", 85, `${play.id}-try`, "bottom"]);
+    const through = crossingOf(s)!;
+    expect(s.yaw).toBe(0);
+    expect(Math.abs(through.x)).toBeLessThan(Gridiron.upright);
+    expect(through.z).toBeGreaterThan(Gridiron.crossbar);
+    expect(s.banner).toBeNull();
+    expect([stamp(attempt), footballStamp(attempt).title]).toEqual(["XP ✓", "Elliott"]);
+    expect(s.duration).toBeLessThan(3.6);
+    expect(s.duration).toBeLessThan(script("9213")!.duration);
+  });
+
+  it("a two-point try: Prescott rushes left guard from the 2, and it succeeds, keeping it himself into the end zone: 2PT ✓", () => {
+    const two = scene("3048")!;
+    const attempt = two.conversion!;
+    const s = FootballScript.play(attempt);
+    expect([two.attempt?.kind, two.attempt?.good, attempt.kind.type, attempt.scoring, attempt.lane, attempt.gap, attempt.from]).toEqual(["rush", true, "rush", "touchdown", "left", "guard", 98]);
+    const carrier = s.players.findIndex((_, i) => s.legs.some((l) => l.hand.kind === "carry" && l.hand.player === i && !Number.isFinite(l.until)));
+    expect(s.players[carrier]!.role).toBe("quarterback");
+    expect(s.end!.y).toBeGreaterThan(300);
+    expect([stamp(attempt), footballStamp(attempt).title, s.banner]).toEqual(["2PT ✓", "Prescott, left guard", null]);
+  });
+
+  it("a try logged as its own entry replays as one: XP ✓ from the 15, a failed two-point pass 2PT ✗; a touchdown without its try has none", () => {
+    const separate = parse(entry("Extra Point Good", "C.Dicker extra point is GOOD, Center-C.Johnson, Holder-B.Mann.", 0, 0), teams)!;
+    const failed = parse(entry("Two Point Pass", "TWO-POINT CONVERSION ATTEMPT. J.Hurts pass to D.Smith is incomplete. ATTEMPT FAILS.", 98, 98), teams)!;
+    expect([separate.pointAfter, separate.from, stamp(separate)]).toEqual(["kick", 85, "XP ✓"]);
+    expect([failed.pointAfter, failed.kind.type, stamp(failed), FootballScript.play(failed).banner]).toEqual(["pass", "incomplete", "2PT ✗", null]);
+    const bare = scene("1152")!.clone();
+    bare.attempt = null;
+    expect(bare.conversion).toBeNull();
+  });
+});
+
+describe("the stamp's corner and the pace", () => {
+  it("once the stamp has landed nobody stands in its corner: not the pile as the play holds, not at rest; the move to rest rarely brushes it", () => {
+    let hold = { crowded: 0, frames: 0 };
+    let toRest = { crowded: 0, frames: 0 };
+    let atRest = 0;
+    for (const s of all) {
+      if (!Number.isFinite(s.stamp) || !(s.corner.width > 0)) continue;
+      const crowded = (t: number) => {
+        const c = s.camera.frame(t);
+        return s.players.some((p) => {
+          if (!(p.opacity(t) > 0.5)) return false;
+          // His figure: a couple of feet either side of him, from his feet up.
+          const v = Gridiron.view(p.position(t), s.yaw);
+          const left = 0.5 + (v.x - 2 - c.x) / (c.span * CameraFrame.aspect);
+          const right = 0.5 + (v.x + 2 - c.x) / (c.span * CameraFrame.aspect);
+          const low = 0.5 + (v.y * 0.5 - c.y) / c.span;
+          const high = low + 9 / c.span;
+          // (The corner as measured, less the margin it keeps beside the type.)
+          return right > 0 && left < s.corner.width - 0.03 && high > 0 && low < s.corner.height;
+        });
+      };
+      for (const t of range(s.stamp + 0.4, s.settle, 0.05)) {
+        hold = { crowded: hold.crowded + (crowded(t) ? 1 : 0), frames: hold.frames + 1 };
+      }
+      for (const t of range(s.settle, s.duration, 0.05)) {
+        toRest = { crowded: toRest.crowded + (crowded(t) ? 1 : 0), frames: toRest.frames + 1 };
+      }
+      if (crowded(Infinity)) atRest++;
+    }
+    expect(atRest).toBe(0);
+    expect(hold.crowded / Math.max(hold.frames, 1)).toBeLessThan(0.005);
+    expect(toRest.crowded / Math.max(toRest.frames, 1)).toBeLessThan(0.03);
+  });
+
+  it("the replays are brisk: half of them done in under 4.6 s", () => {
+    const lengths = all.map((s) => s.duration).sort((a, b) => a - b);
+    expect(lengths[Math.trunc(lengths.length / 2)]!).toBeLessThan(4.6);
+  });
+});
+
+describe("the headline's colors", () => {
+  // WCAG's relative luminance and contrast ratio.
+  const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const luminance = ([r, g, b]: readonly number[]) => 0.2126 * lin(r! / 255) + 0.7152 * lin(g! / 255) + 0.0722 * lin(b! / 255);
+  const rgb = (hex: string) => {
+    const v = Number.parseInt(hex.slice(1, 7), 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  };
+
+  it("PHI's teal headline clears 4.5:1 on the theater's well in both schemes; every team's clears the 3:1 large type needs but one", () => {
+    type Team = { color: string; alternateColor: string; abbreviation: string };
+    const mnf = fixture("mnf-dal-phi-plays.json") as { home: Team; away: Team };
+    const soccer = fixture("soccer-theater-plays.json") as { matches: { home: Team; away: Team }[] };
+    const failing: string[] = [];
+    const phi: number[] = [];
+    for (const scheme of ["dark", "light"] as const) {
+      // The page (tokens.css --page), and over it the well's plate: black at 0.45 in the dark, 0.045 in the light.
+      const page = scheme === "dark" ? [0x12, 0x12, 0x14] : [0xf2, 0xf2, 0xf5];
+      const a = scheme === "dark" ? 0.45 : 0.045;
+      const plate = luminance(page.map((c) => c * (1 - a)));
+      for (const { home, away } of [mnf, ...soccer.matches]) {
+        const d = dress({ top: { color: away.color, alternate: away.alternateColor }, bottom: { color: home.color, alternate: home.alternateColor } }, scheme);
+        for (const [name, u] of [
+          [away.abbreviation, d.top],
+          [home.abbreviation, d.bottom],
+        ] as const) {
+          if (!u.accent) continue;
+          const l = luminance(rgb(u.accent));
+          const ratio = (Math.max(l, plate) + 0.05) / (Math.min(l, plate) + 0.05);
+          if (name === "PHI") phi.push(ratio);
+          if (ratio < 3) failing.push(`${scheme} ${name} ${u.accent} ${ratio.toFixed(2)}`);
+        }
+      }
+    }
+    expect(phi.length).toBe(2);
+    expect(Math.min(...phi)).toBeGreaterThan(4.5);
+    // Manchester City's sky blue in the light, at 2.93:1 on the well's tint: the Swift's dressing
+    // (TheaterTeams.dress deepens a team's type only above L 0.7) lets it through. Raised with the Mac.
+    expect(failing).toEqual(["light MNC #618bae 2.93"]);
   });
 });

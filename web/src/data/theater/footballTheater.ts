@@ -10,6 +10,7 @@ import type { Football } from "../gameDetail";
 import { at, num, str, type JSONValue } from "../json";
 import type { FootballTeams } from "../liveFeeds/football";
 import type { TheaterBurst } from "../mlb/theaterCelebration";
+import { TheaterBurst as Burst } from "./theaterKit";
 import type { Side } from "../models";
 import { decisive, type LiveMoment } from "../moments";
 import { parse, type FootballScene, type FootballTheaterState } from "./footballScene";
@@ -53,11 +54,38 @@ const sequenceOf = (item: JSONValue): number => {
 };
 
 /**
+ * Spots each snap on its hash from the one before it (oldest first; the
+ * first from `previous`, or in the middle with nothing before it).
+ * (FootballFeed.spot; pure)
+ */
+export function spot(snaps: readonly FootballScene[], previous: FootballScene | null): FootballScene[] {
+  let before = previous;
+  return snaps.map((snap) => {
+    const spotted = snap.clone();
+    spotted.hash = before?.nextHash ?? "middle";
+    before = spotted;
+    return spotted;
+  });
+}
+
+/** The last snap in a run of entries, spotted from the few before it. (FootballFeed.spotted; pure) */
+export function spotted(items: readonly JSONValue[], teams: FootballTeams): FootballScene | null {
+  const recent: FootballScene[] = [];
+  for (let i = items.length - 1; i >= 0 && recent.length < 6; i--) {
+    const scene = parse(items[i], teams);
+    if (scene) recent.push(scene);
+  }
+  return spot(recent.reverse(), null).at(-1) ?? null;
+}
+
+/**
  * The lane's theater, kept beside the lane (FootballFeed's `theater` and
  * `theaterSequence`): given the lane's raw entries in play order after each
- * change, the newest entry at or after the theater's snap that is one
- * becomes the theater's snap. An entry ESPN edited is a new object in the
- * lane's list; an unchanged one is the same object, so it changes nothing.
+ * change, the newest few snaps at or after the theater's are each spotted
+ * on their hash from the one before, and the newest becomes the theater's
+ * snap. The snap showing keeps the hash its own plays put it on (an edit
+ * doesn't move it). An entry ESPN edited is a new object in the lane's
+ * list; an unchanged one is the same object, so it changes nothing.
  */
 export class FootballTheaterWatch {
   state: FootballTheaterState = { play: null, news: false };
@@ -70,19 +98,35 @@ export class FootballTheaterWatch {
   update(items: readonly JSONValue[], teams: FootballTeams, primed: boolean, now: number = Date.now()): boolean {
     if (items === this.items) return false;
     this.items = items;
-    for (let i = items.length - 1; i >= 0; i--) {
+    // The newest few snaps, oldest first: each is spotted on its hash from the one before.
+    const recent: { scene: FootballScene; sequence: number; item: JSONValue }[] = [];
+    for (let i = items.length - 1; i >= 0 && recent.length < 5; i--) {
       const item = items[i];
       const sequence = sequenceOf(item);
       if (sequence < this.sequence) break;
-      if (item === this.item) return false;
+      if (recent.length === 0 && item === this.item) return false;
       const scene = parse(item, teams);
-      if (!scene) continue;
-      this.sequence = sequence;
-      this.item = item;
-      this.state = footballTheaterState(scene, this.state, primed, now);
-      return true;
+      if (scene) recent.push({ scene, sequence, item });
     }
-    return false;
+    recent.reverse();
+    const snap = recent.at(-1);
+    if (!snap) return false;
+    this.sequence = snap.sequence;
+    this.item = snap.item;
+    const snaps = recent.map((r) => r.scene);
+    const shown = this.state.play;
+    const i = shown ? snaps.findIndex((x) => x.id === shown.id) : -1;
+    let placed: FootballScene | null;
+    if (shown && i >= 0) {
+      const kept = snaps[i]!.clone();
+      kept.hash = shown.hash;
+      placed = spot(snaps.slice(i + 1), kept).at(-1) ?? kept;
+    } else {
+      placed = spot(snaps, shown).at(-1) ?? null;
+    }
+    if (!placed) return false;
+    this.state = footballTheaterState(placed, this.state, primed, now);
+    return true;
   }
 }
 
@@ -120,7 +164,7 @@ export const FootballCelebration = {
       const c = cueFor(moment, { level, reduceMotion, preset: presetFor(height), direction: 90 * DEG, effects });
       return c && gold ? { ...c, gold: true } : c;
     };
-    const scale = Math.max(2.2, height / 95);
+    const scale = Burst.scale(height);
     const bursts: FootballBurst[] = [];
     switch (moment.kind) {
       case "touchdown": {

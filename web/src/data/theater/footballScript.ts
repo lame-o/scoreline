@@ -9,11 +9,14 @@
  *
  * The field is drawn from behind the offense, as a broadcast's end-zone
  * camera sees it: x across (the offense's right is +), y downfield from its
- * own goal line, z up. Time is a replay's: the snap after a beat on the
- * formation, everything after it about one and a half times the game's
- * speed, so a snap runs 2–5 s. Then the field settles: on a new down the two
- * teams jog back to the new line; after a score, a kick or a turnover they
- * hold where it ended.
+ * own goal line, z up. The offense lines up as the play says (in the gun or
+ * under center, heavy, empty, a bunch, the punt and field-goal units, the
+ * kickoff), round the ball on its hash. Time is a replay's: the snap after
+ * half a second on the formation, everything after it about one and a half
+ * times the game's speed, so a snap runs 2–5 s, and the stamp holds a third
+ * of a second on it. Then the field settles: on a new down the two teams jog
+ * back to the new line; after a score, a kick or a turnover they hold where
+ * it ended. A touchdown's try is a scene of its own, a shorter beat.
  *
  *     const script = FootballScript.play(scene);
  *     script.ball(2.1); script.camera.frame(2.1);
@@ -23,7 +26,7 @@ import { Flight, Move, type Arc } from "../mlb/playScript";
 import { easeValue, fieldPoint, ground, type Ease, type FieldPoint, type Point } from "../mlb/theaterField";
 import type { Side } from "../models";
 import { kindIs, rounded, type FootballScene, type Lane, type Position } from "./footballScene";
-import { CameraPath, CameraRig, intersects, maxY, midX, unionAll } from "./theaterKit";
+import { CameraPath, CameraRig, clearing, intersects, maxY, midX, unionAll } from "./theaterKit";
 
 // MARK: - The field
 
@@ -47,6 +50,11 @@ export const Gridiron = {
 
   y(yard: number): number {
     return yard * 3;
+  },
+
+  /** Where the ball sits across the field on a hash: on the marks, 18 ft 6 in apart. */
+  spot(hash: Lane): number {
+    return hash === "left" ? -(9.25 - 1) : hash === "right" ? 9.25 - 1 : 0;
   },
 
   /**
@@ -361,12 +369,17 @@ const S = {
   guardRight: "guardRight",
   tackleLeft: "tackleLeft",
   tackleRight: "tackleRight",
-  tightEnd: "tightEnd",
   quarterback: "quarterback",
   back: "back",
-  wideLeft: "wideLeft",
-  wideRight: "wideRight",
+  /** The strong side's tight end and wide receiver, the slot inside them, and the wide receiver alone on the weak side. */
+  tightEnd: "tightEnd",
+  wideStrong: "wideStrong",
   slot: "slot",
+  wideWeak: "wideWeak",
+  /** A second tight end off the line, a fullback, a lineman reported in. */
+  wing: "wing",
+  fullback: "fullback",
+  extra: "extra",
   kicker: "kicker",
   holder: "holder",
   punter: "punter",
@@ -397,8 +410,10 @@ export class Builder {
   /** The line of scrimmage, in feet. */
   readonly line: number;
   readonly shotgun: boolean;
-  /** The ball is snapped a beat after the replay opens on the formation. */
-  readonly snap = 0.6;
+  /** Where the ball sits across the field: on its hash (a kickoff and a try from the middle). */
+  readonly ballX: number;
+  /** The ball is snapped a beat after the replay opens on the formation (a try's beat is shorter). */
+  readonly snap: number;
   /** Players by their place in the formation. */
   slots = new Map<Slot, number>();
   /** When the action is over (the tackle, the ball coming down), before a flag's walk. */
@@ -408,6 +423,8 @@ export class Builder {
     this.scene = scene;
     this.line = line;
     this.shotgun = shotgun;
+    this.ballX = scene ? (scene.kind.type === "kickoff" || scene.pointAfter != null ? 0 : Gridiron.spot(scene.hash)) : 0;
+    this.snap = scene?.pointAfter != null ? 0.4 : 0.5;
   }
 
   get offense(): number[] {
@@ -418,44 +435,206 @@ export class Builder {
     return this.script.players.flatMap((p, i) => (p.team === "defense" ? [i] : []));
   }
 
+  /** The players in these roles on a team. */
+  players(team: Team, ...roles: Role[]): number[] {
+    return this.script.players.flatMap((p, i) => (p.team === team && roles.includes(p.role) ? [i] : []));
+  }
+
+  /**
+   * A place in a formation laid out round a ball in the middle, moved to the
+   * ball on its hash: the box moves with it; out wide, the players keep
+   * their room to the sideline, squeezed toward the near one, spread toward
+   * the far.
+   */
+  across(x: number): number {
+    const box = 24;
+    const h = Gridiron.half;
+    const ballX = this.ballX;
+    if (!(Math.abs(x) > box)) return ballX + x;
+    return x > 0 ? ballX + box + ((x - box) * (h - ballX - box)) / (h - box) : ballX - box + ((x + box) * (h + ballX - box)) / (h - box);
+  }
+
   add(slot: Slot, team: Team, role: Role, x: number, dy: number, set = false): void {
     this.slots.set(slot, this.script.players.length);
-    this.script.players.push(new Player(team, { x, y: this.line + dy }, role, set ? this.snap : null));
+    this.script.players.push(new Player(team, { x: this.across(x), y: this.line + dy }, role, set ? this.snap : null));
   }
 
   // MARK: Formations
 
   /**
-   * Eleven on eleven at the line: five linemen, a tight end on the right,
-   * the quarterback under center (or in the gun with the back beside him),
-   * two wide and a slot; four down, three linebackers, two corners off the
-   * wide receivers, two safeties deep.
+   * Eleven on eleven at the line, as the offense lined up: in the gun or
+   * under center, its strength (the tight end and the slot) to the side the
+   * play went; two backs under center on a run; an extra lineman reported in
+   * (a heavy set), an empty backfield, a bunch, the kneel's victory
+   * formation. The defense answers it: nickel against three wide, base
+   * against two backs, eight in the box against a heavy set, dime against
+   * empty.
    */
   scrimmage(): void {
-    const shotgun = this.shotgun;
+    const formation = this.scene?.formation ?? "base";
+    // The strong side: the way the play went (the right when it doesn't say).
+    const s = this.scene?.lane === "left" ? -1 : 1;
+    const gun = this.shotgun && formation !== "victory";
+    const kind = this.scene?.kind.type;
+    const running = kind === "rush" || kind === "fumble" || kind === "other";
     this.add(S.center, "offense", "line", 0, -2, true);
     this.add(S.guardLeft, "offense", "line", -5.5, -2.5, true);
     this.add(S.guardRight, "offense", "line", 5.5, -2.5, true);
     this.add(S.tackleLeft, "offense", "line", -11, -3, true);
     this.add(S.tackleRight, "offense", "line", 11, -3, true);
-    this.add(S.tightEnd, "offense", "tightEnd", 17, -3, true);
-    this.add(S.quarterback, "offense", "quarterback", 0, shotgun ? -15 : -5, !shotgun);
-    this.add(S.back, "offense", "back", shotgun ? 6 : 0, shotgun ? -15 : -19);
-    this.add(S.wideLeft, "offense", "receiver", -62, -2);
-    this.add(S.wideRight, "offense", "receiver", 60, -2);
-    this.add(S.slot, "offense", "receiver", 38, -4);
-    [-15, -5.5, 5.5, 19].forEach((x, i) => this.add(S.front(i), "defense", "front", x, 3, true));
-    (
-      [
-        [-14, 16],
-        [1, 15],
-        [16, 16],
-      ] as const
-    ).forEach(([x, dy], i) => this.add(S.backer(i), "defense", "backer", x, dy));
-    this.add(S.corner(0), "defense", "corner", -62, 18);
-    this.add(S.corner(1), "defense", "corner", 60, 18);
-    this.add(S.safety(0), "defense", "safety", -24, 40);
-    this.add(S.safety(1), "defense", "safety", 28, 42);
+    this.add(S.quarterback, "offense", "quarterback", 0, gun ? -15 : -4.5, !gun);
+    const skill = (slot: Slot, role: Role, x: number, dy: number, set = false) => this.add(slot, "offense", role, x * s, dy, set);
+    const defend = (fronts: readonly number[], backers: readonly (readonly [number, number])[], corners: readonly (readonly [number, number])[], safeties: readonly (readonly [number, number])[]) => {
+      fronts.forEach((x, i) => this.add(S.front(i), "defense", "front", x * s, 3, true));
+      backers.forEach(([x, dy], i) => this.add(S.backer(i), "defense", "backer", x * s, dy));
+      corners.forEach(([x, dy], i) => this.add(S.corner(i), "defense", "corner", x * s, dy));
+      safeties.forEach(([x, dy], i) => this.add(S.safety(i), "defense", "safety", x * s, dy));
+    };
+    const four = [-15, -5.5, 5.5, 19];
+    switch (formation) {
+      case "base":
+        if (!gun && running) {
+          // The I: a fullback in front of the back, two wide; base 4-3, the strong safety down.
+          skill(S.tightEnd, "tightEnd", 17, -3, true);
+          skill(S.fullback, "back", 0, -12);
+          skill(S.back, "back", 0, -21);
+          skill(S.wideStrong, "receiver", 58, -2);
+          skill(S.wideWeak, "receiver", -60, -2);
+          defend(
+            four,
+            [
+              [-14, 16],
+              [1, 15],
+              [16, 16],
+            ],
+            [
+              [-58, 15],
+              [56, 15],
+            ],
+            [
+              [24, 26],
+              [-8, 42],
+            ],
+          );
+        } else {
+          // Three wide, the tight end and the slot to the strong side; the back beside the
+          // quarterback in the gun (on the weak side), behind him under center. Nickel.
+          skill(S.tightEnd, "tightEnd", 17, -3, true);
+          skill(S.slot, "receiver", 38, -4);
+          skill(S.wideStrong, "receiver", 62, -2);
+          skill(S.wideWeak, "receiver", -62, -2);
+          skill(S.back, "back", gun ? -6 : 0, gun ? -15 : -21);
+          defend(
+            four,
+            [
+              [-6, 15],
+              [10, 15],
+            ],
+            [
+              [-60, 18],
+              [60, 18],
+              [36, 10],
+            ],
+            [
+              [-24, 40],
+              [28, 42],
+            ],
+          );
+        }
+        break;
+      case "heavy":
+        // Jumbo: the lineman reported in on the weak side, two tight ends, two backs. Goal line: eight in the box.
+        this.add(S.extra, "offense", "line", -17 * s, -3, true);
+        skill(S.tightEnd, "tightEnd", 17, -3, true);
+        skill(S.wing, "tightEnd", 22, -7);
+        skill(S.fullback, "back", gun ? 6 : 0, gun ? -15 : -12);
+        skill(S.back, "back", gun ? -6 : 0, gun ? -15 : -21);
+        defend(
+          [-20, -7, 4, 15],
+          [
+            [-14, 9],
+            [-4, 8],
+            [7, 8],
+            [18, 9],
+          ],
+          [
+            [-26, 6],
+            [28, 7],
+          ],
+          [[0, 24]],
+        );
+        break;
+      case "empty":
+        // Five wide, the back split out on the weak side. Dime.
+        skill(S.tightEnd, "tightEnd", 24, -4);
+        skill(S.slot, "receiver", 40, -4);
+        skill(S.wideStrong, "receiver", 62, -2);
+        skill(S.back, "back", -36, -4);
+        skill(S.wideWeak, "receiver", -62, -2);
+        defend(
+          four,
+          [[2, 15]],
+          [
+            [-60, 16],
+            [-34, 10],
+            [38, 10],
+            [60, 16],
+          ],
+          [
+            [-20, 38],
+            [24, 40],
+          ],
+        );
+        break;
+      case "bunch":
+        // Three in a tight triangle to the strong side; the corners stacked over it.
+        skill(S.wideStrong, "receiver", 36.5, -2);
+        skill(S.tightEnd, "tightEnd", 33, -5.5);
+        skill(S.slot, "receiver", 40, -5);
+        skill(S.wideWeak, "receiver", -62, -2);
+        skill(S.back, "back", gun ? -6 : 0, gun ? -15 : -21);
+        defend(
+          four,
+          [
+            [-6, 15],
+            [10, 15],
+          ],
+          [
+            [-60, 18],
+            [34, 8],
+            [44, 14],
+          ],
+          [
+            [-20, 40],
+            [30, 38],
+          ],
+        );
+        break;
+      case "victory":
+        // The kneel: a back at each hip, one deep, a tight end each side; the defense up close.
+        skill(S.back, "back", 5, -9);
+        skill(S.fullback, "back", -5, -9);
+        skill(S.deep, "back", 0, -30);
+        skill(S.tightEnd, "tightEnd", 17, -3, true);
+        skill(S.wing, "tightEnd", -17, -3, true);
+        defend(
+          [-15, -5.5, 5.5, 15],
+          [
+            [-12, 10],
+            [0, 9],
+            [12, 10],
+          ],
+          [
+            [-28, 8],
+            [28, 8],
+          ],
+          [
+            [-12, 22],
+            [12, 22],
+          ],
+        );
+        break;
+    }
   }
 
   /**
@@ -551,7 +730,7 @@ export class Builder {
 
   /** The ball on the ground at the line before the snap. */
   get spot(): FieldPoint {
-    return { x: 0, y: this.line, z: 0.6 };
+    return { x: this.ballX, y: this.line, z: 0.6 };
   }
 
   /** The snap: to the quarterback's hands, or back to the holder or the punter. */
@@ -567,7 +746,7 @@ export class Builder {
       return snap + 0.05;
     }
     const time = clamp(d / 75, 0.22, 0.5);
-    this.fly({ x: 0, y: line - 1, z: 1 }, fieldPoint(target, height), snap, time, arc(d > 30 ? 3 : 1.5));
+    this.fly({ x: this.ballX, y: line - 1, z: 1 }, fieldPoint(target, height), snap, time, arc(d > 30 ? 3 : 1.5));
     return snap + time;
   }
 
@@ -656,23 +835,31 @@ export class Builder {
     });
   }
 
-  /** The receiver for a pass of this side, depth and receiving position. */
-  target(position: Position | null, lane: Lane): number | null {
-    switch (position) {
+  /**
+   * The receiver for a pass of this side, depth and receiving position: of
+   * the receivers on that side, the one inside on a short ball, the one
+   * outside on a deep one; over the middle, whoever's inside.
+   */
+  target(credited: Position | null, lane: Lane): number | null {
+    switch (credited) {
       case "tightEnd":
-        return this.at(S.tightEnd);
+        return this.at(S.tightEnd) ?? this.at(S.wing);
       case "back":
-      case "fullback":
         return this.at(S.back);
-      default:
-        switch (lane) {
-          case "left":
-            return this.at(S.wideLeft);
-          case "right":
-            return this.scene?.depth === "short" ? this.at(S.slot) : this.at(S.wideRight);
-          case "middle":
-            return this.at(S.slot);
-        }
+      case "fullback":
+        return this.at(S.fullback) ?? this.at(S.back);
+      default: {
+        const side = Builder.sign(lane);
+        const receivers = this.players("offense", "receiver");
+        const pool = receivers.length === 0 ? this.players("offense", "tightEnd") : receivers;
+        const out = (i: number) => (this.position(i, 0).x - this.ballX) * (side === 0 ? 1 : side);
+        const onSide = side === 0 ? pool : pool.filter((i) => out(i) > 0);
+        const choices = onSide.length === 0 ? pool : onSide;
+        if (choices.length === 0) return null;
+        // Swift's min(by:) and max(by:): the first of equals either way.
+        if (side === 0) return choices.reduce((a, b) => (Math.abs(out(b)) < Math.abs(out(a)) ? b : a));
+        return this.scene?.depth === "deep" ? choices.reduce((a, b) => (out(a) < out(b) ? b : a)) : choices.reduce((a, b) => (out(b) < out(a) ? b : a));
+      }
     }
   }
 
@@ -684,7 +871,7 @@ export class Builder {
   endPoint(p: Point, lane: Lane | null, y: number): Point {
     const scene = this.scene;
     if (!scene) return { x: p.x, y };
-    const side = p.x === 0 ? Builder.sign(lane) : p.x > 0 ? 1 : -1;
+    const side = Math.abs(p.x - this.ballX) < 0.5 ? Builder.sign(lane) : p.x > this.ballX ? 1 : -1;
     if (scene.outOfBounds) return { x: (side === 0 ? 1 : side) * (Gridiron.half + 3), y };
     const x = p.x + side * Math.abs(y - p.y) * 0.12;
     return { x: clamp(x, -70, 70), y };
@@ -768,23 +955,23 @@ export class Builder {
     const picked = scene.kind.type === "interception";
     const deep = scene.depth === "deep" || (scene.air ?? 0) >= 18;
     const lane = scene.lane ?? "middle";
-    const receiver = this.target(scene.position("receiver"), lane) ?? this.at(S.wideRight)!;
+    const receiver = this.target(scene.position("receiver"), lane) ?? this.at(S.tightEnd) ?? this.at(S.back) ?? qb;
     const inHand = this.snapBall(qb);
     // The drop: seven yards deep from under center, a step or two in the gun.
-    const pocket = { x: 0, y: line - 21 };
-    this.move(qb, [pocket], snap + 0.08, snap + (shotgun ? 0.6 : 0.85), "out");
-    const release = snap + (deep ? 1.5 : 1.1) + (shotgun ? 0 : 0.1);
+    const pocket = { x: this.ballX, y: line - 21 };
+    this.move(qb, [pocket], snap + 0.08, snap + (shotgun ? 0.55 : 0.8), "out");
+    const release = snap + (deep ? 1.35 : 1.0) + (shotgun ? 0 : 0.1);
     this.carry(qb, inHand, release);
-    script.players[qb]!.act("throwBall", release, { x: 0, y: line + 60 });
+    script.players[qb]!.act("throwBall", release, { x: this.ballX, y: line + 60 });
 
     // Where it was caught, picked off or thrown to.
     const air = scene.air ?? (deep ? 24 : 7);
     const side = Builder.sign(lane);
     const start = this.position(receiver, 0);
-    const back = receiver === this.at(S.back) || receiver === this.at(S.tightEnd);
+    const back = script.players[receiver]!.role !== "receiver";
     let catchX = side === 0 ? (deep ? 4 : -6) : side * (deep ? 50 : back ? 26 : 38);
     if (air < 0) catchX = (side === 0 ? 1 : side) * 30;
-    const catchPoint = { x: clamp(catchX, -72, 72), y: line + Gridiron.y(air) };
+    const catchPoint = { x: clamp(this.across(catchX), -72, 72), y: line + Gridiron.y(air) };
     const from: FieldPoint = { x: pocket.x + 1.5, y: pocket.y + 1, z: 7 };
     const d = Math.hypot(catchPoint.x - from.x, catchPoint.y - from.y);
     const time = clamp(0.26 + d / 150, 0.38, 1.25);
@@ -831,44 +1018,37 @@ export class Builder {
 
   /** The other receivers run their routes; the backs and the tight end release; corners and safeties turn and run with them. */
   decoys(except: ReadonlySet<number>, release: number): void {
-    const { snap, line } = this;
-    for (const slot of [S.wideLeft, S.wideRight, S.slot, S.tightEnd, S.back]) {
-      const i = this.at(slot);
-      if (i == null || except.has(i)) continue;
+    const { snap, line, ballX } = this;
+    for (const i of this.players("offense", "receiver", "tightEnd", "back")) {
+      if (except.has(i)) continue;
+      const role = this.script.players[i]!.role;
       const p = this.position(i, 0);
-      const depth = slot === S.back ? 10 : slot === S.tightEnd ? 24 : 42;
-      const lean = slot === S.back ? (p.x >= 0 ? 16 : -16) : p.x > 0 ? -8 : 8;
+      const depth = role === "back" ? 10 : role === "tightEnd" ? 24 : 42;
+      const lean = role === "back" ? (p.x >= ballX ? 16 : -16) : p.x > ballX ? -8 : 8;
       this.move(i, [{ x: p.x + lean, y: Math.max(p.y, line) + depth }], snap + 0.05, release + 0.4, "inOut");
     }
-    for (const slot of [S.corner(0), S.corner(1)]) {
-      const i = this.at(slot);
-      if (i == null) continue;
+    for (const i of this.players("defense", "corner")) {
       const p = this.position(i, 0);
-      this.move(i, [{ x: p.x * 0.92, y: p.y + 26 }], snap + 0.08, release + 0.5, "out");
+      this.move(i, [{ x: ballX + (p.x - ballX) * 0.92, y: p.y + 26 }], snap + 0.08, release + 0.5, "out");
     }
-    for (const slot of [S.safety(0), S.safety(1), S.backer(0), S.backer(1), S.backer(2)]) {
-      const i = this.at(slot);
-      if (i == null) continue;
+    for (const i of this.players("defense", "safety", "backer")) {
       const p = this.position(i, 0);
-      this.move(i, [{ x: p.x * 0.85, y: p.y + (slot === S.safety(0) || slot === S.safety(1) ? 10 : 12) }], snap + 0.08, snap + 0.9, "out");
+      this.move(i, [{ x: ballX + (p.x - ballX) * 0.85, y: p.y + (this.script.players[i]!.role === "safety" ? 10 : 12) }], snap + 0.08, snap + 0.9, "out");
     }
   }
 
-  /** The pocket: the line sets back, the front four rush into it. */
+  /** The pocket: the line sets back, the front rushes into it. */
   protect(rush: number): void {
-    const { snap, line } = this;
-    for (const slot of [S.center, S.guardLeft, S.guardRight, S.tackleLeft, S.tackleRight]) {
-      const i = this.at(slot);
-      if (i == null) continue;
+    const { snap, line, ballX } = this;
+    for (const i of this.players("offense", "line")) {
       const p = this.position(i, 0);
-      this.move(i, [{ x: p.x * 1.1, y: p.y - 6 }], snap + 0.04, snap + 0.55, "out");
+      this.move(i, [{ x: ballX + (p.x - ballX) * 1.1, y: p.y - 6 }], snap + 0.04, snap + 0.55, "out");
       this.script.players[i]!.act("block", snap + 0.55, { x: p.x, y: line + 10 });
     }
-    for (let k = 0; k < 4; k++) {
-      const i = this.at(S.front(k));
-      if (i == null || this.script.players[i]!.moves.some((m) => m.start > snap)) continue;
+    for (const i of this.players("defense", "front")) {
+      if (this.script.players[i]!.moves.some((m) => m.start > snap)) continue;
       const p = this.position(i, 0);
-      this.move(i, [{ x: p.x * 0.85, y: line - 5 }], snap + 0.04, rush, "out");
+      this.move(i, [{ x: ballX + (p.x - ballX) * 0.85, y: line - 5 }], snap + 0.04, rush, "out");
     }
   }
 
@@ -880,13 +1060,13 @@ export class Builder {
     const taker = this.nearest("defense", point, snap, roles.length === 0 ? ["corner", "safety", "backer"] : roles);
     if (taker == null) return;
     // He jumps the route: in front of the receiver as the ball arrives.
-    const jump = { x: point.x - (point.x > 0 ? 2 : -2), y: point.y - 3 };
+    const jump = { x: point.x - (point.x > this.ballX ? 2 : -2), y: point.y - 3 };
     this.move(taker, [jump], snap + 0.15, arrive, "inOut");
     const f = script.flights[flight]!;
     script.flights[flight] = new Flight(f.start, f.end, f.from, fieldPoint(jump, 5), f.arc, f.ease);
-    script.players[taker]!.act("catchChest", arrive, { x: 0, y: line - 20 });
+    script.players[taker]!.act("catchChest", arrive, { x: this.ballX, y: line - 20 });
     script.flashes.push({ beat: "catchBall", at: arrive, point: fieldPoint(jump, 5) });
-    script.players[receiver]!.act("catchHigh", arrive - 0.04, { x: 0, y: line - 20 });
+    script.players[receiver]!.act("catchHigh", arrive - 0.04, { x: this.ballX, y: line - 20 });
     taken.add(taker);
     script.score = null;
     this.run(taker, jump, arrive + 0.05, taken, true);
@@ -913,7 +1093,7 @@ export class Builder {
       length += hypotP(p, previous);
       previous = p;
     }
-    const duration = clamp(length / 44, 0.35, 2.6);
+    const duration = clamp(length / 47, 0.35, 2.5);
     const arrive = time + duration;
     this.move(runner, route, time, arrive, "out");
     this.over = arrive;
@@ -958,18 +1138,25 @@ export class Builder {
       case "quarterback":
         runner = qb;
         break;
-      case "receiver":
-        runner = side < 0 ? this.at(S.wideLeft)! : this.at(S.slot)!;
+      // A sweep: the receiver nearest the side it went.
+      case "receiver": {
+        const aim = this.across(side * 34);
+        const receivers = this.players("offense", "receiver");
+        runner = receivers.length > 0 ? receivers.reduce((a, b) => (Math.abs(this.position(b, 0).x - aim) < Math.abs(this.position(a, 0).x - aim) ? b : a)) : back;
         break;
+      }
       case "tightEnd":
-        runner = this.at(S.tightEnd)!;
+        runner = this.at(S.tightEnd) ?? back;
+        break;
+      case "fullback":
+        runner = this.at(S.fullback) ?? back;
         break;
       default:
         runner = back;
     }
     const inHand = this.snapBall(qb);
     const hole = scene.gap === "guard" ? 7 : scene.gap === "tackle" ? 13.5 : scene.gap === "end" ? 26 : 0;
-    const holeX = side * hole;
+    const holeX = this.ballX + side * hole;
     const gain = scene.to - scene.from;
     const through = { x: holeX, y: line + (gain > 0 ? 3 : -1) };
     let meshTime = snap + (shotgun ? 0.36 : 0.45);
@@ -977,50 +1164,47 @@ export class Builder {
     if (keeper) {
       // A scramble: he drops, then runs for it.
       const scrambles = scene.text.includes("scrambles");
-      const pocket = { x: 0, y: line - (scrambles ? 19 : 6) };
+      const pocket = { x: this.ballX, y: line - (scrambles ? 19 : 6) };
       this.move(qb, [pocket], snap + 0.08, snap + (scrambles ? 0.7 : 0.25), "out");
-      meshTime = snap + (scrambles ? 1.3 : 0.3);
+      meshTime = snap + (scrambles ? 1.2 : 0.3);
       mesh = pocket;
       this.carry(qb, inHand, meshTime);
-      if (scrambles) this.protect(snap + 1.1);
+      if (scrambles) this.protect(snap + 1.0);
     } else {
       // The quarterback opens to the back; they meet a few yards deep.
-      mesh = { x: side * 2.5, y: line - (shotgun ? 13 : 10) };
+      mesh = { x: this.ballX + side * 2.5, y: line - (shotgun ? 13 : 10) };
       this.move(qb, [{ x: mesh.x - side * 1.5, y: mesh.y + 1 }], snap + 0.05, meshTime - 0.05, "out");
       this.move(runner, [mesh], snap + 0.02, meshTime, "inOut");
       this.carry(qb, inHand, meshTime);
       script.players[qb]!.act("handoff", meshTime, mesh);
       // The fake: he carries out the boot the other way.
-      this.move(qb, [{ x: -side * 14 + (side === 0 ? 8 : 0), y: line - 16 }], meshTime + 0.1, meshTime + 0.9, "out");
+      this.move(qb, [{ x: this.ballX - side * 14 + (side === 0 ? 8 : 0), y: line - 16 }], meshTime + 0.1, meshTime + 0.9, "out");
     }
-    // The line drives the way of the run and opens the hole.
-    for (const slot of [S.center, S.guardLeft, S.guardRight, S.tackleLeft, S.tackleRight, S.tightEnd]) {
-      const i = this.at(slot);
-      if (i == null) continue;
+    // The line and the tight ends drive the way of the run and open the hole; a fullback leads through it.
+    for (const i of this.players("offense", "line", "tightEnd")) {
+      if (i === runner) continue;
       const p = this.position(i, 0);
       const away = p.x === holeX ? 0 : p.x < holeX ? -2.5 : 2.5;
       this.move(i, [{ x: p.x + side * 2 + away, y: p.y + 6 }], snap + 0.03, snap + 0.7, "out");
       script.players[i]!.act("block", snap + 0.5, { x: p.x, y: line + 10 });
     }
-    for (let k = 0; k < 4; k++) {
-      const i = this.at(S.front(k));
-      if (i == null) continue;
+    const lead = this.at(S.fullback);
+    if (lead != null && lead !== runner && !keeper) {
+      this.move(lead, [{ x: holeX + side * 1.5, y: line + 5 }], snap + 0.04, meshTime + 0.35, "inOut");
+      script.players[lead]!.act("block", meshTime + 0.35, { x: holeX, y: line + 12 });
+    }
+    for (const i of this.players("defense", "front")) {
       const p = this.position(i, 0);
       this.move(i, [{ x: p.x + (p.x < holeX ? -2 : 2), y: line + 1 }], snap + 0.03, snap + 0.6, "out");
     }
     // The receivers block downfield.
-    for (const slot of [S.wideLeft, S.wideRight, S.slot]) {
-      const i = this.at(slot);
-      if (i == null || i === runner) continue;
+    for (const i of this.players("offense", "receiver")) {
+      if (i === runner) continue;
       const p = this.position(i, 0);
-      this.move(i, [{ x: p.x * 0.9, y: line + 14 }], snap + 0.05, snap + 1.1, "out");
+      this.move(i, [{ x: this.ballX + (p.x - this.ballX) * 0.9, y: line + 14 }], snap + 0.05, snap + 1.1, "out");
     }
     // The linebackers fill toward the hole.
-    for (let k = 0; k < 3; k++) {
-      const i = this.at(S.backer(k));
-      if (i == null) continue;
-      this.drift(i, through, 0.45, 16, snap + 0.1, meshTime + 0.45);
-    }
+    for (const i of this.players("defense", "backer")) this.drift(i, through, 0.45, 16, snap + 0.1, meshTime + 0.45);
     this.run(runner, mesh, meshTime, new Set([qb, runner]), false, [through]);
   }
 
@@ -1030,7 +1214,7 @@ export class Builder {
     const { snap, line, script } = this;
     const inHand = this.snapBall(qb);
     this.carry(qb, inHand, Infinity);
-    const spot = { x: 0, y: Gridiron.y(this.scene?.to ?? line / 3) - 1 };
+    const spot = { x: this.ballX, y: Gridiron.y(this.scene?.to ?? line / 3) - 1 };
     this.move(qb, [spot], snap + 0.05, snap + 0.35, "out");
     script.players[qb]!.holds.push({ kind: "kneel", from: snap + 0.4, until: Infinity });
     this.over = snap + 0.6;
@@ -1045,12 +1229,12 @@ export class Builder {
     const inHand = this.snapBall(qb);
     const throwAt = inHand + 0.18;
     this.carry(qb, inHand, throwAt);
-    script.players[qb]!.act("spike", throwAt, { x: 0, y: line });
+    script.players[qb]!.act("spike", throwAt, { x: this.ballX, y: line });
     const p = this.position(qb, throwAt);
     this.fly(fieldPoint(p, 6), { x: p.x + 1, y: p.y + 3, z: 0 }, throwAt, 0.14, STRAIGHT);
     this.fly({ x: p.x + 1, y: p.y + 3, z: 0 }, { x: p.x + 4, y: p.y + 12, z: 0 }, throwAt + 0.14, 0.5, bounce(3), "out");
     this.over = throwAt + 0.6;
-    script.end = { x: 0, y: line, z: 0 };
+    script.end = { x: this.ballX, y: line, z: 0 };
     script.stamp = throwAt + 0.2;
   }
 
@@ -1061,19 +1245,20 @@ export class Builder {
     if (!scene || qb == null) return;
     const { snap, line, shotgun, script } = this;
     const inHand = this.snapBall(qb);
-    const pocket = { x: 0, y: line - 21 };
-    this.move(qb, [pocket], snap + 0.08, snap + (shotgun ? 0.6 : 0.85), "out");
-    const down = { x: scene.lane === "left" ? -6 : 6, y: Gridiron.y(scene.stopped ?? scene.to) };
-    const hit = snap + 1.75;
-    this.move(qb, [down], snap + 1.05, hit, "inOut");
+    const pocket = { x: this.ballX, y: line - 21 };
+    this.move(qb, [pocket], snap + 0.08, snap + (shotgun ? 0.55 : 0.8), "out");
+    const down = { x: this.ballX + (scene.lane === "left" ? -6 : 6), y: Gridiron.y(scene.stopped ?? scene.to) };
+    const hit = snap + 1.6;
+    this.move(qb, [down], snap + 0.95, hit, "inOut");
     this.carry(qb, inHand, Infinity);
-    this.decoys(new Set([qb]), snap + 1.5);
+    this.decoys(new Set([qb]), snap + 1.35);
     this.protect(snap + 0.85);
     const roles = Builder.roles(scene.position("sackedBy"));
-    const sacker = this.nearest("defense", { x: 15, y: line }, 0, roles.length === 0 ? ["front"] : roles) ?? this.at(S.front(3))!;
+    const sacker = this.nearest("defense", { x: this.ballX + 15, y: line }, 0, roles.length === 0 ? ["front"] : roles) ?? this.at(S.front(3))!;
     const start = this.position(sacker, 0);
-    const edge = { x: (start.x >= 0 ? 1 : -1) * Math.max(Math.abs(start.x) + 6, 18), y: line - 8 };
-    this.move(sacker, [edge, { x: down.x + (start.x >= 0 ? 3 : -3), y: down.y + 2 }], snap + 0.04, hit, "inOut");
+    const side = start.x >= this.ballX ? 1 : -1;
+    const edge = { x: this.ballX + side * Math.max(Math.abs(start.x - this.ballX) + 6, 18), y: line - 8 };
+    this.move(sacker, [edge, { x: down.x + side * 3, y: down.y + 2 }], snap + 0.04, hit, "inOut");
     script.players[sacker]!.act("tackle", hit, down);
     script.players[qb]!.holds.push({ kind: "down", from: hit + 0.12, until: Infinity });
     script.flashes.push({ beat: "hit", at: hit, point: fieldPoint(down, 3) });
@@ -1093,10 +1278,10 @@ export class Builder {
     const carrier = quarterback ? qb : back;
     const inHand = this.snapBall(qb);
     const looseY = Gridiron.y(scene.loose ?? scene.turn ?? scene.from);
-    const loose = { x: Builder.sign(scene.lane) * 8, y: looseY };
+    const loose = { x: this.ballX + Builder.sign(scene.lane) * 8, y: looseY };
     const meshTime = snap + 0.42;
     if (carrier === back) {
-      this.move(back, [{ x: 2, y: line - 11 }], snap + 0.02, meshTime);
+      this.move(back, [{ x: this.ballX + 2, y: line - 11 }], snap + 0.02, meshTime);
       this.carry(qb, inHand, meshTime);
     }
     const reach = meshTime + clamp(Math.abs(looseY - line) / 40, 0.3, 1.6);
@@ -1135,7 +1320,7 @@ export class Builder {
     const { line, script } = this;
     const landingY = Gridiron.y(scene.turn ?? scene.from + 40);
     const outside = scene.kick === "outOfBounds";
-    const landing = { x: outside ? 74 : 8, y: scene.kick === "downed" ? landingY - 14 : landingY };
+    const landing = { x: outside ? 74 : this.ballX * 0.5 + 8, y: scene.kick === "downed" ? landingY - 14 : landingY };
     this.puntFormation({ x: landing.x * 0.5, y: landingY + 18 });
     const punter = this.at(S.punter);
     const returner = this.at(S.returner);
@@ -1143,8 +1328,8 @@ export class Builder {
     const inHand = this.snapBall(punter, 3.2);
     const kickAt = inHand + 0.55;
     this.carry(punter, inHand, kickAt);
-    script.players[punter]!.act("kick", kickAt, { x: 0, y: line + 60 });
-    const foot: FieldPoint = { x: 0, y: line - 42, z: 2.5 };
+    script.players[punter]!.act("kick", kickAt, { x: this.ballX, y: line + 60 });
+    const foot: FieldPoint = { x: this.ballX, y: line - 42, z: 2.5 };
     script.flashes.push({ beat: "kick", at: kickAt, point: foot });
     const d = Math.hypot(landing.x - foot.x, landing.y - foot.y);
     const caught = scene.kick === "fairCatch" || scene.kick === "returned";
@@ -1208,7 +1393,7 @@ export class Builder {
       const i = this.at(S.rusher(k));
       if (i == null) continue;
       const p = this.position(i, 0);
-      this.move(i, [{ x: p.x * 0.8, y: line - 14 }], snap + 0.04, kickAt + 0.1, "out");
+      this.move(i, [{ x: this.ballX + (p.x - this.ballX) * 0.8, y: line - 14 }], snap + 0.04, kickAt + 0.1, "out");
     }
     for (const slot of [S.corner(0), S.corner(1)]) {
       const i = this.at(slot);
@@ -1289,10 +1474,19 @@ export class Builder {
     const { snap, line, script } = this;
     const inHand = this.snapBall(holder, 1.2);
     script.players[holder]!.holds.push({ kind: "kneel", from: 0, until: Infinity });
-    const ballSpot = { x: 0, y: line - 21 };
+    const ballSpot = { x: this.ballX, y: line - 21 };
     const kickAt = inHand + 0.42;
     this.carry(holder, inHand, kickAt);
-    this.move(kicker, [{ x: -3, y: ballSpot.y - 4 }, { x: -1.2, y: ballSpot.y - 1 }], inHand - 0.15, kickAt, "inOut");
+    this.move(
+      kicker,
+      [
+        { x: this.ballX - 3, y: ballSpot.y - 4 },
+        { x: this.ballX - 1.2, y: ballSpot.y - 1 },
+      ],
+      inHand - 0.15,
+      kickAt,
+      "inOut",
+    );
     script.players[kicker]!.act("kick", kickAt, { x: 0, y: Gridiron.backLine });
     const foot = fieldPoint(ballSpot, 0.8);
     script.flashes.push({ beat: "kick", at: kickAt, point: foot });
@@ -1308,7 +1502,7 @@ export class Builder {
           : miss === "short"
             ? { x: 1, y: Gridiron.backLine - 12, z: 0 }
             : miss === "blocked"
-              ? { x: 6, y: line - 6, z: 0 }
+              ? { x: this.ballX + 6, y: line - 6, z: 0 }
               : { x: 1.2, y: past, z: 14 };
     const d = Math.hypot(target.x - foot.x, target.y - foot.y);
     const time = miss === "blocked" ? 0.45 : clamp(0.5 + d / 190, 0.8, 1.65);
@@ -1322,7 +1516,7 @@ export class Builder {
     const blocker = this.at(S.rusher(4));
     if (miss === "blocked" && blocker != null) {
       script.players[blocker]!.act("block", kickAt + 0.1, ballSpot);
-      script.flashes.push({ beat: "deflect", at: kickAt + 0.08, point: { x: 2, y: line - 4, z: 7 } });
+      script.flashes.push({ beat: "deflect", at: kickAt + 0.08, point: { x: this.ballX + 2, y: line - 4, z: 7 } });
     } else if (miss !== "short") {
       // Crossing the end line: the crossbar's moment.
       const f = script.flights[flight]!;
@@ -1336,7 +1530,7 @@ export class Builder {
       const i = this.at(S.rusher(k));
       if (i == null) continue;
       const p = this.position(i, 0);
-      this.move(i, [{ x: p.x * 0.9, y: line - 3 }], snap + 0.03, snap + 0.6, "out");
+      this.move(i, [{ x: this.ballX + (p.x - this.ballX) * 0.9, y: line - 3 }], snap + 0.03, snap + 0.6, "out");
     }
     this.over = kickAt + time;
     script.end = fieldPoint(ground(target));
@@ -1353,7 +1547,7 @@ export class Builder {
     script.legs.push({ from: 0, until: 0, hand: { kind: "spot", point: this.spot } });
     const onDefense = scene.to >= scene.from;
     const lands = 1;
-    this.throwFlag({ x: onDefense ? 9 : -9, y: line + (onDefense ? 4 : -4) }, lands);
+    this.throwFlag({ x: this.ballX + (onDefense ? 9 : -9), y: line + (onDefense ? 4 : -4) }, lands);
     for (const p of script.players) p.set = Math.min(p.set ?? lands, lands + 0.15);
     this.walk(line, Gridiron.y(scene.to), lands + 0.45, true);
   }
@@ -1369,7 +1563,7 @@ export class Builder {
     this.throwFlag({ x: -14, y: (from + to) / 2 }, lands);
     // The ball goes to the official's spot, then walks.
     const ball = this.script.ball(this.over);
-    if (ball) this.fly(ball, { x: 0, y: from, z: 0.6 }, this.over + 0.25, 0.45, arc(5));
+    if (ball) this.fly(ball, { x: this.ballX, y: from, z: 0.6 }, this.over + 0.25, 0.45, arc(5));
     this.walk(from, to, lands + 0.45, false);
   }
 
@@ -1384,7 +1578,7 @@ export class Builder {
     // At a walk.
     const time = clamp(Math.abs(to - from) / 16, 0.8, 1.8);
     this.script.march = { from, to, start, end: start + time };
-    this.script.legs.push({ from: start, until: start + time, hand: { kind: "slide", from: { x: 0, y: from, z: 0.6 }, to: { x: 0, y: to, z: 0.6 } } });
+    this.script.legs.push({ from: start, until: start + time, hand: { kind: "slide", from: { x: this.ballX, y: from, z: 0.6 }, to: { x: this.ballX, y: to, z: 0.6 } } });
     if (moving) {
       this.script.players.forEach((_, i) => {
         const p = this.position(i, start);
@@ -1392,7 +1586,7 @@ export class Builder {
       });
     }
     this.over = start + time;
-    this.script.end = { x: 0, y: to, z: 0 };
+    this.script.end = { x: this.ballX, y: to, z: 0 };
     this.script.stamp = start + time + 0.05;
   }
 
@@ -1405,17 +1599,24 @@ export class Builder {
     const { script } = this;
     script.legs = script.legs.map((leg, i) => ({ leg, i })).sort((a, b) => a.leg.from - b.leg.from || a.i - b.i).map(({ leg }) => leg);
     if (!Number.isFinite(script.stamp)) script.stamp = Math.max(this.over, this.snap + 0.6);
-    const ends = [script.stamp + 0.5, this.over, Math.max(0, ...script.flashes.map((f) => f.at)) + 0.45, Math.max(0, ...script.flights.map((f) => f.end))];
+    // The stamp holds a beat on the play before the field settles (a try's beat is shorter).
+    const hold = scene.pointAfter == null ? 0.35 : 0.3;
     // (`?? 0` on an empty list: the Swift's max() of nothing.)
-    if (script.flashes.length === 0) ends[2] = 0.45;
-    if (script.flights.length === 0) ends[3] = 0;
-    script.settle = Math.max(Math.max(...ends), 1.4) + 0.7;
+    const ends = [
+      script.stamp + hold,
+      this.over,
+      (script.flashes.length > 0 ? Math.max(...script.flashes.map((f) => f.at)) : 0) + 0.4,
+      script.flights.length > 0 ? Math.max(...script.flights.map((f) => f.end)) : 0,
+    ];
+    script.settle = Math.max(Math.max(...ends), 1.2) + hold;
     // No lines on a kickoff: there's no line of scrimmage yet.
     script.lines = scene.kind.type === "kickoff" ? NO_LINES : { scrimmage: this.line, gain: yards(scene.gainBefore) };
     script.next = { scrimmage: scene.scoring == null && !this.isKick ? Gridiron.y(scene.to) : null, gain: yards(scene.gainAfter) };
     if (this.isKick && scene.scoring == null && (scene.kind.type === "punt" || scene.kind.type === "kickoff")) {
       script.next = { scrimmage: Gridiron.y(scene.to), gain: yards(scene.gainAfter) };
     }
+    // After a try, the next snap is the kickoff's: no lines.
+    if (scene.pointAfter != null) script.next = NO_LINES;
     script.linesMove = script.stamp - 0.05;
   }
 
@@ -1437,8 +1638,9 @@ export class Builder {
    * A gain, an incompletion and a punt keep to the stamp.
    */
   headline(): void {
+    // A try keeps to its stamp: the touchdown had the headline.
     const scene = this.scene;
-    if (!scene) return;
+    if (!scene || scene.pointAfter != null) return;
     const { script } = this;
     const banner = (text: string, tone: Banner["tone"], at: number, confetti = false) => {
       script.banner = { text, tone, at, until: Math.max(script.settle, at + 1.4), confetti };
@@ -1480,11 +1682,12 @@ export class Builder {
     if (!scene) return;
     const stamp = footballStamp(scene);
     if (stamp.parts.length === 0) return;
+    // Each part's glyphs (the tag at 0.42 of the number's size) and the space after it.
     let code = 0;
     for (const part of stamp.parts) {
       let width = 0;
       for (const c of part.text) width += /\p{N}/u.test(c) ? 0.6 : c === "+" || c === "−" ? 0.62 : 0.7;
-      code += width * (part.heavy ? 1 : 0.5) + 0.22;
+      code += width * (part.heavy ? 1 : 0.42) + 0.16;
     }
     const title = Math.min([...stamp.title].length * 0.72 * 0.28, 3.4);
     const width = 0.055 + Math.max(code, title) * 0.2;
@@ -1501,8 +1704,8 @@ export class Builder {
     if (!scene) return;
     const { script } = this;
     const s = script.settle;
-    const back = s + 0.9;
-    const reform = scene.scoring == null && !scene.flips && !this.isKick;
+    const back = s + 0.75;
+    const reform = scene.scoring == null && !scene.flips && !this.isKick && scene.pointAfter == null;
     if (reform) {
       const to = Gridiron.y(scene.to);
       const dy = to - this.line;
@@ -1513,10 +1716,10 @@ export class Builder {
         if (player.set != null) player.resets = back;
       }
       const ball = script.ball(s);
-      if (ball) this.fly(ball, { x: 0, y: to, z: 0.6 }, s + 0.1, 0.6, arc(6));
+      if (ball) this.fly(ball, { x: this.ballX, y: to, z: 0.6 }, s + 0.1, 0.6, arc(6));
       script.legs = script.legs.map((leg, i) => ({ leg, i })).sort((a, b) => a.leg.from - b.leg.from || a.i - b.i).map(({ leg }) => leg);
     }
-    script.duration = (reform ? back : s + 0.3) + Player.fade;
+    script.duration = reform ? back : s + (scene.pointAfter == null ? 0.3 : 0.1);
   }
 
   // MARK: Camera
@@ -1538,7 +1741,7 @@ export class Builder {
       scene.kind.type === "punt" ? everyone.filter((i) => i !== returner) : scene.kind.type === "kickoff" ? everyone.filter((i) => i !== returner && i !== deep) : everyone;
     const points: FieldPoint[] = [this.spot];
     const gainBefore = yards(scene.gainBefore);
-    if (gainBefore != null && gainBefore - line < 45) points.push({ x: 0, y: gainBefore, z: 0 });
+    if (gainBefore != null && gainBefore - line < 45) points.push({ x: this.ballX, y: gainBefore, z: 0 });
     const shots: Shot[] = [shot(0, { actors: opening, points, closest: 60, at: 0 })];
     const lastFrom = () => shots[shots.length - 1]?.from ?? 0;
     // The ball's flights (the snap's aside): each followed with whoever's going for it.
@@ -1576,10 +1779,10 @@ export class Builder {
       shots.push(
         shot(Math.max(march.start - 0.3, lastFrom() + 0.25), {
           points: [
-            { x: -24, y: march.from, z: 0 },
-            { x: 24, y: march.from, z: 0 },
-            { x: -24, y: march.to, z: 0 },
-            { x: 24, y: march.to, z: 0 },
+            { x: this.ballX - 24, y: march.from, z: 0 },
+            { x: this.ballX + 24, y: march.from, z: 0 },
+            { x: this.ballX - 24, y: march.to, z: 0 },
+            { x: this.ballX + 24, y: march.to, z: 0 },
           ],
           closest: 60,
         }),
@@ -1594,7 +1797,7 @@ export class Builder {
     if (gain != null && Math.abs(gain - (script.next.scrimmage ?? gain)) < 45) ending.push({ x: across, y: gain, z: 0 });
     if ((scene.scoring === "fieldGoal" || this.isKick) && scene.kind.type !== "punt" && scene.kind.type !== "kickoff") ending = [...Builder.posts, ...ending];
     const scorePoint = script.scorePoint;
-    if (scene.scoring === "touchdown" && scorePoint) {
+    if (scene.scoring === "touchdown" && scene.pointAfter == null && scorePoint) {
       // Room above the goal line for the fireworks.
       ending.push({ x: scorePoint.x - 30, y: scorePoint.y, z: 30 }, { x: scorePoint.x + 30, y: scorePoint.y, z: 30 });
     }
@@ -1606,8 +1809,19 @@ export class Builder {
 
     const restRegion = this.restRegion();
     const banner: [number, number] | null = script.banner ? [script.banner.at, script.banner.until] : null;
-    const corner = script.corner;
+    // The camera keeps a little more than the stamp's corner clear: a man running into it is out of it again
+    // before the camera, a beat behind, has caught up.
+    const corner = { width: script.corner.width + 0.03, height: script.corner.height + 0.04 };
     const stamp = script.stamp;
+    /** Everyone in view, now and a beat ahead (the camera is a beat behind). */
+    const visible = (t: number): Rect[] => {
+      const out: Rect[] = [];
+      for (const p of script.players) {
+        if (!(p.opacity(t) > 0.5)) continue;
+        for (const u of [t, t + 0.4]) out.push(script.room(fieldPoint(p.position(u)), true));
+      }
+      return out;
+    };
     const goal = (t: number): CameraFrame => {
       let k = 0;
       for (let i = shots.length - 1; i >= 0; i--) {
@@ -1635,25 +1849,32 @@ export class Builder {
       }
       const headroom = CameraRig.headroom(t, banner);
       if (!Number.isFinite(stamp) || t < stamp - 0.3) return CameraFrame.fit(region, headroom, closest);
-      // The stamp never sits on the play, or on anyone near it.
-      const end = script.end ?? { x: 0, y: 0, z: 0 };
-      const others: Rect[] = [];
-      for (const p of script.players) {
-        const at = p.position(t);
-        if (p.opacity(t) > 0.5 && Math.hypot(at.x - end.x, at.y - end.y) < 70) others.push(script.room(fieldPoint(at), true));
-      }
-      return CameraFrame.fitClear(region, items, others, headroom, closest, corner);
+      // The stamp never sits on anyone in view, in the play or not (a pile trailing it, a man
+      // jogging back to the line).
+      const others = visible(t);
+      if (!(t > script.settle)) return clearing(region, items, others, headroom, closest, corner);
+      // Settled: on to where it rests, keeping the corner clear of everyone on the way.
+      return clearing(
+        restRegion,
+        others.filter((r) => intersects(restRegion, r)),
+        others,
+        headroom,
+        60,
+        corner,
+      );
     };
     const rest = this.restFrame();
-    const samples = CameraRig.follow(script.settle, goal);
-    // The move to where it rests takes as long as the camera's caps need
-    // (an eased move peaks at one and a half times its average speed).
+    // Followed until everyone is back in place, then an eased move the last of the way to the rest
+    // framing, as long as the camera's caps need (an eased move peaks at one and a half times its
+    // average speed).
+    const followed = script.duration;
+    const samples = CameraRig.follow(followed, goal);
     const last = samples[samples.length - 1] ?? rest;
     const pan = Math.hypot(last.x - rest.x, last.y - rest.y) / Math.min(last.span, rest.span);
     const zoom = Math.log(rest.span / last.span);
-    const glide = Math.max(script.duration - Player.fade - script.settle, (1.5 * pan) / 1.25, (1.5 * Math.abs(zoom)) / (zoom > 0 ? 2 : 1));
-    script.duration = script.settle + glide + Player.fade;
-    script.camera = new CameraPath(rest, samples, script.settle, script.settle + glide);
+    const glide = Math.max(0.4, (1.5 * pan) / 1.25, (1.5 * Math.abs(zoom)) / (zoom > 0 ? 2 : 1));
+    script.duration = Math.max(followed + glide, (script.banner?.until ?? 0) + 0.3);
+    script.camera = new CameraPath(rest, samples, followed, followed + glide);
   }
 
   /** The goalposts at the far end: the base, the crossbar, the tops of the uprights. */
@@ -1677,7 +1898,7 @@ export class Builder {
       if (scene?.scoring === "fieldGoal" || scene?.kind.type === "fieldGoal") items.push(...Builder.posts.map((p) => script.room(p, false)));
     }
     for (const line of [script.next.scrimmage, script.next.gain]) {
-      if (line != null) items.push(script.room({ x: 0, y: line, z: 0 }, false));
+      if (line != null) items.push(script.room({ x: this.ballX, y: line, z: 0 }, false));
     }
     return unionAll(items) ?? script.room(this.spot, true);
   }
@@ -1688,7 +1909,7 @@ export class Builder {
     const region = this.restRegion();
     const items = script.players.filter((p) => p.opacity(t) > 0.5).map((p) => script.room(fieldPoint(p.position(t)), true));
     // The stamp sits on nobody at rest.
-    return CameraFrame.fitClear(
+    return clearing(
       region,
       items.filter((r) => intersects(region, r)),
       items,
@@ -1780,6 +2001,18 @@ export function footballStamp(scene: FootballScene): FootballStamp {
   let tone: FootballStamp["tone"] = "neutral";
   let missed = false;
   const k = scene.kind;
+  // A try: "XP ✓" by the kicker, "2PT ✓" by whoever ran or caught it.
+  const tried = scene.pointAfter;
+  if (tried != null) {
+    const good = tried === "kick" ? kindIs(k, "extraPoint", true) : td;
+    parts = [
+      { text: tried === "kick" ? "XP" : "2PT", heavy: false },
+      { text: good ? "✓" : "✗", heavy: true },
+    ];
+    const how = tried === "pass" ? (names.target != null ? `to ${names.target}` : null) : scene.gap ? (scene.gap === "middle" ? "up the middle" : `${scene.lane ?? "middle"} ${scene.gap}`) : null;
+    title = tried === "kick" ? (names.lead ?? "") : [names.lead ?? null, how].filter((x): x is string => x != null).join(tried === "pass" ? " " : ", ");
+    return { parts, title, tone: good ? "score" : "neutral", missed: !good };
+  }
   switch (k.type) {
     case "pass":
       parts = [{ text: yardsText(scene.yards), heavy: true }];

@@ -9,7 +9,7 @@
  * lines stay crisp at any zoom. Type is laid out once per moment and size
  * (`layoutLabels`).
  */
-import { houseCurve, smooth, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
+import { fieldPoint, houseCurve, smooth, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
 import { facing, figure, mixPose, Poses, samePose, type Figure, type Pose } from "../../../../data/mlb/theaterPose";
 import type { Uniform } from "../../../../data/mlb/theaterTeams";
 import { goalOf, Pitch, stampDetail, surname, type SoccerScene } from "../../../../data/theater/soccerScene";
@@ -21,6 +21,7 @@ import {
   ASCENT,
   bannerBlock,
   chalk,
+  chalkEdge,
   drawBall,
   drawFigure,
   ellipse,
@@ -36,6 +37,7 @@ import {
   runsWidth,
   shadow,
   TheaterType,
+  turf,
   type Block,
   type Ctx,
   type Size,
@@ -49,7 +51,9 @@ export interface SoccerTeams {
 
 /** The goal frame: white, as it is. The net: a fine mesh, just there. (TheaterInk.goal, .net) */
 const goalInk = (ink: TheaterInk) => (ink.dark ? "rgb(255 255 255 / 0.9)" : "#ffffff");
-const netInk = (ink: TheaterInk) => (ink.dark ? "rgb(255 255 255 / 0.22)" : "rgb(0 0 0 / 0.16)");
+const netInk = (ink: TheaterInk, a = 1) => (ink.dark ? rgba([255, 255, 255], 0.22 * a) : rgba([0, 0, 0], 0.16 * a));
+/** Round the posts: the figures' halo in the dark; in the light a soft shade, so white posts read on pale grass. (TheaterInk.postRim) */
+const postRim = (ink: TheaterInk) => (ink.dark ? ink.halo : "rgb(0 0 0 / 0.22)");
 
 /** A team's color (hex or the page's ink) at an alpha. */
 function teamAlpha(u: Uniform, ink: TheaterInk, a: number): string {
@@ -65,7 +69,7 @@ function teamAlpha(u: Uniform, ink: TheaterInk, a: number): string {
  * can be in front of them or behind.)
  */
 export function drawPitch(ctx: Ctx, f: PitchProjection, ink: TheaterInk): void {
-  const camera = f.camera;
+  const camera = f.camera.camera;
   const L = Pitch.length;
   const W = Pitch.width;
   const quad = (a: FieldPoint, b: FieldPoint, c: FieldPoint, d: FieldPoint) => {
@@ -86,14 +90,22 @@ export function drawPitch(ctx: Ctx, f: PitchProjection, ink: TheaterInk): void {
   const line = Math.min(Math.max(0.75, ppm * 0.09), 1.7);
 
   // The bowl: the stands behind the boards on the far side and at each end, rising out of sight
-  // (one shape, so where they meet isn't darker), their tiers just there.
+  // (one shape, so where they meet isn't darker), their tiers just there. From behind a goal,
+  // the stand at the camera's back is out of view and the near side's stand comes into it;
+  // nothing is drawn behind the lens.
+  const behind = f.behind;
+  const x0 = behind === false ? -8 : -70;
+  const x1 = behind === true ? L + 8 : L + 70;
   ctx.beginPath();
-  ground(-70, -60, L + 70, W + 5);
-  quad(fp(-70, W + 5), fp(L + 70, W + 5), fp(L + 70, W + 60, 34), fp(-70, W + 60, 34));
-  for (const [x, out] of [
-    [-6, -40],
-    [L + 6, 40],
+  if (behind == null) ground(-70, -60, L + 70, W + 5);
+  else ctx.rect(0, 0, f.size.width, f.size.height);
+  quad(fp(x0, W + 5), fp(x1, W + 5), fp(x1, W + 60, 34), fp(x0, W + 60, 34));
+  if (behind != null) quad(fp(x0, -5), fp(x1, -5), fp(x1, -60, 34), fp(x0, -60, 34));
+  for (const [x, out, right] of [
+    [-6, -40, false],
+    [L + 6, 40, true],
   ] as const) {
+    if (behind === right) continue;
     quad(fp(x, -60), fp(x, W + 5), fp(x + out, W + 5, 25), fp(x + out, -60, 25));
   }
   ctx.fillStyle = ink.stands;
@@ -102,10 +114,16 @@ export function drawPitch(ctx: Ctx, f: PitchProjection, ink: TheaterInk): void {
   for (let k = 1; k <= 5; k++) {
     const y = W + 5 + k * 9;
     const z = (k * 9 * 34) / 55;
-    const a = f.point(fp(-70, y, z));
-    const b = f.point(fp(L + 70, y, z));
+    const a = f.point(fp(x0, y, z));
+    const b = f.point(fp(x1, y, z));
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
+    if (behind != null) {
+      const c = f.point(fp(x0, -y + W, z));
+      const d = f.point(fp(x1, -y + W, z));
+      ctx.moveTo(c.x, c.y);
+      ctx.lineTo(d.x, d.y);
+    }
   }
   ctx.strokeStyle = ink.stands;
   ctx.lineWidth = 0.5;
@@ -113,7 +131,7 @@ export function drawPitch(ctx: Ctx, f: PitchProjection, ink: TheaterInk): void {
   // The grass, with its run-off, mowed in bands across the pitch.
   ctx.beginPath();
   ground(-4, -3.5, L + 4, W + 3.5);
-  ctx.fillStyle = ink.grass;
+  ctx.fillStyle = turf(ink);
   ctx.fill();
   ctx.beginPath();
   const band = L / 18;
@@ -189,10 +207,17 @@ export function drawPitch(ctx: Ctx, f: PitchProjection, ink: TheaterInk): void {
     arc({ x, y: 0 }, 1, right ? Math.PI / 2 : 0, right ? Math.PI : Math.PI / 2, 5);
     arc({ x, y: W }, 1, right ? Math.PI : -Math.PI / 2, right ? 1.5 * Math.PI : 0, 5);
   }
-  ctx.strokeStyle = chalk(ink);
-  ctx.lineWidth = line;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+  const edge = chalkEdge(ink);
+  if (edge) {
+    // On pale grass, each line sits in a soft edge of its own.
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = line + 1.2;
+    ctx.stroke();
+  }
+  ctx.strokeStyle = chalk(ink);
+  ctx.lineWidth = line;
   ctx.stroke();
   // The spots.
   ctx.fillStyle = chalk(ink);
@@ -238,10 +263,17 @@ export const PitchPose = {
   celebrate: pose(-0.12, 0.22, 0.12, -0.22, -0.12, 2.55, 2.75, -2.55, -2.75),
   /** Hands on his head. */
   dejected: pose(0.05, 0.1, 0.05, -0.1, -0.05, 2.25, -2.2, -2.25, 2.2),
-  /** At full stretch, flying: facing the way he dives. */
-  dive: pose(1.25, -1.15, -1.35, -1.4, -1.6, 1.85, 1.95, 1.7, 1.8),
-  /** Up high, more upright. */
-  diveHigh: pose(0.8, -0.55, -1.1, -0.85, -1.3, 2.35, 2.45, 2.15, 2.3, 0.18),
+  /**
+   * The keeper at full stretch, `angle` off upright toward the ball (a top
+   * corner leans him over, a ball along the grass lays him flat): one line
+   * from the trailing foot to the leading hand, the top arm leading, the
+   * other just behind it, the push-off leg folded under. Facing the way he dives.
+   */
+  stretch(angle: number): Pose {
+    const a = Math.min(Math.max(angle, 0.55), 1.8);
+    const reach = Math.PI - a;
+    return pose(a, -a + 0.1, -a, -a + 0.55, -a - 0.5, reach - 0.04, reach - 0.08, reach + 0.34, reach + 0.06);
+  },
   /** Down on the grass after it. */
   down: pose(1.5, -1.45, -1.55, -1.35, -1.5, 1.55, 1.45, 1.05, 1.3),
 };
@@ -357,15 +389,19 @@ function place(script: SoccerScript, scene: SoccerScene | null, actor: Actor, in
   if (dive && t >= dive.start) {
     const target = f.point(dive.target);
     const set = f.pointGround(actor.position(dive.start));
-    const way = target.x >= set.x ? 1 : -1;
+    // His body along the line from his hips to the ball, as the camera sees it.
+    const hip = { x: set.x, y: set.y - height * 0.45 };
+    const way = target.x >= hip.x ? 1 : -1;
     const u = Math.min(Math.max((t - dive.start) / Math.max(dive.reach - dive.start, 0.01), 0), 1);
     const fall = Math.min(Math.max((t - dive.reach) / 0.32, 0), 1);
-    const flying = dive.target.z > 1.5 ? PitchPose.diveHigh : PitchPose.dive;
+    const flying = PitchPose.stretch(Math.atan2(Math.abs(target.x - hip.x), hip.y - target.y));
     const p = facing(mixPose(mixPose(Poses.ready, flying, smooth(u * 1.3)), PitchPose.down, smooth(fall)), way);
     const first = figure(p, foot, height);
     const pull = fall > 0 ? 1 - smooth(fall) : smooth(u);
     const reach = { x: (target.x - first.near.hand.x) * pull, y: (target.y - first.near.hand.y) * pull };
-    const placed = figure(p, { x: foot.x + reach.x, y: Math.min(foot.y + reach.y, foot.y) }, height);
+    // Off the ground on the way: daylight under him, gone as his hands reach the ball.
+    const air = fall > 0 ? 0 : 4 * u * (1 - u) * height * 0.16;
+    const placed = figure(p, { x: foot.x + reach.x, y: Math.min(foot.y + reach.y, foot.y) - air }, height);
     return { figure: placed, height, hands: placed.near.hand };
   }
   const fig = figure(actorPose(script, scene, actor, index, f, t), foot, height);
@@ -523,17 +559,34 @@ function drawShadows(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInpu
   }
 }
 
-type Item = { readonly depth: number; readonly kind: "actor"; readonly index: number } | { readonly depth: number; readonly kind: "goalBack" | "nearPost"; readonly right: boolean };
+type Item =
+  | { readonly depth: number; readonly kind: "actor"; readonly index: number }
+  /** From behind a goal: all of it at once, at its goal line. */
+  | { readonly depth: number; readonly kind: "goalBack" | "nearPost" | "goal"; readonly right: boolean };
+
+/** A goal's parts, drawn in the order the camera needs them. */
+type GoalPart = "net" | "frame" | "nearPost";
 
 /** The goals and the players, far to near (a man in front of the post covers it). Returns where the keeper holding the ball has his hands. */
 function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs): Point | null {
   const { script, scene, t, teams, ink } = input;
   const attacking = figureInks(teams.attacking, ink);
   const defending = figureInks(teams.defending, ink);
-  const items: Item[] = script.actors.map((a, index) => ({ depth: a.position(t).y, kind: "actor", index }));
-  for (const right of [false, true]) {
-    items.push({ depth: Pitch.posts.far + 0.01, kind: "goalBack", right });
-    items.push({ depth: Pitch.posts.near - 0.01, kind: "nearPost", right });
+  let items: Item[];
+  const behind = f.behind;
+  if (behind != null) {
+    items = script.actors.map((a, index) => ({ depth: f.depth(fieldPoint(a.position(t))), kind: "actor", index }));
+    for (const right of [false, true]) {
+      // The goal in front of the lens covers everyone beyond its line.
+      const line: FieldPoint = { x: right ? Pitch.length : 0, y: Pitch.width / 2, z: 0 };
+      items.push({ depth: f.depth(line) + (right === behind ? -0.01 : 0.01), kind: "goal", right });
+    }
+  } else {
+    items = script.actors.map((a, index) => ({ depth: a.position(t).y, kind: "actor", index }));
+    for (const right of [false, true]) {
+      items.push({ depth: Pitch.posts.far + 0.01, kind: "goalBack", right });
+      items.push({ depth: Pitch.posts.near - 0.01, kind: "nearPost", right });
+    }
   }
   // Stable, as Swift's sort keeps equal depths in order.
   const order = items.map((item, i) => ({ item, i })).sort((a, b) => b.item.depth - a.item.depth || a.i - b.i);
@@ -544,25 +597,28 @@ function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs): Point | nu
       const placed = place(script, scene, actor, item.index, f, t);
       drawFigure(ctx, placed.figure, actor.team === "attacking" ? attacking : defending, placed.height, 1);
       if (script.heldBy === item.index && t >= script.heldFrom) hands = placed.hands;
+    } else if (item.kind === "goalBack") {
+      drawGoal(ctx, f, input, item.right, ["net", "frame"]);
+    } else if (item.kind === "nearPost") {
+      drawGoal(ctx, f, input, item.right, ["nearPost"]);
     } else {
-      drawGoal(ctx, f, input, item.right, item.kind === "nearPost");
+      // Seen from behind, the net is nearest the lens; from the far end, furthest.
+      drawGoal(ctx, f, input, item.right, item.right === f.behind ? ["nearPost", "frame", "net"] : ["net", "frame", "nearPost"]);
     }
   }
   return hands;
 }
 
 /**
- * The goal on one end: the net (its back, roof and sides) with the far post
- * and the bar, or the near post alone. The net ripples where a goal went
- * in; the woodwork shivers where a shot struck it.
+ * The goal on one end: the net (its back, roof and sides), the far post and
+ * the bar, the near post, in the order asked. The net ripples where a goal
+ * went in; the woodwork shivers where a shot struck it.
  */
-function drawGoal(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs, right: boolean, near: boolean): void {
+function drawGoal(ctx: Ctx, f: PitchProjection, input: FrameInputs, right: boolean, parts: readonly GoalPart[]): void {
+  const { script, t, ink } = input;
   const x = right ? Pitch.length : 0;
-  const s = right ? 1 : -1;
   const posts = Pitch.posts;
   const H = Pitch.goalHeight;
-  const depthLow = 2;
-  const depthHigh = 0.9;
   const post = Math.min(Math.max(0.12 * f.scale({ x, y: Pitch.width / 2, z: 0 }), 1.1), 3.2);
   // The woodwork shivers after a hit.
   let shiver = 0;
@@ -571,29 +627,48 @@ function drawGoal(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs,
     const u = t - struck.at;
     shiver = 0.05 * Math.exp(-u * 7) * Math.sin(u * 2 * Math.PI * 16);
   }
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  const frame = (points: readonly FieldPoint[]) => {
+  const wood = (points: readonly FieldPoint[]) => {
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.beginPath();
     points.forEach((q, i) => {
       const p = f.point(q);
       if (i === 0) ctx.moveTo(p.x, p.y);
       else ctx.lineTo(p.x, p.y);
     });
-    ctx.strokeStyle = ink.halo;
+    ctx.strokeStyle = postRim(ink);
     ctx.lineWidth = post + 1.4;
     ctx.stroke();
     ctx.strokeStyle = goalInk(ink);
     ctx.lineWidth = post;
     ctx.stroke();
   };
-  if (near) {
-    frame([
-      { x, y: posts.near + shiver, z: 0 },
-      { x, y: posts.near + shiver, z: H },
-    ]);
-    return;
+  for (const part of parts) {
+    switch (part) {
+      case "nearPost":
+        wood([
+          { x, y: posts.near + shiver, z: 0 },
+          { x, y: posts.near + shiver, z: H },
+        ]);
+        break;
+      case "frame":
+        // The far post and the bar.
+        wood([
+          { x, y: posts.far + shiver, z: 0 },
+          { x, y: posts.far + shiver, z: H + shiver },
+          { x, y: posts.near + shiver, z: H + shiver },
+        ]);
+        break;
+      case "net":
+        drawNet(ctx, f, input, right, x, right ? 1 : -1, 2, 0.9);
+        break;
+    }
   }
+}
+
+function drawNet(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs, right: boolean, x: number, s: number, depthLow: number, depthHigh: number): void {
+  const posts = Pitch.posts;
+  const H = Pitch.goalHeight;
   // The net: bellied out round where the ball hit it, swaying back.
   const hit = script.impacts.find((i) => i.kind === "net" && i.point.x > Pitch.length / 2 === right);
   const bulge = (y: number, z: number) => {
@@ -604,6 +679,16 @@ function drawGoal(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs,
     return 0.75 * reach * Math.exp(-u * 3.4) * Math.cos(u * 2 * Math.PI * 1.4) * Math.min(u / 0.06, 1);
   };
   const back = (y: number, z: number): Point => f.point({ x: x + s * (depthLow + ((depthHigh - depthLow) * z) / H + bulge(y, z)), y, z });
+  // From behind it, the net is the nearest thing to the lens: a veil, its mesh heavier.
+  const close = f.behind === right;
+  if (close) {
+    const across = Array.from({ length: 13 }, (_, i) => posts.near + ((posts.far - posts.near) * i) / 12);
+    ctx.beginPath();
+    [...across.map((y) => back(y, 0)), ...[...across].reverse().map((y) => back(y, H))].forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+    ctx.closePath();
+    ctx.fillStyle = netInk(ink, 0.3);
+    ctx.fill();
+  }
   ctx.beginPath();
   const columns = 12;
   const rows = 5;
@@ -643,14 +728,8 @@ function drawGoal(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs,
     ctx.lineTo(b.x, b.y);
   }
   ctx.strokeStyle = netInk(ink);
-  ctx.lineWidth = 0.5;
+  ctx.lineWidth = close ? Math.min(Math.max(f.scale({ x, y: Pitch.width / 2, z: 0 }) * 0.02, 0.6), 1.1) : 0.5;
   ctx.stroke();
-  // The far post and the bar.
-  frame([
-    { x, y: posts.far + shiver, z: 0 },
-    { x, y: posts.far + shiver, z: H + shiver },
-    { x, y: posts.near + shiver, z: H + shiver },
-  ]);
 }
 
 function drawTheBall(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs, hands: Point | null): void {

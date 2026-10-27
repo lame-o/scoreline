@@ -2,10 +2,11 @@
  * Development only: the football theater on real Monday Night Football
  * snaps (DAL at PHI, test/fixtures/mnf-dal-phi-plays.json), without a live
  * game (the Mac app's render harness, for the web): a touchdown run, a pick
- * six (the interception, taken all the way back, as the Swift tests do), a
- * field goal, a deep pass, a 34-yard run, an interception, a sack, a punt
- * downed at the 2, a flag before the snap and a kickoff return, each with a
- * Replay button. `?t=2.4` draws every tile at that instant, frozen, for
+ * six (the interception, taken all the way back, as the Swift tests do),
+ * the touchdown's extra point and a two-point try as their own beats, a
+ * field goal, a deep pass, a 34-yard run from a heavy set, a snap off the
+ * right hash, an interception, a sack, a punt downed at the 2, a flag
+ * before the snap and a kickoff return, each with a Replay button. `?t=2.4` draws every tile at that instant, frozen, for
  * screenshots; `?only=Touchdown` keeps the tiles whose title starts so.
  * Fixtures load lazily from test/fixtures, so nothing here ships.
  */
@@ -15,6 +16,7 @@ import type { FootballTeams } from "../../../../data/liveFeeds/football";
 import { liveMoment, Tier, type Accent, type LiveMoment, type MomentKind } from "../../../../data/moments";
 import { teamPalette } from "../../../../data/teamColors";
 import { parse, type FootballScene, type FootballTheaterState } from "../../../../data/theater/footballScene";
+import { spot } from "../../../../data/theater/footballTheater";
 import { useColorScheme } from "../../../../state/theme";
 import { MomentProvider, useMomentSlot } from "../../core/moments";
 import FootballTheater from "./FootballTheater";
@@ -60,14 +62,23 @@ function tiles(fixture: Fixture): Tile[] {
     six.to = 0;
   }
   const fieldGoal = scene("9213");
+  // A snap spotted on its hash from the plays before it: the one after a pass pushed out on the right.
+  const spotted = spot(
+    fixture.items.flatMap((i) => parse(i, TEAMS) ?? []),
+    null,
+  );
+  const afterOut = spotted[spotted.findIndex((s) => s.id.endsWith("9274")) + 1] ?? null;
   const deep = scene("2186");
   const run = scene("3403");
   return [
     ...tile("Touchdown run", touchdown, moment(touchdown, "touchdown", "Touchdown")),
     ...tile("Pick six", six, moment(six, "touchdown", "Touchdown")),
+    ...tile("Extra point", touchdown?.conversion ?? null),
+    ...tile("Two-point try", scene("3048")?.conversion ?? null),
     ...tile("Field goal", fieldGoal, moment(fieldGoal, "fieldGoal", "Field goal")),
     ...tile("Deep pass", deep, moment(deep, "passComplete", "Pass", Tier.routine, ["bigPlay"])),
     ...tile("Run, left tackle", run, moment(run, "rush", "Run", Tier.routine, ["bigPlay"])),
+    ...tile("Off the right hash", afterOut),
     ...tile("Interception", pick),
     ...tile("Sack", scene("3888")),
     ...tile("Punt, downed", scene("1812")),

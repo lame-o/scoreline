@@ -22,6 +22,7 @@ import {
   ASCENT,
   bannerBlock,
   chalk,
+  chalkEdge,
   drawFigure,
   drawGlow,
   drawRuns,
@@ -39,6 +40,7 @@ import {
   runsWidth,
   shadow,
   TheaterType,
+  turf,
   type Block,
   type Ctx,
   type Size,
@@ -159,7 +161,7 @@ export function drawGridiron(ctx: Ctx, f: GridProjection, ink: TheaterInk, near:
   // The turf runs on past the sidelines (a chase to the sideline never looks into a void); the field is mowed.
   ctx.beginPath();
   quad(-h - 110, -Gridiron.endZone - 110, h + 110, Gridiron.backLine + 130);
-  ctx.fillStyle = ink.grass;
+  ctx.fillStyle = turf(ink);
   ctx.fill();
   // Mowed in five-yard bands, every other one lighter.
   ctx.beginPath();
@@ -200,26 +202,42 @@ export function drawGridiron(ctx: Ctx, f: GridProjection, ink: TheaterInk, near:
   }
 
   // Yard lines every five, the goal lines heavier.
-  ctx.beginPath();
-  for (let k = 1; k < 20; k++) {
-    if (!shown(k * 15)) continue;
-    const a = f.point({ x: -h, y: k * 15 });
-    const b = f.point({ x: h, y: k * 15 });
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-  }
-  ctx.strokeStyle = chalk(ink, 0.75);
-  ctx.lineWidth = line;
+  const yardLines = (goals: boolean) => {
+    ctx.beginPath();
+    for (let k = 0; k <= 20; k++) {
+      if ((k === 0 || k === 20) !== goals || !shown(k * 15)) continue;
+      const a = f.point({ x: -h, y: k * 15 });
+      const b = f.point({ x: h, y: k * 15 });
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+    }
+  };
   ctx.lineCap = "butt";
-  ctx.stroke();
-  ctx.beginPath();
-  for (const k of [0, 20]) {
-    if (!shown(k * 15)) continue;
-    const a = f.point({ x: -h, y: k * 15 });
-    const b = f.point({ x: h, y: k * 15 });
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
+  const edge = chalkEdge(ink);
+  if (edge) {
+    // On pale grass, each line sits in a soft edge of its own.
+    ctx.beginPath();
+    for (let k = 0; k <= 20; k++) {
+      if (!shown(k * 15)) continue;
+      const a = f.point({ x: -h, y: k * 15 });
+      const b = f.point({ x: h, y: k * 15 });
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+    }
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = line * 1.3 + 1.2;
+    ctx.stroke();
+    ctx.beginPath();
+    quad(-h, -Gridiron.endZone, h, Gridiron.backLine);
+    ctx.lineWidth = line * 1.8 + 1.2;
+    ctx.lineJoin = "miter";
+    ctx.stroke();
   }
+  yardLines(false);
+  ctx.strokeStyle = chalk(ink, ink.dark ? 0.75 : 1);
+  ctx.lineWidth = line;
+  ctx.stroke();
+  yardLines(true);
   ctx.strokeStyle = chalk(ink);
   ctx.lineWidth = line * 1.6;
   ctx.stroke();
@@ -285,7 +303,7 @@ export function drawGridiron(ctx: Ctx, f: GridProjection, ink: TheaterInk, near:
     ctx.lineTo(rb.x, rb.y);
     ctx.lineTo(rt.x, rt.y);
   }
-  ctx.strokeStyle = `${ink.yellow}d9`;
+  ctx.strokeStyle = ink.dark ? `${ink.yellow}d9` : ink.gold;
   ctx.lineWidth = line + 0.35;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -495,7 +513,7 @@ export function layoutLabels(ctx: Ctx, scene: FootballScene | null, script: Foot
   const b = script.banner;
   if (b) {
     const color = b.tone.kind === "side" ? sideColor(b.tone.side, scene, teams, ink) : b.tone.kind === "gold" ? ink.gold : primary(ink);
-    banner = bannerBlock(ctx, b.text, color, TheaterType.banner(size, pt));
+    banner = bannerBlock(ctx, b.text, color, TheaterType.bannerFitting(size, pt, b.text));
   }
   ctx.restore();
   return { stamp, banner };

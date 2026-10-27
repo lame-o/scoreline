@@ -7,7 +7,9 @@
  * saved, blocked), and the choreography (every pass from the man who played
  * it to the man it found, the keeper's hands where the ball is, a goal in the
  * net, a replay that settles on the frame it holds), the camera, and who
- * celebrates what. The Swift suite's pixel checks ("Drawn") live with the
+ * celebrates what; and the Mac's polish: the angle from behind the goal,
+ * the keeper once, the dive, the pace of a move, the stamp's corner kept
+ * clear, bursts sized by the well. The Swift suite's pixel checks ("Drawn") live with the
  * renderer.
  */
 import { describe, expect, it } from "vitest";
@@ -18,8 +20,12 @@ import { CameraFrame } from "../../src/data/mlb/playCamera";
 import type { FieldPoint, Point } from "../../src/data/mlb/theaterField";
 import { cueBursts } from "../../src/data/celebrations";
 import { attacksRight, buildUpOf, crossbar, decides, distance, isMoment, keepers, minute, parse, Pitch, scored, surname, touchLimit, type SoccerScene } from "../../src/data/theater/soccerScene";
-import { goalFrame, PitchCamera, room, SoccerScript } from "../../src/data/theater/soccerScript";
-import { CameraFollow } from "../../src/data/theater/theaterKit";
+import { goalFrame, PitchCamera, PitchFrame, room, SoccerScript } from "../../src/data/theater/soccerScript";
+import { CameraFollow, TheaterBurst } from "../../src/data/theater/theaterKit";
+import { buildUpLimit, loftSpeed, passSpeed } from "../../src/data/theater/soccerScript";
+import { keeperSave } from "../../src/data/theater/soccerScene";
+import { figure } from "../../src/data/mlb/theaterPose";
+import { PitchPose } from "../../src/features/game/soccer/theater/drawSoccer";
 import { GoalCelebration, PitchProjection, sentences, SoccerTheaterWatch, soccerTheaterState, stampDetail } from "../../src/data/theater/soccerTheater";
 import { fixture } from "./fixtures";
 
@@ -397,7 +403,7 @@ describe("soccer theater: choreography", () => {
 
 describe("soccer theater: the camera", () => {
   const size = { width: 640, height: 320 };
-  const inView = (p: FieldPoint, frame: CameraFrame, slack = 0) => {
+  const inView = (p: FieldPoint, frame: PitchFrame, slack = 0) => {
     const q = new PitchProjection(size, frame).point(p);
     return q.x >= -slack * size.width && q.x <= size.width * (1 + slack) && q.y >= -slack * size.height && q.y <= size.height * (1 + slack);
   };
@@ -456,6 +462,175 @@ describe("soccer theater: the camera", () => {
 
   it("no closer than it's asked", () => {
     expect(PitchCamera.fitting([room({ x: 52.5, y: 34, z: 0 }, true)], CameraFrame.headroom, 12).span).toBeGreaterThanOrEqual(12);
+  });
+});
+
+describe("soccer theater: behind the goal", () => {
+  const size = { width: 640, height: 320 };
+  const inView = (p: FieldPoint, frame: PitchFrame, slack = 0) => {
+    const q = new PitchProjection(size, frame).point(p);
+    return q.x >= -slack * size.width && q.x <= size.width * (1 + slack) && q.y >= -slack * size.height && q.y <= size.height * (1 + slack);
+  };
+  const onTarget = scripts.filter(([scene]) => scene.outcome === "goal" || scene.outcome === "saved");
+
+  it("a shot on target cuts behind the net just after the strike, holds through the finish, and is back before the stamp", () => {
+    const cuts = onTarget.filter(([scene, s]) => {
+      const r = s.reverse;
+      if (!r) return false;
+      const at = s.frame(s.arrive).angle;
+      return r.from > s.strike && r.from < s.strike + 0.2 && r.until > s.arrive + 0.5 && r.until < s.stamp && r.right === attacksRight(scene) && at.kind === "behind" && at.right === attacksRight(scene) && s.frame(r.until).angle.kind === "stand";
+    });
+    expect(onTarget.length).toBeGreaterThanOrEqual(8);
+    expect(cuts.length).toBe(onTarget.length);
+  });
+
+  it("…a block, a miss, the woodwork and an own goal stay on the main camera", () => {
+    expect(scripts.filter(([scene]) => scene.outcome !== "goal" && scene.outcome !== "saved").every(([, s]) => s.reverse == null)).toBe(true);
+  });
+
+  it("…from there: the goal mouth, the keeper and where the ball ends up, all in view", () => {
+    const seen = onTarget.filter(([scene, s]) => {
+      const f = s.frame(s.arrive);
+      const keeper = s.actors.find((a) => a.role === "keeper");
+      return (
+        goalFrame(attacksRight(scene)).slice(0, 4).every((p) => inView(p, f, 0.02)) &&
+        keeper != null &&
+        inView({ ...keeper.position(s.strike), z: 0 }, f, 0.02) &&
+        s.shot != null &&
+        inView(s.flights[s.shot]!.to, f)
+      );
+    });
+    expect(seen.length).toBe(onTarget.length);
+  });
+
+  it("…a camera held still in the stand behind the net, above the bar", () => {
+    const script = SoccerScript.build(header!.scene);
+    const r = script.reverse!;
+    const still = exclusive(r.from, r.until, 0.05).every((t) => PitchFrame.equal(script.frame(t), script.frame(r.from)));
+    const eye = PitchCamera.eye(r.frame, { kind: "behind", right: true });
+    expect(still).toBe(true);
+    expect(eye.x).toBeGreaterThan(Pitch.length + 2);
+    expect(eye.z).toBeGreaterThan(Pitch.goalHeight);
+  });
+});
+
+describe("soccer theater: the keeper, once", () => {
+  it("with no keeper's name known yet, the keeper is never drawn twice", () => {
+    const twice: string[] = [];
+    for (const clip of clips) {
+      clip.plays.forEach((p, i) => {
+        if (!isMoment(p)) return;
+        const scene = parse(clip.plays, i, clip.home, {});
+        if (!scene) return;
+        const s = SoccerScript.build(scene);
+        const his = new Set(scene.touches.filter((t) => t.keeper).map((t) => t.player));
+        if (s.actors.filter((a) => a.role === "keeper").length !== 1 || s.actors.some((a) => a.team === "defending" && a.role === "outfield" && his.has(a.name))) twice.push(scene.shooter);
+      });
+    }
+    expect(twice).toEqual([]);
+  });
+
+  it("Konsa's goal, Pickford unknown: his save of Gabriel's header makes him the keeper, once", () => {
+    const clue = "Ezri Konsa (Arsenal) right footed shot from very close range";
+    const found = find(clue)!;
+    const unknown = parse(found.clip.plays, found.index, found.clip.home, {})!;
+    const s = SoccerScript.build(unknown);
+    expect(unknown.keeper.name).toBe("Jordan Pickford");
+    expect(s.actors.filter((a) => a.name === "Jordan Pickford").length).toBe(1);
+    expect(s.actors.find((a) => a.role === "keeper")?.name).toBe("Jordan Pickford");
+  });
+
+  it("…but the save credited after a block is the blocker's, not the keeper's", () => {
+    const typeOf = (p: JSONValue) => (p as { type?: { type?: string } }).type?.type;
+    const blockedSaves = clips.flatMap((clip) =>
+      clip.plays.flatMap((p, i) => {
+        if (typeOf(p) !== "save") return [];
+        const after = clip.plays.slice(Math.max(i - 3, 0), i).some((q) => typeOf(q) === "shot-blocked" && !textOf(q).includes(" saved "));
+        return after ? [{ clip, i }] : [];
+      }),
+    );
+    expect(blockedSaves.length).toBeGreaterThan(0);
+    expect(blockedSaves.every(({ clip, i }) => !keeperSave(clip.plays, i))).toBe(true);
+  });
+});
+
+describe("soccer theater: the dive", () => {
+  it("at full stretch: one line from the trailing foot through the body to the leading hand, beyond his head; leaning for a top corner, flat along the grass", () => {
+    const angle = (p: Point, q: Point) => Math.atan2(q.x - p.x, p.y - q.y);
+    for (const a of [0.6, 0.9, 1.2, 1.5, 1.8]) {
+      const f = figure(PitchPose.stretch(a), { x: 0, y: 0 }, 40);
+      const reach = Math.hypot(f.near.hand.x - f.hip.x, f.near.hand.y - f.hip.y);
+      const head = Math.hypot(f.head.x - f.hip.x, f.head.y - f.hip.y);
+      expect(Math.abs(angle(f.hip, f.neck) - a)).toBeLessThan(0.01);
+      expect(Math.abs(angle(f.neck, f.near.hand) - a)).toBeLessThan(0.15);
+      expect(Math.abs(angle(f.near.foot, f.hip) - a)).toBeLessThan(0.15);
+      expect(reach).toBeGreaterThan(head);
+    }
+    expect(PitchPose.stretch(0.7).lean).toBeLessThan(PitchPose.stretch(1.6).lean);
+  });
+
+  it("…a dive takes half a second, whatever the shot's flight: from distance he reads it first", () => {
+    const dives = scripts.flatMap(([, s]) => {
+      const d = s.actors.find((a) => a.dive != null)?.dive;
+      return d ? [{ s, d }] : [];
+    });
+    expect(dives.length).toBeGreaterThanOrEqual(8);
+    expect(dives.every(({ s, d }) => d.reach - d.start <= 0.61 && d.start >= s.strike)).toBe(true);
+  });
+});
+
+describe("soccer theater: the pace of a move", () => {
+  it("a nine-pass move, as a replay cuts it: picked up a few passes in, the early ones hurried, White's cross at the game's pace, the header inside 5.6 s", () => {
+    const s = header!.scene;
+    const script = SoccerScript.build(s);
+    const passes = script.flights.filter((f) => f.kind === "pass" && f.end <= script.strike + 0.01);
+    const cross = passes[passes.length - 1]!;
+    const d = Math.hypot(cross.to.x - cross.from.x, cross.to.y - cross.from.y);
+    const full = Math.min(Math.max(d / loftSpeed + 0.25, 0.6), 1.5);
+    const early = passes.slice(0, -2).map((f) => (f.end - f.start) / Math.min(Math.max(Math.hypot(f.to.x - f.from.x, f.to.y - f.from.y) / passSpeed, 0.28), 1.1));
+    const closing = (cross.end - cross.start) / full;
+    const first = script.flights[0]!;
+    const opens = s.touches.findIndex((t) => near(t.at, first.from, 0.1));
+    expect(script.strike).toBeLessThan(5.6);
+    expect(closing).toBeGreaterThan(0.99);
+    expect(early.every((x) => x < 0.95)).toBe(true);
+    expect(opens).toBeGreaterThan(0);
+  });
+
+  it("no pass so hurried it reads as a jump; every build-up comes in around five seconds", () => {
+    expect(scripts.every(([, s]) => s.flights.filter((f) => f.kind === "pass").every((f) => f.end - f.start >= 0.2 - 1e-9))).toBe(true);
+    expect(scripts.every(([scene, s]) => s.strike <= (scene.start === "openPlay" ? 0.5 : 1.3) + buildUpLimit + 0.6)).toBe(true);
+  });
+});
+
+describe("soccer theater: the stamp's corner and bursts by the well", () => {
+  const size = { width: 640, height: 320 };
+
+  it("once the stamp has landed, nobody stands in its corner (a teammate running to the scorer)", () => {
+    const crowded = scripts.map(([, s]) =>
+      range(s.stamp + 0.4, s.duration, 0.05).filter((t) => {
+        const f = new PitchProjection(size, s.frame(t));
+        return s.actors.some((a) => {
+          const foot = f.point({ ...a.position(t), z: 0 });
+          const x = foot.x / size.width;
+          const y = foot.y / size.height;
+          const across = s.cornerRight ? x > 1 - s.corner.width + 0.02 : x < s.corner.width - 0.02;
+          return across && x > 0 && x < 1 && y > 1 - s.corner.height + 0.03 && y < 1;
+        });
+      }).length,
+    );
+    expect(crowded.reduce((a, b) => a + b, 0)).toBe(0);
+  });
+
+  it("a celebration grows with the well, and starts far enough inside it not to be cut off, clear of the headline", () => {
+    const compact = TheaterBurst.scale(156);
+    const roomy = TheaterBurst.scale(306);
+    expect(compact).toBeGreaterThan(2.5);
+    expect(roomy / compact).toBeGreaterThan(1.55);
+    expect(roomy / compact).toBeLessThan(1.96);
+    const kept = TheaterBurst.inside({ x: -20, y: -10 }, { width: 312, height: 156 });
+    expect(kept.x).toBeGreaterThanOrEqual(46);
+    expect(kept.y).toBeGreaterThanOrEqual(156 * 0.36);
   });
 });
 
