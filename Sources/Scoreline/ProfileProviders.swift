@@ -25,6 +25,12 @@ enum PhotoURL {
         let px = size == .small ? 96 : 240
         return URL(string: "https://image-proxy.bo3.gg\(url.path())?w=\(px)&h=\(px)")
     }
+
+    /// The hero's size of a bo3.gg photo, from the original or a list's thumbnail.
+    static func bo3(hero url: URL?) -> URL? {
+        guard let url, url.host() == "image-proxy.bo3.gg" else { return bo3(url, size: .hero) }
+        return URL(string: "https://image-proxy.bo3.gg\(url.path())?w=240&h=240")
+    }
 }
 
 // MARK: - Shared readers

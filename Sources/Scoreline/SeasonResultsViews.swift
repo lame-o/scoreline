@@ -29,6 +29,13 @@ struct ClimbingResultsPage: View {
     @State private var hover = HighlightState()
     @State private var keyboardDriven = false
     @FocusState private var focused: Bool
+    /// How far the season card has docked (read by the docked bar, never by this page).
+    @State private var geometry = PageGeometry()
+    @State private var actions = SeasonDockActions()
+    #if DEBUG
+    /// Harness counter: body runs (scrolling must add none).
+    static var bodyRuns = 0
+    #endif
 
     private var results: SeasonResultsStore { injected ?? .shared }
     private var box: SeasonResultsStore.Climbing { results.climbing }
@@ -40,6 +47,9 @@ struct ClimbingResultsPage: View {
                         SeasonTimeline.Lane(id: "speed", label: "Speed")]
 
     var body: some View {
+        #if DEBUG
+        let _ = Self.bodyRuns += 1
+        #endif
         VStack(spacing: 0) {
             VStack(spacing: 0) {
                 header
@@ -113,18 +123,12 @@ struct ClimbingResultsPage: View {
                 Button("Show Upcoming") { onMode(.upcoming) }.controlSize(.small)
             }
         } else {
-            ScrollViewReader { proxy in
+            let summary = SeasonSummary.results(season: box.season, finished: finished.count, total: season.count), axis = self.axis
             PageScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(seasonLine)
-                        .font(.system(size: 11).monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, Metrics.gutter)
+                    SeasonCard(summary: summary, axis: axis, hover: hover, onSelect: { select($0) }) { EmptyView() }
+                        .padding(.horizontal, 10)
                         .padding(.top, 4)
-                        .stackIn()
-                    HoverReader(state: hover) { hovered in timeline(hovered: hovered) }
-                        .padding(.horizontal, Metrics.gutter)
-                        .padding(.top, 12)
                         .stackIn()
                     if layout.split {
                         HStack(alignment: .top, spacing: 0) {
@@ -146,9 +150,37 @@ struct ClimbingResultsPage: View {
                 .coordinateSpace(name: Self.contentSpace)
                 .environment(\.stackArrival, arrival ?? page)
             }
-            .modifier(HighlightScroll(state: hover, proxy: proxy, keyboardDriven: { keyboardDriven }))
+            // As the card tucks under the header, its docked bar settles in:
+            // an overlay, so it never changes the page's measured height.
+            .overlay(alignment: .top) {
+                DockedBarHost { dockBar(summary, axis).equatable() }
             }
+            .modifier(DockedHighlightScroll(state: hover, geometry: geometry, keyboardDriven: { keyboardDriven }))
+            .environment(\.pageGeometry, geometry)
         }
+    }
+
+    /// Hovered, else the one open beside the list, else the latest result.
+    private var axis: SeasonAxis {
+        let present = Set(season.flatMap(\.lanes))
+        return SeasonAxis(events: season, lanes: Self.lanes.filter { present.contains($0.id) }, today: .today(), next: nil,
+                          selected: layout.split ? selectedEvent?.id : nil,
+                          readouts: Dictionary(season.map { ($0.id, readoutText($0)) }, uniquingKeysWith: { a, _ in a }),
+                          resting: layout.split ? selectedEvent?.id : finished.first?.id)
+    }
+
+    private func dockBar(_ summary: SeasonSummary, _ axis: SeasonAxis) -> SeasonDockBar {
+        // Refreshed every render: a click acts on the page as it is now.
+        actions.reveal = { reveal($0) }
+        return SeasonDockBar(summary: summary, axis: axis, hover: hover, actions: actions)
+    }
+
+    /// A mark clicked in the docked bar: the competition opens (or shows
+    /// beside the list) and its row scrolls up to just under the bar.
+    private func reveal(_ id: String) {
+        guard finished.contains(where: { $0.id == id }) else { return }
+        if layout.split || !box.expanded.contains(id) { select(id) }
+        geometry.scroll(toAnchor: id, topInset: SeasonDock.reserve, animated: !reduceMotion)
     }
 
     /// Months newest first, each keeping the list's order: what's on screen, top to bottom.
@@ -184,13 +216,6 @@ struct ClimbingResultsPage: View {
         return .handled
     }
 
-    /// "2026 season complete · 13 competitions"; mid-season, how far along.
-    private var seasonLine: String {
-        let name = box.season ?? ""
-        if finished.count == season.count { return "\(name) season complete · \(plural(season.count, "competition"))" }
-        return "\(name) season · \(finished.count) of \(plural(season.count, "competition")) finished"
-    }
-
     private var selectedEvent: SeasonEvent? {
         finished.first { $0.id == box.selected } ?? finished.first
     }
@@ -198,23 +223,6 @@ struct ClimbingResultsPage: View {
     private func yours(_ event: SeasonEvent) -> [String: [CountryBest]] {
         guard case let .climbing(id) = event.kind, !box.yours.isEmpty else { return [:] }
         return box.yours.filter { $0.key.hasPrefix("\(id)-") }
-    }
-
-    private func timeline(hovered: String?) -> some View {
-        let present = Set(season.flatMap(\.lanes))
-        let lanes = Self.lanes.filter { present.contains($0.id) }
-        let readout = season.first { $0.id == hovered } ?? (layout.split ? selectedEvent : finished.first)
-        return VStack(alignment: .leading, spacing: 6) {
-            SeasonTimeline(events: season, lanes: lanes, today: .today(), next: nil, selected: layout.split ? selectedEvent?.id : nil,
-                           hovered: Binding(get: { hover.id }, set: { if hover.id != $0 { hover.id = $0 } })) { select($0) }
-            if let readout {
-                Text(readoutText(readout))
-                    .font(.system(size: 10.5).monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .padding(.leading, SeasonTimeline.labelWidth)
-            }
-        }
     }
 
     /// "Santiago · Oct 23–25 · 🥇 Zhao, Deng, Utelli, Garnbret"
@@ -245,7 +253,7 @@ struct ClimbingResultsPage: View {
                             hover.id = nil
                         }
                     }
-                    .id(event.id)
+                    .pageAnchor(event.id)
                     .stackIn()
                     if expandable && open {
                         ClimbingResultsDetail(event: event, yours: yours(event), countries: countries,
@@ -463,6 +471,7 @@ struct TournamentResultsPage: View {
     @Environment(\.seasonResultsStore) private var injected
     @Environment(\.stackArrival) private var page
     @Environment(\.panelLayout) private var layout
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(PanelCommands.self) private var commands: PanelCommands?
     let backTitle: String
     let onBack: () -> Void
@@ -472,6 +481,13 @@ struct TournamentResultsPage: View {
     @State private var arrival: StackArrival?
     @State private var keyboardDriven = false
     @FocusState private var focused: Bool
+    /// How far the season card has docked (read by the docked bar, never by this page).
+    @State private var geometry = PageGeometry()
+    @State private var actions = SeasonDockActions()
+    #if DEBUG
+    /// Harness counter: body runs (scrolling must add none).
+    static var bodyRuns = 0
+    #endif
 
     private var results: SeasonResultsStore { injected ?? .shared }
     private var box: SeasonResultsStore.Tournaments { results.tournaments }
@@ -479,6 +495,9 @@ struct TournamentResultsPage: View {
     private static let contentSpace = "tournaments.results"
 
     var body: some View {
+        #if DEBUG
+        let _ = Self.bodyRuns += 1
+        #endif
         VStack(spacing: 0) {
             VStack(spacing: 0) {
                 PageHeader("Tournaments", symbol: Sport.esports.symbol) { BackButton(title: backTitle, action: onBack) }
@@ -521,9 +540,13 @@ struct TournamentResultsPage: View {
         } else if box.items.isEmpty {
             EmptyState(symbol: "trophy", title: "No Results", message: "No finished S-tier tournaments yet.")
         } else {
-            ScrollViewReader { proxy in
+            let summary = SeasonSummary.tournamentResults(box.items.map(\.event)), axis = self.axis
             PageScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    SeasonCard(summary: summary, axis: axis, hover: hover, onSelect: { open($0) }) { EmptyView() }
+                        .padding(.horizontal, 10)
+                        .padding(.top, 4)
+                        .stackIn()
                     if layout.split {
                         HStack(alignment: .top, spacing: 0) {
                             list.frame(maxWidth: .infinity, alignment: .top)
@@ -555,9 +578,50 @@ struct TournamentResultsPage: View {
                 .coordinateSpace(name: Self.contentSpace)
                 .environment(\.stackArrival, arrival ?? page)
             }
-            .modifier(HighlightScroll(state: hover, proxy: proxy, keyboardDriven: { keyboardDriven }))
+            // As the card tucks under the header, its docked bar settles in:
+            // an overlay, so it never changes the page's measured height.
+            .overlay(alignment: .top) {
+                DockedBarHost { dockBar(summary, axis).equatable() }
             }
+            .modifier(DockedHighlightScroll(state: hover, geometry: geometry, keyboardDriven: { keyboardDriven }))
+            .environment(\.pageGeometry, geometry)
         }
+    }
+
+    /// The tournaments on one S-tier lane; hovered, else the one beside the list, else the latest.
+    private var axis: SeasonAxis {
+        let events = box.items.map(\.event)
+        let readouts = box.items.map { t in
+            (t.id, [t.title, DayKey.range(t.event.startDay, t.event.endDay),
+                    t.summary?.components(separatedBy: " · ").first].compactMap { $0 }.joined(separator: " · "))
+        }
+        return SeasonAxis(events: events, lanes: [SeasonTimeline.Lane(id: CounterStrike.tier, label: "S-Tier")], today: .today(),
+                          next: nil, selected: layout.split ? selectedTournament?.id : nil,
+                          readouts: Dictionary(readouts, uniquingKeysWith: { a, _ in a }),
+                          resting: layout.split ? selectedTournament?.id : box.items.first?.id)
+    }
+
+    private func dockBar(_ summary: SeasonSummary, _ axis: SeasonAxis) -> SeasonDockBar {
+        // Refreshed every render: a click acts on the page as it is now.
+        actions.reveal = { reveal($0) }
+        return SeasonDockBar(summary: summary, axis: axis, hover: hover, actions: actions)
+    }
+
+    /// A tournament on the timeline: beside the list (split), else its results page.
+    private func open(_ id: String) {
+        guard let tournament = box.items.first(where: { $0.id == id }) else { return }
+        if layout.split {
+            box.selected = id
+        } else {
+            onOpenResults(.tournament(slug: tournament.slug, name: tournament.event.name))
+        }
+    }
+
+    /// A mark clicked in the docked bar: as on the timeline, and beside the
+    /// list its row scrolls up to just under the bar.
+    private func reveal(_ id: String) {
+        open(id)
+        if layout.split { geometry.scroll(toAnchor: id, topInset: SeasonDock.reserve, animated: !reduceMotion) }
     }
 
     private func move(_ delta: Int) {
@@ -615,7 +679,7 @@ struct TournamentResultsPage: View {
                             hover.id = nil
                         }
                     }
-                    .id(tournament.id)
+                    .pageAnchor(tournament.id)
                     .stackIn()
                 }
             }
@@ -875,5 +939,23 @@ struct SeasonResultsPreview: View {
         }
         .padding(.horizontal, Metrics.gutter)
         .padding(.vertical, 6)
+    }
+}
+
+extension SeasonSummary {
+    /// Climbing's Results card: "2026 season complete · 10 competitions";
+    /// mid-season, how far along. (pure; tested)
+    static func results(season: String?, finished: Int, total: Int) -> SeasonSummary {
+        let name = season ?? ""
+        if finished == total { return SeasonSummary(headline: "\(name) season complete", subline: plural(total, "competition")) }
+        return SeasonSummary(headline: "\(name) season", subline: "\(finished) of \(plural(total, "competition")) finished")
+    }
+
+    /// CS2's Results card: how many S-tier tournaments are listed, and since
+    /// when ("12 S-tier tournaments", "Since Apr 2026"). Grows with Show Earlier.
+    static func tournamentResults(_ events: [SeasonEvent]) -> SeasonSummary {
+        guard let first = events.map(\.startDay).min() else { return SeasonSummary(headline: "No S-tier results yet") }
+        return SeasonSummary(headline: "\(events.count) S-tier \(events.count == 1 ? "tournament" : "tournaments")",
+                             subline: "Since \(first.displayDate.formatted(.dateTime.month(.abbreviated).year()))")
     }
 }

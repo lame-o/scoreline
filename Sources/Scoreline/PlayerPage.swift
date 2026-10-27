@@ -16,6 +16,11 @@ struct PlayerPage: View {
     @State private var arrival: StackArrival?
     /// Bumped when the team's logo colors arrive, so the wash takes them.
     @State private var colorsVersion = 0
+    /// The hero's photo, at the hero's size from the first frame (`HeroPhoto`).
+    @State private var photo: URL?
+    /// How far the hero has docked: the docked bar reads it; this page never
+    /// does, so scrolling never re-renders it.
+    @State private var geometry = PageGeometry()
     private let store: ProfileStore
 
     @Environment(ScoreStore.self) private var scores: ScoreStore?
@@ -24,8 +29,13 @@ struct PlayerPage: View {
     @Environment(\.stackArrival) private var page
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if DEBUG
+    /// Harness counter: body runs (scrolling must add none).
+    static var bodyRuns = 0
+    #endif
 
     private static let contentSpace = "player.content"
+    private static let photoSize = HeroPhoto.size
 
     init(ref: Profile.PlayerRef, backTitle: String = "Scores", store: ProfileStore? = nil, onBack: @escaping () -> Void) {
         self.ref = ref
@@ -33,7 +43,12 @@ struct PlayerPage: View {
         self.onBack = onBack
         let store = store ?? .shared
         self.store = store
-        _state = State(initialValue: store.state(for: ref))
+        let state = store.state(for: ref)
+        _state = State(initialValue: state)
+        let pixels = HeroPhoto.pixels(ref)
+        _photo = State(initialValue: HeroPhoto.initial(ref: ref, bio: state.profile.bio?.photo) {
+            ImageCache.shared.cached($0, pixels: pixels) != nil
+        })
     }
 
     enum Section: Hashable {
@@ -41,9 +56,13 @@ struct PlayerPage: View {
     }
 
     var body: some View {
+        #if DEBUG
+        let _ = Self.bodyRuns += 1
+        #endif
         VStack(spacing: 0) {
             header.stackIn().pageChrome()
-            PageScrollView {
+            // Arrows, Page Up/Down, Space, Home and End scroll the page.
+            PageScrollView(keyboardScrolls: true) {
                 VStack(alignment: .leading, spacing: 0) {
                     hero.stackIn()
                     if let live = liveEvent { liveStrip(live).stackIn() }
@@ -55,6 +74,12 @@ struct PlayerPage: View {
                 }
                 .padding(.bottom, 14)
             }
+            // As the hero tucks under the header, the bar settles in: an
+            // overlay, so it never changes the page's measured height.
+            .overlay(alignment: .top) {
+                DockedBarHost { dockBar.equatable() }
+            }
+            .environment(\.pageGeometry, geometry)
         }
         .background(alignment: .top) {
             // The team's colors arrive as a change of light: the new wash
@@ -72,6 +97,12 @@ struct PlayerPage: View {
         }
         .onChange(of: shown) { old, new in
             if new.count > old.count { arrival = .data(in: Self.contentSpace, page: page) }
+        }
+        // The bio's photo: taken only while the hero shows the monogram.
+        .onChange(of: bio.photo) { _, proposed in
+            let pixels = HeroPhoto.pixels(ref)
+            let next = HeroPhoto.next(current: photo, proposed: proposed) { ImageCache.shared.cached($0, pixels: pixels) != nil }
+            if next != photo { photo = next }
         }
     }
 
@@ -112,10 +143,11 @@ struct PlayerPage: View {
                         intensity: c == nil ? 0.6 : ref.sport == .climbing ? 0.85 : 1)
     }
 
+    private var crop: PlayerPhoto.Crop { ref.sport == .climbing ? .portrait : .cutout }
+
     private var hero: some View {
         HStack(alignment: .center, spacing: 14) {
-            PlayerPhoto(url: bio.photo ?? ref.photo, name: bio.name, tint: tint, size: 76,
-                        crop: ref.sport == .climbing ? .portrait : .cutout)
+            PlayerPhoto(url: photo, name: bio.name, tint: tint, size: Self.photoSize, crop: crop)
                 .background(HeroGlow(color: tint, diameter: 94))
             VStack(alignment: .leading, spacing: 3) {
                 Text(bio.name)
@@ -139,7 +171,11 @@ struct PlayerPage: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(cornerRadius: Metrics.heroRadius, clear: true)
+        // Clear glass over the team's wash, as the match page's hero.
+        .floatingGlass(in: RoundedRectangle(cornerRadius: Metrics.heroRadius, style: .continuous), clear: true, interactive: false)
+        // Scrolling away, it shrinks toward the header and fades as the bar takes over.
+        .heroTuck()
+        .pageSection(PageGeometry.hero)
         .padding(.horizontal, 10)
         .padding(.top, 6)
         .padding(.bottom, 4)
@@ -150,6 +186,14 @@ struct PlayerPage: View {
                 Button("Go to \(team.name)") { navigator.open(team) }
             }
         }
+    }
+
+    /// The docked bar: the hero in one line (photo, name, team and position,
+    /// the season's lead stat), in the team's color.
+    private var dockBar: PlayerDockBar {
+        PlayerDockBar(name: bio.name, photo: photo, crop: crop, tint: tint,
+                      detail: PlayerDock.detail(sport: ref.sport, bio: bio, team: team, loaded: state.profile.bio != nil),
+                      stat: PlayerDock.stat(state.profile.tiles), photoSize: Self.photoSize)
     }
 
     /// "#15 · Quarterback · Chiefs" (the team is a link); "🇸🇮 Slovenia" for climbers.
@@ -434,6 +478,110 @@ struct PlayerPage: View {
 
     private func reload() {
         Task { await store.load(ref, force: true) }
+    }
+}
+
+// MARK: - Docked bar
+
+/// What the player's docked bar says. (pure; tested)
+enum PlayerDock {
+    /// Beside the name: "LAL · SF"; "🇸🇮 Slovenia" for climbers; the team
+    /// for CS2; "Free agent" once the bio says there's no team.
+    static func detail(sport: Sport, bio: Profile.Bio, team: Profile.TeamRef?, loaded: Bool) -> String? {
+        switch sport {
+        case .climbing:
+            return [Flag.emoji(ioc: bio.country), bio.nationality ?? bio.country].compactMap { $0 }.joined(separator: " ").nilIfEmpty
+        case .esports:
+            return team?.name
+        default:
+            let position = bio.positionAbbreviation ?? bio.position
+            let parts = [team.map { $0.abbreviation ?? $0.name }, position].compactMap { $0 }
+            if parts.isEmpty, loaded { return bio.active ? "Free agent" : "Retired" }
+            return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        }
+    }
+
+    /// The season's lead number: the first of the season's tiles (points,
+    /// bo3.gg's rating, a World Cup rank).
+    static func stat(_ tiles: [Profile.StatTile]) -> Profile.StatTile? { tiles.first }
+}
+
+/// The hero, docked: the photo, the name, team and position and the
+/// season's lead stat on one line of glass dressed in the team's color.
+/// Clicking it goes back to the top. Equatable on what it shows: its host
+/// re-renders every dock step, and this body doesn't run again.
+struct PlayerDockBar: View {
+    let name: String
+    let photo: URL?
+    let crop: PlayerPhoto.Crop
+    let tint: Color
+    let detail: String?
+    let stat: Profile.StatTile?
+    /// The hero's photo size: the bar's photo shares its decoded image, so it
+    /// is as sharp as the hero's and draws with it.
+    let photoSize: CGFloat
+    @Environment(\.pageGeometry) private var geometry
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if DEBUG
+    /// Harness counter: body runs (a dock step must add none).
+    static var bodyRuns = 0
+    #endif
+
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 14, style: .continuous) }
+
+    var body: some View {
+        #if DEBUG
+        let _ = Self.bodyRuns += 1
+        #endif
+        // Back to the top: the hero again (animated; instant with Reduce Motion).
+        Button { geometry?.scroll(toY: 0, animated: !reduceMotion) } label: {
+            HStack(spacing: 8) {
+                PlayerPhoto(url: photo, name: name, tint: tint, size: 26, crop: crop, decodeSize: photoSize)
+                // The detail gives way before the name truncates.
+                ViewThatFits(in: .horizontal) {
+                    line(detail: detail)
+                    line(detail: nil)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if let stat {
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
+                        Text(stat.value).font(.system(size: 14, weight: .semibold, design: .rounded).monospacedDigit())
+                        Text(stat.label).font(.system(size: 9.5, weight: .semibold)).tracking(0.3).foregroundStyle(.secondary)
+                    }
+                    .fixedSize()
+                }
+            }
+            .padding(.leading, 7)
+            .padding(.trailing, 12)
+            .frame(height: DockedScorebar.height)
+            // A wide panel keeps the bar one group, as the match page's is.
+            .frame(maxWidth: Metrics.readableWidth)
+            .frame(maxWidth: .infinity)
+            .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .dockedBarGlass(in: shape, tint: tint.opacity(0.14))
+        .help("Back to top")
+        // The hero stays the canonical element: no duplicate reading.
+        .accessibilityHidden(true)
+    }
+
+    private func line(detail: String?) -> some View {
+        HStack(spacing: 5) {
+            Text(name).font(.system(size: 12.5, weight: .semibold)).lineLimit(1)
+            if let detail {
+                Text("·").foregroundStyle(.tertiary)
+                Text(detail).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+    }
+}
+
+/// Isolated to the main actor, like the view.
+extension PlayerDockBar: @MainActor Equatable {
+    static func == (a: Self, b: Self) -> Bool {
+        a.name == b.name && a.photo == b.photo && a.crop == b.crop && a.tint == b.tint && a.detail == b.detail
+            && a.stat == b.stat && a.photoSize == b.photoSize
     }
 }
 

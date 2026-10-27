@@ -437,6 +437,39 @@ struct PanelFrame: ViewModifier {
     }
 }
 
+#if DEBUG
+/// Harness only: scrolls a page without a scroll view, which ImageRenderer
+/// can't draw (`PageScrollView` draws its content at `offset` instead).
+/// Only the views that read the offset re-render as it moves, as on a real
+/// scroll, so a harness can time scrolling and count body runs.
+@MainActor
+@Observable
+final class HarnessScroll {
+    private(set) var offset: CGFloat = 0
+    /// The page's geometry and viewport, once it has laid out.
+    @ObservationIgnored var geometry: PageGeometry?
+    @ObservationIgnored var viewport: CGSize = .zero
+
+    /// Moves to `y` and reports it to the page's geometry, as a scroll does.
+    func scroll(to y: CGFloat) {
+        if offset != y { offset = y }
+        guard let geometry else { return }
+        geometry.apply(geometry.state(for: CGRect(origin: CGPoint(x: 0, y: y), size: viewport)))
+    }
+}
+
+private struct HarnessScrollKey: EnvironmentKey {
+    static let defaultValue: HarnessScroll? = nil
+}
+
+extension EnvironmentValues {
+    var harnessScroll: HarnessScroll? {
+        get { self[HarnessScrollKey.self] }
+        set { self[HarnessScrollKey.self] = newValue }
+    }
+}
+#endif
+
 /// Where each page was scrolled to, so going back to it (or reopening the
 /// panel on it) lands exactly where you left off.
 @MainActor
@@ -501,6 +534,9 @@ struct PageScrollView<Content: View>: View {
     /// otherwise overwrite what's remembered.
     @State private var began = false
     @FocusState private var keyFocus: Bool
+    #if DEBUG
+    @Environment(\.harnessScroll) private var harness
+    #endif
 
     init(keyboardScrolls: Bool = false, @ViewBuilder content: () -> Content) {
         self.keyboardScrolls = keyboardScrolls
@@ -518,7 +554,15 @@ struct PageScrollView<Content: View>: View {
         var offset: CGFloat = 0
     }
 
-    var body: some View {
+    @ViewBuilder var body: some View {
+        #if DEBUG
+        if let harness { harnessBody(harness) } else { scrolling }
+        #else
+        scrolling
+        #endif
+    }
+
+    private var scrolling: some View {
         ScrollView {
             content.frame(maxWidth: .infinity, alignment: .leading)
                 // Section frames are measured here: content coordinates don't
@@ -579,6 +623,30 @@ struct PageScrollView<Content: View>: View {
         .overlay(alignment: .top) { Divider().padding(.horizontal, 12).opacity(edges.top && !GlassSupport.available ? 1 : 0) }
         .overlay(alignment: .bottom) { Divider().padding(.horizontal, 12).opacity(edges.bottom && !GlassSupport.available ? 1 : 0) }
     }
+
+    #if DEBUG
+    /// The harness's stand-in: the content at its full height, drawn at the
+    /// harness's offset and clipped to the viewport (ImageRenderer can't draw
+    /// a scroll view). The page's geometry goes to the harness, which reports
+    /// each offset to it as a scroll would.
+    private func harnessBody(_ harness: HarnessScroll) -> some View {
+        content.frame(maxWidth: .infinity, alignment: .leading)
+            .coordinateSpace(name: PageGeometry.space)
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                metrics.content = height
+                if contentActive { size?.content(height, for: token) }
+            }
+            .offset(y: -harness.offset)
+            .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+            .clipped()
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport in
+                harness.viewport = viewport
+                harness.geometry = geometry
+                geometry?.report(viewport: viewport)
+            }
+    }
+    #endif
 
     /// A key's scroll: a line is 40pt, a screen the viewport less 60pt (some
     /// context stays in view). Never animated: keyboard actions are instant.

@@ -417,8 +417,8 @@ extension View {
     /// hero card). In a DEBUG render harness Liquid Glass can't be captured
     /// offscreen, so `\.glassStandIn` swaps in a stand-in plate (window color
     /// for regular glass, a faint fill for clear) with a hairline.
-    func floatingGlass(in shape: some Shape, clear: Bool = false, interactive: Bool = true) -> some View {
-        modifier(FloatingGlass(shape: AnyShape(shape), clear: clear, interactive: interactive))
+    func floatingGlass(in shape: some Shape, clear: Bool = false, interactive: Bool = true, tint: Color? = nil) -> some View {
+        modifier(FloatingGlass(shape: AnyShape(shape), clear: clear, interactive: interactive, tint: tint))
     }
 }
 
@@ -426,6 +426,7 @@ private struct FloatingGlass: ViewModifier {
     let shape: AnyShape
     let clear: Bool
     let interactive: Bool
+    let tint: Color?
     #if DEBUG
     @Environment(\.glassStandIn) private var standIn
     #endif
@@ -434,13 +435,15 @@ private struct FloatingGlass: ViewModifier {
         #if DEBUG
         if standIn {
             content
-                .background(shape.fill(clear ? Color.primary.opacity(0.05) : Color(nsColor: .windowBackgroundColor).opacity(0.8)))
+                .background(shape.fill(tint ?? .clear))
+                // Regular glass blurs what's under it: the plate is nearly opaque.
+                .background(shape.fill(clear ? Color.primary.opacity(0.05) : Color(nsColor: .windowBackgroundColor).opacity(0.92)))
                 .overlay(shape.stroke(Color.primary.opacity(clear ? 0.10 : 0.14), lineWidth: 0.5))
         } else {
-            content.glass(in: shape, interactive: interactive, clear: clear)
+            content.glass(in: shape, tint: tint, interactive: interactive, clear: clear)
         }
         #else
-        content.glass(in: shape, interactive: interactive, clear: clear)
+        content.glass(in: shape, tint: tint, interactive: interactive, clear: clear)
         #endif
     }
 }
@@ -544,16 +547,100 @@ extension View {
 
 private struct HeroTuck: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if DEBUG
+    @Environment(\.harnessScroll) private var harness
+    #endif
 
     func body(content: Content) -> some View {
         let reduceMotion = reduceMotion
-        content.visualEffect { content, proxy in
-            let frame = proxy.frame(in: .scrollView(axis: .vertical))
+        #if DEBUG
+        // The harness scrolls without a scroll view: the frame in the
+        // content, less its offset, is the frame in the viewport.
+        let harnessOffset = harness?.offset
+        #else
+        let harnessOffset: CGFloat? = nil
+        #endif
+        return content.visualEffect { content, proxy in
+            let frame = harnessOffset.map { proxy.frame(in: .named(PageGeometry.space)).offsetBy(dx: 0, dy: -$0) }
+                ?? proxy.frame(in: .scrollView(axis: .vertical))
             let tuck = DockRules.heroTuck(minY: frame.minY, height: frame.height)
             return content
                 .scaleEffect(reduceMotion ? 1 : tuck.scale, anchor: .top)
                 .opacity(tuck.opacity)
         }
+    }
+}
+
+// MARK: - Docked bars (shared)
+
+extension View {
+    /// A docked bar settling in at dock progress `p` (spec §2.4): from 96%
+    /// and 6pt up, fading in over 0.35…0.9, taking clicks from half docked.
+    /// The motion is the scroll: transforms and opacity only, never
+    /// interpolated on a timer. Opacity only with Reduce Motion.
+    func dockMotion(_ p: Double, reduceMotion: Bool) -> some View {
+        scaleEffect(reduceMotion ? 1 : DockRules.barScale(p), anchor: .top)
+            .offset(y: reduceMotion ? 0 : DockRules.barOffset(p))
+            .opacity(DockRules.barOpacity(p))
+            .allowsHitTesting(p >= 0.5)
+            .transaction(value: p) { $0.animation = nil }
+    }
+
+    /// Where a docked bar sits over the scroll view: 4pt under the header,
+    /// on the hero card's 10pt side inset.
+    func dockedBarInset() -> some View {
+        padding(.top, 4)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, alignment: .top)
+    }
+
+    /// A docked bar's surface: regular glass, since content scrolls under it
+    /// and clear glass would show text through; a visible edge with Increase
+    /// Contrast. `tint` dresses it faintly in a team's color.
+    func dockedBarGlass(in shape: some InsettableShape, tint: Color? = nil) -> some View {
+        modifier(DockedBarGlass(shape: shape, tint: tint))
+    }
+}
+
+private struct DockedBarGlass<S: InsettableShape>: ViewModifier {
+    let shape: S
+    let tint: Color?
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func body(content: Content) -> some View {
+        content
+            .floatingGlass(in: shape, tint: tint)
+            .overlay {
+                if contrast == .increased { shape.strokeBorder(Color.primary.opacity(0.25), lineWidth: 0.5) }
+            }
+    }
+}
+
+/// A page's docked bar over its scroll view (a player's name bar, a season's
+/// strip), as `DockedScorebarHost` hosts the match page's: out of the
+/// hierarchy until the hero starts to tuck away, then moved by the page's
+/// dock progress. This view re-renders once per dock step (1/64) while the
+/// hero is tucking and only moves the bar; the bar is built by the page
+/// (which never reads the dock progress) and is equatable, so its body runs
+/// again only when what it shows changes.
+struct DockedBarHost<Bar: View>: View {
+    let bar: Bar
+    @Environment(\.pageGeometry) private var geometry
+    #if DEBUG
+    @Environment(\.dockProgressOverride) private var override
+    #else
+    private let override: Double? = nil
+    #endif
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init(@ViewBuilder bar: () -> Bar) { self.bar = bar() }
+
+    var body: some View {
+        let p = override ?? geometry?.dockProgress ?? 0
+        ZStack(alignment: .top) {
+            if p > 0 { bar.dockMotion(p, reduceMotion: reduceMotion) }
+        }
+        .dockedBarInset()
     }
 }
 
@@ -639,18 +726,10 @@ struct DockedScorebarHost: View {
                                                                bottomDigits: bar.digits.bottom),
                                  pinEvent: pinEvent, pinned: pinned, ticking: DockRules.barOpacity(p) > 0, quiet: resizing)
                     .equatable()
-                    // The motion is the scroll: transforms and opacity only,
-                    // never interpolated on a timer. Opacity only with Reduce Motion.
-                    .scaleEffect(reduceMotion ? 1 : DockRules.barScale(p), anchor: .top)
-                    .offset(y: reduceMotion ? 0 : DockRules.barOffset(p))
-                    .opacity(DockRules.barOpacity(p))
-                    .allowsHitTesting(p >= 0.5)
-                    .transaction(value: p) { $0.animation = nil }
+                    .dockMotion(p, reduceMotion: reduceMotion)
             }
         }
-        .padding(.top, 4)
-        .padding(.horizontal, 10)
-        .frame(maxWidth: .infinity, alignment: .top)
+        .dockedBarInset()
         .onAppear { appeared = .now }
         // The hero's beats and clock follow the surface: written only when it flips.
         .onChange(of: surface, initial: true) { _, now in
@@ -764,7 +843,6 @@ struct DockedScorebar: View {
     @Environment(ScoreStore.self) private var store: ScoreStore?
     @Environment(\.pageGeometry) private var geometry
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.celebrationClock) private var clock
     @Environment(\.panelResizing) private var resizing
     /// Each possession slot's center, in the bar's own coordinates.
@@ -792,11 +870,7 @@ struct DockedScorebar: View {
             .contentShape(shape)
         }
         .buttonStyle(.plain)
-        // Regular glass: content scrolls under it, and clear glass would show text through.
-        .floatingGlass(in: shape)
-        .overlay {
-            if contrast == .increased { shape.strokeBorder(Color.primary.opacity(0.25), lineWidth: 0.5) }
-        }
+        .dockedBarGlass(in: shape)
         // The decisive glint, only while the bar owns the scoreboard.
         .glint(beats.glints, in: shape, active: surface == .bar)
         .overlay(alignment: .topLeading) { tossLayer }

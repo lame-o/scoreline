@@ -19,6 +19,8 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private var center: UNUserNotificationCenter { .current() }
 
     func activate() {
+        // A process without a bundle (the render harness) has no notification center.
+        guard Bundle.main.bundleIdentifier != nil else { return }
         center.delegate = self
     }
 

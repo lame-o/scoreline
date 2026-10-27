@@ -402,6 +402,12 @@ final class ProfileStore {
         case let .counterStrike(slug): if let url = BO3Profiles.playerURL(slug: slug) { prefetch(url, headers: [:], ttl: TTL.leaders) }
         case .ifsc: if let url = IFSCProfiles.athleteURL(id: player.id) { prefetch(url, headers: IFSCProfiles.headers, ttl: 6 * 3600) }
         }
+        // The hero's photo too (a few KB, decoded once and kept): a click
+        // after the pointer rested draws it sharp on the page's first frame.
+        let path = pathMonitor.currentPath
+        guard let photo = HeroPhoto.url(for: player), !path.isExpensive, !path.isConstrained else { return }
+        let pixels = HeroPhoto.pixels(player)
+        Task.detached(priority: .utility) { _ = await ImageCache.shared.image(for: photo, pixels: pixels) }
     }
 
     private func prefetch(_ url: URL, headers: [String: String], ttl: TimeInterval) {

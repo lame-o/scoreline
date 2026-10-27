@@ -26,6 +26,14 @@ struct ClimbingSeasonPage: View {
     /// reference, so hovering updates the timeline and the two rows involved,
     /// not this page.
     @State private var hover = HighlightState()
+    /// How far the season card has docked: the docked bar reads it; this page
+    /// never does, so scrolling never re-renders it.
+    @State private var geometry = PageGeometry()
+    @State private var actions = SeasonDockActions()
+    #if DEBUG
+    /// Harness counter: body runs (scrolling must add none).
+    static var bodyRuns = 0
+    #endif
 
     private var schedule: ScheduleStore { injected ?? .shared }
     private var state: ScheduleStore.SeasonsState { schedule.climbing }
@@ -40,6 +48,9 @@ struct ClimbingSeasonPage: View {
                                 SeasonTimeline.Lane(id: "speed", label: "Speed")]
 
     var body: some View {
+        #if DEBUG
+        let _ = Self.bodyRuns += 1
+        #endif
         if mode == .results {
             ClimbingResultsPage(backTitle: backTitle, onBack: onBack, onOpen: onOpen, onMode: onMode, onOpenResults: onOpenResults)
         } else {
@@ -105,16 +116,13 @@ struct ClimbingSeasonPage: View {
             EmptyState(symbol: "figure.climbing", title: "No Competitions",
                        message: "The next season's calendar isn't published yet.")
         } else {
-            PageScrollView {
+            let summary = self.summary, axis = self.axis
+            // Arrows, Page Up/Down, Space, Home and End scroll the page.
+            PageScrollView(keyboardScrolls: true) {
                 VStack(alignment: .leading, spacing: 0) {
-                    StatusCard(live: live, next: next, previousSeasonOver: previousSeasonOver,
-                               broadcast: store.climbingBroadcast, store: store)
+                    SeasonCard(summary: summary, axis: axis, hover: hover, onSelect: { select($0) }) { watch }
                         .padding(.horizontal, 10)
                         .padding(.top, 4)
-                        .stackIn()
-                    HoverReader(state: hover) { hovered in timeline(hovered: hovered) }
-                        .padding(.horizontal, Metrics.gutter)
-                        .padding(.top, 14)
                         .stackIn()
                     if layout.split {
                         HStack(alignment: .top, spacing: 0) {
@@ -136,6 +144,53 @@ struct ClimbingSeasonPage: View {
                 .coordinateSpace(name: Self.contentSpace)
                 .environment(\.stackArrival, arrival ?? page)
             }
+            // As the card tucks under the header, its docked bar settles in:
+            // an overlay, so it never changes the page's measured height.
+            .overlay(alignment: .top) {
+                DockedBarHost { dockBar(summary, axis).equatable() }
+            }
+            .environment(\.pageGeometry, geometry)
+        }
+    }
+
+    /// The season at a glance: what's live, else what's next.
+    private var summary: SeasonSummary {
+        SeasonSummary.climbing(live: live, next: next, previousSeasonOver: previousSeasonOver, today: .today())
+    }
+
+    /// Hovered, else what's live or next in this season, else the one open beside the list.
+    private var axis: SeasonAxis {
+        let present = Set(events.flatMap(\.lanes))
+        let current = events.first { $0.status == .live } ?? events.first { $0.id == next?.id }
+        return SeasonAxis(events: events, lanes: Self.lanes.filter { present.contains($0.id) }, today: .today(),
+                          next: live == nil ? next?.id : nil, selected: layout.split ? selectedEvent?.id : nil,
+                          readouts: Dictionary(events.map { ($0.id, readoutText($0)) }, uniquingKeysWith: { a, _ in a }),
+                          resting: current?.id ?? (layout.split ? selectedEvent?.id : nil))
+    }
+
+    private func dockBar(_ summary: SeasonSummary, _ axis: SeasonAxis) -> SeasonDockBar {
+        // Refreshed every render: a click acts on the page as it is now.
+        actions.reveal = { reveal($0) }
+        return SeasonDockBar(summary: summary, axis: axis, hover: hover, actions: actions)
+    }
+
+    /// While a competition is live: its World Climbing stream.
+    @ViewBuilder
+    private var watch: some View {
+        if live != nil, let broadcast = store.climbingBroadcast {
+            Button {
+                NSWorkspace.shared.open(broadcast.url)
+            } label: {
+                Label(broadcast.isLive ? "Watch" : "Stream", systemImage: "play.rectangle.fill")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .padding(.horizontal, 10)
+                    .frame(height: 26)
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(broadcast.isLive ? .red : .primary)
+            .glassCapsule(interactive: true)
+            .help("Open the World Climbing stream on YouTube")
         }
     }
 
@@ -149,25 +204,6 @@ struct ClimbingSeasonPage: View {
     private var selectedEvent: SeasonEvent? {
         let id = schedule.selectedEvent[.climbing] ?? live?.id ?? next?.id
         return events.first { $0.id == id } ?? events.first
-    }
-
-    private func timeline(hovered: String?) -> some View {
-        let present = Set(events.flatMap(\.lanes))
-        let lanes = Self.lanes.filter { present.contains($0.id) }
-        // Hovered, else what's live or next in this season, else the one open beside the list.
-        let current = events.first { $0.status == .live } ?? events.first { $0.id == next?.id }
-        let readout = events.first { $0.id == hovered } ?? current ?? (layout.split ? selectedEvent : nil)
-        return VStack(alignment: .leading, spacing: 6) {
-            SeasonTimeline(events: events, lanes: lanes, today: .today(), next: live == nil ? next?.id : nil, selected: layout.split ? selectedEvent?.id : nil,
-                           hovered: Binding(get: { hover.id }, set: { if hover.id != $0 { hover.id = $0 } })) { id in select(id) }
-            if let readout {
-                Text(readoutText(readout))
-                    .font(.system(size: 10.5).monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .padding(.leading, SeasonTimeline.labelWidth)
-            }
-        }
     }
 
     private func readoutText(_ e: SeasonEvent) -> String {
@@ -189,6 +225,7 @@ struct ClimbingSeasonPage: View {
                     .onHover { inside in
                         if inside { hover.id = event.id } else if hover.id == event.id { hover.id = nil }
                     }
+                    .pageAnchor(event.id)
                     .stackIn()
                     if expandable && open {
                         ClimbingEventDetail(event: event, countries: store.climbingCountries, broadcast: store.climbingBroadcast)
@@ -214,85 +251,42 @@ struct ClimbingSeasonPage: View {
             Task { await schedule.loadClimbingDetail(id, countries: Set(store.climbingCountries)) }
         }
     }
+
+    /// A mark clicked in the docked bar: the competition opens (or shows
+    /// beside the list) and its row scrolls up to just under the bar.
+    private func reveal(_ id: String) {
+        guard events.contains(where: { $0.id == id }) else { return }
+        if layout.split || !schedule.expanded.contains(id) { select(id) }
+        geometry.scroll(toAnchor: id, topInset: SeasonDock.reserve, animated: !reduceMotion)
+    }
 }
 
-// MARK: - Status card
-
-private struct StatusCard: View {
-    let live: SeasonEvent?
-    let next: SeasonEvent?
-    let previousSeasonOver: String?
-    let broadcast: ClimbingBroadcast?
-    let store: ScoreStore
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
-                if let live {
-                    HStack(spacing: 6) {
-                        LiveDot()
-                        Text("Live now · \(live.flag.map { "\($0) " } ?? "")\(live.shortName)")
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    Text(liveLine(live))
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(.secondary)
-                } else if let next {
-                    Text(headline(next))
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(subline(next))
-                        .font(.system(size: 11.5).monospacedDigit())
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Season complete")
-                        .font(.system(size: 13, weight: .semibold))
-                    Text("The next calendar isn't published yet.")
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer(minLength: 0)
-            if live != nil, let broadcast {
-                Button {
-                    NSWorkspace.shared.open(broadcast.url)
-                } label: {
-                    Label(broadcast.isLive ? "Watch" : "Stream", systemImage: "play.rectangle.fill")
-                        .font(.system(size: 11.5, weight: .semibold))
-                        .padding(.horizontal, 10)
-                        .frame(height: 26)
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(broadcast.isLive ? .red : .primary)
-                .glassCapsule(interactive: true)
-                .help("Open the World Climbing stream on YouTube")
-            }
+extension SeasonSummary {
+    /// Climbing's Upcoming card: what's live, else what's next (between
+    /// seasons, that the last one is done), else that this one is. (pure; tested)
+    static func climbing(live: SeasonEvent?, next: SeasonEvent?, previousSeasonOver: String?, today: DayKey) -> SeasonSummary {
+        if let live {
+            let line = live.rounds.first(where: { $0.status == "active" }).map { $0.label.capitalizedFirst + " underway" }
+                ?? [DayKey.range(live.startDay, live.endDay), live.lanes.map(\.capitalized).joined(separator: " · ")].joined(separator: " · ")
+            return SeasonSummary(headline: "Live now · \(live.flag.map { "\($0) " } ?? "")\(live.shortName)", subline: line, live: true)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.045)))
-        .accessibilityElement(children: .combine)
-    }
-
-    private func liveLine(_ e: SeasonEvent) -> String {
-        if let round = e.rounds.first(where: { $0.status == "active" }) { return round.label.capitalizedFirst + " underway" }
-        return [DayKey.range(e.startDay, e.endDay), e.lanes.map(\.capitalized).joined(separator: " · ")].joined(separator: " · ")
-    }
-
-    private func headline(_ e: SeasonEvent) -> String {
-        if let previous = previousSeasonOver { return "\(previous) season complete" }
-        return "Next: \(e.flag.map { "\($0) " } ?? "")\(e.shortName)"
-    }
-
-    private func subline(_ e: SeasonEvent) -> String {
-        let days = DayKey.today().days(to: e.startDay)
-        let when = days <= 0 ? "starts today" : days == 1 ? "starts tomorrow" : days <= 6
-            ? "starts \(e.startDay.displayDate.formatted(.dateTime.weekday(.wide)))" : "in \(days) days"
-        if previousSeasonOver != nil {
-            return "\(e.startDay.year) starts \(e.startDay.shortLabel) in \(e.shortName) · \(days) days"
+        guard let next else {
+            return SeasonSummary(headline: "Season complete", subline: "The next calendar isn't published yet.")
         }
-        return [DayKey.range(e.startDay, e.endDay), when].joined(separator: " · ")
+        let days = today.days(to: next.startDay)
+        if let previous = previousSeasonOver {
+            return SeasonSummary(headline: "\(previous) season complete",
+                                 subline: "\(next.startDay.year) starts \(next.startDay.shortLabel) in \(next.shortName) · \(days) days")
+        }
+        return SeasonSummary(headline: "Next: \(next.flag.map { "\($0) " } ?? "")\(next.shortName)",
+                             subline: [DayKey.range(next.startDay, next.endDay), when(next.startDay, today: today)].joined(separator: " · "))
+    }
+
+    /// "starts today", "starts tomorrow", "starts Saturday", "in 12 days".
+    static func when(_ start: DayKey, today: DayKey) -> String {
+        let days = today.days(to: start)
+        return days <= 0 ? "starts today" : days == 1 ? "starts tomorrow" : days <= 6
+            ? "starts \(start.displayDate.formatted(.dateTime.weekday(.wide)))" : "in \(days) days"
     }
 }
 

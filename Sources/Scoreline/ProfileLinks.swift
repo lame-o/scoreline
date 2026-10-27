@@ -189,12 +189,22 @@ struct PlayerPhoto: View {
     /// ESPN and bo3 cutouts are transparent and wider than tall: top-aligned
     /// on a disc. IFSC photos are square portraits: centered.
     var crop: Crop = .cutout
-    @State private var loaded: NSImage?
+    /// Decoded at this size's pixels instead: a docked bar's small photo
+    /// shares the hero's decoded image, so it draws on its first frame.
+    var decodeSize: CGFloat? = nil
+    /// A photo that arrived from the network, with the URL it's for: only
+    /// that URL's photo ever shows (a request the URL has moved on from
+    /// never lands on the new one).
+    @State private var loaded: (url: URL, image: NSImage)?
 
-    private var pixels: Int { Int((size * 2 * (crop == .cutout ? 1.45 : 1)).rounded(.up)) }
+    /// The pixels a photo `size` points across is decoded at (Retina; a
+    /// cutout is cropped from a wider image).
+    static func pixels(size: CGFloat, crop: Crop) -> Int { Int((size * 2 * (crop == .cutout ? 1.45 : 1)).rounded(.up)) }
+
+    private var pixels: Int { Self.pixels(size: decodeSize ?? size, crop: crop) }
 
     var body: some View {
-        let image = loaded ?? ImageCache.shared.cached(url, pixels: pixels)
+        let image = loaded.flatMap { $0.url == url ? $0.image : nil } ?? ImageCache.shared.cached(url, pixels: pixels)
         // Large monograms (heroes) are a solid disc in the team color with white
         // initials, as Contacts draws them; small ones in lists stay quiet.
         let bold = image == nil && size >= 48 && tint != nil
@@ -222,12 +232,66 @@ struct PlayerPhoto: View {
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
-        .animation(Motion.fade, value: loaded != nil)
+        // Only a photo arriving from the network fades in, once; a cached one draws on the first frame.
+        .animation(Motion.fade, value: loaded?.url)
         .task(id: url) {
-            guard let url, ImageCache.shared.cached(url, pixels: pixels) == nil else { return }
-            loaded = await ImageCache.shared.image(for: url, pixels: pixels)
+            guard let url, ImageCache.shared.cached(url, pixels: pixels) == nil,
+                  let image = await ImageCache.shared.image(for: url, pixels: pixels), !Task.isCancelled else { return }
+            loaded = (url, image)
         }
         .accessibilityHidden(true)
+    }
+}
+
+/// The hero's photo on a player page: asked for at the hero's size from the
+/// first frame, the monogram until it lands, then faded in once. While a
+/// photo is on screen it's never swapped for another crop (the bio's URL
+/// arriving later), so the face never moves. (pure; tested)
+///
+/// A link hands the page what its row had: ESPN's 96×70 list headshot (blurry
+/// at 76pt, and framed differently from the hero's 260×190), bo3.gg's 96px
+/// thumbnail, a FotMob face crop. The hero asks for its own size instead.
+enum HeroPhoto {
+    /// The hero's photo, 76pt across.
+    static let size: CGFloat = 76
+
+    /// The pixels the hero decodes a person's photo at (climbers' are square portraits).
+    static func pixels(_ ref: Profile.PlayerRef) -> Int {
+        PlayerPhoto.pixels(size: size, crop: ref.sport == .climbing ? .portrait : .cutout)
+    }
+
+    /// The hero-size photo for what a link knows. ESPN: the athlete's
+    /// headshot at the hero's size, from the ID (a soccer link without a
+    /// photo has no headshot: wait for the bio). bo3.gg: its 240px proxy.
+    /// FotMob and IFSC: as they are (one size). nil: wait for the bio.
+    static func url(for ref: Profile.PlayerRef) -> URL? {
+        switch ref.source {
+        case let .espn(path):
+            if let photo = ref.photo, photo.host()?.contains("fotmob") == true { return photo }
+            guard ref.photo != nil || !path.hasPrefix("soccer") else { return nil }
+            return PhotoURL.espn(path: path, id: ref.id, size: .hero)
+        case .counterStrike:
+            return PhotoURL.bo3(hero: ref.photo)
+        case .ifsc:
+            return ref.photo
+        }
+    }
+
+    /// The photo the hero opens with: one already decoded at the hero's size
+    /// (this link's, or the bio's from a past visit) draws on the first
+    /// frame; otherwise the link's, else the bio's.
+    static func initial(ref: Profile.PlayerRef, bio: URL?, isCached: (URL) -> Bool) -> URL? {
+        let link = url(for: ref)
+        if let ready = [link, bio].compactMap({ $0 }).first(where: isCached) { return ready }
+        return link ?? bio
+    }
+
+    /// The bio's photo arriving: the photo on screen stays for the rest of
+    /// the visit; with only the monogram showing, the bio's is asked for
+    /// (or the current one kept, when the bio has none).
+    static func next(current: URL?, proposed: URL?, isCached: (URL) -> Bool) -> URL? {
+        if let current, isCached(current) { return current }
+        return proposed ?? current
     }
 }
 
@@ -305,12 +369,25 @@ extension View {
 private struct PageHero: ViewModifier {
     @AccessibilityFocusState private var voiceOverFocus: Bool
     @Environment(\.pageLive) private var live
+    #if DEBUG
+    @Environment(\.harnessScroll) private var harness
+    #endif
 
-    func body(content: Content) -> some View {
-        content
+    @ViewBuilder func body(content: Content) -> some View {
+        let heading = content
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
             .accessibilityHeading(.h1)
+        #if DEBUG
+        // ImageRenderer draws nothing for a view with accessibility focus state.
+        if harness != nil { heading } else { focusing(heading) }
+        #else
+        focusing(heading)
+        #endif
+    }
+
+    private func focusing(_ heading: some View) -> some View {
+        heading
             .accessibilityFocused($voiceOverFocus)
             .task(id: live) {
                 guard live else { return }

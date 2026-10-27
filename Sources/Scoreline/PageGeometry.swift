@@ -37,6 +37,9 @@ final class PageGeometry {
 
     /// Section frames in content coordinates.
     @ObservationIgnored private(set) var frames: [String: CGRect] = [:]
+    /// Rows a page scrolls to (`pageAnchor`), in content coordinates. Not
+    /// sections: scrolling never looks at them.
+    @ObservationIgnored private(set) var anchors: [String: CGRect] = [:]
     /// The visible part of the content, as of the last scroll.
     @ObservationIgnored private var visibleRect: CGRect = .zero
     /// Set by `PageScrollView`: scrolls the content to an offset.
@@ -57,6 +60,20 @@ final class PageGeometry {
 
     func scroll(toY y: CGFloat, animated: Bool) { scrollHandler?(y, animated) }
 
+    /// Brings a row's top to `topInset` below the viewport's top (a mark
+    /// clicked in a docked bar: its row lands just under the bar).
+    func scroll(toAnchor id: String, topInset: CGFloat, animated: Bool) {
+        guard let frame = anchors[id] else { return }
+        scroll(toY: max(0, frame.minY - topInset), animated: animated)
+    }
+
+    /// The least scroll that shows a row whole, below `topInset` (the arrow
+    /// keys' highlight, clear of a docked bar); nothing when it already shows.
+    func reveal(anchor id: String, topInset: CGFloat, animated: Bool) {
+        guard let frame = anchors[id], let y = Self.reveal(frame, visible: visibleRect, topInset: topInset) else { return }
+        scroll(toY: y, animated: animated)
+    }
+
     // MARK: Reports (from PageScrollView and pageSection)
 
     struct State: Equatable {
@@ -68,6 +85,10 @@ final class PageGeometry {
         guard frames[id] != frame else { return }
         frames[id] = frame
         apply(state(for: visibleRect))
+    }
+
+    func report(anchor frame: CGRect, for id: String) {
+        if anchors[id] != frame { anchors[id] = frame }
     }
 
     func report(viewport size: CGSize) {
@@ -111,6 +132,15 @@ final class PageGeometry {
         return .partial(edge)
     }
 
+    /// Where to scroll so a row shows whole below `topInset`: its top just
+    /// under the inset when it's above that, its bottom at the viewport's
+    /// bottom when it's below; nil when it already shows.
+    nonisolated static func reveal(_ frame: CGRect, visible: CGRect, topInset: CGFloat) -> CGFloat? {
+        if frame.minY < visible.minY + topInset { return max(0, frame.minY - topInset) }
+        if frame.maxY > visible.maxY { return max(0, frame.maxY - visible.height) }
+        return nil
+    }
+
     /// The hero docks once a quarter of it has slid under the header, over
     /// the next three quarters of its height: 0...64.
     nonisolated static func dockStep(hero: CGRect, offset y: CGFloat) -> Int {
@@ -126,8 +156,8 @@ private struct PageGeometryKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// The page's geometry, when the page tracks it (match pages). Other pages
-    /// leave it nil and their scroll views do nothing extra.
+    /// The page's geometry, when the page tracks it (match, player and season
+    /// pages). Other pages leave it nil and their scroll views do nothing extra.
     var pageGeometry: PageGeometry? {
         get { self[PageGeometryKey.self] }
         set { self[PageGeometryKey.self] = newValue }
@@ -138,6 +168,25 @@ extension View {
     /// Reports this section's frame to the page's geometry under `id`. Frames
     /// are in content coordinates, so this fires on layout changes, not scrolling.
     func pageSection(_ id: String) -> some View { modifier(PageSection(id: id)) }
+
+    /// Reports this row's frame under `id`, so the page can scroll to it
+    /// (`scroll(toAnchor:)`, `reveal(anchor:)`). Fires on layout changes, not scrolling.
+    func pageAnchor(_ id: String) -> some View { modifier(PageAnchor(id: id)) }
+}
+
+private struct PageAnchor: ViewModifier {
+    let id: String
+    @Environment(\.pageGeometry) private var geometry
+
+    func body(content: Content) -> some View {
+        if let geometry {
+            content.onGeometryChange(for: CGRect.self) { $0.frame(in: .named(PageGeometry.space)) } action: { frame in
+                geometry.report(anchor: frame, for: id)
+            }
+        } else {
+            content
+        }
+    }
 }
 
 private struct PageSection: ViewModifier {

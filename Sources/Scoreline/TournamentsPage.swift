@@ -24,6 +24,14 @@ struct TournamentsPage: View {
     /// reference: hovering updates the timeline and two rows, not this page).
     @State private var hover = HighlightState()
     @State private var arrival: StackArrival?
+    /// How far the season card has docked: the docked bar reads it; this page
+    /// never does, so scrolling never re-renders it.
+    @State private var geometry = PageGeometry()
+    @State private var actions = SeasonDockActions()
+    #if DEBUG
+    /// Harness counter: body runs (scrolling must add none).
+    static var bodyRuns = 0
+    #endif
 
     private var schedule: ScheduleStore { injected ?? .shared }
     private var state: ScheduleStore.SeasonsState { schedule.tournaments }
@@ -34,6 +42,9 @@ struct TournamentsPage: View {
     private static let contentSpace = "tournaments.content"
 
     var body: some View {
+        #if DEBUG
+        let _ = Self.bodyRuns += 1
+        #endif
         if mode == .results {
             TournamentResultsPage(backTitle: backTitle, onBack: onBack, onMode: onMode, onOpenResults: onOpenResults)
         } else {
@@ -76,19 +87,21 @@ struct TournamentsPage: View {
         } else if events.isEmpty {
             EmptyState(symbol: "gamecontroller", title: "No Tournaments", message: "No S-tier tournaments are scheduled.")
         } else {
-            PageScrollView {
+            let summary = self.summary, axis = self.axis
+            // Arrows, Page Up/Down, Space, Home and End scroll the page.
+            PageScrollView(keyboardScrolls: true) {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(current) { event in
+                    SeasonCard(summary: summary, axis: axis, hover: hover, onSelect: { select($0) }) { bracket }
+                        .padding(.horizontal, 10)
+                        .padding(.top, 4)
+                        .stackIn()
+                    // Another tournament underway at the same time (rare): its own card.
+                    ForEach(current.dropFirst()) { event in
                         CurrentTournamentCard(event: event, next: nextMatch(in: event)) { openBracket(event) }
                             .padding(.horizontal, 10)
-                            .padding(.top, 4)
-                            .padding(.bottom, 6)
+                            .padding(.top, 8)
                             .stackIn()
                     }
-                    HoverReader(state: hover) { hovered in timeline(hovered: hovered) }
-                        .padding(.horizontal, Metrics.gutter)
-                        .padding(.top, 10)
-                        .stackIn()
                     if layout.split {
                         HStack(alignment: .top, spacing: 0) {
                             list(expandable: false).frame(maxWidth: .infinity, alignment: .top)
@@ -108,7 +121,56 @@ struct TournamentsPage: View {
                 .coordinateSpace(name: Self.contentSpace)
                 .environment(\.stackArrival, arrival ?? page)
             }
+            // As the card tucks under the header, its docked bar settles in:
+            // an overlay, so it never changes the page's measured height.
+            .overlay(alignment: .top) {
+                DockedBarHost { dockBar(summary, axis).equatable() }
+            }
+            .environment(\.pageGeometry, geometry)
         }
+    }
+
+    /// What's underway (and its next match), else what's next.
+    private var summary: SeasonSummary {
+        if let live = current.first { return SeasonSummary.tournaments(live: live, match: nextMatch(in: live)) }
+        return SeasonSummary.tournaments(next: upcoming.first, today: .today())
+    }
+
+    /// While a tournament is underway: its bracket.
+    @ViewBuilder
+    private var bracket: some View {
+        if let live = current.first {
+            SectionLink("Bracket", help: "Open the bracket") { openBracket(live) }
+        }
+    }
+
+    /// The next twelve months at most (later tournaments are in the list);
+    /// hovered, else the next one.
+    private var axis: SeasonAxis {
+        let horizon = DayKey.today().adding(days: 365)
+        let shown = events.filter { $0.startDay <= horizon }
+        let readouts = events.map { e in
+            (e.id, [e.shortName, DayKey.range(e.startDay, e.endDay), ScheduleProvider.CS.prize(e.prize)].compactMap { $0 }.joined(separator: " · "))
+        }
+        return SeasonAxis(events: shown, lanes: [SeasonTimeline.Lane(id: CounterStrike.tier, label: "S-Tier")], today: .today(),
+                          next: upcoming.first?.id, selected: layout.split ? selectedEvent?.id : nil,
+                          readouts: Dictionary(readouts, uniquingKeysWith: { a, _ in a }), resting: upcoming.first?.id)
+    }
+
+    private func dockBar(_ summary: SeasonSummary, _ axis: SeasonAxis) -> SeasonDockBar {
+        // Refreshed every render: a click acts on the page as it is now.
+        actions.reveal = { reveal($0) }
+        return SeasonDockBar(summary: summary, axis: axis, hover: hover, actions: actions)
+    }
+
+    /// A mark clicked in the docked bar: a drawn tournament opens its
+    /// bracket; one that isn't opens in place (or beside the list) and its
+    /// row scrolls up to just under the bar.
+    private func reveal(_ id: String) {
+        guard let event = events.first(where: { $0.id == id }) else { return }
+        let drawn = event.status != .upcoming || event.stages > 0
+        if drawn || layout.split || !schedule.expanded.contains(id) { select(id) }
+        if !drawn { geometry.scroll(toAnchor: id, topInset: SeasonDock.reserve, animated: !reduceMotion) }
     }
 
     private var selectedEvent: SeasonEvent? {
@@ -122,26 +184,6 @@ struct TournamentsPage: View {
         let mine = matches.filter { $0.competitors.contains { $0.id.map(followed.contains) ?? false } }
         let pick = { (list: [Event]) in list.first { $0.state == .live } ?? list.filter { $0.state == .scheduled }.min { $0.start < $1.start } }
         return pick(mine) ?? pick(matches)
-    }
-
-    private func timeline(hovered: String?) -> some View {
-        // The next twelve months at most; later tournaments are in the list.
-        let horizon = DayKey.today().adding(days: 365)
-        let shown = events.filter { $0.startDay <= horizon }
-        let lanes = [SeasonTimeline.Lane(id: CounterStrike.tier, label: "S-Tier")]
-        let readout = events.first { $0.id == hovered } ?? upcoming.first
-        return VStack(alignment: .leading, spacing: 6) {
-            SeasonTimeline(events: shown, lanes: lanes, today: .today(), next: upcoming.first?.id,
-                           hovered: Binding(get: { hover.id }, set: { if hover.id != $0 { hover.id = $0 } })) { select($0) }
-            if let readout {
-                Text([readout.shortName, DayKey.range(readout.startDay, readout.endDay), ScheduleProvider.CS.prize(readout.prize)]
-                    .compactMap { $0 }.joined(separator: " · "))
-                    .font(.system(size: 10.5).monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .padding(.leading, SeasonTimeline.labelWidth)
-            }
-        }
     }
 
     private func list(expandable: Bool) -> some View {
@@ -158,6 +200,7 @@ struct TournamentsPage: View {
                     .onHover { inside in
                         if inside { hover.id = event.id } else if hover.id == event.id { hover.id = nil }
                     }
+                    .pageAnchor(event.id)
                     .stackIn()
                     if expandable && open {
                         TournamentDetail(event: event, followed: followed) { openBracket(event) }
@@ -192,6 +235,34 @@ struct TournamentsPage: View {
         guard case let .tournament(slug) = event.kind else { return }
         // The bracket knows teams by bo3.gg's bare ID ("667"), as the match page passes them.
         onOpenBracket(.csTournament(slug: slug, name: event.name), Set(followed.map { String($0.dropFirst(3)) }))
+    }
+}
+
+extension SeasonSummary {
+    /// CS2's Upcoming card while a tournament is underway: its name, then its
+    /// next match (in red while it's live), else its dates and prize. (pure; tested)
+    static func tournaments(live: SeasonEvent, match: Event?) -> SeasonSummary {
+        let line = match.flatMap { m -> String? in
+            let teams = m.competitors.map(\.name).joined(separator: " v ")
+            switch m.state {
+            case .live: return "Live: \(teams)"
+            case .scheduled: return "Next: \(teams) · \(When.dayAndTime(m.start))"
+            case .final: return nil
+            }
+        }
+        return SeasonSummary(headline: "Live now · \(live.shortName)",
+                             subline: line ?? [DayKey.range(live.startDay, live.endDay), ScheduleProvider.CS.prize(live.prize)]
+                                 .compactMap { $0 }.joined(separator: " · "),
+                             live: true, sublineLive: match?.state == .live)
+    }
+
+    /// CS2's Upcoming card: the next S-tier tournament, when and for how
+    /// much. (pure; tested)
+    static func tournaments(next: SeasonEvent?, today: DayKey) -> SeasonSummary {
+        guard let next else { return SeasonSummary(headline: "No S-tier tournaments ahead") }
+        return SeasonSummary(headline: "Next: \(next.shortName)",
+                             subline: [DayKey.range(next.startDay, next.endDay), when(next.startDay, today: today),
+                                       ScheduleProvider.CS.prize(next.prize)].compactMap { $0 }.joined(separator: " · "))
     }
 }
 
