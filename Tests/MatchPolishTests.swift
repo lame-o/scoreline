@@ -91,7 +91,11 @@ extension ScorelineTests {
         let curve = GameDetail.Pitch(id: "1", number: 12, x: 0, y: 0, result: .ball, type: "KC", typeName: "Knuckle curve", mph: 80)
         let heater = GameDetail.Pitch(id: "2", number: 13, x: 0, y: 0, result: .strike, type: "FF", typeName: "Four-seam fastball", mph: 98)
         let pitchNames = [curve, heater].map(StrikeZoneView.names)
-        check(pitchNames[1] == ["Four-seam fastball", "Four-seam", "FF"], "a pitch's names: full, short, code")
+        check(pitchNames[1] == ["Four-seam fastball", "Four-seam", "FB"], "a pitch's names: full, short, code (a fastball is FB, not FF)")
+        let results = [GameDetail.Pitch.Strike.called, .swinging, .foul, .foulTip].map {
+            StrikeZoneView.resultWord(GameDetail.Pitch(id: "3", number: 1, x: 0, y: 0, result: .strike, type: nil, typeName: nil, mph: nil, strike: $0))
+        }
+        check(results == ["Called", "Swinging", "Foul", "Foul tip"], "a strike says how it came", "\(results)")
         check(StrikeZoneView.name(pitchNames[1], room: 200) == "Four-seam fastball" && StrikeZoneView.name(pitchNames[1], room: 80) == "Four-seam"
               && StrikeZoneView.name(pitchNames[0], room: 30) == "KC",
               "a pitch steps from its full name to its short one to its code (never \"Knuckl…\")")

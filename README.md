@@ -28,9 +28,17 @@ Scoreline is a free, open-source menu bar app for macOS. Pick your leagues and t
 
 ## Install
 
-Download the latest `Scoreline.dmg` from [Releases](https://github.com/lame-o/scoreline/releases), open it and drag Scoreline to Applications.
+Paste this into Terminal:
 
-Scoreline isn't signed with a paid Apple Developer ID, so the first time you open it macOS will say it can't verify the developer. Go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only do this once.
+```sh
+curl -fsSL https://raw.githubusercontent.com/lame-o/scoreline/main/install.sh | bash
+```
+
+It downloads the latest release into Applications and opens it ([read the script](install.sh) first if you like).
+
+Or download `Scoreline.dmg` from [Releases](https://github.com/lame-o/scoreline/releases/latest), open it and drag Scoreline to Applications. Scoreline isn't signed with a paid Apple Developer ID, so the first time you open a downloaded copy macOS says it can't verify the developer: go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only do this once.
+
+After that, Scoreline keeps itself up to date (Settings → Updates).
 
 Requires macOS 15 Sequoia or later, on Apple silicon or Intel.
 

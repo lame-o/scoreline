@@ -137,6 +137,8 @@ struct GameDetail {
     /// ≈ x 91…141, y 148…192 — inferred from where called strikes land).
     struct Pitch: Identifiable {
         enum Result { case ball, strike, inPlay }
+        /// How a strike came.
+        enum Strike { case called, swinging, foul, foulTip }
         let id: String
         let number: Int
         let x: Double
@@ -147,6 +149,8 @@ struct GameDetail {
         /// Full name ("Four-seam fastball").
         let typeName: String?
         let mph: Int?
+        /// Nil for a ball, a ball in play, or a strike ESPN doesn't explain (an automatic one).
+        var strike: Strike? = nil
 
         /// MLB pitch codes, for when ESPN sends only the abbreviation.
         static let names: [String: String] = [
@@ -512,14 +516,21 @@ enum ESPNDetail {
         return pitches.enumerated().compactMap { index, p in
             guard let x = p["pitchCoordinate"]["x"].double, let y = p["pitchCoordinate"]["y"].double else { return nil }
             let type = p["type"]["type"].string ?? ""
+            // A caught foul ("foul-out") is a ball in play, not a strike.
+            let strike: GameDetail.Pitch.Strike? =
+                type.hasPrefix("foul-out") ? nil
+                : type.hasPrefix("foul") ? (type.contains("tip") ? .foulTip : .foul)
+                : type.hasPrefix("strike-swinging") || type.contains("missed-bunt") ? .swinging
+                : type.hasPrefix("strike-looking") ? .called
+                : nil
             let result: GameDetail.Pitch.Result =
-                type.contains("foul") || type.contains("strike") ? .strike
+                strike != nil || type.contains("strike") ? .strike
                 : type.contains("ball") || type.contains("hit-by-pitch") ? .ball
                 : .inPlay
             let code = p["pitchType"]["abbreviation"].string
             return GameDetail.Pitch(id: p["id"].string ?? "\(index)", number: index + 1, x: x, y: y, result: result,
                                     type: code, typeName: p["pitchType"]["text"].string ?? code.flatMap { GameDetail.Pitch.names[$0] },
-                                    mph: p["pitchVelocity"].int)
+                                    mph: p["pitchVelocity"].int, strike: strike)
         }
     }
 

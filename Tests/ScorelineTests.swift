@@ -126,6 +126,8 @@ struct ScorelineTests {
         guard let d = try? await DetailProvider.detail(for: event) else { return check(false, "detail loads") }
         check(d.atBat.map(\.type) == ["SI", "CH", "CH", "CH", "CU", "CU"], "last at-bat pitch sequence", "\(d.atBat.map(\.type))")
         check(d.atBat.last?.result == .strike, "at-bat ends on strike three")
+        check(d.atBat.compactMap(\.strike).count == d.atBat.filter { $0.result == .strike }.count,
+              "every strike in the at-bat says how it came (called, swinging, foul)", "\(d.atBat.map(\.strike))")
         check(d.battedBalls.filter { $0.outcome == .homeRun }.count == 2, "two home runs in play")
         let ballIDs = Set(d.battedBalls.map(\.id))
         check(d.moments.filter { $0.text.contains("homered") }.allSatisfy { ballIDs.contains($0.id) },

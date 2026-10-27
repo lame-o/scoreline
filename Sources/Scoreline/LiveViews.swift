@@ -642,8 +642,11 @@ struct StrikeZoneView: View {
     nonisolated static func names(_ pitch: GameDetail.Pitch) -> [String] {
         let short = pitch.type.flatMap { GameDetail.Pitch.names[$0] }
         let full = pitch.typeName ?? short ?? pitch.type ?? "Pitch"
-        return [full, short ?? full, pitch.type ?? short ?? full]
+        return [full, short ?? full, pitch.type.map { codes[$0] ?? $0 } ?? short ?? full]
     }
+
+    /// Codes as fans read them: a fastball is "FB", not Statcast's "FF".
+    nonisolated static let codes = ["FF": "FB", "FA": "FB"]
 
     /// The longest of a pitch's names that fits `room`. (pure; tested)
     nonisolated static func name(_ names: [String], room: CGFloat) -> String {
@@ -652,13 +655,20 @@ struct StrikeZoneView: View {
     }
 
     /// What a list row needs besides the name: the mark (10), the number
-    /// (16), the spacer's minimum (2), the result (38), the five 6pt gaps,
+    /// (16), the spacer's minimum (2), the result, the five 6pt gaps,
     /// and the widest speed.
     private func listFixed() -> CGFloat {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         let speed = pitches.compactMap(\.mph).map { ("\($0)" as NSString).size(withAttributes: [.font: font]).width }.max() ?? 0
-        return 10 + 16 + 2 + 38 + 5 * 6 + speed.rounded(.up)
+        return 10 + 16 + 2 + Self.resultWidth + 5 * 6 + speed.rounded(.up)
     }
+
+    /// The result column fits its longest word ("Swinging") from the first
+    /// pitch, so nothing moves when one arrives.
+    private static let resultWidth: CGFloat = {
+        let font = NSFont.systemFont(ofSize: 10)
+        return ["Swinging", "Foul tip", "In play"].map { ($0 as NSString).size(withAttributes: [.font: font]).width }.max()!.rounded(.up)
+    }()
 
 
     private func hover(_ id: String, _ inside: Bool) {
@@ -787,9 +797,9 @@ struct StrikeZoneView: View {
                         Spacer(minLength: 2)
                         // Numbers never give way: the pitch name does.
                         Text(pitch.mph.map { "\($0)" } ?? "").foregroundStyle(.secondary).fixedSize()
-                        Text(resultWord(pitch.result)).font(.system(size: 10)).foregroundStyle(.secondary)
+                        Text(Self.resultWord(pitch)).font(.system(size: 10)).foregroundStyle(.secondary)
                             .lineLimit(1).fixedSize()
-                            .frame(width: 38, alignment: .trailing)
+                            .frame(width: Self.resultWidth, alignment: .trailing)
                     }
                     .font(.system(size: 11).monospacedDigit())
                     // A click pins the pitch on the zone, like every linked row.
@@ -831,18 +841,33 @@ struct StrikeZoneView: View {
         return CGPoint(x: min(max(px, 8), plot.width - 8), y: min(max(py, 8), plot.height - 8))
     }
 
-    private func resultWord(_ result: GameDetail.Pitch.Result) -> String {
-        switch result {
-        case .ball: "Ball"
-        case .strike: "Strike"
-        case .inPlay: "In play"
+    /// What the pitch did, in the list: how a strike came, not just "Strike". (pure; tested)
+    nonisolated static func resultWord(_ pitch: GameDetail.Pitch) -> String {
+        switch (pitch.result, pitch.strike) {
+        case (.ball, _): "Ball"
+        case (.inPlay, _): "In play"
+        case (.strike, .called?): "Called"
+        case (.strike, .swinging?): "Swinging"
+        case (.strike, .foul?): "Foul"
+        case (.strike, .foulTip?): "Foul tip"
+        case (.strike, nil): "Strike"
+        }
+    }
+
+    /// The same, read aloud.
+    private static func spokenResult(_ pitch: GameDetail.Pitch) -> String {
+        switch (pitch.result, pitch.strike) {
+        case (.strike, .called?): "called strike"
+        case (.strike, .swinging?): "swinging strike"
+        case (.strike, .foul?): "foul ball"
+        default: resultWord(pitch).lowercased()
         }
     }
 
     private var accessibilityText: String {
         guard let last = pitches.last else { return "No pitches yet this at-bat." }
         let speed = last.mph.map { ", \($0) miles per hour" } ?? ""
-        return "\(pitches.count) pitches this at-bat. Latest: pitch \(last.number), \(last.typeName ?? "pitch")\(speed), \(resultWord(last.result))."
+        return "\(pitches.count) pitches this at-bat. Latest: pitch \(last.number), \(last.typeName ?? "pitch")\(speed), \(Self.spokenResult(last))."
     }
 }
 
