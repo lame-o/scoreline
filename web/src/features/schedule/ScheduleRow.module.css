@@ -1,0 +1,281 @@
+/*
+ * A schedule row (ScheduleRows.swift). Rows sit in a `.rows` grid
+ * (teams | lane | status) and each is a subgrid of it, so every status in a
+ * group lines up in one column whatever it says: the CSS twin of the Mac's
+ * per-group status width.
+ */
+
+.rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(calc(64 * var(--pt)), max-content);
+  column-gap: calc(12 * var(--pt));
+  padding: 0 calc(6 * var(--pt));
+}
+
+/* From medium: the team block is fixed (records fit), a lane may follow. */
+.rows[data-detail="records"],
+.rows[data-detail="lane"] {
+  grid-template-columns: minmax(0, calc(230 * var(--pt))) minmax(0, 1fr) minmax(calc(64 * var(--pt)), max-content);
+}
+
+.row {
+  position: relative;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  width: 100%;
+  padding: calc(7 * var(--pt)) calc(8 * var(--pt));
+  border-radius: var(--radius-row);
+  color: var(--label);
+  text-align: left;
+  font: inherit;
+  scroll-margin-block: calc(140 * var(--pt)) calc(12 * var(--pt));
+}
+
+.row[data-dimmed="true"] > * {
+  opacity: 0.55;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.row:active {
+  background: var(--fill-press);
+}
+
+.row[data-keyboard="true"] {
+  background: var(--accent-fill);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
+
+.row:focus-visible {
+  outline-offset: calc(-2 * var(--pt));
+}
+
+.teams {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+  min-width: 0;
+}
+
+.lane {
+  grid-column: 2;
+  min-width: 0;
+  padding-left: calc(6 * var(--pt));
+}
+
+.laneLine {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}
+
+.laneLine + .laneLine {
+  margin-top: calc(3 * var(--pt));
+}
+
+.status {
+  grid-column: -2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: calc(1 * var(--pt));
+  max-width: calc(110 * var(--pt));
+  min-width: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.status > * {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-width: 0;
+}
+
+.dimmed .identity,
+.dimmed .score {
+  color: var(--label-secondary);
+}
+
+.identity {
+  display: flex;
+  align-items: baseline;
+  gap: calc(4 * var(--pt));
+  min-width: 0;
+}
+
+.rank {
+  flex: none;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.star {
+  flex: none;
+  color: var(--star);
+}
+
+.record {
+  flex: none;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.spacer {
+  flex: 1;
+  min-width: calc(8 * var(--pt));
+}
+
+.score {
+  flex: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.quiet {
+  font-weight: 500;
+  color: var(--label-secondary);
+}
+
+.fieldTitle {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dayChevron {
+  flex: none;
+  color: var(--label-tertiary);
+  transition: transform var(--dur-quick) var(--ease-out);
+}
+
+.dayChevron[data-open="true"] {
+  transform: rotate(90deg);
+}
+
+.fieldSubtitle {
+  display: block;
+  margin-top: calc(4 * var(--pt));
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caption {
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The parser's red-card mark, drawn as the card. */
+.redCard {
+  display: inline-block;
+  width: calc(5 * var(--pt));
+  height: calc(7 * var(--pt));
+  margin-right: calc(3 * var(--pt));
+  border-radius: calc(1 * var(--pt));
+  background: var(--live);
+  vertical-align: -0.05em;
+}
+
+/* MARK: Status column */
+
+.final {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.warn {
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--delayed-text);
+}
+
+.second {
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.time {
+  font-size: var(--text-status);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown {
+  font-size: var(--text-status);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-text);
+}
+
+.soon {
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--label-secondary);
+}
+
+/* A placeholder time: there, but quiet. */
+.provisional {
+  display: contents;
+}
+
+.provisional .time {
+  font-weight: 400;
+  color: var(--label-secondary);
+}
+
+/* Text arriving with an unfolding day rises 4pt as it fades in (View.reveal). */
+.reveal {
+  animation: reveal var(--dur-reveal) var(--ease-out) both;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(calc(4 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes reveal {
+    from {
+      opacity: 0;
+    }
+  }
+}

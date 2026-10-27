@@ -430,14 +430,19 @@ export function hourFloor(ms: number): number {
   return Math.floor(ms / 3_600_000) * 3_600_000;
 }
 
-/** Matches between two instants (the All scope's week), rounded to the hour. */
+/**
+ * Matches between two instants (the All scope's week), rounded to the hour.
+ * bo3.gg ignores `[gte]` and `[lte]` on `start_date` (verified 2026-10-27:
+ * every match since 2020 came back); `[gt]` and `[lt]` work, so the window
+ * opens a second before the hour.
+ */
 export function csMatchesURL(from: number, to: number): string {
   const params = new URLSearchParams({
     "filter[matches.discipline_id][eq]": "1",
     "filter[matches.status][in]": "upcoming,current,finished",
     "filter[matches.tier][in]": TIER,
-    "filter[matches.start_date][gte]": new Date(hourFloor(from)).toISOString().replace(".000Z", "Z"),
-    "filter[matches.start_date][lte]": new Date(hourFloor(to)).toISOString().replace(".000Z", "Z"),
+    "filter[matches.start_date][gt]": new Date(hourFloor(from) - 1000).toISOString().replace(".000Z", "Z"),
+    "filter[matches.start_date][lt]": new Date(hourFloor(to)).toISOString().replace(".000Z", "Z"),
     sort: "start_date",
     "page[limit]": "100",
     with: "teams,tournament",

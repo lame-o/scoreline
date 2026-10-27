@@ -276,7 +276,7 @@ describe("the agenda", () => {
     const a = csMatchesURL(Date.parse("2026-10-26T17:12:45Z"), Date.parse("2026-11-02T17:12:45Z"));
     const b = csMatchesURL(Date.parse("2026-10-26T17:55:01Z"), Date.parse("2026-11-02T17:55:01Z"));
     expect(a).toBe(b);
-    expect(decodeURIComponent(a)).toContain("start_date][gte]=2026-10-26T17:00:00Z");
+    expect(decodeURIComponent(a)).toContain("start_date][gt]=2026-10-26T16:59:59Z");
   });
 
   it("lists a climbing competition's rounds, or its days", () => {

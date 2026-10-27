@@ -13,7 +13,7 @@
  * - `drill(s)`: a deeper schedule with a way back here (a league's chip);
  * - `mode(m)`: the same scope facing the other way, in place.
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { BackButton, Icon, Menu, PageHeader, SegmentedControl, type MenuEntry } from "../../design/components";
 import { schedulePath, scopeFor, scopeTitle, scopeKey, type ScheduleMode, type ScheduleScope } from "../../data/schedule";
@@ -60,9 +60,11 @@ export interface ScheduleHeaderProps {
   readonly backTitle?: string;
   /** Pinned under the mode switch with the header (a navigator, chips). */
   readonly children?: ReactNode;
+  /** The sticky chrome (the page measures it: scroll margins, the scroll spy's line). */
+  readonly chromeRef?: Ref<HTMLDivElement>;
 }
 
-export function ScheduleHeader({ scope, mode, onMode, titleEntries, title, more, backTitle = "Back", children }: ScheduleHeaderProps) {
+export function ScheduleHeader({ scope, mode, onMode, titleEntries, title, more, backTitle = "Back", children, chromeRef }: ScheduleHeaderProps) {
   const split = useSplit();
   const goBack = useGoBack();
   const nav = useScheduleNav();
@@ -106,7 +108,7 @@ export function ScheduleHeader({ scope, mode, onMode, titleEntries, title, more,
   return (
     <>
     <span ref={sentinel} className={styles.sentinel} aria-hidden="true" />
-    <div className={styles.header} data-scrolled={scrolled}>
+    <div className={styles.header} data-scrolled={scrolled} ref={chromeRef}>
       <PageHeader
         leading={split ? null : <BackButton to={backTitle} onClick={() => goBack()} />}
         trailing={
