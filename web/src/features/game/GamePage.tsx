@@ -31,6 +31,7 @@ import { MomentProvider, useCurrentMoment, useMomentSlot } from "./core/moments"
 import type { GameContext, SportPage, UseSportPage } from "./core/sport";
 import { useCommonSections } from "./core/useCommonSections";
 import { useGame, type GameData } from "./core/useGame";
+import { EMPTY_DETAIL } from "../../data/gameDetail";
 import { useWidth } from "../../design/useWidth";
 import { useBaseballPage } from "./mlb/BaseballPage";
 import { ErrorCopy } from "../../design/components";
@@ -156,41 +157,12 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
             {header}
           </div>
           <div className={styles.inner} ref={inner} data-columns={columns}>
-            {game.detail ? (
-              <Loaded game={game} event={event} palette={palette} columns={columns} geometry={geometry} moments={moments} beats={beats} setBeats={setBeats} />
-            ) : (
-              <>
-                <StaticHero event={event} palette={palette} geometry={geometry} />
-                {game.detailFailed ? <p className={styles.note}>{ErrorCopy.inline("match details")}</p> : null}
-              </>
-            )}
+            {/* The hero shows at once; the sections assemble when the detail arrives. */}
+            <Loaded game={game} event={event} palette={palette} columns={columns} geometry={geometry} moments={moments} beats={beats} setBeats={setBeats} />
           </div>
         </MomentProvider>
       </LinkedFocusProvider>
     </article>
-  );
-}
-
-/** The hero before the detail has loaded (the event is known): no sections yet. */
-function StaticHero({ event, palette, geometry }: { event: ScoreEvent; palette: TeamPalette; geometry: ReturnType<typeof usePageGeometry> }) {
-  const scores = event.content.kind === "match" ? { top: event.content.top.score, bottom: event.content.bottom.score } : { top: null, bottom: null };
-  return (
-    <div className={styles.heroSlot}>
-      <Hero
-        event={event}
-        palette={event.content.kind === "match" ? palette : null}
-        scores={scores}
-        beats={NO_BEATS}
-        surface="hero"
-        clockFallback={event.detail ?? "Live"}
-        staleSince={null}
-        spoken={spokenHero(event, scores, event.detail ?? "Live", null)}
-        caption={event.caption}
-        heroRef={(el) => {
-          geometry.hero = el;
-        }}
-      />
-    </div>
   );
 }
 
@@ -204,7 +176,8 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
   beats: HeroBeats;
   setBeats: React.Dispatch<React.SetStateAction<HeroBeats>>;
 }) {
-  const detail = game.detail!;
+  const detail = game.detail ?? EMPTY_DETAIL;
+  const loading = game.detail == null;
   const live = event.state === "live";
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
@@ -268,7 +241,11 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
         detail={sport.dockDetail}
         chip={sport.chip ?? null}
       />
-      <Sections placed={placed} sections={sport.sections} columns={columns} empty={emptyMessage(event)} />
+      {loading ? (
+        game.detailFailed ? <p className={styles.note}>{ErrorCopy.inline("match details")}</p> : null
+      ) : (
+        <Sections placed={placed} sections={sport.sections} columns={columns} empty={emptyMessage(event)} />
+      )}
       {detail.venue ? <p className={styles.venue}>{detail.venue}</p> : null}
     </>
   );
