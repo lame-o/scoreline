@@ -33,10 +33,16 @@ export function useScheduleNav() {
     [navigate, location.state],
   );
   const drill = useCallback(
-    (s: ScheduleScope, mode: ScheduleMode = "upcoming", viaKeyboard = false) => navigate(schedulePath(s, mode), { state: { viaKeyboard } satisfies NavState }),
+    (s: ScheduleScope, mode: ScheduleMode = "upcoming", viaKeyboard = false, from = "Schedule") => navigate(schedulePath(s, mode), { state: { viaKeyboard, from } }),
     [navigate],
   );
   return { scope, drill };
+}
+
+/** Back's label: the page that opened this one, when it said ("Schedule"), else the scores. */
+export function useBackTitle(): string {
+  const location = useLocation();
+  return (location.state as { from?: string } | null)?.from ?? "Scores";
 }
 
 /** Whether this render of a page came from switching in place (no entrance). */
@@ -56,7 +62,7 @@ export interface ScheduleHeaderProps {
   readonly title?: string;
   /** More's items; omitted or empty: no More button. */
   readonly more?: readonly MenuEntry[];
-  /** Back's label ("Scores"). */
+  /** Back's label; by default the page that opened this one ("Scores"). */
   readonly backTitle?: string;
   /** Pinned under the mode switch with the header (a navigator, chips). */
   readonly children?: ReactNode;
@@ -64,8 +70,9 @@ export interface ScheduleHeaderProps {
   readonly chromeRef?: Ref<HTMLDivElement>;
 }
 
-export function ScheduleHeader({ scope, mode, onMode, titleEntries, title, more, backTitle = "Back", children, chromeRef }: ScheduleHeaderProps) {
+export function ScheduleHeader({ scope, mode, onMode, titleEntries, title, more, backTitle, children, chromeRef }: ScheduleHeaderProps) {
   const split = useSplit();
+  const back = useBackTitle();
   const goBack = useGoBack();
   const nav = useScheduleNav();
   const enabled = useSettings((s) => s.enabledLeagues);
@@ -110,7 +117,7 @@ export function ScheduleHeader({ scope, mode, onMode, titleEntries, title, more,
     <span ref={sentinel} className={styles.sentinel} aria-hidden="true" />
     <div className={styles.header} data-scrolled={scrolled} ref={chromeRef}>
       <PageHeader
-        leading={split ? null : <BackButton to={backTitle} onClick={() => goBack()} />}
+        leading={split ? null : <BackButton to={backTitle ?? back} onClick={() => goBack()} />}
         trailing={
           more && more.length > 0 ? (
             <Menu label="More" align="end" triggerClassName={styles.more} trigger={<Icon name="ellipsis" size={12} />} entries={more} />

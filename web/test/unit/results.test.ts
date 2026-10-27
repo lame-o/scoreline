@@ -21,6 +21,11 @@ import {
   roundSummary,
   seasonLabel,
   summarizeSeason,
+  stripStart,
+  teamResult,
+  spokenTeamResult,
+  weekStep,
+  roundSections,
 } from "../../src/data/results";
 import { scheduleItem, scheduleTeam, resultDetail, type ScheduleItem, type ScheduleCalendar } from "../../src/data/schedule";
 import { longDayLabel, type DayKey } from "../../src/data/days";
@@ -384,5 +389,45 @@ describe("rounds", () => {
     const mlbRounds = buildRounds(days, [], mlbCalendar, leagueWithID("mlb")!, today, MONDAY);
     expect(latestRound(mlbRounds, (r) => (r.first.day === 26 ? false : null))?.first).toEqual(day(2026, 10, 24));
     expect(mlbRounds[mlbRounds.length - 1]?.title).toBe(longDayLabel(today));
+  });
+});
+
+describe("results navigation", () => {
+  const today = day(2026, 10, 26);
+
+  it("ends the strip's week today when the selected week runs past it", () => {
+    // Monday Oct 26: the strip shows Oct 20–26, not a row of empty days ahead.
+    expect(stripStart(today, today)).toEqual(day(2026, 10, 20));
+    // An earlier week keeps its Sunday.
+    expect(stripStart(day(2026, 10, 14), today)).toEqual(day(2026, 10, 11));
+  });
+
+  it("steps a week, landing on the game day nearest the same weekday", () => {
+    const rounds = [day(2026, 10, 10), day(2026, 10, 12), day(2026, 10, 17), day(2026, 10, 24)].map((d) => ({ id: `d:${d.day}`, first: d }));
+    expect(weekStep(-1, day(2026, 10, 24), rounds)?.id).toBe("d:17");
+    expect(weekStep(-1, day(2026, 10, 19), rounds)?.id).toBe("d:12");
+    // Past an empty week, the next game day that way.
+    expect(weekStep(1, day(2026, 10, 24), rounds)).toBeNull();
+    expect(weekStep(-1, day(2026, 10, 10), rounds)).toBeNull();
+  });
+
+  it("lists rounds newest first, by section", () => {
+    const sections = roundSections([
+      { id: "a", title: "Week 1", detail: "", section: "Regular Season" },
+      { id: "b", title: "Week 2", detail: "", section: "Regular Season" },
+      { id: "c", title: "Wild Card", detail: "", section: "Postseason" },
+    ]);
+    expect(sections.map((s) => s.title)).toEqual(["Postseason", "Regular Season"]);
+    expect(sections[1]?.options.map((o) => o.id)).toEqual(["b", "a"]);
+  });
+
+  it("reads a result from a team's side", () => {
+    const items = board("sched-eng1-day.json", "soccer/eng.1", "eng.1", "soccer");
+    const arsenal = game(items, "401878768")!;
+    const r = teamResult(arsenal, arsenal.top!.id!);
+    expect(r).toMatchObject({ letter: "W", score: "2–0", home: true, shootout: false });
+    expect(spokenTeamResult(r)).toBe("won 2 to 0");
+    const everton = teamResult(arsenal, arsenal.bottom!.id!);
+    expect(everton).toMatchObject({ letter: "L", score: "0–2", home: false });
   });
 });

@@ -57,6 +57,7 @@ export function Menu({ label, trigger, entries, align = "start", triggerClassNam
   const list = useRef<HTMLDivElement>(null);
   const id = useId();
   const items = flatten(entries);
+  const glyphs = items.some((i) => i.icon);
   const [placement, setPlacement] = useState<CSSProperties>({});
 
   const close = useCallback((returnFocus: boolean, instant = false) => {
@@ -165,7 +166,7 @@ export function Menu({ label, trigger, entries, align = "start", triggerClassNam
         onClick={() => choose(item)}
       >
         <span className={styles.check}>{item.checked ? <Icon name="check" size={9} /> : null}</span>
-        {item.icon ? <Icon name={item.icon} size={11} className={styles.itemIcon} /> : null}
+        {item.icon ? <Icon name={item.icon} size={11} className={styles.itemIcon} /> : glyphs ? <span className={styles.iconSlot} /> : null}
         <span className={styles.itemLabel}>{item.label}</span>
         {item.detail ? <span className={styles.detail}>{item.detail}</span> : null}
         {item.shortcut ? <span className={styles.detail}>{item.shortcut}</span> : null}

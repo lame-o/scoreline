@@ -67,7 +67,9 @@ export function AgendaPage({ scope, mode, onMode, switched, crossfade }: Schedul
 
   // Rows in one column, or two from 680pt (the scores list's grid); each column's room decides its detail.
   const columns = width >= 680 && folds ? 2 : 1;
-  const detail: RowDetail = rowDetail(width / columns - 28);
+  // A team's season goes two-up by day from the same width (Agenda.module.css `.twoUp`).
+  const twoUp = !folds && width >= 676;
+  const detail: RowDetail = rowDetail((twoUp ? width / 2 : width / columns) - 28);
 
   const defaults = useMemo(() => defaultOpen(data.upcoming, today), [data.upcoming, dayID(today)]); // eslint-disable-line react-hooks/exhaustive-deps
   const isOpen = useCallback(
@@ -260,7 +262,7 @@ export function AgendaPage({ scope, mode, onMode, switched, crossfade }: Schedul
   return (
     <div className={styles.page} ref={page}>
       <ClimbingFeed enabled={scope.kind === "all" && enabled.includes("ifsc")} />
-      <ScheduleHeader scope={scope} mode={mode} onMode={onMode} more={more} backTitle="Back" chromeRef={chrome}>
+      <ScheduleHeader scope={scope} mode={mode} onMode={onMode} more={more} chromeRef={chrome}>
         {navigatorView}
       </ScheduleHeader>
       <div className={[styles.content, crossfade ? styles.crossfade : null].filter(Boolean).join(" ")}>

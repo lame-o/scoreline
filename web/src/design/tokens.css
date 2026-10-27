@@ -83,6 +83,8 @@
   --glass-solid: light-dark(color-mix(in srgb, #fff 62%, #f2f2f5), color-mix(in srgb, rgb(40 40 44) 58%, #121214));
   /* Clear glass lets a team-color wash refract through (the hero card). */
   --glass-fill-clear: light-dark(rgb(255 255 255 / 0.34), rgb(30 30 34 / 0.3));
+  /* Menus: near-opaque, so they read over anything (a backdrop filter can't reach past glass it sits in). */
+  --menu-fill: light-dark(rgb(250 250 252 / 0.95), rgb(42 42 46 / 0.95));
   --glass-blur: blur(calc(24 * var(--pt))) saturate(180%);
   --glass-edge: light-dark(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.08));
   /* Light catching the top edge of the material. */

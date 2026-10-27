@@ -14,9 +14,11 @@ import type { League } from "../../data/models";
 import { buildAgenda, climbingItems, filterItems, splitDays, type AgendaDay } from "../../data/agenda";
 import { nextGameDay, weekAt } from "../../data/providers/schedule";
 import { sortItems } from "../../data/results";
-import { scopeKey, scopeNavigator, weekID, type CalendarWeek, type ScheduleCalendar, type ScheduleItem, type ScheduleScope, type SeasonEvent } from "../../data/schedule";
+import { EMPTY_CALENDAR, scopeKey, scopeNavigator, weekID, type CalendarWeek, type ScheduleCalendar, type ScheduleItem, type ScheduleScope, type SeasonEvent } from "../../data/schedule";
 import {
-  fetchCalendar,
+  CALENDAR_STALE,
+  calendarKey,
+  loadCalendar,
   fetchLeagueList,
   fetchLeagueWeek,
   fetchLeagueWindow,
@@ -97,10 +99,11 @@ export function useAgenda(scope: ScheduleScope): AgendaData {
   // MARK: A league: its week, or its coming game days.
   const league = scope.kind === "league" ? leagueWithID(scope.id) : undefined;
   const calendarQuery = useQuery({
-    queryKey: ["schedule", "calendar", league?.source.kind === "espn" ? league.source.path : "-"],
-    queryFn: () => (league?.source.kind === "espn" ? fetchCalendar(league.source.path) : Promise.resolve(null)),
+    // The same entry `fetchCalendar` reads, with the raw loader (a query can't fetch itself).
+    queryKey: calendarKey(league?.source.kind === "espn" ? league.source.path : "-"),
+    queryFn: () => (league?.source.kind === "espn" ? loadCalendar(league.source.path) : Promise.resolve(EMPTY_CALENDAR)),
     enabled: league?.source.kind === "espn" && navigator === "weekPicker",
-    staleTime: 12 * 3_600_000,
+    staleTime: CALENDAR_STALE,
   });
   const selectedWeek = useMemo(() => (weekChoice ? (calendarQuery.data?.weeks.find((w) => weekID(w) === weekChoice) ?? null) : null), [weekChoice, calendarQuery.data]);
   const leagueQuery = useQuery({
@@ -260,16 +263,6 @@ export function resultsNavigation(scope: ScheduleScope): ResultsNavigation {
   }
 }
 
-/** The strip's first day: the selected day's week (Sunday first), except that this week ends today. */
-export function stripStart(day: DayKey, today: DayKey): DayKey {
-  const start = addingDays(day, -(new Date(Date.UTC(day.year, day.month - 1, day.day, 12)).getUTCDay()));
-  if (compareDays(addingDays(start, 6), today) > 0) {
-    const back = addingDays(today, -6);
-    return compareDays(start, back) <= 0 ? start : back;
-  }
-  return start;
-}
-
 export interface ResultsData {
   readonly page: ResultsPage | null;
   /** The round's day sections, filtered as the scores list is; finals first within a day. */
@@ -358,33 +351,6 @@ export function useResults(scope: ScheduleScope): ResultsData {
   };
 }
 
-/** The round picker's sections, newest first: sections by their newest round, rounds newest first inside. */
-export function roundSections(rounds: readonly { id: string; title: string; detail: string; section: string | null }[]) {
-  const order: string[] = [];
-  const by = new Map<string, { id: string; title: string; detail: string }[]>();
-  for (const r of [...rounds].reverse()) {
-    const k = r.section ?? "";
-    if (!by.has(k)) order.push(k);
-    by.set(k, [...(by.get(k) ?? []), { id: r.id, title: r.title, detail: r.detail }]);
-  }
-  return order.map((title) => ({ title, options: by.get(title) ?? [] }));
-}
-
-/** The strip's ‹ › in Results: a week back or on, landing on the game day nearest the same weekday. */
-export function weekStep(direction: number, current: DayKey, rounds: readonly { id: string; first: DayKey }[]) {
-  const target = addingDays(current, 7 * direction);
-  const start = addingDays(target, -new Date(Date.UTC(target.year, target.month - 1, target.day, 12)).getUTCDay());
-  const end = addingDays(start, 6);
-  const inWeek = rounds.filter((r) => compareDays(start, r.first) <= 0 && compareDays(r.first, end) <= 0);
-  if (inWeek.length) {
-    return inWeek.reduce((a, b) => (Math.abs(daysApart(a.first, target)) <= Math.abs(daysApart(b.first, target)) ? a : b));
-  }
-  return direction < 0 ? ([...rounds].reverse().find((r) => compareDays(r.first, start) < 0) ?? null) : (rounds.find((r) => compareDays(r.first, end) > 0) ?? null);
-}
-
-function daysApart(a: DayKey, b: DayKey) {
-  return Math.round((Date.UTC(b.year, b.month - 1, b.day) - Date.UTC(a.year, a.month - 1, a.day)) / 86_400_000);
-}
-
+export { roundSections, stripStart, weekStep } from "../../data/results";
 export { scheduleSession, sortItems };
 export type { SeasonEvent };

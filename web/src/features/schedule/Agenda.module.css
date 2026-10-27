@@ -436,3 +436,42 @@ h3.groupLabel {
     animation-delay: 0s;
   }
 }
+
+/* MARK: Results */
+
+.roundHead {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+  padding: calc(10 * var(--pt)) var(--gutter) 0;
+}
+
+.roundHead .summaryLine {
+  padding: 0;
+}
+
+/* From 680pt: the rounds (or a team's card) beside the round. */
+.besideRounds {
+  display: grid;
+  grid-template-columns: minmax(calc(250 * var(--pt)), 0.75fr) minmax(0, 1.25fr);
+  align-items: start;
+}
+
+.besideRounds > :first-child {
+  position: sticky;
+  top: var(--schedule-chrome, 0);
+}
+
+.noteTop {
+  padding-top: calc(12 * var(--pt));
+}
+
+.monthLabel {
+  margin: 0;
+  padding: calc(14 * var(--pt)) var(--gutter) calc(4 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}

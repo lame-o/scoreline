@@ -34,7 +34,7 @@
   overscroll-behavior: contain;
   padding: calc(5 * var(--pt));
   border-radius: calc(10 * var(--pt));
-  background: var(--glass-fill-strong);
+  background: var(--menu-fill);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   box-shadow:
@@ -152,7 +152,14 @@
 
 .itemIcon {
   flex: none;
+  width: calc(12 * var(--pt));
   color: var(--label-secondary);
+}
+
+/* When some items have glyphs, every label starts at the same place. */
+.iconSlot {
+  flex: none;
+  width: calc(12 * var(--pt));
 }
 
 .itemLabel {

@@ -86,9 +86,18 @@ export interface Board {
   readonly fetchedAt: number;
 }
 
-/** A league's season calendar (from its undated scoreboard). */
+/** The query a league's calendar lives under (a hook reading it uses the same key and `loadCalendar`). */
+export const calendarKey = (path: string) => ["schedule", "calendar", path] as const;
+export const CALENDAR_STALE = CALENDAR_TTL;
+
+/** A league's season calendar, fetched (no cache): the query function behind `calendarKey`. */
+export async function loadCalendar(path: string): Promise<ScheduleCalendar> {
+  return parseCalendar(await getJSON(scoreboardURL(path, { kind: "undated" })));
+}
+
+/** A league's season calendar (from its undated scoreboard), through the cache. */
 export function fetchCalendar(path: string): Promise<ScheduleCalendar> {
-  return cached(["schedule", "calendar", path], CALENDAR_TTL, async () => parseCalendar(await getJSON(scoreboardURL(path, { kind: "undated" }))));
+  return cached(calendarKey(path), CALENDAR_TTL, () => loadCalendar(path));
 }
 
 /** How long a board stays fresh. */
@@ -427,6 +436,10 @@ export const scheduleSession = {
       else delete next[scopeKey(scope)];
       return { round: next };
     });
+  },
+  /** A raw entry beside the rounds (the All scope's reach back: "all:back"). */
+  setRoundRaw(key: string, value: string) {
+    write((s) => ({ round: { ...s.round, [key]: value } }));
   },
   setSeasonYear(scope: ScheduleScope, year: number | null) {
     write((s) => {

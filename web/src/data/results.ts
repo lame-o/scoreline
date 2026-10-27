@@ -6,7 +6,7 @@
  * ESPN parser runs inside the schedule parser (`providers/schedule.ts`), so
  * every string a row shows is made once, at parse time.
  */
-import { addingDays, compareDays, daysBetween, dayKeyIn, dayRangeLabel, longDayLabel, mediumDayLabel, dayID, type DayKey } from "./days";
+import { addingDays, compareDays, daysBetween, dayKeyIn, dayRangeLabel, longDayLabel, mediumDayLabel, dayID, weekStart, type DayKey } from "./days";
 import { ordinal, plural, spokenStatus, enDash } from "./format";
 import { arr, at, bool, int, str, type JSONValue } from "./json";
 import type { League, Sport } from "./models";
@@ -1157,3 +1157,77 @@ export function csHistoryURL(teamIDs: readonly number[], page: number): string {
   });
   return `https://api.bo3.gg/api/v1/matches?${params}`;
 }
+
+// MARK: - Navigation and a team's side (ResultsPage.swift `ResultsNavigation`, ResultRows.swift `TeamResult`)
+
+/** The strip's first day: the selected day's week (Sunday first), except that this week ends today. */
+export function stripStart(day: DayKey, today: DayKey): DayKey {
+  const start = weekStart(day);
+  if (compareDays(addingDays(start, 6), today) > 0) {
+    const back = addingDays(today, -6);
+    return compareDays(start, back) <= 0 ? start : back;
+  }
+  return start;
+}
+
+/** The round picker's sections, newest first: sections by their newest round, rounds newest first inside. */
+export function roundSections(rounds: readonly { id: string; title: string; detail: string; section: string | null }[]) {
+  const order: string[] = [];
+  const by = new Map<string, { id: string; title: string; detail: string }[]>();
+  for (const r of [...rounds].reverse()) {
+    const k = r.section ?? "";
+    if (!by.has(k)) order.push(k);
+    by.set(k, [...(by.get(k) ?? []), { id: r.id, title: r.title, detail: r.detail }]);
+  }
+  return order.map((title) => ({ title, options: by.get(title) ?? [] }));
+}
+
+/** The strip's ‹ › in Results: a week back or on, landing on the game day nearest the same weekday. */
+export function weekStep(direction: number, current: DayKey, rounds: readonly { id: string; first: DayKey }[]) {
+  const target = addingDays(current, 7 * direction);
+  const start = weekStart(target);
+  const end = addingDays(start, 6);
+  const inWeek = rounds.filter((r) => compareDays(start, r.first) <= 0 && compareDays(r.first, end) <= 0);
+  if (inWeek.length) {
+    return inWeek.reduce((a, b) => (Math.abs(daysBetween(a.first, target)) <= Math.abs(daysBetween(b.first, target)) ? a : b));
+  }
+  return direction < 0 ? ([...rounds].reverse().find((r) => compareDays(r.first, start) < 0) ?? null) : (rounds.find((r) => compareDays(r.first, end) > 0) ?? null);
+}
+
+
+// MARK: - A team's side of a result
+
+/** One result read from a team's side: "W 2–0 vs Everton" (Swift `TeamResult`). Pure: tested. */
+export interface TeamResult {
+  /** "W", "D", "L", "T"; null when there's no result to read. */
+  readonly letter: string | null;
+  /** "2–0", the team's score first; null for a forfeit. */
+  readonly score: string | null;
+  readonly home: boolean;
+  readonly opponent: ScheduleTeam | null;
+  /** "(P)" after a shootout. */
+  readonly shootout: boolean;
+}
+
+export function teamResult(item: ScheduleItem, team: string): TeamResult {
+  const teams = itemTeams(item);
+  const mine = teams.find((t) => t.id === team) ?? null;
+  const other = teams.find((t) => t.id !== team) ?? (mine == null ? null : (teams[teams.length - 1] ?? null));
+  // Soccer lists the home side first; everyone else the away side first.
+  const home = item.sport === "soccer" ? item.top?.id === team : item.bottom?.id === team;
+  const shootout = item.result?.kind === "penalties";
+  const base = { home, opponent: other, shootout };
+  if (item.status !== "final" || !mine || !other) return { ...base, letter: null, score: null };
+  if (item.result?.kind === "forfeit") return { ...base, letter: mine.winner ? "W" : other.winner ? "L" : null, score: null };
+  // No score, no result to read (a final the source sent bare).
+  if (mine.score == null || other.score == null) return { ...base, letter: null, score: null };
+  return { ...base, letter: mine.winner ? "W" : other.winner ? "L" : item.sport === "soccer" ? "D" : "T", score: `${mine.score}–${other.score}` };
+}
+
+/** "won 2 to 0", "lost 1 to 3", "drew 2 to 2". */
+export function spokenTeamResult(r: TeamResult): string | null {
+  if (!r.letter) return null;
+  const word = ({ W: "won", L: "lost", D: "drew", T: "tied" } as Record<string, string>)[r.letter] ?? r.letter;
+  return [word, r.score?.replaceAll("–", " to ")].filter(Boolean).join(" ");
+}
+
