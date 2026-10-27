@@ -13,6 +13,11 @@ import { faviconScore, pinExpired, tabEvent, tabTitle } from "../../src/data/tab
 import { composeTitle } from "../../src/app/useDocumentTitle";
 import { commandFor } from "../../src/app/commands";
 import { landingOffset } from "../../src/app/scrollMemory";
+import { raceOf } from "../../src/features/scores/TileStrips";
+import { pickOutline, pickSections } from "../../src/data/pickOutline";
+import { stops, stopKey } from "../../src/data/outline";
+import { nextDayAfterWindow, parseCalendar } from "../../src/data/providers/schedule";
+import type { TeamOption } from "../../src/data/providers/teams";
 import { fixture, replay } from "./fixtures";
 
 const NOW = Date.parse("2026-10-27T18:00:00Z");
@@ -298,5 +303,56 @@ describe("the detail pane's scroll memory", () => {
   it("keeps each way of a page its own place, and starts a new scope at the top", () => {
     expect(landingOffset("REPLACE", { pathname: "/schedule/nfl" }, { pathname: "/schedule/nfl", search: "?mode=results", key: "k2" }, memory)).toBe(300);
     expect(landingOffset("REPLACE", { pathname: "/schedule" }, { pathname: "/schedule/nfl", search: "?mode=results", key: "k3" }, memory)).toBe(0);
+  });
+});
+
+// MARK: - The race, the pick list, quiet leagues
+
+describe("the CS2 race", () => {
+  const live = (top: number, bottom: number, round: number | null = null) => ({ mapName: "Mirage", mapNumber: 1, round, topScore: top, bottomScore: bottom, topSide: null, bottomSide: null, mapEnded: false });
+  it("races to 13, then to 4 in each overtime block", () => {
+    expect(raceOf(live(5, 8, 14))).toEqual({ cells: 13, top: 5, bottom: 8, label: "Round 14" });
+    expect(raceOf(live(12, 12))).toEqual({ cells: 4, top: 0, bottom: 0, label: "Overtime" });
+    expect(raceOf(live(15, 14))).toEqual({ cells: 4, top: 3, bottom: 2, label: "Overtime" });
+    expect(raceOf(live(16, 15))).toEqual({ cells: 4, top: 1, bottom: 0, label: "Overtime 2" });
+  });
+});
+
+describe("the pick list's outline", () => {
+  const team = (id: string, group: string | null = null): TeamOption => ({ id, name: id, logo: null, flag: null, group });
+  const college = Array.from({ length: 30 }, (_, i) => team(`t${String(i).padStart(2, "0")}`, i < 15 ? "SEC" : "Big Ten"));
+
+  it("groups a long list by conference, with the picks as of opening first", () => {
+    const sections = pickSections(college, "", new Set(["t20"]), "Teams");
+    expect(sections.map((s) => [s.id, s.kind])).toEqual([["selected", "plain"], ["conf:SEC", "disclosure"], ["conf:Big Ten", "disclosure"]]);
+  });
+
+  it("caps a long flat list, lists a short one whole, and searches flat", () => {
+    const flat = Array.from({ length: 30 }, (_, i) => team(`c${i}`));
+    expect(pickSections(flat, "", new Set(), "Countries").map((s) => [s.title, s.kind])).toEqual([["Countries", "capped"]]);
+    expect(pickSections(flat.slice(0, 20), "", new Set(["c1"]), "Teams").map((s) => [s.title, s.kind])).toEqual([["Selected", "plain"], ["All Teams", "plain"]]);
+    expect(pickSections(college, "t2", new Set(), "Teams")[0]!.options.map((o) => o.id)).toEqual(["t20", "t21", "t22", "t23", "t24", "t25", "t26", "t27", "t28", "t29"]);
+    expect(pickSections(college, "zzz", new Set(), "Teams")).toEqual([]);
+  });
+
+  it("gives the arrow keys headers, open rows and Show All", () => {
+    const sections = pickSections(college, "", new Set(), "Teams");
+    const keys = stops(pickOutline(sections), new Set(["conf:SEC"])).map(stopKey);
+    expect(keys[0]).toBe("h|conf:SEC");
+    expect(keys[1]).toBe("r|conf:SEC|t00");
+    expect(keys.at(-1)).toBe("h|conf:Big Ten");
+  });
+});
+
+describe("a quiet league's next game day", () => {
+  it("is the next game day from the day after tomorrow, or a weekly league's next week", () => {
+    const daily = parseCalendar(fixture("sched-eng1-undated.json"));
+    const now = Date.parse("2026-10-27T18:00:00Z");
+    const next = nextDayAfterWindow(daily, false, now);
+    expect(next).not.toBeNull();
+    expect(Date.UTC(next!.year, next!.month - 1, next!.day)).toBeGreaterThanOrEqual(Date.UTC(2026, 9, 29));
+    const weekly = parseCalendar(fixture("sched-nfl-undated.json"));
+    const week = nextDayAfterWindow(weekly, true, now);
+    expect(week).not.toBeNull();
   });
 });

@@ -5,8 +5,10 @@
  * beside the detail pane on wider screens.
  *
  * Keyboard (as on the Mac): ↑/↓ move through the games (←/→ too in Tiles),
- * Return opens the highlighted one, Esc goes back (AppShell). Keyboard moves
- * never animate; the pointer's hover takes the highlight back.
+ * Return opens the highlighted one, P shows it in the tab (the Mac's ⌘P,
+ * Show in Menu Bar), Esc goes back (AppShell). Keyboard moves never
+ * animate; the pointer's hover takes the highlight back. R, comma and S are
+ * the app's (app/commands.ts).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { matchPath, useLocation, useNavigate } from "react-router";
@@ -15,6 +17,7 @@ import { plural, updatedAgo, clockTime } from "../../data/format";
 import type { NavState } from "../../app/layout";
 import { isTyping } from "../../app/navigation";
 import { useNow } from "../../state/clock";
+import { pin } from "../../state/pin";
 import { useScoreboard } from "../../state/scores";
 import { settings, type LandingView } from "../../state/settings";
 import { useWidth, WIDTH } from "../../design/useWidth";
@@ -59,6 +62,11 @@ export function ScoresPage({ variant }: { readonly variant: "page" | "sidebar" }
         // Instantly, and clear of the sticky header (scroll-margin).
         next.element.scrollIntoView({ block: "nearest", behavior: "instant" as ScrollBehavior });
         if (focusInList) next.element.focus({ preventScroll: true });
+        return;
+      }
+      if ((event.key === "p" || event.key === "P") && !event.repeat && highlight.id && container.querySelector(`[data-nav-id="${CSS.escape(highlight.id)}"]`)) {
+        event.preventDefault();
+        pin.toggle(highlight.id);
         return;
       }
       if ((event.key === "Enter" || event.key === " ") && highlight.id && !(focused && (focused.tagName === "A" || focused.tagName === "BUTTON"))) {
@@ -106,9 +114,9 @@ export function ScoresPage({ variant }: { readonly variant: "page" | "sidebar" }
               { value: "tiles", label: "Tiles", icon: "tiles" },
             ]}
           />
-          <IconButton icon="calendar" label="Schedule" onClick={() => navigate("/schedule")} />
+          <IconButton icon="calendar" label="Schedule" shortcut="S" onClick={() => navigate("/schedule")} />
           <RefreshButton onRefresh={scores.refresh} />
-          <IconButton icon="sliders" label="Settings" onClick={() => navigate("/settings")} />
+          <IconButton icon="sliders" label="Settings" shortcut="," onClick={() => navigate("/settings")} />
         </div>
       </header>
 
@@ -176,6 +184,7 @@ function RefreshButton({ onRefresh }: { onRefresh: () => Promise<void> }) {
     <IconButton
       icon="refresh"
       label="Refresh"
+      shortcut="R"
       turns={turns}
       onClick={() => {
         setTurns((t) => t + 1);
