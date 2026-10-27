@@ -4,6 +4,7 @@
  * announcement, the hero's scoreboard beats, and the docked bar's math.
  * Pure and tested; the views that draw them live in features/game/core.
  */
+import { sweepCurve } from "./celebrations";
 import { spokenStatus } from "./format";
 import type { Competitor, Side } from "./models";
 
@@ -238,3 +239,87 @@ export function visibility(frame: { top: number; height: number }, visible: { to
   if (fraction <= 0.4) return above ? "hiddenAbove" : "hiddenBelow";
   return above ? "partialAbove" : "partialBelow";
 }
+
+// MARK: - The possession toss (DockRules.shouldToss, PossessionToss)
+
+/** How the bar's possession glyph moves when the ball changes hands. */
+export type PossessionMotion =
+  /** An instant swap (first data, a game that isn't live, a catch-up). */
+  | { readonly kind: "none" }
+  /** Reduce Motion: the old glyph fades out, the new one fades in. */
+  | { readonly kind: "fade" }
+  /** Glides across (the travel spring, no bounce). */
+  | { readonly kind: "glide" }
+  /** Tossed across on an arc `rise` points high, spinning a turn and a quarter and landing with a small knock (each by level). */
+  | { readonly kind: "toss"; readonly rise: number; readonly spins: boolean; readonly knocks: boolean };
+
+/**
+ * The football is tossed only for a turnover whose field can't be seen (the
+ * field plays its own turnover beat when it can); any other change of
+ * possession glides. `moment` is the moment on show and how long ago it
+ * arrived (seconds).
+ */
+export function possessionMotion(
+  change: { readonly from: Side | null; readonly to: Side | null },
+  moment: { readonly kind: string; readonly age: number } | null,
+  fieldVisibility: Visibility | null,
+  level: "full" | "subtle" | "off",
+  reduceMotion: boolean,
+  { live = true, catchUp = false }: { live?: boolean; catchUp?: boolean } = {},
+): PossessionMotion {
+  if (!change.from || !change.to || change.from === change.to) return { kind: "none" };
+  if (!live || catchUp) return { kind: "none" };
+  if (reduceMotion) return { kind: "fade" };
+  const turnover = moment != null && moment.kind === "turnover" && moment.age <= 2;
+  if (!turnover || fieldVisibility === "visible") return { kind: "glide" };
+  switch (level) {
+    case "full":
+      return { kind: "toss", rise: 12, spins: true, knocks: true };
+    case "subtle":
+      return { kind: "toss", rise: 6, spins: false, knocks: false };
+    case "off":
+      return { kind: "glide" };
+  }
+}
+
+/** A toss takes 0.5 s on the sweep curve; a glide, the travel spring's 0.45 s. */
+export const tossDuration = (motion: PossessionMotion): number => (motion.kind === "toss" ? 0.5 : 0.45);
+
+/** Celebrate.sweepCurve: on-screen movement eases in and out. */
+const tossSweep = (x: number) => sweepCurve(Math.min(Math.max(x, 0), 1));
+
+/**
+ * The ball in flight at `t` seconds: how far across (0…1), how high above
+ * the line between the slots (points; the arc's apex is `rise`), and its spin
+ * (degrees). A glide follows the travel spring and never leaves the line.
+ */
+export function tossAt(motion: PossessionMotion, t: number): { progress: number; lift: number; spin: number } {
+  if (motion.kind === "toss") {
+    const s = tossSweep(t / 0.5);
+    return { progress: s, lift: 4 * motion.rise * s * (1 - s), spin: motion.spins ? 450 * Math.min(Math.max(t / 0.5, 0), 1) : 0 };
+  }
+  // Critically damped, settling in 0.4 s (Spring(duration: 0.4, bounce: 0)).
+  const omega = (2 * Math.PI) / 0.4;
+  const u = Math.max(t, 0);
+  return { progress: t >= 0.45 ? 1 : 1 - (1 + omega * u) * Math.exp(-omega * u), lift: 0, spin: 0 };
+}
+
+/** The knock (§2.8): out, back past center, damped (0.34 s); `outward` is the first move's sign. */
+export const knockSteps = (amplitude: number, outward = -1): readonly { readonly value: number; readonly duration: number }[] => [
+  { value: outward * amplitude, duration: 0.05 },
+  { value: -0.8 * outward * amplitude, duration: 0.07 },
+  { value: 0.5 * outward * amplitude, duration: 0.07 },
+  { value: -0.25 * outward * amplitude, duration: 0.07 },
+  { value: 0, duration: 0.08 },
+];
+
+/** Knock steps as WAAPI offsets (0…1) and values, starting at rest. */
+export function knockFrames(amplitude: number, outward = -1): { offset: number; value: number }[] {
+  const steps = knockSteps(amplitude, outward);
+  const total = steps.reduce((t, s) => t + s.duration, 0);
+  let at = 0;
+  return [{ offset: 0, value: 0 }, ...steps.map((s) => ({ offset: (at += s.duration) / total, value: s.value }))];
+}
+
+/** A knock lasts 0.34 s. */
+export const KNOCK_SECONDS = 0.34;

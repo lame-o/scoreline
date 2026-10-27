@@ -21,7 +21,7 @@ import { glintProgress, pillOpacity, popScale, sample, washPulse } from "../../.
 import { countdown, countdownClock, dayAndTime, enDash, spokenStatus } from "../../../data/format";
 import { dayKeyOf, mediumDayLabel } from "../../../data/days";
 import type { HeroBeats, Surface } from "../../../data/matchRules";
-import { stepsBack, type Competitor, type ScoreEvent, type Side } from "../../../data/models";
+import { stepsBack, type Competitor, type GameClock, type ScoreEvent, type Side } from "../../../data/models";
 import { NEUTRAL, washStrength, type TeamPalette } from "../../../data/teamColors";
 import { useNow } from "../../../state/clock";
 import { settings, useIsFollowing, useSettings } from "../../../state/settings";
@@ -38,6 +38,8 @@ export interface HeroProps {
   readonly surface: Surface;
   /** What the clock line says without a running clock: the lane's inning, half-time. */
   readonly clockFallback: string;
+  /** The live clock (a fast lane's reading, else the scoreboard's). */
+  readonly clock?: GameClock | null;
   /** Under the clock: "MIL batting". */
   readonly liveSecond?: string | null;
   /** Live football or NBA: who has the ball. */
@@ -51,7 +53,7 @@ export interface HeroProps {
   readonly tuckRef?: React.Ref<HTMLDivElement>;
 }
 
-export function Hero({ event, palette, scores, beats, surface, clockFallback, liveSecond, possession, staleSince, spoken, caption, heroRef, tuckRef }: HeroProps) {
+export function Hero({ event, palette, scores, beats, surface, clockFallback, clock, liveSecond, possession, staleSince, spoken, caption, heroRef, tuckRef }: HeroProps) {
   const glint = useRef<HTMLSpanElement>(null);
   const level = useSettings((s) => s.celebrationLevel);
   const reduce = useReducedMotion();
@@ -86,7 +88,7 @@ export function Hero({ event, palette, scores, beats, surface, clockFallback, li
                 <BeatScore value={scores.bottom} live={live} dimmed={stepsBack(event, event.content.bottom)} pops={beats.pops.bottom} color={palette.bottom} active={surface === "hero"} />
               </span>
             ) : null}
-            <HeroStatus event={event} stale={staleSince != null} fallback={clockFallback} second={liveSecond ?? null} ticking={surface === "hero"} />
+            <HeroStatus event={event} clock={clock ?? event.clock} stale={staleSince != null} fallback={clockFallback} second={liveSecond ?? null} ticking={surface === "hero"} />
           </div>
           <TeamColumn event={event} c={event.content.bottom} color={palette.bottom} hasBall={possession === "bottom"} />
         </div>
@@ -97,7 +99,7 @@ export function Hero({ event, palette, scores, beats, surface, clockFallback, li
         <h1 className={styles.fieldTitle}>{event.content.title}</h1>
         {event.content.summary ? <p className={styles.fieldSummary}>{event.content.summary}</p> : null}
         <div style={{ paddingTop: "calc(4 * var(--pt))" }}>
-          <HeroStatus event={event} stale={staleSince != null} fallback={clockFallback} second={null} ticking={surface === "hero"} />
+          <HeroStatus event={event} clock={clock ?? event.clock} stale={staleSince != null} fallback={clockFallback} second={null} ticking={surface === "hero"} />
         </div>
       </div>
     ) : null;
@@ -230,7 +232,7 @@ const dayStart = (ms: number) => {
 };
 
 /** Live: the dot and clock (or the inning). Scheduled: a countdown inside a day, then the day and time. Final: the word and the date. */
-function HeroStatus({ event, stale, fallback, second, ticking }: { event: ScoreEvent; stale: boolean; fallback: string; second: string | null; ticking: boolean }) {
+function HeroStatus({ event, clock, stale, fallback, second, ticking }: { event: ScoreEvent; clock: GameClock | null; stale: boolean; fallback: string; second: string | null; ticking: boolean }) {
   const soon = event.state === "scheduled" && event.start - Date.now() < 86_400_000;
   // The countdown ticks while the hero is the scoreboard on screen (the bar ticks instead).
   const now = useNow(soon && ticking ? 1000 : 30_000, event.state === "scheduled");
@@ -239,7 +241,7 @@ function HeroStatus({ event, stale, fallback, second, ticking }: { event: ScoreE
       return (
         <div className={styles.status}>
           {/* Breathes only while the hero is the scoreboard on screen (the bar's dot takes over). */}
-          <LiveStatus clock={event.clock} fallback={fallback} size={11.5} animated={!stale && ticking} />
+          <LiveStatus clock={clock} fallback={fallback} size={11.5} animated={!stale && ticking} />
           {second ? <span className={styles.statusSecond}>{second}</span> : null}
         </div>
       );
