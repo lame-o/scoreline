@@ -1,0 +1,362 @@
+/* Brackets (BracketView, BracketCell) and the Swiss ladder. Neutrals are ink opacities (--viz-*); no team colors. */
+
+.loading {
+  padding-top: calc(8 * var(--pt));
+}
+
+/* MARK: Tree */
+
+/* Capped at 180pt columns, the tree and its footer center as a unit. */
+.bracket {
+  width: 100%;
+  margin: 0 auto;
+}
+
+.frame {
+  width: 100%;
+}
+
+.scroller {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  /* Room for the live dot and the ring, which sit on the cell's edge. */
+  padding: calc(4 * var(--pt)) 0;
+  margin: calc(-4 * var(--pt)) calc(-1 * var(--gutter));
+  padding-inline: var(--gutter);
+}
+
+.tree {
+  position: relative;
+}
+
+.roundName {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: calc(9 * var(--pt));
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+}
+
+.line,
+.path {
+  fill: none;
+  stroke-linejoin: round;
+}
+
+.line {
+  stroke: var(--viz-grid);
+  stroke-width: 1;
+}
+
+/* A decided matchup's line carries its winner forward. */
+.path {
+  stroke: var(--viz-reference);
+  stroke-width: 1.25;
+}
+
+.cell {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+  background: var(--fill-surface);
+  box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) var(--stroke-hairline);
+}
+
+/* Hover is instant (the house rule). */
+.cell[data-hovered="true"] {
+  background: var(--fill-press);
+}
+
+/* The matchup of the match this page was opened from. */
+.cell[data-ringed="true"] {
+  box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) var(--accent);
+}
+
+.cell:focus-visible {
+  outline-offset: calc(1 * var(--pt));
+}
+
+.divider {
+  flex: none;
+  height: calc(0.5 * var(--pt));
+  background: var(--viz-grid);
+}
+
+.side {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.team {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side[data-won="true"] {
+  font-weight: 600;
+}
+
+.side[data-lost="true"],
+.side[data-tbd="true"] {
+  color: var(--label-secondary);
+}
+
+.side[data-lost="true"] :global(img) {
+  opacity: 0.75;
+}
+
+.score {
+  flex: none;
+}
+
+.placeholder {
+  flex: none;
+  width: calc(12 * var(--pt));
+  height: calc(12 * var(--pt));
+  border-radius: 50%;
+  background: var(--viz-track);
+}
+
+.live {
+  position: absolute;
+  top: calc(-3 * var(--pt));
+  right: calc(-3 * var(--pt));
+  display: inline-flex;
+}
+
+/* MARK: Footer (ChartFooter): the readout replaces the legend, which keeps its space. */
+
+.footer {
+  position: relative;
+  min-height: calc(20 * var(--pt));
+  padding-top: calc(6 * var(--pt));
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(12 * var(--pt));
+}
+
+.legend[data-hidden="true"] {
+  opacity: 0;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  font-size: var(--text-small);
+  color: var(--label-secondary);
+}
+
+.ringSwatch {
+  width: calc(12 * var(--pt));
+  height: calc(9 * var(--pt));
+  border-radius: calc(3 * var(--pt));
+  box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) var(--accent);
+}
+
+.pathSwatch {
+  width: calc(12 * var(--pt));
+  height: calc(1.25 * var(--pt));
+  background: var(--viz-reference);
+}
+
+.readout {
+  position: absolute;
+  inset: calc(6 * var(--pt)) 0 auto 0;
+  display: flex;
+  gap: calc(8 * var(--pt));
+  min-width: 0;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  animation: fade var(--dur-fade) var(--ease-out) both;
+}
+
+.readoutLead {
+  flex: none;
+  font-weight: 600;
+}
+
+.readoutDetail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--label-secondary);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.extra {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+  padding-top: calc(12 * var(--pt));
+}
+
+.extraTitle {
+  font-size: calc(9 * var(--pt));
+  font-weight: 500;
+  color: var(--label-secondary);
+}
+
+/* MARK: Swiss ladder */
+
+.ladder {
+  display: flex;
+  flex-direction: column;
+  gap: calc(5 * var(--pt));
+}
+
+.ladderHead,
+.ladderRow {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+}
+
+.ladderHead {
+  font-size: calc(9 * var(--pt));
+  font-weight: 500;
+  color: var(--label-secondary);
+}
+
+.roundHead {
+  flex: none;
+  text-align: center;
+}
+
+.ladderRow {
+  margin: 0 calc(-6 * var(--pt));
+  padding: calc(2 * var(--pt)) calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+}
+
+.ladderRow[data-mine="true"] {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.ladderTeam {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  flex: 1;
+  min-width: 0;
+}
+
+.ladderName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(11.5 * var(--pt));
+}
+
+.ladderName[data-mine="true"] {
+  font-weight: 600;
+}
+
+.roundCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2 * var(--pt));
+  flex: none;
+}
+
+.chip {
+  flex: none;
+  width: calc(12 * var(--pt));
+  height: calc(12 * var(--pt));
+  margin: 0 calc(2 * var(--pt));
+  border-radius: calc(3 * var(--pt));
+}
+
+.chip[data-result="won"] {
+  background: var(--viz-neutral);
+}
+
+.chip[data-result="lost"] {
+  box-shadow: inset 0 0 0 calc(1 * var(--pt)) var(--viz-neutral);
+}
+
+.chip[data-result="pending"] {
+  box-shadow: inset 0 0 0 calc(1 * var(--pt)) var(--viz-grid);
+}
+
+.opponent {
+  display: inline-flex;
+  width: calc(14 * var(--pt));
+  height: calc(14 * var(--pt));
+}
+
+.opponent[data-pending="true"] {
+  opacity: 0.55;
+}
+
+.status {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: calc(4 * var(--pt));
+  flex: none;
+  white-space: nowrap;
+}
+
+.record {
+  font-size: calc(11 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.record[data-out="true"] {
+  color: var(--label-secondary);
+}
+
+.through {
+  font-size: var(--text-small);
+  color: var(--accent-text);
+}
+
+.out {
+  font-size: var(--text-small);
+  color: var(--label-secondary);
+}
+
+.ladderLegend {
+  display: flex;
+  gap: calc(12 * var(--pt));
+  padding-top: calc(4 * var(--pt));
+}

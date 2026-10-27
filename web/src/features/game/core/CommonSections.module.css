@@ -1,0 +1,444 @@
+.teamDot {
+  display: inline-block;
+  width: calc(6 * var(--pt));
+  height: calc(6 * var(--pt));
+  border-radius: 50%;
+  flex: none;
+}
+
+/* MARK: Line score */
+
+.linescore {
+  display: flex;
+  align-items: flex-start;
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+.lsNames,
+.lsTotals,
+.lsPeriods {
+  display: grid;
+  grid-template-rows: calc(16 * var(--pt)) calc(19 * var(--pt)) calc(19 * var(--pt));
+  align-items: center;
+}
+
+.lsNames {
+  min-width: calc(44 * var(--pt));
+  padding-right: calc(4 * var(--pt));
+}
+
+.lsName {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.lsHead {
+  align-self: start;
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 500;
+  color: var(--label-secondary);
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: calc(0.5 * var(--pt)) solid var(--separator);
+  padding-bottom: calc(3 * var(--pt));
+  height: 100%;
+}
+
+.lsNames .lsHead {
+  border-bottom: calc(0.5 * var(--pt)) solid var(--separator);
+}
+
+.lsScroller {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.lsScroller::-webkit-scrollbar {
+  display: none;
+}
+
+/* An edge with more periods past it fades: a cut-off column reads as "more this way". */
+.lsScroller[data-leading="true"] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 calc(18 * var(--pt)));
+  mask-image: linear-gradient(to right, transparent, #000 calc(18 * var(--pt)));
+}
+
+.lsScroller[data-trailing="true"] {
+  -webkit-mask-image: linear-gradient(to left, transparent, #000 calc(18 * var(--pt)));
+  mask-image: linear-gradient(to left, transparent, #000 calc(18 * var(--pt)));
+}
+
+.lsScroller[data-leading="true"][data-trailing="true"] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 calc(18 * var(--pt)), #000 calc(100% - 18 * var(--pt)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 calc(18 * var(--pt)), #000 calc(100% - 18 * var(--pt)), transparent);
+}
+
+.lsPeriods {
+  grid-auto-flow: row;
+}
+
+.lsCell {
+  position: relative;
+  text-align: right;
+  padding-right: 0;
+  isolation: isolate;
+  cursor: default;
+}
+
+/* An inning lit by a hovered play, ball or its own cell: a soft rounded wash and the number in semibold. */
+.lsCell::before {
+  content: "";
+  position: absolute;
+  inset: calc(-2 * var(--pt)) calc(-3 * var(--pt)) calc(-2 * var(--pt)) calc(3 * var(--pt));
+  border-radius: calc(4 * var(--pt));
+  background: var(--label);
+  opacity: 0;
+  z-index: -1;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.lsCell[data-lit="true"] {
+  font-weight: 600;
+}
+
+.lsCell[data-lit="true"]::before {
+  opacity: 0.09;
+}
+
+.lsTotals {
+  border-left: calc(0.5 * var(--pt)) solid var(--viz-grid);
+  margin-left: calc(3 * var(--pt));
+  padding-left: calc(3 * var(--pt));
+}
+
+.lsTotal {
+  text-align: right;
+  font-weight: 600;
+}
+
+/* MARK: Win probability */
+
+.winProb {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--pt));
+}
+
+.wpLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(6 * var(--pt));
+  font-size: var(--text-status);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.wpLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  white-space: nowrap;
+}
+
+.wpTrack {
+  --gap: calc(1 * var(--pt));
+  position: relative;
+  height: calc(10 * var(--pt));
+}
+
+.wpBar {
+  position: absolute;
+  inset: calc(2 * var(--pt)) 0 auto 0;
+  height: calc(6 * var(--pt));
+  border-radius: 999px;
+  transition: transform var(--dur-standard) var(--ease-out);
+}
+
+.wpTrack::before {
+  /* The clip for the sliding capsules: the track's own capsule. */
+  content: none;
+}
+
+.wpTrack {
+  overflow: hidden;
+  border-radius: 999px;
+  overflow: clip;
+  overflow-clip-margin: calc(2 * var(--pt));
+}
+
+.wpDraw {
+  position: absolute;
+  top: calc(2 * var(--pt));
+  height: calc(6 * var(--pt));
+  border-radius: 999px;
+  background: var(--viz-neutral);
+}
+
+.wpTick {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: calc(1 * var(--pt));
+  height: calc(10 * var(--pt));
+  background: var(--viz-reference);
+}
+
+/* MARK: Scoring plays and key events */
+
+.moments {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+  margin: 0 calc(-6 * var(--pt));
+}
+
+.momentRow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  padding: calc(4 * var(--pt)) calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+  outline-offset: calc(-2 * var(--pt));
+  transition: background-color var(--dur-fade) var(--ease-out);
+}
+
+.momentRow[data-lit="true"] {
+  background: var(--fill-hover);
+}
+
+.momentRow[data-pinned="true"] {
+  background: var(--accent-fill);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .momentRow:hover {
+    background: var(--fill-hover);
+  }
+  .momentRow[role="button"] {
+    cursor: default;
+  }
+}
+
+.momentClock {
+  flex: none;
+  width: var(--clock);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.momentIcon {
+  flex: none;
+  width: calc(12 * var(--pt));
+  display: grid;
+  place-items: center;
+}
+
+.momentIcon[data-kind="yellow"]::before,
+.momentIcon[data-kind="red"]::before {
+  content: "";
+  width: calc(7 * var(--pt));
+  height: calc(10 * var(--pt));
+  border-radius: calc(1 * var(--pt));
+  background: light-dark(#e6b800, #ffd60a);
+}
+
+.momentIcon[data-kind="red"]::before {
+  background: var(--live);
+}
+
+.momentIcon[data-kind="goal"]::before,
+.momentIcon[data-kind="ownGoal"]::before {
+  content: "";
+  width: calc(9 * var(--pt));
+  height: calc(9 * var(--pt));
+  border-radius: 50%;
+  border: calc(1.4 * var(--pt)) solid currentColor;
+}
+
+.momentIcon[data-kind="ownGoal"] {
+  color: var(--live);
+}
+
+.momentText {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-callout);
+  text-wrap: pretty;
+}
+
+.momentTeam {
+  flex: none;
+  min-width: calc(18 * var(--pt));
+  display: inline-flex;
+  justify-content: flex-end;
+}
+
+.momentAbbr {
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.momentScore {
+  flex: none;
+  min-width: calc(44 * var(--pt));
+  text-align: right;
+  font-size: var(--text-status);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* MARK: Latest plays */
+
+.plays {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--pt));
+  max-width: var(--readable-width);
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+/* MARK: Where to watch, the series */
+
+.watch {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+  margin: 0 calc(-6 * var(--pt));
+}
+
+.watchRow,
+.series {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-height: calc(28 * var(--pt));
+  padding: 0 calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+  font-size: var(--text-callout);
+  color: var(--label);
+  transition: background-color var(--dur-fade) var(--ease-out);
+}
+
+a.watchRow:active,
+.series:active {
+  background: var(--fill-press);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  a.watchRow:hover,
+  .series:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.watchIcon {
+  flex: none;
+  color: var(--label-secondary);
+}
+
+.watchName {
+  font-weight: 500;
+}
+
+.watchKind {
+  flex: 1;
+  color: var(--label-secondary);
+  font-size: var(--text-caption);
+}
+
+.series {
+  margin: 0 calc(-6 * var(--pt));
+}
+
+.seriesTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: calc(12 * var(--pt));
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.seriesMore {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  color: var(--label-secondary);
+}
+
+/* MARK: Team stats */
+
+.stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(10 * var(--pt)) calc(24 * var(--pt));
+}
+
+/* From xlarge (560pt inside the section's gutters), two columns filled row by row. */
+@container section (min-width: 43.08rem) {
+  .stats {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+}
+
+.statValues {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(8 * var(--pt));
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.statValues [data-leads="true"] {
+  font-weight: 600;
+  color: var(--label);
+}
+
+.statLabel {
+  text-align: center;
+}
+
+.splitBar {
+  position: relative;
+  display: block;
+  height: calc(4 * var(--pt));
+  border-radius: 999px;
+  overflow: clip;
+}
+
+.splitTrack {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--viz-track);
+}
+
+.splitSegment {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  transition: transform var(--dur-standard) var(--ease-out);
+}

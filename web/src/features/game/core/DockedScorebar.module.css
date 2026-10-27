@@ -1,0 +1,260 @@
+/*
+ * The docked scorebar (DockedScorebar.swift): a zero-height sticky slot under
+ * the header, so the bar floats over the page without moving it. The page's
+ * geometry writes the host's transform, opacity and visibility.
+ */
+.slot {
+  position: sticky;
+  top: calc(44 * var(--pt));
+  height: 0;
+  z-index: 20;
+}
+
+/* The glass itself takes the dock's transform and opacity: an ancestor with opacity would leave its blur nothing to see. */
+.host {
+  position: absolute;
+  top: calc(4 * var(--pt));
+  left: calc(10 * var(--pt));
+  right: calc(10 * var(--pt));
+  max-width: calc(584 * var(--pt));
+  height: calc(40 * var(--pt));
+  margin-inline: auto;
+  transform-origin: top center;
+  border-radius: calc(14 * var(--pt));
+  /* Regular glass: content scrolls under it, so clear glass would show text through. */
+  background: var(--glass-fill-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    inset 0 calc(1 * var(--pt)) 0 var(--glass-highlight),
+    inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
+    var(--shadow-glass);
+  overflow: hidden;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  width: 100%;
+  height: 100%;
+  padding: 0 calc(12 * var(--pt));
+  border-radius: inherit;
+  color: var(--label);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-fade) var(--ease-out);
+}
+
+.bar:active {
+  background: var(--fill-press);
+}
+
+@media (prefers-contrast: more) {
+  .host {
+    box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) var(--label-secondary);
+  }
+}
+
+.lead {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  flex: none;
+}
+
+.team {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+}
+
+.rank {
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.abbr {
+  font-size: calc(12 * var(--pt));
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.scores {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  font-family: var(--font-rounded);
+  font-size: calc(17 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash {
+  color: var(--label-tertiary);
+}
+
+.vs {
+  font-family: var(--font-ui);
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--label-secondary);
+}
+
+.accessories {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(6 * var(--pt));
+  overflow: hidden;
+}
+
+.chip {
+  padding: calc(1.5 * var(--pt)) calc(6 * var(--pt));
+  border-radius: 999px;
+  font-size: calc(9 * var(--pt));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: light-dark(#a63700, #ffb340);
+  background: light-dark(rgb(255 149 0 / 0.14), rgb(255 159 10 / 0.18));
+  white-space: nowrap;
+}
+
+.status {
+  flex: none;
+  display: inline-flex;
+  justify-content: flex-end;
+  max-width: 55%;
+  min-width: 0;
+}
+
+.statusLive {
+  font-size: var(--text-status);
+  font-weight: 600;
+  color: var(--live-text);
+  animation: rise var(--dur-reveal) var(--ease-out);
+}
+
+.statusQuiet {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.countdown {
+  font-size: var(--text-status);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-text);
+}
+
+.news {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  min-width: 0;
+  font-size: var(--text-caption);
+  white-space: nowrap;
+  animation: rise var(--dur-reveal) var(--ease-out);
+}
+
+.news strong {
+  font-weight: 600;
+  flex: none;
+}
+
+.newsDetail {
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: calc(3 * var(--pt));
+}
+
+.newsDot {
+  width: calc(5 * var(--pt));
+  height: calc(5 * var(--pt));
+  border-radius: 50%;
+  background: var(--live);
+  flex: none;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(calc(4 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rise {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+.outs {
+  display: inline-flex;
+  gap: calc(2 * var(--pt));
+}
+
+.outs span {
+  width: calc(4 * var(--pt));
+  height: calc(4 * var(--pt));
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--label) 18%, transparent);
+}
+
+.outs span[data-on="true"] {
+  background: color-mix(in srgb, var(--label) 75%, transparent);
+}
+
+.miniBases {
+  position: relative;
+  display: inline-block;
+  width: calc(17 * var(--pt));
+  height: calc(12 * var(--pt));
+}
+
+.miniBases span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(4.4 * var(--pt));
+  height: calc(4.4 * var(--pt));
+  margin: calc(-2.2 * var(--pt)) 0 0 calc(-2.2 * var(--pt));
+  background: color-mix(in srgb, var(--label) 18%, transparent);
+}
+
+.miniBases span[data-on="true"] {
+  background: var(--label);
+}
+
+.miniBases [data-base="second"] {
+  transform: translate(0, calc(-3.1 * var(--pt))) rotate(45deg);
+}
+
+.miniBases [data-base="first"] {
+  transform: translate(calc(5 * var(--pt)), calc(1.25 * var(--pt))) rotate(45deg);
+}
+
+.miniBases [data-base="third"] {
+  transform: translate(calc(-5 * var(--pt)), calc(1.25 * var(--pt))) rotate(45deg);
+}
+
+.count {
+  font-size: var(--text-status);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.baseball {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+}

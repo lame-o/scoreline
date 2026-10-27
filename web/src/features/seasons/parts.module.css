@@ -1,0 +1,197 @@
+/* Pieces the season pages share, and the season rows' look (ListRowStyle). */
+
+.month {
+  padding: calc(16 * var(--pt)) var(--gutter) calc(3 * var(--pt));
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: calc(15 * var(--pt));
+  padding: 0 calc(5 * var(--pt));
+  border-radius: 999px;
+  background: var(--fill-press);
+  font-size: calc(9 * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--label-secondary);
+}
+
+.subLabel {
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
+
+.sectionLink {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  padding: calc(2 * var(--pt)) 0;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  transition: color var(--dur-fade) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sectionLink:hover {
+    color: var(--label);
+  }
+}
+
+.sectionLink:active {
+  opacity: 0.6;
+}
+
+.linkButton {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--label-secondary);
+  transition: color var(--dur-fade) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .linkButton:hover {
+    color: var(--accent-text);
+  }
+}
+
+.trophy {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--label-tertiary);
+}
+
+.logoTile {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  background: light-dark(rgb(43 43 46), transparent);
+}
+
+.logoInTile {
+  flex: none;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  min-height: calc(32 * var(--pt));
+  padding: calc(8 * var(--pt)) var(--gutter) calc(12 * var(--pt));
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+/* MARK: Rows (ListRowStyle: a quiet gray under the pointer, the accent from the keys) */
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  width: calc(100% - 12 * var(--pt));
+  margin: 0 calc(6 * var(--pt));
+  padding: calc(7 * var(--pt)) calc(8 * var(--pt));
+  border-radius: var(--radius-row);
+  text-align: left;
+  color: var(--label);
+  scroll-margin-block: calc(140 * var(--pt)) calc(12 * var(--pt));
+}
+
+.row[data-lit="pointer"],
+.row[data-selected="true"] {
+  background: var(--fill-hover);
+}
+
+.row:active {
+  background: var(--fill-press);
+}
+
+.row[data-lit="keyboard"] {
+  background: var(--accent-fill);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
+
+.row:focus-visible {
+  outline-offset: calc(-2 * var(--pt));
+}
+
+.rowChevron {
+  flex: none;
+  color: var(--label-tertiary);
+  transition: transform var(--dur-quick) var(--ease-out);
+}
+
+.row[aria-expanded="true"] .rowChevron {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rowChevron {
+    transition: none;
+  }
+}
+
+/* MARK: Skeleton (static: placeholders never shimmer) */
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  color: var(--fill-skeleton);
+}
+
+.skeleton span span,
+.skeletonCard,
+.skeletonDot {
+  display: block;
+  height: calc(9 * var(--pt));
+  border-radius: calc(3 * var(--pt));
+  background: var(--fill-skeleton);
+}
+
+.skeletonCard {
+  height: calc(96 * var(--pt));
+  margin: calc(4 * var(--pt)) calc(10 * var(--pt)) 0;
+  border-radius: var(--radius-hero);
+}
+
+.skeletonLane {
+  display: flex;
+  gap: calc(8 * var(--pt));
+  padding: 0 var(--gutter);
+}
+
+.skeletonLane span {
+  height: calc(6 * var(--pt)) !important;
+}
+
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  padding: calc(16 * var(--pt)) var(--gutter) 0;
+}
+
+.skeletonDot {
+  width: calc(16 * var(--pt));
+  height: calc(16 * var(--pt)) !important;
+  border-radius: 50%;
+}
+
+.skeletonLines {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--pt));
+}

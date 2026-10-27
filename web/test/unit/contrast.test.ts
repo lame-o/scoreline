@@ -49,7 +49,7 @@ function contrast(text: RGBA, background: RGBA): number {
   return (a + 0.05) / (b + 0.05);
 }
 
-const TEXT = ["label", "label-secondary", "accent-text", "live-text", "delayed-text"];
+const TEXT = ["label", "label-secondary", "accent-text", "live-text", "delayed-text", "up-text"];
 
 describe("text contrast", () => {
   for (const scheme of ["light", "dark"] as const) {

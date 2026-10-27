@@ -188,9 +188,95 @@ async function teams() {
   await save("bo3-teams.json", { results: bo3.results.slice(0, 4).map((t) => pick(t, ["id", "name", "image_url", "rank"])) }, bo3URL);
 }
 
+// MARK: MLB game page (summary and the core API's plays)
+
+const PLAY_KEYS = ["id", "sequenceNumber", "type", "alternativeType", "text", "awayScore", "homeScore", "period", "scoringPlay", "scoreValue",
+  "team", "participants", "wallclock", "atBatId", "bats", "pitchCoordinate", "hitCoordinate", "pitchType", "pitchVelocity", "summaryType",
+  "pitchCount", "resultCount", "trajectory", "outs", "doublePlay", "triplePlay"];
+
+const trimPlay = (p) => {
+  const play = pick(p, PLAY_KEYS);
+  if (play.type) play.type = pick(play.type, ["id", "text", "type"]);
+  if (play.alternativeType) play.alternativeType = pick(play.alternativeType, ["type", "text"]);
+  if (play.period) play.period = pick(play.period, ["type", "number", "displayValue"]);
+  if (play.team) play.team = pick(play.team, ["id", "$ref"]);
+  if (play.pitchType) play.pitchType = pick(play.pitchType, ["abbreviation", "text"]);
+  if (play.bats) play.bats = pick(play.bats, ["abbreviation"]);
+  if (play.participants) play.participants = play.participants.map((x) => ({ type: x.type, athlete: pick(x.athlete, ["id"]) }));
+  return play;
+};
+
+async function mlb() {
+  // The newest finished game on the board: its summary, trimmed to what the game page reads.
+  const boardURL = "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard";
+  const board = await get(boardURL);
+  const game = (board.events ?? []).find((e) => e.status?.type?.state === "post") ?? board.events?.[0];
+  if (!game) return;
+  const url = `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=${game.id}`;
+  const s = await get(url);
+  const comp = s.header?.competitions?.[0] ?? {};
+  await save(
+    "espn-mlb-summary.json",
+    {
+      header: {
+        ...pick(s.header, ["id", "gameNote", "season", "links"]),
+        links: s.header?.links?.slice(0, 1).map((l) => pick(l, ["href", "rel"])),
+        competitions: [
+          {
+            ...pick(comp, ["id", "date", "status"]),
+            status: { ...pick(comp.status, ["period"]), type: pick(comp.status?.type, ["state", "completed", "shortDetail", "detail", "name"]) },
+            broadcasts: comp.broadcasts?.map((b) => ({ type: pick(b.type, ["shortName"]), media: pick(b.media, ["shortName"]) })),
+            series: comp.series?.map((x) => pick(x, ["type", "summary", "title"])),
+            competitors: comp.competitors?.map((c) => ({
+              ...pick(c, ["homeAway", "winner", "score", "hits", "errors"]),
+              linescores: c.linescores?.map((l) => pick(l, ["displayValue"])),
+              record: c.record?.map((r) => pick(r, ["type", "summary"])),
+              team: { ...pick(c.team, ["id", "abbreviation", "displayName", "shortDisplayName", "color", "alternateColor"]), logos: c.team?.logos?.slice(0, 1).map((l) => pick(l, ["href", "rel"])) },
+            })),
+          },
+        ],
+      },
+      gameInfo: { venue: pick(s.gameInfo?.venue, ["fullName"]) },
+      winprobability: s.winprobability?.slice(-2),
+      boxscore: {
+        players: s.boxscore?.players?.map((t) => ({
+          statistics: t.statistics?.map((g) => ({ athletes: g.athletes?.map((a) => ({ athlete: pick(a.athlete, ["id", "shortName", "displayName"]) })) })),
+        })),
+      },
+      // Every at-bat's result and every ball in play (scoring plays, spray chart), plus all of the
+      // last three at-bats (the current at-bat): about a fifth of the game's entries.
+      plays: (() => {
+        const all = s.plays ?? [];
+        const ends = all.flatMap((p, i) => (p.type?.type === "end-batterpitcher" ? [i] : []));
+        const tail = ends.length >= 3 ? ends[ends.length - 3] : 0;
+        return all
+          .filter((p, i) => i >= tail || p.type?.type === "play-result" || (p.hitCoordinate && !["end-batterpitcher", "foul-ball", "start-batterpitcher"].includes(p.type?.type)))
+          .map(trimPlay)
+          // Pitches keep their runners (the theater reads who was on as the pitch was thrown) and count.
+          .map(({ wallclock, sequenceNumber, ...rest }) => (rest.type?.type === "play-result" ? { wallclock, ...rest } : rest));
+      })(),
+    },
+    url,
+  );
+
+  // The core API's last pages of plays (the live lane's first look).
+  const base = `https://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/events/${game.id}/competitions/${game.id}/plays`;
+  const head = await get(`${base}?limit=1`);
+  const pageSize = 25;
+  const last = Math.ceil(head.count / pageSize);
+  // The lane's first look starts two pages' worth from the end (BaseballFeed.loadPlays).
+  const first = Math.floor(Math.max(head.count - 2 * pageSize, 0) / pageSize) + 1;
+  const pages = [];
+  for (let page = first; page <= last; page++) {
+    const json = await get(`${base}?limit=${pageSize}&page=${page}`);
+    pages.push({ page, pageCount: json.pageCount, items: json.items.map(trimPlay) });
+  }
+  await save("espn-mlb-core-plays.json", { count: head.count, pages }, base);
+}
+
 // MARK: Run
 //
-// `pnpm fixtures` records everything; `pnpm fixtures ifsc` (or espn, bo3, teams) one source.
+// `pnpm fixtures` records everything; `pnpm fixtures ifsc` (or espn, bo3, teams, mlb) one source.
 const only = process.argv[2];
 const want = (source) => !only || only === source;
 
@@ -211,5 +297,6 @@ if (want("bo3")) {
 }
 if (want("ifsc")) await ifsc();
 if (want("teams")) await teams();
+if (want("mlb")) await mlb();
 // Team and player pages (test/fixtures/profiles).
 if (want("profiles")) await (await import("./record-profile-fixtures.mjs")).recordProfiles();

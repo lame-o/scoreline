@@ -19,6 +19,9 @@ const GLYPHS = {
   chevronRight: <path {...stroke} strokeWidth={1.9} d="M6 3.25 10.75 8 6 12.75" />,
   chevronLeft: <path {...stroke} strokeWidth={1.9} d="M10 3.25 5.25 8 10 12.75" />,
   chevronDown: <path {...stroke} strokeWidth={1.9} d="M3.25 6 8 10.75 12.75 6" />,
+  /** Movement in a table or poll (SF `arrowtriangle.up.fill` / `.down.fill`). */
+  triangleUp: <path fill="currentColor" d="M8 3.2l5.2 8.6H2.8z" />,
+  triangleDown: <path fill="currentColor" d="M8 12.8 2.8 4.2h10.4z" />,
   star: <path fill="currentColor" d="M8 1.2l1.95 4.1 4.5.55-3.3 3.1.86 4.45L8 11.2l-4.01 2.2.86-4.45-3.3-3.1 4.5-.55z" />,
   starOutline: <path {...stroke} strokeWidth={1.3} d="M8 1.9l1.75 3.66 4.02.5-2.95 2.77.77 3.98L8 10.84l-3.59 1.97.77-3.98-2.95-2.77 4.02-.5z" />,
   pin: (
@@ -131,6 +134,20 @@ const GLYPHS = {
     <g>
       <rect x="1.3" y="2.8" width="13.4" height="10.4" rx="2.6" fill="currentColor" />
       <path d="M6.6 5.7v4.6l4-2.3z" fill="var(--icon-cutout, #fff)" />
+    </g>
+  ),
+  tv: (
+    <g {...stroke} strokeWidth={1.4}>
+      <rect x="1.8" y="3" width="12.4" height="8.6" rx="1.8" />
+      <path d="M5.6 13.8h4.8" />
+    </g>
+  ),
+  radio: (
+    <g {...stroke} strokeWidth={1.4}>
+      <rect x="1.8" y="5.2" width="12.4" height="8.4" rx="1.8" />
+      <path d="M4 5.2 11.6 2.2" />
+      <circle cx="10.6" cy="9.4" r="1.7" />
+      <path d="M4.4 8.4h2.6M4.4 10.6h2.6" />
     </g>
   ),
   external: (

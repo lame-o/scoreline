@@ -1,0 +1,10733 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=401908044",
+ "_recorded": "2026-10-27T08:43:28.739Z",
+ "header": {
+  "id": "401908044",
+  "gameNote": "World Series - Game 3",
+  "season": {
+   "year": 2026,
+   "current": true,
+   "type": 3
+  },
+  "links": [
+   {
+    "href": "https://www.espn.com/mlb/game/_/gameId/401908044/brewers-rays",
+    "rel": [
+     "summary",
+     "desktop",
+     "event"
+    ]
+   }
+  ],
+  "competitions": [
+   {
+    "id": "401908044",
+    "date": "2026-10-27T00:00Z",
+    "status": {
+     "type": {
+      "state": "post",
+      "completed": true,
+      "shortDetail": "Final",
+      "detail": "Final",
+      "name": "STATUS_FINAL"
+     }
+    },
+    "broadcasts": [
+     {
+      "type": {
+       "shortName": "TV"
+      },
+      "media": {
+       "shortName": "Fox"
+      }
+     },
+     {
+      "type": {
+       "shortName": "Radio"
+      },
+      "media": {
+       "shortName": "ERADM"
+      }
+     }
+    ],
+    "series": [
+     {
+      "type": "current",
+      "summary": "MIL leads series 3-0",
+      "title": "Current Series"
+     },
+     {
+      "type": "season",
+      "summary": "MIL wins series 2-1",
+      "title": "Regular Season Series"
+     },
+     {
+      "type": "playoff",
+      "summary": "MIL leads series 3-0",
+      "title": "Playoff Series"
+     }
+    ],
+    "competitors": [
+     {
+      "homeAway": "home",
+      "winner": false,
+      "score": "1",
+      "hits": 3,
+      "errors": 1,
+      "linescores": [
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "1"
+       }
+      ],
+      "record": [
+       {
+        "type": "total",
+        "summary": "98-64"
+       },
+       {
+        "type": "home",
+        "summary": "55-26"
+       }
+      ],
+      "team": {
+       "id": "30",
+       "abbreviation": "TB",
+       "displayName": "Tampa Bay Rays",
+       "color": "092c5c",
+       "alternateColor": "8fbce6",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/mlb/500/tb.png",
+         "rel": [
+          "full",
+          "default"
+         ]
+        }
+       ]
+      }
+     },
+     {
+      "homeAway": "away",
+      "winner": true,
+      "score": "10",
+      "hits": 16,
+      "errors": 0,
+      "linescores": [
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "2"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "8"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "0"
+       }
+      ],
+      "record": [
+       {
+        "type": "total",
+        "summary": "103-59"
+       },
+       {
+        "type": "road",
+        "summary": "48-33"
+       }
+      ],
+      "team": {
+       "id": "8",
+       "abbreviation": "MIL",
+       "displayName": "Milwaukee Brewers",
+       "color": "13294b",
+       "alternateColor": "ffc72c",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/mlb/500/mil.png",
+         "rel": [
+          "full",
+          "default"
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "gameInfo": {
+  "venue": {
+   "fullName": "Tropicana Field"
+  }
+ },
+ "winprobability": [
+  {
+   "homeWinPercentage": 0.001,
+   "tiePercentage": 0,
+   "playId": "4019080441704990057"
+  },
+  {
+   "homeWinPercentage": 0,
+   "tiePercentage": 0,
+   "playId": "4019080441705990057"
+  }
+ ],
+ "boxscore": {
+  "players": [
+   {
+    "statistics": [
+     {
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4917869",
+         "shortName": "J. Chourio",
+         "displayName": "Jackson Chourio"
+        }
+       },
+       {
+        "athlete": {
+         "id": "35013",
+         "shortName": "J. Bauers",
+         "displayName": "Jake Bauers"
+        }
+       },
+       {
+        "athlete": {
+         "id": "31283",
+         "shortName": "C. Yelich",
+         "displayName": "Christian Yelich"
+        }
+       },
+       {
+        "athlete": {
+         "id": "42394",
+         "shortName": "A. Vaughn",
+         "displayName": "Andrew Vaughn"
+        }
+       },
+       {
+        "athlete": {
+         "id": "39895",
+         "shortName": "W. Contreras",
+         "displayName": "William Contreras"
+        }
+       },
+       {
+        "athlete": {
+         "id": "31095",
+         "shortName": "G. Sanchez",
+         "displayName": "Gary Sanchez"
+        }
+       },
+       {
+        "athlete": {
+         "id": "41179",
+         "shortName": "B. Turang",
+         "displayName": "Brice Turang"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4313442",
+         "shortName": "G. Mitchell",
+         "displayName": "Garrett Mitchell"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5138536",
+         "shortName": "L. Lara",
+         "displayName": "Luis Lara"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5149101",
+         "shortName": "C. Pratt",
+         "displayName": "Cooper Pratt"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4417795",
+         "shortName": "S. Frelick",
+         "displayName": "Sal Frelick"
+        }
+       },
+       {
+        "athlete": {
+         "id": "42987",
+         "shortName": "D. Hamilton",
+         "displayName": "David Hamilton"
+        }
+       },
+       {
+        "athlete": {
+         "id": "42958",
+         "shortName": "J. Ortiz",
+         "displayName": "Joey Ortiz"
+        }
+       }
+      ]
+     },
+     {
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4918251",
+         "shortName": "R. Gasser",
+         "displayName": "Robert Gasser"
+        }
+       },
+       {
+        "athlete": {
+         "id": "33750",
+         "shortName": "A. Senzatela",
+         "displayName": "Antonio Senzatela"
+        }
+       },
+       {
+        "athlete": {
+         "id": "37515",
+         "shortName": "B. Woodruff",
+         "displayName": "Brandon Woodruff"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "statistics": [
+     {
+      "athletes": [
+       {
+        "athlete": {
+         "id": "33481",
+         "shortName": "Y. Diaz",
+         "displayName": "Yandy Diaz"
+        }
+       },
+       {
+        "athlete": {
+         "id": "40960",
+         "shortName": "R. Vilade",
+         "displayName": "Ryan Vilade"
+        }
+       },
+       {
+        "athlete": {
+         "id": "40810",
+         "shortName": "J. Aranda",
+         "displayName": "Jonathan Aranda"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4679983",
+         "shortName": "C. Simpson",
+         "displayName": "Chandler Simpson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4905921",
+         "shortName": "J. Caminero",
+         "displayName": "Junior Caminero"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4626239",
+         "shortName": "B. Williamson",
+         "displayName": "Ben Williamson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5005912",
+         "shortName": "J. DeLuca",
+         "displayName": "Jonny DeLuca"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4917849",
+         "shortName": "V. Mesa Jr.",
+         "displayName": "Victor Mesa Jr."
+        }
+       },
+       {
+        "athlete": {
+         "id": "41674",
+         "shortName": "N. Fortes",
+         "displayName": "Nick Fortes"
+        }
+       },
+       {
+        "athlete": {
+         "id": "35578",
+         "shortName": "C. Mullins",
+         "displayName": "Cedric Mullins"
+        }
+       },
+       {
+        "athlete": {
+         "id": "40576",
+         "shortName": "T. Walls",
+         "displayName": "Taylor Walls"
+        }
+       },
+       {
+        "athlete": {
+         "id": "33832",
+         "shortName": "J. Mateo",
+         "displayName": "Jorge Mateo"
+        }
+       }
+      ]
+     },
+     {
+      "athletes": [
+       {
+        "athlete": {
+         "id": "39825",
+         "shortName": "F. Peralta",
+         "displayName": "Freddy Peralta"
+        }
+       },
+       {
+        "athlete": {
+         "id": "2560565",
+         "shortName": "C. Booser",
+         "displayName": "Cam Booser"
+        }
+       },
+       {
+        "athlete": {
+         "id": "37825",
+         "shortName": "C. Sulser",
+         "displayName": "Cole Sulser"
+        }
+       },
+       {
+        "athlete": {
+         "id": "36429",
+         "shortName": "G. Cleavinger",
+         "displayName": "Garrett Cleavinger"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4717904",
+         "shortName": "T. Wells",
+         "displayName": "Tyler Wells"
+        }
+       },
+       {
+        "athlete": {
+         "id": "33106",
+         "shortName": "S. Matz",
+         "displayName": "Steven Matz"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "plays": [
+  {
+   "id": "4019080440001060002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 5 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440001",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 127,
+    "y": 155
+   },
+   "hitCoordinate": {
+    "x": 120,
+    "y": 58
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 97,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "L",
+   "outs": 0
+  },
+  {
+   "wallclock": "2026-10-27T00:11:53Z",
+   "id": "4019080440001990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Chourio singled to center.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440001",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 127,
+    "y": 155
+   },
+   "hitCoordinate": {
+    "x": 120,
+    "y": 58
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "L",
+   "outs": 0
+  },
+  {
+   "wallclock": "2026-10-27T00:13:39Z",
+   "id": "4019080440002990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-swinging",
+    "text": "Strike Swinging"
+   },
+   "text": "Bauers struck out swinging.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440002",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 138,
+    "y": 156
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "outs": 1
+  },
+  {
+   "id": "4019080440003020002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 1 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440003",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 98,
+    "y": 168
+   },
+   "hitCoordinate": {
+    "x": 64,
+    "y": 142
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 95,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T00:14:14Z",
+   "id": "4019080440003990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Yelich singled to left, Chourio to second.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440003",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 98,
+    "y": 168
+   },
+   "hitCoordinate": {
+    "x": 64,
+    "y": 142
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "id": "4019080440004050033",
+   "type": {
+    "id": "33",
+    "text": "Pop Out",
+    "type": "pop-out"
+   },
+   "text": "Pitch 4 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440004",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 154,
+    "y": 145
+   },
+   "hitCoordinate": {
+    "x": 115,
+    "y": 140
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 97,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "trajectory": "P",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T00:16:26Z",
+   "id": "4019080440004990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "pop-out",
+    "text": "Pop Out"
+   },
+   "text": "Contreras popped out to shortstop.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440004",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 154,
+    "y": 145
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "trajectory": "P",
+   "outs": 2
+  },
+  {
+   "id": "4019080440005080024",
+   "type": {
+    "id": "24",
+    "text": "Ground Out",
+    "type": "ground-out"
+   },
+   "text": "Pitch 7 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440005",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 166,
+    "y": 160
+   },
+   "hitCoordinate": {
+    "x": 117,
+    "y": 154
+   },
+   "pitchType": {
+    "abbreviation": "CH",
+    "text": "Changeup"
+   },
+   "pitchVelocity": 87,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T00:19:02Z",
+   "id": "4019080440005990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ground-out",
+    "text": "Ground Out"
+   },
+   "text": "Turang grounded out to shortstop.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440005",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 166,
+    "y": 160
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "id": "4019080440101060002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 5 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080440101",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 110,
+    "y": 186
+   },
+   "hitCoordinate": {
+    "x": 115,
+    "y": 50
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 93,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 0
+  },
+  {
+   "wallclock": "2026-10-27T00:23:20Z",
+   "id": "4019080440101990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Díaz singled to center.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080440101",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 110,
+    "y": 186
+   },
+   "hitCoordinate": {
+    "x": 115,
+    "y": 50
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 0
+  },
+  {
+   "id": "4019080440102070022",
+   "type": {
+    "id": "22",
+    "text": "Fly Out",
+    "type": "fly-out"
+   },
+   "text": "Pitch 6 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40960"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080440102",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 109,
+    "y": 176
+   },
+   "hitCoordinate": {
+    "x": 175,
+    "y": 97
+   },
+   "pitchType": {
+    "abbreviation": "ST",
+    "text": "Sweeper"
+   },
+   "pitchVelocity": 82,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T00:25:38Z",
+   "id": "4019080440102990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "fly-out",
+    "text": "Fly Out"
+   },
+   "text": "Vilade flied out to right.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40960"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080440102",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 109,
+    "y": 176
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "id": "4019080440103060015",
+   "type": {
+    "id": "15",
+    "text": "Batters Fielders Choice - Runner Out",
+    "type": "batters-fielders-choice---runner-out"
+   },
+   "text": "Pitch 5 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4679983"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080440103",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 125,
+    "y": 165
+   },
+   "hitCoordinate": {
+    "x": 113,
+    "y": 159
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 94,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T00:27:43Z",
+   "id": "4019080440103990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "batters-fielders-choice---runner-out",
+    "text": "Batters Fielders Choice - Runner Out"
+   },
+   "text": "Simpson grounded into fielder's choice to shortstop, Díaz out at second.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4679983"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4679983"
+     }
+    }
+   ],
+   "atBatId": "4019080440103",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 125,
+    "y": 165
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T00:30:02Z",
+   "id": "4019080440104040298",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "caught-stealing",
+    "text": "Caught Stealing"
+   },
+   "text": "Simpson caught stealing second, catcher to second.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 1,
+    "displayValue": "1st Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    }
+   ],
+   "atBatId": "4019080440104",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T00:35:17Z",
+   "id": "4019080440201990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ball",
+    "text": "Ball"
+   },
+   "text": "Mitchell walked.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 2,
+    "displayValue": "2nd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4313442"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4313442"
+     }
+    }
+   ],
+   "atBatId": "4019080440201",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 143,
+    "y": 125
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 4,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 4,
+    "strikes": 2
+   },
+   "outs": 0
+  },
+  {
+   "wallclock": "2026-10-27T00:36:29Z",
+   "id": "4019080440202990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-swinging",
+    "text": "Strike Swinging"
+   },
+   "text": "Pratt struck out swinging.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 2,
+    "displayValue": "2nd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4313442"
+     }
+    }
+   ],
+   "atBatId": "4019080440202",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 102,
+    "y": 204
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 3
+   },
+   "outs": 1
+  },
+  {
+   "id": "4019080440203050032",
+   "type": {
+    "id": "32",
+    "text": "Line Out",
+    "type": "line-out"
+   },
+   "text": "Pitch 4 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 2,
+    "displayValue": "2nd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4313442"
+     }
+    }
+   ],
+   "atBatId": "4019080440203",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 132,
+    "y": 162
+   },
+   "hitCoordinate": {
+    "x": 38,
+    "y": 105
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 96,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T00:38:26Z",
+   "id": "4019080440203990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "line-out",
+    "text": "Line Out"
+   },
+   "text": "Frelick lined out to left.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 2,
+    "displayValue": "2nd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4313442"
+     }
+    }
+   ],
+   "atBatId": "4019080440203",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 132,
+    "y": 162
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T00:40:28Z",
+   "id": "4019080440204050298",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "caught-stealing",
+    "text": "Caught Stealing"
+   },
+   "text": "Mitchell caught stealing second, catcher to shortstop.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 2,
+    "displayValue": "2nd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    }
+   ],
+   "atBatId": "4019080440204",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 3
+  },
+  {
+   "id": "4019080440301020033",
+   "type": {
+    "id": "33",
+    "text": "Pop Out",
+    "type": "pop-out"
+   },
+   "text": "Pitch 1 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 2,
+    "displayValue": "2nd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4905921"
+     }
+    }
+   ],
+   "atBatId": "4019080440301",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 76,
+    "y": 188
+   },
+   "hitCoordinate": {
+    "x": 137,
+    "y": 139
+   },
+   "pitchType": {
+    "abbreviation": "CH",
+    "text": "Changeup"
+   },
+   "pitchVelocity": 89,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "P",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T00:43:52Z",
+   "id": "4019080440301990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "pop-out",
+    "text": "Pop Out"
+   },
+   "text": "Caminero popped out to second.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 2,
+    "displayValue": "2nd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4905921"
+     }
+    }
+   ],
+   "atBatId": "4019080440301",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 76,
+    "y": 188
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "P",
+   "outs": 1
+  },
+  {
+   "id": "4019080440302040024",
+   "type": {
+    "id": "24",
+    "text": "Ground Out",
+    "type": "ground-out"
+   },
+   "text": "Pitch 3 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 2,
+    "displayValue": "2nd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4626239"
+     }
+    }
+   ],
+   "atBatId": "4019080440302",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 130,
+    "y": 186
+   },
+   "hitCoordinate": {
+    "x": 148,
+    "y": 150
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 94,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T00:44:59Z",
+   "id": "4019080440302990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ground-out",
+    "text": "Ground Out"
+   },
+   "text": "Williamson grounded out to second.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 2,
+    "displayValue": "2nd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4626239"
+     }
+    }
+   ],
+   "atBatId": "4019080440302",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 130,
+    "y": 186
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "id": "4019080440303020032",
+   "type": {
+    "id": "32",
+    "text": "Line Out",
+    "type": "line-out"
+   },
+   "text": "Pitch 1 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 2,
+    "displayValue": "2nd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5005912"
+     }
+    }
+   ],
+   "atBatId": "4019080440303",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 74,
+    "y": 183
+   },
+   "hitCoordinate": {
+    "x": 126,
+    "y": 82
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 94,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "L",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T00:45:30Z",
+   "id": "4019080440303990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "line-out",
+    "text": "Line Out"
+   },
+   "text": "DeLuca lined out to center.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 2,
+    "displayValue": "2nd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5005912"
+     }
+    }
+   ],
+   "atBatId": "4019080440303",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 74,
+    "y": 183
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "L",
+   "outs": 3
+  },
+  {
+   "id": "4019080440401040033",
+   "type": {
+    "id": "33",
+    "text": "Pop Out",
+    "type": "pop-out"
+   },
+   "text": "Pitch 3 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42987"
+     }
+    }
+   ],
+   "atBatId": "4019080440401",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 69,
+    "y": 156
+   },
+   "hitCoordinate": {
+    "x": 108,
+    "y": 159
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 95,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "P",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T00:49:13Z",
+   "id": "4019080440401990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "pop-out",
+    "text": "Pop Out"
+   },
+   "text": "Hamilton popped out to shortstop.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42987"
+     }
+    }
+   ],
+   "atBatId": "4019080440401",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 69,
+    "y": 156
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "P",
+   "outs": 1
+  },
+  {
+   "id": "4019080440402020002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 1 : Ball In Play",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440402",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 120,
+    "y": 182
+   },
+   "hitCoordinate": {
+    "x": 88,
+    "y": 140
+   },
+   "pitchType": {
+    "abbreviation": "CU",
+    "text": "Curve"
+   },
+   "pitchVelocity": 83,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T00:49:48Z",
+   "id": "4019080440402990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Chourio singled to left.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440402",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 120,
+    "y": 182
+   },
+   "hitCoordinate": {
+    "x": 88,
+    "y": 140
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T00:51:44Z",
+   "id": "4019080440403990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ball",
+    "text": "Ball"
+   },
+   "text": "Bauers walked, Chourio to second.",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440403",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 82,
+    "y": 181
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 4,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 4,
+    "strikes": 1
+   },
+   "outs": 1
+  },
+  {
+   "id": "4019080440404020002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 1 : Ball In Play",
+   "awayScore": 1,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440404",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 106,
+    "y": 152
+   },
+   "hitCoordinate": {
+    "x": 74,
+    "y": 129
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 95,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T00:53:50Z",
+   "id": "4019080440404990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Yelich singled to left, Chourio scored, Bauers to second.",
+   "awayScore": 1,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35013"
+     }
+    }
+   ],
+   "atBatId": "4019080440404",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 106,
+    "y": 152
+   },
+   "hitCoordinate": {
+    "x": 74,
+    "y": 129
+   },
+   "summaryType": "S",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "id": "4019080440405020002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 1 : Ball In Play",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35013"
+     }
+    }
+   ],
+   "atBatId": "4019080440405",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 137,
+    "y": 189
+   },
+   "hitCoordinate": {
+    "x": 197,
+    "y": 121
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 96,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "L",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T00:54:56Z",
+   "id": "4019080440405990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Contreras singled to right, Bauers scored, Contreras out stretching at second, Yelich to third.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "31283"
+     }
+    }
+   ],
+   "atBatId": "4019080440405",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 137,
+    "y": 189
+   },
+   "hitCoordinate": {
+    "x": 197,
+    "y": 121
+   },
+   "summaryType": "S",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "L",
+   "outs": 2
+  },
+  {
+   "id": "4019080440406040024",
+   "type": {
+    "id": "24",
+    "text": "Ground Out",
+    "type": "ground-out"
+   },
+   "text": "Pitch 3 : Ball In Play",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "31283"
+     }
+    }
+   ],
+   "atBatId": "4019080440406",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 133,
+    "y": 176
+   },
+   "hitCoordinate": {
+    "x": 142,
+    "y": 147
+   },
+   "pitchType": {
+    "abbreviation": "CU",
+    "text": "Curve"
+   },
+   "pitchVelocity": 82,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T00:55:49Z",
+   "id": "4019080440406990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ground-out",
+    "text": "Ground Out"
+   },
+   "text": "Turang grounded out to second.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "31283"
+     }
+    }
+   ],
+   "atBatId": "4019080440406",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 133,
+    "y": 176
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "id": "4019080440501030032",
+   "type": {
+    "id": "32",
+    "text": "Line Out",
+    "type": "line-out"
+   },
+   "text": "Pitch 2 : Ball In Play",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917849"
+     }
+    }
+   ],
+   "atBatId": "4019080440501",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 102,
+    "y": 174
+   },
+   "hitCoordinate": {
+    "x": 100,
+    "y": 61
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 94,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T00:59:28Z",
+   "id": "4019080440501990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "line-out",
+    "text": "Line Out"
+   },
+   "text": "Mesa Jr. lined out to center.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917849"
+     }
+    }
+   ],
+   "atBatId": "4019080440501",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 102,
+    "y": 174
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 1
+  },
+  {
+   "id": "4019080440502050024",
+   "type": {
+    "id": "24",
+    "text": "Ground Out",
+    "type": "ground-out"
+   },
+   "text": "Pitch 4 : Ball In Play",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41674"
+     }
+    }
+   ],
+   "atBatId": "4019080440502",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 81,
+    "y": 170
+   },
+   "hitCoordinate": {
+    "x": 149,
+    "y": 150
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 93,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:01:11Z",
+   "id": "4019080440502990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ground-out",
+    "text": "Ground Out"
+   },
+   "text": "Fortes grounded out to second.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41674"
+     }
+    }
+   ],
+   "atBatId": "4019080440502",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 81,
+    "y": 170
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:03:12Z",
+   "id": "4019080440503990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-swinging",
+    "text": "Strike Swinging"
+   },
+   "text": "Walls struck out swinging.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 3,
+    "displayValue": "3rd Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40576"
+     }
+    }
+   ],
+   "atBatId": "4019080440503",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 54,
+    "y": 189
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T01:06:53Z",
+   "id": "4019080440601990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-swinging",
+    "text": "Strike Swinging"
+   },
+   "text": "Mitchell struck out swinging.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 4,
+    "displayValue": "4th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4313442"
+     }
+    }
+   ],
+   "atBatId": "4019080440601",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 149,
+    "y": 147
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 3
+   },
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T01:08:30Z",
+   "id": "4019080440602990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-swinging",
+    "text": "Strike Swinging"
+   },
+   "text": "Pratt struck out swinging.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 4,
+    "displayValue": "4th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    }
+   ],
+   "atBatId": "4019080440602",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 57,
+    "y": 191
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 3
+   },
+   "outs": 2
+  },
+  {
+   "id": "4019080440603040032",
+   "type": {
+    "id": "32",
+    "text": "Line Out",
+    "type": "line-out"
+   },
+   "text": "Pitch 3 : Ball In Play",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 4,
+    "displayValue": "4th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    }
+   ],
+   "atBatId": "4019080440603",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 147,
+    "y": 157
+   },
+   "hitCoordinate": {
+    "x": 52,
+    "y": 112
+   },
+   "pitchType": {
+    "abbreviation": "CU",
+    "text": "Curve"
+   },
+   "pitchVelocity": 82,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T01:09:28Z",
+   "id": "4019080440603990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "line-out",
+    "text": "Line Out"
+   },
+   "text": "Frelick lined out to left.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 4,
+    "displayValue": "4th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    }
+   ],
+   "atBatId": "4019080440603",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 147,
+    "y": 157
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 3
+  },
+  {
+   "id": "4019080440701020033",
+   "type": {
+    "id": "33",
+    "text": "Pop Out",
+    "type": "pop-out"
+   },
+   "text": "Pitch 1 : Ball In Play",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 4,
+    "displayValue": "4th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080440701",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 141,
+    "y": 151
+   },
+   "hitCoordinate": {
+    "x": 142,
+    "y": 178
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 92,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "P",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T01:12:46Z",
+   "id": "4019080440701990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "pop-out",
+    "text": "Pop Out"
+   },
+   "text": "Díaz popped out to first.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 4,
+    "displayValue": "4th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080440701",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 141,
+    "y": 151
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "P",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T01:14:51Z",
+   "id": "4019080440702990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-looking---overturned",
+    "text": "Strike Looking - Overturned"
+   },
+   "text": "Vilade struck out looking. Milwaukee Brewers challenged: call on the field was overturned.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 4,
+    "displayValue": "4th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40960"
+     }
+    }
+   ],
+   "atBatId": "4019080440702",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 140,
+    "y": 193
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "outs": 2
+  },
+  {
+   "id": "4019080440703040024",
+   "type": {
+    "id": "24",
+    "text": "Ground Out",
+    "type": "ground-out"
+   },
+   "text": "Pitch 3 : Ball In Play",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 4,
+    "displayValue": "4th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4679983"
+     }
+    }
+   ],
+   "atBatId": "4019080440703",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 72,
+    "y": 168
+   },
+   "hitCoordinate": {
+    "x": 148,
+    "y": 152
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 93,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T01:16:06Z",
+   "id": "4019080440703990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ground-out",
+    "text": "Ground Out"
+   },
+   "text": "Simpson grounded out to second.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 4,
+    "displayValue": "4th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4679983"
+     }
+    }
+   ],
+   "atBatId": "4019080440703",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 72,
+    "y": 168
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "id": "4019080440801060032",
+   "type": {
+    "id": "32",
+    "text": "Line Out",
+    "type": "line-out"
+   },
+   "text": "Pitch 5 : Ball In Play",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42987"
+     }
+    }
+   ],
+   "atBatId": "4019080440801",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 155,
+    "y": 159
+   },
+   "hitCoordinate": {
+    "x": 91,
+    "y": 145
+   },
+   "pitchType": {
+    "abbreviation": "CH",
+    "text": "Changeup"
+   },
+   "pitchVelocity": 87,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "L",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T01:20:23Z",
+   "id": "4019080440801990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "line-out",
+    "text": "Line Out"
+   },
+   "text": "Hamilton lined out to third.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42987"
+     }
+    }
+   ],
+   "atBatId": "4019080440801",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 155,
+    "y": 159
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "L",
+   "outs": 1
+  },
+  {
+   "id": "4019080440802040002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 3 : Ball In Play",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440802",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 120,
+    "y": 177
+   },
+   "hitCoordinate": {
+    "x": 155,
+    "y": 68
+   },
+   "pitchType": {
+    "abbreviation": "CH",
+    "text": "Changeup"
+   },
+   "pitchVelocity": 88,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T01:21:28Z",
+   "id": "4019080440802990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Chourio singled to center.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440802",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 120,
+    "y": 177
+   },
+   "hitCoordinate": {
+    "x": 155,
+    "y": 68
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 1
+  },
+  {
+   "id": "4019080440803050022",
+   "type": {
+    "id": "22",
+    "text": "Fly Out",
+    "type": "fly-out"
+   },
+   "text": "Pitch 4 : Ball In Play",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440803",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 144,
+    "y": 166
+   },
+   "hitCoordinate": {
+    "x": 51,
+    "y": 86
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 96,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:23:46Z",
+   "id": "4019080440803990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "fly-out",
+    "text": "Fly Out"
+   },
+   "text": "Bauers flied out to left.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440803",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 144,
+    "y": 166
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:25:41Z",
+   "id": "4019080440804050298",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "stolen-base",
+    "text": "Stolen Base"
+   },
+   "text": "Chourio stole second.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440804",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:26:29Z",
+   "id": "4019080440804990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ball",
+    "text": "Ball"
+   },
+   "text": "Yelich walked.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440804",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 152,
+    "y": 138
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 4,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 4,
+    "strikes": 2
+   },
+   "outs": 2
+  },
+  {
+   "id": "4019080440805060002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 5 : Ball In Play",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440805",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 138,
+    "y": 160
+   },
+   "hitCoordinate": {
+    "x": 98,
+    "y": 158
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 95,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:28:36Z",
+   "id": "4019080440805990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Contreras reached on infield single to third, Yelich to second, Chourio to third. Milwaukee Brewers challenged: call on the field was overturned.",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "39825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440805",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 138,
+    "y": 160
+   },
+   "hitCoordinate": {
+    "x": 98,
+    "y": 158
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:32:51Z",
+   "id": "4019080440806001157",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Booser relieved Peralta",
+   "awayScore": 2,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    }
+   ],
+   "atBatId": "4019080440806",
+   "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080440806060002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 5 : Ball In Play",
+   "awayScore": 4,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "31283"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440806",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 113,
+    "y": 163
+   },
+   "hitCoordinate": {
+    "x": 124,
+    "y": 117
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 96,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:34:46Z",
+   "id": "4019080440806990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Turang reached on infield single to shortstop, Chourio scored and Yelich scored, Contreras to second.",
+   "awayScore": 4,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
+   "atBatId": "4019080440806",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 113,
+    "y": 163
+   },
+   "hitCoordinate": {
+    "x": 124,
+    "y": 117
+   },
+   "summaryType": "S",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "id": "4019080440807020002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 1 : Ball In Play",
+   "awayScore": 5,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4313442"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
+   "atBatId": "4019080440807",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 130,
+    "y": 185
+   },
+   "hitCoordinate": {
+    "x": 79,
+    "y": 118
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 96,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:35:21Z",
+   "id": "4019080440807990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Mitchell singled to left, Contreras scored, Turang to second.",
+   "awayScore": 5,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4313442"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4313442"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
+   "atBatId": "4019080440807",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 130,
+    "y": 185
+   },
+   "hitCoordinate": {
+    "x": 79,
+    "y": 118
+   },
+   "summaryType": "S",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "id": "4019080440808020003",
+   "type": {
+    "id": "3",
+    "text": "Double",
+    "type": "double"
+   },
+   "text": "Pitch 1 : Ball In Play",
+   "awayScore": 7,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4313442"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
+   "atBatId": "4019080440808",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 121,
+    "y": 164
+   },
+   "hitCoordinate": {
+    "x": 52,
+    "y": 127
+   },
+   "pitchType": {
+    "abbreviation": "FC",
+    "text": "Cutter"
+   },
+   "pitchVelocity": 87,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:36:23Z",
+   "id": "4019080440808990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "double",
+    "text": "Double"
+   },
+   "text": "Pratt doubled to left, Mitchell scored and Turang scored.",
+   "awayScore": 7,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "5149101"
+     }
+    }
+   ],
+   "atBatId": "4019080440808",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 121,
+    "y": 164
+   },
+   "hitCoordinate": {
+    "x": 52,
+    "y": 127
+   },
+   "summaryType": "S",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "id": "4019080440809060003",
+   "type": {
+    "id": "3",
+    "text": "Double",
+    "type": "double"
+   },
+   "text": "Pitch 5 : Ball In Play",
+   "awayScore": 8,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "5149101"
+     }
+    }
+   ],
+   "atBatId": "4019080440809",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 116,
+    "y": 170
+   },
+   "hitCoordinate": {
+    "x": 41,
+    "y": 115
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 94,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:38:19Z",
+   "id": "4019080440809990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "double",
+    "text": "Double"
+   },
+   "text": "Frelick doubled to left, Pratt scored.",
+   "awayScore": 8,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "2560565"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4417795"
+     }
+    }
+   ],
+   "atBatId": "4019080440809",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 116,
+    "y": 170
+   },
+   "hitCoordinate": {
+    "x": 41,
+    "y": 115
+   },
+   "summaryType": "S",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "trajectory": "L",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:41:17Z",
+   "id": "4019080440810001157",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Sulser relieved Booser",
+   "awayScore": 8,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    }
+   ],
+   "atBatId": "4019080440810",
+   "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080440810050002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 4 : Ball In Play",
+   "awayScore": 9,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42987"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4417795"
+     }
+    }
+   ],
+   "atBatId": "4019080440810",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 104,
+    "y": 141
+   },
+   "hitCoordinate": {
+    "x": 136,
+    "y": 79
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 92,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "L",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:42:31Z",
+   "id": "4019080440810990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Hamilton singled to center, Frelick scored.",
+   "awayScore": 9,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42987"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "42987"
+     }
+    }
+   ],
+   "atBatId": "4019080440810",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 104,
+    "y": 141
+   },
+   "hitCoordinate": {
+    "x": 136,
+    "y": 79
+   },
+   "summaryType": "S",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "L",
+   "outs": 2
+  },
+  {
+   "id": "4019080440811060003",
+   "type": {
+    "id": "3",
+    "text": "Double",
+    "type": "double"
+   },
+   "text": "Pitch 5 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "42987"
+     }
+    }
+   ],
+   "atBatId": "4019080440811",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 89,
+    "y": 169
+   },
+   "hitCoordinate": {
+    "x": 176,
+    "y": 66
+   },
+   "pitchType": {
+    "abbreviation": "ST",
+    "text": "Sweeper"
+   },
+   "pitchVelocity": 84,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T01:44:33Z",
+   "id": "4019080440811990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "double",
+    "text": "Double"
+   },
+   "text": "Chourio doubled to right, Hamilton scored.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440811",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 89,
+    "y": 169
+   },
+   "hitCoordinate": {
+    "x": 176,
+    "y": 66
+   },
+   "summaryType": "S",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "id": "4019080440812030022",
+   "type": {
+    "id": "22",
+    "text": "Fly Out",
+    "type": "fly-out"
+   },
+   "text": "Pitch 2 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440812",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 134,
+    "y": 161
+   },
+   "hitCoordinate": {
+    "x": 87,
+    "y": 83
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 92,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "trajectory": "F",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T01:45:28Z",
+   "id": "4019080440812990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "fly-out",
+    "text": "Fly Out"
+   },
+   "text": "Bauers flied out to left.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080440812",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 134,
+    "y": 161
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "trajectory": "F",
+   "outs": 3
+  },
+  {
+   "id": "4019080440901050024",
+   "type": {
+    "id": "24",
+    "text": "Ground Out",
+    "type": "ground-out"
+   },
+   "text": "Pitch 4 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4905921"
+     }
+    }
+   ],
+   "atBatId": "4019080440901",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 104,
+    "y": 203
+   },
+   "hitCoordinate": {
+    "x": 88,
+    "y": 144
+   },
+   "pitchType": {
+    "abbreviation": "CH",
+    "text": "Changeup"
+   },
+   "pitchVelocity": 89,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T01:50:03Z",
+   "id": "4019080440901990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ground-out",
+    "text": "Ground Out"
+   },
+   "text": "Caminero grounded out to third.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4905921"
+     }
+    }
+   ],
+   "atBatId": "4019080440901",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 104,
+    "y": 203
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T01:53:10Z",
+   "id": "4019080440902990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-looking",
+    "text": "Strike Looking"
+   },
+   "text": "Williamson struck out looking.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4626239"
+     }
+    }
+   ],
+   "atBatId": "4019080440902",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 112,
+    "y": 149
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 3
+   },
+   "outs": 2
+  },
+  {
+   "id": "4019080440903060022",
+   "type": {
+    "id": "22",
+    "text": "Fly Out",
+    "type": "fly-out"
+   },
+   "text": "Pitch 5 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5005912"
+     }
+    }
+   ],
+   "atBatId": "4019080440903",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 103,
+    "y": 181
+   },
+   "hitCoordinate": {
+    "x": 145,
+    "y": 107
+   },
+   "pitchType": {
+    "abbreviation": "ST",
+    "text": "Sweeper"
+   },
+   "pitchVelocity": 81,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T01:54:58Z",
+   "id": "4019080440903990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "fly-out",
+    "text": "Fly Out"
+   },
+   "text": "DeLuca flied out to right.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 5,
+    "displayValue": "5th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5005912"
+     }
+    }
+   ],
+   "atBatId": "4019080440903",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 103,
+    "y": 181
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 3
+  },
+  {
+   "id": "4019080441001040022",
+   "type": {
+    "id": "22",
+    "text": "Fly Out",
+    "type": "fly-out"
+   },
+   "text": "Pitch 3 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    }
+   ],
+   "atBatId": "4019080441001",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 123,
+    "y": 167
+   },
+   "hitCoordinate": {
+    "x": 120,
+    "y": 43
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 91,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T01:59:25Z",
+   "id": "4019080441001990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "fly-out",
+    "text": "Fly Out"
+   },
+   "text": "Yelich flied out to center.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "31283"
+     }
+    }
+   ],
+   "atBatId": "4019080441001",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 123,
+    "y": 167
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 0
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "id": "4019080441002050002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 4 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
+   "atBatId": "4019080441002",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 84,
+    "y": 172
+   },
+   "hitCoordinate": {
+    "x": 114,
+    "y": 179
+   },
+   "pitchType": {
+    "abbreviation": "FC",
+    "text": "Cutter"
+   },
+   "pitchVelocity": 88,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T02:01:08Z",
+   "id": "4019080441002990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Contreras reached on infield single to third, Contreras safe at second on throwing error by third baseman Caminero.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
+   "atBatId": "4019080441002",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 84,
+    "y": 172
+   },
+   "hitCoordinate": {
+    "x": 114,
+    "y": 179
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 1
+  },
+  {
+   "id": "4019080441003040002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 3 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
+   "atBatId": "4019080441003",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 126,
+    "y": 205
+   },
+   "hitCoordinate": {
+    "x": 115,
+    "y": 189
+   },
+   "pitchType": {
+    "abbreviation": "CH",
+    "text": "Changeup"
+   },
+   "pitchVelocity": 84,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T02:02:02Z",
+   "id": "4019080441003990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Turang reached on infield single to pitcher, Contreras to third.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
+   "atBatId": "4019080441003",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 126,
+    "y": 205
+   },
+   "hitCoordinate": {
+    "x": 115,
+    "y": 189
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T02:05:21Z",
+   "id": "4019080441004990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-looking---overturned",
+    "text": "Strike Looking - Overturned"
+   },
+   "text": "Mitchell struck out looking. Tampa Bay Rays challenged: call on the field was overturned.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4313442"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
+   "atBatId": "4019080441004",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 146,
+    "y": 169
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 3
+   },
+   "outs": 2
+  },
+  {
+   "id": "4019080441005040024",
+   "type": {
+    "id": "24",
+    "text": "Ground Out",
+    "type": "ground-out"
+   },
+   "text": "Pitch 3 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
+   "atBatId": "4019080441005",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 110,
+    "y": 197
+   },
+   "hitCoordinate": {
+    "x": 140,
+    "y": 153
+   },
+   "pitchType": {
+    "abbreviation": "CH",
+    "text": "Changeup"
+   },
+   "pitchVelocity": 85,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T02:06:45Z",
+   "id": "4019080441005990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ground-out",
+    "text": "Ground Out"
+   },
+   "text": "Pratt grounded out to second.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37825"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onThird",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
+   "atBatId": "4019080441005",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 110,
+    "y": 197
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T02:12:07Z",
+   "id": "4019080441101990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ball",
+    "text": "Ball"
+   },
+   "text": "Mesa Jr. walked.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917849"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917849"
+     }
+    }
+   ],
+   "atBatId": "4019080441101",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 141,
+    "y": 212
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 4,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 4,
+    "strikes": 2
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080441102040024",
+   "type": {
+    "id": "24",
+    "text": "Ground Out",
+    "type": "ground-out"
+   },
+   "text": "Pitch 3 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41674"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4917849"
+     }
+    }
+   ],
+   "atBatId": "4019080441102",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 53,
+    "y": 183
+   },
+   "hitCoordinate": {
+    "x": 148,
+    "y": 152
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 93,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T02:13:54Z",
+   "id": "4019080441102990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ground-out",
+    "text": "Ground Out"
+   },
+   "text": "Fortes grounded into double play, second to shortstop to first, Mesa Jr. out at second.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41674"
+     }
+    }
+   ],
+   "atBatId": "4019080441102",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 53,
+    "y": 183
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "id": "4019080441103030024",
+   "type": {
+    "id": "24",
+    "text": "Ground Out",
+    "type": "ground-out"
+   },
+   "text": "Pitch 2 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40576"
+     }
+    }
+   ],
+   "atBatId": "4019080441103",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 81,
+    "y": 173
+   },
+   "hitCoordinate": {
+    "x": 134,
+    "y": 130
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 90,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T02:14:52Z",
+   "id": "4019080441103990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ground-out",
+    "text": "Ground Out"
+   },
+   "text": "Walls grounded out to second.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 6,
+    "displayValue": "6th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4918251"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40576"
+     }
+    }
+   ],
+   "atBatId": "4019080441103",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 81,
+    "y": 173
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T02:15:27Z",
+   "id": "4019080441201001157",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Cleavinger relieved Sulser",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "36429"
+     }
+    }
+   ],
+   "atBatId": "4019080441201",
+   "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080441201050033",
+   "type": {
+    "id": "33",
+    "text": "Pop Out",
+    "type": "pop-out"
+   },
+   "text": "Pitch 4 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "36429"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    }
+   ],
+   "atBatId": "4019080441201",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 99,
+    "y": 176
+   },
+   "hitCoordinate": {
+    "x": 101,
+    "y": 166
+   },
+   "pitchType": {
+    "abbreviation": "ST",
+    "text": "Sweeper"
+   },
+   "pitchVelocity": 78,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "P",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T02:19:02Z",
+   "id": "4019080441201990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "pop-out",
+    "text": "Pop Out"
+   },
+   "text": "Frelick popped out to third.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "36429"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    }
+   ],
+   "atBatId": "4019080441201",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 99,
+    "y": 176
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "P",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T02:19:29Z",
+   "id": "4019080441202001057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Ortiz hit for Hamilton",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "atBatId": "4019080441202",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080441202040024",
+   "type": {
+    "id": "24",
+    "text": "Ground Out",
+    "type": "ground-out"
+   },
+   "text": "Pitch 3 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "36429"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42958"
+     }
+    }
+   ],
+   "atBatId": "4019080441202",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 96,
+    "y": 175
+   },
+   "hitCoordinate": {
+    "x": 107,
+    "y": 147
+   },
+   "pitchType": {
+    "abbreviation": "SL",
+    "text": "Slider"
+   },
+   "pitchVelocity": 85,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T02:20:15Z",
+   "id": "4019080441202990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ground-out",
+    "text": "Ground Out"
+   },
+   "text": "Ortiz grounded out to shortstop.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "36429"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42958"
+     }
+    }
+   ],
+   "atBatId": "4019080441202",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 96,
+    "y": 175
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T02:22:19Z",
+   "id": "4019080441203990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-swinging",
+    "text": "Strike Swinging"
+   },
+   "text": "Chourio struck out swinging.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "36429"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917869"
+     }
+    }
+   ],
+   "atBatId": "4019080441203",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 126,
+    "y": 209
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 3
+   },
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T02:24:11Z",
+   "id": "4019080441301001057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Ortiz at third base.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "atBatId": "4019080441301",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "wallclock": "2026-10-27T02:24:11Z",
+   "id": "4019080441301001157",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Senzatela relieved Gasser",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    }
+   ],
+   "atBatId": "4019080441301",
+   "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080441301060022",
+   "type": {
+    "id": "22",
+    "text": "Fly Out",
+    "type": "fly-out"
+   },
+   "text": "Pitch 5 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080441301",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 127,
+    "y": 173
+   },
+   "hitCoordinate": {
+    "x": 194,
+    "y": 129
+   },
+   "pitchType": {
+    "abbreviation": "FC",
+    "text": "Cutter"
+   },
+   "pitchVelocity": 91,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T02:26:39Z",
+   "id": "4019080441301990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "fly-out",
+    "text": "Fly Out"
+   },
+   "text": "Díaz flied out to right.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080441301",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 127,
+    "y": 173
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T02:27:09Z",
+   "id": "4019080441302000357",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Aranda hit for Vilade",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "atBatId": "4019080441302",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080441302070033",
+   "type": {
+    "id": "33",
+    "text": "Pop Out",
+    "type": "pop-out"
+   },
+   "text": "Pitch 6 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40810"
+     }
+    }
+   ],
+   "atBatId": "4019080441302",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 103,
+    "y": 163
+   },
+   "hitCoordinate": {
+    "x": 104,
+    "y": 162
+   },
+   "pitchType": {
+    "abbreviation": "FC",
+    "text": "Cutter"
+   },
+   "pitchVelocity": 93,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "P",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T02:29:09Z",
+   "id": "4019080441302990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "pop-out",
+    "text": "Pop Out"
+   },
+   "text": "Aranda popped out to third.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40810"
+     }
+    }
+   ],
+   "atBatId": "4019080441302",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 103,
+    "y": 163
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "P",
+   "outs": 2
+  },
+  {
+   "id": "4019080441303030024",
+   "type": {
+    "id": "24",
+    "text": "Ground Out",
+    "type": "ground-out"
+   },
+   "text": "Pitch 2 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4679983"
+     }
+    }
+   ],
+   "atBatId": "4019080441303",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 109,
+    "y": 171
+   },
+   "hitCoordinate": {
+    "x": 161,
+    "y": 166
+   },
+   "pitchType": {
+    "abbreviation": "FC",
+    "text": "Cutter"
+   },
+   "pitchVelocity": 90,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T02:30:02Z",
+   "id": "4019080441303990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ground-out",
+    "text": "Ground Out"
+   },
+   "text": "Simpson grounded out to first.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 7,
+    "displayValue": "7th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4679983"
+     }
+    }
+   ],
+   "atBatId": "4019080441303",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 109,
+    "y": 171
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T02:31:08Z",
+   "id": "4019080441401000357",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Aranda at first base.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "atBatId": "4019080441401",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "wallclock": "2026-10-27T02:31:08Z",
+   "id": "4019080441401001157",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Wells relieved Cleavinger",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4717904"
+     }
+    }
+   ],
+   "atBatId": "4019080441401",
+   "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080441401070022",
+   "type": {
+    "id": "22",
+    "text": "Fly Out",
+    "type": "fly-out"
+   },
+   "text": "Pitch 6 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4717904"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    }
+   ],
+   "atBatId": "4019080441401",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 112,
+    "y": 168
+   },
+   "hitCoordinate": {
+    "x": 74,
+    "y": 96
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 93,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T02:35:16Z",
+   "id": "4019080441401990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "fly-out",
+    "text": "Fly Out"
+   },
+   "text": "Bauers flied out to left.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4717904"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35013"
+     }
+    }
+   ],
+   "atBatId": "4019080441401",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 112,
+    "y": 168
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T02:35:48Z",
+   "id": "4019080441402000457",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Vaughn hit for Yelich",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "atBatId": "4019080441402",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080441402030023",
+   "type": {
+    "id": "23",
+    "text": "Foul Out",
+    "type": "foul-out"
+   },
+   "text": "Pitch 2 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4717904"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42394"
+     }
+    }
+   ],
+   "atBatId": "4019080441402",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 151,
+    "y": 141
+   },
+   "hitCoordinate": {
+    "x": 50,
+    "y": 130
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 92,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T02:36:21Z",
+   "id": "4019080441402990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "foul-out",
+    "text": "Foul Out"
+   },
+   "text": "Vaughn fouled out to left.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4717904"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42394"
+     }
+    }
+   ],
+   "atBatId": "4019080441402",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 151,
+    "y": 141
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T02:39:35Z",
+   "id": "4019080441403990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-swinging",
+    "text": "Strike Swinging"
+   },
+   "text": "Contreras struck out swinging.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "4717904"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "39895"
+     }
+    }
+   ],
+   "atBatId": "4019080441403",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 118,
+    "y": 161
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 3
+   },
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T02:41:38Z",
+   "id": "4019080441501000457",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Vaughn as designated hitter.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "atBatId": "4019080441501",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080441501030022",
+   "type": {
+    "id": "22",
+    "text": "Fly Out",
+    "type": "fly-out"
+   },
+   "text": "Pitch 2 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4905921"
+     }
+    }
+   ],
+   "atBatId": "4019080441501",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 154,
+    "y": 164
+   },
+   "hitCoordinate": {
+    "x": 108,
+    "y": 79
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 97,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T02:43:22Z",
+   "id": "4019080441501990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "fly-out",
+    "text": "Fly Out"
+   },
+   "text": "Caminero flied out to center.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4905921"
+     }
+    }
+   ],
+   "atBatId": "4019080441501",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 154,
+    "y": 164
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "trajectory": "F",
+   "outs": 1
+  },
+  {
+   "id": "4019080441502080022",
+   "type": {
+    "id": "22",
+    "text": "Fly Out",
+    "type": "fly-out"
+   },
+   "text": "Pitch 7 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4626239"
+     }
+    }
+   ],
+   "atBatId": "4019080441502",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 66,
+    "y": 184
+   },
+   "hitCoordinate": {
+    "x": 186,
+    "y": 133
+   },
+   "pitchType": {
+    "abbreviation": "FC",
+    "text": "Cutter"
+   },
+   "pitchVelocity": 88,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T02:46:05Z",
+   "id": "4019080441502990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "fly-out",
+    "text": "Fly Out"
+   },
+   "text": "Williamson flied out to right.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4626239"
+     }
+    }
+   ],
+   "atBatId": "4019080441502",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 66,
+    "y": 184
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T02:48:33Z",
+   "id": "4019080441503990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-swinging",
+    "text": "Strike Swinging"
+   },
+   "text": "DeLuca struck out swinging.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 8,
+    "displayValue": "8th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33750"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5005912"
+     }
+    }
+   ],
+   "atBatId": "4019080441503",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 114,
+    "y": 179
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 3
+   },
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T02:48:50Z",
+   "id": "4019080441601001157",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Matz relieved Wells",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    }
+   ],
+   "atBatId": "4019080441601",
+   "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080441601070003",
+   "type": {
+    "id": "3",
+    "text": "Double",
+    "type": "double"
+   },
+   "text": "Pitch 6 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
+   "atBatId": "4019080441601",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 119,
+    "y": 176
+   },
+   "hitCoordinate": {
+    "x": 32,
+    "y": 106
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 94,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "L",
+   "outs": 0
+  },
+  {
+   "wallclock": "2026-10-27T02:53:10Z",
+   "id": "4019080441601990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "double",
+    "text": "Double"
+   },
+   "text": "Turang doubled to left.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "41179"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
+   "atBatId": "4019080441601",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 119,
+    "y": 176
+   },
+   "hitCoordinate": {
+    "x": 32,
+    "y": 106
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "L",
+   "outs": 0
+  },
+  {
+   "wallclock": "2026-10-27T02:54:03Z",
+   "id": "4019080441602000757",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Lara hit for Mitchell",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "atBatId": "4019080441602",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080441602020023",
+   "type": {
+    "id": "23",
+    "text": "Foul Out",
+    "type": "foul-out"
+   },
+   "text": "Pitch 1 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5138536"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
+   "atBatId": "4019080441602",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 112,
+    "y": 181
+   },
+   "hitCoordinate": {
+    "x": 170,
+    "y": 182
+   },
+   "pitchType": {
+    "abbreviation": "CH",
+    "text": "Changeup"
+   },
+   "pitchVelocity": 85,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "P",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T02:54:03Z",
+   "id": "4019080441602990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "foul-out",
+    "text": "Foul Out"
+   },
+   "text": "Lara fouled out to first.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5138536"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
+   "atBatId": "4019080441602",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 112,
+    "y": 181
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "P",
+   "outs": 1
+  },
+  {
+   "id": "4019080441603070022",
+   "type": {
+    "id": "22",
+    "text": "Fly Out",
+    "type": "fly-out"
+   },
+   "text": "Pitch 6 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
+   "atBatId": "4019080441603",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 132,
+    "y": 154
+   },
+   "hitCoordinate": {
+    "x": 169,
+    "y": 90
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 94,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T02:56:10Z",
+   "id": "4019080441603990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "fly-out",
+    "text": "Fly Out"
+   },
+   "text": "Pratt flied out to right.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "5149101"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
+   "atBatId": "4019080441603",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 132,
+    "y": 154
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T02:56:41Z",
+   "id": "4019080441604990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "hit-by-pitch",
+    "text": "Hit By Pitch"
+   },
+   "text": "Frelick hit by pitch.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4417795"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4417795"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
+   "atBatId": "4019080441604",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 57,
+    "y": 157
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 0
+   },
+   "outs": 2
+  },
+  {
+   "id": "4019080441605040022",
+   "type": {
+    "id": "22",
+    "text": "Fly Out",
+    "type": "fly-out"
+   },
+   "text": "Pitch 3 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42958"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4417795"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
+   "atBatId": "4019080441605",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 125,
+    "y": 152
+   },
+   "hitCoordinate": {
+    "x": 120,
+    "y": 106
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 94,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T02:58:24Z",
+   "id": "4019080441605990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "fly-out",
+    "text": "Fly Out"
+   },
+   "text": "Ortiz flied out to center.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Top",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "33106"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "42958"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "4417795"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "41179"
+     }
+    }
+   ],
+   "atBatId": "4019080441605",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 125,
+    "y": 152
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T03:01:34Z",
+   "id": "4019080441701000557",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Sánchez catching.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "atBatId": "4019080441701",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "wallclock": "2026-10-27T03:01:34Z",
+   "id": "4019080441701000757",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Lara in center field.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "atBatId": "4019080441701",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "wallclock": "2026-10-27T03:01:34Z",
+   "id": "4019080441701001157",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Woodruff relieved Senzatela",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    }
+   ],
+   "atBatId": "4019080441701",
+   "summaryType": "C",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080441701020032",
+   "type": {
+    "id": "32",
+    "text": "Line Out",
+    "type": "line-out"
+   },
+   "text": "Pitch 1 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917849"
+     }
+    }
+   ],
+   "atBatId": "4019080441701",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 129,
+    "y": 179
+   },
+   "hitCoordinate": {
+    "x": 186,
+    "y": 102
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 89,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "L",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T03:01:55Z",
+   "id": "4019080441701990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "line-out",
+    "text": "Line Out"
+   },
+   "text": "Mesa Jr. lined out to right.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "4917849"
+     }
+    }
+   ],
+   "atBatId": "4019080441701",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 129,
+    "y": 179
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "L",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T03:02:02Z",
+   "id": "4019080441702000957",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Mullins hit for Fortes",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "atBatId": "4019080441702",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "id": "4019080441702030002",
+   "type": {
+    "id": "2",
+    "text": "Single",
+    "type": "single"
+   },
+   "text": "Pitch 2 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441702",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 119,
+    "y": 197
+   },
+   "hitCoordinate": {
+    "x": 112,
+    "y": 182
+   },
+   "pitchType": {
+    "abbreviation": "CH",
+    "text": "Changeup"
+   },
+   "pitchVelocity": 82,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T03:02:40Z",
+   "id": "4019080441702990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "single",
+    "text": "Single"
+   },
+   "text": "Mullins reached on infield single to third.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "35578"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441702",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 119,
+    "y": 197
+   },
+   "hitCoordinate": {
+    "x": 112,
+    "y": 182
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "trajectory": "G",
+   "outs": 1
+  },
+  {
+   "wallclock": "2026-10-27T03:02:50Z",
+   "id": "4019080441703001057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "lineup-change",
+    "text": "Lineup Change"
+   },
+   "text": "Mateo hit for Walls",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "atBatId": "4019080441703",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  },
+  {
+   "wallclock": "2026-10-27T03:05:33Z",
+   "id": "4019080441703990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "strike-swinging",
+    "text": "Strike Swinging"
+   },
+   "text": "Mateo struck out swinging.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33832"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441703",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 93,
+    "y": 182
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "outs": 2
+  },
+  {
+   "id": "4019080441703990099",
+   "type": {
+    "id": "99",
+    "text": "End Batter/Pitcher",
+    "type": "end-batterpitcher"
+   },
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33832"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441703",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 93,
+    "y": 182
+   },
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 3
+   },
+   "outs": 2
+  },
+  {
+   "id": "4019080441704010001",
+   "type": {
+    "id": "1",
+    "text": "Start Batter/Pitcher",
+    "type": "start-batterpitcher"
+   },
+   "text": "Brandon Woodruff pitches to Yandy Diaz",
+   "awayScore": 10,
+   "homeScore": 1,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441704",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "summaryType": "A",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 2
+  },
+  {
+   "id": "4019080441704020036",
+   "type": {
+    "id": "36",
+    "text": "Strike Looking",
+    "type": "strike-looking"
+   },
+   "text": "Pitch 1 : Strike 1 Looking",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onFirst",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441704",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 105,
+    "y": 174
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 92,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "id": "4019080441704020246",
+   "type": {
+    "id": "46",
+    "text": "Fielders Indifference",
+    "type": "fielders-indifference"
+   },
+   "text": "Mullins to second on fielder's indifference.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441704",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T03:06:09Z",
+   "id": "4019080441704020298",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "fielders-indifference",
+    "text": "Fielders Indifference"
+   },
+   "text": "Mullins to second on fielder's indifference.",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441704",
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 2
+  },
+  {
+   "id": "4019080441704030005",
+   "type": {
+    "id": "5",
+    "text": "Ball",
+    "type": "ball"
+   },
+   "text": "Pitch 2 : Ball 1",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441704",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 111,
+    "y": 205
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 93,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "id": "4019080441704040005",
+   "type": {
+    "id": "5",
+    "text": "Ball",
+    "type": "ball"
+   },
+   "text": "Pitch 3 : Ball 2",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441704",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 34,
+    "y": 195
+   },
+   "pitchType": {
+    "abbreviation": "FC",
+    "text": "Cutter"
+   },
+   "pitchVelocity": 89,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 1,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "id": "4019080441704050005",
+   "type": {
+    "id": "5",
+    "text": "Ball",
+    "type": "ball"
+   },
+   "text": "Pitch 4 : Ball 3",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441704",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 66,
+    "y": 161
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 92,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 2,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "id": "4019080441704060037",
+   "type": {
+    "id": "37",
+    "text": "Strike Swinging",
+    "type": "strike-swinging"
+   },
+   "text": "Pitch 5 : Strike 2 Swinging",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441704",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 125,
+    "y": 174
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 90,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 1
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "id": "4019080441704070021",
+   "type": {
+    "id": "21",
+    "text": "Foul Ball",
+    "type": "foul-ball"
+   },
+   "text": "Pitch 6 : Strike 2 Foul",
+   "awayScore": 10,
+   "homeScore": 0,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441704",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 93,
+    "y": 171
+   },
+   "hitCoordinate": {
+    "x": 112,
+    "y": 49
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 90,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "id": "4019080441704080003",
+   "type": {
+    "id": "3",
+    "text": "Double",
+    "type": "double"
+   },
+   "text": "Pitch 7 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 1,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "35578"
+     }
+    }
+   ],
+   "atBatId": "4019080441704",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 98,
+    "y": 172
+   },
+   "hitCoordinate": {
+    "x": 112,
+    "y": 49
+   },
+   "pitchType": {
+    "abbreviation": "SI",
+    "text": "Sinker"
+   },
+   "pitchVelocity": 90,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "wallclock": "2026-10-27T03:08:42Z",
+   "id": "4019080441704990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "double",
+    "text": "Double"
+   },
+   "text": "Díaz doubled to center, Mullins scored.",
+   "awayScore": 10,
+   "homeScore": 1,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080441704",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 98,
+    "y": 172
+   },
+   "hitCoordinate": {
+    "x": 112,
+    "y": 49
+   },
+   "summaryType": "S",
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "id": "4019080441704990099",
+   "type": {
+    "id": "99",
+    "text": "End Batter/Pitcher",
+    "type": "end-batterpitcher"
+   },
+   "awayScore": 10,
+   "homeScore": 1,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "33481"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080441704",
+   "bats": {
+    "abbreviation": "R"
+   },
+   "pitchCoordinate": {
+    "x": 98,
+    "y": 172
+   },
+   "hitCoordinate": {
+    "x": 112,
+    "y": 49
+   },
+   "pitchCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "resultCount": {
+    "balls": 3,
+    "strikes": 2
+   },
+   "trajectory": "F",
+   "outs": 2
+  },
+  {
+   "id": "4019080441705010001",
+   "type": {
+    "id": "1",
+    "text": "Start Batter/Pitcher",
+    "type": "start-batterpitcher"
+   },
+   "text": "Brandon Woodruff pitches to Jonathan Aranda",
+   "awayScore": 10,
+   "homeScore": 1,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40810"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080441705",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "summaryType": "A",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 3
+  },
+  {
+   "id": "4019080441705020024",
+   "type": {
+    "id": "24",
+    "text": "Ground Out",
+    "type": "ground-out"
+   },
+   "text": "Pitch 1 : Ball In Play",
+   "awayScore": 10,
+   "homeScore": 1,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "8"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40810"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080441705",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 98,
+    "y": 183
+   },
+   "hitCoordinate": {
+    "x": 133,
+    "y": 144
+   },
+   "pitchType": {
+    "abbreviation": "FF",
+    "text": "Four-seam FB"
+   },
+   "pitchVelocity": 89,
+   "summaryType": "P",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "wallclock": "2026-10-27T03:10:20Z",
+   "id": "4019080441705990057",
+   "type": {
+    "id": "57",
+    "text": "Play Result",
+    "type": "play-result"
+   },
+   "alternativeType": {
+    "type": "ground-out",
+    "text": "Ground Out"
+   },
+   "text": "Aranda grounded out to second.",
+   "awayScore": 10,
+   "homeScore": 1,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40810"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080441705",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 98,
+    "y": 183
+   },
+   "summaryType": "N",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "id": "4019080441705990099",
+   "type": {
+    "id": "99",
+    "text": "End Batter/Pitcher",
+    "type": "end-batterpitcher"
+   },
+   "awayScore": 10,
+   "homeScore": 1,
+   "period": {
+    "type": "Bottom",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "participants": [
+    {
+     "type": "pitcher",
+     "athlete": {
+      "id": "37515"
+     }
+    },
+    {
+     "type": "batter",
+     "athlete": {
+      "id": "40810"
+     }
+    },
+    {
+     "type": "onSecond",
+     "athlete": {
+      "id": "33481"
+     }
+    }
+   ],
+   "atBatId": "4019080441705",
+   "bats": {
+    "abbreviation": "L"
+   },
+   "pitchCoordinate": {
+    "x": 98,
+    "y": 183
+   },
+   "hitCoordinate": {
+    "x": 133,
+    "y": 144
+   },
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "trajectory": "G",
+   "outs": 3
+  },
+  {
+   "id": "4019080441799990058",
+   "type": {
+    "id": "58",
+    "text": "End Inning",
+    "type": "end-inning"
+   },
+   "text": "End of the 9th inning",
+   "awayScore": 10,
+   "homeScore": 1,
+   "period": {
+    "type": "End",
+    "number": 9,
+    "displayValue": "9th Inning"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "30"
+   },
+   "atBatId": "4019080441705",
+   "pitchCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "resultCount": {
+    "balls": 0,
+    "strikes": 0
+   },
+   "outs": 0
+  }
+ ]
+}

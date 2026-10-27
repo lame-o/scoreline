@@ -92,6 +92,8 @@ export const UPSTREAMS: readonly Upstream[] = [
       [/\/matches\/[^/]+$/, LIVE],
       [/\/teams(\/.*)?$/, CATALOG],
       [/\/tournaments(\/.*)?$/, SCHEDULE],
+      // A stage's name and its rounds' names (SeasonResults.parseStage).
+      [/\/stages\/\d+$/, SCHEDULE],
       // Player pages: bio, career stats, map pool, roles, recent matches.
       [/\/players(\/.*)?$/, SCHEDULE],
     ],
@@ -108,6 +110,8 @@ export const UPSTREAMS: readonly Upstream[] = [
       [/^\/api\/v1\/?$/, SCHEDULE],
       [/\/(seasons|season_leagues)\/\d+$/, SCHEDULE],
       [/\/events\/\d+$/, SHORT],
+      // Season pages: who's registered changes over days, not minutes.
+      [/\/events\/\d+\/registrations$/, SCHEDULE],
     ],
     fallback: SHORT,
   },

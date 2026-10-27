@@ -1,0 +1,170 @@
+/* A schedule page's header: Back, the title menu, More, and Upcoming | Results. Sticky, with a soft scroll edge. */
+
+.sentinel {
+  display: block;
+  height: 1px;
+  margin-bottom: -1px;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.header::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 calc(-12 * var(--pt));
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--page);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 12 * var(--pt)), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 12 * var(--pt)), transparent);
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.header[data-scrolled="true"]::before {
+  opacity: 1;
+}
+
+.titleTrigger {
+  max-width: 100%;
+  padding: calc(3 * var(--pt)) calc(6 * var(--pt));
+  font-size: var(--text-body);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .titleTrigger:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.titleText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.titleChevron {
+  flex: none;
+  color: var(--label-tertiary);
+}
+
+/* More: the 28pt glass circle. */
+.more {
+  display: inline-grid;
+  place-items: center;
+  width: var(--control-size);
+  height: var(--control-size);
+  border-radius: 50%;
+  color: color-mix(in srgb, var(--label) 80%, transparent);
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    inset 0 calc(1 * var(--pt)) 0 var(--glass-highlight),
+    inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
+    var(--shadow-control);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .more:hover {
+    background: var(--glass-fill-strong);
+    color: var(--label);
+  }
+}
+
+.modeRow {
+  display: flex;
+  justify-content: center;
+  padding: calc(2 * var(--pt)) var(--gutter) calc(8 * var(--pt));
+}
+
+.mode {
+  width: calc(200 * var(--pt));
+}
+
+/* MARK: Scope chips */
+
+.chips {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  padding: calc(4 * var(--pt)) var(--gutter) calc(2 * var(--pt));
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chipSlot {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  flex: none;
+}
+
+.chipDivider {
+  width: calc(0.5 * var(--pt));
+  height: calc(14 * var(--pt));
+  margin: 0 calc(2 * var(--pt));
+  background: var(--separator);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  height: calc(24 * var(--pt));
+  padding: 0 calc(10 * var(--pt));
+  border-radius: 999px;
+  font-size: var(--text-callout);
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--label-secondary);
+  background: var(--fill-surface);
+  transition:
+    background-color var(--dur-fade) var(--ease-out),
+    color var(--dur-fade) var(--ease-out),
+    transform var(--dur-press) var(--ease-out);
+}
+
+.chip[data-selected="true"] {
+  color: var(--label);
+  background: var(--fill-press);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover:not([data-selected="true"]) {
+    background: var(--fill-hover);
+  }
+}
+
+.chip:active {
+  transform: scale(0.97);
+}
+
+.chipStar {
+  color: var(--label-secondary);
+}
+
+.chip[data-selected="true"] .chipStar {
+  color: var(--star);
+}
+
+.chipChevron {
+  color: var(--label-tertiary);
+}
+
+@media (pointer: coarse) {
+  .chip {
+    height: calc(30 * var(--pt));
+  }
+}

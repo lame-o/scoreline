@@ -106,17 +106,26 @@ export interface SectionHeaderProps {
   readonly maxLogos?: number;
   readonly accessory?: ReactNode;
   readonly controls?: string;
+  /** The section's menu (Schedule, Results, Table…), shown beside the chevron on hover and by right-click. */
+  readonly menu?: ReactNode;
 }
 
 /**
  * A section's (or tier's) header: the small caps label with its glyph and
  * a chevron. Collapsed, a preview hints at what's inside.
  */
-export function SectionHeader({ id, title, icon, events, collapsed, toggling, onToggle, maxLogos = 7, accessory, controls }: SectionHeaderProps) {
+export function SectionHeader({ id, title, icon, events, collapsed, toggling, onToggle, maxLogos = 7, accessory, controls, menu }: SectionHeaderProps) {
   const linking = toggling.id === id;
   const onClick = (event: MouseEvent) => onToggle(id, event.detail === 0);
+  // Right-click opens the section's menu, as on the Mac.
+  const onContextMenu = (event: MouseEvent<HTMLElement>) => {
+    const trigger = event.currentTarget.querySelector<HTMLButtonElement>("[data-section-menu] button");
+    if (!trigger) return;
+    event.preventDefault();
+    trigger.click();
+  };
   return (
-    <h2 className={styles.heading}>
+    <h2 className={styles.heading} data-has-menu={menu != null} onContextMenu={menu ? onContextMenu : undefined}>
       <button
         type="button"
         className={styles.header}
@@ -143,6 +152,11 @@ export function SectionHeader({ id, title, icon, events, collapsed, toggling, on
           </>
         ) : null}
       </button>
+      {menu ? (
+        <span className={styles.sectionMenu} data-section-menu>
+          {menu}
+        </span>
+      ) : null}
     </h2>
   );
 }

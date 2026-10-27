@@ -1,0 +1,1 @@
+{"_source":"https://api.bo3.gg/api/v1/stages/10897","_recorded":"2026-10-25/26 (Swift Tests/Fixtures)","_note":"Trimmed to id, title, format_type, sequence_number and rounds[].{id,name,round_index} (matches dropped).","id":10897,"title":"ESL Pro League Season 24 Decider","format_type":"playoff","sequence_number":3,"rounds":[{"id":40553,"name":"3rd place","round_index":1}]}

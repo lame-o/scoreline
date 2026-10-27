@@ -68,6 +68,8 @@ export interface PageHeaderProps {
   readonly icon?: IconName;
   readonly leading?: ReactNode;
   readonly trailing?: ReactNode;
+  /** Replaces the title with a control that is the page's heading (a title menu). */
+  readonly center?: ReactNode;
   readonly className?: string;
 }
 
@@ -78,11 +80,13 @@ export interface PageHeaderProps {
  *
  *     <PageHeader title="Settings" leading={<BackButton to="Scores" onClick={back} />} />
  */
-export function PageHeader({ title, icon, leading, trailing, className }: PageHeaderProps) {
+export function PageHeader({ title, icon, leading, trailing, center, className }: PageHeaderProps) {
   return (
     <header className={[styles.header, className].filter(Boolean).join(" ")}>
       <div className={styles.leading}>{leading}</div>
-      {title ? (
+      {center ? (
+        <div className={styles.center}>{center}</div>
+      ) : title ? (
         <h1 className={styles.title}>
           {icon ? <Icon name={icon} size={11} className={styles.titleIcon} /> : null}
           <span>{title}</span>

@@ -1,0 +1,1643 @@
+{
+ "_source": "https://site.api.espn.com/apis/v2/sports/football/college-football/standings",
+ "_recorded": "2026-10-27T08:37:38.000Z",
+ "_note": "Trimmed: SEC whole, ACC/Big Ten first five, FBS Independents, Sun Belt divisions (four each); stat types the parser reads.",
+ "children": [
+  {
+   "name": "Atlantic Coast Conference",
+   "shortName": "ACC",
+   "standings": {
+    "entries": [
+     {
+      "team": {
+       "id": "2390",
+       "location": "Miami",
+       "shortDisplayName": "Miami",
+       "displayName": "Miami Hurricanes",
+       "abbreviation": "MIA",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/2390.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "107"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "343"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W7"
+       },
+       {
+        "type": "total",
+        "displayValue": "7-0"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "4-0"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "3-0"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "5-0"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "2567",
+       "location": "SMU",
+       "shortDisplayName": "SMU",
+       "displayName": "SMU Mustangs",
+       "abbreviation": "SMU",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/2567.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "148"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "255"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W4"
+       },
+       {
+        "type": "total",
+        "displayValue": "6-1"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "5-0"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "1-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "4-1"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "154",
+       "location": "Wake Forest",
+       "shortDisplayName": "Wake Forest",
+       "displayName": "Wake Forest Demon Deacons",
+       "abbreviation": "WAKE",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/154.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "136"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "262"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W4"
+       },
+       {
+        "type": "total",
+        "displayValue": "6-1"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "2-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "4-0"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "4-1"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "259",
+       "location": "Virginia Tech",
+       "shortDisplayName": "Virginia Tech",
+       "displayName": "Virginia Tech Hokies",
+       "abbreviation": "VT",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/259.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "164"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "280"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W2"
+       },
+       {
+        "type": "total",
+        "displayValue": "6-2"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "3-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "3-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "3-2"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "150",
+       "location": "Duke",
+       "shortDisplayName": "Duke",
+       "displayName": "Duke Blue Devils",
+       "abbreviation": "DUKE",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/150.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "112"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "209"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W1"
+       },
+       {
+        "type": "total",
+        "displayValue": "5-2"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "3-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "2-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "2-2"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "Big Ten Conference",
+   "shortName": "Big Ten",
+   "standings": {
+    "entries": [
+     {
+      "team": {
+       "id": "26",
+       "location": "UCLA",
+       "shortDisplayName": "UCLA",
+       "displayName": "UCLA Bruins",
+       "abbreviation": "UCLA",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/26.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "107"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "241"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W7"
+       },
+       {
+        "type": "total",
+        "displayValue": "7-0"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "4-0"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "3-0"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "5-0"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "84",
+       "location": "Indiana",
+       "shortDisplayName": "Indiana",
+       "displayName": "Indiana Hoosiers",
+       "abbreviation": "IU",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/84.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "96"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "269"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W1"
+       },
+       {
+        "type": "total",
+        "displayValue": "7-1"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "4-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "3-0"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "4-1"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "194",
+       "location": "Ohio State",
+       "shortDisplayName": "Ohio State",
+       "displayName": "Ohio State Buckeyes",
+       "abbreviation": "OSU",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/194.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "94"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "275"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W5"
+       },
+       {
+        "type": "total",
+        "displayValue": "6-1"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "4-0"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "2-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "4-0"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "77",
+       "location": "Northwestern",
+       "shortDisplayName": "Northwestern",
+       "displayName": "Northwestern Wildcats",
+       "abbreviation": "NU",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/77.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "116"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "243"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W4"
+       },
+       {
+        "type": "total",
+        "displayValue": "6-1"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "5-0"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "1-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "3-1"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "30",
+       "location": "USC",
+       "shortDisplayName": "USC",
+       "displayName": "USC Trojans",
+       "abbreviation": "USC",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/30.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "200"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "262"
+       },
+       {
+        "type": "streak",
+        "displayValue": "L1"
+       },
+       {
+        "type": "total",
+        "displayValue": "6-2"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "4-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "2-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "3-2"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "FBS Independents",
+   "shortName": "FBS Indep.",
+   "standings": {
+    "entries": [
+     {
+      "team": {
+       "id": "87",
+       "location": "Notre Dame",
+       "shortDisplayName": "Notre Dame",
+       "displayName": "Notre Dame Fighting Irish",
+       "abbreviation": "ND",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/87.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "94"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "288"
+       },
+       {
+        "type": "streak",
+        "displayValue": "L1"
+       },
+       {
+        "type": "total",
+        "displayValue": "6-1"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "3-0"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "2-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "0-0"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "41",
+       "location": "UConn",
+       "shortDisplayName": "UConn",
+       "displayName": "UConn Huskies",
+       "abbreviation": "CONN",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/41.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "167"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "249"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W2"
+       },
+       {
+        "type": "total",
+        "displayValue": "4-3"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "2-2"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "2-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "0-0"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "Southeastern Conference",
+   "shortName": "SEC",
+   "standings": {
+    "entries": [
+     {
+      "team": {
+       "id": "96",
+       "location": "Kentucky",
+       "shortDisplayName": "Kentucky",
+       "displayName": "Kentucky Wildcats",
+       "abbreviation": "UK",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/96.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "198"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "263"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W6"
+       },
+       {
+        "type": "total",
+        "displayValue": "7-1"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "4-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "3-0"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "5-1"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "61",
+       "location": "Georgia",
+       "shortDisplayName": "Georgia",
+       "displayName": "Georgia Bulldogs",
+       "abbreviation": "UGA",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/61.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "111"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "301"
+       },
+       {
+        "type": "streak",
+        "displayValue": "L1"
+       },
+       {
+        "type": "total",
+        "displayValue": "6-1"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "4-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "2-0"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "4-1"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "333",
+       "location": "Alabama",
+       "shortDisplayName": "Alabama",
+       "displayName": "Alabama Crimson Tide",
+       "abbreviation": "ALA",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/333.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "170"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "306"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W1"
+       },
+       {
+        "type": "total",
+        "displayValue": "6-2"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "4-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "2-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "4-2"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "99",
+       "location": "LSU",
+       "shortDisplayName": "LSU",
+       "displayName": "LSU Tigers",
+       "abbreviation": "LSU",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/99.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "128"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "321"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W2"
+       },
+       {
+        "type": "total",
+        "displayValue": "6-2"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "5-0"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "1-2"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "3-2"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "2633",
+       "location": "Tennessee",
+       "shortDisplayName": "Tennessee",
+       "displayName": "Tennessee Volunteers",
+       "abbreviation": "TENN",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/2633.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "130"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "258"
+       },
+       {
+        "type": "streak",
+        "displayValue": "L1"
+       },
+       {
+        "type": "total",
+        "displayValue": "6-2"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "4-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "2-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "3-2"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "57",
+       "location": "Florida",
+       "shortDisplayName": "Florida",
+       "displayName": "Florida Gators",
+       "abbreviation": "FLA",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/57.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "198"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "277"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W1"
+       },
+       {
+        "type": "total",
+        "displayValue": "5-2"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "3-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "2-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "3-2"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "145",
+       "location": "Ole Miss",
+       "shortDisplayName": "Ole Miss",
+       "displayName": "Ole Miss Rebels",
+       "abbreviation": "MISS",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/145.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "177"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "252"
+       },
+       {
+        "type": "streak",
+        "displayValue": "L1"
+       },
+       {
+        "type": "total",
+        "displayValue": "5-2"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "3-0"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "1-2"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "3-2"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "142",
+       "location": "Missouri",
+       "shortDisplayName": "Missouri",
+       "displayName": "Missouri Tigers",
+       "abbreviation": "MIZ",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/142.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "137"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "218"
+       },
+       {
+        "type": "streak",
+        "displayValue": "L1"
+       },
+       {
+        "type": "total",
+        "displayValue": "5-2"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "4-0"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "1-2"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "2-2"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "251",
+       "location": "Texas",
+       "shortDisplayName": "Texas",
+       "displayName": "Texas Longhorns",
+       "abbreviation": "TEX",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/251.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "134"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "215"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W1"
+       },
+       {
+        "type": "total",
+        "displayValue": "5-2"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "4-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "1-0"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "2-2"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "201",
+       "location": "Oklahoma",
+       "shortDisplayName": "Oklahoma",
+       "displayName": "Oklahoma Sooners",
+       "abbreviation": "OU",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/201.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "124"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "151"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W1"
+       },
+       {
+        "type": "total",
+        "displayValue": "4-3"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "2-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "1-2"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "2-2"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "344",
+       "location": "Mississippi State",
+       "shortDisplayName": "Mississippi St",
+       "displayName": "Mississippi State Bulldogs",
+       "abbreviation": "MSST",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/344.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "194"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "210"
+       },
+       {
+        "type": "streak",
+        "displayValue": "L3"
+       },
+       {
+        "type": "total",
+        "displayValue": "4-3"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "2-2"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "2-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "2-3"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "2",
+       "location": "Auburn",
+       "shortDisplayName": "Auburn",
+       "displayName": "Auburn Tigers",
+       "abbreviation": "AUB",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/2.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "169"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "178"
+       },
+       {
+        "type": "streak",
+        "displayValue": "L1"
+       },
+       {
+        "type": "total",
+        "displayValue": "4-3"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "2-2"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "1-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "2-3"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "2579",
+       "location": "South Carolina",
+       "shortDisplayName": "South Carolina",
+       "displayName": "South Carolina Gamecocks",
+       "abbreviation": "SC",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/2579.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "177"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "253"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W2"
+       },
+       {
+        "type": "total",
+        "displayValue": "4-3"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "3-2"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "1-1"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "2-3"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "245",
+       "location": "Texas A&M",
+       "shortDisplayName": "Texas A&M",
+       "displayName": "Texas A&M Aggies",
+       "abbreviation": "TA&M",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/245.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "151"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "226"
+       },
+       {
+        "type": "streak",
+        "displayValue": "L1"
+       },
+       {
+        "type": "total",
+        "displayValue": "4-4"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "4-1"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "0-3"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "1-4"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "8",
+       "location": "Arkansas",
+       "shortDisplayName": "Arkansas",
+       "displayName": "Arkansas Razorbacks",
+       "abbreviation": "ARK",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/8.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "187"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "147"
+       },
+       {
+        "type": "streak",
+        "displayValue": "W1"
+       },
+       {
+        "type": "total",
+        "displayValue": "3-4"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "2-2"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "1-2"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "1-3"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "238",
+       "location": "Vanderbilt",
+       "shortDisplayName": "Vanderbilt",
+       "displayName": "Vanderbilt Commodores",
+       "abbreviation": "VAN",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/238.png"
+        }
+       ]
+      },
+      "stats": [
+       {
+        "type": "pointsagainst",
+        "displayValue": "242"
+       },
+       {
+        "type": "pointsfor",
+        "displayValue": "182"
+       },
+       {
+        "type": "streak",
+        "displayValue": "L5"
+       },
+       {
+        "type": "total",
+        "displayValue": "3-5"
+       },
+       {
+        "type": "homerecord",
+        "displayValue": "3-2"
+       },
+       {
+        "type": "awayrecord",
+        "displayValue": "0-3"
+       },
+       {
+        "type": "vsconf",
+        "displayValue": "0-5"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "Sun Belt Conference",
+   "shortName": "Sun Belt",
+   "children": [
+    {
+     "name": "Sun Belt - East",
+     "standings": {
+      "entries": [
+       {
+        "team": {
+         "id": "256",
+         "location": "James Madison",
+         "shortDisplayName": "James Madison",
+         "displayName": "James Madison Dukes",
+         "abbreviation": "JMU",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/256.png"
+          }
+         ]
+        },
+        "stats": [
+         {
+          "type": "pointsagainst",
+          "displayValue": "146"
+         },
+         {
+          "type": "pointsfor",
+          "displayValue": "331"
+         },
+         {
+          "type": "streak",
+          "displayValue": "L1"
+         },
+         {
+          "type": "total",
+          "displayValue": "7-1"
+         },
+         {
+          "type": "homerecord",
+          "displayValue": "4-0"
+         },
+         {
+          "type": "awayrecord",
+          "displayValue": "3-1"
+         },
+         {
+          "type": "vsconf",
+          "displayValue": "4-1"
+         }
+        ]
+       },
+       {
+        "team": {
+         "id": "2026",
+         "location": "App State",
+         "shortDisplayName": "App State",
+         "displayName": "App State Mountaineers",
+         "abbreviation": "APP",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/2026.png"
+          }
+         ]
+        },
+        "stats": [
+         {
+          "type": "pointsagainst",
+          "displayValue": "162"
+         },
+         {
+          "type": "pointsfor",
+          "displayValue": "211"
+         },
+         {
+          "type": "streak",
+          "displayValue": "W2"
+         },
+         {
+          "type": "total",
+          "displayValue": "5-2"
+         },
+         {
+          "type": "homerecord",
+          "displayValue": "3-1"
+         },
+         {
+          "type": "awayrecord",
+          "displayValue": "2-1"
+         },
+         {
+          "type": "vsconf",
+          "displayValue": "2-1"
+         }
+        ]
+       },
+       {
+        "team": {
+         "id": "2247",
+         "location": "Georgia State",
+         "shortDisplayName": "Georgia St",
+         "displayName": "Georgia State Panthers",
+         "abbreviation": "GAST",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/2247.png"
+          }
+         ]
+        },
+        "stats": [
+         {
+          "type": "pointsagainst",
+          "displayValue": "182"
+         },
+         {
+          "type": "pointsfor",
+          "displayValue": "251"
+         },
+         {
+          "type": "streak",
+          "displayValue": "L2"
+         },
+         {
+          "type": "total",
+          "displayValue": "4-3"
+         },
+         {
+          "type": "homerecord",
+          "displayValue": "3-0"
+         },
+         {
+          "type": "awayrecord",
+          "displayValue": "1-3"
+         },
+         {
+          "type": "vsconf",
+          "displayValue": "1-2"
+         }
+        ]
+       },
+       {
+        "team": {
+         "id": "276",
+         "location": "Marshall",
+         "shortDisplayName": "Marshall",
+         "displayName": "Marshall Thundering Herd",
+         "abbreviation": "MRSH",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/276.png"
+          }
+         ]
+        },
+        "stats": [
+         {
+          "type": "pointsagainst",
+          "displayValue": "215"
+         },
+         {
+          "type": "pointsfor",
+          "displayValue": "152"
+         },
+         {
+          "type": "streak",
+          "displayValue": "W1"
+         },
+         {
+          "type": "total",
+          "displayValue": "4-3"
+         },
+         {
+          "type": "homerecord",
+          "displayValue": "3-1"
+         },
+         {
+          "type": "awayrecord",
+          "displayValue": "1-2"
+         },
+         {
+          "type": "vsconf",
+          "displayValue": "1-2"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "Sun Belt - West",
+     "standings": {
+      "entries": [
+       {
+        "team": {
+         "id": "2348",
+         "location": "Louisiana Tech",
+         "shortDisplayName": "Louisiana Tech",
+         "displayName": "Louisiana Tech Bulldogs",
+         "abbreviation": "LT",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/2348.png"
+          }
+         ]
+        },
+        "stats": [
+         {
+          "type": "pointsagainst",
+          "displayValue": "147"
+         },
+         {
+          "type": "pointsfor",
+          "displayValue": "226"
+         },
+         {
+          "type": "streak",
+          "displayValue": "W4"
+         },
+         {
+          "type": "total",
+          "displayValue": "5-2"
+         },
+         {
+          "type": "homerecord",
+          "displayValue": "4-0"
+         },
+         {
+          "type": "awayrecord",
+          "displayValue": "1-2"
+         },
+         {
+          "type": "vsconf",
+          "displayValue": "3-0"
+         }
+        ]
+       },
+       {
+        "team": {
+         "id": "309",
+         "location": "Louisiana",
+         "shortDisplayName": "Louisiana",
+         "displayName": "Louisiana Ragin' Cajuns",
+         "abbreviation": "UL",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/309.png"
+          }
+         ]
+        },
+        "stats": [
+         {
+          "type": "pointsagainst",
+          "displayValue": "170"
+         },
+         {
+          "type": "pointsfor",
+          "displayValue": "241"
+         },
+         {
+          "type": "streak",
+          "displayValue": "L1"
+         },
+         {
+          "type": "total",
+          "displayValue": "5-3"
+         },
+         {
+          "type": "homerecord",
+          "displayValue": "4-0"
+         },
+         {
+          "type": "awayrecord",
+          "displayValue": "1-3"
+         },
+         {
+          "type": "vsconf",
+          "displayValue": "2-2"
+         }
+        ]
+       },
+       {
+        "team": {
+         "id": "6",
+         "location": "South Alabama",
+         "shortDisplayName": "South Alabama",
+         "displayName": "South Alabama Jaguars",
+         "abbreviation": "USA",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/6.png"
+          }
+         ]
+        },
+        "stats": [
+         {
+          "type": "pointsagainst",
+          "displayValue": "227"
+         },
+         {
+          "type": "pointsfor",
+          "displayValue": "246"
+         },
+         {
+          "type": "streak",
+          "displayValue": "L1"
+         },
+         {
+          "type": "total",
+          "displayValue": "4-3"
+         },
+         {
+          "type": "homerecord",
+          "displayValue": "3-0"
+         },
+         {
+          "type": "awayrecord",
+          "displayValue": "1-3"
+         },
+         {
+          "type": "vsconf",
+          "displayValue": "2-1"
+         }
+        ]
+       },
+       {
+        "team": {
+         "id": "2032",
+         "location": "Arkansas State",
+         "shortDisplayName": "Arkansas St",
+         "displayName": "Arkansas State Red Wolves",
+         "abbreviation": "ARST",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/2032.png"
+          }
+         ]
+        },
+        "stats": [
+         {
+          "type": "pointsagainst",
+          "displayValue": "218"
+         },
+         {
+          "type": "pointsfor",
+          "displayValue": "230"
+         },
+         {
+          "type": "streak",
+          "displayValue": "W2"
+         },
+         {
+          "type": "total",
+          "displayValue": "4-4"
+         },
+         {
+          "type": "homerecord",
+          "displayValue": "3-1"
+         },
+         {
+          "type": "awayrecord",
+          "displayValue": "1-3"
+         },
+         {
+          "type": "vsconf",
+          "displayValue": "2-2"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

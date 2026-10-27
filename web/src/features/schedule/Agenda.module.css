@@ -1,0 +1,477 @@
+/* Schedule and results pages (SchedulePage.swift, ResultsPage.swift). */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  container: schedule / inline-size;
+}
+
+.content {
+  flex: 1;
+  padding-bottom: calc(10 * var(--pt));
+}
+
+.flex {
+  flex: 1;
+}
+
+/* Clicking Upcoming | Results crossfades; keys switch instantly. */
+.crossfade {
+  animation: crossfade var(--dur-quick) var(--ease-out) both;
+}
+
+@keyframes crossfade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* MARK: Day headings */
+
+.dayHeader {
+  margin: 0;
+  padding: calc(16 * var(--pt)) var(--gutter) calc(2 * var(--pt));
+  scroll-margin-top: var(--schedule-chrome, calc(140 * var(--pt)));
+}
+
+.dayTitle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.relative {
+  font-weight: 600;
+}
+
+.relative[data-today="true"] {
+  color: var(--accent-text);
+}
+
+.dayDate {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+}
+
+.foldHeading {
+  margin: 0;
+  scroll-margin-top: var(--schedule-chrome, calc(140 * var(--pt)));
+}
+
+.fold {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--pt));
+  width: 100%;
+  padding: calc(14 * var(--pt)) var(--gutter) calc(2 * var(--pt));
+  text-align: left;
+}
+
+.fold[aria-expanded="false"] {
+  padding-bottom: calc(6 * var(--pt));
+}
+
+.foldRow {
+  display: flex;
+  align-items: baseline;
+  gap: calc(6 * var(--pt));
+  width: 100%;
+  min-width: 0;
+}
+
+.count {
+  flex: none;
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  animation: fade-in var(--dur-reveal) var(--ease-out) both;
+}
+
+.chevron {
+  flex: none;
+  align-self: center;
+  color: var(--label-tertiary);
+  transition:
+    transform var(--dur-quick) var(--ease-out),
+    color var(--dur-fade) var(--ease-out);
+}
+
+.fold[aria-expanded="true"] .chevron {
+  transform: rotate(90deg);
+}
+
+.fold[data-instant="true"] .chevron {
+  transition: color var(--dur-fade) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .fold:hover .chevron {
+    color: var(--label-secondary);
+  }
+}
+
+.preview {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  min-height: calc(16 * var(--pt));
+  min-width: 0;
+}
+
+.crests {
+  display: flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  flex: none;
+}
+
+.previewSummary {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+/* ~ when the crests (0.4s travel) have mostly landed. */
+.revealLate {
+  animation: rise var(--dur-reveal) var(--ease-out) 0.22s both;
+}
+
+.dayRows {
+  display: flex;
+  flex-direction: column;
+}
+
+/* A team's season (a game a day, days that don't fold) goes two-up across a wide pane. */
+@container schedule (min-width: 52rem) {
+  .twoUp {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+/* MARK: Group labels and notes */
+
+.groupHeading {
+  margin: 0;
+  padding: calc(8 * var(--pt)) var(--gutter) calc(2 * var(--pt));
+}
+
+.groupLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  margin: 0;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--label-secondary);
+  border-radius: calc(4 * var(--pt));
+}
+
+h3.groupLabel {
+  padding: calc(8 * var(--pt)) var(--gutter) calc(2 * var(--pt));
+}
+
+.groupIcon {
+  width: calc(12 * var(--pt));
+  display: inline-flex;
+  justify-content: center;
+}
+
+.groupChevron {
+  color: var(--label-tertiary);
+  opacity: 0;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .groupLabel:hover .groupChevron {
+    opacity: 1;
+  }
+}
+
+.groupLabel:focus-visible .groupChevron {
+  opacity: 1;
+}
+
+.note {
+  padding: calc(3 * var(--pt)) var(--gutter);
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+.resultsLink {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  width: 100%;
+  padding: calc(8 * var(--pt)) var(--gutter);
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  text-align: left;
+  transition:
+    color var(--dur-fade) var(--ease-out),
+    opacity var(--dur-press) var(--ease-out);
+}
+
+.resultsLinkText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .resultsLink:hover {
+    color: var(--label);
+  }
+}
+
+.resultsLink:active {
+  opacity: 0.6;
+}
+
+.more,
+.jump {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  padding: calc(10 * var(--pt)) var(--gutter);
+  font-size: var(--text-callout);
+  font-weight: 500;
+  color: var(--accent-text);
+  transition: opacity var(--dur-press) var(--ease-out);
+}
+
+.jump {
+  padding-top: calc(10 * var(--pt));
+  padding-bottom: 0;
+  font-size: calc(12 * var(--pt));
+}
+
+.more:active,
+.jump:active {
+  opacity: 0.6;
+}
+
+.more:disabled {
+  color: var(--label-secondary);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(8 * var(--pt));
+  padding: calc(18 * var(--pt)) var(--gutter);
+  font-size: calc(12 * var(--pt));
+  color: var(--label-secondary);
+}
+
+.empty .jump {
+  padding: 0;
+}
+
+.footnotes {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+  max-width: var(--readable-width);
+  padding: calc(16 * var(--pt)) var(--gutter) 0;
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.footnoteLink {
+  text-align: left;
+  color: var(--label-secondary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .footnoteLink:hover {
+    color: var(--label);
+  }
+}
+
+/* MARK: Summary line (Results) */
+
+.summaryLine {
+  padding: 0 var(--gutter) calc(6 * var(--pt));
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* MARK: Skeleton */
+
+.skeleton {
+  padding-bottom: calc(8 * var(--pt));
+}
+
+.skeletonDay {
+  display: block;
+  margin: calc(18 * var(--pt)) var(--gutter) calc(8 * var(--pt));
+}
+
+.skeletonRow {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(12 * var(--pt));
+  padding: calc(9 * var(--pt)) var(--gutter);
+}
+
+.skeletonTeams {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+}
+
+.skeletonLine {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+}
+
+.skeletonStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: calc(6 * var(--pt));
+}
+
+/* MARK: Footer */
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  padding: calc(8 * var(--pt)) var(--gutter) calc(12 * var(--pt));
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.updated {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.footerAction {
+  flex: none;
+  color: var(--label-secondary);
+  transition: color var(--dur-fade) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .footerAction:hover {
+    color: var(--label);
+  }
+}
+
+/* MARK: Two row columns from 680pt (the scores list's grid) */
+
+.rows2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr) minmax(calc(64 * var(--pt)), max-content)) !important;
+}
+
+.rows2[data-detail="records"],
+.rows2[data-detail="lane"] {
+  grid-template-columns: repeat(2, minmax(0, calc(230 * var(--pt))) minmax(0, 1fr) minmax(calc(64 * var(--pt)), max-content)) !important;
+}
+
+.rows2 > :nth-child(odd of [data-nav-id]) {
+  grid-column: 1 / span var(--row-span, 2);
+}
+
+.rows2 > :nth-child(even of [data-nav-id]) {
+  grid-column: calc(var(--row-span, 2) + 1) / -1;
+}
+
+.rows2[data-detail="records"],
+.rows2[data-detail="lane"] {
+  --row-span: 3;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(calc(4 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rise {
+    from {
+      opacity: 0;
+    }
+  }
+  .revealLate {
+    animation-delay: 0s;
+  }
+}
+
+/* MARK: Results */
+
+.roundHead {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+  padding: calc(10 * var(--pt)) var(--gutter) 0;
+}
+
+.roundHead .summaryLine {
+  padding: 0;
+}
+
+/* From 680pt: the rounds (or a team's card) beside the round. */
+.besideRounds {
+  display: grid;
+  grid-template-columns: minmax(calc(250 * var(--pt)), 0.75fr) minmax(0, 1.25fr);
+  align-items: start;
+}
+
+.besideRounds > :first-child {
+  position: sticky;
+  top: var(--schedule-chrome, 0);
+}
+
+.noteTop {
+  padding-top: calc(12 * var(--pt));
+}
+
+.monthLabel {
+  margin: 0;
+  padding: calc(14 * var(--pt)) var(--gutter) calc(4 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
