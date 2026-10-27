@@ -136,6 +136,20 @@ const GLYPHS = {
       <path d="M6.6 5.7v4.6l4-2.3z" fill="var(--icon-cutout, #fff)" />
     </g>
   ),
+  tv: (
+    <g {...stroke} strokeWidth={1.4}>
+      <rect x="1.8" y="3" width="12.4" height="8.6" rx="1.8" />
+      <path d="M5.6 13.8h4.8" />
+    </g>
+  ),
+  radio: (
+    <g {...stroke} strokeWidth={1.4}>
+      <rect x="1.8" y="5.2" width="12.4" height="8.4" rx="1.8" />
+      <path d="M4 5.2 11.6 2.2" />
+      <circle cx="10.6" cy="9.4" r="1.7" />
+      <path d="M4.4 8.4h2.6M4.4 10.6h2.6" />
+    </g>
+  ),
   external: (
     <g {...stroke} strokeWidth={1.4}>
       <path d="M9.5 2.5h4v4M13.5 2.5 7.5 8.5" />

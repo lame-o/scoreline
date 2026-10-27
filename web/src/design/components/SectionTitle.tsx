@@ -8,18 +8,20 @@
  *     <SectionTitle accessory="live">Timeline</SectionTitle>
  *     <SectionTitle trailing={<SectionLink …/>}>Upcoming</SectionTitle>
  *
- * `accessory` is the section's state at the trailing edge (Live, Final, or
- * text) and is read with the title; `trailing` holds controls.
+ * `accessory` is the section's state at the trailing edge (Live, Final,
+ * text, or baseball's live count "2–2", whose numbers roll as pitches come
+ * in) and is read with the title; `trailing` holds controls.
  */
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "../icons";
 import { LiveDot } from "./LiveDot";
+import { ScoreDigits } from "./ScoreDigits";
 import styles from "./SectionTitle.module.css";
 
 export interface SectionTitleProps {
   readonly children: string;
   readonly icon?: IconName;
-  readonly accessory?: "live" | "final" | { readonly text: string };
+  readonly accessory?: "live" | "final" | { readonly text: string } | { readonly count: readonly [balls: number, strikes: number] };
   readonly trailing?: ReactNode;
   /** Heading level for the document outline. */
   readonly level?: 2 | 3;
@@ -29,7 +31,8 @@ export interface SectionTitleProps {
 
 export function SectionTitle({ children, icon, accessory, trailing, level = 2, className, id }: SectionTitleProps) {
   const Heading = level === 2 ? "h2" : "h3";
-  const spoken = accessory === "live" ? "Live" : accessory === "final" ? "Final" : accessory?.text;
+  const spoken =
+    accessory === "live" ? "Live" : accessory === "final" ? "Final" : accessory && "count" in accessory ? `${accessory.count[0]} and ${accessory.count[1]}` : accessory?.text;
   return (
     <div className={[styles.row, className].filter(Boolean).join(" ")}>
       <Heading className={styles.title} id={id}>
@@ -51,6 +54,12 @@ export function SectionTitle({ children, icon, accessory, trailing, level = 2, c
             </span>
           ) : accessory === "final" ? (
             "Final"
+          ) : "count" in accessory ? (
+            <span className={styles.count}>
+              <ScoreDigits value={String(accessory.count[0])} live flash={false} />
+              <span className={styles.countDash}>–</span>
+              <ScoreDigits value={String(accessory.count[1])} live flash={false} />
+            </span>
           ) : (
             accessory.text
           )}

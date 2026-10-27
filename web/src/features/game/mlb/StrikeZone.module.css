@@ -1,0 +1,243 @@
+.atBat {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(14 * var(--pt));
+  /* Strike red, in-play blue, ball green: the system colors. */
+  --strike-mark: light-dark(#ff3b30, #ff453a);
+  --inplay-mark: light-dark(#007aff, #0a84ff);
+  --ball-mark: light-dark(#34c759, #30d158);
+}
+
+.well {
+  flex: none;
+}
+
+.plot {
+  position: relative;
+}
+
+.lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.grid line {
+  stroke: var(--viz-grid);
+  stroke-width: 0.5;
+}
+
+.zone {
+  fill: none;
+  stroke: var(--viz-reference);
+  stroke-width: 1;
+}
+
+.homePlate {
+  fill: none;
+  stroke: color-mix(in srgb, var(--label) 25%, transparent);
+  stroke-width: 1;
+}
+
+/* A strikeout or a walk: the zone's outline flashes red or green, then settles out. */
+.verdict {
+  fill: none;
+  stroke-width: 1.5;
+  animation: verdict 4s both;
+}
+
+.verdict[data-verdict="strikeout"] {
+  stroke: var(--live);
+}
+
+.verdict[data-verdict="walk"] {
+  stroke: var(--ball-mark);
+}
+
+@keyframes verdict {
+  0% {
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* A pitch: filled red (strike), filled blue (in play), a green ring (ball), numbered. */
+.mark {
+  position: absolute;
+  width: calc(16 * var(--pt));
+  height: calc(16 * var(--pt));
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  transition: opacity var(--dur-fade) var(--ease-out);
+  animation: badge-in var(--dur-quick) var(--ease-out);
+}
+
+.mark[data-result="strike"] {
+  background: var(--strike-mark);
+  color: #fff;
+}
+
+.mark[data-result="inPlay"] {
+  background: var(--inplay-mark);
+  color: #fff;
+}
+
+.mark[data-result="ball"] {
+  box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) var(--ball-mark);
+  color: var(--label);
+}
+
+.mark[data-receded="true"] {
+  opacity: 0.55;
+}
+
+.mark[data-focused="true"]::after {
+  content: "";
+  position: absolute;
+  inset: calc(-2.5 * var(--pt));
+  border-radius: 50%;
+  box-shadow: 0 0 0 calc(1 * var(--pt)) var(--label);
+}
+
+.number {
+  font-size: calc(9 * var(--pt));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+@keyframes badge-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes badge-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* The list: newest first. A short list: past 280pt, speed and result drift away from the name. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(1 * var(--pt));
+  flex: 1;
+  min-width: 0;
+  max-width: calc(280 * var(--pt) + 12 * var(--pt));
+  margin: calc(-2 * var(--pt)) calc(-6 * var(--pt)) 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  padding: calc(2 * var(--pt)) calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--dur-fade) var(--ease-out);
+  animation: row-in var(--dur-reveal) var(--ease-out);
+}
+
+.row[data-lit="true"] {
+  background: var(--fill-hover);
+}
+
+.row[data-pinned="true"] {
+  background: var(--accent-fill);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background: var(--fill-hover);
+  }
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-4 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes row-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+.rowMark {
+  flex: none;
+  width: calc(10 * var(--pt));
+  height: calc(10 * var(--pt));
+  border-radius: 50%;
+}
+
+.rowMark[data-result="strike"] {
+  background: var(--strike-mark);
+}
+
+.rowMark[data-result="inPlay"] {
+  background: var(--inplay-mark);
+}
+
+.rowMark[data-result="ball"] {
+  box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) var(--ball-mark);
+}
+
+.rowNumber {
+  flex: none;
+  min-width: calc(16 * var(--pt));
+  text-align: right;
+  color: var(--label-secondary);
+}
+
+.rowName {
+  flex: 1;
+  min-width: calc(2 * var(--pt));
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.row[data-latest="true"] .rowName {
+  font-weight: 600;
+}
+
+.rowSpeed {
+  flex: none;
+  color: var(--label-secondary);
+}
+
+.rowResult {
+  flex: none;
+  text-align: right;
+  font-size: calc(10 * var(--pt));
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.waiting {
+  padding: calc(2 * var(--pt)) calc(6 * var(--pt));
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}

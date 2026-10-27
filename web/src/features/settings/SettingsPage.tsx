@@ -27,7 +27,7 @@ import { SPORTS, SPORT_NAME, type League } from "../../data/models";
 import { useSplit } from "../../app/layout";
 import { useGoBack } from "../../app/navigation";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
-import { settings, useSettings, type Settings, type Theme } from "../../state/settings";
+import { settings, useSettings, type CelebrationLevel, type Settings, type Theme } from "../../state/settings";
 import styles from "./Settings.module.css";
 
 const all = (s: Settings) => s;
@@ -69,6 +69,30 @@ export function SettingsPage() {
           <GroupBox>
             <ToggleRow title="Show finished games" subtitle="Results from the last 18 hours" checked={s.showFinished} onChange={(v) => settings.set("showFinished", v)} />
             <ToggleRow title="Live leagues move to top" subtitle="In the list. Tiles always show live games first." checked={s.liveFirst} onChange={(v) => settings.set("liveFirst", v)} />
+          </GroupBox>
+        </FormSection>
+
+        {/* Celebrations.swift `CelebrationLevelRow`: the picker on the title's line, the subtitle full width under it. */}
+        <FormSection title="Live Games" icon="sparkles" caption="With Reduce Motion on, movement becomes gentle fades.">
+          <GroupBox>
+            <div className={formStyles.row} style={{ flexDirection: "column", alignItems: "stretch", gap: "calc(1 * var(--pt))" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "calc(8 * var(--pt))" }}>
+                <span className={formStyles.rowTitle} style={{ flex: 1 }}>
+                  Celebrations
+                </span>
+                <SegmentedControl<CelebrationLevel>
+                  label="Celebrations"
+                  value={s.celebrationLevel}
+                  onChange={(level) => settings.set("celebrationLevel", level)}
+                  options={[
+                    { value: "full", label: "Full" },
+                    { value: "subtle", label: "Subtle" },
+                    { value: "off", label: "Off" },
+                  ]}
+                />
+              </div>
+              <span className={formStyles.rowSubtitle}>Confetti, sparks and fireworks when big plays happen</span>
+            </div>
           </GroupBox>
         </FormSection>
 

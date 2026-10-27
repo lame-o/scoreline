@@ -1,0 +1,1 @@
+{"_source":"https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2026-10-26","_recorded":"2026-10-27","_note":"From the Swift app's Tests/Fixtures/statcast-schedule-20261026.json.","dates":[{"games":[{"gamePk":849804,"teams":{"away":{"team":{"name":"Milwaukee Brewers"}},"home":{"team":{"name":"Tampa Bay Rays"}}}}]}]}
