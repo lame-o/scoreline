@@ -273,7 +273,7 @@ The owner can run `/review-animations` on the motion code for an independent rev
 
 ## Performance
 
-- **First paint:** the scores list is the only eager route. The initial JS is about 165 KB gzipped: React 68, the router 30, Query 11, and the app with motion's core. motion's layout features (about 32 KB) load after paint. Libraries sit in their own chunks for long-term caching.
+- **First paint:** the scores list is the only eager route. The initial JS is about 170 KB gzipped: React 68, the router 30, Query 11, and the app with motion's core. motion's layout features (about 32 KB) load after paint. Libraries sit in their own chunks for long-term caching.
 - **Rendering:** rows and tiles are memoized on their game, and unchanged games keep their identity across polls. Derived lists are recomputed only on a data, settings or minute change.
 - **Motion cost:** live dots are compositor-only CSS. Layout animation is turned on only during a toggle, and crest links exist only for the section being toggled; each costs a measurement.
 - **No layout thrash:** text is measured with a shared canvas (`features/scores/measure.ts`, RecordFit), widths come from one ResizeObserver per board, and arrow keys read geometry only on a key press.
