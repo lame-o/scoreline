@@ -3,26 +3,32 @@
  * with the scores beside the selected page (AppShell.module.css). The
  * sidebar stays mounted across pages, so the list keeps its scroll, its
  * highlight and its polling, as the Mac app keeps Scores built under every
- * page. On a phone the window scrolls and Back restores where the list was.
- * Esc goes back from anywhere but the scores.
+ * page. On a phone the window scrolls and Back restores where the list was;
+ * beside the sidebar the detail pane remembers each page's place itself
+ * (`useDetailScrollMemory`). Esc goes back from anywhere but the scores; R,
+ * comma and S refresh, open Settings and open the Schedule (`useAppCommands`).
+ * What runs beside every page (the tab's live score, alerts) loads after
+ * the first paint (LiveServices).
  */
-import { useEffect, useRef } from "react";
-import { Outlet, ScrollRestoration, useLocation } from "react-router";
+import { lazy, Suspense, useEffect, useRef } from "react";
+import { Outlet, ScrollRestoration } from "react-router";
 import { ScoresPage } from "../features/scores/ScoresPage";
+import { useAppCommands } from "./commands";
 import { isTyping, useGoBack } from "./navigation";
 import { useSplit } from "./layout";
+import { useDetailScrollMemory } from "./scrollMemory";
 import styles from "./AppShell.module.css";
+
+const LiveServices = lazy(() => import("./LiveServices"));
 
 export function AppShell() {
   const split = useSplit();
   const goBack = useGoBack();
-  const { pathname } = useLocation();
   const detail = useRef<HTMLElement>(null);
 
-  // Beside the sidebar, the detail pane scrolls on its own: a new page starts at its top.
-  useEffect(() => {
-    if (split && detail.current) detail.current.scrollTop = 0;
-  }, [pathname, split]);
+  // Beside the sidebar, the detail pane scrolls on its own: a new page starts at its top, Back lands where it was.
+  useDetailScrollMemory(detail, split);
+  useAppCommands();
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -61,6 +67,9 @@ export function AppShell() {
       </main>
       {/* On a phone the window scrolls: Back lands where you left the list, a new page at its top. */}
       <ScrollRestoration />
+      <Suspense fallback={null}>
+        <LiveServices />
+      </Suspense>
     </div>
   );
 }
