@@ -33,6 +33,7 @@ import {
   tableGroups,
   tableKind,
   tableLinks,
+  widthClassFrom,
   widthClassOf,
   zoneBoundary,
   type StandingsRow,
@@ -169,8 +170,12 @@ describe("the live projection", () => {
     expect(showsZones("large", shown)).toBe(false);
   });
 
-  it("width classes at the Mac's thresholds", () => {
+  it("width classes at the Mac's thresholds, stepping down only 12pt below one", () => {
     expect([widthClassOf(379), widthClassOf(380), widthClassOf(460), widthClassOf(560)]).toEqual(["compact", "medium", "large", "xlarge"]);
+    expect(widthClassFrom(375, "medium")).toBe("medium");
+    expect(widthClassFrom(367, "medium")).toBe("compact");
+    expect(widthClassFrom(600, "compact")).toBe("xlarge");
+    expect(widthClassFrom(450, "xlarge")).toBe("large");
   });
 });
 

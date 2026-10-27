@@ -438,6 +438,18 @@ export function widthClassOf(points: number): WidthClass {
 }
 
 const WIDTH_ORDER: Readonly<Record<WidthClass, number>> = { compact: 0, medium: 1, large: 2, xlarge: 3 };
+const WIDTH_CLASSES: readonly WidthClass[] = ["compact", "medium", "large", "xlarge"];
+const FLOORS = [0, 380, 460, 560] as const;
+/** A class steps down only this far below its threshold, so a resize resting on one can't flicker. */
+export const HYSTERESIS = 12;
+
+/** Up at a floor; down only `HYSTERESIS` below it (Responsive.swift `WidthClass.of(_:from:)`). */
+export function widthClassFrom(content: number, old: WidthClass): WidthClass {
+  let k = WIDTH_ORDER[old];
+  while (k + 1 < FLOORS.length && content >= FLOORS[k + 1]!) k += 1;
+  while (k > 0 && content < FLOORS[k]! - HYSTERESIS) k -= 1;
+  return WIDTH_CLASSES[k]!;
+}
 export const atLeast = (w: WidthClass, min: WidthClass) => WIDTH_ORDER[w] >= WIDTH_ORDER[min];
 
 // MARK: - The soccer table's columns (StandingsTable.Column)

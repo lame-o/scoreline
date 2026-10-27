@@ -14,7 +14,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import { BackButton, PageHeader } from "../../design/components";
 import { useWidth } from "../../design/useWidth";
-import { widthClassOf, type WidthClass } from "../../data/standings";
+import { HYSTERESIS, widthClassFrom, type WidthClass } from "../../data/standings";
 import { useSplit, type NavState } from "../../app/layout";
 import { useGoBack } from "../../app/navigation";
 import styles from "./TablePage.module.css";
@@ -33,11 +33,13 @@ export interface PageLayout {
   readonly column: WidthClass;
 }
 
-export function pageLayout(width: number): PageLayout {
-  const split = width >= SPLIT_WIDTH;
-  const page = widthClassOf(width - GUTTERS);
-  return { width, split, page, column: split ? widthClassOf(width / 2 - GUTTERS) : page };
+export function pageLayout(width: number, old: PageLayout = INITIAL): PageLayout {
+  const split = width >= SPLIT_WIDTH - (old.split ? HYSTERESIS : 0);
+  const page = widthClassFrom(width - GUTTERS, old.page);
+  return { width, split, page, column: split ? widthClassFrom(width / 2 - GUTTERS, old.column) : page };
 }
+
+const INITIAL: PageLayout = { width: 340, split: false, page: "compact", column: "compact" };
 
 export function TablePage({ title, trailing, children }: { title: string; trailing?: ReactNode; children: (layout: PageLayout) => ReactNode }) {
   const split = useSplit();
@@ -47,6 +49,11 @@ export function TablePage({ title, trailing, children }: { title: string; traili
   const width = useWidth(content);
   const sentinel = useRef<HTMLSpanElement>(null);
   const scrolled = useScrolled(sentinel);
+  // Coarse: it changes only when a threshold is crossed (with hysteresis), so a resize doesn't re-lay the tables.
+  const last = useRef(INITIAL);
+  const resolved = pageLayout(width, last.current);
+  const layout = sameLayout(resolved, last.current) ? last.current : resolved;
+  last.current = layout;
   return (
     <div className={styles.page} data-entrance={viaKeyboard ? "none" : "stack"}>
       <span ref={sentinel} className={styles.sentinel} aria-hidden="true" />
@@ -54,10 +61,14 @@ export function TablePage({ title, trailing, children }: { title: string; traili
         <PageHeader title={title} leading={split ? null : <BackButton to="Back" onClick={() => goBack()} />} trailing={trailing} />
       </div>
       <div ref={content} className={styles.content}>
-        {children(pageLayout(width))}
+        {children(layout)}
       </div>
     </div>
   );
+}
+
+function sameLayout(a: PageLayout, b: PageLayout): boolean {
+  return a.split === b.split && a.page === b.page && a.column === b.column;
 }
 
 /** Whether the page has scrolled past its top (the detail pane scrolls on its own; a phone's window does). */
