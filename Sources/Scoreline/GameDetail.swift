@@ -386,6 +386,11 @@ enum ESPNDetail {
         let needsSituation = event.state == .live && (sport == .football || sport == .baseball)
         let boardURL = needsSituation ? try? URL.api("\(base)/scoreboard") : nil
         async let boardCall: JSON? = Self.optionalFetch(boardURL)
+        // A live MLB game: Statcast's feed for the play theater, fetched alongside the summary.
+        let lookup = event.state == .live ? Statcast.Lookup(event) : nil
+        if let lookup {
+            Task { @MainActor in _ = await StatcastStore.shared.atBats(espnEvent: lookup.espnEvent, start: lookup.start, teams: lookup.teams) }
+        }
         let summary = try await summaryCall
         let board = await boardCall
 
@@ -461,7 +466,12 @@ enum ESPNDetail {
                     }
                 }
             }
-            if event.state == .live { detail.theater = PlayScene.theater(plays, side: side, names: detail.athleteNames) }
+            if event.state == .live {
+                var theater = PlayScene.theater(plays, side: side, names: detail.athleteNames)
+                // What Statcast measured of the last play, if it answers promptly (the live lane asks again).
+                if let lookup, let play = theater.play { theater.play?.measured = await play.measure(lookup, within: .milliseconds(600)) }
+                detail.theater = theater
+            }
         case .basketball where path == NBADetail.path:
             let topIsHome = topComp?["homeAway"].string == "home"
             detail.basketball = NBADetail.parse(summary, side: side, topIsHome: topIsHome)

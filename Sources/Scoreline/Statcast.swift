@@ -40,7 +40,7 @@ enum Statcast {
         /// Exit velocity (mph) and launch angle (degrees).
         let launchSpeed: Double?
         let launchAngle: Double?
-        /// Feet, where it landed or was caught.
+        /// Feet, where it first came down or was caught (a grounder: its first hop).
         let distance: Double?
         /// "ground_ball", "line_drive", "fly_ball", "popup".
         let trajectory: String?
@@ -48,13 +48,16 @@ enum Statcast {
         /// the same space as ESPN's `hitCoordinate`, which comes from MLB.
         let spot: SIMD2<Double>?
 
-        /// "104.4 MPH · 12° · 273 FT", as much as is known.
-        var line: String? {
+        /// "104.4 MPH · 12° · 273 FT", as much as is known. A grounder's
+        /// distance is only its first hop, so it can be left off.
+        func line(distance shown: Bool) -> String? {
             let parts = [launchSpeed.map { String(format: "%.1f MPH", $0) },
-                         launchAngle.map { "\(Int($0.rounded()))°" },
-                         distance.map { "\(Int($0.rounded())) FT" }].compactMap { $0 }
+                         launchAngle.map { "\(Int($0.rounded()))°".replacingOccurrences(of: "-", with: "−") },
+                         shown ? distance.map { "\(Int($0.rounded())) FT" } : nil].compactMap { $0 }
             return parts.isEmpty ? nil : parts.joined(separator: " · ")
         }
+
+        var line: String? { line(distance: true) }
     }
 
     struct AtBat: Equatable, Sendable {
@@ -123,8 +126,9 @@ enum Statcast {
                                          mph: data["startSpeed"].double, spin: data["breaks"]["spinRate"].int,
                                          type: event["details"]["type"]["code"].string))
                 }
-                let hit = event["hitData"]
-                if hit.exists {
+                // A ball in play's (a foul can carry hitData too).
+                let hit = event["hitData"], code = event["details"]["code"].string
+                if hit.exists, code.map(["X", "D", "E"].contains) ?? true {
                     let spot = hit["coordinates"]["coordX"].double.flatMap { x in hit["coordinates"]["coordY"].double.map { SIMD2(x, $0) } }
                     batted = Batted(launchSpeed: hit["launchSpeed"].double, launchAngle: hit["launchAngle"].double,
                                     distance: hit["totalDistance"].double, trajectory: hit["trajectory"].string, spot: spot)
@@ -144,43 +148,78 @@ enum Statcast {
         return theirs.indices.contains(occurrence) ? theirs[occurrence] : nil
     }
 
+    /// Accents, case and periods aside ("Mesa Jr." is "mesa jr").
     private static func fold(_ s: String) -> String {
-        s.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil).trimmingCharacters(in: .whitespaces)
+        s.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil).replacingOccurrences(of: ".", with: "")
+            .trimmingCharacters(in: .whitespaces)
+    }
+
+    /// An ESPN game as MLB's feed finds it: its ID, its day and both teams'
+    /// short names. Only MLB's games are in it.
+    struct Lookup: Equatable, Sendable {
+        let espnEvent: String
+        let start: Date
+        let teams: [String]
+
+        init(espnEvent: String, start: Date, teams: [String]) {
+            self.espnEvent = espnEvent
+            self.start = start
+            self.teams = teams
+        }
+
+        init?(_ event: Event) {
+            guard case let .espn(path, id, .baseball)? = event.ref, path == "baseball/mlb", event.competitors.count == 2 else { return nil }
+            self.init(espnEvent: id, start: event.start, teams: event.competitors.map(\.name))
+        }
     }
 }
 
 /// Statcast per game: which MLB game an ESPN one is, and its at-bats, fetched
-/// again only when someone asks for an at-bat it doesn't have yet (Statcast
-/// posts a few seconds after ESPN) and not more than every few seconds.
+/// again only when someone asks for an at-bat it doesn't have yet, or that
+/// isn't over (Statcast posts a few seconds after ESPN), and not more than
+/// every couple of seconds. A second caller waits for a fetch under way
+/// rather than read what it's about to replace.
 @MainActor
 final class StatcastStore {
     static let shared = StatcastStore()
 
     private var games: [String: Int] = [:]
     private var feeds: [Int: (atBats: [Statcast.AtBat], fetched: Date)] = [:]
-    private var inFlight: Set<Int> = []
-    private static let minimumInterval: TimeInterval = 8
+    private var inFlight: [Int: Task<[Statcast.AtBat]?, Never>] = [:]
+    private var finding: [String: Task<Int?, Never>] = [:]
+    /// ESPN games MLB's schedule didn't have (or couldn't say): not asked again for a minute.
+    private var unknown: [String: Date] = [:]
+    private static let minimumInterval: TimeInterval = 2
 
-    /// The game's at-bats, refreshed if `through` (an at-bat index) isn't in them yet.
+    /// The game's at-bats, refreshed if `through` (an at-bat index) isn't in them yet, or isn't over.
     func atBats(espnEvent: String, start: Date, teams: [String], through: Int? = nil) async -> [Statcast.AtBat] {
         guard let game = await game(espnEvent: espnEvent, start: start, teams: teams) else { return [] }
+        if let running = inFlight[game] { return await running.value ?? feeds[game]?.atBats ?? [] }
         let cached = feeds[game]
-        let missing = through.map { index in !(cached?.atBats.contains { $0.index == index } ?? false) } ?? (cached == nil)
+        let missing = through.map { index in !(cached?.atBats.contains { $0.index == index && $0.event != nil } ?? false) } ?? (cached == nil)
         let due = cached.map { Date().timeIntervalSince($0.fetched) > Self.minimumInterval } ?? true
-        guard missing, due, !inFlight.contains(game), let url = Statcast.feedURL(game: game) else { return cached?.atBats ?? [] }
-        inFlight.insert(game)
-        defer { inFlight.remove(game) }
-        guard let feed = try? await JSON.fetch(url) else { return cached?.atBats ?? [] }
-        let atBats = Statcast.atBats(feed)
+        guard missing, due, let url = Statcast.feedURL(game: game) else { return cached?.atBats ?? [] }
+        let fetch = Task { (try? await JSON.fetch(url)).map(Statcast.atBats) }
+        inFlight[game] = fetch
+        let atBats = await fetch.value
+        inFlight[game] = nil
+        guard let atBats else { return cached?.atBats ?? [] }
         feeds[game] = (atBats, Date())
         return atBats
     }
 
     private func game(espnEvent: String, start: Date, teams: [String]) async -> Int? {
         if let known = games[espnEvent] { return known }
-        guard let url = Statcast.scheduleURL(for: start), let schedule = try? await JSON.fetch(url),
-              let game = Statcast.game(in: schedule, teams: teams) else { return nil }
-        games[espnEvent] = game
+        if let running = finding[espnEvent] { return await running.value }
+        if let asked = unknown[espnEvent], Date().timeIntervalSince(asked) < 60 { return nil }
+        let find = Task { () -> Int? in
+            guard let url = Statcast.scheduleURL(for: start), let schedule = try? await JSON.fetch(url) else { return nil }
+            return Statcast.game(in: schedule, teams: teams)
+        }
+        finding[espnEvent] = find
+        let game = await find.value
+        finding[espnEvent] = nil
+        if let game { games[espnEvent] = game } else { unknown[espnEvent] = Date() }
         return game
     }
 }

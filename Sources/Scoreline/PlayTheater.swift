@@ -17,6 +17,11 @@ import SwiftUI
 // they ended; a new one mid-replay cuts to itself; with Reduce Motion each
 // play crossfades to how it ended and the camera never moves. Decorative for
 // VoiceOver: the caption carries the play.
+//
+// A play Statcast measured flies for real (PlayScript.swift), its pitch
+// label adds the spin, and the stamp adds the batted ball's numbers ("104.4
+// MPH · 12° · 273 FT"), only ever when they're measured. A replay keeps the
+// play it began with: measurements that land mid-replay wait for its end.
 
 /// The dimetric (2:1) view of the field from behind home plate, through the
 /// camera: the ground squashed to half height, heights at 0.82, the
@@ -610,7 +615,7 @@ struct PlayFrame: View, Equatable {
 
         // Where it came down: the spray chart's marks (filled, a ring, a ringed dot).
         guard let landing = script.landing, t >= landing.at else { return }
-        let p = f.point(landing.point)
+        let p = f.point(landing.point, z: landing.z)
         let grow = min((t - landing.at) / 0.2, 1)
         let r = max(f.figure * 0.16, 2.6) * (0.6 + 0.4 * grow)
         let rect = CGRect(x: p.x - r, y: p.y - r / 2, width: 2 * r, height: r)
@@ -993,15 +998,26 @@ struct PlayFrame: View, Equatable {
     /// Type sizes from the well's height: big where there's room.
     private var typeHeight: CGFloat { max(size.height, 120) }
 
+    /// The pitch's type and speed ("Sweeper  82 mph"), and under them its
+    /// spin when Statcast tracked it ("2,509 rpm").
     @ViewBuilder
     private var pitchLabel: some View {
-        if let pitch = scene?.pitch, pitch.mph != nil || pitch.code != nil {
-            let name = pitch.code.flatMap { GameDetail.Pitch.names[$0] } ?? pitch.name ?? pitch.code ?? ""
-            (Text(name).foregroundStyle(.secondary)
-                + Text(pitch.mph.map { "  \($0)" } ?? "").foregroundStyle(.primary).fontWeight(.semibold)
-                + Text(pitch.mph == nil ? "" : " mph").foregroundStyle(.secondary))
-                .font(.system(size: min(max(typeHeight * 0.068, 9.5), 15), weight: .medium).monospacedDigit())
-                .fixedSize()
+        let tracked = scene?.measured?.pitch
+        let code = scene?.pitch?.code ?? tracked?.type
+        let mph = scene?.pitch?.mph ?? tracked?.mph.map { Int($0.rounded()) }
+        if mph != nil || code != nil {
+            let name = code.flatMap { GameDetail.Pitch.names[$0] } ?? scene?.pitch?.name ?? code ?? ""
+            let size = min(max(typeHeight * 0.068, 9.5), 15)
+            VStack(alignment: .trailing, spacing: size * 0.12) {
+                Text(name).foregroundStyle(.secondary)
+                    + Text(mph.map { "  \($0)" } ?? "").foregroundStyle(.primary).fontWeight(.semibold)
+                    + Text(mph == nil ? "" : " mph").foregroundStyle(.secondary)
+                if let spin = tracked?.spin {
+                    Text(spin.formatted()).foregroundStyle(.primary).fontWeight(.semibold) + Text(" rpm").foregroundStyle(.secondary)
+                }
+            }
+            .font(.system(size: size, weight: .medium).monospacedDigit())
+            .fixedSize()
         }
     }
 
@@ -1020,13 +1036,16 @@ struct PlayFrame: View, Equatable {
 
     /// The scorer's mark, low in the foul ground on the left: the code big
     /// and bold ("6–3", a backwards K) in the play's color, runs in a pill in
-    /// the batting team's color, the play in small capitals under it.
+    /// the batting team's color, the play in small capitals under it, and
+    /// under that what Statcast measured of the ball, when it did.
     @ViewBuilder
     private var stamp: some View {
         if let scene, !scene.notation.code.isEmpty {
             let size = min(max(typeHeight * 0.2, 24), 54)
-            let title = [scene.title, scene.kind == .homeRun ? scene.distance.map { "\($0) ft" } : nil].compactMap { $0 }
+            let readout = scene.readout
+            let title = [scene.title, scene.kind == .homeRun && readout == nil ? scene.distance.map { "\($0) ft" } : nil].compactMap { $0 }
                 .joined(separator: " · ").uppercased()
+            let titleSize = min(min(max(typeHeight * 0.056, 8), 14), self.size.width * 0.34 / (Double(title.count) * 0.72))
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: size * 0.18) {
                     code(scene.notation, size: size)
@@ -1044,9 +1063,18 @@ struct PlayFrame: View, Equatable {
                 }
                 // A long title ("DEFENSIVE INDIFFERENCE") steps down rather than reach across the field.
                 Text(title)
-                    .font(.system(size: min(min(max(typeHeight * 0.056, 8), 14), self.size.width * 0.34 / (Double(title.count) * 0.72)), weight: .bold))
+                    .font(.system(size: titleSize, weight: .bold))
                     .tracking(1)
                     .foregroundStyle(.secondary)
+                if let readout {
+                    // The same small capitals, a touch lighter: figures, not a heading.
+                    Text(readout)
+                        .font(.system(size: min(min(max(typeHeight * 0.056, 8), 14) * 0.92, self.size.width * 0.44 / (Double(readout.count) * 0.6)),
+                                      weight: .semibold).monospacedDigit())
+                        .tracking(0.6)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, titleSize * 0.15)
+                }
             }
             .fixedSize()
         }
@@ -1127,11 +1155,22 @@ private struct PlayStage: View {
     @Environment(\.colorScheme) private var scheme
     /// The replay on screen: which play, when it began, and whether it's over.
     @State private var replay: Replay?
+    /// The script last built: a body that runs again for the same play and
+    /// field (a replay beginning or ending) doesn't build it again.
+    @State private var scripts = ScriptMemo()
 
     struct Replay: Equatable {
         let id: String
         let start: Date
+        /// The play as it began: kept to the end, whatever lands meanwhile.
+        let play: PlayScene
         var done = false
+    }
+
+    /// The play on screen: a replay's own until it's over, else the latest.
+    private var play: PlayScene? {
+        if let replay, !replay.done, replay.id == state.play?.id { return replay.play }
+        return state.play
     }
 
     /// Half as tall as wide, up to this; wider than that, the field centers in the well.
@@ -1181,7 +1220,8 @@ private struct PlayStage: View {
     private var moving: Bool { playing || clock != .live }
 
     var body: some View {
-        let script = state.play.map { PlayScript($0, rest: rest) } ?? PlayScript(rest: rest)
+        let play = play
+        let script = scripts.script(play, rest: rest)
         let ink = TheaterInk(scheme)
         let teams = teams
         GeometryReader { geo in
@@ -1193,7 +1233,7 @@ private struct PlayStage: View {
                         TimelineView(.animation) { context in
                             let t = time(at: context.date)
                             BallparkLayer(ink: ink, camera: script.camera.frame(at: t)).equatable()
-                            PlayFrame(scene: state.play, script: script, t: t, teams: teams, ink: ink, size: geo.size)
+                            PlayFrame(scene: play, script: script, t: t, teams: teams, ink: ink, size: geo.size)
                                 .equatable()
                         }
                         .transition(.identity)
@@ -1201,7 +1241,7 @@ private struct PlayStage: View {
                         let t = time(at: .now)
                         ZStack {
                             if moving { BallparkLayer(ink: ink, camera: script.camera.frame(at: t)).equatable() }
-                            PlayFrame(scene: state.play, script: script, t: t, teams: teams, ink: ink, size: geo.size)
+                            PlayFrame(scene: play, script: script, t: t, teams: teams, ink: ink, size: geo.size)
                                 .equatable()
                         }
                         .transition(.identity)
@@ -1210,7 +1250,7 @@ private struct PlayStage: View {
                 .id(state.play?.id)
                 // A replay cuts in; a play that isn't replayed crossfades to how it ended.
                 .transition(playing ? .identity : .opacity.animation(.easeInOut(duration: 0.35)))
-                if let play = state.play {
+                if let play {
                     TheaterCelebration(play: play, script: script, size: geo.size, color: teams.batting.accent,
                                        start: replay?.id == play.id ? replay?.start : nil)
                         .id(play.id)
@@ -1234,7 +1274,23 @@ private struct PlayStage: View {
     /// A new play replays from its pitch; history and Reduce Motion don't.
     private func begin() {
         guard clock == .live, !reduceMotion, state.news, let play = state.play, replay?.id != play.id else { return }
-        replay = Replay(id: play.id, start: .now)
+        replay = Replay(id: play.id, start: .now, play: play)
+    }
+}
+
+/// One script, kept until its play or field changes (a reference: keeping
+/// it redraws nothing). A measured play's flight is calibrated as it's built.
+@MainActor
+private final class ScriptMemo {
+    private var play: PlayScene?
+    private var rest: PlayScript.Rest?
+    private var built: PlayScript?
+
+    func script(_ play: PlayScene?, rest: PlayScript.Rest) -> PlayScript {
+        if let built, self.play == play, self.rest == rest { return built }
+        let script = play.map { PlayScript($0, rest: rest) } ?? PlayScript(rest: rest)
+        (self.play, self.rest, built) = (play, rest, script)
+        return script
     }
 }
 
@@ -1338,9 +1394,13 @@ private struct TheaterCelebration: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var live: Date?
     @State private var over: Date?
+    /// This play's moment, kept once seen: its replay can begin after the
+    /// page's moment slot has moved on (a play held a moment for Statcast).
+    @State private var held: LiveMoment?
 
     var body: some View {
-        let moment = momentFor(.plate, in: moments)
+        let current = momentFor(.plate, in: moments)
+        let moment = current?.id == play.id ? current : start == nil ? nil : held
         let bursts = PlateCelebration.theater(moment, play: play, script: script, level: level, reduceMotion: reduceMotion,
                                               height: size.height)
         Group {
@@ -1350,14 +1410,17 @@ private struct TheaterCelebration: View {
             case .live:
                 if reduceMotion {
                     // The end state: a bloom where the runs crossed.
-                    if moment?.id == play.id, moment?.kind == .homeRun {
-                        CelebrationStage(moment: moment, origin: FieldProjection(size: size).point(.zero), size: size,
+                    if current?.id == play.id, current?.kind == .homeRun {
+                        CelebrationStage(moment: current, origin: FieldProjection(size: size).point(.zero), size: size,
                                          colors: .team(color), wellInset: 0)
                     }
                 } else if let start, live == start, over != start {
                     TimelineView(.animation) { context in surface(bursts, at: context.date.timeIntervalSince(start)) }
                 }
             }
+        }
+        .onChange(of: current?.id, initial: true) {
+            if let current, current.id == play.id { held = current }
         }
         // Armed again if the moment lands a beat after the replay begins.
         .task(id: Arm(start: start, bursts: bursts.count)) {
