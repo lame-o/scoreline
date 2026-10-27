@@ -295,3 +295,44 @@ export function stripDots(days: readonly AgendaDay[], followed: ReadonlySet<stri
   }
   return dots;
 }
+
+// MARK: - The league page's hub (ScheduleHub.swift, ResultsHub.swift)
+
+const weekdayLong = new Intl.DateTimeFormat(undefined, { weekday: "long" });
+
+/** "Now", "This weekend", "Thursday", "Next week", "In 12 days", "In 5 months" (LeagueUpcomingSection.relative). */
+export function relativeWhen(start: DayKey, end: DayKey, today: DayKey): string {
+  if (compareDays(start, today) <= 0 && compareDays(today, end) <= 0) return "Now";
+  const days = daysBetween(today, start);
+  if (days < 0) return "Finished";
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  if (days <= 6) {
+    // Friday to Sunday this week reads as the weekend.
+    const wd = new Date(Date.UTC(start.year, start.month - 1, start.day, 12)).getUTCDay() + 1;
+    return wd >= 6 || wd === 1 ? "This weekend" : weekdayLong.format(new Date(start.year, start.month - 1, start.day, 12));
+  }
+  if (days <= 13) return "Next week";
+  if (days <= 59) return `In ${days} days`;
+  return `In ${Math.max(2, Math.round(days / 30.4))} months`;
+}
+
+/** Games shown in a hub: enough to see the next round, few enough to stay a preview. */
+export const HUB_LIMIT = 8;
+
+/** The next games: a followed team's next two first, then in order by day (LeagueUpcomingSection.upcomingGames). */
+export function hubUpcoming(items: readonly ScheduleItem[], followed: ReadonlySet<string>, limit = HUB_LIMIT): ScheduleItem[] {
+  const ahead = sortItems(items.filter((i) => i.status === "scheduled" || i.status === "live" || i.status === "postponed"));
+  const mine = ahead.filter((i) => itemTeams(i).some((t) => t.id != null && followed.has(t.id))).slice(0, 2);
+  const picked = [...mine, ...ahead.filter((i) => !mine.includes(i))].slice(0, limit);
+  return sortItems(picked).sort((a, b) => compareDays(a.day, b.day));
+}
+
+/** Played games of a round: up to eight, your teams' first (two at most), shown by day (LeagueResultsSection.pick). */
+export function hubResults(items: readonly ScheduleItem[], followed: ReadonlySet<string>, limit = HUB_LIMIT): ScheduleItem[] {
+  const played = sortItems(items.filter((i) => i.status === "final" || i.status === "postponed" || i.status === "canceled"));
+  const mine = played.filter((i) => itemTeams(i).some((t) => t.id != null && followed.has(t.id))).slice(0, 2);
+  const picked = sortItems([...mine, ...played.filter((i) => !mine.includes(i))].slice(0, limit));
+  const rank = new Map(picked.map((i, n) => [i.id, n]));
+  return [...picked].sort((a, b) => compareDays(a.day, b.day) || (mine.includes(a) ? 0 : 1) - (mine.includes(b) ? 0 : 1) || (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+}

@@ -18,6 +18,7 @@ import { useGoBack } from "../../app/navigation";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { NotFound } from "../../app/NotFound";
 import { settings, useSettings, type Settings } from "../../state/settings";
+import { LeagueHub } from "../schedule/LeagueHub";
 import styles from "./Settings.module.css";
 
 const all = (s: Settings) => s;
@@ -34,6 +35,8 @@ export function LeaguePage() {
     <div className={styles.page}>
       <PageHeader title={league.name} icon={undefined} leading={<BackButton to="Settings" onClick={() => goBack()} />} />
       <div className={`${styles.column} ${styles.entrance}`}>
+        {/* What's next and what just happened lead, as on the Mac's league page (ScheduleHub, ResultsHub). */}
+        <LeagueHub league={league} />
         <LeagueOptions league={league} />
         <TeamPicks league={league} />
         <div className={styles.footerActions}>

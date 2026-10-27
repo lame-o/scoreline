@@ -37,6 +37,9 @@ import {
   filterItems,
   form,
   freshness,
+  hubResults,
+  hubUpcoming,
+  relativeWhen,
   splitDays,
   stripDots,
 } from "../../src/data/agenda";
@@ -361,5 +364,25 @@ describe("scopes", () => {
     expect(parseScope("ifsc", undefined, new URLSearchParams())).toEqual({ kind: "climbing" });
     expect(parseScope("cs2", undefined, new URLSearchParams())).toEqual({ kind: "tournaments" });
     expect(parseScope("nope", undefined, new URLSearchParams())).toBeNull();
+  });
+});
+
+describe("the league page's hub", () => {
+  const mon = day(2026, 10, 26);
+  it("says when, without a click", () => {
+    expect(relativeWhen(addingDays(mon, 4), addingDays(mon, 6), mon)).toBe("This weekend");
+    expect(relativeWhen(addingDays(mon, 2), addingDays(mon, 2), mon)).toBe("Wednesday");
+    expect(relativeWhen(addingDays(mon, 9), addingDays(mon, 11), mon)).toBe("Next week");
+    expect(relativeWhen(addingDays(mon, -1), addingDays(mon, 1), mon)).toBe("Now");
+    expect(relativeWhen(day(2027, 4, 9), day(2027, 4, 11), mon)).toBe("In 5 months");
+  });
+
+  it("picks your teams first, then the round in order", () => {
+    const items = parseScoreboard(fixture("sched-eng1-day.json"), "soccer/eng.1", "eng.1", "soccer", RECORDED);
+    const everton = items.find((i) => i.id === "espn-401878768")!.bottom!.id!;
+    const picked = hubResults(items, new Set([everton]), 3);
+    expect(picked).toHaveLength(3);
+    expect(picked.some((i) => i.id === "espn-401878768")).toBe(true);
+    expect(hubUpcoming(items, new Set())).toHaveLength(0);
   });
 });

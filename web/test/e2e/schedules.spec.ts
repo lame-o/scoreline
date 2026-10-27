@@ -31,6 +31,7 @@ const PAGES = [
   { name: "results-epl-rounds", path: "/schedule/eng.1?mode=results" },
   { name: "results-mlb-days", path: "/schedule/mlb?mode=results" },
   { name: "results-team", path: `${ARSENAL}&mode=results` },
+  { name: "league-hub", path: "/settings/league/eng.1" },
 ] as const;
 
 /** Waits for a schedule page to settle: rows, a note, an empty or an error state. */
@@ -67,9 +68,10 @@ for (const size of WIDTHS) {
         for (const p of PAGES) {
           await page.goto(p.path);
           await settle(page);
-          // The mode switch says which way the page faces.
+          // The mode switch says which way the page faces (a league page leads with both).
           const results = p.path.includes("mode=results");
-          await expect(page.getByRole("radio", { name: results ? "Results" : "Upcoming" })).toHaveAttribute("aria-checked", "true");
+          if (p.path.startsWith("/schedule")) await expect(page.getByRole("radio", { name: results ? "Results" : "Upcoming" })).toHaveAttribute("aria-checked", "true");
+          else await expect(page.getByRole("link", { name: "Full Schedule" })).toBeVisible();
           await page.screenshot({ path: join(OUT, `${p.name}-${size.name}-${scheme}.png`) });
         }
         expect(errors).toEqual([]);

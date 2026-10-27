@@ -1,0 +1,93 @@
+/* A league page's Upcoming and Results (ScheduleHub.swift, ResultsHub.swift). */
+
+.section {
+  padding-bottom: calc(6 * var(--pt));
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+  padding: calc(14 * var(--pt)) var(--gutter) calc(4 * var(--pt));
+}
+
+.caption {
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+.dayLabel {
+  margin: 0;
+  padding: calc(8 * var(--pt)) var(--gutter) calc(1 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.skeleton {
+  height: calc(96 * var(--pt));
+  margin: calc(6 * var(--pt)) var(--gutter);
+  border-radius: var(--radius-group);
+  background: var(--fill-skeleton);
+  opacity: 0.6;
+}
+
+.seasonRows {
+  display: flex;
+  flex-direction: column;
+  padding: calc(2 * var(--pt)) calc(6 * var(--pt)) 0;
+}
+
+.seasonRow {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  padding: calc(7 * var(--pt)) calc(8 * var(--pt));
+  border-radius: var(--radius-row);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .seasonRow:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.seasonRow:active {
+  background: var(--fill-press);
+}
+
+.seasonText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+  min-width: 0;
+}
+
+.seasonTitle {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.seasonDetail {
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.when {
+  flex: none;
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--label-secondary);
+}
+
+.flex {
+  flex: 1;
+}
