@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { orderLogoColors, readLogoColors, wearLogoColors } from "../../src/data/logoColors";
 import { hue, oklabFromHex } from "../../src/data/teamColors";
 import type { Competitor } from "../../src/data/models";
+import { readableLogo } from "../../src/state/logoColors";
 
 /** A 64×64 crest: `parts` of [rgba, share]. */
 function crest(parts: [[number, number, number, number], number][]): Uint8ClampedArray {
@@ -46,5 +47,11 @@ describe("logo colors", () => {
     const c: Competitor = { id: "x", name: "X", abbreviation: "X", score: null, logo: "u", isWinner: false, color: "002a5c", rank: null, record: null, conferenceRecord: null, alternateColor: null };
     expect(wearLogoColors(c, { colors: ["#c8102e", "#0033a0"], weights: [1, 0.4] })).toMatchObject({ color: "c8102e", alternateColor: "0033a0" });
     expect(wearLogoColors(c, { colors: [], weights: [] })).toBe(c);
+  });
+
+  it("reads bo3 crests from the host that sends CORS headers, ESPN's at the small size", () => {
+    expect(readableLogo("https://image-proxy.bo3.gg/uploads/team/793/image/a.webp?w=64&h=64")).toBe("https://files.bo3.gg/uploads/team/793/image/a.webp");
+    expect(readableLogo("https://files.bo3.gg/uploads/team/793/image/a.webp")).toBe("https://files.bo3.gg/uploads/team/793/image/a.webp");
+    expect(readableLogo("https://a.espncdn.com/i/teamlogos/nfl/500/dal.png")).toMatch(/^https:\/\/a\.espncdn\.com\/combiner\/i\?img=\/i\/teamlogos\/nfl\/500\/dal\.png&w=\d+&h=\d+$/);
   });
 });

@@ -56,9 +56,24 @@ function scheduleSave() {
   }, 2000);
 }
 
+/**
+ * Where a crest is read from: the small size where its host sends CORS
+ * headers. bo3's image proxy sends none, so its crests come from bo3's file
+ * host, which does (full size, but once per crest: the colors are kept).
+ */
+export function readableLogo(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.host === "files.bo3.gg" || u.host === "image-proxy.bo3.gg") return `https://files.bo3.gg${u.pathname}`;
+  } catch {
+    return null;
+  }
+  return sizedLogo(url, PIXELS / 2);
+}
+
 function read(url: string): Promise<LogoColors | null> {
   return new Promise((resolve) => {
-    const src = sizedLogo(url, PIXELS / 2);
+    const src = readableLogo(url);
     if (!src) return resolve(null);
     const img = new Image();
     img.crossOrigin = "anonymous";
