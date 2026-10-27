@@ -1,4 +1,4 @@
-import { defineConfig } from "cf/config";
+import { bindings, defineConfig } from "cf/config";
 import * as entrypoint from "./worker/index.ts" with { type: "cf-worker" };
 
 // Scoreline for the web: the React app as static assets, plus an `/api/*`
@@ -12,11 +12,17 @@ export default defineConfig({
 		compatibilityDate: "2026-10-26",
 		compatibilityFlags: ["nodejs_compat"],
 		entrypoint,
+		env: {
+			// The static assets, for the Worker's `/assets/*` pass (worker/index.ts).
+			ASSETS: bindings.assets(),
+		},
 		assets: {
 			// Every app route (/game/123, /settings…) gets index.html; React Router takes it from there.
 			notFoundHandling: "single-page-application",
-			// The proxy runs before the asset layer for its own paths only.
-			runWorkerFirst: ["/api/*"],
+			// The proxy runs before the asset layer for its own paths. Hashed
+			// bundles go through the Worker too, so a file this deploy doesn't
+			// have is a 404 rather than index.html under a year's immutable cache.
+			runWorkerFirst: ["/api/*", "/assets/*"],
 		},
 		// Workers Caching in front of the proxy: collapses bursts of identical
 		// polls and works on workers.dev, where the Cache API inside the proxy is
