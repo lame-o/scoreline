@@ -1,74 +1,92 @@
-// Renders the app icon: a score panel dropping from a menu bar item, on a
-// deep graphite-to-green squircle. Drawn from plain shapes (no symbols or fonts).
+// Renders the app icon: a planet almost wholly in night, a thin cold crescent
+// of day on its rim, in ordered-dither pixels on a starfield.
 // Usage: swift make-icon.swift <output.png>
 import AppKit
 
-let size: CGFloat = 1024
-let white = NSColor.white
-let live = NSColor(red: 1, green: 0.27, blue: 0.23, alpha: 1)
-let ink = NSColor(red: 0.05, green: 0.27, blue: 0.18, alpha: 1)
+let size = 1024.0, inset = 100.0, side = 824.0
+let space = CGColorSpace(name: CGColorSpace.sRGB)!
 
-func capsule(_ r: NSRect) -> NSBezierPath { NSBezierPath(roundedRect: r, xRadius: r.height / 2, yRadius: r.height / 2) }
+func color(_ hex: UInt32) -> CGColor {
+    CGColor(srgbRed: Double((hex >> 16) & 255) / 255, green: Double((hex >> 8) & 255) / 255,
+            blue: Double(hex & 255) / 255, alpha: 1)
+}
+func clamp(_ v: Double) -> Double { min(max(v, 0), 1) }
 
-let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
-    let inset = rect.insetBy(dx: 100, dy: 100)
-    let shape = NSBezierPath(roundedRect: inset, xRadius: 185, yRadius: 185)
+/// Night to ice: the tones the dither mixes between.
+let palette = [0x01070D, 0x0A2438, 0x23628A, 0x8FCBEE, 0xF4FBFF].map(color)
 
-    NSGraphicsContext.current?.saveGraphicsState()
-    let shadow = NSShadow()
-    shadow.shadowColor = NSColor.black.withAlphaComponent(0.3)
-    shadow.shadowBlurRadius = 24
-    shadow.shadowOffset = NSSize(width: 0, height: -10)
-    shadow.set()
-    NSColor.black.setFill()
-    shape.fill()
-    NSGraphicsContext.current?.restoreGraphicsState()
-
-    NSGradient(colors: [
-        NSColor(red: 0.07, green: 0.36, blue: 0.24, alpha: 1),
-        NSColor(red: 0.04, green: 0.16, blue: 0.12, alpha: 1),
-    ])!.draw(in: shape, angle: -90)
-
-    NSGraphicsContext.current?.saveGraphicsState()
-    shape.addClip()
-
-    // The menu bar, with Scoreline's item selected.
-    white.withAlphaComponent(0.18).setFill()
-    NSBezierPath(rect: NSRect(x: 0, y: 742, width: size, height: 62)).fill()
-    white.withAlphaComponent(0.92).setFill()
-    NSBezierPath(roundedRect: NSRect(x: 596, y: 752, width: 168, height: 42), xRadius: 12, yRadius: 12).fill()
-
-    // The panel hanging from it, popover-style, lifted off the background.
-    NSGraphicsContext.current?.saveGraphicsState()
-    let lift = NSShadow()
-    lift.shadowColor = NSColor.black.withAlphaComponent(0.35)
-    lift.shadowBlurRadius = 40
-    lift.shadowOffset = NSSize(width: 0, height: -16)
-    lift.set()
-    white.setFill()
-    let panel = NSBezierPath(roundedRect: NSRect(x: 262, y: 236, width: 500, height: 470), xRadius: 72, yRadius: 72)
-    panel.move(to: NSPoint(x: 650, y: 700))
-    panel.line(to: NSPoint(x: 680, y: 732))
-    panel.line(to: NSPoint(x: 710, y: 700))
-    panel.close()
-    panel.fill()
-    NSGraphicsContext.current?.restoreGraphicsState()
-
-    // "● Live"
-    live.setFill()
-    NSBezierPath(ovalIn: NSRect(x: 318, y: 618, width: 40, height: 40)).fill()
-    capsule(NSRect(x: 372, y: 624, width: 84, height: 28)).fill()
-
-    // Two team rows: crest, name, score.
-    for (row, y) in [486.0, 330.0].enumerated() {
-        ink.withAlphaComponent(row == 0 ? 1 : 0.45).setFill()
-        NSBezierPath(ovalIn: NSRect(x: 318, y: y, width: 96, height: 96)).fill()
-        capsule(NSRect(x: 440, y: y + 30, width: row == 0 ? 150 : 120, height: 36)).fill()
-        NSBezierPath(roundedRect: NSRect(x: 636, y: y + 8, width: 70, height: 80), xRadius: 16, yRadius: 16).fill()
+/// 8 × 8 Bayer thresholds in 0…1.
+let bayer: [[Double]] = {
+    var m: [[Double]] = [[0]]
+    while m.count < 8 {
+        let n = m.count
+        var next = Array(repeating: Array(repeating: 0.0, count: n * 2), count: n * 2)
+        for y in 0..<n {
+            for x in 0..<n {
+                let v = m[y][x] * 4
+                next[y][x] = v; next[y][x + n] = v + 2; next[y + n][x] = v + 3; next[y + n][x + n] = v + 1
+            }
+        }
+        m = next
     }
-    NSGraphicsContext.current?.restoreGraphicsState()
-    return true
+    return m.map { $0.map { ($0 + 0.5) / 64 } }
+}()
+
+/// Deterministic hash noise in 0..<1, so every build draws the same stars.
+func noise(_ x: Double, _ y: Double) -> Double {
+    var h = UInt64(bitPattern: Int64(x * 73856093) ^ Int64(y * 19349663)) &* 0x9E3779B97F4A7C15
+    h ^= h >> 29; h = h &* 0xBF58476D1CE4E5B9; h ^= h >> 32
+    return Double(h % 10000) / 10000
+}
+func star(_ x: Double, _ y: Double) -> Double {
+    let cx = (x / 7).rounded(.down), cy = (y / 7).rounded(.down)
+    return noise(cx, cy) < 0.006 ? 0.6 + 0.4 * noise(cy, cx) : 0
 }
 
-let rep = NSBitmapImageRep(data: image.tiffRepresentation!)!
+// The planet, and the light from behind and to the upper right of it.
+let center = (x: 512.0, y: 512.0), radius = 270.0
+let light: (x: Double, y: Double, z: Double) = {
+    let l = (0.82, 0.45, -0.22), n = (l.0 * l.0 + l.1 * l.1 + l.2 * l.2).squareRoot()
+    return (l.0 / n, l.1 / n, l.2 / n)
+}()
+
+func tone(_ x: Double, _ y: Double) -> Double {
+    let dx = (x - center.x) / radius, dy = (y - center.y) / radius, d2 = dx * dx + dy * dy
+    if d2 <= 1 {
+        let lit = clamp(dx * light.x + dy * light.y + (1 - d2).squareRoot() * light.z)
+        return 0.05 + 0.95 * pow(lit, 1.25)
+    }
+    // Atmosphere: a glow off the rim, brightest on the lit side.
+    let distance = d2.squareRoot() * radius
+    let glow = exp(-(distance - radius) / (radius * 0.22)) * (0.5 + 0.5 * (dx * light.x + dy * light.y) / d2.squareRoot())
+    return clamp(0.06 + 0.5 * glow + star(x, y))
+}
+
+let context = CGContext(data: nil, width: Int(size), height: Int(size), bitsPerComponent: 8, bytesPerRow: 0, space: space,
+                        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+let squircle = CGPath(roundedRect: CGRect(x: inset, y: inset, width: side, height: side),
+                      cornerWidth: 185, cornerHeight: 185, transform: nil)
+
+context.saveGState()
+context.setShadow(offset: CGSize(width: 0, height: -10), blur: 24, color: CGColor(gray: 0, alpha: 0.3))
+context.addPath(squircle)
+context.setFillColor(color(0x000000))
+context.fillPath()
+context.restoreGState()
+
+// Ordered dither in 6 pt cells: each takes one of the two palette tones around its value.
+context.addPath(squircle)
+context.clip()
+let cell = 6.0
+for (row, y) in stride(from: inset, to: inset + side, by: cell).enumerated() {
+    for (column, x) in stride(from: inset, to: inset + side, by: cell).enumerated() {
+        let p = tone(x + cell / 2, y + cell / 2) * Double(palette.count - 1)
+        let low = min(Int(p), palette.count - 1)
+        let mixUp = p - Double(low) > bayer[row % 8][column % 8] && low + 1 < palette.count
+        context.setFillColor(palette[mixUp ? low + 1 : low])
+        context.fill(CGRect(x: x, y: y, width: cell, height: cell))
+    }
+}
+
+let rep = NSBitmapImageRep(cgImage: context.makeImage()!)
 try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[1]))
