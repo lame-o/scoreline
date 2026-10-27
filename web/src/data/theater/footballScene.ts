@@ -49,6 +49,27 @@ export type Kick = "returned" | "fairCatch" | "downed" | "outOfBounds" | "touchb
 
 export type Miss = "wideLeft" | "wideRight" | "short" | "blocked";
 
+/**
+ * How the offense lined up, as far as the play says (in the gun or under
+ * center is `shotgun`). base: three wide and a tight end (under center on a
+ * run, a fullback and two wide); heavy: an extra lineman reported in as
+ * eligible (two tight ends, a fullback, one wide); empty: nobody behind the
+ * quarterback, five out wide; bunch: three receivers bunched tight on one
+ * side; victory: the kneel, a back at each of the quarterback's hips, one deep.
+ */
+export type Formation = "base" | "heavy" | "empty" | "bunch" | "victory";
+
+/**
+ * The try after a touchdown, as the touchdown's entry tells it (ESPN adds it
+ * once it's taken): a kick, or a pass or a run from the 2.
+ */
+export interface Attempt {
+  readonly kind: "kick" | "pass" | "rush";
+  readonly good: boolean;
+  /** Its own words ("B.Aubrey extra point is GOOD, Center-T.Sieg, Holder-B.Anger."). */
+  readonly text: string;
+}
+
 /** ESPN's positions, as the theater stands them up. */
 export type Position =
   | "quarterback"
@@ -128,6 +149,13 @@ export class FootballScene {
   gap: Gap | null = null;
   depth: Depth | null = null;
   shotgun = false;
+  formation: Formation = "base";
+  /**
+   * Where the ball was spotted across the field, in the offense's frame: on
+   * the left or right hash, or between them. The text never says: the feed
+   * works it out from the plays before (`spot`, footballTheater.ts).
+   */
+  hash: Lane = "middle";
   outOfBounds = false;
   /** A pass: yards past the line where it was caught or thrown to (ESPN's yards after the catch, else the text's depth). */
   air: number | null = null;
@@ -146,6 +174,10 @@ export class FootballScene {
   flips = false;
   onDowns = false;
   penalty: Penalty | null = null;
+  /** A touchdown's try, once its entry has it. */
+  attempt: Attempt | null = null;
+  /** On a try's own scene: how the point (or two) after was tried. */
+  pointAfter: Attempt["kind"] | null = null;
   participants: Participant[] = [];
   /** Short names by part, from the text ("Barkley"). */
   names: Record<string, string> = {};
@@ -232,6 +264,88 @@ export class FootballScene {
   /** Everyone credited with the stop, by position. */
   get tacklers(): (Position | null)[] {
     return this.participants.filter((p) => p.role === "tackler" || p.role === "assistedBy").map((p) => p.position);
+  }
+
+  /**
+   * A touchdown's try as a scene of its own, replayed as a short beat after
+   * it: the kick from the 15, or the pass or run from the 2, by the team that
+   * scored, from the middle of the field.
+   */
+  get conversion(): FootballScene | null {
+    const attempt = this.attempt;
+    const side = this.scorer;
+    if (!attempt || this.scoring !== "touchdown" || !side) return null;
+    const kick = attempt.kind === "kick";
+    const from = kick ? 85 : 98;
+    const kind: Kind = attempt.kind === "kick" ? { type: "extraPoint", good: attempt.good } : attempt.kind === "pass" ? { type: attempt.good ? "pass" : "incomplete" } : { type: "rush" };
+    const scene = new FootballScene(`${this.id}-try`, kind, side, from, kick ? from : attempt.good ? 100 : attempt.kind === "rush" ? 99 : from);
+    scene.pointAfter = attempt.kind;
+    scene.text = attempt.text;
+    scene.wallclock = this.wallclock;
+    scene.scoring = attempt.good && !kick ? "touchdown" : null;
+    scene.yards = attempt.good && !kick ? 2 : 0;
+    scene.shotgun = attempt.kind === "pass";
+    const lower = attempt.text.toLowerCase();
+    const run = RUN_WAY.exec(lower);
+    const thrown = run ? null : /pass (?:short |deep )?(left|middle|right)/.exec(lower);
+    if (run) {
+      scene.lane = lane(run[1]!);
+      scene.gap = run[2] === "end" ? "end" : run[2] === "tackle" ? "tackle" : "guard";
+    } else if (thrown) {
+      scene.lane = lane(thrown[1]!);
+      scene.depth = "short";
+    } else if (lower.includes("middle")) {
+      scene.lane = "middle";
+      scene.gap = "middle";
+    }
+    scene.names = names(attempt.text);
+    // The quarterback who threw the touchdown keeps it himself.
+    const passer = this.names.lead;
+    if (attempt.kind === "rush" && kind.type === "rush" && this.kind.type === "pass" && passer != null && scene.names.lead === passer) {
+      scene.participants = [{ role: "rusher", id: null, position: "quarterback" }];
+    }
+    return scene;
+  }
+
+  /**
+   * Where the next snap is spotted across the field, in the next offense's
+   * frame: on the hash nearest where this play ended (between the hashes,
+   * where it lay; over the side it went out of bounds); back where it was
+   * after an incompletion or a flag; in the middle after a score, a kick off
+   * or a return. The other way round when the ball changed hands. (pure; tested)
+   */
+  get nextHash(): Lane {
+    if (this.scoring != null) return "middle";
+    let side: Lane;
+    switch (this.kind.type) {
+      case "kickoff":
+      case "extraPoint":
+        return "middle";
+      case "punt":
+        // Out of bounds where the punter aimed it (his right); else the return's end isn't known.
+        side = this.kick === "outOfBounds" ? "right" : "middle";
+        break;
+      case "fieldGoal":
+        // A miss: the spot of the kick, the holder's.
+        side = this.hash;
+        break;
+      case "incomplete":
+      case "spike":
+      case "penalty":
+      case "kneel":
+      case "sack":
+        side = this.hash;
+        break;
+      case "pass":
+      case "rush":
+      case "other":
+      case "fumble":
+      case "interception":
+        side = this.lane ?? this.hash;
+        break;
+    }
+    if (!this.flips) return side;
+    return side === "left" ? "right" : side === "right" ? "left" : "middle";
   }
 }
 
@@ -353,6 +467,7 @@ export function parse(item: JSONValue, teams: FootballTeams): FootballScene | nu
   // What only the text says.
   const lower = play.toLowerCase();
   scene.shotgun = text.includes("Shotgun");
+  scene.formation = formation(text, scene.kind);
   scene.outOfBounds = lower.includes(" ob ") || lower.includes(" ob at") || lower.includes("out of bounds");
   const way = PASS_WAY.exec(lower);
   if (way) {
@@ -437,7 +552,66 @@ export function parse(item: JSONValue, teams: FootballTeams): FootballScene | nu
     default:
       break;
   }
+  if (scene.scoring === "touchdown") scene.attempt = attempt(item, text);
+  // A try logged as its own entry: from the 15 or the 2, whatever the spot says.
+  if (scene.kind.type === "extraPoint") {
+    scene.pointAfter = "kick";
+    if (!(scene.from >= 80 && scene.from <= 99)) {
+      scene.from = 85;
+      scene.to = 85;
+    }
+  } else if (type.includes("two point") || type.includes("two-point") || type.includes("2pt")) {
+    const good = type.includes("good") || type.includes("succeed") || lower.includes("succeeds") || lower.includes("is good");
+    const pass = type.includes("pass") || lower.includes(" pass ");
+    scene.pointAfter = pass ? "pass" : "rush";
+    scene.kind = pass ? { type: good ? "pass" : "incomplete" } : { type: "rush" };
+    scene.scoring = good ? "touchdown" : null;
+    if (!(scene.from >= 95 && scene.from <= 99)) scene.from = 98;
+    scene.to = good ? 100 : Math.min(scene.from + 1, 99);
+    scene.before = null;
+    scene.after = null;
+  }
   return scene;
+}
+
+/** The set the text implies: an extra lineman reported in (a heavy set), an empty backfield, a bunch; the kneel's victory formation. */
+export function formation(text: string, kind: Kind): Formation {
+  if (kind.type === "kneel") return "victory";
+  const lower = text.toLowerCase();
+  if (lower.includes("reported in as eligible") || lower.includes("jumbo")) return "heavy";
+  // The formation's own words, in its parentheses ("(Shotgun, Empty)").
+  const hints = [...text.matchAll(/\(([^)]*)\)/g)].map((m) => m[1]!.toLowerCase()).join(" ");
+  if (hints.includes("empty")) return "empty";
+  if (hints.includes("bunch") || hints.includes("trips")) return "bunch";
+  return "base";
+}
+
+/**
+ * The try in a touchdown's entry: "J.Elliott extra point is GOOD, …",
+ * "TWO-POINT CONVERSION ATTEMPT. D.Prescott rushes left guard. ATTEMPT
+ * SUCCEEDS."; else as `pointAfterAttempt` names it ("Extra Point Good").
+ */
+export function attempt(item: JSONValue, text: string): Attempt | null {
+  const namedText = str(at(item, "pointAfterAttempt", "text")) ?? "";
+  const named = namedText.toLowerCase();
+  const two = text.toLowerCase().indexOf("two-point conversion attempt");
+  if (two >= 0) {
+    // Swift's trimmingCharacters(in: ". "): dots and spaces off both ends.
+    const words = text.slice(two + "TWO-POINT CONVERSION ATTEMPT".length).replace(/^[. ]+|[. ]+$/g, "");
+    const lower = words.toLowerCase();
+    const good = lower.includes("succeeds") || (!lower.includes("fails") && (int(at(item, "pointAfterAttempt", "value")) ?? 0) === 2);
+    const pass = lower.includes(" pass") || named.includes("pass");
+    return { kind: pass ? "pass" : "rush", good, text: words };
+  }
+  const kicked = /[A-Z]\.[\p{L}\p{N}_'-]+ extra point is/u.exec(text);
+  if (kicked) {
+    const words = text.slice(kicked.index).trim();
+    return { kind: "kick", good: words.toLowerCase().includes("is good"), text: words };
+  }
+  if (named === "") return null;
+  const kind: Attempt["kind"] = named.includes("pass") ? "pass" : named.includes("rush") ? "rush" : "kick";
+  const good = !(named.includes("miss") || named.includes("block") || named.includes("fail") || named.includes("no good"));
+  return { kind, good, text: namedText };
 }
 
 /** The type of play, from ESPN's type (the text only for kneels and spikes, which share a type with runs and incompletions). */
