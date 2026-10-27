@@ -45,6 +45,10 @@ export interface StageInputs {
   readonly bloom: ((size: Size) => Bloom | null) | null;
   /** One frame at t (Infinity: as it ended): the field, the play and its type, then the bursts given. */
   readonly paint: (ctx: Ctx, size: Size, pt: number, t: number, bursts: readonly StageBurst[]) => void;
+  /** Seconds the replay holds its first frame before t = 0 (a try's breath after its touchdown). */
+  readonly lead?: number;
+  /** Told when a replay has run its course (a touchdown's try follows it). */
+  readonly onEnd?: (id: string) => void;
 }
 
 const CROSSFADE_MS = 350;
@@ -127,7 +131,8 @@ export class TheaterStage {
       this.armedFor = null;
       if (next.frozen == null && !next.reduceMotion && next.news && next.id != null) {
         // A new play replays from its start (and a new one mid-replay cuts to itself).
-        this.replay = { id: next.id, start: now, pausedAt: this.visible ? null : now };
+        const start = now + (next.lead ?? 0) * 1000;
+        this.replay = { id: next.id, start, pausedAt: this.visible ? null : now };
         this.fade = null;
       } else {
         this.replay = null;
@@ -212,7 +217,7 @@ export class TheaterStage {
     if (i.frozen != null) return i.frozen;
     const r = this.replay;
     if (!r || r.id !== i.id) return Infinity;
-    const t = ((r.pausedAt ?? now) - r.start) / 1000;
+    const t = Math.max(((r.pausedAt ?? now) - r.start) / 1000, 0);
     return t > this.replayEnd() ? Infinity : t;
   }
 
@@ -258,7 +263,11 @@ export class TheaterStage {
   private settle(): void {
     this.fade = null;
     this.bloom = null;
-    if (this.replay && !Number.isFinite(this.time(performance.now()))) this.replay = null;
+    const r = this.replay;
+    if (r && !Number.isFinite(this.time(performance.now()))) {
+      this.replay = null;
+      this.inputs?.onEnd?.(r.id);
+    }
   }
 
   private draw(now: number): void {

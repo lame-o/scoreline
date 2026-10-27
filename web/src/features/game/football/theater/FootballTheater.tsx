@@ -8,7 +8,9 @@
  * stamp lands ("+12", "1ST DOWN", "−7 SACK", "INC", "FG 47 ✓"). Marquee
  * plays get a headline across the top (TOUCHDOWN, FIELD GOAL,
  * INTERCEPTION), and a touchdown's fireworks burst over the goal line it
- * crossed. The drive chart under it, and its play-by-play, is its caption.
+ * crossed; its extra point or two-point try follows as a short beat of its
+ * own once ESPN has it. The drive chart under it, and its play-by-play, is
+ * its caption.
  *
  * Built from the baseball theater's parts (its projection, camera framing,
  * pictogram figures, ball and type; core/theater). Drawn on one canvas
@@ -22,7 +24,7 @@
  *
  *     <FootballTheater feed={feed} teams={teams} situation={situation} kits={kits} palette={palette} topName="DAL" bottomName="PHI" />
  */
-import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Football } from "../../../../data/gameDetail";
 import type { FootballFeed, FootballTeams as LaneTeams } from "../../../../data/liveFeeds/football";
 import { dress, type TheaterKits } from "../../../../data/mlb/theaterTeams";
@@ -117,7 +119,14 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
   const level = useSettings((s) => s.celebrationLevel);
   const reduceMotion = useReducedMotion();
   const moment = useChartMoment("field");
-  const play = state.play;
+  // A touchdown replayed here is followed by its try, as a short beat of its own: a cut to the try's
+  // formation, a breath, the snap (FootballStage.follow). `replayed`: the last play whose replay ran its course.
+  const [replayed, setReplayed] = useState<string | null>(null);
+  const conversion = state.play?.conversion ?? null;
+  const following = conversion != null && frozen == null && !reduceMotion && replayed === state.play?.id;
+  /** The play on screen: the last snap, or a touchdown's try once its beat has begun. */
+  const play = following ? conversion : state.play;
+  const news = following ? true : state.news;
 
   // The field between plays when no play has come yet: the live spot, else the offense at its 25.
   const rest = situation ? footballRest(situation) : null;
@@ -161,7 +170,9 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
     const color = (side: Side | null) => (side == null || side === play?.offense ? accentOf(teams.offense, ink) : accentOf(teams.defense, ink));
     const inputs: StageInputs = {
       id: play?.id ?? null,
-      news: state.news,
+      news,
+      lead: following ? 0.3 : 0,
+      onEnd: setReplayed,
       duration: script.duration,
       frozen,
       reduceMotion,
@@ -184,12 +195,12 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
         drawGridiron(ctx, f, ink, zones.near, zones.far);
         drawFootballFrame(ctx, f, { script, t, teams, ink, labels: labelsFor(ctx, size, pt) });
         if (bursts.length > 0) {
-          drawBursts(ctx, bursts, t, (p) => f.at(p), TheaterType.bannerOrigin(size, pt), (b) => teamPalette(color((b as FootballBurst).side ?? null), ink));
+          drawBursts(ctx, bursts, t, (p) => f.at(p), TheaterType.bannerOrigin(size, pt), (b) => teamPalette(color((b as FootballBurst).side ?? null), ink), size);
         }
       },
     };
     stage.current?.update(inputs);
-  }, [play, state.news, script, teams, zones, ink, moment, level, reduceMotion, frozen]);
+  }, [play, news, following, script, teams, zones, ink, moment, level, reduceMotion, frozen]);
 
   return (
     <div className={styles.well} data-theater="football" aria-hidden="true">

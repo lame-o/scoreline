@@ -12,12 +12,12 @@
  * while a replay runs (and once for a still). Type is laid out once per
  * play and size into `Block`s, drawn into each frame.
  */
-import { drawParticles, particles, type CelebrationCue, type CelebrationPalette } from "../../../../data/celebrations";
-import { cueDuration } from "../../../../data/celebrations";
+import { cueDuration, drawParticles, particles, type CelebrationCue, type CelebrationPalette } from "../../../../data/celebrations";
+import { TheaterBurst } from "../../../../data/theater/theaterKit";
 import type { Figure } from "../../../../data/mlb/theaterPose";
 import type { Uniform } from "../../../../data/mlb/theaterTeams";
 import { criticalSpring, houseCurve, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
-import { hexRGB, mixHex, rgba, type RGB, type TheaterInk } from "../../mlb/theater/theaterInk";
+import { hexRGB, hsb, mixHex, rgba, type RGB, type TheaterInk } from "../../mlb/theater/theaterInk";
 
 export type Ctx = CanvasRenderingContext2D;
 
@@ -54,6 +54,16 @@ export const chalkAlpha = (ink: TheaterInk) => (ink.dark ? 0.55 : 0.95);
 
 /** `ink.chalk.opacity(a)`. */
 export const chalk = (ink: TheaterInk, a = 1) => rgba([255, 255, 255], chalkAlpha(ink) * a);
+
+/**
+ * The grass of a field marked out in lines (the gridiron, the pitch;
+ * TheaterKit.swift `TheaterInk.turf`): the ballpark's tint in the dark; in
+ * the light a deeper green, so white chalk has something to stand on.
+ */
+export const turf = (ink: TheaterInk) => (ink.dark ? ink.grass : rgba(hsb(0.37, 0.4, 0.52), 0.36));
+
+/** Under the chalk in the light: a soft edge that keeps a white line crisp on pale grass (nothing in the dark). */
+export const chalkEdge = (ink: TheaterInk): string | null => (ink.dark ? null : rgba(hsb(0.37, 0.5, 0.25), 0.16));
 
 /** `ink.shadow.opacity(a)`. */
 export const shadow = (ink: TheaterInk, a = 1) => rgba(ink.shadow, ink.shadowAlpha * a);
@@ -283,6 +293,13 @@ export const TheaterType = {
   height: (size: Size) => Math.max(size.height, 120),
   inset: (size: Size) => Math.max(size.height * 0.055, 9),
   banner: (size: Size, pt: number) => Math.min(Math.max(TheaterType.height(size) * 0.13, 17 * pt), 40 * pt),
+  /**
+   * The headline's size for its words: stepped down for a long one in a
+   * narrow well (TURNOVER ON DOWNS in the compact panel), so it never runs off
+   * the sides. (Wide heavy capitals and their tracking about 0.92 of the size
+   * each; the rules either side about 3.1.)
+   */
+  bannerFitting: (size: Size, pt: number, text: string) => Math.min(TheaterType.banner(size, pt), (size.width * 0.92) / (0.92 * [...text].length + 3.1)),
   stamp: (size: Size, pt: number) => Math.min(Math.max(TheaterType.height(size) * 0.2, 24 * pt), 54 * pt),
   title: (size: Size, pt: number) => Math.min(Math.max(TheaterType.height(size) * 0.056, 8 * pt), 14 * pt),
 
@@ -385,15 +402,27 @@ export interface StageBurst {
 
 export const stageBurstEnd = (b: StageBurst) => b.at + cueDuration(b.cue);
 
-/** The theater's bursts at t, drawn through the camera (`project`) so a firework stays over the goal line as the camera moves. */
-export function drawBursts(ctx: Ctx, bursts: readonly StageBurst[], t: number, project: (p: FieldPoint) => Point, bannerOrigin: Point, palette: (b: StageBurst) => CelebrationPalette): void {
+/**
+ * The theater's bursts at t, drawn through the camera (`project`) so a
+ * firework stays over the goal line as the camera moves: moved in from the
+ * well's edges, and spread by their scale with their strokes kept fine
+ * (TheaterBurst).
+ */
+export function drawBursts(
+  ctx: Ctx,
+  bursts: readonly StageBurst[],
+  t: number,
+  project: (p: FieldPoint) => Point,
+  bannerOrigin: Point,
+  palette: (b: StageBurst) => CelebrationPalette,
+  size: Size,
+): void {
   for (const burst of bursts) {
     if (!(t >= burst.at && t <= stageBurstEnd(burst))) continue;
-    const origin = burst.anchor.kind === "field" ? project(burst.anchor.point) : bannerOrigin;
+    const origin = burst.anchor.kind === "field" ? TheaterBurst.inside(project(burst.anchor.point), size) : bannerOrigin;
     ctx.save();
     ctx.translate(origin.x, origin.y);
-    ctx.scale(burst.scale, burst.scale);
-    drawParticles(ctx, particles(burst.cue, { x: 0, y: 0 }, t - burst.at), palette(burst));
+    drawParticles(ctx, TheaterBurst.spread(particles(burst.cue, { x: 0, y: 0 }, t - burst.at), burst.scale), palette(burst));
     ctx.restore();
   }
 }

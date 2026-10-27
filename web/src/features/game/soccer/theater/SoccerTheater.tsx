@@ -159,7 +159,7 @@ export default function SoccerTheater({ feed, homeTeamID, kits, preloaded = null
         drawSoccerFrame(ctx, f, { scene, script, t, teams, ink, labels: labelsFor(ctx, size, pt) });
         if (bursts.length > 0) {
           const palette = teamPalette(color, ink);
-          drawBursts(ctx, bursts, t, (p) => f.point(p), TheaterType.bannerOrigin(size, pt), () => palette);
+          drawBursts(ctx, bursts, t, (p) => f.point(p), TheaterType.bannerOrigin(size, pt), () => palette, size);
         }
       },
     };
