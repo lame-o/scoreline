@@ -136,11 +136,16 @@ function TeamView({ teamRef: ref, backTitle, viaKeyboard }: { readonly teamRef: 
               <h1 className="visually-hidden">{[name ?? "Team", summaryWords(team)].filter(Boolean).join(", ")}</h1>
               <span className={styles.heroMedia} aria-hidden="true">
                 <HeroGlow color={tint} diameter={60} />
-                <TeamCrest team={{ logo: header?.logo ?? ref.logo, abbreviation: header?.abbreviation ?? ref.abbreviation }} size={46} />
+                {header || ref.logo || team.loaded ? (
+                  <TeamCrest team={{ logo: header?.logo ?? ref.logo, abbreviation: header?.abbreviation ?? ref.abbreviation }} size={46} />
+                ) : (
+                  // A page opened from its URL: a quiet disc until the crest is known.
+                  <Skeleton circle width={46} height={46} />
+                )}
               </span>
               <span className={styles.heroText} aria-hidden="true">
                 <span className={styles.heroNameLine}>
-                  <span className={styles.heroName}>{name ?? " "}</span>
+                  {name ? <span className={styles.heroName}>{name}</span> : <Skeleton width={150} height={14} className={styles.heroSkeleton} />}
                   {following ? <Icon name="star" size={8} className={styles.heroStar} /> : null}
                 </span>
                 {summaryLine(team)}

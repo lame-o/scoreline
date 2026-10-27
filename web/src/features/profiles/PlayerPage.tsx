@@ -15,7 +15,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router";
-import { EmptyState, ErrorState, GlassCard, IconButton } from "../../design/components";
+import { EmptyState, ErrorState, GlassCard, IconButton, Skeleton } from "../../design/components";
 import { competitors, type ScoreEvent } from "../../data/models";
 import { aboutFacts, atLeast, COMPETITION_COLUMNS, dockDetail, dockStat, factsLine, seasonColumns, shortMonth, type WidthClass } from "../../data/profiles/display";
 import { isCollege, isSupportedTeam, playerKey, playerMemoryKey, type InjuryNote, type PlayerRef } from "../../data/profiles/models";
@@ -175,9 +175,17 @@ function PlayerViewPage({ playerRef: ref, backTitle, viaKeyboard }: { readonly p
                 <PlayerPhoto url={photo} name={bio.name} tint={tint} size={HERO_PHOTO} crop={crop} lightInk={lightInk} priority />
               </span>
               <span className={styles.heroText}>
-                <span className={styles.heroName} aria-hidden="true">
-                  {bio.name || " "}
-                </span>
+                {bio.name ? (
+                  <span className={styles.heroName} aria-hidden="true">
+                    {bio.name}
+                  </span>
+                ) : (
+                  // A page opened from its URL knows no one until the bio lands: placeholders hold the hero's shape.
+                  <span className={styles.heroLoading} role="status" aria-label="Loading">
+                    <Skeleton width={150} height={14} />
+                    <Skeleton width={110} height={9} />
+                  </span>
+                )}
                 {bio.realName ? (
                   <span className={styles.heroReal} aria-hidden="true">
                     {bio.realName}

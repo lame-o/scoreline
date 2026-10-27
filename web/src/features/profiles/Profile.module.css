@@ -323,6 +323,13 @@
   color: var(--label);
 }
 
+.heroLoading {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+  padding: calc(4 * var(--pt)) 0;
+}
+
 .heroSkeleton {
   margin: calc(3 * var(--pt)) 0;
 }
