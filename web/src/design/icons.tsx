@@ -191,8 +191,6 @@ const GLYPHS = {
       <path d="M8 4.4V8l2.5 1.6" />
     </g>
   ),
-  /** CS2: the bomb exploded; a run of rounds (SF `flame.fill`). */
-  flame: <path fill="currentColor" d="M8.3 1.2c.4 2.3 3.9 3.8 3.9 7.6A4.2 4.2 0 0 1 8 13.9a4.2 4.2 0 0 1-4.2-4.2c0-1.9 1-3 1.8-3.8.1 1.2.7 2 1.5 2.4-.4-2.6.4-5 1.2-7.1z" />,
   /** CS2: the bomb defused (SF `scissors`). */
   scissors: (
     <g {...stroke} strokeWidth={1.5}>
@@ -208,8 +206,6 @@ const GLYPHS = {
       <path d="M5.2 5.2a4 4 0 0 0 0 5.6M10.8 5.2a4 4 0 0 1 0 5.6M3 3a7.1 7.1 0 0 0 0 10M13 3a7.1 7.1 0 0 1 0 10" />
     </g>
   ),
-  /** Kick (SF `play.fill`). */
-  playFill: <path fill="currentColor" d="M4.6 2.6v10.8c0 .6.6.9 1.1.6l8.6-5.4a.7.7 0 0 0 0-1.2L5.7 2c-.5-.3-1.1 0-1.1.6z" />,
   flag: (
     <g fill="currentColor">
       <rect x="2.6" y="1.6" width="1.3" height="12.8" rx=".65" />
@@ -312,6 +308,23 @@ const GLYPHS = {
       <circle cx="9.6" cy="2.6" r="1.45" fill="currentColor" stroke="none" />
       <path d="M9 5.1 7.6 9.4M9 5.4l3 -1.9M8.6 6.1 5.6 7.2M7.6 9.4l2.4 2.2v2.8M7.6 9.4l-2.8 2.9" />
       <path d="M13.6 1.6v12.8" strokeWidth={1.1} opacity=".45" />
+    </g>
+  ),
+  /** A player on fire, a CS2 bomb exploded or a run of rounds (StreakFlame's flame.fill). */
+  flame: <path fill="currentColor" d="M8.2 1.2c.5 2.1-.4 3.4-1.4 4.6C5.7 7.1 4.6 8.3 4.6 10.2a3.4 3.4 0 0 0 6.8.2c0-1.2-.5-2.2-1.2-3 .1 1-.3 1.8-1 2.2.4-2.3-.3-4.9-1-8.4z" />,
+  /** The replay's play button; Kick's streams (play.fill). */
+  playFill: <path fill="currentColor" d="M5.2 3.1c0-.6.6-.9 1.1-.6l7 4.9c.4.3.4.9 0 1.2l-7 4.9c-.5.3-1.1 0-1.1-.6z" />,
+  pause: (
+    <g fill="currentColor">
+      <rect x="4.2" y="3.2" width="2.6" height="9.6" rx=".8" />
+      <rect x="9.2" y="3.2" width="2.6" height="9.6" rx=".8" />
+    </g>
+  ),
+  /** A headshot's placeholder (person.fill). */
+  person: (
+    <g fill="currentColor">
+      <circle cx="8" cy="5.2" r="2.9" />
+      <path d="M2.6 14c.4-3 2.6-4.9 5.4-4.9s5 1.9 5.4 4.9z" />
     </g>
   ),
 } satisfies Record<string, ReactNode>;

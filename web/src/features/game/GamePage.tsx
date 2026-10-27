@@ -36,6 +36,9 @@ import { useWidth } from "../../design/useWidth";
 import { useBaseballPage } from "./mlb/BaseballPage";
 import { useCounterStrikePage } from "./cs2/CounterStrikePage";
 import { useClimbingPage } from "./climbing/ClimbingPage";
+import { useBasketballPage } from "./nba/BasketballPage";
+import { nbaPalette } from "../../data/basketball";
+import { useSoccerPage } from "./soccer/SoccerPage";
 import { useFootballPage } from "./football/FootballPage";
 import { ErrorCopy } from "../../design/components";
 import styles from "./GamePage.module.css";
@@ -50,8 +53,8 @@ const useGenericPage: UseSportPage = (game) => ({ sections: useCommonSections(ga
 const SPORT_PAGES: Readonly<Record<PageKind, UseSportPage>> = {
   baseball: useBaseballPage,
   football: useFootballPage,
-  soccer: useGenericPage,
-  nba: useGenericPage,
+  soccer: useSoccerPage,
+  nba: useBasketballPage,
   espn: useGenericPage,
   counterStrike: useCounterStrikePage,
   climbing: useClimbingPage,
@@ -136,8 +139,14 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   }, [linked]);
 
   const palette: TeamPalette = useMemo(
-    () => (event.content.kind === "match" ? teamPalette(event.content.top.color, event.content.bottom.color, scheme) : { top: NEUTRAL, bottom: NEUTRAL }),
-    [event.content, scheme],
+    () =>
+      event.content.kind !== "match"
+        ? { top: NEUTRAL, bottom: NEUTRAL }
+        : // NBA and WNBA pages: a team wears its second color when the two clash (TeamPalette.nba).
+          pageKind(event.ref) === "nba"
+          ? nbaPalette(event.content.top, event.content.bottom, scheme)
+          : teamPalette(event.content.top.color, event.content.bottom.color, scheme),
+    [event.content, event.ref, scheme],
   );
 
   return (
@@ -231,6 +240,9 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
           clock={sport.clock ?? event.clock}
           liveSecond={sport.heroSecond}
           possession={sport.possession ?? null}
+          possessionInAir={sport.possessionInAir ?? false}
+          chip={sport.heroChip ?? null}
+          note={sport.heroNote ?? null}
           staleSince={game.staleSince}
           spoken={spokenHero(event, scores, fallback, sport.heroSpoken ?? null)}
           caption={event.caption ?? detail.roundName}
@@ -254,10 +266,12 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
         clockFallback={fallback}
         clock={sport.clock ?? event.clock}
         possession={sport.possession}
+        possessionInAir={sport.possessionInAir ?? false}
         stale={game.staleSince != null}
         detail={sport.dockDetail}
         lead={sport.dockLead}
         chip={sport.chip ?? null}
+        slot={sport.dockSlot}
       />
       {loading ? (
         game.detailFailed ? <p className={styles.note}>{ErrorCopy.inline("match details")}</p> : null

@@ -335,3 +335,20 @@
   width: max-content;
   white-space: nowrap;
 }
+
+/* NBA: a shot in the air dims the ball (still the shooting team's). */
+.bar[data-in-air="true"] .possession svg {
+  opacity: 0.55;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+/* Beside a team's name: what a sport adds besides the ball (red cards). */
+.teamSlot {
+  display: inline-grid;
+  place-items: center;
+  color: var(--label-secondary);
+}
+
+.teamSlot:empty {
+  display: none;
+}

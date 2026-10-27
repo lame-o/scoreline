@@ -1,0 +1,380 @@
+/* Leaders, the box score and the injury report (BasketballViews.swift). */
+
+/* MARK: Leaders */
+
+.leaders {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+}
+
+.leaderLine {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) calc(30 * var(--pt)) minmax(0, 1fr);
+  align-items: center;
+  gap: calc(4 * var(--pt));
+}
+
+.category {
+  text-align: center;
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--label-secondary);
+}
+
+.leader {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: calc(7 * var(--pt));
+  min-width: 0;
+  padding: calc(2 * var(--pt)) calc(6 * var(--pt));
+  margin: 0 calc(-6 * var(--pt));
+  border-radius: calc(6 * var(--pt));
+  transition: background-color var(--dur-fade) var(--ease-out);
+}
+
+.leader[data-trailing="true"] {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.leader[data-lit="true"] {
+  background: var(--fill-hover);
+}
+
+.leader[data-picked="true"] {
+  background: var(--accent-fill);
+}
+
+.leaderEmpty {
+  font-size: var(--text-callout);
+  color: var(--label-tertiary);
+}
+
+.leaderEmpty[data-trailing="true"] {
+  text-align: right;
+}
+
+/* The whole cell picks the player; the name above it opens their page. */
+.pick {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  cursor: pointer;
+}
+
+.pick:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: -2px;
+}
+
+.headshot,
+.who,
+.value,
+.player,
+.link {
+  position: relative;
+  pointer-events: none;
+}
+
+.link {
+  pointer-events: auto;
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.leader[data-trailing="true"] .who {
+  align-items: flex-end;
+}
+
+.leaderName {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  max-width: 100%;
+  font-size: var(--text-callout);
+  font-weight: 500;
+  min-width: 0;
+}
+
+.leader[data-trailing="true"] .leaderName {
+  flex-direction: row-reverse;
+}
+
+.leaderDetail {
+  font-size: calc(9.5 * var(--pt));
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.value {
+  flex: none;
+  font-family: var(--font-rounded);
+  font-size: calc(15 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.value[data-leads="true"] {
+  color: var(--label);
+}
+
+/* A name keeps its surname before it truncates. */
+.link {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nameShort {
+  display: none;
+}
+
+.flame {
+  flex: none;
+  display: inline-grid;
+  color: light-dark(#ff9500, #ff9f0a);
+  animation: flame-in var(--dur-quick) var(--ease-out);
+}
+
+@keyframes flame-in {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+
+/* MARK: Box score */
+
+.box {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+}
+
+.teamSwitch {
+  align-self: flex-start;
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+}
+
+.header,
+.row,
+.totals {
+  display: grid;
+  align-items: center;
+  column-gap: calc(6 * var(--pt));
+}
+
+.header > *:not(:first-child),
+.row > *:not(.player):not(.pick),
+.totals > *:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.header {
+  padding-bottom: calc(3 * var(--pt));
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.header > :first-child {
+  text-transform: uppercase;
+}
+
+.row {
+  position: relative;
+  padding: calc(3 * var(--pt)) calc(6 * var(--pt));
+  margin: 0 calc(-6 * var(--pt));
+  border-radius: calc(6 * var(--pt));
+  font-size: var(--text-callout);
+  transition: background-color var(--dur-fade) var(--ease-out);
+}
+
+.row > *:not(.pick) {
+  position: relative;
+  pointer-events: none;
+}
+
+.row[data-lit="true"] {
+  background: var(--fill-hover);
+}
+
+.row[data-picked="true"] {
+  background: var(--accent-fill);
+}
+
+.row[data-picked="true"] .link {
+  font-weight: 600;
+}
+
+.player {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  min-width: 0;
+}
+
+/* Secondary, never red: red already means "live". */
+.court {
+  flex: none;
+  width: calc(5 * var(--pt));
+  height: calc(5 * var(--pt));
+  border-radius: 50%;
+}
+
+.court[data-on="true"] {
+  background: var(--label-secondary);
+}
+
+.quiet {
+  color: var(--label-secondary);
+}
+
+[data-high="true"] {
+  font-weight: 600;
+}
+
+.bench {
+  padding: calc(7 * var(--pt)) 0 calc(2 * var(--pt));
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
+
+.totals {
+  margin-top: calc(2 * var(--pt));
+  padding: calc(5 * var(--pt)) 0 calc(1 * var(--pt));
+  border-top: 0.5px solid var(--viz-grid);
+  font-size: var(--text-callout);
+  font-weight: 600;
+}
+
+.dnp {
+  padding-top: calc(8 * var(--pt));
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+/* Narrow: the surname alone. */
+@container (max-width: 27rem) {
+  .row .nameFull {
+    display: none;
+  }
+  .row .nameShort {
+    display: inline;
+  }
+}
+
+@container section (max-width: 22rem) {
+  .leaderLine .nameFull {
+    display: none;
+  }
+  .leaderLine .nameShort {
+    display: inline;
+  }
+}
+
+/* MARK: Injuries */
+
+.injuries {
+  display: flex;
+  flex-direction: column;
+  gap: calc(12 * var(--pt));
+}
+
+.injuryGroup {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--pt));
+}
+
+.injuryTeam {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  font-size: var(--text-status);
+  font-weight: 600;
+}
+
+.injuryNone {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.injuryGroup ul {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--pt));
+}
+
+.injury {
+  display: flex;
+  align-items: baseline;
+  gap: calc(8 * var(--pt));
+}
+
+.injuryWho {
+  display: flex;
+  flex-direction: column;
+  gap: calc(1 * var(--pt));
+  flex: 1;
+  min-width: 0;
+}
+
+.injuryName {
+  font-size: calc(12 * var(--pt));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.injuryDetail {
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.injuryStatus {
+  flex: none;
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.injuryStatus[data-out="true"] {
+  font-weight: 600;
+  color: var(--label);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flame {
+    animation-name: flame-fade;
+  }
+  @keyframes flame-fade {
+    from {
+      opacity: 0;
+    }
+  }
+}

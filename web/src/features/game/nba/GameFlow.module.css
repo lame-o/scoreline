@@ -1,0 +1,186 @@
+/* Game flow (GameFlowView): the plot, then the period names under it. */
+.flow {
+  width: 100%;
+}
+
+.plot {
+  position: relative;
+  width: 100%;
+  cursor: pointer;
+}
+
+.canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--plot);
+  pointer-events: none;
+}
+
+/* The run: its team's color, faintly, from its first basket to now. */
+.band,
+.shade {
+  position: absolute;
+  top: 0;
+  height: var(--plot);
+  pointer-events: none;
+  animation: fade-in var(--dur-fade) var(--ease-out);
+}
+
+.shade {
+  background: color-mix(in srgb, var(--label) 6%, transparent);
+}
+
+.team {
+  position: absolute;
+  left: 0;
+  width: calc(28 * var(--pt));
+  translate: 0 -50%;
+  text-align: center;
+  font-size: calc(9 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+  pointer-events: none;
+}
+
+.extent {
+  position: absolute;
+  right: 0;
+  translate: 0 -50%;
+  font-size: calc(9 * var(--pt));
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.period {
+  position: absolute;
+  top: calc(var(--plot) + 3 * var(--pt));
+  translate: -50% 0;
+  font-size: calc(9 * var(--pt));
+  font-weight: 500;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* The pointed-at basket: a rule through the plot and a dot on the line. */
+.rule {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: var(--plot);
+  background: var(--viz-reference);
+  pointer-events: none;
+  animation: fade-in var(--dur-fade) var(--ease-out);
+}
+
+.target {
+  position: absolute;
+  top: calc(-3.5 * var(--pt));
+  left: calc(-3.5 * var(--pt));
+  width: calc(7 * var(--pt));
+  height: calc(7 * var(--pt));
+  border-radius: 50%;
+  background: var(--label);
+  pointer-events: none;
+}
+
+/* The run's name at the band's end, on the edge away from the line. */
+.runLabel {
+  position: absolute;
+  font-size: calc(9 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: fade-in var(--dur-quick) var(--ease-out);
+}
+
+/* A period's end pings at the line's end (MomentPing). */
+.ping {
+  position: absolute;
+  top: calc(-6 * var(--pt));
+  left: calc(-6 * var(--pt));
+  width: calc(12 * var(--pt));
+  height: calc(12 * var(--pt));
+  pointer-events: none;
+}
+
+.ping::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) currentColor;
+  animation: ping 600ms var(--ease-out) both;
+}
+
+.swatch {
+  position: relative;
+  width: calc(10 * var(--pt));
+  height: calc(8 * var(--pt));
+  border-radius: calc(1.5 * var(--pt));
+  background: color-mix(in srgb, var(--c) 30%, transparent);
+  overflow: hidden;
+}
+
+.swatch::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(1.25 * var(--pt));
+  background: var(--c);
+}
+
+.swatch[data-edge="top"]::after {
+  top: 0;
+}
+
+.swatch[data-edge="bottom"]::after {
+  bottom: 0;
+}
+
+.nowDot {
+  width: calc(6 * var(--pt));
+  height: calc(6 * var(--pt));
+  border-radius: 50%;
+  background: var(--live);
+}
+
+.summary {
+  font-size: calc(10 * var(--pt));
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes ping {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ping::after {
+    animation: none;
+    opacity: 0;
+  }
+}

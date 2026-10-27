@@ -1,0 +1,5678 @@
+{
+ "_source": "https://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/events/401879256/competitions/401879256/plays",
+ "_recorded": "2026-10-27T09:56:54.656Z",
+ "_note": "Every shot, goal, card and carded foul, plus 48'–62' in full.",
+ "count": 240,
+ "items": [
+  {
+   "id": "54145927",
+   "shortText": "Marc Guéhi Goal Kick",
+   "fieldPositionX": 4.7,
+   "fieldPositionY": 41.5,
+   "fieldPosition2X": 5.7,
+   "fieldPosition2Y": 54,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 137,
+    "displayValue": "3'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "homeScore": 0,
+   "awayScore": 0
+  },
+  {
+   "id": "54146038",
+   "shortText": "Ian Maatsen Shot Off Target",
+   "fieldPositionX": 87.4,
+   "fieldPositionY": 65.6,
+   "fieldPosition2X": 100,
+   "fieldPosition2Y": 60.3,
+   "expectedGoals": 0.026,
+   "goalPositionY": 60.3,
+   "goalPositionZ": 76.4,
+   "type": {
+    "type": "shot-off-target",
+    "text": "Shot Off Target"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 227,
+    "displayValue": "4'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "homeScore": 0,
+   "awayScore": 0
+  },
+  {
+   "id": "54146077",
+   "shortText": "Alysson Shot Blocked",
+   "fieldPositionX": 85,
+   "fieldPositionY": 55.6,
+   "fieldPosition2X": 93,
+   "fieldPosition2Y": 52.9,
+   "expectedGoals": 0.03,
+   "goalPositionY": 50.5,
+   "goalPositionZ": 19,
+   "type": {
+    "type": "shot-blocked",
+    "text": "Shot Blocked"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 304,
+    "displayValue": "6'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "homeScore": 0,
+   "awayScore": 0
+  },
+  {
+   "id": "54146134",
+   "shortText": "Nicolas Jackson Goal",
+   "scoringPlay": true,
+   "fieldPositionX": 93.9,
+   "fieldPositionY": 65.8,
+   "fieldPosition2X": 100,
+   "fieldPosition2Y": 52.4,
+   "expectedGoals": 0.128,
+   "goalPositionY": 52.4,
+   "goalPositionZ": 27.2,
+   "homeScore": 1,
+   "type": {
+    "type": "goal",
+    "text": "Goal"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 354,
+    "displayValue": "6'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54146476",
+   "shortText": "Enzo Fernández Shot Blocked",
+   "fieldPositionX": 84.7,
+   "fieldPositionY": 52.8,
+   "fieldPosition2X": 93.7,
+   "fieldPosition2Y": 54,
+   "expectedGoals": 0.041,
+   "goalPositionY": 54.8,
+   "goalPositionZ": 19,
+   "homeScore": 1,
+   "type": {
+    "type": "shot-blocked",
+    "text": "Shot Blocked"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 716,
+    "displayValue": "12'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54146575",
+   "shortText": "Iliman Ndiaye Shot On Target",
+   "fieldPositionX": 83.1,
+   "fieldPositionY": 32.9,
+   "fieldPosition2X": 98.9,
+   "fieldPosition2Y": 48.2,
+   "expectedGoals": 0.03,
+   "goalPositionY": 52.9,
+   "goalPositionZ": 19,
+   "homeScore": 1,
+   "type": {
+    "type": "shot-on-target",
+    "text": "Shot On Target"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 759,
+    "displayValue": "13'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54146979",
+   "shortText": "Nicolas Jackson Shot Off Target",
+   "fieldPositionX": 77.1,
+   "fieldPositionY": 37.2,
+   "fieldPosition2X": 100,
+   "fieldPosition2Y": 63.4,
+   "expectedGoals": 0.057,
+   "goalPositionY": 63.4,
+   "goalPositionZ": 4.2,
+   "homeScore": 1,
+   "type": {
+    "type": "shot-off-target",
+    "text": "Shot Off Target"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 1115,
+    "displayValue": "19'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54147053",
+   "shortText": "Gianluigi Donnarumma Goal Kick",
+   "fieldPositionX": 4,
+   "fieldPositionY": 49.1,
+   "fieldPosition2X": 15,
+   "fieldPosition2Y": 45.4,
+   "homeScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 1136,
+    "displayValue": "19'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54147163",
+   "shortText": "Rayan Cherki Shot On Target",
+   "fieldPositionX": 89,
+   "fieldPositionY": 56.6,
+   "fieldPosition2X": 98.9,
+   "fieldPosition2Y": 54,
+   "expectedGoals": 0.385,
+   "goalPositionY": 51,
+   "goalPositionZ": 3.8,
+   "homeScore": 1,
+   "type": {
+    "type": "shot-on-target",
+    "text": "Shot On Target"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 1238,
+    "displayValue": "21'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54147326",
+   "shortText": "Abdukodir Khusanov Shot On Targe",
+   "fieldPositionX": 78.8,
+   "fieldPositionY": 31.1,
+   "fieldPosition2X": 99,
+   "fieldPosition2Y": 49.6,
+   "expectedGoals": 0.025,
+   "goalPositionY": 52.8,
+   "goalPositionZ": 3.8,
+   "homeScore": 1,
+   "type": {
+    "type": "shot-on-target",
+    "text": "Shot On Target"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 1417,
+    "displayValue": "24'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54147513",
+   "shortText": "Rúben Dias Goal Kick",
+   "fieldPositionX": 4.4,
+   "fieldPositionY": 58.2,
+   "fieldPosition2X": 4.2,
+   "fieldPosition2Y": 49.4,
+   "homeScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 1574,
+    "displayValue": "27'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54147619",
+   "shortText": "Iliman Ndiaye Shot Hit Woodwork",
+   "fieldPositionX": 86.5,
+   "fieldPositionY": 33.3,
+   "fieldPosition2X": 100,
+   "fieldPosition2Y": 55.4,
+   "expectedGoals": 0.028,
+   "goalPositionY": 55.4,
+   "goalPositionZ": 1.3,
+   "homeScore": 1,
+   "type": {
+    "type": "shot-hit-woodwork",
+    "text": "Shot Hit Woodwork"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 1668,
+    "displayValue": "28'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54147704",
+   "shortText": "Zion Suzuki Goal Kick",
+   "fieldPositionX": 4.9,
+   "fieldPositionY": 49.6,
+   "fieldPosition2X": 4.3,
+   "fieldPosition2Y": 37.8,
+   "homeScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 1689,
+    "displayValue": "29'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54147874",
+   "shortText": "Victor Lindelöf Goal Kick",
+   "fieldPositionX": 4.9,
+   "fieldPositionY": 38.2,
+   "fieldPosition2X": 4,
+   "fieldPosition2Y": 50.7,
+   "homeScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 1853,
+    "displayValue": "31'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54147891",
+   "shortText": "Marc Guéhi Foul",
+   "fieldPositionX": 21.4,
+   "fieldPositionY": 28.7,
+   "homeScore": 1,
+   "type": {
+    "type": "foul",
+    "text": "Foul"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 1911,
+    "displayValue": "32'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54147949",
+   "shortText": "Marc Guéhi Yellow Card",
+   "yellowCard": true,
+   "homeScore": 1,
+   "type": {
+    "type": "yellow-card",
+    "text": "Yellow Card"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 1914,
+    "displayValue": "32'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54148001",
+   "shortText": "Johan Manzambi Shot Off Target",
+   "fieldPositionX": 81.1,
+   "fieldPositionY": 66.9,
+   "fieldPosition2X": 100,
+   "fieldPosition2Y": 53.3,
+   "expectedGoals": 0.07,
+   "goalPositionY": 53.3,
+   "goalPositionZ": 73.6,
+   "homeScore": 1,
+   "type": {
+    "type": "shot-off-target",
+    "text": "Shot Off Target"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 2018,
+    "displayValue": "34'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54148084",
+   "shortText": "Rúben Dias Goal Kick",
+   "fieldPositionX": 4.8,
+   "fieldPositionY": 56.2,
+   "fieldPosition2X": 4.9,
+   "fieldPosition2Y": 49.2,
+   "homeScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 2036,
+    "displayValue": "34'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54148107",
+   "shortText": "Jérémy Doku Shot Blocked",
+   "fieldPositionX": 86.8,
+   "fieldPositionY": 68.7,
+   "fieldPosition2X": 87.4,
+   "fieldPosition2Y": 67.8,
+   "expectedGoals": 0.027,
+   "goalPositionY": 48.6,
+   "goalPositionZ": 19,
+   "homeScore": 1,
+   "type": {
+    "type": "shot-blocked",
+    "text": "Shot Blocked"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 2109,
+    "displayValue": "36'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54148184",
+   "shortText": "Zion Suzuki Goal Kick",
+   "fieldPositionX": 4.6,
+   "fieldPositionY": 50.7,
+   "fieldPosition2X": 7.7,
+   "fieldPosition2Y": 24.4,
+   "homeScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 2201,
+    "displayValue": "37'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54148434",
+   "shortText": "Rayan Cherki Foul",
+   "fieldPositionX": 61.6,
+   "fieldPositionY": 16.4,
+   "homeScore": 1,
+   "type": {
+    "type": "foul",
+    "text": "Foul"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 2272,
+    "displayValue": "38'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54148435",
+   "shortText": "Rayan Cherki Yellow Card",
+   "yellowCard": true,
+   "homeScore": 1,
+   "type": {
+    "type": "yellow-card",
+    "text": "Yellow Card"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 2276,
+    "displayValue": "38'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54148448",
+   "shortText": "Alysson Shot Blocked",
+   "fieldPositionX": 87.8,
+   "fieldPositionY": 40.1,
+   "fieldPosition2X": 89.2,
+   "fieldPosition2Y": 41.3,
+   "expectedGoals": 0.072,
+   "goalPositionY": 51.2,
+   "goalPositionZ": 19,
+   "homeScore": 1,
+   "type": {
+    "type": "shot-blocked",
+    "text": "Shot Blocked"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 2344,
+    "displayValue": "40'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149614",
+   "shortText": "Ian Maatsen Shot Blocked",
+   "fieldPositionX": 88.3,
+   "fieldPositionY": 67.9,
+   "fieldPosition2X": 89.6,
+   "fieldPosition2Y": 66.3,
+   "expectedGoals": 0.047,
+   "goalPositionY": 53.2,
+   "goalPositionZ": 19,
+   "homeScore": 1,
+   "type": {
+    "type": "shot-blocked",
+    "text": "Shot Blocked"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2765,
+    "displayValue": "47'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149733",
+   "shortText": "Josko Gvardiol Throw In",
+   "fieldPositionX": 26.9,
+   "fieldPositionY": 100,
+   "fieldPosition2X": 52.1,
+   "fieldPosition2Y": 88.5,
+   "homeScore": 1,
+   "type": {
+    "type": "throw-in",
+    "text": "Throw In"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2894,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149734",
+   "shortText": "Erling Haaland Ball touch",
+   "fieldPositionX": 52.5,
+   "fieldPositionY": 89.1,
+   "homeScore": 1,
+   "type": {
+    "type": "ball-touch",
+    "text": "Ball touch"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2897,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149735",
+   "shortText": "Pau Torres Pass",
+   "fieldPositionX": 34.7,
+   "fieldPositionY": 29.1,
+   "fieldPosition2X": 16.3,
+   "fieldPosition2Y": 39.7,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2900,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149736",
+   "shortText": "Zion Suzuki Pass",
+   "fieldPositionX": 15.4,
+   "fieldPositionY": 43.6,
+   "fieldPosition2X": 30.8,
+   "fieldPosition2Y": 37.5,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2903,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149737",
+   "shortText": "Boubacar Kamara Pass",
+   "fieldPositionX": 30.8,
+   "fieldPositionY": 37.5,
+   "fieldPosition2X": 24.2,
+   "fieldPosition2Y": 15.4,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2905,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149740",
+   "shortText": "Victor Lindelöf Pass",
+   "fieldPositionX": 22.9,
+   "fieldPositionY": 13.6,
+   "fieldPosition2X": 42.8,
+   "fieldPosition2Y": 12,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2907,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54151555",
+   "shortText": "Alysson Take On",
+   "fieldPositionX": 31.1,
+   "fieldPositionY": 10.6,
+   "homeScore": 1,
+   "type": {
+    "type": "take-on",
+    "text": "Take On"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2911,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149742",
+   "shortText": "Enzo Fernández Attempted tackle",
+   "fieldPositionX": 69.2,
+   "fieldPositionY": 88.5,
+   "homeScore": 1,
+   "type": {
+    "type": "attempted-tackle",
+    "text": "Attempted tackle"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2911,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149743",
+   "shortText": "Alysson Pass",
+   "fieldPositionX": 37.1,
+   "fieldPositionY": 4.9,
+   "fieldPosition2X": 21.4,
+   "fieldPosition2Y": 14.4,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2912,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149859",
+   "shortText": "Victor Lindelöf Pass",
+   "fieldPositionX": 16,
+   "fieldPositionY": 26.4,
+   "fieldPosition2X": 8.3,
+   "fieldPosition2Y": 54.9,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2917,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149860",
+   "shortText": "Zion Suzuki Pass",
+   "fieldPositionX": 11.4,
+   "fieldPositionY": 55.2,
+   "fieldPosition2X": 12.5,
+   "fieldPosition2Y": 76.6,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2923,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149861",
+   "shortText": "Pau Torres Pass",
+   "fieldPositionX": 12.3,
+   "fieldPositionY": 78,
+   "fieldPosition2X": 28.2,
+   "fieldPosition2Y": 97.3,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2925,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149862",
+   "shortText": "Ian Maatsen Pass",
+   "fieldPositionX": 34.1,
+   "fieldPositionY": 97.3,
+   "fieldPosition2X": 40.5,
+   "fieldPosition2Y": 81.3,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2928,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149863",
+   "shortText": "Elliot Anderson Pass",
+   "fieldPositionX": 56.7,
+   "fieldPositionY": 21.1,
+   "fieldPosition2X": 41.7,
+   "fieldPosition2Y": 39.2,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2931,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149864",
+   "shortText": "Rúben Dias Pass",
+   "fieldPositionX": 40,
+   "fieldPositionY": 38.6,
+   "fieldPosition2X": 16.3,
+   "fieldPosition2Y": 53.7,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2934,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149865",
+   "shortText": "Gianluigi Donnarumma Pass",
+   "fieldPositionX": 14.5,
+   "fieldPositionY": 55.1,
+   "fieldPosition2X": 24.8,
+   "fieldPosition2Y": 52.2,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2938,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149866",
+   "shortText": "Rúben Dias Pass",
+   "fieldPositionX": 24.9,
+   "fieldPositionY": 52.2,
+   "fieldPosition2X": 26.7,
+   "fieldPosition2Y": 14.9,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2939,
+    "displayValue": "49'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149867",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 27.8,
+   "fieldPositionY": 16.2,
+   "fieldPosition2X": 24,
+   "fieldPosition2Y": 49.7,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2942,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149868",
+   "shortText": "Rúben Dias Pass",
+   "fieldPositionX": 25.6,
+   "fieldPositionY": 55.5,
+   "fieldPosition2X": 30.3,
+   "fieldPosition2Y": 70.8,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2946,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149869",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 40,
+   "fieldPositionY": 76.6,
+   "fieldPosition2X": 47.2,
+   "fieldPosition2Y": 94.2,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2949,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149870",
+   "shortText": "Jérémy Doku Take On",
+   "fieldPositionX": 74,
+   "fieldPositionY": 90.3,
+   "homeScore": 1,
+   "type": {
+    "type": "take-on",
+    "text": "Take On"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2958,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149871",
+   "shortText": "Boubacar Kamara Tackle",
+   "fieldPositionX": 26,
+   "fieldPositionY": 9.6,
+   "homeScore": 1,
+   "type": {
+    "type": "tackle",
+    "text": "Tackle"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2958,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149872",
+   "shortText": "Jérémy Doku Pass",
+   "fieldPositionX": 66.5,
+   "fieldPositionY": 91.5,
+   "fieldPosition2X": 59.1,
+   "fieldPosition2Y": 72.2,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2960,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149873",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 60,
+   "fieldPositionY": 66.9,
+   "fieldPosition2X": 86,
+   "fieldPosition2Y": 10.8,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2963,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149874",
+   "shortText": "Iliman Ndiaye Pass",
+   "fieldPositionX": 86.4,
+   "fieldPositionY": 24.5,
+   "fieldPosition2X": 81,
+   "fieldPosition2Y": 35.1,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2969,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149875",
+   "shortText": "Phil Foden Pass",
+   "fieldPositionX": 75,
+   "fieldPositionY": 41.1,
+   "fieldPosition2X": 68.9,
+   "fieldPosition2Y": 45.7,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2971,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149876",
+   "shortText": "Elliot Anderson Pass",
+   "fieldPositionX": 71.8,
+   "fieldPositionY": 41.7,
+   "fieldPosition2X": 80.6,
+   "fieldPosition2Y": 14,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2973,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149877",
+   "shortText": "Iliman Ndiaye Pass",
+   "fieldPositionX": 86.2,
+   "fieldPositionY": 16.6,
+   "fieldPosition2X": 75.4,
+   "fieldPosition2Y": 26.2,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2975,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149878",
+   "shortText": "Elliot Anderson Cross",
+   "fieldPositionX": 77,
+   "fieldPositionY": 22.6,
+   "fieldPosition2X": 100,
+   "fieldPosition2Y": 70.9,
+   "homeScore": 1,
+   "type": {
+    "type": "cross",
+    "text": "Cross"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2977,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149879",
+   "shortText": "Elliot Anderson Out",
+   "fieldPositionX": 101.7,
+   "fieldPositionY": 66.2,
+   "homeScore": 1,
+   "type": {
+    "type": "out",
+    "text": "Out"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2979,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149880",
+   "shortText": "Pau Torres Goal Kick",
+   "fieldPositionX": 4.9,
+   "fieldPositionY": 55,
+   "fieldPosition2X": 2.5,
+   "fieldPosition2Y": 48.1,
+   "homeScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2999,
+    "displayValue": "50'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149881",
+   "shortText": "Zion Suzuki Pass",
+   "fieldPositionX": 4.5,
+   "fieldPositionY": 42.9,
+   "fieldPosition2X": 9.8,
+   "fieldPosition2Y": 17.2,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3002,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149882",
+   "shortText": "Victor Lindelöf Pass",
+   "fieldPositionX": 27.6,
+   "fieldPositionY": 13.9,
+   "fieldPosition2X": 58.5,
+   "fieldPosition2Y": 24.4,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3008,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149883",
+   "shortText": "Alysson Pass",
+   "fieldPositionX": 58.1,
+   "fieldPositionY": 24.4,
+   "fieldPosition2X": 64.2,
+   "fieldPosition2Y": 31.6,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3010,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149884",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 36.5,
+   "fieldPositionY": 71.5,
+   "fieldPosition2X": 31.5,
+   "fieldPosition2Y": 80,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3011,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149885",
+   "shortText": "Josko Gvardiol Pass",
+   "fieldPositionX": 31.6,
+   "fieldPositionY": 81.1,
+   "fieldPosition2X": 13.9,
+   "fieldPosition2Y": 53.7,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3013,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149886",
+   "shortText": "Gianluigi Donnarumma Pass",
+   "fieldPositionX": 12.6,
+   "fieldPositionY": 53.4,
+   "fieldPosition2X": 21,
+   "fieldPosition2Y": 93.7,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3016,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149887",
+   "shortText": "Josko Gvardiol Pass",
+   "fieldPositionX": 26.5,
+   "fieldPositionY": 91.5,
+   "fieldPosition2X": 15.7,
+   "fieldPosition2Y": 75.2,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3019,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149888",
+   "shortText": "Rúben Dias Pass",
+   "fieldPositionX": 15.8,
+   "fieldPositionY": 80.8,
+   "fieldPosition2X": 19.8,
+   "fieldPosition2Y": 91.2,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3021,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149889",
+   "shortText": "Josko Gvardiol Pass",
+   "fieldPositionX": 20,
+   "fieldPositionY": 91.5,
+   "fieldPosition2X": 22.5,
+   "fieldPosition2Y": 79.5,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3023,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149890",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 24.1,
+   "fieldPositionY": 71.2,
+   "fieldPosition2X": 26.3,
+   "fieldPosition2Y": 21.7,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3025,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149891",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 45.8,
+   "fieldPositionY": 26,
+   "fieldPosition2X": 55.7,
+   "fieldPosition2Y": 41.5,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3031,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149892",
+   "shortText": "Phil Foden Pass",
+   "fieldPositionX": 55.7,
+   "fieldPositionY": 38.3,
+   "fieldPosition2X": 56.8,
+   "fieldPosition2Y": 25.8,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3033,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149893",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 58.4,
+   "fieldPositionY": 20.3,
+   "fieldPosition2X": 62.8,
+   "fieldPosition2Y": 8.2,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3034,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149894",
+   "shortText": "Rico Lewis Pass",
+   "fieldPositionX": 63.1,
+   "fieldPositionY": 8,
+   "fieldPosition2X": 52.3,
+   "fieldPosition2Y": 30.3,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3036,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149895",
+   "shortText": "Elliot Anderson Pass",
+   "fieldPositionX": 53.3,
+   "fieldPositionY": 37.1,
+   "fieldPosition2X": 46.9,
+   "fieldPosition2Y": 65.7,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3039,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149896",
+   "shortText": "Rúben Dias Pass",
+   "fieldPositionX": 52.5,
+   "fieldPositionY": 70,
+   "fieldPosition2X": 65.6,
+   "fieldPosition2Y": 90.6,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3043,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149897",
+   "shortText": "Jérémy Doku Take On",
+   "fieldPositionX": 66.7,
+   "fieldPositionY": 92.9,
+   "homeScore": 1,
+   "type": {
+    "type": "take-on",
+    "text": "Take On"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3045,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149898",
+   "shortText": "Matty Cash Tackle",
+   "fieldPositionX": 33.2,
+   "fieldPositionY": 7,
+   "homeScore": 1,
+   "type": {
+    "type": "tackle",
+    "text": "Tackle"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3045,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149899",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 62.5,
+   "fieldPositionY": 82.6,
+   "fieldPosition2X": 58.2,
+   "fieldPosition2Y": 63.2,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3052,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149900",
+   "shortText": "Elliot Anderson Pass",
+   "fieldPositionX": 60.5,
+   "fieldPositionY": 57.2,
+   "fieldPosition2X": 63,
+   "fieldPosition2Y": 39.8,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3056,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149901",
+   "shortText": "Phil Foden Pass",
+   "fieldPositionX": 64,
+   "fieldPositionY": 36.2,
+   "fieldPosition2X": 63.8,
+   "fieldPosition2Y": 19.8,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3058,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149902",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 63.8,
+   "fieldPositionY": 17.5,
+   "fieldPosition2X": 72.3,
+   "fieldPosition2Y": 3.7,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3060,
+    "displayValue": "51'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149903",
+   "shortText": "Iliman Ndiaye Pass",
+   "fieldPositionX": 74,
+   "fieldPositionY": 5.4,
+   "fieldPosition2X": 72.5,
+   "fieldPosition2Y": 24.5,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3063,
+    "displayValue": "52'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149904",
+   "shortText": "João Gomes Pass",
+   "fieldPositionX": 24.1,
+   "fieldPositionY": 71.8,
+   "fieldPosition2X": 33.3,
+   "fieldPosition2Y": 78.6,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3064,
+    "displayValue": "52'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149905",
+   "shortText": "Abdukodir Khusanov Attempted tac",
+   "fieldPositionX": 71.8,
+   "fieldPositionY": 23.5,
+   "homeScore": 1,
+   "type": {
+    "type": "attempted-tackle",
+    "text": "Attempted tackle"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3065,
+    "displayValue": "52'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149906",
+   "shortText": "Nicolas Jackson Pass",
+   "fieldPositionX": 33.1,
+   "fieldPositionY": 75.1,
+   "fieldPosition2X": 34.4,
+   "fieldPosition2Y": 73.5,
+   "homeScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3066,
+    "displayValue": "52'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149907",
+   "shortText": "Phil Foden Blocked Pass",
+   "fieldPositionX": 65.6,
+   "fieldPositionY": 26.5,
+   "homeScore": 1,
+   "type": {
+    "type": "blocked-pass",
+    "text": "Blocked Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3066,
+    "displayValue": "52'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149908",
+   "shortText": "Boubacar Kamara Foul",
+   "fieldPositionX": 27.8,
+   "fieldPositionY": 63.8,
+   "homeScore": 1,
+   "type": {
+    "type": "foul",
+    "text": "Foul"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3069,
+    "displayValue": "52'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149972",
+   "shortText": "Enzo Fernández Free Kick",
+   "fieldPositionX": 73.2,
+   "fieldPositionY": 32.2,
+   "fieldPosition2X": 85.2,
+   "fieldPosition2Y": 16,
+   "homeScore": 1,
+   "type": {
+    "type": "free-kick",
+    "text": "Free Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3113,
+    "displayValue": "52'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149973",
+   "shortText": "Iliman Ndiaye Cross",
+   "fieldPositionX": 93.2,
+   "fieldPositionY": 22.3,
+   "fieldPosition2X": 95.1,
+   "fieldPosition2Y": 51.7,
+   "homeScore": 1,
+   "type": {
+    "type": "cross",
+    "text": "Cross"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3115,
+    "displayValue": "52'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149974",
+   "shortText": "Erling Haaland Aerial",
+   "fieldPositionX": 95.1,
+   "fieldPositionY": 51.7,
+   "homeScore": 1,
+   "type": {
+    "type": "aerial",
+    "text": "Aerial"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3116,
+    "displayValue": "52'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   },
+   "awayScore": 0
+  },
+  {
+   "id": "54149975",
+   "shortText": "Erling Haaland Goal - Header",
+   "scoringPlay": true,
+   "fieldPositionX": 95.1,
+   "fieldPositionY": 51.7,
+   "fieldPosition2X": 100,
+   "fieldPosition2Y": 53.6,
+   "expectedGoals": 0.233,
+   "goalPositionY": 53.6,
+   "goalPositionZ": 10.1,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "goal---header",
+    "text": "Goal - Header"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3117,
+    "displayValue": "52'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54149978",
+   "shortText": "Iliman Ndiaye Assist",
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "assist",
+    "text": "Assist"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3117,
+    "displayValue": "52'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54149979",
+   "shortText": "Nicolas Jackson Pass",
+   "fieldPositionX": 49.8,
+   "fieldPositionY": 50.4,
+   "fieldPosition2X": 22.6,
+   "fieldPosition2Y": 63.3,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3158,
+    "displayValue": "53'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54149980",
+   "shortText": "Pau Torres Pass",
+   "fieldPositionX": 20.8,
+   "fieldPositionY": 64.5,
+   "fieldPosition2X": 7,
+   "fieldPosition2Y": 51.1,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3160,
+    "displayValue": "53'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54149981",
+   "shortText": "Zion Suzuki Pass",
+   "fieldPositionX": 7,
+   "fieldPositionY": 51.1,
+   "fieldPosition2X": 28.9,
+   "fieldPosition2Y": 65.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3162,
+    "displayValue": "53'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54149982",
+   "shortText": "João Gomes Pass",
+   "fieldPositionX": 28.7,
+   "fieldPositionY": 65.5,
+   "fieldPosition2X": 20.8,
+   "fieldPosition2Y": 33,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3164,
+    "displayValue": "53'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54149983",
+   "shortText": "Victor Lindelöf Pass",
+   "fieldPositionX": 22.8,
+   "fieldPositionY": 31.6,
+   "fieldPosition2X": 24,
+   "fieldPosition2Y": 6,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3167,
+    "displayValue": "53'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54149984",
+   "shortText": "Matty Cash Pass",
+   "fieldPositionX": 25.8,
+   "fieldPositionY": 5.1,
+   "fieldPosition2X": 33.1,
+   "fieldPosition2Y": 29.1,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3169,
+    "displayValue": "53'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54149995",
+   "shortText": "Boubacar Kamara Pass",
+   "fieldPositionX": 30.5,
+   "fieldPositionY": 26.1,
+   "fieldPosition2X": 25.4,
+   "fieldPosition2Y": 5.1,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3170,
+    "displayValue": "53'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54149996",
+   "shortText": "Matty Cash Pass",
+   "fieldPositionX": 25.4,
+   "fieldPositionY": 5.1,
+   "fieldPosition2X": 22.2,
+   "fieldPosition2Y": 57.6,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3172,
+    "displayValue": "53'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54149997",
+   "shortText": "Pau Torres Pass",
+   "fieldPositionX": 20.3,
+   "fieldPositionY": 67.9,
+   "fieldPosition2X": 48.2,
+   "fieldPosition2Y": 70.6,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3177,
+    "displayValue": "53'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54149998",
+   "shortText": "Johan Manzambi Ball touch",
+   "fieldPositionX": 47.5,
+   "fieldPositionY": 70.9,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "ball-touch",
+    "text": "Ball touch"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3180,
+    "displayValue": "53'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54149999",
+   "shortText": "Nicolas Jackson Take On",
+   "fieldPositionX": 44.5,
+   "fieldPositionY": 73.6,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "take-on",
+    "text": "Take On"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3182,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150000",
+   "shortText": "John McGinn Attempted tackle",
+   "fieldPositionX": 49.7,
+   "fieldPositionY": 53.4,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "attempted-tackle",
+    "text": "Attempted tackle"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3185,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150001",
+   "shortText": "Iliman Ndiaye Ball touch",
+   "fieldPositionX": 53.8,
+   "fieldPositionY": 35.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "ball-touch",
+    "text": "Ball touch"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3186,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150002",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 60,
+   "fieldPositionY": 63.1,
+   "fieldPosition2X": 66.5,
+   "fieldPosition2Y": 90.6,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3187,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150003",
+   "shortText": "Jérémy Doku Take On",
+   "fieldPositionX": 70.4,
+   "fieldPositionY": 90.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "take-on",
+    "text": "Take On"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3189,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150004",
+   "shortText": "Jérémy Doku Take On",
+   "fieldPositionX": 72,
+   "fieldPositionY": 94.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "take-on",
+    "text": "Take On"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3191,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150005",
+   "shortText": "Matty Cash Tackle",
+   "fieldPositionX": 28,
+   "fieldPositionY": 5.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "tackle",
+    "text": "Tackle"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3191,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150065",
+   "shortText": "Matty Cash Out",
+   "fieldPositionX": 27.4,
+   "fieldPositionY": -1.3,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "out",
+    "text": "Out"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3192,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150066",
+   "shortText": "Josko Gvardiol Throw In",
+   "fieldPositionX": 68.8,
+   "fieldPositionY": 100,
+   "fieldPosition2X": 60.3,
+   "fieldPosition2Y": 84.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "throw-in",
+    "text": "Throw In"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3207,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150067",
+   "shortText": "Rúben Dias Pass",
+   "fieldPositionX": 60.3,
+   "fieldPositionY": 84.5,
+   "fieldPosition2X": 67.4,
+   "fieldPosition2Y": 90.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3208,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150068",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 67.5,
+   "fieldPositionY": 90.5,
+   "fieldPosition2X": 61.2,
+   "fieldPosition2Y": 78,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3210,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150069",
+   "shortText": "Rúben Dias Pass",
+   "fieldPositionX": 59.6,
+   "fieldPositionY": 70.3,
+   "fieldPosition2X": 58.9,
+   "fieldPosition2Y": 20.6,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3213,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150070",
+   "shortText": "Elliot Anderson Pass",
+   "fieldPositionX": 59.9,
+   "fieldPositionY": 18.3,
+   "fieldPosition2X": 66.5,
+   "fieldPosition2Y": 8.6,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3216,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150071",
+   "shortText": "Iliman Ndiaye Take On",
+   "fieldPositionX": 72.4,
+   "fieldPositionY": 6.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "take-on",
+    "text": "Take On"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3220,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150072",
+   "shortText": "Ian Maatsen Tackle",
+   "fieldPositionX": 27.6,
+   "fieldPositionY": 93.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "tackle",
+    "text": "Tackle"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3220,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150073",
+   "shortText": "Iliman Ndiaye Ball touch",
+   "fieldPositionX": 71.4,
+   "fieldPositionY": 4,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "ball-touch",
+    "text": "Ball touch"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3221,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150074",
+   "shortText": "Iliman Ndiaye Attempted tackle",
+   "fieldPositionX": 83.5,
+   "fieldPositionY": 5.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "attempted-tackle",
+    "text": "Attempted tackle"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3224,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150075",
+   "shortText": "Ian Maatsen Pass",
+   "fieldPositionX": 22.8,
+   "fieldPositionY": 96.9,
+   "fieldPosition2X": 28,
+   "fieldPosition2Y": 100,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3229,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150076",
+   "shortText": "Ian Maatsen Out",
+   "fieldPositionX": 28.4,
+   "fieldPositionY": 101,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "out",
+    "text": "Out"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3229,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150125",
+   "shortText": "Johan Manzambi Yellow Card",
+   "yellowCard": true,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "yellow-card",
+    "text": "Yellow Card"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3237,
+    "displayValue": "54'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150126",
+   "shortText": "Rico Lewis Throw In",
+   "fieldPositionX": 73.6,
+   "fieldPosition2X": 66.4,
+   "fieldPosition2Y": 12.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "throw-in",
+    "text": "Throw In"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3261,
+    "displayValue": "55'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150127",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 66.4,
+   "fieldPositionY": 12.6,
+   "fieldPosition2X": 66.1,
+   "fieldPosition2Y": 7.1,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3263,
+    "displayValue": "55'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150128",
+   "shortText": "Rico Lewis Pass",
+   "fieldPositionX": 66.2,
+   "fieldPositionY": 6.9,
+   "fieldPosition2X": 53.4,
+   "fieldPosition2Y": 16.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3265,
+    "displayValue": "55'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150129",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 52.8,
+   "fieldPositionY": 24.6,
+   "fieldPosition2X": 82.6,
+   "fieldPosition2Y": 84.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3269,
+    "displayValue": "55'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150130",
+   "shortText": "Matty Cash Clear",
+   "fieldPositionX": 16.4,
+   "fieldPositionY": 15.7,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "clear",
+    "text": "Clear"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3271,
+    "displayValue": "55'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150131",
+   "shortText": "Josko Gvardiol Pass",
+   "fieldPositionX": 72.9,
+   "fieldPositionY": 94.2,
+   "fieldPosition2X": 66.5,
+   "fieldPosition2Y": 85.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3277,
+    "displayValue": "55'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150132",
+   "shortText": "Rúben Dias Pass",
+   "fieldPositionX": 64.8,
+   "fieldPositionY": 83.5,
+   "fieldPosition2X": 69.1,
+   "fieldPosition2Y": 90.6,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3280,
+    "displayValue": "55'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150133",
+   "shortText": "Matty Cash Attempted tackle",
+   "fieldPositionX": 33.5,
+   "fieldPositionY": 9.6,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "attempted-tackle",
+    "text": "Attempted tackle"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3284,
+    "displayValue": "55'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150134",
+   "shortText": "Matty Cash Foul",
+   "fieldPositionX": 35.6,
+   "fieldPositionY": 18.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "foul",
+    "text": "Foul"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3286,
+    "displayValue": "55'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150135",
+   "shortText": "Matty Cash Yellow Card",
+   "yellowCard": true,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "yellow-card",
+    "text": "Yellow Card"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3295,
+    "displayValue": "55'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150229",
+   "shortText": "Rúben Dias Free Kick",
+   "fieldPositionX": 61.4,
+   "fieldPositionY": 90.5,
+   "fieldPosition2X": 58.9,
+   "fieldPosition2Y": 81.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "free-kick",
+    "text": "Free Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3316,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150230",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 58.8,
+   "fieldPositionY": 80.3,
+   "fieldPosition2X": 52.9,
+   "fieldPosition2Y": 54.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3318,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150231",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 52.8,
+   "fieldPositionY": 52.9,
+   "fieldPosition2X": 57.1,
+   "fieldPosition2Y": 50.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3318,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150232",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 58.1,
+   "fieldPositionY": 40,
+   "fieldPosition2X": 69.3,
+   "fieldPosition2Y": 3.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3320,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150233",
+   "shortText": "Iliman Ndiaye Pass",
+   "fieldPositionX": 74.1,
+   "fieldPositionY": 12,
+   "fieldPosition2X": 76.6,
+   "fieldPosition2Y": 16.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3327,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150234",
+   "shortText": "Phil Foden Pass",
+   "fieldPositionX": 76.9,
+   "fieldPositionY": 20.3,
+   "fieldPosition2X": 66.9,
+   "fieldPosition2Y": 22.9,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3328,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150235",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 66.2,
+   "fieldPositionY": 24,
+   "fieldPosition2X": 70.4,
+   "fieldPosition2Y": 9.7,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3330,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150236",
+   "shortText": "Elliot Anderson Pass",
+   "fieldPositionX": 70.4,
+   "fieldPositionY": 9.7,
+   "fieldPosition2X": 64.6,
+   "fieldPosition2Y": 23.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3331,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150237",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 64.8,
+   "fieldPositionY": 28.3,
+   "fieldPosition2X": 59.7,
+   "fieldPosition2Y": 70.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3333,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150238",
+   "shortText": "Rúben Dias Pass",
+   "fieldPositionX": 59.8,
+   "fieldPositionY": 71.8,
+   "fieldPosition2X": 69.6,
+   "fieldPosition2Y": 92.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3335,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150239",
+   "shortText": "Jérémy Doku Pass",
+   "fieldPositionX": 76.6,
+   "fieldPositionY": 80.6,
+   "fieldPosition2X": 92,
+   "fieldPosition2Y": 66.3,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3340,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150241",
+   "shortText": "Josko Gvardiol Shot On Target",
+   "fieldPositionX": 92.6,
+   "fieldPositionY": 65.8,
+   "fieldPosition2X": 98.6,
+   "fieldPosition2Y": 54.3,
+   "expectedGoals": 0.229,
+   "goalPositionY": 51.2,
+   "goalPositionZ": 31,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "shot-on-target",
+    "text": "Shot On Target"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3342,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150240",
+   "shortText": "Jérémy Doku Assists Shot",
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "assists-shot",
+    "text": "Assists Shot"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3342,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150242",
+   "shortText": "Zion Suzuki Save",
+   "fieldPositionX": 1.9,
+   "fieldPositionY": 49.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "save",
+    "text": "Save"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3343,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150243",
+   "fieldPositionX": 97.4,
+   "fieldPositionY": 45,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "corner-awarded",
+    "text": "Corner Awarded"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3346,
+    "displayValue": "56'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150285",
+   "shortText": "Phil Foden Cross",
+   "fieldPositionX": 99.6,
+   "fieldPositionY": 0.5,
+   "fieldPosition2X": 91.5,
+   "fieldPosition2Y": 58.6,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "cross",
+    "text": "Cross"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3374,
+    "displayValue": "57'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150286",
+   "shortText": "Rúben Dias Foul",
+   "fieldPositionX": 91.6,
+   "fieldPositionY": 54.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "foul",
+    "text": "Foul"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3376,
+    "displayValue": "57'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150287",
+   "shortText": "Pau Torres Free Kick",
+   "fieldPositionX": 12.7,
+   "fieldPositionY": 57.3,
+   "fieldPosition2X": 62,
+   "fieldPosition2Y": 29.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "free-kick",
+    "text": "Free Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3395,
+    "displayValue": "57'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150288",
+   "shortText": "Rúben Dias Aerial",
+   "fieldPositionX": 38,
+   "fieldPositionY": 70.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "aerial",
+    "text": "Aerial"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3398,
+    "displayValue": "57'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150289",
+   "shortText": "Rúben Dias Clear",
+   "fieldPositionX": 38,
+   "fieldPositionY": 70.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "clear",
+    "text": "Clear"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3399,
+    "displayValue": "57'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150290",
+   "shortText": "Alysson Ball touch",
+   "fieldPositionX": 60.8,
+   "fieldPositionY": 28,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "ball-touch",
+    "text": "Ball touch"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3400,
+    "displayValue": "57'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150291",
+   "shortText": "Alysson Foul",
+   "fieldPositionX": 60.8,
+   "fieldPositionY": 24.4,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "foul",
+    "text": "Foul"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3401,
+    "displayValue": "57'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150292",
+   "shortText": "Rúben Dias Free Kick",
+   "fieldPositionX": 32.6,
+   "fieldPositionY": 76,
+   "fieldPosition2X": 37.9,
+   "fieldPosition2Y": 64.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "free-kick",
+    "text": "Free Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3411,
+    "displayValue": "57'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150293",
+   "shortText": "Elliot Anderson Pass",
+   "fieldPositionX": 39.1,
+   "fieldPositionY": 60,
+   "fieldPosition2X": 34.1,
+   "fieldPosition2Y": 41.7,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3414,
+    "displayValue": "57'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150294",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 34.3,
+   "fieldPositionY": 39.5,
+   "fieldPosition2X": 44.1,
+   "fieldPosition2Y": 21.7,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3415,
+    "displayValue": "57'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150295",
+   "shortText": "Rico Lewis Pass",
+   "fieldPositionX": 54.1,
+   "fieldPositionY": 16.3,
+   "fieldPosition2X": 68.3,
+   "fieldPosition2Y": 5.1,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3419,
+    "displayValue": "57'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150296",
+   "shortText": "Iliman Ndiaye Cross",
+   "fieldPositionX": 93.7,
+   "fieldPositionY": 22.8,
+   "fieldPosition2X": 96.6,
+   "fieldPosition2Y": 52.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "cross",
+    "text": "Cross"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3425,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150297",
+   "shortText": "Zion Suzuki Pass",
+   "fieldPositionX": 13,
+   "fieldPositionY": 47.4,
+   "fieldPosition2X": 25.6,
+   "fieldPosition2Y": 91.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3433,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150298",
+   "shortText": "Ian Maatsen Pass",
+   "fieldPositionX": 25.6,
+   "fieldPositionY": 91.2,
+   "fieldPosition2X": 22.3,
+   "fieldPosition2Y": 70.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3435,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150299",
+   "shortText": "João Gomes Pass",
+   "fieldPositionX": 15.7,
+   "fieldPositionY": 82,
+   "fieldPosition2X": 18.9,
+   "fieldPosition2Y": 91.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3440,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150300",
+   "shortText": "Ian Maatsen Pass",
+   "fieldPositionX": 18.9,
+   "fieldPositionY": 91.8,
+   "fieldPosition2X": 6.9,
+   "fieldPosition2Y": 85.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3441,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150363",
+   "shortText": "Pau Torres Pass",
+   "fieldPositionX": 6.9,
+   "fieldPositionY": 84.6,
+   "fieldPosition2X": 67.8,
+   "fieldPosition2Y": 98.4,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3443,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150364",
+   "shortText": "Abdukodir Khusanov Clear",
+   "fieldPositionX": 36.1,
+   "fieldPositionY": 5.1,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "clear",
+    "text": "Clear"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3448,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150365",
+   "shortText": "Johan Manzambi Pass",
+   "fieldPositionX": 53.6,
+   "fieldPositionY": 86.8,
+   "fieldPosition2X": 69.7,
+   "fieldPosition2Y": 91.8,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3451,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150366",
+   "shortText": "Rico Lewis Ball touch",
+   "fieldPositionX": 45.2,
+   "fieldPositionY": 10.6,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "ball-touch",
+    "text": "Ball touch"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3452,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150367",
+   "shortText": "Johan Manzambi Ball touch",
+   "fieldPositionX": 60.6,
+   "fieldPositionY": 96,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "ball-touch",
+    "text": "Ball touch"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3453,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150368",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 36.7,
+   "fieldPositionY": 6,
+   "fieldPosition2X": 44.3,
+   "fieldPosition2Y": 4.3,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3453,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150369",
+   "shortText": "Johan Manzambi Out",
+   "fieldPositionX": 53.5,
+   "fieldPositionY": 101.3,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "out",
+    "text": "Out"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3455,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150370",
+   "shortText": "Rico Lewis Throw In",
+   "fieldPositionX": 43.1,
+   "fieldPosition2X": 45.7,
+   "fieldPosition2Y": 10.9,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "throw-in",
+    "text": "Throw In"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3480,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150371",
+   "shortText": "João Gomes Pass",
+   "fieldPositionX": 57.2,
+   "fieldPositionY": 78.7,
+   "fieldPosition2X": 63.4,
+   "fieldPosition2Y": 79,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3480,
+    "displayValue": "58'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150372",
+   "shortText": "John McGinn Take On",
+   "fieldPositionX": 62.6,
+   "fieldPositionY": 79.3,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "take-on",
+    "text": "Take On"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3481,
+    "displayValue": "59'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150373",
+   "shortText": "Abdukodir Khusanov Tackle",
+   "fieldPositionX": 37.4,
+   "fieldPositionY": 20.7,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "tackle",
+    "text": "Tackle"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3481,
+    "displayValue": "59'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150374",
+   "shortText": "Iliman Ndiaye Pass",
+   "fieldPositionX": 44.3,
+   "fieldPositionY": 10.8,
+   "fieldPosition2X": 40.1,
+   "fieldPosition2Y": 21.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3485,
+    "displayValue": "59'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150375",
+   "shortText": "Elliot Anderson Pass",
+   "fieldPositionX": 42.8,
+   "fieldPositionY": 27.1,
+   "fieldPosition2X": 67.1,
+   "fieldPosition2Y": 91.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3487,
+    "displayValue": "59'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150377",
+   "shortText": "Jérémy Doku Shot Off Target",
+   "fieldPositionX": 80.6,
+   "fieldPositionY": 58.3,
+   "fieldPosition2X": 100,
+   "fieldPosition2Y": 42.5,
+   "expectedGoals": 0.084,
+   "goalPositionY": 42.5,
+   "goalPositionZ": 9.7,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "shot-off-target",
+    "text": "Shot Off Target"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3496,
+    "displayValue": "59'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150376",
+   "shortText": "Elliot Anderson Assists Shot",
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "assists-shot",
+    "text": "Assists Shot"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3496,
+    "displayValue": "59'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150378",
+   "shortText": "Jérémy Doku Out",
+   "fieldPositionX": 100.8,
+   "fieldPositionY": 38.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "out",
+    "text": "Out"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3498,
+    "displayValue": "59'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150526",
+   "shortText": "Ibrahim Mbaye Substitution",
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "substitution",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3535,
+    "displayValue": "59'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150514",
+   "shortText": "Pau Torres Goal Kick",
+   "fieldPositionX": 5,
+   "fieldPositionY": 59.7,
+   "fieldPosition2X": 3.7,
+   "fieldPosition2Y": 50.4,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3549,
+    "displayValue": "60'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150515",
+   "shortText": "Zion Suzuki Pass",
+   "fieldPositionX": 6.7,
+   "fieldPositionY": 55.5,
+   "fieldPosition2X": 52.8,
+   "fieldPosition2Y": 74.1,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3558,
+    "displayValue": "60'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150516",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 47.9,
+   "fieldPositionY": 28.6,
+   "fieldPosition2X": 57,
+   "fieldPosition2Y": 10.3,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3562,
+    "displayValue": "60'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150517",
+   "shortText": "Iliman Ndiaye Pass",
+   "fieldPositionX": 58,
+   "fieldPositionY": 9.1,
+   "fieldPosition2X": 69.7,
+   "fieldPosition2Y": 25.5,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3564,
+    "displayValue": "60'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150518",
+   "shortText": "Pau Torres Pass",
+   "fieldPositionX": 31.3,
+   "fieldPositionY": 67.5,
+   "fieldPosition2X": 30.9,
+   "fieldPosition2Y": 53.2,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3567,
+    "displayValue": "60'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150519",
+   "shortText": "Boubacar Kamara Pass",
+   "fieldPositionX": 30.2,
+   "fieldPositionY": 48,
+   "fieldPosition2X": 22.1,
+   "fieldPosition2Y": 26.4,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3569,
+    "displayValue": "60'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150520",
+   "shortText": "Matty Cash Pass",
+   "fieldPositionX": 19.7,
+   "fieldPositionY": 32.7,
+   "fieldPosition2X": 26.5,
+   "fieldPosition2Y": 81,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3574,
+    "displayValue": "60'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150521",
+   "shortText": "Pau Torres Pass",
+   "fieldPositionX": 31,
+   "fieldPositionY": 70.9,
+   "fieldPosition2X": 47,
+   "fieldPosition2Y": 45.7,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3582,
+    "displayValue": "60'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150522",
+   "shortText": "Nicolas Jackson Pass",
+   "fieldPositionX": 47.5,
+   "fieldPositionY": 42.7,
+   "fieldPosition2X": 82.9,
+   "fieldPosition2Y": 10.9,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3584,
+    "displayValue": "60'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150523",
+   "shortText": "Ibrahim Mbaye Pass",
+   "fieldPositionX": 92.8,
+   "fieldPositionY": 24.1,
+   "fieldPosition2X": 84.5,
+   "fieldPosition2Y": 45.7,
+   "homeScore": 1,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3589,
+    "displayValue": "60'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150525",
+   "shortText": "Nicolas Jackson Goal",
+   "scoringPlay": true,
+   "fieldPositionX": 84.5,
+   "fieldPositionY": 45.7,
+   "fieldPosition2X": 100,
+   "fieldPosition2Y": 50.2,
+   "expectedGoals": 0.178,
+   "goalPositionY": 50.2,
+   "goalPositionZ": 7,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "goal",
+    "text": "Goal"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3591,
+    "displayValue": "60'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150524",
+   "shortText": "Ibrahim Mbaye Assist",
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "assist",
+    "text": "Assist"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3591,
+    "displayValue": "60'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150599",
+   "shortText": "Erling Haaland Pass",
+   "fieldPositionX": 50.6,
+   "fieldPositionY": 50.2,
+   "fieldPosition2X": 38.8,
+   "fieldPosition2Y": 52.2,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3663,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150688",
+   "shortText": "Phil Foden Pass",
+   "fieldPositionX": 39.3,
+   "fieldPositionY": 54.8,
+   "fieldPosition2X": 33.1,
+   "fieldPosition2Y": 59.8,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3664,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150689",
+   "shortText": "Rúben Dias Pass",
+   "fieldPositionX": 32.8,
+   "fieldPositionY": 60,
+   "fieldPosition2X": 42.8,
+   "fieldPosition2Y": 78.5,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3665,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150690",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 43.9,
+   "fieldPositionY": 57.4,
+   "fieldPosition2X": 52.4,
+   "fieldPosition2Y": 47.2,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3668,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150691",
+   "shortText": "Phil Foden Pass",
+   "fieldPositionX": 52,
+   "fieldPositionY": 47.2,
+   "fieldPosition2X": 44,
+   "fieldPosition2Y": 50.6,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3669,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150692",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 43.6,
+   "fieldPositionY": 50.3,
+   "fieldPosition2X": 44.6,
+   "fieldPosition2Y": 20,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3670,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150693",
+   "shortText": "Abdukodir Khusanov Pass",
+   "fieldPositionX": 44.7,
+   "fieldPositionY": 15.5,
+   "fieldPosition2X": 57.2,
+   "fieldPosition2Y": 5.7,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3672,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150694",
+   "shortText": "Iliman Ndiaye Pass",
+   "fieldPositionX": 57.2,
+   "fieldPositionY": 8.2,
+   "fieldPosition2X": 53.1,
+   "fieldPosition2Y": 18.5,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3675,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150695",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 53.3,
+   "fieldPositionY": 18.3,
+   "fieldPosition2X": 80.7,
+   "fieldPosition2Y": 21.1,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3676,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150696",
+   "shortText": "Pau Torres Pass",
+   "fieldPositionX": 14.9,
+   "fieldPositionY": 88.5,
+   "fieldPosition2X": 17.7,
+   "fieldPosition2Y": 88.6,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3681,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150697",
+   "shortText": "Rico Lewis Blocked Pass",
+   "fieldPositionX": 82.3,
+   "fieldPositionY": 11.4,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "blocked-pass",
+    "text": "Blocked Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3681,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150698",
+   "shortText": "Iliman Ndiaye Pass",
+   "fieldPositionX": 66.5,
+   "fieldPositionY": 6.8,
+   "fieldPosition2X": 65.1,
+   "fieldPosition2Y": 12.6,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3684,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150699",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 64.7,
+   "fieldPositionY": 13.4,
+   "fieldPosition2X": 66.8,
+   "fieldPosition2Y": 3.1,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3686,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150700",
+   "shortText": "Iliman Ndiaye Take On",
+   "fieldPositionX": 68.8,
+   "fieldPositionY": 2.4,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "take-on",
+    "text": "Take On"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3687,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150701",
+   "shortText": "Johan Manzambi Tackle",
+   "fieldPositionX": 31.2,
+   "fieldPositionY": 97.6,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "tackle",
+    "text": "Tackle"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3687,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150703",
+   "shortText": "Johan Manzambi Out",
+   "fieldPositionX": 28.3,
+   "fieldPositionY": 101.5,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "out",
+    "text": "Out"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3688,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150704",
+   "shortText": "Iliman Ndiaye Throw In",
+   "fieldPositionX": 67.2,
+   "fieldPosition2X": 62.2,
+   "fieldPosition2Y": 7.7,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "throw-in",
+    "text": "Throw In"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3697,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150705",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 58.8,
+   "fieldPositionY": 17.8,
+   "fieldPosition2X": 42.2,
+   "fieldPosition2Y": 54.8,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3699,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150706",
+   "shortText": "Rúben Dias Pass",
+   "fieldPositionX": 50.2,
+   "fieldPositionY": 54.3,
+   "fieldPosition2X": 71.5,
+   "fieldPosition2Y": 6,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3707,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150707",
+   "shortText": "Iliman Ndiaye Pass",
+   "fieldPositionX": 71.5,
+   "fieldPositionY": 6.5,
+   "fieldPosition2X": 87.1,
+   "fieldPosition2Y": 15.8,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3710,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150708",
+   "shortText": "Rico Lewis Pass",
+   "fieldPositionX": 91.5,
+   "fieldPositionY": 20.9,
+   "fieldPosition2X": 86.1,
+   "fieldPosition2Y": 44.8,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3714,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150709",
+   "shortText": "João Gomes Clear",
+   "fieldPositionX": 10.8,
+   "fieldPositionY": 61.3,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "clear",
+    "text": "Clear"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3714,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150710",
+   "shortText": "Josko Gvardiol Dispossessed",
+   "fieldPositionX": 82,
+   "fieldPositionY": 48.4,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "dispossessed",
+    "text": "Dispossessed"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3717,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150711",
+   "shortText": "Boubacar Kamara Tackle",
+   "fieldPositionX": 18,
+   "fieldPositionY": 51.6,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "tackle",
+    "text": "Tackle"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3717,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150712",
+   "shortText": "John McGinn Aerial",
+   "fieldPositionX": 22.6,
+   "fieldPositionY": 36.8,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "aerial",
+    "text": "Aerial"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3718,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150713",
+   "shortText": "John McGinn Clear",
+   "fieldPositionX": 21.5,
+   "fieldPositionY": 38.4,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "clear",
+    "text": "Clear"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3718,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150714",
+   "shortText": "Enzo Fernández Pass",
+   "fieldPositionX": 72.5,
+   "fieldPositionY": 33.8,
+   "fieldPosition2X": 77.7,
+   "fieldPosition2Y": 11.5,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "pass",
+    "text": "Pass"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3720,
+    "displayValue": "62'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150718",
+   "shortText": "Pau Torres Goal Kick",
+   "fieldPositionX": 3.1,
+   "fieldPositionY": 59.8,
+   "fieldPosition2X": 3,
+   "fieldPosition2Y": 48.4,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3751,
+    "displayValue": "63'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54150848",
+   "shortText": "Josko Gvardiol Shot Off Target",
+   "fieldPositionX": 91.8,
+   "fieldPositionY": 45.8,
+   "fieldPosition2X": 100,
+   "fieldPosition2Y": 73.3,
+   "expectedGoals": 0.056,
+   "goalPositionY": 73.3,
+   "goalPositionZ": 8.3,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "shot-off-target",
+    "text": "Shot Off Target"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3892,
+    "displayValue": "65'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54150978",
+   "shortText": "Pau Torres Goal Kick",
+   "fieldPositionX": 4.4,
+   "fieldPositionY": 56.5,
+   "fieldPosition2X": 3.1,
+   "fieldPosition2Y": 48.1,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3910,
+    "displayValue": "66'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54151169",
+   "shortText": "Josko Gvardiol Shot On Target",
+   "fieldPositionX": 92.6,
+   "fieldPositionY": 51,
+   "fieldPosition2X": 94.2,
+   "fieldPosition2Y": 50.7,
+   "expectedGoals": 0.394,
+   "goalPositionY": 49.8,
+   "goalPositionZ": 7.6,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "shot-on-target",
+    "text": "Shot On Target"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4069,
+    "displayValue": "68'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54151248",
+   "shortText": "Pau Torres Goal Kick",
+   "fieldPositionX": 4.9,
+   "fieldPositionY": 61,
+   "fieldPosition2X": 3.8,
+   "fieldPosition2Y": 51.4,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4164,
+    "displayValue": "70'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54151480",
+   "shortText": "Zion Suzuki Goal Kick",
+   "fieldPositionX": 3.8,
+   "fieldPositionY": 45.4,
+   "fieldPosition2X": 69.5,
+   "fieldPosition2Y": 81.7,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4398,
+    "displayValue": "74'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54151557",
+   "shortText": "Elliot Anderson Foul",
+   "fieldPositionX": 45.6,
+   "fieldPositionY": 22.2,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "foul",
+    "text": "Foul"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4403,
+    "displayValue": "74'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54151558",
+   "shortText": "Elliot Anderson Yellow Card",
+   "yellowCard": true,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "yellow-card",
+    "text": "Yellow Card"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4410,
+    "displayValue": "74'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54151737",
+   "shortText": "Ryan McAidoo Foul",
+   "fieldPositionX": 45.8,
+   "fieldPositionY": 31,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "foul",
+    "text": "Foul"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4542,
+    "displayValue": "76'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54151738",
+   "shortText": "Ryan McAidoo Yellow Card",
+   "yellowCard": true,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "yellow-card",
+    "text": "Yellow Card"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4545,
+    "displayValue": "76'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54152002",
+   "shortText": "Pau Torres Goal Kick",
+   "fieldPositionX": 5,
+   "fieldPositionY": 53.2,
+   "fieldPosition2X": 3.6,
+   "fieldPosition2Y": 48.6,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4658,
+    "displayValue": "78'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54152100",
+   "shortText": "Pau Torres Goal Kick",
+   "fieldPositionX": 5.2,
+   "fieldPositionY": 52.5,
+   "fieldPosition2X": 3.8,
+   "fieldPosition2Y": 48,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4725,
+    "displayValue": "79'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54152614",
+   "shortText": "Brian Madjo Foul",
+   "fieldPositionX": 65.4,
+   "fieldPositionY": 58,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "foul",
+    "text": "Foul"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4970,
+    "displayValue": "83'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54152615",
+   "shortText": "Brian Madjo Yellow Card",
+   "yellowCard": true,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "yellow-card",
+    "text": "Yellow Card"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4975,
+    "displayValue": "83'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54152768",
+   "shortText": "Phil Foden Shot Blocked",
+   "fieldPositionX": 79.4,
+   "fieldPositionY": 61.3,
+   "fieldPosition2X": 85.2,
+   "fieldPosition2Y": 58.8,
+   "expectedGoals": 0.043,
+   "goalPositionY": 52.7,
+   "goalPositionZ": 19,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "shot-blocked",
+    "text": "Shot Blocked"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5153,
+    "displayValue": "86'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54152860",
+   "shortText": "Gianluigi Donnarumma Goal Kick",
+   "fieldPositionX": 4.4,
+   "fieldPositionY": 46,
+   "fieldPosition2X": 9.8,
+   "fieldPosition2Y": 69.2,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5219,
+    "displayValue": "87'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54153145",
+   "shortText": "Erling Haaland Shot Blocked",
+   "fieldPositionX": 92.3,
+   "fieldPositionY": 46.2,
+   "fieldPosition2X": 97.8,
+   "fieldPosition2Y": 46.9,
+   "expectedGoals": 0.087,
+   "goalPositionY": 47.2,
+   "goalPositionZ": 19,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "shot-blocked",
+    "text": "Shot Blocked"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5323,
+    "displayValue": "89'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54153243",
+   "shortText": "Jérémy Doku Shot Off Target",
+   "fieldPositionX": 90.3,
+   "fieldPositionY": 65.2,
+   "fieldPosition2X": 100,
+   "fieldPosition2Y": 60.7,
+   "expectedGoals": 0.049,
+   "goalPositionY": 60.7,
+   "goalPositionZ": 18.1,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "shot-off-target",
+    "text": "Shot Off Target"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5331,
+    "displayValue": "89'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54153245",
+   "shortText": "Zion Suzuki Goal Kick",
+   "fieldPositionX": 5,
+   "fieldPositionY": 53.5,
+   "fieldPosition2X": 95.6,
+   "fieldPosition2Y": 100,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5361,
+    "displayValue": "90'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54153367",
+   "shortText": "Zion Suzuki Goal Kick",
+   "fieldPositionX": 4.7,
+   "fieldPositionY": 46,
+   "fieldPosition2X": 71.7,
+   "fieldPosition2Y": 26.2,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5400,
+    "displayValue": "90'+1'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54153499",
+   "shortText": "Gianluigi Donnarumma Goal Kick",
+   "fieldPositionX": 4.6,
+   "fieldPositionY": 58.8,
+   "fieldPosition2X": 13.5,
+   "fieldPosition2Y": 60.6,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5400,
+    "displayValue": "90'+2'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54153513",
+   "shortText": "Erling Haaland Shot On Target",
+   "fieldPositionX": 91.3,
+   "fieldPositionY": 46,
+   "fieldPosition2X": 98.2,
+   "fieldPosition2Y": 48.4,
+   "expectedGoals": 0.08,
+   "goalPositionY": 45.7,
+   "goalPositionZ": 7,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "shot-on-target",
+    "text": "Shot On Target"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5400,
+    "displayValue": "90'+3'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54153762",
+   "shortText": "Gianluigi Donnarumma Goal Kick",
+   "fieldPositionX": 5,
+   "fieldPositionY": 45.5,
+   "fieldPosition2X": 14,
+   "fieldPosition2Y": 62.9,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "goal-kick",
+    "text": "Goal Kick"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5400,
+    "displayValue": "90'+4'"
+   },
+   "team": {
+    "$ref": "/teams/382"
+   }
+  },
+  {
+   "id": "54153769",
+   "shortText": "Emiliano Buendía Foul",
+   "fieldPositionX": 59,
+   "fieldPositionY": 93.6,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "foul",
+    "text": "Foul"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5400,
+    "displayValue": "90'+5'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  },
+  {
+   "id": "54153802",
+   "shortText": "Emiliano Buendía Yellow Card",
+   "yellowCard": true,
+   "homeScore": 2,
+   "awayScore": 1,
+   "type": {
+    "type": "yellow-card",
+    "text": "Yellow Card"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5400,
+    "displayValue": "90'+5'"
+   },
+   "team": {
+    "$ref": "/teams/362"
+   }
+  }
+ ]
+}

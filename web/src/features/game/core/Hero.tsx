@@ -42,6 +42,12 @@ export interface HeroProps {
   readonly liveSecond?: string | null;
   /** Live football or NBA: who has the ball. */
   readonly possession?: Side | null;
+  /** NBA: a shot in the air (the ball dims, still the shooting team's). */
+  readonly possessionInAir?: boolean;
+  /** A state chip beside the live clock (CLUTCH: the last five minutes, within five). */
+  readonly chip?: string | null;
+  /** A line under the status in any state ("Agg 3–2 · Pens 4–3"). */
+  readonly note?: string | null;
   readonly staleSince: number | null;
   /** The spoken summary, the page's heading. */
   readonly spoken: string;
@@ -57,7 +63,7 @@ export interface HeroProps {
   readonly tuckRef?: React.Ref<HTMLDivElement>;
 }
 
-export function Hero({ event, palette, scores, beats, surface, clockFallback, clock, liveSecond, possession, staleSince, spoken, caption, trophy = null, badge = null, heroRef, tuckRef }: HeroProps) {
+export function Hero({ event, palette, scores, beats, surface, clockFallback, clock, liveSecond, possession, possessionInAir = false, chip = null, note = null, staleSince, spoken, caption, trophy = null, badge = null, heroRef, tuckRef }: HeroProps) {
   const glint = useRef<HTMLSpanElement>(null);
   const level = useSettings((s) => s.celebrationLevel);
   const reduce = useReducedMotion();
@@ -83,7 +89,7 @@ export function Hero({ event, palette, scores, beats, surface, clockFallback, cl
         <h1 className="visually-hidden">{spoken}</h1>
         {caption ? <p className={styles.caption}>{caption}</p> : null}
         <div className={styles.scoreboard}>
-          <TeamColumn event={event} c={event.content.top} color={palette.top} hasBall={possession === "top"} trophy={trophy === "top" ? beats.trophies : null} />
+          <TeamColumn event={event} c={event.content.top} color={palette.top} hasBall={possession === "top"} inAir={possessionInAir} trophy={trophy === "top" ? beats.trophies : null} />
           <div className={styles.center}>
             {scores.top != null || scores.bottom != null ? (
               <span className={styles.score}>
@@ -92,9 +98,10 @@ export function Hero({ event, palette, scores, beats, surface, clockFallback, cl
                 <BeatScore value={scores.bottom} live={live} dimmed={stepsBack(event, event.content.bottom)} pops={beats.pops.bottom} color={palette.bottom} active={surface === "hero"} />
               </span>
             ) : null}
-            <HeroStatus event={event} clock={clock ?? event.clock} stale={staleSince != null} fallback={clockFallback} second={liveSecond ?? null} ticking={surface === "hero"} />
+            <HeroStatus event={event} clock={clock ?? event.clock} stale={staleSince != null} fallback={clockFallback} second={liveSecond ?? null} ticking={surface === "hero"} chip={chip} />
+            {note ? <span className={styles.note}>{note}</span> : null}
           </div>
-          <TeamColumn event={event} c={event.content.bottom} color={palette.bottom} hasBall={possession === "bottom"} trophy={trophy === "bottom" ? beats.trophies : null} />
+          <TeamColumn event={event} c={event.content.bottom} color={palette.bottom} hasBall={possession === "bottom"} inAir={possessionInAir} trophy={trophy === "bottom" ? beats.trophies : null} />
         </div>
       </div>
     ) : event.content.kind === "field" ? (
@@ -213,7 +220,7 @@ function Trophy({ bounces }: { bounces: number }) {
   );
 }
 
-function TeamColumn({ event, c, color, hasBall, trophy }: { event: ScoreEvent; c: Competitor; color: string; hasBall: boolean; trophy: number | null }) {
+function TeamColumn({ event, c, color, hasBall, inAir = false, trophy = null }: { event: ScoreEvent; c: Competitor; color: string; hasBall: boolean; inAir?: boolean; trophy?: number | null }) {
   const following = useIsFollowing(c.id);
   const glow = color === NEUTRAL ? "var(--viz-neutral)" : color;
   const g = (pct: number) => `color-mix(in srgb, ${glow} ${pct}%, transparent)`;
@@ -234,7 +241,7 @@ function TeamColumn({ event, c, color, hasBall, trophy }: { event: ScoreEvent; c
         ) : (
           name
         )}
-        {hasBall ? <Icon name={event.ref?.kind === "espn" && event.ref.sport === "basketball" ? "basketball" : "football"} size={8} className={styles.ball} label="Has the ball" /> : null}
+        {hasBall ? <Icon name={event.ref?.kind === "espn" && event.ref.sport === "basketball" ? "basketball" : "football"} size={8} className={styles.ball} label={inAir ? "Shot in the air" : "Has the ball"} style={{ opacity: inAir ? 0.55 : 1, transition: "opacity var(--dur-fade) var(--ease-out)" }} /> : null}
         {trophy != null ? <Trophy bounces={trophy} /> : null}
         {c.id ? (
           <button
@@ -269,7 +276,7 @@ const dayStart = (ms: number) => {
 };
 
 /** Live: the dot and clock (or the inning). Scheduled: a countdown inside a day, then the day and time. Final: the word and the date. */
-function HeroStatus({ event, clock, stale, fallback, second, ticking }: { event: ScoreEvent; clock: GameClock | null; stale: boolean; fallback: string; second: string | null; ticking: boolean }) {
+function HeroStatus({ event, clock, stale, fallback, second, ticking, chip = null }: { event: ScoreEvent; clock: GameClock | null; stale: boolean; fallback: string; second: string | null; ticking: boolean; chip?: string | null }) {
   const soon = event.state === "scheduled" && event.start - Date.now() < 86_400_000;
   // The countdown ticks while the hero is the scoreboard on screen (the bar ticks instead).
   const now = useNow(soon && ticking ? 1000 : 30_000, event.state === "scheduled");
@@ -278,7 +285,14 @@ function HeroStatus({ event, clock, stale, fallback, second, ticking }: { event:
       return (
         <div className={styles.status}>
           {/* Breathes only while the hero is the scoreboard on screen (the bar's dot takes over). */}
-          <LiveStatus clock={clock} fallback={fallback} size={11.5} animated={!stale && ticking} />
+          <span className={styles.liveLine}>
+            <LiveStatus clock={clock} fallback={fallback} size={11.5} animated={!stale && ticking} />
+            {chip ? (
+              <span className={styles.chip} title={chip === "CLUTCH" ? "Last 5 minutes, within 5 points" : undefined}>
+                {chip}
+              </span>
+            ) : null}
+          </span>
           {second ? <span className={styles.statusSecond}>{second}</span> : null}
         </div>
       );
