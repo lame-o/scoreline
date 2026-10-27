@@ -41,6 +41,12 @@ extension ScorelineTests {
               && Statcast.match(inning: 1, top: false, surname: "diaz", in: atBats)?.batter == "Yandy Díaz",
               "the right half-inning only, accents and case aside")
 
+        check(Statcast.match(inning: 3, top: false, surname: "Mesa Jr", in: atBats)?.batter == "Victor Mesa Jr."
+              && Statcast.match(inning: 3, top: false, surname: "Mesa Jr.", in: atBats)?.batter == "Victor Mesa Jr.",
+              "\"Mesa Jr\" and \"Mesa Jr.\" are both Victor Mesa Jr. (periods aside)")
+        check(Statcast.Batted(launchSpeed: 67, launchAngle: -29, distance: 6, trajectory: "ground_ball", spot: nil).line(distance: false) == "67.0 MPH · −29°",
+              "a readout can leave the distance off; a negative angle takes a true minus")
+
         check(Statcast.game(in: JSON(data: schedule), teams: ["Brewers", "Rays"]) == 849804
               && Statcast.game(in: JSON(data: schedule), teams: ["Brewers", "Dodgers"]) == nil,
               "the ESPN game in MLB's schedule, by both teams")

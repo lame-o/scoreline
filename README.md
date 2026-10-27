@@ -60,7 +60,7 @@ xcode-select --install   # if you don't have the Command Line Tools
 
 ## Data and disclaimer
 
-Scores and stats come from public feeds by ESPN, bo3.gg and World Climbing (IFSC), among others. Scoreline is an independent project, not affiliated with or endorsed by any league, team, broadcaster or data provider. Team names and logos belong to their owners. Those feeds aren't official APIs and can change without notice; if something breaks, please [open an issue](https://github.com/lame-o/scoreline/issues).
+Scores and stats come from public feeds by ESPN, MLB (Statcast, via statsapi.mlb.com), bo3.gg and World Climbing (IFSC), among others. Scoreline is an independent project, not affiliated with or endorsed by any league, team, broadcaster or data provider. Team names and logos belong to their owners. Those feeds aren't official APIs and can change without notice; if something breaks, please [open an issue](https://github.com/lame-o/scoreline/issues).
 
 ## License
 
