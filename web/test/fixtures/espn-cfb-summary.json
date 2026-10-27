@@ -1,6 +1,6 @@
 {
  "_source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary?event=401856732",
- "_recorded": "2026-10-27T09:43:21.461Z",
+ "_recorded": "2026-10-27T09:46:17.170Z",
  "header": {
   "id": "401856732",
   "season": {
@@ -352,6 +352,601 @@
       "name": "possessionTime",
       "label": "Possession",
       "displayValue": "34:57"
+     }
+    ]
+   }
+  ],
+  "players": [
+   {
+    "team": {
+     "id": "145"
+    },
+    "statistics": [
+     {
+      "name": "passing",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4911529",
+         "displayName": "Trinidad Chambliss"
+        }
+       }
+      ]
+     },
+     {
+      "name": "rushing",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5084286",
+         "displayName": "Makhi Frazier"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5086388",
+         "displayName": "Kewan Lacy"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5294445",
+         "displayName": "Oscar Bird"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5152158",
+         "displayName": "Deuce Alexander"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4911529",
+         "displayName": "Trinidad Chambliss"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5125900",
+         "displayName": "Joshua Dye"
+        }
+       }
+      ]
+     },
+     {
+      "name": "receiving",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5152158",
+         "displayName": "Deuce Alexander"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079647",
+         "displayName": "Caleb Odom"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4711408",
+         "displayName": "Horatio Fields"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5084286",
+         "displayName": "Makhi Frazier"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870912",
+         "displayName": "Traylon Ray"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5125900",
+         "displayName": "Joshua Dye"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870797",
+         "displayName": "Luke Hasz"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5086388",
+         "displayName": "Kewan Lacy"
+        }
+       }
+      ]
+     },
+     {
+      "name": "fumbles",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5079400",
+         "displayName": "Kam Franklin"
+        }
+       }
+      ]
+     },
+     {
+      "name": "defensive",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5102910",
+         "displayName": "Keaton Thomas"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4708488",
+         "displayName": "Antonio Kite"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870588",
+         "displayName": "Joenel Aguero"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079400",
+         "displayName": "Kam Franklin"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5142694",
+         "displayName": "Tah'j Butler"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870700",
+         "displayName": "Sharif Denson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4918093",
+         "displayName": "Jaylon Braxton"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5139216",
+         "displayName": "Luke Ferrelli"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079347",
+         "displayName": "Jalyn Crawford"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870961",
+         "displayName": "Blake Purchase"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4873763",
+         "displayName": "Nick Cull"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5218778",
+         "displayName": "Will Echoles"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4711408",
+         "displayName": "Horatio Fields"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870967",
+         "displayName": "Suntarine Perkins"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870640",
+         "displayName": "Jamarious Brown"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4917327",
+         "displayName": "Jonathan Maldonado"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5125531",
+         "displayName": "Andy Jaffe"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5218770",
+         "displayName": "Cedrick Beavers"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4685487",
+         "displayName": "Jehiem Oatis"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870975",
+         "displayName": "Jordan Renaud"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5146887",
+         "displayName": "Michai Boireau"
+        }
+       }
+      ]
+     },
+     {
+      "name": "interceptions",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5079347",
+         "displayName": "Jalyn Crawford"
+        }
+       }
+      ]
+     },
+     {
+      "name": "kickReturns",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5079347",
+         "displayName": "Jalyn Crawford"
+        }
+       }
+      ]
+     },
+     {
+      "name": "puntReturns",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5152158",
+         "displayName": "Deuce Alexander"
+        }
+       }
+      ]
+     },
+     {
+      "name": "kicking",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5092504",
+         "displayName": "Lucas Carneiro"
+        }
+       }
+      ]
+     },
+     {
+      "name": "punting",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5294445",
+         "displayName": "Oscar Bird"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "team": {
+     "id": "251"
+    },
+    "statistics": [
+     {
+      "name": "passing",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4870906",
+         "displayName": "Arch Manning"
+        }
+       }
+      ]
+     },
+     {
+      "name": "rushing",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4685268",
+         "displayName": "Raleek Brown"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5141729",
+         "displayName": "Michael Terry III"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5218633",
+         "displayName": "Ryan Wingo"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870906",
+         "displayName": "Arch Manning"
+        }
+       },
+       {
+        "athlete": {
+         "id": "-7619",
+         "displayName": " Team"
+        }
+       }
+      ]
+     },
+     {
+      "name": "receiving",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5218633",
+         "displayName": "Ryan Wingo"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4816104",
+         "displayName": "Michael Masunas"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079613",
+         "displayName": "Emmett Mosley V"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5161011",
+         "displayName": "Jermaine Bishop Jr."
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079376",
+         "displayName": "Cam Coleman"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5203606",
+         "displayName": "Derrek Cooper"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4899367",
+         "displayName": "Ryan Niblett"
+        }
+       }
+      ]
+     },
+     {
+      "name": "fumbles",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4870906",
+         "displayName": "Arch Manning"
+        }
+       }
+      ]
+     },
+     {
+      "name": "defensive",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4922989",
+         "displayName": "Jelani McDonald"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4871044",
+         "displayName": "Derek Williams Jr."
+        }
+       },
+       {
+        "athlete": {
+         "id": "5198245",
+         "displayName": "Graceson Littleton"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4918434",
+         "displayName": "Justin Cryer"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5078162",
+         "displayName": "Bo Mascoe"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4922981",
+         "displayName": "Rasheem Biles"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5293823",
+         "displayName": "Lance Jackson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4868356",
+         "displayName": "Hero Kanu"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079504",
+         "displayName": "Alex January"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5166881",
+         "displayName": "Kade Phillips"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870759",
+         "displayName": "Ian Geffrard"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4921268",
+         "displayName": "Brad Spence"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4950398",
+         "displayName": "Warren Roberson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079732",
+         "displayName": "Zina Umeozulu"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4432552",
+         "displayName": "Darius Snow"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4918129",
+         "displayName": "Colton Vasek"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5141757",
+         "displayName": "Emaree Winston"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5207867",
+         "displayName": "Kosi Okpala"
+        }
+       }
+      ]
+     },
+     {
+      "name": "interceptions",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4918434",
+         "displayName": "Justin Cryer"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4922981",
+         "displayName": "Rasheem Biles"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4922989",
+         "displayName": "Jelani McDonald"
+        }
+       }
+      ]
+     },
+     {
+      "name": "kickReturns",
+      "athletes": []
+     },
+     {
+      "name": "puntReturns",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4899367",
+         "displayName": "Ryan Niblett"
+        }
+       }
+      ]
+     },
+     {
+      "name": "kicking",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5092217",
+         "displayName": "Gianni Spetic"
+        }
+       }
+      ]
+     },
+     {
+      "name": "punting",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5081075",
+         "displayName": "Mac Chiumento"
+        }
+       }
+      ]
      }
     ]
    }

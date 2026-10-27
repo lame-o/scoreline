@@ -327,6 +327,11 @@ function trimFootballSummary(s, { curve = false } = {}) {
     winprobability: (curve ? s.winprobability : s.winprobability?.slice(-3))?.map((w) => pick(w, ["homeWinPercentage", "tiePercentage", "playId"])),
     boxscore: {
       teams: s.boxscore?.teams?.map((t) => ({ team: pick(t.team, ["id", "abbreviation"]), statistics: t.statistics?.map((x) => pick(x, ["name", "label", "displayValue"])) })),
+      // Who played, by name: the page links the names in plays and scoring plays.
+      players: s.boxscore?.players?.map((t) => ({
+        team: pick(t.team, ["id"]),
+        statistics: t.statistics?.map((g) => ({ name: g.name, athletes: g.athletes?.map((a) => ({ athlete: pick(a.athlete, ["id", "displayName", "shortName"]) })) })),
+      })),
     },
     scoringPlays: s.scoringPlays?.map((p) => ({
       ...pick(p, ["id", "text", "awayScore", "homeScore"]),
