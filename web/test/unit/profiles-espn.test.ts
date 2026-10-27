@@ -52,6 +52,7 @@ describe("the athlete overview", () => {
     expect(espn.formatDraft("Undrafted")).toBe("Undrafted");
     expect(espn.cleanStanding("2nd in English Premier League")).toBe("2nd in Premier League");
     expect(espn.cleanStanding("1st in Eastern Conference Division")).toBe("1st in Eastern Conference");
+    expect(espn.cleanStanding("5th in National Football Conference")).toBe("5th in NFC");
   });
 
   it("reads the season table, RotoWire's note and awards", () => {

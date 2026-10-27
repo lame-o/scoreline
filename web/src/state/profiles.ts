@@ -15,7 +15,8 @@
  */
 import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
-import { getJSON, HTTPError } from "../data/http";
+import { HTTPError } from "../data/http";
+import { proxyPath } from "../../shared/upstreams";
 import * as bo3 from "../data/profiles/bo3";
 import * as espn from "../data/profiles/espn";
 import * as fotmob from "../data/profiles/fotmob";
@@ -68,10 +69,21 @@ export const TTL = {
 
 const profileKey = (url: string | null) => ["profile", url ?? ""] as const;
 
+/**
+ * Profiles always read the real feeds, even under the `?demo` harness (whose
+ * stand-in fetcher only knows scoreboards): a team page in a demo shows its
+ * real roster beside the demo's live strip.
+ */
+async function profileFetch(url: string, signal: AbortSignal): Promise<unknown> {
+  const response = await fetch(proxyPath(url), { signal, headers: { Accept: "application/json" } });
+  if (!response.ok) throw new HTTPError(response.status, url);
+  return response.json() as Promise<unknown>;
+}
+
 function profileQuery(url: string | null, ttl: number) {
   return {
     queryKey: profileKey(url),
-    queryFn: ({ signal }: { signal: AbortSignal }) => getJSON(url!, { signal }),
+    queryFn: ({ signal }: { signal: AbortSignal }) => profileFetch(url!, signal),
     enabled: url != null,
     staleTime: ttl,
     gcTime: Math.max(ttl, 30 * 60_000),
@@ -468,9 +480,10 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
     const failedRequest = (q: UseQueryResult<unknown>) => q.isError && !(q.error instanceof HTTPError && q.error.status === 404);
     if (failedRequest(athleteQ!) || (college && failedRequest(coreQ!)) || failedRequest(csPlayerQ!) || failedRequest(climberQ!)) out.add("bio");
     if (overviewQ!.isError) out.add("season");
-    if (gameLogQ!.isError || (gameLogQ!.isSuccess && gameLog == null) || csMatchesQ!.isError) out.add("gameLog");
+    // An empty log (a player yet to appear) is an answer, not a failure: retrying wouldn't help.
+    if (failedRequest(gameLogQ!) || failedRequest(csMatchesQ!)) out.add("gameLog");
     return out;
-  }, [athleteQ, college, coreQ, csPlayerQ, climberQ, overviewQ, gameLogQ, gameLog, csMatchesQ]);
+  }, [athleteQ, college, coreQ, csPlayerQ, climberQ, overviewQ, gameLogQ, csMatchesQ]);
 
   const primary = [athleteQ!, coreQ!, overviewQ!, gameLogQ!, csPlayerQ!, csGeneralQ!, csMatchesQ!, climberQ!];
   const reload = useCallback(() => {

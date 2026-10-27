@@ -158,7 +158,9 @@ export function cleanStanding(text: string): string {
   let t = text;
   for (const nation of ["English ", "Spanish ", "German ", "Italian ", "French "]) t = t.replaceAll(`in ${nation}`, "in ");
   // ESPN files some NBA teams under their conference as if it were a division.
-  return t.replaceAll("in LALIGA", "in LaLiga").replaceAll(" Conference Division", " Conference");
+  t = t.replaceAll("in LALIGA", "in LaLiga").replaceAll(" Conference Division", " Conference");
+  // Web addition: an NFL team between division titles is placed in its conference, spelled out ("5th in National Football Conference").
+  return t.replaceAll("National Football Conference", "NFC").replaceAll("American Football Conference", "AFC");
 }
 
 /** A scoreboard-shaped event, from the team's side. */
