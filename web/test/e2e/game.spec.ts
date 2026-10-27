@@ -60,7 +60,7 @@ for (const size of WIDTHS) {
             (main && main.scrollHeight > main.clientHeight ? main : window).scrollTo(0, 0);
           });
           await page.waitForTimeout(300);
-          const play = page.locator('li[aria-label^="5th, Chourio"]');
+          const play = page.getByRole("button", { name: /^5th, Chourio/ });
           await play.scrollIntoViewIfNeeded();
           await play.hover();
           await expect(page.getByRole("img", { name: /Brewers: \d+ runs/ }).locator('[data-lit="true"]')).toHaveCount(1);

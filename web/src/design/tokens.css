@@ -56,6 +56,8 @@
   --live-text: light-dark(#c70012, #ff7b73);
   --live-wash: light-dark(rgb(255 59 48 / 0.13), rgb(255 69 58 / 0.13));
   --live-pill: light-dark(rgb(255 59 48 / 0.14), rgb(255 69 58 / 0.18));
+  /* A red capsule with white type (the "3 Live" count): deep enough that white reads at 4.5:1. */
+  --live-badge: light-dark(#d42a20, #dc3027);
   --delayed-text: light-dark(#a63700, #ffb340);
   /* A climb in a table or poll (green), deep enough to read; a fall uses --live-text. */
   --up-text: light-dark(#146c2e, #30d158);

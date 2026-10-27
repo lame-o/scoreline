@@ -11,7 +11,8 @@
   height: calc(15 * var(--pt));
   padding: 0 calc(5 * var(--pt));
   border-radius: 999px;
-  background: var(--fill-press);
+  /* Light enough under 9pt secondary ink to read at 4.5:1. */
+  background: var(--fill-hover);
   font-size: calc(9 * var(--pt));
   font-weight: 600;
   letter-spacing: 0.03em;

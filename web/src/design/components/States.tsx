@@ -42,13 +42,16 @@ export interface EmptyStateProps {
   readonly message: string;
   readonly actions?: ReactNode;
   readonly className?: string;
+  /** 1 when the state is the whole page (the split view's empty pane), so the page still has its h1. */
+  readonly level?: 1 | 2;
 }
 
-export function EmptyState({ icon, title, message, actions, className }: EmptyStateProps) {
+export function EmptyState({ icon, title, message, actions, className, level = 2 }: EmptyStateProps) {
+  const Heading = level === 1 ? "h1" : "h2";
   return (
     <div className={[styles.empty, className].filter(Boolean).join(" ")}>
       <Icon name={icon} size={26} className={styles.emptyIcon} />
-      <h2 className={styles.emptyTitle}>{title}</h2>
+      <Heading className={styles.emptyTitle}>{title}</Heading>
       <p className={styles.emptyMessage}>{message}</p>
       {actions ? <div className={styles.actions}>{actions}</div> : null}
     </div>

@@ -112,7 +112,8 @@ export const FoldingDayHeader = memo(function FoldingDayHeader({ day, today, ope
         <span className={styles.foldRow}>
           <DayTitle day={day.day} today={today} />
           <span className={styles.flex} />
-          {open ? null : <span className={styles.count}>{count}</span>}
+          {/* Said once, by the line below. */}
+          {open ? null : <span className={styles.count} aria-hidden="true">{count}</span>}
           <Icon name="chevronRight" size={9} className={styles.chevron} />
         </span>
         {open ? null : (

@@ -31,7 +31,7 @@
 
 /* The live count: a red glass capsule with white type (ScoresView's "3 Live"). */
 .live {
-  background: color-mix(in srgb, var(--live) 88%, transparent);
+  background: color-mix(in srgb, var(--live-badge) 94%, transparent);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   color: var(--on-live);

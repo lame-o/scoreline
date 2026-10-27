@@ -15,14 +15,24 @@ export interface ChipProps {
   readonly children: ReactNode;
   readonly title?: string;
   readonly className?: string;
-  /** Spoken instead of the visible text ("3 games in progress"). */
+  /**
+   * Spoken instead of the visible text ("3 games in progress"). Never a live
+   * region: the list doesn't announce (Announcer: game pages only).
+   */
   readonly label?: string;
 }
 
 export function Chip({ tone = "neutral", children, title, className, label }: ChipProps) {
   return (
-    <span className={[styles.chip, styles[tone], className].filter(Boolean).join(" ")} title={title} role={label ? "status" : undefined} aria-label={label}>
-      {label ? <span aria-hidden="true">{children}</span> : children}
+    <span className={[styles.chip, styles[tone], className].filter(Boolean).join(" ")} title={title}>
+      {label ? (
+        <>
+          <span aria-hidden="true">{children}</span>
+          <span className="visually-hidden">{label}</span>
+        </>
+      ) : (
+        children
+      )}
     </span>
   );
 }

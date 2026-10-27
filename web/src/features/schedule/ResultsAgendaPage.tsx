@@ -289,7 +289,7 @@ function writeBack(key: string, value: number) {
 /** A round's day: its heading, then (All) its leagues, rows identified by place so a step reuses them. */
 function RoundDay({ day, index, scope, mode, columns, detail, fullDetail, details, highlight, onHover, eventFor, today }: { day: AgendaDay; index: number; scope: string; mode: SchedulePageProps["mode"]; columns: number; detail: RowDetail; fullDetail: RowDetail; details: boolean; highlight: Highlight; onHover: (id: string) => void; eventFor: ReturnType<typeof useLiveEvents>["eventFor"]; today: DayKey }) {
   return (
-    <section aria-label={dayID(day.day)}>
+    <section>
       <DayHeader day={day.day} today={today} />
       {day.groups.map((group, g) => (
         <Fragment key={g}>

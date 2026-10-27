@@ -313,8 +313,11 @@ function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams, render
   const spoken = [shortClock(m.clock), m.text, team?.name ?? (name || null), points?.length === 2 ? `${teams[0]?.name ?? names[0]} ${points[0]}, ${teams[1]?.name ?? names[1]} ${points[1]}` : null]
     .filter(Boolean)
     .join(", ");
+  // The list item stays a list item; the row inside is what pins (a button,
+  // unless it holds links), so the list keeps its semantics either way.
   return (
-    <li className={styles.momentRow} data-lit={lit} {...row} aria-label={spoken}>
+    <li className={styles.momentItem} aria-label={row.role ? undefined : spoken}>
+      <div className={styles.momentRow} data-lit={lit} {...row} aria-label={row.role ? spoken : undefined}>
       <span className={styles.momentClock} title={m.clock}>
         {shortClock(m.clock)}
       </span>
@@ -326,6 +329,7 @@ function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams, render
         </span>
       ) : null}
       {score ? <span className={styles.momentScore}>{score}</span> : keepsScoreColumn ? <span className={styles.momentScore} /> : null}
+      </div>
     </li>
   );
 }

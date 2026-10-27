@@ -72,3 +72,18 @@ describe("text contrast", () => {
     }
   }
 });
+
+describe("white on the live badge", () => {
+  // The live count ("3 Live"): white type on a red capsule, at 94% over the page or the sidebar's glass.
+  for (const scheme of ["light", "dark"] as const) {
+    it(`reads at 4.5:1 or better in ${scheme}`, () => {
+      const page = token("page")[scheme];
+      const glass = over(token("glass-fill")[scheme], page);
+      const badge = token("live-badge")[scheme];
+      for (const bg of [page, glass]) {
+        const fill = over([badge[0], badge[1], badge[2], 0.94], bg);
+        expect(contrast([255, 255, 255, 1], fill)).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+  }
+});

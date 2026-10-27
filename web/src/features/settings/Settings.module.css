@@ -364,8 +364,12 @@
   text-align: center;
 }
 
+/* A link inside a sentence says so by more than color (WCAG 1.4.1). */
 .credits a {
   color: var(--accent-text);
+  text-decoration: underline;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 0.15em;
 }
 
 /* The pick list's keyboard highlight wears the accent (LeagueSettingsView's rows). */

@@ -196,7 +196,11 @@ function RefreshButton({ onRefresh }: { onRefresh: () => Promise<void> }) {
   );
 }
 
-/** "Updated just now", re-read every 30 seconds; offline, it leads with a glyph. */
+/**
+ * "Updated just now", re-read every 30 seconds; offline, it leads with a
+ * glyph. Not a live region: the list never announces (Announcer's policy:
+ * game pages only), or a screen reader would hear the minute turn on every page.
+ */
 function Footer({ lastUpdated, offline, fetching }: { lastUpdated: number | null; offline: boolean; fetching: boolean }) {
   const now = useNow(30_000);
   const text =
@@ -204,7 +208,7 @@ function Footer({ lastUpdated, offline, fetching }: { lastUpdated: number | null
   return (
     <footer className={styles.footer}>
       {offline ? <Icon name="wifiSlash" size={9.5} /> : null}
-      <span role="status">{text}</span>
+      <span>{text}</span>
     </footer>
   );
 }

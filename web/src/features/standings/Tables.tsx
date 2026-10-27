@@ -12,7 +12,7 @@
  * labeled with the row in words.
  */
 import { m } from "motion/react";
-import { Fragment, memo, type CSSProperties, type ReactNode } from "react";
+import { createContext, Fragment, memo, useContext, type CSSProperties, type ReactNode } from "react";
 import { Icon, LiveDot, OutlineCrest, TeamLogo, outlineReveal } from "../../design/components";
 import { spring } from "../../design/motion";
 import {
@@ -98,11 +98,15 @@ function ZoneLine({ label, help }: { label: string | null; help?: string }) {
   );
 }
 
+/** A table's groups sit under the page's h1, or under a column's h2 title (GroupColumns): headings never skip a level. */
+const UnderColumnTitle = createContext(false);
+
 function GroupLabel({ title, first }: { title: string; first: boolean }) {
+  const Heading = useContext(UnderColumnTitle) ? "h3" : "h2";
   return (
-    <h3 className={styles.groupLabel} data-first={first}>
+    <Heading className={styles.groupLabel} data-first={first}>
       {title}
-    </h3>
+    </Heading>
   );
 }
 
@@ -444,7 +448,7 @@ export function GroupColumns<R>({ groups, titles = true, render }: { groups: rea
                     {group.title}
                   </h2>
                 ) : null}
-                {render(group)}
+                <UnderColumnTitle.Provider value={titles}>{render(group)}</UnderColumnTitle.Provider>
               </div>
             );
           })}
