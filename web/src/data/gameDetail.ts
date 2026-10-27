@@ -376,10 +376,13 @@ export function eventFromSummary(summary: JSONValue, path: string, sport: Sport,
     const logo = str(at(team, "logo")) ?? str(at(logos.find((l) => arr(at(l, "rel")).includes("default")) ?? logos[0], "href"));
     // The header has no short name: a college team goes by its school ("Michigan"), the rest by name ("Rays").
     const short = str(at(team, "shortDisplayName")) ?? (path.endsWith("college-football") ? str(at(team, "location")) : str(at(team, "name")));
+    // College: the header has the AP rank at game time as `rank`, the scoreboard as `curatedRank`.
+    const rank = num(at(c, "rank"));
     return {
       ...(c as Record<string, unknown>),
       team: { ...(team ?? {}), logo, shortDisplayName: short },
       records: at(c, "records") ?? at(c, "record"),
+      curatedRank: at(c, "curatedRank") ?? (rank != null ? { current: rank } : undefined),
     };
   });
   const seasonType = num(at(header, "season", "type"));

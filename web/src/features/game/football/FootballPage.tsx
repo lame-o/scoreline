@@ -115,9 +115,12 @@ export function useFootballPage(game: GameContext): SportPage {
       </DetailSection>
     );
   }
-  // TODO(football theater): the Mac's play theater (an isometric per-play replay, like MLB's) is
-  // landing on the Mac separately. Port it as `sections.theater`: its slot is in the plan under the
-  // field (data/sections.ts), in one column and in the left column of two.
+  // TODO(football theater): port the Mac's play theater (FootballScene, FootballScript,
+  // FootballTheater and TheaterKit .swift: an isometric replay of each snap, like MLB's). Its slot is
+  // `sections.theater`, under the field in one column and in the left column of two (data/sections.ts);
+  // the Mac draws it inside the Field section, above the drive chart, which is also fine here. Its
+  // parser reads the lane's raw entries (`feed.items`); while it shows, pass `celebrates={false}` to
+  // the field so the theater owns the burst (FootballCelebration.driveChartBursts).
 
   // College: the conference table with AP ranks, and the polls and full standings a click away.
   // Today's table says nothing about a game from another season.

@@ -4,6 +4,8 @@
  * (espn-nfl-core-plays.json: Giants at Texans, won in overtime), served as
  * if live: cut at a cursor, the situation standing on the last play served.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   bigPlay,
@@ -283,5 +285,40 @@ describe("the situation, the clock and the chips", () => {
     expect(yardsText(12)).toBe("+12");
     expect(yardsText(-3)).toBe("−3");
     expect(yardsText(0)).toBeNull();
+  });
+});
+
+/**
+ * Monday Night Football, every play (the Swift app's Tests/Fixtures/
+ * mnf-dal-phi-plays.json, recorded live for the play theater): the lane reads
+ * a whole game the theater will also read, and keeps what its parser needs.
+ */
+describe("a whole game for the play theater (MNF, DAL at PHI)", () => {
+  const mnf = JSON.parse(readFileSync(join(import.meta.dirname, "../../../Tests/Fixtures/mnf-dal-phi-plays.json"), "utf8")) as { home: { id: string; abbreviation: string }; away: { id: string; abbreviation: string }; items: Item[] };
+  const dalPhi: FootballTeams = { topIsHome: false, topID: mnf.away.id, bottomID: mnf.home.id, homeAbbreviation: mnf.home.abbreviation, awayAbbreviation: mnf.away.abbreviation };
+
+  it("places every snap, and keeps each entry whole (spots, down and distance, yardage, type, text, participants, scoring)", async () => {
+    const plays = mnf.items.flatMap((i) => footballPlay(i, dalPhi) ?? []);
+    expect(plays.length).toBeGreaterThan(140);
+    expect(plays.every((p) => p.side != null && p.startX >= 0 && p.startX <= 100 && p.endX >= 0 && p.endX <= 100)).toBe(true);
+    // Dallas visits: 1st & 10 at the PHI 39 is 39 from Philadelphia's (right) goal line, x 61.
+    expect(plays.find((p) => p.id === "401873009145")).toMatchObject({ side: "top", startX: 61, endX: 61, kind: "pass", downDistance: "1st & 10" });
+    const touchdowns = plays.filter((p) => p.scoring === "touchdown");
+    expect(touchdowns.length).toBeGreaterThan(3);
+    expect(touchdowns.every((t) => footballMoment(t)?.kind === "touchdown")).toBe(true);
+
+    const feed = new FootballFeed();
+    const fetcher = async (url: string) => {
+      const last = mnf.items.at(-1)!;
+      if (url.endsWith("/situation")) return { lastPlay: { $ref: `${BASE}/plays/${last.id}` }, yardLine: 35, down: 0, distance: 10 };
+      if (url.endsWith("/status")) return { displayClock: "0:00", period: 4, clock: 0, type: { state: "in" } };
+      const page = Number(/page=(\d+)/.exec(url)?.[1]);
+      return { pageCount: Math.ceil(mnf.items.length / 50), items: mnf.items.slice((page - 1) * 50, page * 50) };
+    };
+    await feed.update(fetcher, { path: "football/nfl", eventID: "401873009", teams: dalPhi });
+    expect(feed.items.length).toBe(mnf.items.length);
+    const kept = feed.items.find((i) => (i as Item).id === "401873009145") as Item;
+    expect(kept).toMatchObject({ statYardage: 0, scoringPlay: false, type: { id: "3" }, start: { down: 1, distance: 10, yardLine: 39 }, end: { yardLine: 39 } });
+    expect((kept.participants as { type: string }[]).map((p) => p.type)).toContain("passer");
   });
 });

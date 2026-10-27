@@ -66,9 +66,11 @@ export interface FootballFieldProps {
   readonly twoMinuteDrill: boolean;
   /** A play's words with its players' names as links. */
   readonly linkText?: (text: string) => ReactNode;
+  /** False when the play theater owns the moment's burst (FootballCelebration.driveChartBursts); the marks still play. */
+  readonly celebrates?: boolean;
 }
 
-export const FootballField = memo(function FootballField({ situation, plays, names, spoken, palette, possession, twoMinuteDrill, linkText }: FootballFieldProps) {
+export const FootballField = memo(function FootballField({ situation, plays, names, spoken, palette, possession, twoMinuteDrill, linkText, celebrates = true }: FootballFieldProps) {
   const moment = useChartMoment("field");
   const level = useSettings((s) => s.celebrationLevel);
   const reduce = useReducedMotion();
@@ -265,7 +267,7 @@ export const FootballField = memo(function FootballField({ situation, plays, nam
           {/* The burst, over the marks, reaching down over the yard numbers to the well's edge. */}
           <div className={styles.stage} style={{ height: `calc(${height + YARD_ROW} * var(--pt))` }}>
             <CelebrationStage
-              moment={stageOrigin ? moment : null}
+              moment={stageOrigin && celebrates ? moment : null}
               origin={stageOrigin ? { x: stageOrigin.x * px, y: stageOrigin.y * px } : null}
               colors={{ primary: color(scoringSide) }}
               direction={((scoringSide === "top" ? -150 : -30) * Math.PI) / 180}
