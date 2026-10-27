@@ -15,7 +15,7 @@
  * A home run's fireworks burst here only when the play theater isn't on the
  * page (it owns them, at the wall).
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { plural } from "../../../data/format";
 import type { BattedBall } from "../../../data/gameDetail";
 import type { Side } from "../../../data/models";
@@ -70,7 +70,7 @@ function geometry(width: number, height: number): Geometry {
   };
 }
 
-export function SprayChart({ balls, palette, topName, bottomName, spokenTop, spokenBottom, celebrates, width }: SprayChartProps) {
+export const SprayChart = memo(function SprayChart({ balls, palette, topName, bottomName, spokenTop, spokenBottom, celebrates, width }: SprayChartProps) {
   const box = useRef<HTMLDivElement>(null);
   const base = useRef<HTMLCanvasElement>(null);
   const lit = useRef<HTMLCanvasElement>(null);
@@ -154,7 +154,7 @@ export function SprayChart({ balls, palette, topName, bottomName, spokenTop, spo
       </ChartFooter>
     </div>
   );
-}
+});
 
 const swatch = (c: string) => (c === NEUTRAL ? "var(--viz-neutral)" : c);
 const ordinalInning = (n: number) => `${n}${["th", "st", "nd", "rd"][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10 < 4 ? n % 10 : 0]} inning`;

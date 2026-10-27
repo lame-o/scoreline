@@ -139,7 +139,7 @@ function Status({ event, clockFallback, stale, ticking }: { event: ScoreEvent; c
     case "live":
       return (
         <span className={styles.statusLive} key="live">
-          <LiveStatus clock={event.ref?.kind === "espn" && event.ref.sport === "baseball" ? null : event.clock} fallback={clockFallback} size={11} animated={!stale} />
+          <LiveStatus clock={event.ref?.kind === "espn" && event.ref.sport === "baseball" ? null : event.clock} fallback={clockFallback} size={11} animated={!stale && ticking} />
         </span>
       );
     case "final":

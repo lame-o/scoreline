@@ -13,7 +13,7 @@
  * - `MomentList`: scoring plays or key events, newest first: time, what
  *   happened, the team's crest, the score after it. Rows pin on click.
  */
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { memo, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
 import { Icon, TeamLogo } from "../../../design/components";
 import type { Broadcaster } from "../../../data/broadcasters";
@@ -42,7 +42,7 @@ export interface LinescoreProps {
   readonly spokenBottom: string;
 }
 
-export function LinescoreGrid({ linescore, topName, bottomName, totals, palette, spokenTop, spokenBottom }: LinescoreProps) {
+export const LinescoreGrid = memo(function LinescoreGrid({ linescore, topName, bottomName, totals, palette, spokenTop, spokenBottom }: LinescoreProps) {
   const split = Math.max(linescore.headers.length - totals, 0);
   const periods = linescore.headers.slice(0, split);
   const totalHeaders = linescore.headers.slice(split);
@@ -107,7 +107,7 @@ export function LinescoreGrid({ linescore, topName, bottomName, totals, palette,
       </div>
     </div>
   );
-}
+});
 
 /** One inning's cell: reads the focus itself, so a hover re-renders one cell, not the grid. */
 function PeriodCell({ value, period, side }: { value: string; period: number; side: Side }) {
@@ -161,7 +161,7 @@ export function spokenLinescore(line: Linescore, totals: number, top: string, bo
 
 // MARK: - Win probability
 
-export function WinProbability({ topShare, draw, topName, bottomName, palette, spokenTop, spokenBottom }: {
+export const WinProbability = memo(function WinProbability({ topShare, draw, topName, bottomName, palette, spokenTop, spokenBottom }: {
   topShare: number;
   draw: number | null;
   topName: string;
@@ -204,7 +204,7 @@ export function WinProbability({ topShare, draw, topName, bottomName, palette, s
       </div>
     </div>
   );
-}
+});
 
 // MARK: - Team stats
 
@@ -213,7 +213,7 @@ export function WinProbability({ topShare, draw, topName, bottomName, palette, s
  * side in full team color, the other side faded; a zero draws nothing. From
  * xlarge, two columns filled row by row in ESPN's order.
  */
-export function StatBars({ stats, palette, spokenTop, spokenBottom }: { stats: readonly Stat[]; palette: TeamPalette; spokenTop: string; spokenBottom: string }) {
+export const StatBars = memo(function StatBars({ stats, palette, spokenTop, spokenBottom }: { stats: readonly Stat[]; palette: TeamPalette; spokenTop: string; spokenBottom: string }) {
   return (
     <ul className={styles.stats}>
       {stats.map((stat) => {
@@ -234,7 +234,7 @@ export function StatBars({ stats, palette, spokenTop, spokenBottom }: { stats: r
       })}
     </ul>
   );
-}
+});
 
 /** Two bars meeting at the share, each a full-width capsule slid into place (a change glides on the compositor). */
 export function SplitBar({ share, palette, topZero = false, bottomZero = false }: { share: number; palette: TeamPalette; topZero?: boolean; bottomZero?: boolean }) {
@@ -262,7 +262,7 @@ export const shortClock = (clock: string) => clock.replace(" Inning", "");
 /** Soccer: the icon already says goal or card, so the row is the player (MomentList.headline). */
 export const headline = (m: DetailMoment) => (["goal", "ownGoal", "yellow", "red"].includes(m.kind) ? shortened(m.text) : m.text);
 
-export function MomentList({ moments, topName, bottomName, topTeam, bottomTeam }: {
+export const MomentList = memo(function MomentList({ moments, topName, bottomName, topTeam, bottomTeam }: {
   moments: readonly DetailMoment[];
   topName: string;
   bottomName: string;
@@ -291,7 +291,7 @@ export function MomentList({ moments, topName, bottomName, topTeam, bottomTeam }
       ))}
     </ul>
   );
-}
+});
 
 function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams }: {
   m: DetailMoment;
@@ -329,7 +329,7 @@ function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams }: {
 
 // MARK: - Latest plays, where to watch, the series
 
-export function LatestPlays({ plays }: { plays: readonly string[] }) {
+export const LatestPlays = memo(function LatestPlays({ plays }: { plays: readonly string[] }) {
   return (
     <ul className={styles.plays}>
       {plays.map((p, i) => (
@@ -337,11 +337,11 @@ export function LatestPlays({ plays }: { plays: readonly string[] }) {
       ))}
     </ul>
   );
-}
+});
 
 const KIND_WORD: Readonly<Record<Broadcaster["kind"], string>> = { tv: "TV", streaming: "Streaming", subscription: "Subscription", radio: "Radio" };
 
-export function WhereToWatch({ broadcasters }: { broadcasters: readonly Broadcaster[] }) {
+export const WhereToWatch = memo(function WhereToWatch({ broadcasters }: { broadcasters: readonly Broadcaster[] }) {
   return (
     <ul className={styles.watch}>
       {broadcasters.map((b) => {
@@ -367,7 +367,7 @@ export function WhereToWatch({ broadcasters }: { broadcasters: readonly Broadcas
       })}
     </ul>
   );
-}
+});
 
 /** "World Series" with "Bracket ›": the postseason bracket, the match's teams ringed (DetailView's `.bracket`). */
 export function SeriesLink({ title, to }: { title: string; to: string }) {

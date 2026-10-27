@@ -105,10 +105,15 @@ export function Hero({ event, palette, scores, beats, surface, clockFallback, li
   return (
     <div className={styles.heroWrap} ref={heroRef}>
       <div className={styles.tuck} ref={tuckRef}>
-        <GlassCard variant="clear" className={styles.card}>
-          {card}
-          <span ref={glint} className={styles.glint} style={{ "--glint": dark ? 0.22 : 0.4 } as React.CSSProperties} aria-hidden="true" />
-        </GlassCard>
+        {/* The glass is a layer behind the card's content, not its container: a breathing live
+            dot on top then never makes the compositor redo the blur under it every frame. */}
+        <div className={styles.card}>
+          <GlassCard variant="clear" className={styles.cardGlass} aria-hidden="true" />
+          <div className={styles.cardContent}>{card}</div>
+          <span className={styles.glintClip} aria-hidden="true">
+            <span ref={glint} className={styles.glint} style={{ "--glint": dark ? 0.22 : 0.4 } as React.CSSProperties} />
+          </span>
+        </div>
         {staleSince != null ? (
           <p className={styles.stale}>
             <Icon name="wifiSlash" size={10} />
@@ -233,7 +238,8 @@ function HeroStatus({ event, stale, fallback, second, ticking }: { event: ScoreE
     case "live":
       return (
         <div className={styles.status}>
-          <LiveStatus clock={event.clock} fallback={fallback} size={11.5} animated={!stale} />
+          {/* Breathes only while the hero is the scoreboard on screen (the bar's dot takes over). */}
+          <LiveStatus clock={event.clock} fallback={fallback} size={11.5} animated={!stale && ticking} />
           {second ? <span className={styles.statusSecond}>{second}</span> : null}
         </div>
       );

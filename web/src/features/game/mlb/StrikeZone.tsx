@@ -10,7 +10,7 @@
  * short of the latest and the focused pitch. A strikeout flashes the zone
  * red and pops strike three; a walk flashes it green.
  */
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { pitchNames, pitchResultWord, type Pitch } from "../../../data/gameDetail";
 import { popScale, sample } from "../../../data/celebrations";
 import { useSettings } from "../../../state/settings";
@@ -39,7 +39,7 @@ export function fittedName(names: readonly string[], room: number): string {
   return names.find((n) => textWidth(n, 11, 600) <= room) ?? names[names.length - 1]!;
 }
 
-export function StrikeZone({ pitches, width }: { pitches: readonly Pitch[]; width: number }) {
+export const StrikeZone = memo(function StrikeZone({ pitches, width }: { pitches: readonly Pitch[]; width: number }) {
   const plot = plotSize(width);
   const store = useLinkedStore();
   const moment = useChartMoment("plate");
@@ -159,7 +159,7 @@ export function StrikeZone({ pitches, width }: { pitches: readonly Pitch[]; widt
       </div>
     </div>
   );
-}
+});
 
 function PitchRow({ pitch, latest, room }: { pitch: Pitch; latest: boolean; room: number }) {
   const row = useLinkedRow({ play: pitch.id }, { pinnable: true });

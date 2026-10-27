@@ -263,7 +263,28 @@
 }
 
 .card {
+  position: relative;
+  border-radius: var(--radius-hero);
+  isolation: isolate;
+}
+
+/* The glint stays inside the card's corners; the glass keeps its shadow. */
+.glintClip {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   overflow: hidden;
+  pointer-events: none;
+}
+
+.cardGlass {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.cardContent {
+  position: relative;
 }
 
 /* The decisive glint: one band of light across the card (a gradient, never a blend or blur). */
