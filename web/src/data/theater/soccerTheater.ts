@@ -14,7 +14,8 @@ import { CameraFrame } from "../mlb/playCamera";
 import type { FieldPoint, Point } from "../mlb/theaterField";
 import { attacksRight, goalOf, isMoment, keepers, parse, Pitch, playID, scored, type SoccerScene, type SoccerTheaterState } from "./soccerScene";
 import { pitchBursts, theaterOwns } from "./goalCelebrationRules";
-import { PitchCamera, type Basis, type SoccerScript } from "./soccerScript";
+import { PitchCamera, PitchFrame, type Basis, type SoccerScript } from "./soccerScript";
+import { TheaterBurst } from "./theaterKit";
 
 export { stampDetail } from "./soccerScene";
 
@@ -23,17 +24,28 @@ export { stampDetail } from "./soccerScene";
 /** The broadcast camera's perspective through a framing, filling the view. */
 export class PitchProjection {
   readonly size: { readonly width: number; readonly height: number };
-  readonly camera: CameraFrame;
+  readonly camera: PitchFrame;
   readonly basis: Basis;
   /** Points per unit of the view's tangent plane. */
   readonly focal: number;
 
-  constructor(size: { readonly width: number; readonly height: number }, camera: CameraFrame = PitchCamera.rest) {
+  constructor(size: { readonly width: number; readonly height: number }, camera: PitchFrame = PitchFrame.rest) {
     this.size = size;
     this.camera = camera;
-    this.basis = PitchCamera.basis(camera);
-    const half = Math.max(camera.span, 1) / 2 / this.basis.distance;
+    this.basis = PitchCamera.basis(camera.camera, camera.angle);
+    const half = Math.max(camera.camera.span, 1) / 2 / this.basis.distance;
     this.focal = Math.max(Math.min(size.height / 2 / half, size.width / 2 / (half * CameraFrame.aspect)), 1);
+  }
+
+  /** Behind which goal the camera is (null: the main camera, in the stand). */
+  get behind(): boolean | null {
+    return this.camera.angle.kind === "behind" ? this.camera.angle.right : null;
+  }
+
+  /** How far a point is from the lens, along its axis: what's further is drawn first. */
+  depth(p: FieldPoint): number {
+    const { eye, forward } = this.basis;
+    return (p.x - eye.x) * forward.x + (p.y - eye.y) * forward.y + (p.z - eye.z) * forward.z;
   }
 
   point(p: FieldPoint): Point {
@@ -108,7 +120,7 @@ export const GoalCelebration = {
       const c = cueFor(moment, { level, reduceMotion, preset: presetFor(height), direction: Math.PI / 2, effects });
       return c && gold && scored(scene) ? { ...c, gold: true } : c;
     };
-    const scale = Math.max(2.2, height / 95);
+    const scale = TheaterBurst.scale(height);
     const bursts: Burst[] = [];
     const side = attacksRight(scene) ? 1.0 : -1.0;
     const net = script.impacts.find((i) => i.kind === "net");

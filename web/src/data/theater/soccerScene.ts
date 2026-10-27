@@ -178,6 +178,8 @@ export interface Touch {
   clock: number;
   /** The other team's: a deflection, a header won, a save. */
   defending: boolean;
+  /** The defending keeper's own: a save, a punch, coming off his line (whether or not the feed has learned his name yet). */
+  keeper: boolean;
 }
 
 /** Where a shot crossed (or would have crossed) the goal line: metres from the near touchline, and up. */
@@ -449,6 +451,13 @@ export function parse(
     const chain = buildUp(plays, index, team, shooter, from, scene.clock, homeTeamID, shot.technique !== "foot", scale);
     scene.touches = chain.touches;
     scene.start = chain.start;
+    // His touches are the keeper's, by name or by what only a keeper does; one the feed
+    // hasn't learned yet is named by them.
+    for (const touch of scene.touches) if (touch.defending && touch.player === scene.keeper.name) touch.keeper = true;
+    if (scene.keeper.name == null) {
+      const his = scene.touches.findLast((t) => t.keeper);
+      if (his && his.player !== "") scene.keeper.name = his.player;
+    }
   }
   return scene;
 }
@@ -494,7 +503,7 @@ export function buildUp(
     if (touches.filter((t) => !t.defending).length >= touchLimit) break;
     const ours = teamID(item) === team;
     const player = name(item) ?? "";
-    const touch: Touch = { kind: "touch", player, at: spot, to: null, lofted: false, clock: time, defending: !ours };
+    const touch: Touch = { kind: "touch", player, at: spot, to: null, lofted: false, clock: time, defending: !ours, keeper: false };
     touch.to = place(item, "fieldPosition2X", "fieldPosition2Y", home, scale);
     const length = touch.to ? Math.hypot(touch.to.x - spot.x, touch.to.y - spot.y) : 0;
     if (ours) {
@@ -578,6 +587,7 @@ export function buildUp(
         case "keeper-sweeper":
         case "challenge":
         case "shield-ball-opp":
+          touch.keeper = keeperOnly(type) || (type === "save" && keeperSave(plays, i));
           touches.push(touch);
           break;
         case "pass":
@@ -648,6 +658,17 @@ export function name(item: JSONValue): string | null {
 /** "…is saved in the bottom left corner by Zion Suzuki (Aston Villa)." → "Zion Suzuki". */
 export function savedBy(text: string): string | null {
   return /saved [^.]*? by ([^(.]+?) \(/.exec(text)?.[1] ?? null;
+}
+
+/** A save entry is the keeper's when the shot just before it was on target; after a block it's the blocker's. */
+export function keeperSave(plays: readonly JSONValue[], index: number): boolean {
+  for (let k = index - 1; k >= Math.max(index - 3, 0); k--) {
+    const item = plays[k];
+    const type = typeOf(item);
+    if (!(type.startsWith("shot-") || type.startsWith("goal") || type.startsWith("penalty"))) continue;
+    return type !== "shot-blocked" || (string(at(item, "text")) ?? "").includes(" saved ");
+  }
+  return false;
 }
 
 export function keeperOnly(type: string): boolean {
@@ -741,6 +762,7 @@ export const SoccerScene = {
   playID,
   name,
   savedBy,
+  keeperSave,
   keeperOnly,
   minute,
   decides,

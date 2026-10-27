@@ -217,7 +217,10 @@ export class SoccerScript {
   settle = 0;
   duration = 0;
   shots: Shot[] = [];
+  /** The main camera's track. */
   camera: CameraFrame[] = [];
+  /** The cut behind the goal for a shot on target. */
+  reverse: Reverse | null = null;
 
   /** The moment's replay. (`new SoccerScript()` is the pitch with nobody on it: no moment yet.) */
   static build(scene: SoccerScene): SoccerScript {
@@ -225,6 +228,7 @@ export class SoccerScript {
     b.buildUp();
     b.strike();
     b.payoff();
+    b.cut();
     b.finish();
     b.headline();
     b.measureStamp();
@@ -249,10 +253,25 @@ export class SoccerScript {
     return Number.isFinite(this.ballGone) ? 1 - Math.min(Math.max((t - this.ballGone) / 0.3, 0), 1) : 1;
   }
 
-  /** The framing at t: the camera's track, held on its last frame once the play has settled. */
-  frame(t: number): CameraFrame {
-    return CameraFollow.frame(this.camera, t) ?? PitchCamera.rest;
+  /** The framing at t: the main camera's track (held on its last frame once the play has settled), or the cut behind the goal. */
+  frame(t: number): PitchFrame {
+    const reverse = this.reverse;
+    if (reverse && t >= reverse.from && t < reverse.until) return new PitchFrame(reverse.frame, { kind: "behind", right: reverse.right });
+    return new PitchFrame(CameraFollow.frame(this.camera, t) ?? PitchCamera.rest);
   }
+}
+
+/**
+ * From just after the strike until the finish has been seen, the replay
+ * cuts to a camera behind the net the shot is going at, held still, as
+ * broadcasts show it; then back to the main camera.
+ */
+export interface Reverse {
+  readonly from: number;
+  readonly until: number;
+  /** Behind the goal on the right (the home team's attack). */
+  readonly right: boolean;
+  frame: CameraFrame;
 }
 
 // MARK: - Building
@@ -266,8 +285,8 @@ export const loftSpeed = 19;
 export const carrySpeed = 8.5;
 /** Off-the-ball runs never look faster than a sprint. */
 export const runSpeed = 9;
-/** The build-up never runs longer than this: a longer move plays faster. */
-export const buildUpLimit = 5.6;
+/** The build-up runs no longer than this, if it can help it: a longer move plays its early passes faster. */
+export const buildUpLimit = 5.0;
 
 interface Mark {
   t: number;
@@ -316,8 +335,9 @@ export class Builder {
     this.keeper = this.actor("defending", scene.keeper.name ?? "keeper", this.keeperSpot(fieldPoint(start), null), "keeper");
   }
 
-  /** The actor for a player, made the first time he's needed. */
-  actor(team: Team, name: string, at: Point, role: Role = "outfield"): number {
+  /** The actor for a player, made the first time he's needed. The keeper is one man, whatever the feed calls him. */
+  actor(team: Team, name: string, at: Point, role: Role = "outfield", keeper = false): number {
+    if (keeper && team === "defending" && [...this.index.values()].includes(this.keeper)) return this.keeper;
     const key = `${team === "attacking" ? "A" : "D"}:${name}`;
     const known = this.index.get(key);
     if (known != null) return known;
@@ -382,22 +402,21 @@ export class Builder {
    */
   buildUp(): void {
     const { scene, script } = this;
-    const touches = scene.touches;
+    const touches = this.shown(scene.touches);
     // A set piece opens on the taker standing over it.
-    let t = scene.start === "openPlay" ? 0.5 : 0.8;
+    let t = scene.start === "openPlay" || touches.length < scene.touches.length ? 0.5 : 0.8;
     if (scene.shot.penalty) t = 1.3;
-    // Planned at full pace first; a long move is then played faster to fit.
-    const plan = this.plannedLength(touches);
-    const pace = plan > buildUpLimit ? buildUpLimit / plan : 1;
+    const paces = this.paces(touches);
     touches.forEach((touch, i) => {
+      const pace = paces[i]!;
       const team: Team = touch.defending ? "defending" : "attacking";
-      const who = this.actor(team, touch.player, touch.at);
+      const who = this.actor(team, touch.player, touch.at, "outfield", touch.keeper);
       const played = t;
       this.mark(who, t, touch.at);
       const following = touches[i + 1];
       const next = following
-        ? { player: following.player, at: following.at, defending: following.defending }
-        : { player: scene.shooter, at: scene.shot.from, defending: scene.outcome === "ownGoal" };
+        ? { player: following.player, at: following.at, defending: following.defending, keeper: following.keeper }
+        : { player: scene.shooter, at: scene.shot.from, defending: scene.outcome === "ownGoal", keeper: false };
       // Played on from where it came to him: at the height it arrived (off a defender's body, a keeper's hands).
       const previous = script.flights[script.flights.length - 1];
       const arrived = previous && this.distance(ground(previous.to), touch.at) < 0.5 ? previous.to.z : 0.11;
@@ -412,7 +431,7 @@ export class Builder {
           // Struck toward where it was aimed; the receiver meets it there.
           const isLofted = touch.lofted || (touch.kind === "restart" && scene.start === "throwIn");
           const d = this.distance(touch.at, aim);
-          const flightTime = this.passTime(d, isLofted) * pace;
+          const flightTime = Math.max(this.passTime(d, isLofted) * pace, this.minimumFlight);
           const from = scene.start === "throwIn" && touch.kind === "restart" ? fieldPoint(touch.at, 2.1) : ball;
           // A cross met first time arrives where it's met: at his head, or a volley's height.
           const met = i + 1 === touches.length && this.distance(aim, scene.shot.from) < 1.5 ? this.strikeHeight : 0.11;
@@ -420,7 +439,7 @@ export class Builder {
           script.flights.push(new Flight(touch.kind === "shot" ? "shot" : "pass", t, t + flightTime, from, to, isLofted ? lofted(this.peak(d, touch.kind === "cross")) : STRAIGHT));
           script.actors[who]!.act(scene.start === "throwIn" && touch.kind === "restart" ? "throwIn" : "kick", t, aim);
           const arrives = t + flightTime;
-          const receiver = this.actor(next.defending ? "defending" : "attacking", next.player, aim);
+          const receiver = this.actor(next.defending ? "defending" : "attacking", next.player, aim, "outfield", next.keeper);
           this.possession.push({ from: t, to: arrives, actors: [who, receiver], flight: script.flights.length - 1 });
           if (sameMan && !next.defending) {
             // Played into space and run onto: he gets there as it does.
@@ -447,10 +466,10 @@ export class Builder {
             // Knocked on to the next man (or off a defender).
             const d = this.distance(touch.at, next.at);
             const isLofted = d > 30;
-            const flightTime = this.passTime(d, isLofted) * pace;
+            const flightTime = Math.max(this.passTime(d, isLofted) * pace, this.minimumFlight);
             script.flights.push(new Flight("pass", t, t + flightTime, ball, fieldPoint(next.at, next.defending ? 0.9 : 0.11), isLofted ? lofted(this.peak(d, false)) : STRAIGHT));
             if (!touch.defending) script.actors[who]!.act("kick", t, next.at);
-            const receiver = this.actor(next.defending ? "defending" : "attacking", next.player, next.at);
+            const receiver = this.actor(next.defending ? "defending" : "attacking", next.player, next.at, "outfield", next.keeper);
             this.possession.push({ from: t, to: t + flightTime, actors: [who, receiver], flight: script.flights.length - 1 });
             t += flightTime;
             this.mark(receiver, t, next.at);
@@ -470,19 +489,56 @@ export class Builder {
     this.mark(this.shooter, script.strike, scene.shot.from);
   }
 
-  /** The move's length at full pace. */
-  plannedLength(touches: readonly Touch[]): number {
-    let total = 0;
-    touches.forEach((touch, i) => {
-      const next = touches[i + 1]?.at ?? this.scene.shot.from;
-      const to = touch.to;
-      if (to != null && touch.kind !== "touch" && touch.kind !== "takeOn" && touch.kind !== "regain") {
-        total += this.passTime(this.distance(touch.at, to), touch.lofted) + this.carryTime(this.distance(to, next));
-      } else {
-        total += this.carryTime(this.distance(touch.at, next)) + 0.1;
-      }
-    });
-    return total;
+  /** One touch's beat at full pace: the ball on to the next man, and his run with it. */
+  length(touches: readonly Touch[], i: number): number {
+    const touch = touches[i]!;
+    const next = touches[i + 1]?.at ?? this.scene.shot.from;
+    const to = touch.to;
+    if (to != null && touch.kind !== "touch" && touch.kind !== "takeOn" && touch.kind !== "regain") {
+      return this.passTime(this.distance(touch.at, to), touch.lofted) + this.carryTime(this.distance(to, next));
+    }
+    return this.carryTime(this.distance(touch.at, next)) + 0.1;
+  }
+
+  /** No pass, however hurried, is quicker than this: it would read as a jump. */
+  readonly minimumFlight = 0.2;
+
+  /**
+   * Each touch's pace, as a broadcast replay cuts a long move: the early
+   * passes hurried (up to about half again the game's pace), the last two
+   * (the ball that made the chance, and its delivery) at full pace, so the
+   * move slows into the finish. Only a short move that's still too long
+   * hurries them too, a little.
+   */
+  paces(touches: readonly Touch[]): number[] {
+    const lengths = touches.map((_, i) => this.length(touches, i));
+    const finish = Math.max(touches.length - 2, 0);
+    const early = lengths.slice(0, finish).reduce((a, b) => a + b, 0);
+    const late = lengths.slice(finish).reduce((a, b) => a + b, 0);
+    const limit = buildUpLimit;
+    if (!(early + late > limit)) return lengths.map(() => 1);
+    const hurried = Math.max((limit - late) / Math.max(early, 0.01), 0.7);
+    const closing = early * hurried + late > limit ? Math.max((limit - early * hurried) / Math.max(late, 0.01), 0.85) : 1;
+    return touches.map((_, i) => (i < finish ? hurried : closing));
+  }
+
+  /**
+   * The move as the replay shows it: a long one picks up a few passes in, as
+   * a broadcast replay does, rather than hurry them all; it keeps its last
+   * three touches at least.
+   */
+  shown(touches: readonly Touch[]): Touch[] {
+    const shown = [...touches];
+    const fits = () => {
+      const paces = this.paces(shown);
+      return shown.reduce((sum, _, i) => sum + this.length(shown, i) * paces[i]!, 0) <= buildUpLimit + 0.01;
+    };
+    while (shown.filter((t) => !t.defending).length > 3 && !fits()) {
+      shown.shift();
+      // A move never opens on the other team's touch.
+      while (shown[0]?.defending === true) shown.shift();
+    }
+    return shown;
   }
 
   /** He runs with it: the ball at his feet. */
@@ -580,7 +636,8 @@ export class Builder {
       stranded = false;
       this.mark(this.keeper, t0, set);
     }
-    const react = s.penalty ? t0 + 0.02 : t0 + 0.1;
+    // He reads it, then goes: a dive takes about half a second, whatever the shot's flight.
+    const react = Math.max(s.penalty ? t0 + 0.02 : t0 + 0.1, script.arrive - 0.55);
     const reachAt = script.arrive;
     const side = this.right ? 1.0 : -1.0;
     if (stranded) {
@@ -765,6 +822,20 @@ export class Builder {
     this.payoffAt = script.arrive + 0.9;
   }
 
+  /**
+   * A shot on target (in, or saved) gets the angle from behind the net: cut
+   * to it a beat after the strike, held until the finish has been seen (the
+   * net bulging, the keeper down with it), then back.
+   */
+  cut(): void {
+    const { scene, script } = this;
+    if (!(scene.outcome === "goal" || scene.outcome === "saved")) return;
+    const from = script.strike + 0.1;
+    const until = script.arrive + (scored(scene) ? 0.95 : 0.8);
+    if (!(until - from > 0.6)) return;
+    script.reverse = { from, until, right: this.right, frame: { x: Pitch.length / 2, y: Pitch.width / 2, span: 12 } };
+  }
+
   lastMark(i: number): Point | null {
     return latestMark(this.marks.get(i))?.at ?? null;
   }
@@ -849,6 +920,8 @@ export class Builder {
     let lastFlight = 0;
     for (const f of script.flights) lastFlight = Math.max(lastFlight, f.end);
     script.stamp = script.arrive + (scored(scene) ? 0.35 : 0.25);
+    // After the angle from behind the goal: the stamp lands back on the main camera.
+    if (script.reverse) script.stamp = Math.max(script.stamp, script.reverse.until + 0.12);
     script.settle = Math.max(lastMove, lastFlight, this.payoffAt + 0.6, script.stamp + 0.6) + 0.5;
     script.duration = script.settle + 0.3;
   }
@@ -957,6 +1030,20 @@ export class Builder {
       }
     }
     script.shots = shots;
+    // The angle from behind the net: the goal, the keeper where he set and where he went, the
+    // shooter when he's close enough to share it (from distance the ball arrives into it), held still.
+    const reverse = script.reverse;
+    if (reverse) {
+      const rooms = frame.slice(0, 4).map((p) => room(p, false));
+      rooms.push(room(fieldPoint(script.actors[this.keeper]!.position(script.strike)), true));
+      const dive = script.actors[this.keeper]!.dive;
+      if (dive) rooms.push(room(dive.target, false));
+      if (script.shot != null) rooms.push(room(script.flights[script.shot]!.to, false));
+      const near = this.distance(scene.shot.from, goal) < 20;
+      const from = near ? fieldPoint(scene.shot.from) : (script.ball(reverse.from + 0.25) ?? fieldPoint(scene.shot.from));
+      rooms.push(room(from, near));
+      reverse.frame = PitchCamera.fitting(rooms, CameraFrame.bannerRoom, 9, NO_CORNER, false, [], { kind: "behind", right });
+    }
     const banners = script.banners;
     const stamp = script.stamp;
     const corner = script.corner;
@@ -984,8 +1071,12 @@ export class Builder {
       }
       const shot = shots[k]!;
       const rooms = shot.rooms(script, t, goal);
-      const stamped = t >= stamp - 0.3;
-      return PitchCamera.fitting(rooms, band(t), shot.closest, stamped ? corner : NO_CORNER, cornerRight);
+      // (Behind the cut from behind the goal, the main camera makes room for the stamp unseen.)
+      if (!(t >= Math.min(stamp - 0.3, reverse?.from ?? Infinity))) return PitchCamera.fitting(rooms, band(t), shot.closest);
+      // The stamp never sits on anyone in view, in the play or not (a teammate running to the scorer).
+      const everyone = script.actors.flatMap((a) => [t, t + 0.3].map((u) => room(fieldPoint(a.position(u)), true)));
+      // (A little more than the stamp's corner: someone walking into it is out again before the camera catches up.)
+      return PitchCamera.fitting(rooms, band(t), shot.closest, { width: corner.width + 0.03, height: corner.height + 0.04 }, cornerRight, everyone);
     });
   }
 }
@@ -1025,6 +1116,38 @@ export class Basis {
   }
 }
 
+/** Which camera: the main one, high in the stand on the near side; or the one behind a goal, low over the net, looking out at the shot. */
+export type Angle = { readonly kind: "stand" } | { readonly kind: "behind"; readonly right: boolean };
+
+export const STAND: Angle = { kind: "stand" };
+
+/** What the soccer theater shows at an instant: a framing, through the main camera or the one behind a goal. */
+export class PitchFrame {
+  constructor(
+    readonly camera: CameraFrame,
+    readonly angle: Angle = STAND,
+  ) {}
+
+  get x(): number {
+    return this.camera.x;
+  }
+  get y(): number {
+    return this.camera.y;
+  }
+  get span(): number {
+    return this.camera.span;
+  }
+
+  /** Between moments: the whole pitch from the halfway line. */
+  static get rest(): PitchFrame {
+    return new PitchFrame(PitchCamera.rest);
+  }
+
+  static equal(a: PitchFrame, b: PitchFrame): boolean {
+    return CameraFrame.equal(a.camera, b.camera) && a.angle.kind === b.angle.kind && (a.angle.kind === "stand" || (b.angle.kind === "behind" && a.angle.right === b.angle.right));
+  }
+}
+
 /** Something that must stay in frame: a figure (with room for his height above his feet) or a ball or a goal's corner. */
 export interface Room {
   readonly point: FieldPoint;
@@ -1053,13 +1176,20 @@ export const PitchCamera = {
   /** The tightest framing (metres top to bottom) and the widest (the whole pitch). */
   tightest: 8.0,
   widest: 80.0,
+  /** The camera behind a goal: back from the goal line, and up (over the bar). */
+  behindBack: 13.0,
+  behindHeight: 6.5,
 
-  eye(frame: CameraFrame): Vec3 {
+  eye(frame: CameraFrame, angle: Angle = STAND): Vec3 {
+    if (angle.kind === "behind") {
+      // In the stand behind the goal, a little toward the side the play is on.
+      return { x: angle.right ? Pitch.length + PitchCamera.behindBack : -PitchCamera.behindBack, y: Pitch.width / 2 + (frame.y - Pitch.width / 2) * 0.35, z: PitchCamera.behindHeight };
+    }
     return { x: Pitch.length / 2 + (frame.x - Pitch.length / 2) * PitchCamera.travel, y: -PitchCamera.back, z: PitchCamera.height };
   },
 
-  basis(frame: CameraFrame): Basis {
-    const eye = PitchCamera.eye(frame);
+  basis(frame: CameraFrame, angle: Angle = STAND): Basis {
+    const eye = PitchCamera.eye(frame, angle);
     const lx = frame.x - eye.x;
     const ly = frame.y - eye.y;
     const lz = 0 - eye.z;
@@ -1098,10 +1228,19 @@ export const PitchCamera = {
   /**
    * The framing that fits `items` in a view twice as wide as tall, under
    * `headroom`, no tighter than `closest` metres top to bottom, and (with a
-   * `corner`) keeping them out of the stamp's corner: it slides the least it
-   * can, or widens.
+   * `corner`) keeping them, and any of `others` in view, out of the stamp's
+   * corner: it slides the least it can, or widens. Through the main camera,
+   * or the one behind a goal (`angle`).
    */
-  fitting(items: readonly Room[], headroom: number, closest: number, corner: { readonly width: number; readonly height: number } = NO_CORNER, cornerRight = false): CameraFrame {
+  fitting(
+    items: readonly Room[],
+    headroom: number,
+    closest: number,
+    corner: { readonly width: number; readonly height: number } = NO_CORNER,
+    cornerRight = false,
+    others: readonly Room[] = [],
+    angle: Angle = STAND,
+  ): CameraFrame {
     if (items.length === 0) return PitchCamera.rest;
     let x0 = Infinity;
     let x1 = -Infinity;
@@ -1118,9 +1257,8 @@ export const PitchCamera = {
     const margin = CameraFrame.margin;
     const { tightest, widest } = PitchCamera;
     for (let pass = 0; pass < 6; pass++) {
-      const b = PitchCamera.basis(frame);
-      const boxes: { u0: number; u1: number; v0: number; v1: number }[] = [];
-      for (const item of items) {
+      const b = PitchCamera.basis(frame, angle);
+      const box = (item: Room): { u0: number; u1: number; v0: number; v1: number } => {
         const p = item.point;
         const below = item.figure ? 0.3 : 0.5;
         const above = item.figure ? 2.9 : 0.5;
@@ -1143,8 +1281,9 @@ export const PitchCamera = {
           v0 = Math.min(v0, t.v);
           v1 = Math.max(v1, t.v);
         }
-        boxes.push({ u0, u1, v0, v1 });
-      }
+        return { u0, u1, v0, v1 };
+      };
+      const boxes = items.map(box);
       let u0 = Infinity;
       let u1 = -Infinity;
       let v0 = Infinity;
@@ -1161,11 +1300,14 @@ export const PitchCamera = {
       let cu = (u0 + u1) / 2;
       let cv = (v0 + v1) / 2 + (headroom - margin) * h;
       if (corner.width > 0 && corner.height > 0) {
-        for (let k = 0; k < 4; k++) {
+        // Bystanders needn't be in frame, but none may stand in the stamp's corner.
+        const bystanders = others.map(box);
+        for (let k = 0; k < 6; k++) {
           const across = (u: number) => 0.5 + (u - cu) / (2 * h * aspect);
           const upward = (v: number) => 0.5 + (v - cv) / (2 * h);
+          const shown = (b: { u0: number; u1: number; v0: number; v1: number }) => across(b.u1) > 0 && across(b.u0) < 1 && upward(b.v1) > 0 && upward(b.v0) < 1;
           // In the corner: the stamp's side of the view, low down.
-          const inside = boxes.filter((box) => upward(box.v0) < corner.height && (cornerRight ? across(box.u1) > 1 - corner.width : across(box.u0) < corner.width));
+          const inside = [...boxes, ...bystanders.filter(shown)].filter((box) => upward(box.v0) < corner.height && (cornerRight ? across(box.u1) > 1 - corner.width : across(box.u0) < corner.width));
           if (inside.length === 0) break;
           const slide = cornerRight ? Math.max(...inside.map((box) => across(box.u1) - (1 - corner.width))) : Math.max(...inside.map((box) => corner.width - across(box.u0)));
           const raise = Math.max(...inside.map((box) => corner.height - upward(box.v0)));
@@ -1188,7 +1330,7 @@ export const PitchCamera = {
       const s = -b.eye.z / rz;
       const gx = b.eye.x + rx * s;
       const gy = b.eye.y + ry * s;
-      const eye = PitchCamera.eye({ x: gx, y: gy, span: 1 });
+      const eye = PitchCamera.eye({ x: gx, y: gy, span: 1 }, angle);
       const distance = Math.hypot(gx - eye.x, gy - eye.y, 0 - eye.z);
       frame = { x: gx, y: gy, span: Math.min(Math.max(2 * h * distance, closest, tightest), widest) };
     }
