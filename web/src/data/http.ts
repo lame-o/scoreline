@@ -1,11 +1,12 @@
 /**
  * Every network read goes through `getJSON`: it maps the upstream URL onto
- * the `/api/*` proxy (shared/upstreams.ts), checks the status, and parses.
+ * the `/api/*` proxy (shared/upstreams.ts), or straight to a `direct` host,
+ * checks the status, and parses.
  * Providers take a `Fetcher` so tests can replay fixtures without a network.
  *
  *     const board = await fetcher("https://site.api.espn.com/apis/site/v2/sports/nfl/scoreboard", { signal });
  */
-import { proxyPath } from "../../shared/upstreams";
+import { clientRequest } from "../../shared/upstreams";
 
 export type Fetcher = (upstreamURL: string, init?: { signal?: AbortSignal }) => Promise<unknown>;
 
@@ -28,8 +29,8 @@ export function setFetcherOverride(fetcher: Fetcher | null): void {
 /** The app's fetcher: through the proxy, JSON, throws on failure. */
 export const getJSON: Fetcher = async (upstreamURL, init) => {
   if (override) return override(upstreamURL, init);
-  const path = proxyPath(upstreamURL);
-  const response = await fetch(path, { signal: init?.signal, headers: { Accept: "application/json" } });
+  const { href, cache } = clientRequest(upstreamURL);
+  const response = await fetch(href, { signal: init?.signal, cache, headers: { Accept: "application/json" } });
   if (!response.ok) throw new HTTPError(response.status, upstreamURL);
   return response.json() as Promise<unknown>;
 };

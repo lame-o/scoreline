@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CATALOG, LIVE, SCHEDULE, TABLES, proxyPath, resolveProxyPath } from "../../shared/upstreams";
+import { CATALOG, LIVE, SCHEDULE, TABLES, proxyPath, resolveProxyPath, clientRequest } from "../../shared/upstreams";
 import { teamPalette, teamTone, NEUTRAL } from "../../src/data/teamColors";
 
 describe("the upstream allowlist", () => {
@@ -61,5 +61,26 @@ describe("team colors", () => {
   it("sends the second of two near-identical teams to neutral", () => {
     expect(teamPalette("c8102e", "c60c30", "light").bottom).toBe(NEUTRAL);
     expect(teamPalette("c8102e", "0b1c3a", "light").bottom).not.toBe(NEUTRAL);
+  });
+});
+
+describe("client requests", () => {
+  it("fetches ESPN's core and common v3 hosts directly, live feeds past the browser's cache", () => {
+    // Both answer 403 to Cloudflare's network and allow browsers.
+    const situation = "https://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/events/1/competitions/1/situation";
+    expect(clientRequest(situation)).toEqual({ href: situation, cache: "no-store" });
+    const athlete = "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/3112335/overview";
+    expect(clientRequest(athlete)).toEqual({ href: athlete, cache: "default" });
+  });
+
+  it("keeps every other host behind the proxy", () => {
+    expect(clientRequest("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261027")).toEqual({
+      href: "/api/site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261027",
+      cache: "default",
+    });
+  });
+
+  it("still refuses a direct host's paths off the allowlist", () => {
+    expect(() => clientRequest("https://sports.core.api.espn.com/v3/anything")).toThrow();
   });
 });

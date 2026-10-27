@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { UPSTREAMS } from "../../shared/upstreams";
 
 const root = join(import.meta.dirname, "..", "..");
 const headersFile = readFileSync(join(root, "public", "_headers"), "utf8");
@@ -58,7 +59,7 @@ describe("the static assets' headers", () => {
   });
 
   it("keeps data on the app's own origin (the /api proxy) and images on https", () => {
-    expect(csp.get("connect-src")).toEqual(["'self'"]);
+    expect(csp.get("connect-src")).toEqual(["'self'", ...UPSTREAMS.filter((u) => u.direct).map((u) => `https://${u.host}`)]);
     expect(csp.get("img-src")).toEqual(expect.arrayContaining(["'self'", "https:", "data:"]));
   });
 

@@ -3,7 +3,7 @@
 # script hash against index.html's inline theme script: edit one, update the other.
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-xP+w9z/DXpuc4zcg5e+XrkuBk40lCIseUUlmMyhaoiQ='; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self'; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-xP+w9z/DXpuc4zcg5e+XrkuBk40lCIseUUlmMyhaoiQ='; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://sports.core.api.espn.com https://site.web.api.espn.com; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY

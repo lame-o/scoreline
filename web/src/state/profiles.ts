@@ -16,7 +16,7 @@
 import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { HTTPError } from "../data/http";
-import { proxyPath } from "../../shared/upstreams";
+import { clientRequest } from "../../shared/upstreams";
 import * as bo3 from "../data/profiles/bo3";
 import * as espn from "../data/profiles/espn";
 import * as fotmob from "../data/profiles/fotmob";
@@ -75,7 +75,8 @@ const profileKey = (url: string | null) => ["profile", url ?? ""] as const;
  * real roster beside the demo's live strip.
  */
 async function profileFetch(url: string, signal: AbortSignal): Promise<unknown> {
-  const response = await fetch(proxyPath(url), { signal, headers: { Accept: "application/json" } });
+  const { href, cache } = clientRequest(url);
+  const response = await fetch(href, { signal, cache, headers: { Accept: "application/json" } });
   if (!response.ok) throw new HTTPError(response.status, url);
   return response.json() as Promise<unknown>;
 }

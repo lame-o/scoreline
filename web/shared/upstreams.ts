@@ -40,6 +40,13 @@ export interface Upstream {
   readonly prefixes: readonly string[];
   /** Extra request headers the upstream needs. */
   readonly headers?: Readonly<Record<string, string>>;
+  /**
+   * Fetched by the browser itself, not the proxy: the host answers 403 to
+   * Cloudflare's network but serves browsers with `Access-Control-Allow-Origin: *`.
+   * Only for simple GETs (no custom headers, so no preflight, which it refuses).
+   * The entry stays here so paths are still checked and policies still apply.
+   */
+  readonly direct?: true;
   /** First match wins, tested against the path (no query). */
   readonly rules: readonly (readonly [RegExp, CachePolicy])[];
   readonly fallback: CachePolicy;
@@ -65,8 +72,10 @@ export const UPSTREAMS: readonly Upstream[] = [
   },
   {
     // ESPN core API: play-by-play feeds, probabilities, seasons and brackets.
+    // Direct: it refuses Cloudflare's network (403) and allows browsers.
     host: "sports.core.api.espn.com",
     prefixes: ["/v2/"],
+    direct: true,
     rules: [
       [/\/(plays|probabilities|situation|status|drives)(\/.*)?$/, LIVE],
       [/\/seasons\/\d+(\/.*)?$/, SCHEDULE],
@@ -77,8 +86,10 @@ export const UPSTREAMS: readonly Upstream[] = [
   },
   {
     // ESPN common v3: athlete and team profile pages.
+    // Direct: it refuses Cloudflare's network (403) and allows browsers.
     host: "site.web.api.espn.com",
     prefixes: ["/apis/common/v3/"],
+    direct: true,
     rules: [],
     fallback: SCHEDULE,
   },
@@ -183,6 +194,18 @@ export function policyFor(upstream: Upstream, path: string): CachePolicy {
  * not on the allowlist, so a new endpoint fails loudly in development instead
  * of at the Worker.
  */
+/**
+ * Where the client fetches an upstream URL from, and how: the proxy path, or
+ * the upstream itself for a `direct` host, live feeds bypassing the browser's
+ * cache (ESPN marks a live situation cacheable for 15 minutes).
+ */
+export function clientRequest(upstreamURL: string): { readonly href: string; readonly cache: "default" | "no-store" } {
+  const path = proxyPath(upstreamURL);
+  const resolved = resolveProxyPath(path.split("?")[0]!, new URL(upstreamURL).search);
+  if (!resolved?.upstream.direct) return { href: path, cache: "default" };
+  return { href: resolved.url.href, cache: resolved.policy === LIVE ? "no-store" : "default" };
+}
+
 export function proxyPath(upstreamURL: string | URL): string {
   const url = typeof upstreamURL === "string" ? new URL(upstreamURL) : upstreamURL;
   if (url.protocol !== "https:") throw new Error(`Not an https URL: ${url.href}`);
