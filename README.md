@@ -1,4 +1,6 @@
-# Scoreline
+<p align="center"><img src="docs/icon.png" width="128" alt="Scoreline icon"></p>
+
+<h1 align="center">Scoreline</h1>
 
 **Live scores in your Mac's menu bar.** Every pitch, drive, shot and round as it happens, one click away, without a browser tab or a phone.
 
