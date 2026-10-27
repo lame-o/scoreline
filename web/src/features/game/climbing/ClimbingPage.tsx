@@ -22,6 +22,7 @@ import { Accessory, type AccessoryTier } from "../../../data/matchRules";
 import type { Section } from "../../../data/sections";
 import { FLAG_PALETTE } from "../../../data/teams";
 import type { TeamPalette } from "../../../data/teamColors";
+import { queryClient } from "../../../state/scores";
 import { useSettings } from "../../../state/settings";
 import { DetailSection } from "../core/DetailSection";
 import { useCurrentMoment } from "../core/moments";
@@ -46,8 +47,12 @@ export function useClimbingPage(game: GameContext): SportPage {
   const isLive = roundLive(detail, event.state);
   const moment = useCurrentMoment();
 
-  // IFSC updates a climber's score hold by hold: the whole round, every 4 s, while it's live.
-  useFastLane(live && loaded && isLive, LANE_INTERVAL.climbing, async () => game.refresh());
+  // IFSC updates a climber's score hold by hold: the whole round, every 4 s, while it's live. Each
+  // tick waits for its load (joining one already under way), so a slow answer is never cancelled
+  // by the next tick.
+  useFastLane(live && loaded && isLive, LANE_INTERVAL.climbing, async () => {
+    await queryClient.refetchQueries({ queryKey: ["detail", event.id], exact: true }, { cancelRefetch: false });
+  });
 
   // Each refresh against the last (same page, live): the moments since.
   const previous = useRef<GameDetail | null>(null);

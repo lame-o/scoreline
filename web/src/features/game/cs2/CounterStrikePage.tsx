@@ -91,6 +91,8 @@ export function useCounterStrikePage(game: GameContext): SportPage {
   );
 
   // The co-streamer, when bo3.gg lists their own channel among the match's streams (ScoreStore.noteStreams).
+  // TODO(owner): the Mac also reads the channel's Twitch status (live, title, game) and avatar through
+  // decapi.me (CoStream.swift), which isn't an official API, so it isn't on the upstream allowlist.
   const showCoStream = useSettings((s) => s.showCoStream);
   const handle = useSettings((s) => s.coStreamer);
   const coURL = coStreamerURL(handle);
