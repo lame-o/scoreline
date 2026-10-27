@@ -125,7 +125,9 @@ export function useRowKeys(page: RefObject<HTMLElement | null>, keys: RowKeys) {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
       const target = event.target as HTMLElement | null;
       // Menus, radio groups and the like handle their own arrows.
-      if (target?.closest('[role="menu"], [role="radiogroup"], [role="toolbar"]')) return;
+      if (target?.closest('[role="menu"], [role="radiogroup"]')) return;
+      // Beside the scores, keys aimed at the sidebar stay there; otherwise the page in front takes them.
+      if (target?.closest("aside")) return;
       const k = latest.current;
       switch (event.key) {
         case "ArrowDown":
@@ -136,6 +138,7 @@ export function useRowKeys(page: RefObject<HTMLElement | null>, keys: RowKeys) {
           const i = k.highlight.id ? k.rows.indexOf(k.highlight.id) : -1;
           const next = i < 0 ? (delta > 0 ? 0 : k.rows.length - 1) : Math.min(Math.max(i + delta, 0), k.rows.length - 1);
           const id = k.rows[next]!;
+          event.stopPropagation();
           k.setHighlight({ id, keyboard: true });
           page.current?.querySelector<HTMLElement>(`[data-nav-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "nearest", behavior: "instant" as ScrollBehavior });
           return;
@@ -143,6 +146,7 @@ export function useRowKeys(page: RefObject<HTMLElement | null>, keys: RowKeys) {
         case "ArrowLeft":
         case "ArrowRight":
           event.preventDefault();
+          event.stopPropagation();
           k.onStep(event.key === "ArrowRight" ? 1 : -1);
           return;
         case "Enter":
@@ -150,6 +154,7 @@ export function useRowKeys(page: RefObject<HTMLElement | null>, keys: RowKeys) {
           if (target && (target.tagName === "A" || target.tagName === "BUTTON")) return;
           if (k.highlight.id && k.rows.includes(k.highlight.id)) {
             event.preventDefault();
+            event.stopPropagation();
             k.onOpen(k.highlight.id);
           }
           return;
@@ -162,8 +167,9 @@ export function useRowKeys(page: RefObject<HTMLElement | null>, keys: RowKeys) {
           return;
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Capture: the page in front answers before the sidebar's list does.
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [page]);
 }
 
