@@ -112,6 +112,9 @@ describe("display rules", () => {
     expect(rosterSubtitle(p, "football", "offense")).toEqual({ status: "Out until late Nov", rest: "#15 · QB" });
     expect(rosterSubtitle(p, "football", "injuredReserve").status).toBeNull();
     expect(rosterSubtitle(rosterPlayer({ injury: "Day-To-Day" }), "basketball", "bench")).toEqual({ status: "Day-to-day", rest: "#15 · Quarterback" });
+    // CS2: the country's flag, then the real name.
+    const zywoo = rosterPlayer({ jersey: null, detail: "Mathieu Herbaut", ref: playerRef({ source: { kind: "counterStrike", slug: "zywoo" }, id: "1", name: "ZywOo", country: "FR" }) });
+    expect(rosterSubtitle(zywoo, "esports", "players").rest).toBe("🇫🇷 Mathieu Herbaut");
   });
 
   it("adds game-log columns as the block widens, and only ones the log has", () => {

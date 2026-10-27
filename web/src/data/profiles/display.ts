@@ -6,6 +6,7 @@
  * columns as they widen, and a column never moves when others join.
  */
 import type { Sport } from "../models";
+import { flagFromISO } from "../teams";
 import { isFotMobPhoto } from "./photos";
 import type { Bio, PlayerProfile, RosterGroupKind, RosterPlayer, StatTile, TeamRef } from "./models";
 
@@ -97,7 +98,10 @@ export function rosterSubtitle(p: RosterPlayer, sport: Sport, group: RosterGroup
   const parts: string[] = [];
   if (p.jersey) parts.push(`#${p.jersey}`);
   if (sport === "esports") {
-    if (p.detail) parts.push(p.detail);
+    // Web addition: the player's flag before the real name (bo3 sends each player's country with the roster).
+    const flag = flagFromISO(p.ref.country);
+    const real = [flag, p.detail].filter(Boolean).join(" ");
+    if (real) parts.push(real);
   } else if (sport === "soccer") {
     // The group already says the position.
     if (p.detail) parts.push(p.detail);
