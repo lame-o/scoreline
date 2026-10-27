@@ -43,15 +43,18 @@ const frames = (page: Page) => page.evaluate(() => (window as unknown as Probe).
 
 const KEY_FRAMES = {
   football: [
-    ["Touchdown", "2.4"],
-    ["Field goal", "3.1"],
-    ["Deep pass", "2.7"],
-    ["Flag", "1.6"],
+    // The banner, its confetti and the fireworks over the goal line; the formation (heavy, an extra lineman
+    // reported in), a snap off the right hash, the extra point as its own beat.
+    ["Touchdown", "2.2"],
+    ["Run", "0.3"],
+    ["Off the right hash", "0.3"],
+    ["Extra point", "1.8"],
   ],
   soccer: [
-    ["Gabriel", "6.15"],
+    // From behind the net as the header goes in; GOAL back on the main camera; the save from behind; PENALTY.
+    ["Gabriel", "5.9"],
     ["Gabriel", "7.2"],
-    ["Save", "3.0"],
+    ["Save", "2.6"],
     ["Penalty", "0.9"],
   ],
 } as const;
@@ -153,12 +156,26 @@ test.describe("theaters on the live pages", () => {
     expect((await frames(page)) - before).toBeLessThan(60);
   });
 
+  test("football: a touchdown replayed is followed by its extra point, a short beat of its own, then the stage holds still", async ({ page }) => {
+    await page.goto("/dev/theater/football?only=Touchdown");
+    await expect(page.locator("[data-tile] canvas")).toBeVisible({ timeout: 15_000 });
+    // The touchdown and its bursts run about 3.5 s; the try follows after a breath and runs about 3.4 s more.
+    await page.waitForTimeout(4600);
+    const during = await frames(page);
+    await page.waitForTimeout(1000);
+    expect((await frames(page)) - during).toBeGreaterThan(30);
+    await page.waitForTimeout(4500);
+    const settled = await frames(page);
+    await page.waitForTimeout(1500);
+    expect(await frames(page)).toBe(settled);
+  });
+
   for (const [sport, only] of [
-    ["football", "Touchdown"],
+    ["football", "Field goal"],
     ["soccer", "Save"],
   ] as const) {
     test(`${sport}: a replay runs its course, then the stage holds still`, async ({ page }) => {
-      await page.goto(`/dev/theater/${sport}?only=${only}`);
+      await page.goto(`/dev/theater/${sport}?only=${encodeURIComponent(only)}`);
       await expect(page.locator("[data-tile] canvas")).toBeVisible({ timeout: 15_000 });
       await expect.poll(() => frames(page), { timeout: 10_000 }).toBeGreaterThan(60);
       // Settled (its bursts too): not a frame more.

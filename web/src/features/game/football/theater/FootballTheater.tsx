@@ -172,7 +172,10 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
       id: play?.id ?? null,
       news,
       lead: following ? 0.3 : 0,
-      onEnd: setReplayed,
+      // The touchdown's end starts its try; the try's own end changes nothing (the try stays on screen).
+      onEnd: (id) => {
+        if (id === state.play?.id) setReplayed(id);
+      },
       duration: script.duration,
       frozen,
       reduceMotion,
@@ -200,7 +203,7 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
       },
     };
     stage.current?.update(inputs);
-  }, [play, news, following, script, teams, zones, ink, moment, level, reduceMotion, frozen]);
+  }, [play, news, following, state.play, script, teams, zones, ink, moment, level, reduceMotion, frozen]);
 
   return (
     <div className={styles.well} data-theater="football" aria-hidden="true">
