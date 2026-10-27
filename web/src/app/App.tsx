@@ -9,7 +9,7 @@
  *   /results/climbing/:event/:dcat, /results/tournament/:slug   results deeper than a row
  *   /standings/:league      tables; /rankings/:league polls; /bracket/:league/:id brackets
  *   /team/:id, /player/:id  team and player pages (features/profiles; `teamHref`, `playerHref`)
- *   /dev/theater            development only: the play theater's preview
+ *   /dev/theater            development only: the play theater's preview (/football, /soccer: theirs; `?t=` freezes)
  */
 import { QueryClientProvider } from "@tanstack/react-query";
 import { LazyMotion, MotionConfig } from "motion/react";
@@ -42,7 +42,11 @@ const router = createBrowserRouter([
       { path: "player/:id", lazy: () => import("../features/profiles/PlayerPage").then((m) => ({ Component: m.PlayerPage })) },
       // Development only: the play theater on recorded World Series plays (the render harness).
       ...(import.meta.env.DEV
-        ? [{ path: "dev/theater", lazy: () => import("../features/game/mlb/theater/PlayTheaterPreview").then((m) => ({ Component: () => <m.PlayTheaterPreview /> })) }]
+        ? [
+            { path: "dev/theater", lazy: () => import("../features/game/mlb/theater/PlayTheaterPreview").then((m) => ({ Component: () => <m.PlayTheaterPreview /> })) },
+            { path: "dev/theater/football", lazy: () => import("../features/game/football/theater/FootballTheaterPreview").then((m) => ({ Component: m.FootballTheaterPreview })) },
+            { path: "dev/theater/soccer", lazy: () => import("../features/game/soccer/theater/SoccerTheaterPreview").then((m) => ({ Component: m.SoccerTheaterPreview })) },
+          ]
         : []),
       { path: "*", element: <NotFound /> },
     ],
