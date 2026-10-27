@@ -132,7 +132,7 @@ enum TilePlanner {
     /// 2. Nothing live: the next game within 24 hours is large (a followed
     ///    team's if one qualifies, otherwise the soonest).
     /// 3. Everything else is small.
-    static func plan(_ board: ScoreStore.Board, layout: PanelLayout, now: Date = .now) -> [TierPlan] {
+    static func plan(_ board: ScoreStore.Board, layout: PanelLayout, now: Date = AppClock.now) -> [TierPlan] {
         let largeColumns = TileMetrics.largeColumns(layout)
         let budget = TileMetrics.largeBudget(columns: largeColumns)
         let hasLive = board.tiers.contains { $0.kind == .live }

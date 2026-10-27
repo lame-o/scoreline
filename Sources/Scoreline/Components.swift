@@ -252,11 +252,11 @@ struct LiveClockText: View {
     var body: some View {
         if let clock, clock.running, pageLive {
             // Aligned to whole seconds, so every clock on screen ticks in the same frame.
-            TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: 1)) { context in
-                Text(clock.text(at: context.date))
+            TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: AppClock.interval(1))) { context in
+                Text(clock.text(at: AppClock.time(at: context.date)))
             }
         } else if let clock, clock.running {
-            Text(clock.text(at: .now))
+            Text(clock.text(at: AppClock.now))
         } else {
             Text(fallback)
         }

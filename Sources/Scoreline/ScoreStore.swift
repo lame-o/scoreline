@@ -307,9 +307,9 @@ final class ScoreStore {
     }
 
     private var derived: Derived {
-        let minute = Int(Date().timeIntervalSince1970 / 60)
+        let minute = Int(AppClock.now.timeIntervalSince1970 / 60)
         if let cache = derivedCache, cache.version == version, cache.minute == minute { return cache.value }
-        let value = Derived(sections: computeSections(now: .now), quietLeagues: computeQuietLeagues(now: .now),
+        let value = Derived(sections: computeSections(now: AppClock.now), quietLeagues: computeQuietLeagues(now: AppClock.now),
                             liveCount: computeLiveCount())
         derivedCache = (version, minute, value)
         return value
@@ -410,7 +410,7 @@ final class ScoreStore {
 
     /// Memoized like the list, plus the pin (it orders the Live tier).
     var board: Board {
-        let minute = Int(Date().timeIntervalSince1970 / 60)
+        let minute = Int(AppClock.now.timeIntervalSince1970 / 60)
         if let cache = boardCache, cache.version == version, cache.minute == minute, cache.pinned == pinnedID {
             return cache.value
         }
@@ -631,25 +631,25 @@ final class ScoreStore {
     /// Back online (after sleep, or Wi-Fi returning): refresh right away if
     /// the last attempt failed or the data has gone stale.
     private func networkBecameAvailable() {
-        let stale = lastUpdated.map { Date().timeIntervalSince($0) > 60 } ?? true
+        let stale = lastUpdated.map { AppClock.now.timeIntervalSince($0) > 60 } ?? true
         if consecutiveFailures > 0 || stale { startPolling() }
     }
 
     /// Called when the menu opens: refresh only if the data is getting stale.
     func refreshIfStale() {
         guard let last = lastUpdated else { return }
-        if Date().timeIntervalSince(last) > 30 { startPolling() }
+        if AppClock.now.timeIntervalSince(last) > 30 { startPolling() }
     }
 
     private var pollInterval: TimeInterval {
-        if liveCount > 0 { return 30 }
-        let now = Date()
+        if liveCount > 0 { return AppClock.interval(30) }
+        let now = AppClock.now
         // Starting within 15 minutes. Events past their listed start (climbing
         // rounds without a time, late CS matches) don't count.
         let startingSoon = results.values.contains { result in
             result.events.contains { $0.state == .scheduled && $0.start < now + 15 * 60 && $0.start > now - 3600 }
         }
-        return startingSoon ? 60 : 300
+        return AppClock.interval(startingSoon ? 60 : 300)
     }
 
     /// Returns false when every league failed (offline). A refresh superseded
@@ -672,7 +672,7 @@ final class ScoreStore {
         }
         guard current == generation, !Task.isCancelled else { return true }
 
-        let now = Date()
+        let now = AppClock.now
         let anySucceeded = fetched.values.contains { $0 != nil } || fetched.isEmpty
         consecutiveFailures = anySucceeded ? 0 : consecutiveFailures + 1
         if !anySucceeded { Log.poll.error("Refresh failed for every league (attempt \(self.consecutiveFailures))") }

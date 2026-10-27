@@ -383,7 +383,7 @@ struct LiveStatus: View {
         .font(.system(size: size, weight: .semibold).monospacedDigit())
         .foregroundStyle(.red)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Live, \(Spoken.status(clock?.text(at: .now) ?? fallback))")
+        .accessibilityLabel("Live, \(Spoken.status(clock?.text(at: AppClock.now) ?? fallback))")
     }
 }
 
@@ -521,7 +521,7 @@ enum StatusColumn {
             case .live: (event.clock?.display ?? event.detail ?? "Live", true)
             case .final: (event.detail ?? "Final", false)
             case .scheduled: (event.detail == "Delayed" ? "Delayed"
-                              : event.start < .now ? "Starting soon"
+                              : event.start < AppClock.now ? "Starting soon"
                               : event.start.formatted(date: .omitted, time: .shortened), false)
             }
         })

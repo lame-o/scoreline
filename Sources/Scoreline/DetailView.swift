@@ -626,7 +626,7 @@ struct DetailView: View {
                             if showing {
                                 LiveClockText(clock: liveClock, fallback: liveClockFallback)
                             } else {
-                                Text(liveClock.map { $0.running ? $0.text(at: .now) : liveClockFallback } ?? liveClockFallback)
+                                Text(liveClock.map { $0.running ? $0.text(at: AppClock.now) : liveClockFallback } ?? liveClockFallback)
                             }
                         }
                         // NBA: the last five minutes of the fourth or overtime, within five.
@@ -655,11 +655,11 @@ struct DetailView: View {
             WhileHeroShows { showing in
                 if showing {
                     // On the shared whole-second grid: every clock on screen ticks in the same frame.
-                    TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: 1)) { context in
-                        countdown(alignment: alignment, now: context.date)
+                    TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: AppClock.interval(1))) { context in
+                        countdown(alignment: alignment, now: AppClock.time(at: context.date))
                     }
                 } else {
-                    countdown(alignment: alignment, now: .now)
+                    countdown(alignment: alignment, now: AppClock.now)
                 }
             }
         case .final:
@@ -678,7 +678,7 @@ struct DetailView: View {
 
     /// When a finished game was played: "Today", "Yesterday", "Sat, Oct 24"
     /// within the last ten months, else "May 19, 2024".
-    static func playedOn(_ start: Date, now: Date = .now) -> String {
+    static func playedOn(_ start: Date, now: Date = AppClock.now) -> String {
         let day = DayKey.of(start), today = DayKey.of(now)
         if let relative = day.relative(to: today), relative != "Tomorrow" { return relative }
         if abs(day.days(to: today)) < 300 { return start.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()) }
@@ -706,14 +706,14 @@ struct DetailView: View {
     /// A start that has passed without the game going live: "Starting soon"
     /// (a match), "Time TBA" (a climbing round with no time); else when.
     /// The same words rows and tiles use.
-    static func notStarted(_ event: Event, now: Date = .now) -> String {
+    static func notStarted(_ event: Event, now: Date = AppClock.now) -> String {
         guard event.start < now else { return When.dayAndTime(event.start, now: now) }
         if event.detail == "Delayed" { return "Delayed" }
         return event.competitors.isEmpty ? "Time TBA" : "Starting soon"
     }
 
     /// "Starts in 31 minutes, 45 seconds" (VoiceOver; the hero shows "Starts in 31:45").
-    static func spokenCountdown(to start: Date, from now: Date = .now) -> String? {
+    static func spokenCountdown(to start: Date, from now: Date = AppClock.now) -> String? {
         let seconds = Int(start.timeIntervalSince(now))
         guard seconds > 0, seconds < 24 * 3600 else { return nil }
         let h = seconds / 3600, m = (seconds % 3600) / 60, s = seconds % 60
@@ -778,7 +778,7 @@ struct DetailView: View {
                 parts.append([cs.mapName, "\(cs.topScore) to \(cs.bottomScore)"].compactMap { $0 }.joined(separator: " ")
                              + (cs.round.map { ", round \($0)" } ?? ""))
             } else {
-                parts.append(Spoken.status(liveClock.map { $0.running ? $0.text(at: .now) : liveClockFallback } ?? liveClockFallback))
+                parts.append(Spoken.status(liveClock.map { $0.running ? $0.text(at: AppClock.now) : liveClockFallback } ?? liveClockFallback))
             }
         case .final:
             parts.append(Spoken.status(event.detail ?? "Final"))
@@ -1950,7 +1950,7 @@ struct DetailView: View {
             default:
                 return
             }
-            try? await Task.sleep(for: .seconds(isSoccer ? 8 : (isClimbing ? 4 : 5)))
+            try? await Task.sleep(for: .seconds(AppClock.interval(isSoccer ? 8 : (isClimbing ? 4 : 5))))
         }
     }
 
@@ -2001,12 +2001,12 @@ struct DetailView: View {
     }
 
     /// A final that started more than six hours ago: loaded once, never refreshed.
-    static func isHistory(_ event: Event, now: Date = .now) -> Bool {
+    static func isHistory(_ event: Event, now: Date = AppClock.now) -> Bool {
         event.state == .final && event.start < now - 6 * 3600
     }
 
     /// Finished within the last day: today's table is still about this game.
-    private var isRecent: Bool { event.start > .now - 86_400 }
+    private var isRecent: Bool { event.start > AppClock.now - 86_400 }
 
     /// Waits for `task`, cancelling it if this page goes away first.
     private func finish(_ task: Task<Void, Never>) async {
@@ -2069,7 +2069,7 @@ struct DetailView: View {
                     apply(loaded)
                 }
                 failed = false
-                lastLoaded = .now
+                lastLoaded = AppClock.now
                 if detailFailures != 0 { withAnimation(Motion.fade) { detailFailures = 0 } }
                 store.noteStreams(loaded.streams, for: current)
                 // History (finished more than six hours ago) doesn't change: one
@@ -2083,7 +2083,7 @@ struct DetailView: View {
             // The fast lane keeps live football, CS2 and soccer moving; the full
             // refresh (stats, key events, rosters) can take its time.
             let interval: Double = detail == nil ? 5 : (current.state == .live ? (hasFastLane(current) ? 30 : 15) : 120)
-            try? await Task.sleep(for: .seconds(interval))
+            try? await Task.sleep(for: .seconds(AppClock.interval(interval)))
         }
     }
 }

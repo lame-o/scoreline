@@ -768,7 +768,7 @@ struct CollapsedPreview: View {
                     LiveDot()
                     Text("\(live) Live").foregroundStyle(.red).fontWeight(.semibold)
                 } else {
-                    Text(status(now: context.date)).foregroundStyle(.secondary)
+                    Text(status(now: AppClock.time(at: context.date))).foregroundStyle(.secondary)
                 }
             }
             .font(.system(size: 11).monospacedDigit())
@@ -794,7 +794,7 @@ struct CollapsedPreview: View {
 
     /// What a collapsed section holds, in words: "2 games in progress",
     /// "Starts in 45 minutes", "3 results".
-    static func spoken(_ events: [Event], now: Date = .now) -> String {
+    static func spoken(_ events: [Event], now: Date = AppClock.now) -> String {
         let live = events.filter { $0.state == .live }.count
         if live > 0 { return "\(plural(live, "game")) in progress" }
         if let next = events.filter({ $0.state == .scheduled && $0.start > now }).min(by: { $0.start < $1.start }) {

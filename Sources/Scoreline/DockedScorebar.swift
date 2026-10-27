@@ -1111,11 +1111,11 @@ struct DockedScorebar: View {
             // Ticks once a second only while the bar can be seen.
             if ticking {
                 // On the shared whole-second grid: ticks in the same frame as the hero's clock.
-                TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: 1)) { context in
-                    countdown(start, hasTeams: hasTeams, now: context.date)
+                TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: AppClock.interval(1))) { context in
+                    countdown(start, hasTeams: hasTeams, now: AppClock.time(at: context.date))
                 }
             } else {
-                countdown(start, hasTeams: hasTeams, now: .now)
+                countdown(start, hasTeams: hasTeams, now: AppClock.now)
             }
         case let .note(text):
             Text(text).font(.system(size: 11)).foregroundStyle(.secondary)

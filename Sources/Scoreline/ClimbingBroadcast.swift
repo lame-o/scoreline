@@ -72,7 +72,7 @@ struct ClimbingBroadcast: Equatable {
 
 /// "in 25 min", "in 3h 20m" — for things starting soon.
 enum Countdown {
-    static func text(to date: Date, from now: Date = .now) -> String? {
+    static func text(to date: Date, from now: Date = AppClock.now) -> String? {
         let seconds = date.timeIntervalSince(now)
         guard seconds > -60 else { return nil }
         if seconds < 60 { return "Starting" }
@@ -83,7 +83,7 @@ enum Countdown {
     }
 
     /// Ticking clock for the detail page: "2:14:33" / "14:33".
-    static func clock(to date: Date, from now: Date = .now) -> String? {
+    static func clock(to date: Date, from now: Date = AppClock.now) -> String? {
         let seconds = Int(date.timeIntervalSince(now))
         guard seconds > 0, seconds < 24 * 3600 else { return nil }
         let h = seconds / 3600, m = (seconds % 3600) / 60, s = seconds % 60
@@ -95,7 +95,7 @@ enum Countdown {
 /// "Today 7:00 AM", "Yesterday 7:00 AM", "Tomorrow 7:00 AM", "Monday 7:00 AM",
 /// "Nov 7, 7:00 AM".
 enum When {
-    static func dayAndTime(_ date: Date, now: Date = .now) -> String {
+    static func dayAndTime(_ date: Date, now: Date = AppClock.now) -> String {
         let time = date.formatted(date: .omitted, time: .shortened)
         guard let day = day(date, now: now) else { return "Today \(time)" }
         // A day said in words reads straight into the time; a date takes a comma.
@@ -103,7 +103,7 @@ enum When {
     }
 
     /// "Yesterday", "Tomorrow", "Monday", "Nov 7" — nil for today.
-    static func day(_ date: Date, now: Date = .now) -> String? {
+    static func day(_ date: Date, now: Date = AppClock.now) -> String? {
         let cal = Calendar.current
         if cal.isDate(date, inSameDayAs: now) { return nil }
         if let tomorrow = cal.date(byAdding: .day, value: 1, to: now), cal.isDate(date, inSameDayAs: tomorrow) { return "Tomorrow" }

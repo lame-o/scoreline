@@ -178,7 +178,7 @@ final class BasketballFeed {
         set(\.playing, true)
         clock = text
         if let seconds = status["clock"].double, let period = status["period"].int {
-            gameClock = GameClock(seconds: seconds, sampledAt: .now, period: period, direction: .down,
+            gameClock = GameClock(seconds: seconds, sampledAt: AppClock.now, period: period, direction: .down,
                                   display: text, running: false).reading(after: gameClock)
             elapsed = NBADetail.elapsed(period: period, clock: status["displayClock"].string ?? "")
             if let teams, let score {

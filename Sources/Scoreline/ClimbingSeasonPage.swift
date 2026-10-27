@@ -664,9 +664,9 @@ struct UpdatedLabel: View {
     var body: some View {
         Group {
             if live {
-                TimelineView(.periodic(from: .now, by: 30)) { context in line(context.date) }
+                TimelineView(.periodic(from: .now, by: 30)) { context in line(AppClock.time(at: context.date)) }
             } else {
-                line(.now)
+                line(AppClock.now)
             }
         }
         .font(.system(size: 11))

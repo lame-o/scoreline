@@ -335,6 +335,11 @@ final class PanelController: NSObject, NSWindowDelegate {
     private var resizeStart: CGSize?
     private var defaultSubrole: NSAccessibility.Subrole?
     private var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    #if STUDIO
+    /// Studio's --open: the page stays up while it's filmed. Clicks elsewhere,
+    /// app and Space switches don't put it away; Esc, ⌘W, ⌘M and the item do.
+    var keepsOpen = false
+    #endif
 
     init(store: ScoreStore) {
         self.store = store
@@ -386,6 +391,9 @@ final class PanelController: NSObject, NSWindowDelegate {
     }
 
     private func handle(_ event: PanelEvent) {
+        #if STUDIO
+        if keepsOpen, [.sessionEnded, .close(.outside), .close(.appSwitch), .close(.space), .close(.session)].contains(event) { return }
+        #endif
         let from = machine.state
         let effects = machine.handle(event)
         guard from != machine.state || !effects.isEmpty else { return }
