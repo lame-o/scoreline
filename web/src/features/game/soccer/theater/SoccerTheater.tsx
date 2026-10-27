@@ -168,7 +168,7 @@ export default function SoccerTheater({ feed, homeTeamID, kits, preloaded = null
 
   return (
     <div className={styles.theater}>
-      <div className={wellStyles.well} aria-hidden="true">
+      <div className={wellStyles.well} data-theater="soccer" aria-hidden="true">
         <canvas ref={canvas} className={wellStyles.canvas} />
       </div>
       <Caption scene={scene} />

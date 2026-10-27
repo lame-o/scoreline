@@ -192,7 +192,7 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
   }, [play, state.news, script, teams, zones, ink, moment, level, reduceMotion, frozen]);
 
   return (
-    <div className={styles.well} aria-hidden="true">
+    <div className={styles.well} data-theater="football" aria-hidden="true">
       <canvas ref={canvas} className={styles.canvas} />
     </div>
   );
