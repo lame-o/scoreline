@@ -1,0 +1,75 @@
+{
+ "_source": "https://ifsc.results.info/api/v1/events/1489",
+ "_recorded": "2026-10-27T07:15:32.629Z",
+ "id": 1489,
+ "name": "World Climbing Series Santiago 2026",
+ "d_cats": [
+  {
+   "dcat_id": 2,
+   "dcat_name": "SPEED Men",
+   "category_rounds": [
+    {
+     "category_round_id": 10448,
+     "name": "Qualification",
+     "status": "finished",
+     "status_as_of": "2026-10-23 21:25:32 UTC",
+     "result_url": "/api/v1/category_rounds/10448/results"
+    },
+    {
+     "category_round_id": 11355,
+     "name": "Final",
+     "status": "finished",
+     "status_as_of": "2026-10-24 22:02:40 UTC",
+     "result_url": "/api/v1/category_rounds/11355/results"
+    }
+   ]
+  },
+  {
+   "dcat_id": 6,
+   "dcat_name": "SPEED Women",
+   "category_rounds": [
+    {
+     "category_round_id": 10449,
+     "name": "Qualification",
+     "status": "finished",
+     "status_as_of": "2026-10-23 23:52:27 UTC",
+     "result_url": "/api/v1/category_rounds/10449/results"
+    },
+    {
+     "category_round_id": 11356,
+     "name": "Final",
+     "status": "finished",
+     "status_as_of": "2026-10-24 22:03:50 UTC",
+     "result_url": "/api/v1/category_rounds/11356/results"
+    }
+   ]
+  },
+  {
+   "dcat_id": 1,
+   "dcat_name": "LEAD Men",
+   "category_rounds": [
+    {
+     "category_round_id": 10450,
+     "name": "Qualification",
+     "status": "finished",
+     "status_as_of": "2026-10-24 16:29:16 UTC",
+     "result_url": "/api/v1/category_rounds/10450/results"
+    },
+    {
+     "category_round_id": 11359,
+     "name": "Semi-final",
+     "status": "finished",
+     "status_as_of": "2026-10-25 14:21:31 UTC",
+     "result_url": "/api/v1/category_rounds/11359/results"
+    },
+    {
+     "category_round_id": 11361,
+     "name": "Final",
+     "status": "finished",
+     "status_as_of": "2026-10-25 23:06:43 UTC",
+     "result_url": "/api/v1/category_rounds/11361/results"
+    }
+   ]
+  }
+ ]
+}

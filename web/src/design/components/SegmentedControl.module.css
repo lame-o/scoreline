@@ -1,0 +1,62 @@
+.track {
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: calc(2 * var(--pt));
+  border-radius: 999px;
+  background: var(--fill-surface);
+  box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) var(--stroke-hairline);
+  isolation: isolate;
+}
+
+.thumb {
+  position: absolute;
+  z-index: -1;
+  top: calc(2 * var(--pt));
+  bottom: calc(2 * var(--pt));
+  left: calc(2 * var(--pt));
+  border-radius: 999px;
+  background: light-dark(#fff, rgb(255 255 255 / 0.16));
+  box-shadow: var(--shadow-control), inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge);
+  /* The thumb glides; a keyboard change jumps (data-instant). */
+  transition: transform var(--dur-quick) var(--ease-out);
+}
+
+.thumb[data-instant="true"] {
+  transition: none;
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(5 * var(--pt));
+  min-width: calc(28 * var(--pt));
+  height: calc(24 * var(--pt));
+  padding: 0 calc(10 * var(--pt));
+  border-radius: 999px;
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  transition: color var(--dur-fade) var(--ease-out);
+}
+
+.option[aria-checked="true"] {
+  color: var(--label);
+}
+
+.compact .option {
+  padding: 0 calc(7 * var(--pt));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .option[aria-checked="false"]:hover {
+    color: var(--label);
+  }
+}
+
+.option:focus-visible {
+  outline-offset: calc(-2 * var(--pt));
+}

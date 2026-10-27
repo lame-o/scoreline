@@ -1,0 +1,38 @@
+.frame {
+  position: relative;
+  display: inline-block;
+  flex: none;
+}
+
+/* Until the crest arrives: a quiet disc, inset like the Mac's placeholder. */
+.frame::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: var(--fill-skeleton);
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.frame[data-loaded="true"]::before {
+  opacity: 0;
+}
+
+.img {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  /* Only a crest arriving from the network fades in; cached ones draw at once. */
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.frame[data-loaded="true"] .img {
+  opacity: 1;
+}
+
+.frame[data-instant="true"] .img,
+.frame[data-instant="true"]::before {
+  transition: none;
+}

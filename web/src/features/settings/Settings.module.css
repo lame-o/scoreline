@@ -1,0 +1,299 @@
+.page {
+  min-height: 100%;
+  padding-bottom: calc(24 * var(--pt));
+}
+
+/* Forms read top to bottom in one centered column, however wide the pane (System Settings never goes two-up). */
+.column {
+  max-width: var(--form-width);
+  margin: 0 auto;
+}
+
+.leagueRow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-height: calc(30 * var(--pt));
+  padding: calc(4 * var(--pt)) calc(8 * var(--pt)) calc(4 * var(--pt)) calc(6 * var(--pt));
+  background: transparent;
+  border-radius: var(--radius-row);
+  list-style: none;
+  touch-action: pan-y;
+}
+
+.leagueRow[data-dragging="true"] {
+  background: var(--glass-fill-strong);
+  box-shadow: var(--shadow-glass);
+  z-index: 1;
+}
+
+.grip {
+  display: grid;
+  place-items: center;
+  width: calc(22 * var(--pt));
+  height: calc(26 * var(--pt));
+  border-radius: var(--radius-row);
+  color: var(--label-tertiary);
+  cursor: grab;
+  touch-action: none;
+  flex: none;
+}
+
+.grip:active {
+  cursor: grabbing;
+}
+
+.grip:focus-visible {
+  color: var(--label-secondary);
+}
+
+.leagueLink {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  flex: 1;
+  min-width: 0;
+  min-height: calc(26 * var(--pt));
+  padding: 0 calc(4 * var(--pt));
+  border-radius: var(--radius-row);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .leagueLink:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.leagueIcon {
+  width: calc(16 * var(--pt));
+  display: inline-flex;
+  justify-content: center;
+  color: var(--label-secondary);
+  flex: none;
+}
+
+.leagueName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary {
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.chevron {
+  color: var(--label-tertiary);
+  flex: none;
+}
+
+.order {
+  margin: 0;
+  padding: 0;
+}
+
+/* Hairlines between the reorderable rows, inset past the handle. */
+.order > .leagueRow {
+  position: relative;
+}
+
+.order > .leagueRow + .leagueRow::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(36 * var(--pt));
+  right: 0;
+  height: 1px;
+  transform: scaleY(0.5);
+  transform-origin: top;
+  background: var(--separator);
+}
+
+.order > .leagueRow[data-dragging="true"]::before,
+.order > .leagueRow[data-dragging="true"] + .leagueRow::before {
+  opacity: 0;
+}
+
+.hint {
+  display: flex;
+  gap: calc(8 * var(--pt));
+  align-items: baseline;
+  margin: 0 calc(12 * var(--pt));
+  padding: calc(12 * var(--pt));
+  border-radius: var(--radius-group);
+  background: var(--fill-surface);
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+.teamRow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-height: calc(28 * var(--pt));
+  padding: calc(3 * var(--pt)) calc(7 * var(--pt)) calc(3 * var(--pt)) calc(12 * var(--pt));
+}
+
+.teamName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove {
+  display: grid;
+  place-items: center;
+  width: calc(22 * var(--pt));
+  height: calc(22 * var(--pt));
+  border-radius: 50%;
+  color: var(--label-secondary);
+  transition: color var(--dur-fade) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .remove:hover {
+    color: var(--live);
+  }
+}
+
+.segmentRow {
+  display: flex;
+  justify-content: flex-start;
+  padding: calc(4 * var(--pt)) calc(12 * var(--pt)) 0;
+}
+
+.catalogRow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-height: calc(30 * var(--pt));
+  padding: calc(5 * var(--pt)) calc(12 * var(--pt));
+}
+
+.flag {
+  width: calc(16 * var(--pt));
+  text-align: center;
+  font-size: calc(13 * var(--pt));
+  line-height: 1;
+}
+
+/* MARK: Pick list (a league's teams) */
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  margin: calc(8 * var(--pt)) calc(12 * var(--pt)) 0;
+  padding: 0 calc(10 * var(--pt));
+  height: calc(28 * var(--pt));
+  border-radius: calc(8 * var(--pt));
+  background: var(--fill-surface);
+  box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) var(--stroke-hairline);
+  color: var(--label-secondary);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  font-size: max(16px, var(--text-body)); /* never below 16px: phones zoom into smaller inputs */
+  color: var(--label);
+  outline: none;
+}
+
+@media (pointer: fine) {
+  .search input {
+    font-size: var(--text-body);
+  }
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  width: 100%;
+  min-height: calc(30 * var(--pt));
+  padding: calc(4 * var(--pt)) calc(8 * var(--pt)) calc(4 * var(--pt)) calc(12 * var(--pt));
+  text-align: left;
+  border-radius: var(--radius-row);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pick:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.check {
+  width: calc(14 * var(--pt));
+  color: var(--accent);
+  flex: none;
+}
+
+.conference {
+  padding: calc(12 * var(--pt)) calc(16 * var(--pt)) calc(4 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.textField {
+  width: calc(140 * var(--pt));
+  border: 0;
+  background: transparent;
+  text-align: right;
+  font-size: max(16px, var(--text-body));
+  color: var(--label-secondary);
+  outline: none;
+}
+
+@media (pointer: fine) {
+  .textField {
+    font-size: var(--text-body);
+  }
+}
+
+.footerActions {
+  display: flex;
+  justify-content: center;
+  padding: calc(18 * var(--pt)) 0 0;
+}
+
+.destructive {
+  color: var(--live-text);
+}
+
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  padding: calc(8 * var(--pt)) calc(12 * var(--pt));
+}
+
+.entrance {
+  animation: stack-in var(--dur-reveal) var(--ease-out) both;
+}
+
+@keyframes stack-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-10 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes stack-in {
+    from {
+      opacity: 0;
+    }
+  }
+}

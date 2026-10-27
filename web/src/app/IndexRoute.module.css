@@ -1,0 +1,7 @@
+.none {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  height: 100dvh;
+  padding-bottom: 8vh;
+}

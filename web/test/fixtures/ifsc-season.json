@@ -1,0 +1,103 @@
+{
+ "_source": "https://ifsc.results.info/api/v1/seasons/38",
+ "_recorded": "2026-10-27T07:15:32.161Z",
+ "name": "2026",
+ "leagues": [
+  {
+   "name": "World Cups and World Championships",
+   "url": "/api/v1/season_leagues/457"
+  },
+  {
+   "name": "IFSC Youth",
+   "url": "/api/v1/season_leagues/458"
+  }
+ ],
+ "events": [
+  {
+   "event": "World Climbing Series Keqiao 2026",
+   "event_id": 1524,
+   "league_season_id": 457,
+   "location": "Keqiao, China",
+   "country": "CHN",
+   "starts_at": "2026-04-30 16:00:00 UTC",
+   "ends_at": "2026-05-03 15:59:00 UTC",
+   "local_start_date": "2026-05-01",
+   "local_end_date": "2026-05-03",
+   "timezone": {
+    "value": "Asia/Shanghai"
+   },
+   "url": "/api/v1/events/1524",
+   "disciplines": [
+    {
+     "kind": "boulder"
+    }
+   ]
+  },
+  {
+   "event": "World Climbing Series Chongqing 2026",
+   "event_id": 1527,
+   "league_season_id": 457,
+   "location": "Chongqing, China",
+   "country": "CHN",
+   "starts_at": "2026-09-17 16:00:00 UTC",
+   "ends_at": "2026-09-20 15:59:00 UTC",
+   "local_start_date": "2026-09-18",
+   "local_end_date": "2026-09-20",
+   "timezone": {
+    "value": "Asia/Shanghai"
+   },
+   "url": "/api/v1/events/1527",
+   "disciplines": [
+    {
+     "kind": "speed"
+    },
+    {
+     "kind": "speed_relay"
+    }
+   ]
+  },
+  {
+   "event": "World Climbing Series Salt Lake City 2026",
+   "event_id": 1488,
+   "league_season_id": 457,
+   "location": "Salt Lake City, USA",
+   "country": "USA",
+   "starts_at": "2026-10-16 06:00:00 UTC",
+   "ends_at": "2026-10-19 05:59:00 UTC",
+   "local_start_date": "2026-10-16",
+   "local_end_date": "2026-10-18",
+   "timezone": {
+    "value": "America/Denver"
+   },
+   "url": "/api/v1/events/1488",
+   "disciplines": [
+    {
+     "kind": "boulder"
+    }
+   ]
+  },
+  {
+   "event": "World Climbing Series Santiago 2026",
+   "event_id": 1489,
+   "league_season_id": 457,
+   "location": "Santiago, Chile",
+   "country": "CHI",
+   "starts_at": "2026-10-23 03:00:00 UTC",
+   "ends_at": "2026-10-26 02:59:00 UTC",
+   "local_start_date": "2026-10-23",
+   "local_end_date": "2026-10-25",
+   "timezone": {
+    "value": "America/Santiago"
+   },
+   "url": "/api/v1/events/1489",
+   "disciplines": [
+    {
+     "kind": "speed"
+    },
+    {
+     "kind": "lead"
+    }
+   ]
+  }
+ ]
+}

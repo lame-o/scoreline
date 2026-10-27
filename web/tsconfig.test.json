@@ -1,0 +1,11 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"composite": true,
+		"tsBuildInfoFile": "./node_modules/.tmp/test.tsbuildinfo",
+		"lib": ["es2024", "dom", "dom.iterable"],
+		"jsx": "react-jsx",
+		"types": ["node", "vite/client"]
+	},
+	"include": ["test/unit", "src", "shared"]
+}

@@ -1,0 +1,8 @@
+# Dependencies allowed to run install scripts. `allowBuilds` is the pnpm 11
+# spelling; `onlyBuiltDependencies` is pnpm 10's. Both list the same two.
+allowBuilds:
+  esbuild: true
+  workerd: true
+onlyBuiltDependencies:
+  - esbuild
+  - workerd

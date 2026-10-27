@@ -1,0 +1,62 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams?limit=1000",
+ "_recorded": "2026-10-27T07:58:34.360Z",
+ "sports": [
+  {
+   "leagues": [
+    {
+     "teams": [
+      {
+       "team": {
+        "id": "22",
+        "displayName": "Arizona Cardinals",
+        "abbreviation": "ARI",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nfl/500/ari.png"
+         }
+        ]
+       }
+      },
+      {
+       "team": {
+        "id": "1",
+        "displayName": "Atlanta Falcons",
+        "abbreviation": "ATL",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nfl/500/atl.png"
+         }
+        ]
+       }
+      },
+      {
+       "team": {
+        "id": "33",
+        "displayName": "Baltimore Ravens",
+        "abbreviation": "BAL",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nfl/500/bal.png"
+         }
+        ]
+       }
+      },
+      {
+       "team": {
+        "id": "2",
+        "displayName": "Buffalo Bills",
+        "abbreviation": "BUF",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/nfl/500/buf.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

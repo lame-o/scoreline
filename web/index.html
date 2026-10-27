@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<title>Scoreline</title>
+		<meta name="description" content="Live scores for the leagues and teams you follow." />
+		<meta name="color-scheme" content="light dark" />
+		<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#1c1c1e" media="(prefers-color-scheme: dark)" />
+		<link rel="icon" href="/icon-64.png" type="image/png" sizes="64x64" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<script>
+			// Before first paint: the saved theme (Settings → Appearance), so a dark
+			// page never flashes light. "system" leaves it to prefers-color-scheme.
+			try {
+				var s = JSON.parse(localStorage.getItem("scoreline.settings.v1") || "{}");
+				if (s.theme === "light" || s.theme === "dark") document.documentElement.dataset.theme = s.theme;
+			} catch (e) {}
+		</script>
+	</head>
+	<body>
+		<div id="root"></div>
+		<script type="module" src="/src/main.tsx"></script>
+	</body>
+</html>

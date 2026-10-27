@@ -1,0 +1,30 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/teams?filter%5Bteams.discipline_id%5D%5Beq%5D=1&sort=rank&page%5Blimit%5D=60",
+ "_recorded": "2026-10-27T07:58:34.860Z",
+ "results": [
+  {
+   "id": 654,
+   "name": "Spirit",
+   "image_url": "https://files.bo3.gg/uploads/team/654/image/webp-41b22d18a871d982f8ff87652bbb0fe6.webp",
+   "rank": 1
+  },
+  {
+   "id": 8118,
+   "name": "Legacy",
+   "image_url": "https://files.bo3.gg/uploads/team/8118/image/webp-e4a3b023443f1f3ba4ef588164e73111.webp",
+   "rank": 2
+  },
+  {
+   "id": 667,
+   "name": "Vitality",
+   "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+   "rank": 3
+  },
+  {
+   "id": 765,
+   "name": "MOUZ",
+   "image_url": "https://files.bo3.gg/uploads/team/765/image/bcbdcf50fb2c79b6ab45b0014300b9e0.png",
+   "rank": 4
+  }
+ ]
+}

@@ -1,0 +1,102 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/matches?filter%5Bmatches.discipline_id%5D%5Beq%5D=1&filter%5Bmatches.status%5D%5Bin%5D=finished%2Cdefwin%2Ccanceled&filter%5Bmatches.tier%5D%5Bin%5D=s&sort=-start_date&page%5Blimit%5D=12&with=teams%2Ctournament&filter%5Bmatches.start_date%5D%5Blte%5D=2026-10-29T07%3A01%3A48.587Z",
+ "_recorded": "2026-10-27T07:01:49.769Z",
+ "results": [
+  {
+   "id": 132238,
+   "slug": "betboom-team-vs-natus-vincere-26-10-2026",
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-10-26T17:00:00.000+00:00",
+   "team1_score": 2,
+   "team2_score": 0,
+   "winner_team_id": 7498,
+   "tier": "s",
+   "team1": {
+    "id": 7498,
+    "name": "BetBoom",
+    "image_url": "https://files.bo3.gg/uploads/team/7498/image/webp-0ea46f32f16140a97fa47ed839e5bb69.webp"
+   },
+   "team2": {
+    "id": 787,
+    "name": "Natus Vincere",
+    "image_url": "https://files.bo3.gg/uploads/team/787/image/webp-ea9885f81f1572c7a6c9fb6cbf747c99.webp"
+   },
+   "tournament": {
+    "name": "PGL Masters Bucharest 2026"
+   }
+  },
+  {
+   "id": 132237,
+   "slug": "g2-vs-dendele-cs-26-10-2026",
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-10-26T16:30:00.000+00:00",
+   "team1_score": 1,
+   "team2_score": 2,
+   "winner_team_id": 24956,
+   "tier": "s",
+   "team1": {
+    "id": 793,
+    "name": "G2",
+    "image_url": "https://files.bo3.gg/uploads/team/793/image/webp-8f844f6a25c797dfe74b411d147983ff.webp"
+   },
+   "team2": {
+    "id": 24956,
+    "name": "DENDELE",
+    "image_url": "https://files.bo3.gg/uploads/team/24956/image/webp-faa4b489f27e86c29c5d66ca95c14082.webp"
+   },
+   "tournament": {
+    "name": "PGL Masters Bucharest 2026"
+   }
+  },
+  {
+   "id": 132236,
+   "slug": "liquid-vs-legacy-br-26-10-2026",
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-10-26T14:10:00.000+00:00",
+   "team1_score": 2,
+   "team2_score": 0,
+   "winner_team_id": 790,
+   "tier": "s",
+   "team1": {
+    "id": 790,
+    "name": "Liquid",
+    "image_url": "https://files.bo3.gg/uploads/team/790/image/webp-01cca8d35079cb4b21bc25268ac75bae.webp"
+   },
+   "team2": {
+    "id": 8118,
+    "name": "Legacy",
+    "image_url": "https://files.bo3.gg/uploads/team/8118/image/webp-e4a3b023443f1f3ba4ef588164e73111.webp"
+   },
+   "tournament": {
+    "name": "PGL Masters Bucharest 2026"
+   }
+  },
+  {
+   "id": 132235,
+   "slug": "spirit-vs-furia-26-10-2026",
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-10-26T13:45:00.000+00:00",
+   "team1_score": 2,
+   "team2_score": 1,
+   "winner_team_id": 654,
+   "tier": "s",
+   "team1": {
+    "id": 654,
+    "name": "Spirit",
+    "image_url": "https://files.bo3.gg/uploads/team/654/image/webp-41b22d18a871d982f8ff87652bbb0fe6.webp"
+   },
+   "team2": {
+    "id": 648,
+    "name": "FURIA",
+    "image_url": "https://files.bo3.gg/uploads/team/648/image/webp-e1c203706e78b4167ad6fd6f70eb55bb.webp"
+   },
+   "tournament": {
+    "name": "PGL Masters Bucharest 2026"
+   }
+  }
+ ]
+}

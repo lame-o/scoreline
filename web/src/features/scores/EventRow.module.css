@@ -1,0 +1,255 @@
+/*
+ * A game in the list (EventRow.swift). The section is a two-column grid
+ * (teams | status) and each row a subgrid of it, so every score in a section
+ * sits in one column whatever its status says ("0:03 - 4OT", "Rain Delay"):
+ * the CSS twin of the Mac's per-section status width.
+ */
+
+.row {
+  position: relative;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding: calc(7 * var(--pt)) calc(8 * var(--pt));
+  border-radius: var(--radius-row);
+  color: var(--label);
+  isolation: isolate;
+  /* The highlight is instant (it moves constantly); the press eases. */
+  transition: background-color 0s;
+}
+
+/* Hover: a quiet gray wash, inset (the Control Center list look). Pointer devices only. */
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.row:active {
+  background: var(--fill-press);
+}
+
+/* The arrow keys' highlight wears the accent, strong enough to follow. */
+.row[data-keyboard="true"] {
+  background: var(--accent-fill);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
+
+/* The game open in the detail pane. */
+.row[aria-current="page"] {
+  background: var(--accent-fill);
+}
+
+.row:focus-visible {
+  outline-offset: calc(-2 * var(--pt));
+}
+
+/* A score lands: a soft red wash that fades on its own (EventRow.flash). */
+.flash {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--live-wash);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.teams {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+  min-width: 0;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-width: 0;
+}
+
+.dimmed .identity,
+.dimmed .score {
+  color: var(--label-secondary);
+}
+
+.identity {
+  display: flex;
+  align-items: baseline;
+  gap: calc(4 * var(--pt));
+  min-width: 0;
+}
+
+.rank {
+  flex: none;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.name {
+  font-size: var(--text-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marks {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  flex: none;
+}
+
+.ball {
+  color: var(--label-secondary);
+}
+
+.star {
+  color: var(--star);
+}
+
+.record {
+  flex: none;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.spacer {
+  flex: 1;
+  min-width: calc(8 * var(--pt));
+}
+
+.score {
+  position: relative;
+  flex: none;
+  font-size: var(--text-body);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* This side's number just rose: a 4pt red dot before it, for as long as the flash. */
+.scorer {
+  position: absolute;
+  left: calc(-7 * var(--pt));
+  top: 50%;
+  width: calc(4 * var(--pt));
+  height: calc(4 * var(--pt));
+  margin-top: calc(-2 * var(--pt));
+  border-radius: 50%;
+  background: var(--live);
+}
+
+.missing {
+  color: var(--label-secondary);
+}
+
+.fieldTitle {
+  font-size: var(--text-body);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fieldSummary {
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The line under the teams: the caption, or live, the situation (changing with each play). */
+.context {
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* MARK: Status column */
+
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: calc(1 * var(--pt));
+  max-width: calc(96 * var(--pt));
+  min-width: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.status > * {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.final {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.time {
+  font-size: var(--text-status);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown {
+  font-size: var(--text-status);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-text);
+}
+
+.day {
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.soon {
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--label-secondary);
+}
+
+.delayed {
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--delayed-text);
+}
+
+/* Text arriving after an expand rises 4pt as it fades in (View.reveal). */
+.reveal {
+  animation: reveal var(--dur-reveal) var(--ease-out) both;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(calc(4 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes reveal {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* Arrow keys bring a row into view clear of the sticky header. */
+.row {
+  scroll-margin-block: calc(56 * var(--pt)) calc(12 * var(--pt));
+}

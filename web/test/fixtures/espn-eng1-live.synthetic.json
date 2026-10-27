@@ -1,0 +1,196 @@
+{
+ "_source": "synthetic",
+ "_note": "Derived from the recorded Liverpool–Brighton final (an own goal at 17', credited by ESPN to Liverpool): status set to 67', second half. Scores and goal details unchanged.",
+ "events": [
+  {
+   "id": "401878765",
+   "date": "2026-10-25T14:00Z",
+   "name": "Brighton & Hove Albion at Liverpool",
+   "shortName": "BHA @ LIV",
+   "season": {
+    "slug": "2026-27-english-premier-league",
+    "year": 2026,
+    "type": 14308
+   },
+   "status": {
+    "clock": 4020.0,
+    "displayClock": "67'",
+    "period": 2,
+    "type": {
+     "state": "in",
+     "completed": false,
+     "shortDetail": "67'",
+     "detail": "67'",
+     "name": "STATUS_SECOND_HALF"
+    }
+   },
+   "competitions": [
+    {
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "2",
+       "records": [
+        {
+         "type": "total",
+         "summary": "4-3-1"
+        }
+       ],
+       "team": {
+        "id": "364",
+        "abbreviation": "LIV",
+        "shortDisplayName": "Liverpool",
+        "displayName": "Liverpool",
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/364.png",
+        "color": "d11317",
+        "alternateColor": "FFFFFF"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "records": [
+        {
+         "type": "total",
+         "summary": "5-1-2"
+        }
+       ],
+       "team": {
+        "id": "331",
+        "abbreviation": "BHA",
+        "shortDisplayName": "Brighton",
+        "displayName": "Brighton & Hove Albion",
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/331.png",
+        "color": "0606fa",
+        "alternateColor": "005F60"
+       }
+      }
+     ],
+     "notes": [],
+     "details": [
+      {
+       "type": {
+        "id": "97",
+        "text": "Own Goal"
+       },
+       "clock": {
+        "value": 976,
+        "displayValue": "17'"
+       },
+       "team": {
+        "id": "364"
+       },
+       "scoringPlay": true,
+       "ownGoal": true,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "P. Gross",
+         "displayName": "Pascal Gross"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "173",
+        "text": "Goal - Volley"
+       },
+       "clock": {
+        "value": 1247,
+        "displayValue": "21'"
+       },
+       "team": {
+        "id": "364"
+       },
+       "scoringPlay": true,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "A. Isak",
+         "displayName": "Alexander Isak"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 2700,
+        "displayValue": "45'+3'"
+       },
+       "team": {
+        "id": "331"
+       },
+       "scoringPlay": false,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "O. Boscagli",
+         "displayName": "Olivier Boscagli"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 4332,
+        "displayValue": "73'"
+       },
+       "team": {
+        "id": "331"
+       },
+       "scoringPlay": false,
+       "ownGoal": false,
+       "penaltyKick": false,
+       "redCard": false,
+       "athletesInvolved": [
+        {
+         "shortName": "Costinha",
+         "displayName": "Costinha"
+        }
+       ]
+      }
+     ],
+     "venue": {
+      "fullName": "Anfield"
+     },
+     "broadcasts": [
+      {
+       "market": "national",
+       "names": [
+        "Peacock"
+       ]
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "href": "https://www.espn.com/soccer/match/_/gameId/401878765/brighton-hove-albion-liverpool",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ]
+    },
+    {
+     "href": "https://www.espn.com/soccer/video/_/gameId/401878765",
+     "rel": [
+      "highlights",
+      "desktop"
+     ]
+    }
+   ]
+  }
+ ]
+}

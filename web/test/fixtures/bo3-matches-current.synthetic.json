@@ -1,0 +1,30 @@
+{
+ "_source": "synthetic",
+ "_note": "Derived from bo3-matches-upcoming.json's first match: status current, 1–0 in maps (a best of three). Used with the upcoming list, where the same match still appears, to test that the live copy wins.",
+ "results": [
+  {
+   "id": 132240,
+   "slug": "liquid-vs-aurora-gaming-27-10-2026",
+   "status": "current",
+   "bo_type": 3,
+   "start_date": "2026-10-27T11:00:00.000+00:00",
+   "team1_score": 1,
+   "team2_score": 0,
+   "winner_team_id": null,
+   "tier": "s",
+   "team1": {
+    "id": 790,
+    "name": "Liquid",
+    "image_url": "https://files.bo3.gg/uploads/team/790/image/webp-01cca8d35079cb4b21bc25268ac75bae.webp"
+   },
+   "team2": {
+    "id": 3598,
+    "name": "Aurora",
+    "image_url": "https://files.bo3.gg/uploads/team/3598/image/webp-49b8df76b0d121cc89c760c1ec16ebea.webp"
+   },
+   "tournament": {
+    "name": "PGL Masters Bucharest 2026"
+   }
+  }
+ ]
+}

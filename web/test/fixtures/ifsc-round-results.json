@@ -1,0 +1,292 @@
+{
+ "_source": "https://ifsc.results.info/api/v1/category_rounds/10448/results",
+ "_recorded": "2026-10-27T07:15:32.822Z",
+ "id": 10448,
+ "event": "World Climbing Series Santiago 2026",
+ "discipline": "Speed",
+ "status": "finished",
+ "status_as_of": "2026-10-23 21:25:32 UTC",
+ "category": "Men",
+ "round": "Qualification",
+ "routes": [
+  {
+   "id": 18928,
+   "name": "A"
+  },
+  {
+   "id": 18929,
+   "name": "B"
+  }
+ ],
+ "ranking": [
+  {
+   "athlete_id": 16253,
+   "rank": 1,
+   "firstname": "Antasyafi",
+   "lastname": "ROBBY AL HILMI",
+   "country": "INA",
+   "score": "4.92",
+   "ascents": [
+    {
+     "route_id": 18928,
+     "route_name": "A",
+     "time_ms": 5004,
+     "dnf": false,
+     "dns": false,
+     "modified": "2026-10-23 20:39:26 +00:00",
+     "status": "locked",
+     "formatted_ascent_score": "5.00",
+     "time_score": "5.00"
+    },
+    {
+     "route_id": 18929,
+     "route_name": "B",
+     "time_ms": 4927,
+     "dnf": false,
+     "dns": false,
+     "modified": "2026-10-23 21:05:46 +00:00",
+     "status": "locked",
+     "formatted_ascent_score": "4.92",
+     "time_score": "4.92"
+    }
+   ]
+  },
+  {
+   "athlete_id": 13547,
+   "rank": 2,
+   "firstname": "Raharjati",
+   "lastname": "NURSAMSA",
+   "country": "INA",
+   "score": "4.93",
+   "ascents": [
+    {
+     "route_id": 18928,
+     "route_name": "A",
+     "time_ms": 4939,
+     "dnf": false,
+     "dns": false,
+     "modified": "2026-10-23 20:50:24 +00:00",
+     "status": "locked",
+     "formatted_ascent_score": "4.93",
+     "time_score": "4.93"
+    },
+    {
+     "route_id": 18929,
+     "route_name": "B",
+     "time_ms": 5579,
+     "dnf": false,
+     "dns": false,
+     "modified": "2026-10-23 20:31:04 +00:00",
+     "status": "locked",
+     "formatted_ascent_score": "5.57",
+     "time_score": "5.57"
+    }
+   ]
+  },
+  {
+   "athlete_id": 14963,
+   "rank": 3,
+   "firstname": "Shouhong",
+   "lastname": "CHU",
+   "country": "CHN",
+   "score": "4.95",
+   "ascents": [
+    {
+     "route_id": 18928,
+     "route_name": "A",
+     "time_ms": 4951,
+     "dnf": false,
+     "dns": false,
+     "modified": "2026-10-23 21:09:51 +00:00",
+     "status": "locked",
+     "formatted_ascent_score": "4.95",
+     "time_score": "4.95"
+    },
+    {
+     "route_id": 18929,
+     "route_name": "B",
+     "time_ms": 5064,
+     "dnf": false,
+     "dns": false,
+     "modified": "2026-10-23 20:43:41 +00:00",
+     "status": "locked",
+     "formatted_ascent_score": "5.06",
+     "time_score": "5.06"
+    }
+   ]
+  },
+  {
+   "athlete_id": 14087,
+   "rank": 4,
+   "firstname": "Aditya",
+   "lastname": "TRI SYAHRIA",
+   "country": "INA",
+   "score": "4.96",
+   "ascents": [
+    {
+     "route_id": 18928,
+     "route_name": "A",
+     "time_ms": 4964,
+     "dnf": false,
+     "dns": false,
+     "modified": "2026-10-23 20:34:19 +00:00",
+     "status": "locked",
+     "formatted_ascent_score": "4.96",
+     "time_score": "4.96"
+    },
+    {
+     "route_id": 18929,
+     "route_name": "B",
+     "time_ms": 5492,
+     "dnf": false,
+     "dns": false,
+     "modified": "2026-10-23 20:56:39 +00:00",
+     "status": "locked",
+     "formatted_ascent_score": "5.49",
+     "time_score": "5.49"
+    }
+   ]
+  },
+  {
+   "athlete_id": 14051,
+   "rank": 5,
+   "firstname": "Michael",
+   "lastname": "HOM",
+   "country": "USA",
+   "score": "4.97",
+   "ascents": [
+    {
+     "route_id": 18928,
+     "route_name": "A",
+     "time_ms": 5345,
+     "dnf": false,
+     "dns": false,
+     "modified": "2026-10-23 20:45:24 +00:00",
+     "status": "locked",
+     "formatted_ascent_score": "5.34",
+     "time_score": "5.34"
+    },
+    {
+     "route_id": 18929,
+     "route_name": "B",
+     "time_ms": 4971,
+     "dnf": false,
+     "dns": false,
+     "modified": "2026-10-23 21:11:42 +00:00",
+     "status": "locked",
+     "formatted_ascent_score": "4.97",
+     "time_score": "4.97"
+    }
+   ]
+  },
+  {
+   "athlete_id": 11964,
+   "rank": 6,
+   "firstname": "Yongzhi",
+   "lastname": "LING",
+   "country": "CHN",
+   "score": "4.99",
+   "ascents": [
+    {
+     "route_id": 18928,
+     "route_name": "A",
+     "time_ms": 7096,
+     "dnf": false,
+     "dns": false,
+     "modified": "2026-10-23 20:54:28 +00:00",
+     "status": "locked",
+     "formatted_ascent_score": "7.09",
+     "time_score": "7.09"
+    },
+    {
+     "route_id": 18929,
+     "route_name": "B",
+     "time_ms": 4996,
+     "dnf": false,
+     "dns": false,
+     "modified": "2026-10-23 20:33:57 +00:00",
+     "status": "locked",
+     "formatted_ascent_score": "4.99",
+     "time_score": "4.99"
+    }
+   ]
+  }
+ ],
+ "startlist": [
+  {
+   "athlete_id": 13915,
+   "squad_id": null,
+   "route_start_positions": [
+    {
+     "route_name": "A",
+     "route_id": 18928,
+     "position": 1
+    },
+    {
+     "route_name": "B",
+     "route_id": 18929,
+     "position": 27
+    }
+   ],
+   "name": "DAVID Julian",
+   "firstname": "Julian",
+   "lastname": "DAVID",
+   "bib": "101",
+   "country": "NZL",
+   "flag_url": "https://d1n1qj9geboqnb.cloudfront.net/flags/NZL.png",
+   "federation_id": 53,
+   "squad_members": null,
+   "paraclimbing_guide": null
+  },
+  {
+   "athlete_id": 1027,
+   "squad_id": null,
+   "route_start_positions": [
+    {
+     "route_name": "A",
+     "route_id": 18928,
+     "position": 27
+    },
+    {
+     "route_name": "B",
+     "route_id": 18929,
+     "position": 1
+    }
+   ],
+   "name": "ZURLONI Matteo",
+   "firstname": "Matteo",
+   "lastname": "ZURLONI",
+   "bib": "127",
+   "country": "ITA",
+   "flag_url": "https://d1n1qj9geboqnb.cloudfront.net/flags/ITA.png",
+   "federation_id": 13,
+   "squad_members": null,
+   "paraclimbing_guide": null
+  },
+  {
+   "athlete_id": 11893,
+   "squad_id": null,
+   "route_start_positions": [
+    {
+     "route_name": "A",
+     "route_id": 18928,
+     "position": 2
+    },
+    {
+     "route_name": "B",
+     "route_id": 18929,
+     "position": 28
+    }
+   ],
+   "name": "PITCHER Ethan",
+   "firstname": "Ethan",
+   "lastname": "PITCHER",
+   "bib": "102",
+   "country": "CAN",
+   "flag_url": "https://d1n1qj9geboqnb.cloudfront.net/flags/CAN.png",
+   "federation_id": 19,
+   "squad_members": null,
+   "paraclimbing_guide": null
+  }
+ ]
+}

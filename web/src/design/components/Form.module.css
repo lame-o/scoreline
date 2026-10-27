@@ -1,0 +1,97 @@
+/* GroupBox: an inset grouped container with hairlines between rows (System Settings). */
+.group {
+  margin: 0 calc(12 * var(--pt));
+  padding: calc(3 * var(--pt)) 0;
+  border-radius: var(--radius-group);
+  background: var(--fill-surface);
+  box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) var(--stroke-hairline);
+}
+
+.group > * {
+  position: relative;
+}
+
+/* A hairline between rows, inset from the leading edge. */
+.group > * + *::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(12 * var(--pt));
+  right: 0;
+  height: 1px;
+  transform: scaleY(0.5);
+  transform-origin: top;
+  background: var(--separator);
+  pointer-events: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-height: calc(30 * var(--pt));
+  padding: calc(7 * var(--pt)) calc(12 * var(--pt));
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: calc(1 * var(--pt));
+  flex: 1;
+  min-width: 0;
+}
+
+.rowTitle {
+  font-size: var(--text-body);
+}
+
+.rowSubtitle {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+/* Toggle: a mini switch, label leading, switch trailing. */
+.switch {
+  position: relative;
+  flex: none;
+  width: calc(26 * var(--pt));
+  height: calc(15 * var(--pt));
+  border-radius: 999px;
+  background: light-dark(rgb(0 0 0 / 0.12), rgb(255 255 255 / 0.18));
+  transition: background-color var(--dur-quick) var(--ease-out);
+}
+
+.switch[aria-checked="true"] {
+  background: var(--accent);
+}
+
+.knob {
+  position: absolute;
+  top: calc(1.5 * var(--pt));
+  left: calc(1.5 * var(--pt));
+  width: calc(12 * var(--pt));
+  height: calc(12 * var(--pt));
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 calc(0.5 * var(--pt)) calc(1.5 * var(--pt)) rgb(0 0 0 / 0.25);
+  transition: transform var(--dur-quick) var(--ease-out);
+}
+
+.switch[aria-checked="true"] .knob {
+  transform: translateX(calc(11 * var(--pt)));
+}
+
+.switch:disabled {
+  opacity: 0.45;
+}
+
+.caption {
+  padding: calc(5 * var(--pt)) calc(16 * var(--pt)) 0;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+.groupTitle {
+  padding: calc(14 * var(--pt)) calc(16 * var(--pt)) calc(5 * var(--pt));
+}

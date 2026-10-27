@@ -1,0 +1,37 @@
+.shell {
+  min-height: 100dvh;
+}
+
+/* Phones (and narrow windows): one column, like the Mac panel; the window scrolls. */
+.shell[data-split="false"] .detail {
+  max-width: var(--phone-max);
+  margin: 0 auto;
+  min-height: 100dvh;
+}
+
+/* From 760px: the scores as a sidebar beside a wide detail pane; each pane scrolls on its own. */
+.shell[data-split="true"] {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  /* One row exactly the viewport tall, so each pane scrolls inside it. */
+  grid-template-rows: minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.sidebar {
+  position: relative;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: inset calc(-0.5 * var(--pt)) 0 0 var(--glass-edge);
+}
+
+.shell[data-split="true"] .detail {
+  position: relative;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

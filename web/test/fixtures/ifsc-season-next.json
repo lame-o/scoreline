@@ -1,0 +1,80 @@
+{
+ "_source": "https://ifsc.results.info/api/v1/seasons/40",
+ "_recorded": "2026-10-27T07:15:32.408Z",
+ "name": "2027",
+ "leagues": [
+  {
+   "name": "Games",
+   "url": "/api/v1/season_leagues/472"
+  },
+  {
+   "name": "World Cups and World Championships",
+   "url": "/api/v1/season_leagues/474"
+  }
+ ],
+ "events": [
+  {
+   "event": "World Climbing Series Tokyo 2027",
+   "event_id": 1544,
+   "league_season_id": 474,
+   "location": "Tokyo, Japan",
+   "country": "JPN",
+   "starts_at": "2027-04-08 15:00:00 UTC",
+   "ends_at": "2027-04-11 14:59:00 UTC",
+   "local_start_date": "2027-04-09",
+   "local_end_date": "2027-04-11",
+   "timezone": {
+    "value": "Asia/Tokyo"
+   },
+   "url": "/api/v1/events/1544",
+   "disciplines": [
+    {
+     "kind": "boulder"
+    }
+   ]
+  },
+  {
+   "event": "World Climbing Series Keqiao 2027",
+   "event_id": 1545,
+   "league_season_id": 474,
+   "location": "Keqiao, China",
+   "country": "CHN",
+   "starts_at": "2027-04-15 16:00:00 UTC",
+   "ends_at": "2027-04-18 15:59:00 UTC",
+   "local_start_date": "2027-04-16",
+   "local_end_date": "2027-04-18",
+   "timezone": {
+    "value": "Asia/Shanghai"
+   },
+   "url": "/api/v1/events/1545",
+   "disciplines": [
+    {
+     "kind": "boulder"
+    }
+   ]
+  },
+  {
+   "event": "World Climbing Series Shanghai 2027",
+   "event_id": 1546,
+   "league_season_id": 474,
+   "location": "Shanghai, China",
+   "country": "CHN",
+   "starts_at": "2027-04-22 16:00:00 UTC",
+   "ends_at": "2027-04-25 15:59:00 UTC",
+   "local_start_date": "2027-04-23",
+   "local_end_date": "2027-04-25",
+   "timezone": {
+    "value": "Asia/Shanghai"
+   },
+   "url": "/api/v1/events/1546",
+   "disciplines": [
+    {
+     "kind": "lead"
+    },
+    {
+     "kind": "speed"
+    }
+   ]
+  }
+ ]
+}

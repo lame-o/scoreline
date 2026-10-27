@@ -1,0 +1,15 @@
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--live-text);
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

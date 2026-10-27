@@ -1,0 +1,184 @@
+.list {
+  padding-bottom: calc(8 * var(--pt));
+  /* Rows show records from the Mac's medium width (380pt of content). */
+  container: scores / inline-size;
+}
+
+.section {
+  position: relative;
+}
+
+/* The section's games: teams | status, each row a subgrid of it. */
+.rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(calc(70 * var(--pt)), max-content);
+  column-gap: calc(12 * var(--pt));
+  padding: 0 calc(6 * var(--pt));
+}
+
+.error {
+  padding: calc(6 * var(--pt)) var(--gutter);
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+/* MARK: Section header */
+
+.heading {
+  margin: 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--pt));
+  width: 100%;
+  padding: calc(12 * var(--pt)) var(--gutter) calc(3 * var(--pt));
+  text-align: left;
+}
+
+.header[aria-expanded="false"] {
+  padding-bottom: calc(6 * var(--pt));
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  width: 100%;
+}
+
+.groupLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.groupIcon {
+  width: calc(12 * var(--pt));
+  display: inline-flex;
+  justify-content: center;
+  flex: none;
+}
+
+/* Always visible so collapsing is discoverable; brighter on hover. */
+.chevron {
+  margin-left: auto;
+  flex: none;
+  color: var(--label-tertiary);
+  transition:
+    transform var(--dur-quick) var(--ease-out),
+    color var(--dur-fade) var(--ease-out);
+}
+
+.header[aria-expanded="true"] .chevron {
+  transform: rotate(90deg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .header:hover .chevron {
+    color: var(--label-secondary);
+  }
+}
+
+.header[data-instant="true"] .chevron {
+  transition: none;
+}
+
+/* MARK: Collapsed preview */
+
+.preview {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  padding-left: calc(17 * var(--pt));
+  min-width: 0;
+}
+
+.crests {
+  display: flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  flex: none;
+}
+
+.more {
+  display: inline-flex;
+  align-items: center;
+  height: calc(15 * var(--pt));
+  padding: 0 calc(5 * var(--pt));
+  border-radius: 999px;
+  background: var(--fill-press);
+  font-size: var(--text-small);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.previewSummary {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  min-width: 0;
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.previewLive {
+  font-weight: 600;
+  color: var(--live-text);
+}
+
+.categories {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.revealSummary {
+  animation: reveal var(--dur-reveal) var(--ease-out) 0.22s both;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(calc(4 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .revealSummary {
+    animation-delay: 0s;
+  }
+}
+
+/* MARK: Footnotes */
+
+.footnotes {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--pt));
+  max-width: var(--readable-width);
+  padding: calc(12 * var(--pt)) var(--gutter) 0;
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+.hint {
+  display: flex;
+  gap: calc(5 * var(--pt));
+  align-items: baseline;
+}
