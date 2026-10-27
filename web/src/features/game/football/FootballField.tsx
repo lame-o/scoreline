@@ -382,7 +382,9 @@ function Timeouts({ count, color, team }: { count: number | null; color: string;
 function EndZone({ label, color, side }: { label: string; color: string; side: "left" | "right" }) {
   return (
     <span className={styles.endZone} data-side={side} style={{ "--team": color === NEUTRAL ? "var(--viz-neutral)" : color } as CSSProperties}>
-      <span className={styles.endLabel}>{label}</span>
+      <span className={styles.endLabel} title={label.length > 5 ? label : undefined}>
+        {label}
+      </span>
     </span>
   );
 }

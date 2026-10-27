@@ -38,9 +38,9 @@ import { sameFocus, useFocus, useLinkedStore, type Focus } from "../core/linked"
 import { useChartMoment } from "../core/moments";
 import { pointSize } from "../core/useMedia";
 import { useStage, useStageStore } from "./stage";
+import { FittedName, useLabelGutter } from "../core/chartLabels";
 import styles from "./GameFlow.module.css";
 
-const GUTTER = 30;
 const TRAILING = 18;
 const PAD = 8;
 
@@ -94,13 +94,15 @@ export const GameFlow = memo(function GameFlow({ flow, palette, topName, bottomN
     return () => observer.disconnect();
   }, []);
 
+  // The halves' names: a 30pt gutter that grows a little for a long one (core/chartLabels.tsx).
+  const gutter = useLabelGutter(topName, bottomName);
   const height = width >= 460 ? 128 : 96;
   const periods = periodsPlayed(Math.max(1, ...flow.map((p) => p.period)), now, quarter);
   const length = periodStart(periods + 1, quarter);
   const lineEnd = final ? length : Math.min(Math.max(now ?? 0, flow.at(-1)?.elapsed ?? 0), length);
   const extent = flowExtent(flow);
-  const w = Math.max(plotWidth - GUTTER - TRAILING, 0);
-  const x = useCallback((t: number) => GUTTER + w * Math.min(Math.max(t / length, 0), 1), [w, length]);
+  const w = Math.max(plotWidth - gutter - TRAILING, 0);
+  const x = useCallback((t: number) => gutter + w * Math.min(Math.max(t / length, 0), 1), [gutter, w, length]);
   const mid = height / 2;
   const reach = mid - 4;
   const y = useCallback((m: number) => mid - (m / (extent * 1.06)) * reach, [mid, reach, extent]);
@@ -133,7 +135,7 @@ export const GameFlow = memo(function GameFlow({ flow, palette, topName, bottomN
       ctx.setLineDash([2, 3]);
       ctx.beginPath();
       for (const m of [extent, -extent]) {
-        ctx.moveTo(GUTTER, y(m));
+        ctx.moveTo(gutter, y(m));
         ctx.lineTo(size.width - TRAILING, y(m));
       }
       ctx.stroke();
@@ -183,7 +185,7 @@ export const GameFlow = memo(function GameFlow({ flow, palette, topName, bottomN
         ctx.strokeStyle = ink("color-mix(in srgb, var(--label) 18%, transparent)");
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(GUTTER, zero);
+        ctx.moveTo(gutter, zero);
         ctx.lineTo(size.width - TRAILING, zero);
         ctx.stroke();
       };
@@ -225,7 +227,7 @@ export const GameFlow = memo(function GameFlow({ flow, palette, topName, bottomN
   const hover = (e: PointerEvent<HTMLDivElement>) => {
     if (!linked || e.pointerType !== "mouse" || w <= 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const t = (((e.clientX - rect.left) / pointSize() - GUTTER) / w) * length;
+    const t = (((e.clientX - rect.left) / pointSize() - gutter) / w) * length;
     let next: Focus | null = null;
     if (run && t >= run.start && t <= lineEnd + 30) next = { side: run.team, span: runSpan(run) };
     else if (t >= 0 && t <= lineEnd + 30) {
@@ -247,7 +249,7 @@ export const GameFlow = memo(function GameFlow({ flow, palette, topName, bottomN
   const seek = (e: PointerEvent<HTMLDivElement>) => {
     if (!stage || w <= 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const t = (((e.clientX - rect.left) / pointSize() - GUTTER) / w) * length;
+    const t = (((e.clientX - rect.left) / pointSize() - gutter) / w) * length;
     if (t >= 0) stage.seek(Math.min(t, lineEnd), lineEnd);
   };
 
@@ -304,12 +306,14 @@ export const GameFlow = memo(function GameFlow({ flow, palette, topName, bottomN
           ) : null}
           {!target && focus?.span ? <span className={styles.shade} style={{ left: `calc(${x(focus.span[0])} * var(--pt))`, width: `calc(${Math.max(x(run ? lineEnd : focus.span[1]) - x(focus.span[0]), 1)} * var(--pt))` }} /> : null}
           <canvas ref={canvas} className={styles.canvas} />
-          <span className={styles.team} style={{ top: `calc(${mid / 2} * var(--pt))` }}>
-            {topName}
-          </span>
-          <span className={styles.team} style={{ top: `calc(${mid + mid / 2} * var(--pt))` }}>
-            {bottomName}
-          </span>
+          {[
+            { name: topName, top: mid / 2 },
+            { name: bottomName, top: mid + mid / 2 },
+          ].map(({ name, top }) => (
+            <span key={top} className={styles.team} style={{ top: `calc(${top} * var(--pt))`, width: `calc(${gutter - 2} * var(--pt))` }}>
+              <FittedName text={name} room={gutter - 6} />
+            </span>
+          ))}
           {[extent, -extent].map((m) => (
             <span key={m} className={styles.extent} style={{ top: `calc(${y(m)} * var(--pt))` }}>
               {extent}

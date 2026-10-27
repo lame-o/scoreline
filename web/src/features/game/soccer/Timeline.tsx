@@ -7,17 +7,19 @@
  *
  * SVG: thirty-odd marks, redrawn only when the data or the focus changes;
  * the now dot and the played fill glide (Motion.standard) as the minute turns.
+ * The lanes' names sit in a 30pt gutter that grows a little for a long one;
+ * past that they shrink, then cut (core/chartLabels.tsx).
  */
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import type { DetailMoment } from "../../../data/gameDetail";
 import { plural } from "../../../data/format";
 import { NEUTRAL, type TeamPalette } from "../../../data/teamColors";
+import { fitted, useLabelGutter } from "../core/chartLabels";
 import { headline } from "../core/CommonSections";
 import { useFocus, useLinkedMarks } from "../core/linked";
 import { pointSize, useReducedMotion } from "../core/useMedia";
 import styles from "./Timeline.module.css";
 
-const GUTTER = 30;
 const HEIGHT = 60;
 const laneY = (m: DetailMoment) => (m.side === "bottom" ? 38 : 10);
 
@@ -46,11 +48,14 @@ export const Timeline = memo(function Timeline({ moments, currentMinute, palette
     return () => observer.disconnect();
   }, []);
 
+  const gutter = useLabelGutter(topName, bottomName);
+  const top = fitted(topName, gutter - 6);
+  const bottom = fitted(bottomName, gutter - 6);
   const marked = moments.filter((m) => m.minute != null && m.kind !== "other" && m.kind !== "score");
   const length = Math.max(90, Math.ceil(Math.max(0, ...marked.map((m) => m.minute ?? 0))), currentMinute ?? 0);
   // A little room at the end, so the last mark's ring isn't clipped.
-  const w = Math.max(plotWidth - GUTTER - 6, 0);
-  const x = (m: number) => GUTTER + w * Math.min(m / length, 1);
+  const w = Math.max(plotWidth - gutter - 6, 0);
+  const x = (m: number) => gutter + w * Math.min(m / length, 1);
   const ticks = width >= 460 ? Array.from({ length: Math.floor(length / 15) }, (_, i) => (i + 1) * 15).filter((m) => m !== 45 && m < length) : [];
   // A tick near the end (90' in stoppage time) keeps its line, not its label.
   const labeled = ticks.filter((m) => x(length) - 8 - x(m) >= 22);
@@ -72,18 +77,21 @@ export const Timeline = memo(function Timeline({ moments, currentMinute, palette
     <div ref={box} className={styles.timeline} style={{ height: `calc(${HEIGHT} * var(--pt))` }} role="img" aria-label={spoken} {...hover}>
       {w > 0 ? (
         <svg className={styles.svg} viewBox={`0 0 ${plotWidth} ${HEIGHT}`} data-reduce={reduce} aria-hidden="true">
-          <text className={styles.team} x={GUTTER / 2 - 2} y={10}>
-            {topName}
-          </text>
-          <text className={styles.team} x={GUTTER / 2 - 2} y={38}>
-            {bottomName}
-          </text>
-          <rect className={styles.track} x={GUTTER} y={23} width={w} height={2} rx={1} />
+          {[
+            { fit: top, name: topName, y: 10 },
+            { fit: bottom, name: bottomName, y: 38 },
+          ].map(({ fit, name, y }) => (
+            <text key={y} className={styles.team} x={gutter / 2 - 2} y={y} style={fit.size !== 9 ? { fontSize: fit.size } : undefined}>
+              {fit.cut ? <title>{name}</title> : null}
+              {fit.text}
+            </text>
+          ))}
+          <rect className={styles.track} x={gutter} y={23} width={w} height={2} rx={1} />
           {length > 90 ? <rect className={styles.extra} x={x(90)} y={23} width={x(length) - x(90)} height={2} /> : null}
           {ticks.map((m) => (
             <rect key={m} className={styles.tick} x={x(m) - 0.5} y={22} width={1} height={4} />
           ))}
-          {currentMinute != null ? <rect className={styles.played} x={GUTTER} y={23} width={w} height={2} style={{ transform: `scaleX(${(x(currentMinute) - GUTTER) / Math.max(w, 1)})`, transformOrigin: `${GUTTER}px 24px` }} /> : null}
+          {currentMinute != null ? <rect className={styles.played} x={gutter} y={23} width={w} height={2} style={{ transform: `scaleX(${(x(currentMinute) - gutter) / Math.max(w, 1)})`, transformOrigin: `${gutter}px 24px` }} /> : null}
           <line className={styles.half} x1={x(45)} y1={19} x2={x(45)} y2={29} />
           {currentMinute != null ? <circle className={styles.ring} cx={0} cy={24} r={4.5} style={{ transform: `translateX(${x(currentMinute)}px)` }} /> : null}
           <g className={styles.marks} data-receded={target != null}>
@@ -95,7 +103,7 @@ export const Timeline = memo(function Timeline({ moments, currentMinute, palette
           {currentMinute != null ? <circle className={styles.now} cx={0} cy={24} r={3} style={{ transform: `translateX(${x(currentMinute)}px)` }} /> : null}
           {target ? <Mark m={target} x={x(target.minute!)} color={color(target)} emphasized /> : null}
           <g className={styles.labels} data-hidden={target != null}>
-            <text className={styles.landmark} x={GUTTER + 6} y={54} textAnchor="middle">
+            <text className={styles.landmark} x={gutter + 6} y={54} textAnchor="middle">
               0'
             </text>
             <text className={styles.landmark} x={x(45)} y={54} textAnchor="middle">
@@ -113,7 +121,7 @@ export const Timeline = memo(function Timeline({ moments, currentMinute, palette
         </svg>
       ) : null}
       {target ? (
-        <p className={styles.readout} style={{ left: `calc(${GUTTER} * var(--pt))` }}>
+        <p className={styles.readout} style={{ left: `calc(${gutter} * var(--pt))` }}>
           <strong>{target.clock}</strong>
           {`  ${headline(target)}`}
         </p>

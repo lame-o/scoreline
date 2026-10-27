@@ -157,6 +157,8 @@
   place-items: center;
   background: color-mix(in srgb, var(--team) 25%, transparent);
   overflow: hidden;
+  /* The label runs up the end zone: it may be as long as the zone is tall. */
+  container-type: size;
 }
 
 .endZone[data-side="left"],
@@ -171,6 +173,9 @@
 
 .endLabel {
   transform: rotate(-90deg);
+  max-width: calc(100cqh - 8 * var(--pt));
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: calc(9 * var(--pt));
   font-weight: 700;
   color: var(--label);
