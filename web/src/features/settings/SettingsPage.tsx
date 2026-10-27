@@ -1,9 +1,9 @@
 /**
  * Settings (ManageView.swift, AddSportsView.swift): followed teams, your
  * sports in your order (drag the handle, or focus it and use ↑/↓), every
- * league to add or remove, appearance, and the list's options. One centered
- * column, like System Settings. Later work adds notifications, celebrations
- * and the rest of the Mac's settings here (the store already holds them).
+ * league to add or remove, appearance, the list's options, the tab's live
+ * score, Live Games (celebrations, sounds), notifications, the keyboard and
+ * credits (ShellSettings.tsx). One centered column, like System Settings.
  */
 import { Reorder, useDragControls } from "motion/react";
 import { useEffect, useState, type KeyboardEvent } from "react";
@@ -30,6 +30,7 @@ import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { settings, useSettings, type CelebrationLevel, type Settings, type Theme } from "../../state/settings";
 import { isSupportedTeam, teamRef } from "../../data/profiles/models";
 import { LinkOrigin, linkNameClass, TeamLink } from "../profiles/ProfileLinks";
+import { Credits, KeyboardSection, NotificationsSection, SoundsRow, TabSection } from "./ShellSettings";
 import styles from "./Settings.module.css";
 
 const all = (s: Settings) => s;
@@ -74,6 +75,8 @@ export function SettingsPage() {
           </GroupBox>
         </FormSection>
 
+        <TabSection />
+
         {/* Celebrations.swift `CelebrationLevelRow`: the picker on the title's line, the subtitle full width under it. */}
         <FormSection title="Live Games" icon="sparkles" caption="With Reduce Motion on, movement becomes gentle fades.">
           <GroupBox>
@@ -95,12 +98,18 @@ export function SettingsPage() {
               </div>
               <span className={formStyles.rowSubtitle}>Confetti, sparks and fireworks when big plays happen</span>
             </div>
+            <SoundsRow />
           </GroupBox>
         </FormSection>
 
-        <FormSection title="All Sports" icon="plusCircle" caption="Data from ESPN, bo3.gg and IFSC.">
+        <NotificationsSection />
+
+        <FormSection title="All Sports" icon="plusCircle">
           <AllSports enabled={s.enabledLeagues} />
         </FormSection>
+
+        <KeyboardSection />
+        <Credits />
       </div>
     </div>
   );
@@ -113,7 +122,7 @@ function MyTeams() {
       {followed.length === 0 ? (
         <p className={styles.hint}>
           <Icon name="starOutline" size={11} />
-          <span>Follow a team from its game, or with the ★ on a league's team list. It shows first, in My Teams.</span>
+          <span>Right-click a game (or touch and hold it), or use the ★ on a league's team list, to follow a team. It shows first, sends alerts and puts its live score in the tab.</span>
         </p>
       ) : (
         <LinkOrigin name="Settings">

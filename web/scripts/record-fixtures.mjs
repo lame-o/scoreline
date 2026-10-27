@@ -274,6 +274,129 @@ async function mlb() {
   await save("espn-mlb-core-plays.json", { count: head.count, pages }, base);
 }
 
+// MARK: Football game pages (summaries and the core API's plays)
+
+/** A core API link without its query ("…/teams/9?lang=en&region=us" → "…/teams/9"): the parsers read the path. */
+const ref = (r) => (r?.$ref ? { $ref: r.$ref.split("?")[0] } : undefined);
+
+const trimSpot = (s, keys) => (s ? { ...pick(s, keys), team: ref(s.team) } : undefined);
+
+/**
+ * A core play, cut to what FootballFeed reads (and what the demo needs to stand a situation up
+ * after it: the down and distance it ends on). The long text only when there's no short one.
+ */
+const trimFootballPlay = (p) => ({
+  ...pick(p, ["id", "sequenceNumber", "shortText", "awayScore", "homeScore", "scoringPlay", "statYardage", "isTurnover", "isPenalty"]),
+  text: p.shortText ? undefined : p.text,
+  type: pick(p.type, ["id", "text"]),
+  scoringType: p.scoringType ? pick(p.scoringType, ["name"]) : undefined,
+  period: pick(p.period, ["number"]),
+  clock: pick(p.clock, ["value", "displayValue"]),
+  start: trimSpot(p.start, ["yardLine", "shortDownDistanceText"]),
+  end: trimSpot(p.end, ["down", "distance", "yardLine"]),
+  team: ref(p.team),
+  drive: ref(p.drive),
+});
+
+/** A summary, cut to what the football game page reads (ESPNDetail.load). */
+function trimFootballSummary(s, { curve = false } = {}) {
+  const comp = s.header?.competitions?.[0] ?? {};
+  return {
+    header: {
+      ...pick(s.header, ["id", "gameNote", "season"]),
+      links: s.header?.links?.slice(0, 1).map((l) => pick(l, ["href", "rel"])),
+      competitions: [
+        {
+          ...pick(comp, ["id", "date", "conferenceCompetition"]),
+          status: { ...pick(comp.status, ["period", "displayClock", "clock"]), type: pick(comp.status?.type, ["state", "completed", "shortDetail", "detail", "name"]) },
+          broadcasts: comp.broadcasts?.map((b) => ({ type: pick(b.type, ["shortName"]), media: pick(b.media, ["shortName"]) })),
+          competitors: comp.competitors?.map((c) => ({
+            ...pick(c, ["homeAway", "winner", "score", "rank", "curatedRank"]),
+            linescores: c.linescores?.map((l) => pick(l, ["displayValue"])),
+            record: c.record?.map((r) => pick(r, ["type", "summary"])),
+            team: {
+              ...pick(c.team, ["id", "abbreviation", "displayName", "shortDisplayName", "location", "name", "color", "alternateColor"]),
+              logos: c.team?.logos?.slice(0, 2).map((l) => pick(l, ["href", "rel"])),
+            },
+          })),
+        },
+      ],
+    },
+    gameInfo: { venue: pick(s.gameInfo?.venue, ["fullName"]) },
+    // The page reads the latest reading; the demo replays the whole curve (by play) with the game.
+    winprobability: (curve ? s.winprobability : s.winprobability?.slice(-3))?.map((w) => pick(w, ["homeWinPercentage", "tiePercentage", "playId"])),
+    boxscore: {
+      teams: s.boxscore?.teams?.map((t) => ({ team: pick(t.team, ["id", "abbreviation"]), statistics: t.statistics?.map((x) => pick(x, ["name", "label", "displayValue"])) })),
+      // Who played, by name: the page links the names in plays and scoring plays.
+      players: s.boxscore?.players?.map((t) => ({
+        team: pick(t.team, ["id"]),
+        statistics: t.statistics?.map((g) => ({ name: g.name, athletes: g.athletes?.map((a) => ({ athlete: pick(a.athlete, ["id", "displayName", "shortName"]) })) })),
+      })),
+    },
+    scoringPlays: s.scoringPlays?.map((p) => ({
+      ...pick(p, ["id", "text", "awayScore", "homeScore"]),
+      type: pick(p.type, ["id", "text"]),
+      scoringType: pick(p.scoringType, ["name"]),
+      period: pick(p.period, ["number"]),
+      clock: pick(p.clock, ["value", "displayValue"]),
+      team: pick(p.team, ["id", "abbreviation"]),
+    })),
+  };
+}
+
+/** Seconds into the game of a play (for picking the game decided latest). */
+const gameSeconds = (p) => ((p?.period?.number ?? 0) - 1) * 900 + (900 - (p?.clock?.value ?? 900));
+
+async function football() {
+  // NFL: of this week's finished games, the one whose last score came latest (the closest finish), with
+  // every page of its core plays (the live lane's first look reads them all; the demo replays its end).
+  const boardURL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
+  const board = await get(boardURL);
+  const finished = (board.events ?? []).filter((e) => e.status?.type?.state === "post");
+  let best = null;
+  for (const e of finished) {
+    const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${e.id}`;
+    const s = await get(url);
+    const last = (s.scoringPlays ?? []).at(-1);
+    const score = (s.scoringPlays ?? []).length ? gameSeconds(last) : -1;
+    if (!best || score > best.score) best = { id: e.id, url, s, score };
+  }
+  if (!best) return;
+  await save("espn-nfl-summary.json", trimFootballSummary(best.s, { curve: true }), best.url);
+  const base = `https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/${best.id}/competitions/${best.id}`;
+  const pageSize = 50;
+  const head = await get(`${base}/plays?limit=1`);
+  const pages = [];
+  for (let page = 1; page <= Math.max(Math.ceil(head.count / pageSize), 1); page++) {
+    const json = await get(`${base}/plays?limit=${pageSize}&page=${page}`);
+    pages.push({ page, pageCount: json.pageCount, items: json.items.map(trimFootballPlay) });
+  }
+  const situation = await get(`${base}/situation`);
+  const status = await get(`${base}/status`);
+  await save(
+    "espn-nfl-core-plays.json",
+    {
+      count: head.count,
+      pages,
+      situation: { ...pick(situation, ["down", "distance", "yardLine", "isRedZone", "homeTimeouts", "awayTimeouts"]), lastPlay: ref(situation.lastPlay) },
+      status: { ...pick(status, ["clock", "displayClock", "period"]), type: pick(status.type, ["state", "completed", "shortDetail", "detail", "name"]) },
+    },
+    `${base}/plays`,
+  );
+
+  // College: last Saturday's finished game between two ranked teams (the conference table, AP ranks).
+  const saturday = new Date();
+  saturday.setDate(saturday.getDate() - ((saturday.getDay() + 1) % 7));
+  const day = `${saturday.getFullYear()}${String(saturday.getMonth() + 1).padStart(2, "0")}${String(saturday.getDate()).padStart(2, "0")}`;
+  const cfbURL = `https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&dates=${day}`;
+  const cfb = await get(cfbURL);
+  const ranked = (e) => (e.competitions?.[0]?.competitors ?? []).filter((c) => (c.curatedRank?.current ?? 99) <= 25).length;
+  const game = (cfb.events ?? []).filter((e) => e.status?.type?.state === "post").sort((a, b) => ranked(b) - ranked(a))[0];
+  if (!game) return;
+  const url = `https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary?event=${game.id}`;
+  await save("espn-cfb-summary.json", trimFootballSummary(await get(url)), url);
+}
+
 // MARK: Match pages (a CS2 match, IFSC rounds)
 //
 // A bo3.gg match as its page loads it (GameDetail.swift `CSDetail.load`):
@@ -378,7 +501,7 @@ async function matches() {
 
 // MARK: Run
 //
-// `pnpm fixtures` records everything; `pnpm fixtures ifsc` (or espn, bo3, teams, mlb, matches) one source.
+// `pnpm fixtures` records everything; `pnpm fixtures ifsc` (or espn, bo3, teams, mlb, football, matches) one source.
 const only = process.argv[2];
 const want = (source) => !only || only === source;
 
@@ -400,6 +523,7 @@ if (want("bo3")) {
 if (want("ifsc")) await ifsc();
 if (want("teams")) await teams();
 if (want("mlb")) await mlb();
+if (want("football")) await football();
 // Team and player pages (test/fixtures/profiles).
 if (want("profiles")) await (await import("./record-profile-fixtures.mjs")).recordProfiles();
 if (want("matches")) await matches();

@@ -185,9 +185,11 @@ export function usePinned(focus: Focus): boolean {
 /**
  * Props for a list row that takes part in linked hover (`linkedRow`): it
  * reports its focus on pointer enter and leave; a pinnable row pins on click
- * (or Enter/Space) and says so to screen readers.
+ * (or Enter/Space) and says so to screen readers. A row holding links (names
+ * that open a player's page) pins on a click anywhere but a link, and isn't a
+ * button itself, so its links stay links for the keyboard and screen readers.
  */
-export function useLinkedRow(focus: Focus, { pinnable = false }: { pinnable?: boolean } = {}): HTMLAttributes<HTMLElement> & { "data-pinned"?: boolean } {
+export function useLinkedRow(focus: Focus, { pinnable = false, links = false }: { pinnable?: boolean; links?: boolean } = {}): HTMLAttributes<HTMLElement> & { "data-pinned"?: boolean } {
   const store = useLinkedStore();
   const pinned = usePinned(focus);
   const ref = useRef(focus);
@@ -201,7 +203,12 @@ export function useLinkedRow(focus: Focus, { pinnable = false }: { pinnable?: bo
         if (e.pointerType === "mouse") store?.hover(ref.current, false);
       },
     };
-    if (pinnable) {
+    if (pinnable && links) {
+      props.onClick = (e) => {
+        if (!(e.target as Element).closest("a")) store?.togglePin(ref.current);
+      };
+      props["data-pinned"] = pinned;
+    } else if (pinnable) {
       props.onClick = () => store?.togglePin(ref.current);
       props.onKeyDown = (e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -215,7 +222,7 @@ export function useLinkedRow(focus: Focus, { pinnable = false }: { pinnable?: bo
       props["data-pinned"] = pinned;
     }
     return props;
-  }, [store, pinnable, pinned]);
+  }, [store, pinnable, links, pinned]);
 }
 
 /** A hover target in a chart: a dot, or a line that can be pointed at anywhere along its length (HoverMark). */

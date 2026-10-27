@@ -13,6 +13,8 @@ import { NBA_PATH } from "./providers/espn";
 
 export type Section =
   | "field"
+  // Football: the per-play replay (the Mac's play theater, to port).
+  | "theater"
   | "atPlate"
   | "atBat"
   | "pitch"
@@ -44,7 +46,7 @@ export type Section =
   | "injuries";
 
 /** Which kind of page an event gets. */
-export type PageKind = "soccer" | "baseball" | "nba" | "espn" | "counterStrike" | "climbing" | "none";
+export type PageKind = "soccer" | "baseball" | "nba" | "football" | "espn" | "counterStrike" | "climbing" | "none";
 
 export function pageKind(ref: EventRef | null): PageKind {
   switch (ref?.kind) {
@@ -52,6 +54,7 @@ export function pageKind(ref: EventRef | null): PageKind {
       if (ref.sport === "soccer") return "soccer";
       if (ref.sport === "baseball") return "baseball";
       if (ref.sport === "basketball" && ref.path === NBA_PATH) return "nba";
+      if (ref.sport === "football") return "football";
       return "espn";
     case "counterStrike":
       return "counterStrike";
@@ -84,6 +87,13 @@ export function sectionOrder(ref: EventRef | null, state: EventState): readonly 
           ? ["flow", "court", "linescore", "leaders", "box", "moments", "stats", "table"]
           : // Before tip-off: who's out, ESPN's matchup predictor, season leaders.
             ["injuries", "winProbability", "leaders", "table", "whereToWatch"];
+    case "football":
+      // The Mac's ESPN order (DetailView `.espn`), with the play theater's slot under the field.
+      return state === "live"
+        ? ["field", "theater", "winProbability", "linescore", "moments", "stats", "table", "plays", "whereToWatch"]
+        : state === "final"
+          ? ["linescore", "moments", "stats", "table", "plays"]
+          : ["table", "whereToWatch"];
     case "espn":
       return state === "live"
         ? ["field", "winProbability", "linescore", "moments", "stats", "table", "plays", "whereToWatch"]
@@ -144,6 +154,13 @@ export function widePlan(ref: EventRef | null, state: EventState): readonly Wide
         : state === "final"
           ? [columns(["flow", "court", "linescore", "moments", "table"], ["box", "leaders", "stats", "injuries"])]
           : [columns(["injuries", "winProbability", "leaders"], ["table", "whereToWatch"])];
+    case "football":
+      // The drive and its numbers on the left; the score's story on the right, the quarters beside the scoring plays they light.
+      return state === "live"
+        ? [columns(["field", "theater", "stats", "plays"], ["winProbability", "linescore", "moments", "table", "whereToWatch"])]
+        : state === "final"
+          ? [columns(["linescore", "stats"], ["moments", "table", "plays"])]
+          : [columns(["table"], ["whereToWatch"])];
     case "espn":
       return state === "live"
         ? [columns(["field", "stats", "plays"], ["winProbability", "linescore", "moments", "table", "whereToWatch"])]

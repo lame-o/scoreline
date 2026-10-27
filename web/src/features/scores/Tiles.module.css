@@ -377,3 +377,106 @@
 .tile {
   scroll-margin-block: calc(56 * var(--pt)) calc(12 * var(--pt));
 }
+
+/* MARK: The game's menu (GameMenu.tsx) */
+
+/* The tile and its "…" share the grid cell; the tile fills it. */
+.tileWrap {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  /* A long press opens the menu, not the link's callout or a text selection. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tileWrap > .tile {
+  flex: 1;
+}
+
+/*
+ * On hover, a small glass "…" sits on the tile's top-right corner, half
+ * outside it (macOS's notification close button), clear of the header's
+ * status. It arrives from 92% on the quick curve and leaves on the exit's.
+ */
+.tileMore {
+  position: absolute;
+  z-index: 2;
+  top: calc(-7 * var(--pt));
+  right: calc(-7 * var(--pt));
+  display: none;
+  place-items: center;
+  width: calc(20 * var(--pt));
+  height: calc(20 * var(--pt));
+  border-radius: 50%;
+  background: var(--menu-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
+    var(--shadow-control);
+  color: var(--label-secondary);
+  opacity: 0;
+  transform: scale(0.92);
+  transition:
+    opacity var(--dur-exit) var(--ease-out),
+    transform var(--dur-exit) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tileMore {
+    display: grid;
+  }
+
+  .tileWrap:hover .tileMore,
+  .tileWrap[data-menu-open="true"] .tileMore {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity var(--dur-quick) var(--ease-out),
+      transform var(--dur-quick) var(--ease-out);
+  }
+
+  .tileMore:hover,
+  .tileMore[aria-expanded="true"] {
+    color: var(--label);
+  }
+}
+
+/* While its menu is open, the tile keeps its hover wash. */
+.tileWrap[data-menu-open="true"] .tile:not([data-keyboard="true"]):not([aria-current="page"]) {
+  background: light-dark(rgb(0 0 0 / 0.075), rgb(255 255 255 / 0.085));
+}
+
+/* Pinned: shown in the tab. */
+.pin {
+  display: inline-flex;
+  flex: none;
+  margin-right: calc(4 * var(--pt));
+  color: var(--label-tertiary);
+}
+
+
+/* Up Next's "Schedule ›" (SectionLink): secondary until pointed at. */
+.scheduleLink {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  padding: calc(2 * var(--pt)) 0;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  transition: color var(--dur-fade) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .scheduleLink:hover {
+    color: var(--label);
+  }
+}
+
+.scheduleLink:active {
+  opacity: 0.6;
+}

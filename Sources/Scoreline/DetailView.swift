@@ -1128,7 +1128,7 @@ struct DetailView: View {
         switch kind {
         case .pitch:
             PitchView(trail: soccerFeed.trail, shots: soccerFeed.shots, live: live,
-                      palette: palette, topName: names.top, bottomName: names.bottom, cards: soccerFeed.cards)
+                      palette: palette, topName: names.top, bottomName: names.bottom, cards: soccerFeed.cards, theater: live)
         case .timeline:
             SoccerTimeline(moments: d.moments, currentMinute: live ? soccerMinute : nil, palette: palette,
                            topName: names.top, bottomName: names.bottom)
@@ -1187,9 +1187,17 @@ struct DetailView: View {
                                   caption: "This drive, snap by snap. \(names.top) defends the left end zone.",
                                   accessory: .live,
                                   spokenCaption: "This drive, snap by snap. \(full.top) defending the left end zone.") {
-                        FootballField(situation: football, topLabel: names.top, bottomLabel: names.bottom, palette: palette,
-                                      drive: fieldDrive, possession: footballFeed.possession ?? football.possession,
-                                      twoMinuteDrill: twoMinuteDrill)
+                        VStack(alignment: .leading, spacing: 10) {
+                            // Reads the live lane's last snap itself, so a play redraws only the theater.
+                            let rest = FootballTheater.rest(football)
+                            FootballTheater(feed: footballFeed, rest: rest?.rest, restOffense: rest?.offense, palette: palette,
+                                            kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last),
+                                            topName: names.top, bottomName: names.bottom)
+                            FootballField(situation: football, topLabel: names.top, bottomLabel: names.bottom, palette: palette,
+                                          drive: fieldDrive, possession: footballFeed.possession ?? football.possession,
+                                          twoMinuteDrill: twoMinuteDrill,
+                                          celebrates: FootballCelebration.driveChartBursts(theaterShown: true))
+                        }
                     }
                 }
             case .atPlate:
@@ -1215,6 +1223,11 @@ struct DetailView: View {
                               accessory: live ? .live : .final,
                               spokenCaption: (live ? "The last 10 actions, live. " : "Every shot, with each goal's path. ")
                                   + "\(full.top) attacking left to right, \(full.bottom) right to left.") {
+                    if live {
+                        // Reads the live lane's latest moment itself, so a moment redraws only the theater.
+                        SoccerTheater(feed: soccerFeed, palette: palette,
+                                      kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last))
+                    }
                     chart(.pitch, d)
                 }
             case .timeline:
@@ -1924,7 +1937,7 @@ struct DetailView: View {
                 let ids = current.competitors.map { $0.id?.split(separator: "-").last.map(String.init) }
                 let top = ids.first ?? nil, bottom = ids.last ?? nil
                 let before = baseballFeed.score
-                await baseballFeed.update(path: path, eventID: id, names: names) { team in
+                await baseballFeed.update(path: path, eventID: id, names: names, statcast: Statcast.Lookup(current)) { team in
                     team == top ? .top : team == bottom ? .bottom : nil
                 }
                 moments.offer(baseballFeed.takeMoments())

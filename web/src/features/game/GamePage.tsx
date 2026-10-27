@@ -36,6 +36,7 @@ import { useWidth } from "../../design/useWidth";
 import { useBaseballPage } from "./mlb/BaseballPage";
 import { useCounterStrikePage } from "./cs2/CounterStrikePage";
 import { useClimbingPage } from "./climbing/ClimbingPage";
+import { useFootballPage } from "./football/FootballPage";
 import { ErrorCopy } from "../../design/components";
 import styles from "./GamePage.module.css";
 
@@ -48,6 +49,7 @@ const useGenericPage: UseSportPage = (game) => ({ sections: useCommonSections(ga
  */
 const SPORT_PAGES: Readonly<Record<PageKind, UseSportPage>> = {
   baseball: useBaseballPage,
+  football: useFootballPage,
   soccer: useGenericPage,
   nba: useGenericPage,
   espn: useGenericPage,
@@ -226,6 +228,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
           beats={beats}
           surface={surface}
           clockFallback={fallback}
+          clock={sport.clock ?? event.clock}
           liveSecond={sport.heroSecond}
           possession={sport.possession ?? null}
           staleSince={game.staleSince}
@@ -249,6 +252,8 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
         beats={beats}
         surface={surface}
         clockFallback={fallback}
+        clock={sport.clock ?? event.clock}
+        possession={sport.possession}
         stale={game.staleSince != null}
         detail={sport.dockDetail}
         lead={sport.dockLead}

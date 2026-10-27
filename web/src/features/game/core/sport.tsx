@@ -19,7 +19,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import type { GameDetail } from "../../../data/gameDetail";
 import type { AccessoryTier } from "../../../data/matchRules";
-import type { ScoreEvent, Side } from "../../../data/models";
+import type { GameClock, ScoreEvent, Side } from "../../../data/models";
 import type { Section } from "../../../data/sections";
 import type { TeamPalette } from "../../../data/teamColors";
 import type { PageGeometry } from "./geometry";
@@ -53,11 +53,13 @@ export interface SportPage {
   readonly laneScores?: { readonly top: string; readonly bottom: string } | null;
   /** What the clock line says without a running clock (the inning, half-time). */
   readonly clockFallback?: string | null;
+  /** The live clock when the sport's lane reads it closer than the scoreboard (football's 5-second readings). */
+  readonly clock?: GameClock | null;
   /** Under the hero's clock ("MIL batting"). */
   readonly heroSecond?: string | null;
   /** Spoken with the hero ("Brewers batting"). */
   readonly heroSpoken?: string | null;
-  /** Football and NBA, live: who has the ball. */
+  /** Football and NBA, live: who has the ball (the hero, and the docked bar's possession slots). */
   readonly possession?: Side | null;
   /** The docked bar's live detail beside the score, given its room. */
   readonly dockDetail?: (tier: AccessoryTier) => ReactNode;

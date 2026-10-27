@@ -10,19 +10,29 @@
  *   catches up on return if the data is older than 30s.
  * - Each poll is merged onto the last (`mergePoll`): clocks learn whether
  *   they run, an unchanged game keeps its identity (so its row doesn't render).
+ * - CS2: live matches with a followed team or pinned (and, in Tiles, the
+ *   first few on the board) read bo3.gg's live round (`withLiveRounds`).
+ * - Hidden tabs (web only): the shell's reader (`poll: "auto"`) keeps
+ *   polling, at `backgroundInterval`, while the tab title or alerts need the
+ *   news; it also polls whenever no page does (Settings on a phone).
+ * - My Teams reaches into each followed team's schedule (`useNextGames`).
  *
  *     const { sections, board, liveCount, status } = useScoreboard();
  */
 import { QueryClient, useQueries } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { leagueWithID } from "../data/leagues";
+import { getJSON } from "../data/http";
 import type { League, LeagueResult, ScoreEvent } from "../data/models";
 import { fetchLeagueEvents } from "../data/providers";
 import {
   allFailed,
+  backgroundInterval,
   board as buildBoard,
   climbingCountries,
   computeSections,
+  involvesFollowed,
+  keepIdentity,
   liveCount as countLive,
   mergePoll,
   pollInterval,
@@ -33,7 +43,9 @@ import {
 } from "../data/scoreboard";
 import { useNow } from "./clock";
 import { useLogoColorsVersion, wearColors } from "./logoColors";
-import { useSettings, type Settings } from "./settings";
+import { useNextGames } from "./nextGames";
+import { pin, usePinnedID } from "./pin";
+import { getSettings, useSettings, type Settings } from "./settings";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -75,25 +87,76 @@ export interface Scoreboard {
 
 const all = (s: Settings) => s;
 
-/**
- * `poll: false` reads the same queries without scheduling its own polls (a
- * second reader beside one that polls, so the feeds aren't polled twice).
- */
-export function useScoreboard({ poll = true }: { poll?: boolean } = {}): Scoreboard {
+// MARK: - Who polls
+
+/** Readers polling at the visible cadence (`poll: true`); an "auto" reader stands in when there are none. */
+const pollers = new Set<symbol>();
+const pollerListeners = new Set<() => void>();
+function subscribePollers(listener: () => void) {
+  pollerListeners.add(listener);
+  return () => pollerListeners.delete(listener);
+}
+function subscribeVisibility(listener: () => void) {
+  document.addEventListener("visibilitychange", listener);
+  return () => document.removeEventListener("visibilitychange", listener);
+}
+const isHidden = () => typeof document !== "undefined" && document.visibilityState === "hidden";
+
+/** One league's poll: the feed, merged onto the last poll; CS2 adds its live rounds. */
+async function pollLeague(league: League, countries: readonly string[], signal: AbortSignal, queryKey: readonly unknown[]): Promise<ScoreEvent[]> {
+  const previous = queryClient.getQueryData<ScoreEvent[]>(queryKey);
+  const merged = mergePoll(previous, await fetchLeagueEvents(league, { countries, signal }));
+  if (league.source.kind !== "counterStrike" || !merged.some((e) => e.state === "live")) return merged;
+  const { csLiveWatch, withLiveRounds } = await import("../data/providers/csLive");
+  // Read at poll time, not from a render: the follows, the pin and the view as they are now.
+  const s = getSettings();
+  const watch = csLiveWatch(merged, (e) => involvesFollowed(s, e), pin.get(), s.landingView === "tiles");
+  return keepIdentity(previous, await withLiveRounds(merged, watch, getJSON, signal));
+}
+
+export interface ScoreboardOptions {
+  /**
+   * `true` polls at the page's cadence. `false` reads the same queries
+   * without polling (a second reader beside one that polls, so the feeds
+   * aren't polled twice). `"auto"` (the app shell's reader) polls only when
+   * no `true` reader is mounted, and while the tab is hidden if `background`.
+   */
+  readonly poll?: boolean | "auto";
+  /** With `poll: "auto"`: keep polling while the tab is hidden (a score in the title, alerts to send). */
+  readonly background?: boolean;
+}
+
+export function useScoreboard({ poll = true, background = false }: ScoreboardOptions = {}): Scoreboard {
   const settings = useSettings(all);
+  const pinnedID = usePinnedID();
+  const nextGames = useNextGames(settings.followed);
   const countries = climbingCountries(settings);
   const leagues = settings.enabledLeagues.flatMap((id) => leagueWithID(id) ?? []);
   // The cadence is read when each poll lands, from the latest results.
   const interval = useRef(300);
 
+  // Register a visible-cadence poller; an "auto" reader watches the register and the tab.
+  useEffect(() => {
+    if (poll !== true) return;
+    const me = Symbol("poller");
+    pollers.add(me);
+    pollerListeners.forEach((l) => l());
+    return () => {
+      pollers.delete(me);
+      pollerListeners.forEach((l) => l());
+    };
+  }, [poll]);
+  const othersPoll = useSyncExternalStore(subscribePollers, () => pollers.size > 0, () => true);
+  const hidden = useSyncExternalStore(subscribeVisibility, isHidden, () => false);
+  const auto = poll === "auto";
+  const polling = poll === true || (auto && (hidden ? background : !othersPoll));
+
   const queries = useQueries({
     queries: leagues.map((league) => ({
       queryKey: scoresKey(league.id, countries),
-      queryFn: async ({ signal, queryKey }: { signal: AbortSignal; queryKey: readonly unknown[] }) => {
-        const fresh = await fetchLeagueEvents(league, { countries, signal });
-        return mergePoll(queryClient.getQueryData<ScoreEvent[]>(queryKey), fresh);
-      },
-      refetchInterval: poll ? () => interval.current * 1000 : (false as const),
+      queryFn: ({ signal, queryKey }: { signal: AbortSignal; queryKey: readonly unknown[] }) => pollLeague(league, countries, signal, queryKey),
+      refetchInterval: polling ? () => interval.current * 1000 : (false as const),
+      refetchIntervalInBackground: auto,
     })),
   });
 
@@ -120,15 +183,18 @@ export function useScoreboard({ poll = true }: { poll?: boolean } = {}): Scorebo
         if (!byID.has(e.id)) byID.set(e.id, e);
       }
     });
-    const sections = computeSections(results, settings, now);
+    const sections = computeSections(results, settings, now, nextGames);
+    // A followed team's next game from its schedule isn't in any result: its league comes from the schedule.
+    for (const [, games] of nextGames) for (const g of games) if (!owner.has(g.event.id)) owner.set(g.event.id, g.league);
     const leagueOf = (id: string) => owner.get(id);
     const event = (id: string) => byID.get(id);
-    const cadence = pollInterval(results, settings, now);
+    const matters = (e: ScoreEvent) => e.id === pinnedID || involvesFollowed(settings, e);
+    const cadence = hidden ? backgroundInterval(results, matters, now) : pollInterval(results, settings, now);
     const answered = Object.keys(results).length > 0 || leagues.length === 0;
     return {
       results,
       sections,
-      board: buildBoard(sections, settings, leagueOf, event),
+      board: buildBoard(sections, settings, leagueOf, event, pinnedID),
       quietLeagues: findQuiet(results, settings, now),
       liveCount: countLive(results, settings),
       status: !answered ? ("loading" as const) : allFailed(results, settings) ? ("offline" as const) : ("ready" as const),
@@ -139,7 +205,7 @@ export function useScoreboard({ poll = true }: { poll?: boolean } = {}): Scorebo
     };
     // `version` stands for the queries' data; `leagues` and `countries` follow `settings`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, settings, minute, colors]);
+  }, [version, settings, minute, colors, pinnedID, nextGames, hidden]);
 
   useEffect(() => {
     interval.current = derived.cadence;

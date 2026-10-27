@@ -2,22 +2,27 @@
  * EventTile: a miniature of the match page's hero (Tiles.swift). Crests face
  * each other with the score between them; live large tiles sit on their
  * teams' colors with the sport's strip underneath; a large next-up tile
- * counts down; small tiles are dense. The tile is a link to the game.
+ * counts down; small tiles are dense (a live baseball one draws the bases
+ * after the batting team's name). The tile is a link to the game; its menu
+ * opens by right-click, long press, the "…" on hover or Shift-F10
+ * (GameMenu.tsx). A pinned game wears a pin in its header.
  */
 import { memo, type CSSProperties } from "react";
 import { Link } from "react-router";
 import { Icon, LiveStatus, ScoreDigits, SPORT_ICON } from "../../design/components";
 import { countdown, countdownClock, clockTime, dayAndTime, dayName, enDash, isDelayed, spokenSummary, unplayed } from "../../data/format";
-import { eventSport, stepsBack, type Competitor, type League, type ScoreEvent, type Side } from "../../data/models";
+import { eventSport, stepsBack, type BaseState, type Competitor, type League, type ScoreEvent, type Side } from "../../data/models";
 import { lastGoalLine } from "../../data/soccer";
 import { sameEvent, type TileSize } from "../../data/scoreboard";
 import { teamPalette, washStrength, NEUTRAL, type TeamPalette } from "../../data/teamColors";
 import { FLAG_PALETTE } from "../../data/teams";
 import { useNow } from "../../state/clock";
+import { useIsPinned } from "../../state/pin";
 import { useColorScheme } from "../../state/theme";
+import { GameMenuHost } from "./GameMenu";
 import { textWidth } from "./measure";
 import { TravelingLogo, travelID } from "./sections";
-import { hasStrip, stripMeaning, TileStrip } from "./TileStrips";
+import { hasStrip, MiniBases, stripMeaning, TileStrip } from "./TileStrips";
 import styles from "./Tiles.module.css";
 
 export interface EventTileProps {
@@ -39,6 +44,7 @@ export interface EventTileProps {
 function EventTileView(props: EventTileProps) {
   const { event, size, league, followed, keyboard, selected, stale, revealDelay, onHover, className } = props;
   const scheme = useColorScheme();
+  const pinned = useIsPinned(event.id);
   const now = Date.now();
   const sport = eventSport(event);
   const match = event.content.kind === "match" ? event.content : null;
@@ -48,6 +54,7 @@ function EventTileView(props: EventTileProps) {
 
   const label = [
     spokenSummary(event, sport, now),
+    pinned ? "In the tab" : null,
     event.content.kind === "field" && event.content.summary ? event.content.summary : null,
     ...(match ? [match.top, match.bottom].filter((c) => c.id && followed.includes(c.id)).map((c) => `Following ${c.name}`) : []),
     event.state === "live" && event.liveLine && event.snapshot?.kind !== "football" && event.snapshot?.kind !== "baseball" ? event.liveLine : null,
@@ -60,9 +67,10 @@ function EventTileView(props: EventTileProps) {
 
   const wash = presentation === "live" ? tileWash(event, palette) : null;
   return (
+    <GameMenuHost event={event} className={[styles.tileWrap, className].filter(Boolean).join(" ")} buttonClassName={styles.tileMore}>
     <Link
       to={`/game/${encodeURIComponent(event.id)}`}
-      className={[styles.tile, className].filter(Boolean).join(" ")}
+      className={styles.tile}
       data-size={size}
       data-nav-id={event.id}
       data-keyboard={keyboard}
@@ -74,7 +82,7 @@ function EventTileView(props: EventTileProps) {
     >
       {wash ? <span className={[styles.wash, reveal?.className].filter(Boolean).join(" ")} style={{ background: wash, ...reveal?.style }} aria-hidden="true" /> : null}
       <span aria-hidden="true" style={{ display: "contents" }}>
-        <TileHeader event={event} league={league} large={size === "large"} stale={stale} reveal={reveal} />
+        <TileHeader event={event} league={league} large={size === "large"} stale={stale} pinned={pinned} reveal={reveal} />
         {match && palette ? (
           presentation === "live" ? (
             <LiveLarge {...props} top={match.top} bottom={match.bottom} palette={palette} reveal={reveal} />
@@ -88,6 +96,7 @@ function EventTileView(props: EventTileProps) {
         ) : null}
       </span>
     </Link>
+    </GameMenuHost>
   );
 }
 
@@ -145,13 +154,18 @@ function tooltip(event: ScoreEvent): string {
 
 // MARK: - Header
 
-function TileHeader({ event, league, large, stale, reveal }: { event: ScoreEvent; league: League | null; large: boolean; stale: boolean; reveal: Reveal }) {
+function TileHeader({ event, league, large, stale, pinned, reveal }: { event: ScoreEvent; league: League | null; large: boolean; stale: boolean; pinned: boolean; reveal: Reveal }) {
   const name = large ? league?.name : league?.shortName;
   return (
     <span className={[styles.header, reveal?.className].filter(Boolean).join(" ")} style={reveal?.style}>
       <Icon name={league ? SPORT_ICON[league.sport] : "sportscourt"} size={9.5} />
       <span className={styles.league}>{name}</span>
       <span className={styles.headerSpacer} />
+      {pinned ? (
+        <span className={styles.pin} title="Shown in the tab">
+          <Icon name="pin" size={8.5} />
+        </span>
+      ) : null}
       <span className={styles.headerStatus}>
         <TileStatus event={event} large={large} stale={stale} />
       </span>
@@ -201,11 +215,12 @@ function fullNamesFit(top: Competitor, bottom: Competitor, inner: number, follow
   return fits(top, "top") && fits(bottom, "bottom");
 }
 
-function NameLine({ c, full, followed, hasBall, dimmed }: { c: Competitor; full: boolean; followed: boolean; hasBall: boolean; dimmed: boolean }) {
+function NameLine({ c, full, followed, hasBall, dimmed, bases = null }: { c: Competitor; full: boolean; followed: boolean; hasBall: boolean; dimmed: boolean; bases?: BaseState | null }) {
   return (
     <span className={[styles.nameLine, dimmed ? styles.dimmed : null].filter(Boolean).join(" ")}>
       {c.rank != null ? <span className={styles.rank}>{c.rank}</span> : null}
       <span className={styles.name}>{full ? c.name : c.abbreviation}</span>
+      {bases ? <MiniBases state={bases} /> : null}
       {hasBall ? <Icon name="football" size={8} className={styles.ball} /> : null}
       {followed ? <Icon name="star" size={7.5} className={styles.star} /> : null}
     </span>
@@ -342,8 +357,12 @@ function Small(props: FaceProps) {
   const side = ball(event, top, bottom);
   const dimTop = stepsBack(event, top);
   const dimBottom = stepsBack(event, bottom);
-  const nameWidth = (c: Competitor) => textWidth(c.name, 10, 500) + (c.rank != null ? textWidth(String(c.rank), 9, 600) + 3 : 0) + (c.id && followed.includes(c.id) ? 11 : 0);
-  const full = nameWidth(top) + nameWidth(bottom) + 10 <= inner;
+  // Live baseball: the bases after the batting team's name (the away side bats in the top of an inning).
+  const bases = event.state === "live" && event.snapshot?.kind === "baseball" ? event.snapshot.bases : null;
+  const batting: Side | null = bases ? (/^(bot|mid)/i.test(event.detail ?? "") ? "bottom" : "top") : null;
+  const nameWidth = (c: Competitor, side: Side) =>
+    textWidth(c.name, 10, 500) + (c.rank != null ? textWidth(String(c.rank), 9, 600) + 3 : 0) + (c.id && followed.includes(c.id) ? 11 : 0) + (batting === side ? 17 : 0);
+  const full = nameWidth(top, "top") + nameWidth(bottom, "bottom") + 10 <= inner;
   return (
     <>
       <span className={styles.fill} />
@@ -356,8 +375,8 @@ function Small(props: FaceProps) {
           <Crest c={bottom} size={28} props={props} />
         </span>
         <span className={[styles.smallNames, reveal?.className].filter(Boolean).join(" ")} style={reveal?.style}>
-          <NameLine c={top} full={full} followed={!!top.id && followed.includes(top.id)} hasBall={side === "top"} dimmed={dimTop} />
-          <NameLine c={bottom} full={full} followed={!!bottom.id && followed.includes(bottom.id)} hasBall={side === "bottom"} dimmed={dimBottom} />
+          <NameLine c={top} full={full} followed={!!top.id && followed.includes(top.id)} hasBall={side === "top"} dimmed={dimTop} bases={batting === "top" ? bases : null} />
+          <NameLine c={bottom} full={full} followed={!!bottom.id && followed.includes(bottom.id)} hasBall={side === "bottom"} dimmed={dimBottom} bases={batting === "bottom" ? bases : null} />
         </span>
       </span>
     </>

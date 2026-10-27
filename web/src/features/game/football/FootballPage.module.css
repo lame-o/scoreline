@@ -1,0 +1,44 @@
+/* The football page's own bits beyond the field: the docked bar's down and distance, the table's links. */
+
+/* "3rd & 7 at SF 25" on the bar: secondary, red in the red zone (DockedScorebar.swift `.football`). */
+.dockDown {
+  font-size: var(--text-status);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  transition: color var(--dur-fade) var(--ease-out);
+}
+
+.dockDown[data-red-zone="true"] {
+  color: var(--live-text);
+}
+
+/* "Full Standings ›  Top 25 ›" (DetailView.linkButton): accent text links under the table. */
+.links {
+  display: flex;
+  gap: calc(16 * var(--pt));
+  padding-top: calc(4 * var(--pt));
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  padding: calc(4 * var(--pt)) 0;
+  font-size: var(--text-callout);
+  font-weight: 500;
+  color: var(--accent-text);
+  transition: opacity var(--dur-press) var(--ease-out);
+}
+
+.link:active {
+  opacity: 0.6;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+}

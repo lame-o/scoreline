@@ -16,12 +16,12 @@
  *
  * Screen readers skip it: the hero stays the page's one scoreboard.
  */
-import { memo, useRef, type ReactNode } from "react";
+import { memo, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LiveStatus, TeamLogo } from "../../../design/components";
 import { countdownClock, dayAndTime } from "../../../data/format";
 import { Accessory, finalText, newsLineShows, type AccessoryTier, type HeroBeats, type Surface } from "../../../data/matchRules";
 import { captioned, type LiveMoment } from "../../../data/moments";
-import { stepsBack, type ScoreEvent } from "../../../data/models";
+import { stepsBack, type GameClock, type ScoreEvent, type Side } from "../../../data/models";
 import { sectionForChart } from "../../../data/sections";
 import type { TeamPalette } from "../../../data/teamColors";
 import { useNow } from "../../../state/clock";
@@ -29,6 +29,7 @@ import { useWidth } from "../../../design/useWidth";
 import { useSectionVisibility, type PageGeometry } from "./geometry";
 import { BeatScore } from "./Hero";
 import { useCurrentMoment } from "./moments";
+import { PossessionFlight, PossessionSlot, usePossessionToss } from "./possession";
 import styles from "./DockedScorebar.module.css";
 
 export interface DockedScorebarProps {
@@ -39,6 +40,10 @@ export interface DockedScorebarProps {
   readonly beats: HeroBeats;
   readonly surface: Surface;
   readonly clockFallback: string;
+  /** The live clock (a fast lane's reading, else the scoreboard's). */
+  readonly clock?: GameClock | null;
+  /** Football and the NBA, live: who has the ball (null: nobody yet). Absent for sports without possession. */
+  readonly possession?: Side | null;
   readonly stale: boolean;
   /** The sport's live detail beside the score, given how much room there is. */
   readonly detail?: (tier: AccessoryTier) => ReactNode;
@@ -67,7 +72,7 @@ export function DockedScorebar(props: DockedScorebarProps) {
   );
 }
 
-const BarContent = memo(function BarContent({ geometry, event, palette, scores, beats, surface, clockFallback, stale, detail, chip, lead }: DockedScorebarProps) {
+const BarContent = memo(function BarContent({ geometry, event, palette, scores, beats, surface, clockFallback, clock, possession, stale, detail, chip, lead }: DockedScorebarProps) {
   const box = useRef<HTMLButtonElement>(null);
   const width = useWidth(box, 360);
   const moment = useCurrentMoment();
@@ -82,6 +87,10 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
   })() as AccessoryTier;
   const live = event.state === "live";
   const onBar = surface === "bar";
+  // The ball beside the team that has it (football, the NBA), from the glyph tier up.
+  const toss = usePossessionToss({ possession: possession ?? null, live, geometry, container: box });
+  const glyph = event.ref?.kind === "espn" && event.ref.sport === "basketball" ? "basketball" : "football";
+  const slots = live && possession !== undefined && tier >= Accessory.glyph;
   return (
     <button ref={box} type="button" className={styles.bar} onClick={() => geometry.scrollToTop()} title="Back to top" aria-hidden="true" tabIndex={-1}>
       <span className={styles.lead}>
@@ -91,6 +100,7 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
               <TeamLogo url={event.content.top.logo} size={18} />
               {event.content.top.rank != null ? <span className={styles.rank}>{event.content.top.rank}</span> : null}
               <span className={styles.abbr}>{event.content.top.abbreviation}</span>
+              {slots ? <PossessionSlot side="top" toss={toss} glyph={glyph} /> : null}
             </span>
             <span className={styles.scores}>
               {event.state === "scheduled" || (scores.top == null && scores.bottom == null) ? (
@@ -104,6 +114,7 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
               )}
             </span>
             <span className={styles.team}>
+              {slots ? <PossessionSlot side="bottom" toss={toss} glyph={glyph} /> : null}
               {event.content.bottom.rank != null ? <span className={styles.rank}>{event.content.bottom.rank}</span> : null}
               <span className={styles.abbr}>{event.content.bottom.abbreviation}</span>
               <TeamLogo url={event.content.bottom.logo} size={18} />
@@ -113,16 +124,55 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
           (lead?.(tier) ?? <span className={styles.abbr}>{event.content.title}</span>)
         )}
       </span>
-      <span className={styles.accessories}>
-        {live && detail ? detail(tier) : null}
-        {live && chip && tier >= Accessory.text ? <span className={styles.chip}>{chip}</span> : null}
-      </span>
+      {live ? <Accessories tier={tier} detail={detail} chip={chip ?? null} /> : <span className={styles.accessories} />}
       <span className={styles.status}>
-        {news ? <NewsLine moment={news} full={tier >= Accessory.full} /> : <Status event={event} clockFallback={clockFallback} stale={stale} ticking={onBar} />}
+        {news ? <NewsLine moment={news} full={tier >= Accessory.full} /> : <Status event={event} clock={clock ?? event.clock} clockFallback={clockFallback} stale={stale} ticking={onBar} />}
       </span>
+      {slots ? <PossessionFlight toss={toss} glyph={glyph} /> : null}
     </button>
   );
 });
+
+/**
+ * The sport's detail and the chip, as much as fits (the Mac's ViewThatFits
+ * over three rows): the fullest the width tier allows, then the short text
+ * with the chip, then the glyphs alone. Each row is measured off screen
+ * after every render (a few spans), so a longer down or a chip arriving
+ * steps down before it can clip.
+ */
+function Accessories({ tier, detail, chip }: { tier: AccessoryTier; detail?: (tier: AccessoryTier) => ReactNode; chip: string | null }) {
+  const host = useRef<HTMLSpanElement>(null);
+  const rows = useRef<HTMLSpanElement>(null);
+  const [pick, setPick] = useState(0);
+  const variants: { tier: AccessoryTier; chip: boolean }[] = [
+    { tier, chip: true },
+    { tier: Math.min(tier, Accessory.text) as AccessoryTier, chip: true },
+    { tier: Math.min(tier, Accessory.glyph) as AccessoryTier, chip: false },
+  ];
+  const row = (v: { tier: AccessoryTier; chip: boolean }) => (
+    <>
+      {detail ? detail(v.tier) : null}
+      {v.chip && chip && v.tier >= Accessory.text ? <span className={styles.chip}>{chip}</span> : null}
+    </>
+  );
+  useLayoutEffect(() => {
+    const room = host.current?.clientWidth ?? 0;
+    const measured = [...(rows.current?.children ?? [])].map((el) => el.getBoundingClientRect().width);
+    let next = measured.findIndex((w) => w <= room + 0.5);
+    if (next < 0) next = measured.length - 1;
+    if (next !== pick && next >= 0) setPick(next);
+  });
+  return (
+    <span ref={host} className={styles.accessories}>
+      {row(variants[Math.min(pick, 2)]!)}
+      <span ref={rows} className={styles.measure} aria-hidden="true">
+        {variants.map((v, i) => (
+          <span key={i}>{row(v)}</span>
+        ))}
+      </span>
+    </span>
+  );
+}
 
 /** `MomentCaption`'s type: a red dot, the outcome, then (with room) the play. */
 function NewsLine({ moment, full }: { moment: LiveMoment; full: boolean }) {
@@ -135,13 +185,13 @@ function NewsLine({ moment, full }: { moment: LiveMoment; full: boolean }) {
   );
 }
 
-function Status({ event, clockFallback, stale, ticking }: { event: ScoreEvent; clockFallback: string; stale: boolean; ticking: boolean }) {
+function Status({ event, clock, clockFallback, stale, ticking }: { event: ScoreEvent; clock: GameClock | null; clockFallback: string; stale: boolean; ticking: boolean }) {
   const now = useNow(ticking && event.state === "scheduled" ? 1000 : 60_000, event.state === "scheduled");
   switch (event.state) {
     case "live":
       return (
         <span className={styles.statusLive} key="live">
-          <LiveStatus clock={event.ref?.kind === "espn" && event.ref.sport === "baseball" ? null : event.clock} fallback={clockFallback} size={11} animated={!stale && ticking} />
+          <LiveStatus clock={event.ref?.kind === "espn" && event.ref.sport === "baseball" ? null : clock} fallback={clockFallback} size={11} animated={!stale && ticking} />
         </span>
       );
     case "final":

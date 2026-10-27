@@ -61,7 +61,7 @@ export function gameHref(eventID: string, leagueID?: string | null): string {
 /** Live sports whose fast lane keeps the moving parts current (DetailView.hasFastLane). */
 export function hasFastLane(event: ScoreEvent): boolean {
   const kind = pageKind(event.ref);
-  return kind === "baseball" || kind === "soccer" || kind === "nba" || kind === "counterStrike" || kind === "climbing" || (kind === "espn" && event.ref?.kind === "espn" && event.ref.sport === "football");
+  return kind === "baseball" || kind === "soccer" || kind === "nba" || kind === "football" || kind === "counterStrike" || kind === "climbing";
 }
 
 /** A final that started more than six hours ago: loaded once, never refreshed (DetailView.isHistory). */

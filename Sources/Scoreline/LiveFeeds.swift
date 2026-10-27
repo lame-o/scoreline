@@ -104,6 +104,14 @@ final class SoccerFeed {
     /// Cards, placed where the foul that drew them happened, by play ID.
     private(set) var cards: [String: PitchAction] = [:]
     private(set) var loaded = false
+    /// The soccer theater's latest big moment (a goal, a save, the woodwork)
+    /// with its build-up. Assigned only when it changes, so a pass doesn't
+    /// redraw the theater.
+    private(set) var theater = SoccerTheaterState()
+    /// The most recent plays, enough to hold a moment's build-up.
+    @ObservationIgnored private var window: [JSON] = []
+    /// Goalkeepers by team ID, as the plays reveal them.
+    @ObservationIgnored private var keepers: [String: String] = [:]
     /// Goals, shots and cards that arrived since the page opened.
     @ObservationIgnored private var moments: [LiveMoment] = []
     /// Whether this page has had a complete load: before it, everything is
@@ -123,6 +131,7 @@ final class SoccerFeed {
     private static let firstPageSize = 200
     private static let updatePageSize = 25
     private static let trailLength = 10
+    private static let windowSize = 80
 
     func update(league: String, eventID: String, homeTeamID: String?) async {
         guard !updating else { return }
@@ -134,6 +143,7 @@ final class SoccerFeed {
         var newActions: [PitchAction] = []
         var newCards: [String: PitchAction] = [:]
         var unplaced: [LiveMoment] = []
+        var newItems: [JSON] = []
         var complete = false
         while true {
             guard !Task.isCancelled, let url = URL(string: "\(base)?limit=\(size)&page=\(page)"),
@@ -142,6 +152,7 @@ final class SoccerFeed {
             for (offset, item) in items.enumerated() {
                 let index = (page - 1) * size + offset
                 guard index >= fetched else { continue }
+                newItems.append(item)
                 if let action = Self.action(item, index: index, homeTeamID: homeTeamID) {
                     newActions.append(action)
                     recent = Array((recent + [action]).suffix(6))
@@ -160,6 +171,7 @@ final class SoccerFeed {
             }
             page += 1
         }
+        updateTheater(newItems, homeTeamID: homeTeamID, news: primed)
         // Until this page has had a complete load it's history; after, goals,
         // shots and cards are news.
         if primed {
@@ -179,11 +191,40 @@ final class SoccerFeed {
         return moments
     }
 
+    /// Parses a moment only when one has arrived (or the one showing has
+    /// been followed by its save or block), with the plays before it.
+    private func updateTheater(_ new: [JSON], homeTeamID: String?, news: Bool) {
+        guard !new.isEmpty else { return }
+        let plays = window + new
+        window = Array(plays.suffix(Self.windowSize))
+        keepers.merge(SoccerScene.keepers(in: new)) { _, newer in newer }
+        let first = plays.count - new.count
+        guard let index = plays.indices.last(where: { SoccerScene.isMoment(plays[$0]) }),
+              index >= first || (index >= first - 6 && SoccerScene.playID(plays[index]) == theater.scene?.id),
+              let scene = SoccerScene.parse(plays, at: index, homeTeamID: homeTeamID, keepers: keepers) else { return }
+        let next = Self.theater(scene, after: theater, primed: news, now: .now)
+        if next != theater { theater = next }
+    }
+
+    /// The theater after a look at a moment. It's news if it arrived after
+    /// the first complete load, or if it only just happened (a page opened
+    /// right after it); otherwise it's history, shown as it ended. A moment
+    /// already showing keeps what it was. (pure; tested)
+    static func theater(_ scene: SoccerScene, after previous: SoccerTheaterState, primed: Bool, now: Date) -> SoccerTheaterState {
+        let news = scene.id == previous.scene?.id ? previous.news
+            : primed || scene.wallclock.map { now.timeIntervalSince($0) < BaseballFeed.recent } == true
+        return SoccerTheaterState(scene: scene, news: news)
+    }
+
     /// A match page opened: what the feed fetches until its next complete
     /// load is history, not news.
     func beginPage() {
         primed = false
         moments = []
+        // The theater's moment was on screen before: it shows as it ended, unless it only just happened.
+        if theater.news, let scene = theater.scene {
+            theater = Self.theater(scene, after: SoccerTheaterState(), primed: false, now: .now)
+        }
     }
 
     /// A card as a moment, from the card entry alone.
@@ -386,6 +427,12 @@ final class FootballFeed {
     private(set) var score: LiveScore?
     /// Moments from plays that arrived since the page opened, for the page to take.
     @ObservationIgnored private(set) var moments: [LiveMoment] = []
+    /// The play theater's last snap and whether it's news. Assigned only
+    /// when it changes, so a clock reading doesn't redraw the theater (and
+    /// the page never reads it: the theater does).
+    private(set) var theater = FootballTheaterState()
+    /// The sequence number of the theater's snap: an older entry never replaces it.
+    @ObservationIgnored private var theaterSequence: Double = -1
     @ObservationIgnored private var primed = false
     @ObservationIgnored private var updating = false
 
@@ -455,6 +502,8 @@ final class FootballFeed {
         var page = max(fetched - 1, 0) / Self.pageSize + 1
         var new: [DrivePlay] = []
         var complete = false
+        /// Entries newer than the theater's snap: only the newest that is one gets parsed.
+        var newer: [(item: JSON, sequence: Double)] = []
         while !Task.isCancelled, let url = URL(string: "\(base)/plays?limit=\(Self.pageSize)&page=\(page)"),
               let json = try? await JSON.fetch(url) {
             let items = json["items"].array
@@ -470,6 +519,7 @@ final class FootballFeed {
                     }
                 }
                 if let play = Self.play(item, teams: teams) { new.append(play) }
+                if sequence >= theaterSequence { newer.append((item, sequence)) }
             }
             fetched = max(fetched, (page - 1) * Self.pageSize + items.count)
             if page >= (json["pageCount"].int ?? page) || items.isEmpty {
@@ -500,6 +550,13 @@ final class FootballFeed {
             plays = (merged + fresh).enumerated()
                 .sorted { ($0.element.sequence, $0.offset) < ($1.element.sequence, $1.offset) }
                 .map(\.element)
+        }
+        let snap = newer.sorted { $0.sequence > $1.sequence }.lazy
+            .compactMap { entry in FootballScene.parse(entry.item, teams: teams).map { (scene: $0, sequence: entry.sequence) } }.first
+        if let snap, !Task.isCancelled {
+            theaterSequence = snap.sequence
+            let next = Self.theater(snap.scene, after: theater, primed: primed, now: .now)
+            if next != theater { theater = next }
         }
         // Only a complete first load counts as history; after it, new plays
         // (and plays edited into a score) are news. A play older than one
@@ -541,6 +598,15 @@ final class FootballFeed {
     func takeMoments() -> [LiveMoment] {
         defer { moments = [] }
         return moments
+    }
+
+    /// The theater after a look at the plays. Its snap is news if it arrived
+    /// after the first complete look, or if it only just happened (a page
+    /// opened right after it); otherwise it's history, shown as it ended. A
+    /// snap already showing keeps what it was, edits and all. (pure; tested)
+    static func theater(_ scene: FootballScene, after previous: FootballTheaterState, primed: Bool, now: Date) -> FootballTheaterState {
+        FootballTheaterState(play: scene, news: scene.id == previous.play?.id ? previous.news
+                                 : primed || scene.wallclock.map { now.timeIntervalSince($0) < BaseballFeed.recent } == true)
     }
 
     /// Play IDs whose score was taken back since the last call.
@@ -659,10 +725,20 @@ final class BaseballFeed {
     /// batter, not missing data.
     private(set) var loaded = false
     /// The play theater's last play on the field and who's up now. Assigned
-    /// only when they change, so a pitch doesn't redraw the theater.
+    /// only when they change, so a pitch doesn't redraw the theater. A new
+    /// plate appearance waits briefly for what Statcast measured of it.
     private(set) var theater = TheaterState()
     /// The most recent plays, enough to hold the current at-bat.
     @ObservationIgnored private var window: [JSON] = []
+    /// The theater as ESPN's plays have it, before Statcast's measurements.
+    @ObservationIgnored private var espnTheater = TheaterState()
+    /// Statcast's measurements by play ID, and the plays already looked up (once each).
+    @ObservationIgnored private var measured: [String: PlayScene.Measured] = [:]
+    @ObservationIgnored private var lookedUp: Set<String> = []
+    /// A new plate appearance held back (up to `measureHold`) for its measurements.
+    @ObservationIgnored private var holding: String?
+    /// This game in MLB's feed (nil: not an MLB game).
+    @ObservationIgnored private var lookup: Statcast.Lookup?
     /// At-bat results that arrived since the page opened.
     @ObservationIgnored private var moments: [LiveMoment] = []
     @ObservationIgnored private var primed = false
@@ -674,10 +750,12 @@ final class BaseballFeed {
     private static let pageSize = 25
     private static let windowSize = 80
 
-    func update(path: String, eventID: String, names: [String: String], side: @escaping (String?) -> GameDetail.Side?) async {
+    func update(path: String, eventID: String, names: [String: String], statcast: Statcast.Lookup? = nil,
+                side: @escaping (String?) -> GameDetail.Side?) async {
         guard !updating else { return }
         updating = true
         defer { updating = false }
+        lookup = statcast
         let league = path.split(separator: "/").last.map(String.init) ?? path
         let base = "https://sports.core.api.espn.com/v2/sports/baseball/leagues/\(league)/events/\(eventID)/competitions/\(eventID)"
         guard let situationURL = URL(string: "\(base)/situation"), let statusURL = URL(string: "\(base)/status") else { return }
@@ -740,9 +818,60 @@ final class BaseballFeed {
     }
 
     private func updateTheater(news: Bool, names: [String: String], side: (String?) -> GameDetail.Side?) {
-        let next = Self.theater(window, after: theater, primed: news, now: .now, names: names, side: side)
+        espnTheater = Self.theater(window, after: espnTheater, primed: news, now: .now, names: names, side: side)
+        if let play = espnTheater.play, let lookup, play.appearance != nil, !lookedUp.contains(play.id) {
+            lookedUp.insert(play.id)
+            measure(play, lookup)
+        }
+        publish()
+    }
+
+    /// The theater: ESPN's, with whatever Statcast measured. While a new
+    /// plate appearance is held for its measurements, the field keeps the last play.
+    private func publish() {
+        var next = espnTheater
+        if let id = next.play?.id {
+            if id == holding, id != theater.play?.id { return }
+            next.play?.measured = measured[id]
+        }
         if next != theater { theater = next }
     }
+
+    /// Statcast for a new plate appearance: asked at once, then a few times
+    /// more as its feed catches up (only for a new result, never on the
+    /// poll's clock). The replay waits up to `measureHold`, then goes with
+    /// ESPN's account alone; a measurement that lands later reaches the play
+    /// once its replay is done (the theater never swaps one mid-replay).
+    private func measure(_ play: PlayScene, _ lookup: Statcast.Lookup) {
+        let id = play.id
+        holding = id
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.measureHold)
+            guard let self, self.holding == id else { return }
+            self.holding = nil
+            self.publish()
+        }
+        Task { [weak self] in
+            for wait in Self.measureRetries {
+                if wait > .zero { try? await Task.sleep(for: wait) }
+                guard !Task.isCancelled, self != nil else { return }
+                if let found = await play.measure(lookup), let self {
+                    self.measured[id] = found
+                    if self.holding == id { self.holding = nil }
+                    self.publish()
+                    return
+                }
+            }
+            guard let self, self.holding == id else { return }
+            self.holding = nil
+            self.publish()
+        }
+    }
+
+    /// How long a new plate appearance waits for Statcast before it replays.
+    static let measureHold: Duration = .seconds(3)
+    /// Waits between asks: at once, then as Statcast's feed catches up.
+    private static let measureRetries: [Duration] = [.zero, .seconds(2.2), .seconds(4), .seconds(9)]
 
     /// The theater after a look at the plays. Its play is news if it arrived
     /// after the first complete look, or if it only just happened (a page
