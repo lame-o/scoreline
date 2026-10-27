@@ -47,3 +47,11 @@ describe("leaguePageKind", () => {
     expect(kinds["ifsc"]).toBe("climbing");
   });
 });
+
+describe("the theaters' chunks", () => {
+  it("share the projection, not the baseball theater's drawing", () => {
+    for (const file of ["features/game/football/theater/drawFootball.ts", "features/game/soccer/theater/drawSoccer.ts", "features/game/core/theater/theaterKit.ts"]) {
+      expect(staticImports(src(file)).filter((p) => p.endsWith("mlb/theater/drawTheater")), file).toEqual([]);
+    }
+  });
+});
