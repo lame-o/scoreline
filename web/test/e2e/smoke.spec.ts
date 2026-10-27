@@ -26,7 +26,8 @@ async function shot(page: Page, name: string) {
 
 /** Waits for the scores to settle: the first games, or an empty or error state. */
 async function waitForScores(page: Page) {
-  await expect(page.getByRole("heading", { name: "Scores", level: 1 })).toBeVisible();
+  // The page's h1 on a phone; the sidebar's heading beside a page.
+  await expect(page.getByRole("heading", { name: "Scores", exact: true })).toBeVisible();
   await page.waitForFunction(() => document.querySelectorAll("[data-nav-id]").length > 0 || document.querySelector('[role="alert"]') != null, null, {
     timeout: 30_000,
   });
@@ -54,6 +55,16 @@ for (const size of WIDTHS) {
         await page.goto("/");
         await waitForScores(page);
         await shot(page, `${size.name}-${scheme}-list`);
+
+        // Scrolling: beside a page the sidebar scrolls on its own; on a phone the window does.
+        // Either way the header stays, and content dissolves under it.
+        if (size.mobile) await page.evaluate(() => window.scrollBy(0, 200));
+        else await page.locator("aside").evaluate((aside) => aside.scrollBy(0, 200));
+        await expect(page.locator('header[data-scrolled="true"]')).toBeVisible();
+        await page.waitForTimeout(300);
+        await shot(page, `${size.name}-${scheme}-scrolled`);
+        if (size.mobile) await page.evaluate(() => window.scrollTo(0, 0));
+        else await page.locator("aside").evaluate((aside) => aside.scrollTo(0, 0));
 
         // Tiles.
         await page.getByRole("radio", { name: "Tiles" }).click();

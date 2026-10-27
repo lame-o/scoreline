@@ -29,10 +29,9 @@
   transition: opacity var(--dur-fade) var(--ease-out);
 }
 
+/* In the sidebar: the sidebar's own material, near opaque, so rows dissolve under it rather than show through. */
 .page[data-variant="sidebar"] .header::before {
-  background: transparent;
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  background: color-mix(in srgb, var(--glass-solid) 92%, transparent);
 }
 
 .header[data-scrolled="true"]::before {

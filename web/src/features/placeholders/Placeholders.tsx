@@ -8,10 +8,12 @@ import { BackButton, EmptyState, PageHeader, type IconName } from "../../design/
 import { leagueWithID } from "../../data/leagues";
 import { useSplit } from "../../app/layout";
 import { useGoBack } from "../../app/navigation";
+import { useDocumentTitle } from "../../app/useDocumentTitle";
 
 function Placeholder({ title, icon, heading, message }: { title: string; icon: IconName; heading: string; message: string }) {
   const split = useSplit();
   const goBack = useGoBack();
+  useDocumentTitle(title);
   return (
     <div>
       <PageHeader title={title} leading={split ? null : <BackButton to="Scores" onClick={() => goBack()} />} />

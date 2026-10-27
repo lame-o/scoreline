@@ -11,7 +11,7 @@
 import { useLocation, useParams } from "react-router";
 import { BackButton, EmptyState, GlassCard, Icon, IconButton, LiveStatus, PageHeader, ScoreDigits, Skeleton, SectionTitle, TeamLogo, Button } from "../../design/components";
 import { broadcaster } from "../../data/broadcasters";
-import { countdown, countdownClock, dayAndTime, enDash, spokenStatus, spokenSummary } from "../../data/format";
+import { countdown, countdownClock, dayAndTime, enDash, scoreLine, spokenStatus, spokenSummary } from "../../data/format";
 import { dayKeyOf, mediumDayLabel } from "../../data/days";
 import { eventSport, stepsBack, type Competitor, type ScoreEvent } from "../../data/models";
 import { teamPalette, washStrength, NEUTRAL, type TeamPalette } from "../../data/teamColors";
@@ -21,6 +21,7 @@ import { settings, useIsFollowing } from "../../state/settings";
 import { useColorScheme } from "../../state/theme";
 import { useSplit, type NavState } from "../../app/layout";
 import { useGoBack } from "../../app/navigation";
+import { useDocumentTitle } from "../../app/useDocumentTitle";
 import styles from "./GamePage.module.css";
 
 export function GamePage() {
@@ -32,6 +33,8 @@ export function GamePage() {
   const goBack = useGoBack();
   const scheme = useColorScheme();
   const viaKeyboard = (useLocation().state as NavState | null)?.viaKeyboard === true;
+  // The tab says the game: "ARS 2–1 CHE (67')".
+  useDocumentTitle(event ? statusLineShort(event) : null);
 
   const header = (
     <PageHeader
@@ -71,6 +74,12 @@ export function GamePage() {
       </div>
     </article>
   );
+}
+
+/** "ARS 2–1 CHE (67')", "ARS v CHE": the game for a tab title. */
+function statusLineShort(event: ScoreEvent): string {
+  const line = scoreLine(event, true);
+  return event.state === "live" ? `${line} (${event.detail ?? "Live"})` : line;
 }
 
 /** The team colors behind the page's top, melting into the page (HeroWash). Climbing: the accent, softly. */

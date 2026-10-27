@@ -15,6 +15,7 @@ import type { League } from "../../data/models";
 import { getJSON } from "../../data/http";
 import { teamOptions, type TeamOption } from "../../data/providers/teams";
 import { useGoBack } from "../../app/navigation";
+import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { NotFound } from "../../app/NotFound";
 import { settings, useSettings, type Settings } from "../../state/settings";
 import styles from "./Settings.module.css";
@@ -27,6 +28,7 @@ export function LeaguePage() {
   const { id } = useParams();
   const league = id ? leagueWithID(id) : undefined;
   const goBack = useGoBack();
+  useDocumentTitle(league ? league.name : null);
   if (!league) return <NotFound />;
   return (
     <div className={styles.page}>

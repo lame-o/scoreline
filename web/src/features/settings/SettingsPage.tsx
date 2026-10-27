@@ -26,6 +26,7 @@ import { CATALOG, leagueWithID } from "../../data/leagues";
 import { SPORTS, SPORT_NAME, type League } from "../../data/models";
 import { useSplit } from "../../app/layout";
 import { useGoBack } from "../../app/navigation";
+import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { settings, useSettings, type Settings, type Theme } from "../../state/settings";
 import styles from "./Settings.module.css";
 
@@ -35,6 +36,7 @@ export function SettingsPage() {
   const s = useSettings(all);
   const split = useSplit();
   const goBack = useGoBack();
+  useDocumentTitle("Settings");
   return (
     <div className={styles.page}>
       <PageHeader title="Settings" leading={split ? null : <BackButton to="Scores" onClick={() => goBack()} />} />

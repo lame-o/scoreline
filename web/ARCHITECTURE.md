@@ -194,7 +194,7 @@ Read `src/design/tokens.css` first.
 - **Washes:** `--fill-hover`, `--fill-press`, `--fill-surface`, `--fill-skeleton`, `--stroke-hairline`.
 - **System colors:** `--accent` and `--accent-text`, `--live` and `--live-text`, `--live-wash`, `--live-pill`, `--delayed-text`, `--star`.
 - **Charts:** `--viz-*` (grid, reference, track, neutral). Neutrals are ink opacities; team colors are for marks only.
-- **Materials:** `--glass-fill` (`-strong`, `-clear`), `--glass-blur`, `--glass-edge`, `--glass-highlight`, `--shadow-glass`, `--shadow-control`.
+- **Materials:** `--glass-fill` (`-strong`, `-clear`, and `--glass-solid` for chrome that content dissolves under), `--glass-blur`, `--glass-edge`, `--glass-highlight`, `--shadow-glass`, `--shadow-control`.
 
 Text tokens clear 4.5:1 on the page, the glass and a pressed row, in both themes; `test/unit/contrast.test.ts` reads tokens.css to check it. Increase Contrast (`prefers-contrast: more`) strengthens edges and secondary ink. Reduce Transparency turns glass solid.
 

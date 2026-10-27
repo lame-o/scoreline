@@ -13,6 +13,8 @@
 .shell[data-split="true"] {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  /* One row exactly the viewport tall, so each pane scrolls inside it. */
+  grid-template-rows: minmax(0, 1fr);
   height: 100dvh;
   overflow: hidden;
 }

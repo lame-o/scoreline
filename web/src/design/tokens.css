@@ -77,6 +77,8 @@
   /* Glass: the floating layer only (header controls, chips, the hero card, the sidebar). Never glass on glass. */
   --glass-fill: light-dark(rgb(255 255 255 / 0.62), rgb(40 40 44 / 0.58));
   --glass-fill-strong: light-dark(rgb(255 255 255 / 0.78), rgb(44 44 48 / 0.78));
+  /* The glass as it reads over the page, opaque: for chrome that content must dissolve under (a sticky header on the sidebar). */
+  --glass-solid: light-dark(color-mix(in srgb, #fff 62%, #f2f2f5), color-mix(in srgb, rgb(40 40 44) 58%, #121214));
   /* Clear glass lets a team-color wash refract through (the hero card). */
   --glass-fill-clear: light-dark(rgb(255 255 255 / 0.34), rgb(30 30 34 / 0.3));
   --glass-blur: blur(calc(24 * var(--pt))) saturate(180%);

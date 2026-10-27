@@ -87,7 +87,8 @@ export function ScoresPage({ variant }: { readonly variant: "page" | "sidebar" }
     <div className={styles.page} data-variant={variant} ref={root}>
       <span className={styles.sentinel} data-sentinel aria-hidden="true" />
       <header className={styles.header} data-scrolled={scrolled}>
-        <h1 className={styles.title}>Scores</h1>
+        {/* On its own page the title is the h1; beside a page, the sidebar's heading. */}
+        {variant === "page" ? <h1 className={styles.title}>Scores</h1> : <h2 className={styles.title}>Scores</h2>}
         {scores.liveCount > 0 ? (
           <Chip tone="live" label={`${plural(scores.liveCount, "game")} in progress`} title={`${plural(scores.liveCount, "game")} in progress`}>
             {scores.liveCount} Live
