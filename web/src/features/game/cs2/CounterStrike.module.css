@@ -1,0 +1,653 @@
+/* The CS2 match page (DetailView.swift `MapList`, `StreamList`, `RosterColumns`; LiveViews.swift `RoundHistoryView`). */
+
+/* MARK: Maps */
+
+.maps {
+  display: flex;
+  flex-direction: column;
+}
+
+.mapRow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  padding: calc(6 * var(--pt)) 0;
+  min-height: calc(30 * var(--pt));
+}
+
+.mapRow + .mapRow {
+  border-top: calc(0.5 * var(--pt)) solid var(--separator);
+}
+
+.mapNumber {
+  flex: none;
+  width: calc(12 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.mapName {
+  font-size: calc(12.5 * var(--pt));
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mapName[data-picked="false"] {
+  font-weight: 400;
+  color: var(--label-secondary);
+}
+
+.mapLive {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--live-text);
+}
+
+.spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.mapScore {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(5 * var(--pt));
+  font-size: calc(12.5 * var(--pt));
+  font-variant-numeric: tabular-nums;
+}
+
+.mapScore [data-won="true"] {
+  font-weight: 700;
+}
+
+.mapScore [data-lost="true"],
+.mapDash {
+  color: var(--label-secondary);
+}
+
+.mapStatus {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.mapWinner {
+  flex: none;
+  width: calc(22 * var(--pt));
+  display: inline-flex;
+  justify-content: flex-end;
+}
+
+/* MARK: Rounds */
+
+.rounds {
+  display: flex;
+  flex-direction: column;
+  gap: calc(10 * var(--pt));
+  min-width: 0;
+}
+
+.picker {
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+/* Blocks one under another; from room for two halves side by side, regulation reads as one strip. */
+.blocks {
+  display: grid;
+  grid-template-columns: max-content;
+  gap: calc(10 * var(--pt)) calc(14 * var(--pt));
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+/* 34 + 2 × 262 + 14 = 572pt (RoundHistoryView.pairedWidth); container queries take rem (13pt). */
+@container section (min-width: 44rem) {
+  .blocks {
+    grid-template-columns: max-content max-content;
+  }
+  .blocks > .block:nth-child(even) .rowName,
+  .blocks > .block:nth-child(even) .bandGutter,
+  .blocks > .block:nth-child(even) .blockHeadGutter {
+    display: none;
+  }
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+}
+
+.blockHead {
+  display: flex;
+  align-items: center;
+  height: calc(16 * var(--pt));
+}
+
+.blockHeadGutter {
+  flex: none;
+  width: calc(34 * var(--pt));
+}
+
+.blockHeadInner {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  width: calc(262 * var(--pt));
+}
+
+.blockTitle,
+.streak {
+  font-size: calc(9 * var(--pt));
+  font-weight: 500;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+.streak {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  font-variant-numeric: tabular-nums;
+}
+
+.ember {
+  color: light-dark(#c25e00, #ff9f0a);
+}
+
+/* MAP POINT and MATCH POINT: pressure is orange (StateChip), arriving from 92%. */
+.chip {
+  padding: calc(1 * var(--pt)) calc(5 * var(--pt));
+  border-radius: 999px;
+  font-size: calc(8.5 * var(--pt));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: light-dark(#a63700, #ffb340);
+  background: light-dark(rgb(255 149 0 / 0.14), rgb(255 159 10 / 0.18));
+  transition:
+    transform var(--dur-quick) var(--ease-out),
+    opacity var(--dur-quick) var(--ease-out);
+
+  @starting-style {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+}
+
+.halfScore {
+  display: inline-block;
+  font-size: calc(9 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+}
+
+.rowName {
+  flex: none;
+  width: calc(28 * var(--pt));
+  margin-right: calc(4 * var(--pt));
+  text-align: right;
+  font-size: calc(9 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.cell {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(20 * var(--pt));
+  height: calc(16 * var(--pt));
+  border-radius: calc(3 * var(--pt));
+  background: light-dark(rgb(0 0 0 / 0.05), rgb(255 255 255 / 0.06));
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.cell[data-won="true"] {
+  background: var(--team);
+  color: var(--ink);
+}
+
+.cell[data-kind="provisional"][data-won="true"] {
+  background: color-mix(in srgb, var(--team) 40%, transparent);
+}
+
+/* The round being played now: an outline in the live red. */
+.cell[data-kind="next"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 calc(1 * var(--pt)) color-mix(in srgb, var(--live) 80%, transparent);
+}
+
+/* Pointed at: ringed (1pt, 2pt out); the others step back. */
+.cell[data-lit="true"]::after {
+  content: "";
+  position: absolute;
+  inset: calc(-2 * var(--pt));
+  border-radius: calc(4 * var(--pt));
+  box-shadow: inset 0 0 0 calc(1 * var(--pt)) var(--label);
+  pointer-events: none;
+}
+
+[data-receded="true"] {
+  opacity: 0.35;
+}
+
+.ping {
+  position: absolute;
+  inset: calc(-2 * var(--pt));
+  border-radius: 50%;
+  border: calc(1.5 * var(--pt)) solid var(--team);
+  pointer-events: none;
+  animation: ping 0.6s var(--ease-out) both;
+}
+
+@keyframes ping {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* A provisional round arriving: slots in from 85% (Celebrate.slotIn). */
+.slotIn {
+  animation: slot-in var(--dur-quick) var(--ease-out);
+}
+
+@keyframes slot-in {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ping {
+    animation-name: fade-out;
+  }
+  .slotIn {
+    animation-name: fade-in;
+  }
+  @keyframes fade-out {
+    from {
+      opacity: 0.9;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* Economy: the top team's spend rises from the hairline, the bottom team's hangs below it. */
+.band {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+}
+
+.bandGutter {
+  flex: none;
+  width: calc(32 * var(--pt));
+}
+
+.band::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: calc(0.5 * var(--pt));
+  background: var(--viz-grid);
+}
+
+.blocks > .block:nth-child(odd) .band::before,
+.block .band::before {
+  left: calc(34 * var(--pt));
+}
+
+@container section (min-width: 44rem) {
+  .blocks > .block:nth-child(even) .band::before {
+    left: 0;
+  }
+}
+
+.spend {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(1 * var(--pt));
+  width: calc(20 * var(--pt));
+  height: calc(18 * var(--pt));
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.spendHalf {
+  display: flex;
+  width: calc(4 * var(--pt));
+  height: calc(8.5 * var(--pt));
+}
+
+.spendHalf:first-child {
+  align-items: flex-end;
+}
+
+.spendBar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: color-mix(in srgb, var(--team) 65%, transparent);
+  transform-origin: bottom;
+}
+
+.spendHalf:first-child .spendBar {
+  border-radius: calc(1.5 * var(--pt)) calc(1.5 * var(--pt)) 0 0;
+}
+
+.spendHalf:last-child .spendBar {
+  border-radius: 0 0 calc(1.5 * var(--pt)) calc(1.5 * var(--pt));
+  transform-origin: top;
+}
+
+.note {
+  padding: calc(10 * var(--pt));
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+.reasonSwatch {
+  display: grid;
+  place-items: center;
+  width: calc(13 * var(--pt));
+  height: calc(11 * var(--pt));
+  border-radius: calc(2.5 * var(--pt));
+  background: var(--viz-neutral);
+  color: light-dark(#fff, #000);
+}
+
+.spendSwatch {
+  display: flex;
+  flex-direction: column;
+  gap: calc(1 * var(--pt));
+}
+
+.spendSwatch > span {
+  width: calc(4 * var(--pt));
+  height: calc(5 * var(--pt));
+  border-radius: calc(1 * var(--pt)) calc(1 * var(--pt)) 0 0;
+}
+
+.spendSwatch > span + span {
+  height: calc(4 * var(--pt));
+  border-radius: 0 0 calc(1 * var(--pt)) calc(1 * var(--pt));
+}
+
+/* MARK: Streams */
+
+.streams {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+  margin: 0 calc(-6 * var(--pt));
+}
+
+.stream {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-height: calc(28 * var(--pt));
+  padding: 0 calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+  color: var(--label);
+  font-size: calc(12 * var(--pt));
+  transition: background-color var(--dur-fade) var(--ease-out);
+}
+
+.stream:active {
+  background: var(--fill-press);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .stream:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.streamIcon {
+  flex: none;
+  width: calc(16 * var(--pt));
+  display: grid;
+  place-items: center;
+}
+
+.streamIcon[data-platform="twitch"] {
+  color: var(--twitch);
+}
+
+.streamIcon[data-platform="youtube"] {
+  color: light-dark(#e00000, #ff3b30);
+}
+
+.streamIcon[data-platform="kick"] {
+  color: light-dark(#1f8a00, #53fc18);
+}
+
+.streamName {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stream[data-highlight="true"] .streamName {
+  font-weight: 600;
+}
+
+.streamDetail {
+  flex: none;
+  margin-left: auto;
+  padding-left: calc(6 * var(--pt));
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.stream[data-highlight="true"] .streamDetail {
+  color: var(--twitch-text);
+}
+
+.arrow {
+  flex: none;
+  color: var(--label-secondary);
+}
+
+/* The co-streamer's mark: a live glyph in a Twitch-purple ring (CoStreamIcon; the avatar needs decapi.me). */
+.coIcon {
+  display: grid;
+  place-items: center;
+  width: calc(16 * var(--pt));
+  height: calc(16 * var(--pt));
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 calc(1.25 * var(--pt)) var(--twitch);
+  color: var(--twitch);
+}
+
+.stream,
+.badge {
+  --twitch: light-dark(#7c3aed, #a970ff);
+  --twitch-text: light-dark(#6d28d9, #bf94ff);
+}
+
+/* The hero's co-stream badge: a glass capsule tinted Twitch purple. */
+.badgeRow {
+  display: flex;
+  justify-content: center;
+  padding-top: calc(8 * var(--pt));
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  height: calc(24 * var(--pt));
+  padding: 0 calc(10 * var(--pt));
+  border-radius: 999px;
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--label);
+  background: color-mix(in srgb, var(--twitch) 22%, var(--glass-fill));
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
+    var(--shadow-control);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+
+.badge:active {
+  transform: scale(0.97);
+}
+
+/* MARK: Rosters */
+
+.rosters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) calc(0.5 * var(--pt)) minmax(0, 1fr);
+  gap: calc(14 * var(--pt));
+}
+
+.rosterRule {
+  background: var(--viz-grid);
+}
+
+.roster {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  min-width: 0;
+}
+
+.rosterTeam {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  padding-bottom: calc(4 * var(--pt));
+  font-size: var(--text-status);
+  font-weight: 600;
+  min-width: 0;
+}
+
+.rosterTeam > a,
+.rosterTeam > span:last-child {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-height: calc(30 * var(--pt));
+  margin: 0 calc(-6 * var(--pt));
+  padding: 0 calc(6 * var(--pt));
+  min-width: 0;
+}
+
+.flag {
+  flex: none;
+  width: calc(16 * var(--pt));
+  font-size: calc(12 * var(--pt));
+  text-align: center;
+  line-height: 1;
+}
+
+.playerText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nickname {
+  font-size: calc(12 * var(--pt));
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.realName {
+  font-size: calc(9.5 * var(--pt));
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.coach {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  margin-top: calc(4 * var(--pt));
+  padding-top: calc(7 * var(--pt));
+  border-top: calc(0.5 * var(--pt)) solid var(--separator);
+}
+
+.coachLabel {
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
+
+.coachName {
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+/* The docked bar's round ("R14"). */
+.dockRound {
+  font-size: var(--text-status);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}

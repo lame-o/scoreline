@@ -7,6 +7,10 @@
  *   the game's own ESPN summary, so any game loads, not only the
  *   scoreboard's. The league comes from the scoreboard, the URL's `?league=`
  *   (`gameHref`), or, failing both, every ESPN league is asked in parallel.
+ *   A CS2 match off the scoreboards (`cs-132237`, from a schedule or a team
+ *   page) is bo3.gg's match by ID, S-tier only, and stays current through
+ *   its own detail loads.
+ * - A climbing round of a discipline Settings hides is never fetched.
  * - The detail: one query per game, refreshed on DetailView's cadence: live
  *   games every 30 s when a fast lane keeps their moving parts current (15 s
  *   when not), everything else every 2 minutes; a final more than six hours
@@ -18,8 +22,13 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef } from "react";
-import { eventFromSummary, fetchDetail, parseESPNDetail, scoreboardURL, summaryURL, type GameDetail } from "../../../data/gameDetail";
+import { EMPTY_DETAIL, eventFromSummary, fetchDetail, parseESPNDetail, scoreboardURL, summaryURL, type GameDetail } from "../../../data/gameDetail";
+import { loadCSMatch, matchByIDURL, matchNumber } from "../../../data/cs2";
 import { getJSON } from "../../../data/http";
+import { arr, at } from "../../../data/json";
+import { makeMatchEvent } from "../../../data/providers/counterStrike";
+import { disciplinesOf } from "../../../data/scoreboard";
+import { getSettings } from "../../../state/settings";
 import { CATALOG, espnPath, leagueWithID } from "../../../data/leagues";
 import type { League, ScoreEvent, Sport } from "../../../data/models";
 import { pageKind } from "../../../data/sections";
@@ -91,6 +100,20 @@ async function resolveESPN(gameID: string, hint: League | undefined, signal: Abo
   }
 }
 
+/** A CS2 match off the scoreboards, by its bo3.gg ID (S-tier only, like every bo3.gg query). */
+async function resolveCS(id: number, signal: AbortSignal): Promise<Resolved | null> {
+  const page = await getJSON(matchByIDURL(id), { signal });
+  const match = arr(at(page, "results"))[0];
+  const event = match ? makeMatchEvent(match) : null;
+  return event ? { event, league: "cs2" } : null;
+}
+
+/** Whether Settings shows this climbing category's discipline (a hidden one is never fetched). */
+function climbingTracked(category: string): boolean {
+  const found = disciplinesOf(category);
+  return found == null || getSettings().climbingDisciplines.some((d) => found.has(d));
+}
+
 interface DetailResult {
   readonly detail: GameDetail;
   /** The event as the summary has it (for games off the scoreboards, which nothing else refreshes). */
@@ -100,6 +123,11 @@ interface DetailResult {
 /** ESPN's detail with the event its summary describes; other sources' detail alone. */
 async function loadDetail(event: ScoreEvent, signal: AbortSignal): Promise<DetailResult> {
   const ref = event.ref;
+  if (ref?.kind === "counterStrike") {
+    const { part, event: fresh } = await loadCSMatch(ref.slug, event, getJSON, { signal });
+    return { detail: { ...EMPTY_DETAIL, ...part }, event: fresh };
+  }
+  if (ref?.kind === "climbing" && !climbingTracked(ref.category)) return { detail: EMPTY_DETAIL, event: null };
   if (ref?.kind !== "espn") return { detail: await fetchDetail(event, getJSON, { signal }), event: null };
   const needsSituation = event.state === "live" && (ref.sport === "football" || ref.sport === "baseball");
   const [summary, board] = await Promise.all([
@@ -117,13 +145,14 @@ export function useGame(id: string, { poll, league }: { poll: boolean; league: s
   const boardEvent = scores.event(id) ?? null;
   const hint = league ? leagueWithID(league) : undefined;
 
-  // Off the scoreboards: find the game by its ID (ESPN only; bo3.gg and IFSC
-  // games come with their refs from the scoreboard).
+  // Off the scoreboards: find the game by its ID (ESPN, and bo3.gg's matches;
+  // IFSC rounds come with their refs from the scoreboard).
   const espnID = id.startsWith("espn-") ? id.slice(5) : null;
+  const csID = matchNumber(id);
   const lookup = useQuery({
     queryKey: ["game-event", id, hint?.id ?? null],
-    queryFn: ({ signal }) => resolveESPN(espnID!, hint, signal),
-    enabled: !boardEvent && espnID != null && scores.status !== "loading",
+    queryFn: ({ signal }) => (csID != null ? resolveCS(csID, signal) : resolveESPN(espnID!, hint, signal)),
+    enabled: !boardEvent && (espnID != null || csID != null) && scores.status !== "loading",
     staleTime: Infinity,
     retry: 1,
   });
@@ -168,7 +197,7 @@ export function useGame(id: string, { poll, league }: { poll: boolean; league: s
     ? "ready"
     : scores.status === "loading" || lookup.isLoading || lookup.fetchStatus === "fetching"
       ? "loading"
-      : espnID == null || lookup.isFetched
+      : (espnID == null && csID == null) || lookup.isFetched
         ? "missing"
         : "loading";
 

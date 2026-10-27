@@ -22,7 +22,7 @@ describe("the game page's chunks", () => {
 
   it("loads each sport with its own page through a dynamic import", () => {
     const pages = src("features/game/sportPages.ts");
-    for (const page of ["./mlb/BaseballPage", "./football/FootballPage", "./soccer/SoccerPage", "./nba/BasketballPage"]) {
+    for (const page of ["./mlb/BaseballPage", "./football/FootballPage", "./soccer/SoccerPage", "./nba/BasketballPage", "./cs2/CounterStrikePage", "./climbing/ClimbingPage"]) {
       expect(pages).toContain(`import("${page}")`);
     }
   });

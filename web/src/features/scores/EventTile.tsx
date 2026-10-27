@@ -23,6 +23,7 @@ import { GameMenuHost } from "./GameMenu";
 import { textWidth } from "./measure";
 import { TravelingLogo, travelID } from "./sections";
 import { hasStrip, MiniBases, stripMeaning, TileStrip } from "./TileStrips";
+import { wallLeaderLine, wallMeaning, wallSmallLine, WallStrip } from "./WallStrip";
 import styles from "./Tiles.module.css";
 
 export interface EventTileProps {
@@ -60,6 +61,7 @@ function EventTileView(props: EventTileProps) {
     event.state === "live" && event.liveLine && event.snapshot?.kind !== "football" && event.snapshot?.kind !== "baseball" ? event.liveLine : null,
     league?.name,
     stripMeaning(event),
+    event.snapshot?.kind === "climbing" && event.state === "live" ? wallMeaning(event.snapshot.wall) : null,
     event.caption,
   ]
     .filter(Boolean)
@@ -401,8 +403,11 @@ function SmallCenter({ event, top, bottom }: { event: ScoreEvent; top: Competito
 function FieldContent({ event, title, summary, large, reveal }: { event: ScoreEvent; title: string; summary: string; large: boolean; reveal: Reveal }) {
   const ref = event.ref?.kind === "climbing" ? event.ref : null;
   const subtitle = ref ? [ref.round, ref.eventName].filter(Boolean).join(" · ") : summary;
+  // Live: who's on the wall (TileStrips.swift `WallStrip`).
+  const wall = event.state === "live" && event.snapshot?.kind === "climbing" ? event.snapshot.wall : null;
   if (large) {
-    const detail = summary && !(ref?.round && summary === ref.round) ? summary : event.caption;
+    // Lead: who leads the route. Otherwise the summary and caption, less what the subtitle says.
+    const detail = (wall ? wallLeaderLine(wall) : null) ?? (summary && !(ref?.round && summary === ref.round) ? summary : event.caption);
     return (
       <span className={reveal?.className} style={{ ...reveal?.style, display: "contents" }}>
         <span className={styles.fill} />
@@ -417,7 +422,12 @@ function FieldContent({ event, title, summary, large, reveal }: { event: ScoreEv
           {event.state !== "live" ? <NextUpCountdown start={event.start} field delayed={false} /> : null}
         </span>
         <span className={styles.fill} />
-        {detail ? <span className={styles.detail}>{detail}</span> : null}
+        {wall ? <WallStrip state={wall} /> : null}
+        {detail ? (
+          <span className={styles.detail} style={wall ? { display: "block", marginTop: "calc(3 * var(--pt))" } : undefined}>
+            {detail}
+          </span>
+        ) : null}
       </span>
     );
   }
@@ -425,7 +435,8 @@ function FieldContent({ event, title, summary, large, reveal }: { event: ScoreEv
     <span className={reveal?.className} style={{ ...reveal?.style, display: "contents" }}>
       <span className={styles.fill} />
       <span className={styles.smallTitle}>{title}</span>
-      <span className={styles.smallLine}>{summary || event.caption}</span>
+      {/* Live and small: who's climbing, when known; else the summary. */}
+      <span className={styles.smallLine}>{wall ? wallSmallLine(wall) : summary || event.caption}</span>
     </span>
   );
 }

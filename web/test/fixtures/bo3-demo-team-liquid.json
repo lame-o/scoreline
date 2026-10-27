@@ -1,0 +1,88 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/teams/liquid?with=players.country",
+ "_recorded": "2026-10-27T09:58:13.145Z",
+ "id": 790,
+ "slug": "liquid",
+ "name": "Liquid",
+ "acronym": "TL",
+ "players": [
+  {
+   "id": 17528,
+   "slug": "elige",
+   "nickname": "EliGE",
+   "first_name": "Jonathan",
+   "last_name": "Jablonowski",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/17528/image/webp-4fc847daf3a6c0c3a8fb6917804af5dc.webp",
+   "country": {
+    "code": "US"
+   }
+  },
+  {
+   "id": 17585,
+   "slug": "naf",
+   "nickname": "NAF",
+   "first_name": "Keith",
+   "last_name": "Markovic",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/17585/image/webp-7694d6d721a2ae0f9a2161053aa4b3a9.webp",
+   "country": {
+    "code": "CA"
+   }
+  },
+  {
+   "id": 18338,
+   "slug": "jt",
+   "nickname": "JT",
+   "first_name": "Johnny",
+   "last_name": "Theodosiou",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/18338/image/webp-77c89d9988031467113e43e748b443e7.webp",
+   "country": {
+    "code": "ZA"
+   }
+  },
+  {
+   "id": 21433,
+   "slug": "malbsmd",
+   "nickname": "malbsMd",
+   "first_name": "Mario",
+   "last_name": "Samayoa",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/21433/image/webp-9aba4f77b3dcc1d970ac54b93ef677e2.webp",
+   "country": {
+    "code": "GT"
+   }
+  },
+  {
+   "id": 28505,
+   "slug": "flashie",
+   "nickname": "flashie",
+   "first_name": "Viktor",
+   "last_name": "Tamás Bea",
+   "status": 1,
+   "is_coach": true,
+   "image_url": "https://files.bo3.gg/uploads/player/28505/image/webp-d77def474ee9956135575082018c27ac.webp",
+   "country": {
+    "code": "HU"
+   }
+  },
+  {
+   "id": 50678,
+   "slug": "jorko",
+   "nickname": "Jorko",
+   "first_name": "Georgi",
+   "last_name": "Mitev",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/50678/image/webp-86bd213475ff68f6e09b9f58570e0498.webp",
+   "country": {
+    "code": "BG"
+   }
+  }
+ ]
+}

@@ -272,10 +272,9 @@ export interface WallAscent {
 export type WallReach = "none" | "lowZone" | "zone" | "top";
 
 /**
- * Who's on the wall in a live climbing round (Swift `WallState`). The type is
- * ported whole; reading it from IFSC results (`WallState.from`, which leans
- * on ClimbingDetail's boulder cards and wall routes) is still to do, so the
- * provider leaves climbing snapshots null for now.
+ * Who's on the wall in a live climbing round (Swift `WallState`), read from
+ * the IFSC results the provider already fetches for the leader
+ * (`wallStateFrom`, data/wallState.ts).
  */
 export interface WallState {
   readonly phase:

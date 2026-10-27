@@ -112,6 +112,8 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   const geometry = usePageGeometry(split);
   // The hero's beats: one value for the hero, the docked bar and the wash.
   const [beats, setBeats] = useState(NO_BEATS);
+  // A field event's wash (a climber's flag), from its sport page.
+  const [fieldWash, setFieldWash] = useState<TeamPalette | null>(null);
 
   // Esc drops a pin before it goes back (DetailView.back).
   useEffect(() => {
@@ -148,7 +150,7 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
       <LinkedFocusProvider store={linked}>
         <MomentProvider slot={moments}>
           <div className={styles.washSlot}>
-            <HeroWash palette={event.content.kind === "match" ? palette : null} pulses={beats.washPulses} side={beats.washSide} />
+            <HeroWash palette={event.content.kind === "match" ? palette : fieldWash} intensity={event.content.kind === "match" ? 1 : 0.85} crossfade={event.content.kind === "field"} pulses={beats.washPulses} side={beats.washSide} />
           </div>
           <div
             ref={(el) => {
@@ -160,7 +162,7 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
           </div>
           <div className={styles.inner} ref={inner} data-columns={columns}>
             {/* The hero shows at once; the sections assemble when the detail arrives. */}
-            <Loaded game={game} event={event} palette={palette} columns={columns} geometry={geometry} moments={moments} beats={beats} setBeats={setBeats} />
+            <Loaded game={game} event={event} palette={palette} columns={columns} geometry={geometry} moments={moments} beats={beats} setBeats={setBeats} setFieldWash={setFieldWash} />
           </div>
         </MomentProvider>
       </LinkedFocusProvider>
@@ -168,7 +170,7 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   );
 }
 
-function Loaded({ game, event, palette, columns, geometry, moments, beats, setBeats }: {
+function Loaded({ game, event, palette, columns, geometry, moments, beats, setBeats, setFieldWash }: {
   game: GameData;
   event: ScoreEvent;
   palette: TeamPalette;
@@ -177,6 +179,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
   moments: ReturnType<typeof useMomentSlot>;
   beats: HeroBeats;
   setBeats: React.Dispatch<React.SetStateAction<HeroBeats>>;
+  setFieldWash: (wash: TeamPalette | null) => void;
 }) {
   const detail = game.detail ?? EMPTY_DETAIL;
   const loading = game.detail == null;
@@ -202,7 +205,12 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
 
   // The hero's numbers (the lane's while it's ahead).
   const scores = { top: sport.laneScores?.top ?? top?.score ?? null, bottom: sport.laneScores?.bottom ?? bottom?.score ?? null };
-  useBeatTriggers(event, scores, setBeats);
+  useBeatTriggers(event, scores, setBeats, sport.trophy != null);
+  const washTop = sport.wash?.top ?? null;
+  const washBottom = sport.wash?.bottom ?? null;
+  useEffect(() => {
+    setFieldWash(washTop && washBottom ? { top: washTop, bottom: washBottom } : null);
+  }, [washTop, washBottom, setFieldWash]);
   const surface = useSurface(geometry);
   const fallback = sport.clockFallback ?? (event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live"));
 
@@ -229,6 +237,8 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
           staleSince={game.staleSince}
           spoken={spokenHero(event, scores, fallback, sport.heroSpoken ?? null)}
           caption={event.caption ?? detail.roundName}
+          trophy={sport.trophy ?? null}
+          badge={sport.heroBadge ?? null}
           heroRef={(el) => {
             geometry.hero = el;
           }}
@@ -250,6 +260,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
         possessionInAir={sport.possessionInAir ?? false}
         stale={game.staleSince != null}
         detail={sport.dockDetail}
+        lead={sport.dockLead}
         chip={sport.chip ?? null}
         slot={sport.dockSlot}
       />
@@ -267,7 +278,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
  * The hero's beats: a score-tier moment, the hero's number rising, the final
  * whistle while the page is open (never when it opens on a final).
  */
-function useBeatTriggers(event: ScoreEvent, scores: { top: string | null; bottom: string | null }, setBeats: React.Dispatch<React.SetStateAction<HeroBeats>>): void {
+function useBeatTriggers(event: ScoreEvent, scores: { top: string | null; bottom: string | null }, setBeats: React.Dispatch<React.SetStateAction<HeroBeats>>, trophy: boolean): void {
   const moment = useCurrentMoment();
   const seenMoment = useRef<string | null>(null);
   const lastScores = useRef(scores);
@@ -276,7 +287,11 @@ function useBeatTriggers(event: ScoreEvent, scores: { top: string | null; bottom
   useEffect(() => {
     if (!moment || moment.tier !== Tier.score || seenMoment.current === moment.id) return;
     seenMoment.current = moment.id;
-    setBeats((b) => beatScore(b, scorer(moment), decisive(moment), Date.now()));
+    setBeats((b) => {
+      const next = beatScore(b, scorer(moment), decisive(moment), Date.now());
+      // A climbing final decided: the trophy arrives with the gold.
+      return decisive(moment) && moment.chart === "ascent" ? { ...next, trophies: next.trophies + 1 } : next;
+    });
   }, [moment]);
 
   useEffect(() => {
@@ -294,10 +309,17 @@ function useBeatTriggers(event: ScoreEvent, scores: { top: string | null; bottom
   useEffect(() => {
     const was = lastState.current;
     lastState.current = event.state;
-    if (was !== "live" || event.state !== "final" || event.content.kind !== "match") return;
+    if (was !== "live" || event.state !== "final") return;
+    if (event.content.kind === "field") {
+      // A field event: both sides of the wash (the flag's colors) lift.
+      const summary = event.content.summary;
+      setBeats((b) => beatFinal(b, null, true, trophy, Date.now()));
+      announce(summary ? `Final. ${summary}` : "Final.");
+      return;
+    }
     const { top, bottom } = event.content;
     const side = winner(top, bottom, scores);
-    setBeats((b) => beatFinal(b, side, false, false, Date.now()));
+    setBeats((b) => beatFinal(b, side, false, trophy, Date.now()));
     announce(finalAnnouncement({ name: top.name, score: scores.top }, { name: bottom.name, score: scores.bottom }, side));
   }, [event.state]); // eslint-disable-line react-hooks/exhaustive-deps
 }

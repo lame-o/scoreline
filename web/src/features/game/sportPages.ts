@@ -14,7 +14,7 @@ import type { League } from "../../data/models";
 import type { UseSportPage } from "./core/sport";
 import { useCommonSections } from "./core/useCommonSections";
 
-/** The generic ESPN page: the shared sections only (CS2 and climbing until their pages land). */
+/** The generic ESPN page: the shared sections only (the leagues without a page of their own). */
 const useGenericPage: UseSportPage = (game) => ({ sections: useCommonSections(game) });
 /** The generic page is part of the game page's own chunk: nothing to load. */
 const GENERIC = (): Promise<UseSportPage> => Promise.resolve(useGenericPage);
@@ -28,9 +28,9 @@ export const SPORT_PAGES: Readonly<Record<PageKind, () => Promise<UseSportPage>>
   football: () => import("./football/FootballPage").then((m) => m.useFootballPage),
   soccer: () => import("./soccer/SoccerPage").then((m) => m.useSoccerPage),
   nba: () => import("./nba/BasketballPage").then((m) => m.useBasketballPage),
+  counterStrike: () => import("./cs2/CounterStrikePage").then((m) => m.useCounterStrikePage),
+  climbing: () => import("./climbing/ClimbingPage").then((m) => m.useClimbingPage),
   espn: GENERIC,
-  counterStrike: GENERIC,
-  climbing: GENERIC,
   none: GENERIC,
 };
 

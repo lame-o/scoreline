@@ -1,0 +1,278 @@
+{
+ "_source": "https://ifsc.results.info/api/v1/category_rounds/11362/results",
+ "_recorded": "2026-10-27T09:58:14.475Z",
+ "id": 11362,
+ "event": "World Climbing Series Santiago 2026",
+ "event_id": 1489,
+ "discipline": "Lead",
+ "status": "finished",
+ "status_as_of": "2026-10-25 22:02:58 UTC",
+ "category": "Women",
+ "round": "Final",
+ "routes": [
+  {
+   "id": 21539,
+   "name": "1"
+  }
+ ],
+ "ranking": [
+  {
+   "athlete_id": 1147,
+   "firstname": "Janja",
+   "lastname": "GARNBRET",
+   "country": "SLO",
+   "rank": 1,
+   "score": "TOP",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": true,
+     "plus": false,
+     "score": "TOP",
+     "status": "locked",
+     "top_tries": null,
+     "time_ms": 260000
+    }
+   ]
+  },
+  {
+   "athlete_id": 928,
+   "firstname": "Laura",
+   "lastname": "ROGORA",
+   "country": "ITA",
+   "rank": 2,
+   "score": "48+",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "48+",
+     "status": "locked",
+     "top_tries": null,
+     "time_ms": 340000
+    }
+   ]
+  },
+  {
+   "athlete_id": 13329,
+   "firstname": "Rosa",
+   "lastname": "REKAR",
+   "country": "SLO",
+   "rank": 3,
+   "score": "46+",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "46+",
+     "status": "locked",
+     "top_tries": null,
+     "time_ms": 239000
+    }
+   ]
+  },
+  {
+   "athlete_id": 1160,
+   "firstname": "Lucka",
+   "lastname": "RAKOVEC",
+   "country": "SLO",
+   "rank": 4,
+   "score": "46+",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "46+",
+     "status": "locked",
+     "top_tries": null,
+     "time_ms": 230000
+    }
+   ]
+  },
+  {
+   "athlete_id": 11783,
+   "firstname": "Ryu",
+   "lastname": "NAKAGAWA",
+   "country": "JPN",
+   "rank": 5,
+   "score": "46+",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "46+",
+     "status": "locked",
+     "top_tries": null,
+     "time_ms": 226000
+    }
+   ]
+  },
+  {
+   "athlete_id": 328,
+   "firstname": "Heloïse",
+   "lastname": "DOUMONT",
+   "country": "BEL",
+   "rank": 6,
+   "score": "44+",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "44+",
+     "status": "locked",
+     "top_tries": null,
+     "time_ms": 258000
+    }
+   ]
+  },
+  {
+   "athlete_id": 1447,
+   "firstname": "Tereza",
+   "lastname": "SIRUCKOVA",
+   "country": "CZE",
+   "rank": 7,
+   "score": "38",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "38",
+     "status": "locked",
+     "top_tries": null,
+     "time_ms": 277000
+    }
+   ]
+  },
+  {
+   "athlete_id": 13022,
+   "firstname": "Ella",
+   "lastname": "FISHER",
+   "country": "USA",
+   "rank": 8,
+   "score": "37+",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "37+",
+     "status": "locked",
+     "top_tries": null,
+     "time_ms": 246000
+    }
+   ]
+  }
+ ],
+ "startlist": [
+  {
+   "athlete_id": 1447,
+   "firstname": "Tereza",
+   "lastname": "SIRUCKOVA",
+   "country": "CZE",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 1
+    }
+   ]
+  },
+  {
+   "athlete_id": 13022,
+   "firstname": "Ella",
+   "lastname": "FISHER",
+   "country": "USA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 2
+    }
+   ]
+  },
+  {
+   "athlete_id": 11783,
+   "firstname": "Ryu",
+   "lastname": "NAKAGAWA",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 3
+    }
+   ]
+  },
+  {
+   "athlete_id": 1160,
+   "firstname": "Lucka",
+   "lastname": "RAKOVEC",
+   "country": "SLO",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 4
+    }
+   ]
+  },
+  {
+   "athlete_id": 328,
+   "firstname": "Heloïse",
+   "lastname": "DOUMONT",
+   "country": "BEL",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 5
+    }
+   ]
+  },
+  {
+   "athlete_id": 928,
+   "firstname": "Laura",
+   "lastname": "ROGORA",
+   "country": "ITA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 6
+    }
+   ]
+  },
+  {
+   "athlete_id": 13329,
+   "firstname": "Rosa",
+   "lastname": "REKAR",
+   "country": "SLO",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 7
+    }
+   ]
+  },
+  {
+   "athlete_id": 1147,
+   "firstname": "Janja",
+   "lastname": "GARNBRET",
+   "country": "SLO",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 8
+    }
+   ]
+  }
+ ]
+}

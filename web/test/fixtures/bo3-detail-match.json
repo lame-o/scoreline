@@ -1,0 +1,235 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/matches/g2-vs-dendele-cs-26-10-2026?with=games,streams",
+ "_recorded": "2026-10-27T09:57:55.437Z",
+ "id": 132237,
+ "slug": "g2-vs-dendele-cs-26-10-2026",
+ "status": "finished",
+ "bo_type": 3,
+ "start_date": "2026-10-26T16:30:00.000+00:00",
+ "team1_id": 793,
+ "team2_id": 24956,
+ "team1_score": 1,
+ "team2_score": 2,
+ "winner_team_id": 24956,
+ "team1": {
+  "id": 793,
+  "slug": "g2",
+  "name": "G2",
+  "image_url": "https://files.bo3.gg/uploads/team/793/image/webp-8f844f6a25c797dfe74b411d147983ff.webp"
+ },
+ "team2": {
+  "id": 24956,
+  "slug": "dendele-cs",
+  "name": "DENDELE",
+  "image_url": "https://files.bo3.gg/uploads/team/24956/image/webp-faa4b489f27e86c29c5d66ca95c14082.webp"
+ },
+ "stage": {
+  "title": "PGL Masters Bucharest 2026 Group Stage"
+ },
+ "round": {
+  "name": "Round 3"
+ },
+ "tournament": {
+  "slug": "pgl-masters-bucharest-2026",
+  "name": "PGL Masters Bucharest 2026"
+ },
+ "games": [
+  {
+   "id": 190575,
+   "number": 3,
+   "map_name": "de_inferno",
+   "status": "finished",
+   "state": "done",
+   "winner_clan_score": 13,
+   "loser_clan_score": 5,
+   "winner_team_clan": {
+    "team_id": 24956,
+    "clan_name": "DENDELE"
+   },
+   "loser_team_clan": {
+    "team_id": 793,
+    "clan_name": "G2 Esports"
+   }
+  },
+  {
+   "id": 190576,
+   "number": 2,
+   "map_name": "de_ancient",
+   "status": "finished",
+   "state": "done",
+   "winner_clan_score": 16,
+   "loser_clan_score": 14,
+   "winner_team_clan": {
+    "team_id": 793,
+    "clan_name": "G2 Esports"
+   },
+   "loser_team_clan": {
+    "team_id": 24956,
+    "clan_name": "DENDELE"
+   }
+  },
+  {
+   "id": 190577,
+   "number": 1,
+   "map_name": "de_nuke",
+   "status": "finished",
+   "state": "done",
+   "winner_clan_score": 13,
+   "loser_clan_score": 5,
+   "winner_team_clan": {
+    "team_id": 24956,
+    "clan_name": "DENDELE"
+   },
+   "loser_team_clan": {
+    "team_id": 793,
+    "clan_name": "G2 Esports"
+   }
+  }
+ ],
+ "streams": [
+  {
+   "id": 2544,
+   "name": "PGL_CS2",
+   "raw_url": "https://www.twitch.tv/pgl_cs2",
+   "viewers_number": 6310,
+   "official": true,
+   "language": "en",
+   "platform": 1
+  },
+  {
+   "id": 5910,
+   "name": "PGL 2",
+   "raw_url": "https://www.youtube.com/watch?v=sx5tneE-ILg",
+   "viewers_number": 6294,
+   "official": false,
+   "language": "en",
+   "platform": 2
+  },
+  {
+   "id": 7316,
+   "name": "CS2 Maincast 2",
+   "raw_url": "https://www.youtube.com/watch?v=3XmHrTOyjKY",
+   "viewers_number": 465,
+   "official": false,
+   "language": "uk",
+   "platform": 2
+  },
+  {
+   "id": 4852,
+   "name": "gaules",
+   "raw_url": "https://kick.com/gaules",
+   "viewers_number": 40525,
+   "official": false,
+   "language": "pt",
+   "platform": 3
+  },
+  {
+   "id": 5381,
+   "name": "Gaules",
+   "raw_url": "https://www.youtube.com/watch?v=7WEBKNIFOAA",
+   "viewers_number": 3681,
+   "official": false,
+   "language": "pt",
+   "platform": 2
+  },
+  {
+   "id": 8222,
+   "name": "Polex",
+   "raw_url": "https://www.youtube.com/watch?v=HUy-WlvG1Qk",
+   "viewers_number": 2859,
+   "official": false,
+   "language": "pt",
+   "platform": 2
+  },
+  {
+   "id": 4376,
+   "name": "mch",
+   "raw_url": "https://www.youtube.com/watch?v=EGUfixwLDeg",
+   "viewers_number": 1538,
+   "official": false,
+   "language": "pt",
+   "platform": 2
+  },
+  {
+   "id": 2632,
+   "name": "cs2_maincast2",
+   "raw_url": "https://www.twitch.tv/cs2_maincast2",
+   "viewers_number": 1134,
+   "official": false,
+   "language": "uk",
+   "platform": 1
+  },
+  {
+   "id": 6235,
+   "name": "elmorocho7",
+   "raw_url": "https://kick.com/elmorocho7",
+   "viewers_number": 881,
+   "official": false,
+   "language": "es",
+   "platform": 3
+  },
+  {
+   "id": 5881,
+   "name": "pglcs2",
+   "raw_url": "https://kick.com/pglcs2",
+   "viewers_number": 186,
+   "official": true,
+   "language": "en",
+   "platform": 3
+  },
+  {
+   "id": 6080,
+   "name": "Locomas",
+   "raw_url": "https://kick.com/locomas",
+   "viewers_number": 15,
+   "official": false,
+   "language": "es",
+   "platform": 3
+  },
+  {
+   "id": 3747,
+   "name": "KRL_STREAM2",
+   "raw_url": "https://www.twitch.tv/krl_stream2",
+   "viewers_number": 0,
+   "official": false,
+   "language": "fr",
+   "platform": 1
+  },
+  {
+   "id": 7035,
+   "name": "MADHOUSE TV",
+   "raw_url": "https://www.youtube.com/watch?v=U5sS2XayzQc",
+   "viewers_number": 0,
+   "official": false,
+   "language": "pt",
+   "platform": 2
+  },
+  {
+   "id": 5407,
+   "name": "watchfulTVb",
+   "raw_url": "https://www.twitch.tv/watchfultvb",
+   "viewers_number": 0,
+   "official": false,
+   "language": "ru",
+   "platform": 1
+  },
+  {
+   "id": 2521,
+   "name": "cs2_paragon_ru2",
+   "raw_url": "https://www.twitch.tv/cs2_paragon_ru2",
+   "viewers_number": 0,
+   "official": false,
+   "language": "ru",
+   "platform": 1
+  },
+  {
+   "id": 8227,
+   "name": "OkkoCyber_B",
+   "raw_url": "https://www.twitch.tv/okkocyber_b",
+   "viewers_number": 0,
+   "official": false,
+   "language": "ru",
+   "platform": 1
+  }
+ ]
+}
