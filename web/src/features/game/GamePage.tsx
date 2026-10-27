@@ -27,9 +27,10 @@ import styles from "./GamePage.module.css";
 export function GamePage() {
   const { id: raw } = useParams();
   const id = raw ? decodeURIComponent(raw) : "";
-  const scores = useScoreboard();
-  const event = scores.event(id);
   const split = useSplit();
+  // Beside the sidebar, the sidebar's list polls; on a phone this page does.
+  const scores = useScoreboard({ poll: !split });
+  const event = scores.event(id);
   const goBack = useGoBack();
   const scheme = useColorScheme();
   const viaKeyboard = (useLocation().state as NavState | null)?.viaKeyboard === true;

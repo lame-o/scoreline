@@ -75,7 +75,11 @@ export interface Scoreboard {
 
 const all = (s: Settings) => s;
 
-export function useScoreboard(): Scoreboard {
+/**
+ * `poll: false` reads the same queries without scheduling its own polls (a
+ * second reader beside one that polls, so the feeds aren't polled twice).
+ */
+export function useScoreboard({ poll = true }: { poll?: boolean } = {}): Scoreboard {
   const settings = useSettings(all);
   const countries = climbingCountries(settings);
   const leagues = settings.enabledLeagues.flatMap((id) => leagueWithID(id) ?? []);
@@ -89,7 +93,7 @@ export function useScoreboard(): Scoreboard {
         const fresh = await fetchLeagueEvents(league, { countries, signal });
         return mergePoll(queryClient.getQueryData<ScoreEvent[]>(queryKey), fresh);
       },
-      refetchInterval: () => interval.current * 1000,
+      refetchInterval: poll ? () => interval.current * 1000 : (false as const),
     })),
   });
 

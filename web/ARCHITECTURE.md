@@ -179,7 +179,7 @@ Live scores live in `src/state/scores.ts`, where `useScoreboard()` makes one Tan
 - Polling pauses while the tab is hidden, and refetches on return if the data is older than 30s.
 - Each poll is merged onto the last. Clocks learn whether they run. The NBA's routine plays don't replace the last line worth reading. An unchanged game keeps its object identity, so its row doesn't re-render.
 
-`useScoreboard()` returns the derived sections, the tile board, quiet leagues, the live count, status, `event(id)` and `leagueOf(id)`. Results are recomputed only when a league's data changes, the settings change or the minute turns (ScoreStore's `version`). Game pages read their event from it, so they stay live.
+`useScoreboard()` returns the derived sections, the tile board, quiet leagues, the live count, status, `event(id)` and `leagueOf(id)`. A second reader beside one that already polls passes `{ poll: false }`, so the feeds aren't polled twice; the game page does this in the split view, where the sidebar polls. Results are recomputed only when a league's data changes, the settings change or the minute turns (ScoreStore's `version`). Game pages read their event from it, so they stay live.
 
 `useNow(period)` (`state/clock.ts`) is the only way to tick. Every component on the same period ticks in the same frame, on the whole period, and tickers stop while the tab is hidden.
 
