@@ -1,0 +1,266 @@
+/* The season card, its timeline, and the docked bar (SeasonCard.swift, SeasonTimeline.swift). */
+
+/* MARK: Card */
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: calc(12 * var(--pt));
+  margin: calc(4 * var(--pt)) calc(10 * var(--pt)) 0;
+  padding: calc(11 * var(--pt)) calc(12 * var(--pt)) calc(10 * var(--pt));
+  border-radius: var(--radius-hero);
+  /* Regular glass: the season pages have no wash for clear glass to refract. */
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    inset 0 calc(1 * var(--pt)) 0 var(--glass-highlight),
+    inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
+    var(--shadow-glass);
+  /* Scrolling away, it shrinks toward its top edge (useSeasonDock). */
+  transform-origin: top center;
+}
+
+.headlineRow {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  min-width: 0;
+}
+
+.headline {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  flex: 1;
+  min-width: 0;
+}
+
+.headlineText {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
+.headlineText > span,
+.subline {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subline {
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.liveText {
+  color: var(--live-text);
+}
+
+.accessory {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.readout {
+  min-height: 1.3em;
+  padding-left: calc(54 * var(--pt));
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: calc(-6 * var(--pt));
+}
+
+/* MARK: Timeline */
+
+.timeline,
+.strip {
+  width: 100%;
+  min-width: 0;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tick {
+  stroke: var(--label);
+  stroke-opacity: 0.09;
+  stroke-width: 0.5;
+}
+
+.stripTick {
+  stroke: var(--label);
+  stroke-opacity: 0.11;
+  stroke-width: 0.5;
+}
+
+.axisLabel,
+.laneLabel {
+  font-size: 10px;
+  fill: var(--label-secondary);
+  font-family: var(--font-ui);
+}
+
+.axisLabel {
+  font-variant-numeric: tabular-nums;
+}
+
+.today {
+  stroke: var(--accent);
+  stroke-opacity: 0.8;
+  stroke-width: 1;
+}
+
+.markLive {
+  fill: var(--live);
+}
+
+.markFinished {
+  fill: var(--label);
+  fill-opacity: 0.2;
+}
+
+.markCanceled {
+  fill: var(--label);
+  fill-opacity: 0.09;
+}
+
+.markNext {
+  fill: var(--accent);
+}
+
+.markUpcoming {
+  fill: var(--label);
+  fill-opacity: 0.45;
+}
+
+.badgeRing {
+  fill: none;
+  stroke: var(--label);
+  stroke-opacity: 0.38;
+  stroke-width: 1;
+}
+
+.ring,
+.stripRing {
+  fill: none;
+  stroke: var(--label);
+  stroke-opacity: 0.8;
+  stroke-width: 1.5;
+}
+
+.stripRing {
+  stroke-width: 1.25;
+}
+
+@media (prefers-contrast: more) {
+  .markUpcoming {
+    fill-opacity: 0.62;
+  }
+  .markFinished {
+    fill-opacity: 0.3;
+  }
+}
+
+/* MARK: Docked bar */
+
+/* Hangs from the sticky header: an overlay, so the page's height never sees it. */
+.dockSlot {
+  position: absolute;
+  top: calc(100% + 4 * var(--pt));
+  left: calc(10 * var(--pt));
+  right: calc(10 * var(--pt));
+  pointer-events: none;
+}
+
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+  height: calc(50 * var(--pt));
+  padding: calc(8 * var(--pt)) calc(12 * var(--pt)) calc(7 * var(--pt));
+  border-radius: calc(14 * var(--pt));
+  /* Regular glass: content scrolls under it. */
+  background: var(--glass-fill-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    inset 0 calc(1 * var(--pt)) 0 var(--glass-highlight),
+    inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
+    var(--shadow-glass);
+  visibility: hidden;
+  opacity: 0;
+  transform-origin: top center;
+}
+
+.bar[data-docked="true"] {
+  pointer-events: auto;
+}
+
+.barLine {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: calc(16 * var(--pt));
+  text-align: left;
+}
+
+.dockLine {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+  width: 100%;
+}
+
+.dockLead {
+  flex: none;
+  max-width: 100%;
+  font-size: calc(12 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dockLeadPlain {
+  flex: 1;
+  font-weight: 500;
+}
+
+.dockTrail {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-contrast: more) {
+  .bar {
+    box-shadow:
+      inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
+      var(--shadow-glass);
+  }
+}

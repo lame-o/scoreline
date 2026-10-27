@@ -1,0 +1,447 @@
+/* Season rows and their open details (ClimbingEventRow, TournamentRow, TournamentResultRow, the details). */
+
+.rowWrap {
+  position: relative;
+}
+
+.flag {
+  flex: none;
+  width: calc(20 * var(--pt));
+  font-size: calc(15 * var(--pt));
+  line-height: 1;
+  text-align: center;
+  align-self: flex-start;
+  margin-top: calc(1 * var(--pt));
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  flex: 1;
+  min-width: 0;
+}
+
+/* The badge never truncates: beside the name when both fit, else under it. */
+.titleLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: calc(6 * var(--pt));
+  row-gap: calc(3 * var(--pt));
+  min-width: 0;
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+
+.title > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canceled {
+  opacity: 0.5;
+}
+
+.canceled .title > span:last-child {
+  text-decoration: line-through;
+}
+
+.detail {
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detailSmall {
+  font-size: var(--text-caption);
+}
+
+.wrap2 {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.live {
+  color: var(--live-text);
+}
+
+.dates {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: calc(2 * var(--pt));
+  flex: none;
+  font-size: var(--text-status);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.datesFinished {
+  color: var(--label-secondary);
+}
+
+.relative {
+  font-size: var(--text-small);
+  font-weight: 400;
+  color: var(--label-secondary);
+}
+
+/* MARK: Details (opened in place, or beside the list) */
+
+.openDetail {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--pt));
+  padding: calc(4 * var(--pt)) var(--gutter) calc(8 * var(--pt));
+  min-width: 0;
+}
+
+.inline {
+  padding-left: calc(28 * var(--pt) + var(--gutter));
+}
+
+.inlineWide {
+  padding-left: calc(34 * var(--pt) + var(--gutter));
+}
+
+.reveal {
+  animation: reveal var(--dur-reveal) var(--ease-out) both;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+  }
+}
+
+.detailHeader {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  padding-bottom: calc(6 * var(--pt));
+}
+
+.detailTitle {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-width: 0;
+  font-size: calc(15 * var(--pt));
+  font-weight: 600;
+}
+
+.detailTitle > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detailFlag {
+  font-size: calc(18 * var(--pt));
+  line-height: 1;
+}
+
+.meta {
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.note {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+.callout {
+  font-size: var(--text-callout);
+}
+
+.roundLine {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.roundName {
+  font-size: calc(12 * var(--pt));
+}
+
+.roundDone {
+  color: var(--label-secondary);
+}
+
+.roundCats {
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.roundWhen {
+  margin-left: auto;
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.podiums {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  padding-top: calc(4 * var(--pt));
+}
+
+.podiumLine {
+  display: grid;
+  grid-template-columns: calc(96 * var(--pt)) minmax(0, 1fr);
+  gap: calc(8 * var(--pt));
+  font-size: var(--text-callout);
+}
+
+.podiumLine > span:last-child {
+  color: var(--label-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(12 * var(--pt));
+  padding-top: calc(2 * var(--pt));
+}
+
+.subLabelGap {
+  padding-top: calc(2 * var(--pt));
+}
+
+/* MARK: Climbing results: a category's block */
+
+.categories {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(12 * var(--pt));
+}
+
+.categoriesWide {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.category {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  min-width: 0;
+}
+
+.categoryHead {
+  display: flex;
+  align-items: baseline;
+  gap: calc(6 * var(--pt));
+}
+
+.categoryHead > :last-child {
+  margin-left: auto;
+}
+
+.athlete {
+  display: grid;
+  grid-template-columns: calc(26 * var(--pt)) calc(18 * var(--pt)) minmax(0, 1fr);
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+  font-size: calc(12 * var(--pt));
+}
+
+.medal {
+  font-size: var(--text-callout);
+}
+
+.place {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.athleteFlag {
+  font-size: calc(12 * var(--pt));
+  text-align: center;
+}
+
+.athleteName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: calc(3 * var(--pt));
+}
+
+.athleteName[data-mine="true"] {
+  font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  a.athleteName:hover,
+  a.teamName:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--label-tertiary);
+    text-underline-offset: 2px;
+  }
+}
+
+.roundLinks {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: calc(12 * var(--pt));
+  row-gap: calc(2 * var(--pt));
+  padding-top: calc(2 * var(--pt));
+}
+
+/* MARK: Tournaments */
+
+.field {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(6 * var(--pt));
+}
+
+.fieldWide {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.fieldTeam {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+  font-size: var(--text-callout);
+}
+
+.fieldTeam > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.star {
+  flex: none;
+  color: var(--star);
+}
+
+.openBracket {
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--accent-text);
+}
+
+.currentCard {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(10 * var(--pt));
+  margin: calc(8 * var(--pt)) calc(10 * var(--pt)) 0;
+  padding: calc(10 * var(--pt)) calc(12 * var(--pt));
+  border-radius: calc(10 * var(--pt));
+  background: var(--fill-surface);
+}
+
+.currentText {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  flex: 1;
+  min-width: 0;
+}
+
+.currentTitle {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
+.currentTitle > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.currentTitle > :last-child {
+  margin-left: auto;
+}
+
+.nextLine {
+  padding-top: calc(2 * var(--pt));
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  padding-top: calc(10 * var(--pt));
+}
+
+.moreButton {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  padding: calc(6 * var(--pt)) calc(12 * var(--pt));
+  border-radius: 999px;
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--accent-text);
+  background: var(--fill-surface);
+  transition: background-color var(--dur-fade) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .moreButton:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.moreButton:active {
+  transform: scale(0.97);
+}
+
+.moreButton:disabled {
+  color: var(--label-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes reveal {
+    from {
+      opacity: 0;
+    }
+  }
+}
