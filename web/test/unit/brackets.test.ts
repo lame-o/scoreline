@@ -257,3 +257,17 @@ describe("reading a tree", () => {
     expect([...ringIDs(["cs-793", "10"])]).toEqual(["793", "10"]);
   });
 });
+
+describe("where a scrolled tree opens", () => {
+  it("on a series under way between games, ahead of the last decided round", () => {
+    const a = team("TB");
+    const b = team("MIL");
+    const matches: Record<string, BracketMatch> = {
+      s1: bracketMatch({ id: "s1", top: a, bottom: team("CLE"), topScore: 4, bottomScore: 2, winner: "top" }),
+      s2: bracketMatch({ id: "s2", top: team("LAD"), bottom: b, topScore: 0, bottomScore: 4, winner: "bottom" }),
+      ws: bracketMatch({ id: "ws", top: a, bottom: b, topScore: 0, bottomScore: 3, feeders: ["s1", "s2"] }),
+    };
+    const bracket: Bracket = { rounds: ["Championship", "World Series"], matches, finalID: "ws", extra: [] };
+    expect(focusColumn(bracket, bracketLayout(bracket))).toBe(1);
+  });
+});

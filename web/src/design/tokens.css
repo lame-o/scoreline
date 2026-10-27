@@ -57,6 +57,8 @@
   --live-wash: light-dark(rgb(255 59 48 / 0.13), rgb(255 69 58 / 0.13));
   --live-pill: light-dark(rgb(255 59 48 / 0.14), rgb(255 69 58 / 0.18));
   --delayed-text: light-dark(#a63700, #ffb340);
+  /* A climb in a table or poll (green), deep enough to read; a fall uses --live-text. */
+  --up-text: light-dark(#146c2e, #30d158);
   --star: light-dark(#f5b800, #ffd60a);
   --on-live: #fff;
   /* What shows through a filled glyph's cut-outs (a football's laces). */

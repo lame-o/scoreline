@@ -1,0 +1,131 @@
+/* The standings, polls and bracket pages' frame: a sticky header, then content capped and centered. */
+
+.page {
+  position: relative;
+  min-height: 100%;
+  padding-bottom: calc(18 * var(--pt));
+}
+
+.sentinel {
+  display: block;
+  height: 1px;
+  margin-bottom: -1px;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.header::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 calc(-12 * var(--pt));
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--page);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 12 * var(--pt)), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 12 * var(--pt)), transparent);
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.header[data-scrolled="true"]::before {
+  opacity: 1;
+}
+
+/* Wide panes: the tables stay a comfortable unit, centered (the Mac panel tops out at 760pt). */
+.content {
+  max-width: calc(880 * var(--pt));
+  margin: 0 auto;
+}
+
+.page[data-entrance="stack"] .content > * {
+  animation: stack-in var(--dur-reveal) var(--ease-out) both;
+}
+
+.page[data-entrance="stack"] .content > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.page[data-entrance="stack"] .content > *:nth-child(n + 3) {
+  animation-delay: 80ms;
+}
+
+@keyframes stack-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-10 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes stack-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* MARK: Section (DetailSection) */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+  padding: calc(16 * var(--pt)) var(--gutter) 0;
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+}
+
+.sectionTitle {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
+
+.caption {
+  max-width: var(--readable-width);
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+/* MARK: Skeleton */
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  padding: calc(12 * var(--pt)) calc(16 * var(--pt));
+}
+
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  height: calc(23 * var(--pt));
+}
+
+.skeletonBlock {
+  height: calc(9 * var(--pt));
+  border-radius: calc(3 * var(--pt));
+  background: var(--fill-skeleton);
+}
+
+.skeletonDisc {
+  width: calc(15 * var(--pt));
+  height: calc(15 * var(--pt));
+  border-radius: 50%;
+  background: var(--fill-skeleton);
+}
+
+.skeletonSpacer {
+  flex: 1;
+}

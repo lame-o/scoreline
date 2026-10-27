@@ -556,13 +556,19 @@ export function maxTreeWidth(rounds: number): number {
   return treeWidth(BRACKET.maxCell, rounds);
 }
 
-/** The round a scrolled tree opens on: the one being played, else the latest with a result, else the first. */
+/**
+ * The round a scrolled tree opens on: the one being played (a live matchup,
+ * else a series under way between games), else the latest with a result,
+ * else the first. The Mac's rule, plus the series between games: a World
+ * Series at 3–0 on an off day is still the round being played.
+ */
 export function focusColumn(bracket: Bracket, layout: BracketLayout): number {
   const matches = Object.values(bracket.matches);
   const columns = (pick: (m: BracketMatch) => boolean) => matches.filter(pick).flatMap((m) => (layout.slots[m.id] ? [layout.slots[m.id]!.column] : []));
   const live = columns((m) => m.live);
+  const underway = columns((m) => m.winner == null && (m.topScore ?? 0) + (m.bottomScore ?? 0) > 0);
   const decided = columns((m) => m.winner != null);
-  return live.length ? Math.max(...live) : decided.length ? Math.max(...decided) : 0;
+  return live.length ? Math.max(...live) : underway.length ? Math.max(...underway) : decided.length ? Math.max(...decided) : 0;
 }
 
 /** Matchups in reading order: round by round, top to bottom. */
