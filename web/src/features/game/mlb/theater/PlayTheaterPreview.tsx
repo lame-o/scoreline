@@ -4,12 +4,16 @@
  * a triple (Game 3's double, stretched, as the Swift tests do), a 4-6-3
  * double play, a 6-3 and a strikeout looking (Game 3), each with a Replay
  * button and, with `frozen`, drawn at a fixed instant for screenshots.
- * Fixtures load lazily from test/fixtures, so nothing here ships.
+ * As the football and soccer previews do, `?t=1.6` draws every tile at that
+ * instant, frozen (`?t=end`: as it ended), and `?only=6-3` keeps the tiles
+ * whose title starts so. Fixtures load lazily from test/fixtures, so nothing
+ * here ships.
  *
- *     <PlayTheaterPreview />                 // replays on mount
+ *     <PlayTheaterPreview />                 // replays on mount (or as `?t=` says)
  *     <PlayTheaterPreview frozen={1.6} />    // every tile at t = 1.6 s
  */
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import type { Competitor, ScoreEvent } from "../../../../data/models";
 import { liveMoment, Tier, type LiveMoment } from "../../../../data/moments";
 import { parse, theater, type PlayScene, type SideOf, type TheaterState } from "../../../../data/mlb/playScene";
@@ -81,7 +85,11 @@ function tiles(g3: { items: unknown[]; names: Record<string, string> }, g2: { pl
   ];
 }
 
-export function PlayTheaterPreview({ frozen = null }: { frozen?: number | null }) {
+export function PlayTheaterPreview({ frozen: fixed = null }: { frozen?: number | null }) {
+  const [params] = useSearchParams();
+  const t = params.get("t");
+  const frozen = fixed ?? (t != null && t !== "" ? (t === "end" ? Infinity : Number(t)) : null);
+  const only = params.get("only");
   const [list, setList] = useState<Tile[] | null>(null);
   useEffect(() => {
     let live = true;
@@ -95,9 +103,11 @@ export function PlayTheaterPreview({ frozen = null }: { frozen?: number | null }
   if (!list) return null;
   return (
     <div style={{ display: "grid", gap: "calc(16 * var(--pt))", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, calc(320 * var(--pt))), 1fr))", padding: "var(--gutter)" }}>
-      {list.map((tile) => (
-        <PreviewTile key={tile.title} tile={tile} frozen={frozen} />
-      ))}
+      {list
+        .filter((tile) => !only || tile.title.toLowerCase().startsWith(only.toLowerCase()))
+        .map((tile) => (
+          <PreviewTile key={tile.title} tile={tile} frozen={frozen} />
+        ))}
     </div>
   );
 }
@@ -105,7 +115,7 @@ export function PlayTheaterPreview({ frozen = null }: { frozen?: number | null }
 function PreviewTile({ tile, frozen }: { tile: Tile; frozen: number | null }) {
   const [run, setRun] = useState(0);
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: "calc(6 * var(--pt))" }}>
+    <section data-tile={tile.title} style={{ display: "flex", flexDirection: "column", gap: "calc(6 * var(--pt))" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: "var(--text-callout)" }}>
         <strong style={{ fontWeight: 600 }}>{tile.title}</strong>
         <button type="button" onClick={() => setRun((n) => n + 1)} style={{ color: "var(--accent-text)" }}>
