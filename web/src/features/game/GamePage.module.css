@@ -3,6 +3,7 @@
   min-height: 100%;
   isolation: isolate;
   padding-bottom: calc(24 * var(--pt));
+  container: game / inline-size;
 }
 
 .inner {
@@ -24,6 +25,23 @@
   pointer-events: none;
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.75) 45%, rgb(0 0 0 / 0.25) 75%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.75) 45%, rgb(0 0 0 / 0.25) 75%, transparent 100%);
+}
+
+/* A pane much wider than the page: the wash stays behind the card, its sides fading out. */
+@container game (min-width: 70rem) {
+  .wash {
+    left: 50%;
+    width: calc(980 * var(--pt));
+    transform: translateX(-50%);
+    -webkit-mask-image:
+      linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.75) 45%, rgb(0 0 0 / 0.25) 75%, transparent 100%),
+      linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.75) 45%, rgb(0 0 0 / 0.25) 75%, transparent 100%),
+      linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+    mask-composite: intersect;
+  }
 }
 
 .washBase {

@@ -3,7 +3,7 @@
  * collapsible (ScoresView.swift `list`, `sectionView`). Rows show records
  * from the Mac's medium width.
  */
-import { LayoutGroup, motion } from "motion/react";
+import { LayoutGroup, m } from "motion/react";
 import { useMemo } from "react";
 import { Icon, SPORT_ICON } from "../../design/components";
 import { revealDelay, spring } from "../../design/motion";
@@ -38,7 +38,7 @@ export function ScoresList({ sections, collapsed, quietLeagues, hasFollowed, hig
           const isCollapsed = collapsed.includes(section.id);
           const linking = toggling.id === section.id;
           return (
-            <motion.section
+            <m.section
               key={section.id}
               className={styles.section}
               layout={toggling.animating ? "position" : false}
@@ -67,12 +67,12 @@ export function ScoresList({ sections, collapsed, quietLeagues, hasFollowed, hig
                   onHover={onHover}
                 />
               )}
-            </motion.section>
+            </m.section>
           );
         })}
-        <motion.div layout={toggling.animating ? "position" : false} transition={spring.standard}>
+        <m.div layout={toggling.animating ? "position" : false} transition={spring.standard}>
           <Footnotes quiet={quietLeagues} hasFollowed={hasFollowed} />
-        </motion.div>
+        </m.div>
       </LayoutGroup>
     </div>
   );

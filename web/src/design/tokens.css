@@ -49,14 +49,14 @@
 
   /* MARK: System colors (Apple's, with text variants deep enough to read) */
   --accent: light-dark(#007aff, #0a84ff);
-  --accent-text: light-dark(#0062cc, #409cff);
+  --accent-text: light-dark(#0058b9, #5aacff);
   --accent-fill: light-dark(rgb(0 122 255 / 0.14), rgb(10 132 255 / 0.2));
   --accent-ring: light-dark(rgb(0 122 255 / 0.5), rgb(10 132 255 / 0.6));
   --live: light-dark(#ff3b30, #ff453a);
-  --live-text: light-dark(#d70015, #ff6961);
-  --live-wash: light-dark(rgb(255 59 48 / 0.13), rgb(255 69 58 / 0.16));
+  --live-text: light-dark(#c70012, #ff7b73);
+  --live-wash: light-dark(rgb(255 59 48 / 0.13), rgb(255 69 58 / 0.13));
   --live-pill: light-dark(rgb(255 59 48 / 0.14), rgb(255 69 58 / 0.18));
-  --delayed-text: light-dark(#b93e00, #ffb340);
+  --delayed-text: light-dark(#a63700, #ffb340);
   --star: light-dark(#f5b800, #ffd60a);
   --on-live: #fff;
   /* What shows through a filled glyph's cut-outs (a football's laces). */

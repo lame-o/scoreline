@@ -8,7 +8,7 @@
 // lenient Decodable structs in Providers.swift) and a handful of events, so
 // fixtures stay a few KB and readable in review. Files named
 // `*.synthetic.json` are not written here: they're hand-derived live states
-// (see test/fixtures/README.md), because a recording session rarely
+// (see ARCHITECTURE.md § Testing), because a recording session rarely
 // coincides with a live game of every sport.
 
 import { writeFile, mkdir } from "node:fs/promises";
@@ -166,9 +166,31 @@ async function ifsc() {
   }
 }
 
+// MARK: Team lists (Settings → a league's teams)
+
+async function teams() {
+  const nflURL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams?limit=1000";
+  const nfl = await get(nflURL);
+  const trimTeam = (entry) => ({ team: { ...pick(entry.team, ["id", "displayName", "abbreviation"]), logos: entry.team?.logos?.slice(0, 1).map((l) => pick(l, ["href"])) } });
+  await save("espn-nfl-teams.json", { sports: [{ leagues: [{ teams: nfl.sports[0].leagues[0].teams.slice(0, 4).map(trimTeam) }] }] }, nflURL);
+
+  const collegeURL = "https://site.api.espn.com/apis/v2/sports/football/college-football/standings";
+  const college = await get(collegeURL);
+  const trimEntry = (e) => ({ team: { ...pick(e.team, ["id", "location", "displayName", "abbreviation"]), logos: e.team?.logos?.slice(0, 1).map((l) => pick(l, ["href"])) } });
+  const wanted = ["Big Ten", "SEC", "American"];
+  const children = college.children
+    .filter((c) => wanted.includes(c.shortName ?? c.abbreviation))
+    .map((c) => ({ ...pick(c, ["name", "shortName"]), standings: { entries: c.standings?.entries?.slice(0, 3).map(trimEntry) } }));
+  await save("espn-college-standings.json", { children }, collegeURL);
+
+  const bo3URL = "https://api.bo3.gg/api/v1/teams?filter%5Bteams.discipline_id%5D%5Beq%5D=1&sort=rank&page%5Blimit%5D=60";
+  const bo3 = await get(bo3URL);
+  await save("bo3-teams.json", { results: bo3.results.slice(0, 4).map((t) => pick(t, ["id", "name", "image_url", "rank"])) }, bo3URL);
+}
+
 // MARK: Run
 //
-// `pnpm fixtures` records everything; `pnpm fixtures ifsc` (or espn, bo3) one source.
+// `pnpm fixtures` records everything; `pnpm fixtures ifsc` (or espn, bo3, teams) one source.
 const only = process.argv[2];
 const want = (source) => !only || only === source;
 
@@ -188,3 +210,4 @@ if (want("bo3")) {
   await bo3("bo3-matches-finished.json", bo3URL("finished,defwin,canceled", "-start_date", 12, { before: new Date(now + 48 * hour) }));
 }
 if (want("ifsc")) await ifsc();
+if (want("teams")) await teams();

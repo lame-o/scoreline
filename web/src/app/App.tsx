@@ -10,7 +10,7 @@
  *   /team/:id, /player/:id  profiles (placeholders)
  */
 import { QueryClientProvider } from "@tanstack/react-query";
-import { MotionConfig } from "motion/react";
+import { LazyMotion, MotionConfig } from "motion/react";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import { queryClient } from "../state/scores";
 import { useApplyTheme } from "../state/theme";
@@ -38,6 +38,8 @@ const router = createBrowserRouter([
   },
 ]);
 
+const loadMotionFeatures = () => import("../design/motion-features").then((m) => m.default);
+
 function Theme() {
   useApplyTheme();
   return null;
@@ -46,10 +48,12 @@ function Theme() {
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      {/* motion follows the system's Reduce Motion everywhere. */}
+      {/* motion follows the system's Reduce Motion everywhere; its features load after first paint. */}
       <MotionConfig reducedMotion="user">
-        <Theme />
-        <RouterProvider router={router} />
+        <LazyMotion features={loadMotionFeatures}>
+          <Theme />
+          <RouterProvider router={router} />
+        </LazyMotion>
       </MotionConfig>
     </QueryClientProvider>
   );

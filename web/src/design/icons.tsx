@@ -174,8 +174,8 @@ const GLYPHS = {
   ),
   football: (
     <g>
-      <path fill="currentColor" d="M2.6 13.4c-.6-3.6.6-6.9 2.9-8.9 2.2-1.9 5.2-2.7 7.9-2.4.6 3.6-.6 6.9-2.9 8.9-2.2 1.9-5.2 2.7-7.9 2.4z" />
-      <path stroke="var(--icon-cutout, #fff)" strokeWidth={1.1} strokeLinecap="round" d="M6.1 9.9l3.8-3.8M6.7 7.9l1.4 1.4M7.9 6.7l1.4 1.4" />
+      <path fill="currentColor" d="M2.3 13.7C1.8 9.4 4.4 4.9 8.3 3.1c2-.9 4-1.2 5.4-.8.5 4.3-2.1 8.8-6 10.6-2 .9-4 1.2-5.4.8z" />
+      <path stroke="var(--icon-cutout, #fff)" strokeWidth={1.05} strokeLinecap="round" d="M6 10l4-4M6.6 7.9l1.5 1.5M7.9 6.6l1.5 1.5" />
     </g>
   ),
   baseball: (

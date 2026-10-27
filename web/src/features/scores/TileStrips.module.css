@@ -32,7 +32,6 @@
   display: flex;
   align-items: center;
   gap: calc(14 * var(--pt));
-  height: 100%;
 }
 
 .diamond {
@@ -101,7 +100,6 @@
   display: flex;
   align-items: center;
   gap: calc(6 * var(--pt));
-  height: 100%;
   font-size: calc(9 * var(--pt));
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -142,7 +140,6 @@
   display: flex;
   align-items: center;
   gap: calc(6 * var(--pt));
-  height: 100%;
   font-size: var(--text-caption);
   color: var(--label-secondary);
 }

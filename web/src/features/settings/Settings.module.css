@@ -93,7 +93,29 @@
 
 .order {
   margin: 0;
-  padding: calc(3 * var(--pt)) 0;
+  padding: 0;
+}
+
+/* Hairlines between the reorderable rows, inset past the handle. */
+.order > .leagueRow {
+  position: relative;
+}
+
+.order > .leagueRow + .leagueRow::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(36 * var(--pt));
+  right: 0;
+  height: 1px;
+  transform: scaleY(0.5);
+  transform-origin: top;
+  background: var(--separator);
+}
+
+.order > .leagueRow[data-dragging="true"]::before,
+.order > .leagueRow[data-dragging="true"] + .leagueRow::before {
+  opacity: 0;
 }
 
 .hint {

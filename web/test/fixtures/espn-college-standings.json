@@ -1,0 +1,147 @@
+{
+ "_source": "https://site.api.espn.com/apis/v2/sports/football/college-football/standings",
+ "_recorded": "2026-10-27T07:58:34.445Z",
+ "children": [
+  {
+   "name": "American Conference",
+   "shortName": "American",
+   "standings": {
+    "entries": [
+     {
+      "team": {
+       "id": "2636",
+       "location": "UTSA",
+       "displayName": "UTSA Roadrunners",
+       "abbreviation": "UTSA",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/2636.png"
+        }
+       ]
+      }
+     },
+     {
+      "team": {
+       "id": "235",
+       "location": "Memphis",
+       "displayName": "Memphis Tigers",
+       "abbreviation": "MEM",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/235.png"
+        }
+       ]
+      }
+     },
+     {
+      "team": {
+       "id": "249",
+       "location": "North Texas",
+       "displayName": "North Texas Mean Green",
+       "abbreviation": "UNT",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/249.png"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "Big Ten Conference",
+   "shortName": "Big Ten",
+   "standings": {
+    "entries": [
+     {
+      "team": {
+       "id": "26",
+       "location": "UCLA",
+       "displayName": "UCLA Bruins",
+       "abbreviation": "UCLA",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/26.png"
+        }
+       ]
+      }
+     },
+     {
+      "team": {
+       "id": "84",
+       "location": "Indiana",
+       "displayName": "Indiana Hoosiers",
+       "abbreviation": "IU",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/84.png"
+        }
+       ]
+      }
+     },
+     {
+      "team": {
+       "id": "194",
+       "location": "Ohio State",
+       "displayName": "Ohio State Buckeyes",
+       "abbreviation": "OSU",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/194.png"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "Southeastern Conference",
+   "shortName": "SEC",
+   "standings": {
+    "entries": [
+     {
+      "team": {
+       "id": "96",
+       "location": "Kentucky",
+       "displayName": "Kentucky Wildcats",
+       "abbreviation": "UK",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/96.png"
+        }
+       ]
+      }
+     },
+     {
+      "team": {
+       "id": "61",
+       "location": "Georgia",
+       "displayName": "Georgia Bulldogs",
+       "abbreviation": "UGA",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/61.png"
+        }
+       ]
+      }
+     },
+     {
+      "team": {
+       "id": "333",
+       "location": "Alabama",
+       "displayName": "Alabama Crimson Tide",
+       "abbreviation": "ALA",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/333.png"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

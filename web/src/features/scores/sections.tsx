@@ -8,7 +8,7 @@
  * the rows (shared layout), and the rows' text rises in, staggered. A
  * keyboard toggle, or one faster than the choreography can play, is instant.
  */
-import { motion } from "motion/react";
+import { m } from "motion/react";
 import { useCallback, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Icon, LiveDot, TeamLogo, type IconName } from "../../design/components";
 import { spring } from "../../design/motion";
@@ -45,11 +45,20 @@ export function useSectionToggle() {
       settings.toggleCollapsed(id);
       return;
     }
+    // Link the crests and turn layout tracking on first, so this frame records
+    // where everything starts; toggle on the next frame (ScoresView.toggle).
     setToggling({ id, animating: true });
-    settings.toggleCollapsed(id);
-    window.setTimeout(() => {
-      if (generation.current === mine) setToggling({ id: null, animating: false });
-    }, CHOREOGRAPHY_MS);
+    requestAnimationFrame(() => {
+      if (generation.current !== mine) {
+        // Overtaken by a faster click before it began: still count it, just without the show.
+        settings.toggleCollapsed(id);
+        return;
+      }
+      settings.toggleCollapsed(id);
+      window.setTimeout(() => {
+        if (generation.current === mine) setToggling({ id: null, animating: false });
+      }, CHOREOGRAPHY_MS);
+    });
   }, []);
 
   return { toggling, toggle };
@@ -59,9 +68,9 @@ export function useSectionToggle() {
 export function TravelingLogo({ team, size, travelID }: { team: Competitor; size: number; travelID: string | null }) {
   if (!travelID) return <TeamLogo url={team.logo} size={size} />;
   return (
-    <motion.span layoutId={travelID} layout="position" transition={spring.travel} style={{ display: "inline-flex" }}>
+    <m.span layoutId={travelID} layout="position" transition={spring.travel} style={{ display: "inline-flex" }}>
       <TeamLogo url={team.logo} size={size} />
-    </motion.span>
+    </m.span>
   );
 }
 

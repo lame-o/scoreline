@@ -4,7 +4,7 @@
  * (TileBoard.swift). Column counts follow the board's width like the Mac
  * panel's layout classes; tiers collapse like sections.
  */
-import { LayoutGroup, motion } from "motion/react";
+import { LayoutGroup, m } from "motion/react";
 import { useMemo, useRef } from "react";
 import type { IconName } from "../../design/components";
 import { revealDelay, spring } from "../../design/motion";
@@ -58,7 +58,7 @@ export function TileBoard({ board, collapsed, followed, quietLeagues, hasFollowe
           const id = tierID(plan.tier.kind);
           const isCollapsed = collapsed.includes(id);
           return (
-            <motion.section key={id} layout={toggling.animating ? "position" : false} transition={spring.standard} aria-label={TIER_TITLE[plan.tier.kind]}>
+            <m.section key={id} layout={toggling.animating ? "position" : false} transition={spring.standard} aria-label={TIER_TITLE[plan.tier.kind]}>
               <SectionHeader
                 id={id}
                 title={TIER_TITLE[plan.tier.kind]}
@@ -85,12 +85,12 @@ export function TileBoard({ board, collapsed, followed, quietLeagues, hasFollowe
                   onHover={onHover}
                 />
               )}
-            </motion.section>
+            </m.section>
           );
         })}
-        <motion.div layout={toggling.animating ? "position" : false} transition={spring.standard}>
+        <m.div layout={toggling.animating ? "position" : false} transition={spring.standard}>
           <Footnotes quiet={quietLeagues} hasFollowed={hasFollowed} />
-        </motion.div>
+        </m.div>
       </LayoutGroup>
     </div>
   );

@@ -19,8 +19,15 @@ export class HTTPError extends Error {
   }
 }
 
+/** Development only: a stand-in for the network (the `?demo` harness, src/data/demo.ts). */
+let override: Fetcher | null = null;
+export function setFetcherOverride(fetcher: Fetcher | null): void {
+  override = fetcher;
+}
+
 /** The app's fetcher: through the proxy, JSON, throws on failure. */
 export const getJSON: Fetcher = async (upstreamURL, init) => {
+  if (override) return override(upstreamURL, init);
   const path = proxyPath(upstreamURL);
   const response = await fetch(path, { signal: init?.signal, headers: { Accept: "application/json" } });
   if (!response.ok) throw new HTTPError(response.status, upstreamURL);
