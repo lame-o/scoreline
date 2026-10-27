@@ -1,0 +1,3185 @@
+{
+ "_source": "https://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/events/401908044/competitions/401908044/plays",
+ "_recorded": "2026-10-27T08:38:59.586Z",
+ "count": 580,
+ "pages": [
+  {
+   "page": 22,
+   "pageCount": 24,
+   "items": [
+    {
+     "id": "4019080441603990057",
+     "sequenceNumber": "8",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "fly-out",
+      "text": "Fly Out"
+     },
+     "text": "Pratt flied out to right.",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Top",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T02:56:10Z",
+     "atBatId": "4019080441603",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 132,
+      "y": 154
+     },
+     "summaryType": "N",
+     "pitchCount": {
+      "balls": 2,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 2,
+      "strikes": 2
+     },
+     "trajectory": "F",
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441603990099",
+     "sequenceNumber": "9",
+     "type": {
+      "id": "99",
+      "text": "End Batter/Pitcher",
+      "type": "end-batterpitcher"
+     },
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Top",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T02:56:10Z",
+     "atBatId": "4019080441603",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 132,
+      "y": 154
+     },
+     "hitCoordinate": {
+      "x": 169,
+      "y": 90
+     },
+     "pitchCount": {
+      "balls": 2,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 2,
+      "strikes": 2
+     },
+     "trajectory": "F",
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441604010001",
+     "sequenceNumber": "1",
+     "type": {
+      "id": "1",
+      "text": "Start Batter/Pitcher",
+      "type": "start-batterpitcher"
+     },
+     "text": "Steven Matz pitches to Sal Frelick",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Top",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T02:56:41Z",
+     "atBatId": "4019080441604",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "summaryType": "A",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441604020026",
+     "sequenceNumber": "2",
+     "type": {
+      "id": "26",
+      "text": "Hit By Pitch",
+      "type": "hit-by-pitch"
+     },
+     "text": "Pitch 1 : Ball In Play",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Top",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T02:56:41Z",
+     "atBatId": "4019080441604",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 57,
+      "y": 157
+     },
+     "pitchType": {
+      "abbreviation": "CH",
+      "text": "Changeup"
+     },
+     "pitchVelocity": 83,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 1,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 1,
+      "strikes": 0
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441604990057",
+     "sequenceNumber": "3",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "hit-by-pitch",
+      "text": "Hit By Pitch"
+     },
+     "text": "Frelick hit by pitch.",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Top",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T02:56:41Z",
+     "atBatId": "4019080441604",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 57,
+      "y": 157
+     },
+     "summaryType": "N",
+     "pitchCount": {
+      "balls": 1,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 1,
+      "strikes": 0
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441604990099",
+     "sequenceNumber": "4",
+     "type": {
+      "id": "99",
+      "text": "End Batter/Pitcher",
+      "type": "end-batterpitcher"
+     },
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Top",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T02:56:41Z",
+     "atBatId": "4019080441604",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 57,
+      "y": 157
+     },
+     "pitchCount": {
+      "balls": 1,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 1,
+      "strikes": 0
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441605010001",
+     "sequenceNumber": "1",
+     "type": {
+      "id": "1",
+      "text": "Start Batter/Pitcher",
+      "type": "start-batterpitcher"
+     },
+     "text": "Steven Matz pitches to Joey Ortiz",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Top",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T02:57:42Z",
+     "atBatId": "4019080441605",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "summaryType": "A",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 3,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441605020091",
+     "sequenceNumber": "2",
+     "type": {
+      "id": "91",
+      "text": "Strike Looking - Overturned",
+      "type": "strike-looking---overturned"
+     },
+     "text": "Pitch 1 : Strike 1 Looking",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Top",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T02:57:42Z",
+     "atBatId": "4019080441605",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 140,
+      "y": 149
+     },
+     "pitchType": {
+      "abbreviation": "CU",
+      "text": "Curve"
+     },
+     "pitchVelocity": 79,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "trajectory": "F",
+     "outs": 3,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441605030021",
+     "sequenceNumber": "3",
+     "type": {
+      "id": "21",
+      "text": "Foul Ball",
+      "type": "foul-ball"
+     },
+     "text": "Pitch 2 : Strike 2 Foul",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Top",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T02:57:43Z",
+     "atBatId": "4019080441605",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 79,
+      "y": 165
+     },
+     "hitCoordinate": {
+      "x": 120,
+      "y": 106
+     },
+     "pitchType": {
+      "abbreviation": "CH",
+      "text": "Changeup"
+     },
+     "pitchVelocity": 86,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 2
+     },
+     "trajectory": "F",
+     "outs": 3,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441605040022",
+     "sequenceNumber": "4",
+     "type": {
+      "id": "22",
+      "text": "Fly Out",
+      "type": "fly-out"
+     },
+     "text": "Pitch 3 : Ball In Play",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Top",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T02:58:24Z",
+     "atBatId": "4019080441605",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 125,
+      "y": 152
+     },
+     "hitCoordinate": {
+      "x": 120,
+      "y": 106
+     },
+     "pitchType": {
+      "abbreviation": "SI",
+      "text": "Sinker"
+     },
+     "pitchVelocity": 94,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 2
+     },
+     "trajectory": "F",
+     "outs": 3,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441605990057",
+     "sequenceNumber": "5",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "fly-out",
+      "text": "Fly Out"
+     },
+     "text": "Ortiz flied out to center.",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Top",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T02:58:24Z",
+     "atBatId": "4019080441605",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 125,
+      "y": 152
+     },
+     "summaryType": "N",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 2
+     },
+     "trajectory": "F",
+     "outs": 3,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441605990099",
+     "sequenceNumber": "6",
+     "type": {
+      "id": "99",
+      "text": "End Batter/Pitcher",
+      "type": "end-batterpitcher"
+     },
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Top",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T02:58:24Z",
+     "atBatId": "4019080441605",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 125,
+      "y": 152
+     },
+     "hitCoordinate": {
+      "x": 120,
+      "y": 106
+     },
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 2
+     },
+     "trajectory": "F",
+     "outs": 3,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441699990058",
+     "sequenceNumber": "2",
+     "type": {
+      "id": "58",
+      "text": "End Inning",
+      "type": "end-inning"
+     },
+     "text": "Middle of the 9th inning",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Mid",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "wallclock": "2026-10-27T02:58:24Z",
+     "atBatId": "4019080441605",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 0,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441700000059",
+     "sequenceNumber": "1",
+     "type": {
+      "id": "59",
+      "text": "Start Inning",
+      "type": "start-inning"
+     },
+     "text": "Bottom of the 9th inning",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "wallclock": "2026-10-27T03:01:55Z",
+     "atBatId": "4019080441701",
+     "summaryType": "I",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 0,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441701000557",
+     "sequenceNumber": "1",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "lineup-change",
+      "text": "Lineup Change"
+     },
+     "text": "Sánchez catching.",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "wallclock": "2026-10-27T03:01:34Z",
+     "atBatId": "4019080441701",
+     "summaryType": "N",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 0,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441701000757",
+     "sequenceNumber": "2",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "lineup-change",
+      "text": "Lineup Change"
+     },
+     "text": "Lara in center field.",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "wallclock": "2026-10-27T03:01:34Z",
+     "atBatId": "4019080441701",
+     "summaryType": "N",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 0,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441701001157",
+     "sequenceNumber": "3",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "lineup-change",
+      "text": "Lineup Change"
+     },
+     "text": "Woodruff relieved Senzatela",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:01:34Z",
+     "atBatId": "4019080441701",
+     "summaryType": "C",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 0,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441701010001",
+     "sequenceNumber": "4",
+     "type": {
+      "id": "1",
+      "text": "Start Batter/Pitcher",
+      "type": "start-batterpitcher"
+     },
+     "text": "Brandon Woodruff pitches to Victor Mesa Jr.",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:01:55Z",
+     "atBatId": "4019080441701",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "summaryType": "A",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 1,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441701020032",
+     "sequenceNumber": "5",
+     "type": {
+      "id": "32",
+      "text": "Line Out",
+      "type": "line-out"
+     },
+     "text": "Pitch 1 : Ball In Play",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:01:55Z",
+     "atBatId": "4019080441701",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 129,
+      "y": 179
+     },
+     "hitCoordinate": {
+      "x": 186,
+      "y": 102
+     },
+     "pitchType": {
+      "abbreviation": "FF",
+      "text": "Four-seam FB"
+     },
+     "pitchVelocity": 89,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "trajectory": "L",
+     "outs": 1,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441701990057",
+     "sequenceNumber": "6",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "line-out",
+      "text": "Line Out"
+     },
+     "text": "Mesa Jr. lined out to right.",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:01:55Z",
+     "atBatId": "4019080441701",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 129,
+      "y": 179
+     },
+     "summaryType": "N",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "trajectory": "L",
+     "outs": 1,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441701990099",
+     "sequenceNumber": "7",
+     "type": {
+      "id": "99",
+      "text": "End Batter/Pitcher",
+      "type": "end-batterpitcher"
+     },
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:01:55Z",
+     "atBatId": "4019080441701",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 129,
+      "y": 179
+     },
+     "hitCoordinate": {
+      "x": 186,
+      "y": 102
+     },
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "trajectory": "L",
+     "outs": 1,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441702000957",
+     "sequenceNumber": "1",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "lineup-change",
+      "text": "Lineup Change"
+     },
+     "text": "Mullins hit for Fortes",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "wallclock": "2026-10-27T03:02:02Z",
+     "atBatId": "4019080441702",
+     "summaryType": "N",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 0,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441702010001",
+     "sequenceNumber": "2",
+     "type": {
+      "id": "1",
+      "text": "Start Batter/Pitcher",
+      "type": "start-batterpitcher"
+     },
+     "text": "Brandon Woodruff pitches to Cedric Mullins",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:02:16Z",
+     "atBatId": "4019080441702",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "summaryType": "A",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 1,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441702020036",
+     "sequenceNumber": "3",
+     "type": {
+      "id": "36",
+      "text": "Strike Looking",
+      "type": "strike-looking"
+     },
+     "text": "Pitch 1 : Strike 1 Looking",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:02:16Z",
+     "atBatId": "4019080441702",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 125,
+      "y": 189
+     },
+     "pitchType": {
+      "abbreviation": "FF",
+      "text": "Four-seam FB"
+     },
+     "pitchVelocity": 90,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "trajectory": "G",
+     "outs": 1,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441702030002",
+     "sequenceNumber": "4",
+     "type": {
+      "id": "2",
+      "text": "Single",
+      "type": "single"
+     },
+     "text": "Pitch 2 : Ball In Play",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:02:40Z",
+     "atBatId": "4019080441702",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 119,
+      "y": 197
+     },
+     "hitCoordinate": {
+      "x": 112,
+      "y": 182
+     },
+     "pitchType": {
+      "abbreviation": "CH",
+      "text": "Changeup"
+     },
+     "pitchVelocity": 82,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "trajectory": "G",
+     "outs": 1,
+     "doublePlay": false,
+     "triplePlay": false
+    }
+   ]
+  },
+  {
+   "page": 23,
+   "pageCount": 24,
+   "items": [
+    {
+     "id": "4019080441702990057",
+     "sequenceNumber": "5",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "single",
+      "text": "Single"
+     },
+     "text": "Mullins reached on infield single to third.",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:02:40Z",
+     "atBatId": "4019080441702",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 119,
+      "y": 197
+     },
+     "hitCoordinate": {
+      "x": 112,
+      "y": 182
+     },
+     "summaryType": "N",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "trajectory": "G",
+     "outs": 1,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441702990099",
+     "sequenceNumber": "6",
+     "type": {
+      "id": "99",
+      "text": "End Batter/Pitcher",
+      "type": "end-batterpitcher"
+     },
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:02:40Z",
+     "atBatId": "4019080441702",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 119,
+      "y": 197
+     },
+     "hitCoordinate": {
+      "x": 112,
+      "y": 182
+     },
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "trajectory": "G",
+     "outs": 1,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441703001057",
+     "sequenceNumber": "1",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "lineup-change",
+      "text": "Lineup Change"
+     },
+     "text": "Mateo hit for Walls",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "wallclock": "2026-10-27T03:02:50Z",
+     "atBatId": "4019080441703",
+     "summaryType": "N",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 0,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441703010001",
+     "sequenceNumber": "2",
+     "type": {
+      "id": "1",
+      "text": "Start Batter/Pitcher",
+      "type": "start-batterpitcher"
+     },
+     "text": "Brandon Woodruff pitches to Jorge Mateo",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:03:16Z",
+     "atBatId": "4019080441703",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "summaryType": "A",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441703020036",
+     "sequenceNumber": "3",
+     "type": {
+      "id": "36",
+      "text": "Strike Looking",
+      "type": "strike-looking"
+     },
+     "text": "Pitch 1 : Strike 1 Looking",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:03:16Z",
+     "atBatId": "4019080441703",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 107,
+      "y": 160
+     },
+     "pitchType": {
+      "abbreviation": "FF",
+      "text": "Four-seam FB"
+     },
+     "pitchVelocity": 90,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441703030021",
+     "sequenceNumber": "4",
+     "type": {
+      "id": "21",
+      "text": "Foul Ball",
+      "type": "foul-ball"
+     },
+     "text": "Pitch 2 : Strike 2 Foul",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:03:36Z",
+     "atBatId": "4019080441703",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 121,
+      "y": 157
+     },
+     "pitchType": {
+      "abbreviation": "FF",
+      "text": "Four-seam FB"
+     },
+     "pitchVelocity": 91,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 2
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441703040021",
+     "sequenceNumber": "5",
+     "type": {
+      "id": "21",
+      "text": "Foul Ball",
+      "type": "foul-ball"
+     },
+     "text": "Pitch 3 : Strike 2 Foul",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:04:00Z",
+     "atBatId": "4019080441703",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 104,
+      "y": 140
+     },
+     "pitchType": {
+      "abbreviation": "FF",
+      "text": "Four-seam FB"
+     },
+     "pitchVelocity": 92,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 2
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441703050005",
+     "sequenceNumber": "6",
+     "type": {
+      "id": "5",
+      "text": "Ball",
+      "type": "ball"
+     },
+     "text": "Pitch 4 : Ball 1",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:04:23Z",
+     "atBatId": "4019080441703",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 45,
+      "y": 200
+     },
+     "pitchType": {
+      "abbreviation": "FC",
+      "text": "Cutter"
+     },
+     "pitchVelocity": 89,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 1,
+      "strikes": 2
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441703060005",
+     "sequenceNumber": "7",
+     "type": {
+      "id": "5",
+      "text": "Ball",
+      "type": "ball"
+     },
+     "text": "Pitch 5 : Ball 2",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:04:43Z",
+     "atBatId": "4019080441703",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 83,
+      "y": 198
+     },
+     "pitchType": {
+      "abbreviation": "SI",
+      "text": "Sinker"
+     },
+     "pitchVelocity": 92,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 1,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 2,
+      "strikes": 2
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441703070021",
+     "sequenceNumber": "8",
+     "type": {
+      "id": "21",
+      "text": "Foul Ball",
+      "type": "foul-ball"
+     },
+     "text": "Pitch 6 : Strike 2 Foul",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:05:04Z",
+     "atBatId": "4019080441703",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 120,
+      "y": 168
+     },
+     "pitchType": {
+      "abbreviation": "FF",
+      "text": "Four-seam FB"
+     },
+     "pitchVelocity": 93,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 2,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 2,
+      "strikes": 2
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441703080037",
+     "sequenceNumber": "9",
+     "type": {
+      "id": "37",
+      "text": "Strike Swinging",
+      "type": "strike-swinging"
+     },
+     "text": "Pitch 7 : Strike 3 Swinging",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:05:33Z",
+     "atBatId": "4019080441703",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 93,
+      "y": 182
+     },
+     "pitchType": {
+      "abbreviation": "CU",
+      "text": "Curve"
+     },
+     "pitchVelocity": 76,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 2,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 2,
+      "strikes": 3
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441703990057",
+     "sequenceNumber": "10",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "strike-swinging",
+      "text": "Strike Swinging"
+     },
+     "text": "Mateo struck out swinging.",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:05:33Z",
+     "atBatId": "4019080441703",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 93,
+      "y": 182
+     },
+     "summaryType": "N",
+     "pitchCount": {
+      "balls": 2,
+      "strikes": 3
+     },
+     "resultCount": {
+      "balls": 2,
+      "strikes": 3
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441703990099",
+     "sequenceNumber": "11",
+     "type": {
+      "id": "99",
+      "text": "End Batter/Pitcher",
+      "type": "end-batterpitcher"
+     },
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:05:33Z",
+     "atBatId": "4019080441703",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 93,
+      "y": 182
+     },
+     "pitchCount": {
+      "balls": 2,
+      "strikes": 3
+     },
+     "resultCount": {
+      "balls": 2,
+      "strikes": 3
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441704010001",
+     "sequenceNumber": "1",
+     "type": {
+      "id": "1",
+      "text": "Start Batter/Pitcher",
+      "type": "start-batterpitcher"
+     },
+     "text": "Brandon Woodruff pitches to Yandy Diaz",
+     "awayScore": 10,
+     "homeScore": 1,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:06:09Z",
+     "atBatId": "4019080441704",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "summaryType": "A",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441704020036",
+     "sequenceNumber": "2",
+     "type": {
+      "id": "36",
+      "text": "Strike Looking",
+      "type": "strike-looking"
+     },
+     "text": "Pitch 1 : Strike 1 Looking",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onFirst",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:06:09Z",
+     "atBatId": "4019080441704",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 105,
+      "y": 174
+     },
+     "pitchType": {
+      "abbreviation": "FF",
+      "text": "Four-seam FB"
+     },
+     "pitchVelocity": 92,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "trajectory": "F",
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441704020246",
+     "sequenceNumber": "3",
+     "type": {
+      "id": "46",
+      "text": "Fielders Indifference",
+      "type": "fielders-indifference"
+     },
+     "text": "Mullins to second on fielder's indifference.",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:06:09Z",
+     "atBatId": "4019080441704",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441704020298",
+     "sequenceNumber": "4",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "fielders-indifference",
+      "text": "Fielders Indifference"
+     },
+     "text": "Mullins to second on fielder's indifference.",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:06:09Z",
+     "atBatId": "4019080441704",
+     "summaryType": "N",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441704030005",
+     "sequenceNumber": "5",
+     "type": {
+      "id": "5",
+      "text": "Ball",
+      "type": "ball"
+     },
+     "text": "Pitch 2 : Ball 1",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:06:17Z",
+     "atBatId": "4019080441704",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 111,
+      "y": 205
+     },
+     "pitchType": {
+      "abbreviation": "SI",
+      "text": "Sinker"
+     },
+     "pitchVelocity": 93,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 1
+     },
+     "resultCount": {
+      "balls": 1,
+      "strikes": 1
+     },
+     "trajectory": "F",
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441704040005",
+     "sequenceNumber": "6",
+     "type": {
+      "id": "5",
+      "text": "Ball",
+      "type": "ball"
+     },
+     "text": "Pitch 3 : Ball 2",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:06:36Z",
+     "atBatId": "4019080441704",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 34,
+      "y": 195
+     },
+     "pitchType": {
+      "abbreviation": "FC",
+      "text": "Cutter"
+     },
+     "pitchVelocity": 89,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 1,
+      "strikes": 1
+     },
+     "resultCount": {
+      "balls": 2,
+      "strikes": 1
+     },
+     "trajectory": "F",
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441704050005",
+     "sequenceNumber": "7",
+     "type": {
+      "id": "5",
+      "text": "Ball",
+      "type": "ball"
+     },
+     "text": "Pitch 4 : Ball 3",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:06:58Z",
+     "atBatId": "4019080441704",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 66,
+      "y": 161
+     },
+     "pitchType": {
+      "abbreviation": "FF",
+      "text": "Four-seam FB"
+     },
+     "pitchVelocity": 92,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 2,
+      "strikes": 1
+     },
+     "resultCount": {
+      "balls": 3,
+      "strikes": 1
+     },
+     "trajectory": "F",
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441704060037",
+     "sequenceNumber": "8",
+     "type": {
+      "id": "37",
+      "text": "Strike Swinging",
+      "type": "strike-swinging"
+     },
+     "text": "Pitch 5 : Strike 2 Swinging",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:07:20Z",
+     "atBatId": "4019080441704",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 125,
+      "y": 174
+     },
+     "pitchType": {
+      "abbreviation": "SI",
+      "text": "Sinker"
+     },
+     "pitchVelocity": 90,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 3,
+      "strikes": 1
+     },
+     "resultCount": {
+      "balls": 3,
+      "strikes": 2
+     },
+     "trajectory": "F",
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441704070021",
+     "sequenceNumber": "9",
+     "type": {
+      "id": "21",
+      "text": "Foul Ball",
+      "type": "foul-ball"
+     },
+     "text": "Pitch 6 : Strike 2 Foul",
+     "awayScore": 10,
+     "homeScore": 0,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:07:58Z",
+     "atBatId": "4019080441704",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 93,
+      "y": 171
+     },
+     "hitCoordinate": {
+      "x": 112,
+      "y": 49
+     },
+     "pitchType": {
+      "abbreviation": "FF",
+      "text": "Four-seam FB"
+     },
+     "pitchVelocity": 90,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 3,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 3,
+      "strikes": 2
+     },
+     "trajectory": "F",
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441704080003",
+     "sequenceNumber": "10",
+     "type": {
+      "id": "3",
+      "text": "Double",
+      "type": "double"
+     },
+     "text": "Pitch 7 : Ball In Play",
+     "awayScore": 10,
+     "homeScore": 1,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:08:42Z",
+     "atBatId": "4019080441704",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 98,
+      "y": 172
+     },
+     "hitCoordinate": {
+      "x": 112,
+      "y": 49
+     },
+     "pitchType": {
+      "abbreviation": "SI",
+      "text": "Sinker"
+     },
+     "pitchVelocity": 90,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 3,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 3,
+      "strikes": 2
+     },
+     "trajectory": "F",
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441704990057",
+     "sequenceNumber": "11",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "double",
+      "text": "Double"
+     },
+     "text": "Díaz doubled to center, Mullins scored.",
+     "awayScore": 10,
+     "homeScore": 1,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": true,
+     "scoreValue": 1,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:08:42Z",
+     "atBatId": "4019080441704",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 98,
+      "y": 172
+     },
+     "hitCoordinate": {
+      "x": 112,
+      "y": 49
+     },
+     "summaryType": "S",
+     "pitchCount": {
+      "balls": 3,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 3,
+      "strikes": 2
+     },
+     "trajectory": "F",
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441704990099",
+     "sequenceNumber": "12",
+     "type": {
+      "id": "99",
+      "text": "End Batter/Pitcher",
+      "type": "end-batterpitcher"
+     },
+     "awayScore": 10,
+     "homeScore": 1,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:08:42Z",
+     "atBatId": "4019080441704",
+     "bats": {
+      "abbreviation": "R"
+     },
+     "pitchCoordinate": {
+      "x": 98,
+      "y": 172
+     },
+     "hitCoordinate": {
+      "x": 112,
+      "y": 49
+     },
+     "pitchCount": {
+      "balls": 3,
+      "strikes": 2
+     },
+     "resultCount": {
+      "balls": 3,
+      "strikes": 2
+     },
+     "trajectory": "F",
+     "outs": 2,
+     "doublePlay": false,
+     "triplePlay": false
+    }
+   ]
+  },
+  {
+   "page": 24,
+   "pageCount": 24,
+   "items": [
+    {
+     "id": "4019080441705010001",
+     "sequenceNumber": "1",
+     "type": {
+      "id": "1",
+      "text": "Start Batter/Pitcher",
+      "type": "start-batterpitcher"
+     },
+     "text": "Brandon Woodruff pitches to Jonathan Aranda",
+     "awayScore": 10,
+     "homeScore": 1,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:10:20Z",
+     "atBatId": "4019080441705",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "summaryType": "A",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 3,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441705020024",
+     "sequenceNumber": "2",
+     "type": {
+      "id": "24",
+      "text": "Ground Out",
+      "type": "ground-out"
+     },
+     "text": "Pitch 1 : Ball In Play",
+     "awayScore": 10,
+     "homeScore": 1,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/8?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:10:20Z",
+     "atBatId": "4019080441705",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 98,
+      "y": 183
+     },
+     "hitCoordinate": {
+      "x": 133,
+      "y": 144
+     },
+     "pitchType": {
+      "abbreviation": "FF",
+      "text": "Four-seam FB"
+     },
+     "pitchVelocity": 89,
+     "summaryType": "P",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "trajectory": "G",
+     "outs": 3,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441705990057",
+     "sequenceNumber": "3",
+     "type": {
+      "id": "57",
+      "text": "Play Result",
+      "type": "play-result"
+     },
+     "alternativeType": {
+      "type": "ground-out",
+      "text": "Ground Out"
+     },
+     "text": "Aranda grounded out to second.",
+     "awayScore": 10,
+     "homeScore": 1,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:10:20Z",
+     "atBatId": "4019080441705",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 98,
+      "y": 183
+     },
+     "summaryType": "N",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "trajectory": "G",
+     "outs": 3,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441705990099",
+     "sequenceNumber": "4",
+     "type": {
+      "id": "99",
+      "text": "End Batter/Pitcher",
+      "type": "end-batterpitcher"
+     },
+     "awayScore": 10,
+     "homeScore": 1,
+     "period": {
+      "type": "Bottom",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "participants": [
+      {
+       "type": "pitcher",
+       "athlete": {}
+      },
+      {
+       "type": "batter",
+       "athlete": {}
+      },
+      {
+       "type": "onSecond",
+       "athlete": {}
+      }
+     ],
+     "wallclock": "2026-10-27T03:10:20Z",
+     "atBatId": "4019080441705",
+     "bats": {
+      "abbreviation": "L"
+     },
+     "pitchCoordinate": {
+      "x": 98,
+      "y": 183
+     },
+     "hitCoordinate": {
+      "x": 133,
+      "y": 144
+     },
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "trajectory": "G",
+     "outs": 3,
+     "doublePlay": false,
+     "triplePlay": false
+    },
+    {
+     "id": "4019080441799990058",
+     "sequenceNumber": "2",
+     "type": {
+      "id": "58",
+      "text": "End Inning",
+      "type": "end-inning"
+     },
+     "text": "End of the 9th inning",
+     "awayScore": 10,
+     "homeScore": 1,
+     "period": {
+      "type": "End",
+      "number": 9,
+      "displayValue": "9th Inning"
+     },
+     "scoringPlay": false,
+     "scoreValue": 0,
+     "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/seasons/2026/teams/30?lang=en&region=us"
+     },
+     "wallclock": "2026-10-27T03:10:20Z",
+     "atBatId": "4019080441705",
+     "pitchCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "resultCount": {
+      "balls": 0,
+      "strikes": 0
+     },
+     "outs": 0,
+     "doublePlay": false,
+     "triplePlay": false
+    }
+   ]
+  }
+ ]
+}
