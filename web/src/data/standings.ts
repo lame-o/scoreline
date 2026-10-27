@@ -15,6 +15,7 @@ import type { Fetcher } from "./http";
 import { espnPath } from "./leagues";
 import { enDash, ordinal, spokenRecord } from "./format";
 import { isKnockout, type League, type ScoreEvent } from "./models";
+import { rankingsPath, standingsPath } from "./schedule";
 import { espnTeamID } from "./teams";
 
 export const ESPN_STANDINGS = "https://site.api.espn.com/apis/v2/sports";
@@ -128,6 +129,27 @@ export function tableKind(league: League): TableKind {
   if (path.endsWith("college-football")) return "college";
   if (path === NBA_PATH) return "nba";
   return league.sport === "soccer" ? "soccer" : "none";
+}
+
+/**
+ * A league's ways to its tables, as the scores list's section menu offers
+ * them (ScoresView.swift): soccer, "Table"; college football, "Standings"
+ * and "Top 25"; the NBA, "Standings". `ring` lights teams (a match's).
+ */
+export function tableLinks(league: League, ring: readonly (string | null)[] = []): { readonly label: string; readonly path: string; readonly icon: "list" | "trophy" }[] {
+  switch (tableKind(league)) {
+    case "soccer":
+      return [{ label: "Table", path: standingsPath(league.id, ring), icon: "list" }];
+    case "college":
+      return [
+        { label: "Standings", path: standingsPath(league.id, ring), icon: "list" },
+        { label: "Top 25", path: rankingsPath(league.id), icon: "trophy" },
+      ];
+    case "nba":
+      return [{ label: "Standings", path: standingsPath(league.id, ring), icon: "list" }];
+    default:
+      return [];
+  }
 }
 
 export async function fetchStandings(league: League, fetcher: Fetcher, signal?: AbortSignal): Promise<StandingsRow[]> {

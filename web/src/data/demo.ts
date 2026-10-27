@@ -63,6 +63,13 @@ const demo: Fetcher = async (url) => {
     if (path.includes("college-football")) return fixture("espn-college-football-scoreboard.json");
     return { events: [] };
   }
+  // Tables and polls: recorded, so live games re-rank them (features/standings).
+  if (u.host === "site.api.espn.com" && path.endsWith("/standings")) {
+    if (path.includes("soccer/eng.1")) return fixture("standings-eng1.json");
+    if (path.includes("basketball/nba")) return fixture("standings-nba.json");
+    if (path.includes("college-football")) return fixture("standings-college.json");
+  }
+  if (u.host === "site.api.espn.com" && path.endsWith("/rankings")) return fixture("standings-rankings.json");
   if (u.host === "api.bo3.gg" && path.endsWith("/matches")) {
     const status = u.searchParams.get("filter[matches.status][in]") ?? "";
     if (status === "current") return fixture("bo3-matches-current.synthetic.json");

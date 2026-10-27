@@ -32,6 +32,7 @@ import {
   tableColumns,
   tableGroups,
   tableKind,
+  tableLinks,
   widthClassOf,
   zoneBoundary,
   type StandingsRow,
@@ -85,6 +86,13 @@ describe("which leagues have a table", () => {
     expect(tableKind(leagueWithID("cs2")!)).toBe("none");
     expect(standingsURL(leagueWithID("nba")!)).toBe("https://site.api.espn.com/apis/v2/sports/basketball/nba/standings?sort=playoffseed:asc");
     expect(standingsURL(leagueWithID("mlb")!)).toBeNull();
+  });
+
+  it("the section menu's ways in: Table, Standings, Top 25", () => {
+    expect(tableLinks(leagueWithID("eng.1")!).map((l) => [l.label, l.path])).toEqual([["Table", "/standings/eng.1"]]);
+    expect(tableLinks(leagueWithID("college-football")!, ["espn-ncaaf-26"]).map((l) => l.path)).toEqual(["/standings/college-football?ring=espn-ncaaf-26", "/rankings/college-football"]);
+    expect(tableLinks(leagueWithID("nba")!).map((l) => l.label)).toEqual(["Standings"]);
+    expect(tableLinks(leagueWithID("nfl")!)).toEqual([]);
   });
 });
 
