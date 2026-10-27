@@ -31,9 +31,15 @@ export const STRIP_LABEL_ROOM = 52;
 export function stripLayout(values: readonly (number | null)[], width: number, height: number, ceiling: number | null = null, spread = false): Bar[] {
   const n = values.length;
   if (n === 0 || width <= 0) return [];
-  const gap = n > 40 ? 1 : 2;
+  let gap = n > 40 ? 1 : 2;
   const slot = spread ? width / n : 0;
-  const barWidth = spread ? Math.max(1, Math.min(14, slot * 0.6)) : Math.max(1, Math.min(10, (width - gap * (n - 1)) / n));
+  let barWidth = spread ? Math.max(1, Math.min(14, slot * 0.6)) : Math.min(10, (width - gap * (n - 1)) / n);
+  // Web addition: a long season in a narrow strip (150 games in 260pt) would need bars under 1pt and run
+  // past the plot into the reference's label; the bars and gaps share the room instead (Swift clamps at 1pt).
+  if (!spread && barWidth < 1) {
+    barWidth = (width / n) * 0.65;
+    gap = (width - barWidth * n) / Math.max(1, n - 1);
+  }
   const top = Math.max(Math.max(0, ...values.filter((v): v is number => v != null)), ceiling ?? 0, 1);
   return values.map((value, i) => {
     const x = spread ? i * slot + (slot - barWidth) / 2 : i * (barWidth + gap);

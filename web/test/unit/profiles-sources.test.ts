@@ -214,7 +214,7 @@ describe("results, form and the table window", () => {
     const nba = parseStandings(f("espn-nba-standings.json"), "basketball/nba", "basketball");
     const conferences = new Set(nba.map((r) => r.group));
     expect(conferences.size).toBe(2);
-    const lakers = standingsWindow(nba, "espn-basketball-13");
+    const lakers = standingsWindow(nba, "espn-basketball-13", { bySeed: true });
     expect(lakers.rows.every((r) => r.group === nba.find((x) => x.id === "espn-basketball-13")!.group)).toBe(true);
     const seeds = lakers.rows.map((r) => Number(r.stats.playoffSeed));
     expect([...seeds].sort((a, b) => a - b)).toEqual(seeds);

@@ -34,6 +34,10 @@ describe("the athlete overview", () => {
     const bio = espn.mergeCoreAthlete(f("espn-nba-core-athlete.json"), a.bio);
     expect(new Date(bio.birthDate!).toISOString().slice(0, 10)).toBe("1984-12-30");
     expect(bio.birthPlace).toBe("Akron, OH");
+    // A page opened from its URL learns the name and (college) the team from the core athlete.
+    const blank = espn.mergeCoreAthlete({ displayName: "Max Alford", team: { $ref: "http://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/2026/teams/130?lang=en" } }, { ...a.bio, name: "" });
+    expect(blank.name).toBe("Max Alford");
+    expect(espn.coreAthleteTeamID({ team: { $ref: "http://x/v2/sports/football/leagues/college-football/seasons/2026/teams/130?lang=en" } })).toBe("130");
   });
 
   it("turns soccer's START (SUB) into starts with the bench said in words", () => {

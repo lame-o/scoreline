@@ -15,7 +15,7 @@
  */
 import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
-import { getJSON } from "../data/http";
+import { getJSON, HTTPError } from "../data/http";
 import * as bo3 from "../data/profiles/bo3";
 import * as espn from "../data/profiles/espn";
 import * as fotmob from "../data/profiles/fotmob";
@@ -27,6 +27,7 @@ import {
   hasPlay,
   isCollege,
   playerSport,
+  teamRef,
   teamSource,
   teamSport,
   type Bio,
@@ -75,7 +76,8 @@ function profileQuery(url: string | null, ttl: number) {
     staleTime: ttl,
     gcTime: Math.max(ttl, 30 * 60_000),
     // A profile loads once per visit (the Mac's rule): one quick retry, then the page says what failed.
-    retry: 1,
+    // A 404 is an answer (nobody by that ID), never retried.
+    retry: (count: number, error: Error) => count < 1 && !(error instanceof HTTPError && error.status === 404),
     retryDelay: 1500,
     refetchOnWindowFocus: false,
   };
@@ -234,7 +236,7 @@ export function useTeamProfile(ref: TeamRef): TeamProfile {
   const standings = useParsed(standingsQ!, (json) => {
     const table = e ? standingsPath(e.sport, ref.id, path) : null;
     if (!e || !table) return null;
-    const window = standingsWindow(parseStandings(json, table, e.sport), ref.id);
+    const window = standingsWindow(parseStandings(json, table, e.sport), ref.id, { bySeed: e.sport === "basketball" });
     return window.rows.length > 0 ? window : null;
   }, [path, ref.id]);
 
@@ -354,6 +356,15 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
 
   const athlete = useParsed(athleteQ!, (json) => (espnPath ? espn.parseAthlete(json, espnPath) : null), [espnPath]);
   const coreData = coreQ!.data;
+  // College reads its bio from the core athlete, which names the team only by reference: a page opened
+  // from its URL (no link to say the team) asks for the team's header, for the wash and the team link.
+  const coreTeamID = college && !ref.team && coreData !== undefined ? espn.coreAthleteTeamID(coreData) : null;
+  const coreTeamQ = useQuery(profileQuery(coreTeamID && espnPath ? espn.teamURL(espnPath, coreTeamID) : null, TTL.header));
+  const coreTeam = useParsed(coreTeamQ, (json) => {
+    if (!coreTeamID || !espnPath) return null;
+    const h = espn.parseHeader(json, "football", espnPath, coreTeamID);
+    return h ? teamRef({ id: `espn-ncaaf-${coreTeamID}`, name: h.shortName, logo: h.logo, league: "college-football", color: h.color, alternateColor: h.alternateColor, abbreviation: h.abbreviation }) : null;
+  }, [coreTeamID, espnPath]);
   const overview = useParsed(overviewQ!, (json) => espn.parseOverview(json, sport), [sport]);
   const gameLog = useParsed(gameLogQ!, (json) => (espnPath ? espn.parseGameLog(json, espnPath, ref.position) : null), [espnPath, ref.position]);
   const leagueLeaders = useParsed(leagueLeadersQ!, espn.parseLeaders);
@@ -404,7 +415,7 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
       tilesCaption = athlete.tilesCaption;
       injury = athlete.injury;
     } else if (college && coreData !== undefined && espnPath) {
-      let team = ref.team;
+      let team = ref.team ?? coreTeam;
       // A link without the team's colors still gets them, from its logo (ESPN files college logos by ID).
       if (team && team.logo == null) {
         const source = teamSource(team);
@@ -432,7 +443,7 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
       awards: overview?.awards ?? NONE,
       gameLog,
     };
-  }, [climber, csPlayer, slug, csGeneral, csHeadshots, csMatches, csMaps, csRoles, athlete, coreData, college, espnPath, ref, overview, leagueLeaders, gameLog]);
+  }, [climber, csPlayer, slug, csGeneral, csHeadshots, csMatches, csMaps, csRoles, athlete, coreData, coreTeam, college, espnPath, ref, overview, leagueLeaders, gameLog]);
 
   // Soccer: FotMob's photo, and its injury when ESPN has none (never blocks the page).
   const fotTeam = sport === "soccer" && profile.bio ? (profile.bio.team ?? ref.team) : null;
@@ -453,7 +464,9 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
 
   const failed = useMemo(() => {
     const out = new Set<PlayerPart>();
-    if (athleteQ!.isError || (college && coreQ!.isError) || csPlayerQ!.isError || climberQ!.isError) out.add("bio");
+    // A 404 is the source answering that there's nobody by that ID: not a failure to retry (the page says so).
+    const failedRequest = (q: UseQueryResult<unknown>) => q.isError && !(q.error instanceof HTTPError && q.error.status === 404);
+    if (failedRequest(athleteQ!) || (college && failedRequest(coreQ!)) || failedRequest(csPlayerQ!) || failedRequest(climberQ!)) out.add("bio");
     if (overviewQ!.isError) out.add("season");
     if (gameLogQ!.isError || (gameLogQ!.isSuccess && gameLog == null) || csMatchesQ!.isError) out.add("gameLog");
     return out;
@@ -464,9 +477,10 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
     void queryClient.refetchQueries({ predicate: (q) => q.queryKey[0] === "profile" && String(q.queryKey[1]).includes(ref.source.kind === "counterStrike" ? `/players/${slug}` : `/${ref.id}`) });
   }, [ref, slug]);
 
+  const fallbackBio = useMemo(() => linkBio(ref), [ref]);
   return {
     sport,
-    bio: withFotMob.bio ?? linkBio(ref),
+    bio: withFotMob.bio ?? fallbackBio,
     profile: withFotMob,
     otherLog,
     career: { table: careerTable, loading: careerQ.isLoading, failed: careerQ.isError },

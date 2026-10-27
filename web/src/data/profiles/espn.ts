@@ -584,6 +584,11 @@ export function parseAthlete(json: JSONValue, path: string): AthleteData | null 
   return { bio, tiles, tilesCaption: sAt(a, "statsSummary", "displayName"), injury };
 }
 
+/** The team ID in a core athlete's `team.$ref` (".../teams/130?lang=en"): a page opened from its URL learns the team from it. */
+export function coreAthleteTeamID(json: JSONValue): string | null {
+  return refID(sAt(json, "team", "$ref"), "teams");
+}
+
 /** "2003: Rd 1, Pk 1 (CLE)" → "2003 · Round 1, Pick 1 · CLE". */
 export function formatDraft(text: string | null): string | null {
   if (!text) return text;
@@ -606,6 +611,8 @@ export function formatDraft(text: string | null): string | null {
 /** The core athlete: ISO birth date (the v3 `displayDOB` is day-first) and the cheap bio college uses. */
 export function mergeCoreAthlete(json: JSONValue, bio: Bio): Bio {
   const next: { -readonly [K in keyof Bio]: Bio[K] } = { ...bio };
+  // Web addition: a page opened from its URL knows no name until a source says it.
+  if (!next.name) next.name = sAt(json, "displayName") ?? sAt(json, "fullName") ?? "";
   const born = parseDate(sAt(json, "dateOfBirth"));
   if (born != null) next.birthDate = born;
   if (next.birthPlace == null) {

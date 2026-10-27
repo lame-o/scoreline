@@ -111,11 +111,11 @@ function PlayerViewPage({ playerRef: ref, backTitle, viaKeyboard }: { readonly p
         crop={crop}
         tint={tint}
         lightInk={lightInk}
-        detail={dockDetail(sport, bio, team, loadedBio, flagFromIOC)}
+        detail={dockDetail(sport, bio, team, loadedBio && !college, flagFromIOC)}
         stat={dockStat(profile.tiles)}
       />
     ),
-    [bio, photo, crop, tint, lightInk, sport, team, loadedBio, profile.tiles],
+    [bio, photo, crop, tint, lightInk, sport, team, loadedBio, college, profile.tiles],
   );
 
   const order: Section[] =
@@ -329,7 +329,8 @@ function IdentityLine({ player, playerRef: ref }: { readonly player: PlayerView;
   const position = (bio.position?.length ?? 0) > 12 ? (bio.positionAbbreviation ?? bio.position) : (bio.position ?? bio.positionAbbreviation);
   const parts = [bio.jersey ? `#${bio.jersey}` : null, position].filter(Boolean);
   const team = bio.team ?? ref.team;
-  const loaded = player.profile.bio != null;
+  // College players always have a team (a page opened from its URL learns it a moment after the bio).
+  const loaded = player.profile.bio != null && !isCollege(ref);
   if (parts.length === 0 && !team && !(loaded && sport !== "esports")) return null;
   return (
     <span className={styles.heroSub}>

@@ -35,6 +35,7 @@ import { playerHref, teamHref, type ProfileNavState } from "../../data/profiles/
 import styles from "./ProfileLinks.module.css";
 
 export { espnPlayerRef } from "../../data/profiles/espnRef";
+export { playerHref, teamHref } from "../../data/profiles/routes";
 export type { PlayerRef, TeamRef };
 
 const Origin = createContext<string | null>(null);

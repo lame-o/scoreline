@@ -146,14 +146,13 @@ export function parseStandings(json: JSONValue, path: string, sport: Sport): Sta
 }
 
 /** Seven rows of the team's own table around it (three either side, fewer at the edges). */
-export function standingsWindow(rows: readonly StandingsRow[], teamID: string, reach = 3): { rows: StandingsRow[]; first: number } {
+export function standingsWindow(rows: readonly StandingsRow[], teamID: string, options: { reach?: number; bySeed?: boolean } = {}): { rows: StandingsRow[]; first: number } {
+  const { reach = 3, bySeed = false } = options;
   const own = rows.find((r) => r.id === teamID);
   if (!own) return { rows: [], first: 0 };
   let peers = rows.filter((r) => r.group === own.group);
-  // The NBA's tables are ranked by seed; others arrive in table order.
-  if (peers.some((r) => r.stats.playoffSeed != null && r.stats.points == null && r.stats.vsconf == null)) {
-    peers = [...peers].sort((a, b) => (i(a.stats.playoffSeed) ?? 99) - (i(b.stats.playoffSeed) ?? 99));
-  }
+  // The NBA's conferences are ranked by seed (ESPN lists them in another order); other tables arrive in table order.
+  if (bySeed) peers = [...peers].sort((a, b) => (i(a.stats.playoffSeed) ?? 99) - (i(b.stats.playoffSeed) ?? 99));
   const j = peers.findIndex((r) => r.id === teamID);
   const size = 2 * reach + 1;
   const lo = Math.max(0, Math.min(j - reach, peers.length - size));

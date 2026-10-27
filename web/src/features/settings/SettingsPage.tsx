@@ -28,6 +28,8 @@ import { useSplit } from "../../app/layout";
 import { useGoBack } from "../../app/navigation";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { settings, useSettings, type Settings, type Theme } from "../../state/settings";
+import { isSupportedTeam, teamRef } from "../../data/profiles/models";
+import { LinkOrigin, linkNameClass, TeamLink } from "../profiles/ProfileLinks";
 import styles from "./Settings.module.css";
 
 const all = (s: Settings) => s;
@@ -90,17 +92,25 @@ function MyTeams() {
           <span>Follow a team from its game, or with the ★ on a league's team list. It shows first, in My Teams.</span>
         </p>
       ) : (
-        <GroupBox label="Followed teams">
-          {followed.map((team) => (
-            <div key={team.id} className={styles.teamRow}>
-              <TeamLogo url={team.logo} size={16} />
-              <span className={styles.teamName}>{team.name}</span>
-              <button type="button" className={styles.remove} aria-label={`Unfollow ${team.name}`} title={`Unfollow ${team.name}`} onClick={() => settings.unfollow(team.id)}>
-                <Icon name="minusCircle" size={13} />
-              </button>
-            </div>
-          ))}
-        </GroupBox>
+        <LinkOrigin name="Settings">
+          <GroupBox label="Followed teams">
+            {followed.map((team) => (
+              <div key={team.id} className={styles.teamRow}>
+                {/* Logo, name and chevron open the team's page (ManageView's row link); the remove button stays its own. */}
+                <TeamLink team={teamRef({ id: team.id, name: team.name, logo: team.logo })} variant="row" className={styles.teamLink}>
+                  <span className={styles.teamLinkInner}>
+                    <TeamLogo url={team.logo} size={16} />
+                    <span className={`${styles.teamName} ${linkNameClass}`}>{team.name}</span>
+                    {isSupportedTeam({ id: team.id, league: null }) ? <Icon name="chevronRight" size={9} className={styles.teamChevron} /> : null}
+                  </span>
+                </TeamLink>
+                <button type="button" className={styles.remove} aria-label={`Unfollow ${team.name}`} title={`Unfollow ${team.name}`} onClick={() => settings.unfollow(team.id)}>
+                  <Icon name="minusCircle" size={13} />
+                </button>
+              </div>
+            ))}
+          </GroupBox>
+        </LinkOrigin>
       )}
     </FormSection>
   );

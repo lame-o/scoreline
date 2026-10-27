@@ -7,6 +7,7 @@ Scoreline for the web is the macOS app (`../Sources/Scoreline`) as a web app on 
 - [The Worker and the upstream allowlist](#the-worker-and-the-upstream-allowlist)
 - [Data layer](#data-layer)
 - [State: settings and live scores](#state-settings-and-live-scores)
+- [Team and player pages](#team-and-player-pages)
 - [Design system](#design-system)
 - [Motion](#motion)
 - [Layout, navigation and keyboard](#layout-navigation-and-keyboard)
@@ -49,16 +50,18 @@ web/
     app/                   App (router, providers), AppShell (split view), navigation, IndexRoute, errors
     data/                  pure TypeScript ported from Swift: models, catalog, parsers, formatting
       providers/           one file per source: espn.ts, counterStrike.ts, ifsc.ts, teams.ts
-    state/                 settings (localStorage store), scores (TanStack Query), clock tickers, theme
+      profiles/            team and player pages: models, ESPN, bo3, IFSC and FotMob parsers, rules
+    state/                 settings (localStorage store), scores (TanStack Query), clock tickers, theme,
+                           profiles (one query per URL, prefetch, page session), profilePhotos
     design/                tokens.css, base.css, motion.ts, icons.tsx, useWidth.ts
       components/          the design system (index.ts exports it all)
-    features/              one folder per area: scores/, game/, settings/, placeholders/
+    features/              one folder per area: scores/, game/, settings/, profiles/, placeholders/
   test/
     unit/                  Vitest
     worker/                Vitest, the proxy with the Cache API and fetch stubbed
     e2e/                   Playwright (smoke.spec.ts, live.spec.ts)
-    fixtures/              small trimmed JSON (recorded, plus *.synthetic.json live states)
-  scripts/record-fixtures.mjs
+    fixtures/              small trimmed JSON (recorded, plus *.synthetic.json live states); profiles/ for the pages
+  scripts/record-fixtures.mjs   (and record-profile-fixtures.mjs, run as `pnpm fixtures profiles`)
 ```
 
 Four TypeScript programs with different globals:
@@ -90,8 +93,9 @@ const board = await getJSON("https://site.api.espn.com/apis/site/v2/sports/footb
 | `api.bo3.gg` | `/api/v1/` | CS2, S-tier only (`CounterStrike.TIER`) |
 | `ifsc.results.info` | `/api/v1/` | the Worker adds the `Referer` the service requires |
 | `statsapi.mlb.com` | `/api/` | Statcast |
+| `www.fotmob.com` | `/api/data/search/suggest`, `/api/data/teams` | soccer photos, injuries and the current coach (FotMob.swift): enrichment only |
 
-Nothing else is proxied. Images are never proxied: `<img>` loads logos from their CDNs, sized by the CDN (`src/data/images.ts`: ESPN's combiner and bo3.gg's image proxy, which turns a 90 KB crest into 5 KB). YouTube (the climbing streams), decapi.me (Twitch co-streams) and FotMob (soccer photos and injuries) are not on the list. A feature that needs one of them needs the owner's decision first.
+Nothing else is proxied. Images are never proxied: `<img>` loads logos and photos from their CDNs, sized by the CDN (`src/data/images.ts`: ESPN's combiner and bo3.gg's image proxy, which turns a 90 KB crest into 5 KB; `src/data/profiles/photos.ts` for people). FotMob's face crops load straight from `images.fotmob.com`. YouTube (the climbing streams) and decapi.me (Twitch co-streams) are not on the list. A feature that needs one of them needs the owner's decision first.
 
 Each response is cached at the edge for as long as its kind of data stays true. Policies are matched by path, first match wins, and live at the top of `shared/upstreams.ts`:
 
@@ -102,6 +106,8 @@ Each response is cached at the edge for as long as its kind of data stays true. 
 | `TABLES` | 10 min | 2 min | standings, polls |
 | `SCHEDULE` | 30 min | 5 min | team schedules, seasons, profiles |
 | `CATALOG` | 6 h | 1 h | team lists |
+
+Profile paths have their own rules: a team's page header (`/teams/:id`, with its record and next game), the NFL depth chart and transactions are `SCHEDULE`, not the team list's `CATALOG`; core athletes (`/athletes/:id`) and bo3.gg players are `SCHEDULE`; FotMob's search is a week at the edge (a club's ID never changes) and its squad twelve hours.
 
 How the caching works (`worker/proxy.ts`):
 
@@ -131,6 +137,7 @@ URLs whose query changes on every call defeat the cache. The CS2 provider rounds
   - poll cadence and retry delays;
   - what carries over between polls (`mergePoll`).
 - `format.ts`: ordinals, plurals, `periodLabel`, days and times ("Today 7:00 PM", "Tomorrow", "Nov 5, 1:00 PM"), countdowns, "Updated 5 minutes ago", and `spokenStatus` and its siblings, which turn source shorthand into words for screen readers.
+- `profiles/`: the team and player pages' data (ProfileModels.swift, ProfileProviders.swift, FotMob.swift): `models.ts` (TeamRef, PlayerRef, every page model, `hasPlay`), `espn.ts`, `bo3.ts`, `ifsc.ts`, `fotmob.ts` (URLs and parsers), `results.ts` (results, form, the table window), `display.ts` (columns, facts, speech, dock rules), `charts.ts` (strip geometry), `photos.ts` (the hero photo rule), `routes.ts` (paths) and `espnRef.ts`. `read.ts` has the Swift `JSON` wrapper's coercions (`.string` takes a number, `.int` takes a numeric string), used only by these ports.
 - Also: `clock.ts` (GameClock ticking and running inference), `soccer.ts` (marks and own-goal reconciliation), `teams.ts` (`espnTeamID`, flags, climbing nations), `teamColors.ts` (OKLab, `teamTone`, `teamPalette`, wash strength), `logoColors.ts` (a team's colors read from its crest), `days.ts` (DayKey), `broadcasters.ts` (names and official watch pages), `images.ts`, and `demo.ts` (development only).
 
 ### How to port a Swift parser
@@ -182,6 +189,47 @@ Live scores live in `src/state/scores.ts`, where `useScoreboard()` makes one Tan
 `useScoreboard()` returns the derived sections, the tile board, quiet leagues, the live count, status, `event(id)` and `leagueOf(id)`. A second reader beside one that already polls passes `{ poll: false }`, so the feeds aren't polled twice; the game page does this in the split view, where the sidebar polls. Results are recomputed only when a league's data changes, the settings change or the minute turns (ScoreStore's `version`). Game pages read their event from it, so they stay live.
 
 `useNow(period)` (`state/clock.ts`) is the only way to tick. Every component on the same period ticks in the same frame, on the whole period, and tickers stop while the tab is hidden.
+
+## Team and player pages
+
+`src/features/profiles/` (TeamPage.swift, PlayerPage.swift and their sections), with the data in `src/data/profiles/` and `src/state/profiles.ts`.
+
+**Routes.** One readable path per team and person, so a page can be shared and reloaded:
+
+| Path | Who |
+| --- | --- |
+| `/team/espn-football-12` | a team, by its `Competitor.id` |
+| `/team/espn-soccer-359?league=eng.1` | a club, with its domestic league (its roster needs it; without it the page asks ESPN) |
+| `/team/cs-667` | a CS2 team |
+| `/player/nba-1966`, `/player/mlb-39832`, `/player/college-football-…` | an ESPN athlete: league, then ID |
+| `/player/eng.1-280555` | a footballer, under any soccer league |
+| `/player/cs2-zywoo`, `/player/ifsc-1147` | a CS2 player by bo3.gg slug, a climber |
+
+**Name links.** Any page can drop these in (`features/profiles/ProfileLinks.tsx`, a light module: no parsers, no page code):
+
+```tsx
+import { TeamLink, PlayerLink, teamRefFrom, espnPlayerRef, LinkOrigin } from "../profiles/ProfileLinks";
+
+<TeamLink team={teamRefFrom(competitor, leagueID)}>{competitor.name}</TeamLink>
+<PlayerLink player={espnPlayerRef("basketball/nba", athlete.id, athlete.name)}>{athlete.name}</PlayerLink>
+<PlayerLink player={ref} variant="row" label="Jalen Brunson, number 11, 26.3 points">…a whole row…</PlayerLink>
+<LinkOrigin name="Chiefs">…links on this page say "‹ Chiefs" on the page they open…</LinkOrigin>
+```
+
+- `variant="quiet"` (the default) is a name inside text: unchanged at rest, underlined under a fine pointer, dimmed while pressed (QuietLink). `variant="row"` is a row whose purpose is the thing it names: the list's hover fill, with `linkNameClass` on the name to underline it (RowLink). `rowLinkClass` gives the same look to rows that open something else (a game).
+- `null`, or a team without a page (the WNBA), renders the children as plain text, so callers never branch. `counterStrikePlayerRef(slug, name)` and `climberRef(id, name)` build the other sources' references.
+- A pointer resting 250ms prefetches the page's first request and the hero photo, and loads the page's chunk (at most six a minute, once per link, never with Save-Data or on 2G). Touch prefetches on press. Return on a focused link arrives with no entrance.
+- The link carries the full reference in the history state, so the hero paints the name, photo and team on the first frame; a shared URL loads the same page from the path.
+
+**Data.** One TanStack query per upstream URL, keyed by the URL (`["profile", url]`), fresh for the Mac's TTLs (`TTL` in `state/profiles.ts`): a dwell's prefetch, the page and Back share one copy, and each part fills in as it lands and fails on its own (the page shows the rest and a footnote with Try Again). Raw responses are parsed once per response. `useTeamProfile(ref)` and `usePlayerProfile(ref, { careerRequested })` assemble the pages: the roster grouped per sport and filled from the leaders, the NFL depth chart (which also orders the roster), soccer squads with FotMob's photos, injuries and coach (after ESPN's, never blocking), the MLB other-role log kept only when it has a game with something in it (`hasPlay`), college tiles from the season line, NBA and soccer ranks from the league leaders. A 404 is an answer ("Player Not Available"), never retried.
+
+**The hero photo.** `heroPhotoURL` asks for the hero's size from the first frame (ESPN's 260×190 crop from the athlete ID, bo3.gg's 240px proxy), never the list's 96×70 thumbnail stretched. `PlayerPhoto` shows the monogram until the photo lands, fades it in once, and draws a photo already decoded this session (`state/profilePhotos.ts`) on its first frame with no fade. While a photo is on screen it's never swapped for another crop (`nextHeroPhoto`).
+
+**The docked bar** (`DockedBar.tsx`, DockedBarHost): as the hero scrolls under the sticky header it tucks (scaled 6% toward its top and faded, written straight to its style each frame), and a glass bar in the team's color docks 4pt below the header: photo, name, team · position, the lead stat. Progress is quantized to 1/64 (`dockStep`); only the host re-renders on a step, and the bar is a memoized element on a zero-height sticky row, so the page never re-renders while scrolling and its layout never changes. A click goes back to the top. Reduce Motion: opacity only.
+
+**Layout.** One column, or two from 680pt of page (`useProfileLayout`, `SectionColumns`: MatchColumnsLayout's blocks of left and right sections, a spanning section closing a block). A football roster spans both columns, its groups two-up. Each block adds columns from its own width class. The team-color wash stays put behind the page as it scrolls (the Mac's page background) and takes the crest's colors as a change of light.
+
+**Page session.** `usePageSession(key)` keeps the choices that survive Back: Roster | Depth Chart, All Games, Batting | Pitching, expanded groups, career.
 
 ## Design system
 
@@ -249,7 +297,7 @@ The owner can run `/review-animations` on the motion code for an independent rev
 - **Phones** (under 760px): one column, at most 440pt, like the Mac panel. The window scrolls; headers are sticky, with a soft scroll edge once content is underneath.
 - **From 760px:** a split view. The scores are a glass sidebar (340–420pt, the Mac's compact and medium widths) beside a detail pane, each scrolling on its own. The sidebar stays mounted across pages, so it keeps its scroll, highlight and polling, as the Mac keeps Scores built under every page. With nothing selected, the pane says "No Game Selected" (Mail's pattern).
 - **Width classes:** blocks add detail as they widen, from the Mac's thresholds of 380pt of content (medium), 460 (large) and 560 (xlarge). `useWidth(ref)` gives a block's width in points from one ResizeObserver. Rows show records from medium. Tiles go to 3 small columns from large, and 4 small plus 2 large from 680.
-- **Routes** (`src/app/App.tsx`): `/`, `/game/:id`, `/settings`, `/settings/league/:id`, `/schedule/:scope?`, `/standings/:league`, `/team/:id` and `/player/:id`. Every route but the scores is lazy. To add a page: create `src/features/<area>/<Page>.tsx` that exports the component, point its route's `lazy` at it, use `PageHeader` with `BackButton` (hidden in the split view, where Esc goes back), and use `useScoreboard()` or a new query for data. Placeholders live in `features/placeholders`; replace one by repointing its route.
+- **Routes** (`src/app/App.tsx`): `/`, `/game/:id`, `/settings`, `/settings/league/:id`, `/schedule/:scope?`, `/standings/:league`, `/team/:id` and `/player/:id` (formats in [Team and player pages](#team-and-player-pages); build them with `teamHref` and `playerHref`, never by hand). Every route but the scores is lazy. To add a page: create `src/features/<area>/<Page>.tsx` that exports the component, point its route's `lazy` at it, use `PageHeader` with `BackButton` (hidden in the split view, where Esc goes back), and use `useScoreboard()` or a new query for data. Placeholders live in `features/placeholders`; replace one by repointing its route.
 - **Back** (`useGoBack`) returns to whichever page opened this one. A page opened directly goes back to the scores. Esc does the same from anywhere except a text field.
 - **Keyboard:** on the scores, ↑/↓ move the highlight (←/→ too in Tiles, by on-screen geometry), Return opens the game, Esc goes back. The keyboard highlight wears the accent; the pointer's hover is a quiet gray and takes the highlight back.
 
@@ -274,11 +322,12 @@ The owner can run `/review-animations` on the motion code for an independent rev
 
 ## Testing
 
-- **Unit** (`pnpm test`, Vitest, in Node with TZ America/New_York): every parser against `test/fixtures` (ESPN soccer, NFL, college, MLB, NBA; bo3; IFSC; team lists), plus the scoreboard logic, formatting and clocks, soccer marks, the allowlist and cache policies, team colors read from crests, settings, and token contrast. `test/worker/` covers the proxy with the Cache API and fetch stubbed (type-checked with the Worker's program).
+- **Unit** (`pnpm test`, Vitest, in Node with TZ America/New_York): every parser against `test/fixtures` (ESPN soccer, NFL, college, MLB, NBA; bo3; IFSC; team lists; and `profiles/`: athletes, overviews, game logs including the MLB category and two-way rule, career, rosters, the NFL depth chart, team stats, CS2 teams and players, a climber, FotMob, results and standings), plus the scoreboard logic, formatting and clocks, soccer marks, the allowlist and cache policies, team colors read from crests, settings, and token contrast. `test/worker/` covers the proxy with the Cache API and fetch stubbed (type-checked with the Worker's program).
 - **Fixtures:** the recorded files come from `pnpm fixtures`, trimmed to the fields the parsers read (each records its `_source` URL and `_recorded` time). Files named `*.synthetic.json` are live states derived by hand from a recorded file, because a recording session rarely finds every sport live. Each says how it was derived in `_note`. Re-recording changes the games, so tests assert structure and rules rather than today's scores wherever they can.
 - **End to end** (`pnpm test:e2e`, Playwright against `pnpm dev`, or `SCORELINE_URL`):
   - `smoke.spec.ts` covers 390, 1024 and 1440 pixels in light and dark: list, tiles, a game, Esc back, keyboard ↓ and Return, and Settings, with no console errors.
   - `live.spec.ts` uses `?demo` to cover the live count, clocks, strips and the score flash.
+  - `profiles.spec.ts` covers a team page and six player pages (NBA, MLB starter, MLB two-way, NFL, soccer, CS2) at 390 and 1440 in light and dark, the MLB two-way rule, the hero photo's size, the docked bar and Back from a roster row.
   - Screenshots go to `SCORELINE_SCREENSHOTS` (default `test-results/screenshots`).
   - `@playwright/test` is pinned to 1.63 to reuse the Chromium already installed on this machine. After upgrading it, run `npx playwright install chromium`.
 
@@ -364,9 +413,17 @@ The owner can run `/review-animations` on the motion code for an independent rev
 
 ### Profiles (TeamPage, TeamSections, PlayerPage, PlayerSections, Profile\*, ProfileCharts, LinkedPeek, ProfileLinks, FotMob)
 
-- [ ] Team pages: hero (crest, summary, coach, live strip), next, now and last game, results and form, roster and depth chart, leaders, stats with league ranks, table window, injuries, transactions; CS2 team pages
-- [ ] Player pages: hero (photo, position, facts, injury), season tiles, game log strip, latest, career, awards; soccer competitions; CS2 map pool; climbing podiums
-- [ ] Name links everywhere (team and player), and prefetch on hover
+- [x] Parsers ported with fixture tests: ESPN header, roster and its grouping per sport, NFL depth chart, NBA and MLB core depth, leaders, team stats with ranks, transactions, athlete, core athlete, overview (season, competitions, RotoWire, awards), game log (MLB category and the two-way rule), career; bo3 team, titles, career, next and recent matches, player, matches, map pool, roles; IFSC climber; FotMob search, squad and matching
+- [x] Team pages: hero (crest, wash and glow from the crest's colors, record, standing, coach or manager, CS2 world rank and movement, follow star, Open in Browser), live strip, next, now and last game, results with the form strip, roster grouped per sport with stat columns by width and the NFL depth chart toggle, leaders, team stats as rank tracks, a seven-row table window (soccer, NBA by seed, college), injury report, transactions, venue; CS2 rosters with countries, coach and benched, S-tier titles, record tiles, upcoming and recent S-tier matches; soccer squads with FotMob photos, injuries and coach
+- [x] Player pages: hero (photo at hero size with no flash, position, number, team link, facts, injury or FotMob status), season tiles with ranks (league leaders for NBA and soccer), game-log strip (bars per game, Game Score against 50 for MLB starters, home-run rings) and table with All Games, MLB opening on the player's role with Batting | Pitching only for two-way players, latest, season and career table, career by season on request, awards; soccer match strip and competitions; CS2 form, recent matches, map pool and roles; climbing World Cup ranks, podiums and results
+- [x] The docked glass bar on player pages (quantized dock progress, an overlay, the hero tucking)
+- [x] `TeamLink` and `PlayerLink` with dwell prefetch of the first request and the hero photo; Settings' My Teams rows open their teams. (The Mac's scores rows have no name links: their "Go to team" lives in the context menu, still to do.)
+- [ ] Name links on the game pages (hero team names, box scores, leaders, scorers), schedules and standings rows: drop in `TeamLink` and `PlayerLink`
+- [ ] Results' "All Results" link to the team's schedule (needs the schedule scope format), and taking the season and the table from the schedules and standings layers once they land (same URLs, so the caches are shared already)
+- [ ] Context menus: "Go to {team}" and "Go to {player}" on rows, the next game's opponent
+- [ ] LinkedPeek is a game-page feature (charts on match pages), not a profile one
+- [ ] Profile disk cache with ETag revalidation (ProfileCache): on the web, the HTTP cache and the edge stand in; Query persistence would add offline reloads
+- [ ] College football team and player pages are wired but not yet reviewed against live data; WNBA teams have no pages, as on the Mac
 
 ### Settings (ManageView, LeagueSettingsView, AddSportsView)
 

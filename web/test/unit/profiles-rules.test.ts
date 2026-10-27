@@ -196,6 +196,11 @@ describe("chart geometry", () => {
     const spread = stripLayout([1, 2], 100, 50, null, true);
     expect(spread[0]!.width).toBe(14);
     expect(spread[1]!.x).toBeGreaterThan(50);
+    // A long season in a narrow strip stays inside the plot.
+    const season = stripLayout(Array.from({ length: 151 }, () => 1), 258, 50);
+    const last = season.at(-1)!;
+    expect(last.x + last.width).toBeCloseTo(258);
+    expect(season[1]!.x).toBeGreaterThan(season[0]!.x + season[0]!.width);
     // A fixed reference raises the ceiling (Game Score's 50 × 1.15).
     expect(stripLayout([40], 100, 50, 57.5)[0]!.height).toBeCloseTo((40 / 57.5) * 50);
   });
