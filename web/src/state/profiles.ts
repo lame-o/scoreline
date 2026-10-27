@@ -80,9 +80,18 @@ async function profileFetch(url: string, signal: AbortSignal): Promise<unknown> 
   return response.json() as Promise<unknown>;
 }
 
+/**
+ * One page's queries, each slot with a key of its own: a slot with no URL
+ * (another sport's) is disabled, and disabled slots sharing one key made
+ * TanStack's useQueries see duplicates ("might result in unexpected behavior").
+ */
+function distinctSlots<Q extends { queryKey: readonly unknown[]; enabled: boolean }>(queries: Q[]): Q[] {
+  return queries.map((q, i) => (q.enabled ? q : { ...q, queryKey: ["profile", `off:${i}`] as const }));
+}
+
 function profileQuery(url: string | null, ttl: number) {
   return {
-    queryKey: profileKey(url),
+    queryKey: profileKey(url) as readonly unknown[],
     queryFn: ({ signal }: { signal: AbortSignal }) => profileFetch(url!, signal),
     enabled: url != null,
     staleTime: ttl,
@@ -169,7 +178,7 @@ export function useTeamProfile(ref: TeamRef): TeamProfile {
     csNext: cs ? bo3.upcomingURL(cs.id) : null,
   };
   const [rosterQ, depthQ, leadersQ, statsQ, transactionsQ, scheduleQ, standingsQ, csTeamQ, csCareerQ, csNextQ] = useQueries({
-    queries: [
+    queries: distinctSlots([
       profileQuery(urls.roster, TTL.roster),
       profileQuery(urls.depth, TTL.roster),
       profileQuery(urls.leaders, TTL.leaders),
@@ -180,7 +189,7 @@ export function useTeamProfile(ref: TeamRef): TeamProfile {
       profileQuery(urls.csTeam, TTL.leaders),
       profileQuery(urls.csCareer, TTL.roster),
       profileQuery(urls.csNext, TTL.short),
-    ],
+    ]),
   }) as UseQueryResult<unknown>[];
 
   const csTeam = useParsed(csTeamQ!, (json) => bo3.parseTeam(json, ref), [ref.id]);
@@ -350,7 +359,7 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
   const college = isCollege(ref);
 
   const [athleteQ, coreQ, overviewQ, gameLogQ, leagueLeadersQ, csPlayerQ, csGeneralQ, csAccuracyQ, csMatchesQ, csMapsQ, csRolesQ, climberQ] = useQueries({
-    queries: [
+    queries: distinctSlots([
       profileQuery(espnPath && !college ? espn.athleteURL(espnPath, ref.id) : null, TTL.athlete),
       profileQuery(espnPath ? espn.coreAthleteURL(espnPath, ref.id) : null, TTL.career),
       profileQuery(espnPath ? espn.overviewURL(espnPath, ref.id) : null, TTL.athlete),
@@ -363,7 +372,7 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
       profileQuery(slug ? bo3.mapsURL(slug) : null, TTL.roster),
       profileQuery(slug ? bo3.rolesURL(slug) : null, TTL.roster),
       profileQuery(ref.source.kind === "ifsc" ? ifsc.athleteURL(ref.id) : null, TTL.climber),
-    ],
+    ]),
   }) as UseQueryResult<unknown>[];
 
   const athlete = useParsed(athleteQ!, (json) => (espnPath ? espn.parseAthlete(json, espnPath) : null), [espnPath]);

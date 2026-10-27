@@ -23,6 +23,17 @@ import styles from "./AppShell.module.css";
 
 const LiveServices = lazy(() => import("./LiveServices"));
 
+/** The shell's frame alone (the sidebar's glass beside an empty pane): what a deep link shows while its page's code arrives. */
+export function ShellFrame() {
+  const split = useSplit();
+  return (
+    <div className={styles.shell} data-split={split}>
+      {split ? <div className={styles.sidebar} /> : null}
+      <div className={styles.detail} />
+    </div>
+  );
+}
+
 export function AppShell() {
   const split = useSplit();
   const goBack = useGoBack();
