@@ -152,7 +152,7 @@ export function RosterSection({ team, width, tint, lightInk, memoryKey, columns 
       {chart ? (
         <div className={styles.controlRow}>
           <SegmentedControl<"roster" | "depth">
-            label="View"
+            label="Roster View"
             value={session.depthChart ? "depth" : "roster"}
             onChange={(v) => update({ depthChart: v === "depth" })}
             options={[
@@ -267,7 +267,8 @@ function DepthChartView({ chart, players }: { readonly chart: DepthChart; readon
     <div>
       {chart.units.map((unit, k) => (
         <div key={unit.kind} className={styles.group}>
-          <GroupHeader title={`${unitName[unit.kind]} · ${unit.name}`} first={k === 0} />
+          {/* The formation after the unit ("Offense · 3WR 1TE"), unless it only repeats it ("Special Teams"). */}
+          <GroupHeader title={!unit.name || unit.name.toLowerCase() === unitName[unit.kind].toLowerCase() ? unitName[unit.kind] : `${unitName[unit.kind]} · ${unit.name}`} first={k === 0} />
           {unit.slots.map((slot) => (
             <div key={slot.key} className={styles.depthRow}>
               <span className={styles.slotLabel}>{slot.label}</span>
