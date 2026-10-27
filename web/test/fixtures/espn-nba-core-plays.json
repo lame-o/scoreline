@@ -1,0 +1,5159 @@
+{
+ "_source": "https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/events/401909869/competitions/401909869",
+ "_recorded": "2026-10-27T09:56:53.881Z",
+ "status": {
+  "clock": 0,
+  "displayClock": "0.0",
+  "period": 5,
+  "type": {
+   "state": "post",
+   "completed": true,
+   "shortDetail": "Final/OT",
+   "detail": "Final/OT",
+   "name": "STATUS_FINAL"
+  }
+ },
+ "situation": {
+  "lastPlay": {
+   "$ref": "http://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/events/401909869/competitions/401909869/plays/401909869873?lang=en&region=us"
+  }
+ },
+ "_note": "Links shortened to /teams/<id>, /athletes/<id>, /plays/<id>; default fields left out.",
+ "count": 561,
+ "first": 401,
+ "items": [
+  {
+   "id": "401909869606",
+   "text": "Jonathan Kuminga enters the game for Joan Beringer",
+   "awayScore": 96,
+   "homeScore": 94,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "8:23"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4433247"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/5279133"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869607",
+   "text": "Jarrett Allen misses 2-foot hook shot",
+   "awayScore": 96,
+   "homeScore": 94,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 26,
+    "y": 2
+   },
+   "type": {
+    "id": "93",
+    "text": "Hook Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "8:07"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066328"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869608",
+   "text": "Rudy Gobert defensive rebound",
+   "awayScore": 96,
+   "homeScore": 94,
+   "coordinate": {
+    "x": 26,
+    "y": 2
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "8:07"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869609",
+   "text": "Anthony Edwards misses 25-foot three point pullup jump shot",
+   "awayScore": 96,
+   "homeScore": 94,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 22,
+    "y": 26
+   },
+   "type": {
+    "id": "131",
+    "text": "Pullup Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:54"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869610",
+   "text": "Rudy Gobert offensive rebound",
+   "awayScore": 96,
+   "homeScore": 94,
+   "coordinate": {
+    "x": 22,
+    "y": 26
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:54"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869611",
+   "text": "Peyton Watson blocks Anthony Edwards 's 26-foot three point jumper",
+   "awayScore": 96,
+   "homeScore": 94,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 46,
+    "y": 16
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:50"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    },
+    {
+     "order": 3,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869612",
+   "text": "Rudy Gobert offensive rebound",
+   "awayScore": 96,
+   "homeScore": 94,
+   "coordinate": {
+    "x": 46,
+    "y": 16
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:50"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869614",
+   "text": "Anthony Edwards misses 27-foot three point jumper",
+   "awayScore": 96,
+   "homeScore": 94,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 44,
+    "y": 20
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:47"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869615",
+   "text": "Terrence Shannon Jr. offensive rebound",
+   "awayScore": 96,
+   "homeScore": 94,
+   "coordinate": {
+    "x": 44,
+    "y": 20
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:47"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432847"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869616",
+   "text": "Terrence Shannon Jr. makes 25-foot three point step back jumpshot",
+   "awayScore": 99,
+   "homeScore": 94,
+   "scoringPlay": true,
+   "scoreValue": 3,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 42,
+    "y": 20
+   },
+   "type": {
+    "id": "132",
+    "text": "Step Back Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:42"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432847"
+     }
+    }
+   ],
+   "scoringRun": {
+    "larger": 9,
+    "smaller": 0,
+    "team": {
+     "$ref": "/teams/16"
+    },
+    "play": {
+     "$ref": "/plays/401909869590"
+    }
+   }
+  },
+  {
+   "id": "401909869617",
+   "text": "Jaden McDaniels personal foul",
+   "awayScore": 99,
+   "homeScore": 94,
+   "coordinate": {
+    "x": 28,
+    "y": 32
+   },
+   "type": {
+    "id": "45",
+    "text": "Personal Foul"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:30"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4431671"
+     }
+    }
+   ],
+   "scoringRun": {
+    "larger": 9,
+    "smaller": 0,
+    "team": {
+     "$ref": "/teams/16"
+    },
+    "play": {
+     "$ref": "/plays/401909869590"
+    }
+   }
+  },
+  {
+   "id": "401909869619",
+   "text": "Meleek Thomas misses driving floating jump shot",
+   "awayScore": 99,
+   "homeScore": 94,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 22,
+    "y": 6
+   },
+   "type": {
+    "id": "144",
+    "text": "Driving Floating Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:18"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/5041951"
+     }
+    }
+   ],
+   "scoringRun": {
+    "larger": 9,
+    "smaller": 0,
+    "team": {
+     "$ref": "/teams/16"
+    },
+    "play": {
+     "$ref": "/plays/401909869590"
+    }
+   }
+  },
+  {
+   "id": "401909869620",
+   "text": "Meleek Thomas offensive rebound",
+   "awayScore": 99,
+   "homeScore": 94,
+   "coordinate": {
+    "x": 22,
+    "y": 6
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:18"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/5041951"
+     }
+    }
+   ],
+   "scoringRun": {
+    "larger": 9,
+    "smaller": 0,
+    "team": {
+     "$ref": "/teams/16"
+    },
+    "play": {
+     "$ref": "/plays/401909869590"
+    }
+   }
+  },
+  {
+   "id": "401909869621",
+   "text": "Meleek Thomas misses 4-foot floating jump shot",
+   "awayScore": 99,
+   "homeScore": 94,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 22,
+    "y": 4
+   },
+   "type": {
+    "id": "130",
+    "text": "Floating Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:15"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/5041951"
+     }
+    }
+   ],
+   "scoringRun": {
+    "larger": 9,
+    "smaller": 0,
+    "team": {
+     "$ref": "/teams/16"
+    },
+    "play": {
+     "$ref": "/plays/401909869590"
+    }
+   }
+  },
+  {
+   "id": "401909869622",
+   "text": "Jarrett Allen offensive rebound",
+   "awayScore": 99,
+   "homeScore": 94,
+   "coordinate": {
+    "x": 22,
+    "y": 4
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:15"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066328"
+     }
+    }
+   ],
+   "scoringRun": {
+    "larger": 9,
+    "smaller": 0,
+    "team": {
+     "$ref": "/teams/16"
+    },
+    "play": {
+     "$ref": "/plays/401909869590"
+    }
+   }
+  },
+  {
+   "id": "401909869623",
+   "text": "Jarrett Allen misses two point shot",
+   "awayScore": 99,
+   "homeScore": 94,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 25,
+    "y": 2
+   },
+   "type": {
+    "id": "125",
+    "text": "Layup Shot Putback"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:12"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066328"
+     }
+    }
+   ],
+   "scoringRun": {
+    "larger": 9,
+    "smaller": 0,
+    "team": {
+     "$ref": "/teams/16"
+    },
+    "play": {
+     "$ref": "/plays/401909869590"
+    }
+   }
+  },
+  {
+   "id": "401909869624",
+   "text": "Rudy Gobert defensive rebound",
+   "awayScore": 99,
+   "homeScore": 94,
+   "coordinate": {
+    "x": 25,
+    "y": 2
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "7:12"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ],
+   "scoringRun": {
+    "larger": 9,
+    "smaller": 0,
+    "team": {
+     "$ref": "/teams/16"
+    },
+    "play": {
+     "$ref": "/plays/401909869590"
+    }
+   }
+  },
+  {
+   "id": "401909869625",
+   "text": "Anthony Edwards makes two point shot",
+   "awayScore": 101,
+   "homeScore": 94,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 25,
+    "y": 2
+   },
+   "type": {
+    "id": "126",
+    "text": "Layup Driving Reverse"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "6:57"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ],
+   "scoringRun": {
+    "larger": 11,
+    "smaller": 0,
+    "team": {
+     "$ref": "/teams/16"
+    },
+    "play": {
+     "$ref": "/plays/401909869590"
+    }
+   }
+  },
+  {
+   "id": "401909869626",
+   "text": "Peyton Watson defensive goaltending violation",
+   "awayScore": 101,
+   "homeScore": 94,
+   "coordinate": {
+    "x": 25,
+    "y": 3
+   },
+   "type": {
+    "id": "9",
+    "text": "Defensive Goaltending"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "6:57"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ],
+   "scoringRun": {
+    "larger": 11,
+    "smaller": 0,
+    "team": {
+     "$ref": "/teams/16"
+    },
+    "play": {
+     "$ref": "/plays/401909869590"
+    }
+   }
+  },
+  {
+   "id": "401909869628",
+   "text": "Mario Hezonja makes 26-foot three point jumper (James Harden assists)",
+   "awayScore": 101,
+   "homeScore": 97,
+   "scoringPlay": true,
+   "scoreValue": 3,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 7,
+    "y": 19
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "6:31"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/2995706"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869630",
+   "text": "Jonathan Kuminga misses 26-foot three point jumper",
+   "awayScore": 101,
+   "homeScore": 97,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 47,
+    "y": 14
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "6:14"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4433247"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869631",
+   "text": "Rudy Gobert offensive rebound",
+   "awayScore": 101,
+   "homeScore": 97,
+   "coordinate": {
+    "x": 47,
+    "y": 14
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "6:14"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869632",
+   "text": "Jarrett Allen blocks Rudy Gobert 's 5-foot two point shot",
+   "awayScore": 101,
+   "homeScore": 97,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 26,
+    "y": 5
+   },
+   "type": {
+    "id": "125",
+    "text": "Layup Shot Putback"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "6:10"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    },
+    {
+     "order": 3,
+     "athlete": {
+      "$ref": "/athletes/4066328"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869633",
+   "text": "Cavaliers defensive team rebound",
+   "awayScore": 101,
+   "homeScore": 97,
+   "coordinate": {
+    "x": 26,
+    "y": 5
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "6:10"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   }
+  },
+  {
+   "id": "401909869636",
+   "text": "James Harden makes 6-foot driving floating jump shot",
+   "awayScore": 101,
+   "homeScore": 99,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 20,
+    "y": 4
+   },
+   "type": {
+    "id": "144",
+    "text": "Driving Floating Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "5:56"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869637",
+   "text": "Anthony Edwards makes 25-foot three point step back jumpshot",
+   "awayScore": 104,
+   "homeScore": 99,
+   "scoringPlay": true,
+   "scoreValue": 3,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 16,
+    "y": 24
+   },
+   "type": {
+    "id": "132",
+    "text": "Step Back Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "5:39"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869638",
+   "text": "Meleek Thomas bad pass\nturnover (Terrence Shannon Jr. steals)",
+   "awayScore": 104,
+   "homeScore": 99,
+   "coordinate": {
+    "x": 21,
+    "y": 4
+   },
+   "type": {
+    "id": "62",
+    "text": "Bad Pass\nTurnover"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "5:21"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/5041951"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4432847"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869640",
+   "text": "Anthony Edwards misses 26-foot three point pullup jump shot",
+   "awayScore": 104,
+   "homeScore": 99,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 34,
+    "y": 25
+   },
+   "type": {
+    "id": "131",
+    "text": "Pullup Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "5:09"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869641",
+   "text": "Mario Hezonja defensive rebound",
+   "awayScore": 104,
+   "homeScore": 99,
+   "coordinate": {
+    "x": 34,
+    "y": 25
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "5:09"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/2995706"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869642",
+   "text": "Jarrett Allen makes layup (James Harden assists)",
+   "awayScore": 104,
+   "homeScore": 101,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 25,
+    "y": 2
+   },
+   "type": {
+    "id": "95",
+    "text": "Layup Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4:59"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066328"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869644",
+   "text": "Anthony Edwards misses 26-foot three point step back jumpshot",
+   "awayScore": 104,
+   "homeScore": 101,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 36,
+    "y": 24
+   },
+   "type": {
+    "id": "132",
+    "text": "Step Back Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4:42"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869645",
+   "text": "Mario Hezonja defensive rebound",
+   "awayScore": 104,
+   "homeScore": 101,
+   "coordinate": {
+    "x": 36,
+    "y": 24
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4:42"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/2995706"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869646",
+   "text": "Mario Hezonja misses running layup",
+   "awayScore": 104,
+   "homeScore": 101,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 25,
+    "y": 2
+   },
+   "type": {
+    "id": "109",
+    "text": "Running Layup Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4:36"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/2995706"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869647",
+   "text": "Cavaliers offensive team rebound",
+   "awayScore": 104,
+   "homeScore": 101,
+   "coordinate": {
+    "x": 25,
+    "y": 2
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4:36"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   }
+  },
+  {
+   "id": "401909869650",
+   "text": "Jaylon Tyson enters the game for Meleek Thomas",
+   "awayScore": 104,
+   "homeScore": 101,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4:35"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4683747"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/5041951"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869652",
+   "text": "LaMelo Ball enters the game for Terrence Shannon Jr.",
+   "awayScore": 104,
+   "homeScore": 101,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4:35"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4432847"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869654",
+   "text": "delay of game violation",
+   "awayScore": 104,
+   "homeScore": 101,
+   "type": {
+    "id": "8",
+    "text": "Delay of Game"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4:35"
+   }
+  },
+  {
+   "id": "401909869655",
+   "text": "Mario Hezonja misses 29-foot three point jumper",
+   "awayScore": 104,
+   "homeScore": 101,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 42,
+    "y": 24
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4:23"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/2995706"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869656",
+   "text": "Peyton Watson offensive rebound",
+   "awayScore": 104,
+   "homeScore": 101,
+   "coordinate": {
+    "x": 42,
+    "y": 24
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4:23"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869657",
+   "text": "James Harden makes 25-foot three point jumper (Peyton Watson assists)",
+   "awayScore": 104,
+   "homeScore": 104,
+   "scoringPlay": true,
+   "scoreValue": 3,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 12,
+    "y": 22
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4:19"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869678",
+   "text": "Rudy Gobert out of bounds lost ball turnover",
+   "awayScore": 104,
+   "homeScore": 104,
+   "coordinate": {
+    "x": 27,
+    "y": 27
+   },
+   "type": {
+    "id": "87",
+    "text": "Out of Bounds - Lost Ball Turnover"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4:10"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869663",
+   "text": "James Harden offensive foul",
+   "awayScore": 104,
+   "homeScore": 104,
+   "coordinate": {
+    "x": 26,
+    "y": 1
+   },
+   "type": {
+    "id": "42",
+    "text": "Offensive Foul"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "3:54"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869665",
+   "text": "James Harden offensive foul turnover",
+   "awayScore": 104,
+   "homeScore": 104,
+   "type": {
+    "id": "84",
+    "text": "Offensive Foul Turnover"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "3:54"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869668",
+   "text": "Donovan Mitchell enters the game for Mario Hezonja",
+   "awayScore": 104,
+   "homeScore": 104,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "3:54"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3908809"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/2995706"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869669",
+   "text": "Evan Mobley enters the game for Jarrett Allen",
+   "awayScore": 104,
+   "homeScore": 104,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "3:54"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432158"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4066328"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869670",
+   "text": "delay of game violation",
+   "awayScore": 104,
+   "homeScore": 104,
+   "type": {
+    "id": "8",
+    "text": "Delay of Game"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "3:54"
+   }
+  },
+  {
+   "id": "401909869671",
+   "text": "LaMelo Ball bad pass\nturnover (Peyton Watson steals)",
+   "awayScore": 104,
+   "homeScore": 104,
+   "coordinate": {
+    "x": 34,
+    "y": 6
+   },
+   "type": {
+    "id": "62",
+    "text": "Bad Pass\nTurnover"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "3:34"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869673",
+   "text": "Anthony Edwards personal foul",
+   "awayScore": 104,
+   "homeScore": 104,
+   "coordinate": {
+    "x": 5,
+    "y": 31
+   },
+   "type": {
+    "id": "45",
+    "text": "Personal Foul"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "3:28"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869676",
+   "text": "Sam Merrill enters the game for Peyton Watson",
+   "awayScore": 104,
+   "homeScore": 104,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "3:28"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066757"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869677",
+   "text": "Rudy Gobert blocks Evan Mobley 's 5-foot turnaround jump shot",
+   "awayScore": 104,
+   "homeScore": 104,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 23,
+    "y": 5
+   },
+   "type": {
+    "id": "114",
+    "text": "Turnaround Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "3:21"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432158"
+     }
+    },
+    {
+     "order": 3,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869679",
+   "text": "Evan Mobley offensive rebound",
+   "awayScore": 104,
+   "homeScore": 104,
+   "coordinate": {
+    "x": 23,
+    "y": 5
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "3:21"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432158"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869681",
+   "text": "James Harden misses 24-foot three point jumper",
+   "awayScore": 104,
+   "homeScore": 104,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 45,
+    "y": 14
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "3:15"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869682",
+   "text": "Rudy Gobert defensive rebound",
+   "awayScore": 104,
+   "homeScore": 104,
+   "coordinate": {
+    "x": 45,
+    "y": 14
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "3:15"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869683",
+   "text": "Anthony Edwards misses 15-foot pullup jump shot",
+   "awayScore": 104,
+   "homeScore": 104,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 41,
+    "y": 2
+   },
+   "type": {
+    "id": "131",
+    "text": "Pullup Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "2:51"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869684",
+   "text": "Sam Merrill defensive rebound",
+   "awayScore": 104,
+   "homeScore": 104,
+   "coordinate": {
+    "x": 41,
+    "y": 2
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "2:51"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066757"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869685",
+   "text": "Donovan Mitchell misses 16-foot pullup jump shot",
+   "awayScore": 104,
+   "homeScore": 104,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 11,
+    "y": 8
+   },
+   "type": {
+    "id": "131",
+    "text": "Pullup Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "2:34"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3908809"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869686",
+   "text": "Jaylon Tyson offensive rebound",
+   "awayScore": 104,
+   "homeScore": 104,
+   "coordinate": {
+    "x": 11,
+    "y": 8
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "2:34"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4683747"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869687",
+   "text": "Donovan Mitchell misses 30-foot three point jumper",
+   "awayScore": 104,
+   "homeScore": 104,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 7,
+    "y": 24
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "2:29"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3908809"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869688",
+   "text": "Jonathan Kuminga defensive rebound",
+   "awayScore": 104,
+   "homeScore": 104,
+   "coordinate": {
+    "x": 7,
+    "y": 24
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "2:29"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4433247"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869689",
+   "text": "Jaylon Tyson personal foul",
+   "awayScore": 104,
+   "homeScore": 104,
+   "coordinate": {
+    "x": 43,
+    "y": 11
+   },
+   "type": {
+    "id": "45",
+    "text": "Personal Foul"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "2:26"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4683747"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869692",
+   "text": "Peyton Watson enters the game for Jaylon Tyson",
+   "awayScore": 104,
+   "homeScore": 104,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "2:26"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4683747"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869693",
+   "text": "Anthony Edwards makes 15-foot pullup jump shot (LaMelo Ball assists)",
+   "awayScore": 106,
+   "homeScore": 104,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 19,
+    "y": 14
+   },
+   "type": {
+    "id": "131",
+    "text": "Pullup Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "2:15"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869695",
+   "text": "Sam Merrill misses 25-foot three point jumper",
+   "awayScore": 106,
+   "homeScore": 104,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 14,
+    "y": 23
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "1:59"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066757"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869696",
+   "text": "Jaden McDaniels defensive rebound",
+   "awayScore": 106,
+   "homeScore": 104,
+   "coordinate": {
+    "x": 14,
+    "y": 23
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "1:59"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4431671"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869697",
+   "text": "Anthony Edwards makes 7-foot fade away jump shot",
+   "awayScore": 108,
+   "homeScore": 104,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 21,
+    "y": 7
+   },
+   "type": {
+    "id": "121",
+    "text": "Fade Away Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "1:45"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869698",
+   "text": "Evan Mobley makes 24-foot three point jumper (James Harden assists)",
+   "awayScore": 108,
+   "homeScore": 107,
+   "scoringPlay": true,
+   "scoreValue": 3,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 14,
+    "y": 22
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "1:30"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432158"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869700",
+   "text": "Anthony Edwards makes 10-foot driving floating jump shot (LaMelo Ball assists)",
+   "awayScore": 110,
+   "homeScore": 107,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 32,
+    "y": 8
+   },
+   "type": {
+    "id": "144",
+    "text": "Driving Floating Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "1:16"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869702",
+   "text": "Donovan Mitchell makes 1-foot two point shot",
+   "awayScore": 110,
+   "homeScore": 109,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 26,
+    "y": 1
+   },
+   "type": {
+    "id": "128",
+    "text": "Driving Finger Roll Layup"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "1:03"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3908809"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869703",
+   "text": "LaMelo Ball makes two point shot (Jaden McDaniels assists)",
+   "awayScore": 112,
+   "homeScore": 109,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 25,
+    "y": 1
+   },
+   "type": {
+    "id": "128",
+    "text": "Driving Finger Roll Layup"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "38.7"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4431671"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869704",
+   "text": "Cavaliers Full timeout",
+   "awayScore": 112,
+   "homeScore": 109,
+   "type": {
+    "id": "16",
+    "text": "Full Timeout"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "38.7"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   }
+  },
+  {
+   "id": "401909869705",
+   "text": "Donovan Mitchell makes 1-foot two point shot (James Harden assists)",
+   "awayScore": 112,
+   "homeScore": 111,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 24,
+    "y": 0
+   },
+   "type": {
+    "id": "128",
+    "text": "Driving Finger Roll Layup"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "26.4"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3908809"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869706",
+   "text": "Timberwolves Full timeout",
+   "awayScore": 112,
+   "homeScore": 111,
+   "type": {
+    "id": "16",
+    "text": "Full Timeout"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "26.4"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   }
+  },
+  {
+   "id": "401909869708",
+   "text": "Ayo Dosunmu enters the game for Rudy Gobert",
+   "awayScore": 112,
+   "homeScore": 111,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "26.4"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4397002"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869709",
+   "text": "Donovan Mitchell shooting foul",
+   "awayScore": 112,
+   "homeScore": 111,
+   "coordinate": {
+    "x": 29,
+    "y": 2
+   },
+   "type": {
+    "id": "44",
+    "text": "Shooting Foul"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "25.8"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3908809"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869711",
+   "text": "Jonathan Kuminga makes free throw 1 of 2",
+   "awayScore": 113,
+   "homeScore": 111,
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "shootingPlay": true,
+   "pointsAttempted": 1,
+   "type": {
+    "id": "98",
+    "text": "Free Throw - 1 of 2"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "25.8"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4433247"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869712",
+   "text": "(00:25.8) [Timberwolves] REF-INITIATED REVIEW (CALL STANDS)",
+   "awayScore": 113,
+   "homeScore": 111,
+   "type": {
+    "id": "280",
+    "text": "Ref-Initiated Review (Stands)"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "25.8"
+   }
+  },
+  {
+   "id": "401909869714",
+   "text": "Rudy Gobert enters the game for LaMelo Ball",
+   "awayScore": 113,
+   "homeScore": 111,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "25.8"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869715",
+   "text": "Jonathan Kuminga misses free throw 2 of 2",
+   "awayScore": 113,
+   "homeScore": 111,
+   "shootingPlay": true,
+   "pointsAttempted": 1,
+   "type": {
+    "id": "99",
+    "text": "Free Throw - 2 of 2"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "25.8"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4433247"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869716",
+   "text": "Peyton Watson defensive rebound",
+   "awayScore": 113,
+   "homeScore": 111,
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "25.8"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869717",
+   "text": "Donovan Mitchell misses 25-foot three point pullup jump shot",
+   "awayScore": 113,
+   "homeScore": 111,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 37,
+    "y": 23
+   },
+   "type": {
+    "id": "131",
+    "text": "Pullup Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "15.3"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3908809"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869718",
+   "text": "Evan Mobley offensive rebound",
+   "awayScore": 113,
+   "homeScore": 111,
+   "coordinate": {
+    "x": 37,
+    "y": 23
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "15.3"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432158"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869719",
+   "text": "James Harden makes 7-foot driving floating jump shot",
+   "awayScore": 113,
+   "homeScore": 113,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 18,
+    "y": 0
+   },
+   "type": {
+    "id": "144",
+    "text": "Driving Floating Jump Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "10.4"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869720",
+   "text": "Timberwolves Full timeout",
+   "awayScore": 113,
+   "homeScore": 113,
+   "type": {
+    "id": "16",
+    "text": "Full Timeout"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "10.4"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   }
+  },
+  {
+   "id": "401909869722",
+   "text": "LaMelo Ball enters the game for Rudy Gobert",
+   "awayScore": 113,
+   "homeScore": 113,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "10.4"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869723",
+   "text": "Peyton Watson blocks Anthony Edwards's driving layup",
+   "awayScore": 113,
+   "homeScore": 113,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 25,
+    "y": 4
+   },
+   "type": {
+    "id": "110",
+    "text": "Driving Layup Shot"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4.4"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    },
+    {
+     "order": 3,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869724",
+   "text": "Sam Merrill defensive rebound",
+   "awayScore": 113,
+   "homeScore": 113,
+   "coordinate": {
+    "x": 25,
+    "y": 4
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4.4"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066757"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869726",
+   "text": "Cavaliers Full timeout",
+   "awayScore": 113,
+   "homeScore": 113,
+   "type": {
+    "id": "16",
+    "text": "Full Timeout"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4.2"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   }
+  },
+  {
+   "id": "401909869728",
+   "text": "Rudy Gobert enters the game for LaMelo Ball",
+   "awayScore": 113,
+   "homeScore": 113,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "4.2"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869729",
+   "text": "Jaden McDaniels personal foul",
+   "awayScore": 113,
+   "homeScore": 113,
+   "coordinate": {
+    "x": 48,
+    "y": 13
+   },
+   "type": {
+    "id": "45",
+    "text": "Personal Foul"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "0.6"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4431671"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869731",
+   "text": "End of the 4th Quarter",
+   "awayScore": 113,
+   "homeScore": 113,
+   "type": {
+    "id": "412",
+    "text": "End Period"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "displayValue": "0.0"
+   }
+  },
+  {
+   "id": "401909869733",
+   "text": "LaMelo Ball enters the game for Ayo Dosunmu",
+   "awayScore": 113,
+   "homeScore": 113,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "5:00"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4397002"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869744",
+   "text": "Rudy Gobert vs. Evan Mobley (Sam Merrill gains possession)",
+   "awayScore": 113,
+   "homeScore": 113,
+   "type": {
+    "id": "615",
+    "text": "Jumpball"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "5:00"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432158"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    },
+    {
+     "order": 3,
+     "athlete": {
+      "$ref": "/athletes/4066757"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869836",
+   "text": "Evan Mobley makes 25-foot three point jumper (Sam Merrill assists)",
+   "awayScore": 113,
+   "homeScore": 116,
+   "scoringPlay": true,
+   "scoreValue": 3,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 38,
+    "y": 22
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "4:45"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432158"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4066757"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869838",
+   "text": "LaMelo Ball misses 23-foot three point jumper",
+   "awayScore": 113,
+   "homeScore": 116,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 2,
+    "y": 2
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "4:30"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869839",
+   "text": "Evan Mobley defensive rebound",
+   "awayScore": 113,
+   "homeScore": 116,
+   "coordinate": {
+    "x": 2,
+    "y": 2
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "4:30"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432158"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869735",
+   "text": "Sam Merrill misses 22-foot three point jumper",
+   "awayScore": 113,
+   "homeScore": 113,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 48,
+    "y": 2
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "4:13"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066757"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869736",
+   "text": "Rudy Gobert defensive rebound",
+   "awayScore": 113,
+   "homeScore": 113,
+   "coordinate": {
+    "x": 48,
+    "y": 2
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "4:13"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869840",
+   "text": "Anthony Edwards out of bounds bad pass turnover",
+   "awayScore": 113,
+   "homeScore": 116,
+   "coordinate": {
+    "x": 24,
+    "y": 10
+   },
+   "type": {
+    "id": "90",
+    "text": "Out of Bounds - Bad Pass Turnover"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "4:00"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869738",
+   "text": "Peyton Watson misses 22-foot three point jumper",
+   "awayScore": 113,
+   "homeScore": 113,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 2,
+    "y": -2
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3:38"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869739",
+   "text": "Jonathan Kuminga defensive rebound",
+   "awayScore": 113,
+   "homeScore": 113,
+   "coordinate": {
+    "x": 2,
+    "y": -2
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3:38"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4433247"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869841",
+   "text": "Sam Merrill personal foul",
+   "awayScore": 113,
+   "homeScore": 116,
+   "coordinate": {
+    "x": 32,
+    "y": 9
+   },
+   "type": {
+    "id": "45",
+    "text": "Personal Foul"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3:31"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066757"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869740",
+   "text": "LaMelo Ball misses 29-foot three point jumper",
+   "awayScore": 113,
+   "homeScore": 113,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 22,
+    "y": 30
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3:18"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869741",
+   "text": "Evan Mobley defensive rebound",
+   "awayScore": 113,
+   "homeScore": 113,
+   "coordinate": {
+    "x": 22,
+    "y": 30
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3:18"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432158"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869773",
+   "text": "Jaden McDaniels personal foul",
+   "awayScore": 113,
+   "homeScore": 113,
+   "coordinate": {
+    "x": 33,
+    "y": 2
+   },
+   "type": {
+    "id": "45",
+    "text": "Personal Foul"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3:14"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4431671"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869779",
+   "text": "Jaden McDaniels technical foul",
+   "awayScore": 113,
+   "homeScore": 113,
+   "coordinate": {
+    "x": 32,
+    "y": 4
+   },
+   "type": {
+    "id": "35",
+    "text": "Technical Foul"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3:14"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4431671"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869790",
+   "text": "Donovan Mitchell makes technical free throw",
+   "awayScore": 113,
+   "homeScore": 114,
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "shootingPlay": true,
+   "pointsAttempted": 1,
+   "type": {
+    "id": "103",
+    "text": "Free Throw - Technical"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3:14"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3908809"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869852",
+   "text": "Ayo Dosunmu enters the game for Jaden McDaniels",
+   "awayScore": 113,
+   "homeScore": 117,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3:14"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4397002"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4431671"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869845",
+   "text": "Donovan Mitchell bad pass\nturnover (Rudy Gobert steals)",
+   "awayScore": 113,
+   "homeScore": 117,
+   "coordinate": {
+    "x": 18,
+    "y": 32
+   },
+   "type": {
+    "id": "62",
+    "text": "Bad Pass\nTurnover"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3:07"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3908809"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869751",
+   "text": "Donovan Mitchell blocks Ayo Dosunmu's running layup",
+   "awayScore": 113,
+   "homeScore": 113,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 26,
+    "y": 5
+   },
+   "type": {
+    "id": "109",
+    "text": "Running Layup Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3:03"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4397002"
+     }
+    },
+    {
+     "order": 3,
+     "athlete": {
+      "$ref": "/athletes/3908809"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869752",
+   "text": "James Harden defensive rebound",
+   "awayScore": 113,
+   "homeScore": 113,
+   "coordinate": {
+    "x": 26,
+    "y": 5
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3:03"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869859",
+   "text": "James Harden lost ball turnover (Anthony Edwards steals)",
+   "awayScore": 113,
+   "homeScore": 117,
+   "coordinate": {
+    "x": 27,
+    "y": 3
+   },
+   "type": {
+    "id": "63",
+    "text": "Lost Ball Turnover"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "2:58"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869758",
+   "text": "Anthony Edwards makes 26-foot three point jumper (LaMelo Ball assists)",
+   "awayScore": 116,
+   "homeScore": 113,
+   "scoringPlay": true,
+   "scoreValue": 3,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 41,
+    "y": 21
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "2:52"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869760",
+   "text": "James Harden misses 27-foot three point pullup jump shot",
+   "awayScore": 116,
+   "homeScore": 113,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 40,
+    "y": 23
+   },
+   "type": {
+    "id": "131",
+    "text": "Pullup Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "2:35"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869761",
+   "text": "Anthony Edwards defensive rebound",
+   "awayScore": 116,
+   "homeScore": 113,
+   "coordinate": {
+    "x": 40,
+    "y": 23
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "2:35"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869762",
+   "text": "Anthony Edwards makes 22-foot step back jumpshot",
+   "awayScore": 118,
+   "homeScore": 113,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 3,
+    "y": 4
+   },
+   "type": {
+    "id": "132",
+    "text": "Step Back Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "2:21"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869763",
+   "text": "Jonathan Kuminga personal foul",
+   "awayScore": 118,
+   "homeScore": 113,
+   "coordinate": {
+    "x": 6,
+    "y": 26
+   },
+   "type": {
+    "id": "45",
+    "text": "Personal Foul"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "2:09"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4433247"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869826",
+   "text": "Evan Mobley makes 7-foot two point shot",
+   "awayScore": 118,
+   "homeScore": 116,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 18,
+    "y": 3
+   },
+   "type": {
+    "id": "140",
+    "text": "Hook Turnaround Bank"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "2:00"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432158"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869864",
+   "text": "Anthony Edwards misses 16-foot fade away jump shot",
+   "awayScore": 118,
+   "homeScore": 119,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 12,
+    "y": 9
+   },
+   "type": {
+    "id": "121",
+    "text": "Fade Away Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "1:47"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869865",
+   "text": "Rudy Gobert offensive rebound",
+   "awayScore": 118,
+   "homeScore": 119,
+   "coordinate": {
+    "x": 12,
+    "y": 9
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "1:47"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869866",
+   "text": "Evan Mobley blocks Rudy Gobert's two point shot",
+   "awayScore": 118,
+   "homeScore": 119,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 25,
+    "y": 2
+   },
+   "type": {
+    "id": "125",
+    "text": "Layup Shot Putback"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "1:45"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    },
+    {
+     "order": 3,
+     "athlete": {
+      "$ref": "/athletes/4432158"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869868",
+   "text": "Evan Mobley defensive rebound",
+   "awayScore": 118,
+   "homeScore": 119,
+   "coordinate": {
+    "x": 25,
+    "y": 2
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "1:45"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432158"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869769",
+   "text": "Peyton Watson misses 24-foot three point jumper",
+   "awayScore": 118,
+   "homeScore": 113,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 13,
+    "y": 22
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "1:26"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869770",
+   "text": "Sam Merrill offensive rebound",
+   "awayScore": 118,
+   "homeScore": 113,
+   "coordinate": {
+    "x": 13,
+    "y": 22
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "1:26"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066757"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869771",
+   "text": "Donovan Mitchell makes 2-foot two point shot",
+   "awayScore": 118,
+   "homeScore": 115,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 26,
+    "y": 2
+   },
+   "type": {
+    "id": "128",
+    "text": "Driving Finger Roll Layup"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "1:12"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3908809"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869772",
+   "text": "Timberwolves Full timeout",
+   "awayScore": 118,
+   "homeScore": 115,
+   "type": {
+    "id": "16",
+    "text": "Full Timeout"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "1:12"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   }
+  },
+  {
+   "id": "401909869786",
+   "text": "LaMelo Ball misses 26-foot three point jumper",
+   "awayScore": 118,
+   "homeScore": 115,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 15,
+    "y": 25
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "1:09"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869787",
+   "text": "Rudy Gobert offensive rebound",
+   "awayScore": 118,
+   "homeScore": 115,
+   "coordinate": {
+    "x": 15,
+    "y": 25
+   },
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "1:09"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869788",
+   "text": "Anthony Edwards makes 24-foot three point jumper (Rudy Gobert assists)",
+   "awayScore": 121,
+   "homeScore": 115,
+   "scoringPlay": true,
+   "scoreValue": 3,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 1,
+    "y": 3
+   },
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "1:03"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869869",
+   "text": "(01:03) [Timberwolves] REF-INITIATED REVIEW (CALL STANDS)",
+   "awayScore": 121,
+   "homeScore": 121,
+   "type": {
+    "id": "280",
+    "text": "Ref-Initiated Review (Stands)"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "1:03"
+   }
+  },
+  {
+   "id": "401909869793",
+   "text": "Donovan Mitchell makes 19-foot fade away jump shot",
+   "awayScore": 121,
+   "homeScore": 118,
+   "scoringPlay": true,
+   "scoreValue": 2,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 9,
+    "y": 11
+   },
+   "type": {
+    "id": "121",
+    "text": "Fade Away Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "48.0"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3908809"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869794",
+   "text": "James Harden shooting foul",
+   "awayScore": 121,
+   "homeScore": 118,
+   "coordinate": {
+    "x": 38,
+    "y": 10
+   },
+   "type": {
+    "id": "44",
+    "text": "Shooting Foul"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "34.0"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869796",
+   "text": "Jonathan Kuminga makes free throw 1 of 2",
+   "awayScore": 122,
+   "homeScore": 118,
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "shootingPlay": true,
+   "pointsAttempted": 1,
+   "type": {
+    "id": "98",
+    "text": "Free Throw - 1 of 2"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "34.0"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4433247"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869798",
+   "text": "Jarrett Allen enters the game for Sam Merrill",
+   "awayScore": 122,
+   "homeScore": 118,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "34.0"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066328"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4066757"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869870",
+   "text": "Jonathan Kuminga misses free throw 2 of 2",
+   "awayScore": 122,
+   "homeScore": 123,
+   "shootingPlay": true,
+   "pointsAttempted": 1,
+   "type": {
+    "id": "99",
+    "text": "Free Throw - 2 of 2"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "34.0"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4433247"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869871",
+   "text": "Jonathan Kuminga offensive rebound",
+   "awayScore": 122,
+   "homeScore": 123,
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "34.0"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4433247"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869800",
+   "text": "Sam Merrill enters the game for Jarrett Allen",
+   "awayScore": 122,
+   "homeScore": 118,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "30.6"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066757"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4066328"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869873",
+   "text": "Timberwolves Full timeout",
+   "awayScore": 122,
+   "homeScore": 123,
+   "type": {
+    "id": "16",
+    "text": "Full Timeout"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "30.6"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   }
+  },
+  {
+   "id": "401909869801",
+   "text": "Ayo Dosunmu misses driving layup",
+   "awayScore": 122,
+   "homeScore": 118,
+   "shootingPlay": true,
+   "pointsAttempted": 2,
+   "coordinate": {
+    "x": 24,
+    "y": 3
+   },
+   "type": {
+    "id": "110",
+    "text": "Driving Layup Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "18.1"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4397002"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869802",
+   "text": "Peyton Watson defensive rebound",
+   "awayScore": 122,
+   "homeScore": 118,
+   "coordinate": {
+    "x": 24,
+    "y": 3
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "18.1"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869803",
+   "text": "LaMelo Ball personal foul",
+   "awayScore": 122,
+   "homeScore": 118,
+   "coordinate": {
+    "x": 34,
+    "y": 27
+   },
+   "type": {
+    "id": "45",
+    "text": "Personal Foul"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "14.3"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869805",
+   "text": "Cavaliers Full timeout",
+   "awayScore": 122,
+   "homeScore": 118,
+   "type": {
+    "id": "16",
+    "text": "Full Timeout"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "14.3"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   }
+  },
+  {
+   "id": "401909869807",
+   "text": "Terrence Shannon Jr. enters the game for Rudy Gobert",
+   "awayScore": 122,
+   "homeScore": 118,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "14.3"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432847"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869808",
+   "text": "Cavaliers Full timeout",
+   "awayScore": 122,
+   "homeScore": 118,
+   "type": {
+    "id": "16",
+    "text": "Full Timeout"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "14.3"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   }
+  },
+  {
+   "id": "401909869809",
+   "text": "Jonathan Kuminga personal foul",
+   "awayScore": 122,
+   "homeScore": 118,
+   "coordinate": {
+    "x": 2,
+    "y": 1
+   },
+   "type": {
+    "id": "45",
+    "text": "Personal Foul"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "13.0"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4433247"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869811",
+   "text": "James Harden makes free throw 1 of 2",
+   "awayScore": 122,
+   "homeScore": 119,
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "shootingPlay": true,
+   "pointsAttempted": 1,
+   "type": {
+    "id": "98",
+    "text": "Free Throw - 1 of 2"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "13.0"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869812",
+   "text": "James Harden makes free throw 2 of 2",
+   "awayScore": 122,
+   "homeScore": 120,
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "shootingPlay": true,
+   "pointsAttempted": 1,
+   "type": {
+    "id": "99",
+    "text": "Free Throw - 2 of 2"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "13.0"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3992"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869814",
+   "text": "Rudy Gobert enters the game for Terrence Shannon Jr.",
+   "awayScore": 122,
+   "homeScore": 120,
+   "type": {
+    "id": "584",
+    "text": "Substitution"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "13.0"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    },
+    {
+     "order": 2,
+     "athlete": {
+      "$ref": "/athletes/4432847"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869815",
+   "text": "Sam Merrill personal foul",
+   "awayScore": 122,
+   "homeScore": 120,
+   "coordinate": {
+    "x": 33,
+    "y": 38
+   },
+   "type": {
+    "id": "45",
+    "text": "Personal Foul"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "9.2"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4066757"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869818",
+   "text": "LaMelo Ball misses free throw 1 of 2",
+   "awayScore": 122,
+   "homeScore": 120,
+   "shootingPlay": true,
+   "pointsAttempted": 1,
+   "type": {
+    "id": "98",
+    "text": "Free Throw - 1 of 2"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "9.2"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869819",
+   "text": "LaMelo Ball misses free throw 2 of 2",
+   "awayScore": 122,
+   "homeScore": 120,
+   "shootingPlay": true,
+   "pointsAttempted": 1,
+   "type": {
+    "id": "99",
+    "text": "Free Throw - 2 of 2"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "9.2"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4432816"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869820",
+   "text": "Timberwolves offensive team rebound",
+   "awayScore": 122,
+   "homeScore": 120,
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "9.2"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   }
+  },
+  {
+   "id": "401909869821",
+   "text": "Jonathan Kuminga offensive rebound",
+   "awayScore": 122,
+   "homeScore": 120,
+   "type": {
+    "id": "156",
+    "text": "Offensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "9.2"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4433247"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869822",
+   "text": "Anthony Edwards misses 25-foot three point pullup jump shot",
+   "awayScore": 122,
+   "homeScore": 120,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 27,
+    "y": 25
+   },
+   "type": {
+    "id": "131",
+    "text": "Pullup Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3.9"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869823",
+   "text": "Peyton Watson defensive rebound",
+   "awayScore": 122,
+   "homeScore": 120,
+   "coordinate": {
+    "x": 27,
+    "y": 25
+   },
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3.9"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869824",
+   "text": "Rudy Gobert personal foul",
+   "awayScore": 122,
+   "homeScore": 120,
+   "coordinate": {
+    "x": 32,
+    "y": 3
+   },
+   "type": {
+    "id": "45",
+    "text": "Personal Foul"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3.9"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/3032976"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869829",
+   "text": "Peyton Watson makes free throw 1 of 2",
+   "awayScore": 122,
+   "homeScore": 123,
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "shootingPlay": true,
+   "pointsAttempted": 1,
+   "type": {
+    "id": "98",
+    "text": "Free Throw - 1 of 2"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3.9"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869830",
+   "text": "Peyton Watson makes free throw 2 of 2",
+   "awayScore": 122,
+   "homeScore": 124,
+   "scoringPlay": true,
+   "scoreValue": 1,
+   "shootingPlay": true,
+   "pointsAttempted": 1,
+   "type": {
+    "id": "99",
+    "text": "Free Throw - 2 of 2"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "3.9"
+   },
+   "team": {
+    "$ref": "/teams/5"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4576087"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869831",
+   "text": "Anthony Edwards makes 28-foot three pointer",
+   "awayScore": 125,
+   "homeScore": 124,
+   "scoringPlay": true,
+   "scoreValue": 3,
+   "shootingPlay": true,
+   "pointsAttempted": 3,
+   "coordinate": {
+    "x": 8,
+    "y": 23
+   },
+   "type": {
+    "id": "131",
+    "text": "Pullup Jump Shot"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "0.0"
+   },
+   "team": {
+    "$ref": "/teams/16"
+   },
+   "participants": [
+    {
+     "order": 1,
+     "athlete": {
+      "$ref": "/athletes/4594268"
+     }
+    }
+   ]
+  },
+  {
+   "id": "401909869832",
+   "text": "End of the 1st  Overtime",
+   "awayScore": 125,
+   "homeScore": 124,
+   "type": {
+    "id": "412",
+    "text": "End Period"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "0.0"
+   }
+  },
+  {
+   "id": "401909869833",
+   "text": "End of Game",
+   "awayScore": 125,
+   "homeScore": 124,
+   "type": {
+    "id": "402",
+    "text": "End Game"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "displayValue": "0.0"
+   }
+  }
+ ]
+}

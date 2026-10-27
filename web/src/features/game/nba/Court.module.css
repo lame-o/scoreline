@@ -1,0 +1,416 @@
+/* The shot chart (CourtView): the court fills the width up to 280pt tall, then centres with its scrubber and footer. */
+.court {
+  width: 100%;
+  margin: 0 auto;
+}
+
+.plot {
+  position: relative;
+  width: 100%;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+/* Shots picked out elsewhere: the rest step back (Viz.receded). */
+.layer[data-receded="true"] {
+  opacity: 0.55;
+}
+
+/* Pointing at the chart takes over from a shot's story (it keeps playing, unseen, so it plays once). */
+.layer[data-hidden="true"] {
+  opacity: 0;
+}
+
+/* The ball at the newest play: a panel-colored ring keeps it off the trail beneath. It glides from play to play (Motion.travel). */
+.ball {
+  position: absolute;
+  top: calc(-5 * var(--pt));
+  left: calc(-5 * var(--pt));
+  width: calc(10 * var(--pt));
+  height: calc(10 * var(--pt));
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--label) 0 calc(3.5 * var(--pt)), var(--page) calc(3.5 * var(--pt) + 0.5px));
+  pointer-events: none;
+  will-change: transform;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.ball[data-glide="true"] {
+  transition:
+    transform 400ms var(--ease-out),
+    opacity var(--dur-fade) var(--ease-out);
+}
+
+/*
+ * Who has the ball: an arrowhead at center court in their color, pointing at
+ * the basket they attack. A change sweeps it around center court (a steal
+ * snaps); after a shot it waits until the ball is through or off the rim.
+ */
+.chevron {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: auto;
+  transition:
+    opacity var(--dur-fade) var(--ease-out) var(--wait, 0ms),
+    color var(--dur-fade) var(--ease-out) var(--wait, 0ms);
+}
+
+.arm {
+  position: absolute;
+  top: calc(-8 * var(--pt));
+  left: calc(-15 * var(--pt));
+  width: calc(30 * var(--pt));
+  height: calc(16 * var(--pt));
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  rotate: var(--turn);
+  transition: rotate var(--sweep, 300ms) var(--ease-out) var(--wait, 0ms);
+}
+
+.arrow {
+  width: 0;
+  height: 0;
+  border-top: calc(3 * var(--pt)) solid transparent;
+  border-bottom: calc(3 * var(--pt)) solid transparent;
+  border-left: calc(5 * var(--pt)) solid currentColor;
+}
+
+/* Reduce Motion: no sweep, the arrow crossfades between the ends. */
+.chevron[data-reduce="true"] .arm {
+  rotate: none;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.chevron[data-reduce="true"] .arm[data-dir="bottom"] {
+  rotate: 180deg;
+}
+
+.chevron[data-reduce="true"][data-side="top"] .arm[data-dir="bottom"],
+.chevron[data-reduce="true"][data-side="bottom"] .arm[data-dir="top"] {
+  opacity: 0;
+}
+
+/* A steal's ping at center court (MomentPing). */
+.ping {
+  position: absolute;
+  top: calc(-7 * var(--pt));
+  left: calc(-7 * var(--pt));
+  width: calc(14 * var(--pt));
+  height: calc(14 * var(--pt));
+  pointer-events: none;
+}
+
+.ping::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) currentColor;
+  animation: ping 600ms var(--ease-out) both;
+}
+
+@keyframes ping {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+.empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  pointer-events: none;
+}
+
+/* MARK: The scrubber */
+
+.scrubber {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  padding-top: calc(8 * var(--pt));
+}
+
+.playButton {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(22 * var(--pt));
+  height: calc(22 * var(--pt));
+  border-radius: 50%;
+  color: var(--label);
+  transition:
+    background-color var(--dur-press) var(--ease-out),
+    scale var(--dur-press) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playButton:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.playButton:active {
+  background: var(--fill-press);
+  scale: 0.97;
+}
+
+.track {
+  --thumb: 1;
+  --end: 1;
+  container-type: inline-size;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: calc(22 * var(--pt));
+  cursor: pointer;
+  touch-action: none;
+  border-radius: calc(4 * var(--pt));
+}
+
+.track:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+
+.rail,
+.played,
+.fill {
+  position: absolute;
+  left: 0;
+  top: calc(50% - 1.5 * var(--pt));
+  width: 100%;
+  height: calc(3 * var(--pt));
+  border-radius: calc(1.5 * var(--pt));
+  transform-origin: left center;
+}
+
+.rail {
+  background: color-mix(in srgb, var(--label) 10%, transparent);
+}
+
+/* The game so far, and what's still to come in a live game. */
+.played {
+  background: color-mix(in srgb, var(--label) 16%, transparent);
+  transform: scaleX(var(--end));
+}
+
+.fill {
+  background: var(--viz-neutral);
+  transform: scaleX(var(--thumb));
+}
+
+/* Quarter ticks, crossing the track. */
+.tick {
+  position: absolute;
+  top: calc(50% - 4 * var(--pt));
+  left: 0;
+  width: 1px;
+  height: calc(8 * var(--pt));
+  background: var(--viz-reference);
+  transform: translateX(calc(var(--x) * 100cqw));
+}
+
+.thumb,
+.now {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.thumb {
+  width: calc(9 * var(--pt));
+  height: calc(9 * var(--pt));
+  margin: calc(-4.5 * var(--pt)) 0 0 calc(-4.5 * var(--pt));
+  background: var(--label);
+  transform: translateX(calc(var(--thumb) * 100cqw));
+}
+
+/* Live and not replaying: the red "now" dot is the thumb. */
+.track[data-live="true"][data-replaying="false"] .thumb {
+  opacity: 0;
+}
+
+.now {
+  width: calc(8 * var(--pt));
+  height: calc(8 * var(--pt));
+  margin: calc(-4 * var(--pt)) 0 0 calc(-4 * var(--pt));
+  background: var(--live);
+  transform: translateX(calc(var(--end) * 100cqw));
+}
+
+.track[data-replaying="true"] .now {
+  scale: 0.75;
+}
+
+.scrubScore {
+  flex: none;
+  min-width: calc(80 * var(--pt));
+  text-align: right;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--label-secondary);
+}
+
+.scrubScore[data-replaying="true"] {
+  color: var(--label);
+}
+
+/* MARK: Footer */
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.latest {
+  padding-top: calc(6 * var(--pt));
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.latest strong {
+  font-weight: 600;
+}
+
+.dot {
+  width: calc(7 * var(--pt));
+  height: calc(7 * var(--pt));
+  border-radius: 50%;
+}
+
+.ring {
+  width: calc(7 * var(--pt));
+  height: calc(7 * var(--pt));
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 calc(1.25 * var(--pt)) var(--viz-neutral);
+}
+
+.cross {
+  color: var(--viz-neutral);
+}
+
+.summary {
+  font-size: calc(10 * var(--pt));
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+/* The picked player: a quiet chip (name, flame, clear), then their line. Where room is short the first name goes, then the threes. */
+.pinned {
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  padding-top: calc(6 * var(--pt));
+  min-width: 0;
+}
+
+.chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  padding: calc(2 * var(--pt)) calc(3 * var(--pt)) calc(2 * var(--pt)) calc(7 * var(--pt));
+  border-radius: 999px;
+  background: var(--accent-fill);
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--accent) 25%, transparent);
+  font-size: var(--text-caption);
+  font-weight: 600;
+}
+
+.chipName {
+  white-space: nowrap;
+}
+
+.short,
+.lineBrief {
+  display: none;
+}
+
+.flame {
+  color: light-dark(#ff9500, #ff9f0a);
+}
+
+.clear {
+  display: grid;
+  place-items: center;
+  width: calc(12 * var(--pt));
+  height: calc(12 * var(--pt));
+  border-radius: 50%;
+  color: var(--label-secondary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .clear:hover {
+    background: var(--fill-hover);
+    color: var(--label);
+  }
+}
+
+.line {
+  min-width: 0;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@container (max-width: 22rem) {
+  .full {
+    display: none;
+  }
+  .short {
+    display: inline;
+  }
+}
+
+@container (max-width: 17rem) {
+  .lineFull {
+    display: none;
+  }
+  .lineBrief {
+    display: inline;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ball[data-glide="true"] {
+    transition: opacity var(--dur-fade) var(--ease-out);
+  }
+  .ping::after {
+    animation: none;
+    opacity: 0;
+  }
+}

@@ -53,7 +53,7 @@ export interface SportPage {
   readonly laneScores?: { readonly top: string; readonly bottom: string } | null;
   /** What the clock line says without a running clock (the inning, half-time). */
   readonly clockFallback?: string | null;
-  /** The live clock when the sport's lane reads it closer than the scoreboard (football's 5-second readings). */
+  /** The live clock when the sport's lane reads it closer than the scoreboard (football's and the NBA's 5-second readings). */
   readonly clock?: GameClock | null;
   /** Under the hero's clock ("MIL batting"). */
   readonly heroSecond?: string | null;
@@ -65,6 +65,14 @@ export interface SportPage {
   readonly dockDetail?: (tier: AccessoryTier) => ReactNode;
   /** One state chip on the bar (2-MIN DRILL, CLUTCH). */
   readonly chip?: string | null;
+  /** NBA: a shot in the air (the possession glyph dims, still the shooting team's). */
+  readonly possessionInAir?: boolean;
+  /** A state chip beside the hero's live clock (CLUTCH). */
+  readonly heroChip?: string | null;
+  /** A line under the hero's status, in any state: a two-legged tie's aggregate, a shootout ("Agg 3–2 · Pens 4–3"). */
+  readonly heroNote?: string | null;
+  /** What sits beside each team's name on the docked bar (the possession glyph, red cards), given its room. */
+  readonly dockSlot?: (side: Side, tier: AccessoryTier) => ReactNode;
 }
 
 export type UseSportPage = (game: GameContext) => SportPage;

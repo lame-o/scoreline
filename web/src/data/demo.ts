@@ -8,6 +8,7 @@
  * It never ships: main.tsx imports it only when `import.meta.env.DEV`.
  */
 import { setFetcherOverride, type Fetcher } from "./http";
+import { courtSoccerDemo, patchBoard, rememberOffsets, warm } from "./demoCourtSoccer";
 
 const files = import.meta.glob<{ default: unknown }>("../../test/fixtures/*.json");
 
@@ -375,6 +376,9 @@ function applyFootballReplay(e: Entry): void {
 const demo: Fetcher = async (url) => {
   const u = new URL(url);
   const path = u.pathname;
+  // The live NBA and soccer games (demoCourtSoccer.ts).
+  const replayed = await courtSoccerDemo(u);
+  if (replayed !== undefined) return replayed;
   if (u.host === "site.api.espn.com" && path.endsWith("/football/nfl/summary") && u.searchParams.get("event") === (await nflReplay()).id) {
     return footballSummary(await nflReplay());
   }
@@ -394,7 +398,11 @@ const demo: Fetcher = async (url) => {
   if (u.host === "site.api.espn.com" && path.endsWith("/scoreboard")) {
     if (!u.searchParams.has("dates")) polls.set(path, (polls.get(path) ?? -1) + 1);
     const live = (name: string, recorded: string) =>
-      Promise.all([fixture(name), fixture(recorded)]).then(([a, b]) => animate({ events: [...(a.events as []), ...(b.events as [])] }, path));
+      Promise.all([fixture(name), fixture(recorded)]).then(async ([a, b]) => {
+        const board = animate({ events: [...(a.events as []), ...(b.events as [])] }, path);
+        await patchBoard(board, path);
+        return board;
+      });
     if (path.includes("football/nfl")) {
       const replayed = await footballBoardEvent();
       return Promise.all([fixture("espn-nfl-live.synthetic.json"), fixture("espn-nfl-scoreboard.json")]).then(([a, b]) =>
@@ -450,9 +458,11 @@ export function installDemo(): boolean {
   if (asked) sessionStorage.setItem("scoreline.demo", "1");
   if (params.has("mlb")) sessionStorage.setItem("scoreline.demo.mlb", params.get("mlb") ?? "0");
   if (params.has("nfl")) sessionStorage.setItem("scoreline.demo.nfl", params.get("nfl") ?? "0");
+  rememberOffsets(params);
   if (!asked && sessionStorage.getItem("scoreline.demo") !== "1") return false;
   setFetcherOverride(demo);
   void mlbReplay();
   void nflReplay();
+  warm();
   return true;
 }
