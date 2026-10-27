@@ -135,7 +135,8 @@ function ESPNResults({ league }: { league: League }) {
   return (
     <section className={styles.section} aria-label="Results">
       <Header title="Results" link="All Results" linkTitle={league.source.kind === "espn" && league.source.weekly ? "Week by week" : "Round by round"} to={schedulePath(scope, "results")} caption={caption} />
-      {query.isPending ? <HubSkeleton /> : query.isError ? <Note>Couldn't load the results. Check your internet connection.</Note> : rows.length === 0 ? <Note>No results yet this season.</Note> : <DayRows items={rows} details={details} />}
+      {/* A round that didn't load (offline, ESPN down) isn't a season without results. */}
+      {query.isPending ? <HubSkeleton /> : query.isError || (page && !page.ok && rows.length === 0) ? <Note>Couldn't load the results. Check your internet connection.</Note> : rows.length === 0 ? <Note>No results yet this season.</Note> : <DayRows items={rows} details={details} />}
     </section>
   );
 }
