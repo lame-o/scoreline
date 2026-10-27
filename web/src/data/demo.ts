@@ -30,6 +30,10 @@ function animate(board: Board, path: string): Board {
   for (const e of board.events) {
     const status = e.status as { clock?: number; type: { state: string; shortDetail: string } };
     if (status.type.state !== "in") continue;
+    if (path.includes("football/nfl") && e.id === footballReplayID) {
+      applyFootballReplay(e);
+      continue;
+    }
     // Footballs and basketballs count down from the recorded reading; soccer counts up.
     if (path.includes("soccer")) {
       const minute = Math.min(67 + Math.floor(elapsed / 60), 90);
@@ -175,9 +179,195 @@ function applyReplay(e: Record<string, unknown>): void {
   comp.situation = { ...st.situation, onFirst: st.situation.onFirst != null, onSecond: st.situation.onSecond != null, onThird: st.situation.onThird != null };
 }
 
+// MARK: - NFL game page: a live replay (the recorded game's finish)
+//
+// The football page reads the summary, the scoreboard's situation, and the
+// core API's situation, status and plays. The harness serves the recorded
+// game (espn-nfl-core-plays.json, `pnpm fixtures football`) cut at a cursor
+// that moves one play every 5 s, from the start of the drive that set up the
+// last score: the recording has the Texans' tying drive in the 2-minute drill
+// (the red zone, a touchdown at 0:52), then overtime (a 42-yard run, the
+// Giants' walk-off touchdown), held there, still live. `?demo&nfl=<n>` starts
+// <n> plays in (for screenshots of a given beat).
+
+type Play = Entry & { id: string; period: { number: number }; clock: { value: number; displayValue: string }; end?: { down?: number; distance?: number; yardLine?: number; team?: { $ref?: string } } };
+
+interface FootballReplay {
+  summary: Entry;
+  plays: Play[];
+  id: string;
+  homeID: string;
+  awayID: string;
+  first: number;
+  cursor: number;
+  started: number | null;
+  end: number;
+}
+
+let footballReplay: FootballReplay | null = null;
+/** The replayed game's ESPN ID, once loaded (the scoreboard adds it, live). */
+let footballReplayID: string | null = null;
+
+const teamOf = (ref: unknown) => /\/teams\/(\d+)/.exec(String(ref ?? ""))?.[1] ?? null;
+const driveOf = (p: Play) => /\/drives\/(\d+)/.exec(String(get(p, "drive", "$ref") ?? ""))?.[1] ?? null;
+
+async function nflReplay(): Promise<FootballReplay> {
+  if (footballReplay) return footballReplay;
+  const [summary, core] = await Promise.all([fixture("espn-nfl-summary.json"), fixture("espn-nfl-core-plays.json")]);
+  const plays = (core.pages as { items: Play[] }[]).flatMap((p) => p.items);
+  const competitors = get(summary, "header", "competitions", 0, "competitors") as Entry[];
+  const teamID = (side: string) => String(get(competitors.find((c) => c.homeAway === side), "team", "id") ?? "");
+  // From the first snap of the drive that set up the game's last score.
+  const scores = plays.flatMap((p, i) => (p.scoringPlay === true ? [i] : []));
+  const setup = plays[scores.at(-2) ?? scores.at(-1) ?? 0];
+  const start = Math.max(setup ? plays.findIndex((p) => driveOf(p) === driveOf(setup)) : 0, 0);
+  const endOfGame = plays.findIndex((p) => get(p, "type", "text") === "End of Game");
+  const end = endOfGame < 0 ? plays.length : endOfGame;
+  const offset = Number(sessionStorage.getItem("scoreline.demo.nfl") ?? "0") || 0;
+  const first = Math.min(start + offset, end - 1);
+  footballReplay = { summary, plays, id: String(get(summary, "header", "id")), homeID: teamID("home"), awayID: teamID("away"), first, cursor: first + 1, started: null, end };
+  footballReplayID = footballReplay.id;
+  return footballReplay;
+}
+
+/** The cursor moves by the clock, not by request: one play every 5 s from the first look, however often the lane asks. */
+function advance(r: FootballReplay): void {
+  r.started ??= Date.now();
+  r.cursor = Math.min(r.first + 1 + Math.floor((Date.now() - r.started) / 5000), r.end);
+}
+
+const ORD = ["", "1st", "2nd", "3rd", "4th"];
+
+/** The game as of the cursor: score, clock, the ball and the timeouts left this half. */
+function footballState(r: FootballReplay) {
+  const served = r.plays.slice(0, r.cursor);
+  const last = served.at(-1)!;
+  const period = last.period.number;
+  const display = last.clock.displayValue;
+  const shortDetail = `${display} - ${period <= 4 ? ORD[period] : period === 5 ? "OT" : `${period - 4}OT`}`;
+  const home = Number(last.homeScore ?? 0);
+  const away = Number(last.awayScore ?? 0);
+  const possession = teamOf(get(last, "end", "team", "$ref")) ?? teamOf(get(last, "team", "$ref"));
+  const yardLine = Number(last.end?.yardLine ?? 50);
+  const down = Number(last.end?.down ?? 0);
+  const distance = Number(last.end?.distance ?? 10);
+  const homeBall = possession === r.homeID;
+  // Three a half (two in overtime), less those called ("Timeout #2 By Nyg At 01:00").
+  const half = period <= 2 ? [1, 2] : period <= 4 ? [3, 4] : [period];
+  const called = (abbreviation: string) =>
+    served.filter((p) => half.includes(p.period.number) && get(p, "type", "text") === "Timeout" && String(p.shortText ?? p.text ?? "").toLowerCase().includes(`by ${abbreviation.toLowerCase()}`)).length;
+  const abbreviation = (id: string) => String(get((get(r.summary, "header", "competitions", 0, "competitors") as Entry[]).find((c) => get(c, "team", "id") === id), "team", "abbreviation") ?? "");
+  const allowed = period >= 5 ? 2 : 3;
+  const spot = yardLine === 50 ? "50" : yardLine < 50 ? `${abbreviation(r.homeID)} ${yardLine}` : `${abbreviation(r.awayID)} ${100 - yardLine}`;
+  const goal = down >= 1 && (homeBall ? 100 - yardLine : yardLine) <= distance;
+  return {
+    served,
+    last,
+    period,
+    shortDetail,
+    home,
+    away,
+    situation: {
+      lastPlay: { $ref: `http://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/${r.id}/competitions/${r.id}/plays/${last.id}?lang=en`, text: String(last.shortText ?? last.text ?? "") },
+      down,
+      distance,
+      yardLine,
+      isRedZone: down >= 1 && (homeBall ? yardLine >= 80 : yardLine <= 20),
+      homeTimeouts: Math.max(allowed - called(abbreviation(r.homeID)), 0),
+      awayTimeouts: Math.max(allowed - called(abbreviation(r.awayID)), 0),
+      possession,
+      downDistanceText: down >= 1 && down <= 4 ? `${ORD[down]} & ${goal ? "Goal" : distance} at ${spot}` : undefined,
+    },
+  };
+}
+
+/** The recorded summary, cut at the cursor and live: the score by quarter, the scoring plays and win probability so far. */
+function footballSummary(r: FootballReplay): Entry {
+  const st = footballState(r);
+  const summary = structuredClone(r.summary);
+  const comp = get(summary, "header", "competitions", 0) as Entry;
+  comp.status = { clock: st.last.clock.value, displayClock: st.last.clock.displayValue, period: st.period, type: { state: "in", completed: false, shortDetail: st.shortDetail, detail: st.shortDetail, name: "STATUS_IN_PROGRESS" } };
+  // Points per quarter: the score at the end of each, less the one before.
+  const after = (period: number, side: "homeScore" | "awayScore") => Number(st.served.findLast((p) => p.period.number <= period)?.[side] ?? 0);
+  for (const c of comp.competitors as Entry[]) {
+    const side = c.homeAway === "home" ? "homeScore" : "awayScore";
+    c.score = String(side === "homeScore" ? st.home : st.away);
+    c.winner = false;
+    c.linescores = Array.from({ length: st.period }, (_, i) => ({ displayValue: String(after(i + 1, side) - after(i, side)) }));
+  }
+  const served = new Set(st.served.map((p) => p.id));
+  summary.scoringPlays = (summary.scoringPlays as Entry[]).filter((p) => served.has(String(p.id)));
+  summary.winprobability = (summary.winprobability as Entry[]).filter((w) => served.has(String(w.playId)));
+  return summary;
+}
+
+/** The core API: situation (advancing the cursor), status, plays. */
+async function footballCore(path: string, search: URLSearchParams): Promise<unknown> {
+  const r = await nflReplay();
+  advance(r);
+  const st = footballState(r);
+  if (path.endsWith("/situation")) {
+    const { lastPlay, down, distance, yardLine, isRedZone, homeTimeouts, awayTimeouts } = st.situation;
+    return { lastPlay: { $ref: lastPlay.$ref }, down, distance, yardLine, isRedZone, homeTimeouts, awayTimeouts };
+  }
+  if (path.endsWith("/status")) return { clock: st.last.clock.value, displayClock: st.last.clock.displayValue, period: st.period, type: { state: "in", completed: false, shortDetail: st.shortDetail } };
+  if (path.endsWith("/plays")) {
+    const limit = Number(search.get("limit") ?? 25);
+    const page = Number(search.get("page") ?? 1);
+    return { count: st.served.length, pageCount: Math.max(1, Math.ceil(st.served.length / limit)), items: st.served.slice((page - 1) * limit, page * limit) };
+  }
+  return {};
+}
+
+/** The replayed game as a scoreboard event, live (the scores list and the page's full load read it). */
+async function footballBoardEvent(): Promise<Entry> {
+  const r = await nflReplay();
+  const header = get(r.summary, "header") as Entry;
+  const comp = get(header, "competitions", 0) as Entry;
+  return {
+    id: r.id,
+    date: comp.date,
+    season: { slug: "regular-season", type: 2 },
+    status: { type: { state: "in" } },
+    competitions: [
+      {
+        competitors: (comp.competitors as Entry[]).map((c) => {
+          const team = c.team as Entry;
+          const logos = (team.logos as { href: string; rel: string[] }[] | undefined) ?? [];
+          return {
+            homeAway: c.homeAway,
+            score: "0",
+            records: c.record,
+            team: { ...team, shortDisplayName: team.name, logo: logos.find((l) => l.rel.includes("default"))?.href ?? logos[0]?.href },
+          };
+        }),
+        broadcasts: [{ market: "national", names: ["FOX"] }],
+        venue: { fullName: get(r.summary, "gameInfo", "venue", "fullName") },
+      },
+    ],
+    links: header.links,
+  };
+}
+
+/** The scoreboard's copy of the game follows the replay (score, clock, situation). */
+function applyFootballReplay(e: Entry): void {
+  if (!footballReplay) return;
+  const st = footballState(footballReplay);
+  e.status = { clock: st.last.clock.value, displayClock: st.last.clock.displayValue, period: st.period, type: { state: "in", completed: false, shortDetail: st.shortDetail, detail: st.shortDetail, name: "STATUS_IN_PROGRESS" } };
+  const comp = (e.competitions as Entry[])[0]!;
+  for (const c of comp.competitors as Entry[]) c.score = String(c.homeAway === "home" ? st.home : st.away);
+  comp.situation = st.situation;
+}
+
 const demo: Fetcher = async (url) => {
   const u = new URL(url);
   const path = u.pathname;
+  if (u.host === "site.api.espn.com" && path.endsWith("/football/nfl/summary") && u.searchParams.get("event") === (await nflReplay()).id) {
+    return footballSummary(await nflReplay());
+  }
+  if (u.host === "sports.core.api.espn.com" && path.includes(`/football/leagues/nfl/events/${(await nflReplay()).id}/`)) {
+    return footballCore(path, u.searchParams);
+  }
   if (u.host === "site.api.espn.com" && path.endsWith("/baseball/mlb/summary") && u.searchParams.get("event") === MLB_GAME) {
     return replaySummary(await mlbReplay());
   }
@@ -188,7 +378,12 @@ const demo: Fetcher = async (url) => {
     if (!u.searchParams.has("dates")) polls.set(path, (polls.get(path) ?? -1) + 1);
     const live = (name: string, recorded: string) =>
       Promise.all([fixture(name), fixture(recorded)]).then(([a, b]) => animate({ events: [...(a.events as []), ...(b.events as [])] }, path));
-    if (path.includes("football/nfl")) return live("espn-nfl-live.synthetic.json", "espn-nfl-scoreboard.json");
+    if (path.includes("football/nfl")) {
+      const replayed = await footballBoardEvent();
+      return Promise.all([fixture("espn-nfl-live.synthetic.json"), fixture("espn-nfl-scoreboard.json")]).then(([a, b]) =>
+        animate({ events: [replayed, ...(a.events as []), ...(b.events as [])] }, path),
+      );
+    }
     if (path.includes("baseball/mlb")) return live("espn-mlb-live.synthetic.json", "espn-mlb-scoreboard.json");
     if (path.includes("soccer/eng.1")) return live("espn-eng1-live.synthetic.json", "espn-eng1-scoreboard.json");
     if (path.includes("basketball/nba")) return live("espn-nba-live.synthetic.json", "espn-nba-scoreboard.json");
@@ -225,8 +420,10 @@ export function installDemo(): boolean {
   const asked = params.has("demo");
   if (asked) sessionStorage.setItem("scoreline.demo", "1");
   if (params.has("mlb")) sessionStorage.setItem("scoreline.demo.mlb", params.get("mlb") ?? "0");
+  if (params.has("nfl")) sessionStorage.setItem("scoreline.demo.nfl", params.get("nfl") ?? "0");
   if (!asked && sessionStorage.getItem("scoreline.demo") !== "1") return false;
   setFetcherOverride(demo);
   void mlbReplay();
+  void nflReplay();
   return true;
 }
