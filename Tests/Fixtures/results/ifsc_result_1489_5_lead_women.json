@@ -1,0 +1,2605 @@
+{
+ "event": "World Climbing Series Santiago 2026",
+ "dcat": "LEAD Women",
+ "status": "finished",
+ "status_as_of": "2026-10-25 22:05:22 UTC",
+ "ranking_as_of": "2026-10-25 22:01:35 UTC",
+ "cutoff_rank": null,
+ "category_rounds": [
+  {
+   "category_round_id": 10451,
+   "kind": "lead",
+   "name": "Qualification",
+   "category": "Women",
+   "schedule": null,
+   "status": "finished",
+   "status_as_of": "2026-10-23 16:26:26 UTC",
+   "result_url": "/api/v1/category_rounds/10451/results",
+   "starting_groups": [],
+   "combined_stages": [],
+   "round": {
+    "league_round_id": 1
+   },
+   "format_identifier": "lead_one_group_two_routes",
+   "format": "IFSC: 2 routes",
+   "routes": [
+    {
+     "id": 18065,
+     "name": "1",
+     "startlist": "/api/v1/routes/18065/startlist",
+     "ranking": "/api/v1/routes/18065/results"
+    },
+    {
+     "id": 18066,
+     "name": "2",
+     "startlist": "/api/v1/routes/18066/startlist",
+     "ranking": "/api/v1/routes/18066/results"
+    }
+   ]
+  },
+  {
+   "category_round_id": 11360,
+   "kind": "lead",
+   "name": "Semi-final",
+   "category": "Women",
+   "schedule": null,
+   "status": "finished",
+   "status_as_of": "2026-10-25 14:24:35 UTC",
+   "result_url": "/api/v1/category_rounds/11360/results",
+   "starting_groups": [],
+   "combined_stages": [],
+   "round": {
+    "league_round_id": 2
+   },
+   "format_identifier": "lead_one_group_one_route",
+   "format": "IFSC: 1 route",
+   "routes": [
+    {
+     "id": 21537,
+     "name": "1",
+     "startlist": "/api/v1/routes/21537/startlist",
+     "ranking": "/api/v1/routes/21537/results"
+    }
+   ]
+  },
+  {
+   "category_round_id": 11362,
+   "kind": "lead",
+   "name": "Final",
+   "category": "Women",
+   "schedule": null,
+   "status": "finished",
+   "status_as_of": "2026-10-25 22:02:58 UTC",
+   "result_url": "/api/v1/category_rounds/11362/results",
+   "starting_groups": [],
+   "combined_stages": [],
+   "round": {
+    "league_round_id": 3
+   },
+   "format_identifier": "lead_one_group_one_route",
+   "format": "IFSC: 1 route",
+   "routes": [
+    {
+     "id": 21539,
+     "name": "1",
+     "startlist": "/api/v1/routes/21539/startlist",
+     "ranking": "/api/v1/routes/21539/results"
+    }
+   ]
+  }
+ ],
+ "ranking": [
+  {
+   "athlete_id": 1147,
+   "squad_id": null,
+   "rank": 1,
+   "name": "GARNBRET Janja",
+   "bib_number": "6",
+   "firstname": "Janja",
+   "lastname": "GARNBRET",
+   "country": "SLO",
+   "organisation_id": 15,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 1,
+     "score": "1.0",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": true,
+       "plus": false,
+       "rank": 1,
+       "corrective_rank": 1,
+       "score": "TOP"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": true,
+       "plus": false,
+       "rank": 1,
+       "corrective_rank": 1,
+       "score": "TOP"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 1,
+     "score": "49+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "49+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 349000,
+       "modified": "2026-10-25 14:24:31 +00:00",
+       "status": "locked"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11362,
+     "round_name": "Final",
+     "rank": 1,
+     "score": "TOP",
+     "ascents": [
+      {
+       "route_id": 21539,
+       "route_name": "1",
+       "top": true,
+       "top_tries": null,
+       "score": "TOP",
+       "plus": false,
+       "restarted": false,
+       "time_ms": 260000,
+       "modified": "2026-10-25 22:02:54 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 928,
+   "squad_id": null,
+   "rank": 2,
+   "name": "ROGORA Laura",
+   "bib_number": "20",
+   "firstname": "Laura",
+   "lastname": "ROGORA",
+   "country": "ITA",
+   "organisation_id": 13,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 4,
+     "score": "4.33",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": false,
+       "rank": 2,
+       "corrective_rank": 2.5,
+       "score": "46"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 7,
+       "corrective_rank": 7.5,
+       "score": "34"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 3,
+     "score": "48",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "48",
+       "plus": false,
+       "restarted": false,
+       "time_ms": 361000,
+       "modified": "2026-10-25 14:24:26 +00:00",
+       "status": "locked"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11362,
+     "round_name": "Final",
+     "rank": 2,
+     "score": "48+",
+     "ascents": [
+      {
+       "route_id": 21539,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "48+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 340000,
+       "modified": "2026-10-25 22:02:53 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13329,
+   "squad_id": null,
+   "rank": 3,
+   "name": "REKAR Rosa",
+   "bib_number": "9",
+   "firstname": "Rosa",
+   "lastname": "REKAR",
+   "country": "SLO",
+   "organisation_id": 15,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 3,
+     "score": "4.24",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": false,
+       "rank": 5,
+       "corrective_rank": 6.0,
+       "score": "45"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 3,
+       "corrective_rank": 3,
+       "score": "40+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 2,
+     "score": "48",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "48",
+       "plus": false,
+       "restarted": false,
+       "time_ms": 315000,
+       "modified": "2026-10-25 14:24:28 +00:00",
+       "status": "locked"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11362,
+     "round_name": "Final",
+     "rank": 3,
+     "score": "46+",
+     "ascents": [
+      {
+       "route_id": 21539,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "46+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 239000,
+       "modified": "2026-10-25 22:01:21 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 1160,
+   "squad_id": null,
+   "rank": 4,
+   "name": "RAKOVEC Lucka",
+   "bib_number": "4",
+   "firstname": "Lucka",
+   "lastname": "RAKOVEC",
+   "country": "SLO",
+   "organisation_id": 15,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 5,
+     "score": "4.8",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 8,
+       "corrective_rank": 11.5,
+       "score": "44+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 2,
+       "corrective_rank": 2,
+       "score": "44+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 5,
+     "score": "41+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "41+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 223000,
+       "modified": "2026-10-25 14:24:24 +00:00",
+       "status": "locked"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11362,
+     "round_name": "Final",
+     "rank": 4,
+     "score": "46+",
+     "ascents": [
+      {
+       "route_id": 21539,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "46+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 230000,
+       "modified": "2026-10-25 22:02:51 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 11783,
+   "squad_id": null,
+   "rank": 5,
+   "name": "NAKAGAWA Ryu",
+   "bib_number": "1",
+   "firstname": "Ryu",
+   "lastname": "NAKAGAWA",
+   "country": "JPN",
+   "organisation_id": 25,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 8,
+     "score": "7.21",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 4,
+       "corrective_rank": 4,
+       "score": "45+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 13,
+       "corrective_rank": 13,
+       "score": "33"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 6,
+     "score": "38+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "38+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 187000,
+       "modified": "2026-10-25 14:24:20 +00:00",
+       "status": "locked"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11362,
+     "round_name": "Final",
+     "rank": 5,
+     "score": "46+",
+     "ascents": [
+      {
+       "route_id": 21539,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "46+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 226000,
+       "modified": "2026-10-25 22:02:50 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 328,
+   "squad_id": null,
+   "rank": 6,
+   "name": "DOUMONT Heloïse",
+   "bib_number": "2",
+   "firstname": "Heloïse",
+   "lastname": "DOUMONT",
+   "country": "BEL",
+   "organisation_id": 9,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 2,
+     "score": "3.71",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": false,
+       "rank": 2,
+       "corrective_rank": 2.5,
+       "score": "46"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 5,
+       "corrective_rank": 5.5,
+       "score": "35+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 4,
+     "score": "42",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "42",
+       "plus": false,
+       "restarted": false,
+       "time_ms": 234000,
+       "modified": "2026-10-25 14:24:29 +00:00",
+       "status": "locked"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11362,
+     "round_name": "Final",
+     "rank": 6,
+     "score": "44+",
+     "ascents": [
+      {
+       "route_id": 21539,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "44+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 258000,
+       "modified": "2026-10-25 22:02:52 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 1447,
+   "squad_id": null,
+   "rank": 7,
+   "name": "SIRUCKOVA Tereza",
+   "bib_number": "5",
+   "firstname": "Tereza",
+   "lastname": "SIRUCKOVA",
+   "country": "CZE",
+   "organisation_id": 17,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 15,
+     "score": "15.54",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 8,
+       "corrective_rank": 11.5,
+       "score": "44+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 20,
+       "corrective_rank": 21.0,
+       "score": "30"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 8,
+     "score": "37+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "37+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 321000,
+       "modified": "2026-10-25 13:31:55 +00:00",
+       "status": "locked"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11362,
+     "round_name": "Final",
+     "rank": 7,
+     "score": "38",
+     "ascents": [
+      {
+       "route_id": 21539,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "38",
+       "plus": false,
+       "restarted": false,
+       "time_ms": 277000,
+       "modified": "2026-10-25 22:02:48 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13022,
+   "squad_id": null,
+   "rank": 8,
+   "name": "FISHER Ella",
+   "bib_number": "3",
+   "firstname": "Ella",
+   "lastname": "FISHER",
+   "country": "USA",
+   "organisation_id": 20,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 12,
+     "score": "12.73",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": false,
+       "rank": 5,
+       "corrective_rank": 6.0,
+       "score": "45"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 27,
+       "corrective_rank": 27,
+       "score": "28"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 7,
+     "score": "38+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "38+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 242000,
+       "modified": "2026-10-25 13:32:02 +00:00",
+       "status": "locked"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11362,
+     "round_name": "Final",
+     "rank": 8,
+     "score": "37+",
+     "ascents": [
+      {
+       "route_id": 21539,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "37+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 246000,
+       "modified": "2026-10-25 22:02:49 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13994,
+   "squad_id": null,
+   "rank": 9,
+   "name": "ODA Natsumi",
+   "bib_number": "11",
+   "firstname": "Natsumi",
+   "lastname": "ODA",
+   "country": "JPN",
+   "organisation_id": 25,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 13,
+     "score": "13.36",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 17,
+       "corrective_rank": 17,
+       "score": "43+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 9,
+       "corrective_rank": 10.5,
+       "score": "33+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 9,
+     "score": "36+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "36+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 287000,
+       "modified": "2026-10-25 13:32:01 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 1438,
+   "squad_id": null,
+   "rank": 10,
+   "name": "SMETANOVA Michaela",
+   "bib_number": "8",
+   "firstname": "Michaela",
+   "lastname": "SMETANOVA",
+   "country": "CZE",
+   "organisation_id": 17,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 14,
+     "score": "15.0",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 26,
+       "corrective_rank": 30.0,
+       "score": "30+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 7,
+       "corrective_rank": 7.5,
+       "score": "34"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 10,
+     "score": "36+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "36+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 224000,
+       "modified": "2026-10-25 13:31:57 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13971,
+   "squad_id": null,
+   "rank": 11,
+   "name": "CASTRO Martina",
+   "bib_number": "23",
+   "firstname": "Martina",
+   "lastname": "CASTRO",
+   "country": "CHI",
+   "organisation_id": 58,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 24,
+     "score": "22.91",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 26,
+       "corrective_rank": 30.0,
+       "score": "30+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 17,
+       "corrective_rank": 17.5,
+       "score": "31+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 11,
+     "score": "35+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "35+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 292000,
+       "modified": "2026-10-25 13:31:42 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 12358,
+   "squad_id": null,
+   "rank": 12,
+   "name": "MARTÍNEZ ALMENDROS Iziar",
+   "bib_number": "14",
+   "firstname": "Iziar",
+   "lastname": "MARTÍNEZ ALMENDROS",
+   "country": "ESP",
+   "organisation_id": 12,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 9,
+     "score": "10.99",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 8,
+       "corrective_rank": 11.5,
+       "score": "44+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 9,
+       "corrective_rank": 10.5,
+       "score": "33+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 12,
+     "score": "34+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "34+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 205000,
+       "modified": "2026-10-25 14:24:19 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 1266,
+   "squad_id": null,
+   "rank": 13,
+   "name": "PÖTZI Mattea",
+   "bib_number": "18",
+   "firstname": "Mattea",
+   "lastname": "PÖTZI",
+   "country": "AUT",
+   "organisation_id": 16,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 15,
+     "score": "15.54",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 8,
+       "corrective_rank": 11.5,
+       "score": "44+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 20,
+       "corrective_rank": 21.0,
+       "score": "30"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 13,
+     "score": "34",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "34",
+       "plus": false,
+       "restarted": false,
+       "time_ms": 290000,
+       "modified": "2026-10-25 13:31:52 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13596,
+   "squad_id": null,
+   "rank": 14,
+   "name": "LUO Zhilu",
+   "bib_number": "19",
+   "firstname": "Zhilu",
+   "lastname": "LUO",
+   "country": "CHN",
+   "organisation_id": 37,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 9,
+     "score": "10.99",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 8,
+       "corrective_rank": 11.5,
+       "score": "44+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 9,
+       "corrective_rank": 10.5,
+       "score": "33+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 14,
+     "score": "33+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "33+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 186000,
+       "modified": "2026-10-25 13:32:04 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 12336,
+   "squad_id": null,
+   "rank": 15,
+   "name": "APEL Anna Maria",
+   "bib_number": "27",
+   "firstname": "Anna Maria",
+   "lastname": "APEL",
+   "country": "GER",
+   "organisation_id": 6,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 17,
+     "score": "16.0",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": false,
+       "rank": 16,
+       "corrective_rank": 16,
+       "score": "44"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 16,
+       "corrective_rank": 16,
+       "score": "32"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 15,
+     "score": "31",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "31",
+       "plus": false,
+       "restarted": false,
+       "time_ms": 0,
+       "modified": "2026-10-25 13:31:51 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 2294,
+   "squad_id": null,
+   "rank": 16,
+   "name": "NONAKA Miho",
+   "bib_number": "12",
+   "firstname": "Miho",
+   "lastname": "NONAKA",
+   "country": "JPN",
+   "organisation_id": 25,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 9,
+     "score": "10.99",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 8,
+       "corrective_rank": 11.5,
+       "score": "44+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 9,
+       "corrective_rank": 10.5,
+       "score": "33+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 16,
+     "score": "30",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "30",
+       "plus": false,
+       "restarted": false,
+       "time_ms": 182000,
+       "modified": "2026-10-25 13:32:06 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 2501,
+   "squad_id": null,
+   "rank": 17,
+   "name": "MACKENZIE Oceania",
+   "bib_number": "13",
+   "firstname": "Oceania",
+   "lastname": "MACKENZIE",
+   "country": "AUS",
+   "organisation_id": 28,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 7,
+     "score": "6.78",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 8,
+       "corrective_rank": 11.5,
+       "score": "44+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 4,
+       "corrective_rank": 4,
+       "score": "36+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 17,
+     "score": "29+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "29+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 191000,
+       "modified": "2026-10-25 14:24:22 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 739,
+   "squad_id": null,
+   "rank": 18,
+   "name": "PEETERMANS Zoe",
+   "bib_number": "16",
+   "firstname": "Zoe",
+   "lastname": "PEETERMANS",
+   "country": "GBR",
+   "organisation_id": 11,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 21,
+     "score": "17.99",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 18,
+       "corrective_rank": 18.5,
+       "score": "40+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 17,
+       "corrective_rank": 17.5,
+       "score": "31+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 18,
+     "score": "29+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "29+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 229000,
+       "modified": "2026-10-25 13:31:46 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 11784,
+   "squad_id": null,
+   "rank": 19,
+   "name": "KOIKE Hana",
+   "bib_number": "10",
+   "firstname": "Hana",
+   "lastname": "KOIKE",
+   "country": "JPN",
+   "organisation_id": 25,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 6,
+     "score": "5.74",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": false,
+       "rank": 5,
+       "corrective_rank": 6.0,
+       "score": "45"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 5,
+       "corrective_rank": 5.5,
+       "score": "35+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 19,
+     "score": "29",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "29",
+       "plus": false,
+       "restarted": false,
+       "time_ms": 282000,
+       "modified": "2026-10-25 14:24:23 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 3204,
+   "squad_id": null,
+   "rank": 20,
+   "name": "KÖHLER  Anja",
+   "bib_number": "15",
+   "firstname": "Anja",
+   "lastname": "KÖHLER ",
+   "country": "BRA",
+   "organisation_id": 40,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 23,
+     "score": "22.45",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 23,
+       "corrective_rank": 24.0,
+       "score": "36+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 20,
+       "corrective_rank": 21.0,
+       "score": "30"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 20,
+     "score": "28+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "28+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 188000,
+       "modified": "2026-10-25 13:31:43 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 1181,
+   "squad_id": null,
+   "rank": 21,
+   "name": "TARKUS Lucija",
+   "bib_number": "7",
+   "firstname": "Lucija",
+   "lastname": "TARKUS",
+   "country": "SLO",
+   "organisation_id": 15,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 18,
+     "score": "16.26",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 8,
+       "corrective_rank": 11.5,
+       "score": "44+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 23,
+       "corrective_rank": 23,
+       "score": "29"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 21,
+     "score": "28",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "28",
+       "plus": false,
+       "restarted": false,
+       "time_ms": 175000,
+       "modified": "2026-10-25 13:31:50 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 4320,
+   "squad_id": null,
+   "rank": 22,
+   "name": "WIENAND Roxana",
+   "bib_number": "28",
+   "firstname": "Roxana",
+   "lastname": "WIENAND",
+   "country": "GER",
+   "organisation_id": 6,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 20,
+     "score": "17.03",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": false,
+       "rank": 20,
+       "corrective_rank": 20,
+       "score": "40"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 14,
+       "corrective_rank": 14.5,
+       "score": "32+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 22,
+     "score": "25+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "25+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 130000,
+       "modified": "2026-10-25 13:31:47 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16301,
+   "squad_id": null,
+   "rank": 23,
+   "name": "KOBAYASHI Mai",
+   "bib_number": "25",
+   "firstname": "Mai",
+   "lastname": "KOBAYASHI",
+   "country": "JPN",
+   "organisation_id": 25,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 19,
+     "score": "16.38",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 18,
+       "corrective_rank": 18.5,
+       "score": "40+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 14,
+       "corrective_rank": 14.5,
+       "score": "32+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 23,
+     "score": "24+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "24+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 127000,
+       "modified": "2026-10-25 13:31:48 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 14060,
+   "squad_id": null,
+   "rank": 24,
+   "name": "Van Hoang Analise",
+   "bib_number": "21",
+   "firstname": "Analise",
+   "lastname": "VAN HOANG",
+   "country": "USA",
+   "organisation_id": 20,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 22,
+     "score": "20.45",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": false,
+       "rank": 22,
+       "corrective_rank": 22,
+       "score": "39"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 19,
+       "corrective_rank": 19,
+       "score": "30+"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "round_name": "Semi-final",
+     "rank": 24,
+     "score": "22+",
+     "ascents": [
+      {
+       "route_id": 21537,
+       "route_name": "1",
+       "top": false,
+       "top_tries": null,
+       "score": "22+",
+       "plus": true,
+       "restarted": false,
+       "time_ms": 153000,
+       "modified": "2026-10-25 13:31:45 +00:00",
+       "status": "locked"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 12605,
+   "squad_id": null,
+   "rank": 25,
+   "name": "MÜLLER Annika",
+   "bib_number": "24",
+   "firstname": "Annika",
+   "lastname": "MÜLLER",
+   "country": "GER",
+   "organisation_id": 6,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 25,
+     "score": "24.68",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 21,
+       "corrective_rank": 21,
+       "score": "39+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 29,
+       "corrective_rank": 29,
+       "score": "25+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13974,
+   "squad_id": null,
+   "rank": 26,
+   "name": "CABEZAS Matilde",
+   "bib_number": "22",
+   "firstname": "Matilde",
+   "lastname": "CABEZAS",
+   "country": "CHI",
+   "organisation_id": 58,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 26,
+     "score": "25.92",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 23,
+       "corrective_rank": 24.0,
+       "score": "36+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 28,
+       "corrective_rank": 28,
+       "score": "27+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 17275,
+   "squad_id": null,
+   "rank": 27,
+   "name": "Case Isabelle",
+   "bib_number": "47",
+   "firstname": "Isabelle",
+   "lastname": "CASE",
+   "country": "USA",
+   "organisation_id": 20,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 27,
+     "score": "27.39",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 26,
+       "corrective_rank": 30.0,
+       "score": "30+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 24,
+       "corrective_rank": 25.0,
+       "score": "28+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 12777,
+   "squad_id": null,
+   "rank": 27,
+   "name": "SCHWAIGER Ines",
+   "bib_number": "17",
+   "firstname": "Ines",
+   "lastname": "SCHWAIGER",
+   "country": "AUT",
+   "organisation_id": 16,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 27,
+     "score": "27.39",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 26,
+       "corrective_rank": 30.0,
+       "score": "30+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 24,
+       "corrective_rank": 25.0,
+       "score": "28+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 1824,
+   "squad_id": null,
+   "rank": 29,
+   "name": "Madere Maya",
+   "bib_number": "30",
+   "firstname": "Maya",
+   "lastname": "MADERE",
+   "country": "USA",
+   "organisation_id": 20,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 29,
+     "score": "28.14",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 23,
+       "corrective_rank": 24.0,
+       "score": "36+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 32,
+       "corrective_rank": 33.0,
+       "score": "22"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 1650,
+   "squad_id": null,
+   "rank": 30,
+   "name": "CHAPMAN Indiana",
+   "bib_number": "41",
+   "firstname": "Indiana",
+   "lastname": "CHAPMAN",
+   "country": "CAN",
+   "organisation_id": 19,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 30,
+     "score": "30.0",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 26,
+       "corrective_rank": 30.0,
+       "score": "30+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 30,
+       "corrective_rank": 30,
+       "score": "24"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16273,
+   "squad_id": null,
+   "rank": 31,
+   "name": "NORIEGA Sara",
+   "bib_number": "32",
+   "firstname": "Sara",
+   "lastname": "NORIEGA",
+   "country": "VEN",
+   "organisation_id": 42,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 31,
+     "score": "30.5",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 26,
+       "corrective_rank": 30.0,
+       "score": "30+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 31,
+       "corrective_rank": 31,
+       "score": "23+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13510,
+   "squad_id": null,
+   "rank": 32,
+   "name": "SCOTT Emily",
+   "bib_number": "40",
+   "firstname": "Emily",
+   "lastname": "SCOTT",
+   "country": "AUS",
+   "organisation_id": 28,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 32,
+     "score": "30.82",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 37,
+       "corrective_rank": 38.0,
+       "score": "21+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 24,
+       "corrective_rank": 25.0,
+       "score": "28+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 3161,
+   "squad_id": null,
+   "rank": 33,
+   "name": "AGUADO Valentina",
+   "bib_number": "29",
+   "firstname": "Valentina",
+   "lastname": "AGUADO",
+   "country": "ARG",
+   "organisation_id": 41,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 33,
+     "score": "31.46",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 26,
+       "corrective_rank": 30.0,
+       "score": "30+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 32,
+       "corrective_rank": 33.0,
+       "score": "22"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 3911,
+   "squad_id": null,
+   "rank": 33,
+   "name": "CONTRERAS Alejandra",
+   "bib_number": "26",
+   "firstname": "Alejandra",
+   "lastname": "CONTRERAS",
+   "country": "CHI",
+   "organisation_id": 58,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 33,
+     "score": "31.46",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 26,
+       "corrective_rank": 30.0,
+       "score": "30+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 32,
+       "corrective_rank": 33.0,
+       "score": "22"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13948,
+   "squad_id": null,
+   "rank": 35,
+   "name": "CHOW Sienna",
+   "bib_number": "33",
+   "firstname": "Sienna",
+   "lastname": "CHOW",
+   "country": "CAN",
+   "organisation_id": 19,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 35,
+     "score": "32.4",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 26,
+       "corrective_rank": 30.0,
+       "score": "30+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 35,
+       "corrective_rank": 35,
+       "score": "21"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 4224,
+   "squad_id": null,
+   "rank": 36,
+   "name": "SALAZAR PUGA Regina",
+   "bib_number": "37",
+   "firstname": "Regina",
+   "lastname": "SALAZAR PUGA",
+   "country": "MEX",
+   "organisation_id": 69,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 36,
+     "score": "36.47",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 35,
+       "corrective_rank": 35,
+       "score": "22+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 38,
+       "corrective_rank": 38,
+       "score": "16+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 4215,
+   "squad_id": null,
+   "rank": 37,
+   "name": "GONZÁLEZ RÁMIREZ María Fernanda",
+   "bib_number": "35",
+   "firstname": "María Fernanda",
+   "lastname": "GONZÁLEZ RÁMIREZ",
+   "country": "MEX",
+   "organisation_id": 69,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 37,
+     "score": "37.5",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 37,
+       "corrective_rank": 38.0,
+       "score": "21+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 37,
+       "corrective_rank": 37,
+       "score": "17"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 15317,
+   "squad_id": null,
+   "rank": 38,
+   "name": "HERRERA María Lujan",
+   "bib_number": "43",
+   "firstname": "María Lujan",
+   "lastname": "HERRERA",
+   "country": "ARG",
+   "organisation_id": 41,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 38,
+     "score": "38.18",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 40,
+       "corrective_rank": 40.5,
+       "score": "18+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 36,
+       "corrective_rank": 36,
+       "score": "17+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16587,
+   "squad_id": null,
+   "rank": 39,
+   "name": "MENDEZ Ana",
+   "bib_number": "36",
+   "firstname": "Ana",
+   "lastname": "MENDEZ",
+   "country": "GUA",
+   "organisation_id": 68,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 39,
+     "score": "38.99",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 37,
+       "corrective_rank": 38.0,
+       "score": "21+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 39,
+       "corrective_rank": 40.0,
+       "score": "14+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 14876,
+   "squad_id": null,
+   "rank": 40,
+   "name": "PINEDA Adriana",
+   "bib_number": "39",
+   "firstname": "Adriana",
+   "lastname": "PINEDA",
+   "country": "CHI",
+   "organisation_id": 58,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 40,
+     "score": "40.25",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": false,
+       "rank": 36,
+       "corrective_rank": 36,
+       "score": "22"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": false,
+       "rank": 45,
+       "corrective_rank": 45,
+       "score": "9"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 18262,
+   "squad_id": null,
+   "rank": 41,
+   "name": "BENNI Ignacia",
+   "bib_number": "46",
+   "firstname": "Ignacia",
+   "lastname": "BENNI",
+   "country": "CHI",
+   "organisation_id": 58,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 41,
+     "score": "41.23",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 42,
+       "corrective_rank": 42.5,
+       "score": "16+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 39,
+       "corrective_rank": 40.0,
+       "score": "14+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 18910,
+   "squad_id": null,
+   "rank": 41,
+   "name": "ENCINA Florencia",
+   "bib_number": "44",
+   "firstname": "Florencia",
+   "lastname": "ENCINA",
+   "country": "CHI",
+   "organisation_id": 58,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 41,
+     "score": "41.23",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 42,
+       "corrective_rank": 42.5,
+       "score": "16+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 39,
+       "corrective_rank": 40.0,
+       "score": "14+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 17519,
+   "squad_id": null,
+   "rank": 43,
+   "name": "PATINO Ana Maria",
+   "bib_number": "34",
+   "firstname": "Ana Maria",
+   "lastname": "PATINO",
+   "country": "COL",
+   "organisation_id": 70,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 43,
+     "score": "41.49",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 40,
+       "corrective_rank": 40.5,
+       "score": "18+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 42,
+       "corrective_rank": 42.5,
+       "score": "13+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 15279,
+   "squad_id": null,
+   "rank": 44,
+   "name": "RAMIREZ VILCHEZ Nicole Valeria",
+   "bib_number": "38",
+   "firstname": "Nicole Valeria",
+   "lastname": "RAMIREZ VILCHEZ",
+   "country": "PER",
+   "organisation_id": 74,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 44,
+     "score": "44.22",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 46,
+       "corrective_rank": 46,
+       "score": "12+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 42,
+       "corrective_rank": 42.5,
+       "score": "13+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 15277,
+   "squad_id": null,
+   "rank": 45,
+   "name": "GARRIDO CANTONI Zoe Camila",
+   "bib_number": "48",
+   "firstname": "Zoe Camila",
+   "lastname": "GARRIDO CANTONI",
+   "country": "PER",
+   "organisation_id": 74,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 45,
+     "score": "44.5",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": false,
+       "rank": 45,
+       "corrective_rank": 45,
+       "score": "13"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 44,
+       "corrective_rank": 44,
+       "score": "11+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 18914,
+   "squad_id": null,
+   "rank": 46,
+   "name": "LUONGO Silvina",
+   "bib_number": "31",
+   "firstname": "Silvina",
+   "lastname": "LUONGO",
+   "country": "URU",
+   "organisation_id": 118,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 46,
+     "score": "44.99",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 44,
+       "corrective_rank": 44,
+       "score": "13+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 46,
+       "corrective_rank": 46,
+       "score": "8+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 18926,
+   "squad_id": null,
+   "rank": 47,
+   "name": "TELLO Ana",
+   "bib_number": "42",
+   "firstname": "Ana",
+   "lastname": "TELLO",
+   "country": "GUA",
+   "organisation_id": 68,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 47,
+     "score": "47.25",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 47,
+       "corrective_rank": 47.5,
+       "score": "10+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 47,
+       "corrective_rank": 47,
+       "score": "7+"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 18913,
+   "squad_id": null,
+   "rank": 48,
+   "name": "MARTÍNEZ Sofía",
+   "bib_number": "45",
+   "firstname": "Sofía",
+   "lastname": "MARTÍNEZ",
+   "country": "URU",
+   "organisation_id": 118,
+   "rounds": [
+    {
+     "category_round_id": 10451,
+     "round_name": "Qualification",
+     "rank": 48,
+     "score": "47.75",
+     "ascents": [
+      {
+       "route_id": 18065,
+       "route_name": "1",
+       "top": false,
+       "plus": true,
+       "rank": 47,
+       "corrective_rank": 47.5,
+       "score": "10+"
+      },
+      {
+       "route_id": 18066,
+       "route_name": "2",
+       "top": false,
+       "plus": true,
+       "rank": 48,
+       "corrective_rank": 48,
+       "score": "6+"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

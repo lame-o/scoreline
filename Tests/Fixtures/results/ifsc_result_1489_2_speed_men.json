@@ -1,0 +1,3202 @@
+{
+ "event": "World Climbing Series Santiago 2026",
+ "dcat": "SPEED Men",
+ "status": "finished",
+ "status_as_of": "2026-10-24 22:05:13 UTC",
+ "ranking_as_of": "2026-10-24 21:59:46 UTC",
+ "cutoff_rank": null,
+ "category_rounds": [
+  {
+   "category_round_id": 10448,
+   "kind": "speed",
+   "name": "Qualification",
+   "category": "Men",
+   "schedule": null,
+   "status": "finished",
+   "status_as_of": "2026-10-23 21:25:32 UTC",
+   "result_url": "/api/v1/category_rounds/10448/results",
+   "starting_groups": [],
+   "combined_stages": [],
+   "round": {
+    "league_round_id": 1
+   },
+   "format_identifier": "speed_qualification_ifsc_2026",
+   "format": "IFSC 2026: Qualification",
+   "routes": [
+    {
+     "id": 18928,
+     "name": "A",
+     "startlist": "/api/v1/routes/18928/startlist"
+    },
+    {
+     "id": 18929,
+     "name": "B",
+     "startlist": "/api/v1/routes/18929/startlist"
+    }
+   ]
+  },
+  {
+   "category_round_id": 11355,
+   "kind": "speed",
+   "name": "Final",
+   "category": "Men",
+   "schedule": null,
+   "status": "finished",
+   "status_as_of": "2026-10-24 22:02:40 UTC",
+   "result_url": "/api/v1/category_rounds/11355/results",
+   "starting_groups": [],
+   "combined_stages": [],
+   "round": {
+    "league_round_id": 3
+   },
+   "format_identifier": "speed_elimination_ifsc_2026",
+   "format": "IFSC 2026+: Elimination",
+   "routes": [
+    {
+     "id": 21530,
+     "name": "A",
+     "startlist": "/api/v1/routes/21530/startlist"
+    },
+    {
+     "id": 21531,
+     "name": "B",
+     "startlist": "/api/v1/routes/21531/startlist"
+    }
+   ]
+  }
+ ],
+ "ranking": [
+  {
+   "athlete_id": 14973,
+   "squad_id": null,
+   "rank": 1,
+   "name": "ZHAO Yicheng",
+   "bib_number": "133",
+   "firstname": "Yicheng",
+   "lastname": "ZHAO",
+   "country": "CHN",
+   "organisation_id": 37,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 12,
+     "score": "5.09",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5098,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:52:25 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.09",
+       "time_score": "5.09"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 6226,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:32:26 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.22",
+       "time_score": "6.22"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 1,
+     "score": "4.74",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100442,
+       "ascent_summary": "5.00",
+       "score": "5.00",
+       "qualified": true,
+       "winner": true,
+       "time": 5001,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 5001,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:11:59 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "5.00",
+         "time_score": "5.00"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 1,
+       "name": "1/4",
+       "heat_id": 100447,
+       "ascent_summary": "4.81",
+       "score": "4.81",
+       "qualified": true,
+       "winner": true,
+       "time": 4814,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 4814,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:32:52 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.81",
+         "time_score": "4.81"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 2,
+       "name": "1/2",
+       "heat_id": 100450,
+       "ascent_summary": "4.79",
+       "score": "4.79",
+       "qualified": true,
+       "winner": true,
+       "time": 4796,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 4796,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:46:05 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.79",
+         "time_score": "4.79"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 4,
+       "name": "Final",
+       "heat_id": 100453,
+       "ascent_summary": "4.74",
+       "score": "4.74",
+       "qualified": true,
+       "winner": true,
+       "time": 4749,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 4749,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:59:44 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.74",
+         "time_score": "4.74"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13547,
+   "squad_id": null,
+   "rank": 2,
+   "name": "NURSAMSA Raharjati",
+   "bib_number": "131",
+   "firstname": "Raharjati",
+   "lastname": "NURSAMSA",
+   "country": "INA",
+   "organisation_id": 45,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 2,
+     "score": "4.93",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 4939,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:50:24 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "4.93",
+       "time_score": "4.93"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5579,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:31:04 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.57",
+       "time_score": "5.57"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 2,
+     "score": "5.06",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100439,
+       "ascent_summary": "4.87",
+       "score": "4.87",
+       "qualified": true,
+       "winner": true,
+       "time": 4874,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 4874,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:13:27 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.87",
+         "time_score": "4.87"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 1,
+       "name": "1/4",
+       "heat_id": 100448,
+       "ascent_summary": "4.85",
+       "score": "4.85",
+       "qualified": true,
+       "winner": true,
+       "time": 4850,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 4850,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:34:08 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.85",
+         "time_score": "4.85"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 2,
+       "name": "1/2",
+       "heat_id": 100451,
+       "ascent_summary": null,
+       "score": "WILDCARD",
+       "qualified": true,
+       "winner": true,
+       "time": 0,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 0,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:48:13 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": null,
+         "time_score": null
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 4,
+       "name": "Final",
+       "heat_id": 100453,
+       "ascent_summary": "5.06",
+       "score": "5.06",
+       "qualified": false,
+       "winner": false,
+       "time": 5060,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 5060,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:59:45 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "5.06",
+         "time_score": "5.06"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 11381,
+   "squad_id": null,
+   "rank": 3,
+   "name": "OMASA Ryo",
+   "bib_number": "139",
+   "firstname": "Ryo",
+   "lastname": "OMASA",
+   "country": "JPN",
+   "organisation_id": 25,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 16,
+     "score": "5.13",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5450,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:58:32 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.45",
+       "time_score": "5.45"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5138,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:36:01 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.13",
+       "time_score": "5.13"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 3,
+     "score": "4.94",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100438,
+       "ascent_summary": "5.09",
+       "score": "5.09",
+       "qualified": true,
+       "winner": true,
+       "time": 5090,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 5090,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:08:00 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "5.09",
+         "time_score": "5.09"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 1,
+       "name": "1/4",
+       "heat_id": 100446,
+       "ascent_summary": "4.90",
+       "score": "4.90",
+       "qualified": true,
+       "winner": true,
+       "time": 4900,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 4900,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:31:26 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.90",
+         "time_score": "4.90"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 2,
+       "name": "1/2",
+       "heat_id": 100450,
+       "ascent_summary": "4.92",
+       "score": "4.92",
+       "qualified": false,
+       "winner": false,
+       "time": 4922,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 4922,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:46:04 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.92",
+         "time_score": "4.92"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 3,
+       "name": "Small Final",
+       "heat_id": 100452,
+       "ascent_summary": "4.94",
+       "score": "4.94",
+       "qualified": true,
+       "winner": true,
+       "time": 4943,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 4943,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:55:51 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.94",
+         "time_score": "4.94"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 14963,
+   "squad_id": null,
+   "rank": 4,
+   "name": "CHU Shouhong",
+   "bib_number": "150",
+   "firstname": "Shouhong",
+   "lastname": "CHU",
+   "country": "CHN",
+   "organisation_id": 37,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 3,
+     "score": "4.95",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 4951,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:09:51 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "4.95",
+       "time_score": "4.95"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5064,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:43:41 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.06",
+       "time_score": "5.06"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 4,
+     "score": "4.96",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100440,
+       "ascent_summary": "5.04",
+       "score": "5.04",
+       "qualified": true,
+       "winner": true,
+       "time": 5043,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 5043,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:16:06 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "5.04",
+         "time_score": "5.04"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 1,
+       "name": "1/4",
+       "heat_id": 100449,
+       "ascent_summary": "4.96",
+       "score": "4.96",
+       "qualified": true,
+       "winner": true,
+       "time": 4964,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 4964,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:35:29 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.96",
+         "time_score": "4.96"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 2,
+       "name": "1/2",
+       "heat_id": 100451,
+       "ascent_summary": "FALSE START",
+       "score": "FALSE START",
+       "qualified": false,
+       "winner": false,
+       "time": 0,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 0,
+         "dnf": false,
+         "dns": true,
+         "modified": "2026-10-24 21:48:12 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "FALSE START",
+         "time_score": "FALSE START"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 3,
+       "name": "Small Final",
+       "heat_id": 100452,
+       "ascent_summary": "4.96",
+       "score": "4.96",
+       "qualified": false,
+       "winner": false,
+       "time": 4968,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 4968,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:55:53 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.96",
+         "time_score": "4.96"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13034,
+   "squad_id": null,
+   "rank": 5,
+   "name": "WATSON Samuel",
+   "bib_number": "146",
+   "firstname": "Samuel",
+   "lastname": "WATSON",
+   "country": "USA",
+   "organisation_id": 20,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 8,
+     "score": "5.03",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5037,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:05:43 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.03",
+       "time_score": "5.03"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5457,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:39:29 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.45",
+       "time_score": "5.45"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 5,
+     "score": "4.92",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100445,
+       "ascent_summary": "4.99",
+       "score": "4.99",
+       "qualified": true,
+       "winner": true,
+       "time": 4998,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 4998,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:09:19 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.99",
+         "time_score": "4.99"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 1,
+       "name": "1/4",
+       "heat_id": 100446,
+       "ascent_summary": "4.92",
+       "score": "4.92",
+       "qualified": false,
+       "winner": false,
+       "time": 4926,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 4926,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:31:27 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.92",
+         "time_score": "4.92"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 14087,
+   "squad_id": null,
+   "rank": 6,
+   "name": "TRI SYAHRIA Aditya",
+   "bib_number": "111",
+   "firstname": "Aditya",
+   "lastname": "TRI SYAHRIA",
+   "country": "INA",
+   "organisation_id": 45,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 4,
+     "score": "4.96",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 4964,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:34:19 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "4.96",
+       "time_score": "4.96"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5492,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:56:39 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.49",
+       "time_score": "5.49"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 6,
+     "score": "5.03 (4.96)",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100441,
+       "ascent_summary": "5.27",
+       "score": "5.27",
+       "qualified": true,
+       "winner": true,
+       "time": 5277,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 5277,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:10:45 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "5.27",
+         "time_score": "5.27"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 1,
+       "name": "1/4",
+       "heat_id": 100447,
+       "ascent_summary": "5.03",
+       "score": "5.03",
+       "qualified": false,
+       "winner": false,
+       "time": 5034,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 5034,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:32:51 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "5.03",
+         "time_score": "5.03"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 11964,
+   "squad_id": null,
+   "rank": 7,
+   "name": "LING Yongzhi",
+   "bib_number": "135",
+   "firstname": "Yongzhi",
+   "lastname": "LING",
+   "country": "CHN",
+   "organisation_id": 37,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 6,
+     "score": "4.99",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 7096,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:54:28 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "7.09",
+       "time_score": "7.09"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 4996,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:33:57 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "4.99",
+       "time_score": "4.99"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 7,
+     "score": "4.97",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100443,
+       "ascent_summary": "8.95",
+       "score": "8.95",
+       "qualified": true,
+       "winner": true,
+       "time": 8959,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 8959,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:17:37 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "8.95",
+         "time_score": "8.95"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 1,
+       "name": "1/4",
+       "heat_id": 100449,
+       "ascent_summary": "4.97",
+       "score": "4.97",
+       "qualified": false,
+       "winner": false,
+       "time": 4978,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 4978,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:35:30 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "4.97",
+         "time_score": "4.97"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 3115,
+   "squad_id": null,
+   "rank": 8,
+   "name": "CARMANNS Leander",
+   "bib_number": "152",
+   "firstname": "Leander",
+   "lastname": "CARMANNS",
+   "country": "GER",
+   "organisation_id": 6,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 7,
+     "score": "5.00",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5006,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:11:39 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.00",
+       "time_score": "5.00"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5383,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:45:27 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.38",
+       "time_score": "5.38"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 8,
+     "score": "5.14 (5.00)",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100444,
+       "ascent_summary": "5.11",
+       "score": "5.11",
+       "qualified": true,
+       "winner": true,
+       "time": 5115,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 5115,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:14:53 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "5.11",
+         "time_score": "5.11"
+        }
+       ],
+       "score_time": null
+      },
+      {
+       "id": 1,
+       "name": "1/4",
+       "heat_id": 100448,
+       "ascent_summary": "5.14",
+       "score": "5.14",
+       "qualified": false,
+       "winner": false,
+       "time": 5140,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 5140,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:34:09 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "5.14",
+         "time_score": "5.14"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16253,
+   "squad_id": null,
+   "rank": 9,
+   "name": "ROBBY AL HILMI Antasyafi",
+   "bib_number": "120",
+   "firstname": "Antasyafi",
+   "lastname": "ROBBY AL HILMI",
+   "country": "INA",
+   "organisation_id": 45,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 1,
+     "score": "4.92",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5004,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:39:26 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.00",
+       "time_score": "5.00"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 4927,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:05:46 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "4.92",
+       "time_score": "4.92"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 9,
+     "score": "5.20 (4.92)",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100438,
+       "ascent_summary": "5.20",
+       "score": "5.20",
+       "qualified": false,
+       "winner": false,
+       "time": 5204,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 5204,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:07:59 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "5.20",
+         "time_score": "5.20"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 14051,
+   "squad_id": null,
+   "rank": 10,
+   "name": "Hom Michael",
+   "bib_number": "126",
+   "firstname": "Michael",
+   "lastname": "HOM",
+   "country": "USA",
+   "organisation_id": 20,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 5,
+     "score": "4.97",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5345,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:45:24 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.34",
+       "time_score": "5.34"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 4971,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:11:42 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "4.97",
+       "time_score": "4.97"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 10,
+     "score": "7.12 (4.97)",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100442,
+       "ascent_summary": "7.12",
+       "score": "7.12",
+       "qualified": false,
+       "winner": false,
+       "time": 7125,
+       "ascents": [
+        {
+         "route_id": 21530,
+         "route_name": "A",
+         "time_ms": 7125,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:11:58 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "7.12",
+         "time_score": "7.12"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16188,
+   "squad_id": null,
+   "rank": 11,
+   "name": "MAI Taede",
+   "bib_number": "137",
+   "firstname": "Taede",
+   "lastname": "MAI",
+   "country": "USA",
+   "organisation_id": 20,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 9,
+     "score": "5.06",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5066,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:56:36 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.06",
+       "time_score": "5.06"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5269,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:34:22 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.26",
+       "time_score": "5.26"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 11,
+     "score": "5.148 (5.06)",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100445,
+       "ascent_summary": "5.14",
+       "score": "5.14",
+       "qualified": false,
+       "winner": false,
+       "time": 5148,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 5148,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:09:19 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "5.14",
+         "time_score": "5.14"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 3340,
+   "squad_id": null,
+   "rank": 12,
+   "name": "LEONARDO Veddriq",
+   "bib_number": "128",
+   "firstname": "Veddriq",
+   "lastname": "LEONARDO",
+   "country": "INA",
+   "organisation_id": 45,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 10,
+     "score": "5.07",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5141,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:47:18 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.14",
+       "time_score": "5.14"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5070,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:24:28 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.07",
+       "time_score": "5.07"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 12,
+     "score": "6.57 (5.07)",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100444,
+       "ascent_summary": "6.57",
+       "score": "6.57",
+       "qualified": false,
+       "winner": false,
+       "time": 6577,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 6577,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:14:54 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "6.57",
+         "time_score": "6.57"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13592,
+   "squad_id": null,
+   "rank": 13,
+   "name": "Hammer Zach",
+   "bib_number": "134",
+   "firstname": "Zach",
+   "lastname": "HAMMER",
+   "country": "USA",
+   "organisation_id": 20,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 11,
+     "score": "5.08",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5088,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:53:33 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.08",
+       "time_score": "5.08"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5095,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:32:39 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.09",
+       "time_score": "5.09"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 13,
+     "score": "FALL (5.08)",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100443,
+       "ascent_summary": "FALL",
+       "score": "FALL",
+       "qualified": false,
+       "winner": false,
+       "time": 11441,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 11441,
+         "dnf": true,
+         "dns": false,
+         "modified": "2026-10-24 21:18:38 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "FALL",
+         "time_score": "FALL"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 12317,
+   "squad_id": null,
+   "rank": 14,
+   "name": "YASUKAWA Jun",
+   "bib_number": "129",
+   "firstname": "Jun",
+   "lastname": "YASUKAWA",
+   "country": "JPN",
+   "organisation_id": 25,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 13,
+     "score": "5.113",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5113,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:48:27 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.113",
+       "time_score": "5.113"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": null,
+       "dnf": true,
+       "dns": false,
+       "modified": "2026-10-23 20:26:26 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "FALL",
+       "time_score": "FALL"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 14,
+     "score": "7.90 (5.11)",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100441,
+       "ascent_summary": "7.90",
+       "score": "7.90",
+       "qualified": false,
+       "winner": false,
+       "time": 7901,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 7901,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:10:46 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "7.90",
+         "time_score": "7.90"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 232,
+   "squad_id": null,
+   "rank": 15,
+   "name": "ZEMLIAKOV Ivan",
+   "bib_number": "124",
+   "firstname": "Ivan",
+   "lastname": "ZEMLIAKOV",
+   "country": "AIN",
+   "organisation_id": 120,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 14,
+     "score": "5.116",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5116,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:43:38 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.116",
+       "time_score": "5.116"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": null,
+       "dnf": true,
+       "dns": false,
+       "modified": "2026-10-23 21:09:55 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "FALL",
+       "time_score": "FALL"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 15,
+     "score": "5.94 (5.11)",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100440,
+       "ascent_summary": "5.94",
+       "score": "5.94",
+       "qualified": false,
+       "winner": false,
+       "time": 5942,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 5942,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:16:07 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "5.94",
+         "time_score": "5.94"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 1027,
+   "squad_id": null,
+   "rank": 16,
+   "name": "ZURLONI Matteo",
+   "bib_number": "127",
+   "firstname": "Matteo",
+   "lastname": "ZURLONI",
+   "country": "ITA",
+   "organisation_id": 13,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 15,
+     "score": "5.12",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5120,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:46:24 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.12",
+       "time_score": "5.12"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5349,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:24:29 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.34",
+       "time_score": "5.34"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "round_name": "Final",
+     "rank": 16,
+     "score": "5.43 (5.12)",
+     "speed_elimination_stages": [
+      {
+       "id": 0,
+       "name": "1/8",
+       "heat_id": 100439,
+       "ascent_summary": "5.43",
+       "score": "5.43",
+       "qualified": false,
+       "winner": false,
+       "time": 5433,
+       "ascents": [
+        {
+         "route_id": 21531,
+         "route_name": "B",
+         "time_ms": 5433,
+         "dnf": false,
+         "dns": false,
+         "modified": "2026-10-24 21:13:28 +00:00",
+         "status": "locked",
+         "formatted_ascent_score": "5.43",
+         "time_score": "5.43"
+        }
+       ],
+       "score_time": null
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 11395,
+   "squad_id": null,
+   "rank": 17,
+   "name": "LONG Jianguo",
+   "bib_number": "143",
+   "firstname": "Jianguo",
+   "lastname": "LONG",
+   "country": "CHN",
+   "organisation_id": 37,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 17,
+     "score": "5.14",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5160,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:02:43 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.16",
+       "time_score": "5.16"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5144,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:37:02 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.14",
+       "time_score": "5.14"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13915,
+   "squad_id": null,
+   "rank": 18,
+   "name": "DAVID Julian",
+   "bib_number": "101",
+   "firstname": "Julian",
+   "lastname": "DAVID",
+   "country": "NZL",
+   "organisation_id": 53,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 18,
+     "score": "5.20",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5203,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:21:01 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.20",
+       "time_score": "5.20"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5814,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:46:27 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.81",
+       "time_score": "5.81"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13350,
+   "squad_id": null,
+   "rank": 19,
+   "name": "PONZINIBIO Francesco",
+   "bib_number": "116",
+   "firstname": "Francesco",
+   "lastname": "PONZINIBIO",
+   "country": "ITA",
+   "organisation_id": 13,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 19,
+     "score": "5.25",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5250,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:36:47 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.25",
+       "time_score": "5.25"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 9399,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:01:40 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "9.39",
+       "time_score": "9.39"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 11893,
+   "squad_id": null,
+   "rank": 20,
+   "name": "PITCHER Ethan",
+   "bib_number": "102",
+   "firstname": "Ethan",
+   "lastname": "PITCHER",
+   "country": "CAN",
+   "organisation_id": 19,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 20,
+     "score": "5.27",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5303,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:24:26 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.30",
+       "time_score": "5.30"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5271,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:47:21 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.27",
+       "time_score": "5.27"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 865,
+   "squad_id": null,
+   "rank": 21,
+   "name": "FOSSALI Ludovico",
+   "bib_number": "109",
+   "firstname": "Ludovico",
+   "lastname": "FOSSALI",
+   "country": "ITA",
+   "organisation_id": 13,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 21,
+     "score": "5.29",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5299,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:33:54 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.29",
+       "time_score": "5.29"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5310,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:54:30 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.31",
+       "time_score": "5.31"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 14497,
+   "squad_id": null,
+   "rank": 22,
+   "name": "GÓMEZ BARRIOS Miguel",
+   "bib_number": "115",
+   "firstname": "Miguel",
+   "lastname": "GÓMEZ BARRIOS",
+   "country": "ESP",
+   "organisation_id": 12,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 22,
+     "score": "5.32",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5556,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:36:23 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.55",
+       "time_score": "5.55"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5327,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:00:30 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.32",
+       "time_score": "5.32"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 2845,
+   "squad_id": null,
+   "rank": 23,
+   "name": "DZIENSKI Marcin",
+   "bib_number": "118",
+   "firstname": "Marcin",
+   "lastname": "DZIENSKI",
+   "country": "POL",
+   "organisation_id": 36,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 23,
+     "score": "5.41",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5550,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:37:40 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.55",
+       "time_score": "5.55"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5416,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:03:38 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.41",
+       "time_score": "5.41"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16519,
+   "squad_id": null,
+   "rank": 24,
+   "name": "ONISHI Tsukika",
+   "bib_number": "121",
+   "firstname": "Tsukika",
+   "lastname": "ONISHI",
+   "country": "JPN",
+   "organisation_id": 25,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 24,
+     "score": "5.44",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5496,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:40:29 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.49",
+       "time_score": "5.49"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5447,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:06:49 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.44",
+       "time_score": "5.44"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13703,
+   "squad_id": null,
+   "rank": 25,
+   "name": "AMON Kevin",
+   "bib_number": "130",
+   "firstname": "Kevin",
+   "lastname": "AMON",
+   "country": "AUT",
+   "organisation_id": 16,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 25,
+     "score": "5.47",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5479,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:49:25 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.47",
+       "time_score": "5.47"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": null,
+       "dnf": true,
+       "dns": false,
+       "modified": "2026-10-23 20:30:34 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "FALL",
+       "time_score": "FALL"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 11701,
+   "squad_id": null,
+   "rank": 26,
+   "name": "NOYA CARDONA Erik",
+   "bib_number": "113",
+   "firstname": "Erik",
+   "lastname": "NOYA CARDONA",
+   "country": "ESP",
+   "organisation_id": 12,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 26,
+     "score": "5.49",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": null,
+       "dnf": true,
+       "dns": false,
+       "modified": "2026-10-23 20:35:58 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "FALL",
+       "time_score": "FALL"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5490,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:58:34 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.49",
+       "time_score": "5.49"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13353,
+   "squad_id": null,
+   "rank": 27,
+   "name": "ROBBIATI Luca",
+   "bib_number": "140",
+   "firstname": "Luca",
+   "lastname": "ROBBIATI",
+   "country": "ITA",
+   "organisation_id": 13,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 27,
+     "score": "5.59",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5593,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:59:31 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.59",
+       "time_score": "5.59"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": null,
+       "dnf": true,
+       "dns": false,
+       "modified": "2026-10-23 20:36:13 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "FALL",
+       "time_score": "FALL"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16281,
+   "squad_id": null,
+   "rank": 28,
+   "name": "SAITO Sota",
+   "bib_number": "112",
+   "firstname": "Sota",
+   "lastname": "SAITO",
+   "country": "JPN",
+   "organisation_id": 25,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 28,
+     "score": "5.71",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5711,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:35:33 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.71",
+       "time_score": "5.71"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5722,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:57:43 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.72",
+       "time_score": "5.72"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13851,
+   "squad_id": null,
+   "rank": 29,
+   "name": "BARTON Hayden",
+   "bib_number": "117",
+   "firstname": "Hayden",
+   "lastname": "BARTON",
+   "country": "AUS",
+   "organisation_id": 28,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 29,
+     "score": "5.74",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5754,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:36:59 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.75",
+       "time_score": "5.75"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5745,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:02:46 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.74",
+       "time_score": "5.74"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13653,
+   "squad_id": null,
+   "rank": 30,
+   "name": "ZEDLER Andrin",
+   "bib_number": "125",
+   "firstname": "Andrin",
+   "lastname": "ZEDLER",
+   "country": "GER",
+   "organisation_id": 6,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 30,
+     "score": "5.78",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5783,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:44:32 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.78",
+       "time_score": "5.78"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 6651,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:10:53 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.65",
+       "time_score": "6.65"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 11881,
+   "squad_id": null,
+   "rank": 31,
+   "name": "EGG Pedro",
+   "bib_number": "136",
+   "firstname": "Pedro",
+   "lastname": "EGG",
+   "country": "BRA",
+   "organisation_id": 40,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 31,
+     "score": "5.82",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 6075,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:55:29 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.07",
+       "time_score": "6.07"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5824,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:12:47 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.82",
+       "time_score": "5.82"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 3182,
+   "squad_id": null,
+   "rank": 32,
+   "name": "PEREZ Gustavo Jose",
+   "bib_number": "107",
+   "firstname": "Gustavo Jose",
+   "lastname": "PEREZ",
+   "country": "VEN",
+   "organisation_id": 42,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 32,
+     "score": "5.90",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 6602,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:32:23 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.60",
+       "time_score": "6.60"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 5902,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:52:28 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.90",
+       "time_score": "5.90"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 13888,
+   "squad_id": null,
+   "rank": 33,
+   "name": "ALENCASTER Andrés",
+   "bib_number": "147",
+   "firstname": "Andrés",
+   "lastname": "ALENCASTER",
+   "country": "MEX",
+   "organisation_id": 69,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 33,
+     "score": "5.99",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 5993,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:06:47 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "5.99",
+       "time_score": "5.99"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 6192,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:40:32 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.19",
+       "time_score": "6.19"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 18919,
+   "squad_id": null,
+   "rank": 34,
+   "name": "TRAN Simon",
+   "bib_number": "141",
+   "firstname": "Simon",
+   "lastname": "TRAN",
+   "country": "CAN",
+   "organisation_id": 19,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 34,
+     "score": "6.05",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 7774,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:00:27 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "7.77",
+       "time_score": "7.77"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 6057,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:36:25 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.05",
+       "time_score": "6.05"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 11602,
+   "squad_id": null,
+   "rank": 35,
+   "name": "LUCKE Sebastian",
+   "bib_number": "123",
+   "firstname": "Sebastian",
+   "lastname": "LUCKE",
+   "country": "GER",
+   "organisation_id": 6,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 35,
+     "score": "6.15",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 7307,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:42:29 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "7.30",
+       "time_score": "7.30"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 6153,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:08:51 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.15",
+       "time_score": "6.15"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 18191,
+   "squad_id": null,
+   "rank": 36,
+   "name": "ZEMLIAKOV Petr",
+   "bib_number": "132",
+   "firstname": "Petr",
+   "lastname": "ZEMLIAKOV",
+   "country": "AIN",
+   "organisation_id": 120,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 36,
+     "score": "6.25",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": null,
+       "dnf": true,
+       "dns": false,
+       "modified": "2026-10-23 20:51:28 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "FALL",
+       "time_score": "FALL"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 6250,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:32:11 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.25",
+       "time_score": "6.25"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16438,
+   "squad_id": null,
+   "rank": 37,
+   "name": "LUNA MANRIQUE Piero David",
+   "bib_number": "106",
+   "firstname": "Piero David",
+   "lastname": "LUNA MANRIQUE",
+   "country": "ECU",
+   "organisation_id": 44,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 37,
+     "score": "6.49",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 6620,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:32:08 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.62",
+       "time_score": "6.62"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 6493,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:51:31 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.49",
+       "time_score": "6.49"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16425,
+   "squad_id": null,
+   "rank": 38,
+   "name": "WONG Kwing Fai",
+   "bib_number": "108",
+   "firstname": "Kwing Fai",
+   "lastname": "WONG",
+   "country": "HKG",
+   "organisation_id": 24,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 38,
+     "score": "6.53",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 6534,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:32:36 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.53",
+       "time_score": "6.53"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 9430,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:53:36 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "9.43",
+       "time_score": "9.43"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 17258,
+   "squad_id": null,
+   "rank": 39,
+   "name": "VURAL Süleyman",
+   "bib_number": "122",
+   "firstname": "Süleyman",
+   "lastname": "VURAL",
+   "country": "TUR",
+   "organisation_id": 62,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 39,
+     "score": "6.58",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 6774,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:41:34 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.77",
+       "time_score": "6.77"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 6580,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:07:49 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.58",
+       "time_score": "6.58"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 12783,
+   "squad_id": null,
+   "rank": 40,
+   "name": "WINDISCHER Lukas",
+   "bib_number": "104",
+   "firstname": "Lukas",
+   "lastname": "WINDISCHER",
+   "country": "AUT",
+   "organisation_id": 16,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 40,
+     "score": "6.66",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 7543,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:30:32 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "7.54",
+       "time_score": "7.54"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 6663,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:49:28 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.66",
+       "time_score": "6.66"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 3169,
+   "squad_id": null,
+   "rank": 41,
+   "name": "STERNIK Valentin",
+   "bib_number": "142",
+   "firstname": "Valentin",
+   "lastname": "STERNIK",
+   "country": "ARG",
+   "organisation_id": 41,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 41,
+     "score": "6.68",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 6685,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:01:37 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.68",
+       "time_score": "6.68"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 7033,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:36:50 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "7.03",
+       "time_score": "7.03"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 4238,
+   "squad_id": null,
+   "rank": 42,
+   "name": "SANCHEZ MARTIN Juan Sebastian",
+   "bib_number": "114",
+   "firstname": "Juan Sebastian",
+   "lastname": "SANCHEZ MARTIN",
+   "country": "COL",
+   "organisation_id": 70,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 42,
+     "score": "6.81",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 8579,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:36:10 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "8.57",
+       "time_score": "8.57"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 6811,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:59:35 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.81",
+       "time_score": "6.81"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 2218,
+   "squad_id": null,
+   "rank": 43,
+   "name": "CHAN Cheung-Chi Shoji",
+   "bib_number": "105",
+   "firstname": "Cheung-Chi Shoji",
+   "lastname": "CHAN",
+   "country": "HKG",
+   "organisation_id": 24,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 43,
+     "score": "6.92",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 7471,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:31:02 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "7.47",
+       "time_score": "7.47"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 6923,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:50:27 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "6.92",
+       "time_score": "6.92"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16501,
+   "squad_id": null,
+   "rank": 44,
+   "name": "EGG Caio Felipe",
+   "bib_number": "144",
+   "firstname": "Caio Felipe",
+   "lastname": "EGG",
+   "country": "BRA",
+   "organisation_id": 40,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 44,
+     "score": "7.12",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 8239,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:03:34 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "8.23",
+       "time_score": "8.23"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 7121,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:37:42 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "7.12",
+       "time_score": "7.12"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 1798,
+   "squad_id": null,
+   "rank": 45,
+   "name": "Bratschi Noah",
+   "bib_number": "148",
+   "firstname": "Noah",
+   "lastname": "BRATSCHI",
+   "country": "USA",
+   "organisation_id": 20,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 45,
+     "score": "7.98",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 7988,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:07:46 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "7.98",
+       "time_score": "7.98"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 8422,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:41:37 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "8.42",
+       "time_score": "8.42"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16458,
+   "squad_id": null,
+   "rank": 46,
+   "name": "GRANJA Daniel",
+   "bib_number": "119",
+   "firstname": "Daniel",
+   "lastname": "GRANJA",
+   "country": "ECU",
+   "organisation_id": 44,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 46,
+     "score": "8.09",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 8099,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:38:31 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "8.09",
+       "time_score": "8.09"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": null,
+       "dnf": true,
+       "dns": false,
+       "modified": "2026-10-23 21:07:09 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "FALL",
+       "time_score": "FALL"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16105,
+   "squad_id": null,
+   "rank": 47,
+   "name": "FLORES Salvador",
+   "bib_number": "151",
+   "firstname": "Salvador",
+   "lastname": "FLORES",
+   "country": "CHI",
+   "organisation_id": 58,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 47,
+     "score": "8.26",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 8264,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:10:51 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "8.26",
+       "time_score": "8.26"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": null,
+       "dnf": true,
+       "dns": false,
+       "modified": "2026-10-23 20:44:35 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "FALL",
+       "time_score": "FALL"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 18815,
+   "squad_id": null,
+   "rank": 48,
+   "name": "PAREDES Gastón",
+   "bib_number": "149",
+   "firstname": "Gastón",
+   "lastname": "PAREDES",
+   "country": "CHI",
+   "organisation_id": 58,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 48,
+     "score": "8.32",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 13139,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:08:49 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "13.13",
+       "time_score": "13.13"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 8326,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:42:32 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "8.32",
+       "time_score": "8.32"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 14879,
+   "squad_id": null,
+   "rank": 49,
+   "name": "ANDRADE Cristobal",
+   "bib_number": "103",
+   "firstname": "Cristobal",
+   "lastname": "ANDRADE",
+   "country": "CHI",
+   "organisation_id": 58,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 49,
+     "score": "8.40",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 8408,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:26:28 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "8.40",
+       "time_score": "8.40"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 11279,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:48:30 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "11.27",
+       "time_score": "11.27"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 18905,
+   "squad_id": null,
+   "rank": 50,
+   "name": "SIERRA MENDOZA Guillermo",
+   "bib_number": "145",
+   "firstname": "Guillermo",
+   "lastname": "SIERRA MENDOZA",
+   "country": "MEX",
+   "organisation_id": 69,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 50,
+     "score": "8.75",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 8753,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:04:47 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "8.75",
+       "time_score": "8.75"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 8922,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:38:34 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "8.92",
+       "time_score": "8.92"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 14987,
+   "squad_id": null,
+   "rank": 51,
+   "name": "JOHNSTON Ned",
+   "bib_number": "110",
+   "firstname": "Ned",
+   "lastname": "JOHNSTON",
+   "country": "NZL",
+   "organisation_id": 53,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 51,
+     "score": "9.76",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": 11246,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 21:12:44 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "11.24",
+       "time_score": "11.24"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 9760,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:55:32 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "9.76",
+       "time_score": "9.76"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "athlete_id": 16512,
+   "squad_id": null,
+   "rank": 52,
+   "name": "GOMEZ GUTIERREZ Juan Manuel",
+   "bib_number": "138",
+   "firstname": "Juan Manuel",
+   "lastname": "GOMEZ GUTIERREZ",
+   "country": "ARG",
+   "organisation_id": 41,
+   "rounds": [
+    {
+     "category_round_id": 10448,
+     "round_name": "Qualification",
+     "rank": 52,
+     "score": "10.54",
+     "ascents": [
+      {
+       "route_id": 18928,
+       "route_name": "A",
+       "time_ms": null,
+       "dnf": true,
+       "dns": false,
+       "modified": "2026-10-23 20:57:40 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "FALL",
+       "time_score": "FALL"
+      },
+      {
+       "route_id": 18929,
+       "route_name": "B",
+       "time_ms": 10543,
+       "dnf": false,
+       "dns": false,
+       "modified": "2026-10-23 20:35:35 +00:00",
+       "status": "locked",
+       "formatted_ascent_score": "10.54",
+       "time_score": "10.54"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

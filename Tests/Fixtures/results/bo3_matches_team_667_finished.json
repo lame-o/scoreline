@@ -1,0 +1,994 @@
+{
+ "total": {
+  "count": 469,
+  "pages": 24,
+  "offset": 0,
+  "limit": 20
+ },
+ "results": [
+  {
+   "id": 132234,
+   "slug": "vitality-vs-fut-cs2-26-10-2026",
+   "round_id": 41073,
+   "stage_id": 11026,
+   "tournament_id": 5338,
+   "team1_id": 667,
+   "team2_id": 20832,
+   "winner_team_id": 20832,
+   "loser_team_id": 667,
+   "team1_score": 1,
+   "team2_score": 2,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-10-26T10:25:00.000+00:00",
+   "end_date": "2026-10-26T13:19:26.000+00:00",
+   "maps_score": [
+    false,
+    true,
+    true
+   ],
+   "tier": "s",
+   "position": null,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 20832,
+    "slug": "fut-cs2",
+    "name": "FUT",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/20832/image/webp-3c31da5dd03e58f5041420c56c14ed52.webp",
+    "rank": 8
+   },
+   "tournament": {
+    "id": 5338,
+    "slug": "pgl-masters-bucharest-2026",
+    "name": "PGL Masters Bucharest 2026",
+    "tier": "s",
+    "status": "current"
+   }
+  },
+  {
+   "id": 132225,
+   "slug": "vitality-vs-the-mongolz-25-10-2026",
+   "round_id": 41072,
+   "stage_id": 11026,
+   "tournament_id": 5338,
+   "team1_id": 667,
+   "team2_id": 736,
+   "winner_team_id": 667,
+   "loser_team_id": 736,
+   "team1_score": 2,
+   "team2_score": 0,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-10-25T09:50:00.000+00:00",
+   "end_date": "2026-10-25T11:21:22.000+00:00",
+   "maps_score": [
+    true,
+    true,
+    false
+   ],
+   "tier": "s",
+   "position": null,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 736,
+    "slug": "the-mongolz",
+    "name": "The MongolZ",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/736/image/webp-499cad826b4cd83ce22f8bd2b13261d6.webp",
+    "rank": 49
+   },
+   "tournament": {
+    "id": 5338,
+    "slug": "pgl-masters-bucharest-2026",
+    "name": "PGL Masters Bucharest 2026",
+    "tier": "s",
+    "status": "current"
+   }
+  },
+  {
+   "id": 132174,
+   "slug": "vitality-vs-9z-24-10-2026",
+   "round_id": 41051,
+   "stage_id": 11026,
+   "tournament_id": 5338,
+   "team1_id": 667,
+   "team2_id": 324,
+   "winner_team_id": 667,
+   "loser_team_id": 324,
+   "team1_score": 2,
+   "team2_score": 0,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-10-24T14:00:00.000+00:00",
+   "end_date": "2026-10-24T16:03:42.000+00:00",
+   "maps_score": [
+    true,
+    true,
+    false
+   ],
+   "tier": "s",
+   "position": null,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 324,
+    "slug": "9z",
+    "name": "9z",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/324/image/webp-847d6324439266b5de80bcb2e23fa38e.webp",
+    "rank": 17
+   },
+   "tournament": {
+    "id": 5338,
+    "slug": "pgl-masters-bucharest-2026",
+    "name": "PGL Masters Bucharest 2026",
+    "tier": "s",
+    "status": "current"
+   }
+  },
+  {
+   "id": 130754,
+   "slug": "vitality-vs-mouz-cs2-11-10-2026",
+   "round_id": 40473,
+   "stage_id": 10850,
+   "tournament_id": 5110,
+   "team1_id": 667,
+   "team2_id": 765,
+   "winner_team_id": 667,
+   "loser_team_id": 765,
+   "team1_score": 3,
+   "team2_score": 0,
+   "status": "finished",
+   "bo_type": 5,
+   "start_date": "2026-10-11T15:00:00.000+00:00",
+   "end_date": "2026-10-11T18:11:52.000+00:00",
+   "maps_score": [
+    true,
+    true,
+    true,
+    false,
+    false
+   ],
+   "tier": "s",
+   "position": 1,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 765,
+    "slug": "mouz-cs2",
+    "name": "MOUZ",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/765/image/bcbdcf50fb2c79b6ab45b0014300b9e0.png",
+    "rank": 4
+   },
+   "tournament": {
+    "id": 5110,
+    "slug": "esl-pro-league-season-24",
+    "name": "ESL Pro League Season 24",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 130751,
+   "slug": "aurora-gaming-vs-vitality-10-10-2026",
+   "round_id": 40471,
+   "stage_id": 10850,
+   "tournament_id": 5110,
+   "team1_id": 3598,
+   "team2_id": 667,
+   "winner_team_id": 667,
+   "loser_team_id": 3598,
+   "team1_score": 1,
+   "team2_score": 2,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-10-10T13:45:00.000+00:00",
+   "end_date": "2026-10-10T16:47:54.000+00:00",
+   "maps_score": [
+    false,
+    true,
+    true
+   ],
+   "tier": "s",
+   "position": 2,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 3598,
+    "slug": "aurora-gaming",
+    "name": "Aurora",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/3598/image/webp-49b8df76b0d121cc89c760c1ec16ebea.webp",
+    "rank": 9
+   },
+   "team2": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "tournament": {
+    "id": 5110,
+    "slug": "esl-pro-league-season-24",
+    "name": "ESL Pro League Season 24",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 130748,
+   "slug": "vitality-vs-parivision-09-10-2026",
+   "round_id": 40470,
+   "stage_id": 10850,
+   "tournament_id": 5110,
+   "team1_id": 667,
+   "team2_id": 8171,
+   "winner_team_id": 667,
+   "loser_team_id": 8171,
+   "team1_score": 2,
+   "team2_score": 0,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-10-09T11:30:00.000+00:00",
+   "end_date": "2026-10-09T13:21:32.000+00:00",
+   "maps_score": [
+    true,
+    true,
+    false
+   ],
+   "tier": "s",
+   "position": 4,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 8171,
+    "slug": "parivision",
+    "name": "PARIVISION",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/8171/image/webp-735594256ca5670882480debe25ffb69.webp",
+    "rank": 36
+   },
+   "tournament": {
+    "id": 5110,
+    "slug": "esl-pro-league-season-24",
+    "name": "ESL Pro League Season 24",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 130777,
+   "slug": "vitality-vs-falcons-esports-05-10-2026",
+   "round_id": 40476,
+   "stage_id": 10851,
+   "tournament_id": 5110,
+   "team1_id": 667,
+   "team2_id": 2713,
+   "winner_team_id": 667,
+   "loser_team_id": 2713,
+   "team1_score": 2,
+   "team2_score": 1,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-10-05T16:30:00.000+00:00",
+   "end_date": "2026-10-05T19:18:24.000+00:00",
+   "maps_score": [
+    false,
+    true,
+    true
+   ],
+   "tier": "s",
+   "position": null,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 2713,
+    "slug": "falcons-esports",
+    "name": "Falcons",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/2713/image/webp-86fd5a0653183a19cf750d195963ea10.webp",
+    "rank": 6
+   },
+   "tournament": {
+    "id": 5110,
+    "slug": "esl-pro-league-season-24",
+    "name": "ESL Pro League Season 24",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 130770,
+   "slug": "vitality-vs-natus-vincere-04-10-2026",
+   "round_id": 40475,
+   "stage_id": 10851,
+   "tournament_id": 5110,
+   "team1_id": 667,
+   "team2_id": 787,
+   "winner_team_id": 667,
+   "loser_team_id": 787,
+   "team1_score": 2,
+   "team2_score": 1,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-10-04T16:30:00.000+00:00",
+   "end_date": "2026-10-04T19:02:24.000+00:00",
+   "maps_score": [
+    true,
+    false,
+    true
+   ],
+   "tier": "s",
+   "position": null,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 787,
+    "slug": "natus-vincere",
+    "name": "Natus Vincere",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/787/image/webp-ea9885f81f1572c7a6c9fb6cbf747c99.webp",
+    "rank": 34
+   },
+   "tournament": {
+    "id": 5110,
+    "slug": "esl-pro-league-season-24",
+    "name": "ESL Pro League Season 24",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 130755,
+   "slug": "vitality-vs-1win-03-10-2026",
+   "round_id": 40474,
+   "stage_id": 10851,
+   "tournament_id": 5110,
+   "team1_id": 667,
+   "team2_id": 238,
+   "winner_team_id": 667,
+   "loser_team_id": 238,
+   "team1_score": 2,
+   "team2_score": 0,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-10-03T11:30:00.000+00:00",
+   "end_date": "2026-10-03T12:59:52.000+00:00",
+   "maps_score": [
+    true,
+    true,
+    false
+   ],
+   "tier": "s",
+   "position": null,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 238,
+    "slug": "1win",
+    "name": "1win",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/238/image/webp-6095482923ef3047986cef1e26fe80fa.webp",
+    "rank": 38
+   },
+   "tournament": {
+    "id": 5110,
+    "slug": "esl-pro-league-season-24",
+    "name": "ESL Pro League Season 24",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 129609,
+   "slug": "aurora-gaming-vs-vitality-20-09-2026",
+   "round_id": 40043,
+   "stage_id": 10734,
+   "tournament_id": 5109,
+   "team1_id": 3598,
+   "team2_id": 667,
+   "winner_team_id": 667,
+   "loser_team_id": 3598,
+   "team1_score": 1,
+   "team2_score": 3,
+   "status": "finished",
+   "bo_type": 5,
+   "start_date": "2026-09-20T15:00:00.000+00:00",
+   "end_date": "2026-09-20T18:47:48.000+00:00",
+   "maps_score": [
+    true,
+    false,
+    true,
+    true,
+    false
+   ],
+   "tier": "s",
+   "position": 1,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 3598,
+    "slug": "aurora-gaming",
+    "name": "Aurora",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/3598/image/webp-49b8df76b0d121cc89c760c1ec16ebea.webp",
+    "rank": 9
+   },
+   "team2": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "tournament": {
+    "id": 5109,
+    "slug": "starladder-starseries-fall-2026",
+    "name": "StarLadder StarSeries Fall 2026",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 129608,
+   "slug": "vitality-vs-furia-20-09-2026",
+   "round_id": 40042,
+   "stage_id": 10734,
+   "tournament_id": 5109,
+   "team1_id": 667,
+   "team2_id": 648,
+   "winner_team_id": 667,
+   "loser_team_id": 648,
+   "team1_score": 2,
+   "team2_score": 0,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-09-20T12:00:00.000+00:00",
+   "end_date": "2026-09-20T13:35:57.000+00:00",
+   "maps_score": [
+    true,
+    true,
+    false
+   ],
+   "tier": "s",
+   "position": 9,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 648,
+    "slug": "furia",
+    "name": "FURIA",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/648/image/webp-e1c203706e78b4167ad6fd6f70eb55bb.webp",
+    "rank": 7
+   },
+   "tournament": {
+    "id": 5109,
+    "slug": "starladder-starseries-fall-2026",
+    "name": "StarLadder StarSeries Fall 2026",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 129606,
+   "slug": "aurora-gaming-vs-vitality-19-09-2026",
+   "round_id": 40040,
+   "stage_id": 10734,
+   "tournament_id": 5109,
+   "team1_id": 667,
+   "team2_id": 3598,
+   "winner_team_id": 3598,
+   "loser_team_id": 667,
+   "team1_score": 1,
+   "team2_score": 2,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-09-19T15:30:00.000+00:00",
+   "end_date": "2026-09-19T18:18:27.000+00:00",
+   "maps_score": [
+    true,
+    false,
+    true
+   ],
+   "tier": "s",
+   "position": null,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 3598,
+    "slug": "aurora-gaming",
+    "name": "Aurora",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/3598/image/webp-49b8df76b0d121cc89c760c1ec16ebea.webp",
+    "rank": 9
+   },
+   "tournament": {
+    "id": 5109,
+    "slug": "starladder-starseries-fall-2026",
+    "name": "StarLadder StarSeries Fall 2026",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 129603,
+   "slug": "vitality-vs-furia-18-09-2026",
+   "round_id": 40038,
+   "stage_id": 10734,
+   "tournament_id": 5109,
+   "team1_id": 667,
+   "team2_id": 648,
+   "winner_team_id": 667,
+   "loser_team_id": 648,
+   "team1_score": 2,
+   "team2_score": 0,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-09-18T18:40:00.000+00:00",
+   "end_date": "2026-09-18T20:19:07.000+00:00",
+   "maps_score": [
+    true,
+    true,
+    false
+   ],
+   "tier": "s",
+   "position": null,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 648,
+    "slug": "furia",
+    "name": "FURIA",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/648/image/webp-e1c203706e78b4167ad6fd6f70eb55bb.webp",
+    "rank": 7
+   },
+   "tournament": {
+    "id": 5109,
+    "slug": "starladder-starseries-fall-2026",
+    "name": "StarLadder StarSeries Fall 2026",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 129597,
+   "slug": "vitality-vs-magic-ru-17-09-2026",
+   "round_id": 40036,
+   "stage_id": 10734,
+   "tournament_id": 5109,
+   "team1_id": 667,
+   "team2_id": 22218,
+   "winner_team_id": 667,
+   "loser_team_id": 22218,
+   "team1_score": 2,
+   "team2_score": 0,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-09-17T13:10:00.000+00:00",
+   "end_date": "2026-09-17T14:47:39.000+00:00",
+   "maps_score": [
+    true,
+    true,
+    false
+   ],
+   "tier": "s",
+   "position": 3,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 22218,
+    "slug": "magic-ru",
+    "name": "magic",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/22218/image/webp-239b86baa849b6da4911c1df5e5a3220.webp",
+    "rank": 23
+   },
+   "tournament": {
+    "id": 5109,
+    "slug": "starladder-starseries-fall-2026",
+    "name": "StarLadder StarSeries Fall 2026",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 127404,
+   "slug": "mousesports-vs-vitality-05-09-2026",
+   "round_id": 39284,
+   "stage_id": 10585,
+   "tournament_id": 4215,
+   "team1_id": 765,
+   "team2_id": 667,
+   "winner_team_id": 765,
+   "loser_team_id": 667,
+   "team1_score": 2,
+   "team2_score": 0,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-09-05T16:45:00.000+00:00",
+   "end_date": "2026-09-05T18:43:45.000+00:00",
+   "maps_score": [
+    true,
+    true,
+    false
+   ],
+   "tier": "s",
+   "position": 4,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 765,
+    "slug": "mouz-cs2",
+    "name": "MOUZ",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/765/image/bcbdcf50fb2c79b6ab45b0014300b9e0.png",
+    "rank": 4
+   },
+   "team2": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "tournament": {
+    "id": 4215,
+    "slug": "blast-open-fall-2026",
+    "name": "BLAST Open Fall 2026",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 127402,
+   "slug": "furia-vs-vitality-04-09-2026",
+   "round_id": 39283,
+   "stage_id": 10585,
+   "tournament_id": 4215,
+   "team1_id": 648,
+   "team2_id": 667,
+   "winner_team_id": 667,
+   "loser_team_id": 648,
+   "team1_score": 1,
+   "team2_score": 2,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-09-04T16:50:00.000+00:00",
+   "end_date": "2026-09-04T19:53:27.000+00:00",
+   "maps_score": [
+    false,
+    true,
+    true
+   ],
+   "tier": "s",
+   "position": 5,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 648,
+    "slug": "furia",
+    "name": "FURIA",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/648/image/webp-e1c203706e78b4167ad6fd6f70eb55bb.webp",
+    "rank": 7
+   },
+   "team2": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "tournament": {
+    "id": 4215,
+    "slug": "blast-open-fall-2026",
+    "name": "BLAST Open Fall 2026",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 127399,
+   "slug": "fut-cs2-vs-vitality-31-08-2026",
+   "round_id": 39281,
+   "stage_id": 10584,
+   "tournament_id": 4215,
+   "team1_id": 667,
+   "team2_id": 20832,
+   "winner_team_id": 667,
+   "loser_team_id": 20832,
+   "team1_score": 2,
+   "team2_score": 0,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-08-31T18:35:00.000+00:00",
+   "end_date": "2026-08-31T20:24:39.000+00:00",
+   "maps_score": [
+    true,
+    true,
+    false
+   ],
+   "tier": "s",
+   "position": 8,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 20832,
+    "slug": "fut-cs2",
+    "name": "FUT",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/20832/image/webp-3c31da5dd03e58f5041420c56c14ed52.webp",
+    "rank": 8
+   },
+   "tournament": {
+    "id": 4215,
+    "slug": "blast-open-fall-2026",
+    "name": "BLAST Open Fall 2026",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 127397,
+   "slug": "vitality-vs-legacy-br-30-08-2026",
+   "round_id": 39280,
+   "stage_id": 10584,
+   "tournament_id": 4215,
+   "team1_id": 8118,
+   "team2_id": 667,
+   "winner_team_id": 667,
+   "loser_team_id": 8118,
+   "team1_score": 1,
+   "team2_score": 2,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-08-30T17:10:00.000+00:00",
+   "end_date": "2026-08-30T20:28:04.000+00:00",
+   "maps_score": [
+    true,
+    false,
+    true
+   ],
+   "tier": "s",
+   "position": 9,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 8118,
+    "slug": "legacy-br",
+    "name": "Legacy",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/8118/image/webp-e4a3b023443f1f3ba4ef588164e73111.webp",
+    "rank": 2
+   },
+   "team2": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "tournament": {
+    "id": 4215,
+    "slug": "blast-open-fall-2026",
+    "name": "BLAST Open Fall 2026",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 127393,
+   "slug": "vitality-vs-9z-29-08-2026",
+   "round_id": 39278,
+   "stage_id": 10584,
+   "tournament_id": 4215,
+   "team1_id": 667,
+   "team2_id": 324,
+   "winner_team_id": 667,
+   "loser_team_id": 324,
+   "team1_score": 2,
+   "team2_score": 0,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-08-29T09:00:00.000+00:00",
+   "end_date": "2026-08-29T10:31:20.000+00:00",
+   "maps_score": [
+    true,
+    true,
+    false
+   ],
+   "tier": "s",
+   "position": 10,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 324,
+    "slug": "9z",
+    "name": "9z",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/324/image/webp-847d6324439266b5de80bcb2e23fa38e.webp",
+    "rank": 17
+   },
+   "tournament": {
+    "id": 4215,
+    "slug": "blast-open-fall-2026",
+    "name": "BLAST Open Fall 2026",
+    "tier": "s",
+    "status": "finished"
+   }
+  },
+  {
+   "id": 127389,
+   "slug": "vitality-vs-inner-circle-esports-27-08-2026",
+   "round_id": 39277,
+   "stage_id": 10584,
+   "tournament_id": 4215,
+   "team1_id": 667,
+   "team2_id": 19186,
+   "winner_team_id": 19186,
+   "loser_team_id": 667,
+   "team1_score": 0,
+   "team2_score": 2,
+   "status": "finished",
+   "bo_type": 3,
+   "start_date": "2026-08-27T09:00:00.000+00:00",
+   "end_date": "2026-08-27T11:08:24.000+00:00",
+   "maps_score": [
+    true,
+    true,
+    false
+   ],
+   "tier": "s",
+   "position": 3,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 667,
+    "slug": "vitality",
+    "name": "Vitality",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/667/image/webp-292c1f6c6dcfca35c7a52da7e02cef0a.webp",
+    "rank": 3
+   },
+   "team2": {
+    "id": 19186,
+    "slug": "inner-circle-esports",
+    "name": "Inner Circle",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/19186/image/webp-6aedbd6f8fdc86d26052f90540031e1e.webp",
+    "rank": 20
+   },
+   "tournament": {
+    "id": 4215,
+    "slug": "blast-open-fall-2026",
+    "name": "BLAST Open Fall 2026",
+    "tier": "s",
+    "status": "finished"
+   }
+  }
+ ]
+}

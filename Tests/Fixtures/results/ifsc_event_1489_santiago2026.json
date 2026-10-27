@@ -1,0 +1,1040 @@
+{
+ "id": 1489,
+ "name": "World Climbing Series Santiago 2026",
+ "type": "classic",
+ "league_id": 1,
+ "rounds": [
+  {
+   "id": 2814,
+   "name": "Qualification"
+  },
+  {
+   "id": 2815,
+   "name": "Qualification"
+  },
+  {
+   "id": 3060,
+   "name": "Semi-final"
+  },
+  {
+   "id": 3058,
+   "name": "Final"
+  },
+  {
+   "id": 3061,
+   "name": "Final"
+  }
+ ],
+ "league_season_id": 457,
+ "season_id": 38,
+ "starts_at": "2026-10-23 03:00:00 UTC",
+ "ends_at": "2026-10-26 02:59:00 UTC",
+ "local_start_date": "2026-10-23",
+ "local_end_date": "2026-10-25",
+ "timezone": {
+  "value": "America/Santiago"
+ },
+ "location": "Santiago, Chile",
+ "registration_url": "/api/v1/events/1489/registrations",
+ "public_information": {
+  "organiser_name": null,
+  "organiser_url": null,
+  "venue_name": null,
+  "description": null
+ },
+ "cup_name": "IFSC Climbing World Cup 2026",
+ "country": "CHI",
+ "registration_deadline": "2026-10-08T23:59:00.000Z",
+ "registration_opens_at": "2025-10-23T00:00:00.000Z",
+ "removal_deadline": "2026-10-08T23:59:00.000Z",
+ "athlete_self_registration": false,
+ "team_official_self_registration": false,
+ "event_logo": null,
+ "series_logo": null,
+ "cover": null,
+ "infosheet_url": "https://d1n1qj9geboqnb.cloudfront.net/ifsc/public/fq1xrxxn4cfxq963zo6jppvdghz9",
+ "additional_info_url": null,
+ "is_paraclimbing_event": false,
+ "self_judged": false,
+ "d_cats": [
+  {
+   "dcat_id": 2,
+   "event_id": 1489,
+   "dcat_name": "SPEED Men",
+   "discipline_id": 1821,
+   "discipline_kind": "speed",
+   "category_id": 6968,
+   "category_name": "Men",
+   "status": "finished",
+   "status_as_of": "2026-10-24 22:05:13 UTC",
+   "ranking_as_of": "2026-10-24 21:59:46 UTC",
+   "category_rounds": [
+    {
+     "category_round_id": 10448,
+     "kind": "speed",
+     "name": "Qualification",
+     "category": "Men",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-23 21:25:32 UTC",
+     "result_url": "/api/v1/category_rounds/10448/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 1
+     },
+     "format_identifier": "speed_qualification_ifsc_2026",
+     "format": "IFSC 2026: Qualification",
+     "routes": [
+      {
+       "id": 18928,
+       "name": "A",
+       "startlist": "/api/v1/routes/18928/startlist"
+      },
+      {
+       "id": 18929,
+       "name": "B",
+       "startlist": "/api/v1/routes/18929/startlist"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "kind": "speed",
+     "name": "Final",
+     "category": "Men",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-24 22:02:40 UTC",
+     "result_url": "/api/v1/category_rounds/11355/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 3
+     },
+     "format_identifier": "speed_elimination_ifsc_2026",
+     "format": "IFSC 2026+: Elimination",
+     "routes": [
+      {
+       "id": 21530,
+       "name": "A",
+       "startlist": "/api/v1/routes/21530/startlist"
+      },
+      {
+       "id": 21531,
+       "name": "B",
+       "startlist": "/api/v1/routes/21531/startlist"
+      }
+     ]
+    }
+   ],
+   "full_results_url": "/api/v1/events/1489/result/2",
+   "top_3_results": [
+    {
+     "athlete_id": 14973,
+     "squad_id": null,
+     "rank": 1,
+     "name": "ZHAO Yicheng",
+     "bib_number": "133",
+     "firstname": "Yicheng",
+     "lastname": "ZHAO",
+     "country": "CHN",
+     "organisation_id": 37
+    },
+    {
+     "athlete_id": 13547,
+     "squad_id": null,
+     "rank": 2,
+     "name": "NURSAMSA Raharjati",
+     "bib_number": "131",
+     "firstname": "Raharjati",
+     "lastname": "NURSAMSA",
+     "country": "INA",
+     "organisation_id": 45
+    },
+    {
+     "athlete_id": 11381,
+     "squad_id": null,
+     "rank": 3,
+     "name": "OMASA Ryo",
+     "bib_number": "139",
+     "firstname": "Ryo",
+     "lastname": "OMASA",
+     "country": "JPN",
+     "organisation_id": 25
+    }
+   ]
+  },
+  {
+   "dcat_id": 6,
+   "event_id": 1489,
+   "dcat_name": "SPEED Women",
+   "discipline_id": 1821,
+   "discipline_kind": "speed",
+   "category_id": 6969,
+   "category_name": "Women",
+   "status": "finished",
+   "status_as_of": "2026-10-24 22:05:02 UTC",
+   "ranking_as_of": "2026-10-24 22:02:44 UTC",
+   "category_rounds": [
+    {
+     "category_round_id": 10449,
+     "kind": "speed",
+     "name": "Qualification",
+     "category": "Women",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-23 23:52:27 UTC",
+     "result_url": "/api/v1/category_rounds/10449/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 1
+     },
+     "format_identifier": "speed_qualification_ifsc_2026",
+     "format": "IFSC 2026: Qualification",
+     "routes": [
+      {
+       "id": 18930,
+       "name": "A",
+       "startlist": "/api/v1/routes/18930/startlist"
+      },
+      {
+       "id": 18931,
+       "name": "B",
+       "startlist": "/api/v1/routes/18931/startlist"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11356,
+     "kind": "speed",
+     "name": "Final",
+     "category": "Women",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-24 22:03:50 UTC",
+     "result_url": "/api/v1/category_rounds/11356/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 3
+     },
+     "format_identifier": "speed_elimination_ifsc_2026",
+     "format": "IFSC 2026+: Elimination",
+     "routes": [
+      {
+       "id": 21532,
+       "name": "A",
+       "startlist": "/api/v1/routes/21532/startlist"
+      },
+      {
+       "id": 21533,
+       "name": "B",
+       "startlist": "/api/v1/routes/21533/startlist"
+      }
+     ]
+    }
+   ],
+   "full_results_url": "/api/v1/events/1489/result/6",
+   "top_3_results": [
+    {
+     "athlete_id": 3014,
+     "squad_id": null,
+     "rank": 1,
+     "name": "DENG Lijuan",
+     "bib_number": "31",
+     "firstname": "Lijuan",
+     "lastname": "DENG",
+     "country": "CHN",
+     "organisation_id": 37
+    },
+    {
+     "athlete_id": 1999,
+     "squad_id": null,
+     "rank": 2,
+     "name": "HUNT Emma",
+     "bib_number": "4",
+     "firstname": "Emma",
+     "lastname": "HUNT",
+     "country": "USA",
+     "organisation_id": 20
+    },
+    {
+     "athlete_id": 14069,
+     "squad_id": null,
+     "rank": 3,
+     "name": "ROTHFORK Isis",
+     "bib_number": "13",
+     "firstname": "Isis",
+     "lastname": "ROTHFORK",
+     "country": "USA",
+     "organisation_id": 20
+    }
+   ]
+  },
+  {
+   "dcat_id": 1,
+   "event_id": 1489,
+   "dcat_name": "LEAD Men",
+   "discipline_id": 1822,
+   "discipline_kind": "lead",
+   "category_id": 6970,
+   "category_name": "Men",
+   "status": "finished",
+   "status_as_of": "2026-10-25 23:07:28 UTC",
+   "ranking_as_of": "2026-10-25 22:48:01 UTC",
+   "category_rounds": [
+    {
+     "category_round_id": 10450,
+     "kind": "lead",
+     "name": "Qualification",
+     "category": "Men",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-24 16:29:16 UTC",
+     "result_url": "/api/v1/category_rounds/10450/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 1
+     },
+     "format_identifier": "lead_one_group_two_routes",
+     "format": "IFSC: 2 routes",
+     "routes": [
+      {
+       "id": 18063,
+       "name": "1",
+       "startlist": "/api/v1/routes/18063/startlist",
+       "ranking": "/api/v1/routes/18063/results"
+      },
+      {
+       "id": 18064,
+       "name": "2",
+       "startlist": "/api/v1/routes/18064/startlist",
+       "ranking": "/api/v1/routes/18064/results"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11359,
+     "kind": "lead",
+     "name": "Semi-final",
+     "category": "Men",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-25 14:21:31 UTC",
+     "result_url": "/api/v1/category_rounds/11359/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 2
+     },
+     "format_identifier": "lead_one_group_one_route",
+     "format": "IFSC: 1 route",
+     "routes": [
+      {
+       "id": 21536,
+       "name": "1",
+       "startlist": "/api/v1/routes/21536/startlist",
+       "ranking": "/api/v1/routes/21536/results"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11361,
+     "kind": "lead",
+     "name": "Final",
+     "category": "Men",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-25 23:06:43 UTC",
+     "result_url": "/api/v1/category_rounds/11361/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 3
+     },
+     "format_identifier": "lead_one_group_one_route",
+     "format": "IFSC: 1 route",
+     "routes": [
+      {
+       "id": 21538,
+       "name": "1",
+       "startlist": "/api/v1/routes/21538/startlist",
+       "ranking": "/api/v1/routes/21538/results"
+      }
+     ]
+    }
+   ],
+   "full_results_url": "/api/v1/events/1489/result/1",
+   "top_3_results": [
+    {
+     "athlete_id": 3883,
+     "squad_id": null,
+     "rank": 1,
+     "name": "UTELLI Jonas",
+     "bib_number": "101",
+     "firstname": "Jonas",
+     "lastname": "UTELLI",
+     "country": "SUI",
+     "organisation_id": 8
+    },
+    {
+     "athlete_id": 14090,
+     "squad_id": null,
+     "rank": 2,
+     "name": "TRI RAMADANI Putra",
+     "bib_number": "103",
+     "firstname": "Putra",
+     "lastname": "TRI RAMADANI",
+     "country": "INA",
+     "organisation_id": 45
+    },
+    {
+     "athlete_id": 14606,
+     "squad_id": null,
+     "rank": 3,
+     "name": "SUZUKI Neo",
+     "bib_number": "102",
+     "firstname": "Neo",
+     "lastname": "SUZUKI",
+     "country": "JPN",
+     "organisation_id": 25
+    }
+   ]
+  },
+  {
+   "dcat_id": 5,
+   "event_id": 1489,
+   "dcat_name": "LEAD Women",
+   "discipline_id": 1822,
+   "discipline_kind": "lead",
+   "category_id": 6971,
+   "category_name": "Women",
+   "status": "finished",
+   "status_as_of": "2026-10-25 22:05:22 UTC",
+   "ranking_as_of": "2026-10-25 22:01:35 UTC",
+   "category_rounds": [
+    {
+     "category_round_id": 10451,
+     "kind": "lead",
+     "name": "Qualification",
+     "category": "Women",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-23 16:26:26 UTC",
+     "result_url": "/api/v1/category_rounds/10451/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 1
+     },
+     "format_identifier": "lead_one_group_two_routes",
+     "format": "IFSC: 2 routes",
+     "routes": [
+      {
+       "id": 18065,
+       "name": "1",
+       "startlist": "/api/v1/routes/18065/startlist",
+       "ranking": "/api/v1/routes/18065/results"
+      },
+      {
+       "id": 18066,
+       "name": "2",
+       "startlist": "/api/v1/routes/18066/startlist",
+       "ranking": "/api/v1/routes/18066/results"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "kind": "lead",
+     "name": "Semi-final",
+     "category": "Women",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-25 14:24:35 UTC",
+     "result_url": "/api/v1/category_rounds/11360/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 2
+     },
+     "format_identifier": "lead_one_group_one_route",
+     "format": "IFSC: 1 route",
+     "routes": [
+      {
+       "id": 21537,
+       "name": "1",
+       "startlist": "/api/v1/routes/21537/startlist",
+       "ranking": "/api/v1/routes/21537/results"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11362,
+     "kind": "lead",
+     "name": "Final",
+     "category": "Women",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-25 22:02:58 UTC",
+     "result_url": "/api/v1/category_rounds/11362/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 3
+     },
+     "format_identifier": "lead_one_group_one_route",
+     "format": "IFSC: 1 route",
+     "routes": [
+      {
+       "id": 21539,
+       "name": "1",
+       "startlist": "/api/v1/routes/21539/startlist",
+       "ranking": "/api/v1/routes/21539/results"
+      }
+     ]
+    }
+   ],
+   "full_results_url": "/api/v1/events/1489/result/5",
+   "top_3_results": [
+    {
+     "athlete_id": 1147,
+     "squad_id": null,
+     "rank": 1,
+     "name": "GARNBRET Janja",
+     "bib_number": "6",
+     "firstname": "Janja",
+     "lastname": "GARNBRET",
+     "country": "SLO",
+     "organisation_id": 15
+    },
+    {
+     "athlete_id": 928,
+     "squad_id": null,
+     "rank": 2,
+     "name": "ROGORA Laura",
+     "bib_number": "20",
+     "firstname": "Laura",
+     "lastname": "ROGORA",
+     "country": "ITA",
+     "organisation_id": 13
+    },
+    {
+     "athlete_id": 13329,
+     "squad_id": null,
+     "rank": 3,
+     "name": "REKAR Rosa",
+     "bib_number": "9",
+     "firstname": "Rosa",
+     "lastname": "REKAR",
+     "country": "SLO",
+     "organisation_id": 15
+    }
+   ]
+  }
+ ],
+ "dcats": [
+  {
+   "dcat_id": 2,
+   "event_id": 1489,
+   "dcat_name": "SPEED Men",
+   "discipline_id": 1821,
+   "discipline_kind": "speed",
+   "category_id": 6968,
+   "category_name": "Men",
+   "status": "finished",
+   "status_as_of": "2026-10-24 22:05:13 UTC",
+   "ranking_as_of": "2026-10-24 21:59:46 UTC",
+   "category_rounds": [
+    {
+     "category_round_id": 10448,
+     "kind": "speed",
+     "name": "Qualification",
+     "category": "Men",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-23 21:25:32 UTC",
+     "result_url": "/api/v1/category_rounds/10448/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 1
+     },
+     "format_identifier": "speed_qualification_ifsc_2026",
+     "format": "IFSC 2026: Qualification",
+     "routes": [
+      {
+       "id": 18928,
+       "name": "A",
+       "startlist": "/api/v1/routes/18928/startlist"
+      },
+      {
+       "id": 18929,
+       "name": "B",
+       "startlist": "/api/v1/routes/18929/startlist"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11355,
+     "kind": "speed",
+     "name": "Final",
+     "category": "Men",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-24 22:02:40 UTC",
+     "result_url": "/api/v1/category_rounds/11355/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 3
+     },
+     "format_identifier": "speed_elimination_ifsc_2026",
+     "format": "IFSC 2026+: Elimination",
+     "routes": [
+      {
+       "id": 21530,
+       "name": "A",
+       "startlist": "/api/v1/routes/21530/startlist"
+      },
+      {
+       "id": 21531,
+       "name": "B",
+       "startlist": "/api/v1/routes/21531/startlist"
+      }
+     ]
+    }
+   ],
+   "full_results_url": "/api/v1/events/1489/result/2",
+   "top_3_results": [
+    {
+     "athlete_id": 14973,
+     "squad_id": null,
+     "rank": 1,
+     "name": "ZHAO Yicheng",
+     "bib_number": "133",
+     "firstname": "Yicheng",
+     "lastname": "ZHAO",
+     "country": "CHN",
+     "organisation_id": 37
+    },
+    {
+     "athlete_id": 13547,
+     "squad_id": null,
+     "rank": 2,
+     "name": "NURSAMSA Raharjati",
+     "bib_number": "131",
+     "firstname": "Raharjati",
+     "lastname": "NURSAMSA",
+     "country": "INA",
+     "organisation_id": 45
+    },
+    {
+     "athlete_id": 11381,
+     "squad_id": null,
+     "rank": 3,
+     "name": "OMASA Ryo",
+     "bib_number": "139",
+     "firstname": "Ryo",
+     "lastname": "OMASA",
+     "country": "JPN",
+     "organisation_id": 25
+    }
+   ]
+  },
+  {
+   "dcat_id": 6,
+   "event_id": 1489,
+   "dcat_name": "SPEED Women",
+   "discipline_id": 1821,
+   "discipline_kind": "speed",
+   "category_id": 6969,
+   "category_name": "Women",
+   "status": "finished",
+   "status_as_of": "2026-10-24 22:05:02 UTC",
+   "ranking_as_of": "2026-10-24 22:02:44 UTC",
+   "category_rounds": [
+    {
+     "category_round_id": 10449,
+     "kind": "speed",
+     "name": "Qualification",
+     "category": "Women",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-23 23:52:27 UTC",
+     "result_url": "/api/v1/category_rounds/10449/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 1
+     },
+     "format_identifier": "speed_qualification_ifsc_2026",
+     "format": "IFSC 2026: Qualification",
+     "routes": [
+      {
+       "id": 18930,
+       "name": "A",
+       "startlist": "/api/v1/routes/18930/startlist"
+      },
+      {
+       "id": 18931,
+       "name": "B",
+       "startlist": "/api/v1/routes/18931/startlist"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11356,
+     "kind": "speed",
+     "name": "Final",
+     "category": "Women",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-24 22:03:50 UTC",
+     "result_url": "/api/v1/category_rounds/11356/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 3
+     },
+     "format_identifier": "speed_elimination_ifsc_2026",
+     "format": "IFSC 2026+: Elimination",
+     "routes": [
+      {
+       "id": 21532,
+       "name": "A",
+       "startlist": "/api/v1/routes/21532/startlist"
+      },
+      {
+       "id": 21533,
+       "name": "B",
+       "startlist": "/api/v1/routes/21533/startlist"
+      }
+     ]
+    }
+   ],
+   "full_results_url": "/api/v1/events/1489/result/6",
+   "top_3_results": [
+    {
+     "athlete_id": 3014,
+     "squad_id": null,
+     "rank": 1,
+     "name": "DENG Lijuan",
+     "bib_number": "31",
+     "firstname": "Lijuan",
+     "lastname": "DENG",
+     "country": "CHN",
+     "organisation_id": 37
+    },
+    {
+     "athlete_id": 1999,
+     "squad_id": null,
+     "rank": 2,
+     "name": "HUNT Emma",
+     "bib_number": "4",
+     "firstname": "Emma",
+     "lastname": "HUNT",
+     "country": "USA",
+     "organisation_id": 20
+    },
+    {
+     "athlete_id": 14069,
+     "squad_id": null,
+     "rank": 3,
+     "name": "ROTHFORK Isis",
+     "bib_number": "13",
+     "firstname": "Isis",
+     "lastname": "ROTHFORK",
+     "country": "USA",
+     "organisation_id": 20
+    }
+   ]
+  },
+  {
+   "dcat_id": 1,
+   "event_id": 1489,
+   "dcat_name": "LEAD Men",
+   "discipline_id": 1822,
+   "discipline_kind": "lead",
+   "category_id": 6970,
+   "category_name": "Men",
+   "status": "finished",
+   "status_as_of": "2026-10-25 23:07:28 UTC",
+   "ranking_as_of": "2026-10-25 22:48:01 UTC",
+   "category_rounds": [
+    {
+     "category_round_id": 10450,
+     "kind": "lead",
+     "name": "Qualification",
+     "category": "Men",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-24 16:29:16 UTC",
+     "result_url": "/api/v1/category_rounds/10450/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 1
+     },
+     "format_identifier": "lead_one_group_two_routes",
+     "format": "IFSC: 2 routes",
+     "routes": [
+      {
+       "id": 18063,
+       "name": "1",
+       "startlist": "/api/v1/routes/18063/startlist",
+       "ranking": "/api/v1/routes/18063/results"
+      },
+      {
+       "id": 18064,
+       "name": "2",
+       "startlist": "/api/v1/routes/18064/startlist",
+       "ranking": "/api/v1/routes/18064/results"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11359,
+     "kind": "lead",
+     "name": "Semi-final",
+     "category": "Men",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-25 14:21:31 UTC",
+     "result_url": "/api/v1/category_rounds/11359/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 2
+     },
+     "format_identifier": "lead_one_group_one_route",
+     "format": "IFSC: 1 route",
+     "routes": [
+      {
+       "id": 21536,
+       "name": "1",
+       "startlist": "/api/v1/routes/21536/startlist",
+       "ranking": "/api/v1/routes/21536/results"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11361,
+     "kind": "lead",
+     "name": "Final",
+     "category": "Men",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-25 23:06:43 UTC",
+     "result_url": "/api/v1/category_rounds/11361/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 3
+     },
+     "format_identifier": "lead_one_group_one_route",
+     "format": "IFSC: 1 route",
+     "routes": [
+      {
+       "id": 21538,
+       "name": "1",
+       "startlist": "/api/v1/routes/21538/startlist",
+       "ranking": "/api/v1/routes/21538/results"
+      }
+     ]
+    }
+   ],
+   "full_results_url": "/api/v1/events/1489/result/1",
+   "top_3_results": [
+    {
+     "athlete_id": 3883,
+     "squad_id": null,
+     "rank": 1,
+     "name": "UTELLI Jonas",
+     "bib_number": "101",
+     "firstname": "Jonas",
+     "lastname": "UTELLI",
+     "country": "SUI",
+     "organisation_id": 8
+    },
+    {
+     "athlete_id": 14090,
+     "squad_id": null,
+     "rank": 2,
+     "name": "TRI RAMADANI Putra",
+     "bib_number": "103",
+     "firstname": "Putra",
+     "lastname": "TRI RAMADANI",
+     "country": "INA",
+     "organisation_id": 45
+    },
+    {
+     "athlete_id": 14606,
+     "squad_id": null,
+     "rank": 3,
+     "name": "SUZUKI Neo",
+     "bib_number": "102",
+     "firstname": "Neo",
+     "lastname": "SUZUKI",
+     "country": "JPN",
+     "organisation_id": 25
+    }
+   ]
+  },
+  {
+   "dcat_id": 5,
+   "event_id": 1489,
+   "dcat_name": "LEAD Women",
+   "discipline_id": 1822,
+   "discipline_kind": "lead",
+   "category_id": 6971,
+   "category_name": "Women",
+   "status": "finished",
+   "status_as_of": "2026-10-25 22:05:22 UTC",
+   "ranking_as_of": "2026-10-25 22:01:35 UTC",
+   "category_rounds": [
+    {
+     "category_round_id": 10451,
+     "kind": "lead",
+     "name": "Qualification",
+     "category": "Women",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-23 16:26:26 UTC",
+     "result_url": "/api/v1/category_rounds/10451/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 1
+     },
+     "format_identifier": "lead_one_group_two_routes",
+     "format": "IFSC: 2 routes",
+     "routes": [
+      {
+       "id": 18065,
+       "name": "1",
+       "startlist": "/api/v1/routes/18065/startlist",
+       "ranking": "/api/v1/routes/18065/results"
+      },
+      {
+       "id": 18066,
+       "name": "2",
+       "startlist": "/api/v1/routes/18066/startlist",
+       "ranking": "/api/v1/routes/18066/results"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11360,
+     "kind": "lead",
+     "name": "Semi-final",
+     "category": "Women",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-25 14:24:35 UTC",
+     "result_url": "/api/v1/category_rounds/11360/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 2
+     },
+     "format_identifier": "lead_one_group_one_route",
+     "format": "IFSC: 1 route",
+     "routes": [
+      {
+       "id": 21537,
+       "name": "1",
+       "startlist": "/api/v1/routes/21537/startlist",
+       "ranking": "/api/v1/routes/21537/results"
+      }
+     ]
+    },
+    {
+     "category_round_id": 11362,
+     "kind": "lead",
+     "name": "Final",
+     "category": "Women",
+     "schedule": null,
+     "status": "finished",
+     "status_as_of": "2026-10-25 22:02:58 UTC",
+     "result_url": "/api/v1/category_rounds/11362/results",
+     "starting_groups": [],
+     "combined_stages": [],
+     "round": {
+      "league_round_id": 3
+     },
+     "format_identifier": "lead_one_group_one_route",
+     "format": "IFSC: 1 route",
+     "routes": [
+      {
+       "id": 21539,
+       "name": "1",
+       "startlist": "/api/v1/routes/21539/startlist",
+       "ranking": "/api/v1/routes/21539/results"
+      }
+     ]
+    }
+   ],
+   "full_results_url": "/api/v1/events/1489/result/5",
+   "top_3_results": [
+    {
+     "athlete_id": 1147,
+     "squad_id": null,
+     "rank": 1,
+     "name": "GARNBRET Janja",
+     "bib_number": "6",
+     "firstname": "Janja",
+     "lastname": "GARNBRET",
+     "country": "SLO",
+     "organisation_id": 15
+    },
+    {
+     "athlete_id": 928,
+     "squad_id": null,
+     "rank": 2,
+     "name": "ROGORA Laura",
+     "bib_number": "20",
+     "firstname": "Laura",
+     "lastname": "ROGORA",
+     "country": "ITA",
+     "organisation_id": 13
+    },
+    {
+     "athlete_id": 13329,
+     "squad_id": null,
+     "rank": 3,
+     "name": "REKAR Rosa",
+     "bib_number": "9",
+     "firstname": "Rosa",
+     "lastname": "REKAR",
+     "country": "SLO",
+     "organisation_id": 15
+    }
+   ]
+  }
+ ],
+ "disciplines": [
+  {
+   "id": 1821,
+   "kind": "speed",
+   "settings": null
+  },
+  {
+   "id": 1822,
+   "kind": "lead",
+   "settings": null
+  }
+ ],
+ "computed_combined_categories": [],
+ "team_ranking_disciplines": [
+  "speed",
+  "lead"
+ ],
+ "team_ranking_url": "/api/v1/events/1489/team_results/",
+ "time_rankings": false,
+ "time_ranking_url": null,
+ "custom_event_registration_fields": []
+}

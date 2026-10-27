@@ -1,0 +1,130 @@
+{
+ "total": {
+  "count": 4030,
+  "pages": 1344,
+  "offset": 0,
+  "limit": 3
+ },
+ "results": [
+  {
+   "id": 132678,
+   "slug": "vexar-vs-illyrians-29-10-2026",
+   "round_id": 41252,
+   "stage_id": 11084,
+   "tournament_id": 6223,
+   "team1_id": 10088,
+   "team2_id": 3022,
+   "winner_team_id": 10088,
+   "loser_team_id": 3022,
+   "team1_score": 1,
+   "team2_score": 0,
+   "status": "defwin",
+   "bo_type": 1,
+   "start_date": "2026-10-29T09:00:00.000+00:00",
+   "end_date": "2026-10-29T09:00:01.000+00:00",
+   "maps_score": [
+    true
+   ],
+   "tier": "c",
+   "position": 2,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 10088,
+    "slug": "vexar",
+    "name": "Vexar",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/10088/image/webp-93ce5e014f8d731a4d60f35564a232fd.webp",
+    "rank": 135
+   },
+   "team2": {
+    "id": 3022,
+    "slug": "illyrians",
+    "name": "Illyrians",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/3022/image/webp-33c6382c5b8624479e11e30e4b7327ad.webp",
+    "rank": 141
+   }
+  },
+  {
+   "id": 132776,
+   "slug": "zotix-vs-sparx-ru-27-10-2026",
+   "round_id": 41293,
+   "stage_id": 11087,
+   "tournament_id": 6237,
+   "team1_id": 6277,
+   "team2_id": 25585,
+   "winner_team_id": 25585,
+   "loser_team_id": 6277,
+   "team1_score": 0,
+   "team2_score": 1,
+   "status": "defwin",
+   "bo_type": 1,
+   "start_date": "2026-10-27T16:30:00.000+00:00",
+   "end_date": "2026-10-27T16:30:01.000+00:00",
+   "maps_score": [
+    true
+   ],
+   "tier": "c",
+   "position": null,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 6277,
+    "slug": "zotix",
+    "name": "ZOTIX",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/6277/image/webp-da1343e5d4b35091c41f119886564a27.webp",
+    "rank": 275
+   },
+   "team2": {
+    "id": 25585,
+    "slug": "sparx-ru",
+    "name": "SPARX",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/25585/image/webp-052b0c5a59ad4b5be714ab73e98cc311.webp",
+    "rank": null
+   }
+  },
+  {
+   "id": 132751,
+   "slug": "lilmix-vs-ex-new-vision-26-10-2026",
+   "round_id": 41291,
+   "stage_id": 11094,
+   "tournament_id": 6216,
+   "team1_id": 486,
+   "team2_id": 25598,
+   "winner_team_id": 486,
+   "loser_team_id": 25598,
+   "team1_score": 1,
+   "team2_score": 0,
+   "status": "defwin",
+   "bo_type": 1,
+   "start_date": "2026-10-26T18:00:00.000+00:00",
+   "end_date": "2026-10-26T18:00:01.000+00:00",
+   "maps_score": [
+    true
+   ],
+   "tier": "c",
+   "position": 1,
+   "prev_match1_id": null,
+   "prev_match2_id": null,
+   "team1": {
+    "id": 486,
+    "slug": "lilmix",
+    "name": "Lilmix",
+    "acronym": null,
+    "image_url": "https://files.bo3.gg/uploads/team/486/image/webp-b695a0325f511c38924284efbcab3231.webp",
+    "rank": 167
+   },
+   "team2": {
+    "id": 25598,
+    "slug": "ex-new-vision",
+    "name": "ex-NEW VISION",
+    "acronym": null,
+    "image_url": null,
+    "rank": null
+   }
+  }
+ ]
+}

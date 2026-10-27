@@ -1,0 +1,156 @@
+import SwiftUI
+
+/// Where a page's sections are relative to what's on screen, and how far its
+/// hero has slid under the header. The linked-chart peek asks "is that chart
+/// out of view, and which way?"; the docked scorebar asks "how far has the
+/// hero gone?".
+///
+/// Scrolling never writes state per frame. Sections report their frames in
+/// content coordinates (which don't change as the page scrolls), and
+/// `PageScrollView` turns each scroll position into a small value (which
+/// sections are hidden, a 1/64 dock step) inside a geometry transform; only a
+/// change in that value is written here.
+@MainActor
+@Observable
+final class PageGeometry {
+    /// The coordinate space of a page's scroll content.
+    nonisolated static let space = "PageGeometry.content"
+
+    enum Edge: Equatable, Sendable { case above, below }
+
+    /// Visible at 60% or more, hidden at 40% or less: hysteresis without memory.
+    enum Visibility: Equatable, Sendable {
+        case visible
+        case partial(Edge)
+        case hidden(Edge)
+
+        var isHidden: Bool { if case .hidden = self { true } else { false } }
+    }
+
+    /// Sections by ID. Only sections that report a frame are listed.
+    private(set) var visibility: [String: Visibility] = [:]
+    /// 0 while the hero is in view, 1 once it has slid under the header;
+    /// in steps of 1/64.
+    private(set) var dockProgress: Double = 0
+    /// The scroll viewport's size (changes with the panel, never with scrolling).
+    private(set) var viewport: CGSize = .zero
+
+    /// Section frames in content coordinates.
+    @ObservationIgnored private(set) var frames: [String: CGRect] = [:]
+    /// The visible part of the content, as of the last scroll.
+    @ObservationIgnored private var visibleRect: CGRect = .zero
+    /// Set by `PageScrollView`: scrolls the content to an offset.
+    @ObservationIgnored var scrollHandler: ((CGFloat, Bool) -> Void)?
+
+    /// The hero's section ID, which drives `dockProgress`.
+    nonisolated static let hero = "hero"
+    /// Height of the docked scorebar plus its gap: the top of the viewport it covers once docked.
+    nonisolated static let dockInset: CGFloat = 48
+
+    // MARK: Scrolling
+
+    /// Brings a section's top to `topInset` below the viewport's top.
+    func scroll(toSection id: String, topInset: CGFloat = 8, animated: Bool) {
+        guard let frame = frames[id] else { return }
+        scroll(toY: max(0, frame.minY - topInset), animated: animated)
+    }
+
+    func scroll(toY y: CGFloat, animated: Bool) { scrollHandler?(y, animated) }
+
+    // MARK: Reports (from PageScrollView and pageSection)
+
+    struct State: Equatable {
+        var visibility: [String: Visibility]
+        var dockStep: Int
+    }
+
+    func report(frame: CGRect, for id: String) {
+        guard frames[id] != frame else { return }
+        frames[id] = frame
+        apply(state(for: visibleRect))
+    }
+
+    func report(viewport size: CGSize) {
+        if viewport != size { viewport = size }
+    }
+
+    /// What a scroll position means. Pure apart from reading `frames`; called
+    /// from the scroll geometry transform on every scroll.
+    func state(for visible: CGRect) -> State {
+        visibleRect = visible
+        let step = frames[Self.hero].map { Self.dockStep(hero: $0, offset: visible.minY) } ?? 0
+        // Once docked, the bar covers the top of the viewport.
+        let inset = step >= 32 ? Self.dockInset : 0
+        var map: [String: Visibility] = [:]
+        for (id, frame) in frames where id != Self.hero {
+            map[id] = Self.visibility(frame: frame, visible: visible, topInset: inset)
+        }
+        return State(visibility: map, dockStep: step)
+    }
+
+    func apply(_ state: State) {
+        if visibility != state.visibility { visibility = state.visibility }
+        let progress = Double(state.dockStep) / 64
+        if dockProgress != progress { dockProgress = progress }
+    }
+
+    // MARK: Math (pure, tested)
+
+    /// How much of a section is on screen. A section taller than the viewport
+    /// counts as fully visible while it fills it (you're inside it).
+    nonisolated static func visibility(frame: CGRect, visible: CGRect, topInset: CGFloat) -> Visibility {
+        var visible = visible
+        visible.origin.y += topInset
+        visible.size.height = max(visible.height - topInset, 0)
+        guard frame.height > 0, visible.height > 0 else { return .visible }
+        let shown = max(0, min(frame.maxY, visible.maxY) - max(frame.minY, visible.minY))
+        let fraction = shown / min(frame.height, visible.height)
+        let edge: Edge = frame.midY < visible.midY ? .above : .below
+        if fraction >= 0.6 { return .visible }
+        if fraction <= 0.4 { return .hidden(edge) }
+        return .partial(edge)
+    }
+
+    /// The hero docks once a quarter of it has slid under the header, over
+    /// the next three quarters of its height: 0...64.
+    nonisolated static func dockStep(hero: CGRect, offset y: CGFloat) -> Int {
+        let start = hero.minY + 0.25 * hero.height
+        let travel = max(0.75 * hero.height - 4, 24)
+        let p = min(max((y - start) / travel, 0), 1)
+        return Int((p * 64).rounded())
+    }
+}
+
+private struct PageGeometryKey: EnvironmentKey {
+    static let defaultValue: PageGeometry? = nil
+}
+
+extension EnvironmentValues {
+    /// The page's geometry, when the page tracks it (match pages). Other pages
+    /// leave it nil and their scroll views do nothing extra.
+    var pageGeometry: PageGeometry? {
+        get { self[PageGeometryKey.self] }
+        set { self[PageGeometryKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// Reports this section's frame to the page's geometry under `id`. Frames
+    /// are in content coordinates, so this fires on layout changes, not scrolling.
+    func pageSection(_ id: String) -> some View { modifier(PageSection(id: id)) }
+}
+
+private struct PageSection: ViewModifier {
+    let id: String
+    @Environment(\.pageGeometry) private var geometry
+
+    func body(content: Content) -> some View {
+        if let geometry {
+            content.onGeometryChange(for: CGRect.self) { $0.frame(in: .named(PageGeometry.space)) } action: { frame in
+                geometry.report(frame: frame, for: id)
+            }
+        } else {
+            content
+        }
+    }
+}

@@ -1,0 +1,306 @@
+{
+ "id": 11362,
+ "event": "World Climbing Series Santiago 2026",
+ "event_id": 1489,
+ "dcat_id": 5,
+ "discipline": "Lead",
+ "status": "finished",
+ "status_as_of": "2026-10-25 22:02:58 UTC",
+ "category": "Women",
+ "round": "Final",
+ "format": "IFSC: 1 route",
+ "format_identifier": "lead_one_group_one_route",
+ "routes": [
+  {
+   "id": 21539,
+   "name": "1",
+   "startlist": "/api/v1/routes/21539/startlist",
+   "ranking": "/api/v1/routes/21539/results"
+  }
+ ],
+ "ranking": [
+  {
+   "athlete_id": 1147,
+   "name": "GARNBRET Janja",
+   "firstname": "Janja",
+   "lastname": "GARNBRET",
+   "country": "SLO",
+   "federation_id": 15,
+   "bib": "6",
+   "rank": 1,
+   "score": "TOP",
+   "ascents": [
+    {
+     "route_id": 21539,
+     "route_name": "1",
+     "top": true,
+     "top_tries": null,
+     "score": "TOP",
+     "plus": false,
+     "restarted": false,
+     "time_ms": 260000,
+     "modified": "2026-10-25 22:02:54 +00:00",
+     "status": "locked"
+    }
+   ],
+   "combined_stages": null,
+   "active": false,
+   "under_appeal": false
+  },
+  {
+   "athlete_id": 928,
+   "name": "ROGORA Laura",
+   "firstname": "Laura",
+   "lastname": "ROGORA",
+   "country": "ITA",
+   "federation_id": 13,
+   "bib": "20",
+   "rank": 2,
+   "score": "48+",
+   "ascents": [
+    {
+     "route_id": 21539,
+     "route_name": "1",
+     "top": false,
+     "top_tries": null,
+     "score": "48+",
+     "plus": true,
+     "restarted": false,
+     "time_ms": 340000,
+     "modified": "2026-10-25 22:02:53 +00:00",
+     "status": "locked"
+    }
+   ],
+   "combined_stages": null,
+   "active": false,
+   "under_appeal": false
+  },
+  {
+   "athlete_id": 13329,
+   "name": "REKAR Rosa",
+   "firstname": "Rosa",
+   "lastname": "REKAR",
+   "country": "SLO",
+   "federation_id": 15,
+   "bib": "9",
+   "rank": 3,
+   "score": "46+",
+   "ascents": [
+    {
+     "route_id": 21539,
+     "route_name": "1",
+     "top": false,
+     "top_tries": null,
+     "score": "46+",
+     "plus": true,
+     "restarted": false,
+     "time_ms": 239000,
+     "modified": "2026-10-25 22:01:21 +00:00",
+     "status": "locked"
+    }
+   ],
+   "combined_stages": null,
+   "active": false,
+   "under_appeal": false
+  },
+  {
+   "athlete_id": 1160,
+   "name": "RAKOVEC Lucka",
+   "firstname": "Lucka",
+   "lastname": "RAKOVEC",
+   "country": "SLO",
+   "federation_id": 15,
+   "bib": "4",
+   "rank": 4,
+   "score": "46+",
+   "ascents": [
+    {
+     "route_id": 21539,
+     "route_name": "1",
+     "top": false,
+     "top_tries": null,
+     "score": "46+",
+     "plus": true,
+     "restarted": false,
+     "time_ms": 230000,
+     "modified": "2026-10-25 22:02:51 +00:00",
+     "status": "locked"
+    }
+   ],
+   "combined_stages": null,
+   "active": false,
+   "under_appeal": false
+  },
+  {
+   "athlete_id": 11783,
+   "name": "NAKAGAWA Ryu",
+   "firstname": "Ryu",
+   "lastname": "NAKAGAWA",
+   "country": "JPN",
+   "federation_id": 25,
+   "bib": "1",
+   "rank": 5,
+   "score": "46+",
+   "ascents": [
+    {
+     "route_id": 21539,
+     "route_name": "1",
+     "top": false,
+     "top_tries": null,
+     "score": "46+",
+     "plus": true,
+     "restarted": false,
+     "time_ms": 226000,
+     "modified": "2026-10-25 22:02:50 +00:00",
+     "status": "locked"
+    }
+   ],
+   "combined_stages": null,
+   "active": false,
+   "under_appeal": false
+  },
+  {
+   "athlete_id": 328,
+   "name": "DOUMONT Heloïse",
+   "firstname": "Heloïse",
+   "lastname": "DOUMONT",
+   "country": "BEL",
+   "federation_id": 9,
+   "bib": "2",
+   "rank": 6,
+   "score": "44+",
+   "ascents": [
+    {
+     "route_id": 21539,
+     "route_name": "1",
+     "top": false,
+     "top_tries": null,
+     "score": "44+",
+     "plus": true,
+     "restarted": false,
+     "time_ms": 258000,
+     "modified": "2026-10-25 22:02:52 +00:00",
+     "status": "locked"
+    }
+   ],
+   "combined_stages": null,
+   "active": false,
+   "under_appeal": false
+  },
+  {
+   "athlete_id": 1447,
+   "name": "SIRUCKOVA Tereza",
+   "firstname": "Tereza",
+   "lastname": "SIRUCKOVA",
+   "country": "CZE",
+   "federation_id": 17,
+   "bib": "5",
+   "rank": 7,
+   "score": "38",
+   "ascents": [
+    {
+     "route_id": 21539,
+     "route_name": "1",
+     "top": false,
+     "top_tries": null,
+     "score": "38",
+     "plus": false,
+     "restarted": false,
+     "time_ms": 277000,
+     "modified": "2026-10-25 22:02:48 +00:00",
+     "status": "locked"
+    }
+   ],
+   "combined_stages": null,
+   "active": false,
+   "under_appeal": false
+  },
+  {
+   "athlete_id": 13022,
+   "name": "FISHER Ella",
+   "firstname": "Ella",
+   "lastname": "FISHER",
+   "country": "USA",
+   "federation_id": 20,
+   "bib": "3",
+   "rank": 8,
+   "score": "37+",
+   "ascents": [
+    {
+     "route_id": 21539,
+     "route_name": "1",
+     "top": false,
+     "top_tries": null,
+     "score": "37+",
+     "plus": true,
+     "restarted": false,
+     "time_ms": 246000,
+     "modified": "2026-10-25 22:02:49 +00:00",
+     "status": "locked"
+    }
+   ],
+   "combined_stages": null,
+   "active": false,
+   "under_appeal": false
+  }
+ ],
+ "startlist": [
+  {
+   "athlete_id": 1447,
+   "squad_id": null,
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "route_id": 21539,
+     "position": 1
+    }
+   ],
+   "name": "SIRUCKOVA Tereza",
+   "firstname": "Tereza",
+   "lastname": "SIRUCKOVA",
+   "bib": "5",
+   "country": "CZE",
+   "federation_id": 17,
+   "squad_members": null,
+   "paraclimbing_guide": null
+  },
+  {
+   "athlete_id": 13022,
+   "squad_id": null,
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "route_id": 21539,
+     "position": 2
+    }
+   ],
+   "name": "FISHER Ella",
+   "firstname": "Ella",
+   "lastname": "FISHER",
+   "bib": "3",
+   "country": "USA",
+   "federation_id": 20,
+   "squad_members": null,
+   "paraclimbing_guide": null
+  },
+  {
+   "athlete_id": 11783,
+   "squad_id": null,
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "route_id": 21539,
+     "position": 3
+    }
+   ],
+   "name": "NAKAGAWA Ryu",
+   "firstname": "Ryu",
+   "lastname": "NAKAGAWA",
+   "bib": "1",
+   "country": "JPN",
+   "federation_id": 25,
+   "squad_members": null,
+   "paraclimbing_guide": null
+  }
+ ]
+}

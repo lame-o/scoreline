@@ -1,0 +1,40 @@
+{
+ "id": 10897,
+ "title": "ESL Pro League Season 24 Decider",
+ "tournament_id": 5110,
+ "format_type": "playoff",
+ "status": "finished",
+ "start_date": null,
+ "end_date": null,
+ "sequence_number": 3,
+ "rounds": [
+  {
+   "id": 40553,
+   "name": "3rd place",
+   "round_index": 1,
+   "is_decider": false,
+   "bracket_type": "default",
+   "stage_id": 10897,
+   "matches": [
+    {
+     "id": 130753,
+     "slug": "aurora-gaming-vs-spirit-11-10-2026",
+     "status": "finished",
+     "start_date": "2026-10-11T11:40:00.000+00:00",
+     "end_date": "2026-10-11T13:29:16.000+00:00",
+     "round_id": 40553,
+     "stage_id": 10897,
+     "position": 8,
+     "bo_type": 3,
+     "team1_id": 3598,
+     "team2_id": 654,
+     "team1_score": 2,
+     "team2_score": 0,
+     "winner_team_id": 3598,
+     "loser_team_id": 654,
+     "tournament_id": 5110
+    }
+   ]
+  }
+ ]
+}
