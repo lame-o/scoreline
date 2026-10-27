@@ -15,7 +15,8 @@ export { ScoreDigits } from "./ScoreDigits";
 export { EmptyState, ErrorCopy, ErrorState, Skeleton } from "./States";
 export { FormSection, GroupBox, Row, Toggle, ToggleRow, formStyles } from "./Form";
 export { Icon, SPORT_ICON, type IconName } from "../icons";
-export { ContextMenu, Menu, type ContextMenuPoint, type MenuEntry, type MenuItem } from "./Menu";
+export { ContextMenu, type ContextMenuPoint } from "./ContextMenu";
+export { Menu, type MenuEntry, type MenuItem } from "./Menu";
 export {
   CrestStrip,
   DisclosureHeader,

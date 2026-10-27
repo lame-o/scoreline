@@ -25,7 +25,6 @@ import { leagueWithID } from "../data/leagues";
 import { getJSON } from "../data/http";
 import type { League, LeagueResult, ScoreEvent } from "../data/models";
 import { fetchLeagueEvents } from "../data/providers";
-import { csLiveWatch, withLiveRounds } from "../data/providers/counterStrike";
 import {
   allFailed,
   backgroundInterval,
@@ -107,7 +106,8 @@ const isHidden = () => typeof document !== "undefined" && document.visibilitySta
 async function pollLeague(league: League, countries: readonly string[], signal: AbortSignal, queryKey: readonly unknown[]): Promise<ScoreEvent[]> {
   const previous = queryClient.getQueryData<ScoreEvent[]>(queryKey);
   const merged = mergePoll(previous, await fetchLeagueEvents(league, { countries, signal }));
-  if (league.source.kind !== "counterStrike") return merged;
+  if (league.source.kind !== "counterStrike" || !merged.some((e) => e.state === "live")) return merged;
+  const { csLiveWatch, withLiveRounds } = await import("../data/providers/csLive");
   // Read at poll time, not from a render: the follows, the pin and the view as they are now.
   const s = getSettings();
   const watch = csLiveWatch(merged, (e) => involvesFollowed(s, e), pin.get(), s.landingView === "tiles");

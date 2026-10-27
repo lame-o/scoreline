@@ -6,7 +6,8 @@
  */
 import { describe, expect, it } from "vitest";
 import type { Competitor, FollowedTeam, LeagueResult, ScoreEvent } from "../../src/data/models";
-import { csLiveLine, csLiveWatch, mapName, parseLive, withLiveRounds, makeMatchEvent } from "../../src/data/providers/counterStrike";
+import { makeMatchEvent } from "../../src/data/providers/counterStrike";
+import { csLiveLine, csLiveWatch, mapName, parseLive, withLiveRounds } from "../../src/data/providers/csLive";
 import { alertFor, notificationBody, pollAlerts } from "../../src/data/notifier";
 import { backgroundInterval, board, keepIdentity, myTeamsEvents, type ListPreferences, type NextGame } from "../../src/data/scoreboard";
 import { faviconScore, pinExpired, tabEvent, tabTitle } from "../../src/data/tabScore";

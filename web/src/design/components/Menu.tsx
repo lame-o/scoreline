@@ -11,16 +11,9 @@
  *       entries={[{ kind: "item", label: "Schedule", onSelect: () => … },
  *                 { kind: "section", title: "Leagues", items: [...] }]} />
  *
- * ContextMenu: the same menu where the pointer is (`.contextMenu` in
- * SwiftUI: a right-click, a long press, Shift-F10), in a layer over the
- * page, so a scrolling pane never clips it. It opens down and right of the
- * point and flips at the window's edges, growing from the corner nearest
- * it. Scrolling, resizing or leaving the window closes it.
- *
- *     {menu ? <ContextMenu label="Arsenal vs Chelsea" at={menu} entries={…} onClose={() => setMenu(null)} /> : null}
+ * `ContextMenu` (ContextMenu.tsx) is the same menu placed at the pointer.
  */
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject } from "react";
-import { createPortal } from "react-dom";
 import { Icon, type IconName } from "../icons";
 import styles from "./Menu.module.css";
 
@@ -53,17 +46,17 @@ export interface MenuProps {
   readonly disabled?: boolean;
 }
 
-function flatten(entries: readonly MenuEntry[]): MenuItem[] {
+export function flatten(entries: readonly MenuEntry[]): MenuItem[] {
   return entries.flatMap((e) => (e.kind === "item" ? [e] : e.kind === "section" ? e.items : []));
 }
 
 /** The first enabled item at or after `from` going `step` (±1), or `from` when there's none. */
-function enabledFrom(items: readonly MenuItem[], from: number, step: number): number {
+export function enabledFrom(items: readonly MenuItem[], from: number, step: number): number {
   for (let i = from; i >= 0 && i < items.length; i += step) if (!items[i]?.disabled) return i;
   return Math.min(Math.max(from - step, -1), items.length - 1);
 }
 
-interface SurfaceProps {
+export interface SurfaceProps {
   readonly id: string;
   readonly label: string;
   readonly entries: readonly MenuEntry[];
@@ -82,7 +75,7 @@ interface SurfaceProps {
 }
 
 /** The menu itself: its items, the highlight and the keys. Shared by `Menu` and `ContextMenu`. */
-function MenuSurface({ id, label, entries, initialActive, instant, closing, className, style, align, origin, onChoose, onDismiss, surfaceRef }: SurfaceProps) {
+export function MenuSurface({ id, label, entries, initialActive, instant, closing, className, style, align, origin, onChoose, onDismiss, surfaceRef }: SurfaceProps) {
   const [active, setActive] = useState(initialActive);
   const items = flatten(entries);
   const glyphs = items.some((i) => i.icon);
@@ -183,7 +176,7 @@ function MenuSurface({ id, label, entries, initialActive, instant, closing, clas
 }
 
 /** Opens and closes with the exit's timing: `close(instant)` plays it unless asked not to. */
-function useClosing(onClosed: () => void) {
+export function useClosing(onClosed: () => void) {
   const [closing, setClosing] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -299,94 +292,5 @@ export function Menu({ label, trigger, entries, align = "start", triggerClassNam
         />
       ) : null}
     </div>
-  );
-}
-
-// MARK: - Context menus
-
-export interface ContextMenuPoint {
-  /** Viewport coordinates (CSS pixels) the menu opens from. */
-  readonly x: number;
-  readonly y: number;
-  /** Opened from the keyboard: no entrance, the first item highlighted. */
-  readonly instant: boolean;
-}
-
-export interface ContextMenuProps {
-  readonly label: string;
-  readonly at: ContextMenuPoint;
-  readonly entries: readonly MenuEntry[];
-  /** Called once it has gone (after its exit). */
-  readonly onClose: () => void;
-  /** Where focus returns after a keyboard close (the row it was opened on). */
-  readonly returnFocus?: HTMLElement | null;
-}
-
-const EDGE = 8;
-
-export function ContextMenu({ label, at, entries, onClose, returnFocus }: ContextMenuProps) {
-  const id = useId();
-  const surface = useRef<HTMLDivElement>(null);
-  const [place, setPlace] = useState<{ style: CSSProperties; origin: string }>({ style: { left: at.x, top: at.y, visibility: "hidden" }, origin: "top-left" });
-  const { closing, close } = useClosing(onClose);
-  const first = at.instant ? enabledFrom(flatten(entries), 0, 1) : -1;
-
-  // Down and right of the point; flipped at the window's edges, growing from the corner nearest the point.
-  useLayoutEffect(() => {
-    const el = surface.current;
-    if (!el) return;
-    const { width, height } = el.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const left = at.x + width > vw - EDGE ? Math.max(EDGE, at.x - width) : at.x;
-    const top = at.y + height > vh - EDGE ? Math.max(EDGE, at.y - height) : at.y;
-    const origin = `${top < at.y ? "bottom" : "top"}-${left < at.x ? "right" : "left"}`;
-    setPlace({ style: { left, top }, origin });
-    el.focus({ preventScroll: true });
-  }, [at]);
-
-  useEffect(() => {
-    const dismiss = () => close(false);
-    const onPointer = (event: PointerEvent) => {
-      if (!surface.current?.contains(event.target as Node)) close(false);
-    };
-    const onScroll = (event: Event) => {
-      if (!surface.current?.contains(event.target as Node)) close(true);
-    };
-    window.addEventListener("pointerdown", onPointer, true);
-    window.addEventListener("scroll", onScroll, true);
-    window.addEventListener("resize", dismiss);
-    window.addEventListener("blur", dismiss);
-    return () => {
-      window.removeEventListener("pointerdown", onPointer, true);
-      window.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("resize", dismiss);
-      window.removeEventListener("blur", dismiss);
-    };
-  }, [close]);
-
-  return createPortal(
-    <MenuSurface
-      id={id}
-      label={label}
-      entries={entries}
-      initialActive={first}
-      instant={at.instant}
-      closing={closing}
-      className={`${styles.menu} ${styles.contextMenu}`}
-      style={place.style}
-      origin={place.origin}
-      surfaceRef={surface}
-      onChoose={(item) => {
-        close(true);
-        if (at.instant) returnFocus?.focus({ preventScroll: true });
-        item.onSelect();
-      }}
-      onDismiss={(back) => {
-        close(true);
-        if (back) returnFocus?.focus({ preventScroll: true });
-      }}
-    />,
-    document.body,
   );
 }

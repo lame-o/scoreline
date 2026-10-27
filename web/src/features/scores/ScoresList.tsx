@@ -9,7 +9,6 @@ import { useMemo } from "react";
 import { Link } from "react-router";
 import { Icon, SPORT_ICON } from "../../design/components";
 import { revealDelay, spring } from "../../design/motion";
-import { dayID, dayKeyOf, mediumDayLabel, type DayKey } from "../../data/days";
 import { espnPath } from "../../data/leagues";
 import type { League } from "../../data/models";
 import { schedulePath, scopeFor } from "../../data/schedule";
@@ -145,7 +144,7 @@ export function Footnotes({ quiet, hasFollowed }: { quiet: readonly League[]; ha
       {known.map((l) => (
         <p key={l.id}>
           <Link className={styles.footnoteLink} to={schedulePath(scopeFor(l))} state={{ from: "Scores" }} title={`${l.name} schedule`}>
-            {l.name}: next {mediumDayLabel(next.get(l.id)!)}
+            {l.name}: next {next.get(l.id)}
           </Link>
         </p>
       ))}
@@ -168,20 +167,21 @@ export function Footnotes({ quiet, hasFollowed }: { quiet: readonly League[]; ha
 const CALENDAR_HOURS = 12 * 3_600_000;
 
 /**
- * Quiet ESPN leagues' next game day, from their season calendars (the
- * schedule pages' cache; ScheduleStore.loadCalendars). The schedule code
- * loads on demand, only when a league is quiet.
+ * Quiet ESPN leagues' next game day ("Sat, Nov 1"), from their season
+ * calendars (the schedule pages' cache; ScheduleStore.loadCalendars). The
+ * schedule code loads on demand, only when a league is quiet.
  */
-function useNextGameDays(quiet: readonly League[]): ReadonlyMap<string, DayKey> {
-  const today = dayID(dayKeyOf(Date.now()));
+function useNextGameDays(quiet: readonly League[]): ReadonlyMap<string, string> {
+  const today = new Date().toDateString();
   const leagues = quiet.filter((l) => l.source.kind === "espn" && espnPath(l) != null);
   const queries = useQueries({
     queries: leagues.map((league) => ({
       queryKey: ["footnote", league.id, today],
       queryFn: async () => {
-        const [{ fetchCalendar }, { nextDayAfterWindow }] = await Promise.all([import("../../state/schedule"), import("../../data/providers/schedule")]);
+        const [{ fetchCalendar }, { nextDayAfterWindow }, { mediumDayLabel }] = await Promise.all([import("../../state/schedule"), import("../../data/providers/schedule"), import("../../data/days")]);
         const calendar = await fetchCalendar(espnPath(league)!);
-        return nextDayAfterWindow(calendar, league.source.kind === "espn" && league.source.weekly, Date.now());
+        const day = nextDayAfterWindow(calendar, league.source.kind === "espn" && league.source.weekly, Date.now());
+        return day ? mediumDayLabel(day) : null;
       },
       staleTime: CALENDAR_HOURS,
       gcTime: CALENDAR_HOURS,
@@ -190,7 +190,7 @@ function useNextGameDays(quiet: readonly League[]): ReadonlyMap<string, DayKey> 
   });
   const version = queries.map((q) => q.dataUpdatedAt).join();
   return useMemo(() => {
-    const map = new Map<string, DayKey>();
+    const map = new Map<string, string>();
     leagues.forEach((l, i) => {
       const day = queries[i]?.data;
       if (day) map.set(l.id, day);

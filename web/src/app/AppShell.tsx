@@ -46,6 +46,8 @@ export function AppShell() {
     const warm = () => {
       void import("../features/game/GamePage");
       void import("../features/settings/SettingsPage");
+      // A game's menu, so the first right-click opens it at once.
+      void import("../features/scores/GameMenuContent");
     };
     const idle = window.requestIdleCallback?.(warm, { timeout: 3000 });
     const timer = idle == null ? window.setTimeout(warm, 1500) : undefined;
