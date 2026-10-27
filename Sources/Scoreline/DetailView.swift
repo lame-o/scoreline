@@ -1128,7 +1128,7 @@ struct DetailView: View {
         switch kind {
         case .pitch:
             PitchView(trail: soccerFeed.trail, shots: soccerFeed.shots, live: live,
-                      palette: palette, topName: names.top, bottomName: names.bottom, cards: soccerFeed.cards)
+                      palette: palette, topName: names.top, bottomName: names.bottom, cards: soccerFeed.cards, theater: live)
         case .timeline:
             SoccerTimeline(moments: d.moments, currentMinute: live ? soccerMinute : nil, palette: palette,
                            topName: names.top, bottomName: names.bottom)
@@ -1215,6 +1215,11 @@ struct DetailView: View {
                               accessory: live ? .live : .final,
                               spokenCaption: (live ? "The last 10 actions, live. " : "Every shot, with each goal's path. ")
                                   + "\(full.top) attacking left to right, \(full.bottom) right to left.") {
+                    if live {
+                        // Reads the live lane's latest moment itself, so a moment redraws only the theater.
+                        SoccerTheater(feed: soccerFeed, palette: palette,
+                                      kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last))
+                    }
                     chart(.pitch, d)
                 }
             case .timeline:

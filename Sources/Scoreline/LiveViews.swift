@@ -17,6 +17,10 @@ struct PitchView: View {
     let bottomName: String
     /// Cards at the foul that drew them; drawn only when their key event is pointed at.
     var cards: [String: PitchAction] = [:]
+    /// The soccer theater is on the page: the moments it replays (goals,
+    /// saves, the woodwork) are its to celebrate and caption
+    /// (`GoalCelebration`); the shot's path still draws here.
+    var theater = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.widthClass) private var widthClass
@@ -81,7 +85,8 @@ struct PitchView: View {
                 // save's glint at the stop, sparks at the post it rattled.
                 .overlay(alignment: .topLeading) {
                     let stage = momentAction.flatMap { stage(for: $0, size: size, point: point) }
-                    CelebrationStage(moment: stage == nil ? nil : moment, origin: stage?.origin, size: size,
+                    CelebrationStage(moment: stage == nil || !GoalCelebration.pitchBursts(moment, theaterShown: theater) ? nil : moment,
+                                     origin: stage?.origin, size: size,
                                      colors: .team(stage?.color ?? Viz.neutral), direction: stage?.direction ?? .degrees(-90))
                 }
                 .contentShape(Rectangle())
@@ -110,7 +115,8 @@ struct PitchView: View {
 
     /// The legend, the pointed-at mark in words, or the latest action (live).
     private func footer(target: PitchAction?) -> some View {
-        ChartFooter(readout: target.map { ($0.minute, MomentList.shortened($0.text)) }, moment: moment) {
+        ChartFooter(readout: target.map { ($0.minute, MomentList.shortened($0.text)) },
+                    moment: GoalCelebration.pitchBursts(moment, theaterShown: theater) ? moment : nil) {
             VizLegend {
                 LegendItem(label: "\(topName) →") { Circle().fill(palette.top).frame(width: 7, height: 7) }
                 LegendItem(label: "← \(bottomName)") {

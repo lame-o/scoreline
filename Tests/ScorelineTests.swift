@@ -60,6 +60,7 @@ struct ScorelineTests {
         outline()
         playTheater()
         playBroadcast()
+        soccerTheater()
         statcast()
 
         print("\n\(passes) passed, \(failures) failed")
