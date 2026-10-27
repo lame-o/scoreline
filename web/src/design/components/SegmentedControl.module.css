@@ -27,6 +27,13 @@
   transition: none;
 }
 
+/* Reduce Motion: the thumb doesn't travel; the new segment's ink still changes on its fade. */
+@media (prefers-reduced-motion: reduce) {
+  .thumb {
+    transition: none;
+  }
+}
+
 .option {
   display: inline-flex;
   align-items: center;
