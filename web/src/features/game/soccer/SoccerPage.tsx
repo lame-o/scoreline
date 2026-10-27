@@ -13,10 +13,8 @@
  * Leagues, LaLiga, Serie A, the Bundesliga, Ligue 1, the Championship, MLS,
  * the World Cup) reads the same feeds.
  *
- * TODO(soccer theater): the Mac's soccer play theater (SoccerScene.swift,
- * SoccerScript.swift, SoccerTheater.swift) is a dedicated agent's port; its
- * section is planned (`theater`, data/sections.ts) and the lane keeps the
- * window of core plays it reads (`SoccerFeed.plays`).
+ * Live, the play theater (theater/, SoccerTheater.swift) replays each big
+ * moment at the top of the Live Pitch from the lane's window of core plays.
  */
 import { useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { espnTeamIDs } from "../../../data/gameDetail";
@@ -34,6 +32,7 @@ import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "..
 import { useCommonSections } from "../core/useCommonSections";
 import { SoccerTableWindow, useLeagueLive, useTableRows } from "../tables/GameTables";
 import { Pitch } from "./Pitch";
+import { PitchTheater } from "./theater/PitchTheater";
 import { Timeline } from "./Timeline";
 import { soccerMomentText } from "./MomentText";
 import styles from "./SoccerPage.module.css";
@@ -90,7 +89,9 @@ export function useSoccerPage(game: GameContext): SportPage {
         spokenCaption={`${live ? "The last 10 actions, live. " : "Every shot, with each goal's path. "}${spoken.top} attacking left to right, ${spoken.bottom} right to left.`}
         accessory={live ? "live" : event.state === "final" ? "final" : undefined}
       >
-        <Pitch trail={feed.trail} shots={feed.shots} cards={feed.cards} live={live} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} width={sectionWidth} />
+        {/* The play theater at the top of the Live Pitch, as on the Mac; it owns the moments it replays (GoalCelebration.pitchBursts). */}
+        {live ? <PitchTheater feed={feed} homeTeamID={homeID} event={event} /> : null}
+        <Pitch trail={feed.trail} shots={feed.shots} cards={feed.cards} live={live} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} width={sectionWidth} theaterShown={live} />
       </DetailSection>
     );
   }

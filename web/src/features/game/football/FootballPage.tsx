@@ -31,6 +31,7 @@ import { useCommonSections } from "../core/useCommonSections";
 import { CollegeTable } from "./ConferenceTable";
 import { FootballField } from "./FootballField";
 import { useNameLinker } from "./names";
+import { FieldTheater } from "./theater/FieldTheater";
 import styles from "./FootballPage.module.css";
 
 export function useFootballPage(game: GameContext): SportPage {
@@ -111,16 +112,12 @@ export function useFootballPage(game: GameContext): SportPage {
         spokenCaption={`This drive, snap by snap. ${spoken.top} defending the left end zone.`}
         accessory="live"
       >
-        <FootballField situation={situation} plays={feed.plays} names={names} spoken={spoken} palette={palette} possession={possession} twoMinuteDrill={drill} linkText={linkText} />
+        {/* The play theater, above the drive chart as on the Mac; it owns the burst (FootballCelebration.driveChartBursts). */}
+        <FieldTheater feed={feed} teams={teams} situation={situation} event={event} palette={palette} names={names} />
+        <FootballField situation={situation} plays={feed.plays} names={names} spoken={spoken} palette={palette} possession={possession} twoMinuteDrill={drill} linkText={linkText} celebrates={false} />
       </DetailSection>
     );
   }
-  // TODO(football theater): port the Mac's play theater (FootballScene, FootballScript,
-  // FootballTheater and TheaterKit .swift: an isometric replay of each snap, like MLB's). Its slot is
-  // `sections.theater`, under the field in one column and in the left column of two (data/sections.ts);
-  // the Mac draws it inside the Field section, above the drive chart, which is also fine here. Its
-  // parser reads the lane's raw entries (`feed.items`); while it shows, pass `celebrates={false}` to
-  // the field so the theater owns the burst (FootballCelebration.driveChartBursts).
 
   // College: the conference table with AP ranks, and the polls and full standings a click away.
   // Today's table says nothing about a game from another season.

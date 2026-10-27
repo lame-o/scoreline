@@ -386,7 +386,8 @@ async function nba() {
 
 const trimSoccerPlay = (p) => ({
   ...lean({
-    ...pick(p, ["id", "shortText", "scoringPlay", "fieldPositionX", "fieldPositionY", "fieldPosition2X", "fieldPosition2Y", "expectedGoals", "goalPositionY", "goalPositionZ", "redCard", "yellowCard"]),
+    // The play theater reads the full text (a header, the assist, the save, an own goal), when it was, a penalty, an own goal.
+    ...pick(p, ["id", "shortText", "text", "wallclock", "scoringPlay", "penaltyKick", "ownGoal", "fieldPositionX", "fieldPositionY", "fieldPosition2X", "fieldPosition2Y", "expectedGoals", "goalPositionY", "goalPositionZ", "redCard", "yellowCard"]),
     homeScore: p.homeScore,
     awayScore: p.awayScore,
     type: pick(p.type, ["type", "text"]),
@@ -443,21 +444,29 @@ const ref = (r) => (r?.$ref ? { $ref: r.$ref.split("?")[0] } : undefined);
 
 const trimSpot = (s, keys) => (s ? { ...pick(s, keys), team: ref(s.team) } : undefined);
 
+/** "…/athletes/4432577?lang=en" → { $ref: "/athletes/4432577" }: the theater reads the ID after the marker. */
+const shortPart = (r, marker) => {
+  const m = r?.$ref ? new RegExp(`/${marker}/(\\d+)`).exec(r.$ref) : null;
+  return m ? { $ref: `/${marker}/${m[1]}` } : undefined;
+};
+
 /**
  * A core play, cut to what FootballFeed reads (and what the demo needs to stand a situation up
- * after it: the down and distance it ends on). The long text only when there's no short one.
+ * after it: the down and distance it ends on), and what the play theater reads (FootballScene:
+ * the full text, the down before, who was in on it by position, the flag, yards after the catch).
  */
 const trimFootballPlay = (p) => ({
-  ...pick(p, ["id", "sequenceNumber", "shortText", "awayScore", "homeScore", "scoringPlay", "statYardage", "isTurnover", "isPenalty"]),
-  text: p.shortText ? undefined : p.text,
+  ...pick(p, ["id", "sequenceNumber", "shortText", "text", "awayScore", "homeScore", "scoringPlay", "statYardage", "isTurnover", "isPenalty", "yardsAfterCatch", "wallclock"]),
   type: pick(p.type, ["id", "text"]),
   scoringType: p.scoringType ? pick(p.scoringType, ["name"]) : undefined,
   period: pick(p.period, ["number"]),
   clock: pick(p.clock, ["value", "displayValue"]),
-  start: trimSpot(p.start, ["yardLine", "shortDownDistanceText"]),
+  start: trimSpot(p.start, ["yardLine", "shortDownDistanceText", "down", "distance"]),
   end: trimSpot(p.end, ["down", "distance", "yardLine"]),
   team: ref(p.team),
   drive: ref(p.drive),
+  participants: p.participants?.map((x) => lean({ type: x.type, athlete: shortPart(x.athlete, "athletes"), position: shortPart(x.position, "positions") })),
+  penalty: p.penalty ? lean({ type: pick(p.penalty.type, ["text"]), status: pick(p.penalty.status, ["slug"]), yards: p.penalty.yards }) : undefined,
 });
 
 /** A summary, cut to what the football game page reads (ESPNDetail.load). */
