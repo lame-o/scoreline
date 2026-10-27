@@ -54,6 +54,11 @@ final class ScoreStore {
     var climbingDisciplines: Set<String> {
         didSet { defaults.set(Array(climbingDisciplines), forKey: Keys.climbingDisciplines); version += 1 }
     }
+
+    /// Competitions as far as the disciplines shown go (the others don't appear at all).
+    func tracked(_ events: [SeasonEvent]) -> [SeasonEvent] {
+        events.compactMap { $0.tracking(climbingDisciplines) }
+    }
     /// College football: only games with a ranked team (plus teams you follow).
     var collegeTop25Only: Bool {
         didSet { defaults.set(collegeTop25Only, forKey: Keys.collegeTop25); version += 1 }
@@ -994,7 +999,28 @@ enum ClimbingDiscipline {
     /// "Boulder & Lead Women"); nil when it can't tell.
     static func of(_ event: Event) -> Set<String>? {
         guard case let .climbing(_, category, _, _, _, _)? = event.ref else { return nil }
-        let found = Set(all.filter { category.lowercased().contains($0) })
+        return of(category)
+    }
+
+    /// The disciplines a category or round name mentions ("Boulder & Lead Women"); nil for none.
+    static func of(_ name: String) -> Set<String>? {
+        let found = Set(all.filter { name.lowercased().contains($0) })
         return found.isEmpty ? nil : found
+    }
+}
+
+extension SeasonEvent {
+    /// A climbing competition cut to the disciplines you follow: their lanes,
+    /// categories and rounds only, or nil when it has none of them. One that
+    /// doesn't list its disciplines (a CS2 event, a bare calendar entry) stays as it is.
+    func tracking(_ disciplines: Set<String>) -> SeasonEvent? {
+        guard case .climbing = kind, !lanes.isEmpty else { return self }
+        let kept = lanes.filter(disciplines.contains)
+        guard !kept.isEmpty else { return nil }
+        var event = self
+        event.lanes = kept
+        event.categories = categories.filter { ClimbingDiscipline.of($0.name).map { !$0.isDisjoint(with: disciplines) } ?? true }
+        event.rounds = rounds.filter { ClimbingDiscipline.of($0.discipline).map { !$0.isDisjoint(with: disciplines) } ?? true }
+        return event
     }
 }

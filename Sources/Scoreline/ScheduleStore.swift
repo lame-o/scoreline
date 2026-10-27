@@ -420,7 +420,7 @@ final class ScheduleStore {
         case .ifsc:
             // A first paint uses the season already in memory; the network pass loads it.
             if !cacheOnly { await loadClimbing(countries: Set(store.climbingCountries), force: force) }
-            let events = climbing.events.values.flatMap { $0 }
+            let events = store.tracked(climbing.events.values.flatMap { $0 })
             out.items = events.filter { $0.startDay <= to && $0.endDay >= from && $0.status != .canceled }
                 .flatMap { climbingItems($0, from: from, to: to) }
             out.ok = cacheOnly ? climbing.updated != nil : !climbing.failed

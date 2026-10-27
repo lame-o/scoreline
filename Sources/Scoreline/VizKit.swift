@@ -162,6 +162,8 @@ enum SectionAccessory: Equatable {
     case live
     case final
     case text(String)
+    /// Baseball, live: the count ("2–2"), balls first.
+    case count(balls: Int, strikes: Int)
 }
 
 // MARK: - Linked hover

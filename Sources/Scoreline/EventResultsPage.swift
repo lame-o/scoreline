@@ -98,7 +98,7 @@ private struct ClimbingCategoryPage: View {
     // MARK: Header
 
     private func header(_ box: SeasonResultsStore.Category) -> some View {
-        let categories = (box.event?.categories ?? []).filter { $0.dcatID != nil }
+        let categories = (box.event.flatMap { $0.tracking(store.climbingDisciplines) }?.categories ?? []).filter { $0.dcatID != nil }
         let name = box.results?.category ?? categories.first { $0.dcatID == dcat }?.name ?? category
         return TitleBarLayout {
             HStack(spacing: 6) { BackButton(title: backTitle, action: onBack) }

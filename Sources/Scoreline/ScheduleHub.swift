@@ -227,7 +227,7 @@ struct LeagueUpcomingSection: View {
     // MARK: Climbing
 
     private var nextCompetitions: [SeasonEvent] {
-        let all = schedule.climbing.seasons.flatMap { schedule.climbing.events[$0] ?? [] }
+        let all = store.tracked(schedule.climbing.seasons.flatMap { schedule.climbing.events[$0] ?? [] })
         return Array(all.filter { $0.status == .live || $0.status == .upcoming }.sorted { $0.startDay < $1.startDay }.prefix(4))
     }
 
@@ -240,10 +240,9 @@ struct LeagueUpcomingSection: View {
             ScheduleNote(text: "The next season's calendar isn't published yet.").stackIn()
         } else {
             RowGrid(columns: layout.columns) {
-                let disciplines = store.climbingDisciplines
                 ForEach(events) { event in
                     HighlightGate(state: highlight, id: event.id) { lit in
-                        ClimbingEventRow(event: event, open: false, highlighted: lit, disciplines: disciplines, chevron: false,
+                        ClimbingEventRow(event: event, open: false, highlighted: lit, chevron: false,
                                          relative: Self.relative(event, today: today)) {
                             schedule.expanded.insert(event.id)
                             schedule.selectedEvent[.climbing] = event.id

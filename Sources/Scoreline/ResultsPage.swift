@@ -236,6 +236,9 @@ struct ResultsAgendaPage: View {
         }
     }
 
+    /// The scope chips, as on Upcoming: a league opens its own Results.
+    private var chips: ScheduleChips? { .scopes(scope, store: store, onScope: onScope, onDrill: onDrill) }
+
     private func filterable(_ league: League) -> Bool {
         store.isFilterOn(league) && !store.picks(for: league).isEmpty || league.id == "college-football"
     }
@@ -269,7 +272,8 @@ struct ResultsAgendaPage: View {
         } else {
             ScrollViewReader { proxy in
             PageScrollView {
-                Group {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let chips { chips.stackIn() }
                     if layout.split && navigation == .rounds {
                         HStack(alignment: .top, spacing: 0) {
                             ResultsRoundList(rounds: state.rounds, selected: state.selected, seasons: yourSeasons,
@@ -390,6 +394,7 @@ struct ResultsAgendaPage: View {
             ScrollViewReader { proxy in
                 PageScrollView {
                     VStack(alignment: .leading, spacing: 0) {
+                        if let chips { chips.stackIn() }
                         if case let .team(team) = scope {
                             teamContent(state, team: team)
                         } else {

@@ -23,8 +23,6 @@ struct SeasonTimeline: View {
     let next: String?
     /// The event open beside the list (split panel), ringed like a hover.
     var selected: String? = nil
-    /// Lanes outside the user's interests draw faintly.
-    var dimmedLanes: Set<String> = []
     /// Linked with the list below: hovering either highlights both.
     @Binding var hovered: String?
     let onSelect: (String) -> Void
@@ -88,7 +86,7 @@ struct SeasonTimeline: View {
         // Lane labels.
         for (i, lane) in lanes.enumerated() {
             let y = CGFloat(i) * Self.laneHeight + Self.laneHeight / 2
-            let label = Text(lane.label).font(.system(size: 10)).foregroundStyle(dimmedLanes.contains(lane.id) ? .tertiary : .secondary)
+            let label = Text(lane.label).font(.system(size: 10)).foregroundStyle(.secondary)
             context.draw(label, at: CGPoint(x: 0, y: y), anchor: .leading)
         }
         // Today.
@@ -105,9 +103,7 @@ struct SeasonTimeline: View {
             guard let event = byID[mark.event] else { continue }
             let rect = mark.rect.offsetBy(dx: left, dy: 0)
             let shape = Path(roundedRect: rect, cornerRadius: Self.markHeight / 2)
-            var color = fill(for: event)
-            if dimmedLanes.contains(mark.lane) { color = color.opacity(0.35) }
-            context.fill(shape, with: .color(color))
+            context.fill(shape, with: .color(fill(for: event)))
             if event.badge == "World Championships" || event.badge == "Major" || event.badge == "Olympic Games" {
                 context.stroke(Path(roundedRect: rect.insetBy(dx: -1.5, dy: -1.5), cornerRadius: Self.markHeight / 2 + 1.5),
                                with: .color(Color.primary.opacity(0.35)), lineWidth: 1)

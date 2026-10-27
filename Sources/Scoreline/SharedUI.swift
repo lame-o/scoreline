@@ -273,6 +273,7 @@ struct SectionTitle<Trailing: View>: View {
         case .live: "\(title), Live"
         case .final: "\(title), Final"
         case let .text(text): "\(title), \(text)"
+        case let .count(balls, strikes): "\(title), \(balls) and \(strikes)"
         case nil: title
         }
     }
@@ -290,6 +291,16 @@ struct SectionTitle<Trailing: View>: View {
             Text("Final").font(.system(size: 10.5)).foregroundStyle(.secondary)
         case let .text(text):
             Text(text).font(.system(size: 10.5)).foregroundStyle(.secondary)
+        case let .count(balls, strikes):
+            // Each number rolls to the next as the pitches come in.
+            HStack(spacing: 3) {
+                Text("\(balls)").contentTransition(.numericText(value: Double(balls)))
+                Text("–").foregroundStyle(.secondary)
+                Text("\(strikes)").contentTransition(.numericText(value: Double(strikes)))
+            }
+            .font(.system(size: 13, weight: .bold).monospacedDigit())
+            .animation(Motion.quick, value: balls)
+            .animation(Motion.quick, value: strikes)
         case nil:
             EmptyView()
         }

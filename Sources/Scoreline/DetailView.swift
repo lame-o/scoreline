@@ -1198,7 +1198,8 @@ struct DetailView: View {
                     }
                 }
             case .atBat:
-                DetailSection(title: "This At-Bat", caption: "Every pitch to this batter, in order. Catcher's view.") {
+                let count = liveBaseball(d).map { SectionAccessory.count(balls: $0.balls, strikes: $0.strikes) }
+                DetailSection(title: "This At-Bat", accessory: count) {
                     StrikeZoneView(pitches: baseballFeed.loaded ? baseballFeed.atBat : d.atBat)
                 }
             case .pitch:

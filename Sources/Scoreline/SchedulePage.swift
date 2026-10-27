@@ -45,6 +45,35 @@ struct SchedulePage: View {
     }
 }
 
+// MARK: - Scope chips
+
+extension ScheduleChips {
+    /// All, your teams, then (on the calendar) each league: a league chip
+    /// opens its own schedule, climbing's season and CS2's tournaments included.
+    /// The same row on Upcoming and Results; a league opens facing the same way.
+    @MainActor
+    static func scopes(_ scope: ScheduleScope, store: ScoreStore, onScope: @escaping (ScheduleScope) -> Void,
+                       onDrill: @escaping (ScheduleScope) -> Void) -> ScheduleChips? {
+        guard scope == .all || scope == .yourTeams || { if case .team = scope { true } else { false } }() else { return nil }
+        var list = [Chip(scope: .all, title: "All")]
+        if !store.followed.isEmpty {
+            list.append(Chip(scope: .yourTeams, title: "Your Teams", symbol: "star.fill"))
+            list += store.followed.prefix(6).map {
+                Chip(scope: .team(ScheduleTeamRef(id: $0.id, name: $0.name, logo: $0.logo)), title: $0.name)
+            }
+        }
+        var leagues: [Chip] = []
+        if scope == .all {
+            leagues = store.enabledLeagues.map { Chip(scope: .for(league: $0), title: $0.shortName, drills: true) }
+        }
+        guard list.count > 1 || !leagues.isEmpty else { return nil }
+        let drills = Set(leagues.map(\.scope))
+        return ScheduleChips(chips: list + leagues, selected: scope) { chosen in
+            if drills.contains(chosen) { onDrill(chosen) } else { onScope(chosen) }
+        }
+    }
+}
+
 // MARK: - Header
 
 /// Every agenda schedule's header, in either mode: Back, the scope as a
@@ -404,27 +433,7 @@ struct AgendaPage: View {
         .buttonStyle(.plain)
     }
 
-    /// All, your teams, then (on the calendar) each league: a league chip
-    /// opens its own schedule, climbing's season and CS2's tournaments included.
-    private var chips: ScheduleChips? {
-        guard scope == .all || scope == .yourTeams || { if case .team = scope { true } else { false } }() else { return nil }
-        var list = [ScheduleChips.Chip(scope: .all, title: "All")]
-        if !store.followed.isEmpty {
-            list.append(ScheduleChips.Chip(scope: .yourTeams, title: "Your Teams", symbol: "star.fill"))
-            list += store.followed.prefix(6).map {
-                ScheduleChips.Chip(scope: .team(ScheduleTeamRef(id: $0.id, name: $0.name, logo: $0.logo)), title: $0.name)
-            }
-        }
-        var leagues: [ScheduleChips.Chip] = []
-        if scope == .all {
-            leagues = store.enabledLeagues.map { ScheduleChips.Chip(scope: .for(league: $0), title: $0.shortName, drills: true) }
-        }
-        guard list.count > 1 || !leagues.isEmpty else { return nil }
-        let drills = Set(leagues.map(\.scope))
-        return ScheduleChips(chips: list + leagues, selected: scope) { chosen in
-            if drills.contains(chosen) { onDrill(chosen) } else { onScope(chosen) }
-        }
-    }
+    private var chips: ScheduleChips? { .scopes(scope, store: store, onScope: onScope, onDrill: onDrill) }
 
     /// Days in order. A team's schedule (a game a day, days that don't fold)
     /// goes two-up across a split panel, day by day, instead of leaving the

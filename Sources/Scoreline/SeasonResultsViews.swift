@@ -32,8 +32,8 @@ struct ClimbingResultsPage: View {
 
     private var results: SeasonResultsStore { injected ?? .shared }
     private var box: SeasonResultsStore.Climbing { results.climbing }
-    private var season: [SeasonEvent] { box.current.filter { $0.status != .canceled } }
-    private var finished: [SeasonEvent] { SeasonResults.finished(box.current) }
+    private var season: [SeasonEvent] { store.tracked(box.current.filter { $0.status != .canceled }) }
+    private var finished: [SeasonEvent] { SeasonResults.finished(store.tracked(box.current)) }
     private static let contentSpace = "climbing.results"
     static let lanes = [SeasonTimeline.Lane(id: "boulder", label: "Boulder"),
                         SeasonTimeline.Lane(id: "lead", label: "Lead"),
@@ -64,9 +64,11 @@ struct ClimbingResultsPage: View {
         .pageLoading(box.updated == nil && !box.failed)
         .task {
             let first = box.updated == nil
-            await results.loadClimbing()
+            await results.loadClimbing(disciplines: store.climbingDisciplines)
             // The league page may have loaded the season with only its newest winners.
-            if let season = box.season { await results.loadDetails(season: season, limit: nil, force: false) }
+            if let season = box.season {
+                await results.loadDetails(season: season, limit: nil, force: false, disciplines: store.climbingDisciplines)
+            }
             if first { arrival = .data(in: Self.contentSpace, page: page) }
         }
         // ⌘R (the panel's one binding) reloads the results too.
@@ -74,7 +76,7 @@ struct ClimbingResultsPage: View {
     }
 
     private func reload() {
-        Task { await results.loadClimbing(force: true) }
+        Task { await results.loadClimbing(force: true, disciplines: store.climbingDisciplines) }
     }
 
     // MARK: Header
@@ -204,7 +206,6 @@ struct ClimbingResultsPage: View {
         let readout = season.first { $0.id == hovered } ?? (layout.split ? selectedEvent : finished.first)
         return VStack(alignment: .leading, spacing: 6) {
             SeasonTimeline(events: season, lanes: lanes, today: .today(), next: nil, selected: layout.split ? selectedEvent?.id : nil,
-                           dimmedLanes: Set(lanes.map(\.id)).subtracting(store.climbingDisciplines),
                            hovered: Binding(get: { hover.id }, set: { if hover.id != $0 { hover.id = $0 } })) { select($0) }
             if let readout {
                 Text(readoutText(readout))
@@ -226,7 +227,6 @@ struct ClimbingResultsPage: View {
 
     private func list(expandable: Bool) -> some View {
         let months = Self.byMonth(finished) { $0.startDay }
-        let disciplines = store.climbingDisciplines
         let countries = Set(store.climbingCountries)
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(months, id: \.0) { month, events in
@@ -234,8 +234,7 @@ struct ClimbingResultsPage: View {
                 ForEach(events) { event in
                     let open = expandable ? box.expanded.contains(event.id) : selectedEvent?.id == event.id
                     HighlightGate(state: hover, id: event.id) { lit in
-                        ClimbingEventRow(event: event, open: open, highlighted: lit,
-                                         disciplines: disciplines, chevron: expandable) { select(event.id) }
+                        ClimbingEventRow(event: event, open: open, highlighted: lit, chevron: expandable) { select(event.id) }
                             .equatable()
                     }
                     .onHover { inside in
@@ -287,10 +286,10 @@ struct ClimbingResultsPage: View {
     /// Its podiums (if the batch hasn't brought them) and your countries' athletes.
     private func load(_ id: String) {
         guard let event = finished.first(where: { $0.id == id }) else { return }
-        let countries = Set(store.climbingCountries)
+        let countries = Set(store.climbingCountries), disciplines = store.climbingDisciplines
         Task {
             if !event.detailed { await results.loadDetail(id) }
-            await results.loadYours(event, countries: countries)
+            await results.loadYours(event, countries: countries, disciplines: disciplines)
         }
     }
 }
@@ -784,20 +783,19 @@ struct SeasonResultsPreview: View {
     @ViewBuilder
     private var climbing: some View {
         let box = results.climbing
-        let shown = results.latestFinished(2)
+        let shown = results.latestFinished(2, disciplines: store.climbingDisciplines)
         Group {
             if box.updated == nil && !box.failed {
                 ScheduleSkeleton(days: 1, rows: 2)
             } else if shown.isEmpty, box.failed {
-                failure { Task { await results.loadClimbing(force: true, details: 2) } }
+                failure { Task { await results.loadClimbing(force: true, details: 2, disciplines: store.climbingDisciplines) } }
             } else if shown.isEmpty {
                 ScheduleNote(text: "No finished competitions this season yet.")
             } else {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(shown) { event in
                         HighlightGate(state: hover, id: event.id) { lit in
-                            ClimbingEventRow(event: event, open: false, highlighted: lit, disciplines: store.climbingDisciplines,
-                                             chevron: false) {
+                            ClimbingEventRow(event: event, open: false, highlighted: lit, chevron: false) {
                                 results.reveal(event.id)
                                 onOpenResults()
                             }
@@ -810,7 +808,7 @@ struct SeasonResultsPreview: View {
                 }
             }
         }
-        .task { await results.loadClimbing(details: 2) }
+        .task { await results.loadClimbing(details: 2, disciplines: store.climbingDisciplines) }
     }
 
     // MARK: CS2

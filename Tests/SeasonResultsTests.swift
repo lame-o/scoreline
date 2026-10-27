@@ -75,6 +75,19 @@ extension ScorelineTests {
                                lanes: ["speed", "lead"], status: .finished)
         let detailed = I.parseEvent(results("ifsc_event_1489_santiago2026.json"), into: base)
         check(detailed.categories == santiago.categories && detailed.detailed, "parseEvent fills the same categories into a season's event")
+        // Disciplines you don't follow don't appear: their lanes, categories and rounds go, and so does a competition of only them.
+        var mixed = detailed
+        mixed.rounds = [ClimbingRound(name: "Final", discipline: "Lead", categories: ["Men"], status: "finished"),
+                        ClimbingRound(name: "Final", discipline: "Speed", categories: ["Men"], status: "finished")]
+        let followed = mixed.tracking(["lead", "boulder"])
+        let keptNames = followed?.categories.map { $0.name } ?? []
+        check(followed?.lanes == ["lead"] && !keptNames.isEmpty && keptNames.allSatisfy { !$0.lowercased().contains("speed") }
+              && followed?.rounds.map { $0.discipline } == ["Lead"],
+              "a competition keeps only the disciplines you follow", "\(followed?.lanes ?? []) \(keptNames)")
+        check(base.tracking(["boulder"]) == nil, "a competition of only disciplines you don't follow doesn't appear")
+        let cs = SeasonEvent(id: "cs-1", kind: .tournament(slug: "major"), name: "Major", shortName: "Major",
+                             startDay: base.startDay, endDay: base.endDay, lanes: ["s"], status: .upcoming)
+        check(cs.tracking([]) == cs, "a CS2 event isn't filtered by climbing disciplines")
 
         let menu = SeasonResults.resultSeasons(ScheduleStore.SeasonList(current: .init(id: 38, name: "2026"),
                                                                        all: [.init(id: 40, name: "2027"), .init(id: 38, name: "2026"),

@@ -670,7 +670,7 @@ final class SeasonResultsStore {
     /// The seasons, then the chosen one (the current season, or the one
     /// before while nothing in this one has finished), then the winners of
     /// its finished competitions (`details`: how many, newest first; nil = all).
-    func loadClimbing(force: Bool = false, details: Int? = nil) async {
+    func loadClimbing(force: Bool = false, details: Int? = nil, disciplines: Set<String> = Set(ClimbingDiscipline.all)) async {
         let box = climbing
         if box.loading { return }
         box.loading = true
@@ -709,7 +709,7 @@ final class SeasonResultsStore {
         box.failed = box.season.flatMap { box.events[$0] } == nil
         box.stale = stale
         box.updated = .now
-        if let season = box.season { await loadDetails(season: season, limit: details, force: force) }
+        if let season = box.season { await loadDetails(season: season, limit: details, force: force, disciplines: disciplines) }
     }
 
     /// Picks a season from the title menu (one request the first time, 30 days after).
@@ -744,9 +744,11 @@ final class SeasonResultsStore {
     }
 
     /// Categories, podiums and round links for a season's finished
-    /// competitions: about 2 KB each, kept 30 days, revalidated by ETag.
-    func loadDetails(season: String, limit: Int?, force: Bool) async {
-        let finished = SeasonResults.finished(climbing.events[season] ?? []).filter { force || !$0.detailed }
+    /// competitions in the disciplines shown: about 2 KB each, kept 30 days,
+    /// revalidated by ETag.
+    func loadDetails(season: String, limit: Int?, force: Bool, disciplines: Set<String> = Set(ClimbingDiscipline.all)) async {
+        let finished = SeasonResults.finished(climbing.events[season] ?? [])
+            .filter { (force || !$0.detailed) && $0.tracking(disciplines) != nil }
         let targets = limit.map { Array(finished.prefix($0)) } ?? finished
         guard !targets.isEmpty else { return }
         let cache = self.cache
@@ -782,12 +784,12 @@ final class SeasonResultsStore {
 
     /// Opened in the list: your countries' best athletes per category (one
     /// full-results request per category, only with countries highlighted).
-    func loadYours(_ event: SeasonEvent, countries: Set<String>) async {
+    func loadYours(_ event: SeasonEvent, countries: Set<String>, disciplines: Set<String> = Set(ClimbingDiscipline.all)) async {
         guard !countries.isEmpty, case let .climbing(eventID) = event.kind else { return }
         if !event.detailed { await loadDetail(event.id) }
         let current = climbing.current.first { $0.id == event.id } ?? event
         let ttl = SeasonResults.ttl(endedAt: event.endsAt)
-        for category in current.categories {
+        for category in current.tracking(disciplines)?.categories ?? [] {
             guard let dcat = category.dcatID else { continue }
             let key = "\(eventID)-\(dcat)"
             guard climbing.yours[key] == nil else { continue }
@@ -813,12 +815,12 @@ final class SeasonResultsStore {
 
     /// The newest finished competitions, whichever season the page has open
     /// (the current one, or the last while nothing in it has finished).
-    func latestFinished(_ count: Int) -> [SeasonEvent] {
+    func latestFinished(_ count: Int, disciplines: Set<String> = Set(ClimbingDiscipline.all)) -> [SeasonEvent] {
         for name in climbing.menu {
-            let finished = SeasonResults.finished(climbing.events[name] ?? [])
+            let finished = SeasonResults.finished((climbing.events[name] ?? []).compactMap { $0.tracking(disciplines) })
             if !finished.isEmpty { return Array(finished.prefix(count)) }
         }
-        return Array(SeasonResults.finished(climbing.current).prefix(count))
+        return Array(SeasonResults.finished(climbing.current.compactMap { $0.tracking(disciplines) }).prefix(count))
     }
 
     // MARK: Category page

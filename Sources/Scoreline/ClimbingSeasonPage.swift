@@ -30,8 +30,8 @@ struct ClimbingSeasonPage: View {
     private var schedule: ScheduleStore { injected ?? .shared }
     private var state: ScheduleStore.SeasonsState { schedule.climbing }
     private var season: String? { schedule.climbingSeason ?? state.defaultSeason ?? state.seasons.last }
-    private var events: [SeasonEvent] { season.flatMap { state.events[$0] } ?? [] }
-    private var allEvents: [SeasonEvent] { state.seasons.flatMap { state.events[$0] ?? [] } }
+    private var events: [SeasonEvent] { store.tracked(season.flatMap { state.events[$0] } ?? []) }
+    private var allEvents: [SeasonEvent] { store.tracked(state.seasons.flatMap { state.events[$0] ?? [] }) }
     private var live: SeasonEvent? { allEvents.first { $0.status == .live } }
     private var next: SeasonEvent? { ScheduleProvider.IFSC.next(in: allEvents.filter { $0.status == .upcoming }) }
     private static let contentSpace = "climbing.content"
@@ -159,7 +159,6 @@ struct ClimbingSeasonPage: View {
         let readout = events.first { $0.id == hovered } ?? current ?? (layout.split ? selectedEvent : nil)
         return VStack(alignment: .leading, spacing: 6) {
             SeasonTimeline(events: events, lanes: lanes, today: .today(), next: live == nil ? next?.id : nil, selected: layout.split ? selectedEvent?.id : nil,
-                           dimmedLanes: Set(lanes.map(\.id)).subtracting(store.climbingDisciplines),
                            hovered: Binding(get: { hover.id }, set: { if hover.id != $0 { hover.id = $0 } })) { id in select(id) }
             if let readout {
                 Text(readoutText(readout))
@@ -178,15 +177,13 @@ struct ClimbingSeasonPage: View {
 
     private func list(expandable: Bool) -> some View {
         let months = Dictionary(grouping: events) { DayKey(year: $0.startDay.year, month: $0.startDay.month, day: 1) }
-        let disciplines = store.climbingDisciplines
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(months.keys.sorted(), id: \.self) { month in
                 MonthLabel(month: month).stackIn()
                 ForEach(months[month] ?? []) { event in
                     let open = expandable ? schedule.expanded.contains(event.id) : selectedEvent?.id == event.id
                     HighlightGate(state: hover, id: event.id) { lit in
-                        ClimbingEventRow(event: event, open: open, highlighted: lit,
-                                         disciplines: disciplines, chevron: expandable) { select(event.id) }
+                        ClimbingEventRow(event: event, open: open, highlighted: lit, chevron: expandable) { select(event.id) }
                             .equatable()
                     }
                     .onHover { inside in
@@ -316,14 +313,11 @@ struct ClimbingEventRow: View {
     let event: SeasonEvent
     let open: Bool
     let highlighted: Bool
-    let disciplines: Set<String>
     var chevron = true
     /// "This weekend", "In 5 months" (a sport's page, where the season isn't on screen).
     var relative: String? = nil
     let action: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private var outside: Bool { !event.lanes.isEmpty && Set(event.lanes).isDisjoint(with: disciplines) }
 
     var body: some View {
         Button(action: action) {
@@ -371,7 +365,7 @@ struct ClimbingEventRow: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 7)
-            .opacity(outside || event.status == .canceled ? 0.5 : 1)
+            .opacity(event.status == .canceled ? 0.5 : 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(ListRowStyle(hovering: highlighted || (!chevron && open), inset: 0))
@@ -443,7 +437,7 @@ struct ClimbingEventRow: View {
 /// A row redraws when what it shows changes, not on every hover elsewhere.
 extension ClimbingEventRow: @MainActor Equatable {
     static func == (a: ClimbingEventRow, b: ClimbingEventRow) -> Bool {
-        a.event == b.event && a.open == b.open && a.highlighted == b.highlighted && a.disciplines == b.disciplines
+        a.event == b.event && a.open == b.open && a.highlighted == b.highlighted
             && a.chevron == b.chevron && a.relative == b.relative
     }
 }
