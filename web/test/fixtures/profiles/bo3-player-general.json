@@ -1,0 +1,20 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/players/zywoo/general_stats",
+ "_recorded": "2026-10-27T08:46:42.361Z",
+ "games_count": 1067,
+ "games_won_count": 710,
+ "games_lost_count": 356,
+ "matches_count": 467,
+ "matches_won_count": 333,
+ "matches_lost_count": 133,
+ "events_count": 107,
+ "events_won_count": 26,
+ "kills_sum": 21273,
+ "deaths_sum": 15004,
+ "assists_sum": 4837,
+ "damage_sum": 2198210,
+ "rounds_count": 25731,
+ "rounds_won_count": 14074,
+ "player_id": 18452,
+ "player_nickname": "ZywOo"
+}

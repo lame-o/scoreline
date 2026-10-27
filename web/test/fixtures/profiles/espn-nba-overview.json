@@ -1,0 +1,101 @@
+{
+ "_source": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/1966/overview",
+ "_recorded": "2026-10-27T08:46:28.613Z",
+ "statistics": {
+  "labels": [
+   "GP",
+   "MIN",
+   "FG%",
+   "3P%",
+   "FT%",
+   "REB",
+   "AST",
+   "BLK",
+   "STL",
+   "PF",
+   "TO",
+   "PTS"
+  ],
+  "names": [
+   "gamesPlayed",
+   "avgMinutes",
+   "fieldGoalPct",
+   "threePointPct",
+   "freeThrowPct",
+   "avgRebounds",
+   "avgAssists",
+   "avgBlocks",
+   "avgSteals",
+   "avgFouls",
+   "avgTurnovers",
+   "avgPoints"
+  ],
+  "splits": [
+   {
+    "displayName": "Regular Season",
+    "stats": [
+     "3",
+     "33.3",
+     "42.9",
+     "10.0",
+     "63.2",
+     "7.0",
+     "5.7",
+     "0.7",
+     "2.0",
+     "2.7",
+     "3.0",
+     "16.3"
+    ]
+   },
+   {
+    "displayName": "Career",
+    "stats": [
+     "1625",
+     "37.6",
+     "50.7",
+     "34.8",
+     "73.7",
+     "7.5",
+     "7.4",
+     "0.7",
+     "1.5",
+     "1.8",
+     "3.5",
+     "26.8"
+    ]
+   }
+  ]
+ },
+ "rotowire": {
+  "headline": "James finished with 18 points (8-15 FG, 0-3 3Pt, 2-6 FT), two rebounds, five assists and two steals across 33 minutes in Sunday's 106-93 loss to the Pistons.",
+  "story": "James returned after sitting out Saturday's win over Milwaukee, taking on a larger offensive role with Joel Embiid (heel) and VJ Edgecombe (abdomen) unavailable. He's yet to score 20 or more points in a game this season, though that's expected since he has to share the court with Embiid, Tyrese Maxey and Jaylen Brown. His production should remain useful across multiple categories, but James' days of being a go-to scorer and 20-point producer seem to be gone.",
+  "published": "Mon Oct 26 07:53:01 PDT 2026"
+ },
+ "awards": [
+  {
+   "name": "All-NBA 2nd Team",
+   "displayCount": "4x"
+  },
+  {
+   "name": "All-NBA 3rd Team",
+   "displayCount": "4x"
+  },
+  {
+   "name": "NBA Cup MVP",
+   "displayCount": "1x"
+  },
+  {
+   "name": "NBA Cup All-Tournament Team",
+   "displayCount": "1x"
+  },
+  {
+   "name": "Finals MVP",
+   "displayCount": "4x"
+  },
+  {
+   "name": "All-NBA 1st Team",
+   "displayCount": "13x"
+  }
+ ]
+}

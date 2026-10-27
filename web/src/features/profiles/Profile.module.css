@@ -1,0 +1,1309 @@
+/*
+ * Team and player pages (TeamPage.swift, PlayerPage.swift and their
+ * sections). Lengths in Mac points; ink, fills and materials from tokens.css.
+ */
+
+.page {
+  /* Rank movement in the CS2 hero (StandingsView's arrows). */
+  --rank-up: light-dark(#1f7a35, #32d74b);
+  --rank-down: var(--live-text);
+  position: relative;
+  min-height: 100%;
+  isolation: isolate;
+  padding-bottom: calc(28 * var(--pt));
+  container: profile / inline-size;
+}
+
+/* MARK: The wash (stays put while the page scrolls over it, like the Mac's page background) */
+
+.washTrack {
+  position: sticky;
+  top: 0;
+  height: 0;
+  z-index: -1;
+}
+
+.wash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(250 * var(--pt));
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.75) 45%, rgb(0 0 0 / 0.25) 75%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.75) 45%, rgb(0 0 0 / 0.25) 75%, transparent 100%);
+}
+
+/* A pane much wider than the page: the wash stays behind the content, its sides fading out. */
+@container profile (min-width: 70rem) {
+  .wash {
+    left: 50%;
+    width: calc(980 * var(--pt));
+    transform: translateX(-50%);
+    -webkit-mask-image:
+      linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.75) 45%, rgb(0 0 0 / 0.25) 75%, transparent 100%),
+      linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to bottom, #000 0%, rgb(0 0 0 / 0.75) 45%, rgb(0 0 0 / 0.25) 75%, transparent 100%),
+      linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+    mask-composite: intersect;
+  }
+}
+
+.washBase {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--page) 55%, transparent);
+}
+
+.washColors {
+  position: absolute;
+  inset: 0;
+}
+
+/* New colors (the crest's, read on the first visit) arrive as a change of light. */
+.washColors[data-incoming="true"] {
+  animation: fade-in 900ms var(--ease-in-out) both;
+}
+
+/* MARK: Header */
+
+.sentinel {
+  display: block;
+  height: 1px;
+  margin-bottom: -1px;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+/* Once content is underneath: a soft edge it dissolves under, not a rule. */
+.header::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 calc(-12 * var(--pt));
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background: color-mix(in srgb, var(--page) 84%, transparent);
+  -webkit-backdrop-filter: blur(calc(14 * var(--pt)));
+  backdrop-filter: blur(calc(14 * var(--pt)));
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 12 * var(--pt)), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 12 * var(--pt)), transparent);
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.header[data-scrolled="true"]::before {
+  opacity: 1;
+}
+
+.headerBar {
+  max-width: calc(760 * var(--pt));
+  margin: 0 auto;
+}
+
+.followOn {
+  color: var(--star) !important;
+}
+
+/* MARK: The docked bar (an overlay on a zero-height sticky row: it never moves the page) */
+
+.dockRow {
+  position: sticky;
+  top: calc(44 * var(--pt));
+  height: 0;
+  z-index: 2;
+}
+
+.dockSlot {
+  position: absolute;
+  top: calc(4 * var(--pt));
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0 calc(10 * var(--pt));
+}
+
+.dockBar {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  width: 100%;
+  max-width: calc(560 * var(--pt));
+  height: calc(40 * var(--pt));
+  padding: 0 calc(12 * var(--pt)) 0 calc(7 * var(--pt));
+  border-radius: calc(14 * var(--pt));
+  text-align: left;
+  /* Regular glass (content scrolls under it), dressed faintly in the team's color. */
+  background-color: var(--glass-fill-strong);
+  background-image: linear-gradient(color-mix(in srgb, var(--tint) 14%, transparent), color-mix(in srgb, var(--tint) 14%, transparent));
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    inset 0 calc(1 * var(--pt)) 0 var(--glass-highlight),
+    inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
+    var(--shadow-glass);
+  /* The dock's progress (set on the slot by the host), applied here, on the glass. */
+  opacity: var(--dock-opacity, 1);
+  transform: var(--dock-transform, none);
+  transform-origin: 50% 0;
+}
+
+.dockBar:active {
+  transform: var(--dock-transform, none) scale(0.98);
+}
+
+.dockLine {
+  display: flex;
+  align-items: baseline;
+  gap: calc(5 * var(--pt));
+  flex: 1;
+  min-width: 0;
+}
+
+/* The detail gives way before the name truncates. */
+.dockName {
+  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(12.5 * var(--pt));
+  font-weight: 600;
+}
+
+.dockDot {
+  flex: none;
+  color: var(--label-tertiary);
+}
+
+.dockDetail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.dockStat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(3 * var(--pt));
+  flex: none;
+}
+
+.dockValue {
+  font-family: var(--font-rounded);
+  font-size: calc(14 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dockLabel {
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--label-secondary);
+}
+
+/* MARK: Hero */
+
+.inner {
+  max-width: calc(760 * var(--pt));
+  margin: 0 auto;
+}
+
+.heroWrap {
+  padding: calc(6 * var(--pt)) calc(10 * var(--pt)) calc(4 * var(--pt));
+}
+
+/* The hero tucks under the header as the page scrolls: its glass scaled toward its top edge (written by DockedBar). */
+.heroTuck > * {
+  transform-origin: 50% 0;
+}
+
+.heroCard {
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--pt));
+  min-width: 0;
+  padding: calc(14 * var(--pt)) calc(16 * var(--pt));
+}
+
+.heroMedia {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.heroMedia > :not(.glow) {
+  position: relative;
+}
+
+.glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.heroText {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  flex: 1;
+  min-width: 0;
+}
+
+.heroNameLine {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  min-width: 0;
+}
+
+.heroName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(17 * var(--pt));
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.heroStar {
+  flex: none;
+  color: var(--star);
+}
+
+.heroSummary,
+.heroSub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(12 * var(--pt));
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.heroTeam {
+  color: inherit;
+}
+
+.heroReal,
+.heroCoach,
+.heroFacts,
+.heroStatus {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.heroStatus {
+  padding-top: calc(2 * var(--pt));
+}
+
+.statusWord {
+  color: var(--label);
+}
+
+.statusOut {
+  font-weight: 600;
+  color: var(--label);
+}
+
+.heroLoading {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+  padding: calc(4 * var(--pt)) 0;
+}
+
+.heroSkeleton {
+  margin: calc(3 * var(--pt)) 0;
+}
+
+.rankUp {
+  color: var(--rank-up);
+  font-size: 0.75em;
+}
+
+.rankDown {
+  color: var(--rank-down);
+  font-size: 0.75em;
+}
+
+/* MARK: Live strip */
+
+.liveWrap {
+  padding: calc(2 * var(--pt)) calc(10 * var(--pt)) 0;
+}
+
+.liveStrip {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  padding: calc(7 * var(--pt)) calc(8 * var(--pt));
+  border-radius: var(--radius-row);
+  transition: background-color var(--dur-fade) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .liveStrip:hover {
+    background-color: var(--fill-hover);
+  }
+}
+
+.liveStrip:active {
+  background-color: var(--fill-press);
+}
+
+.liveScore {
+  font-size: calc(12 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chevron {
+  color: var(--label-tertiary);
+}
+
+/* MARK: Columns and entrances */
+
+.columnStack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.entrance {
+  min-width: 0;
+}
+
+/* The page assembles top to bottom when clicked into; sections that land later arrive the same way. Keyboard arrivals are instant. */
+.page[data-entrance="stack"] .heroWrap,
+.page[data-entrance="stack"] .entrance {
+  animation: stack-in var(--dur-reveal) var(--ease-out) both;
+}
+
+.page[data-entrance="stack"] .columnStack > .entrance:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.page[data-entrance="stack"] .columnStack > .entrance:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.page[data-entrance="stack"] .columnStack > .entrance:nth-child(n + 4) {
+  animation-delay: 120ms;
+}
+
+.page[data-entrance="stack"] .wash {
+  animation: fade-in var(--dur-reveal) var(--ease-out) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes stack-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-10 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes stack-in {
+    from {
+      opacity: 0;
+    }
+  }
+  .washColors[data-incoming="true"] {
+    animation-duration: 150ms;
+  }
+}
+
+/* MARK: Sections */
+
+.section {
+  min-width: 0;
+  padding: calc(16 * var(--pt)) var(--gutter) 0;
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+  margin-bottom: calc(8 * var(--pt));
+}
+
+.caption {
+  max-width: var(--readable-width);
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.controlRow {
+  display: flex;
+  margin-bottom: calc(6 * var(--pt));
+}
+
+.spacer {
+  flex: 1;
+  min-width: calc(4 * var(--pt));
+}
+
+.groupHeader {
+  display: flex;
+  align-items: baseline;
+  gap: calc(9 * var(--pt));
+  padding: calc(8 * var(--pt)) 0 calc(2 * var(--pt));
+}
+
+.groupHeader[data-first="true"] {
+  padding-top: calc(2 * var(--pt));
+}
+
+.subLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
+
+.columnLabel {
+  flex: none;
+  text-align: right;
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.more {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  padding: calc(5 * var(--pt)) 0 calc(2 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--label-secondary);
+  transition:
+    color var(--dur-fade) var(--ease-out),
+    transform var(--dur-press) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .more:hover {
+    color: var(--label);
+  }
+}
+
+.more:active {
+  transform: scale(0.97);
+}
+
+.footnote {
+  display: flex;
+  align-items: baseline;
+  gap: calc(8 * var(--pt));
+  padding: calc(14 * var(--pt)) var(--gutter) 0;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}
+
+.venue {
+  padding: calc(18 * var(--pt)) var(--gutter) 0;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}
+
+.inlineNote {
+  margin-top: calc(6 * var(--pt));
+  font-size: var(--text-small);
+  color: var(--label-secondary);
+}
+
+.loadingRow {
+  display: grid;
+  place-items: center;
+  padding: calc(10 * var(--pt)) 0;
+}
+
+.spinner {
+  width: calc(14 * var(--pt));
+  height: calc(14 * var(--pt));
+  border-radius: 50%;
+  border: calc(1.5 * var(--pt)) solid var(--fill-press);
+  border-top-color: var(--label-secondary);
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+/* MARK: Tiles */
+
+.tiles {
+  display: grid;
+  gap: calc(6 * var(--pt));
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: calc(1 * var(--pt));
+  min-width: 0;
+}
+
+.tileValue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-rounded);
+  font-size: calc(20 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.tileLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--label-secondary);
+}
+
+.tileCaption {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: calc(9.5 * var(--pt));
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+/* MARK: Skeletons (static) */
+
+.rosterSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: calc(10 * var(--pt));
+  padding-top: calc(6 * var(--pt));
+}
+
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: calc(9 * var(--pt));
+}
+
+.skeletonLines {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+}
+
+.crestCode {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  background: var(--fill-skeleton);
+  font-family: var(--font-rounded);
+  font-weight: 700;
+  color: var(--label-secondary);
+}
+
+/* MARK: Rows */
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: calc(1 * var(--pt));
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.rowSub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}
+
+.status {
+  font-weight: 600;
+  color: var(--label);
+}
+
+.cell {
+  flex: none;
+  white-space: nowrap;
+  text-align: right;
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+}
+
+.cell[data-empty="true"] {
+  color: var(--label-tertiary);
+}
+
+.date {
+  flex: none;
+  width: calc(42 * var(--pt));
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.result {
+  flex: none;
+  white-space: nowrap;
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+}
+
+.result strong {
+  font-weight: 600;
+}
+
+.result[data-lost="true"],
+.result[data-draw="true"] {
+  color: var(--label-secondary);
+}
+
+.countdown {
+  flex: none;
+  font-size: var(--text-status);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-text);
+}
+
+/* The next game */
+.gameRow {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  min-width: 0;
+}
+
+.gameTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(12.5 * var(--pt));
+  font-weight: 500;
+}
+
+/* Results */
+.resultRows {
+  margin-top: calc(6 * var(--pt));
+}
+
+.resultRow {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  padding: calc(2 * var(--pt)) 0;
+}
+
+.resultLine {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+}
+
+.opponent {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(12 * var(--pt));
+}
+
+.resultCaption {
+  padding-left: calc(48 * var(--pt));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}
+
+/* The roster */
+.group {
+  min-width: 0;
+}
+
+.twoUp {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 calc(20 * var(--pt));
+  align-items: start;
+}
+
+.twoUpColumn {
+  min-width: 0;
+}
+
+.rosterRow {
+  display: flex;
+  align-items: center;
+  gap: calc(9 * var(--pt));
+  min-width: 0;
+}
+
+.rosterName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(12.5 * var(--pt));
+  font-weight: 500;
+}
+
+.statLine {
+  flex: none;
+  white-space: nowrap;
+  font-size: var(--text-status);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+/* The depth chart: as many names as fit on the line (up to three); the rest wrap out of sight. */
+.depthRow {
+  display: flex;
+  align-items: baseline;
+  gap: calc(8 * var(--pt));
+  padding: calc(1 * var(--pt)) 0;
+}
+
+.slotLabel {
+  flex: none;
+  width: calc(30 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.depthNames {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+  height: calc(19 * var(--pt));
+  overflow: hidden;
+  font-size: calc(12 * var(--pt));
+  line-height: calc(19 * var(--pt));
+}
+
+.depthName {
+  white-space: nowrap;
+  color: var(--label-secondary);
+}
+
+.depthName:first-child {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.depthName[data-starter="true"] {
+  font-weight: 500;
+  color: var(--label);
+}
+
+.depthDot {
+  padding: 0 0.3em;
+  color: var(--label-tertiary);
+}
+
+.depthInjury {
+  font-weight: 400;
+  color: var(--label-secondary);
+}
+
+/* Leaders */
+.leaders {
+  display: grid;
+  gap: calc(4 * var(--pt));
+}
+
+.leader {
+  display: flex;
+  align-items: center;
+  gap: calc(9 * var(--pt));
+  min-width: 0;
+}
+
+.leaderText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.leaderLabel {
+  font-size: calc(9 * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--label-secondary);
+}
+
+.leaderValue {
+  font-family: var(--font-rounded);
+  font-size: calc(17 * var(--pt));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.leaderName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+/* The table window */
+.table {
+  font-size: var(--text-callout);
+}
+
+.tableHead,
+.tableRow {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+}
+
+.tableHead {
+  padding-bottom: calc(3 * var(--pt));
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.tableRow {
+  padding: calc(1 * var(--pt)) 0;
+}
+
+.tableLink {
+  padding-top: calc(3 * var(--pt)) !important;
+  padding-bottom: calc(3 * var(--pt)) !important;
+}
+
+.tableOwn {
+  margin: 0 calc(-6 * var(--pt));
+  padding: calc(3 * var(--pt)) calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+  background: var(--fill-surface);
+  font-weight: 600;
+}
+
+.tableRank {
+  flex: none;
+  width: calc(20 * var(--pt));
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.tableOwn .tableRank {
+  color: var(--label);
+}
+
+.tableTeam {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  flex: 1;
+  min-width: 0;
+}
+
+.tableName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tableCell {
+  flex: none;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Injuries, transactions, titles */
+.injuryRow {
+  display: flex;
+  align-items: baseline;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+}
+
+.injuryName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(12 * var(--pt));
+}
+
+.injuryPosition {
+  flex: none;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}
+
+.injuryStatus {
+  flex: none;
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.injuryStatus[data-out="true"] {
+  font-weight: 600;
+  color: var(--label);
+}
+
+.transactions {
+  display: flex;
+  flex-direction: column;
+  gap: calc(7 * var(--pt));
+}
+
+.transaction {
+  display: flex;
+  align-items: baseline;
+  gap: calc(10 * var(--pt));
+  max-width: var(--readable-width);
+  font-size: var(--text-callout);
+  text-wrap: pretty;
+}
+
+.transactionDate {
+  flex: none;
+  width: calc(44 * var(--pt));
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--pt));
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-width: 0;
+  font-size: calc(12 * var(--pt));
+}
+
+.titleIcon {
+  flex: none;
+  width: calc(14 * var(--pt));
+  color: var(--label-secondary);
+}
+
+.titleName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titleDate {
+  flex: none;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+/* MARK: Player sections */
+
+.logTable {
+  min-width: 0;
+}
+
+.logHead {
+  display: flex;
+  gap: calc(6 * var(--pt));
+  padding: calc(10 * var(--pt)) 0 calc(2 * var(--pt));
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.logHead .cell {
+  font-size: inherit;
+}
+
+.logGame {
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.logRow {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+}
+
+.logOpponent {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-callout);
+}
+
+.statTable {
+  min-width: 0;
+}
+
+.statHead {
+  display: flex;
+  gap: calc(6 * var(--pt));
+  padding-bottom: calc(3 * var(--pt));
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.statRow {
+  display: flex;
+  align-items: baseline;
+  gap: calc(6 * var(--pt));
+  padding: calc(3 * var(--pt)) 0;
+  font-size: var(--text-callout);
+}
+
+.statTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statCell {
+  flex: none;
+  width: calc(40 * var(--pt));
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.about {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: calc(6 * var(--pt)) calc(14 * var(--pt));
+  margin: 0;
+}
+
+.aboutRow {
+  display: contents;
+}
+
+.aboutLabel {
+  padding-top: calc(1.5 * var(--pt));
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
+
+.aboutValue {
+  margin: 0;
+  font-size: calc(12 * var(--pt));
+  text-wrap: pretty;
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(5 * var(--pt));
+  max-width: var(--readable-width);
+}
+
+.noteHeadline {
+  font-size: calc(12 * var(--pt));
+  font-weight: 500;
+  text-wrap: pretty;
+}
+
+/* Three lines; a click shows the rest. */
+.noteStory {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  text-align: left;
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.noteStory[data-expanded="true"] {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
+
+.noteDate {
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(5 * var(--pt));
+}
+
+.awardChip {
+  padding: calc(3 * var(--pt)) calc(8 * var(--pt));
+  border-radius: 999px;
+  background: var(--fill-surface);
+  font-size: var(--text-status);
+}
+
+/* Climbing */
+.podiums {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4 * var(--pt));
+}
+
+.podiumRow {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  padding: calc(2 * var(--pt)) 0;
+}
+
+.podiumName {
+  flex: 1;
+  min-width: 0;
+  font-size: calc(12 * var(--pt));
+}
+
+.medal {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  width: calc(38 * var(--pt));
+  flex: none;
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+}
+
+.medal[data-zero="true"] {
+  color: var(--label-tertiary);
+}
+
+.medalDot {
+  width: calc(8 * var(--pt));
+  height: calc(8 * var(--pt));
+  border-radius: 50%;
+}
+
+.podiumTotal {
+  width: calc(30 * var(--pt));
+  flex: none;
+  text-align: right;
+  font-size: var(--text-callout);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.climbRow {
+  display: flex;
+  align-items: baseline;
+  gap: calc(8 * var(--pt));
+  padding: calc(2 * var(--pt)) 0;
+  min-width: 0;
+}
+
+.climbRank {
+  flex: none;
+  width: calc(22 * var(--pt));
+  text-align: right;
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.climbRank[data-podium="true"] {
+  font-weight: 600;
+  color: var(--label);
+}
+
+.climbEvent {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(12 * var(--pt));
+}
+
+.climbDiscipline {
+  flex: none;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}

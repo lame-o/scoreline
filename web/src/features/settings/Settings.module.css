@@ -147,6 +147,24 @@
   white-space: nowrap;
 }
 
+/* A followed team opens its page; the remove button beside it stays its own. */
+.teamLink {
+  flex: 1;
+  min-width: 0;
+}
+
+.teamLinkInner {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-width: 0;
+}
+
+.teamChevron {
+  flex: none;
+  color: var(--label-tertiary);
+}
+
 .remove {
   display: grid;
   place-items: center;

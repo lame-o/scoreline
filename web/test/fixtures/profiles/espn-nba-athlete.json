@@ -1,0 +1,76 @@
+{
+ "_source": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/1966",
+ "_recorded": "2026-10-27T08:46:28.268Z",
+ "athlete": {
+  "id": "1966",
+  "displayName": "LeBron James",
+  "jersey": "23",
+  "active": true,
+  "age": 41,
+  "displayBirthPlace": "Akron, OH",
+  "displayHeight": "6' 9\"",
+  "displayWeight": "250 lbs",
+  "displayDraft": "2003: Rd 1, Pk 1 (CLE)",
+  "displayExperience": "24th Season",
+  "debutYear": 2003,
+  "position": {
+   "displayName": "Forward",
+   "abbreviation": "F"
+  },
+  "headshot": {
+   "href": "https://a.espncdn.com/i/headshots/nba/players/full/1966.png"
+  },
+  "team": {
+   "id": "20",
+   "displayName": "Philadelphia 76ers",
+   "shortDisplayName": "76ers",
+   "abbreviation": "PHI",
+   "color": "1d428a",
+   "alternateColor": "e01234",
+   "logos": [
+    {
+     "href": "https://a.espncdn.com/i/teamlogos/nba/500/phi.png"
+    }
+   ]
+  },
+  "links": [
+   {
+    "rel": [
+     "playercard",
+     "desktop",
+     "athlete"
+    ],
+    "href": "https://www.espn.com/nba/player/_/id/1966/lebron-james"
+   }
+  ],
+  "statsSummary": {
+   "displayName": "2026-27 regular season stats",
+   "statistics": [
+    {
+     "abbreviation": "PTS",
+     "shortDisplayName": "PPG",
+     "displayValue": "16.3",
+     "rankDisplayValue": "Tied-69th"
+    },
+    {
+     "abbreviation": "REB",
+     "shortDisplayName": "RPG",
+     "displayValue": "7.0",
+     "rankDisplayValue": "Tied-42nd"
+    },
+    {
+     "abbreviation": "AST",
+     "shortDisplayName": "APG",
+     "displayValue": "5.7",
+     "rankDisplayValue": "Tied-24th"
+    },
+    {
+     "abbreviation": "FG%",
+     "shortDisplayName": "FG%",
+     "displayValue": "42.9",
+     "rankDisplayValue": "Tied-102nd"
+    }
+   ]
+  }
+ }
+}

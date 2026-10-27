@@ -1,0 +1,137 @@
+{
+ "_source": "https://site.web.api.espn.com/apis/common/v3/sports/soccer/eng.1/athletes/280555/overview",
+ "_recorded": "2026-10-27T08:46:30.101Z",
+ "statistics": {
+  "labels": [
+   "STRT",
+   "FC",
+   "FA",
+   "YC",
+   "RC",
+   "G",
+   "A",
+   "SHOT",
+   "SOG",
+   "OF"
+  ],
+  "names": [
+   "starts",
+   "foulsCommitted",
+   "foulsSuffered",
+   "yellowCards",
+   "redCards",
+   "totalGoals",
+   "goalAssists",
+   "totalShots",
+   "shotsOnTarget",
+   "offsides"
+  ],
+  "splits": [
+   {
+    "displayName": "2026-27 UEFA Nations League",
+    "stats": [
+     "3",
+     "2",
+     "2",
+     "0",
+     "0",
+     "2",
+     "0",
+     "10",
+     "3",
+     "2"
+    ]
+   },
+   {
+    "displayName": "2026-27 Champions League",
+    "stats": [
+     "2",
+     "0",
+     "0",
+     "0",
+     "0",
+     "1",
+     "1",
+     "7",
+     "2",
+     "0"
+    ]
+   },
+   {
+    "displayName": "2026 English FA Community Shield",
+    "stats": [
+     "0",
+     "0",
+     "1",
+     "0",
+     "0",
+     "0",
+     "0",
+     "2",
+     "0",
+     "0"
+    ]
+   },
+   {
+    "displayName": "2026-27 English Premier League",
+    "stats": [
+     "7",
+     "5",
+     "21",
+     "0",
+     "0",
+     "3",
+     "0",
+     "17",
+     "10",
+     "7"
+    ]
+   },
+   {
+    "displayName": "2026-27 Carabao Cup",
+    "stats": [
+     "0",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0"
+    ]
+   },
+   {
+    "displayName": "2026 International Friendly",
+    "stats": [
+     "0",
+     "0",
+     "1",
+     "0",
+     "0",
+     "0",
+     "0",
+     "2",
+     "0",
+     "0"
+    ]
+   },
+   {
+    "displayName": "2026 FIFA World Cup",
+    "stats": [
+     "3",
+     "4",
+     "9",
+     "0",
+     "0",
+     "3",
+     "3",
+     "13",
+     "7",
+     "4"
+    ]
+   }
+  ]
+ }
+}

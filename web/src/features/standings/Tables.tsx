@@ -13,7 +13,6 @@
  */
 import { m } from "motion/react";
 import { Fragment, memo, type CSSProperties, type ReactNode } from "react";
-import { Link } from "react-router";
 import { Icon, LiveDot, OutlineCrest, TeamLogo, outlineReveal } from "../../design/components";
 import { spring } from "../../design/motion";
 import {
@@ -40,14 +39,11 @@ import {
   type TableGroup,
   type WidthClass,
 } from "../../data/standings";
+import { teamRef } from "../../data/profiles/models";
+import { TeamLink } from "../profiles/ProfileLinks";
 import styles from "./Tables.module.css";
 
 const pt = (n: number): CSSProperties => ({ width: `calc(${n} * var(--pt))` });
-
-/** A team's page (the profiles route). */
-export function teamPath(id: string): string {
-  return `/team/${encodeURIComponent(id)}`;
-}
 
 // MARK: - Shared pieces
 
@@ -117,9 +113,10 @@ function GroupLabel({ title, first }: { title: string; first: boolean }) {
 function TableRow({ id, label, mine, order, children, reveal }: { id: string; label: string; mine: boolean; order: string; children: ReactNode; reveal?: { className?: string; style?: CSSProperties } }) {
   return (
     <m.div layout="position" layoutDependency={order} transition={spring.travel} className={[styles.rowWrap, reveal?.className].filter(Boolean).join(" ")} style={reveal?.style}>
-      <Link to={teamPath(id)} className={styles.row} data-mine={mine} aria-label={label} draggable={false}>
+      {/* The row opens the team's page (TeamRowLink); a dwell prefetches it. */}
+      <TeamLink team={teamRef({ id, name: "" })} variant="plain" className={styles.row} dataset={{ mine }} label={label} draggable={false}>
         {children}
-      </Link>
+      </TeamLink>
     </m.div>
   );
 }

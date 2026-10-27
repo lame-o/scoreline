@@ -122,6 +122,17 @@ export function wearColors(events: readonly ScoreEvent[]): ScoreEvent[] {
   });
 }
 
+/**
+ * One logo's colors, when read; the logo is queued otherwise (team and
+ * player pages, whose wash takes the crest's colors as they arrive).
+ * Re-render with `useLogoColorsVersion()`.
+ */
+export function logoColorsFor(logo: string | null): LogoColors | undefined {
+  if (!logo) return undefined;
+  if (!entries[logo]) request(logo);
+  return entries[logo];
+}
+
 /** Re-renders when newly read colors arrive (the number only grows). */
 export function useLogoColorsVersion(): number {
   return useSyncExternalStore(

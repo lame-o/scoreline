@@ -1,0 +1,108 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/13",
+ "_recorded": "2026-10-27T08:46:28.815Z",
+ "team": {
+  "id": "13",
+  "displayName": "Los Angeles Lakers",
+  "shortDisplayName": "Lakers",
+  "abbreviation": "LAL",
+  "color": "552583",
+  "alternateColor": "fdb927",
+  "standingSummary": "1st in Pacific Division",
+  "logos": [
+   {
+    "href": "https://a.espncdn.com/i/teamlogos/nba/500/lal.png"
+   }
+  ],
+  "record": {
+   "items": [
+    {
+     "type": "total",
+     "summary": "3-0"
+    },
+    {
+     "type": "home",
+     "summary": "2-0"
+    },
+    {
+     "type": "road",
+     "summary": "1-0"
+    }
+   ]
+  },
+  "franchise": {
+   "venue": {
+    "fullName": "crypto.com Arena",
+    "address": {
+     "city": "Los Angeles"
+    }
+   }
+  },
+  "links": [
+   {
+    "rel": [
+     "clubhouse",
+     "desktop",
+     "team"
+    ],
+    "href": "https://www.espn.com/nba/team/_/name/lal/los-angeles-lakers"
+   }
+  ],
+  "nextEvent": [
+   {
+    "id": "401909880",
+    "date": "2026-10-28T03:00Z",
+    "seasonType": {
+     "type": 2
+    },
+    "competitions": [
+     {
+      "status": {
+       "type": {
+        "state": "pre",
+        "name": "STATUS_SCHEDULED"
+       }
+      },
+      "broadcasts": [
+       {
+        "media": {
+         "shortName": "Peacock"
+        }
+       }
+      ],
+      "competitors": [
+       {
+        "homeAway": "home",
+        "team": {
+         "id": "13",
+         "displayName": "Los Angeles Lakers",
+         "shortDisplayName": "Lakers",
+         "abbreviation": "LAL",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/nba/500/lal.png"
+          }
+         ]
+        }
+       },
+       {
+        "homeAway": "away",
+        "team": {
+         "id": "22",
+         "displayName": "Portland Trail Blazers",
+         "shortDisplayName": "Trail Blazers",
+         "abbreviation": "POR",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/nba/500/por.png"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

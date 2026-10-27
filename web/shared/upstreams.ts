@@ -56,6 +56,9 @@ export const UPSTREAMS: readonly Upstream[] = [
       [/\/standings$/, TABLES],
       [/\/rankings$/, TABLES],
       [/\/teams\/[^/]+\/(schedule|roster)$/, SCHEDULE],
+      // A team's page header (record, standing, next game) and its depth chart and moves (TeamPage).
+      [/\/teams\/[^/]+(\/depthcharts)?$/, SCHEDULE],
+      [/\/transactions$/, SCHEDULE],
       [/\/teams(\/[^/]+)?$/, CATALOG],
     ],
     fallback: SHORT,
@@ -67,6 +70,8 @@ export const UPSTREAMS: readonly Upstream[] = [
     rules: [
       [/\/(plays|probabilities|situation|status|drives)(\/.*)?$/, LIVE],
       [/\/seasons\/\d+(\/.*)?$/, SCHEDULE],
+      // An athlete's core record (birth date, draft): a player page's bio.
+      [/\/athletes\/\d+$/, SCHEDULE],
     ],
     fallback: SHORT,
   },
@@ -89,6 +94,8 @@ export const UPSTREAMS: readonly Upstream[] = [
       [/\/tournaments(\/.*)?$/, SCHEDULE],
       // A stage's name and its rounds' names (SeasonResults.parseStage).
       [/\/stages\/\d+$/, SCHEDULE],
+      // Player pages: bio, career stats, map pool, roles, recent matches.
+      [/\/players(\/.*)?$/, SCHEDULE],
     ],
     fallback: SHORT,
   },
@@ -107,6 +114,20 @@ export const UPSTREAMS: readonly Upstream[] = [
       [/\/events\/\d+\/registrations$/, SCHEDULE],
     ],
     fallback: SHORT,
+  },
+  {
+    // FotMob: soccer photos, injuries and the current coach, matched onto ESPN's
+    // squads (FotMob.swift). Enrichment only: a failure leaves ESPN's data as is.
+    // Its photos load straight from images.fotmob.com (never proxied).
+    host: "www.fotmob.com",
+    prefixes: ["/api/data/search/suggest", "/api/data/teams"],
+    rules: [
+      // A club's search result names its ID, which never changes.
+      [/\/search\/suggest$/, { edge: 604_800, browser: 86_400 }],
+      // The squad (and its injuries): twelve hours.
+      [/\/teams$/, { edge: 43_200, browser: 3600 }],
+    ],
+    fallback: SCHEDULE,
   },
   {
     // MLB Stats API: Statcast pitch and batted-ball data (Statcast.swift).

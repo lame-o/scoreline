@@ -1,0 +1,396 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/soccer/all/teams/359/schedule",
+ "_recorded": "2026-10-27T08:46:30.473Z",
+ "events": [
+  {
+   "id": "401878768",
+   "date": "2026-10-24T14:00Z",
+   "league": {
+    "abbreviation": "Premier League",
+    "slug": "eng.1"
+   },
+   "seasonType": {
+    "type": 14308
+   },
+   "competitions": [
+    {
+     "status": {
+      "type": {
+       "state": "post",
+       "name": "STATUS_FULL_TIME"
+      }
+     },
+     "broadcasts": [
+      {
+       "media": {
+        "shortName": "USA Net"
+       }
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": true,
+       "score": {
+        "displayValue": "2"
+       },
+       "team": {
+        "id": "359",
+        "displayName": "Arsenal",
+        "shortDisplayName": "Arsenal",
+        "abbreviation": "ARS",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png"
+         }
+        ]
+       }
+      },
+      {
+       "homeAway": "away",
+       "winner": false,
+       "score": {
+        "displayValue": "0"
+       },
+       "team": {
+        "id": "368",
+        "displayName": "Everton",
+        "shortDisplayName": "Everton",
+        "abbreviation": "EVE",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/soccer/500/368.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401915312",
+   "date": "2026-10-21T19:00Z",
+   "league": {
+    "abbreviation": "UEFA Champions League",
+    "slug": "uefa.champions"
+   },
+   "seasonType": {
+    "type": 14534
+   },
+   "competitions": [
+    {
+     "status": {
+      "type": {
+       "state": "post",
+       "name": "STATUS_FULL_TIME"
+      }
+     },
+     "broadcasts": [
+      {
+       "media": {
+        "shortName": "Paramount+"
+       }
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": false,
+       "score": {
+        "displayValue": "2"
+       },
+       "team": {
+        "id": "132",
+        "displayName": "Bayern Munich",
+        "shortDisplayName": "Bayern",
+        "abbreviation": "MUN",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/soccer/500/132.png"
+         }
+        ]
+       }
+      },
+      {
+       "homeAway": "away",
+       "winner": false,
+       "score": {
+        "displayValue": "2"
+       },
+       "team": {
+        "id": "359",
+        "displayName": "Arsenal",
+        "shortDisplayName": "Arsenal",
+        "abbreviation": "ARS",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401878769",
+   "date": "2026-10-18T15:30Z",
+   "league": {
+    "abbreviation": "Premier League",
+    "slug": "eng.1"
+   },
+   "seasonType": {
+    "type": 14308
+   },
+   "competitions": [
+    {
+     "status": {
+      "type": {
+       "state": "post",
+       "name": "STATUS_FULL_TIME"
+      }
+     },
+     "broadcasts": [
+      {
+       "media": {
+        "shortName": "Peacock"
+       }
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": false,
+       "score": {
+        "displayValue": "0"
+       },
+       "team": {
+        "id": "393",
+        "displayName": "Nottingham Forest",
+        "shortDisplayName": "Nottm Forest",
+        "abbreviation": "NFO",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/soccer/500/393.png"
+         }
+        ]
+       }
+      },
+      {
+       "homeAway": "away",
+       "winner": true,
+       "score": {
+        "displayValue": "1"
+       },
+       "team": {
+        "id": "359",
+        "displayName": "Arsenal",
+        "shortDisplayName": "Arsenal",
+        "abbreviation": "ARS",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401915417",
+   "date": "2026-10-13T19:00Z",
+   "league": {
+    "abbreviation": "UEFA Champions League",
+    "slug": "uefa.champions"
+   },
+   "seasonType": {
+    "type": 14534
+   },
+   "competitions": [
+    {
+     "status": {
+      "type": {
+       "state": "post",
+       "name": "STATUS_FULL_TIME"
+      }
+     },
+     "broadcasts": [
+      {
+       "media": {
+        "shortName": "Paramount+"
+       }
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": true,
+       "score": {
+        "displayValue": "3"
+       },
+       "team": {
+        "id": "359",
+        "displayName": "Arsenal",
+        "shortDisplayName": "Arsenal",
+        "abbreviation": "ARS",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png"
+         }
+        ]
+       }
+      },
+      {
+       "homeAway": "away",
+       "winner": false,
+       "score": {
+        "displayValue": "0"
+       },
+       "team": {
+        "id": "166",
+        "displayName": "Lille",
+        "shortDisplayName": "Lille",
+        "abbreviation": "LILL",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/soccer/500/166.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401879268",
+   "date": "2026-10-10T11:30Z",
+   "league": {
+    "abbreviation": "Premier League",
+    "slug": "eng.1"
+   },
+   "seasonType": {
+    "type": 14308
+   },
+   "competitions": [
+    {
+     "status": {
+      "type": {
+       "state": "post",
+       "name": "STATUS_FULL_TIME"
+      }
+     },
+     "broadcasts": [
+      {
+       "media": {
+        "shortName": "USA Net"
+       }
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": true,
+       "score": {
+        "displayValue": "2"
+       },
+       "team": {
+        "id": "359",
+        "displayName": "Arsenal",
+        "shortDisplayName": "Arsenal",
+        "abbreviation": "ARS",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png"
+         }
+        ]
+       }
+      },
+      {
+       "homeAway": "away",
+       "winner": false,
+       "score": {
+        "displayValue": "1"
+       },
+       "team": {
+        "id": "357",
+        "displayName": "Leeds United",
+        "shortDisplayName": "Leeds",
+        "abbreviation": "LEE",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/soccer/500/357.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401886555",
+   "date": "2026-08-12T18:30Z",
+   "league": {
+    "abbreviation": "Club Friendly",
+    "slug": "club.friendly"
+   },
+   "seasonType": {
+    "type": 13818
+   },
+   "competitions": [
+    {
+     "status": {
+      "type": {
+       "state": "post",
+       "name": "STATUS_FINAL_PEN"
+      }
+     },
+     "broadcasts": [],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": true,
+       "score": {
+        "displayValue": "1"
+       },
+       "team": {
+        "id": "359",
+        "displayName": "Arsenal",
+        "shortDisplayName": "Arsenal",
+        "abbreviation": "ARS",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/soccer/500/359.png"
+         }
+        ]
+       }
+      },
+      {
+       "homeAway": "away",
+       "winner": false,
+       "score": {
+        "displayValue": "1"
+       },
+       "team": {
+        "id": "2572",
+        "displayName": "Como",
+        "shortDisplayName": "Como",
+        "abbreviation": "COMO",
+        "logos": [
+         {
+          "href": "https://a.espncdn.com/i/teamlogos/soccer/500/2572.png"
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

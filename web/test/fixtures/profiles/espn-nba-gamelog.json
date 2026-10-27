@@ -1,0 +1,245 @@
+{
+ "_source": "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/1966/gamelog",
+ "_recorded": "2026-10-27T08:46:28.658Z",
+ "filters": [
+  {
+   "name": "league",
+   "value": "nba"
+  },
+  {
+   "name": "season",
+   "value": "2027"
+  }
+ ],
+ "names": [
+  "minutes",
+  "fieldGoalsMade-fieldGoalsAttempted",
+  "fieldGoalPct",
+  "threePointFieldGoalsMade-threePointFieldGoalsAttempted",
+  "threePointPct",
+  "freeThrowsMade-freeThrowsAttempted",
+  "freeThrowPct",
+  "totalRebounds",
+  "assists",
+  "blocks",
+  "steals",
+  "fouls",
+  "turnovers",
+  "points"
+ ],
+ "labels": [
+  "MIN",
+  "FG",
+  "FG%",
+  "3PT",
+  "3P%",
+  "FT",
+  "FT%",
+  "REB",
+  "AST",
+  "BLK",
+  "STL",
+  "PF",
+  "TO",
+  "PTS"
+ ],
+ "events": {
+  "401898407": {
+   "gameDate": "2026-10-16T23:00:00.000+00:00",
+   "homeTeamId": "20",
+   "awayTeamId": "2",
+   "homeTeamScore": "120",
+   "awayTeamScore": "125",
+   "gameResult": "L",
+   "leagueShortName": "NBA",
+   "leagueName": "National Basketball Association",
+   "opponent": {
+    "id": "2",
+    "displayName": "Boston Celtics",
+    "abbreviation": "BOS",
+    "logo": "https://a.espncdn.com/i/teamlogos/nba/500/bos.png"
+   }
+  },
+  "401901823": {
+   "gameDate": "2026-10-08T23:30:00.000+00:00",
+   "homeTeamId": "17",
+   "awayTeamId": "20",
+   "homeTeamScore": "114",
+   "awayTeamScore": "108",
+   "gameResult": "L",
+   "leagueShortName": "NBA",
+   "leagueName": "National Basketball Association",
+   "opponent": {
+    "id": "17",
+    "displayName": "Brooklyn Nets",
+    "abbreviation": "BKN",
+    "logo": "https://a.espncdn.com/i/teamlogos/nba/500/bkn.png"
+   }
+  },
+  "401909089": {
+   "gameDate": "2026-10-20T23:00:00.000+00:00",
+   "homeTeamId": "18",
+   "awayTeamId": "20",
+   "homeTeamScore": "100",
+   "awayTeamScore": "106",
+   "gameResult": "W",
+   "leagueShortName": "NBA",
+   "leagueName": "National Basketball Association",
+   "opponent": {
+    "id": "18",
+    "displayName": "New York Knicks",
+    "abbreviation": "NY",
+    "logo": "https://a.espncdn.com/i/teamlogos/nba/500/ny.png"
+   }
+  },
+  "401909093": {
+   "gameDate": "2026-10-22T23:00:00.000+00:00",
+   "homeTeamId": "20",
+   "awayTeamId": "5",
+   "homeTeamScore": "114",
+   "awayTeamScore": "106",
+   "gameResult": "W",
+   "leagueShortName": "NBA",
+   "leagueName": "National Basketball Association",
+   "opponent": {
+    "id": "5",
+    "displayName": "Cleveland Cavaliers",
+    "abbreviation": "CLE",
+    "logo": "https://a.espncdn.com/i/teamlogos/nba/500/cle.png"
+   }
+  },
+  "401909866": {
+   "gameDate": "2026-10-25T23:30:00.000+00:00",
+   "homeTeamId": "20",
+   "awayTeamId": "8",
+   "homeTeamScore": "93",
+   "awayTeamScore": "106",
+   "gameResult": "L",
+   "leagueShortName": "NBA",
+   "leagueName": "National Basketball Association",
+   "opponent": {
+    "id": "8",
+    "displayName": "Detroit Pistons",
+    "abbreviation": "DET",
+    "logo": "https://a.espncdn.com/i/teamlogos/nba/500/det.png"
+   }
+  }
+ },
+ "seasonTypes": [
+  {
+   "displayName": "2026-27 Regular Season",
+   "categories": [
+    {
+     "displayName": "october",
+     "events": [
+      {
+       "eventId": "401909866",
+       "stats": [
+        "33",
+        "8-15",
+        "53.3",
+        "0-3",
+        "0.0",
+        "2-6",
+        "33.3",
+        "2",
+        "5",
+        "0",
+        "2",
+        "1",
+        "3",
+        "18"
+       ]
+      },
+      {
+       "eventId": "401909093",
+       "stats": [
+        "33",
+        "5-14",
+        "35.7",
+        "1-4",
+        "25.0",
+        "6-7",
+        "85.7",
+        "10",
+        "5",
+        "1",
+        "3",
+        "3",
+        "5",
+        "17"
+       ]
+      },
+      {
+       "eventId": "401909089",
+       "stats": [
+        "34",
+        "5-13",
+        "38.5",
+        "0-3",
+        "0.0",
+        "4-6",
+        "66.7",
+        "9",
+        "7",
+        "1",
+        "1",
+        "4",
+        "1",
+        "14"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "displayName": "2026-27 Preseason",
+   "categories": [
+    {
+     "displayName": "Preseason",
+     "events": [
+      {
+       "eventId": "401898407",
+       "stats": [
+        "25",
+        "4-9",
+        "44.4",
+        "0-2",
+        "0.0",
+        "0-3",
+        "0.0",
+        "8",
+        "7",
+        "0",
+        "1",
+        "1",
+        "4",
+        "8"
+       ]
+      },
+      {
+       "eventId": "401901823",
+       "stats": [
+        "18",
+        "1-1",
+        "100.0",
+        "0-0",
+        "0.0",
+        "8-8",
+        "100.0",
+        "4",
+        "5",
+        "0",
+        "1",
+        "1",
+        "2",
+        "10"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

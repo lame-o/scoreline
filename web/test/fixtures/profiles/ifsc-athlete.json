@@ -1,0 +1,261 @@
+{
+ "_source": "https://ifsc.results.info/api/v1/athletes/1147",
+ "_recorded": "2026-10-27T08:46:46.839Z",
+ "id": 1147,
+ "firstname": "Janja",
+ "lastname": "GARNBRET",
+ "birthday": "1999-03-12",
+ "age": 27,
+ "height": 164,
+ "arm_span": null,
+ "city": "Slovenj Gradec",
+ "country": "SLO",
+ "photo_url": "https://d1n1qj9geboqnb.cloudfront.net/ifsc/public/7te9giijls89kp0ga6m55c724rpo",
+ "speed_personal_best": {
+  "time": "7.81",
+  "date": "2021-09-16",
+  "event_name": "Olympic Games Tokyo 2020",
+  "round_name": "Final"
+ },
+ "discipline_podiums": [
+  {
+   "1": 50,
+   "2": 16,
+   "3": 5,
+   "discipline_kind": "lead",
+   "total": 71
+  },
+  {
+   "1": 0,
+   "2": 0,
+   "3": 0,
+   "discipline_kind": "speed",
+   "total": 0
+  },
+  {
+   "1": 30,
+   "2": 9,
+   "3": 0,
+   "discipline_kind": "boulder",
+   "total": 39
+  },
+  {
+   "1": 4,
+   "2": 0,
+   "3": 0,
+   "discipline_kind": "combined",
+   "total": 4
+  },
+  {
+   "1": 3,
+   "2": 0,
+   "3": 0,
+   "discipline_kind": "boulder&lead",
+   "total": 3
+  },
+  {
+   "1": 0,
+   "2": 0,
+   "3": 0,
+   "discipline_kind": "speed_relay",
+   "total": 0
+  }
+ ],
+ "world_championships_discipline_podiums": [
+  {
+   "1": 3,
+   "2": 2,
+   "3": 0,
+   "discipline_kind": "lead",
+   "total": 5
+  },
+  {
+   "1": 0,
+   "2": 0,
+   "3": 0,
+   "discipline_kind": "speed",
+   "total": 0
+  },
+  {
+   "1": 4,
+   "2": 0,
+   "3": 0,
+   "discipline_kind": "boulder",
+   "total": 4
+  },
+  {
+   "1": 2,
+   "2": 0,
+   "3": 0,
+   "discipline_kind": "combined",
+   "total": 2
+  },
+  {
+   "1": 1,
+   "2": 0,
+   "3": 0,
+   "discipline_kind": "boulder&lead",
+   "total": 1
+  },
+  {
+   "1": 0,
+   "2": 0,
+   "3": 0,
+   "discipline_kind": "speed_relay",
+   "total": 0
+  }
+ ],
+ "federation": {
+  "name": "Alpine Association of Slovenia"
+ },
+ "cup_rankings": [
+  {
+   "name": "IFSC Climbing World Cup 2025",
+   "id": 103,
+   "season": "2025",
+   "boulder": {
+    "rank": 18,
+    "result_url": "/api/v1/cups/103/dcat/235",
+    "d_cat_id": 235,
+    "disc_kind_id": 2
+   },
+   "lead": {
+    "rank": 7,
+    "result_url": "/api/v1/cups/103/dcat/233",
+    "d_cat_id": 233,
+    "disc_kind_id": 0
+   }
+  },
+  {
+   "name": "IFSC Climbing World Cup 2026",
+   "id": 111,
+   "season": "2026",
+   "boulder": {
+    "rank": 21,
+    "result_url": "/api/v1/cups/111/dcat/235",
+    "d_cat_id": 235,
+    "disc_kind_id": 2
+   },
+   "lead": {
+    "rank": 2,
+    "result_url": "/api/v1/cups/111/dcat/233",
+    "d_cat_id": 233,
+    "disc_kind_id": 0
+   }
+  }
+ ],
+ "all_results": [
+  {
+   "season": "2026",
+   "rank": 1,
+   "discipline": "lead",
+   "event_name": "World Climbing Series Santiago 2026",
+   "date": "2026-10-26",
+   "category_name": "Women"
+  },
+  {
+   "season": "2026",
+   "rank": 1,
+   "discipline": "lead",
+   "event_name": "World Climbing Series Koper 2026",
+   "date": "2026-09-05",
+   "category_name": "Women"
+  },
+  {
+   "season": "2026",
+   "rank": 1,
+   "discipline": "lead",
+   "event_name": "World Climbing Series Innsbruck 2026",
+   "date": "2026-06-21",
+   "category_name": "Women"
+  },
+  {
+   "season": "2026",
+   "rank": 2,
+   "discipline": "lead",
+   "event_name": "World Climbing Series Wujiang 2026",
+   "date": "2026-05-10",
+   "category_name": "Women"
+  },
+  {
+   "season": "2026",
+   "rank": 2,
+   "discipline": "boulder",
+   "event_name": "World Climbing Series Keqiao 2026",
+   "date": "2026-05-03",
+   "category_name": "Women"
+  },
+  {
+   "season": "2025",
+   "rank": 1,
+   "discipline": "lead",
+   "event_name": "IFSC Climbing World Championships Seoul 2025",
+   "date": "2025-09-28",
+   "category_name": "Women"
+  },
+  {
+   "season": "2025",
+   "rank": 1,
+   "discipline": "boulder",
+   "event_name": "IFSC Climbing World Championships Seoul 2025",
+   "date": "2025-09-28",
+   "category_name": "Women"
+  },
+  {
+   "season": "2025",
+   "rank": 1,
+   "discipline": "lead",
+   "event_name": "IFSC Climbing World Cup Koper 2025",
+   "date": "2025-09-06",
+   "category_name": "Women"
+  },
+  {
+   "season": "2025",
+   "rank": 1,
+   "discipline": "boulder",
+   "event_name": "IFSC Climbing World Cup Innsbruck 2025",
+   "date": "2025-06-29",
+   "category_name": "Women"
+  },
+  {
+   "season": "2025",
+   "rank": 1,
+   "discipline": "lead",
+   "event_name": "IFSC Climbing World Cup Innsbruck 2025",
+   "date": "2025-06-29",
+   "category_name": "Women"
+  },
+  {
+   "season": "2024",
+   "rank": 1,
+   "discipline": "lead",
+   "event_name": "IFSC Climbing World Cup Koper 2024",
+   "date": "2024-09-07",
+   "category_name": "Women"
+  },
+  {
+   "season": "2024",
+   "rank": 1,
+   "discipline": "boulder&lead",
+   "event_name": "Olympic Games Paris 2024",
+   "date": "2024-08-11",
+   "category_name": "Women"
+  },
+  {
+   "season": "2024",
+   "rank": 1,
+   "discipline": "boulder",
+   "event_name": "IFSC Climbing World Cup Innsbruck 2024",
+   "date": "2024-06-30",
+   "category_name": "Women"
+  },
+  {
+   "season": "2024",
+   "rank": 1,
+   "discipline": "lead",
+   "event_name": "IFSC Climbing World Cup Innsbruck 2024",
+   "date": "2024-06-30",
+   "category_name": "Women"
+  }
+ ]
+}
