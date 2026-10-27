@@ -1,0 +1,35 @@
+/*
+ * The soccer theater's stack (SoccerTheater.swift): the stage, then 6pt
+ * under it the moment's caption, its minute in the page's ink and ESPN's
+ * words in the secondary, at most three lines, fading in as a new moment
+ * arrives (Motion.fade).
+ */
+.theater {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--pt));
+}
+
+.caption {
+  margin: 0;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  animation: caption-in var(--dur-fade) var(--ease-out);
+}
+
+.minute {
+  font-weight: 600;
+  color: var(--label);
+}
+
+@keyframes caption-in {
+  from {
+    opacity: 0;
+  }
+}
