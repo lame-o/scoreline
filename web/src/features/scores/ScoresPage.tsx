@@ -46,6 +46,8 @@ export function ScoresPage({ variant }: { readonly variant: "page" | "sidebar" }
     if (!active) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
+      // An open menu has the keys.
+      if ((event.target as HTMLElement | null)?.closest?.('[role="menu"]')) return;
       const container = root.current;
       if (!container) return;
       const focused = document.activeElement as HTMLElement | null;
