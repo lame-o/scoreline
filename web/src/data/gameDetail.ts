@@ -18,6 +18,7 @@ import type { Fetcher } from "./http";
 import { arr, at, bool, has, num, str, type JSONValue } from "./json";
 import type { Competitor, CSLive, ScoreEvent, Side, Sport } from "./models";
 import { makeEvent } from "./providers/espn";
+import { homeWinProbability, keyMoments as basketballMoments, NBA_STATS, parseBasketball, predictor, quarterLength, recentPlays as basketballPlays, WNBA_PATH, type Basketball } from "./basketball";
 
 // MARK: - Model
 
@@ -213,6 +214,8 @@ export interface GameDetail {
   readonly baseball: Baseball | null;
   readonly atBat: readonly Pitch[];
   readonly battedBalls: readonly BattedBall[];
+  /** NBA and WNBA: shot chart, game flow, leaders, box score, injuries (data/basketball.ts). */
+  readonly basketball: Basketball | null;
   /**
    * Baseball, live: the summary's plays, for the play theater until the live
    * lane has spoken (`theater()` in data/mlb/playScene.ts reads them).
@@ -250,6 +253,7 @@ export const EMPTY_DETAIL: GameDetail = {
   baseball: null,
   atBat: [],
   battedBalls: [],
+  basketball: null,
   plays: [],
   topIsHome: null,
   athleteNames: {},
@@ -448,8 +452,10 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
   let battedBallsList: BattedBall[] = [];
   let plays: readonly JSONValue[] = [];
   const athleteNames: Record<string, string> = {};
+  let basketball: Basketball | null = null;
 
-  switch (sport) {
+  // The NBA and WNBA have their own page (data/basketball.ts); other basketball reads like the rest.
+  switch (sport === "basketball" && (path === NBA_PATH_ || path === WNBA_PATH) ? "nba" : sport) {
     case "soccer":
       moments = arr(at(summary, "keyEvents")).flatMap((e) => soccerMoment(e, side) ?? []);
       recentPlays = arr(at(summary, "commentary"))
@@ -498,8 +504,22 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
       else plays = plays.slice(-80);
       break;
     }
+    case "nba": {
+      // The NBA page (the WNBA reads the same feed, with 10-minute quarters).
+      basketball = parseBasketball(summary, side, topIsHome === true, quarterLength(path));
+      moments = basketballMoments(summary, side, topIsHome === true);
+      // Game order is array order (sequence numbers aren't).
+      recentPlays = basketballPlays(arr(at(summary, "plays")));
+      // Joined to the plays by ID; before tip-off, ESPN's matchup predictor stands in.
+      const home = homeWinProbability(summary);
+      if (home != null) {
+        topWinProbability = topIsHome ? home : 1 - home;
+        drawProbability = null;
+      }
+      topWinProbability ??= predictor(summary, topIsHome === true);
+      break;
+    }
     default:
-      // TODO(nba agent): the NBA's own parse (NBADetail.parse, keyMoments, recentPlays, win probability).
       moments = arr(at(summary, "scoringPlays")).map((p, i) => {
         const n = num(at(p, "period", "number"));
         const period = n != null ? periodLabel(n, sport) : "";
@@ -543,7 +563,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     broadcast: str(at(competition, "broadcasts", 0, "media", "shortName")) ?? null,
     broadcasters,
     topIsHome,
-    stats: stats(summary, sport, topID, bottomID),
+    stats: stats(summary, sport, topID, bottomID, path),
     linescore: sport !== "soccer" && topComp && bottomComp ? linescore(topComp, bottomComp, sport) : null,
     topWinProbability,
     drawProbability,
@@ -551,6 +571,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     recentPlays,
     atBat,
     battedBalls: battedBallsList,
+    basketball,
     plays,
     athleteNames,
     football,
@@ -721,7 +742,7 @@ const PREFERRED_STATS: Partial<Record<Sport, readonly [string, string][]>> = {
 };
 
 /** Team stats as split bars (ESPNDetail.stats). TODO(nba agent): the NBA's own list (`nbaStats`). */
-export function stats(summary: JSONValue, sport: Sport, topID: string | null, bottomID: string | null): Stat[] {
+export function stats(summary: JSONValue, sport: Sport, topID: string | null, bottomID: string | null, path = ""): Stat[] {
   const teams = arr(at(summary, "boxscore", "teams"));
   const top = teams.find((t) => str(at(t, "team", "id")) === topID);
   const bottom = teams.find((t) => str(at(t, "team", "id")) === bottomID);
@@ -737,13 +758,16 @@ export function stats(summary: JSONValue, sport: Sport, topID: string | null, bo
   };
   const t = values(top);
   const b = values(bottom);
+  // NBA (not WNBA): shooting, the hustle numbers and how the game was won (GameDetail.nbaStats).
+  const nba = path === NBA_PATH_;
   const wanted =
+    (nba ? NBA_STATS : null) ??
     PREFERRED_STATS[sport] ??
     arr(at(top, "statistics")).flatMap((s): [string, string][] => {
       const name = str(at(s, "name"));
       return name ? [[name, str(at(s, "label")) ?? name]] : [];
     });
-  return wanted.slice(0, 8).flatMap(([key, label]): Stat[] => {
+  return wanted.slice(0, nba ? NBA_STATS.length : 8).flatMap(([key, label]): Stat[] => {
     const tv = t.get(key);
     const bv = b.get(key);
     if (tv == null || bv == null) return [];
@@ -751,7 +775,8 @@ export function stats(summary: JSONValue, sport: Sport, topID: string | null, bo
     const bn = magnitude(bv);
     if (tn == null && bn == null) return [];
     const total = (tn ?? 0) + (bn ?? 0);
-    const suffix = key === "possessionPct" ? "%" : "";
+    // ESPN's NBA percentages are bare numbers ("45").
+    const suffix = key === "possessionPct" || (nba && key.endsWith("Pct")) ? "%" : "";
     return [{ label, top: tv + suffix, bottom: bv + suffix, topShare: total > 0 ? Math.min(Math.max((tn ?? 0) / total, 0), 1) : 0.5 }];
   });
 }
@@ -870,6 +895,8 @@ export function intOf(value: JSONValue): number | null {
 function numText(value: JSONValue): string {
   return typeof value === "number" ? String(value) : (str(value) ?? "");
 }
+
+const NBA_PATH_ = "basketball/nba";
 
 /** "MIL leads series 2-0" with an en dash (shared by the series caption). */
 export const seriesText = (summary: string) => enDash(summary);

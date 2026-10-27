@@ -1,0 +1,2637 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=401879256",
+ "_recorded": "2026-10-27T09:56:54.125Z",
+ "header": {
+  "id": "401879256",
+  "season": {
+   "year": 2026,
+   "current": true,
+   "type": 14308,
+   "name": "2026-27 English Premier League"
+  },
+  "links": [
+   {
+    "href": "https://www.espn.com/soccer/match/_/gameId/401879256/manchester-city-aston-villa",
+    "rel": [
+     "summary",
+     "desktop",
+     "event"
+    ]
+   }
+  ],
+  "competitions": [
+   {
+    "id": "401879256",
+    "date": "2026-10-24T11:30Z",
+    "status": {
+     "type": {
+      "state": "post",
+      "completed": true,
+      "shortDetail": "FT",
+      "detail": "FT",
+      "name": "STATUS_FULL_TIME"
+     }
+    },
+    "broadcasts": [
+     {
+      "type": {
+       "shortName": "TV"
+      },
+      "media": {
+       "shortName": "USA Net"
+      }
+     },
+     {
+      "type": {
+       "shortName": "STREAMING"
+      },
+      "media": {
+       "shortName": "Universo"
+      }
+     }
+    ],
+    "notes": [],
+    "competitors": [
+     {
+      "homeAway": "home",
+      "winner": true,
+      "score": "2",
+      "linescores": [
+       {
+        "displayValue": "1"
+       },
+       {
+        "displayValue": "1"
+       }
+      ],
+      "record": [
+       {
+        "type": "total",
+        "summary": "3-2-3"
+       },
+       {
+        "type": "points",
+        "summary": "11"
+       }
+      ],
+      "team": {
+       "id": "362",
+       "abbreviation": "AVL",
+       "displayName": "Aston Villa",
+       "shortDisplayName": "Aston Villa",
+       "name": "Aston Villa",
+       "location": "Aston Villa",
+       "color": "660e36",
+       "alternateColor": "000000",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/soccer/500/362.png",
+         "rel": [
+          "full",
+          "default"
+         ]
+        }
+       ]
+      }
+     },
+     {
+      "homeAway": "away",
+      "winner": false,
+      "score": "1",
+      "linescores": [
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "1"
+       }
+      ],
+      "record": [
+       {
+        "type": "total",
+        "summary": "7-0-1"
+       },
+       {
+        "type": "points",
+        "summary": "21"
+       }
+      ],
+      "team": {
+       "id": "382",
+       "abbreviation": "MNC",
+       "displayName": "Manchester City",
+       "shortDisplayName": "Man City",
+       "name": "Manchester City",
+       "location": "Manchester City",
+       "color": "99c5ea",
+       "alternateColor": "000000",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/soccer/500/382.png",
+         "rel": [
+          "full",
+          "default"
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "gameInfo": {
+  "venue": {
+   "fullName": "Villa Park"
+  }
+ },
+ "boxscore": {
+  "teams": [
+   {
+    "team": {
+     "id": "362"
+    },
+    "statistics": [
+     {
+      "name": "foulsCommitted",
+      "displayValue": "21",
+      "label": "Fouls"
+     },
+     {
+      "name": "yellowCards",
+      "displayValue": "4",
+      "label": "Yellow Cards"
+     },
+     {
+      "name": "redCards",
+      "displayValue": "0",
+      "label": "Red Cards"
+     },
+     {
+      "name": "offsides",
+      "displayValue": "1",
+      "label": "Offsides"
+     },
+     {
+      "name": "wonCorners",
+      "displayValue": "4",
+      "label": "Corner Kicks"
+     },
+     {
+      "name": "saves",
+      "displayValue": "6",
+      "label": "Saves"
+     },
+     {
+      "name": "possessionPct",
+      "displayValue": "36.8",
+      "label": "Possession"
+     },
+     {
+      "name": "totalShots",
+      "displayValue": "8",
+      "label": "SHOTS"
+     },
+     {
+      "name": "shotsOnTarget",
+      "displayValue": "2",
+      "label": "ON GOAL"
+     },
+     {
+      "name": "shotPct",
+      "displayValue": "0.3",
+      "label": "On Target %"
+     },
+     {
+      "name": "penaltyKickGoals",
+      "displayValue": "0",
+      "label": "Penalty Goals"
+     },
+     {
+      "name": "penaltyKickShots",
+      "displayValue": "0",
+      "label": "Penalty Kicks Taken"
+     },
+     {
+      "name": "accuratePasses",
+      "displayValue": "254",
+      "label": "Accurate Passes"
+     },
+     {
+      "name": "totalPasses",
+      "displayValue": "314",
+      "label": "Passes"
+     },
+     {
+      "name": "passPct",
+      "displayValue": "0.8",
+      "label": "Pass Completion %"
+     },
+     {
+      "name": "accurateCrosses",
+      "displayValue": "0",
+      "label": "Accurate Crosses"
+     },
+     {
+      "name": "totalCrosses",
+      "displayValue": "5",
+      "label": "Crosses"
+     },
+     {
+      "name": "crossPct",
+      "displayValue": "0.0",
+      "label": "Cross %"
+     },
+     {
+      "name": "totalLongBalls",
+      "displayValue": "53",
+      "label": "Long Balls"
+     },
+     {
+      "name": "accurateLongBalls",
+      "displayValue": "19",
+      "label": "Accurate Long Balls"
+     },
+     {
+      "name": "longballPct",
+      "displayValue": "0.4",
+      "label": "Long Balls %"
+     },
+     {
+      "name": "blockedShots",
+      "displayValue": "3",
+      "label": "Blocked Shots"
+     },
+     {
+      "name": "effectiveTackles",
+      "displayValue": "13",
+      "label": "Effective Tackles"
+     },
+     {
+      "name": "totalTackles",
+      "displayValue": "31",
+      "label": "Tackles"
+     },
+     {
+      "name": "tacklePct",
+      "displayValue": "0.4",
+      "label": "Tackle %"
+     },
+     {
+      "name": "interceptions",
+      "displayValue": "10",
+      "label": "Interceptions"
+     },
+     {
+      "name": "effectiveClearance",
+      "displayValue": "22",
+      "label": "Effective Clearances"
+     },
+     {
+      "name": "totalClearance",
+      "displayValue": "22",
+      "label": "Clearances"
+     }
+    ]
+   },
+   {
+    "team": {
+     "id": "382"
+    },
+    "statistics": [
+     {
+      "name": "foulsCommitted",
+      "displayValue": "17",
+      "label": "Fouls"
+     },
+     {
+      "name": "yellowCards",
+      "displayValue": "4",
+      "label": "Yellow Cards"
+     },
+     {
+      "name": "redCards",
+      "displayValue": "0",
+      "label": "Red Cards"
+     },
+     {
+      "name": "offsides",
+      "displayValue": "2",
+      "label": "Offsides"
+     },
+     {
+      "name": "wonCorners",
+      "displayValue": "7",
+      "label": "Corner Kicks"
+     },
+     {
+      "name": "saves",
+      "displayValue": "0",
+      "label": "Saves"
+     },
+     {
+      "name": "possessionPct",
+      "displayValue": "63.2",
+      "label": "Possession"
+     },
+     {
+      "name": "totalShots",
+      "displayValue": "15",
+      "label": "SHOTS"
+     },
+     {
+      "name": "shotsOnTarget",
+      "displayValue": "7",
+      "label": "ON GOAL"
+     },
+     {
+      "name": "shotPct",
+      "displayValue": "0.5",
+      "label": "On Target %"
+     },
+     {
+      "name": "penaltyKickGoals",
+      "displayValue": "0",
+      "label": "Penalty Goals"
+     },
+     {
+      "name": "penaltyKickShots",
+      "displayValue": "0",
+      "label": "Penalty Kicks Taken"
+     },
+     {
+      "name": "accuratePasses",
+      "displayValue": "472",
+      "label": "Accurate Passes"
+     },
+     {
+      "name": "totalPasses",
+      "displayValue": "528",
+      "label": "Passes"
+     },
+     {
+      "name": "passPct",
+      "displayValue": "0.9",
+      "label": "Pass Completion %"
+     },
+     {
+      "name": "accurateCrosses",
+      "displayValue": "9",
+      "label": "Accurate Crosses"
+     },
+     {
+      "name": "totalCrosses",
+      "displayValue": "22",
+      "label": "Crosses"
+     },
+     {
+      "name": "crossPct",
+      "displayValue": "0.4",
+      "label": "Cross %"
+     },
+     {
+      "name": "totalLongBalls",
+      "displayValue": "32",
+      "label": "Long Balls"
+     },
+     {
+      "name": "accurateLongBalls",
+      "displayValue": "17",
+      "label": "Accurate Long Balls"
+     },
+     {
+      "name": "longballPct",
+      "displayValue": "0.5",
+      "label": "Long Balls %"
+     },
+     {
+      "name": "blockedShots",
+      "displayValue": "4",
+      "label": "Blocked Shots"
+     },
+     {
+      "name": "effectiveTackles",
+      "displayValue": "10",
+      "label": "Effective Tackles"
+     },
+     {
+      "name": "totalTackles",
+      "displayValue": "13",
+      "label": "Tackles"
+     },
+     {
+      "name": "tacklePct",
+      "displayValue": "0.8",
+      "label": "Tackle %"
+     },
+     {
+      "name": "interceptions",
+      "displayValue": "8",
+      "label": "Interceptions"
+     },
+     {
+      "name": "effectiveClearance",
+      "displayValue": "16",
+      "label": "Effective Clearances"
+     },
+     {
+      "name": "totalClearance",
+      "displayValue": "16",
+      "label": "Clearances"
+     }
+    ]
+   }
+  ]
+ },
+ "keyEvents": [
+  {
+   "id": "54145755",
+   "text": "First Half begins.",
+   "scoringPlay": false,
+   "type": {
+    "id": "80",
+    "text": "Kickoff",
+    "type": "kickoff"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 0,
+    "displayValue": ""
+   }
+  },
+  {
+   "id": "54146134",
+   "text": "Goal! Aston Villa 1, Manchester City 0. Nicolas Jackson (Aston Villa) right footed shot from the left side of the box to the top left corner. Assisted by John McGinn.",
+   "shortText": "Nicolas Jackson Goal",
+   "scoringPlay": true,
+   "type": {
+    "id": "70",
+    "text": "Goal",
+    "type": "goal"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 354,
+    "displayValue": "6'"
+   },
+   "team": {
+    "id": "362",
+    "displayName": "Aston Villa"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "308524",
+      "displayName": "Nicolas Jackson"
+     }
+    },
+    {
+     "athlete": {
+      "id": "162843",
+      "displayName": "John McGinn"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54147949",
+   "text": "Marc Guéhi (Manchester City) is shown the yellow card for a bad foul.",
+   "shortText": "Marc Guéhi Yellow Card",
+   "scoringPlay": false,
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 1914,
+    "displayValue": "32'"
+   },
+   "team": {
+    "id": "382",
+    "displayName": "Manchester City"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "265907",
+      "displayName": "Marc Guéhi"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54148435",
+   "text": "Rayan Cherki (Manchester City) is shown the yellow card for a bad foul.",
+   "shortText": "Rayan Cherki Yellow Card",
+   "scoringPlay": false,
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 2276,
+    "displayValue": "38'"
+   },
+   "team": {
+    "id": "382",
+    "displayName": "Manchester City"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "298008",
+      "displayName": "Rayan Cherki"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54148981",
+   "scoringPlay": false,
+   "type": {
+    "id": "81",
+    "text": "Halftime",
+    "type": "halftime"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 2700,
+    "displayValue": "45'+2'"
+   }
+  },
+  {
+   "id": "54149550",
+   "text": "Substitution, Manchester City. Rico Lewis replaces Marc Guéhi.",
+   "shortText": "Rico Lewis Substitution",
+   "scoringPlay": false,
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2700,
+    "displayValue": "45'"
+   },
+   "team": {
+    "id": "382",
+    "displayName": "Manchester City"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "325564",
+      "displayName": "Rico Lewis"
+     }
+    },
+    {
+     "athlete": {
+      "id": "265907",
+      "displayName": "Marc Guéhi"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54149561",
+   "text": "Substitution, Manchester City. Phil Foden replaces Rayan Cherki.",
+   "shortText": "Phil Foden Substitution",
+   "scoringPlay": false,
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2700,
+    "displayValue": "45'"
+   },
+   "team": {
+    "id": "382",
+    "displayName": "Manchester City"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "250787",
+      "displayName": "Phil Foden"
+     }
+    },
+    {
+     "athlete": {
+      "id": "298008",
+      "displayName": "Rayan Cherki"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54149560",
+   "scoringPlay": false,
+   "type": {
+    "id": "82",
+    "text": "Start 2nd Half",
+    "type": "start-2nd-half"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2700,
+    "displayValue": "45'"
+   }
+  },
+  {
+   "id": "54149975",
+   "text": "Goal! Aston Villa 1, Manchester City 1. Erling Haaland (Manchester City) header from very close range to the bottom left corner. Assisted by Iliman Ndiaye with a cross following a set piece situation.",
+   "shortText": "Erling Haaland Goal - Header",
+   "scoringPlay": true,
+   "type": {
+    "id": "137",
+    "text": "Goal - Header",
+    "type": "goal---header"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3117,
+    "displayValue": "52'"
+   },
+   "team": {
+    "id": "382",
+    "displayName": "Manchester City"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "253989",
+      "displayName": "Erling Haaland"
+     }
+    },
+    {
+     "athlete": {
+      "id": "268641",
+      "displayName": "Iliman Ndiaye"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54150125",
+   "text": "Johan Manzambi (Aston Villa) is shown the yellow card.",
+   "shortText": "Johan Manzambi Yellow Card",
+   "scoringPlay": false,
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3237,
+    "displayValue": "54'"
+   },
+   "team": {
+    "id": "362",
+    "displayName": "Aston Villa"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "386992",
+      "displayName": "Johan Manzambi"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54150135",
+   "text": "Matty Cash (Aston Villa) is shown the yellow card for a bad foul.",
+   "shortText": "Matty Cash Yellow Card",
+   "scoringPlay": false,
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3295,
+    "displayValue": "55'"
+   },
+   "team": {
+    "id": "362",
+    "displayName": "Aston Villa"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "234698",
+      "displayName": "Matty Cash"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54150526",
+   "text": "Substitution, Aston Villa. Ibrahim Mbaye replaces Alysson.",
+   "shortText": "Ibrahim Mbaye Substitution",
+   "scoringPlay": false,
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3535,
+    "displayValue": "59'"
+   },
+   "team": {
+    "id": "362",
+    "displayName": "Aston Villa"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "388522",
+      "displayName": "Ibrahim Mbaye"
+     }
+    },
+    {
+     "athlete": {
+      "id": "382839",
+      "displayName": "Alysson"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54150525",
+   "text": "Goal! Aston Villa 2, Manchester City 1. Nicolas Jackson (Aston Villa) right footed shot from the centre of the box to the centre of the goal. Assisted by Ibrahim Mbaye.",
+   "shortText": "Nicolas Jackson Goal",
+   "scoringPlay": true,
+   "type": {
+    "id": "70",
+    "text": "Goal",
+    "type": "goal"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3591,
+    "displayValue": "60'"
+   },
+   "team": {
+    "id": "362",
+    "displayName": "Aston Villa"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "308524",
+      "displayName": "Nicolas Jackson"
+     }
+    },
+    {
+     "athlete": {
+      "id": "388522",
+      "displayName": "Ibrahim Mbaye"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54150984",
+   "text": "Substitution, Aston Villa. Emiliano Buendía replaces Johan Manzambi.",
+   "shortText": "Emiliano Buendía Substitution",
+   "scoringPlay": false,
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3954,
+    "displayValue": "66'"
+   },
+   "team": {
+    "id": "362",
+    "displayName": "Aston Villa"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "214375",
+      "displayName": "Emiliano Buendía"
+     }
+    },
+    {
+     "athlete": {
+      "id": "386992",
+      "displayName": "Johan Manzambi"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54150985",
+   "text": "Substitution, Aston Villa. Ross Barkley replaces John McGinn.",
+   "shortText": "Ross Barkley Substitution",
+   "scoringPlay": false,
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3958,
+    "displayValue": "66'"
+   },
+   "team": {
+    "id": "362",
+    "displayName": "Aston Villa"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "152469",
+      "displayName": "Ross Barkley"
+     }
+    },
+    {
+     "athlete": {
+      "id": "162843",
+      "displayName": "John McGinn"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54151192",
+   "text": "Substitution, Manchester City. Ryan McAidoo replaces Iliman Ndiaye.",
+   "shortText": "Ryan McAidoo Substitution",
+   "scoringPlay": false,
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4110,
+    "displayValue": "69'"
+   },
+   "team": {
+    "id": "382",
+    "displayName": "Manchester City"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "395463",
+      "displayName": "Ryan McAidoo"
+     }
+    },
+    {
+     "athlete": {
+      "id": "268641",
+      "displayName": "Iliman Ndiaye"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54151558",
+   "text": "Elliot Anderson (Manchester City) is shown the yellow card for a bad foul.",
+   "shortText": "Elliot Anderson Yellow Card",
+   "scoringPlay": false,
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4410,
+    "displayValue": "74'"
+   },
+   "team": {
+    "id": "382",
+    "displayName": "Manchester City"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "238472",
+      "displayName": "Elliot Anderson"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54151738",
+   "text": "Ryan McAidoo (Manchester City) is shown the yellow card for a bad foul.",
+   "shortText": "Ryan McAidoo Yellow Card",
+   "scoringPlay": false,
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4545,
+    "displayValue": "76'"
+   },
+   "team": {
+    "id": "382",
+    "displayName": "Manchester City"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "395463",
+      "displayName": "Ryan McAidoo"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54152358",
+   "text": "Substitution, Aston Villa. Brian Madjo replaces Nicolas Jackson.",
+   "shortText": "Brian Madjo Substitution",
+   "scoringPlay": false,
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4897,
+    "displayValue": "82'"
+   },
+   "team": {
+    "id": "362",
+    "displayName": "Aston Villa"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "401451",
+      "displayName": "Brian Madjo"
+     }
+    },
+    {
+     "athlete": {
+      "id": "308524",
+      "displayName": "Nicolas Jackson"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54152422",
+   "text": "Substitution, Aston Villa. Leon Goretzka replaces João Gomes.",
+   "shortText": "Leon Goretzka Substitution",
+   "scoringPlay": false,
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4905,
+    "displayValue": "82'"
+   },
+   "team": {
+    "id": "362",
+    "displayName": "Aston Villa"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "174550",
+      "displayName": "Leon Goretzka"
+     }
+    },
+    {
+     "athlete": {
+      "id": "301524",
+      "displayName": "João Gomes"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54152615",
+   "text": "Brian Madjo (Aston Villa) is shown the yellow card.",
+   "shortText": "Brian Madjo Yellow Card",
+   "scoringPlay": false,
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4975,
+    "displayValue": "83'"
+   },
+   "team": {
+    "id": "362",
+    "displayName": "Aston Villa"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "401451",
+      "displayName": "Brian Madjo"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54153802",
+   "text": "Emiliano Buendía (Aston Villa) is shown the yellow card for a bad foul.",
+   "shortText": "Emiliano Buendía Yellow Card",
+   "scoringPlay": false,
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5400,
+    "displayValue": "90'+5'"
+   },
+   "team": {
+    "id": "362",
+    "displayName": "Aston Villa"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "214375",
+      "displayName": "Emiliano Buendía"
+     }
+    }
+   ]
+  },
+  {
+   "id": "54153826",
+   "scoringPlay": false,
+   "type": {
+    "id": "83",
+    "text": "End Regular Time",
+    "type": "end-regular-time"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5400,
+    "displayValue": "90'+5'"
+   }
+  }
+ ],
+ "commentary": [
+  {
+   "sequence": 0,
+   "text": "Lineups are announced and players are warming up.",
+   "time": {
+    "value": 0,
+    "displayValue": ""
+   }
+  },
+  {
+   "sequence": 1,
+   "text": "First Half begins.",
+   "time": {
+    "value": 0,
+    "displayValue": ""
+   },
+   "play": {
+    "id": "54145755"
+   }
+  },
+  {
+   "sequence": 2,
+   "text": "Foul by Abdukodir Khusanov (Manchester City).",
+   "time": {
+    "value": 50,
+    "displayValue": "1'"
+   },
+   "play": {
+    "id": "54145833"
+   }
+  },
+  {
+   "sequence": 3,
+   "text": "Johan Manzambi (Aston Villa) wins a free kick on the left wing.",
+   "time": {
+    "value": 50,
+    "displayValue": "1'"
+   },
+   "play": {
+    "id": "54145833"
+   }
+  },
+  {
+   "sequence": 4,
+   "text": "Corner, Aston Villa. Conceded by Rúben Dias.",
+   "time": {
+    "value": 194,
+    "displayValue": "4'"
+   },
+   "play": {
+    "id": "54145948"
+   }
+  },
+  {
+   "sequence": 5,
+   "text": "Attempt missed. Ian Maatsen (Aston Villa) left footed shot from the left side of the box is high and wide to the left. Assisted by John McGinn following a corner.",
+   "time": {
+    "value": 227,
+    "displayValue": "4'"
+   },
+   "play": {
+    "id": "54146038"
+   }
+  },
+  {
+   "sequence": 6,
+   "text": "Corner, Aston Villa. Conceded by Gianluigi Donnarumma.",
+   "time": {
+    "value": 262,
+    "displayValue": "5'"
+   },
+   "play": {
+    "id": "54146073"
+   }
+  },
+  {
+   "sequence": 7,
+   "text": "Attempt blocked. Alysson (Aston Villa) left footed shot from the centre of the box is blocked. Assisted by John McGinn.",
+   "time": {
+    "value": 304,
+    "displayValue": "6'"
+   },
+   "play": {
+    "id": "54146077"
+   }
+  },
+  {
+   "sequence": 8,
+   "text": "Goal! Aston Villa 1, Manchester City 0. Nicolas Jackson (Aston Villa) right footed shot from the left side of the box to the top left corner. Assisted by John McGinn.",
+   "time": {
+    "value": 354,
+    "displayValue": "6'"
+   },
+   "play": {
+    "id": "54146134"
+   }
+  },
+  {
+   "sequence": 9,
+   "text": "Corner, Manchester City. Conceded by Victor Lindelöf.",
+   "time": {
+    "value": 514,
+    "displayValue": "9'"
+   },
+   "play": {
+    "id": "54146265"
+   }
+  },
+  {
+   "sequence": 10,
+   "text": "Corner, Manchester City. Conceded by Boubacar Kamara.",
+   "time": {
+    "value": 544,
+    "displayValue": "10'"
+   },
+   "play": {
+    "id": "54146268"
+   }
+  },
+  {
+   "sequence": 11,
+   "text": "Foul by Josko Gvardiol (Manchester City).",
+   "time": {
+    "value": 588,
+    "displayValue": "10'"
+   },
+   "play": {
+    "id": "54146317"
+   }
+  },
+  {
+   "sequence": 12,
+   "text": "Boubacar Kamara (Aston Villa) wins a free kick on the right wing.",
+   "time": {
+    "value": 588,
+    "displayValue": "10'"
+   },
+   "play": {
+    "id": "54146317"
+   }
+  },
+  {
+   "sequence": 13,
+   "text": "Foul by Matty Cash (Aston Villa).",
+   "time": {
+    "value": 664,
+    "displayValue": "12'"
+   },
+   "play": {
+    "id": "54146466"
+   }
+  },
+  {
+   "sequence": 14,
+   "text": "Jérémy Doku (Manchester City) wins a free kick in the defensive half.",
+   "time": {
+    "value": 664,
+    "displayValue": "12'"
+   },
+   "play": {
+    "id": "54146466"
+   }
+  },
+  {
+   "sequence": 15,
+   "text": "Corner, Manchester City. Conceded by Pau Torres.",
+   "time": {
+    "value": 688,
+    "displayValue": "12'"
+   },
+   "play": {
+    "id": "54146472"
+   }
+  },
+  {
+   "sequence": 16,
+   "text": "Attempt blocked. Enzo Fernández (Manchester City) right footed shot from the centre of the box is blocked. Assisted by Josko Gvardiol with a headed pass.",
+   "time": {
+    "value": 716,
+    "displayValue": "12'"
+   },
+   "play": {
+    "id": "54146476"
+   }
+  },
+  {
+   "sequence": 17,
+   "text": "Corner, Manchester City. Conceded by Johan Manzambi.",
+   "time": {
+    "value": 723,
+    "displayValue": "13'"
+   },
+   "play": {
+    "id": "54146480"
+   }
+  },
+  {
+   "sequence": 18,
+   "text": "Attempt saved. Iliman Ndiaye (Manchester City) left footed shot from the right side of the box is saved in the bottom left corner by Zion Suzuki (Aston Villa). Assisted by Rayan Cherki.",
+   "time": {
+    "value": 759,
+    "displayValue": "13'"
+   },
+   "play": {
+    "id": "54146575"
+   }
+  },
+  {
+   "sequence": 19,
+   "text": "Boubacar Kamara (Aston Villa) wins a free kick in the defensive half.",
+   "time": {
+    "value": 769,
+    "displayValue": "13'"
+   },
+   "play": {
+    "id": "54146581"
+   }
+  },
+  {
+   "sequence": 20,
+   "text": "Foul by Rayan Cherki (Manchester City).",
+   "time": {
+    "value": 769,
+    "displayValue": "13'"
+   },
+   "play": {
+    "id": "54146581"
+   }
+  },
+  {
+   "sequence": 21,
+   "text": "Foul by Alysson (Aston Villa).",
+   "time": {
+    "value": 803,
+    "displayValue": "14'"
+   },
+   "play": {
+    "id": "54146586"
+   }
+  },
+  {
+   "sequence": 22,
+   "text": "Josko Gvardiol (Manchester City) wins a free kick in the defensive half.",
+   "time": {
+    "value": 803,
+    "displayValue": "14'"
+   },
+   "play": {
+    "id": "54146586"
+   }
+  },
+  {
+   "sequence": 23,
+   "text": "Attempt missed. Nicolas Jackson (Aston Villa) right footed shot from outside the box misses to the left following a fast break.",
+   "time": {
+    "value": 1115,
+    "displayValue": "19'"
+   },
+   "play": {
+    "id": "54146979"
+   }
+  },
+  {
+   "sequence": 24,
+   "text": "Foul by Matty Cash (Aston Villa).",
+   "time": {
+    "value": 1150,
+    "displayValue": "20'"
+   },
+   "play": {
+    "id": "54147059"
+   }
+  },
+  {
+   "sequence": 25,
+   "text": "Erling Haaland (Manchester City) wins a free kick on the left wing.",
+   "time": {
+    "value": 1150,
+    "displayValue": "20'"
+   },
+   "play": {
+    "id": "54147059"
+   }
+  },
+  {
+   "sequence": 26,
+   "text": "Attempt saved. Rayan Cherki (Manchester City) left footed shot from the centre of the box is saved in the centre of the goal by Zion Suzuki (Aston Villa). Assisted by Jérémy Doku.",
+   "time": {
+    "value": 1238,
+    "displayValue": "21'"
+   },
+   "play": {
+    "id": "54147163"
+   }
+  },
+  {
+   "sequence": 27,
+   "text": "Attempt saved. Abdukodir Khusanov (Manchester City) right footed shot from outside the box is saved in the bottom left corner by Zion Suzuki (Aston Villa). Assisted by Enzo Fernández.",
+   "time": {
+    "value": 1417,
+    "displayValue": "24'"
+   },
+   "play": {
+    "id": "54147326"
+   }
+  },
+  {
+   "sequence": 28,
+   "text": "Alysson (Aston Villa) wins a free kick on the right wing.",
+   "time": {
+    "value": 1468,
+    "displayValue": "25'"
+   },
+   "play": {
+    "id": "54147394"
+   }
+  },
+  {
+   "sequence": 29,
+   "text": "Foul by Josko Gvardiol (Manchester City).",
+   "time": {
+    "value": 1468,
+    "displayValue": "25'"
+   },
+   "play": {
+    "id": "54147394"
+   }
+  },
+  {
+   "sequence": 30,
+   "text": "Corner, Aston Villa. Conceded by Josko Gvardiol.",
+   "time": {
+    "value": 1506,
+    "displayValue": "26'"
+   },
+   "play": {
+    "id": "54147397"
+   }
+  },
+  {
+   "sequence": 31,
+   "text": "Offside, Aston Villa. Nicolas Jackson is caught offside.",
+   "time": {
+    "value": 1585,
+    "displayValue": "27'"
+   },
+   "play": {
+    "id": "54147519"
+   }
+  },
+  {
+   "sequence": 32,
+   "text": "Iliman Ndiaye (Manchester City) hits the left post with a left footed shot from the right side of the box. Assisted by Rayan Cherki.",
+   "time": {
+    "value": 1668,
+    "displayValue": "28'"
+   },
+   "play": {
+    "id": "54147619"
+   }
+  },
+  {
+   "sequence": 33,
+   "text": "Nicolas Jackson (Aston Villa) wins a free kick in the attacking half.",
+   "time": {
+    "value": 1911,
+    "displayValue": "32'"
+   },
+   "play": {
+    "id": "54147891"
+   }
+  },
+  {
+   "sequence": 34,
+   "text": "Foul by Marc Guéhi (Manchester City).",
+   "time": {
+    "value": 1911,
+    "displayValue": "32'"
+   },
+   "play": {
+    "id": "54147891"
+   }
+  },
+  {
+   "sequence": 35,
+   "text": "Marc Guéhi (Manchester City) is shown the yellow card for a bad foul.",
+   "time": {
+    "value": 1914,
+    "displayValue": "32'"
+   },
+   "play": {
+    "id": "54147949"
+   }
+  },
+  {
+   "sequence": 36,
+   "text": "Attempt missed. Johan Manzambi (Aston Villa) right footed shot from outside the box is too high from a direct free kick.",
+   "time": {
+    "value": 2018,
+    "displayValue": "34'"
+   },
+   "play": {
+    "id": "54148001"
+   }
+  },
+  {
+   "sequence": 37,
+   "text": "Attempt blocked. Jérémy Doku (Manchester City) right footed shot from the left side of the box is blocked. Assisted by Elliot Anderson.",
+   "time": {
+    "value": 2109,
+    "displayValue": "36'"
+   },
+   "play": {
+    "id": "54148107"
+   }
+  },
+  {
+   "sequence": 38,
+   "text": "Corner, Manchester City. Conceded by Boubacar Kamara.",
+   "time": {
+    "value": 2146,
+    "displayValue": "36'"
+   },
+   "play": {
+    "id": "54148144"
+   }
+  },
+  {
+   "sequence": 39,
+   "text": "Foul by Nicolas Jackson (Aston Villa).",
+   "time": {
+    "value": 2212,
+    "displayValue": "37'"
+   },
+   "play": {
+    "id": "54148245"
+   }
+  },
+  {
+   "sequence": 40,
+   "text": "Abdukodir Khusanov (Manchester City) wins a free kick in the defensive half.",
+   "time": {
+    "value": 2212,
+    "displayValue": "37'"
+   },
+   "play": {
+    "id": "54148245"
+   }
+  },
+  {
+   "sequence": 41,
+   "text": "Johan Manzambi (Aston Villa) wins a free kick in the defensive half.",
+   "time": {
+    "value": 2272,
+    "displayValue": "38'"
+   },
+   "play": {
+    "id": "54148434"
+   }
+  },
+  {
+   "sequence": 42,
+   "text": "Foul by Rayan Cherki (Manchester City).",
+   "time": {
+    "value": 2272,
+    "displayValue": "38'"
+   },
+   "play": {
+    "id": "54148434"
+   }
+  },
+  {
+   "sequence": 43,
+   "text": "Rayan Cherki (Manchester City) is shown the yellow card for a bad foul.",
+   "time": {
+    "value": 2276,
+    "displayValue": "38'"
+   },
+   "play": {
+    "id": "54148435"
+   }
+  },
+  {
+   "sequence": 44,
+   "text": "John McGinn (Aston Villa) wins a free kick in the defensive half.",
+   "time": {
+    "value": 2306,
+    "displayValue": "39'"
+   },
+   "play": {
+    "id": "54148439"
+   }
+  },
+  {
+   "sequence": 45,
+   "text": "Foul by Rúben Dias (Manchester City).",
+   "time": {
+    "value": 2306,
+    "displayValue": "39'"
+   },
+   "play": {
+    "id": "54148439"
+   }
+  },
+  {
+   "sequence": 46,
+   "text": "Attempt blocked. Alysson (Aston Villa) left footed shot from the centre of the box is blocked. Assisted by Matty Cash.",
+   "time": {
+    "value": 2344,
+    "displayValue": "40'"
+   },
+   "play": {
+    "id": "54148448"
+   }
+  },
+  {
+   "sequence": 47,
+   "text": "Foul by Matty Cash (Aston Villa).",
+   "time": {
+    "value": 2371,
+    "displayValue": "40'"
+   },
+   "play": {
+    "id": "54148550"
+   }
+  },
+  {
+   "sequence": 48,
+   "text": "Jérémy Doku (Manchester City) wins a free kick in the defensive half.",
+   "time": {
+    "value": 2371,
+    "displayValue": "40'"
+   },
+   "play": {
+    "id": "54148550"
+   }
+  },
+  {
+   "sequence": 49,
+   "text": "Nicolas Jackson (Aston Villa) wins a free kick in the defensive half.",
+   "time": {
+    "value": 2449,
+    "displayValue": "41'"
+   },
+   "play": {
+    "id": "54148739"
+   }
+  },
+  {
+   "sequence": 50,
+   "text": "Foul by Abdukodir Khusanov (Manchester City).",
+   "time": {
+    "value": 2449,
+    "displayValue": "41'"
+   },
+   "play": {
+    "id": "54148739"
+   }
+  },
+  {
+   "sequence": 51,
+   "text": "John McGinn (Aston Villa) wins a free kick in the attacking half.",
+   "time": {
+    "value": 2489,
+    "displayValue": "42'"
+   },
+   "play": {
+    "id": "54148742"
+   }
+  },
+  {
+   "sequence": 52,
+   "text": "Foul by Rúben Dias (Manchester City).",
+   "time": {
+    "value": 2489,
+    "displayValue": "42'"
+   },
+   "play": {
+    "id": "54148742"
+   }
+  },
+  {
+   "sequence": 53,
+   "text": "Foul by Alysson (Aston Villa).",
+   "time": {
+    "value": 2556,
+    "displayValue": "43'"
+   },
+   "play": {
+    "id": "54148757"
+   }
+  },
+  {
+   "sequence": 54,
+   "text": "Jérémy Doku (Manchester City) wins a free kick in the attacking half.",
+   "time": {
+    "value": 2556,
+    "displayValue": "43'"
+   },
+   "play": {
+    "id": "54148757"
+   }
+  },
+  {
+   "sequence": 55,
+   "text": "Foul by Alysson (Aston Villa).",
+   "time": {
+    "value": 2698,
+    "displayValue": "45'"
+   },
+   "play": {
+    "id": "54148953"
+   }
+  },
+  {
+   "sequence": 56,
+   "text": "Josko Gvardiol (Manchester City) wins a free kick in the defensive half.",
+   "time": {
+    "value": 2698,
+    "displayValue": "45'"
+   },
+   "play": {
+    "id": "54148953"
+   }
+  },
+  {
+   "sequence": 57,
+   "text": "Fourth official has announced 1 minutes of added time.",
+   "time": {
+    "value": 2699,
+    "displayValue": "45'"
+   }
+  },
+  {
+   "sequence": 58,
+   "text": "First Half ends, Aston Villa 1, Manchester City 0.",
+   "time": {
+    "value": 2763,
+    "displayValue": "45'+2'"
+   }
+  },
+  {
+   "sequence": 59,
+   "text": "Substitution, Manchester City. Rico Lewis replaces Marc Guéhi.",
+   "time": {
+    "value": 2700,
+    "displayValue": "45'"
+   },
+   "play": {
+    "id": "54149550"
+   }
+  },
+  {
+   "sequence": 60,
+   "text": "Substitution, Manchester City. Phil Foden replaces Rayan Cherki.",
+   "time": {
+    "value": 2700,
+    "displayValue": "45'"
+   },
+   "play": {
+    "id": "54149561"
+   }
+  },
+  {
+   "sequence": 61,
+   "text": "Second Half begins Aston Villa 1, Manchester City 0.",
+   "time": {
+    "value": 2700,
+    "displayValue": "45'"
+   }
+  },
+  {
+   "sequence": 62,
+   "text": "Foul by Ian Maatsen (Aston Villa).",
+   "time": {
+    "value": 2731,
+    "displayValue": "46'"
+   },
+   "play": {
+    "id": "54149603"
+   }
+  },
+  {
+   "sequence": 63,
+   "text": "Elliot Anderson (Manchester City) wins a free kick in the defensive half.",
+   "time": {
+    "value": 2731,
+    "displayValue": "46'"
+   },
+   "play": {
+    "id": "54149603"
+   }
+  },
+  {
+   "sequence": 64,
+   "text": "Attempt blocked. Ian Maatsen (Aston Villa) left footed shot from the left side of the box is blocked. Assisted by John McGinn.",
+   "time": {
+    "value": 2765,
+    "displayValue": "47'"
+   },
+   "play": {
+    "id": "54149614"
+   }
+  },
+  {
+   "sequence": 65,
+   "text": "Corner, Aston Villa. Conceded by Abdukodir Khusanov.",
+   "time": {
+    "value": 2766,
+    "displayValue": "47'"
+   },
+   "play": {
+    "id": "54149616"
+   }
+  },
+  {
+   "sequence": 66,
+   "text": "Johan Manzambi (Aston Villa) wins a free kick in the defensive half.",
+   "time": {
+    "value": 2834,
+    "displayValue": "48'"
+   },
+   "play": {
+    "id": "54149669"
+   }
+  },
+  {
+   "sequence": 67,
+   "text": "Foul by Rico Lewis (Manchester City).",
+   "time": {
+    "value": 2834,
+    "displayValue": "48'"
+   },
+   "play": {
+    "id": "54149669"
+   }
+  },
+  {
+   "sequence": 68,
+   "text": "Foul by Boubacar Kamara (Aston Villa).",
+   "time": {
+    "value": 3069,
+    "displayValue": "52'"
+   },
+   "play": {
+    "id": "54149908"
+   }
+  },
+  {
+   "sequence": 69,
+   "text": "Iliman Ndiaye (Manchester City) wins a free kick in the attacking half.",
+   "time": {
+    "value": 3069,
+    "displayValue": "52'"
+   },
+   "play": {
+    "id": "54149908"
+   }
+  },
+  {
+   "sequence": 70,
+   "text": "Goal! Aston Villa 1, Manchester City 1. Erling Haaland (Manchester City) header from very close range to the bottom left corner. Assisted by Iliman Ndiaye with a cross following a set piece situation.",
+   "time": {
+    "value": 3117,
+    "displayValue": "52'"
+   },
+   "play": {
+    "id": "54149975"
+   }
+  },
+  {
+   "sequence": 71,
+   "text": "Johan Manzambi (Aston Villa) is shown the yellow card.",
+   "time": {
+    "value": 3237,
+    "displayValue": "54'"
+   },
+   "play": {
+    "id": "54150125"
+   }
+  },
+  {
+   "sequence": 72,
+   "text": "Foul by Matty Cash (Aston Villa).",
+   "time": {
+    "value": 3286,
+    "displayValue": "55'"
+   },
+   "play": {
+    "id": "54150134"
+   }
+  },
+  {
+   "sequence": 73,
+   "text": "Jérémy Doku (Manchester City) wins a free kick on the left wing.",
+   "time": {
+    "value": 3286,
+    "displayValue": "55'"
+   },
+   "play": {
+    "id": "54150134"
+   }
+  },
+  {
+   "sequence": 74,
+   "text": "Matty Cash (Aston Villa) is shown the yellow card for a bad foul.",
+   "time": {
+    "value": 3295,
+    "displayValue": "55'"
+   },
+   "play": {
+    "id": "54150135"
+   }
+  },
+  {
+   "sequence": 75,
+   "text": "Attempt saved. Josko Gvardiol (Manchester City) left footed shot from the left side of the box is saved in the top centre of the goal by Zion Suzuki (Aston Villa). Assisted by Jérémy Doku with a through ball.",
+   "time": {
+    "value": 3342,
+    "displayValue": "56'"
+   },
+   "play": {
+    "id": "54150241"
+   }
+  },
+  {
+   "sequence": 76,
+   "text": "Corner, Manchester City. Conceded by Zion Suzuki.",
+   "time": {
+    "value": 3346,
+    "displayValue": "56'"
+   },
+   "play": {
+    "id": "54150243"
+   }
+  },
+  {
+   "sequence": 77,
+   "text": "Matty Cash (Aston Villa) wins a free kick in the defensive half.",
+   "time": {
+    "value": 3376,
+    "displayValue": "57'"
+   },
+   "play": {
+    "id": "54150286"
+   }
+  },
+  {
+   "sequence": 78,
+   "text": "Foul by Rúben Dias (Manchester City).",
+   "time": {
+    "value": 3376,
+    "displayValue": "57'"
+   },
+   "play": {
+    "id": "54150286"
+   }
+  },
+  {
+   "sequence": 79,
+   "text": "Foul by Alysson (Aston Villa).",
+   "time": {
+    "value": 3401,
+    "displayValue": "57'"
+   },
+   "play": {
+    "id": "54150291"
+   }
+  },
+  {
+   "sequence": 80,
+   "text": "Josko Gvardiol (Manchester City) wins a free kick in the defensive half.",
+   "time": {
+    "value": 3401,
+    "displayValue": "57'"
+   },
+   "play": {
+    "id": "54150291"
+   }
+  },
+  {
+   "sequence": 81,
+   "text": "Attempt missed. Jérémy Doku (Manchester City) right footed shot from outside the box is close, but misses to the right. Assisted by Elliot Anderson following a fast break.",
+   "time": {
+    "value": 3496,
+    "displayValue": "59'"
+   },
+   "play": {
+    "id": "54150377"
+   }
+  },
+  {
+   "sequence": 82,
+   "text": "Substitution, Aston Villa. Ibrahim Mbaye replaces Alysson.",
+   "time": {
+    "value": 3535,
+    "displayValue": "59'"
+   },
+   "play": {
+    "id": "54150526"
+   }
+  },
+  {
+   "sequence": 83,
+   "text": "Goal! Aston Villa 2, Manchester City 1. Nicolas Jackson (Aston Villa) right footed shot from the centre of the box to the centre of the goal. Assisted by Ibrahim Mbaye.",
+   "time": {
+    "value": 3591,
+    "displayValue": "60'"
+   },
+   "play": {
+    "id": "54150525"
+   }
+  },
+  {
+   "sequence": 84,
+   "text": "Foul by Boubacar Kamara (Aston Villa).",
+   "time": {
+    "value": 3778,
+    "displayValue": "63'"
+   },
+   "play": {
+    "id": "54150769"
+   }
+  },
+  {
+   "sequence": 85,
+   "text": "Enzo Fernández (Manchester City) wins a free kick in the defensive half.",
+   "time": {
+    "value": 3778,
+    "displayValue": "63'"
+   },
+   "play": {
+    "id": "54150769"
+   }
+  },
+  {
+   "sequence": 86,
+   "text": "Corner, Manchester City. Conceded by Boubacar Kamara.",
+   "time": {
+    "value": 3863,
+    "displayValue": "65'"
+   },
+   "play": {
+    "id": "54150845"
+   }
+  },
+  {
+   "sequence": 87,
+   "text": "Attempt missed. Josko Gvardiol (Manchester City) header from the centre of the box misses to the left. Assisted by Enzo Fernández with a cross following a corner.",
+   "time": {
+    "value": 3892,
+    "displayValue": "65'"
+   },
+   "play": {
+    "id": "54150848"
+   }
+  },
+  {
+   "sequence": 88,
+   "text": "Offside, Manchester City. Iliman Ndiaye is caught offside.",
+   "time": {
+    "value": 3925,
+    "displayValue": "66'"
+   },
+   "play": {
+    "id": "54150983"
+   }
+  },
+  {
+   "sequence": 89,
+   "text": "Substitution, Aston Villa. Emiliano Buendía replaces Johan Manzambi.",
+   "time": {
+    "value": 3954,
+    "displayValue": "66'"
+   },
+   "play": {
+    "id": "54150984"
+   }
+  },
+  {
+   "sequence": 90,
+   "text": "Substitution, Aston Villa. Ross Barkley replaces John McGinn.",
+   "time": {
+    "value": 3958,
+    "displayValue": "66'"
+   },
+   "play": {
+    "id": "54150985"
+   }
+  },
+  {
+   "sequence": 91,
+   "text": "Attempt saved. Josko Gvardiol (Manchester City) left footed shot from the centre of the box is saved in the centre of the goal by Zion Suzuki (Aston Villa).",
+   "time": {
+    "value": 4069,
+    "displayValue": "68'"
+   },
+   "play": {
+    "id": "54151169"
+   }
+  },
+  {
+   "sequence": 92,
+   "text": "Nicolas Jackson (Aston Villa) wins a free kick in the defensive half.",
+   "time": {
+    "value": 4084,
+    "displayValue": "69'"
+   },
+   "play": {
+    "id": "54151180"
+   }
+  },
+  {
+   "sequence": 93,
+   "text": "Foul by Abdukodir Khusanov (Manchester City).",
+   "time": {
+    "value": 4084,
+    "displayValue": "69'"
+   },
+   "play": {
+    "id": "54151180"
+   }
+  },
+  {
+   "sequence": 94,
+   "text": "Substitution, Manchester City. Ryan McAidoo replaces Iliman Ndiaye.",
+   "time": {
+    "value": 4110,
+    "displayValue": "69'"
+   },
+   "play": {
+    "id": "54151192"
+   }
+  },
+  {
+   "sequence": 95,
+   "text": "Foul by Boubacar Kamara (Aston Villa).",
+   "time": {
+    "value": 4240,
+    "displayValue": "71'"
+   },
+   "play": {
+    "id": "54151327"
+   }
+  },
+  {
+   "sequence": 96,
+   "text": "Josko Gvardiol (Manchester City) wins a free kick in the attacking half.",
+   "time": {
+    "value": 4240,
+    "displayValue": "71'"
+   },
+   "play": {
+    "id": "54151327"
+   }
+  },
+  {
+   "sequence": 97,
+   "text": "Foul by João Gomes (Aston Villa).",
+   "time": {
+    "value": 4338,
+    "displayValue": "73'"
+   },
+   "play": {
+    "id": "54151390"
+   }
+  },
+  {
+   "sequence": 98,
+   "text": "Elliot Anderson (Manchester City) wins a free kick in the attacking half.",
+   "time": {
+    "value": 4338,
+    "displayValue": "73'"
+   },
+   "play": {
+    "id": "54151390"
+   }
+  },
+  {
+   "sequence": 99,
+   "text": "João Gomes (Aston Villa) wins a free kick in the attacking half.",
+   "time": {
+    "value": 4403,
+    "displayValue": "74'"
+   },
+   "play": {
+    "id": "54151557"
+   }
+  },
+  {
+   "sequence": 100,
+   "text": "Foul by Elliot Anderson (Manchester City).",
+   "time": {
+    "value": 4403,
+    "displayValue": "74'"
+   },
+   "play": {
+    "id": "54151557"
+   }
+  },
+  {
+   "sequence": 101,
+   "text": "Elliot Anderson (Manchester City) is shown the yellow card for a bad foul.",
+   "time": {
+    "value": 4410,
+    "displayValue": "74'"
+   },
+   "play": {
+    "id": "54151558"
+   }
+  },
+  {
+   "sequence": 102,
+   "text": "Foul by Ian Maatsen (Aston Villa).",
+   "time": {
+    "value": 4480,
+    "displayValue": "75'"
+   },
+   "play": {
+    "id": "54151571"
+   }
+  },
+  {
+   "sequence": 103,
+   "text": "Ryan McAidoo (Manchester City) wins a free kick on the right wing.",
+   "time": {
+    "value": 4480,
+    "displayValue": "75'"
+   },
+   "play": {
+    "id": "54151571"
+   }
+  },
+  {
+   "sequence": 104,
+   "text": "Ian Maatsen (Aston Villa) wins a free kick in the attacking half.",
+   "time": {
+    "value": 4542,
+    "displayValue": "76'"
+   },
+   "play": {
+    "id": "54151737"
+   }
+  },
+  {
+   "sequence": 105,
+   "text": "Foul by Ryan McAidoo (Manchester City).",
+   "time": {
+    "value": 4542,
+    "displayValue": "76'"
+   },
+   "play": {
+    "id": "54151737"
+   }
+  },
+  {
+   "sequence": 106,
+   "text": "Ryan McAidoo (Manchester City) is shown the yellow card for a bad foul.",
+   "time": {
+    "value": 4545,
+    "displayValue": "76'"
+   },
+   "play": {
+    "id": "54151738"
+   }
+  },
+  {
+   "sequence": 107,
+   "text": "Foul by Boubacar Kamara (Aston Villa).",
+   "time": {
+    "value": 4613,
+    "displayValue": "77'"
+   },
+   "play": {
+    "id": "54151756"
+   }
+  },
+  {
+   "sequence": 108,
+   "text": "Enzo Fernández (Manchester City) wins a free kick in the attacking half.",
+   "time": {
+    "value": 4613,
+    "displayValue": "77'"
+   },
+   "play": {
+    "id": "54151756"
+   }
+  },
+  {
+   "sequence": 109,
+   "text": "Foul by Ross Barkley (Aston Villa).",
+   "time": {
+    "value": 4770,
+    "displayValue": "80'"
+   },
+   "play": {
+    "id": "54152114"
+   }
+  },
+  {
+   "sequence": 110,
+   "text": "Elliot Anderson (Manchester City) wins a free kick in the attacking half.",
+   "time": {
+    "value": 4770,
+    "displayValue": "80'"
+   },
+   "play": {
+    "id": "54152114"
+   }
+  },
+  {
+   "sequence": 111,
+   "text": "Substitution, Aston Villa. Brian Madjo replaces Nicolas Jackson.",
+   "time": {
+    "value": 4897,
+    "displayValue": "82'"
+   },
+   "play": {
+    "id": "54152358"
+   }
+  },
+  {
+   "sequence": 112,
+   "text": "Substitution, Aston Villa. Leon Goretzka replaces João Gomes.",
+   "time": {
+    "value": 4905,
+    "displayValue": "82'"
+   },
+   "play": {
+    "id": "54152422"
+   }
+  },
+  {
+   "sequence": 113,
+   "text": "Brian Madjo (Aston Villa) wins a free kick in the defensive half.",
+   "time": {
+    "value": 4935,
+    "displayValue": "83'"
+   },
+   "play": {
+    "id": "54152413"
+   }
+  },
+  {
+   "sequence": 114,
+   "text": "Foul by Rico Lewis (Manchester City).",
+   "time": {
+    "value": 4935,
+    "displayValue": "83'"
+   },
+   "play": {
+    "id": "54152413"
+   }
+  },
+  {
+   "sequence": 115,
+   "text": "Foul by Brian Madjo (Aston Villa).",
+   "time": {
+    "value": 4970,
+    "displayValue": "83'"
+   },
+   "play": {
+    "id": "54152614"
+   }
+  },
+  {
+   "sequence": 116,
+   "text": "Abdukodir Khusanov (Manchester City) wins a free kick in the defensive half.",
+   "time": {
+    "value": 4970,
+    "displayValue": "83'"
+   },
+   "play": {
+    "id": "54152614"
+   }
+  },
+  {
+   "sequence": 117,
+   "text": "Brian Madjo (Aston Villa) is shown the yellow card.",
+   "time": {
+    "value": 4975,
+    "displayValue": "83'"
+   },
+   "play": {
+    "id": "54152615"
+   }
+  },
+  {
+   "sequence": 118,
+   "text": "Attempt blocked. Phil Foden (Manchester City) left footed shot from outside the box is blocked. Assisted by Josko Gvardiol.",
+   "time": {
+    "value": 5153,
+    "displayValue": "86'"
+   },
+   "play": {
+    "id": "54152768"
+   }
+  },
+  {
+   "sequence": 119,
+   "text": "Offside, Manchester City. Ryan McAidoo is caught offside.",
+   "time": {
+    "value": 5159,
+    "displayValue": "86'"
+   },
+   "play": {
+    "id": "54152845"
+   }
+  },
+  {
+   "sequence": 120,
+   "text": "Foul by Boubacar Kamara (Aston Villa).",
+   "time": {
+    "value": 5274,
+    "displayValue": "88'"
+   },
+   "play": {
+    "id": "54152998"
+   }
+  },
+  {
+   "sequence": 121,
+   "text": "Enzo Fernández (Manchester City) wins a free kick on the left wing.",
+   "time": {
+    "value": 5274,
+    "displayValue": "88'"
+   },
+   "play": {
+    "id": "54152998"
+   }
+  },
+  {
+   "sequence": 122,
+   "text": "Attempt blocked. Erling Haaland (Manchester City) header from the centre of the box is blocked. Assisted by Phil Foden with a cross.",
+   "time": {
+    "value": 5323,
+    "displayValue": "89'"
+   },
+   "play": {
+    "id": "54153145"
+   }
+  },
+  {
+   "sequence": 123,
+   "text": "Attempt missed. Jérémy Doku (Manchester City) right footed shot from the left side of the box misses to the left. Assisted by Ryan McAidoo with a cross.",
+   "time": {
+    "value": 5331,
+    "displayValue": "89'"
+   },
+   "play": {
+    "id": "54153243"
+   }
+  },
+  {
+   "sequence": 124,
+   "text": "Foul by Leon Goretzka (Aston Villa).",
+   "time": {
+    "value": 5388,
+    "displayValue": "90'"
+   },
+   "play": {
+    "id": "54153321"
+   }
+  },
+  {
+   "sequence": 125,
+   "text": "Rico Lewis (Manchester City) wins a free kick in the defensive half.",
+   "time": {
+    "value": 5388,
+    "displayValue": "90'"
+   },
+   "play": {
+    "id": "54153321"
+   }
+  },
+  {
+   "sequence": 126,
+   "text": "Fourth official has announced 4 minutes of added time.",
+   "time": {
+    "value": 5406,
+    "displayValue": "90'+1'"
+   }
+  },
+  {
+   "sequence": 127,
+   "text": "Attempt saved. Erling Haaland (Manchester City) header from the centre of the box is saved in the bottom right corner by Zion Suzuki (Aston Villa). Assisted by Elliot Anderson.",
+   "time": {
+    "value": 5537,
+    "displayValue": "90'+3'"
+   },
+   "play": {
+    "id": "54153513"
+   }
+  },
+  {
+   "sequence": 128,
+   "text": "Brian Madjo (Aston Villa) wins a free kick on the left wing.",
+   "time": {
+    "value": 5560,
+    "displayValue": "90'+3'"
+   },
+   "play": {
+    "id": "54153753"
+   }
+  },
+  {
+   "sequence": 129,
+   "text": "Foul by Elliot Anderson (Manchester City).",
+   "time": {
+    "value": 5560,
+    "displayValue": "90'+3'"
+   },
+   "play": {
+    "id": "54153753"
+   }
+  },
+  {
+   "sequence": 130,
+   "text": "Brian Madjo (Aston Villa) wins a free kick on the left wing.",
+   "time": {
+    "value": 5587,
+    "displayValue": "90'+4'"
+   },
+   "play": {
+    "id": "54153756"
+   }
+  },
+  {
+   "sequence": 131,
+   "text": "Foul by Abdukodir Khusanov (Manchester City).",
+   "time": {
+    "value": 5587,
+    "displayValue": "90'+4'"
+   },
+   "play": {
+    "id": "54153756"
+   }
+  },
+  {
+   "sequence": 132,
+   "text": "Foul by Emiliano Buendía (Aston Villa).",
+   "time": {
+    "value": 5645,
+    "displayValue": "90'+5'"
+   },
+   "play": {
+    "id": "54153769"
+   }
+  },
+  {
+   "sequence": 133,
+   "text": "Rico Lewis (Manchester City) wins a free kick in the defensive half.",
+   "time": {
+    "value": 5645,
+    "displayValue": "90'+5'"
+   },
+   "play": {
+    "id": "54153769"
+   }
+  },
+  {
+   "sequence": 134,
+   "text": "Emiliano Buendía (Aston Villa) is shown the yellow card for a bad foul.",
+   "time": {
+    "value": 5650,
+    "displayValue": "90'+5'"
+   },
+   "play": {
+    "id": "54153802"
+   }
+  },
+  {
+   "sequence": 135,
+   "text": "Second Half ends, Aston Villa 2, Manchester City 1.",
+   "time": {
+    "value": 5685,
+    "displayValue": "90'+5'"
+   }
+  },
+  {
+   "sequence": 136,
+   "text": "Match ends, Aston Villa 2, Manchester City 1.",
+   "time": {
+    "value": 0,
+    "displayValue": ""
+   }
+  }
+ ]
+}

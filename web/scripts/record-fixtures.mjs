@@ -274,9 +274,171 @@ async function mlb() {
   await save("espn-mlb-core-plays.json", { count: head.count, pages }, base);
 }
 
+// MARK: NBA and soccer game pages
+//
+// Finished games, fixed by ID so re-recording gives the same fixtures: an NBA
+// game that went to overtime (MIN @ CLE, Oct 26 2026) and a Premier League
+// match with three goals and nine cards (MCI @ AVL, Oct 24 2026).
+
+const NBA_GAME = "401909869";
+const SOCCER_GAME = "401879256";
+
+const trimSummaryHeader = (s) => {
+  const comp = s.header?.competitions?.[0] ?? {};
+  return {
+    ...pick(s.header, ["id", "gameNote", "season"]),
+    links: s.header?.links?.slice(0, 1).map((l) => pick(l, ["href", "rel"])),
+    competitions: [
+      {
+        ...pick(comp, ["id", "date"]),
+        status: { ...pick(comp.status, ["period", "clock", "displayClock"]), type: pick(comp.status?.type, ["state", "completed", "shortDetail", "detail", "name"]) },
+        broadcasts: comp.broadcasts?.map((b) => ({ type: pick(b.type, ["shortName"]), media: pick(b.media, ["shortName"]) })),
+        series: comp.series?.map((x) => pick(x, ["type", "summary", "title", "completed"])),
+        notes: comp.notes?.map((n) => pick(n, ["headline"])),
+        competitors: comp.competitors?.map((c) => ({
+          ...pick(c, ["homeAway", "winner", "score", "shootoutScore", "aggregateScore"]),
+          linescores: c.linescores?.map((l) => pick(l, ["displayValue"])),
+          record: c.record?.map((r) => pick(r, ["type", "summary"])),
+          team: { ...pick(c.team, ["id", "abbreviation", "displayName", "shortDisplayName", "name", "location", "color", "alternateColor"]), logos: c.team?.logos?.slice(0, 1).map((l) => pick(l, ["href", "rel"])) },
+        })),
+      },
+    ],
+  };
+};
+
+// Core API links shortened to the segment the parsers read ("…/teams/5?lang=en" → "/teams/5"), and
+// fields at their defaults (false, 0, ESPN's no-position sentinel) left out: the parsers read absent as those.
+const shortRef = (ref) => (typeof ref === "string" ? ref.replace(/^.*?(\/(teams|athletes|plays)\/\d+).*$/, "$1") : ref);
+const lean = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== false && v !== 0));
+
+const trimNBAPlay = (p) => ({
+  ...lean({
+    ...pick(p, ["id", "text", "awayScore", "homeScore", "scoringPlay", "scoreValue", "shootingPlay", "pointsAttempted"]),
+    awayScore: p.awayScore,
+    homeScore: p.homeScore,
+    coordinate: p.coordinate && p.coordinate.x > -1000 && p.coordinate.y > -1000 ? pick(p.coordinate, ["x", "y"]) : undefined,
+    type: pick(p.type, ["id", "text"]),
+    period: pick(p.period, ["number"]),
+    clock: pick(p.clock, ["displayValue"]),
+    team: p.team ? (p.team.$ref ? { $ref: shortRef(p.team.$ref) } : pick(p.team, ["id"])) : undefined,
+    participants: p.participants?.map((x) => ({ ...pick(x, ["order"]), athlete: x.athlete?.$ref ? { $ref: shortRef(x.athlete.$ref) } : pick(x.athlete, ["id"]) })),
+    scoringRun: p.scoringRun ? { ...pick(p.scoringRun, ["larger", "smaller"]), team: { $ref: shortRef(p.scoringRun.team?.$ref) }, play: { $ref: shortRef(p.scoringRun.play?.$ref) } } : undefined,
+  }),
+  // Scores are read as a pair: a 0 stays.
+  awayScore: p.awayScore,
+  homeScore: p.homeScore,
+});
+
+async function nba() {
+  const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${NBA_GAME}`;
+  const s = await get(url);
+  const athlete = (a) => ({ ...pick(a, ["id", "shortName", "displayName"]), headshot: a?.headshot ? pick(a.headshot, ["href"]) : undefined });
+  await save(
+    "espn-nba-summary.json",
+    {
+      _note: "Plays: every shot, score and period end, and all of the fourth quarter and overtime. Default fields left out.",
+      header: trimSummaryHeader(s),
+      gameInfo: { venue: pick(s.gameInfo?.venue, ["fullName"]) },
+      // The last 200 readings (Q4 and overtime): win probability is joined to the plays by ID.
+      winprobability: s.winprobability?.slice(-200).map((w) => pick(w, ["homeWinPercentage", "playId"])),
+      leaders: s.leaders?.map((t) => ({
+        team: pick(t.team, ["id"]),
+        leaders: t.leaders?.map((c) => ({ ...pick(c, ["name"]), leaders: c.leaders?.slice(0, 1).map((l) => ({ ...pick(l, ["displayValue", "value", "summary"]), athlete: athlete(l.athlete) })) })),
+      })),
+      boxscore: {
+        teams: s.boxscore?.teams?.map((t) => ({ team: pick(t.team, ["id"]), statistics: t.statistics?.map((x) => pick(x, ["name", "displayValue", "label"])) })),
+        players: s.boxscore?.players?.map((t) => ({
+          team: pick(t.team, ["id"]),
+          statistics: t.statistics?.map((g) => ({
+            ...pick(g, ["keys", "labels", "totals"]),
+            athletes: g.athletes?.map((a) => ({ ...pick(a, ["active", "starter", "didNotPlay", "reason", "stats"]), athlete: pick(a.athlete, ["id", "shortName", "displayName"]) })),
+          })),
+        })),
+      },
+      injuries: s.injuries?.map((t) => ({ team: pick(t.team, ["id"]), injuries: t.injuries?.map((i) => ({ ...pick(i, ["status"]), athlete: pick(i.athlete, ["id", "shortName", "displayName"]), details: i.details })) })),
+      // Every shot, score and period end; the rest (rebounds, turnovers, fouls) from the fourth quarter on, where the replay runs.
+      plays: s.plays?.filter((p) => p.shootingPlay || p.scoringPlay || ["402", "412"].includes(p.type?.id) || (p.period?.number ?? 0) >= 4).map(trimNBAPlay),
+    },
+    url,
+  );
+
+  // The core API: status, situation and the last pages of plays (the lane's first look and the demo's replay).
+  const base = `https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/events/${NBA_GAME}/competitions/${NBA_GAME}`;
+  const status = await get(`${base}/status`);
+  const situation = await get(`${base}/situation`);
+  const head = await get(`${base}/plays?limit=1`);
+  const all = [];
+  for (let page = 1; page <= Math.ceil(head.count / 100); page++) all.push(...(await get(`${base}/plays?limit=100&page=${page}`)).items);
+  await save(
+    "espn-nba-core-plays.json",
+    {
+      status: { ...pick(status, ["clock", "displayClock", "period"]), type: pick(status.type, ["state", "completed", "shortDetail", "detail", "name"]) },
+      situation: { lastPlay: pick(situation.lastPlay, ["$ref"]) },
+      _note: "Links shortened to /teams/<id>, /athletes/<id>, /plays/<id>; default fields left out.",
+      count: head.count,
+      // The last 160 plays: Q4 from the 6-minute mark, and overtime.
+      first: Math.max(all.length - 160, 0),
+      items: all.slice(-160).map(trimNBAPlay),
+    },
+    base,
+  );
+}
+
+const trimSoccerPlay = (p) => ({
+  ...lean({
+    ...pick(p, ["id", "shortText", "scoringPlay", "fieldPositionX", "fieldPositionY", "fieldPosition2X", "fieldPosition2Y", "expectedGoals", "goalPositionY", "goalPositionZ", "redCard", "yellowCard"]),
+    homeScore: p.homeScore,
+    awayScore: p.awayScore,
+    type: pick(p.type, ["type", "text"]),
+    period: pick(p.period, ["number"]),
+    clock: pick(p.clock, ["value", "displayValue"]),
+    team: p.team ? (p.team.$ref ? { $ref: shortRef(p.team.$ref) } : pick(p.team, ["id"])) : undefined,
+  }),
+  homeScore: p.homeScore,
+  awayScore: p.awayScore,
+});
+
+async function soccer() {
+  const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=${SOCCER_GAME}`;
+  const s = await get(url);
+  await save(
+    "espn-soccer-summary.json",
+    {
+      header: trimSummaryHeader(s),
+      gameInfo: { venue: pick(s.gameInfo?.venue, ["fullName"]) },
+      winprobability: s.winprobability?.map((w) => pick(w, ["homeWinPercentage", "tiePercentage", "playId"])),
+      boxscore: { teams: s.boxscore?.teams?.map((t) => ({ team: pick(t.team, ["id"]), statistics: t.statistics?.map((x) => pick(x, ["name", "displayValue", "label"])) })) },
+      keyEvents: s.keyEvents?.map((e) => ({
+        ...pick(e, ["id", "text", "shortText", "scoringPlay"]),
+        type: pick(e.type, ["id", "text", "type"]),
+        period: pick(e.period, ["number"]),
+        clock: pick(e.clock, ["value", "displayValue"]),
+        team: e.team ? pick(e.team, ["id", "displayName"]) : undefined,
+        participants: e.participants?.map((x) => ({ athlete: pick(x.athlete, ["id", "displayName", "shortName"]) })),
+      })),
+      commentary: s.commentary?.map((c) => ({ ...pick(c, ["sequence", "text"]), time: pick(c.time, ["value", "displayValue"]), play: c.play ? pick(c.play, ["id"]) : undefined })),
+    },
+    url,
+  );
+
+  // The core API's plays: every shot, goal, card and foul, and everything from 48' to 62' (the demo's live stretch: two goals).
+  const base = `https://sports.core.api.espn.com/v2/sports/soccer/leagues/eng.1/events/${SOCCER_GAME}/competitions/${SOCCER_GAME}/plays`;
+  const head = await get(`${base}?limit=1`);
+  const all = [];
+  for (let page = 1; page <= Math.ceil(head.count / 200); page++) all.push(...(await get(`${base}?limit=200&page=${page}`)).items);
+  const window = (p) => (p.clock?.value ?? 0) >= 48 * 60 && (p.clock?.value ?? 0) <= 62 * 60 && p.period?.number === 2;
+  const kept = all.filter((p, i) => {
+    const type = p.type?.type ?? "";
+    if (window(p) || type.startsWith("shot-") || p.scoringPlay || type.startsWith("goal") || type.endsWith("card")) return true;
+    // The foul a card is shown for (the card is placed there).
+    return type === "foul" && (all[i + 1]?.type?.type ?? "").endsWith("card");
+  });
+  await save("espn-soccer-core-plays.json", { _note: "Every shot, goal, card and carded foul, plus 48'–62' in full.", count: kept.length, items: kept.map(trimSoccerPlay) }, base);
+}
+
 // MARK: Run
 //
-// `pnpm fixtures` records everything; `pnpm fixtures ifsc` (or espn, bo3, teams, mlb) one source.
+// `pnpm fixtures` records everything; `pnpm fixtures ifsc` (or espn, bo3, teams, mlb, nba, soccer) one source.
 const only = process.argv[2];
 const want = (source) => !only || only === source;
 
@@ -298,5 +460,7 @@ if (want("bo3")) {
 if (want("ifsc")) await ifsc();
 if (want("teams")) await teams();
 if (want("mlb")) await mlb();
+if (want("nba")) await nba();
+if (want("soccer")) await soccer();
 // Team and player pages (test/fixtures/profiles).
 if (want("profiles")) await (await import("./record-profile-fixtures.mjs")).recordProfiles();
