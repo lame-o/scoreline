@@ -12,7 +12,9 @@
  */
 import { lazy, Suspense, useEffect, useRef } from "react";
 import { Outlet, ScrollRestoration } from "react-router";
+import { leagueWithID } from "../data/leagues";
 import { ScoresPage } from "../features/scores/ScoresPage";
+import { getSettings } from "../state/settings";
 import { useAppCommands } from "./commands";
 import { isTyping, markSidebarNavigation, useGoBack, useTrail } from "./navigation";
 import { useSplit } from "./layout";
@@ -43,10 +45,12 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [goBack]);
 
-  // Warm the pages a click is likely to open next, once the list has painted.
+  // Warm the pages a click is likely to open next, once the list has painted:
+  // the game page and the pages of the sports you follow (each sport's is its own chunk).
   useEffect(() => {
     const warm = () => {
       void import("../features/game/GamePage");
+      void import("../features/game/sportPages").then((m) => m.warmSportPages(getSettings().enabledLeagues.flatMap((id) => leagueWithID(id) ?? [])));
       void import("../features/settings/SettingsPage");
       // A game's menu, so the first right-click opens it at once.
       void import("../features/scores/GameMenuContent");

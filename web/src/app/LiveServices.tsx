@@ -19,7 +19,7 @@ import { involvesFollowed } from "../data/scoreboard";
 import { scoreLine } from "../data/format";
 import type { ScoreEvent } from "../data/models";
 import { faviconScore, pinExpired, RECENT_FINAL_MS, tabEvent, tabTitle } from "../data/tabScore";
-import { gameHref } from "../features/game/core/useGame";
+import { gameHref } from "../data/gameHref";
 import { useNow } from "../state/clock";
 import { postAlert, useNotificationPermission } from "../state/notifications";
 import { pin, usePinnedID } from "../state/pin";

@@ -43,11 +43,8 @@ export interface GameData {
   readonly refresh: () => void;
 }
 
-/** The game page's URL, with its league when the caller knows it, so it loads off the scoreboards too. */
-export function gameHref(eventID: string, leagueID?: string | null): string {
-  const path = `/game/${encodeURIComponent(eventID)}`;
-  return leagueID ? `${path}?league=${encodeURIComponent(leagueID)}` : path;
-}
+/** The game page's URL (data/gameHref.ts: light enough for the shell to import). */
+export { gameHref } from "../../../data/gameHref";
 
 /** Live sports whose fast lane keeps the moving parts current (DetailView.hasFastLane). */
 export function hasFastLane(event: ScoreEvent): boolean {
