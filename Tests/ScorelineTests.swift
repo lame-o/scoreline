@@ -237,6 +237,15 @@ struct ScorelineTests {
         check(diamond?.balls == 2 && diamond?.strikes == 1 && diamond?.outs == 1, "count and outs")
         check(diamond?.onThird == true && diamond?.onFirst == false, "runners from occupied bases")
         check(diamond?.batter == "Y. Diaz" && diamond?.pitcher == "D. Williams", "batter and pitcher named from the box score")
+        // ESPN's pitch entry names the pitching team; the at-bat's result names the batting one.
+        let spray = ESPNDetail.battedBalls([
+            JSON(["id": "p5", "atBatId": "ab1", "summaryType": "P", "type": ["type": "single", "text": "Single"],
+                  "team": ["id": "30"], "hitCoordinate": ["x": 100, "y": 120], "period": ["number": 1]] as [String: Any]),
+            JSON(["id": "r1", "atBatId": "ab1", "type": ["type": "play-result"], "team": ["id": "8"],
+                  "text": "Chourio singled to center."] as [String: Any]),
+        ]) { $0 == "8" ? .top : $0 == "30" ? .bottom : nil }
+        check(spray.map(\.side) == [.top] && spray.map(\.id) == ["r1"], "a ball in play is the batting team's, not the pitcher's",
+              "\(spray.map(\.side))")
         let runners = GameDetail.Baseball.runners(JSON(["onFirst": ["playerId": 33481], "onThird": ["playerId": 5005912]] as [String: Any]),
                                                   names: names)
         check(runners == ["Y. Diaz", nil, nil], "runners named from the box score; unknown ones stay unnamed", "\(runners)")

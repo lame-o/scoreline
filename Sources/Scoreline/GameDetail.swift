@@ -541,24 +541,25 @@ enum ESPNDetail {
                                  "bunt-ground-out", "batters-fielders-choice---runner-out", "batter-reached-on-error---batter-to-first"]
         // The ball in play is the pitch; the scoring play is the at-bat's
         // result entry. Keyed by the result's ID, a ball matches its scoring play.
-        var results: [String: String] = [:]
+        // The result also names the batting team: the pitch names the pitching one.
+        var results: [String: (id: String, team: String?)] = [:]
         for p in plays where p["type"]["type"].string == "play-result" {
-            if let atBat = p["atBatId"].string, let id = p["id"].string { results[atBat] = id }
+            if let atBat = p["atBatId"].string, let id = p["id"].string { results[atBat] = (id, p["team"]["id"].string) }
         }
         return plays.compactMap { p in
             let type = p["type"]["type"].string ?? ""
             guard let outcome = hits[type] ?? (outs.contains(type) ? .out : nil),
                   let x = p["hitCoordinate"]["x"].double, let y = p["hitCoordinate"]["y"].double else { return nil }
-            // Wait for the at-bat's result, so a ball keeps one ID from the start.
-            let id: String
+            // Wait for the at-bat's result, so a ball keeps one ID (and its batting team) from the start.
+            let id: String, batting: String?
             if let atBat = p["atBatId"].string {
                 guard let result = results[atBat] else { return nil }
-                id = result
+                (id, batting) = result
             } else {
-                id = p["id"].string ?? UUID().uuidString
+                (id, batting) = (p["id"].string ?? UUID().uuidString, p["team"]["id"].string)
             }
             return GameDetail.BattedBall(id: id, x: x, y: y, outcome: outcome,
-                                         side: side(p["team"]["id"].string), text: p["type"]["text"].string ?? "",
+                                         side: side(batting), text: p["type"]["text"].string ?? "",
                                          period: p["period"]["number"].int)
         }
     }
