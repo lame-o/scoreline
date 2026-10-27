@@ -161,7 +161,8 @@ export function useCounterStrikePage(game: GameContext): SportPage {
     // The big score counts maps; this is the map being played, round by round.
     clockFallback: onMap ? csLiveLine(onMap) : (event.detail ?? "Live"),
     heroSecond: onMap?.round != null ? `Round ${onMap.round}` : null,
-    heroSpoken: onMap ? `${onMap.mapName ? `${onMap.mapName} ` : ""}${onMap.topScore} to ${onMap.bottomScore}${onMap.round != null ? `, round ${onMap.round}` : ""}${coStream ? `. ${coStream.name} is co-streaming` : ""}` : coStream ? `${coStream.name} is co-streaming` : null,
+    // The clock line already says the map and its score ("Inferno 9 to 7"): the round, and the co-stream.
+    heroSpoken: [onMap?.round != null ? `Round ${onMap.round}` : null, coStream ? `${coStream.name} is co-streaming` : null].filter(Boolean).join(". ") || null,
     dockDetail: onMap?.round != null ? (tier: AccessoryTier) => (tier >= Accessory.text ? <span className={styles.dockRound}>R{onMap.round}</span> : null) : undefined,
     chip,
     heroBadge: coStream ? <CoStreamBadge name={coStream.name} url={coStream.url} /> : null,

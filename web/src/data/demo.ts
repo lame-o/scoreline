@@ -459,7 +459,12 @@ async function csMatch(): Promise<unknown> {
   };
 }
 
+/** A finished match's page (G2 1–2 DENDELE, recorded whole: three maps, the second to overtime). */
+const CS_FINAL = { slug: "g2-vs-dendele-cs-26-10-2026", games: { 190577: 1, 190576: 2, 190575: 3 } as Record<number, number> } as const;
+
 async function csGame(id: number): Promise<unknown> {
+  const recorded = CS_FINAL.games[id];
+  if (recorded) return fixture(`bo3-detail-game-${recorded}.json`);
   const r = await csDemo();
   if (id === Number(r.map1.id)) return r.map1;
   const played = csPlayed(r);
@@ -609,7 +614,8 @@ async function climbSeason(): Promise<unknown> {
       e.starts_at = ifscTime(now - 2 * 86_400_000);
       e.ends_at = ifscTime(now + 86_400_000);
     } else if (e.event_id === 1488) {
-      e.starts_at = ifscTime(now - 3 * 86_400_000);
+      // Its final this morning: on the scores among the day's finals.
+      e.starts_at = ifscTime(now - 10 * 3_600_000);
       e.ends_at = ifscTime(now - 2 * 3_600_000);
     }
   }
@@ -712,6 +718,9 @@ const demo: Fetcher = async (url) => {
     if (path === `/api/v1/matches/${CS_MATCH.slug}`) return csMatch();
     const game = /\/games\/(\d+)$/.exec(path);
     if (game) return csGame(Number(game[1]));
+    if (path === `/api/v1/matches/${CS_FINAL.slug}`) return fixture("bo3-detail-match.json");
+    if (path === "/api/v1/teams/g2") return fixture("bo3-detail-team-g2.json");
+    if (path === "/api/v1/teams/dendele-cs") return fixture("bo3-detail-team-dendele-cs.json");
     if (path === "/api/v1/teams/liquid") return fixture("bo3-demo-team-liquid.json");
     if (path === "/api/v1/teams/aurora-gaming") return fixture("bo3-demo-team-aurora-gaming.json");
   }
