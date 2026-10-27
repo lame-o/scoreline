@@ -33,6 +33,7 @@
 }
 
 .bar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: calc(8 * var(--pt));
@@ -104,6 +105,7 @@
 }
 
 .accessories {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: inline-flex;
@@ -257,4 +259,79 @@
   display: inline-flex;
   align-items: center;
   gap: calc(5 * var(--pt));
+}
+
+/*
+ * The possession slots (football, the NBA): 10 × 12, holding their width whoever
+ * has the ball. The ball pops in as possession first appears; with Reduce Motion
+ * it crossfades between the slots; a glide or toss hides it until it lands.
+ */
+.possession {
+  display: inline-grid;
+  place-items: center;
+  width: calc(10 * var(--pt));
+  height: calc(12 * var(--pt));
+  color: var(--label-secondary);
+  flex: none;
+}
+
+.possession > * {
+  opacity: 0;
+  transform: scale(0.92);
+  transition:
+    opacity var(--dur-exit) var(--ease-out),
+    transform var(--dur-exit) var(--ease-out);
+}
+
+.possession[data-on="true"] > * {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--dur-quick) var(--ease-out),
+    transform var(--dur-quick) var(--ease-out);
+}
+
+/* A glide or a toss: the slots swap at once (the ball in flight is the motion); a catch-up too. */
+.possession[data-motion="glide"] > *,
+.possession[data-motion="toss"] > *,
+.possession[data-motion="none"][data-on="false"] > * {
+  transition: none;
+}
+
+.possession[data-motion="fade"][data-on="true"] > * {
+  transition: opacity var(--dur-fade) var(--ease-out);
+  transform: none;
+}
+
+.flight {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: calc(10 * var(--pt));
+  height: calc(12 * var(--pt));
+  color: var(--label-secondary);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The accessory rows measured off screen (ViewThatFits): laid out at their natural width, never seen. */
+.measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.measure > span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  width: max-content;
+  white-space: nowrap;
 }

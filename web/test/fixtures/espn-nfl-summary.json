@@ -1,0 +1,2173 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=401873016",
+ "_recorded": "2026-10-27T09:46:16.446Z",
+ "header": {
+  "id": "401873016",
+  "season": {
+   "year": 2026,
+   "current": true,
+   "type": 2
+  },
+  "links": [
+   {
+    "href": "https://www.espn.com/nfl/game/_/gameId/401873016/giants-texans",
+    "rel": [
+     "summary",
+     "desktop",
+     "event"
+    ]
+   }
+  ],
+  "competitions": [
+   {
+    "id": "401873016",
+    "date": "2026-10-25T17:00Z",
+    "conferenceCompetition": false,
+    "status": {
+     "type": {
+      "state": "post",
+      "completed": true,
+      "shortDetail": "Final/OT",
+      "detail": "Final/OT",
+      "name": "STATUS_FINAL"
+     }
+    },
+    "broadcasts": [
+     {
+      "type": {
+       "shortName": "TV"
+      },
+      "media": {
+       "shortName": "Fox"
+      }
+     }
+    ],
+    "competitors": [
+     {
+      "homeAway": "home",
+      "winner": false,
+      "score": "21",
+      "linescores": [
+       {
+        "displayValue": "3"
+       },
+       {
+        "displayValue": "11"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "7"
+       },
+       {
+        "displayValue": "0"
+       }
+      ],
+      "record": [
+       {
+        "type": "total",
+        "summary": "2-5"
+       },
+       {
+        "type": "home",
+        "summary": "0-4"
+       }
+      ],
+      "team": {
+       "id": "34",
+       "abbreviation": "HOU",
+       "displayName": "Houston Texans",
+       "location": "Houston",
+       "name": "Texans",
+       "color": "021018",
+       "alternateColor": "eb0028",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/nfl/500/hou.png",
+         "rel": [
+          "full",
+          "default"
+         ]
+        },
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/nfl/500-dark/hou.png",
+         "rel": [
+          "full",
+          "dark"
+         ]
+        }
+       ]
+      }
+     },
+     {
+      "homeAway": "away",
+      "winner": true,
+      "score": "27",
+      "linescores": [
+       {
+        "displayValue": "7"
+       },
+       {
+        "displayValue": "7"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "7"
+       },
+       {
+        "displayValue": "6"
+       }
+      ],
+      "record": [
+       {
+        "type": "total",
+        "summary": "4-2-1"
+       },
+       {
+        "type": "road",
+        "summary": "1-1-1"
+       }
+      ],
+      "team": {
+       "id": "19",
+       "abbreviation": "NYG",
+       "displayName": "New York Giants",
+       "location": "New York",
+       "name": "Giants",
+       "color": "003c7f",
+       "alternateColor": "c9243f",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/nfl/500/nyg.png",
+         "rel": [
+          "full",
+          "default"
+         ]
+        },
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/nfl/500-dark/nyg.png",
+         "rel": [
+          "full",
+          "dark"
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "gameInfo": {
+  "venue": {
+   "fullName": "Reliant Stadium"
+  }
+ },
+ "winprobability": [
+  {
+   "homeWinPercentage": 0.849,
+   "tiePercentage": 0,
+   "playId": "4018730161"
+  },
+  {
+   "homeWinPercentage": 0.864,
+   "tiePercentage": 0,
+   "playId": "40187301640"
+  },
+  {
+   "homeWinPercentage": 0.8747,
+   "tiePercentage": 0,
+   "playId": "40187301668"
+  },
+  {
+   "homeWinPercentage": 0.8758,
+   "tiePercentage": 0,
+   "playId": "40187301693"
+  },
+  {
+   "homeWinPercentage": 0.8585,
+   "tiePercentage": 0,
+   "playId": "401873016117"
+  },
+  {
+   "homeWinPercentage": 0.8554,
+   "tiePercentage": 0,
+   "playId": "401873016152"
+  },
+  {
+   "homeWinPercentage": 0.8655,
+   "tiePercentage": 0,
+   "playId": "401873016190"
+  },
+  {
+   "homeWinPercentage": 0.8655,
+   "tiePercentage": 0,
+   "playId": "401873016203"
+  },
+  {
+   "homeWinPercentage": 0.8409,
+   "tiePercentage": 0,
+   "playId": "401873016216"
+  },
+  {
+   "homeWinPercentage": 0.873,
+   "tiePercentage": 0,
+   "playId": "401873016241"
+  },
+  {
+   "homeWinPercentage": 0.873,
+   "tiePercentage": 0,
+   "playId": "401873016276"
+  },
+  {
+   "homeWinPercentage": 0.8661,
+   "tiePercentage": 0,
+   "playId": "401873016310"
+  },
+  {
+   "homeWinPercentage": 0.8696,
+   "tiePercentage": 0,
+   "playId": "401873016340"
+  },
+  {
+   "homeWinPercentage": 0.8595,
+   "tiePercentage": 0,
+   "playId": "401873016362"
+  },
+  {
+   "homeWinPercentage": 0.8569,
+   "tiePercentage": 0,
+   "playId": "401873016384"
+  },
+  {
+   "homeWinPercentage": 0.8619,
+   "tiePercentage": 0,
+   "playId": "401873016406"
+  },
+  {
+   "homeWinPercentage": 0.8712,
+   "tiePercentage": 0,
+   "playId": "401873016431"
+  },
+  {
+   "homeWinPercentage": 0.8784,
+   "tiePercentage": 0,
+   "playId": "401873016453"
+  },
+  {
+   "homeWinPercentage": 0.8435,
+   "tiePercentage": 0,
+   "playId": "401873016478"
+  },
+  {
+   "homeWinPercentage": 0.7907,
+   "tiePercentage": 0,
+   "playId": "401873016500"
+  },
+  {
+   "homeWinPercentage": 0.7742,
+   "tiePercentage": 0,
+   "playId": "401873016525"
+  },
+  {
+   "homeWinPercentage": 0.7726,
+   "tiePercentage": 0,
+   "playId": "401873016551"
+  },
+  {
+   "homeWinPercentage": 0.7808,
+   "tiePercentage": 0,
+   "playId": "401873016558"
+  },
+  {
+   "homeWinPercentage": 0.7667,
+   "tiePercentage": 0,
+   "playId": "401873016588"
+  },
+  {
+   "homeWinPercentage": 0.7654,
+   "tiePercentage": 0,
+   "playId": "401873016613"
+  },
+  {
+   "homeWinPercentage": 0.7422,
+   "tiePercentage": 0,
+   "playId": "401873016638"
+  },
+  {
+   "homeWinPercentage": 0.7472,
+   "tiePercentage": 0,
+   "playId": "401873016661"
+  },
+  {
+   "homeWinPercentage": 0.7465,
+   "tiePercentage": 0,
+   "playId": "401873016671"
+  },
+  {
+   "homeWinPercentage": 0.7809,
+   "tiePercentage": 0,
+   "playId": "401873016681"
+  },
+  {
+   "homeWinPercentage": 0.7769,
+   "tiePercentage": 0,
+   "playId": "401873016723"
+  },
+  {
+   "homeWinPercentage": 0.6928,
+   "tiePercentage": 0,
+   "playId": "401873016745"
+  },
+  {
+   "homeWinPercentage": 0.7259,
+   "tiePercentage": 0,
+   "playId": "401873016770"
+  },
+  {
+   "homeWinPercentage": 0.741,
+   "tiePercentage": 0,
+   "playId": "401873016792"
+  },
+  {
+   "homeWinPercentage": 0.7276,
+   "tiePercentage": 0,
+   "playId": "401873016817"
+  },
+  {
+   "homeWinPercentage": 0.745,
+   "tiePercentage": 0,
+   "playId": "401873016841"
+  },
+  {
+   "homeWinPercentage": 0.7711,
+   "tiePercentage": 0,
+   "playId": "401873016864"
+  },
+  {
+   "homeWinPercentage": 0.7791,
+   "tiePercentage": 0,
+   "playId": "401873016875"
+  },
+  {
+   "homeWinPercentage": 0.7769,
+   "tiePercentage": 0,
+   "playId": "401873016885"
+  },
+  {
+   "homeWinPercentage": 0.7454,
+   "tiePercentage": 0,
+   "playId": "401873016916"
+  },
+  {
+   "homeWinPercentage": 0.7359,
+   "tiePercentage": 0,
+   "playId": "401873016952"
+  },
+  {
+   "homeWinPercentage": 0.7268,
+   "tiePercentage": 0,
+   "playId": "401873016975"
+  },
+  {
+   "homeWinPercentage": 0.7259,
+   "tiePercentage": 0,
+   "playId": "4018730161015"
+  },
+  {
+   "homeWinPercentage": 0.7212,
+   "tiePercentage": 0,
+   "playId": "4018730161035"
+  },
+  {
+   "homeWinPercentage": 0.7259,
+   "tiePercentage": 0,
+   "playId": "4018730161059"
+  },
+  {
+   "homeWinPercentage": 0.7556,
+   "tiePercentage": 0,
+   "playId": "4018730161096"
+  },
+  {
+   "homeWinPercentage": 0.76,
+   "tiePercentage": 0,
+   "playId": "4018730161116"
+  },
+  {
+   "homeWinPercentage": 0.755,
+   "tiePercentage": 0,
+   "playId": "4018730161138"
+  },
+  {
+   "homeWinPercentage": 0.7406,
+   "tiePercentage": 0,
+   "playId": "4018730161163"
+  },
+  {
+   "homeWinPercentage": 0.7399,
+   "tiePercentage": 0,
+   "playId": "4018730161176"
+  },
+  {
+   "homeWinPercentage": 0.731,
+   "tiePercentage": 0,
+   "playId": "4018730161189"
+  },
+  {
+   "homeWinPercentage": 0.7677,
+   "tiePercentage": 0,
+   "playId": "4018730161220"
+  },
+  {
+   "homeWinPercentage": 0.7586,
+   "tiePercentage": 0,
+   "playId": "4018730161245"
+  },
+  {
+   "homeWinPercentage": 0.772,
+   "tiePercentage": 0,
+   "playId": "4018730161269"
+  },
+  {
+   "homeWinPercentage": 0.7949,
+   "tiePercentage": 0,
+   "playId": "4018730161305"
+  },
+  {
+   "homeWinPercentage": 0.7866,
+   "tiePercentage": 0,
+   "playId": "4018730161327"
+  },
+  {
+   "homeWinPercentage": 0.7402,
+   "tiePercentage": 0,
+   "playId": "4018730161352"
+  },
+  {
+   "homeWinPercentage": 0.7141,
+   "tiePercentage": 0,
+   "playId": "4018730161378"
+  },
+  {
+   "homeWinPercentage": 0.772,
+   "tiePercentage": 0,
+   "playId": "4018730161402"
+  },
+  {
+   "homeWinPercentage": 0.772,
+   "tiePercentage": 0,
+   "playId": "4018730161412"
+  },
+  {
+   "homeWinPercentage": 0.772,
+   "tiePercentage": 0,
+   "playId": "4018730161422"
+  },
+  {
+   "homeWinPercentage": 0.7607,
+   "tiePercentage": 0,
+   "playId": "4018730161452"
+  },
+  {
+   "homeWinPercentage": 0.7636,
+   "tiePercentage": 0,
+   "playId": "4018730161474"
+  },
+  {
+   "homeWinPercentage": 0.7467,
+   "tiePercentage": 0,
+   "playId": "4018730161496"
+  },
+  {
+   "homeWinPercentage": 0.7623,
+   "tiePercentage": 0,
+   "playId": "4018730161530"
+  },
+  {
+   "homeWinPercentage": 0.7205,
+   "tiePercentage": 0,
+   "playId": "4018730161552"
+  },
+  {
+   "homeWinPercentage": 0.7122,
+   "tiePercentage": 0,
+   "playId": "4018730161581"
+  },
+  {
+   "homeWinPercentage": 0.6935,
+   "tiePercentage": 0,
+   "playId": "4018730161608"
+  },
+  {
+   "homeWinPercentage": 0.6246,
+   "tiePercentage": 0,
+   "playId": "4018730161630"
+  },
+  {
+   "homeWinPercentage": 0.6266,
+   "tiePercentage": 0,
+   "playId": "4018730161662"
+  },
+  {
+   "homeWinPercentage": 0.5808,
+   "tiePercentage": 0,
+   "playId": "4018730161690"
+  },
+  {
+   "homeWinPercentage": 0.5784,
+   "tiePercentage": 0,
+   "playId": "4018730161716"
+  },
+  {
+   "homeWinPercentage": 0.5556,
+   "tiePercentage": 0,
+   "playId": "4018730161723"
+  },
+  {
+   "homeWinPercentage": 0.5741,
+   "tiePercentage": 0,
+   "playId": "4018730161774"
+  },
+  {
+   "homeWinPercentage": 0.547,
+   "tiePercentage": 0,
+   "playId": "4018730161798"
+  },
+  {
+   "homeWinPercentage": 0.5974,
+   "tiePercentage": 0,
+   "playId": "4018730161825"
+  },
+  {
+   "homeWinPercentage": 0.5453,
+   "tiePercentage": 0,
+   "playId": "4018730161859"
+  },
+  {
+   "homeWinPercentage": 0.542,
+   "tiePercentage": 0,
+   "playId": "4018730161878"
+  },
+  {
+   "homeWinPercentage": 0.6582,
+   "tiePercentage": 0,
+   "playId": "4018730161897"
+  },
+  {
+   "homeWinPercentage": 0.6791,
+   "tiePercentage": 0,
+   "playId": "4018730161932"
+  },
+  {
+   "homeWinPercentage": 0.6317,
+   "tiePercentage": 0,
+   "playId": "4018730161966"
+  },
+  {
+   "homeWinPercentage": 0.628,
+   "tiePercentage": 0,
+   "playId": "4018730161979"
+  },
+  {
+   "homeWinPercentage": 0.6945,
+   "tiePercentage": 0,
+   "playId": "4018730161991"
+  },
+  {
+   "homeWinPercentage": 0.6843,
+   "tiePercentage": 0,
+   "playId": "4018730162007"
+  },
+  {
+   "homeWinPercentage": 0.68,
+   "tiePercentage": 0,
+   "playId": "4018730162023"
+  },
+  {
+   "homeWinPercentage": 0.6741,
+   "tiePercentage": 0,
+   "playId": "4018730162039"
+  },
+  {
+   "homeWinPercentage": 0.654,
+   "tiePercentage": 0,
+   "playId": "4018730162054"
+  },
+  {
+   "homeWinPercentage": 0.7505,
+   "tiePercentage": 0,
+   "playId": "4018730162086"
+  },
+  {
+   "homeWinPercentage": 0.7574,
+   "tiePercentage": 0,
+   "playId": "4018730162120"
+  },
+  {
+   "homeWinPercentage": 0.7127,
+   "tiePercentage": 0,
+   "playId": "4018730162154"
+  },
+  {
+   "homeWinPercentage": 0.7184,
+   "tiePercentage": 0,
+   "playId": "4018730162179"
+  },
+  {
+   "homeWinPercentage": 0.7094,
+   "tiePercentage": 0,
+   "playId": "4018730162202"
+  },
+  {
+   "homeWinPercentage": 0.7099,
+   "tiePercentage": 0,
+   "playId": "4018730162224"
+  },
+  {
+   "homeWinPercentage": 0.774,
+   "tiePercentage": 0,
+   "playId": "4018730162247"
+  },
+  {
+   "homeWinPercentage": 0.771,
+   "tiePercentage": 0,
+   "playId": "4018730162268"
+  },
+  {
+   "homeWinPercentage": 0.7341,
+   "tiePercentage": 0,
+   "playId": "4018730162288"
+  },
+  {
+   "homeWinPercentage": 0.7621,
+   "tiePercentage": 0,
+   "playId": "4018730162311"
+  },
+  {
+   "homeWinPercentage": 0.7381,
+   "tiePercentage": 0,
+   "playId": "4018730162333"
+  },
+  {
+   "homeWinPercentage": 0.7526,
+   "tiePercentage": 0,
+   "playId": "4018730162358"
+  },
+  {
+   "homeWinPercentage": 0.7399,
+   "tiePercentage": 0,
+   "playId": "4018730162381"
+  },
+  {
+   "homeWinPercentage": 0.6925,
+   "tiePercentage": 0,
+   "playId": "4018730162403"
+  },
+  {
+   "homeWinPercentage": 0.6967,
+   "tiePercentage": 0,
+   "playId": "4018730162428"
+  },
+  {
+   "homeWinPercentage": 0.7055,
+   "tiePercentage": 0,
+   "playId": "4018730162450"
+  },
+  {
+   "homeWinPercentage": 0.7423,
+   "tiePercentage": 0,
+   "playId": "4018730162473"
+  },
+  {
+   "homeWinPercentage": 0.7526,
+   "tiePercentage": 0,
+   "playId": "4018730162521"
+  },
+  {
+   "homeWinPercentage": 0.7522,
+   "tiePercentage": 0,
+   "playId": "4018730162531"
+  },
+  {
+   "homeWinPercentage": 0.7485,
+   "tiePercentage": 0,
+   "playId": "4018730162541"
+  },
+  {
+   "homeWinPercentage": 0.7423,
+   "tiePercentage": 0,
+   "playId": "4018730162572"
+  },
+  {
+   "homeWinPercentage": 0.7196,
+   "tiePercentage": 0,
+   "playId": "4018730162597"
+  },
+  {
+   "homeWinPercentage": 0.7234,
+   "tiePercentage": 0,
+   "playId": "4018730162622"
+  },
+  {
+   "homeWinPercentage": 0.7227,
+   "tiePercentage": 0,
+   "playId": "4018730162632"
+  },
+  {
+   "homeWinPercentage": 0.739,
+   "tiePercentage": 0,
+   "playId": "4018730162641"
+  },
+  {
+   "homeWinPercentage": 0.7386,
+   "tiePercentage": 0,
+   "playId": "4018730162678"
+  },
+  {
+   "homeWinPercentage": 0.7579,
+   "tiePercentage": 0,
+   "playId": "4018730162700"
+  },
+  {
+   "homeWinPercentage": 0.7468,
+   "tiePercentage": 0,
+   "playId": "4018730162723"
+  },
+  {
+   "homeWinPercentage": 0.7459,
+   "tiePercentage": 0,
+   "playId": "4018730162732"
+  },
+  {
+   "homeWinPercentage": 0.7557,
+   "tiePercentage": 0,
+   "playId": "4018730162741"
+  },
+  {
+   "homeWinPercentage": 0.7628,
+   "tiePercentage": 0,
+   "playId": "4018730162772"
+  },
+  {
+   "homeWinPercentage": 0.7748,
+   "tiePercentage": 0,
+   "playId": "4018730162794"
+  },
+  {
+   "homeWinPercentage": 0.7728,
+   "tiePercentage": 0,
+   "playId": "4018730162819"
+  },
+  {
+   "homeWinPercentage": 0.72,
+   "tiePercentage": 0,
+   "playId": "4018730162841"
+  },
+  {
+   "homeWinPercentage": 0.7712,
+   "tiePercentage": 0,
+   "playId": "4018730162865"
+  },
+  {
+   "homeWinPercentage": 0.7367,
+   "tiePercentage": 0,
+   "playId": "4018730162892"
+  },
+  {
+   "homeWinPercentage": 0.7231,
+   "tiePercentage": 0,
+   "playId": "4018730162981"
+  },
+  {
+   "homeWinPercentage": 0.7048,
+   "tiePercentage": 0,
+   "playId": "4018730163004"
+  },
+  {
+   "homeWinPercentage": 0.7096,
+   "tiePercentage": 0,
+   "playId": "4018730163027"
+  },
+  {
+   "homeWinPercentage": 0.6939,
+   "tiePercentage": 0,
+   "playId": "4018730163037"
+  },
+  {
+   "homeWinPercentage": 0.6852,
+   "tiePercentage": 0,
+   "playId": "4018730163046"
+  },
+  {
+   "homeWinPercentage": 0.6848,
+   "tiePercentage": 0,
+   "playId": "4018730163078"
+  },
+  {
+   "homeWinPercentage": 0.6433,
+   "tiePercentage": 0,
+   "playId": "4018730163103"
+  },
+  {
+   "homeWinPercentage": 0.6458,
+   "tiePercentage": 0,
+   "playId": "4018730163125"
+  },
+  {
+   "homeWinPercentage": 0.644,
+   "tiePercentage": 0,
+   "playId": "4018730163150"
+  },
+  {
+   "homeWinPercentage": 0.6194,
+   "tiePercentage": 0,
+   "playId": "4018730163170"
+  },
+  {
+   "homeWinPercentage": 0.6108,
+   "tiePercentage": 0,
+   "playId": "4018730163192"
+  },
+  {
+   "homeWinPercentage": 0.6029,
+   "tiePercentage": 0,
+   "playId": "4018730163214"
+  },
+  {
+   "homeWinPercentage": 0.572,
+   "tiePercentage": 0,
+   "playId": "4018730163239"
+  },
+  {
+   "homeWinPercentage": 0.6376,
+   "tiePercentage": 0,
+   "playId": "4018730163261"
+  },
+  {
+   "homeWinPercentage": 0.5502,
+   "tiePercentage": 0,
+   "playId": "4018730163283"
+  },
+  {
+   "homeWinPercentage": 0.5723,
+   "tiePercentage": 0,
+   "playId": "4018730163306"
+  },
+  {
+   "homeWinPercentage": 0.5749,
+   "tiePercentage": 0,
+   "playId": "4018730163329"
+  },
+  {
+   "homeWinPercentage": 0.4603,
+   "tiePercentage": 0,
+   "playId": "4018730163354"
+  },
+  {
+   "homeWinPercentage": 0.3141,
+   "tiePercentage": 0,
+   "playId": "4018730163379"
+  },
+  {
+   "homeWinPercentage": 0.3086,
+   "tiePercentage": 0,
+   "playId": "4018730163405"
+  },
+  {
+   "homeWinPercentage": 0.3086,
+   "tiePercentage": 0,
+   "playId": "4018730163412"
+  },
+  {
+   "homeWinPercentage": 0.3325,
+   "tiePercentage": 0,
+   "playId": "4018730163442"
+  },
+  {
+   "homeWinPercentage": 0.277,
+   "tiePercentage": 0,
+   "playId": "4018730163467"
+  },
+  {
+   "homeWinPercentage": 0.2232,
+   "tiePercentage": 0,
+   "playId": "4018730163493"
+  },
+  {
+   "homeWinPercentage": 0.1984,
+   "tiePercentage": 0,
+   "playId": "4018730163526"
+  },
+  {
+   "homeWinPercentage": 0.1936,
+   "tiePercentage": 0,
+   "playId": "4018730163549"
+  },
+  {
+   "homeWinPercentage": 0.1865,
+   "tiePercentage": 0,
+   "playId": "4018730163579"
+  },
+  {
+   "homeWinPercentage": 0.1849,
+   "tiePercentage": 0,
+   "playId": "4018730163594"
+  },
+  {
+   "homeWinPercentage": 0.229,
+   "tiePercentage": 0,
+   "playId": "4018730163609"
+  },
+  {
+   "homeWinPercentage": 0.237,
+   "tiePercentage": 0,
+   "playId": "4018730163644"
+  },
+  {
+   "homeWinPercentage": 0.2977,
+   "tiePercentage": 0,
+   "playId": "4018730163667"
+  },
+  {
+   "homeWinPercentage": 0.3013,
+   "tiePercentage": 0,
+   "playId": "4018730163687"
+  },
+  {
+   "homeWinPercentage": 0.2962,
+   "tiePercentage": 0,
+   "playId": "4018730163700"
+  },
+  {
+   "homeWinPercentage": 0.2753,
+   "tiePercentage": 0,
+   "playId": "4018730163713"
+  },
+  {
+   "homeWinPercentage": 0.2971,
+   "tiePercentage": 0,
+   "playId": "4018730163749"
+  },
+  {
+   "homeWinPercentage": 0.2831,
+   "tiePercentage": 0,
+   "playId": "4018730163777"
+  },
+  {
+   "homeWinPercentage": 0.3202,
+   "tiePercentage": 0,
+   "playId": "4018730163799"
+  },
+  {
+   "homeWinPercentage": 0.3812,
+   "tiePercentage": 0,
+   "playId": "4018730163829"
+  },
+  {
+   "homeWinPercentage": 0.3635,
+   "tiePercentage": 0,
+   "playId": "4018730163841"
+  },
+  {
+   "homeWinPercentage": 0.3913,
+   "tiePercentage": 0,
+   "playId": "4018730163853"
+  },
+  {
+   "homeWinPercentage": 0.4015,
+   "tiePercentage": 0,
+   "playId": "4018730163884"
+  },
+  {
+   "homeWinPercentage": 0.4016,
+   "tiePercentage": 0,
+   "playId": "4018730163895"
+  },
+  {
+   "homeWinPercentage": 0.3703,
+   "tiePercentage": 0,
+   "playId": "4018730163906"
+  },
+  {
+   "homeWinPercentage": 0.3711,
+   "tiePercentage": 0,
+   "playId": "4018730163922"
+  },
+  {
+   "homeWinPercentage": 0.2728,
+   "tiePercentage": 0,
+   "playId": "4018730163937"
+  },
+  {
+   "homeWinPercentage": 0.5419,
+   "tiePercentage": 0,
+   "playId": "4018730163980"
+  },
+  {
+   "homeWinPercentage": 0.5455,
+   "tiePercentage": 0,
+   "playId": "4018730164006"
+  },
+  {
+   "homeWinPercentage": 0.5408,
+   "tiePercentage": 0,
+   "playId": "4018730164031"
+  },
+  {
+   "homeWinPercentage": 0.5441,
+   "tiePercentage": 0,
+   "playId": "4018730164044"
+  },
+  {
+   "homeWinPercentage": 0.5175,
+   "tiePercentage": 0,
+   "playId": "4018730164056"
+  },
+  {
+   "homeWinPercentage": 0.5,
+   "tiePercentage": 0,
+   "playId": "4018730164088"
+  },
+  {
+   "homeWinPercentage": 0.5574,
+   "tiePercentage": 0,
+   "playId": "4018730164118"
+  },
+  {
+   "homeWinPercentage": 0.507,
+   "tiePercentage": 0,
+   "playId": "4018730164139"
+  },
+  {
+   "homeWinPercentage": 0.4824,
+   "tiePercentage": 0,
+   "playId": "4018730164163"
+  },
+  {
+   "homeWinPercentage": 0.4394,
+   "tiePercentage": 0,
+   "playId": "4018730164188"
+  },
+  {
+   "homeWinPercentage": 0.528,
+   "tiePercentage": 0,
+   "playId": "4018730164222"
+  },
+  {
+   "homeWinPercentage": 0.4484,
+   "tiePercentage": 0,
+   "playId": "4018730164248"
+  },
+  {
+   "homeWinPercentage": 0.1502,
+   "tiePercentage": 0,
+   "playId": "4018730164273"
+  },
+  {
+   "homeWinPercentage": 0.1502,
+   "tiePercentage": 0,
+   "playId": "4018730164284"
+  },
+  {
+   "homeWinPercentage": 0,
+   "tiePercentage": 0,
+   "playId": "4018730164295"
+  },
+  {
+   "homeWinPercentage": 0,
+   "tiePercentage": 0,
+   "playId": "4018730164320"
+  }
+ ],
+ "boxscore": {
+  "teams": [
+   {
+    "team": {
+     "id": "19",
+     "abbreviation": "NYG"
+    },
+    "statistics": [
+     {
+      "name": "firstDowns",
+      "label": "1st Downs",
+      "displayValue": "22"
+     },
+     {
+      "name": "firstDownsPassing",
+      "label": "Passing 1st downs",
+      "displayValue": "9"
+     },
+     {
+      "name": "firstDownsRushing",
+      "label": "Rushing 1st downs",
+      "displayValue": "12"
+     },
+     {
+      "name": "firstDownsPenalty",
+      "label": "1st downs from penalties",
+      "displayValue": "1"
+     },
+     {
+      "name": "thirdDownEff",
+      "label": "3rd down efficiency",
+      "displayValue": "5-13"
+     },
+     {
+      "name": "fourthDownEff",
+      "label": "4th down efficiency",
+      "displayValue": "2-2"
+     },
+     {
+      "name": "totalOffensivePlays",
+      "label": "Total Plays",
+      "displayValue": "65"
+     },
+     {
+      "name": "totalYards",
+      "label": "Total Yards",
+      "displayValue": "420"
+     },
+     {
+      "name": "yardsPerPlay",
+      "label": "Yards per Play",
+      "displayValue": "6.5"
+     },
+     {
+      "name": "totalDrives",
+      "label": "Total Drives",
+      "displayValue": "11"
+     },
+     {
+      "name": "netPassingYards",
+      "label": "Passing",
+      "displayValue": "232"
+     },
+     {
+      "name": "completionAttempts",
+      "label": "Comp/Att",
+      "displayValue": "20/28"
+     },
+     {
+      "name": "yardsPerPass",
+      "label": "Yards per pass",
+      "displayValue": "7.5"
+     },
+     {
+      "name": "interceptions",
+      "label": "Interceptions thrown",
+      "displayValue": "0"
+     },
+     {
+      "name": "sacksYardsLost",
+      "label": "Sacks-Yards Lost",
+      "displayValue": "3-20"
+     },
+     {
+      "name": "rushingYards",
+      "label": "Rushing",
+      "displayValue": "188"
+     },
+     {
+      "name": "rushingAttempts",
+      "label": "Rushing Attempts",
+      "displayValue": "34"
+     },
+     {
+      "name": "yardsPerRushAttempt",
+      "label": "Yards per rush",
+      "displayValue": "5.5"
+     },
+     {
+      "name": "redZoneAttempts",
+      "label": "Red Zone (Made-Att)",
+      "displayValue": "3-3"
+     },
+     {
+      "name": "totalPenaltiesYards",
+      "label": "Penalties",
+      "displayValue": "4-50"
+     },
+     {
+      "name": "turnovers",
+      "label": "Turnovers",
+      "displayValue": "0"
+     },
+     {
+      "name": "fumblesLost",
+      "label": "Fumbles lost",
+      "displayValue": "0"
+     },
+     {
+      "name": "interceptions",
+      "label": "Interceptions thrown",
+      "displayValue": "0"
+     },
+     {
+      "name": "defensiveTouchdowns",
+      "label": "Defensive / Special Teams TDs",
+      "displayValue": "0"
+     },
+     {
+      "name": "possessionTime",
+      "label": "Possession",
+      "displayValue": "35:50"
+     }
+    ]
+   },
+   {
+    "team": {
+     "id": "34",
+     "abbreviation": "HOU"
+    },
+    "statistics": [
+     {
+      "name": "firstDowns",
+      "label": "1st Downs",
+      "displayValue": "15"
+     },
+     {
+      "name": "firstDownsPassing",
+      "label": "Passing 1st downs",
+      "displayValue": "7"
+     },
+     {
+      "name": "firstDownsRushing",
+      "label": "Rushing 1st downs",
+      "displayValue": "5"
+     },
+     {
+      "name": "firstDownsPenalty",
+      "label": "1st downs from penalties",
+      "displayValue": "3"
+     },
+     {
+      "name": "thirdDownEff",
+      "label": "3rd down efficiency",
+      "displayValue": "3-12"
+     },
+     {
+      "name": "fourthDownEff",
+      "label": "4th down efficiency",
+      "displayValue": "1-1"
+     },
+     {
+      "name": "totalOffensivePlays",
+      "label": "Total Plays",
+      "displayValue": "54"
+     },
+     {
+      "name": "totalYards",
+      "label": "Total Yards",
+      "displayValue": "237"
+     },
+     {
+      "name": "yardsPerPlay",
+      "label": "Yards per Play",
+      "displayValue": "4.4"
+     },
+     {
+      "name": "totalDrives",
+      "label": "Total Drives",
+      "displayValue": "10"
+     },
+     {
+      "name": "netPassingYards",
+      "label": "Passing",
+      "displayValue": "153"
+     },
+     {
+      "name": "completionAttempts",
+      "label": "Comp/Att",
+      "displayValue": "17/28"
+     },
+     {
+      "name": "yardsPerPass",
+      "label": "Yards per pass",
+      "displayValue": "5.3"
+     },
+     {
+      "name": "interceptions",
+      "label": "Interceptions thrown",
+      "displayValue": "0"
+     },
+     {
+      "name": "sacksYardsLost",
+      "label": "Sacks-Yards Lost",
+      "displayValue": "1-0"
+     },
+     {
+      "name": "rushingYards",
+      "label": "Rushing",
+      "displayValue": "84"
+     },
+     {
+      "name": "rushingAttempts",
+      "label": "Rushing Attempts",
+      "displayValue": "25"
+     },
+     {
+      "name": "yardsPerRushAttempt",
+      "label": "Yards per rush",
+      "displayValue": "3.4"
+     },
+     {
+      "name": "redZoneAttempts",
+      "label": "Red Zone (Made-Att)",
+      "displayValue": "2-2"
+     },
+     {
+      "name": "totalPenaltiesYards",
+      "label": "Penalties",
+      "displayValue": "10-80"
+     },
+     {
+      "name": "turnovers",
+      "label": "Turnovers",
+      "displayValue": "0"
+     },
+     {
+      "name": "fumblesLost",
+      "label": "Fumbles lost",
+      "displayValue": "0"
+     },
+     {
+      "name": "interceptions",
+      "label": "Interceptions thrown",
+      "displayValue": "0"
+     },
+     {
+      "name": "defensiveTouchdowns",
+      "label": "Defensive / Special Teams TDs",
+      "displayValue": "0"
+     },
+     {
+      "name": "possessionTime",
+      "label": "Possession",
+      "displayValue": "26:45"
+     }
+    ]
+   }
+  ],
+  "players": [
+   {
+    "team": {
+     "id": "19"
+    },
+    "statistics": [
+     {
+      "name": "passing",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4433970",
+         "displayName": "J.J. McCarthy"
+        }
+       }
+      ]
+     },
+     {
+      "name": "rushing",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4696981",
+         "displayName": "Cam Skattebo"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4040761",
+         "displayName": "Devin Singletary"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4360516",
+         "displayName": "Tyrone Tracy Jr."
+        }
+       },
+       {
+        "athlete": {
+         "id": "2969939",
+         "displayName": "Jameis Winston"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4040655",
+         "displayName": "Darnell Mooney"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4433970",
+         "displayName": "J.J. McCarthy"
+        }
+       }
+      ]
+     },
+     {
+      "name": "receiving",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4595348",
+         "displayName": "Malik Nabers"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4682648",
+         "displayName": "Malachi Fields"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4590292",
+         "displayName": "Thomas Fidone II"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4040761",
+         "displayName": "Devin Singletary"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4361050",
+         "displayName": "Isaiah Likely"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4040655",
+         "displayName": "Darnell Mooney"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4360516",
+         "displayName": "Tyrone Tracy Jr."
+        }
+       },
+       {
+        "athlete": {
+         "id": "4696981",
+         "displayName": "Cam Skattebo"
+        }
+       }
+      ]
+     },
+     {
+      "name": "fumbles",
+      "athletes": []
+     },
+     {
+      "name": "defensive",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4371961",
+         "displayName": "Micah McFadden"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4362492",
+         "displayName": "Ar'Darius Washington"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4950400",
+         "displayName": "Arvell Reese"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4426326",
+         "displayName": "Kayvon Thibodeaux"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4725996",
+         "displayName": "Abdul Carter"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4240706",
+         "displayName": "Jason Pinnock"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5159928",
+         "displayName": "Bobby Jamison-Travis"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4427207",
+         "displayName": "Trace Ford"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4242547",
+         "displayName": "Paulson Adebo"
+        }
+       },
+       {
+        "athlete": {
+         "id": "16837",
+         "displayName": "Shelby Harris"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4428328",
+         "displayName": "Deonte Banks"
+        }
+       },
+       {
+        "athlete": {
+         "id": "2977670",
+         "displayName": "DJ Reader"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4426542",
+         "displayName": "Darius Alexander"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4430261",
+         "displayName": "Tyler Nubin"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4362234",
+         "displayName": "Zaire Barnes"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4427636",
+         "displayName": "Nic Jones"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4431321",
+         "displayName": "Dru Phillips"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4590292",
+         "displayName": "Thomas Fidone II"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4258237",
+         "displayName": "Raheem Layne"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4883114",
+         "displayName": "Ben Mann"
+        }
+       }
+      ]
+     },
+     {
+      "name": "interceptions",
+      "athletes": []
+     },
+     {
+      "name": "kickReturns",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4257188",
+         "displayName": "Charlie Jones"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4360516",
+         "displayName": "Tyrone Tracy Jr."
+        }
+       }
+      ]
+     },
+     {
+      "name": "puntReturns",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4257188",
+         "displayName": "Charlie Jones"
+        }
+       }
+      ]
+     },
+     {
+      "name": "kicking",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5082424",
+         "displayName": "Dominic Zvada"
+        }
+       }
+      ]
+     },
+     {
+      "name": "punting",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4260224",
+         "displayName": "Jordan Stout"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "team": {
+     "id": "34"
+    },
+    "statistics": [
+     {
+      "name": "passing",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4432577",
+         "displayName": "C.J. Stroud"
+        }
+       }
+      ]
+     },
+     {
+      "name": "rushing",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4429059",
+         "displayName": "Woody Marks"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4686422",
+         "displayName": "Xavier Hutchinson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4432577",
+         "displayName": "C.J. Stroud"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4366031",
+         "displayName": "Tank Dell"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4426496",
+         "displayName": "Cade Stover"
+        }
+       }
+      ]
+     },
+     {
+      "name": "receiving",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "3117256",
+         "displayName": "Dalton Schultz"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4366031",
+         "displayName": "Tank Dell"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4429022",
+         "displayName": "Kayshon Boutte"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4686422",
+         "displayName": "Xavier Hutchinson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4429059",
+         "displayName": "Woody Marks"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4432708",
+         "displayName": "Marvin Harrison Jr."
+        }
+       },
+       {
+        "athlete": {
+         "id": "4258173",
+         "displayName": "Nico Collins"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4426496",
+         "displayName": "Cade Stover"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4586312",
+         "displayName": "Jaylin Noel"
+        }
+       }
+      ]
+     },
+     {
+      "name": "fumbles",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4686422",
+         "displayName": "Xavier Hutchinson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4429059",
+         "displayName": "Woody Marks"
+        }
+       }
+      ]
+     },
+     {
+      "name": "defensive",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "3116679",
+         "displayName": "M.J. Stewart"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4426350",
+         "displayName": "Henry To'oTo'o"
+        }
+       },
+       {
+        "athlete": {
+         "id": "3919117",
+         "displayName": "Azeez Al-Shaair"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4602699",
+         "displayName": "Kamari Lassiter"
+        }
+       },
+       {
+        "athlete": {
+         "id": "2970204",
+         "displayName": "Sheldon Rankins"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4431517",
+         "displayName": "Calen Bullock"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4685724",
+         "displayName": "Will Anderson Jr."
+        }
+       },
+       {
+        "athlete": {
+         "id": "4426434",
+         "displayName": "Derek Stingley Jr."
+        }
+       },
+       {
+        "athlete": {
+         "id": "4361366",
+         "displayName": "Tommy Togiai"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4033812",
+         "displayName": "Jake Hansen"
+        }
+       },
+       {
+        "athlete": {
+         "id": "16734",
+         "displayName": "Jadeveon Clowney"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4037584",
+         "displayName": "Bryce Hall"
+        }
+       },
+       {
+        "athlete": {
+         "id": "2976560",
+         "displayName": "Danielle Hunter"
+        }
+       },
+       {
+        "athlete": {
+         "id": "3134448",
+         "displayName": "Tremon Smith"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870893",
+         "displayName": "Kayden McDonald"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4362910",
+         "displayName": "Jaden Crumedy"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4241394",
+         "displayName": "Kenneth Murray Jr."
+        }
+       },
+       {
+        "athlete": {
+         "id": "4244300",
+         "displayName": "Dominique Robinson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4362504",
+         "displayName": "Brevin Jordan"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4426496",
+         "displayName": "Cade Stover"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4837286",
+         "displayName": "Wade Woodaz"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4360189",
+         "displayName": "Logan Hall"
+        }
+       }
+      ]
+     },
+     {
+      "name": "interceptions",
+      "athletes": []
+     },
+     {
+      "name": "kickReturns",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4686422",
+         "displayName": "Xavier Hutchinson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4586312",
+         "displayName": "Jaylin Noel"
+        }
+       }
+      ]
+     },
+     {
+      "name": "puntReturns",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4366031",
+         "displayName": "Tank Dell"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4586312",
+         "displayName": "Jaylin Noel"
+        }
+       }
+      ]
+     },
+     {
+      "name": "kicking",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "2971573",
+         "displayName": "Ka'imi Fairbairn"
+        }
+       }
+      ]
+     },
+     {
+      "name": "punting",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4570033",
+         "displayName": "Kai Kroeger"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "scoringPlays": [
+  {
+   "id": "401873016241",
+   "text": "Ka'imi Fairbairn 58 Yd Field Goal ",
+   "awayScore": 0,
+   "homeScore": 3,
+   "type": {
+    "id": "59",
+    "text": "Field Goal Good"
+   },
+   "scoringType": {
+    "name": "field-goal"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 700,
+    "displayValue": "11:40"
+   },
+   "team": {
+    "id": "34",
+    "abbreviation": "HOU"
+   }
+  },
+  {
+   "id": "401873016525",
+   "text": "Tyrone Tracy Jr. 2 Yd Rush (Dominic Zvada Kick)",
+   "awayScore": 7,
+   "homeScore": 3,
+   "type": {
+    "id": "68",
+    "text": "Rushing Touchdown"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 386,
+    "displayValue": "6:26"
+   },
+   "team": {
+    "id": "19",
+    "abbreviation": "NYG"
+   }
+  },
+  {
+   "id": "4018730161402",
+   "text": "Ka'imi Fairbairn 57 Yd Field Goal ",
+   "awayScore": 7,
+   "homeScore": 6,
+   "type": {
+    "id": "59",
+    "text": "Field Goal Good"
+   },
+   "scoringType": {
+    "name": "field-goal"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 543,
+    "displayValue": "9:03"
+   },
+   "team": {
+    "id": "34",
+    "abbreviation": "HOU"
+   }
+  },
+  {
+   "id": "4018730161690",
+   "text": "Jameis Winston 1 Yd Rush (Dominic Zvada Kick)",
+   "awayScore": 14,
+   "homeScore": 6,
+   "type": {
+    "id": "68",
+    "text": "Rushing Touchdown"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 212,
+    "displayValue": "3:32"
+   },
+   "team": {
+    "id": "19",
+    "abbreviation": "NYG"
+   }
+  },
+  {
+   "id": "4018730162086",
+   "text": "Marvin Harrison Jr. 6 Yd pass from C.J. Stroud (C.J. Stroud Pass to Cade Stover for Two-Point Conversion)",
+   "awayScore": 14,
+   "homeScore": 14,
+   "type": {
+    "id": "67",
+    "text": "Passing Touchdown"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 34,
+    "displayValue": "0:34"
+   },
+   "team": {
+    "id": "34",
+    "abbreviation": "HOU"
+   }
+  },
+  {
+   "id": "4018730163379",
+   "text": "Cam Skattebo 16 Yd Rush (Dominic Zvada Kick)",
+   "awayScore": 21,
+   "homeScore": 14,
+   "type": {
+    "id": "68",
+    "text": "Rushing Touchdown"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "value": 535,
+    "displayValue": "8:55"
+   },
+   "team": {
+    "id": "19",
+    "abbreviation": "NYG"
+   }
+  },
+  {
+   "id": "4018730163937",
+   "text": "Xavier Hutchinson 3 Yd pass from C.J. Stroud (Ka'imi Fairbairn Kick)",
+   "awayScore": 21,
+   "homeScore": 21,
+   "type": {
+    "id": "67",
+    "text": "Passing Touchdown"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "value": 52,
+    "displayValue": "0:52"
+   },
+   "team": {
+    "id": "34",
+    "abbreviation": "HOU"
+   }
+  },
+  {
+   "id": "4018730164295",
+   "text": "Devin Singletary 30 Yd Rush ",
+   "awayScore": 27,
+   "homeScore": 21,
+   "type": {
+    "id": "68",
+    "text": "Rushing Touchdown"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 5
+   },
+   "clock": {
+    "value": 445,
+    "displayValue": "7:25"
+   },
+   "team": {
+    "id": "19",
+    "abbreviation": "NYG"
+   }
+  }
+ ]
+}

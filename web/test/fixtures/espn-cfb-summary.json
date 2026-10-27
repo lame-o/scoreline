@@ -1,0 +1,1221 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary?event=401856732",
+ "_recorded": "2026-10-27T09:46:17.170Z",
+ "header": {
+  "id": "401856732",
+  "season": {
+   "year": 2026,
+   "current": true,
+   "type": 2
+  },
+  "links": [
+   {
+    "href": "https://www.espn.com/college-football/game/_/gameId/401856732/ole-miss-texas",
+    "rel": [
+     "summary",
+     "desktop",
+     "event"
+    ]
+   }
+  ],
+  "competitions": [
+   {
+    "id": "401856732",
+    "date": "2026-10-24T23:30Z",
+    "conferenceCompetition": true,
+    "status": {
+     "type": {
+      "state": "post",
+      "completed": true,
+      "shortDetail": "Final",
+      "detail": "Final",
+      "name": "STATUS_FINAL"
+     }
+    },
+    "broadcasts": [
+     {
+      "type": {
+       "shortName": "TV"
+      },
+      "media": {
+       "shortName": "ABC"
+      }
+     }
+    ],
+    "competitors": [
+     {
+      "homeAway": "home",
+      "winner": true,
+      "score": "34",
+      "rank": 19,
+      "linescores": [
+       {
+        "displayValue": "10"
+       },
+       {
+        "displayValue": "14"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "10"
+       }
+      ],
+      "record": [
+       {
+        "type": "total",
+        "summary": "5-2"
+       },
+       {
+        "type": "home",
+        "summary": "4-1"
+       },
+       {
+        "type": "vsconf",
+        "summary": "2-2"
+       }
+      ],
+      "team": {
+       "id": "251",
+       "abbreviation": "TEX",
+       "displayName": "Texas Longhorns",
+       "location": "Texas",
+       "name": "Longhorns",
+       "color": "af5c37",
+       "alternateColor": "ffffff",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/251.png",
+         "rel": [
+          "full",
+          "default"
+         ]
+        },
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500-dark/251.png",
+         "rel": [
+          "full",
+          "dark"
+         ]
+        }
+       ]
+      }
+     },
+     {
+      "homeAway": "away",
+      "winner": false,
+      "score": "27",
+      "rank": 7,
+      "linescores": [
+       {
+        "displayValue": "3"
+       },
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "14"
+       },
+       {
+        "displayValue": "10"
+       }
+      ],
+      "record": [
+       {
+        "type": "total",
+        "summary": "5-2"
+       },
+       {
+        "type": "road",
+        "summary": "1-2"
+       },
+       {
+        "type": "vsconf",
+        "summary": "3-2"
+       }
+      ],
+      "team": {
+       "id": "145",
+       "abbreviation": "MISS",
+       "displayName": "Ole Miss Rebels",
+       "location": "Ole Miss",
+       "name": "Rebels",
+       "color": "13294b",
+       "alternateColor": "cf142b",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/145.png",
+         "rel": [
+          "full",
+          "default"
+         ]
+        },
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/ncaa/500-dark/145.png",
+         "rel": [
+          "full",
+          "dark"
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "gameInfo": {
+  "venue": {
+   "fullName": "DKR-Texas Memorial Stadium"
+  }
+ },
+ "winprobability": [
+  {
+   "homeWinPercentage": 0.946,
+   "tiePercentage": 0,
+   "playId": "401856732899"
+  },
+  {
+   "homeWinPercentage": 1,
+   "tiePercentage": 0,
+   "playId": "401856732903"
+  },
+  {
+   "homeWinPercentage": 1,
+   "tiePercentage": 0,
+   "playId": "401856732909"
+  }
+ ],
+ "boxscore": {
+  "teams": [
+   {
+    "team": {
+     "id": "145",
+     "abbreviation": "MISS"
+    },
+    "statistics": [
+     {
+      "name": "firstDowns",
+      "label": "1st Downs",
+      "displayValue": "23"
+     },
+     {
+      "name": "thirdDownEff",
+      "label": "3rd down efficiency",
+      "displayValue": "6-18"
+     },
+     {
+      "name": "fourthDownEff",
+      "label": "4th down efficiency",
+      "displayValue": "2-3"
+     },
+     {
+      "name": "totalYards",
+      "label": "Total Yards",
+      "displayValue": "363"
+     },
+     {
+      "name": "netPassingYards",
+      "label": "Passing",
+      "displayValue": "250"
+     },
+     {
+      "name": "completionAttempts",
+      "label": "Comp/Att",
+      "displayValue": "25/52"
+     },
+     {
+      "name": "yardsPerPass",
+      "label": "Yards per pass",
+      "displayValue": "4.8"
+     },
+     {
+      "name": "rushingYards",
+      "label": "Rushing",
+      "displayValue": "113"
+     },
+     {
+      "name": "rushingAttempts",
+      "label": "Rushing Attempts",
+      "displayValue": "30"
+     },
+     {
+      "name": "yardsPerRushAttempt",
+      "label": "Yards per rush",
+      "displayValue": "3.8"
+     },
+     {
+      "name": "totalPenaltiesYards",
+      "label": "Penalties",
+      "displayValue": "8-58"
+     },
+     {
+      "name": "turnovers",
+      "label": "Turnovers",
+      "displayValue": "3"
+     },
+     {
+      "name": "fumblesLost",
+      "label": "Fumbles lost",
+      "displayValue": "0"
+     },
+     {
+      "name": "interceptions",
+      "label": "Interceptions thrown",
+      "displayValue": "3"
+     },
+     {
+      "name": "possessionTime",
+      "label": "Possession",
+      "displayValue": "25:03"
+     }
+    ]
+   },
+   {
+    "team": {
+     "id": "251",
+     "abbreviation": "TEX"
+    },
+    "statistics": [
+     {
+      "name": "firstDowns",
+      "label": "1st Downs",
+      "displayValue": "23"
+     },
+     {
+      "name": "thirdDownEff",
+      "label": "3rd down efficiency",
+      "displayValue": "3-13"
+     },
+     {
+      "name": "fourthDownEff",
+      "label": "4th down efficiency",
+      "displayValue": "1-1"
+     },
+     {
+      "name": "totalYards",
+      "label": "Total Yards",
+      "displayValue": "419"
+     },
+     {
+      "name": "netPassingYards",
+      "label": "Passing",
+      "displayValue": "212"
+     },
+     {
+      "name": "completionAttempts",
+      "label": "Comp/Att",
+      "displayValue": "18/30"
+     },
+     {
+      "name": "yardsPerPass",
+      "label": "Yards per pass",
+      "displayValue": "7.1"
+     },
+     {
+      "name": "rushingYards",
+      "label": "Rushing",
+      "displayValue": "207"
+     },
+     {
+      "name": "rushingAttempts",
+      "label": "Rushing Attempts",
+      "displayValue": "42"
+     },
+     {
+      "name": "yardsPerRushAttempt",
+      "label": "Yards per rush",
+      "displayValue": "4.9"
+     },
+     {
+      "name": "totalPenaltiesYards",
+      "label": "Penalties",
+      "displayValue": "14-134"
+     },
+     {
+      "name": "turnovers",
+      "label": "Turnovers",
+      "displayValue": "3"
+     },
+     {
+      "name": "fumblesLost",
+      "label": "Fumbles lost",
+      "displayValue": "1"
+     },
+     {
+      "name": "interceptions",
+      "label": "Interceptions thrown",
+      "displayValue": "2"
+     },
+     {
+      "name": "possessionTime",
+      "label": "Possession",
+      "displayValue": "34:57"
+     }
+    ]
+   }
+  ],
+  "players": [
+   {
+    "team": {
+     "id": "145"
+    },
+    "statistics": [
+     {
+      "name": "passing",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4911529",
+         "displayName": "Trinidad Chambliss"
+        }
+       }
+      ]
+     },
+     {
+      "name": "rushing",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5084286",
+         "displayName": "Makhi Frazier"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5086388",
+         "displayName": "Kewan Lacy"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5294445",
+         "displayName": "Oscar Bird"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5152158",
+         "displayName": "Deuce Alexander"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4911529",
+         "displayName": "Trinidad Chambliss"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5125900",
+         "displayName": "Joshua Dye"
+        }
+       }
+      ]
+     },
+     {
+      "name": "receiving",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5152158",
+         "displayName": "Deuce Alexander"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079647",
+         "displayName": "Caleb Odom"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4711408",
+         "displayName": "Horatio Fields"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5084286",
+         "displayName": "Makhi Frazier"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870912",
+         "displayName": "Traylon Ray"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5125900",
+         "displayName": "Joshua Dye"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870797",
+         "displayName": "Luke Hasz"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5086388",
+         "displayName": "Kewan Lacy"
+        }
+       }
+      ]
+     },
+     {
+      "name": "fumbles",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5079400",
+         "displayName": "Kam Franklin"
+        }
+       }
+      ]
+     },
+     {
+      "name": "defensive",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5102910",
+         "displayName": "Keaton Thomas"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4708488",
+         "displayName": "Antonio Kite"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870588",
+         "displayName": "Joenel Aguero"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079400",
+         "displayName": "Kam Franklin"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5142694",
+         "displayName": "Tah'j Butler"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870700",
+         "displayName": "Sharif Denson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4918093",
+         "displayName": "Jaylon Braxton"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5139216",
+         "displayName": "Luke Ferrelli"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079347",
+         "displayName": "Jalyn Crawford"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870961",
+         "displayName": "Blake Purchase"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4873763",
+         "displayName": "Nick Cull"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5218778",
+         "displayName": "Will Echoles"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4711408",
+         "displayName": "Horatio Fields"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870967",
+         "displayName": "Suntarine Perkins"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870640",
+         "displayName": "Jamarious Brown"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4917327",
+         "displayName": "Jonathan Maldonado"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5125531",
+         "displayName": "Andy Jaffe"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5218770",
+         "displayName": "Cedrick Beavers"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4685487",
+         "displayName": "Jehiem Oatis"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870975",
+         "displayName": "Jordan Renaud"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5146887",
+         "displayName": "Michai Boireau"
+        }
+       }
+      ]
+     },
+     {
+      "name": "interceptions",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5079347",
+         "displayName": "Jalyn Crawford"
+        }
+       }
+      ]
+     },
+     {
+      "name": "kickReturns",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5079347",
+         "displayName": "Jalyn Crawford"
+        }
+       }
+      ]
+     },
+     {
+      "name": "puntReturns",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5152158",
+         "displayName": "Deuce Alexander"
+        }
+       }
+      ]
+     },
+     {
+      "name": "kicking",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5092504",
+         "displayName": "Lucas Carneiro"
+        }
+       }
+      ]
+     },
+     {
+      "name": "punting",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5294445",
+         "displayName": "Oscar Bird"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "team": {
+     "id": "251"
+    },
+    "statistics": [
+     {
+      "name": "passing",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4870906",
+         "displayName": "Arch Manning"
+        }
+       }
+      ]
+     },
+     {
+      "name": "rushing",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4685268",
+         "displayName": "Raleek Brown"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5141729",
+         "displayName": "Michael Terry III"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5218633",
+         "displayName": "Ryan Wingo"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870906",
+         "displayName": "Arch Manning"
+        }
+       },
+       {
+        "athlete": {
+         "id": "-7619",
+         "displayName": " Team"
+        }
+       }
+      ]
+     },
+     {
+      "name": "receiving",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5218633",
+         "displayName": "Ryan Wingo"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4816104",
+         "displayName": "Michael Masunas"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079613",
+         "displayName": "Emmett Mosley V"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5161011",
+         "displayName": "Jermaine Bishop Jr."
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079376",
+         "displayName": "Cam Coleman"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5203606",
+         "displayName": "Derrek Cooper"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4899367",
+         "displayName": "Ryan Niblett"
+        }
+       }
+      ]
+     },
+     {
+      "name": "fumbles",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4870906",
+         "displayName": "Arch Manning"
+        }
+       }
+      ]
+     },
+     {
+      "name": "defensive",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4922989",
+         "displayName": "Jelani McDonald"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4871044",
+         "displayName": "Derek Williams Jr."
+        }
+       },
+       {
+        "athlete": {
+         "id": "5198245",
+         "displayName": "Graceson Littleton"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4918434",
+         "displayName": "Justin Cryer"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5078162",
+         "displayName": "Bo Mascoe"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4922981",
+         "displayName": "Rasheem Biles"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5293823",
+         "displayName": "Lance Jackson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4868356",
+         "displayName": "Hero Kanu"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079504",
+         "displayName": "Alex January"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5166881",
+         "displayName": "Kade Phillips"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4870759",
+         "displayName": "Ian Geffrard"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4921268",
+         "displayName": "Brad Spence"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4950398",
+         "displayName": "Warren Roberson"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5079732",
+         "displayName": "Zina Umeozulu"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4432552",
+         "displayName": "Darius Snow"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4918129",
+         "displayName": "Colton Vasek"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5141757",
+         "displayName": "Emaree Winston"
+        }
+       },
+       {
+        "athlete": {
+         "id": "5207867",
+         "displayName": "Kosi Okpala"
+        }
+       }
+      ]
+     },
+     {
+      "name": "interceptions",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4918434",
+         "displayName": "Justin Cryer"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4922981",
+         "displayName": "Rasheem Biles"
+        }
+       },
+       {
+        "athlete": {
+         "id": "4922989",
+         "displayName": "Jelani McDonald"
+        }
+       }
+      ]
+     },
+     {
+      "name": "kickReturns",
+      "athletes": []
+     },
+     {
+      "name": "puntReturns",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "4899367",
+         "displayName": "Ryan Niblett"
+        }
+       }
+      ]
+     },
+     {
+      "name": "kicking",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5092217",
+         "displayName": "Gianni Spetic"
+        }
+       }
+      ]
+     },
+     {
+      "name": "punting",
+      "athletes": [
+       {
+        "athlete": {
+         "id": "5081075",
+         "displayName": "Mac Chiumento"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "scoringPlays": [
+  {
+   "id": "40185673273",
+   "text": "Gianni Spetic 23 Yd Field Goal  ",
+   "awayScore": 0,
+   "homeScore": 3,
+   "type": {
+    "id": "59",
+    "text": "Field Goal Good"
+   },
+   "scoringType": {
+    "name": "field-goal"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 507,
+    "displayValue": "8:27"
+   },
+   "team": {
+    "id": "251",
+    "abbreviation": "TEX"
+   }
+  },
+  {
+   "id": "401856732105",
+   "text": "Lucas Carneiro 46 Yd Field Goal  ",
+   "awayScore": 3,
+   "homeScore": 3,
+   "type": {
+    "id": "59",
+    "text": "Field Goal Good"
+   },
+   "scoringType": {
+    "name": "field-goal"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 361,
+    "displayValue": "6:01"
+   },
+   "team": {
+    "id": "145",
+    "abbreviation": "MISS"
+   }
+  },
+  {
+   "id": "401856732186",
+   "text": "Arch Manning 2 Yd Run (Gianni Spetic Kick)",
+   "awayScore": 3,
+   "homeScore": 10,
+   "type": {
+    "id": "68",
+    "text": "Rushing Touchdown"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 55,
+    "displayValue": "0:55"
+   },
+   "team": {
+    "id": "251",
+    "abbreviation": "TEX"
+   }
+  },
+  {
+   "id": "401856732254",
+   "text": "Ryan Wingo 50 Yd pass from Arch Manning (Gianni Spetic Kick)",
+   "awayScore": 3,
+   "homeScore": 17,
+   "type": {
+    "id": "24",
+    "text": "Pass Reception"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 758,
+    "displayValue": "12:38"
+   },
+   "team": {
+    "id": "251",
+    "abbreviation": "TEX"
+   }
+  },
+  {
+   "id": "401856732312",
+   "text": "Michael Terry III 2 Yd Run (Gianni Spetic Kick)",
+   "awayScore": 3,
+   "homeScore": 24,
+   "type": {
+    "id": "68",
+    "text": "Rushing Touchdown"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 561,
+    "displayValue": "9:21"
+   },
+   "team": {
+    "id": "251",
+    "abbreviation": "TEX"
+   }
+  },
+  {
+   "id": "401856732476",
+   "text": "Kam Franklin 0 Yd Fumble Recovery (Lucas Carneiro Kick)",
+   "awayScore": 10,
+   "homeScore": 24,
+   "type": {
+    "id": "9",
+    "text": "Fumble Recovery (Own)"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 3
+   },
+   "clock": {
+    "value": 799,
+    "displayValue": "13:19"
+   },
+   "team": {
+    "id": "145",
+    "abbreviation": "MISS"
+   }
+  },
+  {
+   "id": "401856732558",
+   "text": "Horatio Fields 6 Yd pass from Trinidad Chambliss (Lucas Carneiro Kick)",
+   "awayScore": 17,
+   "homeScore": 24,
+   "type": {
+    "id": "67",
+    "text": "Passing Touchdown"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 3
+   },
+   "clock": {
+    "value": 406,
+    "displayValue": "6:46"
+   },
+   "team": {
+    "id": "145",
+    "abbreviation": "MISS"
+   }
+  },
+  {
+   "id": "401856732669",
+   "text": "Horatio Fields 27 Yd pass from Trinidad Chambliss (Lucas Carneiro Kick)",
+   "awayScore": 24,
+   "homeScore": 24,
+   "type": {
+    "id": "67",
+    "text": "Passing Touchdown"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "value": 837,
+    "displayValue": "13:57"
+   },
+   "team": {
+    "id": "145",
+    "abbreviation": "MISS"
+   }
+  },
+  {
+   "id": "401856732743",
+   "text": "Arch Manning 1 Yd Run (Gianni Spetic Kick)",
+   "awayScore": 24,
+   "homeScore": 31,
+   "type": {
+    "id": "68",
+    "text": "Rushing Touchdown"
+   },
+   "scoringType": {
+    "name": "touchdown"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "value": 484,
+    "displayValue": "8:04"
+   },
+   "team": {
+    "id": "251",
+    "abbreviation": "TEX"
+   }
+  },
+  {
+   "id": "401856732819",
+   "text": "Gianni Spetic 33 Yd Field Goal  ",
+   "awayScore": 24,
+   "homeScore": 34,
+   "type": {
+    "id": "59",
+    "text": "Field Goal Good"
+   },
+   "scoringType": {
+    "name": "field-goal"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "value": 145,
+    "displayValue": "2:25"
+   },
+   "team": {
+    "id": "251",
+    "abbreviation": "TEX"
+   }
+  },
+  {
+   "id": "401856732854",
+   "text": "Lucas Carneiro 39 Yd Field Goal  ",
+   "awayScore": 27,
+   "homeScore": 34,
+   "type": {
+    "id": "59",
+    "text": "Field Goal Good"
+   },
+   "scoringType": {
+    "name": "field-goal"
+   },
+   "period": {
+    "number": 4
+   },
+   "clock": {
+    "value": 82,
+    "displayValue": "1:22"
+   },
+   "team": {
+    "id": "145",
+    "abbreviation": "MISS"
+   }
+  }
+ ]
+}

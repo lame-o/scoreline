@@ -13,7 +13,7 @@
  * - `MomentList`: scoring plays or key events, newest first: time, what
  *   happened, the team's crest, the score after it. Rows pin on click.
  */
-import { memo, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { memo, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Icon, TeamLogo } from "../../../design/components";
 import type { Broadcaster } from "../../../data/broadcasters";
@@ -262,12 +262,14 @@ export const shortClock = (clock: string) => clock.replace(" Inning", "");
 /** Soccer: the icon already says goal or card, so the row is the player (MomentList.headline). */
 export const headline = (m: DetailMoment) => (["goal", "ownGoal", "yellow", "red"].includes(m.kind) ? shortened(m.text) : m.text);
 
-export const MomentList = memo(function MomentList({ moments, topName, bottomName, topTeam, bottomTeam }: {
+export const MomentList = memo(function MomentList({ moments, topName, bottomName, topTeam, bottomTeam, renderText }: {
   moments: readonly DetailMoment[];
   topName: string;
   bottomName: string;
   topTeam: Competitor | null;
   bottomTeam: Competitor | null;
+  /** The play's words with its players' names as links (football); the rows then pin on a click beside them. */
+  renderText?: (m: DetailMoment, text: string) => ReactNode;
 }) {
   // Soccer goals don't come with the score; count it up (skipped with an own goal, whose side ESPN leaves ambiguous).
   const running = new Map<string, string>();
@@ -287,22 +289,23 @@ export const MomentList = memo(function MomentList({ moments, topName, bottomNam
   return (
     <ul className={styles.moments} style={{ "--clock": `calc(${wide} * var(--pt))` } as CSSProperties}>
       {[...moments].reverse().map((m) => (
-        <MomentRow key={m.id} m={m} score={m.score ?? running.get(m.id) ?? null} keepsScoreColumn={running.size > 0 || moments.some((x) => x.score != null)} showsIcon={showsIcons} names={[topName, bottomName]} teams={[topTeam, bottomTeam]} />
+        <MomentRow key={m.id} m={m} score={m.score ?? running.get(m.id) ?? null} keepsScoreColumn={running.size > 0 || moments.some((x) => x.score != null)} showsIcon={showsIcons} names={[topName, bottomName]} teams={[topTeam, bottomTeam]} renderText={renderText} />
       ))}
     </ul>
   );
 });
 
-function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams }: {
+function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams, renderText }: {
   m: DetailMoment;
   score: string | null;
   keepsScoreColumn: boolean;
   showsIcon: boolean;
   names: [string, string];
   teams: [Competitor | null, Competitor | null];
+  renderText?: (m: DetailMoment, text: string) => ReactNode;
 }) {
   const focus: Focus = { play: m.id, period: m.period ?? undefined, side: m.side };
-  const row = useLinkedRow(focus, { pinnable: true });
+  const row = useLinkedRow(focus, { pinnable: true, links: renderText != null });
   const lit = useFocus((f) => matches(f, { play: m.id, period: m.period, side: m.side }));
   const team = m.side === "top" ? teams[0] : m.side === "bottom" ? teams[1] : null;
   const name = m.side === "top" ? names[0] : m.side === "bottom" ? names[1] : "";
@@ -316,7 +319,7 @@ function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams }: {
         {shortClock(m.clock)}
       </span>
       {showsIcon ? <span className={styles.momentIcon} data-kind={m.kind} /> : null}
-      <span className={styles.momentText}>{headline(m)}</span>
+      <span className={styles.momentText}>{renderText ? renderText(m, headline(m)) : headline(m)}</span>
       {m.side ? (
         <span className={styles.momentTeam} title={team?.name ?? name}>
           {team?.logo ? <TeamLogo url={team.logo} size={14} /> : <span className={styles.momentAbbr}>{name}</span>}

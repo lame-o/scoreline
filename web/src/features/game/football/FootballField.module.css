@@ -1,0 +1,678 @@
+/*
+ * The Field (Visualizations.swift `FootballField`). Marks sit at x in
+ * container units across the field (`--x`, 0…100 of the width including the
+ * end zones) and y in points (`--y`, `--row`), placed by transform so they
+ * move on the compositor; the room cleared around the ball is a mask that
+ * follows the ball's registered position.
+ */
+
+@property --bx {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 50;
+}
+
+@property --by {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 28;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6 * var(--pt));
+  min-width: 0;
+  /* The field's system colors, deep enough on both themes (Color.blue, Color.yellow). */
+  --scrimmage: light-dark(#007aff, #0a84ff);
+  --first-down: light-dark(#ffcc00, #ffd60a);
+  --flag: light-dark(#f2b600, #ffd60a);
+  /* SwiftUI's critically damped springs (Motion.travel 0.4, .standard 0.3, .quick 0.2). */
+  --spring-travel: linear(0, 0.036, 0.118, 0.222, 0.329, 0.433, 0.527, 0.61, 0.682, 0.742, 0.793, 0.834, 0.868, 0.895, 0.917, 0.935, 0.949, 0.96, 0.969, 0.976, 0.981, 0.985, 0.989, 0.991, 1);
+  --spring-standard: linear(0, 0.038, 0.125, 0.233, 0.345, 0.451, 0.547, 0.63, 0.701, 0.76, 0.809, 0.849, 0.881, 0.906, 0.927, 0.943, 0.956, 0.966, 0.973, 0.979, 0.984, 0.988, 0.991, 0.993, 1);
+  --spring-quick: linear(0, 0.087, 0.258, 0.433, 0.584, 0.703, 0.793, 0.857, 0.903, 0.935, 0.956, 0.971, 0.981, 0.988, 0.992, 0.995, 1);
+  --move: transform 450ms var(--spring-travel);
+}
+
+/* MARK: Header */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--pt));
+  min-height: calc(16 * var(--pt));
+  font-size: calc(12 * var(--pt));
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.possessor {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  flex: none;
+  animation: fade var(--dur-fade) var(--ease-out);
+}
+
+.dot {
+  width: calc(7 * var(--pt));
+  height: calc(7 * var(--pt));
+  border-radius: 50%;
+  flex: none;
+}
+
+.separator {
+  color: var(--label-secondary);
+  flex: none;
+}
+
+.down {
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.chips {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  flex: none;
+}
+
+/* 2-MIN DRILL is pressure, so orange (RED ZONE stays red). */
+.drill {
+  display: inline-flex;
+  align-items: center;
+  height: calc(16 * var(--pt));
+  padding: 0 calc(6 * var(--pt));
+  border-radius: 999px;
+  font-size: calc(9 * var(--pt));
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  color: light-dark(#a63700, #ffb340);
+  background: light-dark(rgb(255 149 0 / 0.14), rgb(255 159 10 / 0.18));
+  transition:
+    transform var(--dur-quick) var(--ease-out),
+    opacity var(--dur-quick) var(--ease-out);
+
+  @starting-style {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+}
+
+.spacer {
+  flex: 1;
+  min-width: calc(4 * var(--pt));
+}
+
+.timeouts {
+  display: inline-flex;
+  gap: calc(2 * var(--pt));
+  flex: none;
+}
+
+.timeouts > span {
+  width: calc(7 * var(--pt));
+  height: calc(3 * var(--pt));
+  border-radius: 999px;
+  background: var(--viz-track);
+  transition: background-color var(--dur-fade) var(--ease-out);
+}
+
+/* MARK: The field */
+
+.turf {
+  position: relative;
+  container-type: inline-size;
+}
+
+.layers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: calc(2 * var(--pt));
+  background: color-mix(in srgb, var(--label) 3%, transparent);
+  /* Room around the ball: the line of scrimmage and the drive's bars stop short of it. */
+  mask-image: radial-gradient(circle calc(8 * var(--pt)) at calc(var(--bx) * 1cqw) calc(var(--by) * var(--pt)), transparent 97%, #000 100%);
+  transition:
+    --bx 450ms var(--spring-travel),
+    --by 350ms var(--spring-standard);
+}
+
+.turf[data-motion="quick"] .layers {
+  transition:
+    --bx 250ms var(--spring-quick),
+    --by 350ms var(--spring-standard);
+}
+
+.endZone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--team) 25%, transparent);
+  overflow: hidden;
+}
+
+.endZone[data-side="left"],
+.endWash[data-side="left"] {
+  left: 0;
+}
+
+.endZone[data-side="right"],
+.endWash[data-side="right"] {
+  right: 0;
+}
+
+.endLabel {
+  transform: rotate(-90deg);
+  font-size: calc(9 * var(--pt));
+  font-weight: 700;
+  color: var(--label);
+  white-space: nowrap;
+}
+
+/* A score lights the end zone it went into: in after the ball arrives (0.35 s), out slowly with the moment. */
+.endWash {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8%;
+  background: var(--wash);
+  opacity: 0;
+  transition: opacity 600ms var(--ease-out);
+}
+
+.endWash[data-on="true"] {
+  opacity: var(--strength);
+  transition: opacity var(--dur-reveal) var(--ease-out) 350ms;
+}
+
+.yardLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(0.5 * var(--pt));
+  background: var(--viz-grid);
+  transform: translateX(calc(var(--x) * 1cqw - 0.25 * var(--pt)));
+}
+
+.yardLine[data-mid="true"] {
+  width: calc(1 * var(--pt));
+  background: var(--viz-reference);
+  transform: translateX(calc(var(--x) * 1cqw - 0.5 * var(--pt)));
+}
+
+/* Inside the 20: a red tint that breathes once on the way in and leaves quickly. */
+.redZone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(var(--w) * 1cqw);
+  background: color-mix(in srgb, var(--live) 18%, transparent);
+  transform: translateX(calc(var(--x) * 1cqw));
+  opacity: 0;
+  transition: opacity var(--dur-exit) var(--ease-out);
+}
+
+.redZone[data-on="true"] {
+  opacity: 0.556;
+  transition: none;
+}
+
+/* A snap: a capsule from start to end on its row, 8pt apart from the top. */
+.bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  align-items: center;
+  width: max(calc(var(--w) * 1cqw), calc(4 * var(--pt)));
+  height: calc(8 * var(--pt));
+  transform: translate(calc(var(--x) * 1cqw), calc((6 + var(--row) * 8) * var(--pt)));
+  transition:
+    transform 350ms var(--spring-standard),
+    opacity var(--dur-fade) var(--ease-out);
+}
+
+/* The hover target: the row's height and 3pt beyond each end. */
+.bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(-3 * var(--pt));
+}
+
+.bar[data-receded="true"] {
+  opacity: 0.55;
+}
+
+.capsule {
+  position: relative;
+  height: calc(3.5 * var(--pt));
+  border-radius: 999px;
+  background: var(--tone);
+  overflow: hidden;
+  transition:
+    height var(--dur-quick) var(--ease-out),
+    opacity 300ms var(--ease-out),
+    transform 350ms var(--spring-standard);
+
+  @starting-style {
+    opacity: 0;
+    transform: scaleX(0.4);
+  }
+}
+
+/* On the field when the page opened: already there. */
+.capsule[data-initial="true"] {
+  @starting-style {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.capsule[data-dir="right"] {
+  transform-origin: left center;
+}
+
+.capsule[data-dir="left"] {
+  transform-origin: right center;
+}
+
+.capsule[data-kind="penalty"] {
+  background: color-mix(in srgb, var(--tone) 80%, transparent);
+}
+
+/* A loss is outlined in the team's color, never filled red (a team's color may be red). */
+.capsule[data-loss="true"] {
+  height: calc(4.5 * var(--pt));
+  background: transparent;
+  box-shadow: inset 0 0 0 calc(1 * var(--pt)) var(--tone);
+}
+
+.bar[data-lit="true"] .capsule {
+  height: calc(5 * var(--pt));
+  outline: calc(1 * var(--pt)) solid var(--label);
+  outline-offset: calc(1.5 * var(--pt));
+  overflow: visible;
+}
+
+.bar[data-lit="true"] .capsule[data-loss="true"] {
+  height: calc(6 * var(--pt));
+}
+
+.scoreDot {
+  position: absolute;
+  top: 50%;
+  width: calc(6 * var(--pt));
+  height: calc(6 * var(--pt));
+  border-radius: 50%;
+  background: var(--tone);
+  transform: translateY(-50%);
+}
+
+.scoreDot[data-dir="right"] {
+  right: 0;
+}
+
+.scoreDot[data-dir="left"] {
+  left: 0;
+}
+
+.capsule:has(.scoreDot) {
+  overflow: visible;
+}
+
+/* A big play's sheen, running along its bar once (the way it went). */
+.sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent calc(50% - 6 * var(--pt)), rgb(255 255 255 / 0.5) 50%, transparent calc(50% + 6 * var(--pt)));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.uprights {
+  position: absolute;
+  top: calc(50% - 8 * var(--pt));
+  width: calc(1.5 * var(--pt));
+  height: calc(16 * var(--pt));
+  border-radius: 999px;
+  opacity: 0;
+}
+
+.uprights[data-side="left"] {
+  left: 0;
+}
+
+.uprights[data-side="right"] {
+  right: 0;
+}
+
+.lineToGain,
+.scrimmage {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(2 * var(--pt));
+  transform: translateX(calc(var(--x) * 1cqw - 1 * var(--pt)));
+  transition: var(--move);
+}
+
+.lineToGain {
+  background: var(--first-down);
+  box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) rgb(0 0 0 / 0.25);
+}
+
+.scrimmage {
+  background: var(--scrimmage);
+}
+
+/* A flag, thrown in at the line of scrimmage. */
+.flag {
+  position: absolute;
+  left: 0;
+  top: calc(1 * var(--pt));
+  width: calc(4 * var(--pt));
+  height: calc(6 * var(--pt));
+  border-radius: calc(1 * var(--pt));
+  background: var(--flag);
+  box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) rgb(0 0 0 / 0.25);
+  transform: translateX(calc(var(--x) * 1cqw - 2 * var(--pt)));
+  animation: flag-in var(--dur-reveal) var(--ease-out);
+}
+
+@keyframes flag-in {
+  from {
+    opacity: 0;
+    translate: 0 calc(-4 * var(--pt));
+  }
+}
+
+/* The ball, its heading and the ping travel together. */
+.ball,
+.heading {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transition: var(--move);
+  pointer-events: none;
+}
+
+.ball {
+  display: grid;
+  place-items: center;
+  width: calc(16 * var(--pt));
+  height: calc(16 * var(--pt));
+  color: var(--label);
+  transform: translate(calc(var(--x) * 1cqw - 8 * var(--pt)), calc((var(--y) - 8) * var(--pt)));
+}
+
+.ballKnock,
+.ballHop {
+  display: grid;
+  place-items: center;
+}
+
+.heading {
+  width: calc(30 * var(--pt));
+  height: calc(16 * var(--pt));
+  transform: translate(calc(var(--x) * 1cqw - 15 * var(--pt)), calc((var(--y) - 8) * var(--pt)));
+}
+
+.chevron {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  transition: transform 350ms var(--spring-standard);
+  animation: fade var(--dur-fade) var(--ease-out);
+}
+
+.chevron svg {
+  width: calc(6 * var(--pt));
+  height: calc(6 * var(--pt));
+}
+
+.chevron[data-side="bottom"] {
+  transform: rotate(180deg);
+}
+
+.turf[data-motion="quick"] .ball,
+.turf[data-motion="quick"] .heading {
+  transition: transform 250ms var(--spring-quick);
+}
+
+/* "Here": one ring that grows and fades (Moments.swift `MomentPing`). */
+.ping {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(14 * var(--pt));
+  height: calc(14 * var(--pt));
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) var(--ping);
+  translate: calc(var(--x) * 1cqw - 7 * var(--pt)) calc((var(--y) - 7) * var(--pt));
+  animation: ping 600ms var(--ease-out) both;
+  pointer-events: none;
+}
+
+@keyframes ping {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+.stage {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+.yards {
+  position: relative;
+  height: calc(10 * var(--pt));
+  margin-top: calc(4 * var(--pt));
+  container-type: inline-size;
+}
+
+.yards > span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: calc(9 * var(--pt));
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: calc(10 * var(--pt));
+  color: var(--label-secondary);
+  transform: translateX(calc(var(--x) * 1cqw - 50%));
+}
+
+/* MARK: Legend */
+
+.swatchLine {
+  width: calc(2 * var(--pt));
+  height: calc(10 * var(--pt));
+  background: var(--scrimmage);
+}
+
+.swatchLine[data-tone="gain"] {
+  background: var(--first-down);
+}
+
+.swatchBar {
+  width: calc(12 * var(--pt));
+  height: calc(3.5 * var(--pt));
+  border-radius: 999px;
+  background: var(--viz-neutral);
+}
+
+.swatchBar[data-loss="true"] {
+  height: calc(4.5 * var(--pt));
+  background: transparent;
+  box-shadow: inset 0 0 0 calc(1 * var(--pt)) var(--viz-neutral);
+}
+
+.swatchBar[data-tone="flag"] {
+  background: color-mix(in srgb, var(--flag) 80%, transparent);
+}
+
+.swatchZone {
+  width: calc(8 * var(--pt));
+  height: calc(8 * var(--pt));
+  background: color-mix(in srgb, var(--live) 25%, transparent);
+}
+
+/* MARK: Under the field */
+
+.lastPlay {
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  max-width: var(--readable-width);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.drive {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+  padding-top: calc(4 * var(--pt));
+  max-width: var(--readable-width);
+}
+
+.summary {
+  padding: 0 calc(6 * var(--pt)) calc(2 * var(--pt));
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.snaps {
+  display: flex;
+  flex-direction: column;
+  gap: calc(1 * var(--pt));
+}
+
+.snap {
+  display: grid;
+  grid-template-columns: calc(58 * var(--pt)) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: calc(8 * var(--pt));
+  padding: calc(3 * var(--pt)) calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+  outline-offset: calc(-2 * var(--pt));
+  transition: background-color var(--dur-fade) var(--ease-out);
+  animation: arrive var(--dur-standard) var(--ease-out);
+}
+
+.snap[data-initial="true"] {
+  animation: none;
+}
+
+.snap[data-lit="true"] {
+  background: var(--fill-hover);
+}
+
+.snap[data-pinned="true"] {
+  background: var(--accent-fill);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .snap:hover {
+    background: var(--fill-hover);
+  }
+}
+
+.snapDown {
+  font-size: var(--text-caption);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.snapText {
+  font-size: var(--text-callout);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.snapYards {
+  font-size: var(--text-status);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.snapYards[data-loss="true"] {
+  color: var(--live-text);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-4 * var(--pt)));
+  }
+}
+
+/* Reduce Motion: nothing travels; marks arrive and leave as fades. */
+@media (prefers-reduced-motion: reduce) {
+  .layers,
+  .ball,
+  .heading,
+  .lineToGain,
+  .scrimmage,
+  .bar,
+  .chevron {
+    transition: opacity var(--dur-fade) var(--ease-out);
+  }
+  .capsule {
+    @starting-style {
+      transform: none;
+    }
+  }
+  .endWash[data-on="true"] {
+    transition-delay: 0ms;
+  }
+  @keyframes arrive {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes flag-in {
+    from {
+      opacity: 0;
+    }
+  }
+  .ping {
+    animation: none;
+    opacity: 0;
+  }
+}
