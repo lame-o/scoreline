@@ -84,7 +84,10 @@ export function ScoresPage({ variant }: { readonly variant: "page" | "sidebar" }
   const width = useWidth(root);
   const stale = scores.status === "offline";
   const followedIDs = scores.settings.followed.map((t) => t.id);
-  const empty = scores.sections.length === 0 && scores.quietLeagues.length === 0;
+  // Every league failed and none has a game to show: one "Can't Load Scores" (ScoresView's
+  // error state), not a column of per-league errors.
+  const nothingLoaded = scores.status === "offline" && scores.sections.every((s) => s.events.length === 0);
+  const empty = (scores.sections.length === 0 && scores.quietLeagues.length === 0) || nothingLoaded;
 
   // A click stacks the new view in; the keyboard switches instantly.
   const switchView = (next: LandingView, viaKeyboard: boolean) => {
@@ -207,7 +210,8 @@ function Footer({ lastUpdated, offline, fetching }: { lastUpdated: number | null
     lastUpdated == null ? (fetching ? "Updating…" : "") : offline ? `Can't connect · Updated ${clockTime(lastUpdated)}` : updatedAgo(lastUpdated, now);
   return (
     <footer className={styles.footer}>
-      {offline ? <Icon name="wifiSlash" size={9.5} /> : null}
+      {/* Only beside its words: with nothing ever loaded, the error state above already says it. */}
+      {offline && text ? <Icon name="wifiSlash" size={9.5} /> : null}
       <span>{text}</span>
     </footer>
   );

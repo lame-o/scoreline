@@ -56,8 +56,9 @@ describe("text contrast", () => {
     const page = token("page")[scheme];
     // The sidebar: glass over the page (the ambient light is faint enough to ignore here).
     const glass = over(token("glass-fill")[scheme], page);
-    // A hovered or tinted row.
+    // A hovered or tinted row, in the sidebar's glass or on the page (a selected round, a pressed row).
     const tinted = over(token("fill-press")[scheme], glass);
+    const pressedOnPage = over(token("fill-press")[scheme], page);
     for (const name of TEXT) {
       it(`--${name} reads at 4.5:1 or better in ${scheme}`, () => {
         const ink = token(name)[scheme];
@@ -65,6 +66,7 @@ describe("text contrast", () => {
           ["page", page],
           ["glass", glass],
           ["a pressed row", tinted],
+          ["a pressed row on the page", pressedOnPage],
         ] as const) {
           expect(contrast(ink, bg), `${name} on ${surface}`).toBeGreaterThanOrEqual(4.5);
         }
