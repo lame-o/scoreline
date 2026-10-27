@@ -107,10 +107,37 @@ export function actionMoment(a: PitchAction): LiveMoment | null {
 const playID = (item: JSONValue) => str(at(item, "id")) ?? (num(at(item, "id")) != null ? String(num(at(item, "id"))) : "");
 const intOf = (v: JSONValue): number | null => (typeof v === "number" && Number.isFinite(v) ? Math.trunc(v) : null);
 
+/**
+ * How a match's feed measures the pitch. Most say 0…100 with each team
+ * attacking toward x = 100; some archived matches (an older provider) say
+ * 0…1 with each team attacking toward x = 0, and those are turned round onto
+ * the usual scale. A web-only fix: the Mac draws them in a corner.
+ */
+export type PitchScale = "percent" | "unit";
+
+/** A match's scale, from its positioned plays: any coordinate past 1.5 means percent. Null until a play has a position. */
+export function pitchScale(items: readonly JSONValue[]): PitchScale | null {
+  let positioned = false;
+  for (const item of items) {
+    for (const key of ["fieldPositionX", "fieldPositionY", "fieldPosition2X", "fieldPosition2Y"]) {
+      const v = num(at(item, key));
+      if (v == null || v === 0) continue;
+      positioned = true;
+      if (Math.abs(v) > 1.5) return "percent";
+    }
+  }
+  return positioned ? "unit" : null;
+}
+
 /** A located action from a core play (SoccerFeed.action), or null. */
-export function pitchAction(item: JSONValue, index: number, homeTeamID: string | null): PitchAction | null {
-  const x = num(at(item, "fieldPositionX"));
-  const y = num(at(item, "fieldPositionY"));
+export function pitchAction(item: JSONValue, index: number, homeTeamID: string | null, scale: PitchScale = "percent"): PitchAction | null {
+  // Unit-scale feeds attack toward 0: turned round (a half turn) onto the percent scale.
+  const read = (key: string) => {
+    const v = num(at(item, key));
+    return v == null ? undefined : scale === "unit" && v !== 0 ? 100 * (1 - v) : v;
+  };
+  const x = read("fieldPositionX");
+  const y = read("fieldPositionY");
   const team = teamIDFromRef(str(at(item, "team", "$ref"))) ?? str(at(item, "team", "id")) ?? null;
   if (x == null || y == null || (x === 0 && y === 0) || !team) return null;
   const home = team === homeTeamID;
@@ -126,8 +153,11 @@ export function pitchAction(item: JSONValue, index: number, homeTeamID: string |
         : type === "pass" || type === "cross"
           ? "pass"
           : "other";
-  const endX = num(at(item, "fieldPosition2X"));
-  const endY = num(at(item, "fieldPosition2Y"));
+  const rawEndX = num(at(item, "fieldPosition2X"));
+  const rawEndY = num(at(item, "fieldPosition2Y"));
+  // A unit-scale shot ends on the goal line at 0, which turns round to 100.
+  const endX = scale === "unit" && rawEndX != null && (rawEndX !== 0 || (rawEndY ?? 0) !== 0) ? 100 * (1 - rawEndX) : rawEndX;
+  const endY = scale === "unit" && rawEndY != null && (rawEndX !== 0 || rawEndY !== 0) ? 100 * (1 - rawEndY) : rawEndY;
   const hasEnd = (endX ?? 0) !== 0 || (endY ?? 0) !== 0;
   const shotLike = kind === "shot" || kind === "goal";
   return {
@@ -143,7 +173,7 @@ export function pitchAction(item: JSONValue, index: number, homeTeamID: string |
     playID: playID(item),
     shot: kind !== "shot" ? null : type === "shot-on-target" ? "saved" : type === "shot-blocked" ? "blocked" : type === "shot-hit-woodwork" ? "woodwork" : "wide",
     xg: shotLike ? (num(at(item, "expectedGoals")) ?? null) : null,
-    goalY: shotLike ? orient(num(at(item, "goalPositionY"))) : null,
+    goalY: shotLike ? orient(scale === "unit" ? read("goalPositionY") : num(at(item, "goalPositionY"))) : null,
     goalZ: shotLike ? (num(at(item, "goalPositionZ")) ?? null) : null,
     topScore: intOf(at(item, "homeScore")),
     bottomScore: intOf(at(item, "awayScore")),
@@ -204,6 +234,8 @@ export interface SoccerUpdate {
 const FIRST_PAGE_SIZE = 200;
 const UPDATE_PAGE_SIZE = 25;
 const TRAIL_LENGTH = 10;
+/** Raw core plays kept for the play theater (SoccerScene reads every touch's positions and each shot's goal position). */
+export const THEATER_WINDOW = 80;
 
 export class SoccerFeed {
   /** The last 10 located actions (the live trail). */
@@ -212,6 +244,13 @@ export class SoccerFeed {
   shots: readonly PitchAction[] = [];
   /** Cards, placed where the foul that drew them happened, by play ID. */
   cards: Readonly<Record<string, PitchAction>> = {};
+  /**
+   * The newest core plays as ESPN sends them (about 80), in order: every
+   * touch with `fieldPositionX/Y`, `fieldPosition2X/Y`, and `goalPositionY/Z`
+   * for shots. TODO(soccer theater): the play theater (SoccerScene.swift,
+   * SoccerScript.swift) reads its build-ups from here.
+   */
+  plays: readonly JSONValue[] = [];
   loaded = false;
   version = 0;
 
@@ -221,6 +260,7 @@ export class SoccerFeed {
   /** The last few located actions, so a card can be put at its foul. */
   private recent: PitchAction[] = [];
   private fetched = 0;
+  private scale: PitchScale | null = null;
   private inflight: Promise<void> | null = null;
   private listeners = new Set<() => void>();
 
@@ -266,13 +306,17 @@ export class SoccerFeed {
   /** Pages of plays read (pure apart from the feed's own state; tests call it with recorded pages). */
   read(pages: readonly { page: number; items: readonly JSONValue[] }[], size: number, complete: boolean, homeTeamID: string | null): void {
     const fresh: PitchAction[] = [];
+    const raw: JSONValue[] = [];
     const newCards: Record<string, PitchAction> = {};
     const unplaced: LiveMoment[] = [];
+    this.scale ??= pitchScale(pages.flatMap((p) => p.items));
+    const scale = this.scale ?? "percent";
     for (const { page, items } of pages) {
       items.forEach((item, offset) => {
         const index = (page - 1) * size + offset;
         if (index < this.fetched) return;
-        const action = pitchAction(item, index, homeTeamID);
+        raw.push(item);
+        const action = pitchAction(item, index, homeTeamID, scale);
         if (action) {
           fresh.push(action);
           this.recent = [...this.recent, action].slice(-6);
@@ -294,6 +338,10 @@ export class SoccerFeed {
     if (complete) this.primed = true;
     let changed = !this.loaded;
     this.loaded = true;
+    if (raw.length > 0) {
+      this.plays = [...this.plays, ...raw].slice(-THEATER_WINDOW);
+      changed = true;
+    }
     if (Object.keys(newCards).length > 0) {
       this.cards = { ...this.cards, ...newCards };
       changed = true;

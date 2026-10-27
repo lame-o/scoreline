@@ -20,6 +20,7 @@ import { arr, at, bool, num, str, type JSONValue } from "./json";
 import type { Side } from "./models";
 import type { Accent, LiveMoment } from "./moments";
 import type { DetailMoment, SideOf } from "./gameDetail";
+import { NEUTRAL, teamPalette, type Scheme, type TeamPalette } from "./teamColors";
 
 // MARK: - Model
 
@@ -1362,18 +1363,13 @@ export function arcDuration(kind: ArcKind, reduceMotion: boolean): number {
 
 /**
  * A stylized flight between two real points (the spot and the rim): a
- * quadratic whose control point lifts off the straight line (toward the
- * top of the court's picture), the ball riding it at a constant parametric
- * rate, which on a quadratic is a projectile's motion.
+ * quadratic whose control point lifts straight up the picture by 22% of the
+ * distance (40pt at most), the ball riding it at a constant parametric rate,
+ * which on a quadratic is a projectile's motion (Celebrations.swift `FlightArc`).
  */
-export function flightControl(from: { x: number; y: number }, to: { x: number; y: number }): { x: number; y: number } {
-  const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
-  const length = Math.hypot(to.x - from.x, to.y - from.y);
-  let n = { x: to.y - from.y, y: from.x - to.x };
-  if (n.y > 0) n = { x: -n.x, y: -n.y };
-  const norm = Math.hypot(n.x, n.y);
-  const lift = norm === 0 ? 0 : (0.22 * length) / norm;
-  return { x: mid.x + n.x * lift, y: mid.y + n.y * lift };
+export function flightControl(from: { x: number; y: number }, to: { x: number; y: number }, cap = 40): { x: number; y: number } {
+  const bow = Math.min(0.22 * Math.hypot(to.x - from.x, to.y - from.y), cap);
+  return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - bow };
 }
 
 export function quadPoint(a: { x: number; y: number }, c: { x: number; y: number }, b: { x: number; y: number }, s: number): { x: number; y: number } {
@@ -1547,3 +1543,44 @@ export const NBA_STATS: readonly (readonly [string, string])[] = [
   ["fastBreakPoints", "Fast Break Points"],
   ["largestLead", "Largest Lead"],
 ];
+
+// MARK: - Team colors (TeamPalette.nba)
+
+const rgbOf = (css: string): [number, number, number] => {
+  if (!/^#[0-9a-f]{6}$/i.test(css)) return [0.5, 0.5, 0.5];
+  const v = Number.parseInt(css.slice(1), 16);
+  return [((v >> 16) & 0xff) / 255, ((v >> 8) & 0xff) / 255, (v & 0xff) / 255];
+};
+
+/** How different two palette colors look (the sum of RGB differences; gray for neutral). */
+export function colorDifference(a: string, b: string): number {
+  const x = rgbOf(a);
+  const y = rgbOf(b);
+  return Math.abs(x[0] - y[0]) + Math.abs(x[1] - y[1]) + Math.abs(x[2] - y[2]);
+}
+
+/**
+ * NBA teams share a lot of navy, purple, black and red. On NBA pages, when
+ * the two colors as shown are hard to tell apart (Lakers and Jazz purple;
+ * Pacers navy beside Nets black), a team wears its second color: the home
+ * team (bottom) first, if its second color is vivid and separates them.
+ */
+export function nbaPalette(top: { color: string | null; alternateColor: string | null } | null, bottom: { color: string | null; alternateColor: string | null } | null, scheme: Scheme): TeamPalette {
+  const palette = teamPalette(top?.color ?? null, bottom?.color ?? null, scheme);
+  // Each color on its own: the pair's palette may already have grayed out a near-twin, which would hide the clash.
+  const own = [teamPalette(top?.color ?? null, null, scheme).top, teamPalette(bottom?.color ?? null, null, scheme).top] as const;
+  if (colorDifference(own[0], own[1]) >= 0.45) return palette;
+  const vivid = (hex: string) => {
+    const adjusted = teamPalette(hex, null, scheme).top;
+    if (adjusted === NEUTRAL) return false;
+    const c = rgbOf(adjusted);
+    return Math.max(...c) - Math.min(...c) >= 0.3;
+  };
+  for (const swapBottom of [true, false]) {
+    const alternate = swapBottom ? bottom?.alternateColor : top?.alternateColor;
+    if (!alternate || !vivid(alternate)) continue;
+    const swapped = swapBottom ? teamPalette(top?.color ?? null, alternate, scheme) : teamPalette(alternate, bottom?.color ?? null, scheme);
+    if (colorDifference(swapped.top, swapped.bottom) >= 0.45) return swapped;
+  }
+  return palette;
+}

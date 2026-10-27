@@ -34,6 +34,9 @@ import { useGame, type GameData } from "./core/useGame";
 import { EMPTY_DETAIL } from "../../data/gameDetail";
 import { useWidth } from "../../design/useWidth";
 import { useBaseballPage } from "./mlb/BaseballPage";
+import { useBasketballPage } from "./nba/BasketballPage";
+import { nbaPalette } from "../../data/basketball";
+import { useSoccerPage } from "./soccer/SoccerPage";
 import { ErrorCopy } from "../../design/components";
 import styles from "./GamePage.module.css";
 
@@ -46,8 +49,8 @@ const useGenericPage: UseSportPage = (game) => ({ sections: useCommonSections(ga
  */
 const SPORT_PAGES: Readonly<Record<PageKind, UseSportPage>> = {
   baseball: useBaseballPage,
-  soccer: useGenericPage,
-  nba: useGenericPage,
+  soccer: useSoccerPage,
+  nba: useBasketballPage,
   espn: useGenericPage,
   counterStrike: useGenericPage,
   climbing: useGenericPage,
@@ -130,8 +133,14 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   }, [linked]);
 
   const palette: TeamPalette = useMemo(
-    () => (event.content.kind === "match" ? teamPalette(event.content.top.color, event.content.bottom.color, scheme) : { top: NEUTRAL, bottom: NEUTRAL }),
-    [event.content, scheme],
+    () =>
+      event.content.kind !== "match"
+        ? { top: NEUTRAL, bottom: NEUTRAL }
+        : // NBA and WNBA pages: a team wears its second color when the two clash (TeamPalette.nba).
+          pageKind(event.ref) === "nba"
+          ? nbaPalette(event.content.top, event.content.bottom, scheme)
+          : teamPalette(event.content.top.color, event.content.bottom.color, scheme),
+    [event.content, event.ref, scheme],
   );
 
   return (
@@ -195,6 +204,9 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
     refresh: game.refresh,
   };
   const sport: SportPage = SPORT_PAGES[pageKind(event.ref)](context);
+  // The lane's clock, when it reads one (the NBA's), ahead of the scoreboard's.
+  const laneClock = sport.clock ?? null;
+  const shownEvent = useMemo(() => (laneClock && event.state === "live" ? { ...event, clock: laneClock } : event), [event, laneClock]);
 
   // The hero's numbers (the lane's while it's ahead).
   const scores = { top: sport.laneScores?.top ?? top?.score ?? null, bottom: sport.laneScores?.bottom ?? bottom?.score ?? null };
@@ -210,7 +222,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
     <>
       <div className={styles.heroSlot}>
         <Hero
-          event={event}
+          event={shownEvent}
           palette={event.content.kind === "match" ? palette : null}
           scores={scores}
           beats={beats}
@@ -218,6 +230,9 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
           clockFallback={fallback}
           liveSecond={sport.heroSecond}
           possession={sport.possession ?? null}
+          possessionInAir={sport.possessionInAir ?? false}
+          chip={sport.heroChip ?? null}
+          note={sport.heroNote ?? null}
           staleSince={game.staleSince}
           spoken={spokenHero(event, scores, fallback, sport.heroSpoken ?? null)}
           caption={event.caption ?? detail.roundName}
@@ -231,7 +246,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
       </div>
       <DockedScorebar
         geometry={geometry}
-        event={event}
+        event={shownEvent}
         palette={event.content.kind === "match" ? palette : null}
         scores={scores}
         beats={beats}
@@ -240,6 +255,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
         stale={game.staleSince != null}
         detail={sport.dockDetail}
         chip={sport.chip ?? null}
+        slot={sport.dockSlot}
       />
       {loading ? (
         game.detailFailed ? <p className={styles.note}>{ErrorCopy.inline("match details")}</p> : null

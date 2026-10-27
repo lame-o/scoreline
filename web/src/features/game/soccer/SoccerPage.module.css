@@ -1,0 +1,29 @@
+/* A red card on the docked bar (RedCardMark): the card, and a count where there's room. */
+.redCard {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  animation: card-in var(--dur-quick) var(--ease-out);
+}
+
+.card {
+  width: calc(6 * var(--pt));
+  height: calc(8.5 * var(--pt));
+  border-radius: calc(1 * var(--pt));
+  background: light-dark(#ff3b30, #ff453a);
+  rotate: 8deg;
+}
+
+.count {
+  font-size: calc(9 * var(--pt));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    scale: 0.92;
+  }
+}

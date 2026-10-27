@@ -18,6 +18,7 @@ import type { Fetcher } from "./http";
 import { arr, at, bool, has, num, str, type JSONValue } from "./json";
 import type { Competitor, CSLive, ScoreEvent, Side, Sport } from "./models";
 import { makeEvent } from "./providers/espn";
+import { soccerTie, type SoccerTie } from "./soccer";
 import { homeWinProbability, keyMoments as basketballMoments, NBA_STATS, parseBasketball, predictor, quarterLength, recentPlays as basketballPlays, WNBA_PATH, type Basketball } from "./basketball";
 
 // MARK: - Model
@@ -51,6 +52,8 @@ export interface DetailMoment {
   readonly score: string | null;
   /** Inning or quarter, for linking to the line score. */
   readonly period: number | null;
+  /** The people in it, as ESPN lists them (a goal's scorer, then the assist), for name links. */
+  readonly players?: readonly { readonly id: string; readonly name: string }[];
 }
 
 export interface Football {
@@ -216,6 +219,8 @@ export interface GameDetail {
   readonly battedBalls: readonly BattedBall[];
   /** NBA and WNBA: shot chart, game flow, leaders, box score, injuries (data/basketball.ts). */
   readonly basketball: Basketball | null;
+  /** Soccer knockouts: the leg, the aggregate and the shootout (data/soccer.ts). */
+  readonly soccerTie: SoccerTie | null;
   /**
    * Baseball, live: the summary's plays, for the play theater until the live
    * lane has spoken (`theater()` in data/mlb/playScene.ts reads them).
@@ -254,6 +259,7 @@ export const EMPTY_DETAIL: GameDetail = {
   atBat: [],
   battedBalls: [],
   basketball: null,
+  soccerTie: null,
   plays: [],
   topIsHome: null,
   athleteNames: {},
@@ -572,6 +578,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     atBat,
     battedBalls: battedBallsList,
     basketball,
+    soccerTie: sport === "soccer" ? soccerTie(competition, topComp, bottomComp) : null,
     plays,
     athleteNames,
     football,
@@ -775,8 +782,8 @@ export function stats(summary: JSONValue, sport: Sport, topID: string | null, bo
     const bn = magnitude(bv);
     if (tn == null && bn == null) return [];
     const total = (tn ?? 0) + (bn ?? 0);
-    // ESPN's NBA percentages are bare numbers ("45").
-    const suffix = key === "possessionPct" || (nba && key.endsWith("Pct")) ? "%" : "";
+    // ESPN's basketball percentages are bare numbers ("45").
+    const suffix = key === "possessionPct" || (sport === "basketball" && key.endsWith("Pct")) ? "%" : "";
     return [{ label, top: tv + suffix, bottom: bv + suffix, topShare: total > 0 ? Math.min(Math.max((tn ?? 0) / total, 0), 1) : 0.5 }];
   });
 }
@@ -859,6 +866,11 @@ export function soccerMoment(e: JSONValue, side: SideOf): DetailMoment | null {
     minute: seconds != null ? seconds / 60 : null,
     score: null,
     period: null,
+    players: arr(at(e, "participants")).flatMap((p) => {
+      const pid = str(at(p, "athlete", "id"));
+      const name = str(at(p, "athlete", "displayName"));
+      return pid && name ? [{ id: pid, name }] : [];
+    }),
   };
 }
 

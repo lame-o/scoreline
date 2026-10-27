@@ -85,6 +85,7 @@ describe("the feed", () => {
     feed.read(pages(core.items.slice(0, half), 200), 200, true, HOME);
     expect(feed.loaded).toBe(true);
     expect(feed.trail).toHaveLength(10);
+    expect(feed.plays).toHaveLength(80);
     expect(feed.shots.filter((s) => s.kind === "goal")).toHaveLength(2);
     expect(feed.takeMoments()).toEqual([]);
     // The next look reads only what's new: the 60' goal is news.
@@ -138,5 +139,27 @@ describe("the summary's key events", () => {
     expect(detail.linescore).toBeNull();
     expect(detail.stats.find((s) => s.label === "Possession")?.top).toMatch(/%$/);
     expect(detail.recentPlays[0]).toContain("Match ends");
+  });
+});
+
+describe("an archived match's unit-scale feed", () => {
+  // As ESPN serves a March 2026 Champions League match: 0…1, each team attacking toward x = 0.
+  const items = [
+    { id: "1", type: { type: "shot-on-target" }, team: { $ref: "/teams/359" }, fieldPositionX: 0.19, fieldPositionY: 0.462, fieldPosition2X: 0.01, fieldPosition2Y: 0.496, clock: { value: 600, displayValue: "10'" } },
+    { id: "2", type: { type: "goal" }, scoringPlay: true, team: { $ref: "/teams/131" }, fieldPositionX: 0.376, fieldPositionY: 0.507, fieldPosition2X: 0, fieldPosition2Y: 0.542, clock: { value: 900, displayValue: "15'" } },
+  ];
+
+  it("is turned round onto the usual scale, each team attacking its own way", async () => {
+    const { pitchScale } = await import("../../src/data/liveFeeds/soccer");
+    expect(pitchScale(items)).toBe("unit");
+    expect(pitchScale(core.items)).toBe("percent");
+    const feed = new SoccerFeed();
+    feed.read([{ page: 1, items }], 200, true, "359");
+    const [shot, goal] = feed.shots;
+    expect(shot).toMatchObject({ side: "top", x: 81, endX: 99 });
+    expect(shot!.y).toBeCloseTo(53.8);
+    // The away side's goal, flipped to attack left: it ends on the line at 0.
+    expect(goal).toMatchObject({ side: "bottom", endX: 0 });
+    expect(goal!.x).toBeCloseTo(37.6);
   });
 });

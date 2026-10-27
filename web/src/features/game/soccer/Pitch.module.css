@@ -1,0 +1,328 @@
+/* The pitch (PitchView): fills the width up to 260pt tall, then centers with its footer. */
+.pitch {
+  width: 100%;
+  margin: 0 auto;
+}
+
+.plot {
+  position: relative;
+  width: 100%;
+}
+
+.layer,
+.overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.layer {
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+/* A mark picked out elsewhere: the rest step back (Viz.receded). */
+.layer[data-receded="true"] {
+  opacity: 0.55;
+}
+
+/* Pointing at the chart takes over from a moment (it keeps playing, unseen). */
+.overlay[data-hidden="true"] {
+  opacity: 0;
+}
+
+/*
+ * The ball (plain black or white, not the label's translucent ink, which
+ * reads see-through on the well) and a ring in the color of the team that
+ * touched it last. It glides to each new position (Motion.travel).
+ */
+.ball {
+  position: absolute;
+  top: calc(-6.25 * var(--pt));
+  left: calc(-6.25 * var(--pt));
+  width: calc(12.5 * var(--pt));
+  height: calc(12.5 * var(--pt));
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 calc(1.25 * var(--pt)) currentColor;
+  pointer-events: none;
+  will-change: transform;
+  transition:
+    transform 400ms var(--ease-out),
+    color var(--dur-fade) var(--ease-out);
+}
+
+.ball::after {
+  content: "";
+  position: absolute;
+  inset: calc(2.25 * var(--pt));
+  border-radius: 50%;
+  background: light-dark(#000, #fff);
+}
+
+.ball[data-reduce="true"] {
+  transition: color var(--dur-fade) var(--ease-out);
+}
+
+.badge {
+  animation: badge-in var(--dur-reveal) var(--ease-out);
+}
+
+@keyframes badge-in {
+  from {
+    opacity: 0;
+    scale: 0.92;
+  }
+}
+
+.card {
+  fill: light-dark(#ffcc00, #ffd60a);
+  stroke: rgb(0 0 0 / 0.25);
+  stroke-width: 0.5;
+}
+
+.card[data-red="true"] {
+  fill: light-dark(#ff3b30, #ff453a);
+}
+
+/* A card being shown swings round from edge-on to face the viewer (Motion.pop). */
+.cardShown[data-turns="true"] {
+  animation: card-turn 400ms cubic-bezier(0.34, 1.3, 0.64, 1) both;
+}
+
+@keyframes card-turn {
+  from {
+    transform: perspective(60px) rotateY(75deg);
+  }
+  to {
+    transform: perspective(60px) rotateY(0deg);
+  }
+}
+
+/* MARK: The shot as it happened */
+
+.shot {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  opacity: 0.8;
+  animation: draw 400ms var(--ease-out) both;
+}
+
+.overlay[data-big="true"] .shot {
+  opacity: 1;
+}
+
+/* A miss: "it went past", then it's gone (a big chance lingers 0.4 s longer). */
+.overlay[data-kind="shotWide"] .shot {
+  animation:
+    draw 400ms var(--ease-out) both,
+    leave 600ms var(--ease-out) 450ms forwards;
+}
+
+.overlay[data-kind="shotWide"][data-big="true"] .shot {
+  animation:
+    draw 400ms var(--ease-out) both,
+    leave 600ms var(--ease-out) 850ms forwards;
+}
+
+.mouth {
+  fill: currentColor;
+  animation: fade-in var(--dur-reveal) var(--ease-out) 350ms both;
+}
+
+.stop {
+  fill: var(--viz-neutral);
+  animation: badge-in var(--dur-reveal) var(--ease-out) 350ms both;
+}
+
+.stop[data-saved="true"] {
+  fill: var(--label);
+}
+
+/* The post (or bar) it hit, rattling along the goal line as the ball reaches it. */
+.post {
+  animation:
+    fade-in var(--dur-fade) var(--ease-out) 350ms both,
+    rattle 340ms ease-in-out 350ms;
+}
+
+.post[data-vertical="up"] {
+  --out: -1;
+}
+
+.post[data-vertical="down"] {
+  --out: 1;
+}
+
+@keyframes rattle {
+  0% {
+    translate: 0 0;
+  }
+  15% {
+    translate: 0 calc(var(--out, 1) * 2px);
+  }
+  35% {
+    translate: 0 calc(var(--out, 1) * -1.6px);
+  }
+  56% {
+    translate: 0 calc(var(--out, 1) * 1px);
+  }
+  76% {
+    translate: 0 calc(var(--out, 1) * -0.5px);
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+
+.ping {
+  stroke: currentColor;
+  animation: ping 600ms var(--ease-out) both;
+}
+
+@keyframes ping {
+  from {
+    scale: 0.6;
+    opacity: 0.9;
+  }
+  to {
+    scale: 1.8;
+    opacity: 0;
+  }
+}
+
+/* The net bellies out fast as the ball hits, springs back to a sag, then fades. */
+.net {
+  scale: 0 1;
+  animation: belly 800ms linear 350ms both;
+}
+
+@keyframes belly {
+  0% {
+    scale: 0 1;
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  10% {
+    opacity: 1;
+  }
+  12.5% {
+    scale: var(--depth) 1;
+    animation-timing-function: cubic-bezier(0.3, 0, 0.3, 1);
+  }
+  30% {
+    scale: calc(var(--depth) * 0.22) 1;
+  }
+  42% {
+    scale: calc(var(--depth) * 0.42) 1;
+  }
+  62.5% {
+    scale: calc(var(--depth) * 0.35) 1;
+    opacity: 1;
+  }
+  100% {
+    scale: calc(var(--depth) * 0.35) 1;
+    opacity: 0;
+  }
+}
+
+.net[data-reduce="true"] {
+  animation: net-still 800ms linear 350ms both;
+}
+
+@keyframes net-still {
+  0% {
+    scale: calc(var(--depth) * 0.5) 1;
+    opacity: 0;
+  }
+  10%,
+  62.5% {
+    scale: calc(var(--depth) * 0.5) 1;
+    opacity: 1;
+  }
+  100% {
+    scale: calc(var(--depth) * 0.5) 1;
+    opacity: 0;
+  }
+}
+
+/* Reduce Motion: the shot is simply there; nothing pings. */
+.overlay[data-reduce="true"] .shot,
+.overlay[data-reduce="true"] .mouth,
+.overlay[data-reduce="true"] .stop,
+.overlay[data-reduce="true"] .post {
+  animation-duration: 1ms;
+  animation-delay: 0ms;
+}
+
+.overlay[data-reduce="true"] .ping {
+  display: none;
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes leave {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* MARK: Footer */
+
+.dot {
+  width: calc(7 * var(--pt));
+  height: calc(7 * var(--pt));
+  border-radius: 50%;
+}
+
+.ring {
+  width: calc(8 * var(--pt));
+  height: calc(8 * var(--pt));
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 calc(1.5 * var(--pt)) var(--viz-neutral);
+}
+
+.goalSwatch {
+  display: inline-flex;
+  align-items: center;
+}
+
+.goalSwatch > :first-child {
+  width: calc(9 * var(--pt));
+  height: calc(9 * var(--pt));
+  border-radius: 50%;
+  background: var(--viz-neutral);
+}
+
+.goalSwatch > :last-child {
+  width: calc(10 * var(--pt));
+  height: calc(1.5 * var(--pt));
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--viz-neutral) 75%, transparent);
+}
+
+.latest,
+.summary {
+  font-size: calc(10 * var(--pt));
+  color: var(--label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}

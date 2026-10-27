@@ -273,3 +273,18 @@ describe("small formats", () => {
     expect(spokenBoxLine({ PTS: "12", FG: "4-9", "+/-": "+3" }, boxColumnsFor("medium"))).toBe("12 points, 4 of 9 field goals, plus-minus +3");
   });
 });
+
+describe("team colors", () => {
+  it("lets a team wear its second color when the two clash", async () => {
+    const { nbaPalette, colorDifference } = await import("../../src/data/basketball");
+    // Lakers purple beside Jazz purple: the Jazz (at home) wear their second color.
+    const lakers = { color: "552583", alternateColor: "fdb927" };
+    const jazz = { color: "4e008e", alternateColor: "79a3dc" };
+    const p = nbaPalette(lakers, jazz, "light");
+    expect(colorDifference(p.top, p.bottom)).toBeGreaterThanOrEqual(0.45);
+    // Colors already apart stay as they are.
+    const celtics = { color: "008348", alternateColor: "000000" };
+    const { teamPalette } = await import("../../src/data/teamColors");
+    expect(nbaPalette(lakers, celtics, "dark")).toEqual(teamPalette(lakers.color, celtics.color, "dark"));
+  });
+});

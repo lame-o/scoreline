@@ -1,0 +1,136 @@
+/* The match on one track (SoccerTimeline). */
+.timeline {
+  position: relative;
+  width: 100%;
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.team {
+  font-size: 9px;
+  font-weight: 600;
+  fill: var(--label-secondary);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.track {
+  fill: color-mix(in srgb, var(--label) 12%, transparent);
+}
+
+/* Stoppage beyond 90'. */
+.extra {
+  fill: var(--viz-track);
+}
+
+.tick {
+  fill: color-mix(in srgb, var(--label) 16%, transparent);
+}
+
+.played {
+  fill: var(--viz-neutral);
+  transition: transform var(--dur-standard) var(--ease-out);
+}
+
+.half {
+  stroke: var(--viz-reference);
+  stroke-width: 1;
+}
+
+/* The now dot's room: the track stops short of it on both sides. */
+.ring {
+  fill: var(--page);
+  transition: transform var(--dur-standard) var(--ease-out);
+}
+
+.now {
+  fill: var(--live);
+  transition: transform var(--dur-standard) var(--ease-out);
+}
+
+.svg[data-reduce="true"] .played,
+.svg[data-reduce="true"] .ring,
+.svg[data-reduce="true"] .now {
+  transition: none;
+}
+
+.marks {
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.marks[data-receded="true"] {
+  opacity: 0.55;
+}
+
+/* Each goal clears room in the marks before it: a page-colored edge. */
+.goal {
+  stroke: var(--page);
+  stroke-width: 1.5;
+  paint-order: stroke;
+}
+
+.card {
+  fill: light-dark(#ffcc00, #ffd60a);
+}
+
+.card[data-red="true"] {
+  fill: light-dark(#ff3b30, #ff453a);
+}
+
+.emphasized {
+  animation: fade-in var(--dur-fade) var(--ease-out);
+}
+
+.labels {
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.labels[data-hidden="true"] {
+  opacity: 0;
+}
+
+.landmark,
+.quarter {
+  font-size: 9px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  fill: var(--label-secondary);
+  dominant-baseline: central;
+}
+
+/* Quieter than the landmarks (0', HT, the end) they sit between. */
+.quarter {
+  opacity: 0.6;
+}
+
+/* While a mark is pointed at, the minute row says what it was. */
+.readout {
+  position: absolute;
+  right: 0;
+  top: calc(47 * var(--pt));
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  animation: fade-in var(--dur-fade) var(--ease-out);
+}
+
+.readout strong {
+  font-weight: 600;
+  color: var(--label);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}

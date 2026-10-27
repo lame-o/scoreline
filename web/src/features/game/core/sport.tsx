@@ -19,7 +19,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import type { GameDetail } from "../../../data/gameDetail";
 import type { AccessoryTier } from "../../../data/matchRules";
-import type { ScoreEvent, Side } from "../../../data/models";
+import type { GameClock, ScoreEvent, Side } from "../../../data/models";
 import type { Section } from "../../../data/sections";
 import type { TeamPalette } from "../../../data/teamColors";
 import type { PageGeometry } from "./geometry";
@@ -63,6 +63,16 @@ export interface SportPage {
   readonly dockDetail?: (tier: AccessoryTier) => ReactNode;
   /** One state chip on the bar (2-MIN DRILL, CLUTCH). */
   readonly chip?: string | null;
+  /** The lane's own game clock (the NBA's 5-second readings), ahead of the scoreboard's; null or absent: the scoreboard's. */
+  readonly clock?: GameClock | null;
+  /** NBA: a shot in the air (the possession glyph dims, still the shooting team's). */
+  readonly possessionInAir?: boolean;
+  /** A state chip beside the hero's live clock (CLUTCH). */
+  readonly heroChip?: string | null;
+  /** A line under the hero's status, in any state: a two-legged tie's aggregate, a shootout ("Agg 3–2 · Pens 4–3"). */
+  readonly heroNote?: string | null;
+  /** What sits beside each team's name on the docked bar (the possession glyph, red cards), given its room. */
+  readonly dockSlot?: (side: Side, tier: AccessoryTier) => ReactNode;
 }
 
 export type UseSportPage = (game: GameContext) => SportPage;

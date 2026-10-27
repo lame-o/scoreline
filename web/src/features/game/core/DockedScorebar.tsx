@@ -21,7 +21,7 @@ import { LiveStatus, TeamLogo } from "../../../design/components";
 import { countdownClock, dayAndTime } from "../../../data/format";
 import { Accessory, finalText, newsLineShows, type AccessoryTier, type HeroBeats, type Surface } from "../../../data/matchRules";
 import { captioned, type LiveMoment } from "../../../data/moments";
-import { stepsBack, type ScoreEvent } from "../../../data/models";
+import { stepsBack, type ScoreEvent, type Side } from "../../../data/models";
 import { sectionForChart } from "../../../data/sections";
 import type { TeamPalette } from "../../../data/teamColors";
 import { useNow } from "../../../state/clock";
@@ -44,6 +44,8 @@ export interface DockedScorebarProps {
   readonly detail?: (tier: AccessoryTier) => ReactNode;
   /** One state chip (2-MIN DRILL, CLUTCH, BASES LOADED…). */
   readonly chip?: string | null;
+  /** Beside each team's name: the possession glyph, red cards (the Mac's slot). */
+  readonly slot?: (side: Side, tier: AccessoryTier) => ReactNode;
 }
 
 /** The bar's slot: sticky under the header, zero height, so the page never moves for it. */
@@ -65,7 +67,7 @@ export function DockedScorebar(props: DockedScorebarProps) {
   );
 }
 
-const BarContent = memo(function BarContent({ geometry, event, palette, scores, beats, surface, clockFallback, stale, detail, chip }: DockedScorebarProps) {
+const BarContent = memo(function BarContent({ geometry, event, palette, scores, beats, surface, clockFallback, stale, detail, chip, slot }: DockedScorebarProps) {
   const box = useRef<HTMLButtonElement>(null);
   const width = useWidth(box, 360);
   const moment = useCurrentMoment();
@@ -89,6 +91,7 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
               <TeamLogo url={event.content.top.logo} size={18} />
               {event.content.top.rank != null ? <span className={styles.rank}>{event.content.top.rank}</span> : null}
               <span className={styles.abbr}>{event.content.top.abbreviation}</span>
+              {live && slot ? <span className={styles.slot}>{slot("top", tier)}</span> : null}
             </span>
             <span className={styles.scores}>
               {event.state === "scheduled" || (scores.top == null && scores.bottom == null) ? (
@@ -102,6 +105,7 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
               )}
             </span>
             <span className={styles.team}>
+              {live && slot ? <span className={styles.slot}>{slot("bottom", tier)}</span> : null}
               {event.content.bottom.rank != null ? <span className={styles.rank}>{event.content.bottom.rank}</span> : null}
               <span className={styles.abbr}>{event.content.bottom.abbreviation}</span>
               <TeamLogo url={event.content.bottom.logo} size={18} />
