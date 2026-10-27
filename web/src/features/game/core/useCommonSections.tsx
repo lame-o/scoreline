@@ -13,15 +13,14 @@ import { pageKind, type Section } from "../../../data/sections";
 import { LatestPlays, LinescoreGrid, MomentList, SeriesLink, StatBars, WhereToWatch, WinProbability } from "./CommonSections";
 import { DetailSection } from "./DetailSection";
 import type { GameContext } from "./sport";
-import type { PlayerRef } from "../../profiles/ProfileLinks";
 
 export interface CommonOptions {
   /** Every ball in play, for a sport whose line score lights them (unused here; charts read the focus). */
   readonly moments?: readonly DetailMoment[];
   /** The plays the "Latest" section lists (a live lane's, when it's ahead). */
   readonly plays?: readonly string[];
-  /** Links the people the key events name to their pages. */
-  readonly playerRef?: (id: string, name: string) => PlayerRef | null;
+  /** A scoring play's words with its players' names as links (football). */
+  readonly momentText?: (m: DetailMoment, text: string) => ReactNode;
 }
 
 export function useCommonSections(game: GameContext, options: CommonOptions = {}): Partial<Record<Section, ReactNode>> {
@@ -35,7 +34,7 @@ export function useCommonSections(game: GameContext, options: CommonOptions = {}
   const sections: Partial<Record<Section, ReactNode>> = {};
 
   if (detail.linescore) {
-    const title = baseball ? "Score by Inning" : kind === "espn" || nba ? "Score by Quarter" : "Score by Period";
+    const title = baseball ? "Score by Inning" : kind === "espn" || kind === "football" || nba ? "Score by Quarter" : "Score by Period";
     sections.linescore = (
       <DetailSection id="linescore" title={title} caption={baseball ? "Runs per inning. R runs, H hits, E errors." : "Points per period. T is the total."}>
         <LinescoreGrid linescore={detail.linescore} topName={names.top} bottomName={names.bottom} totals={baseball ? 3 : 1} palette={palette} spokenTop={spoken.top} spokenBottom={spoken.bottom} />
@@ -70,7 +69,7 @@ export function useCommonSections(game: GameContext, options: CommonOptions = {}
         }
         spokenCaption={soccer ? undefined : nba ? "Runs of 8 or more, late lead changes and each break, newest first." : "Every scoring play, newest first, with the score after it."}
       >
-        <MomentList moments={moments} topName={names.top} bottomName={names.bottom} topTeam={top} bottomTeam={bottom} playerRef={options.playerRef} />
+        <MomentList moments={moments} topName={names.top} bottomName={names.bottom} topTeam={top} bottomTeam={bottom} renderText={options.momentText} />
       </DetailSection>
     );
   }

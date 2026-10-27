@@ -27,3 +27,8 @@
     scale: 0.92;
   }
 }
+
+/* A goal's assist, after the scorer (quieter). */
+.assist {
+  color: var(--label-secondary);
+}

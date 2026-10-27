@@ -52,8 +52,10 @@ export interface Settings {
   readonly celebrationLevel: CelebrationLevel;
   /** A soft sound when the open game scores (`celebrationSounds`). */
   readonly celebrationSounds: boolean;
-  /** Alerts for followed teams (`notifyFollowed`). Web notifications are still to do. */
+  /** Alerts for followed teams (`notifyFollowed`): web notifications, once the browser allows them. */
   readonly notifyFollowed: boolean;
+  /** The tab's title and favicon carry a followed team's live score (`scoreInMenuBar`; a pinned game shows regardless). */
+  readonly scoreInTitle: boolean;
   /** CS2: mark live matches a Twitch channel is co-streaming (`showCoStream`, `coStreamer`). */
   readonly showCoStream: boolean;
   readonly coStreamer: string;
@@ -76,6 +78,7 @@ export const DEFAULTS: Settings = {
   celebrationLevel: "full",
   celebrationSounds: false,
   notifyFollowed: true,
+  scoreInTitle: true,
   showCoStream: true,
   coStreamer: "ohnepixel",
   resultsDetails: true,
@@ -128,6 +131,7 @@ export function sanitize(raw: unknown): Settings {
     celebrationLevel: pick(s.celebrationLevel, ["full", "subtle", "off"], DEFAULTS.celebrationLevel),
     celebrationSounds: flag(s.celebrationSounds, DEFAULTS.celebrationSounds),
     notifyFollowed: flag(s.notifyFollowed, DEFAULTS.notifyFollowed),
+    scoreInTitle: flag(s.scoreInTitle, DEFAULTS.scoreInTitle),
     showCoStream: flag(s.showCoStream, DEFAULTS.showCoStream),
     coStreamer: typeof s.coStreamer === "string" ? s.coStreamer : DEFAULTS.coStreamer,
     resultsDetails: flag(s.resultsDetails, DEFAULTS.resultsDetails),

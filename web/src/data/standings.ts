@@ -639,6 +639,22 @@ export function leaderSpoken(row: StandingsRow, rank?: number | null): string {
 }
 
 /**
+ * A college game's table (DetailView.collegeWindow): each team's conference,
+ * `reach` places either side of it (both conferences for a non-conference
+ * game), in ESPN's order; a skipped stretch shows as a gap between ranks.
+ */
+export function collegeWindow(rows: readonly StandingsRow[], ids: ReadonlySet<string>, reach: number): StandingsRow[] {
+  const groups = new Set(rows.filter((r) => ids.has(r.id)).flatMap((r) => (r.group ? [r.group] : [])));
+  const table = rows.filter((r) => groups.has(r.group ?? ""));
+  const keep = new Set<number>();
+  table.forEach((r, p) => {
+    if (!ids.has(r.id)) return;
+    for (let i = p - reach; i <= p + reach; i++) if (i >= 0 && i < table.length && table[i]!.group === r.group) keep.add(i);
+  });
+  return table.filter((_, i) => keep.has(i));
+}
+
+/**
  * College conferences of the match first, then those with a followed team;
  * the rest keep ESPN's order (StandingsView.collegeRows).
  */

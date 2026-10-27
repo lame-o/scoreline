@@ -182,3 +182,63 @@
     min-height: calc(32 * var(--pt));
   }
 }
+
+/* MARK: Context menus: placed at the pointer, over everything, growing from the corner nearest it. */
+
+.contextMenu {
+  position: fixed;
+  z-index: 1000;
+  right: auto;
+  margin: 0;
+}
+
+.contextMenu[data-origin="top-left"] {
+  transform-origin: top left;
+}
+
+.contextMenu[data-origin="top-right"] {
+  transform-origin: top right;
+}
+
+.contextMenu[data-origin="bottom-left"] {
+  transform-origin: bottom left;
+}
+
+.contextMenu[data-origin="bottom-right"] {
+  transform-origin: bottom right;
+}
+
+/* Growing up from below the point: it rises rather than drops. */
+.contextMenu[data-origin^="bottom"] {
+  animation-name: menu-in-up;
+}
+
+.contextMenu[data-origin^="bottom"][data-instant="true"] {
+  animation: none;
+}
+
+.contextMenu[data-origin^="bottom"][data-closing="true"] {
+  animation: menu-out var(--dur-exit) var(--ease-out) both;
+}
+
+@keyframes menu-in-up {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(calc(4 * var(--pt)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes menu-in-up {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* A key to press means nothing on a touch screen (iOS's menus show none). */
+@media (pointer: coarse) {
+  .shortcut {
+    display: none;
+  }
+}

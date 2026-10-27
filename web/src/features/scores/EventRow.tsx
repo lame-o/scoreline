@@ -6,7 +6,9 @@
  * change flashes the row red, with a dot before the side that scored.
  *
  * It's a link to the game, labeled with the game in words; it re-renders
- * only when its own game, highlight or selection changes.
+ * only when its own game, highlight or selection changes. Its menu (follow,
+ * pin to the tab, the teams' pages…) opens by right-click, long press, the
+ * "…" on hover or Shift-F10 (GameMenu.tsx). A pinned game wears a pin.
  */
 import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
@@ -16,8 +18,10 @@ import { contextLine, countdown, clockTime, dayName, enDash, isDelayed, spokenSu
 import { competitorKey, eventSport, stepsBack, type Competitor, type ScoreEvent } from "../../data/models";
 import { liveScoreChanged, sameEvent, scorers as findScorers } from "../../data/scoreboard";
 import { useNow } from "../../state/clock";
+import { useIsPinned } from "../../state/pin";
 import { useSettings } from "../../state/settings";
 import type { NavState } from "../../app/layout";
+import { GameMenuHost } from "./GameMenu";
 import { recordFits } from "./measure";
 import { TravelingLogo, travelID } from "./sections";
 import styles from "./EventRow.module.css";
@@ -41,6 +45,7 @@ export interface EventRowProps {
 
 function EventRowView({ event, keyboard, selected, records, stale, revealDelay, travel, onHover }: EventRowProps) {
   const followed = useSettings((s) => s.followed);
+  const pinned = useIsPinned(event.id);
   const isFollowed = (c: Competitor) => c.id != null && followed.some((t) => t.id === c.id);
   const { flashRef, scorers } = useScoreFlash(event);
   const now = Date.now();
@@ -51,6 +56,7 @@ function EventRowView({ event, keyboard, selected, records, stale, revealDelay, 
 
   const label = [
     spokenSummary(event, sport, now),
+    pinned ? "In the tab" : null,
     ...event.content.kind === "match" ? [event.content.top, event.content.bottom].filter(isFollowed).map((c) => `Following ${c.name}`) : [],
     event.state === "live" && event.liveLine ? event.liveLine : null,
     event.caption,
@@ -59,6 +65,7 @@ function EventRowView({ event, keyboard, selected, records, stale, revealDelay, 
     .join(", ");
 
   return (
+    <GameMenuHost event={event} className={styles.rowWrap} buttonClassName={styles.more}>
     <Link
       to={`/game/${encodeURIComponent(event.id)}`}
       className={styles.row}
@@ -95,9 +102,19 @@ function EventRowView({ event, keyboard, selected, records, stale, revealDelay, 
         ) : null}
       </span>
       <span className={[styles.status, reveal?.className].filter(Boolean).join(" ")} style={reveal?.style} aria-hidden="true">
-        <RowStatus event={event} stale={stale} />
+        {pinned ? (
+          <span className={styles.statusLine} title="Shown in the tab">
+            <Icon name="pin" size={8.5} className={styles.pin} />
+            <span className={styles.statusStack}>
+              <RowStatus event={event} stale={stale} />
+            </span>
+          </span>
+        ) : (
+          <RowStatus event={event} stale={stale} />
+        )}
       </span>
     </Link>
+    </GameMenuHost>
   );
 }
 

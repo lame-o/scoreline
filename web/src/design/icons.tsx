@@ -30,6 +30,73 @@ const GLYPHS = {
       <rect x="7.35" y="9.3" width="1.3" height="5.4" rx=".65" />
     </g>
   ),
+  // MARK: Menus (a game's and a section's: SF pin.slash, star.slash, safari, doc.on.doc, arrow.up/down, eye.slash, shield.lefthalf.filled)
+  pinSlash: (
+    <g>
+      <mask id="glyph-pin-slash">
+        <rect width="16" height="16" fill="#fff" />
+        <path d="M2.4 1.6 14.6 13.8" stroke="#000" strokeWidth={3.4} />
+      </mask>
+      <g fill="currentColor" mask="url(#glyph-pin-slash)">
+        <path d="M5.2 1.5h5.6l-.7 4.1 2.2 2.6v1.1H3.7V8.2l2.2-2.6z" />
+        <rect x="7.35" y="9.3" width="1.3" height="5.4" rx=".65" />
+      </g>
+      <path d="M2.6 2.2 13.8 13.4" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+    </g>
+  ),
+  starSlash: (
+    <g>
+      <mask id="glyph-star-slash">
+        <rect width="16" height="16" fill="#fff" />
+        <path d="M1.6 1.6 14.6 14.6" stroke="#000" strokeWidth={3.4} />
+      </mask>
+      <path mask="url(#glyph-star-slash)" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round" d="M8 1.9l1.75 3.66 4.02.5-2.95 2.77.77 3.98L8 10.84l-3.59 1.97.77-3.98-2.95-2.77 4.02-.5z" />
+      <path d="M2.2 2.2 13.8 13.8" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+    </g>
+  ),
+  compass: (
+    <g>
+      <circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" strokeWidth={1.4} />
+      <path fill="currentColor" d="M11 5 8.9 8.9 5 11l2.1-3.9z" />
+    </g>
+  ),
+  copy: (
+    <g {...stroke} strokeWidth={1.4}>
+      <rect x="2.4" y="4.6" width="8.2" height="9.6" rx="1.7" />
+      <path d="M5.4 4.4v-.8c0-.95.75-1.7 1.7-1.7h4.9c.95 0 1.7.75 1.7 1.7v6.4c0 .95-.75 1.7-1.7 1.7h-1.2" />
+    </g>
+  ),
+  arrowUp: <path {...stroke} d="M8 13.4V2.9M3.7 7.2 8 2.9l4.3 4.3" />,
+  arrowDown: <path {...stroke} d="M8 2.6v10.5M3.7 8.8 8 13.1l4.3-4.3" />,
+  eyeSlash: (
+    <g>
+      <mask id="glyph-eye-slash">
+        <rect width="16" height="16" fill="#fff" />
+        <path d="M1.6 1.6 14.6 14.6" stroke="#000" strokeWidth={3.4} />
+      </mask>
+      <g mask="url(#glyph-eye-slash)" fill="none" stroke="currentColor" strokeWidth={1.4}>
+        <path d="M1.4 8s2.5-4.6 6.6-4.6S14.6 8 14.6 8s-2.5 4.6-6.6 4.6S1.4 8 1.4 8z" strokeLinejoin="round" />
+        <circle cx="8" cy="8" r="2.1" />
+      </g>
+      <path d="M2.2 2.2 13.8 13.8" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+    </g>
+  ),
+  warning: (
+    <g>
+      <mask id="glyph-warning">
+        <rect width="16" height="16" fill="#fff" />
+        <path d="M8 5.6v3.6" stroke="#000" strokeWidth={1.6} strokeLinecap="round" />
+        <circle cx="8" cy="11.6" r=".95" fill="#000" />
+      </mask>
+      <path mask="url(#glyph-warning)" fill="currentColor" d="M6.7 2.3a1.5 1.5 0 0 1 2.6 0l5.5 9.6a1.5 1.5 0 0 1-1.3 2.3H2.5a1.5 1.5 0 0 1-1.3-2.3z" />
+    </g>
+  ),
+  shield: (
+    <g>
+      <path fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round" d="M8 1.6 13.2 3.5v4.1c0 3.1-2.1 5.5-5.2 6.8-3.1-1.3-5.2-3.7-5.2-6.8V3.5z" />
+      <path fill="currentColor" d="M8 1.6v12.8c-3.1-1.3-5.2-3.7-5.2-6.8V3.5z" />
+    </g>
+  ),
   calendar: (
     <g {...stroke} strokeWidth={1.4}>
       <rect x="2" y="3" width="12" height="11" rx="2.4" />

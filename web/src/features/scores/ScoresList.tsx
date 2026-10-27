@@ -3,12 +3,15 @@
  * collapsible (ScoresView.swift `list`, `sectionView`). Rows show records
  * from the Mac's medium width.
  */
+import { useQueries } from "@tanstack/react-query";
 import { LayoutGroup, m } from "motion/react";
 import { useMemo } from "react";
+import { Link } from "react-router";
 import { Icon, SPORT_ICON } from "../../design/components";
 import { revealDelay, spring } from "../../design/motion";
 import { espnPath } from "../../data/leagues";
 import type { League } from "../../data/models";
+import { schedulePath, scopeFor } from "../../data/schedule";
 import type { Section } from "../../data/scoreboard";
 import { ErrorCopy } from "../../design/components";
 import { EventRow } from "./EventRow";
@@ -31,7 +34,7 @@ export interface ScoresListProps {
 const PREVIEW_LOGOS = 7;
 
 export function ScoresList({ sections, collapsed, quietLeagues, hasFollowed, highlight, selectedID, records, stale, onHover }: ScoresListProps) {
-  const { toggling, toggle } = useSectionToggle();
+  const { toggling, toggle, rearrange } = useSectionToggle();
   return (
     <div className={styles.list}>
       <LayoutGroup>
@@ -56,7 +59,7 @@ export function ScoresList({ sections, collapsed, quietLeagues, hasFollowed, hig
                 onToggle={toggle}
                 maxLogos={PREVIEW_LOGOS}
                 controls={`rows-${section.id}`}
-                menu={<SectionMenu id={section.id} title={section.title} />}
+                menu={<SectionMenu id={section.id} title={section.title} onToggle={() => toggle(section.id, false)} onRearrange={rearrange} />}
               />
               {isCollapsed ? null : (
                 <SectionRows
@@ -125,23 +128,75 @@ function SectionRows({
 
 /**
  * Under the list: which leagues are quiet (and over what period: daily
- * leagues today and tomorrow, weekly ones this week), and until a team is
- * followed, how to follow one.
+ * leagues today and tomorrow, weekly ones this week); a quiet league whose
+ * calendar knows its next game day links to its schedule ("Premier League:
+ * next Sat, Nov 1"); and until a team is followed, how to follow one.
  */
 export function Footnotes({ quiet, hasFollowed }: { quiet: readonly League[]; hasFollowed: boolean }) {
-  const weekly = quiet.filter((l) => l.source.kind === "espn" && l.source.weekly);
-  const daily = quiet.filter((l) => !weekly.includes(l) && (espnPath(l) != null || l.source.kind !== "espn"));
-  if (weekly.length === 0 && daily.length === 0 && hasFollowed) return null;
+  const next = useNextGameDays(quiet);
+  const known = quiet.filter((l) => next.has(l.id));
+  const rest = quiet.filter((l) => !next.has(l.id));
+  const weekly = rest.filter((l) => l.source.kind === "espn" && l.source.weekly);
+  const daily = rest.filter((l) => !weekly.includes(l) && (espnPath(l) != null || l.source.kind !== "espn"));
+  if (known.length === 0 && weekly.length === 0 && daily.length === 0 && hasFollowed) return null;
   return (
     <div className={styles.footnotes}>
+      {known.map((l) => (
+        <p key={l.id}>
+          <Link className={styles.footnoteLink} to={schedulePath(scopeFor(l))} state={{ from: "Scores" }} title={`${l.name} schedule`}>
+            {l.name}: next {next.get(l.id)}
+          </Link>
+        </p>
+      ))}
       {daily.length > 0 ? <p>No games today or tomorrow: {daily.map((l) => l.name).join(", ")}</p> : null}
       {weekly.length > 0 ? <p>No games this week: {weekly.map((l) => l.name).join(", ")}</p> : null}
       {hasFollowed ? null : (
         <p className={styles.hint}>
           <Icon name="starOutline" size={10} />
-          <span>Open a game to follow its teams. They show first, in My Teams.</span>
+          {/* Teaches the one hidden gesture until it's been used (the Mac's hint, in the web's words). */}
+          <span>
+            <span className={styles.pointerOnly}>Right-click</span>
+            <span className={styles.touchOnly}>Touch and hold</span> a game to follow a team or show its score in the tab.
+          </span>
         </p>
       )}
     </div>
   );
+}
+
+const CALENDAR_HOURS = 12 * 3_600_000;
+
+/**
+ * Quiet ESPN leagues' next game day ("Sat, Nov 1"), from their season
+ * calendars (the schedule pages' cache; ScheduleStore.loadCalendars). The
+ * schedule code loads on demand, only when a league is quiet.
+ */
+function useNextGameDays(quiet: readonly League[]): ReadonlyMap<string, string> {
+  const today = new Date().toDateString();
+  const leagues = quiet.filter((l) => l.source.kind === "espn" && espnPath(l) != null);
+  const queries = useQueries({
+    queries: leagues.map((league) => ({
+      queryKey: ["footnote", league.id, today],
+      queryFn: async () => {
+        const [{ fetchCalendar }, { nextDayAfterWindow }, { mediumDayLabel }] = await Promise.all([import("../../state/schedule"), import("../../data/providers/schedule"), import("../../data/days")]);
+        const calendar = await fetchCalendar(espnPath(league)!);
+        const day = nextDayAfterWindow(calendar, league.source.kind === "espn" && league.source.weekly, Date.now());
+        return day ? mediumDayLabel(day) : null;
+      },
+      staleTime: CALENDAR_HOURS,
+      gcTime: CALENDAR_HOURS,
+      retry: 1,
+    })),
+  });
+  const version = queries.map((q) => q.dataUpdatedAt).join();
+  return useMemo(() => {
+    const map = new Map<string, string>();
+    leagues.forEach((l, i) => {
+      const day = queries[i]?.data;
+      if (day) map.set(l.id, day);
+    });
+    return map;
+    // `version` stands for the queries' data.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version, leagues.map((l) => l.id).join()]);
 }

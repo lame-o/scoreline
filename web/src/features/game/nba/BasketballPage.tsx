@@ -20,10 +20,8 @@ import { espnTeamIDs } from "../../../data/gameDetail";
 import { getJSON } from "../../../data/http";
 import { leagueWithID } from "../../../data/leagues";
 import { BasketballFeed, runLabel, type Teams } from "../../../data/liveFeeds/basketball";
-import { Accessory, type AccessoryTier } from "../../../data/matchRules";
 import type { GameClock, Side } from "../../../data/models";
 import type { Section } from "../../../data/sections";
-import { Icon } from "../../../design/components";
 import { useIsFollowing } from "../../../state/settings";
 import { espnPlayerRef } from "../../profiles/ProfileLinks";
 import { DetailSection } from "../core/DetailSection";
@@ -231,10 +229,6 @@ export function useBasketballPage(game: GameContext): SportPage {
     heroChip: clutch ? "CLUTCH" : null,
     // One chip at a time, by priority: CLUTCH, then a run (DockRules.chip).
     chip: clutch ? "CLUTCH" : run ? runLabel(run) : null,
-    dockSlot: possession
-      ? (side: Side, tier: AccessoryTier) =>
-          tier >= Accessory.glyph && side === possession ? <Icon name="basketball" size={9} label={inAir ? "Shot in the air" : "Has the ball"} style={{ opacity: inAir ? 0.55 : 1, transition: "opacity var(--dur-fade) var(--ease-out)" }} /> : null
-      : undefined,
   };
 }
 

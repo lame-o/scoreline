@@ -34,6 +34,7 @@ import { useCommonSections } from "../core/useCommonSections";
 import { SoccerTableWindow, useLeagueLive, useTableRows } from "../tables/GameTables";
 import { Pitch } from "./Pitch";
 import { Timeline } from "./Timeline";
+import { soccerMomentText } from "./MomentText";
 import styles from "./SoccerPage.module.css";
 
 export function useSoccerPage(game: GameContext): SportPage {
@@ -68,7 +69,8 @@ export function useSoccerPage(game: GameContext): SportPage {
   useFastLane(live && ref != null, LANE_INTERVAL.soccer, (signal) => look(signal));
 
   const playerRef = useMemo(() => (id: string, name: string) => espnPlayerRef(ref?.path ?? "soccer/all", id, name), [ref?.path]);
-  const common = useCommonSections(game, { playerRef });
+  const momentText = useMemo(() => soccerMomentText(playerRef), [playerRef]);
+  const common = useCommonSections(game, { momentText });
   const sectionWidth = game.split ? 320 : 380;
 
   // The league's table, re-ranked live.

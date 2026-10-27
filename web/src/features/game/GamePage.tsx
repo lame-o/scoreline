@@ -37,6 +37,7 @@ import { useBaseballPage } from "./mlb/BaseballPage";
 import { useBasketballPage } from "./nba/BasketballPage";
 import { nbaPalette } from "../../data/basketball";
 import { useSoccerPage } from "./soccer/SoccerPage";
+import { useFootballPage } from "./football/FootballPage";
 import { ErrorCopy } from "../../design/components";
 import styles from "./GamePage.module.css";
 
@@ -49,6 +50,7 @@ const useGenericPage: UseSportPage = (game) => ({ sections: useCommonSections(ga
  */
 const SPORT_PAGES: Readonly<Record<PageKind, UseSportPage>> = {
   baseball: useBaseballPage,
+  football: useFootballPage,
   soccer: useSoccerPage,
   nba: useBasketballPage,
   espn: useGenericPage,
@@ -204,9 +206,6 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
     refresh: game.refresh,
   };
   const sport: SportPage = SPORT_PAGES[pageKind(event.ref)](context);
-  // The lane's clock, when it reads one (the NBA's), ahead of the scoreboard's.
-  const laneClock = sport.clock ?? null;
-  const shownEvent = useMemo(() => (laneClock && event.state === "live" ? { ...event, clock: laneClock } : event), [event, laneClock]);
 
   // The hero's numbers (the lane's while it's ahead).
   const scores = { top: sport.laneScores?.top ?? top?.score ?? null, bottom: sport.laneScores?.bottom ?? bottom?.score ?? null };
@@ -222,12 +221,13 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
     <>
       <div className={styles.heroSlot}>
         <Hero
-          event={shownEvent}
+          event={event}
           palette={event.content.kind === "match" ? palette : null}
           scores={scores}
           beats={beats}
           surface={surface}
           clockFallback={fallback}
+          clock={sport.clock ?? event.clock}
           liveSecond={sport.heroSecond}
           possession={sport.possession ?? null}
           possessionInAir={sport.possessionInAir ?? false}
@@ -246,12 +246,15 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
       </div>
       <DockedScorebar
         geometry={geometry}
-        event={shownEvent}
+        event={event}
         palette={event.content.kind === "match" ? palette : null}
         scores={scores}
         beats={beats}
         surface={surface}
         clockFallback={fallback}
+        clock={sport.clock ?? event.clock}
+        possession={sport.possession}
+        possessionInAir={sport.possessionInAir ?? false}
         stale={game.staleSince != null}
         detail={sport.dockDetail}
         chip={sport.chip ?? null}

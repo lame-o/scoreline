@@ -53,18 +53,18 @@ export interface SportPage {
   readonly laneScores?: { readonly top: string; readonly bottom: string } | null;
   /** What the clock line says without a running clock (the inning, half-time). */
   readonly clockFallback?: string | null;
+  /** The live clock when the sport's lane reads it closer than the scoreboard (football's and the NBA's 5-second readings). */
+  readonly clock?: GameClock | null;
   /** Under the hero's clock ("MIL batting"). */
   readonly heroSecond?: string | null;
   /** Spoken with the hero ("Brewers batting"). */
   readonly heroSpoken?: string | null;
-  /** Football and NBA, live: who has the ball. */
+  /** Football and NBA, live: who has the ball (the hero, and the docked bar's possession slots). */
   readonly possession?: Side | null;
   /** The docked bar's live detail beside the score, given its room. */
   readonly dockDetail?: (tier: AccessoryTier) => ReactNode;
   /** One state chip on the bar (2-MIN DRILL, CLUTCH). */
   readonly chip?: string | null;
-  /** The lane's own game clock (the NBA's 5-second readings), ahead of the scoreboard's; null or absent: the scoreboard's. */
-  readonly clock?: GameClock | null;
   /** NBA: a shot in the air (the possession glyph dims, still the shooting team's). */
   readonly possessionInAir?: boolean;
   /** A state chip beside the hero's live clock (CLUTCH). */

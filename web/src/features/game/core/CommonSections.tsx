@@ -13,7 +13,7 @@
  * - `MomentList`: scoring plays or key events, newest first: time, what
  *   happened, the team's crest, the score after it. Rows pin on click.
  */
-import { memo, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { memo, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Icon, TeamLogo } from "../../../design/components";
 import type { Broadcaster } from "../../../data/broadcasters";
@@ -23,7 +23,6 @@ import { shortened } from "../../../data/moments";
 import type { Competitor, Side } from "../../../data/models";
 import { NEUTRAL, type TeamPalette } from "../../../data/teamColors";
 import { matches, useFocus, useLinkedRow, useLinkedStore, type Focus } from "./linked";
-import { PlayerLink, type PlayerRef } from "../../profiles/ProfileLinks";
 import styles from "./CommonSections.module.css";
 
 const mark = (color: string): CSSProperties => ({ background: color === NEUTRAL ? "var(--viz-neutral)" : color });
@@ -263,14 +262,14 @@ export const shortClock = (clock: string) => clock.replace(" Inning", "");
 /** Soccer: the icon already says goal or card, so the row is the player (MomentList.headline). */
 export const headline = (m: DetailMoment) => (["goal", "ownGoal", "yellow", "red"].includes(m.kind) ? shortened(m.text) : m.text);
 
-export const MomentList = memo(function MomentList({ moments, topName, bottomName, topTeam, bottomTeam, playerRef }: {
+export const MomentList = memo(function MomentList({ moments, topName, bottomName, topTeam, bottomTeam, renderText }: {
   moments: readonly DetailMoment[];
   topName: string;
   bottomName: string;
   topTeam: Competitor | null;
   bottomTeam: Competitor | null;
-  /** Links the people a moment names (a goal's scorer and its assist) to their pages. */
-  playerRef?: (id: string, name: string) => PlayerRef | null;
+  /** The play's words with its players' names as links (football); the rows then pin on a click beside them. */
+  renderText?: (m: DetailMoment, text: string) => ReactNode;
 }) {
   // Soccer goals don't come with the score; count it up (skipped with an own goal, whose side ESPN leaves ambiguous).
   const running = new Map<string, string>();
@@ -290,23 +289,23 @@ export const MomentList = memo(function MomentList({ moments, topName, bottomNam
   return (
     <ul className={styles.moments} style={{ "--clock": `calc(${wide} * var(--pt))` } as CSSProperties}>
       {[...moments].reverse().map((m) => (
-        <MomentRow key={m.id} m={m} score={m.score ?? running.get(m.id) ?? null} keepsScoreColumn={running.size > 0 || moments.some((x) => x.score != null)} showsIcon={showsIcons} names={[topName, bottomName]} teams={[topTeam, bottomTeam]} playerRef={playerRef} />
+        <MomentRow key={m.id} m={m} score={m.score ?? running.get(m.id) ?? null} keepsScoreColumn={running.size > 0 || moments.some((x) => x.score != null)} showsIcon={showsIcons} names={[topName, bottomName]} teams={[topTeam, bottomTeam]} renderText={renderText} />
       ))}
     </ul>
   );
 });
 
-function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams, playerRef }: {
+function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams, renderText }: {
   m: DetailMoment;
   score: string | null;
   keepsScoreColumn: boolean;
   showsIcon: boolean;
   names: [string, string];
   teams: [Competitor | null, Competitor | null];
-  playerRef?: (id: string, name: string) => PlayerRef | null;
+  renderText?: (m: DetailMoment, text: string) => ReactNode;
 }) {
   const focus: Focus = { play: m.id, period: m.period ?? undefined, side: m.side };
-  const row = useLinkedRow(focus, { pinnable: true });
+  const row = useLinkedRow(focus, { pinnable: true, links: renderText != null });
   const lit = useFocus((f) => matches(f, { play: m.id, period: m.period, side: m.side }));
   const team = m.side === "top" ? teams[0] : m.side === "bottom" ? teams[1] : null;
   const name = m.side === "top" ? names[0] : m.side === "bottom" ? names[1] : "";
@@ -320,9 +319,7 @@ function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams, player
         {shortClock(m.clock)}
       </span>
       {showsIcon ? <span className={styles.momentIcon} data-kind={m.kind} /> : null}
-      <span className={styles.momentText}>
-        <MomentHeadline m={m} playerRef={playerRef} />
-      </span>
+      <span className={styles.momentText}>{renderText ? renderText(m, headline(m)) : headline(m)}</span>
       {m.side ? (
         <span className={styles.momentTeam} title={team?.name ?? name}>
           {team?.logo ? <TeamLogo url={team.logo} size={14} /> : <span className={styles.momentAbbr}>{name}</span>}
@@ -330,38 +327,6 @@ function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams, player
       ) : null}
       {score ? <span className={styles.momentScore}>{score}</span> : keepsScoreColumn ? <span className={styles.momentScore} /> : null}
     </li>
-  );
-}
-
-/**
- * The row's words, the people in them linked to their pages: a goal's scorer
- * where the headline names them, and its assist after it ("Nicolas Jackson ·
- * assist McGinn"). A link's click stays its own (the row pins on click).
- */
-function MomentHeadline({ m, playerRef }: { m: DetailMoment; playerRef?: (id: string, name: string) => PlayerRef | null }) {
-  const text = headline(m);
-  const [first, assist] = m.players ?? [];
-  if (!playerRef || !first) return <>{text}</>;
-  const stop = (e: React.MouseEvent | React.KeyboardEvent) => e.stopPropagation();
-  const named = text.startsWith(first.name);
-  const goal = m.kind === "goal" && assist != null && assist.id !== first.id;
-  return (
-    <>
-      {named ? (
-        <span onClick={stop} onKeyDown={stop}>
-          <PlayerLink player={playerRef(first.id, first.name)}>{first.name}</PlayerLink>
-        </span>
-      ) : null}
-      {named ? text.slice(first.name.length) : text}
-      {goal ? (
-        <span className={styles.momentAssist}>
-          {" · assist "}
-          <span onClick={stop} onKeyDown={stop}>
-            <PlayerLink player={playerRef(assist.id, assist.name)}>{assist.name.split(" ").at(-1) ?? assist.name}</PlayerLink>
-          </span>
-        </span>
-      ) : null}
-    </>
   );
 }
 

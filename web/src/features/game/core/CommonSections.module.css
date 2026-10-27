@@ -442,8 +442,3 @@ a.watchRow:active,
   border-radius: 999px;
   transition: transform var(--dur-standard) var(--ease-out);
 }
-
-/* A goal's assist, after the scorer (quieter). */
-.momentAssist {
-  color: var(--label-secondary);
-}
