@@ -262,6 +262,9 @@ struct GameDetail {
     var rounds: [Int: [CSRound]] = [:]
     var atBat: [Pitch] = []
     var battedBalls: [BattedBall] = []
+    /// Baseball, live: the last play on the field and who's up, for the play
+    /// theater until the live lane has spoken.
+    var theater: TheaterState?
     var wall: [WallRoute] = []
     /// Live round score of the current CS2 map, when bo3.gg's live feed has it.
     var csLive: CSLive?
@@ -458,6 +461,7 @@ enum ESPNDetail {
                     }
                 }
             }
+            if event.state == .live { detail.theater = PlayScene.theater(plays, side: side, names: detail.athleteNames) }
         case .basketball where path == NBADetail.path:
             let topIsHome = topComp?["homeAway"].string == "home"
             detail.basketball = NBADetail.parse(summary, side: side, topIsHome: topIsHome)

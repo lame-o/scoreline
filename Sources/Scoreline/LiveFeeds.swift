@@ -658,6 +658,9 @@ final class BaseballFeed {
     /// True once the play feed has been read, so an empty at-bat is a fresh
     /// batter, not missing data.
     private(set) var loaded = false
+    /// The play theater's last play on the field and who's up now. Assigned
+    /// only when they change, so a pitch doesn't redraw the theater.
+    private(set) var theater = TheaterState()
     /// The most recent plays, enough to hold the current at-bat.
     @ObservationIgnored private var window: [JSON] = []
     /// At-bat results that arrived since the page opened.
@@ -687,14 +690,14 @@ final class BaseballFeed {
         guard let s else { return }
         let lastRef = s["lastPlay"]["$ref"].string
         if lastRef != lastPlayRef || !loaded {
-            await loadPlays(base: base, side: side)
+            await loadPlays(base: base, names: names, side: side)
             let lastID = lastRef.flatMap { ref in ref.range(of: "/plays/").map { String(ref[$0.upperBound...].prefix { $0.isNumber }) } }
             if !Task.isCancelled, lastID == nil || lastID == newestID { lastPlayRef = lastRef }
         }
         situation = Self.situation(s, names: names, lastPlay: window.last { $0["type"]["type"].string == "play-result" }?["text"].string)
     }
 
-    private func loadPlays(base: String, side: (String?) -> GameDetail.Side?) async {
+    private func loadPlays(base: String, names: [String: String], side: (String?) -> GameDetail.Side?) async {
         // First look: start a couple of pages from the end, not at the first pitch.
         if fetched == nil {
             guard let url = URL(string: "\(base)/plays?limit=1"), let head = try? await JSON.fetch(url) else { return }
@@ -722,17 +725,42 @@ final class BaseballFeed {
         fetched = start
         guard !Task.isCancelled else { return }
         // Until a complete look it's history; after, at-bat results are news.
+        let news = primed
         if primed { moments += new.compactMap { Self.moment($0, side: side) } }
         if complete { primed = true }
         loaded = true
         guard !new.isEmpty else { return }
         window = Array((window + new).suffix(Self.windowSize))
         atBat = ESPNDetail.currentAtBat(window)
+        updateTheater(news: news, names: names, side: side)
         let balls = ESPNDetail.battedBalls(window, side: side)
         var byID = Dictionary(battedBalls.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
         for ball in balls { byID[ball.id] = ball }
         battedBalls = Array(byID.values)
     }
+
+    private func updateTheater(news: Bool, names: [String: String], side: (String?) -> GameDetail.Side?) {
+        let next = Self.theater(window, after: theater, primed: news, now: AppClock.now, names: names, side: side)
+        if next != theater { theater = next }
+    }
+
+    /// The theater after a look at the plays. Its play is news if it arrived
+    /// after the first complete look, or if it only just happened (a page
+    /// opened right after it); otherwise it's history, shown as it ended. A
+    /// play already showing keeps what it was. (pure; tested)
+    static func theater(_ window: [JSON], after previous: TheaterState, primed: Bool, now: Date,
+                        names: [String: String], side: (String?) -> GameDetail.Side?) -> TheaterState {
+        var next = PlayScene.theater(window, side: side, names: names)
+        if let play = next.play {
+            next.news = play.id == previous.play?.id ? previous.news
+                : primed || play.wallclock.map { now.timeIntervalSince($0) < recent } == true
+        }
+        return next
+    }
+
+    /// A play this fresh when the page opens still replays (ESPN publishes
+    /// plays 15–45 s after they happen).
+    static let recent: TimeInterval = 60
 
     /// The moments since the last call.
     func takeMoments() -> [LiveMoment] {

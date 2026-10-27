@@ -57,6 +57,7 @@ struct ScorelineTests {
         await seasonResults()
         chartHygiene()
         outline()
+        playTheater()
 
         print("\n\(passes) passed, \(failures) failed")
         exit(failures == 0 ? 0 : 1)

@@ -1228,11 +1228,13 @@ private struct BallHop: ViewModifier {
 
 // MARK: - Baseball diamond
 
-struct BaseballDiamond: View {
+struct BaseballDiamond<Theater: View>: View {
     let situation: GameDetail.Baseball
     /// The team at bat: its color fills the occupied bases and lights the plate.
     var batting: GameDetail.Side? = nil
     var palette: TeamPalette? = nil
+    /// Under the diamond, over the footer: the play theater, whose caption the footer is.
+    @ViewBuilder var theater: Theater
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.celebrationClock) private var clock
     @Environment(\.celebrationLevel) private var level
@@ -1260,10 +1262,11 @@ struct BaseballDiamond: View {
     /// The scoring team's color (the moment says who batted), else the batting team's.
     private var plateColor: Color { ink(moment?.side) ?? battingColor }
 
-    /// Home plate and the bases, in the diamond's 52 × 48 frame.
-    private static let plate = CGPoint(x: 26, y: 39)
-    private static let first = CGPoint(x: 41, y: 24)
-    private static let second = CGPoint(x: 26, y: 9)
+    /// Home plate and the bases, in the diamond's 52 × 48 frame. (Computed:
+    /// the diamond is generic over its theater slot.)
+    private static var plate: CGPoint { CGPoint(x: 26, y: 39) }
+    private static var first: CGPoint { CGPoint(x: 41, y: 24) }
+    private static var second: CGPoint { CGPoint(x: 26, y: 9) }
 
     private func occupied(_ order: Int) -> Bool {
         [situation.onFirst, situation.onSecond, situation.onThird][order]
@@ -1273,6 +1276,7 @@ struct BaseballDiamond: View {
         // The section's spacing, as when the footer was its own row.
         VStack(alignment: .leading, spacing: 8) {
             diamond
+            theater
             // A pointed-at runner by name; else what just happened at the plate, else the last play.
             ChartFooter(readout: runnerReadout, moment: moment) {
                 if let last = situation.lastPlay {
@@ -1438,6 +1442,12 @@ struct BaseballDiamond: View {
         let matchup = [situation.batter.map { "\($0) batting" }, situation.pitcher.map { "\($0) pitching" }].compactMap { $0 }
         return "\(situation.balls) balls, \(situation.strikes) strikes, \(situation.outs) outs. \(runners). "
             + matchup.joined(separator: ", ")
+    }
+}
+
+extension BaseballDiamond where Theater == EmptyView {
+    init(situation: GameDetail.Baseball, batting: GameDetail.Side? = nil, palette: TeamPalette? = nil) {
+        self.init(situation: situation, batting: batting, palette: palette) { EmptyView() }
     }
 }
 

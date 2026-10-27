@@ -1,0 +1,601 @@
+import CoreGraphics
+import Foundation
+
+// The play theater's model: one play on the field (a plate appearance's
+// result, or a runner's play between pitches), parsed from ESPN's
+// play-by-play into what the theater replays: the kind of play and the
+// ball's flight, who handled it in scorer's numbers (6-4-3), where every
+// runner went, the outs and runs, the pitch and the batter's side. Pure
+// values: the parser is tested against real plays, and the replay is a
+// function of the scene and time.
+//
+// ESPN gives each at-bat a run of entries sharing an `atBatId`: pitches
+// (`summaryType` "P"; their participants are the runners as the pitch is
+// thrown) and a result (`play-result`; its participants are the runners
+// after it). Runners are matched by athlete ID across the two, so the
+// movements never depend on reading names; the text only settles who scored
+// and who was out when both happened on one play.
+
+struct PlayScene: Equatable, Identifiable {
+    enum Kind: Equatable {
+        case single, double, triple, homeRun
+        case groundOut, flyOut, lineOut, popOut, foulOut
+        case fieldersChoice, doublePlay, triplePlay
+        case sacrificeFly, sacrificeBunt, error
+        case strikeout(looking: Bool)
+        case walk(intentional: Bool), hitByPitch
+        /// Runners only, between pitches.
+        case stolenBase, caughtStealing, pickoff, wildPitch, passedBall, balk, indifference
+        /// A play we can't name: the ball goes to its spot, the runners to theirs.
+        case other
+    }
+
+    /// ESPN's `trajectory`.
+    enum Trajectory: String {
+        case ground = "G", line = "L", fly = "F", popUp = "P"
+    }
+
+    enum Hand: String {
+        case left = "L", right = "R"
+    }
+
+    /// The pitch that decided it.
+    struct Pitch: Equatable {
+        /// "FF".
+        var code: String?
+        /// "Four-seam FB".
+        var name: String?
+        var mph: Int?
+        /// ESPN pitch coordinates (zone ≈ x 91…141, y 148…192).
+        var x: Double?
+        var y: Double?
+    }
+
+    /// Where the play took a runner (or the batter, from base 0).
+    struct Runner: Equatable {
+        enum End: Equatable {
+            case base(Int)
+            case scored
+            /// Out at a base (0: home), or where the ball was caught (nil).
+            case out(at: Int?)
+        }
+        var id: String?
+        var from: Int
+        var end: End
+
+        var isOut: Bool { if case .out = end { return true }; return false }
+    }
+
+    /// The scorer's mark for the play: "6-3", "F8", "6-4-3 DP". A called
+    /// third strike is a K drawn backwards.
+    struct Notation: Equatable, CustomStringConvertible {
+        var code: String
+        var backwards = false
+        var description: String { backwards ? "ꓘ" : code }
+    }
+
+    let id: String
+    var kind: Kind
+    var trajectory: Trajectory?
+    /// Where the ball was fielded or landed, in ESPN hit coordinates (home
+    /// plate ≈ (125, 205), the fence ≈ 165 out: the spray chart's calibration).
+    var spot: CGPoint?
+    /// Feet, when ESPN says ("homered to center (408 feet)").
+    var distance: Int?
+    /// Who handled the ball, in order, by scorer's number (6-4-3).
+    var fielders: [Int] = []
+    /// The fielder charged with an error.
+    var error: Int?
+    /// Every runner on the play, the batter first (from 0).
+    var runners: [Runner] = []
+    var outsBefore = 0
+    var outsAfter = 0
+    var runs = 0
+    var bats: Hand?
+    var pitch: Pitch?
+    var batting: GameDetail.Side?
+    /// "Turang grounded out to shortstop."
+    var text = ""
+    var wallclock: Date?
+
+    var batter: Runner? { runners.first { $0.from == 0 } }
+    /// Bases taken before the play (first, second, third).
+    var basesBefore: [Bool] { (1...3).map { base in runners.contains { $0.from == base } } }
+    /// Bases taken after it.
+    var basesAfter: [Bool] { (1...3).map { base in runners.contains { $0.end == .base(base) } } }
+    /// The half-inning ended on this play: the teams change sides.
+    var endsInning: Bool { outsAfter >= 3 }
+
+    /// A play the batter put in play: the ball leaves the bat.
+    var inPlay: Bool {
+        switch kind {
+        case .single, .double, .triple, .homeRun, .groundOut, .flyOut, .lineOut, .popOut, .foulOut,
+             .fieldersChoice, .doublePlay, .triplePlay, .sacrificeFly, .sacrificeBunt, .error:
+            true
+        case .other:
+            spot != nil
+        default:
+            false
+        }
+    }
+
+    /// The flight, from ESPN when it says, else from the kind.
+    var flight: Trajectory {
+        if let trajectory { return trajectory }
+        switch kind {
+        case .groundOut, .fieldersChoice, .doublePlay, .sacrificeBunt, .error: return .ground
+        case .flyOut, .sacrificeFly, .triple, .homeRun, .foulOut: return .fly
+        case .popOut: return .popUp
+        default: return .line
+        }
+    }
+
+    var notation: Notation {
+        let chain = fielders.map(String.init).joined(separator: "-")
+        let first = fielders.first.map(String.init) ?? ""
+        func tagged(_ tag: String) -> String { chain.isEmpty ? tag : "\(tag) \(chain)" }
+        switch kind {
+        // A hit the batter stretched on an error carries it: "1B E5".
+        case .single: return Notation(code: error.map { "1B E\($0)" } ?? "1B")
+        case .double: return Notation(code: error.map { "2B E\($0)" } ?? "2B")
+        case .triple: return Notation(code: error.map { "3B E\($0)" } ?? "3B")
+        case .homeRun: return Notation(code: "HR")
+        case .groundOut: return Notation(code: fielders.count == 1 ? "\(first)U" : chain.isEmpty ? "GO" : chain)
+        case .flyOut: return Notation(code: "F\(first)")
+        case .lineOut: return Notation(code: "L\(first)")
+        case .popOut: return Notation(code: "P\(first)")
+        case .foulOut: return Notation(code: (trajectory == .popUp ? "P" : "F") + first)
+        case .fieldersChoice: return Notation(code: tagged("FC"))
+        case .doublePlay, .triplePlay:
+            // A ball caught in the air leads with its catch: "L6-3 DP".
+            let air: String = switch flight { case .line: "L"; case .fly: "F"; case .popUp: "P"; case .ground: "" }
+            return Notation(code: "\(air)\(chain.isEmpty ? "" : chain + " ")\(kind == .doublePlay ? "DP" : "TP")")
+        case .sacrificeFly: return Notation(code: "SF\(first)")
+        case .sacrificeBunt: return Notation(code: tagged("SAC"))
+        case .error: return Notation(code: "E\(error.map(String.init) ?? first)")
+        case let .strikeout(looking): return Notation(code: "K", backwards: looking)
+        case let .walk(intentional): return Notation(code: intentional ? "IBB" : "BB")
+        case .hitByPitch: return Notation(code: "HBP")
+        case .stolenBase: return Notation(code: "SB")
+        case .caughtStealing: return Notation(code: tagged("CS"))
+        case .pickoff: return Notation(code: tagged("PO"))
+        case .wildPitch: return Notation(code: "WP")
+        case .passedBall: return Notation(code: "PB")
+        case .balk: return Notation(code: "BK")
+        case .indifference: return Notation(code: "DI")
+        case .other: return Notation(code: "")
+        }
+    }
+
+    /// The play in two or three words, for the stamp's second line.
+    var title: String {
+        switch kind {
+        case .single: "Single"
+        case .double: "Double"
+        case .triple: "Triple"
+        case .homeRun: runs == 4 ? "Grand slam" : "Home run"
+        case .groundOut: "Groundout"
+        case .flyOut: "Flyout"
+        case .lineOut: "Lineout"
+        case .popOut: "Pop out"
+        case .foulOut: "Foul out"
+        case .fieldersChoice: runners.contains(where: \.isOut) ? "Force out" : "Fielder's choice"
+        case .doublePlay: "Double play"
+        case .triplePlay: "Triple play"
+        case .sacrificeFly: "Sacrifice fly"
+        case .sacrificeBunt: "Sacrifice"
+        case .error: "Error"
+        case let .strikeout(looking): looking ? "Strikeout looking" : "Strikeout swinging"
+        case let .walk(intentional): intentional ? "Intentional walk" : "Walk"
+        case .hitByPitch: "Hit by pitch"
+        case .stolenBase: "Stolen base"
+        case .caughtStealing: "Caught stealing"
+        case .pickoff: "Picked off"
+        case .wildPitch: "Wild pitch"
+        case .passedBall: "Passed ball"
+        case .balk: "Balk"
+        case .indifference: "Defensive indifference"
+        case .other: ""
+        }
+    }
+}
+
+/// What the play theater shows: the last play on the field and who's up now.
+struct TheaterState: Equatable {
+    var play: PlayScene?
+    /// Arrived while the page was open, or only just happened: replay it.
+    /// Otherwise it's history, and shows as it ended.
+    var news = false
+    /// The batter at the plate by the side he stands on; nil between innings.
+    var bats: PlayScene.Hand?
+}
+
+// MARK: - Parsing
+
+extension PlayScene {
+    /// The newest play on the field in a run of plays (lineup changes and
+    /// the inning's bookkeeping aren't plays).
+    static func latest(in plays: [JSON], side: (String?) -> GameDetail.Side?, names: [String: String] = [:]) -> PlayScene? {
+        for index in plays.indices.reversed() where plays[index]["type"]["type"].string == "play-result" {
+            if let scene = parse(plays, at: index, side: side, names: names) { return scene }
+        }
+        return nil
+    }
+
+    /// The theater's state after these plays: the newest play, and the batter
+    /// up after it (the same batter when it was a runner's play mid-at-bat).
+    static func theater(_ plays: [JSON], side: (String?) -> GameDetail.Side?, names: [String: String] = [:]) -> TheaterState {
+        guard let play = latest(in: plays, side: side, names: names),
+              let index = plays.lastIndex(where: { $0["id"].string == play.id }) else {
+            return TheaterState(bats: plays.last { $0["bats"].exists }.flatMap(hand))
+        }
+        let next = plays[(index + 1)...].last { $0["type"]["type"].string == "start-batterpitcher" || $0["summaryType"].string == "P" }
+        let bats = next.flatMap(hand) ?? (play.batter == nil && !play.endsInning ? play.bats : nil)
+        return TheaterState(play: play, bats: bats)
+    }
+
+    /// The play-result at `index`, with what led to it. Nil for anything that
+    /// isn't a play on the field.
+    static func parse(_ plays: [JSON], at index: Int, side: (String?) -> GameDetail.Side?,
+                      names: [String: String] = [:]) -> PlayScene? {
+        let result = plays[index]
+        guard result["type"]["type"].string == "play-result", let id = result["id"].string,
+              let kind = kind(result["alternativeType"]["type"].string ?? "", text: result["text"].string ?? "",
+                              doublePlay: result["doublePlay"].bool == true, triplePlay: result["triplePlay"].bool == true)
+        else { return nil }
+        let atBat = result["atBatId"].string
+        let half = halfInning(result)
+
+        // Back through the plays: the at-bat's entries (newest first), and the
+        // play before this one in the half-inning, for the outs before it.
+        var earlier: [JSON] = []
+        var previous: JSON?
+        var previousKnown = false
+        for i in stride(from: index - 1, through: 0, by: -1) {
+            let entry = plays[i]
+            let sameAtBat = atBat != nil && entry["atBatId"].string == atBat
+            if sameAtBat { earlier.append(entry) }
+            if !previousKnown {
+                if isPlay(entry) {
+                    if halfInning(entry) == half { previous = entry }
+                    previousKnown = true
+                } else if entry["type"]["type"].string == "start-inning" {
+                    previousKnown = true
+                }
+            }
+            if previousKnown, !sameAtBat { break }
+        }
+        let pitchEntry = earlier.first { $0["summaryType"].string == "P" }
+
+        var scene = PlayScene(id: id, kind: kind)
+        scene.text = result["text"].string ?? ""
+        scene.batting = side(result["team"]["id"].string)
+        scene.trajectory = (result["trajectory"].string ?? pitchEntry?["trajectory"].string).flatMap(Trajectory.init(rawValue:))
+        let hit = result["hitCoordinate"].exists ? result["hitCoordinate"] : pitchEntry?["hitCoordinate"] ?? JSON(nil)
+        if scene.inPlay || kind == .other, let x = hit["x"].double, let y = hit["y"].double {
+            scene.spot = CGPoint(x: x, y: y)
+        }
+        if !scene.inPlay { scene.trajectory = nil }
+        scene.distance = scene.text.firstMatch(of: #/\((\d+) feet\)/#).flatMap { Int($0.1) }
+        scene.bats = hand(result) ?? pitchEntry.flatMap(hand)
+        if let p = pitchEntry {
+            let code = p["pitchType"]["abbreviation"].string
+            scene.pitch = Pitch(code: code, name: p["pitchType"]["text"].string ?? code.flatMap { GameDetail.Pitch.names[$0] },
+                                mph: p["pitchVelocity"].int, x: p["pitchCoordinate"]["x"].double, y: p["pitchCoordinate"]["y"].double)
+        }
+        scene.wallclock = result["wallclock"].string.flatMap(parseDate)
+        scene.runs = max(result["scoreValue"].int ?? 0, 0)
+        scene.outsAfter = min(max(result["outs"].int ?? 0, 0), 3)
+
+        // Fielders: the scorer's version names every one in order; the short
+        // text (all the summary carries) names the first, and a relay.
+        let scorer = result["shortAlternativeText"].string.map(fieldersFromScorer) ?? ([], nil)
+        let short = fieldersFromText(scene.text)
+        scene.fielders = scorer.0.isEmpty ? short.0 : scorer.0
+        scene.error = scorer.1 ?? short.1
+        // A ground ball (or a bunt) the text credits to one infielder went on to first.
+        if [.groundOut, .doublePlay, .sacrificeBunt].contains(kind), scene.flight == .ground, scene.fielders.count == 1,
+           scene.fielders[0] != 3, !scene.text.contains("unassisted") {
+            scene.fielders.append(3)
+        }
+
+        // Runners: before from the entry nearest the result (a pitch's
+        // participants, or a runner's play earlier in the at-bat), after from
+        // the result itself.
+        let before = earlier.first { e in
+            e["summaryType"].string == "P" || e["type"]["type"].string == "start-batterpitcher" || isPlay(e)
+        }.map(bases) ?? previous.map(bases) ?? [:]
+        let made = expectedOuts(kind)
+        scene.outsBefore = previous.map { min(max($0["outs"].int ?? 0, 0), 2) } ?? max(scene.outsAfter - made, 0)
+        // A count that doesn't add up (a rewritten entry): trust the kind.
+        if made > 0, scene.outsBefore >= scene.outsAfter { scene.outsBefore = max(scene.outsAfter - made, 0) }
+        scene.runners = movements(kind: kind, air: scene.inPlay && scene.flight != .ground, before: before, after: bases(result),
+                                  batter: participant(result, "batter"), outs: scene.outsAfter - scene.outsBefore,
+                                  runs: scene.runs, text: scene.text, names: names)
+        // A force the text credits to one fielder: whoever covered the base took the throw.
+        if kind == .fieldersChoice, scene.fielders.count == 1,
+           let base = scene.runners.lazy.compactMap({ r -> Int? in if case let .out(at?) = r.end, r.from > 0 { return at }; return nil }).first {
+            scene.fielders.append(coverer(of: base, after: scene.fielders[0]))
+        }
+        return scene
+    }
+
+    /// Who takes a throw at a base (0: home) from a fielder: the first
+    /// baseman at first, the middle infielder not fielding it at second, the
+    /// third baseman at third, the catcher at home; the pitcher when the
+    /// usual man threw it.
+    static func coverer(of base: Int, after fielder: Int) -> Int {
+        switch base {
+        case 1: fielder == 3 ? 1 : 3
+        case 2: [4, 3, 9].contains(fielder) ? 6 : 4
+        case 3: fielder == 5 ? 6 : 5
+        default: fielder == 2 ? 1 : 2
+        }
+    }
+
+    /// A result that's a play on the field (not a lineup change).
+    static func isPlay(_ entry: JSON) -> Bool {
+        entry["type"]["type"].string == "play-result" && kind(entry["alternativeType"]["type"].string ?? "", text: "",
+                                                               doublePlay: false, triplePlay: false) != nil
+    }
+
+    /// The result's kind, from ESPN's structured type; nil for a play that
+    /// isn't one on the field (a substitution).
+    static func kind(_ type: String, text: String, doublePlay: Bool, triplePlay: Bool) -> Kind? {
+        let t = type.lowercased()
+        if t.isEmpty || ["lineup", "substitut", "pitching-change", "defensive-switch", "start-", "end-"].contains(where: t.contains) {
+            return nil
+        }
+        if triplePlay || t.contains("triple-play") { return .triplePlay }
+        // A strikeout with a runner thrown out is still the batter's strikeout.
+        if t.hasPrefix("strike") || t.contains("missed-bunt") || t.contains("strikeout") {
+            return .strikeout(looking: t.contains("looking") || text.contains("called out on strikes") || text.contains("struck out looking"))
+        }
+        if doublePlay || t.contains("double-play") { return .doublePlay }
+        if t.contains("intent") { return .walk(intentional: true) }
+        if t.hasPrefix("ball") || t.contains("walk") { return .walk(intentional: false) }
+        if t.contains("hit-by-pitch") { return .hitByPitch }
+        if t.contains("home-run") { return .homeRun }
+        if t.contains("triple") { return .triple }
+        if t.contains("double") { return .double }
+        if t.contains("single") { return .single }
+        if t.contains("sacrifice-fly") || t.contains("sac-fly") { return .sacrificeFly }
+        if t.contains("sacrifice") || t.contains("sac-bunt") { return .sacrificeBunt }
+        if t.contains("fielders-choice") { return .fieldersChoice }
+        if t.contains("caught-stealing") { return .caughtStealing }
+        if t.contains("error") { return .error }
+        if t.contains("ground-out") || t.contains("groundout") { return .groundOut }
+        if t.contains("fly-out") || t.contains("flyout") { return .flyOut }
+        if t.contains("line-out") || t.contains("lineout") { return .lineOut }
+        if t.contains("pop-out") || t.contains("popout") { return .popOut }
+        if t.contains("foul-out") { return .foulOut }
+        if t.contains("stolen-base") || t.contains("steal") { return .stolenBase }
+        if t.contains("pickoff") || t.contains("picked-off") { return .pickoff }
+        if t.contains("wild-pitch") { return .wildPitch }
+        if t.contains("passed-ball") { return .passedBall }
+        if t.contains("balk") { return .balk }
+        if t.contains("indifference") { return .indifference }
+        return .other
+    }
+
+    /// Outs a play of this kind makes, when the play before isn't at hand.
+    static func expectedOuts(_ kind: Kind) -> Int {
+        switch kind {
+        case .groundOut, .flyOut, .lineOut, .popOut, .foulOut, .fieldersChoice, .sacrificeFly, .sacrificeBunt,
+             .strikeout, .caughtStealing, .pickoff:
+            1
+        case .doublePlay: 2
+        case .triplePlay: 3
+        default: 0
+        }
+    }
+
+    /// Scorer's numbers by the scorer's names for the positions.
+    static let positions: [(String, Int)] = [
+        ("pitcher", 1), ("catcher", 2), ("first baseman", 3), ("second baseman", 4), ("third baseman", 5),
+        ("shortstop", 6), ("left fielder", 7), ("center fielder", 8), ("right fielder", 9),
+    ]
+
+    /// "grounds out, shortstop Taylor Walls to first baseman Ryan Vilade" → [6, 3].
+    /// A deflection isn't a fielding credit; the fielder named for an error
+    /// is the error, not the chain.
+    static func fieldersFromScorer(_ text: String) -> ([Int], Int?) {
+        var found: [(at: String.Index, number: Int)] = []
+        for (name, number) in positions {
+            var search = text.startIndex..<text.endIndex
+            while let range = text.range(of: name, range: search) {
+                found.append((range.lowerBound, number))
+                search = range.upperBound..<text.endIndex
+            }
+        }
+        var chain: [Int] = []
+        var error: Int?
+        for (at, number) in found.sorted(by: { $0.at < $1.at }) {
+            let lead = text[text.index(at, offsetBy: -min(text.distance(from: text.startIndex, to: at), 14))..<at]
+            if lead.hasSuffix("error by ") { error = error ?? number; continue }
+            if lead.hasSuffix("deflected by ") { continue }
+            if chain.last != number { chain.append(number) }
+        }
+        return (chain, error)
+    }
+
+    /// The short text's positions: "Turang grounded out to shortstop." → [6];
+    /// a relay clause, "…, second to shortstop to first, …" → [4, 6, 3].
+    static func fieldersFromText(_ text: String) -> ([Int], Int?) {
+        let words: [String: Int] = ["pitcher": 1, "catcher": 2, "first": 3, "second": 4, "third": 5, "shortstop": 6,
+                                    "left": 7, "center": 8, "right": 9, "left center": 8, "right center": 8]
+        let parts = clauses(text)
+        var error: Int?
+        if let m = text.firstMatch(of: #/error by (pitcher|catcher|first baseman|second baseman|third baseman|shortstop|left fielder|center fielder|right fielder)/#) {
+            error = positions.first { $0.0 == String(m.1) }?.1
+        }
+        for clause in parts.dropFirst() {
+            let steps = clause.components(separatedBy: " to ")
+            let numbers = steps.compactMap { words[$0] }
+            if steps.count >= 2, numbers.count == steps.count { return (numbers, error) }
+        }
+        guard let first = parts.first,
+              let m = first.firstMatch(of: #/(?:to|by) (left center|right center|pitcher|catcher|first|second|third|shortstop|left|center|right)$/#)
+        else { return ([], error) }
+        return (words[String(m.1)].map { [$0] } ?? [], error)
+    }
+
+    /// A play's text in clauses: at commas, and at sentence ends (not after
+    /// "Jr." mid-sentence).
+    static func clauses(_ text: String) -> [String] {
+        text.split(separator: #/,\s*|\.(?=\s+[A-Z]|\s*$)/#).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+
+    /// Bases by athlete ID, from an entry's participants.
+    static func bases(_ entry: JSON) -> [Int: String] {
+        var out: [Int: String] = [:]
+        for (base, role) in [(1, "onFirst"), (2, "onSecond"), (3, "onThird")] {
+            if let id = participant(entry, role) { out[base] = id }
+        }
+        return out
+    }
+
+    /// A participant's athlete ID: the summary's `athlete.id`, or the core
+    /// feed's link (".../athletes/4917869?lang=en").
+    static func participant(_ entry: JSON, _ role: String) -> String? {
+        guard let p = entry["participants"].array.first(where: { $0["type"].string == role }) else { return nil }
+        if let id = p["athlete"]["id"].string { return id }
+        guard let ref = p["athlete"]["$ref"].string, let range = ref.range(of: "/athletes/") else { return nil }
+        let id = ref[range.upperBound...].prefix { $0.isNumber }
+        return id.isEmpty ? nil : String(id)
+    }
+
+    static func hand(_ entry: JSON) -> Hand? {
+        entry["bats"]["abbreviation"].string.flatMap(Hand.init(rawValue:))
+    }
+
+    static func halfInning(_ entry: JSON) -> String {
+        "\(entry["period"]["type"].string ?? "")\(entry["period"]["number"].int ?? 0)"
+    }
+
+    /// "2026-10-27T00:14:14Z". (Formatters are costly to make: one, reused.)
+    private static func parseDate(_ s: String) -> Date? {
+        wallclock.date(from: s) ?? wallclockFractional.date(from: s)
+    }
+
+    nonisolated(unsafe) private static let wallclock = ISO8601DateFormatter()
+    nonisolated(unsafe) private static let wallclockFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    /// Where each runner went. A runner on a base after the play went there;
+    /// one who isn't scored or was put out. Runs and outs say how many of
+    /// each; the text says which ("Bauers scored", "Díaz out at second"), by
+    /// surname. When it can't, the batter makes his own out, runs go to the
+    /// lead runners and outs to the trailing (forced) ones.
+    static func movements(kind: Kind, air: Bool, before: [Int: String], after: [Int: String], batter: String?,
+                          outs: Int, runs: Int, text: String, names: [String: String]) -> [Runner] {
+        // A runner's play mid-at-bat has no batter on it.
+        let starts = (batter.map { [(id: Optional($0), from: 0)] } ?? [])
+            + before.sorted { $0.key > $1.key }.map { (id: Optional($0.value), from: $0.key) }
+        if kind == .homeRun { return starts.map { Runner(id: $0.id, from: $0.from, end: .scored) } }
+        let landed = Dictionary(after.map { ($0.value, $0.key) }, uniquingKeysWith: max)
+        var runners: [Runner] = []
+        var gone: [(id: String?, from: Int)] = []
+        for start in starts {
+            if let id = start.id, let base = landed[id], base >= start.from {
+                runners.append(Runner(id: id, from: start.from, end: .base(base)))
+            } else {
+                gone.append(start)
+            }
+        }
+        var runsLeft = max(runs, 0), outsLeft = max(outs, 0)
+        let parts = clauses(text)
+        func surname(_ id: String?) -> String? {
+            guard let id, let name = names[id] else { return nil }
+            // "J. Chourio" → "Chourio"; "V. Mesa Jr." → "Mesa Jr".
+            let rest = name.split(separator: " ").drop { $0.hasSuffix(".") && $0.count <= 3 }
+            return (rest.isEmpty ? name : rest.joined(separator: " ")).trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        }
+        func base(in clause: String) -> Int? {
+            guard let m = clause.firstMatch(of: #/(?:at|stealing|off) (first|1st|second|2nd|third|3rd|home)/#) else { return nil }
+            return ["first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3, "home": 0][String(m.1)]
+        }
+        func outBase(_ from: Int) -> Int? {
+            if from == 0 {
+                switch kind {
+                case .strikeout: return 0
+                case .flyOut, .lineOut, .popOut, .foulOut, .sacrificeFly: return nil
+                default: return 1
+                }
+            }
+            switch kind {
+            case .pickoff: return from
+            // Doubled off on a catch: back at the base he left; else forced at the next.
+            case .doublePlay, .triplePlay, .flyOut, .lineOut, .popOut: return air ? from : (from + 1) % 4
+            default: return (from + 1) % 4
+            }
+        }
+        // By the text first.
+        var unresolved: [(id: String?, from: Int)] = []
+        for runner in gone {
+            let name = surname(runner.id)
+            let scored = name.map { n in parts.contains { $0.contains(n) && $0.contains("scor") } } ?? false
+            let out = name.flatMap { n in
+                parts.first { $0.contains(n) && [" out", "caught stealing", "picked off", "doubled off"].contains(where: $0.contains) }
+            }
+            if scored, runsLeft > 0 {
+                runners.append(Runner(id: runner.id, from: runner.from, end: .scored))
+                runsLeft -= 1
+            } else if let out, outsLeft > 0 {
+                runners.append(Runner(id: runner.id, from: runner.from, end: .out(at: base(in: out) ?? outBase(runner.from))))
+                outsLeft -= 1
+            } else {
+                unresolved.append(runner)
+            }
+        }
+        // Then by rule.
+        if batterOut(kind), outsLeft > 0, let i = unresolved.firstIndex(where: { $0.from == 0 }) {
+            runners.append(Runner(id: unresolved[i].id, from: 0, end: .out(at: outBase(0))))
+            unresolved.remove(at: i)
+            outsLeft -= 1
+        }
+        for runner in unresolved.filter({ $0.from > 0 }).sorted(by: { $0.from > $1.from }) where runsLeft > 0 {
+            runners.append(Runner(id: runner.id, from: runner.from, end: .scored))
+            unresolved.removeAll { $0.from == runner.from }
+            runsLeft -= 1
+        }
+        for runner in unresolved.sorted(by: { $0.from < $1.from }) {
+            if outsLeft > 0 {
+                runners.append(Runner(id: runner.id, from: runner.from, end: .out(at: outBase(runner.from))))
+                outsLeft -= 1
+            } else if runner.from > 0 {
+                // Unaccounted for (the inning ended around him): he stays.
+                runners.append(Runner(id: runner.id, from: runner.from, end: .base(runner.from)))
+            } else if let reached = reachedBase(kind) {
+                // A batter the result left off the bases (ESPN drops him at the third out).
+                runners.append(Runner(id: runner.id, from: 0, end: .base(reached)))
+            } else {
+                runners.append(Runner(id: runner.id, from: 0, end: .out(at: outBase(0))))
+            }
+        }
+        // The batter first, then from the lead runner back.
+        return runners.sorted { a, b in a.from == 0 ? b.from != 0 : b.from == 0 ? false : a.from > b.from }
+    }
+
+    /// The batter's own out: a strikeout, or a ball caught or thrown to first.
+    private static func batterOut(_ kind: Kind) -> Bool {
+        switch kind {
+        case .groundOut, .flyOut, .lineOut, .popOut, .foulOut, .doublePlay, .triplePlay, .sacrificeFly, .sacrificeBunt, .strikeout:
+            true
+        default:
+            false
+        }
+    }
+
+    private static func reachedBase(_ kind: Kind) -> Int? {
+        switch kind {
+        case .single, .walk, .hitByPitch, .fieldersChoice, .error, .other: 1
+        case .double: 2
+        case .triple: 3
+        default: nil
+        }
+    }
+}

@@ -1194,7 +1194,12 @@ struct DetailView: View {
             case .atPlate:
                 if let baseball = liveBaseball(d) {
                     DetailSection(title: "At the Plate", caption: "Live count, runners and matchup from ESPN.", accessory: .live) {
-                        BaseballDiamond(situation: baseball, batting: battingSide, palette: palette)
+                        BaseballDiamond(situation: baseball, batting: battingSide, palette: palette) {
+                            // Reads the live lane's last play itself, so a play redraws only the theater.
+                            PlayTheater(feed: baseballFeed, preloaded: d.theater,
+                                        bases: [baseball.onFirst, baseball.onSecond, baseball.onThird], batting: battingSide,
+                                        palette: palette)
+                        }
                     }
                 }
             case .atBat:
