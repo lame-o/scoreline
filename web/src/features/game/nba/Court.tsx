@@ -451,10 +451,10 @@ export const Court = memo(function Court(props: CourtProps) {
             </span>
           ) : null}
           <canvas ref={storyCanvas} className={styles.layer} data-hidden={pointing} />
-          {story?.moment.kind === "steal" ? <span key={story.key} className={styles.ping} style={{ transform: `translate(${center.x}px, ${center.y}px)`, color: css(color(story.side)) }} aria-hidden="true" /> : null}
+          {story?.moment.kind === "steal" ? <span key={`${story.key}-ping`} className={styles.ping} style={{ transform: `translate(${center.x}px, ${center.y}px)`, color: css(color(story.side)) }} aria-hidden="true" /> : null}
           {story && rimPx && time == null ? (
             <CelebrationStage
-              key={story.key}
+              key={`${story.key}-stage`}
               moment={story.moment}
               origin={rimPx}
               colors={{ primary: color(story.side) }}

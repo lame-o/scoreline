@@ -91,7 +91,7 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
               <TeamLogo url={event.content.top.logo} size={18} />
               {event.content.top.rank != null ? <span className={styles.rank}>{event.content.top.rank}</span> : null}
               <span className={styles.abbr}>{event.content.top.abbreviation}</span>
-              {live && slot ? <span className={styles.slot}>{slot("top", tier)}</span> : null}
+              {live && slot ? <span className={styles.teamSlot}>{slot("top", tier)}</span> : null}
             </span>
             <span className={styles.scores}>
               {event.state === "scheduled" || (scores.top == null && scores.bottom == null) ? (
@@ -105,7 +105,7 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
               )}
             </span>
             <span className={styles.team}>
-              {live && slot ? <span className={styles.slot}>{slot("bottom", tier)}</span> : null}
+              {live && slot ? <span className={styles.teamSlot}>{slot("bottom", tier)}</span> : null}
               {event.content.bottom.rank != null ? <span className={styles.rank}>{event.content.bottom.rank}</span> : null}
               <span className={styles.abbr}>{event.content.bottom.abbreviation}</span>
               <TeamLogo url={event.content.bottom.logo} size={18} />

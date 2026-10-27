@@ -194,7 +194,7 @@ export const Pitch = memo(function Pitch({ trail, shots, cards, live, palette, t
             <Moment key={moment.id} moment={moment} action={momentAction} size={size} color={css(color(momentAction.side))} reduce={reduce} level={level} hidden={target != null} />
           ) : null}
           {target && size.width > 0 ? <Focused action={target} size={size} color={css(color(target.side))} /> : null}
-          {stage ? <CelebrationStage key={moment!.id} moment={moment} origin={stage.origin} colors={{ primary: stage.color }} direction={stage.direction} /> : null}
+          {stage ? <CelebrationStage key={`${moment!.id}-stage`} moment={moment} origin={stage.origin} colors={{ primary: stage.color }} direction={stage.direction} /> : null}
         </div>
       </VizWell>
       <ChartFooter readout={target ? { lead: target.minute, detail: shortened(target.text) } : null} moment={moment}>

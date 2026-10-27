@@ -260,13 +260,13 @@
 }
 
 /* Beside a team's name: the possession glyph or red cards. The slot keeps its width whoever has the ball, so nothing moves when it changes hands. */
-.slot {
+.teamSlot {
   display: inline-grid;
   place-items: center;
   min-width: calc(10 * var(--pt));
   color: var(--label-secondary);
 }
 
-.slot:empty {
+.teamSlot:empty {
   display: none;
 }
