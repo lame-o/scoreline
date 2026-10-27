@@ -154,3 +154,9 @@
 .titleIcon {
   color: var(--label-secondary);
 }
+
+.center {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
