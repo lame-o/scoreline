@@ -51,8 +51,13 @@ export function ContextMenu({ label, at, entries, onClose, returnFocus }: Contex
     const top = at.y + height > vh - EDGE ? Math.max(EDGE, at.y - height) : at.y;
     const origin = `${top < at.y ? "bottom" : "top"}-${left < at.x ? "right" : "left"}`;
     setPlace({ style: { left, top }, origin });
-    el.focus({ preventScroll: true });
   }, [at]);
+
+  // Take the keys once it's placed (a hidden element can't take focus).
+  const placed = place.style.visibility !== "hidden";
+  useLayoutEffect(() => {
+    if (placed) surface.current?.focus({ preventScroll: true });
+  }, [placed]);
 
   useEffect(() => {
     const dismiss = () => close(false);

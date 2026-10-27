@@ -138,7 +138,7 @@ export function MenuSurface({ id, label, entries, initialActive, instant, closin
         {item.icon ? <Icon name={item.icon} size={11} className={styles.itemIcon} /> : glyphs ? <span className={styles.iconSlot} /> : null}
         <span className={styles.itemLabel}>{item.label}</span>
         {item.detail ? <span className={styles.detail}>{item.detail}</span> : null}
-        {item.shortcut ? <span className={styles.detail}>{item.shortcut}</span> : null}
+        {item.shortcut ? <span className={`${styles.detail} ${styles.shortcut}`}>{item.shortcut}</span> : null}
       </div>
     );
   };

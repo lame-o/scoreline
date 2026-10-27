@@ -235,3 +235,10 @@
     }
   }
 }
+
+/* A key to press means nothing on a touch screen (iOS's menus show none). */
+@media (pointer: coarse) {
+  .shortcut {
+    display: none;
+  }
+}
