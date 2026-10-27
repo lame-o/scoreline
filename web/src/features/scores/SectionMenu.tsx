@@ -8,7 +8,7 @@ import { Icon, Menu, type MenuEntry } from "../../design/components";
 import { leagueWithID } from "../../data/leagues";
 import { MY_TEAMS } from "../../data/scoreboard";
 import { schedulePath, scopeFor } from "../../data/schedule";
-import { tableLinks } from "../../data/standings";
+import { tableLinks } from "../../data/tableLinks";
 import styles from "./ScoresList.module.css";
 
 export function SectionMenu({ id, title }: { id: string; title: string }) {
