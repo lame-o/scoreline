@@ -70,6 +70,8 @@ export function AgendaPage({ scope, mode, onMode, switched, crossfade }: Schedul
   // A team's season goes two-up by day from the same width (Agenda.module.css `.twoUp`).
   const twoUp = !folds && width >= 676;
   const detail: RowDetail = rowDetail((twoUp ? width / 2 : width / columns) - 28);
+  // A group with one row takes the full width (a lone game never leaves half the pane empty).
+  const fullDetail: RowDetail = rowDetail((twoUp ? width / 2 : width) - 28);
 
   const defaults = useMemo(() => defaultOpen(data.upcoming, today), [data.upcoming, dayID(today)]); // eslint-disable-line react-hooks/exhaustive-deps
   const isOpen = useCallback(
@@ -307,6 +309,7 @@ export function AgendaPage({ scope, mode, onMode, switched, crossfade }: Schedul
                   onToggle={toggle}
                   columns={columns}
                   detail={detail}
+                  fullDetail={fullDetail}
                   highlight={highlight}
                   expanded={expanded}
                   eventFor={live.eventFor}
@@ -402,6 +405,7 @@ interface DaySectionProps {
   readonly onToggle: (day: string, viaKeyboard: boolean) => void;
   readonly columns: number;
   readonly detail: RowDetail;
+  readonly fullDetail: RowDetail;
   readonly highlight: Highlight;
   readonly expanded: readonly string[];
   readonly eventFor: (item: ScheduleItem) => ReturnType<typeof baseEvent>;
@@ -412,7 +416,7 @@ interface DaySectionProps {
 }
 
 /** A day: its heading (folding or plain), then its leagues' rows; byes and "Time TBA" notes. */
-function DaySection({ day, today, folds, open, scope, mode, toggling, onToggle, columns, detail, highlight, expanded, eventFor, onHover, onSelect, entrance }: DaySectionProps) {
+function DaySection({ day, today, folds, open, scope, mode, toggling, onToggle, columns, detail, fullDetail, highlight, expanded, eventFor, onHover, onSelect, entrance }: DaySectionProps) {
   const id = dayID(day.day);
   const linking = toggling.linking === id;
   const just = toggling.just === id;
@@ -449,11 +453,11 @@ function DaySection({ day, today, folds, open, scope, mode, toggling, onToggle, 
             return (
               <div key={group.league}>
                 {scope === "all" ? <GroupLabel league={group.league} title={group.title} mode={mode} {...reveal(group.items[0]?.id)} /> : null}
-                <Rows items={timed} {...{ columns, detail, highlight, expanded, eventFor, onHover, onSelect, travel, delay, scope, day: id }} />
+                <Rows items={timed} {...{ columns, detail, fullDetail, highlight, expanded, eventFor, onHover, onSelect, travel, delay, scope, day: id }} />
                 {untimed.length ? (
                   <>
                     {timed.length ? <Note {...reveal(untimed[0]?.id)}>Time TBA</Note> : null}
-                    <Rows items={untimed} {...{ columns, detail, highlight, expanded, eventFor, onHover, onSelect, travel, delay, scope, day: id }} />
+                    <Rows items={untimed} {...{ columns, detail, fullDetail, highlight, expanded, eventFor, onHover, onSelect, travel, delay, scope, day: id }} />
                   </>
                 ) : null}
               </div>
@@ -471,6 +475,7 @@ function Rows({
   items,
   columns,
   detail,
+  fullDetail,
   highlight,
   expanded,
   eventFor,
@@ -483,6 +488,7 @@ function Rows({
   items: readonly ScheduleItem[];
   columns: number;
   detail: RowDetail;
+  fullDetail: RowDetail;
   highlight: Highlight;
   expanded: readonly string[];
   eventFor: (item: ScheduleItem) => ReturnType<typeof baseEvent>;
@@ -495,15 +501,17 @@ function Rows({
 }) {
   if (items.length === 0) return null;
   const shown = items.flatMap((i) => (expanded.includes(i.id) ? [i, ...(i.children ?? [])] : [i]));
+  const two = columns === 2 && shown.length > 1;
+  const rowDetailHere = two || columns === 1 ? detail : fullDetail;
   return (
-    <div className={[rowStyles.rows, columns === 2 ? styles.rows2 : null].filter(Boolean).join(" ")} data-detail={detail}>
+    <div className={[rowStyles.rows, two ? styles.rows2 : null].filter(Boolean).join(" ")} data-detail={rowDetailHere}>
       {shown.map((item) => (
         <ScheduleRow
           key={item.id}
           item={item}
           event={eventFor(item)}
           keyboard={highlight.keyboard && highlight.id === item.id}
-          detail={detail}
+          detail={rowDetailHere}
           showsCompetition={scope !== "league" && item.children == null}
           expanded={expanded.includes(item.id)}
           revealDelay={delay(item.id)}

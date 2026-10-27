@@ -65,6 +65,7 @@ export function ResultsAgendaPage({ scope, mode, onMode, switched, crossfade }: 
   const roundsBeside = wide && navigation === "rounds";
   const columns = wide && !roundsBeside && navigation !== "list" ? 2 : 1;
   const detail: RowDetail = rowDetail((roundsBeside ? width / 2 : width / columns) - 28);
+  const fullDetail: RowDetail = rowDetail((roundsBeside ? width / 2 : width) - 28);
 
   const select = useCallback((id: string | null) => {
     setHighlight({ id: null, keyboard: false });
@@ -232,7 +233,7 @@ export function ResultsAgendaPage({ scope, mode, onMode, switched, crossfade }: 
           <Note className={styles.noteTop}>No results in this round.</Note>
         ) : (
           data.days.map((day, d) => (
-            <RoundDay key={d} day={day} index={d} scope={scope.kind} mode={mode} columns={roundsBeside ? 1 : columns} detail={detail} details={details} highlight={highlight} onHover={onHover} eventFor={live.eventFor} today={today} />
+            <RoundDay key={d} day={day} index={d} scope={scope.kind} mode={mode} columns={roundsBeside ? 1 : columns} detail={detail} fullDetail={fullDetail} details={details} highlight={highlight} onHover={onHover} eventFor={live.eventFor} today={today} />
           ))
         )}
         {state.byes.length ? <Note>Bye: {state.byes.join(", ")}</Note> : null}
@@ -286,21 +287,21 @@ function writeBack(key: string, value: number) {
 }
 
 /** A round's day: its heading, then (All) its leagues, rows identified by place so a step reuses them. */
-function RoundDay({ day, index, scope, mode, columns, detail, details, highlight, onHover, eventFor, today }: { day: AgendaDay; index: number; scope: string; mode: SchedulePageProps["mode"]; columns: number; detail: RowDetail; details: boolean; highlight: Highlight; onHover: (id: string) => void; eventFor: ReturnType<typeof useLiveEvents>["eventFor"]; today: DayKey }) {
+function RoundDay({ day, index, scope, mode, columns, detail, fullDetail, details, highlight, onHover, eventFor, today }: { day: AgendaDay; index: number; scope: string; mode: SchedulePageProps["mode"]; columns: number; detail: RowDetail; fullDetail: RowDetail; details: boolean; highlight: Highlight; onHover: (id: string) => void; eventFor: ReturnType<typeof useLiveEvents>["eventFor"]; today: DayKey }) {
   return (
     <section aria-label={dayID(day.day)}>
       <DayHeader day={day.day} today={today} />
       {day.groups.map((group, g) => (
         <Fragment key={g}>
           {scope === "all" ? <GroupLabel league={group.league} title={group.title} mode={mode} /> : null}
-          <div className={[rowStyles.rows, columns === 2 ? styles.rows2 : null].filter(Boolean).join(" ")} data-detail={detail}>
+          <div className={[rowStyles.rows, columns === 2 && group.items.length > 1 ? styles.rows2 : null].filter(Boolean).join(" ")} data-detail={columns === 2 && group.items.length === 1 ? fullDetail : detail}>
             {group.items.map((item, r) => (
               <ScheduleRow
                 key={`row-${index}.${g}.${r}`}
                 item={item}
                 event={eventFor(item)}
                 keyboard={highlight.keyboard && highlight.id === item.id}
-                detail={detail}
+                detail={columns === 2 && group.items.length === 1 ? fullDetail : detail}
                 showsCompetition={scope !== "league" && item.children == null}
                 details={details}
                 onHover={onHover}
