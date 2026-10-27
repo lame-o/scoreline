@@ -16,7 +16,7 @@
  *
  *     const { events, status } = useClimbingSeasons();
  */
-import { keepPreviousData, useInfiniteQuery, useQueries, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { dayKeyOf } from "../data/days";
 import { getJSON } from "../data/http";
@@ -354,7 +354,7 @@ export function useClimbingResults(chosen: string | null): ClimbingResults {
   const current = root.data?.current?.name ?? null;
   // The first two seasons decide the default; the chosen one loads too.
   const wantedRefs = menuRefs.filter((r, i) => i < 2 || r.name === chosen);
-  const seasonQueries = useQueries({ queries: wantedRefs.map((r) => ({ ...seasonQuery(r.id, r.name, current), placeholderData: keepPreviousData })) });
+  const seasonQueries = useQueries({ queries: wantedRefs.map((r) => seasonQuery(r.id, r.name, current)) });
   const loaded = new Map(wantedRefs.map((r, i) => [r.name, seasonQueries[i]?.data] as const));
   let season = chosen;
   if (!season) {
@@ -451,7 +451,7 @@ export function useCategoryResults(eventID: number, dcatID: number): CategoryPag
     ...quiet,
   });
   const endsAt = event.data?.endsAt ?? null;
-  const results = useQuery({ ...categoryQuery(eventID, dcatID, endsAt, now), placeholderData: keepPreviousData });
+  const results = useQuery(categoryQuery(eventID, dcatID, endsAt, now));
   const clockedEvent = useMemo(() => (event.data ? (clocked([event.data], Date.now())[0] ?? null) : null), [event.dataUpdatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
   return {
     event: clockedEvent,
