@@ -12,6 +12,14 @@
  *
  * Links pass the full reference in the history state as well, so the hero
  * paints the name, photo and team on the first frame (TeamLink, PlayerLink).
+ *
+ * The pages also accept the paths other pages built before these links
+ * existed, so nothing they emit can 404:
+ *
+ *     /player/espn-baseball-33192?league=mlb   an ESPN athlete by sport, the league in the query (game pages)
+ *     /player/ifsc-1147?name=&country=          a climber with their name and country (season pages)
+ *     /team/cs-667?name=&logo=&league=cs2       a team with its name and crest (season pages)
+ *     /team/espn-soccer-359                     a club from a table row, its league found from ESPN
  */
 import { leagueForPath, playerRef, teamRef, type PlayerRef, type TeamRef } from "./models";
 
@@ -43,26 +51,53 @@ export function playerSlug(ref: Pick<PlayerRef, "source" | "id">): string {
   }
 }
 
-/** A team reference from its route: the ID, and the league when the path says. */
-export function teamFromRoute(id: string, league: string | null): TeamRef | null {
+/** A team reference from its route: the ID, and what the query says (`league`, and `name` and `logo` from older links). */
+export function teamFromRoute(id: string, query: URLSearchParams | null = null): TeamRef | null {
   if (!id.startsWith("espn-") && !id.startsWith("cs-")) return null;
-  return teamRef({ id, name: "", league: league ?? (id.startsWith("cs-") ? "cs2" : null) });
+  return teamRef({
+    id,
+    name: query?.get("name") ?? "",
+    logo: query?.get("logo") || null,
+    league: query?.get("league") || (id.startsWith("cs-") ? "cs2" : null),
+  });
 }
 
-/** A player reference from its route, or null for a path that names no one. */
-export function playerFromRoute(slug: string): PlayerRef | null {
+/** An ESPN league ID as the path its athletes live under ("mlb" → "baseball/mlb", "eng.1" → "soccer/eng.1"). */
+function pathForLeague(league: string): string | null {
+  return US_LEAGUES[league] ?? (/^[a-z]{2,4}\.[\w.]+$/.test(league) ? `soccer/${league}` : null);
+}
+
+/** A sport's league when a link didn't say (`espn-baseball-…` without `?league=`). */
+const SPORT_PATHS: Readonly<Record<string, string>> = {
+  baseball: "baseball/mlb",
+  basketball: "basketball/nba",
+  football: "football/nfl",
+  ncaaf: "football/college-football",
+  // ESPN files a footballer's pages under any soccer league; "all" stands in until the bio names the club.
+  soccer: "soccer/all",
+};
+
+/** A player reference from its route (and query), or null for a path that names no one. */
+export function playerFromRoute(slug: string, query: URLSearchParams | null = null): PlayerRef | null {
+  const name = query?.get("name") ?? "";
   if (slug.startsWith("cs2-") && slug.length > 4) {
     const s = slug.slice(4);
-    return playerRef({ source: { kind: "counterStrike", slug: s }, id: s, name: "" });
+    return playerRef({ source: { kind: "counterStrike", slug: s }, id: s, name });
   }
   const dash = slug.lastIndexOf("-");
   if (dash <= 0) return null;
   const scope = slug.slice(0, dash);
   const id = slug.slice(dash + 1);
   if (!/^\d+$/.test(id)) return null;
-  if (scope === "ifsc") return playerRef({ source: { kind: "ifsc" }, id, name: "" });
-  const path = US_LEAGUES[scope] ?? (/^[a-z]{2,4}\.[\w.]+$/.test(scope) ? `soccer/${scope}` : null);
-  return path ? playerRef({ source: { kind: "espn", path }, id, name: "" }) : null;
+  if (scope === "ifsc") return playerRef({ source: { kind: "ifsc" }, id, name, country: query?.get("country") || null });
+  // Game pages' links: "espn-<sport>-<id>", the league in the query.
+  if (scope.startsWith("espn-")) {
+    const league = query?.get("league");
+    const path = league ? pathForLeague(league) : (SPORT_PATHS[scope.slice(5)] ?? null);
+    return path ? playerRef({ source: { kind: "espn", path }, id, name }) : null;
+  }
+  const path = pathForLeague(scope);
+  return path ? playerRef({ source: { kind: "espn", path }, id, name }) : null;
 }
 
 /** What a link leaves in the history state for the page it opens. */

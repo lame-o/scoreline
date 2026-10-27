@@ -210,6 +210,8 @@ Live scores live in `src/state/scores.ts`, where `useScoreboard()` makes one Tan
 | `/player/eng.1-280555` | a footballer, under any soccer league |
 | `/player/cs2-zywoo`, `/player/ifsc-1147` | a CS2 player by bo3.gg slug, a climber |
 
+The pages also accept the paths built by hand before the links existed, so none of them 404: `/player/espn-<sport>-<id>?league=<league>` (the league's path, else the sport's: MLB, the NBA, the NFL, `soccer/all`), `/player/ifsc-<id>?name=&country=`, `/team/cs-<id>?name=&logo=&league=cs2` (the name and crest paint the hero at once), and a bare `/team/<id>` from a table row (a club finds its league from ESPN).
+
 **Name links.** Any page can drop these in (`features/profiles/ProfileLinks.tsx`, a light module: no parsers, no page code):
 
 ```tsx
@@ -221,6 +223,7 @@ import { TeamLink, PlayerLink, teamRefFrom, espnPlayerRef, LinkOrigin } from "..
 <LinkOrigin name="Chiefs">…links on this page say "‹ Chiefs" on the page they open…</LinkOrigin>
 ```
 
+- `variant="plain"` has no look of its own (the caller's class styles it, as the standings and poll rows and At the Plate's names do); `dataset={{ mine }}` sets `data-mine`, and `label` the accessible name.
 - `variant="quiet"` (the default) is a name inside text: unchanged at rest, underlined under a fine pointer, dimmed while pressed (QuietLink). `variant="row"` is a row whose purpose is the thing it names: the list's hover fill, with `linkNameClass` on the name to underline it (RowLink). `rowLinkClass` gives the same look to rows that open something else (a game).
 - `null`, or a team without a page (the WNBA), renders the children as plain text, so callers never branch. `counterStrikePlayerRef(slug, name)` and `climberRef(id, name)` build the other sources' references.
 - A pointer resting 250ms prefetches the page's first request and the hero photo, and loads the page's chunk (at most six a minute, once per link, never with Save-Data or on 2G). Touch prefetches on press. Return on a focused link arrives with no entrance.
@@ -308,7 +311,7 @@ The owner can run `/review-animations` on the motion code for an independent rev
   - `/schedule` (everything), `/schedule/your-teams`, `/schedule/<league>`, `/schedule/team/<id>?name=&logo=`, `/schedule/climbing`, `/schedule/tournaments`; each faces back in time with `?mode=results` (`schedulePath`).
   - `/results/climbing/<event>/<dcat>?category=&event=` and `/results/tournament/<slug>?name=` (`eventResultsPath`).
   - `/standings/<league>`, `/rankings/<league>`, `/bracket/mlb/<year>`, `/bracket/cs2/<slug>?name=`, each with `?ring=<team ids>` for the match it was opened from (`standingsPath`, `rankingsPath`, `bracketPath`).
-  - A game's link should carry its league so the page loads even when the game isn't on today's scoreboards: `gameHref(eventID, leagueID)` (features/game/core/useGame.ts) gives `/game/espn-401908043?league=mlb`. Game pages link players as `/player/espn-<sport>-<athleteID>?league=<league>` (`playerHref`, features/game/mlb/BaseballPage.tsx) and teams as `/team/<competitor id>`.
+  - A game's link should carry its league so the page loads even when the game isn't on today's scoreboards: `gameHref(eventID, leagueID)` (features/game/core/useGame.ts) gives `/game/espn-401908043?league=mlb`. Game pages link players with `PlayerLink` and `espnPlayerRef(path, id, name)` (At the Plate's batter and pitcher) and teams as `/team/<competitor id>`.
   - Team and player pages: build their paths with `teamHref` and `playerHref` (or drop in `TeamLink` and `PlayerLink`); the formats, and the older ones the pages also accept, are in [Team and player pages](#team-and-player-pages).
   - Navigations may carry `state.from` (Back's label: "Schedule"); without it Back says "Scores". Every route but the scores is lazy. To add a page: create `src/features/<area>/<Page>.tsx` that exports the component, point its route's `lazy` at it, use `PageHeader` with `BackButton` (hidden in the split view, where Esc goes back), and use `useScoreboard()` or a new query for data. Placeholders live in `features/placeholders`; replace one by repointing its route.
 - **Back** (`useGoBack`) returns to whichever page opened this one. A page opened directly goes back to the scores. Esc does the same from anywhere except a text field.
@@ -465,7 +468,8 @@ A game's page (`features/game/GamePage.tsx`, DetailView.swift) is a core that ev
 - [x] Player pages: hero (photo at hero size with no flash, position, number, team link, facts, injury or FotMob status), season tiles with ranks (league leaders for NBA and soccer), game-log strip (bars per game, Game Score against 50 for MLB starters, home-run rings) and table with All Games, MLB opening on the player's role with Batting | Pitching only for two-way players, latest, season and career table, career by season on request, awards; soccer match strip and competitions; CS2 form, recent matches, map pool and roles; climbing World Cup ranks, podiums and results
 - [x] The docked glass bar on player pages (quantized dock progress, an overlay, the hero tucking)
 - [x] `TeamLink` and `PlayerLink` with dwell prefetch of the first request and the hero photo; Settings' My Teams rows open their teams. (The Mac's scores rows have no name links: their "Go to team" lives in the context menu, still to do.)
-- [ ] Name links on the game pages (hero team names, box scores, leaders, scorers), schedules and standings rows: drop in `TeamLink` and `PlayerLink`
+- [x] Name links in the standings and poll rows and on At the Plate's batter and pitcher (`TeamLink`, `PlayerLink`, with dwell prefetch); the routes accept every path built by hand elsewhere
+- [ ] Name links still built by hand or missing: the game hero's team names (a plain `Link`, no prefetch), scoring plays, box scores and leaders on the coming sport pages, the season pages' climbers and CS2 teams (`seasons/links.ts`): drop in `TeamLink` and `PlayerLink`
 - [ ] Results' "All Results" link to the team's schedule (needs the schedule scope format), and taking the season and the table from the schedules and standings layers once they land (same URLs, so the caches are shared already)
 - [ ] Context menus: "Go to {team}" and "Go to {player}" on rows, the next game's opponent
 - [ ] LinkedPeek is a game-page feature (charts on match pages), not a profile one

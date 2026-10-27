@@ -41,7 +41,7 @@ export function TeamPage() {
   // The link's reference when it matches this page (it paints the hero at once); else one from the path.
   const ref = useMemo<TeamRef | null>(() => {
     const fromLink = nav?.team?.id === id ? nav.team : null;
-    const fromRoute = teamFromRoute(id, search.get("league"));
+    const fromRoute = teamFromRoute(id, search);
     return fromLink ? { ...fromLink, league: fromLink.league ?? fromRoute?.league ?? null } : fromRoute;
   }, [id, nav?.team, search]);
   if (!ref || teamSport(ref) == null) return <Unsupported />;

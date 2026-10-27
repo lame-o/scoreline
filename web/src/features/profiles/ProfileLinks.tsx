@@ -106,15 +106,21 @@ function warmPlayer(player: PlayerRef) {
 
 interface BaseProps {
   readonly children: ReactNode;
-  readonly variant?: "quiet" | "row";
+  /** "quiet" (a name in text), "row" (a whole row with the list's hover fill) or "plain" (no look of its own: the caller's class styles it, a table row). */
+  readonly variant?: "quiet" | "row" | "plain";
   readonly className?: string;
   /** Overrides the tooltip ("Go to Arsenal"). */
   readonly title?: string;
   /** An accessible name when the children aren't the whole story (a row: "Jalen Brunson, number 11, …"). */
   readonly label?: string;
+  /** `data-*` attributes for the caller's styles ({ mine: true } → `data-mine="true"`). */
+  readonly dataset?: Readonly<Record<string, string | boolean | undefined>>;
+  readonly draggable?: boolean;
 }
 
-function ProfileLink({ to, state, onDwell, title, label, variant = "quiet", className, children }: BaseProps & { to: string; state: ProfileNavState; onDwell: () => void }) {
+const VARIANT_CLASS = { quiet: styles.quiet, row: styles.row, plain: undefined } as const;
+
+function ProfileLink({ to, state, onDwell, title, label, variant = "quiet", className, dataset, draggable, children }: BaseProps & { to: string; state: ProfileNavState; onDwell: () => void }) {
   const navigate = useNavigate();
   const dwell = useDwellPrefetch(onDwell);
   const onClick = (e: MouseEvent<HTMLAnchorElement>) => {
@@ -124,14 +130,17 @@ function ProfileLink({ to, state, onDwell, title, label, variant = "quiet", clas
       navigate(to, { state: { ...state, viaKeyboard: true } satisfies ProfileNavState });
     }
   };
+  const data = Object.fromEntries(Object.entries(dataset ?? {}).flatMap(([k, v]) => (v === undefined ? [] : [[`data-${k}`, String(v)]])));
   return (
     <Link
       to={to}
       state={state}
-      className={[variant === "row" ? styles.row : styles.quiet, className].filter(Boolean).join(" ")}
+      className={[VARIANT_CLASS[variant], className].filter(Boolean).join(" ") || undefined}
       title={title}
       aria-label={label}
+      draggable={draggable}
       onClick={onClick}
+      {...data}
       {...dwell}
     >
       {children}
@@ -144,11 +153,11 @@ export interface TeamLinkProps extends BaseProps {
   readonly team: TeamRef | null;
 }
 
-export function TeamLink({ team, children, className, ...rest }: TeamLinkProps) {
+export function TeamLink({ team, children, className, title, ...rest }: TeamLinkProps) {
   const from = useContext(Origin);
   if (!team || !isSupportedTeam(team)) return <span className={className}>{children}</span>;
   return (
-    <ProfileLink to={teamHref(team)} state={{ team, from: from ?? undefined }} onDwell={() => warmTeam(team)} title={rest.title ?? `Go to ${team.name}`} className={className} {...rest}>
+    <ProfileLink to={teamHref(team)} state={{ team, from: from ?? undefined }} onDwell={() => warmTeam(team)} title={title ?? (team.name ? `Go to ${team.name}` : undefined)} className={className} {...rest}>
       {children}
     </ProfileLink>
   );
@@ -159,11 +168,11 @@ export interface PlayerLinkProps extends BaseProps {
   readonly player: PlayerRef | null;
 }
 
-export function PlayerLink({ player, children, className, ...rest }: PlayerLinkProps) {
+export function PlayerLink({ player, children, className, title, ...rest }: PlayerLinkProps) {
   const from = useContext(Origin);
   if (!player) return <span className={className}>{children}</span>;
   return (
-    <ProfileLink to={playerHref(player)} state={{ player, from: from ?? undefined }} onDwell={() => warmPlayer(player)} title={rest.title ?? `Go to ${player.name}`} className={className} {...rest}>
+    <ProfileLink to={playerHref(player)} state={{ player, from: from ?? undefined }} onDwell={() => warmPlayer(player)} title={title ?? (player.name ? `Go to ${player.name}` : undefined)} className={className} {...rest}>
       {children}
     </ProfileLink>
   );

@@ -14,7 +14,7 @@
  * hands over the reference it had, so the hero paints at once.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useParams } from "react-router";
+import { useLocation, useParams, useSearchParams } from "react-router";
 import { EmptyState, ErrorState, GlassCard, IconButton, Skeleton } from "../../design/components";
 import { competitors, type ScoreEvent } from "../../data/models";
 import { aboutFacts, atLeast, COMPETITION_COLUMNS, dockDetail, dockStat, factsLine, seasonColumns, shortMonth, type WidthClass } from "../../data/profiles/display";
@@ -41,15 +41,16 @@ const HERO_PHOTO = 76;
 
 export function PlayerPage() {
   const { id: raw = "" } = useParams();
+  const [search] = useSearchParams();
   const location = useLocation();
   const nav = (location.state as ProfileNavState | null) ?? null;
   const slug = decodeURIComponent(raw);
   const ref = useMemo<PlayerRef | null>(() => {
-    const route = playerFromRoute(slug);
+    const route = playerFromRoute(slug, search);
     if (!route) return null;
     // The link's reference when it's this person (it knows the name, photo and team): the hero paints at once.
     return nav?.player && playerKey(nav.player) === playerKey(route) ? nav.player : route;
-  }, [slug, nav?.player]);
+  }, [slug, search, nav?.player]);
   if (!ref) return <NotAvailable />;
   return <PlayerViewPage key={playerKey(ref)} playerRef={ref} backTitle={nav?.from ?? "Scores"} viaKeyboard={nav?.viaKeyboard === true} />;
 }

@@ -40,7 +40,7 @@ describe("routes", () => {
   it("round-trips teams and players through their paths", () => {
     expect(teamHref(teamRef({ id: "espn-soccer-359", name: "Arsenal", league: "eng.1" }))).toBe("/team/espn-soccer-359?league=eng.1");
     expect(teamHref(teamRef({ id: "espn-football-12", name: "Chiefs", league: "nfl" }))).toBe("/team/espn-football-12");
-    expect(teamFromRoute("espn-soccer-359", "eng.1")?.league).toBe("eng.1");
+    expect(teamFromRoute("espn-soccer-359", new URLSearchParams("league=eng.1"))?.league).toBe("eng.1");
     expect(teamFromRoute("nonsense", null)).toBeNull();
     const cases = [
       playerRef({ source: { kind: "espn", path: "basketball/nba" }, id: "1966", name: "LeBron James" }),
@@ -60,6 +60,25 @@ describe("routes", () => {
     expect(playerHref(cases[4]!)).toBe("/player/cs2-jl-cs-go");
     expect(playerFromRoute("nba-abc")).toBeNull();
     expect(playerFromRoute("wnba-1")).toBeNull();
+  });
+
+  it("accepts the paths other pages built before the links existed", () => {
+    // Game pages: "espn-<sport>-<id>", the league in the query.
+    const batter = playerFromRoute("espn-baseball-33192", new URLSearchParams("league=mlb"))!;
+    expect(batter.source).toEqual({ kind: "espn", path: "baseball/mlb" });
+    expect(batter.id).toBe("33192");
+    expect(playerFromRoute("espn-soccer-280555", new URLSearchParams("league=eng.1"))?.source).toEqual({ kind: "espn", path: "soccer/eng.1" });
+    expect(playerFromRoute("espn-basketball-1966")?.source).toEqual({ kind: "espn", path: "basketball/nba" });
+    expect(playerFromRoute("espn-soccer-280555")?.source).toEqual({ kind: "espn", path: "soccer/all" });
+    // The WNBA has no pages.
+    expect(playerFromRoute("espn-basketball-1", new URLSearchParams("league=wnba"))).toBeNull();
+    // Season pages: climbers with their name and country; CS2 teams with name and crest.
+    const climber = playerFromRoute("ifsc-1147", new URLSearchParams("name=Janja Garnbret&country=SLO"))!;
+    expect(climber).toMatchObject({ id: "1147", name: "Janja Garnbret", country: "SLO", source: { kind: "ifsc" } });
+    const vitality = teamFromRoute("cs-667", new URLSearchParams("name=Vitality&logo=https%3A%2F%2Ffiles.bo3.gg%2Fx.webp&league=cs2"))!;
+    expect(vitality).toMatchObject({ id: "cs-667", name: "Vitality", logo: "https://files.bo3.gg/x.webp", league: "cs2" });
+    // Table rows: the bare ID.
+    expect(teamFromRoute("espn-soccer-359")).toMatchObject({ id: "espn-soccer-359", name: "", league: null });
   });
 });
 
