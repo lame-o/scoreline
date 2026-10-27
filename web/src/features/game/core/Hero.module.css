@@ -250,6 +250,12 @@
   color: var(--label-secondary);
 }
 
+/* Field events (climbing): the status leads, like the title (heroStatus(alignment: .leading)). */
+.fieldHero .status {
+  align-items: flex-start;
+  text-align: left;
+}
+
 /* Field events (climbing) */
 .fieldHero {
   display: flex;

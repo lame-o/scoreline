@@ -227,12 +227,14 @@ export const LeadAscent = memo(function LeadAscent({ route, upNext, yours, round
                     {reduce && knockAt != null ? <span key={livePass?.moment} className={styles.ring} style={{ "--delay": `${knockAt}s` } as CSSProperties} /> : null}
                   </span>
                   {labelY != null ? (
-                    <span className={`${styles.abs} ${styles.label}`} data-mine={mine} data-lit={litHere === c.id} data-dim={d} style={{ ...at(0, labelY), width: `calc(${Math.max(trackX - 16, 0)} * var(--pt))`, ...delay }} {...hover(c.id)}>
+                    <span className={`${styles.abs} ${styles.label}`} data-mine={mine} data-lit={litHere === c.id} style={{ ...at(0, labelY), width: `calc(${Math.max(trackX - 16, 0)} * var(--pt))` }} {...hover(c.id)}>
                       {/* Passed just now: ▼1, the news about this climber (not dimmed). */}
                       {knockAt != null ? <DeltaChip delta={-1} className={styles.deltaIn} style={{ "--delay": `${knockAt}s` } as CSSProperties} /> : null}
-                      {medal ? <span className={styles.medal} data-medal={medal} title={`${medal[0]!.toUpperCase()}${medal.slice(1)} place for now`} /> : null}
-                      <span className={styles.labelName}>{`${c.flag ? `${c.flag} ` : ""}${c.name}`}</span>
-                      <span className={styles.labelHeight}>{c.label}</span>
+                      <span className={`${styles.labelBody} ${styles.dims}`} data-dim={d} style={delay}>
+                        {medal ? <span className={styles.medal} data-medal={medal} title={`${medal[0]!.toUpperCase()}${medal.slice(1)} place for now`} /> : null}
+                        <span className={styles.labelName}>{`${c.flag ? `${c.flag} ` : ""}${c.name}`}</span>
+                        <span className={styles.labelHeight}>{c.label}</span>
+                      </span>
                     </span>
                   ) : null}
                 </div>

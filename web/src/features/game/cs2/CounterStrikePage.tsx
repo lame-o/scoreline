@@ -11,7 +11,9 @@
  * ("Mirage 9–7", "Round 17"), a round won, a map won and the series won are
  * moments (data/cs2.ts `csMoments`), and whichever reading is further on,
  * the lane's or the full load's, is the one shown, so the score never steps
- * back. The hero's maps count is the lane's the moment a map ends.
+ * back. A round or a map won refreshes the rest at once (web addition: the
+ * round list catches up with the score instead of in half a minute). The
+ * hero's maps count is the lane's the moment a map ends.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { coStreamerName, coStreamerURL, coStreamListed, csMoments, fetchCSLive, mapsCaption, newerReading, pointChip, rosterIsEmpty } from "../../../data/cs2";
@@ -54,15 +56,20 @@ export function useCounterStrikePage(game: GameContext): SportPage {
   const current = useRef(reading);
   const maps = useRef(detail.maps);
   maps.current = detail.maps;
+  const refresh = useRef(game.refresh);
+  refresh.current = game.refresh;
   const accept = useCallback(
     (next: CSLive | null, fromLane: boolean) => {
       const was = current.current;
       // A full load never takes the lane's reading back, nor away.
       if (!fromLane && was && (!next || !newerReading(next, was))) return;
       if (sameReading(was, next)) return;
-      if (was && next) game.moments.offer(csMoments(was, next, spoken, maps.current));
+      const moments = was && next ? csMoments(was, next, spoken, maps.current) : [];
+      if (moments.length > 0) game.moments.offer(moments);
       current.current = next;
       setReading(next);
+      // A round or a map won: the rest (the round list, the maps) catches up now, not in half a minute.
+      if (fromLane && moments.length > 0) refresh.current();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [game.moments, spoken.top, spoken.bottom],

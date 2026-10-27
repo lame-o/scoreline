@@ -138,12 +138,19 @@
   white-space: nowrap;
   transition:
     transform var(--dur-standard) var(--ease-out),
-    background-color var(--dur-fade) var(--ease-out),
-    opacity var(--dur-reveal) var(--ease-out) var(--delay, 0s);
+    background-color var(--dur-fade) var(--ease-out);
 }
 
 .label[data-lit="true"] {
   background: var(--fill-hover);
+}
+
+.labelBody {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(5 * var(--pt));
+  min-width: 0;
 }
 
 .labelName {
@@ -557,6 +564,7 @@
   font-size: calc(9 * var(--pt));
   font-weight: 500;
   font-stretch: condensed;
+  letter-spacing: -0.02em;
   color: var(--label-secondary);
   white-space: nowrap;
   overflow: hidden;

@@ -337,11 +337,12 @@ async function climbDemo(): Promise<ClimbReplay> {
     const top = ascent.top === true;
     const label = String(ascent.score ?? "0");
     const final = top ? 49 : Number.parseFloat(label) + (label.endsWith("+") ? 0.5 : 0);
-    // Five steps up the wall, then the result.
+    // Five steps up the wall, the high point while still on it, then the result.
     for (let step = 1; step <= 5; step++) {
       const h = Math.floor((final * step) / 6);
       frames.push({ order: index, height: h, label: String(h), top: false, done: false });
     }
+    if (!top) frames.push({ order: index, height: final, label, top: false, done: false });
     frames.push({ order: index, height: final, label: top ? "TOP" : label, top, done: true });
   });
   const offset = Number(sessionStorage.getItem("scoreline.demo.climb") ?? "0") || 0;
