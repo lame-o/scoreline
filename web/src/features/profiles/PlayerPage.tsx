@@ -63,9 +63,9 @@ function NotAvailable({ retry }: { readonly retry?: () => void }) {
     <div className={styles.page}>
       <ProfileHeader />
       {retry ? (
-        <ErrorState subject="Player" onRetry={retry} />
+        <ErrorState level={1} subject="Player" onRetry={retry} />
       ) : (
-        <EmptyState icon="sportscourt" title="Player Not Available" message="Scoreline doesn't have a page for this player yet." />
+        <EmptyState level={1} icon="sportscourt" title="Player Not Available" message="Scoreline doesn't have a page for this player yet." />
       )}
     </div>
   );

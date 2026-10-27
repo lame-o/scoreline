@@ -11,7 +11,7 @@
  */
 import { Suspense, use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useParams, useSearchParams } from "react-router";
-import { Button, EmptyState, IconButton, PageHeader } from "../../design/components";
+import { Button, EmptyState, ErrorState, IconButton, PageHeader } from "../../design/components";
 import { spokenStatus, scoreLine } from "../../data/format";
 import { beatFinal, beatScore, beatScoreRose, finalAnnouncement, NO_BEATS, winner, type HeroBeats } from "../../data/matchRules";
 import { decisive, scorer, Tier } from "../../data/moments";
@@ -66,8 +66,11 @@ export function GamePage() {
         {header}
         {game.status === "loading" ? (
           <HeroSkeleton />
+        ) : game.status === "failed" ? (
+          <ErrorState level={1} subject="Game" onRetry={game.refresh} />
         ) : (
           <EmptyState
+            level={1}
             icon="sportscourt"
             title="Game Not Found"
             message="This game isn't on any scoreboard Scoreline reads, and its source didn't answer."

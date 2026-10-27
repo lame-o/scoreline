@@ -55,7 +55,7 @@ function Unsupported() {
   return (
     <div className={styles.page}>
       <ProfileHeader />
-      <EmptyState icon="star" title="No Page for This Team" message="Scoreline has pages for NFL, college football, MLB, NBA, soccer and CS2 teams." />
+      <EmptyState level={1} icon="star" title="No Page for This Team" message="Scoreline has pages for NFL, college football, MLB, NBA, soccer and CS2 teams." />
     </div>
   );
 }

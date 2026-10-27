@@ -24,7 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef } from "react";
 import { EMPTY_DETAIL, eventFromSummary, fetchDetail, parseESPNDetail, scoreboardURL, summaryURL, type GameDetail } from "../../../data/gameDetail";
 import { loadCSMatch, matchByIDURL, matchNumber } from "../../../data/cs2";
-import { getJSON } from "../../../data/http";
+import { getJSON, HTTPError } from "../../../data/http";
 import { arr, at } from "../../../data/json";
 import { makeMatchEvent } from "../../../data/providers/counterStrike";
 import { disciplinesOf } from "../../../data/scoreboard";
@@ -33,14 +33,14 @@ import { CATALOG, espnPath, leagueWithID } from "../../../data/leagues";
 import type { League, ScoreEvent, Sport } from "../../../data/models";
 import { pageKind } from "../../../data/sections";
 import { useLogoColorsVersion, wearColors } from "../../../state/logoColors";
-import { queryClient, useScoreboard } from "../../../state/scores";
+import { queryClient, retryOnline, useScoreboard } from "../../../state/scores";
 
 export interface GameData {
   /** The freshest copy of the event, or null while loading or when it can't be found. */
   readonly event: ScoreEvent | null;
   readonly detail: GameDetail | null;
-  /** "loading" until the event is known; "missing" when no source has it. */
-  readonly status: "loading" | "ready" | "missing";
+  /** "loading" until the event is known; "missing" when no source has it; "failed" when its sources couldn't be reached. */
+  readonly status: "loading" | "ready" | "missing" | "failed";
   readonly detailFailed: boolean;
   /** When the detail last loaded (epoch ms). */
   readonly lastLoaded: number | null;
@@ -95,8 +95,12 @@ async function resolveESPN(gameID: string, hint: League | undefined, signal: Abo
   });
   try {
     return await Promise.any(attempts);
-  } catch {
-    return null;
+  } catch (error) {
+    // Every league said it has no such game (404, or a summary without one): it's missing. Anything
+    // else (offline, an upstream down) is a failure to load, said as one, and retried.
+    const reasons = error instanceof AggregateError ? error.errors : [error];
+    if (reasons.every((e) => (e instanceof HTTPError && e.status === 404) || (e instanceof Error && e.message === "No event in summary"))) return null;
+    throw error;
   }
 }
 
@@ -154,7 +158,7 @@ export function useGame(id: string, { poll, league }: { poll: boolean; league: s
     queryFn: ({ signal }) => (csID != null ? resolveCS(csID, signal) : resolveESPN(espnID!, hint, signal)),
     enabled: !boardEvent && (espnID != null || csID != null) && scores.status !== "loading",
     staleTime: Infinity,
-    retry: 1,
+    retry: retryOnline(1),
   });
 
   const failures = useRef(0);
@@ -197,9 +201,11 @@ export function useGame(id: string, { poll, league }: { poll: boolean; league: s
     ? "ready"
     : scores.status === "loading" || lookup.isLoading || lookup.fetchStatus === "fetching"
       ? "loading"
-      : (espnID == null && csID == null) || lookup.isFetched
-        ? "missing"
-        : "loading";
+      : lookup.isError
+        ? "failed"
+        : (espnID == null && csID == null) || lookup.isFetched
+          ? "missing"
+          : "loading";
 
   return {
     event,
@@ -209,6 +215,6 @@ export function useGame(id: string, { poll, league }: { poll: boolean; league: s
     lastLoaded,
     staleSince,
     leagueID: (boardEvent ? scores.leagueOf(id) : lookup.data?.league) ?? null,
-    refresh: () => void detail.refetch(),
+    refresh: () => void (event ? detail.refetch() : lookup.refetch()),
   };
 }

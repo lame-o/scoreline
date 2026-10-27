@@ -47,16 +47,28 @@ import { useNextGames } from "./nextGames";
 import { pin, usePinnedID } from "./pin";
 import { getSettings, useSettings, type Settings } from "./settings";
 
+/** Retry up to `times`, but not while the browser knows it's offline (a page then says so at once; reconnecting refetches). */
+export const retryOnline =
+  (times: number) =>
+  (failures: number): boolean =>
+    failures < times && (typeof navigator === "undefined" || navigator.onLine !== false);
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       // Coming back to the tab refreshes data older than this (ScoreStore.refreshIfStale).
       staleTime: 30_000,
       gcTime: 15 * 60_000,
-      retry: 3,
+      // Retried at 5, 15 and 30 s, except while the browser knows it's offline: then a page
+      // says it can't connect at once, and coming back online refetches (refetchOnReconnect).
+      retry: retryOnline(3),
       retryDelay: (attempt) => retryDelay(attempt + 1) * 1000,
       refetchOnWindowFocus: true,
       refetchIntervalInBackground: false,
+      // Offline, a fetch fails (and retries on its schedule) instead of pausing: a paused
+      // query never errors, so a page opened offline sat on its placeholders forever instead
+      // of saying it can't connect. Coming back online still refetches (refetchOnReconnect).
+      networkMode: "always",
     },
   },
 });
@@ -164,7 +176,7 @@ export function useScoreboard({ poll = true, background = false }: ScoreboardOpt
   // changed, or the minute turned (time windows move): ScoreStore's `version`.
   const minute = Math.floor(useNow(60_000) / 60_000);
   const colors = useLogoColorsVersion();
-  const version = queries.reduce((v, q) => v + q.dataUpdatedAt + q.errorUpdatedAt, 0);
+  const version = queries.reduce((v, q) => v + q.dataUpdatedAt + q.errorUpdatedAt + q.failureCount, 0);
   const fetching = queries.some((q) => q.isFetching);
 
   const derived = useMemo(() => {
@@ -174,10 +186,13 @@ export function useScoreboard({ poll = true, background = false }: ScoreboardOpt
     const byID = new Map<string, ScoreEvent>();
     leagues.forEach((league, i) => {
       const q = queries[i];
-      if (!q || (q.data === undefined && !q.isError)) return;
+      // A league that has never answered counts as failed from its first failed try (its retries go
+      // on): with nothing to show, "Can't Load Scores" beats a placeholder for the 50 s of retries.
+      const failedFirst = q != null && q.data === undefined && q.failureCount > 0;
+      if (!q || (q.data === undefined && !q.isError && !failedFirst)) return;
       // Teams wear their logos' colors once read (TeamColors); climbing has no crests.
       const events = league.id === "ifsc" ? (q.data ?? []) : wearColors(q.data ?? []);
-      results[league.id] = { events, failed: q.isError };
+      results[league.id] = { events, failed: q.isError || failedFirst };
       for (const e of events) {
         if (!owner.has(e.id)) owner.set(e.id, league.id);
         if (!byID.has(e.id)) byID.set(e.id, e);

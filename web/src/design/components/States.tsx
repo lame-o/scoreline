@@ -70,15 +70,18 @@ export const ErrorCopy = {
 
 export interface ErrorStateProps {
   readonly subject: string;
+  /** 1 when the error is the whole page (nothing else on it carries the h1). */
+  readonly level?: 1 | 2;
   readonly retriesAutomatically?: boolean;
   readonly onRetry: () => void;
   readonly icon?: IconName;
 }
 
-export function ErrorState({ subject, retriesAutomatically = false, onRetry, icon = "wifiSlash" }: ErrorStateProps) {
+export function ErrorState({ subject, retriesAutomatically = false, onRetry, icon = "wifiSlash", level }: ErrorStateProps) {
   return (
     <div role="alert">
       <EmptyState
+        level={level}
         icon={icon}
         title={ErrorCopy.title(subject)}
         message={retriesAutomatically ? ErrorCopy.automatic : ErrorCopy.message}

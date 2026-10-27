@@ -107,6 +107,15 @@ describe("the MLB postseason", () => {
     expect(fetcher.calls.some((u) => u.endsWith("dates=20261029"))).toBe(false);
   });
 
+  it("says it can't load when no day answers, instead of an empty bracket", async () => {
+    // A season whose days nothing has cached this session: its type answers (the HTTP cache), its boards don't.
+    const offline = async (url: string) => {
+      if (/types\/3$/.test(url)) return { startDate: "2031-09-30T07:00Z", endDate: "2031-11-05T06:59Z" };
+      throw new TypeError("Failed to fetch");
+    };
+    await expect(loadPostseason("baseball/mlb", 2031, offline, Date.parse("2031-10-10T18:00:00Z"))).rejects.toThrow("Failed to fetch");
+  });
+
   it("the postseason's days run from its start to tomorrow", () => {
     const days = postseasonDays(Date.parse("2026-09-29T07:00Z"), Date.parse("2026-11-12T07:59Z"), Date.parse("2026-10-01T18:00Z"));
     expect(days).toEqual(["20260929", "20260930", "20261001", "20261002"]);

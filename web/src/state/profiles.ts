@@ -50,7 +50,7 @@ import { espnPhoto, fotMobPhoto, heroPhotoURL } from "../data/profiles/photos";
 import { formMarks, parseStandings, parseTeamResults, standingsPath, standingsURL, standingsWindow, teamScheduleURL, type FormMark, type StandingsRow } from "../data/profiles/results";
 import type { Sport } from "../data/models";
 import { preloadPhoto } from "./profilePhotos";
-import { queryClient } from "./scores";
+import { queryClient, retryOnline } from "./scores";
 
 /** How long each kind of response stays fresh (ProfileStore.swift `TTL`). */
 export const TTL = {
@@ -98,7 +98,7 @@ function profileQuery(url: string | null, ttl: number) {
     gcTime: Math.max(ttl, 30 * 60_000),
     // A profile loads once per visit (the Mac's rule): one quick retry, then the page says what failed.
     // A 404 is an answer (nobody by that ID), never retried.
-    retry: (count: number, error: Error) => count < 1 && !(error instanceof HTTPError && error.status === 404),
+    retry: (count: number, error: Error) => retryOnline(1)(count) && !(error instanceof HTTPError && error.status === 404),
     retryDelay: 1500,
     refetchOnWindowFocus: false,
   };
