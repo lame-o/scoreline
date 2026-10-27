@@ -36,7 +36,7 @@
 
 /* One turn of the arrow per click (Refresh): never a continuous spin. */
 .turn {
-  transition: transform 450ms var(--ease-out);
+  transition: transform var(--dur-standard) var(--ease-out);
 }
 
 /* BackButton: "‹ Scores", a glass capsule; Esc goes back too. */

@@ -22,7 +22,8 @@ export interface SegmentedControlProps<T extends string> {
   readonly label: string;
   readonly value: T;
   readonly options: readonly SegmentOption<T>[];
-  readonly onChange: (value: T) => void;
+  /** `viaKeyboard`: chosen with the arrow keys (whatever it changes shouldn't animate). */
+  readonly onChange: (value: T, viaKeyboard: boolean) => void;
   /** Show only the icons (the label is still spoken and shown as a tooltip). */
   readonly iconsOnly?: boolean;
   readonly className?: string;
@@ -37,7 +38,7 @@ export function SegmentedControl<T extends string>({ label, value, options, onCh
     const option = options[i];
     if (!option) return;
     setInstant(viaKeyboard);
-    onChange(option.value);
+    onChange(option.value, viaKeyboard);
     if (viaKeyboard) buttons.current[i]?.focus();
   };
 

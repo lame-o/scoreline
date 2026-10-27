@@ -32,6 +32,7 @@ import {
   type Section,
 } from "../data/scoreboard";
 import { useNow } from "./clock";
+import { useLogoColorsVersion, wearColors } from "./logoColors";
 import { useSettings, type Settings } from "./settings";
 
 export const queryClient = new QueryClient({
@@ -95,6 +96,7 @@ export function useScoreboard(): Scoreboard {
   // Recomputed only when some league's data or error changed, the settings
   // changed, or the minute turned (time windows move): ScoreStore's `version`.
   const minute = Math.floor(useNow(60_000) / 60_000);
+  const colors = useLogoColorsVersion();
   const version = queries.reduce((v, q) => v + q.dataUpdatedAt + q.errorUpdatedAt, 0);
   const fetching = queries.some((q) => q.isFetching);
 
@@ -106,8 +108,10 @@ export function useScoreboard(): Scoreboard {
     leagues.forEach((league, i) => {
       const q = queries[i];
       if (!q || (q.data === undefined && !q.isError)) return;
-      results[league.id] = { events: q.data ?? [], failed: q.isError };
-      for (const e of q.data ?? []) {
+      // Teams wear their logos' colors once read (TeamColors); climbing has no crests.
+      const events = league.id === "ifsc" ? (q.data ?? []) : wearColors(q.data ?? []);
+      results[league.id] = { events, failed: q.isError };
+      for (const e of events) {
         if (!owner.has(e.id)) owner.set(e.id, league.id);
         if (!byID.has(e.id)) byID.set(e.id, e);
       }
@@ -131,7 +135,7 @@ export function useScoreboard(): Scoreboard {
     };
     // `version` stands for the queries' data; `leagues` and `countries` follow `settings`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, settings, minute]);
+  }, [version, settings, minute, colors]);
 
   useEffect(() => {
     interval.current = derived.cadence;

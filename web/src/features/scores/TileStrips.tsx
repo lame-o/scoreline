@@ -11,7 +11,7 @@
  * Strips have no hover targets of their own (the tile is the link); what
  * they show is in the tile's label (`stripMeaning`).
  */
-import { useId } from "react";
+import { useId, type CSSProperties } from "react";
 import { Icon } from "../../design/components";
 import type { BaseState, FootballSpot, MatchMark, ScoreEvent } from "../../data/models";
 import { markMinute, surname } from "../../data/soccer";
@@ -88,17 +88,20 @@ function FieldStrip({ spot, palette }: { spot: FootballSpot; palette: TeamPalett
           <rect x={(los / 100) * 120 - 0.35} y="20" width="0.7" height="8" fill="#0a84ff" />
         </g>
       </svg>
-      <span className={`${styles.at} ${styles.ball}`} style={{ left: `${los}%`, top: "calc(13 * var(--pt))" }}>
+      <span className={`${styles.at} ${styles.ball}`} style={{ "--x": los, top: "calc(13 * var(--pt))" } as CSSProperties}>
         <Icon name="football" size={8} />
       </span>
       {spot.possession ? (
         <span
           className={styles.at}
-          style={{
-            left: `calc(${los}% ${attacksLeft ? "-" : "+"} 8.5 * var(--pt))`,
-            top: "calc(13 * var(--pt))",
-            color: attacksLeft ? palette.bottom : palette.top,
-          }}
+          style={
+            {
+              "--x": los,
+              top: "calc(13 * var(--pt))",
+              marginLeft: `calc(${attacksLeft ? -8.5 : 8.5} * var(--pt))`,
+              color: attacksLeft ? palette.bottom : palette.top,
+            } as CSSProperties
+          }
         >
           <svg viewBox="0 0 6 6" style={{ width: "calc(5 * var(--pt))", height: "calc(5 * var(--pt))", display: "block" }} aria-hidden="true">
             <path d={attacksLeft ? "M5.5 0.5 0.5 3 5.5 5.5z" : "M0.5 0.5 5.5 3 0.5 5.5z"} fill="currentColor" />
@@ -170,14 +173,14 @@ function GoalTrack({ marks, minute, palette }: { marks: readonly MatchMark[]; mi
             key={`${m.kind}-${m.minute}-${i}`}
             className={styles.at}
             style={{
-              left: `${(x(m.minute) / 120) * 100}%`,
+              "--x": (x(m.minute) / 120) * 100,
               top: `calc(${top} * var(--pt))`,
               width: card ? "calc(4 * var(--pt))" : "calc(7 * var(--pt))",
               height: card ? "calc(6 * var(--pt))" : "calc(7 * var(--pt))",
               borderRadius: card ? "calc(1 * var(--pt))" : "50%",
               background: card ? "var(--live)" : color,
               boxShadow: m.kind === "ownGoal" ? "inset 0 0 0 1.5px var(--page)" : undefined,
-            }}
+            } as CSSProperties}
           />
         );
       })}
@@ -196,7 +199,15 @@ function LeadBar({ margin, top, bottom, palette }: { margin: number; top: string
     <div className={`${styles.strip} ${styles.lead}`} aria-hidden="true">
       <span>{top}</span>
       <span className={styles.leadTrack}>
-        {margin !== 0 ? <span className={styles.leadBar} style={{ left: margin > 0 ? `${50 - width}%` : "50%", width: `${width}%`, background: color }} /> : null}
+        <span
+          className={styles.leadBar}
+          style={{
+            left: margin > 0 ? 0 : "50%",
+            transformOrigin: margin > 0 ? "right" : "left",
+            transform: `scaleX(${margin === 0 ? 0 : width / 50})`,
+            background: color,
+          }}
+        />
       </span>
       <span>{bottom}</span>
     </div>

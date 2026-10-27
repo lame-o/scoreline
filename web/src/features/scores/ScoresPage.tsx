@@ -76,9 +76,10 @@ export function ScoresPage({ variant }: { readonly variant: "page" | "sidebar" }
   const followedIDs = scores.settings.followed.map((t) => t.id);
   const empty = scores.sections.length === 0 && scores.quietLeagues.length === 0;
 
-  const switchView = (next: LandingView) => {
+  // A click stacks the new view in; the keyboard switches instantly.
+  const switchView = (next: LandingView, viaKeyboard: boolean) => {
     if (next === view) return;
-    setArrival((n) => n + 1);
+    setArrival(viaKeyboard ? 0 : (n) => n + 1);
     settings.set("landingView", next);
   };
 

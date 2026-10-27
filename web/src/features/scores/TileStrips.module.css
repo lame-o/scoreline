@@ -4,6 +4,8 @@
   position: relative;
   width: 100%;
   height: calc(28 * var(--pt));
+  /* Marks are placed in strip widths (cqw), so they move by transform alone. */
+  container-type: inline-size;
 }
 
 .svg {
@@ -14,12 +16,13 @@
   overflow: visible;
 }
 
-/* A glyph placed at a field position (left: x%). */
+/* A glyph placed at a position along the strip (--x, 0…100) by transform alone. */
 .at {
   position: absolute;
-  transform: translate(-50%, -50%);
-  /* The ball and lines glide as the drive moves (Motion.travel, eased). */
-  transition: left 400ms var(--ease-out);
+  left: 0;
+  transform: translate(calc(var(--x) * 1cqw - 50%), -50%);
+  /* The ball glides as the drive moves (Motion.travel's settle, eased). */
+  transition: transform var(--dur-standard) var(--ease-out);
 }
 
 .ball {
@@ -124,14 +127,14 @@
   background: var(--viz-reference);
 }
 
+/* Half the track, scaled from the center line toward the leader (transform only). */
 .leadBar {
   position: absolute;
   top: 0;
   bottom: 0;
+  width: 50%;
   border-radius: 999px;
-  transition:
-    left var(--dur-standard) var(--ease-out),
-    width var(--dur-standard) var(--ease-out);
+  transition: transform var(--dur-standard) var(--ease-out);
 }
 
 /* MARK: Wall (climbing) */
