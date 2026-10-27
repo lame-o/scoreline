@@ -23,6 +23,7 @@
  * container), so marks move by transform on the compositor; the room cleared
  * around the ball (the lines and bars stop short of it) follows it as a mask.
  */
+import { m } from "motion/react";
 import { memo, useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from "react";
 import { Chip, Icon } from "../../../design/components";
 import { sample, sweepCurve } from "../../../data/celebrations";
@@ -32,6 +33,7 @@ import { knockFrames, KNOCK_SECONDS } from "../../../data/matchRules";
 import { scorer, Tier, type LiveMoment } from "../../../data/moments";
 import type { Side } from "../../../data/models";
 import { NEUTRAL, type TeamPalette } from "../../../data/teamColors";
+import { spring } from "../../../design/motion";
 import { WIDTH, useWidth } from "../../../design/useWidth";
 import { useSettings } from "../../../state/settings";
 import { CelebrationStage } from "../core/CelebrationStage";
@@ -456,12 +458,16 @@ function FieldFooter({ rows, moment, redZone }: { rows: readonly DrivePlay[]; mo
 /** The drive, newest first: each snap slides in as it happens. The last 4, or from large up the last 6 (as many as the field draws). */
 function DriveList({ drive, summary, listed, initial, linkText }: { drive: readonly DrivePlay[]; summary: string | null; listed: number; initial: ReadonlySet<string>; linkText?: (text: string) => ReactNode }) {
   const recent = drive.slice(-listed).reverse();
+  // When a snap arrives the rows below glide down to make room (Motion.standard).
+  const order = recent.map((p) => p.id).join();
   return (
     <div className={styles.drive}>
       {summary ? <p className={styles.summary}>{summary}</p> : null}
       <ul className={styles.snaps}>
         {recent.map((play) => (
-          <DriveRow key={play.id} play={play} initial={initial.has(play.id)} linkText={linkText} />
+          <m.li key={play.id} layout="position" layoutDependency={order} transition={spring.standard}>
+            <DriveRow play={play} initial={initial.has(play.id)} linkText={linkText} />
+          </m.li>
         ))}
       </ul>
     </div>
@@ -476,12 +482,12 @@ function DriveRow({ play, initial, linkText }: { play: DrivePlay; initial: boole
   // One element per snap: "2nd & 7, Mahomes pass to Kelce for 12 yards, plus 12".
   const spoken = [play.downDistance ?? play.clock, play.text, yards ? (play.yards > 0 ? `plus ${play.yards}` : `minus ${-play.yards}`) : null].filter(Boolean).join(", ");
   return (
-    <li className={styles.snap} data-lit={lit} data-initial={initial} {...row} aria-label={linkText ? undefined : spoken}>
+    <div className={styles.snap} data-lit={lit} data-initial={initial} {...row} aria-label={linkText ? undefined : spoken}>
       <span className={styles.snapDown}>{play.downDistance ?? play.clock}</span>
       <span className={styles.snapText}>{linkText ? linkText(play.text) : play.text}</span>
       <span className={styles.snapYards} data-loss={play.yards < 0}>
         {yards ?? ""}
       </span>
-    </li>
+    </div>
   );
 }

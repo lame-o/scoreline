@@ -21,14 +21,14 @@ const NOW = Date.parse("2026-10-27T08:00:00Z");
 function nfl() {
   const summary = fixture("espn-nfl-summary.json");
   const event = eventFromSummary(summary, "football/nfl", "football", NOW)!;
-  const detail = parseESPNDetail(summary, { event, path: "football/nfl", id: event.ref!.kind === "espn" ? event.ref.id : "", sport: "football" });
+  const detail = parseESPNDetail(summary, { event, path: "football/nfl", id: event.ref?.kind === "espn" ? event.ref.id : "", sport: "football" });
   return { summary, event, detail };
 }
 
 function cfb() {
   const summary = fixture("espn-cfb-summary.json");
   const event = eventFromSummary(summary, "football/college-football", "football", NOW)!;
-  const detail = parseESPNDetail(summary, { event, path: "football/college-football", id: event.ref!.kind === "espn" ? event.ref.id : "", sport: "football" });
+  const detail = parseESPNDetail(summary, { event, path: "football/college-football", id: event.ref?.kind === "espn" ? event.ref.id : "", sport: "football" });
   return { summary, event, detail };
 }
 
@@ -188,7 +188,7 @@ describe("the docked bar's possession toss", () => {
 });
 
 describe("football's moments, at the Mac's tiers", () => {
-  const m = (kind: LiveMoment["kind"], tier: LiveMoment["tier"], accents: ("decisive" | "bigPlay")[] = [], id = kind) => liveMoment({ id, chart: "field", tier, kind, lead: kind, detail: "", side: "top", accents });
+  const m = (kind: LiveMoment["kind"], tier: LiveMoment["tier"], accents: ("decisive" | "bigPlay")[] = [], id: string = kind) => liveMoment({ id, chart: "field", tier, kind, lead: kind, detail: "", side: "top", accents });
   const options = { level: "full" as const, reduceMotion: false, preset: "short" as const, direction: -Math.PI / 2 };
 
   it("celebrates a touchdown with confetti (gold when it decides the game), a field goal and a big play with sparks, a safety with a bloom", () => {

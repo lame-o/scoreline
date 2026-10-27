@@ -188,7 +188,9 @@ function applyReplay(e: Record<string, unknown>): void {
 // last score: the recording has the Texans' tying drive in the 2-minute drill
 // (the red zone, a touchdown at 0:52), then overtime (a 42-yard run, the
 // Giants' walk-off touchdown), held there, still live. `?demo&nfl=<n>` starts
-// <n> plays in (for screenshots of a given beat).
+// <n> plays in (for screenshots of a given beat); `?demo&nfl=final` shows the
+// game as it ended. A college final between two ranked teams
+// (espn-cfb-summary.json) loads off the scoreboards with `?league=college-football`.
 
 type Play = Entry & { id: string; period: { number: number }; clock: { value: number; displayValue: string }; end?: { down?: number; distance?: number; yardLine?: number; team?: { $ref?: string } } };
 
@@ -202,6 +204,8 @@ interface FootballReplay {
   cursor: number;
   started: number | null;
   end: number;
+  /** `nfl=final`: the game as it ended, not live. */
+  final: boolean;
 }
 
 let footballReplay: FootballReplay | null = null;
@@ -223,9 +227,11 @@ async function nflReplay(): Promise<FootballReplay> {
   const start = Math.max(setup ? plays.findIndex((p) => driveOf(p) === driveOf(setup)) : 0, 0);
   const endOfGame = plays.findIndex((p) => get(p, "type", "text") === "End of Game");
   const end = endOfGame < 0 ? plays.length : endOfGame;
-  const offset = Number(sessionStorage.getItem("scoreline.demo.nfl") ?? "0") || 0;
-  const first = Math.min(start + offset, end - 1);
-  footballReplay = { summary, plays, id: String(get(summary, "header", "id")), homeID: teamID("home"), awayID: teamID("away"), first, cursor: first + 1, started: null, end };
+  const asked = sessionStorage.getItem("scoreline.demo.nfl") ?? "0";
+  const final = asked === "final";
+  const offset = Number(asked) || 0;
+  const first = final ? plays.length - 1 : Math.min(start + offset, end - 1);
+  footballReplay = { summary, plays, id: String(get(summary, "header", "id")), homeID: teamID("home"), awayID: teamID("away"), first, cursor: first + 1, started: null, end: final ? plays.length : end, final };
   footballReplayID = footballReplay.id;
   return footballReplay;
 }
@@ -283,6 +289,7 @@ function footballState(r: FootballReplay) {
 
 /** The recorded summary, cut at the cursor and live: the score by quarter, the scoring plays and win probability so far. */
 function footballSummary(r: FootballReplay): Entry {
+  if (r.final) return structuredClone(r.summary);
   const st = footballState(r);
   const summary = structuredClone(r.summary);
   const comp = get(summary, "header", "competitions", 0) as Entry;
@@ -310,6 +317,7 @@ async function footballCore(path: string, search: URLSearchParams): Promise<unkn
     const { lastPlay, down, distance, yardLine, isRedZone, homeTimeouts, awayTimeouts } = st.situation;
     return { lastPlay: { $ref: lastPlay.$ref }, down, distance, yardLine, isRedZone, homeTimeouts, awayTimeouts };
   }
+  if (path.endsWith("/status") && r.final) return { clock: 0, displayClock: "0:00", period: st.period, type: { state: "post", completed: true, shortDetail: "Final/OT" } };
   if (path.endsWith("/status")) return { clock: st.last.clock.value, displayClock: st.last.clock.displayValue, period: st.period, type: { state: "in", completed: false, shortDetail: st.shortDetail } };
   if (path.endsWith("/plays")) {
     const limit = Number(search.get("limit") ?? 25);
@@ -353,6 +361,11 @@ async function footballBoardEvent(): Promise<Entry> {
 function applyFootballReplay(e: Entry): void {
   if (!footballReplay) return;
   const st = footballState(footballReplay);
+  if (footballReplay.final) {
+    e.status = get(footballReplay.summary, "header", "competitions", 0, "status");
+    for (const c of (e.competitions as Entry[])[0]!.competitors as Entry[]) c.score = String(c.homeAway === "home" ? st.home : st.away);
+    return;
+  }
   e.status = { clock: st.last.clock.value, displayClock: st.last.clock.displayValue, period: st.period, type: { state: "in", completed: false, shortDetail: st.shortDetail, detail: st.shortDetail, name: "STATUS_IN_PROGRESS" } };
   const comp = (e.competitions as Entry[])[0]!;
   for (const c of comp.competitors as Entry[]) c.score = String(c.homeAway === "home" ? st.home : st.away);
@@ -367,6 +380,10 @@ const demo: Fetcher = async (url) => {
   }
   if (u.host === "sports.core.api.espn.com" && path.includes(`/football/leagues/nfl/events/${(await nflReplay()).id}/`)) {
     return footballCore(path, u.searchParams);
+  }
+  if (u.host === "site.api.espn.com" && path.endsWith("/football/college-football/summary")) {
+    const cfb = await fixture("espn-cfb-summary.json");
+    if (u.searchParams.get("event") === String(get(cfb, "header", "id"))) return cfb;
   }
   if (u.host === "site.api.espn.com" && path.endsWith("/baseball/mlb/summary") && u.searchParams.get("event") === MLB_GAME) {
     return replaySummary(await mlbReplay());
