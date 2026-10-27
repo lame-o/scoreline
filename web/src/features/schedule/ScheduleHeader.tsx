@@ -15,11 +15,12 @@
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { BackButton, Icon, Menu, PageHeader, SegmentedControl, type MenuEntry } from "../../design/components";
+import { Icon, Menu, PageHeader, SegmentedControl, type MenuEntry } from "../../design/components";
 import { schedulePath, scopeFor, scopeTitle, scopeKey, type ScheduleMode, type ScheduleScope } from "../../data/schedule";
 import { leagueWithID } from "../../data/leagues";
-import { useSplit, type NavState } from "../../app/layout";
-import { isTyping, useGoBack } from "../../app/navigation";
+import type { NavState } from "../../app/layout";
+import { isTyping } from "../../app/navigation";
+import { PageBack } from "../../app/PageBack";
 import { useSettings } from "../../state/settings";
 import styles from "./ScheduleHeader.module.css";
 
@@ -33,17 +34,13 @@ export function useScheduleNav() {
     [navigate, location.state],
   );
   const drill = useCallback(
-    (s: ScheduleScope, mode: ScheduleMode = "upcoming", viaKeyboard = false, from = "Schedule") => navigate(schedulePath(s, mode), { state: { viaKeyboard, from } }),
+    // Back on the deeper page names this one from the trail ("‹ Schedule", "‹ Results").
+    (s: ScheduleScope, mode: ScheduleMode = "upcoming", viaKeyboard = false) => navigate(schedulePath(s, mode), { state: { viaKeyboard } }),
     [navigate],
   );
   return { scope, drill };
 }
 
-/** Back's label: the page that opened this one, when it said ("Schedule"), else the scores. */
-export function useBackTitle(): string {
-  const location = useLocation();
-  return (location.state as { from?: string } | null)?.from ?? "Scores";
-}
 
 /** Whether this render of a page came from switching in place (no entrance). */
 export function useInPlace(): boolean {
@@ -63,17 +60,13 @@ export interface ScheduleHeaderProps {
   /** More's items; omitted or empty: no More button. */
   readonly more?: readonly MenuEntry[];
   /** Back's label; by default the page that opened this one ("Scores"). */
-  readonly backTitle?: string;
   /** Pinned under the mode switch with the header (a navigator, chips). */
   readonly children?: ReactNode;
   /** The sticky chrome (the page measures it: scroll margins, the scroll spy's line). */
   readonly chromeRef?: Ref<HTMLDivElement>;
 }
 
-export function ScheduleHeader({ scope, mode, onMode, titleEntries, title, more, backTitle, children, chromeRef }: ScheduleHeaderProps) {
-  const split = useSplit();
-  const back = useBackTitle();
-  const goBack = useGoBack();
+export function ScheduleHeader({ scope, mode, onMode, titleEntries, title, more, children, chromeRef }: ScheduleHeaderProps) {
   const nav = useScheduleNav();
   const enabled = useSettings((s) => s.enabledLeagues);
   const followed = useSettings((s) => s.followed);
@@ -117,7 +110,7 @@ export function ScheduleHeader({ scope, mode, onMode, titleEntries, title, more,
     <span ref={sentinel} className={styles.sentinel} aria-hidden="true" />
     <div className={styles.header} data-scrolled={scrolled} ref={chromeRef}>
       <PageHeader
-        leading={split ? null : <BackButton to={backTitle ?? back} onClick={() => goBack()} />}
+        leading={<PageBack />}
         trailing={
           more && more.length > 0 ? (
             <Menu label="More" align="end" triggerClassName={styles.more} trigger={<Icon name="ellipsis" size={12} />} entries={more} />

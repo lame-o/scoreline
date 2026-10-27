@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useParams, useSearchParams } from "react-router";
-import { BackButton, Button, EmptyState, IconButton, PageHeader } from "../../design/components";
+import { Button, EmptyState, IconButton, PageHeader } from "../../design/components";
 import { spokenStatus, scoreLine } from "../../data/format";
 import { beatFinal, beatScore, beatScoreRose, finalAnnouncement, NO_BEATS, winner, type HeroBeats } from "../../data/matchRules";
 import { decisive, scorer, Tier } from "../../data/moments";
@@ -21,6 +21,7 @@ import { NEUTRAL, teamPalette, type TeamPalette } from "../../data/teamColors";
 import { useColorScheme } from "../../state/theme";
 import { useSplit, type NavState } from "../../app/layout";
 import { useGoBack } from "../../app/navigation";
+import { PageBack } from "../../app/PageBack";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { announce } from "./core/announce";
 import { DockedScorebar } from "./core/DockedScorebar";
@@ -73,7 +74,7 @@ export function GamePage() {
   const header = (
     <PageHeader
       className={styles.header}
-      leading={split ? null : <BackButton to="Scores" onClick={() => goBack()} />}
+      leading={<PageBack />}
       trailing={event?.link ? <IconButton icon="external" label="Open in Browser" onClick={() => window.open(event.link!, "_blank", "noopener,noreferrer")} /> : null}
     />
   );

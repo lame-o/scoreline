@@ -135,10 +135,10 @@ export function useFootballPage(game: GameContext): SportPage {
       <DetailSection id="table" title="Conference" caption="Ranked by conference record; season record alongside.">
         <CollegeTable rows={rows} ids={ids} ranks={ranks} leagueID={college.id} />
         <div className={styles.links}>
-          <Link className={styles.link} to={standingsPath(college.id, ids)} state={{ from: "Game" }}>
+          <Link className={styles.link} to={standingsPath(college.id, ids)}>
             Full Standings <Icon name="chevronRight" size={9} />
           </Link>
-          <Link className={styles.link} to={rankingsPath(college.id)} state={{ from: "Game" }}>
+          <Link className={styles.link} to={rankingsPath(college.id)}>
             Top 25 <Icon name="chevronRight" size={9} />
           </Link>
         </div>

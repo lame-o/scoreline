@@ -9,7 +9,6 @@ import { Reorder, useDragControls } from "motion/react";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router";
 import {
-  BackButton,
   FormSection,
   GroupBox,
   Icon,
@@ -24,8 +23,7 @@ import {
 import { spring } from "../../design/motion";
 import { CATALOG, leagueWithID } from "../../data/leagues";
 import { SPORTS, SPORT_NAME, type League } from "../../data/models";
-import { useSplit } from "../../app/layout";
-import { useGoBack } from "../../app/navigation";
+import { PageBack } from "../../app/PageBack";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { settings, useSettings, type CelebrationLevel, type Settings, type Theme } from "../../state/settings";
 import { isSupportedTeam, teamRef } from "../../data/profiles/models";
@@ -37,12 +35,10 @@ const all = (s: Settings) => s;
 
 export function SettingsPage() {
   const s = useSettings(all);
-  const split = useSplit();
-  const goBack = useGoBack();
   useDocumentTitle("Settings");
   return (
     <div className={styles.page}>
-      <PageHeader title="Settings" leading={split ? null : <BackButton to="Scores" onClick={() => goBack()} />} />
+      <PageHeader title="Settings" leading={<PageBack />} />
       <div className={`${styles.column} ${styles.entrance}`}>
         <MyTeams />
 

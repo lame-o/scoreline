@@ -26,6 +26,7 @@ import { isPhotoLoaded } from "../../state/profilePhotos";
 import { usePageSession, usePlayerProfile, type PlayerView } from "../../state/profiles";
 import { useScoreboard } from "../../state/scores";
 import { useSplit } from "../../app/layout";
+import { useOwnBackTitle } from "../../app/navigation";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { DockedBarHost, PlayerDockBar } from "./DockedBar";
 import { MapPoolBars } from "./ProfileCharts";
@@ -52,7 +53,7 @@ export function PlayerPage() {
     return nav?.player && playerKey(nav.player) === playerKey(route) ? nav.player : route;
   }, [slug, search, nav?.player]);
   if (!ref) return <NotAvailable />;
-  return <PlayerViewPage key={playerKey(ref)} playerRef={ref} backTitle={nav?.from ?? "Scores"} viaKeyboard={nav?.viaKeyboard === true} />;
+  return <PlayerViewPage key={playerKey(ref)} playerRef={ref} viaKeyboard={nav?.viaKeyboard === true} />;
 }
 
 function NotAvailable({ retry }: { readonly retry?: () => void }) {
@@ -60,7 +61,7 @@ function NotAvailable({ retry }: { readonly retry?: () => void }) {
   useDocumentTitle("Player");
   return (
     <div className={styles.page}>
-      <ProfileHeader split={split} backTitle="Scores" />
+      <ProfileHeader />
       {retry ? (
         <ErrorState subject="Player" onRetry={retry} />
       ) : (
@@ -70,7 +71,7 @@ function NotAvailable({ retry }: { readonly retry?: () => void }) {
   );
 }
 
-function PlayerViewPage({ playerRef: ref, backTitle, viaKeyboard }: { readonly playerRef: PlayerRef; readonly backTitle: string; readonly viaKeyboard: boolean }) {
+function PlayerViewPage({ playerRef: ref, viaKeyboard }: { readonly playerRef: PlayerRef; readonly viaKeyboard: boolean }) {
   const split = useSplit();
   const memoryKey = playerMemoryKey(ref);
   const [session] = usePageSession(memoryKey);
@@ -79,6 +80,7 @@ function PlayerViewPage({ playerRef: ref, backTitle, viaKeyboard }: { readonly p
   const team = bio.team ?? ref.team;
   const college = isCollege(ref);
   useDocumentTitle(bio.name || null);
+  useOwnBackTitle(bio.name || null);
 
   const teamColors = useTeamColors(sport === "climbing" ? null : team);
   const colors = sport === "climbing" ? flagColors(bio.country ?? ref.country) : teamColors;
@@ -161,7 +163,7 @@ function PlayerViewPage({ playerRef: ref, backTitle, viaKeyboard }: { readonly p
   return (
     <article className={styles.page} data-entrance={viaKeyboard ? "none" : "stack"}>
       <ProfileWash colors={colors} intensity={sport === "climbing" ? 0.85 : 1} />
-      <ProfileHeader split={split} backTitle={backTitle} trailing={trailing} />
+      <ProfileHeader trailing={trailing} />
       <DockedBarHost hero={heroWrap} card={heroCard}>
         {dockBar}
       </DockedBarHost>

@@ -12,11 +12,11 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
-import { BackButton, PageHeader } from "../../design/components";
+import { PageHeader } from "../../design/components";
 import { useWidth } from "../../design/useWidth";
 import { HYSTERESIS, widthClassFrom, type WidthClass } from "../../data/standings";
-import { useSplit, type NavState } from "../../app/layout";
-import { useGoBack } from "../../app/navigation";
+import type { NavState } from "../../app/layout";
+import { PageBack } from "../../app/PageBack";
 import styles from "./TablePage.module.css";
 
 /** Two columns of exactly 340pt (Metrics.splitWidth). */
@@ -42,8 +42,6 @@ export function pageLayout(width: number, old: PageLayout = INITIAL): PageLayout
 const INITIAL: PageLayout = { width: 340, split: false, page: "compact", column: "compact" };
 
 export function TablePage({ title, trailing, children }: { title: string; trailing?: ReactNode; children: (layout: PageLayout) => ReactNode }) {
-  const split = useSplit();
-  const goBack = useGoBack();
   const viaKeyboard = (useLocation().state as NavState | null)?.viaKeyboard === true;
   const content = useRef<HTMLDivElement>(null);
   const width = useWidth(content);
@@ -58,7 +56,7 @@ export function TablePage({ title, trailing, children }: { title: string; traili
     <div className={styles.page} data-entrance={viaKeyboard ? "none" : "stack"}>
       <span ref={sentinel} className={styles.sentinel} aria-hidden="true" />
       <div className={styles.header} data-scrolled={scrolled}>
-        <PageHeader title={title} leading={split ? null : <BackButton to="Back" onClick={() => goBack()} />} trailing={trailing} />
+        <PageHeader title={title} leading={<PageBack />} trailing={trailing} />
       </div>
       <div ref={content} className={styles.content}>
         {children(layout)}

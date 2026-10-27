@@ -35,3 +35,30 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
+/* Focused from the skip link: the pane takes focus without a ring around all of it. */
+.detail:focus-visible {
+  outline: none;
+}
+
+/* "Skip to Page": out of sight until the keyboard reaches it, then a glass capsule over the pane's corner. */
+.skip {
+  position: fixed;
+  z-index: 100;
+  top: calc(10 * var(--pt));
+  left: calc(var(--sidebar-width) + 10 * var(--pt));
+  padding: calc(5 * var(--pt)) calc(10 * var(--pt));
+  border-radius: 999px;
+  background: var(--glass-fill-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-control), inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge);
+  font-size: var(--text-callout);
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.skip:focus-visible {
+  opacity: 1;
+}

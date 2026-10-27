@@ -4,19 +4,16 @@
  * by pointing its route (app/App.tsx) at the real page.
  */
 import { useParams } from "react-router";
-import { BackButton, EmptyState, PageHeader, type IconName } from "../../design/components";
+import { EmptyState, PageHeader, type IconName } from "../../design/components";
 import { leagueWithID } from "../../data/leagues";
-import { useSplit } from "../../app/layout";
-import { useGoBack } from "../../app/navigation";
+import { PageBack } from "../../app/PageBack";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 
 function Placeholder({ title, icon, heading, message }: { title: string; icon: IconName; heading: string; message: string }) {
-  const split = useSplit();
-  const goBack = useGoBack();
   useDocumentTitle(title);
   return (
     <div>
-      <PageHeader title={title} leading={split ? null : <BackButton to="Scores" onClick={() => goBack()} />} />
+      <PageHeader title={title} leading={<PageBack />} />
       <EmptyState icon={icon} title={heading} message={message} />
     </div>
   );

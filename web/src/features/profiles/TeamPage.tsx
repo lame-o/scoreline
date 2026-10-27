@@ -21,6 +21,7 @@ import { settings, useIsFollowing } from "../../state/settings";
 import { useTeamProfile, type TeamProfile } from "../../state/profiles";
 import { useScoreboard } from "../../state/scores";
 import { useSplit } from "../../app/layout";
+import { useOwnBackTitle } from "../../app/navigation";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { LinkOrigin } from "./ProfileLinks";
 import { DetailSection, Footnote, HeroGlow, LiveStrip, ProfileHeader, ProfileWash, RosterSkeleton, SectionColumns, StatTiles, TeamCrest, tintOf, useProfileLayout, useTeamColors, lightInkOn, type Slot } from "./ProfileParts";
@@ -45,7 +46,7 @@ export function TeamPage() {
     return fromLink ? { ...fromLink, league: fromLink.league ?? fromRoute?.league ?? null } : fromRoute;
   }, [id, nav?.team, search]);
   if (!ref || teamSport(ref) == null) return <Unsupported />;
-  return <TeamView key={ref.id} teamRef={ref} backTitle={nav?.from ?? "Scores"} viaKeyboard={nav?.viaKeyboard === true} />;
+  return <TeamView key={ref.id} teamRef={ref} viaKeyboard={nav?.viaKeyboard === true} />;
 }
 
 function Unsupported() {
@@ -53,13 +54,13 @@ function Unsupported() {
   useDocumentTitle("Team");
   return (
     <div className={styles.page}>
-      <ProfileHeader split={split} backTitle="Scores" />
+      <ProfileHeader />
       <EmptyState icon="star" title="No Page for This Team" message="Scoreline has pages for NFL, college football, MLB, NBA, soccer and CS2 teams." />
     </div>
   );
 }
 
-function TeamView({ teamRef: ref, backTitle, viaKeyboard }: { readonly teamRef: TeamRef; readonly backTitle: string; readonly viaKeyboard: boolean }) {
+function TeamView({ teamRef: ref, viaKeyboard }: { readonly teamRef: TeamRef; readonly viaKeyboard: boolean }) {
   const split = useSplit();
   const team = useTeamProfile(ref);
   const inner = useRef<HTMLDivElement>(null);
@@ -68,6 +69,8 @@ function TeamView({ teamRef: ref, backTitle, viaKeyboard }: { readonly teamRef: 
   const name = header?.name ?? (ref.name || null);
   const shortName = header?.shortName ?? (ref.name || "Team");
   useDocumentTitle(name);
+  // Pages this one opens say "‹ Chiefs" (the same name its links carry, LinkOrigin).
+  useOwnBackTitle(shortName);
   const colors = useTeamColors(team.team, header);
   const tint = tintOf(colors);
   const scores = useScoreboard({ poll: !split });
@@ -128,7 +131,7 @@ function TeamView({ teamRef: ref, backTitle, viaKeyboard }: { readonly teamRef: 
   return (
     <article className={styles.page} data-entrance={viaKeyboard ? "none" : "stack"}>
       <ProfileWash colors={colors} />
-      <ProfileHeader split={split} backTitle={backTitle} trailing={trailing} />
+      <ProfileHeader trailing={trailing} />
       <LinkOrigin name={shortName}>
         <div className={styles.inner} ref={inner}>
           <div className={styles.heroWrap}>

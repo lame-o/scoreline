@@ -14,7 +14,7 @@ import { lazy, Suspense, useEffect, useRef } from "react";
 import { Outlet, ScrollRestoration } from "react-router";
 import { ScoresPage } from "../features/scores/ScoresPage";
 import { useAppCommands } from "./commands";
-import { isTyping, useGoBack } from "./navigation";
+import { isTyping, markSidebarNavigation, useGoBack, useTrail } from "./navigation";
 import { useSplit } from "./layout";
 import { useDetailScrollMemory } from "./scrollMemory";
 import styles from "./AppShell.module.css";
@@ -29,6 +29,8 @@ export function AppShell() {
   // Beside the sidebar, the detail pane scrolls on its own: a new page starts at its top, Back lands where it was.
   useDetailScrollMemory(detail, split);
   useAppCommands();
+  // Every page visited, for Back's label (navigation.ts).
+  useTrail();
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -60,11 +62,31 @@ export function AppShell() {
   return (
     <div className={styles.shell} data-split={split}>
       {split ? (
-        <aside className={styles.sidebar} aria-label="Scores">
-          <ScoresPage variant="sidebar" />
-        </aside>
+        <>
+          {/* The sidebar comes first: a keyboard can skip its games to the page beside it. */}
+          <a
+            className={styles.skip}
+            href="#main"
+            onClick={(e) => {
+              e.preventDefault();
+              detail.current?.focus({ preventScroll: true });
+            }}
+          >
+            Skip to Page
+          </a>
+          <aside
+            className={styles.sidebar}
+            aria-label="Scores"
+            onClickCapture={markSidebarNavigation}
+            onKeyDownCapture={(e) => {
+              if (e.key === "Enter") markSidebarNavigation();
+            }}
+          >
+            <ScoresPage variant="sidebar" />
+          </aside>
+        </>
       ) : null}
-      <main className={styles.detail} id="main" ref={detail}>
+      <main className={styles.detail} id="main" ref={detail} tabIndex={-1}>
         <Outlet />
       </main>
       {/* On a phone the window scrolls: Back lands where you left the list, a new page at its top. */}
