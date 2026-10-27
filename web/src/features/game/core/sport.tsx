@@ -65,6 +65,18 @@ export interface SportPage {
   readonly dockDetail?: (tier: AccessoryTier) => ReactNode;
   /** One state chip on the bar (2-MIN DRILL, CLUTCH). */
   readonly chip?: string | null;
+  /**
+   * Field events (climbing): the colors the page's wash takes (the flag of
+   * whoever the round is about); null keeps the accent wash. A change
+   * crossfades like a change of light.
+   */
+  readonly wash?: TeamPalette | null;
+  /** Field events: the docked bar's lead in place of the title (the climber on the wall), given its room. */
+  readonly dockLead?: (tier: AccessoryTier) => ReactNode;
+  /** Under the hero card (CS2: the co-streamer's badge). */
+  readonly heroBadge?: ReactNode;
+  /** A trophy in the hero: beside a series winner's name, or on a decided final's winner line. */
+  readonly trophy?: Side | "field" | null;
   /** NBA: a shot in the air (the possession glyph dims, still the shooting team's). */
   readonly possessionInAir?: boolean;
   /** A state chip beside the hero's live clock (CLUTCH). */

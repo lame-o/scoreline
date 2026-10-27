@@ -1,0 +1,278 @@
+{
+ "_source": "https://ifsc.results.info/api/v1/category_rounds/11361/results",
+ "_recorded": "2026-10-25 (live; the Mac app's Tests/Fixtures/tiles/ifsc-11361.json)",
+ "id": 11361,
+ "event": "World Climbing Series Santiago 2026",
+ "event_id": 1489,
+ "discipline": "Lead",
+ "status": "active",
+ "status_as_of": "2026-10-25 14:22:23 UTC",
+ "category": "Men",
+ "round": "Final",
+ "routes": [
+  {
+   "id": 21538,
+   "name": "1"
+  }
+ ],
+ "ranking": [
+  {
+   "athlete_id": 11390,
+   "firstname": "Satone",
+   "lastname": "YOSHIDA",
+   "country": "JPN",
+   "rank": 1,
+   "score": "41+",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "41+",
+     "status": "confirmed",
+     "top_tries": null,
+     "time_ms": 211000
+    }
+   ]
+  },
+  {
+   "athlete_id": 15037,
+   "firstname": "Ryusei",
+   "lastname": "HAMADA",
+   "country": "JPN",
+   "rank": 2,
+   "score": "7",
+   "active": true,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "7",
+     "status": "active",
+     "top_tries": null,
+     "time_ms": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 13040,
+   "firstname": "Sorato",
+   "lastname": "ANRAKU",
+   "country": "JPN",
+   "rank": null,
+   "score": "",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "",
+     "status": "pending",
+     "top_tries": null,
+     "time_ms": 0
+    }
+   ]
+  },
+  {
+   "athlete_id": 532,
+   "firstname": "Sam",
+   "lastname": "AVEZOU",
+   "country": "FRA",
+   "rank": null,
+   "score": "",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "",
+     "status": "pending",
+     "top_tries": null,
+     "time_ms": 0
+    }
+   ]
+  },
+  {
+   "athlete_id": 811,
+   "firstname": "Alberto",
+   "lastname": "GINÉS LÓPEZ",
+   "country": "ESP",
+   "rank": null,
+   "score": "",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "",
+     "status": "pending",
+     "top_tries": null,
+     "time_ms": 0
+    }
+   ]
+  },
+  {
+   "athlete_id": 14606,
+   "firstname": "Neo",
+   "lastname": "SUZUKI",
+   "country": "JPN",
+   "rank": null,
+   "score": "",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "",
+     "status": "pending",
+     "top_tries": null,
+     "time_ms": 0
+    }
+   ]
+  },
+  {
+   "athlete_id": 14090,
+   "firstname": "Putra",
+   "lastname": "TRI RAMADANI",
+   "country": "INA",
+   "rank": null,
+   "score": "",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "",
+     "status": "pending",
+     "top_tries": null,
+     "time_ms": 0
+    }
+   ]
+  },
+  {
+   "athlete_id": 3883,
+   "firstname": "Jonas",
+   "lastname": "UTELLI",
+   "country": "SUI",
+   "rank": null,
+   "score": "",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "",
+     "status": "pending",
+     "top_tries": null,
+     "time_ms": 0
+    }
+   ]
+  }
+ ],
+ "startlist": [
+  {
+   "athlete_id": 11390,
+   "firstname": "Satone",
+   "lastname": "YOSHIDA",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 1
+    }
+   ]
+  },
+  {
+   "athlete_id": 15037,
+   "firstname": "Ryusei",
+   "lastname": "HAMADA",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 2
+    }
+   ]
+  },
+  {
+   "athlete_id": 13040,
+   "firstname": "Sorato",
+   "lastname": "ANRAKU",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 3
+    }
+   ]
+  },
+  {
+   "athlete_id": 532,
+   "firstname": "Sam",
+   "lastname": "AVEZOU",
+   "country": "FRA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 4
+    }
+   ]
+  },
+  {
+   "athlete_id": 3883,
+   "firstname": "Jonas",
+   "lastname": "UTELLI",
+   "country": "SUI",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 5
+    }
+   ]
+  },
+  {
+   "athlete_id": 811,
+   "firstname": "Alberto",
+   "lastname": "GINÉS LÓPEZ",
+   "country": "ESP",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 6
+    }
+   ]
+  },
+  {
+   "athlete_id": 14606,
+   "firstname": "Neo",
+   "lastname": "SUZUKI",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 7
+    }
+   ]
+  },
+  {
+   "athlete_id": 14090,
+   "firstname": "Putra",
+   "lastname": "TRI RAMADANI",
+   "country": "INA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 8
+    }
+   ]
+  }
+ ]
+}

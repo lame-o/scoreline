@@ -11,8 +11,9 @@ import { dayKeyFromISO, dayRangeLabel, compareDays, startOfDay, type DayKey } fr
 import { ordinal } from "../format";
 import { arr, at, bool, int, str, type JSONValue } from "../json";
 import { resolveURL, type Fetcher } from "../http";
-import type { EventState, ScoreEvent } from "../models";
+import type { EventState, LiveSnapshot, ScoreEvent } from "../models";
 import { flagFromIOC, isoFromIOC } from "../teams";
+import { capitalized, wallStateFrom } from "../wallState";
 import { parseDate } from "./espn";
 
 export const IFSC_BASE = "https://ifsc.results.info";
@@ -130,8 +131,14 @@ export async function categoryEvent(
   const short = (first: string | undefined, last: string | undefined) => `${first ? `${[...first][0]}. ` : ""}${capitalized(last ?? "")}`;
   let leader: string | null = null;
   let yours: string | null = null;
+  let snapshot: LiveSnapshot | null = null;
   if (focus?.resultURL) {
     const results = await fetcher(abs(focus.resultURL), { signal });
+    // Read leniently: the same response also says who's on the wall, for tiles.
+    if (state === "live") {
+      const wall = wallStateFrom(results);
+      if (wall) snapshot = { kind: "climbing", wall };
+    }
     // No ranking yet (a round not underway): no leader.
     const ranking = arr(at(results, "ranking")).map((a) => ({
       rank: int(at(a, "rank")),
@@ -178,13 +185,12 @@ export async function categoryEvent(
       eventName,
       nextURL: live ? null : (next?.resultURL ?? null),
     },
+    snapshot,
   });
 }
 
-/** Swift's `String.capitalized`: each word's first letter up, the rest down ("LEAD Women" → "Lead Women"). */
-export function capitalized(s: string): string {
-  return s.toLowerCase().replace(/(^|[\s\-&/])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase());
-}
+/** Swift's `String.capitalized` (data/wallState.ts, which tiles read without this module's season code). */
+export { capitalized };
 
 /** "World Climbing Series Santiago 2026" → "Santiago 2026" (Providers.swift `IFSC.shortName`). */
 export function roundEventName(name: string | undefined): string {

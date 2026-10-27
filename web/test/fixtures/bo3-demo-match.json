@@ -1,0 +1,227 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/matches/liquid-vs-legacy-br-26-10-2026?with=games,streams",
+ "_recorded": "2026-10-27T09:58:12.239Z",
+ "id": 132236,
+ "slug": "liquid-vs-legacy-br-26-10-2026",
+ "status": "finished",
+ "bo_type": 3,
+ "start_date": "2026-10-26T14:10:00.000+00:00",
+ "team1_id": 790,
+ "team2_id": 8118,
+ "team1_score": 2,
+ "team2_score": 0,
+ "winner_team_id": 790,
+ "team1": {
+  "id": 790,
+  "slug": "liquid",
+  "name": "Liquid",
+  "image_url": "https://files.bo3.gg/uploads/team/790/image/webp-01cca8d35079cb4b21bc25268ac75bae.webp"
+ },
+ "team2": {
+  "id": 8118,
+  "slug": "legacy-br",
+  "name": "Legacy",
+  "image_url": "https://files.bo3.gg/uploads/team/8118/image/webp-e4a3b023443f1f3ba4ef588164e73111.webp"
+ },
+ "stage": {
+  "title": "PGL Masters Bucharest 2026 Group Stage"
+ },
+ "round": {
+  "name": "Round 3"
+ },
+ "tournament": {
+  "slug": "pgl-masters-bucharest-2026",
+  "name": "PGL Masters Bucharest 2026"
+ },
+ "games": [
+  {
+   "id": 190573,
+   "number": 2,
+   "map_name": "de_inferno",
+   "status": "finished",
+   "state": "done",
+   "winner_clan_score": 13,
+   "loser_clan_score": 8,
+   "winner_team_clan": {
+    "team_id": 790,
+    "clan_name": "Team Liquid"
+   },
+   "loser_team_clan": {
+    "team_id": 8118,
+    "clan_name": "Legacy"
+   }
+  },
+  {
+   "id": 190574,
+   "number": 1,
+   "map_name": "de_ancient",
+   "status": "finished",
+   "state": "done",
+   "winner_clan_score": 13,
+   "loser_clan_score": 10,
+   "winner_team_clan": {
+    "team_id": 790,
+    "clan_name": "Team Liquid"
+   },
+   "loser_team_clan": {
+    "team_id": 8118,
+    "clan_name": "Legacy"
+   }
+  }
+ ],
+ "streams": [
+  {
+   "id": 2544,
+   "name": "PGL_CS2",
+   "raw_url": "https://www.twitch.tv/pgl_cs2",
+   "viewers_number": 6310,
+   "official": true,
+   "language": "en",
+   "platform": 1
+  },
+  {
+   "id": 5910,
+   "name": "PGL 2",
+   "raw_url": "https://www.youtube.com/watch?v=sx5tneE-ILg",
+   "viewers_number": 6294,
+   "official": false,
+   "language": "en",
+   "platform": 2
+  },
+  {
+   "id": 7316,
+   "name": "CS2 Maincast 2",
+   "raw_url": "https://www.youtube.com/watch?v=3XmHrTOyjKY",
+   "viewers_number": 465,
+   "official": false,
+   "language": "uk",
+   "platform": 2
+  },
+  {
+   "id": 2632,
+   "name": "cs2_maincast2",
+   "raw_url": "https://www.twitch.tv/cs2_maincast2",
+   "viewers_number": 1134,
+   "official": false,
+   "language": "uk",
+   "platform": 1
+  },
+  {
+   "id": 8042,
+   "name": "watchfulTVb",
+   "raw_url": "https://kick.com/watchfultvb",
+   "viewers_number": 505,
+   "official": true,
+   "language": "ru",
+   "platform": 3
+  },
+  {
+   "id": 5881,
+   "name": "pglcs2",
+   "raw_url": "https://kick.com/pglcs2",
+   "viewers_number": 186,
+   "official": true,
+   "language": "en",
+   "platform": 3
+  },
+  {
+   "id": 2468,
+   "name": "esportsbulgaria",
+   "raw_url": "https://www.twitch.tv/esportsbulgaria",
+   "viewers_number": 131,
+   "official": false,
+   "language": "bg",
+   "platform": 1
+  },
+  {
+   "id": 2814,
+   "name": "Trottah",
+   "raw_url": "https://www.twitch.tv/trottah",
+   "viewers_number": 123,
+   "official": true,
+   "language": "en",
+   "platform": 1
+  },
+  {
+   "id": 6080,
+   "name": "Locomas",
+   "raw_url": "https://kick.com/locomas",
+   "viewers_number": 15,
+   "official": false,
+   "language": "es",
+   "platform": 3
+  },
+  {
+   "id": 4384,
+   "name": "Trottah",
+   "raw_url": "https://www.youtube.com/watch?v=b5qI-p63Q_Y",
+   "viewers_number": 8,
+   "official": false,
+   "language": "en",
+   "platform": 2
+  },
+  {
+   "id": 4816,
+   "name": "Trottah",
+   "raw_url": "https://kick.com/trottah",
+   "viewers_number": 5,
+   "official": false,
+   "language": "en",
+   "platform": 3
+  },
+  {
+   "id": 8066,
+   "name": "esportsbg",
+   "raw_url": "https://kick.com/esportsbg",
+   "viewers_number": 0,
+   "official": true,
+   "language": "bg",
+   "platform": 3
+  },
+  {
+   "id": 8227,
+   "name": "OkkoCyber_B",
+   "raw_url": "https://www.twitch.tv/okkocyber_b",
+   "viewers_number": 0,
+   "official": false,
+   "language": "ru",
+   "platform": 1
+  },
+  {
+   "id": 2521,
+   "name": "cs2_paragon_ru2",
+   "raw_url": "https://www.twitch.tv/cs2_paragon_ru2",
+   "viewers_number": 0,
+   "official": false,
+   "language": "ru",
+   "platform": 1
+  },
+  {
+   "id": 5407,
+   "name": "watchfulTVb",
+   "raw_url": "https://www.twitch.tv/watchfultvb",
+   "viewers_number": 0,
+   "official": false,
+   "language": "ru",
+   "platform": 1
+  },
+  {
+   "id": 5446,
+   "name": "esport1tv",
+   "raw_url": "https://www.twitch.tv/esport1tv",
+   "viewers_number": 0,
+   "official": true,
+   "language": "hu",
+   "platform": 1
+  },
+  {
+   "id": 3747,
+   "name": "KRL_STREAM2",
+   "raw_url": "https://www.twitch.tv/krl_stream2",
+   "viewers_number": 0,
+   "official": false,
+   "language": "fr",
+   "platform": 1
+  }
+ ]
+}

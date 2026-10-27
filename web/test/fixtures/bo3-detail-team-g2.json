@@ -1,0 +1,88 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/teams/g2?with=players.country",
+ "_recorded": "2026-10-27T09:58:06.349Z",
+ "id": 793,
+ "slug": "g2",
+ "name": "G2",
+ "acronym": "G2",
+ "players": [
+  {
+   "id": 17958,
+   "slug": "hunter-",
+   "nickname": "huNter-",
+   "first_name": "Nemanja",
+   "last_name": "Kovač",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/17958/image/webp-aae2ce83b62f34c598f649cf7c59ab18.webp",
+   "country": {
+    "code": "BA"
+   }
+  },
+  {
+   "id": 23567,
+   "slug": "saw",
+   "nickname": "sAw",
+   "first_name": "Eetu",
+   "last_name": "Saha",
+   "status": 1,
+   "is_coach": true,
+   "image_url": "https://files.bo3.gg/uploads/player/23567/image/webp-394e1ffc9f02de72ab8f56f9022d8535.webp",
+   "country": {
+    "code": "FI"
+   }
+  },
+  {
+   "id": 24880,
+   "slug": "nertz",
+   "nickname": "Nertz",
+   "first_name": "Guy",
+   "last_name": "Iluz",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/24880/image/webp-9dc34baac2868fb3f732025288062d9d.webp",
+   "country": {
+    "code": "IL"
+   }
+  },
+  {
+   "id": 29150,
+   "slug": "heavygod",
+   "nickname": "HeavyGod",
+   "first_name": "Nikita",
+   "last_name": "Martynenko",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/29150/image/webp-cfda5557269912dd709b16f7e18f76d8.webp",
+   "country": {
+    "code": "IL"
+   }
+  },
+  {
+   "id": 29220,
+   "slug": "r1nkle",
+   "nickname": "r1nkle",
+   "first_name": "Artem",
+   "last_name": "Moroz",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/29220/image/webp-2643ac4bd50a4ab892d938963007b7fd.webp",
+   "country": {
+    "code": "UA"
+   }
+  },
+  {
+   "id": 31187,
+   "slug": "matys",
+   "nickname": "MATYS",
+   "first_name": "Matúš",
+   "last_name": "Šimko",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/31187/image/webp-30b52e3ab01ba68db1eb64eb0c49d129.webp",
+   "country": {
+    "code": "SK"
+   }
+  }
+ ]
+}

@@ -1,0 +1,306 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/games/190575",
+ "_recorded": "2026-10-27T09:57:55.832Z",
+ "id": 190575,
+ "number": 3,
+ "map_name": "de_inferno",
+ "status": "finished",
+ "winner_team_clan": {
+  "team_id": 24956,
+  "clan_name": "DENDELE"
+ },
+ "loser_team_clan": {
+  "team_id": 793,
+  "clan_name": "G2 Esports"
+ },
+ "game_rounds": [
+  {
+   "round_number": 1,
+   "end_reason": "CTWin",
+   "winner_clan_name": "G2 Esports",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 4250
+    },
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 5250
+    }
+   ]
+  },
+  {
+   "round_number": 2,
+   "end_reason": "TargetBombed",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 10100
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 22150
+    }
+   ]
+  },
+  {
+   "round_number": 3,
+   "end_reason": "TargetBombed",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 26000
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 15300
+    }
+   ]
+  },
+  {
+   "round_number": 4,
+   "end_reason": "CTWin",
+   "winner_clan_name": "G2 Esports",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 9000
+    },
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 27200
+    }
+   ]
+  },
+  {
+   "round_number": 5,
+   "end_reason": "CTWin",
+   "winner_clan_name": "G2 Esports",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 28500
+    },
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 23500
+    }
+   ]
+  },
+  {
+   "round_number": 6,
+   "end_reason": "CTWin",
+   "winner_clan_name": "G2 Esports",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 30350
+    },
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 1600
+    }
+   ]
+  },
+  {
+   "round_number": 7,
+   "end_reason": "TargetBombed",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 22700
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 30150
+    }
+   ]
+  },
+  {
+   "round_number": 8,
+   "end_reason": "TerroristsWin",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 24400
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 28600
+    }
+   ]
+  },
+  {
+   "round_number": 9,
+   "end_reason": "CTWin",
+   "winner_clan_name": "G2 Esports",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 27500
+    },
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 25200
+    }
+   ]
+  },
+  {
+   "round_number": 10,
+   "end_reason": "TargetBombed",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 21950
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 28350
+    }
+   ]
+  },
+  {
+   "round_number": 11,
+   "end_reason": "TerroristsWin",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 25600
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 27600
+    }
+   ]
+  },
+  {
+   "round_number": 12,
+   "end_reason": "TerroristsWin",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "T",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 26000
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 14700
+    }
+   ]
+  },
+  {
+   "round_number": 13,
+   "end_reason": "BombDefused",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 4000
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 4700
+    }
+   ]
+  },
+  {
+   "round_number": 14,
+   "end_reason": "CTWin",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 23600
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 15200
+    }
+   ]
+  },
+  {
+   "round_number": 15,
+   "end_reason": "CTWin",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 27800
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 2600
+    }
+   ]
+  },
+  {
+   "round_number": 16,
+   "end_reason": "BombDefused",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 29900
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 24900
+    }
+   ]
+  },
+  {
+   "round_number": 17,
+   "end_reason": "TargetSaved",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 30050
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 22100
+    }
+   ]
+  },
+  {
+   "round_number": 18,
+   "end_reason": "CTWin",
+   "winner_clan_name": "DENDELE",
+   "winner_clan_side": "CT",
+   "game_round_team_clans": [
+    {
+     "clan_name": "DENDELE",
+     "equipment_value": 30650
+    },
+    {
+     "clan_name": "G2 Esports",
+     "equipment_value": 19400
+    }
+   ]
+  }
+ ]
+}

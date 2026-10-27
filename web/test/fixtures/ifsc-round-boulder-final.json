@@ -1,0 +1,666 @@
+{
+ "_source": "https://ifsc.results.info/api/v1/category_rounds/11031/results",
+ "_recorded": "2026-10-27T09:58:15.182Z",
+ "id": 11031,
+ "event": "World Climbing Series Salt Lake City 2026",
+ "event_id": 1488,
+ "discipline": "Boulder",
+ "status": "finished",
+ "status_as_of": "2026-10-19 02:46:18 UTC",
+ "category": "Women",
+ "round": "Final",
+ "routes": [
+  {
+   "id": 20650,
+   "name": "1"
+  },
+  {
+   "id": 20651,
+   "name": "2"
+  },
+  {
+   "id": 20652,
+   "name": "3"
+  },
+  {
+   "id": 20653,
+   "name": "4"
+  }
+ ],
+ "ranking": [
+  {
+   "athlete_id": 11462,
+   "firstname": "Oriane",
+   "lastname": "BERTONE",
+   "country": "FRA",
+   "rank": 1,
+   "score": "84.6",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": true,
+     "status": "confirmed",
+     "top_tries": 5,
+     "zone": true,
+     "zone_tries": 4,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 24.6
+    },
+    {
+     "route_name": "2",
+     "top": true,
+     "status": "confirmed",
+     "top_tries": 1,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 25
+    },
+    {
+     "route_name": "3",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 4,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 10
+    },
+    {
+     "route_name": "4",
+     "top": true,
+     "status": "confirmed",
+     "top_tries": 1,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 25
+    }
+   ]
+  },
+  {
+   "athlete_id": 11468,
+   "firstname": "Erin",
+   "lastname": "MCNEICE",
+   "country": "GBR",
+   "rank": 2,
+   "score": "69.7",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 5,
+     "zone": true,
+     "zone_tries": 4,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 9.7
+    },
+    {
+     "route_name": "2",
+     "top": true,
+     "status": "confirmed",
+     "top_tries": 1,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 25
+    },
+    {
+     "route_name": "3",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 3,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 10
+    },
+    {
+     "route_name": "4",
+     "top": true,
+     "status": "confirmed",
+     "top_tries": 1,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 25
+    }
+   ]
+  },
+  {
+   "athlete_id": 2327,
+   "firstname": "Mao",
+   "lastname": "NAKAMURA",
+   "country": "JPN",
+   "rank": 3,
+   "score": "69.6",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 6,
+     "zone": true,
+     "zone_tries": 4,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 9.7
+    },
+    {
+     "route_name": "2",
+     "top": true,
+     "status": "confirmed",
+     "top_tries": 1,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 25
+    },
+    {
+     "route_name": "3",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 6,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 10
+    },
+    {
+     "route_name": "4",
+     "top": true,
+     "status": "confirmed",
+     "top_tries": 2,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 24.9
+    }
+   ]
+  },
+  {
+   "athlete_id": 2501,
+   "firstname": "Oceania",
+   "lastname": "MACKENZIE",
+   "country": "AUS",
+   "rank": 4,
+   "score": "54.8",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 4,
+     "zone": true,
+     "zone_tries": 2,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 9.9
+    },
+    {
+     "route_name": "2",
+     "top": true,
+     "status": "confirmed",
+     "top_tries": 1,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 25
+    },
+    {
+     "route_name": "3",
+     "top": false,
+     "status": "locked",
+     "top_tries": 4,
+     "zone": true,
+     "zone_tries": 2,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 9.9
+    },
+    {
+     "route_name": "4",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 3,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 10
+    }
+   ]
+  },
+  {
+   "athlete_id": 14008,
+   "firstname": "Melody",
+   "lastname": "SEKIKAWA",
+   "country": "JPN",
+   "rank": 5,
+   "score": "54.7",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 5,
+     "zone": true,
+     "zone_tries": 3,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 9.8
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 3,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 10
+    },
+    {
+     "route_name": "3",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 3,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 10
+    },
+    {
+     "route_name": "4",
+     "top": true,
+     "status": "confirmed",
+     "top_tries": 2,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 24.9
+    }
+   ]
+  },
+  {
+   "athlete_id": 4017,
+   "firstname": "Ayala",
+   "lastname": "KEREM",
+   "country": "ISR",
+   "rank": 6,
+   "score": "54.5",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 5,
+     "zone": true,
+     "zone_tries": 4,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 9.7
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 3,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 10
+    },
+    {
+     "route_name": "3",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 5,
+     "zone": true,
+     "zone_tries": 2,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 9.9
+    },
+    {
+     "route_name": "4",
+     "top": true,
+     "status": "confirmed",
+     "top_tries": 2,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 24.9
+    }
+   ]
+  },
+  {
+   "athlete_id": 13021,
+   "firstname": "Annie",
+   "lastname": "SANDERS",
+   "country": "USA",
+   "rank": 7,
+   "score": "54.3",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 7,
+     "zone": true,
+     "zone_tries": 7,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 9.4
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 3,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 10
+    },
+    {
+     "route_name": "3",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 3,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 10
+    },
+    {
+     "route_name": "4",
+     "top": true,
+     "status": "confirmed",
+     "top_tries": 2,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 24.9
+    }
+   ]
+  },
+  {
+   "athlete_id": 12297,
+   "firstname": "Anon",
+   "lastname": "MATSUFUJI",
+   "country": "JPN",
+   "rank": 8,
+   "score": "39.9",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 4,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 10
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 3,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 10
+    },
+    {
+     "route_name": "3",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 4,
+     "zone": true,
+     "zone_tries": 2,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 9.9
+    },
+    {
+     "route_name": "4",
+     "top": false,
+     "status": "confirmed",
+     "top_tries": 3,
+     "zone": true,
+     "zone_tries": 1,
+     "low_zone": true,
+     "low_zone_tries": 1,
+     "points": 10
+    }
+   ]
+  }
+ ],
+ "startlist": [
+  {
+   "athlete_id": 2501,
+   "firstname": "Oceania",
+   "lastname": "MACKENZIE",
+   "country": "AUS",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 1
+    },
+    {
+     "route_name": "2",
+     "position": 5
+    },
+    {
+     "route_name": "3",
+     "position": 9
+    },
+    {
+     "route_name": "4",
+     "position": 13
+    }
+   ]
+  },
+  {
+   "athlete_id": 2327,
+   "firstname": "Mao",
+   "lastname": "NAKAMURA",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 2
+    },
+    {
+     "route_name": "2",
+     "position": 6
+    },
+    {
+     "route_name": "3",
+     "position": 10
+    },
+    {
+     "route_name": "4",
+     "position": 14
+    }
+   ]
+  },
+  {
+   "athlete_id": 4017,
+   "firstname": "Ayala",
+   "lastname": "KEREM",
+   "country": "ISR",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 3
+    },
+    {
+     "route_name": "2",
+     "position": 7
+    },
+    {
+     "route_name": "3",
+     "position": 11
+    },
+    {
+     "route_name": "4",
+     "position": 15
+    }
+   ]
+  },
+  {
+   "athlete_id": 11468,
+   "firstname": "Erin",
+   "lastname": "MCNEICE",
+   "country": "GBR",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 4
+    },
+    {
+     "route_name": "2",
+     "position": 8
+    },
+    {
+     "route_name": "3",
+     "position": 12
+    },
+    {
+     "route_name": "4",
+     "position": 16
+    }
+   ]
+  },
+  {
+   "athlete_id": 13021,
+   "firstname": "Annie",
+   "lastname": "SANDERS",
+   "country": "USA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 5
+    },
+    {
+     "route_name": "2",
+     "position": 9
+    },
+    {
+     "route_name": "3",
+     "position": 13
+    },
+    {
+     "route_name": "4",
+     "position": 17
+    }
+   ]
+  },
+  {
+   "athlete_id": 12297,
+   "firstname": "Anon",
+   "lastname": "MATSUFUJI",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 6
+    },
+    {
+     "route_name": "2",
+     "position": 10
+    },
+    {
+     "route_name": "3",
+     "position": 14
+    },
+    {
+     "route_name": "4",
+     "position": 18
+    }
+   ]
+  },
+  {
+   "athlete_id": 14008,
+   "firstname": "Melody",
+   "lastname": "SEKIKAWA",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 7
+    },
+    {
+     "route_name": "2",
+     "position": 11
+    },
+    {
+     "route_name": "3",
+     "position": 15
+    },
+    {
+     "route_name": "4",
+     "position": 19
+    }
+   ]
+  },
+  {
+   "athlete_id": 11462,
+   "firstname": "Oriane",
+   "lastname": "BERTONE",
+   "country": "FRA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 8
+    },
+    {
+     "route_name": "2",
+     "position": 12
+    },
+    {
+     "route_name": "3",
+     "position": 16
+    },
+    {
+     "route_name": "4",
+     "position": 20
+    }
+   ]
+  }
+ ]
+}

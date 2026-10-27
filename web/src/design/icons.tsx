@@ -191,6 +191,21 @@ const GLYPHS = {
       <path d="M8 4.4V8l2.5 1.6" />
     </g>
   ),
+  /** CS2: the bomb defused (SF `scissors`). */
+  scissors: (
+    <g {...stroke} strokeWidth={1.5}>
+      <circle cx="4.3" cy="11.6" r="2.1" />
+      <circle cx="11.7" cy="11.6" r="2.1" />
+      <path d="M5.6 10 12.6 2.2M10.4 10 3.4 2.2" />
+    </g>
+  ),
+  /** A live channel (Twitch; SF `dot.radiowaves.left.and.right`). */
+  broadcast: (
+    <g {...stroke} strokeWidth={1.4}>
+      <circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none" />
+      <path d="M5.2 5.2a4 4 0 0 0 0 5.6M10.8 5.2a4 4 0 0 1 0 5.6M3 3a7.1 7.1 0 0 0 0 10M13 3a7.1 7.1 0 0 1 0 10" />
+    </g>
+  ),
   flag: (
     <g fill="currentColor">
       <rect x="2.6" y="1.6" width="1.3" height="12.8" rx=".65" />
@@ -295,9 +310,9 @@ const GLYPHS = {
       <path d="M13.6 1.6v12.8" strokeWidth={1.1} opacity=".45" />
     </g>
   ),
-  /** A player on fire (StreakFlame's flame.fill). */
+  /** A player on fire, a CS2 bomb exploded or a run of rounds (StreakFlame's flame.fill). */
   flame: <path fill="currentColor" d="M8.2 1.2c.5 2.1-.4 3.4-1.4 4.6C5.7 7.1 4.6 8.3 4.6 10.2a3.4 3.4 0 0 0 6.8.2c0-1.2-.5-2.2-1.2-3 .1 1-.3 1.8-1 2.2.4-2.3-.3-4.9-1-8.4z" />,
-  /** The replay's play button (play.fill). */
+  /** The replay's play button; Kick's streams (play.fill). */
   playFill: <path fill="currentColor" d="M5.2 3.1c0-.6.6-.9 1.1-.6l7 4.9c.4.3.4.9 0 1.2l-7 4.9c-.5.3-1.1 0-1.1-.6z" />,
   pause: (
     <g fill="currentColor">

@@ -1,0 +1,88 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/teams/dendele-cs?with=players.country",
+ "_recorded": "2026-10-27T09:58:11.576Z",
+ "id": 24956,
+ "slug": "dendele-cs",
+ "name": "DENDELE",
+ "acronym": null,
+ "players": [
+  {
+   "id": 28821,
+   "slug": "gafolo",
+   "nickname": "gafolo",
+   "first_name": "Victor",
+   "last_name": "Andrade",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/28821/image/webp-0ec070b21701d1ce678d1a42b42f07e5.webp",
+   "country": {
+    "code": "BR"
+   }
+  },
+  {
+   "id": 30971,
+   "slug": "koala-cs-go",
+   "nickname": "koala",
+   "first_name": "Fahad",
+   "last_name": "Khaled Alkadyan",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/30971/image/webp-f315fd2cde4086ca86d3aa6f3b2ab189.webp",
+   "country": {
+    "code": "BR"
+   }
+  },
+  {
+   "id": 31510,
+   "slug": "maxxkor",
+   "nickname": "maxxkor",
+   "first_name": "Maximo",
+   "last_name": "Cortina",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/31510/image/webp-0b88620d31cc00f746f0d852686c7029.webp",
+   "country": {
+    "code": "AR"
+   }
+  },
+  {
+   "id": 32676,
+   "slug": "coachi",
+   "nickname": "coachi",
+   "first_name": "Helder",
+   "last_name": "Sancho",
+   "status": 1,
+   "is_coach": true,
+   "image_url": "https://files.bo3.gg/uploads/player/32676/image/webp-19ac77ffe0a71015deb26eb0e52f6c6e.webp",
+   "country": {
+    "code": "PT"
+   }
+  },
+  {
+   "id": 34369,
+   "slug": "rdnzao",
+   "nickname": "rdnzao",
+   "first_name": "Daniel",
+   "last_name": "Monteiro",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/34369/image/webp-4d61a72f36c062a09ec63110b7ecc148.webp",
+   "country": {
+    "code": "BR"
+   }
+  },
+  {
+   "id": 40378,
+   "slug": "doczin",
+   "nickname": "doc",
+   "first_name": "Danilo",
+   "last_name": "Barros",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/40378/image/webp-1fbe572232b99ddaf94fe47600c57fd8.webp",
+   "country": {
+    "code": "BR"
+   }
+  }
+ ]
+}

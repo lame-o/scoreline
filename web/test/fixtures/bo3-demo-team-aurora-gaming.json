@@ -1,0 +1,101 @@
+{
+ "_source": "https://api.bo3.gg/api/v1/teams/aurora-gaming?with=players.country",
+ "_recorded": "2026-10-27T09:58:13.965Z",
+ "id": 3598,
+ "slug": "aurora-gaming",
+ "name": "Aurora",
+ "acronym": "AUR",
+ "players": [
+  {
+   "id": 17674,
+   "slug": "xantares",
+   "nickname": "XANTARES",
+   "first_name": "Ismailcan",
+   "last_name": "Dörtkardeş",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/17674/image/webp-a526c0ebb47d650426e21124ea21096f.webp",
+   "country": {
+    "code": "TR"
+   }
+  },
+  {
+   "id": 17675,
+   "slug": "maj3r",
+   "nickname": "MAJ3R",
+   "first_name": "Engin",
+   "last_name": "Küpeli",
+   "status": 2,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/17675/image/webp-58021dda9bd23520f54c3aa7df8ec98c.webp",
+   "country": {
+    "code": "TR"
+   }
+  },
+  {
+   "id": 17720,
+   "slug": "woxic",
+   "nickname": "woxic",
+   "first_name": "Özgür",
+   "last_name": "Eker",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/17720/image/webp-62db8e00ed574dfc7f5d9a206a39eb80.webp",
+   "country": {
+    "code": "TR"
+   }
+  },
+  {
+   "id": 26600,
+   "slug": "jimpphat",
+   "nickname": "Jimpphat",
+   "first_name": "Jimi",
+   "last_name": "Salo",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/26600/image/webp-6c60904b9b62e9746f9d587a220e3e81.webp",
+   "country": {
+    "code": "FI"
+   }
+  },
+  {
+   "id": 27680,
+   "slug": "kyxsan",
+   "nickname": "kyxsan",
+   "first_name": "Damjan",
+   "last_name": "Stoilkovski",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/27680/image/webp-1c71503614341ba8ba22250a809c6afd.webp",
+   "country": {
+    "code": "MK"
+   }
+  },
+  {
+   "id": 30712,
+   "slug": "ashhh",
+   "nickname": "ashhh",
+   "first_name": "Ashley",
+   "last_name": "Battye",
+   "status": 1,
+   "is_coach": true,
+   "image_url": "https://files.bo3.gg/uploads/player/30712/image/webp-340a1026184e14982805b8be939a61e3.webp",
+   "country": {
+    "code": "GB"
+   }
+  },
+  {
+   "id": 32185,
+   "slug": "wicadia",
+   "nickname": "Wicadia",
+   "first_name": "Ali Haydar",
+   "last_name": "Yalçın",
+   "status": 1,
+   "is_coach": false,
+   "image_url": "https://files.bo3.gg/uploads/player/32185/image/webp-3c0ce002136d899d232b09a76d5db0d1.webp",
+   "country": {
+    "code": "TR"
+   }
+  }
+ ]
+}

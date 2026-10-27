@@ -44,6 +44,23 @@
   inset: 0;
 }
 
+/* A new set of colors: a change of light over the old (Motion.light). */
+.washColors[data-entering] {
+  animation: wash-in 0.9s var(--ease-in-out) both;
+}
+
+@keyframes wash-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .washColors[data-entering] {
+    animation-duration: var(--dur-fade);
+  }
+}
+
 /* MARK: Hero card */
 
 .heroWrap {
@@ -233,6 +250,12 @@
   color: var(--label-secondary);
 }
 
+/* Field events (climbing): the status leads, like the title (heroStatus(alignment: .leading)). */
+.fieldHero .status {
+  align-items: flex-start;
+  text-align: left;
+}
+
 /* Field events (climbing) */
 .fieldHero {
   display: flex;
@@ -249,8 +272,27 @@
 }
 
 .fieldSummary {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
   font-size: calc(12 * var(--pt));
   color: var(--label-secondary);
+}
+
+/* The winner's trophy: arrives like a badge (from 60%), bounces when won on the page. */
+.trophy {
+  display: inline-grid;
+  place-items: center;
+  align-self: center;
+  color: var(--star);
+  transition:
+    transform var(--dur-quick) var(--ease-out),
+    opacity var(--dur-quick) var(--ease-out);
+
+  @starting-style {
+    transform: scale(0.6);
+    opacity: 0;
+  }
 }
 
 

@@ -1,0 +1,2186 @@
+{
+ "_source": "https://ifsc.results.info/api/v1/category_rounds/10451/results",
+ "_recorded": "2026-10-27T09:58:14.995Z",
+ "id": 10451,
+ "event": "World Climbing Series Santiago 2026",
+ "event_id": 1489,
+ "discipline": "Lead",
+ "status": "finished",
+ "status_as_of": "2026-10-23 16:26:26 UTC",
+ "category": "Women",
+ "round": "Qualification",
+ "routes": [
+  {
+   "id": 18065,
+   "name": "1"
+  },
+  {
+   "id": 18066,
+   "name": "2"
+  }
+ ],
+ "ranking": [
+  {
+   "athlete_id": 1147,
+   "firstname": "Janja",
+   "lastname": "GARNBRET",
+   "country": "SLO",
+   "rank": 1,
+   "score": "1.0",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": true,
+     "plus": false,
+     "score": "TOP",
+     "status": "locked",
+     "rank": 1,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": true,
+     "plus": false,
+     "score": "TOP",
+     "status": "locked",
+     "rank": 1,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 328,
+   "firstname": "Heloïse",
+   "lastname": "DOUMONT",
+   "country": "BEL",
+   "rank": 2,
+   "score": "3.71",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "46",
+     "status": "locked",
+     "rank": 2,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "35+",
+     "status": "locked",
+     "rank": 5,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 13329,
+   "firstname": "Rosa",
+   "lastname": "REKAR",
+   "country": "SLO",
+   "rank": 3,
+   "score": "4.24",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "45",
+     "status": "locked",
+     "rank": 5,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "40+",
+     "status": "locked",
+     "rank": 3,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 928,
+   "firstname": "Laura",
+   "lastname": "ROGORA",
+   "country": "ITA",
+   "rank": 4,
+   "score": "4.33",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "46",
+     "status": "locked",
+     "rank": 2,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "34",
+     "status": "locked",
+     "rank": 7,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 1160,
+   "firstname": "Lucka",
+   "lastname": "RAKOVEC",
+   "country": "SLO",
+   "rank": 5,
+   "score": "4.8",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "44+",
+     "status": "locked",
+     "rank": 8,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "44+",
+     "status": "locked",
+     "rank": 2,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 11784,
+   "firstname": "Hana",
+   "lastname": "KOIKE",
+   "country": "JPN",
+   "rank": 6,
+   "score": "5.74",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "45",
+     "status": "locked",
+     "rank": 5,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "35+",
+     "status": "locked",
+     "rank": 5,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 2501,
+   "firstname": "Oceania",
+   "lastname": "MACKENZIE",
+   "country": "AUS",
+   "rank": 7,
+   "score": "6.78",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "44+",
+     "status": "locked",
+     "rank": 8,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "36+",
+     "status": "locked",
+     "rank": 4,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 11783,
+   "firstname": "Ryu",
+   "lastname": "NAKAGAWA",
+   "country": "JPN",
+   "rank": 8,
+   "score": "7.21",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "45+",
+     "status": "locked",
+     "rank": 4,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "33",
+     "status": "locked",
+     "rank": 13,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 13596,
+   "firstname": "Zhilu",
+   "lastname": "LUO",
+   "country": "CHN",
+   "rank": 9,
+   "score": "10.99",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "44+",
+     "status": "locked",
+     "rank": 8,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "33+",
+     "status": "locked",
+     "rank": 9,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 12358,
+   "firstname": "Iziar",
+   "lastname": "MARTÍNEZ ALMENDROS",
+   "country": "ESP",
+   "rank": 9,
+   "score": "10.99",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "44+",
+     "status": "locked",
+     "rank": 8,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "33+",
+     "status": "locked",
+     "rank": 9,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 2294,
+   "firstname": "Miho",
+   "lastname": "NONAKA",
+   "country": "JPN",
+   "rank": 9,
+   "score": "10.99",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "44+",
+     "status": "locked",
+     "rank": 8,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "33+",
+     "status": "locked",
+     "rank": 9,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 13022,
+   "firstname": "Ella",
+   "lastname": "FISHER",
+   "country": "USA",
+   "rank": 12,
+   "score": "12.73",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "45",
+     "status": "locked",
+     "rank": 5,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "28",
+     "status": "locked",
+     "rank": 27,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 13994,
+   "firstname": "Natsumi",
+   "lastname": "ODA",
+   "country": "JPN",
+   "rank": 13,
+   "score": "13.36",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "43+",
+     "status": "locked",
+     "rank": 17,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "33+",
+     "status": "locked",
+     "rank": 9,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 1438,
+   "firstname": "Michaela",
+   "lastname": "SMETANOVA",
+   "country": "CZE",
+   "rank": 14,
+   "score": "15.0",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "30+",
+     "status": "locked",
+     "rank": 26,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "34",
+     "status": "locked",
+     "rank": 7,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 1266,
+   "firstname": "Mattea",
+   "lastname": "PÖTZI",
+   "country": "AUT",
+   "rank": 15,
+   "score": "15.54",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "44+",
+     "status": "locked",
+     "rank": 8,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "30",
+     "status": "locked",
+     "rank": 20,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 1447,
+   "firstname": "Tereza",
+   "lastname": "SIRUCKOVA",
+   "country": "CZE",
+   "rank": 15,
+   "score": "15.54",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "44+",
+     "status": "locked",
+     "rank": 8,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "30",
+     "status": "locked",
+     "rank": 20,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 12336,
+   "firstname": "Anna Maria",
+   "lastname": "APEL",
+   "country": "GER",
+   "rank": 17,
+   "score": "16.0",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "44",
+     "status": "locked",
+     "rank": 16,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "32",
+     "status": "locked",
+     "rank": 16,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 1181,
+   "firstname": "Lucija",
+   "lastname": "TARKUS",
+   "country": "SLO",
+   "rank": 18,
+   "score": "16.26",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "44+",
+     "status": "locked",
+     "rank": 8,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "29",
+     "status": "locked",
+     "rank": 23,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 16301,
+   "firstname": "Mai",
+   "lastname": "KOBAYASHI",
+   "country": "JPN",
+   "rank": 19,
+   "score": "16.38",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "40+",
+     "status": "locked",
+     "rank": 18,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "32+",
+     "status": "locked",
+     "rank": 14,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 4320,
+   "firstname": "Roxana",
+   "lastname": "WIENAND",
+   "country": "GER",
+   "rank": 20,
+   "score": "17.03",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "40",
+     "status": "locked",
+     "rank": 20,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "32+",
+     "status": "locked",
+     "rank": 14,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 739,
+   "firstname": "Zoe",
+   "lastname": "PEETERMANS",
+   "country": "GBR",
+   "rank": 21,
+   "score": "17.99",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "40+",
+     "status": "locked",
+     "rank": 18,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "31+",
+     "status": "locked",
+     "rank": 17,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 14060,
+   "firstname": "Analise",
+   "lastname": "VAN HOANG",
+   "country": "USA",
+   "rank": 22,
+   "score": "20.45",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "39",
+     "status": "locked",
+     "rank": 22,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "30+",
+     "status": "locked",
+     "rank": 19,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 3204,
+   "firstname": "Anja",
+   "lastname": "KÖHLER ",
+   "country": "BRA",
+   "rank": 23,
+   "score": "22.45",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "36+",
+     "status": "locked",
+     "rank": 23,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "30",
+     "status": "locked",
+     "rank": 20,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 13971,
+   "firstname": "Martina",
+   "lastname": "CASTRO",
+   "country": "CHI",
+   "rank": 24,
+   "score": "22.91",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "30+",
+     "status": "locked",
+     "rank": 26,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "31+",
+     "status": "locked",
+     "rank": 17,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 12605,
+   "firstname": "Annika",
+   "lastname": "MÜLLER",
+   "country": "GER",
+   "rank": 25,
+   "score": "24.68",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "39+",
+     "status": "locked",
+     "rank": 21,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "25+",
+     "status": "locked",
+     "rank": 29,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 13974,
+   "firstname": "Matilde",
+   "lastname": "CABEZAS",
+   "country": "CHI",
+   "rank": 26,
+   "score": "25.92",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "36+",
+     "status": "locked",
+     "rank": 23,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "27+",
+     "status": "locked",
+     "rank": 28,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 17275,
+   "firstname": "Isabelle",
+   "lastname": "CASE",
+   "country": "USA",
+   "rank": 27,
+   "score": "27.39",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "30+",
+     "status": "locked",
+     "rank": 26,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "28+",
+     "status": "locked",
+     "rank": 24,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 12777,
+   "firstname": "Ines",
+   "lastname": "SCHWAIGER",
+   "country": "AUT",
+   "rank": 27,
+   "score": "27.39",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "30+",
+     "status": "locked",
+     "rank": 26,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "28+",
+     "status": "locked",
+     "rank": 24,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 1824,
+   "firstname": "Maya",
+   "lastname": "MADERE",
+   "country": "USA",
+   "rank": 29,
+   "score": "28.14",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "36+",
+     "status": "locked",
+     "rank": 23,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "22",
+     "status": "locked",
+     "rank": 32,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 1650,
+   "firstname": "Indiana",
+   "lastname": "CHAPMAN",
+   "country": "CAN",
+   "rank": 30,
+   "score": "30.0",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "30+",
+     "status": "locked",
+     "rank": 26,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "24",
+     "status": "locked",
+     "rank": 30,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 16273,
+   "firstname": "Sara",
+   "lastname": "NORIEGA",
+   "country": "VEN",
+   "rank": 31,
+   "score": "30.5",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "30+",
+     "status": "locked",
+     "rank": 26,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "23+",
+     "status": "locked",
+     "rank": 31,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 13510,
+   "firstname": "Emily",
+   "lastname": "SCOTT",
+   "country": "AUS",
+   "rank": 32,
+   "score": "30.82",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "21+",
+     "status": "locked",
+     "rank": 37,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "28+",
+     "status": "locked",
+     "rank": 24,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 3161,
+   "firstname": "Valentina",
+   "lastname": "AGUADO",
+   "country": "ARG",
+   "rank": 33,
+   "score": "31.46",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "30+",
+     "status": "locked",
+     "rank": 26,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "22",
+     "status": "locked",
+     "rank": 32,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 3911,
+   "firstname": "Alejandra",
+   "lastname": "CONTRERAS",
+   "country": "CHI",
+   "rank": 33,
+   "score": "31.46",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "30+",
+     "status": "locked",
+     "rank": 26,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "22",
+     "status": "locked",
+     "rank": 32,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 13948,
+   "firstname": "Sienna",
+   "lastname": "CHOW",
+   "country": "CAN",
+   "rank": 35,
+   "score": "32.4",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "30+",
+     "status": "locked",
+     "rank": 26,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "21",
+     "status": "locked",
+     "rank": 35,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 4224,
+   "firstname": "Regina",
+   "lastname": "SALAZAR PUGA",
+   "country": "MEX",
+   "rank": 36,
+   "score": "36.47",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "22+",
+     "status": "locked",
+     "rank": 35,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "16+",
+     "status": "locked",
+     "rank": 38,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 4215,
+   "firstname": "María Fernanda",
+   "lastname": "GONZÁLEZ RÁMIREZ",
+   "country": "MEX",
+   "rank": 37,
+   "score": "37.5",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "21+",
+     "status": "locked",
+     "rank": 37,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "17",
+     "status": "locked",
+     "rank": 37,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 15317,
+   "firstname": "María Lujan",
+   "lastname": "HERRERA",
+   "country": "ARG",
+   "rank": 38,
+   "score": "38.18",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "18+",
+     "status": "locked",
+     "rank": 40,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "17+",
+     "status": "locked",
+     "rank": 36,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 16587,
+   "firstname": "Ana",
+   "lastname": "MENDEZ",
+   "country": "GUA",
+   "rank": 39,
+   "score": "38.99",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "21+",
+     "status": "locked",
+     "rank": 37,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "14+",
+     "status": "locked",
+     "rank": 39,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 14876,
+   "firstname": "Adriana",
+   "lastname": "PINEDA",
+   "country": "CHI",
+   "rank": 40,
+   "score": "40.25",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "22",
+     "status": "locked",
+     "rank": 36,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": false,
+     "score": "9",
+     "status": "locked",
+     "rank": 45,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 18262,
+   "firstname": "Ignacia",
+   "lastname": "BENNI",
+   "country": "CHI",
+   "rank": 41,
+   "score": "41.23",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "16+",
+     "status": "locked",
+     "rank": 42,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "14+",
+     "status": "locked",
+     "rank": 39,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 18910,
+   "firstname": "Florencia",
+   "lastname": "ENCINA",
+   "country": "CHI",
+   "rank": 41,
+   "score": "41.23",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "16+",
+     "status": "locked",
+     "rank": 42,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "14+",
+     "status": "locked",
+     "rank": 39,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 17519,
+   "firstname": "Ana Maria",
+   "lastname": "PATINO",
+   "country": "COL",
+   "rank": 43,
+   "score": "41.49",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "18+",
+     "status": "locked",
+     "rank": 40,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "13+",
+     "status": "locked",
+     "rank": 42,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 15279,
+   "firstname": "Nicole Valeria",
+   "lastname": "RAMIREZ VILCHEZ",
+   "country": "PER",
+   "rank": 44,
+   "score": "44.22",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "12+",
+     "status": "locked",
+     "rank": 46,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "13+",
+     "status": "locked",
+     "rank": 42,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 15277,
+   "firstname": "Zoe Camila",
+   "lastname": "GARRIDO CANTONI",
+   "country": "PER",
+   "rank": 45,
+   "score": "44.5",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": false,
+     "score": "13",
+     "status": "locked",
+     "rank": 45,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "11+",
+     "status": "locked",
+     "rank": 44,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 18914,
+   "firstname": "Silvina",
+   "lastname": "LUONGO",
+   "country": "URU",
+   "rank": 46,
+   "score": "44.99",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "13+",
+     "status": "locked",
+     "rank": 44,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "8+",
+     "status": "locked",
+     "rank": 46,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 18926,
+   "firstname": "Ana",
+   "lastname": "TELLO",
+   "country": "GUA",
+   "rank": 47,
+   "score": "47.25",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "10+",
+     "status": "locked",
+     "rank": 47,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "7+",
+     "status": "locked",
+     "rank": 47,
+     "top_tries": null
+    }
+   ]
+  },
+  {
+   "athlete_id": 18913,
+   "firstname": "Sofía",
+   "lastname": "MARTÍNEZ",
+   "country": "URU",
+   "rank": 48,
+   "score": "47.75",
+   "active": false,
+   "ascents": [
+    {
+     "route_name": "1",
+     "top": false,
+     "plus": true,
+     "score": "10+",
+     "status": "locked",
+     "rank": 47,
+     "top_tries": null
+    },
+    {
+     "route_name": "2",
+     "top": false,
+     "plus": true,
+     "score": "6+",
+     "status": "locked",
+     "rank": 48,
+     "top_tries": null
+    }
+   ]
+  }
+ ],
+ "startlist": [
+  {
+   "athlete_id": 16301,
+   "firstname": "Mai",
+   "lastname": "KOBAYASHI",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 25
+    },
+    {
+     "route_name": "2",
+     "position": 1
+    }
+   ]
+  },
+  {
+   "athlete_id": 11783,
+   "firstname": "Ryu",
+   "lastname": "NAKAGAWA",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 1
+    },
+    {
+     "route_name": "2",
+     "position": 25
+    }
+   ]
+  },
+  {
+   "athlete_id": 3911,
+   "firstname": "Alejandra",
+   "lastname": "CONTRERAS",
+   "country": "CHI",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 26
+    },
+    {
+     "route_name": "2",
+     "position": 2
+    }
+   ]
+  },
+  {
+   "athlete_id": 328,
+   "firstname": "Heloïse",
+   "lastname": "DOUMONT",
+   "country": "BEL",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 2
+    },
+    {
+     "route_name": "2",
+     "position": 26
+    }
+   ]
+  },
+  {
+   "athlete_id": 13022,
+   "firstname": "Ella",
+   "lastname": "FISHER",
+   "country": "USA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 3
+    },
+    {
+     "route_name": "2",
+     "position": 27
+    }
+   ]
+  },
+  {
+   "athlete_id": 12336,
+   "firstname": "Anna Maria",
+   "lastname": "APEL",
+   "country": "GER",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 27
+    },
+    {
+     "route_name": "2",
+     "position": 3
+    }
+   ]
+  },
+  {
+   "athlete_id": 1160,
+   "firstname": "Lucka",
+   "lastname": "RAKOVEC",
+   "country": "SLO",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 4
+    },
+    {
+     "route_name": "2",
+     "position": 28
+    }
+   ]
+  },
+  {
+   "athlete_id": 4320,
+   "firstname": "Roxana",
+   "lastname": "WIENAND",
+   "country": "GER",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 28
+    },
+    {
+     "route_name": "2",
+     "position": 4
+    }
+   ]
+  },
+  {
+   "athlete_id": 3161,
+   "firstname": "Valentina",
+   "lastname": "AGUADO",
+   "country": "ARG",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 29
+    },
+    {
+     "route_name": "2",
+     "position": 5
+    }
+   ]
+  },
+  {
+   "athlete_id": 1447,
+   "firstname": "Tereza",
+   "lastname": "SIRUCKOVA",
+   "country": "CZE",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 5
+    },
+    {
+     "route_name": "2",
+     "position": 29
+    }
+   ]
+  },
+  {
+   "athlete_id": 1824,
+   "firstname": "Maya",
+   "lastname": "MADERE",
+   "country": "USA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 30
+    },
+    {
+     "route_name": "2",
+     "position": 6
+    }
+   ]
+  },
+  {
+   "athlete_id": 1147,
+   "firstname": "Janja",
+   "lastname": "GARNBRET",
+   "country": "SLO",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 6
+    },
+    {
+     "route_name": "2",
+     "position": 30
+    }
+   ]
+  },
+  {
+   "athlete_id": 18914,
+   "firstname": "Silvina",
+   "lastname": "LUONGO",
+   "country": "URU",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 31
+    },
+    {
+     "route_name": "2",
+     "position": 7
+    }
+   ]
+  },
+  {
+   "athlete_id": 1181,
+   "firstname": "Lucija",
+   "lastname": "TARKUS",
+   "country": "SLO",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 7
+    },
+    {
+     "route_name": "2",
+     "position": 31
+    }
+   ]
+  },
+  {
+   "athlete_id": 1438,
+   "firstname": "Michaela",
+   "lastname": "SMETANOVA",
+   "country": "CZE",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 8
+    },
+    {
+     "route_name": "2",
+     "position": 32
+    }
+   ]
+  },
+  {
+   "athlete_id": 16273,
+   "firstname": "Sara",
+   "lastname": "NORIEGA",
+   "country": "VEN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 32
+    },
+    {
+     "route_name": "2",
+     "position": 8
+    }
+   ]
+  },
+  {
+   "athlete_id": 13329,
+   "firstname": "Rosa",
+   "lastname": "REKAR",
+   "country": "SLO",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 9
+    },
+    {
+     "route_name": "2",
+     "position": 33
+    }
+   ]
+  },
+  {
+   "athlete_id": 13948,
+   "firstname": "Sienna",
+   "lastname": "CHOW",
+   "country": "CAN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 33
+    },
+    {
+     "route_name": "2",
+     "position": 9
+    }
+   ]
+  },
+  {
+   "athlete_id": 11784,
+   "firstname": "Hana",
+   "lastname": "KOIKE",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 10
+    },
+    {
+     "route_name": "2",
+     "position": 34
+    }
+   ]
+  },
+  {
+   "athlete_id": 17519,
+   "firstname": "Ana Maria",
+   "lastname": "PATINO",
+   "country": "COL",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 34
+    },
+    {
+     "route_name": "2",
+     "position": 10
+    }
+   ]
+  },
+  {
+   "athlete_id": 13994,
+   "firstname": "Natsumi",
+   "lastname": "ODA",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 11
+    },
+    {
+     "route_name": "2",
+     "position": 35
+    }
+   ]
+  },
+  {
+   "athlete_id": 4215,
+   "firstname": "María Fernanda",
+   "lastname": "GONZÁLEZ RÁMIREZ",
+   "country": "MEX",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 35
+    },
+    {
+     "route_name": "2",
+     "position": 11
+    }
+   ]
+  },
+  {
+   "athlete_id": 16587,
+   "firstname": "Ana",
+   "lastname": "MENDEZ",
+   "country": "GUA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 36
+    },
+    {
+     "route_name": "2",
+     "position": 12
+    }
+   ]
+  },
+  {
+   "athlete_id": 2294,
+   "firstname": "Miho",
+   "lastname": "NONAKA",
+   "country": "JPN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 12
+    },
+    {
+     "route_name": "2",
+     "position": 36
+    }
+   ]
+  },
+  {
+   "athlete_id": 2501,
+   "firstname": "Oceania",
+   "lastname": "MACKENZIE",
+   "country": "AUS",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 13
+    },
+    {
+     "route_name": "2",
+     "position": 37
+    }
+   ]
+  },
+  {
+   "athlete_id": 4224,
+   "firstname": "Regina",
+   "lastname": "SALAZAR PUGA",
+   "country": "MEX",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 37
+    },
+    {
+     "route_name": "2",
+     "position": 13
+    }
+   ]
+  },
+  {
+   "athlete_id": 12358,
+   "firstname": "Iziar",
+   "lastname": "MARTÍNEZ ALMENDROS",
+   "country": "ESP",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 14
+    },
+    {
+     "route_name": "2",
+     "position": 38
+    }
+   ]
+  },
+  {
+   "athlete_id": 15279,
+   "firstname": "Nicole Valeria",
+   "lastname": "RAMIREZ VILCHEZ",
+   "country": "PER",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 38
+    },
+    {
+     "route_name": "2",
+     "position": 14
+    }
+   ]
+  },
+  {
+   "athlete_id": 14876,
+   "firstname": "Adriana",
+   "lastname": "PINEDA",
+   "country": "CHI",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 39
+    },
+    {
+     "route_name": "2",
+     "position": 15
+    }
+   ]
+  },
+  {
+   "athlete_id": 3204,
+   "firstname": "Anja",
+   "lastname": "KÖHLER ",
+   "country": "BRA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 15
+    },
+    {
+     "route_name": "2",
+     "position": 39
+    }
+   ]
+  },
+  {
+   "athlete_id": 13510,
+   "firstname": "Emily",
+   "lastname": "SCOTT",
+   "country": "AUS",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 40
+    },
+    {
+     "route_name": "2",
+     "position": 16
+    }
+   ]
+  },
+  {
+   "athlete_id": 739,
+   "firstname": "Zoe",
+   "lastname": "PEETERMANS",
+   "country": "GBR",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 16
+    },
+    {
+     "route_name": "2",
+     "position": 40
+    }
+   ]
+  },
+  {
+   "athlete_id": 1650,
+   "firstname": "Indiana",
+   "lastname": "CHAPMAN",
+   "country": "CAN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 41
+    },
+    {
+     "route_name": "2",
+     "position": 17
+    }
+   ]
+  },
+  {
+   "athlete_id": 12777,
+   "firstname": "Ines",
+   "lastname": "SCHWAIGER",
+   "country": "AUT",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 17
+    },
+    {
+     "route_name": "2",
+     "position": 41
+    }
+   ]
+  },
+  {
+   "athlete_id": 18926,
+   "firstname": "Ana",
+   "lastname": "TELLO",
+   "country": "GUA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 42
+    },
+    {
+     "route_name": "2",
+     "position": 18
+    }
+   ]
+  },
+  {
+   "athlete_id": 1266,
+   "firstname": "Mattea",
+   "lastname": "PÖTZI",
+   "country": "AUT",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 18
+    },
+    {
+     "route_name": "2",
+     "position": 42
+    }
+   ]
+  },
+  {
+   "athlete_id": 13596,
+   "firstname": "Zhilu",
+   "lastname": "LUO",
+   "country": "CHN",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 19
+    },
+    {
+     "route_name": "2",
+     "position": 43
+    }
+   ]
+  },
+  {
+   "athlete_id": 15317,
+   "firstname": "María Lujan",
+   "lastname": "HERRERA",
+   "country": "ARG",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 43
+    },
+    {
+     "route_name": "2",
+     "position": 19
+    }
+   ]
+  },
+  {
+   "athlete_id": 928,
+   "firstname": "Laura",
+   "lastname": "ROGORA",
+   "country": "ITA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 20
+    },
+    {
+     "route_name": "2",
+     "position": 44
+    }
+   ]
+  },
+  {
+   "athlete_id": 18910,
+   "firstname": "Florencia",
+   "lastname": "ENCINA",
+   "country": "CHI",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 44
+    },
+    {
+     "route_name": "2",
+     "position": 20
+    }
+   ]
+  },
+  {
+   "athlete_id": 18913,
+   "firstname": "Sofía",
+   "lastname": "MARTÍNEZ",
+   "country": "URU",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 45
+    },
+    {
+     "route_name": "2",
+     "position": 21
+    }
+   ]
+  },
+  {
+   "athlete_id": 14060,
+   "firstname": "Analise",
+   "lastname": "VAN HOANG",
+   "country": "USA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 21
+    },
+    {
+     "route_name": "2",
+     "position": 45
+    }
+   ]
+  },
+  {
+   "athlete_id": 18262,
+   "firstname": "Ignacia",
+   "lastname": "BENNI",
+   "country": "CHI",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 46
+    },
+    {
+     "route_name": "2",
+     "position": 22
+    }
+   ]
+  },
+  {
+   "athlete_id": 13974,
+   "firstname": "Matilde",
+   "lastname": "CABEZAS",
+   "country": "CHI",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 22
+    },
+    {
+     "route_name": "2",
+     "position": 46
+    }
+   ]
+  },
+  {
+   "athlete_id": 13971,
+   "firstname": "Martina",
+   "lastname": "CASTRO",
+   "country": "CHI",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 23
+    },
+    {
+     "route_name": "2",
+     "position": 47
+    }
+   ]
+  },
+  {
+   "athlete_id": 17275,
+   "firstname": "Isabelle",
+   "lastname": "CASE",
+   "country": "USA",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 47
+    },
+    {
+     "route_name": "2",
+     "position": 23
+    }
+   ]
+  },
+  {
+   "athlete_id": 15277,
+   "firstname": "Zoe Camila",
+   "lastname": "GARRIDO CANTONI",
+   "country": "PER",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 48
+    },
+    {
+     "route_name": "2",
+     "position": 24
+    }
+   ]
+  },
+  {
+   "athlete_id": 12605,
+   "firstname": "Annika",
+   "lastname": "MÜLLER",
+   "country": "GER",
+   "route_start_positions": [
+    {
+     "route_name": "1",
+     "position": 24
+    },
+    {
+     "route_name": "2",
+     "position": 48
+    }
+   ]
+  }
+ ]
+}
