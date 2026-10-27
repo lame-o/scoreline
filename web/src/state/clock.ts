@@ -71,9 +71,10 @@ export function useNow(period: number, active = true): number {
     },
     [t, period, active],
   );
-  // An idle ticker's time is refreshed on read (nobody else is watching it).
+  // An idle ticker's time is refreshed on read (nobody else is watching it), at most once a
+  // second: React reads a snapshot twice in a row and warns when the two differ (a millisecond apart).
   const snapshot = useCallback(() => {
-    if (t.listeners.size === 0) t.now = Date.now();
+    if (t.listeners.size === 0 && Date.now() - t.now >= 1000) t.now = Date.now();
     return t.now;
   }, [t]);
   return useSyncExternalStore(subscribe, snapshot, snapshot);

@@ -1,0 +1,10 @@
+{
+ "_source": "synthetic",
+ "_note": "The shape of bo3.gg's /live/matches/:id/last_snapshot (read by GameDetail.swift CSDetail.parseLive), for the live match in bo3-matches-current.synthetic.json (Liquid 790 vs Aurora 3598). team_one is deliberately Aurora, the match's team2, to test the swap by fixture team IDs. Trimmed to the fields the parser reads.",
+ "map_name": "de_mirage",
+ "game_number": 2,
+ "round_number": 14,
+ "game_ended": false,
+ "team_one": { "score": 8, "side": "CT", "fixture": { "team_id": 3598 } },
+ "team_two": { "score": 5, "side": "TERRORIST", "fixture": { "team_id": 790 } }
+}

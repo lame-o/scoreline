@@ -221,3 +221,50 @@
   gap: calc(5 * var(--pt));
   align-items: baseline;
 }
+
+/* A quiet league's next game day: a quiet link to its schedule (information first, so secondary ink). */
+.footnoteLink {
+  color: var(--label-secondary);
+  border-radius: calc(3 * var(--pt));
+  transition: color var(--dur-fade) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .footnoteLink:hover {
+    color: var(--label);
+  }
+}
+
+.footnoteLink:active {
+  opacity: 0.6;
+}
+
+/* The hint names the gesture the device has. */
+.touchOnly {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .touchOnly {
+    display: inline;
+  }
+
+  .pointerOnly {
+    display: none;
+  }
+}
+
+/* A long press on a header opens its menu, not a text selection or callout. */
+.heading {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* A header's own link (Up Next's "Schedule ›"), beside the chevron, outside the toggle. */
+.sectionLinkSlot {
+  position: absolute;
+  top: calc(10 * var(--pt));
+  right: calc(30 * var(--pt));
+  display: inline-flex;
+}

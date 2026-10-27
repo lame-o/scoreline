@@ -137,8 +137,31 @@ export function visible(events: readonly ScoreEvent[], now: number, showFinished
 
 // MARK: - Sections
 
-/** Each followed team's live game, latest result (past day) and next fixture (next week). */
-export function myTeamsEvents(results: Readonly<Record<string, LeagueResult>>, prefs: ListPreferences, now: number): ScoreEvent[] {
+/**
+ * A followed team's coming games from its own schedule (ScheduleStore.nextGames),
+ * soonest first: what My Teams falls back to when the scoreboards have nothing.
+ */
+export interface NextGame {
+  readonly event: ScoreEvent;
+  /** The league the schedule filed it under (a catalog ID, or a competition's slug). */
+  readonly league: string;
+}
+
+/** How far ahead My Teams reaches into a team's schedule (ScoreStore.myTeamsEvents). */
+export const NEXT_GAME_WINDOW = 21 * DAY;
+
+/**
+ * Each followed team's live game, latest result (past day) and next fixture
+ * (next week). A team with nothing coming up on the scoreboards (a quiet
+ * week, a cup tie in a league you don't show) gets its next game from its
+ * schedule, when that's within three weeks.
+ */
+export function myTeamsEvents(
+  results: Readonly<Record<string, LeagueResult>>,
+  prefs: ListPreferences,
+  now: number,
+  nextGames: ReadonlyMap<string, readonly NextGame[]> = new Map(),
+): ScoreEvent[] {
   if (prefs.followed.length === 0) return [];
   const picked = new Map<string, ScoreEvent>();
   for (const id of prefs.enabledLeagues) {
@@ -155,15 +178,54 @@ export function myTeamsEvents(results: Readonly<Record<string, LeagueResult>>, p
       }
     }
   }
-  // TODO(schedules): a team with nothing on the scoreboards falls back to its
-  // next game from its schedule within three weeks (ScoreStore.myTeamsEvents,
-  // ScheduleStore.nextGames). Lands with the schedule data layer.
+  for (const game of fallbackGames(picked, results, prefs, now, nextGames)) {
+    picked.set(game.event.id, withChanges(game.event, { caption: game.event.caption ?? leagueWithID(game.league)?.name ?? null }));
+  }
   return [...picked.values()].sort(eventOrder);
 }
 
-export function computeSections(results: Readonly<Record<string, LeagueResult>>, prefs: ListPreferences, now: number): Section[] {
+/**
+ * The schedule's next game for each followed team the scoreboards leave
+ * uncovered (no live or upcoming game picked): the first one that hasn't
+ * finished (by the scoreboard's copy when it has one, since a schedule read
+ * hours ago still calls a finished game scheduled), started less than three
+ * hours ago, and starts within three weeks.
+ */
+export function fallbackGames(
+  picked: ReadonlyMap<string, ScoreEvent>,
+  results: Readonly<Record<string, LeagueResult>>,
+  prefs: ListPreferences,
+  now: number,
+  nextGames: ReadonlyMap<string, readonly NextGame[]>,
+): NextGame[] {
+  if (nextGames.size === 0) return [];
+  const current = new Map<string, ScoreEvent>();
+  for (const r of Object.values(results)) for (const e of r.events) if (!current.has(e.id)) current.set(e.id, e);
+  const out: NextGame[] = [];
+  const taken = new Set(picked.keys());
+  for (const team of prefs.followed) {
+    const covered = [...picked.values()].some((e) => e.state !== "final" && competitors(e).some((c) => c.id === team.id));
+    if (covered) continue;
+    for (const game of nextGames.get(team.id) ?? []) {
+      const event = current.get(game.event.id) ?? game.event;
+      if (event.state === "final" || event.start < now - 3 * HOUR) continue;
+      if (event.start >= now + NEXT_GAME_WINDOW || taken.has(event.id)) break;
+      taken.add(event.id);
+      out.push({ event, league: game.league });
+      break;
+    }
+  }
+  return out;
+}
+
+export function computeSections(
+  results: Readonly<Record<string, LeagueResult>>,
+  prefs: ListPreferences,
+  now: number,
+  nextGames: ReadonlyMap<string, readonly NextGame[]> = new Map(),
+): Section[] {
   const output: Section[] = [];
-  const mine = myTeamsEvents(results, prefs, now);
+  const mine = myTeamsEvents(results, prefs, now, nextGames);
   if (mine.length > 0) output.push(section(MY_TEAMS, "My Teams", null, mine, false));
   const mineIDs = new Set(mine.map((e) => e.id));
 
@@ -240,6 +302,18 @@ export function retryDelay(consecutiveFailures: number): number {
   return [5, 15, 30, 60][Math.min(Math.max(consecutiveFailures - 1, 0), 3)]!;
 }
 
+/**
+ * Seconds between polls while the tab is hidden (web only): browsers stop
+ * the visible cadence, but a pinned score in the tab title and alerts for
+ * your teams still need the news. Only those games count: 30 while one is
+ * live, 60 when one starts within 15 minutes, otherwise 300.
+ */
+export function backgroundInterval(results: Readonly<Record<string, LeagueResult>>, matters: (e: ScoreEvent) => boolean, now: number): number {
+  const events = Object.values(results).flatMap((r) => r.events.filter(matters));
+  if (events.some((e) => e.state === "live")) return 30;
+  return events.some((e) => e.state === "scheduled" && e.start < now + 15 * 60_000 && e.start > now - HOUR) ? 60 : 300;
+}
+
 // MARK: - Between polls (ScoreStore.refresh)
 
 /**
@@ -263,6 +337,16 @@ export function mergePoll(previous: readonly ScoreEvent[] | undefined, fresh: re
       next = { ...next, snapshot: before.snapshot };
     }
     return sameEvent(before, next) ? before : next;
+  });
+}
+
+/** A poll's events, each keeping its last object when nothing in it changed (so its row doesn't render). */
+export function keepIdentity(previous: readonly ScoreEvent[] | undefined, next: readonly ScoreEvent[]): ScoreEvent[] {
+  if (!previous) return [...next];
+  const old = new Map(previous.map((e) => [e.id, e]));
+  return next.map((e) => {
+    const before = old.get(e.id);
+    return before && sameEvent(before, e) ? before : e;
   });
 }
 
