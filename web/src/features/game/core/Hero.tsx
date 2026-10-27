@@ -14,7 +14,7 @@
  * Full plays all of them; Subtle keeps the pill; Off keeps nothing that
  * moves. Reduce Motion: no pop, a slower wash, a quick pill, no glint.
  */
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { GlassCard, Icon, LiveStatus, ScoreDigits, Skeleton, TeamLogo } from "../../../design/components";
 import { glintProgress, pillOpacity, popScale, sample, washPulse } from "../../../data/celebrations";
@@ -46,12 +46,16 @@ export interface HeroProps {
   /** The spoken summary, the page's heading. */
   readonly spoken: string;
   readonly caption: string | null;
+  /** A trophy: beside a series winner's name, or before a decided final's winner line. */
+  readonly trophy?: Side | "field" | null;
+  /** Under the card (CS2: the co-streamer's badge). */
+  readonly badge?: ReactNode;
   /** Wraps the card so the page can measure it (docking) and tuck it. */
   readonly heroRef?: React.Ref<HTMLDivElement>;
   readonly tuckRef?: React.Ref<HTMLDivElement>;
 }
 
-export function Hero({ event, palette, scores, beats, surface, clockFallback, liveSecond, possession, staleSince, spoken, caption, heroRef, tuckRef }: HeroProps) {
+export function Hero({ event, palette, scores, beats, surface, clockFallback, liveSecond, possession, staleSince, spoken, caption, trophy = null, badge = null, heroRef, tuckRef }: HeroProps) {
   const glint = useRef<HTMLSpanElement>(null);
   const level = useSettings((s) => s.celebrationLevel);
   const reduce = useReducedMotion();
@@ -77,7 +81,7 @@ export function Hero({ event, palette, scores, beats, surface, clockFallback, li
         <h1 className="visually-hidden">{spoken}</h1>
         {caption ? <p className={styles.caption}>{caption}</p> : null}
         <div className={styles.scoreboard}>
-          <TeamColumn event={event} c={event.content.top} color={palette.top} hasBall={possession === "top"} />
+          <TeamColumn event={event} c={event.content.top} color={palette.top} hasBall={possession === "top"} trophy={trophy === "top" ? beats.trophies : null} />
           <div className={styles.center}>
             {scores.top != null || scores.bottom != null ? (
               <span className={styles.score}>
@@ -88,14 +92,20 @@ export function Hero({ event, palette, scores, beats, surface, clockFallback, li
             ) : null}
             <HeroStatus event={event} stale={staleSince != null} fallback={clockFallback} second={liveSecond ?? null} ticking={surface === "hero"} />
           </div>
-          <TeamColumn event={event} c={event.content.bottom} color={palette.bottom} hasBall={possession === "bottom"} />
+          <TeamColumn event={event} c={event.content.bottom} color={palette.bottom} hasBall={possession === "bottom"} trophy={trophy === "bottom" ? beats.trophies : null} />
         </div>
       </div>
     ) : event.content.kind === "field" ? (
       <div className={styles.fieldHero}>
         {event.caption ? <p className={styles.caption} style={{ padding: 0 }}>{event.caption}</p> : null}
         <h1 className={styles.fieldTitle}>{event.content.title}</h1>
-        {event.content.summary ? <p className={styles.fieldSummary}>{event.content.summary}</p> : null}
+        {event.content.summary ? (
+          <p className={styles.fieldSummary}>
+            {/* A final's winner ("Winner 🇸🇮 J. Garnbret"): a real trophy. */}
+            {trophy === "field" ? <Trophy bounces={beats.trophies} /> : null}
+            {event.content.summary}
+          </p>
+        ) : null}
         <div style={{ paddingTop: "calc(4 * var(--pt))" }}>
           <HeroStatus event={event} stale={staleSince != null} fallback={clockFallback} second={null} ticking={surface === "hero"} />
         </div>
@@ -114,6 +124,7 @@ export function Hero({ event, palette, scores, beats, surface, clockFallback, li
             <span ref={glint} className={styles.glint} style={{ "--glint": dark ? 0.22 : 0.4 } as React.CSSProperties} />
           </span>
         </div>
+        {badge}
         {staleSince != null ? (
           <p className={styles.stale}>
             <Icon name="wifiSlash" size={10} />
@@ -175,7 +186,32 @@ export function BeatScore({ value, live, dimmed, pops, color, active, className 
   );
 }
 
-function TeamColumn({ event, c, color, hasBall }: { event: ScoreEvent; c: Competitor; color: string; hasBall: boolean }) {
+/**
+ * The winner's trophy (DetailView.trophy): arrives like a badge and bounces
+ * once each time one is won on this page. Still at Off and with Reduce Motion.
+ */
+function Trophy({ bounces }: { bounces: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const level = useSettings((s) => s.celebrationLevel);
+  const reduce = useReducedMotion();
+  const seen = useRef(bounces);
+  useEffect(() => {
+    if (bounces === seen.current) return;
+    seen.current = bounces;
+    if (level === "off" || reduce || !ref.current) return;
+    ref.current.animate(
+      sample((t) => popScale(t, 1.3), 0.5).map(({ offset, value }) => ({ offset, transform: `scale(${value})` })),
+      { duration: 500, easing: "linear" },
+    );
+  }, [bounces, level, reduce]);
+  return (
+    <span ref={ref} className={styles.trophy} title="Winner">
+      <Icon name="trophy" size={9} label="Winner" />
+    </span>
+  );
+}
+
+function TeamColumn({ event, c, color, hasBall, trophy }: { event: ScoreEvent; c: Competitor; color: string; hasBall: boolean; trophy: number | null }) {
   const following = useIsFollowing(c.id);
   const glow = color === NEUTRAL ? "var(--viz-neutral)" : color;
   const g = (pct: number) => `color-mix(in srgb, ${glow} ${pct}%, transparent)`;
@@ -197,6 +233,7 @@ function TeamColumn({ event, c, color, hasBall }: { event: ScoreEvent; c: Compet
           name
         )}
         {hasBall ? <Icon name={event.ref?.kind === "espn" && event.ref.sport === "basketball" ? "basketball" : "football"} size={8} className={styles.ball} label="Has the ball" /> : null}
+        {trophy != null ? <Trophy bounces={trophy} /> : null}
         {c.id ? (
           <button
             type="button"
@@ -275,13 +312,21 @@ function HeroStatus({ event, stale, fallback, second, ticking }: { event: ScoreE
  * A score lifts the scorer's side for 1.55 s (both sides when `washSide` is
  * null): a second layer whose opacity rises and settles, on the compositor.
  */
-export function HeroWash({ palette, pulses, side }: { palette: TeamPalette | null; pulses: number; side: Side | null }) {
+export function HeroWash({ palette, pulses, side, intensity: paletteIntensity = 1, crossfade = false }: {
+  palette: TeamPalette | null;
+  pulses: number;
+  side: Side | null;
+  intensity?: number;
+  /** A new set of colors crossfades in (a field event's climber changing); otherwise it's replaced at once. */
+  crossfade?: boolean;
+}) {
   const level = useSettings((s) => s.celebrationLevel);
   const reduce = useReducedMotion();
   const reduceTransparency = useMediaQuery("(prefers-reduced-transparency: reduce)");
   const left = palette?.top ?? "var(--accent)";
   const right = palette?.bottom ?? "var(--accent)";
-  const intensity = palette ? 1 : 0.6;
+  // A field event's flag washes a little softer (0.85); with nobody to follow, the accent at 0.6.
+  const intensity = palette ? paletteIntensity : 0.6;
   const strength = (c: string) => Math.round((c.startsWith("#") ? washStrength(c, intensity) : 0.6 * intensity) * 100);
   const mix = (c: string, pct: number) => `color-mix(in srgb, ${c === NEUTRAL ? "var(--viz-neutral)" : c} ${pct}%, transparent)`;
   const inner = Math.round(12 * intensity);
@@ -307,10 +352,35 @@ export function HeroWash({ palette, pulses, side }: { palette: TeamPalette | nul
   return (
     <div className={styles.wash} aria-hidden="true">
       <div className={styles.washBase} />
-      <div className={styles.washColors} style={{ background: `linear-gradient(to right, ${mix(left, strength(left))}, ${mix(left, inner)}, ${mix(right, inner)}, ${mix(right, strength(right))})` }} />
+      <WashColors crossfade={crossfade} gradient={`linear-gradient(to right, ${mix(left, strength(left))}, ${mix(left, inner)}, ${mix(right, inner)}, ${mix(right, strength(right))})`} />
       <div ref={topPulse} className={styles.washPulse} style={{ background: `linear-gradient(to right, ${mix(left, boost(left))}, ${mix(left, Math.round(inner * 0.35))} 33%, transparent 50%)` }} />
       <div ref={bottomPulse} className={styles.washPulse} style={{ background: `linear-gradient(to left, ${mix(right, boost(right))}, ${mix(right, Math.round(inner * 0.35))} 33%, transparent 50%)` }} />
     </div>
+  );
+}
+
+/**
+ * The wash's colors. A new set (a new climber's flag, a crest's colors
+ * arriving) crossfades in over the old one like a change of light (0.9 s,
+ * ease-in-out; a quick fade with Reduce Motion), never a cut. The first
+ * set paints at once.
+ */
+function WashColors({ gradient, crossfade }: { gradient: string; crossfade: boolean }) {
+  const [layers, setLayers] = useState(() => [{ key: 0, gradient }]);
+  const last = layers.at(-1)!;
+  if (last.gradient !== gradient) setLayers((ls) => (crossfade ? [...ls.slice(-1), { key: last.key + 1, gradient }] : [{ key: last.key + 1, gradient }]));
+  return (
+    <>
+      {layers.map((layer, i) => (
+        <div
+          key={layer.key}
+          className={styles.washColors}
+          data-entering={i > 0 || undefined}
+          style={{ background: layer.gradient }}
+          onAnimationEnd={i > 0 ? () => setLayers((ls) => ls.filter((l) => l.key >= layer.key)) : undefined}
+        />
+      ))}
+    </>
   );
 }
 

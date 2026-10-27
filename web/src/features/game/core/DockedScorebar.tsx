@@ -44,6 +44,8 @@ export interface DockedScorebarProps {
   readonly detail?: (tier: AccessoryTier) => ReactNode;
   /** One state chip (2-MIN DRILL, CLUTCH, BASES LOADED…). */
   readonly chip?: string | null;
+  /** A field event's lead in place of its title (the climber on the wall), given the room. */
+  readonly lead?: (tier: AccessoryTier) => ReactNode;
 }
 
 /** The bar's slot: sticky under the header, zero height, so the page never moves for it. */
@@ -65,7 +67,7 @@ export function DockedScorebar(props: DockedScorebarProps) {
   );
 }
 
-const BarContent = memo(function BarContent({ geometry, event, palette, scores, beats, surface, clockFallback, stale, detail, chip }: DockedScorebarProps) {
+const BarContent = memo(function BarContent({ geometry, event, palette, scores, beats, surface, clockFallback, stale, detail, chip, lead }: DockedScorebarProps) {
   const box = useRef<HTMLButtonElement>(null);
   const width = useWidth(box, 360);
   const moment = useCurrentMoment();
@@ -108,7 +110,7 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
             </span>
           </>
         ) : (
-          <span className={styles.abbr}>{event.content.title}</span>
+          (lead?.(tier) ?? <span className={styles.abbr}>{event.content.title}</span>)
         )}
       </span>
       <span className={styles.accessories}>
