@@ -96,6 +96,11 @@ export type UseSportPage = (game: GameContext) => SportPage;
 
 const isHidden = () => document.visibilityState === "hidden";
 
+/** How long a lane waits before its next tick when the tab comes back: none once a full interval has passed since the last one ended. */
+export function laneDelay(lastEnded: number, now: number, interval: number): number {
+  return Math.max(0, Math.ceil(lastEnded + interval - now));
+}
+
 /** The fast lane's cadence (DetailView.fastLane): 5 s; soccer 8 s; climbing 4 s. */
 export const LANE_INTERVAL = { standard: 5000, soccer: 8000, climbing: 4000 } as const;
 
@@ -103,7 +108,9 @@ export const LANE_INTERVAL = { standard: 5000, soccer: 8000, climbing: 4000 } as
  * Small, frequent requests while live and only while the page is open and
  * visible: one `tick` at a time, `interval` ms apart (from the end of the last
  * one). Stops when the game isn't live, the page goes away, or the tab hides;
- * catches up the moment the tab is shown again.
+ * catches up the moment the tab is shown again, but never sooner than
+ * `interval` after the last tick ended, so flicking between tabs doesn't
+ * make a lane read faster than its cadence (`laneDelay`).
  */
 export function useFastLane(active: boolean, interval: number, tick: (signal: AbortSignal) => Promise<void>): void {
   const latest = useRef(tick);
@@ -113,6 +120,7 @@ export function useFastLane(active: boolean, interval: number, tick: (signal: Ab
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | null = null;
     let running = false;
+    let ended = -Infinity;
     const run = async () => {
       if (running || controller.signal.aborted) return;
       if (isHidden()) return;
@@ -123,13 +131,17 @@ export function useFastLane(active: boolean, interval: number, tick: (signal: Ab
         // Lanes fail quietly; the next tick tries again.
       } finally {
         running = false;
+        ended = performance.now();
       }
       if (!controller.signal.aborted && !isHidden()) timer = setTimeout(run, interval);
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
         if (timer) clearTimeout(timer);
-        void run();
+        timer = null;
+        const wait = laneDelay(ended, performance.now(), interval);
+        if (wait === 0) void run();
+        else timer = setTimeout(run, wait);
       } else if (timer) {
         clearTimeout(timer);
         timer = null;

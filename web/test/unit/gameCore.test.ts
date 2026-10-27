@@ -224,3 +224,16 @@ describe("celebrations", () => {
     expect(glintProgress(1)).toBe(1);
   });
 });
+
+describe("the fast lane's cadence", () => {
+  it("waits out the rest of its interval when the tab comes back early", async () => {
+    const { laneDelay } = await import("../../src/features/game/core/sport");
+    // The last tick ended 1.5 s ago on a 5 s lane: the next waits 3.5 s, not none.
+    expect(laneDelay(10_000, 11_500, 5000)).toBe(3500);
+    // A full interval (or more) since: at once.
+    expect(laneDelay(10_000, 15_000, 5000)).toBe(0);
+    expect(laneDelay(10_000, 60_000, 8000)).toBe(0);
+    // Never run yet: at once.
+    expect(laneDelay(-Infinity, 1000, 4000)).toBe(0);
+  });
+});
