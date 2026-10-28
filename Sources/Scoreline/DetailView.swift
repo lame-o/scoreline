@@ -1160,7 +1160,7 @@ struct DetailView: View {
                 CourtView(shots: nbaShots(nba), palette: palette, topName: names.top, bottomName: names.bottom,
                           players: nba.players, names: leaderNames(nba), live: live,
                           plays: nbaPlays(nba), now: live ? basketballFeed.elapsed ?? event.clock.flatMap(nbaElapsed) : nil,
-                          onOpenProfile: courtProfile(nba))
+                          onOpenProfile: courtProfile(nba), celebrates: BasketballCelebration.courtBursts(theaterShown: live))
             }
         case .flow:
             if let nba = d.basketball {
@@ -1384,6 +1384,12 @@ struct DetailView: View {
                               caption: "\(courtLead(live: live)) \(names.top) shoots →, \(names.bottom) ←.",
                               accessory: live ? .live : .final,
                               spokenCaption: "\(courtLead(live: live)) \(full.top) at the right basket, \(full.bottom) at the left.") {
+                    if live {
+                        // Reads the live lane's newest play itself, so a basket redraws only the theater.
+                        BasketballTheater(feed: basketballFeed, palette: palette,
+                                          kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last),
+                                          topIsHome: d.topIsHome ?? false, topName: names.top, bottomName: names.bottom)
+                    }
                     chart(.court, d)
                 }
             case .flow:
@@ -1944,6 +1950,7 @@ struct DetailView: View {
                 await baseballFeed.update(path: path, eventID: id, names: names, statcast: Statcast.Lookup(current)) { team in
                     team == top ? .top : team == bottom ? .bottom : nil
                 }
+                moments.retract(baseballFeed.takeRetractions())
                 moments.offer(baseballFeed.takeMoments())
                 if before != nil, baseballFeed.score != before { await refreshDetail(current) }
             case let .espn(path, id, .basketball)? where path == NBADetail.path:

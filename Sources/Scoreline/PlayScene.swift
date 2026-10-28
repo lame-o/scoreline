@@ -58,10 +58,12 @@ struct PlayScene: Equatable, Identifiable {
 
     /// What MLB's Statcast measured of a plate appearance: the ball off the
     /// bat (exit velocity, launch angle, distance, spot) and the pitch that
-    /// decided it, as tracked.
+    /// decided it, as tracked; and how its official scorer recorded the
+    /// play: every runner's legs and every fielder's part.
     struct Measured: Equatable {
         var batted: Statcast.Batted?
         var pitch: Statcast.Pitch?
+        var movements: [Statcast.Movement] = []
     }
 
     /// A plate appearance as MLB's feed has it: the half-inning, the batter's
@@ -72,6 +74,8 @@ struct PlayScene: Equatable, Identifiable {
         var top: Bool
         var surname: String
         var occurrence = 0
+        /// A runner's play during it: which of the at-bat's it was (nil: its result).
+        var runnerPlay: Int? = nil
     }
 
     /// Where the play took a runner (or the batter, from base 0).
@@ -85,8 +89,18 @@ struct PlayScene: Equatable, Identifiable {
         var id: String?
         var from: Int
         var end: End
+        /// Which out of the inning he was (MLB's official account only).
+        var outNumber: Int?
+        /// The base he waited at until a throw got away or went elsewhere,
+        /// then went on (MLB's official account only).
+        var waits: Int?
 
         var isOut: Bool { if case .out = end { return true }; return false }
+    }
+
+    /// A catch made at full stretch, as the scorer's text tells it.
+    enum Effort: Equatable {
+        case diving, leaping
     }
 
     /// The scorer's mark for the play: "6-3", "F8", "6-4-3 DP". A called
@@ -109,6 +123,8 @@ struct PlayScene: Equatable, Identifiable {
     var fielders: [Int] = []
     /// The fielder charged with an error.
     var error: Int?
+    /// Diving or leaping for it, when the text says so.
+    var effort: Effort?
     /// Every runner on the play, the batter first (from 0).
     var runners: [Runner] = []
     var outsBefore = 0
@@ -118,6 +134,8 @@ struct PlayScene: Equatable, Identifiable {
     var pitch: Pitch?
     /// Who batted, to find the play in Statcast (nil: a runner's play).
     var appearance: Appearance?
+    /// A runner's play: the plate appearance it came during, to find its legs in MLB's feed.
+    var during: Appearance?
     /// What Statcast measured, once it's been found.
     var measured: Measured?
     var batting: GameDetail.Side?
@@ -160,6 +178,9 @@ struct PlayScene: Equatable, Identifiable {
     }
 
     var notation: Notation {
+        // ESPN's chain, else (for a mark that prints one) the one MLB credits: a pickoff into a rundown, "CS 1-3-6-4".
+        let charted: [Kind] = [.groundOut, .fieldersChoice, .doublePlay, .triplePlay, .sacrificeBunt, .caughtStealing, .pickoff]
+        let fielders = self.fielders.isEmpty && charted.contains(kind) ? handling?.credited ?? [] : self.fielders
         let chain = fielders.map(String.init).joined(separator: "-")
         let first = fielders.first.map(String.init) ?? ""
         func tagged(_ tag: String) -> String { chain.isEmpty ? tag : "\(tag) \(chain)" }
@@ -182,10 +203,12 @@ struct PlayScene: Equatable, Identifiable {
         case .sacrificeFly: return Notation(code: "SF\(first)")
         case .sacrificeBunt: return Notation(code: tagged("SAC"))
         case .error: return Notation(code: "E\(error.map(String.init) ?? first)")
-        case let .strikeout(looking): return Notation(code: "K", backwards: looking)
+        // Strike three dropped and thrown to first: "K 2-3" (the backwards K stays a K alone: it's drawn mirrored).
+        case let .strikeout(looking): return Notation(code: !looking && fielders == [2, 3] ? "K 2-3" : "K", backwards: looking)
         case let .walk(intentional): return Notation(code: intentional ? "IBB" : "BB")
         case .hitByPitch: return Notation(code: "HBP")
-        case .stolenBase: return Notation(code: "SB")
+        // A steal the catcher's wild throw let go on: "SB E2".
+        case .stolenBase: return Notation(code: error.map { "SB E\($0)" } ?? "SB")
         case .caughtStealing: return Notation(code: tagged("CS"))
         case .pickoff: return Notation(code: tagged("PO"))
         case .wildPitch: return Notation(code: "WP")
@@ -220,13 +243,13 @@ struct PlayScene: Equatable, Identifiable {
         case .doublePlay: "Double play"
         case .triplePlay: "Triple play"
         case .sacrificeFly: "Sacrifice fly"
-        case .sacrificeBunt: "Sacrifice"
+        case .sacrificeBunt: "Sacrifice bunt"
         case .error: "Error"
         case let .strikeout(looking): looking ? "Strikeout looking" : "Strikeout swinging"
         case let .walk(intentional): intentional ? "Intentional walk" : "Walk"
         case .hitByPitch: "Hit by pitch"
         case .stolenBase: "Stolen base"
-        case .caughtStealing: "Caught stealing"
+        case .caughtStealing: text.contains("picked off") ? "Picked off" : "Caught stealing"
         case .pickoff: "Picked off"
         case .wildPitch: "Wild pitch"
         case .passedBall: "Passed ball"
@@ -326,6 +349,7 @@ extension PlayScene {
                                 mph: p["pitchVelocity"].int, x: p["pitchCoordinate"]["x"].double, y: p["pitchCoordinate"]["y"].double)
         }
         scene.appearance = appearance(plays, at: index, text: scene.text, names: names)
+        if scene.appearance == nil { scene.during = during(plays, at: index, earlier: earlier, names: names) }
         scene.wallclock = result["wallclock"].string.flatMap(parseDate)
         scene.runs = max(result["scoreValue"].int ?? 0, 0)
         scene.walkOff = scene.runs > 0 && walkOff(result)
@@ -337,6 +361,7 @@ extension PlayScene {
         let short = fieldersFromText(scene.text)
         scene.fielders = scorer.0.isEmpty ? short.0 : scorer.0
         scene.error = scorer.1 ?? short.1
+        if scene.inPlay { scene.effort = effort(scene.text + " " + (result["shortAlternativeText"].string ?? "")) }
         // A ground ball (or a bunt) the text credits to one infielder went on to first.
         if [.groundOut, .doublePlay, .sacrificeBunt].contains(kind), scene.flight == .ground, scene.fielders.count == 1,
            scene.fielders[0] != 3, !scene.text.contains("unassisted") {
@@ -368,9 +393,9 @@ extension PlayScene {
     /// surname (from the box score's names, else the text's opening words),
     /// and how many trips he'd already made in that half. Nil for a runner's
     /// play: nobody batted.
-    static func appearance(_ plays: [JSON], at index: Int, text: String, names: [String: String]) -> Appearance? {
+    static func appearance(_ plays: [JSON], at index: Int, text: String, names: [String: String], batter: String? = nil) -> Appearance? {
         let result = plays[index]
-        guard let batter = participant(result, "batter"), let inning = result["period"]["number"].int,
+        guard let batter = batter ?? participant(result, "batter"), let inning = result["period"]["number"].int,
               let name = names[batter].map(surname) ?? leadingName(text) else { return nil }
         let half = halfInning(result)
         // His earlier at-bats in the half-inning, by ID (a result ESPN rewrote is still one).
@@ -384,6 +409,16 @@ extension PlayScene {
         }
         return Appearance(inning: inning, top: result["period"]["type"].string?.lowercased().hasPrefix("top") ?? true,
                           surname: name, occurrence: earlier.count)
+    }
+
+    /// A runner's play (a steal, a wild pitch): the plate appearance it came
+    /// during (its batter from the at-bat's pitches, his name from the box
+    /// score's), and which of the at-bat's runner's plays it is.
+    static func during(_ plays: [JSON], at index: Int, earlier: [JSON], names: [String: String]) -> Appearance? {
+        guard let batter = earlier.lazy.compactMap({ participant($0, "batter") }).first, names[batter] != nil,
+              var appearance = appearance(plays, at: index, text: "", names: names, batter: batter) else { return nil }
+        appearance.runnerPlay = earlier.filter { isPlay($0) && participant($0, "batter") == nil }.count
+        return appearance
     }
 
     /// A short name's surname: "J. Chourio" → "Chourio"; "V. Mesa Jr." → "Mesa Jr".
@@ -497,6 +532,14 @@ extension PlayScene {
         return (chain, error)
     }
 
+    /// "…on a diving catch", "leaping catch at the wall": the fielder at full stretch.
+    static func effort(_ text: String) -> Effort? {
+        let t = text.lowercased()
+        if ["diving", "dives", "sliding catch"].contains(where: t.contains) { return .diving }
+        if ["leaping", "leaps", "jumping"].contains(where: t.contains) { return .leaping }
+        return nil
+    }
+
     /// The short text's positions: "Turang grounded out to shortstop." → [6];
     /// a relay clause, "…, second to shortstop to first, …" → [4, 6, 3].
     static func fieldersFromText(_ text: String) -> ([Int], Int?) {
@@ -585,21 +628,28 @@ extension PlayScene {
             + before.sorted { $0.key > $1.key }.map { (id: Optional($0.value), from: $0.key) }
         if kind == .homeRun { return starts.map { Runner(id: $0.id, from: $0.from, end: .scored) } }
         let landed = Dictionary(after.map { ($0.value, $0.key) }, uniquingKeysWith: max)
-        var runners: [Runner] = []
-        var gone: [(id: String?, from: Int)] = []
-        for start in starts {
-            if let id = start.id, let base = landed[id], base >= start.from {
-                runners.append(Runner(id: id, from: start.from, end: .base(base)))
-            } else {
-                gone.append(start)
-            }
-        }
-        var runsLeft = max(runs, 0), outsLeft = max(outs, 0)
         let parts = clauses(text)
         func surname(_ id: String?) -> String? {
             guard let id, let name = names[id] else { return nil }
             return Self.surname(name)
         }
+        // A runner the text puts further on than the result's bases do (they can lag a throwing error):
+        // "Yelich safe at third on throwing error by catcher".
+        func safeAt(_ id: String) -> Int? {
+            guard let name = surname(id), let clause = parts.first(where: { $0.contains("\(name) safe at") }),
+                  let m = clause.firstMatch(of: #/safe at (first|second|third)/#) else { return nil }
+            return ["first": 1, "second": 2, "third": 3][String(m.1)]
+        }
+        var runners: [Runner] = []
+        var gone: [(id: String?, from: Int)] = []
+        for start in starts {
+            if let id = start.id, let base = landed[id], base >= start.from {
+                runners.append(Runner(id: id, from: start.from, end: .base(start.from > 0 ? max(base, safeAt(id) ?? 0) : base)))
+            } else {
+                gone.append(start)
+            }
+        }
+        var runsLeft = max(runs, 0), outsLeft = max(outs, 0)
         func base(in clause: String) -> Int? {
             guard let m = clause.firstMatch(of: #/(?:at|stealing|off) (first|1st|second|2nd|third|3rd|home)/#) else { return nil }
             return ["first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3, "home": 0][String(m.1)]
@@ -609,6 +659,8 @@ extension PlayScene {
                 switch kind {
                 case .strikeout: return 0
                 case .flyOut, .lineOut, .popOut, .foulOut, .sacrificeFly: return nil
+                // Lined (or flied) into a double play: his out is the catch.
+                case .doublePlay, .triplePlay: return air ? nil : 1
                 default: return 1
                 }
             }
@@ -701,11 +753,13 @@ extension PlayScene {
     /// only for a play in play, fielded at the same spot (ESPN's spot is
     /// MLB's, truncated). Nil otherwise: the theater keeps to ESPN's. (pure; tested)
     func measurement(in atBats: [Statcast.AtBat]) -> Measured? {
-        guard let atBat = atBat(in: atBats), let event = atBat.event, agrees(with: event) else { return nil }
+        guard let atBat = atBat(in: atBats), atBat.complete, let event = atBat.event, agrees(with: event) else { return nil }
+        // A ball in play waits for its hitData (it can post seconds after the result): asked again.
+        if inPlay, atBat.batted == nil { return nil }
         let batted = inPlay ? atBat.batted : nil
         if let spot, let measured = batted?.spot, hypot(measured.x - spot.x, measured.y - spot.y) > 3 { return nil }
         // (An intentional walk has nothing to measure, and that's found too: nobody asks again.)
-        return Measured(batted: batted, pitch: atBat.pitches.last)
+        return Measured(batted: batted, pitch: atBat.pitches.last, movements: atBat.result)
     }
 
     /// Whether Statcast's name for a result could be this play: a hit the
@@ -730,13 +784,36 @@ extension PlayScene {
     /// there, for a runner's play, or for a game MLB's feed doesn't have.
     @MainActor
     func measure(_ lookup: Statcast.Lookup) async -> Measured? {
-        guard appearance != nil else { return nil }
+        guard appearance != nil || during != nil else { return nil }
         let store = StatcastStore.shared
         let cached = await store.atBats(espnEvent: lookup.espnEvent, start: lookup.start, teams: lookup.teams)
-        if let found = measurement(in: cached) { return found }
-        let next = atBat(in: cached)?.index ?? (cached.map(\.index).max() ?? -1) + 1
+        if let found = measurement(in: cached) ?? runnerMeasurement(in: cached) { return found }
+        let next = (atBat(in: cached) ?? duringAtBat(in: cached))?.index ?? (cached.map(\.index).max() ?? -1) + 1
         let fresh = await store.atBats(espnEvent: lookup.espnEvent, start: lookup.start, teams: lookup.teams, through: next)
-        return measurement(in: fresh)
+        return measurement(in: fresh) ?? runnerMeasurement(in: fresh)
+    }
+
+    /// A runner's play's at-bat in MLB's feed: the one it came during.
+    func duringAtBat(in atBats: [Statcast.AtBat]) -> Statcast.AtBat? {
+        guard let d = during else { return nil }
+        return Statcast.match(inning: d.inning, top: d.top, surname: d.surname, occurrence: d.occurrence, in: atBats)
+    }
+
+    /// MLB's legs for a runner's play (a steal, a pickoff, a wild pitch):
+    /// the at-bat it came during, and that at-bat's runner's events in turn
+    /// (the ones no leg of the batter's is on), when they're the runners
+    /// ESPN has on it. Nil otherwise. (pure; tested)
+    func runnerMeasurement(in atBats: [Statcast.AtBat]) -> Measured? {
+        guard let k = during?.runnerPlay, let atBat = duringAtBat(in: atBats) else { return nil }
+        let batters = Set(atBat.runners.filter { $0.from == 0 }.compactMap(\.event))
+        let events = Set(atBat.runners.compactMap(\.event)).subtracting(batters).sorted()
+        guard events.indices.contains(k) else { return nil }
+        let legs = atBat.runners.filter { $0.event == events[k] }
+        // Each runner by the base he started from (his first leg's).
+        var starts: [Int: Int] = [:]
+        for leg in legs where starts[leg.runner] == nil { starts[leg.runner] = leg.from }
+        guard Set(starts.values).isSubset(of: Set(runners.map(\.from))) else { return nil }
+        return Measured(movements: legs)
     }
 
     /// The same, waiting no longer than `limit` (the full load can't hold
@@ -753,6 +830,158 @@ extension PlayScene {
                 once.resume(nil)
             }
         }
+    }
+}
+
+// MARK: - The official account
+
+// MLB's feed carries its official scorer's account of every play: each
+// runner's legs (base to base, out where and in what order) and each
+// fielder's part (who fielded it, who threw to whom, who erred). Where it's
+// been found for a plate appearance, the choreography follows it instead of
+// reading ESPN's text and inferring the rest.
+
+extension PlayScene {
+    /// Who handled the ball, as MLB's official scorer credited it: who
+    /// fielded it (and who it glanced off first), whether he booted it, then
+    /// each throw in the order of the outs they made, to the man who took it
+    /// and the base where it made one (0: home; nil: a relay to a cutoff
+    /// man), and a throw that got away.
+    struct Handling: Equatable {
+        struct Throw: Equatable {
+            var to: Int
+            var base: Int?
+            /// A throwing error: it sails past him at `base`, and nobody's out.
+            var wild = false
+        }
+        var fielder: Int
+        var deflection: Int?
+        /// A fielding error: it gets away from him.
+        var fumble: Int?
+        var chain: [Throw] = []
+
+        /// The scorer's chain: who fielded it and each man who took a throw (not one that got away, nor his own carry).
+        var credited: [Int] {
+            var out = [fielder]
+            for t in chain where !t.wild && t.to != out.last { out.append(t.to) }
+            return out
+        }
+    }
+
+    /// The batter's out is the catch itself (or strike three): no throw,
+    /// unless MLB credits one (a third strike dropped, and thrown to first).
+    var caughtOut: Bool {
+        switch kind {
+        case .flyOut, .lineOut, .popOut, .foulOut, .sacrificeFly, .strikeout: true
+        case .doublePlay, .triplePlay: inPlay && flight != .ground
+        default: false
+        }
+    }
+
+    /// MLB's legs for this play, when they tell all of it: the batter on
+    /// them (MLB lists every man who moved, and him always, but for a
+    /// runner's play) and as many runs as ESPN counted. Nil until then (not
+    /// found yet, or still being posted).
+    var legs: [Statcast.Movement]? {
+        guard let movements = measured?.movements, !movements.isEmpty, batter == nil || movements.contains(where: { $0.from == 0 }),
+              movements.filter({ $0.to == 4 }).count == runs else { return nil }
+        return movements
+    }
+
+    /// The ball's handling as MLB credited it; nil without MLB's account, or
+    /// when it credited nobody (a walk, a home run). (pure; tested)
+    var handling: Handling? {
+        guard let movements = legs else { return nil }
+        let credits = movements.flatMap(\.credits)
+        func first(_ kinds: Set<Statcast.Credit.Kind>) -> Int? { credits.first { kinds.contains($0.kind) }?.position }
+        // Each out's chain, in the order they were made: the assists, then the putout.
+        let outs = movements.filter { $0.out != nil && !($0.from == 0 && caughtOut && !$0.assisted) }
+            .sorted { ($0.outNumber ?? 0) < ($1.outNumber ?? 0) }
+        func chain(_ m: Statcast.Movement) -> [Int] { m.credits.filter { [.assist, .outfieldAssist, .putout].contains($0.kind) }.map(\.position) }
+        guard let fielder = first([.fielded]) ?? outs.lazy.compactMap({ chain($0).first }).first
+                ?? first([.putout, .assist, .fieldingError, .throwingError]) else { return nil }
+        var handling = Handling(fielder: fielder, deflection: first([.deflection]), fumble: first([.fieldingError]))
+        var holder = fielder
+        for out in outs {
+            let positions = chain(out)
+            for (i, p) in positions.enumerated() {
+                let putout = i == positions.count - 1
+                // His own assist: he has it already. His own putout: he takes it there himself.
+                guard p != holder || putout else { continue }
+                handling.chain.append(Handling.Throw(to: p, base: putout ? out.out.map { $0 % 4 } : nil))
+                holder = p
+            }
+        }
+        // A throw that got away: to the base its runner had just reached on the play (the batter's, first),
+        // else to the one he was going for.
+        for (i, m) in movements.enumerated() {
+            guard let thrower = m.credits.first(where: { $0.kind == .throwingError })?.position else { continue }
+            if thrower != holder { handling.chain.append(Handling.Throw(to: thrower, base: nil)) }
+            let reached = m.from == 0 || movements[..<i].contains { $0.runner == m.runner && $0.to == m.from }
+            let base = m.from == 0 ? 1 : reached ? m.from : (m.from + 1) % 4
+            handling.chain.append(Handling.Throw(to: Self.coverer(of: base, after: thrower), base: base, wild: true))
+            holder = thrower
+        }
+        return handling
+    }
+
+    /// The play with MLB's official account of its runners in place of
+    /// ESPN's (which reads who scored and who was out from the text, and
+    /// infers the rest). ESPN's as it is without MLB's.
+    var official: PlayScene {
+        guard let movements = legs else { return self }
+        var scene = self
+        let struckOut = if case .strikeout = kind { true } else { false }
+        scene.runners = Self.runners(runners, after: movements, caughtOut: caughtOut, struckOut: struckOut)
+        return scene
+    }
+
+    /// ESPN's runners (by the base each started from) where MLB's legs took
+    /// them: to a base, home, or out at a base (the batter's at the catch, or
+    /// at the plate on strike three), in the order of the outs, and waiting
+    /// at a base for a throw that got away or went elsewhere. One MLB doesn't
+    /// list stayed put; one only MLB has joins them. (pure; tested)
+    static func runners(_ espn: [Runner], after movements: [Statcast.Movement], caughtOut: Bool, struckOut: Bool) -> [Runner] {
+        var legs: [Int: [Statcast.Movement]] = [:]
+        var order: [Int] = []
+        for m in movements {
+            if legs[m.runner] == nil { order.append(m.runner) }
+            legs[m.runner, default: []].append(m)
+        }
+        func runner(_ moves: [Statcast.Movement], id: String?) -> Runner {
+            let from = moves[0].from
+            var r = Runner(id: id, from: from, end: .base(from))
+            if let out = moves.first(where: { $0.out != nil }) {
+                // (The batter's out where MLB credits a throw, a dropped third strike's, is at its base.)
+                let caught = from == 0 && !out.assisted
+                r.end = .out(at: caught && struckOut ? 0 : caught && caughtOut ? nil : out.out.map { $0 % 4 })
+                r.outNumber = out.outNumber
+            } else if let to = moves.last?.to {
+                r.end = to == 4 ? .scored : .base(to)
+            }
+            if let i = moves.firstIndex(where: { $0.reason == "r_adv_throw" || $0.credits.contains { $0.kind == .throwingError } }) {
+                // Where the ball got past (as `handling` throws it): first for the batter, the base he'd just
+                // reached on the play, else the one he was going for. He goes on from there.
+                let leg = moves[i], at = leg.from == 0 ? 1 : i > 0 ? leg.from : leg.from + 1
+                let end = if case let .base(b) = r.end { b } else if r.end == .scored { 4 } else { at }
+                r.waits = at < end ? at : nil
+            }
+            return r
+        }
+        var claimed = Set<Int>()
+        var out: [Runner] = espn.map { r in
+            guard let id = order.first(where: { !claimed.contains($0) && legs[$0]?.first?.from == r.from }) else {
+                // Not on MLB's account: he didn't move.
+                return r.from == 0 ? r : Runner(id: r.id, from: r.from, end: .base(r.from))
+            }
+            claimed.insert(id)
+            return runner(legs[id] ?? [], id: r.id)
+        }
+        for id in order where !claimed.contains(id) {
+            if let moves = legs[id], !out.contains(where: { $0.from == moves[0].from }) { out.append(runner(moves, id: nil)) }
+        }
+        // The batter first, then from the lead runner back.
+        return out.sorted { a, b in a.from == 0 ? b.from != 0 : b.from == 0 ? false : a.from > b.from }
     }
 }
 

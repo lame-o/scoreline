@@ -243,8 +243,10 @@ extension ScorelineTests {
             }
         }
         check(finite, "every play's figures and ball stay finite, the ball never under the grass")
-        let lengths = all.map { $0.settle - 0.75 }
-        check(lengths.allSatisfy { $0 >= 1.2 && $0 <= 4.4 }, "every replay runs 1.2–4.4 s before it settles",
+        // A run-scoring play tells its runs in order once the ball's been handled (PlayCreditsTests): a little longer.
+        let lengths = all.map { $0.settle - 0.75 }, quiet = zip(scenes, lengths).filter { $0.0.runs == 0 }.map(\.1)
+        check(quiet.allSatisfy { $0 >= 1.2 && $0 <= 4.4 } && lengths.allSatisfy { $0 >= 1.2 && $0 <= 5.6 },
+              "every replay runs 1.2–4.4 s before it settles (one with runs, told in order, up to 5.6)",
               "\(String(format: "%.2f", lengths.min() ?? 0))–\(String(format: "%.2f", lengths.max() ?? 0))")
         // Every figure, every frame, every play: the poses and every blend between them.
         let broken = zip(scenes, all).compactMap { scene, s -> String? in

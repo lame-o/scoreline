@@ -49,6 +49,10 @@ final class BasketballFeed {
     /// flow's band. Empty between runs and in finished games (the summary
     /// carries no runs).
     private(set) var runs: [Run] = []
+    /// The basketball theater's newest play worth replaying, and whether it's
+    /// news. Assigned only when it changes, so a clock reading doesn't redraw
+    /// the theater (and the page never reads it: the theater does).
+    private(set) var theater = BasketballTheaterState()
     /// The newest plays, in ESPN's order (game order).
     @ObservationIgnored private var window: [JSON] = []
     /// Index in ESPN's full play list of `window[0]`.
@@ -300,6 +304,30 @@ final class BasketballFeed {
         let recent = NBADetail.recentPlays(window)
         if recent != recentPlays { recentPlays = recent }
         derive(court, teams: teams)
+        updateTheater(teams: teams)
+    }
+
+    /// The theater's play: the newest worth replaying among the newest plays
+    /// (only those are read). It's news if it arrived after the first
+    /// complete look and is still recent (a block or an assist ESPN adds a
+    /// few looks late still counts), or if it only just happened.
+    private func updateTheater(teams: Teams) {
+        guard let scene = BasketballScene.newest(in: window, teams: teams) else { return }
+        // The first look is history: a play is news only from a later look it first appeared in.
+        let seen = firstSeen[scene.id] ?? looks
+        let fresh = seen > 1 && looks - seen <= 3
+        let next = Self.theater(scene, after: theater, fresh: fresh, now: .now)
+        if next != theater { theater = next }
+    }
+
+    /// The theater after a look at the plays. A play already showing keeps
+    /// what it was (news or not), edits and all. (pure; tested)
+    static func theater(_ scene: BasketballScene, after previous: BasketballTheaterState, fresh: Bool, now: Date) -> BasketballTheaterState {
+        var next = previous
+        next.news = scene.id == previous.scene?.id ? previous.news
+            : fresh || scene.wallclock.map { now.timeIntervalSince($0) < BaseballFeed.recent } == true
+        next.scene = scene
+        return next
     }
 
     /// The live state recomputed from the whole window each look (never
@@ -526,7 +554,7 @@ final class BasketballFeed {
 
     /// A make with a shooting foul by the other team at the same period and
     /// clock (the free throw may not be in yet): 204 of 204 in the data spec.
-    static func andOne(at index: Int, in plays: [JSON], teams: Teams) -> Bool {
+    nonisolated static func andOne(at index: Int, in plays: [JSON], teams: Teams) -> Bool {
         let play = plays[index]
         let period = play["period"]["number"].int, clock = play["clock"]["displayValue"].string
         let shooter = teams.side(play["team"]["id"].string)
@@ -578,16 +606,23 @@ final class BasketballFeed {
     }
 
     /// Core plays name teams and players by link; the summary parsers expect
-    /// `team.id` and `participants[].athlete.id` (shooter first).
+    /// `team.id` and `participants[].athlete.id` (shooter first). Each keeps
+    /// its part ("shooter", "assister", "blocker"): the theater reads it.
     static func normalized(_ item: JSON) -> JSON {
         guard var raw = item.raw as? [String: Any] else { return item }
         if let id = FootballFeed.teamID(item["team"]["$ref"].string) { raw["team"] = ["id": id] }
         let people = item["participants"].array.enumerated()
             .sorted { ($0.element["order"].int ?? $0.offset, $0.offset) < ($1.element["order"].int ?? $1.offset, $1.offset) }
         raw["participants"] = people.compactMap { entry -> [String: Any]? in
-            if let id = entry.element["athlete"]["id"].string { return ["athlete": ["id": id]] }
-            guard let ref = entry.element["athlete"]["$ref"].string, let range = ref.range(of: "/athletes/") else { return nil }
-            return ["athlete": ["id": String(ref[range.upperBound...].prefix { $0.isNumber })]]
+            var person: [String: Any]
+            if let id = entry.element["athlete"]["id"].string {
+                person = ["athlete": ["id": id]]
+            } else {
+                guard let ref = entry.element["athlete"]["$ref"].string, let range = ref.range(of: "/athletes/") else { return nil }
+                person = ["athlete": ["id": String(ref[range.upperBound...].prefix { $0.isNumber })]]
+            }
+            if let part = entry.element["type"].string { person["type"] = part }
+            return person
         }
         return JSON(raw)
     }
