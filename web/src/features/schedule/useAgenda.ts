@@ -20,6 +20,7 @@ import { EMPTY_CALENDAR, scopeKey, scopeNavigator, weekID, type CalendarWeek, ty
 import {
   CALENDAR_STALE,
   calendarKey,
+  calendarPersister,
   loadCalendar,
   fetchLeagueList,
   fetchLeagueWeek,
@@ -104,12 +105,13 @@ export function useAgenda(scope: ScheduleScope): AgendaData {
 
   // MARK: A league: its week, or its coming game days.
   const league = scope.kind === "league" ? leagueWithID(scope.id) : undefined;
-  const calendarQuery = useQuery({
+  const calendarQuery = useQuery<ScheduleCalendar>({
     // The same entry `fetchCalendar` reads, with the raw loader (a query can't fetch itself).
     queryKey: calendarKey(league?.source.kind === "espn" ? league.source.path : "-"),
     queryFn: () => (league?.source.kind === "espn" ? loadCalendar(league.source.path) : Promise.resolve(EMPTY_CALENDAR)),
     enabled: league?.source.kind === "espn" && navigator === "weekPicker",
     staleTime: CALENDAR_STALE,
+    persister: calendarPersister(),
     ...retrying(),
   });
   const selectedWeek = useMemo(() => (weekChoice ? (calendarQuery.data?.weeks.find((w) => weekID(w) === weekChoice) ?? null) : null), [weekChoice, calendarQuery.data]);

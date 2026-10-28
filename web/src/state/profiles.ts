@@ -50,8 +50,11 @@ import { espnPhoto, fotMobPhoto, heroPhotoURL } from "../data/profiles/photos";
 import { formMarks, parseStandings, parseTeamResults, standingsPath, standingsURL, standingsWindow, teamScheduleURL, type FormMark, type StandingsRow } from "../data/profiles/results";
 import type { Sport } from "../data/models";
 import { preloadPhoto } from "./profilePhotos";
+import { persisted } from "./persist";
 import { hasFailed, isAnswer, retrying } from "./retry";
 import { queryClient } from "./scores";
+
+const DAY = 24 * 3_600_000;
 
 /** How long each kind of response stays fresh (ProfileStore.swift `TTL`). */
 export const TTL = {
@@ -98,6 +101,9 @@ function profileQuery(url: string | null, ttl: number) {
     enabled: url != null,
     staleTime: ttl,
     gcTime: Math.max(ttl, 30 * 60_000),
+    // Kept on disk across visits (ProfileCache.swift): a reloaded page paints from its last copy and revalidates
+    // when stale. Raw responses, so their shape never changes with the code.
+    persister: persisted({ family: "profiles", version: "1", maxAge: Math.max(ttl, 7 * DAY) }),
     // A profile loads once per visit (the Mac's rule). A failure shows at once (the page, or a part's
     // footnote) and is asked again on the retry ladder while the page is open (state/retry.ts).
     // A 404 is an answer (nobody by that ID), never asked again.

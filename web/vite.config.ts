@@ -16,7 +16,8 @@ export default defineConfig({
 					groups: [
 						{ name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
 						{ name: "router", test: /node_modules[\\/]react-router[\\/]/ },
-						{ name: "query", test: /node_modules[\\/]@tanstack[\\/]/ },
+						// The query client only: the persister (state/persist.ts) loads with the pages that keep data on disk.
+						{ name: "query", test: /node_modules[\\/]@tanstack[\\/](query-core|react-query)[\\/]/ },
 					],
 				},
 			},
