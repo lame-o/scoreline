@@ -13,7 +13,7 @@ import type { TheaterBurst } from "../mlb/theaterCelebration";
 import { TheaterBurst as Burst } from "./theaterKit";
 import type { Side } from "../models";
 import { decisive, type LiveMoment } from "../moments";
-import { parse, type FootballScene, type FootballTheaterState } from "./footballScene";
+import { FootballDepthChart, parse, type DepthCharts, type FootballScene, type FootballTheaterState } from "./footballScene";
 import type { FootballScript, Rest } from "./footballScript";
 
 // MARK: - The field between plays
@@ -59,9 +59,20 @@ export const RECENT_MS = 60_000;
  */
 export function footballTheaterState(scene: FootballScene, previous: FootballTheaterState, primed: boolean, now: number): FootballTheaterState {
   return {
+    ...previous,
     play: scene,
     news: scene.id === previous.play?.id ? previous.news : primed || (scene.wallclock != null && now - scene.wallclock < RECENT_MS),
   };
+}
+
+/** The lane's depth charts, as ESPN sent them, read (`FootballDepthChart.from`); a side whose chart doesn't read is left out. */
+export function readCharts(raw: Readonly<Partial<Record<Side, JSONValue>>>): DepthCharts {
+  const charts: { top?: FootballDepthChart; bottom?: FootballDepthChart } = {};
+  for (const side of ["top", "bottom"] as const) {
+    const chart = raw[side] != null ? FootballDepthChart.from(raw[side]) : null;
+    if (chart) charts[side] = chart;
+  }
+  return charts;
 }
 
 const sequenceOf = (item: JSONValue): number => {
@@ -102,7 +113,9 @@ export function spotted(items: readonly JSONValue[], teams: FootballTeams): Foot
  * on their hash from the one before, and the newest becomes the theater's
  * snap. The snap showing keeps the hash its own plays put it on (an edit
  * doesn't move it). An entry ESPN edited is a new object in the lane's
- * list; an unchanged one is the same object, so it changes nothing.
+ * list; an unchanged one is the same object, so it changes nothing. Once
+ * the lane has both teams' depth charts (NFL), every snap is placed on them
+ * (`FootballScene.slotted`), the one showing too (FootballFeed.loadCharts).
  */
 export class FootballTheaterWatch {
   state: FootballTheaterState = { play: null, news: false };
@@ -110,10 +123,27 @@ export class FootballTheaterWatch {
   private sequence = -1;
   private item: JSONValue = undefined;
   private items: readonly JSONValue[] | null = null;
+  private rawCharts: Readonly<Partial<Record<Side, JSONValue>>> = NO_CHARTS;
+  private charts: DepthCharts = {};
 
-  /** `primed`: the lane had a complete look before this change. True when the state changed. */
-  update(items: readonly JSONValue[], teams: FootballTeams, primed: boolean, now: number = Date.now()): boolean {
-    if (items === this.items) return false;
+  /**
+   * `primed`: the lane had a complete look before this change; `charts`:
+   * the lane's depth charts as ESPN sent them (`FootballFeed.charts`). True
+   * when the state changed.
+   */
+  update(items: readonly JSONValue[], teams: FootballTeams, primed: boolean, now: number = Date.now(), charts: Readonly<Partial<Record<Side, JSONValue>>> = NO_CHARTS): boolean {
+    let changed = false;
+    if (charts !== this.rawCharts) {
+      this.rawCharts = charts;
+      const found = readCharts(charts);
+      if (Object.keys(found).length > 0) {
+        // The snap showing, placed on them.
+        this.charts = found;
+        this.state = { ...this.state, charts: found, play: this.state.play?.slotted(found) ?? null };
+        changed = true;
+      }
+    }
+    if (items === this.items) return changed;
     this.items = items;
     // The newest few snaps, oldest first: each is spotted on its hash from the one before.
     const recent: { scene: FootballScene; sequence: number; item: JSONValue }[] = [];
@@ -121,13 +151,13 @@ export class FootballTheaterWatch {
       const item = items[i];
       const sequence = sequenceOf(item);
       if (sequence < this.sequence) break;
-      if (recent.length === 0 && item === this.item) return false;
-      const scene = parse(item, teams);
+      if (recent.length === 0 && item === this.item) return changed;
+      const scene = parse(item, teams)?.slotted(this.charts);
       if (scene) recent.push({ scene, sequence, item });
     }
     recent.reverse();
     const snap = recent.at(-1);
-    if (!snap) return false;
+    if (!snap) return changed;
     this.sequence = snap.sequence;
     this.item = snap.item;
     const snaps = recent.map((r) => r.scene);
@@ -141,11 +171,13 @@ export class FootballTheaterWatch {
     } else {
       placed = spot(snaps, shown).at(-1) ?? null;
     }
-    if (!placed) return false;
+    if (!placed) return changed;
     this.state = footballTheaterState(placed, this.state, primed, now);
     return true;
   }
 }
+
+const NO_CHARTS: Readonly<Partial<Record<Side, JSONValue>>> = {};
 
 // MARK: - Celebration
 

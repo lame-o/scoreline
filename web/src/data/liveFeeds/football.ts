@@ -198,6 +198,9 @@ export interface FootballTeams {
   readonly bottomID: string | null;
   readonly homeAbbreviation: string;
   readonly awayAbbreviation: string;
+  /** The teams' names ("Kent State"): college's text writes some spots with them ("Kent38"), not the abbreviation. */
+  readonly homeName?: string;
+  readonly awayName?: string;
 }
 
 export const teamSide = (teams: FootballTeams, id: string | null | undefined): Side | null =>
@@ -327,6 +330,43 @@ export interface FootballUpdate {
 const PAGE_SIZE = 50;
 /** How long a new spot may wait for the play that put it there before it shows anyway. */
 const BEHIND_MS = 15_000;
+/** How long before depth charts that didn't come are asked for again. */
+const CHARTS_RETRY_MS = 300_000;
+/** How long a team's depth chart is kept: it changes once a week. */
+const CHART_DAY_MS = 86_400_000;
+
+/** The NFL season a date falls in: September to February, as New York's calendar has it. (FootballFeed.season; pure; tested) */
+export function footballSeason(date: number): number {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "numeric" }).formatToParts(new Date(date));
+  const year = Number(parts.find((p) => p.type === "year")?.value ?? 2026);
+  const month = Number(parts.find((p) => p.type === "month")?.value ?? 9);
+  return year - (month <= 2 ? 1 : 0);
+}
+
+/**
+ * Whether a depth chart response holds any slot (FootballDepthChart's
+ * failable init: a group with positions). The lane keeps the response as
+ * ESPN sent it; the theater reads it (`FootballDepthChart.from`), so the
+ * lane never loads the theater's parser.
+ */
+export function holdsSlots(json: JSONValue): boolean {
+  return arr(at(json, "items")).some((group) => {
+    const positions = at(group, "positions");
+    return positions != null && typeof positions === "object" && !Array.isArray(positions) && Object.keys(positions).length > 0;
+  });
+}
+
+/** A team's NFL depth chart for a season (official ESPN core, about 20 KB), from the day's cache or fetched. (FootballFeed.depthChart) */
+export async function depthChart(fetcher: Fetcher, team: string | null, season: number, now: number, signal?: AbortSignal): Promise<JSONValue | null> {
+  if (team == null) return null;
+  const key = `${season}/${team}`;
+  const cached = FootballFeed.chartCache.get(key);
+  if (cached && now - cached.fetched < CHART_DAY_MS) return cached.chart;
+  const json = await fetcher(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${season}/teams/${team}/depthcharts`, { signal }).catch(() => null);
+  if (json == null || !holdsSlots(json)) return null;
+  FootballFeed.chartCache.set(key, { chart: json, fetched: now });
+  return json;
+}
 
 export class FootballFeed {
   /** Every snap seen, in play order. Replaced only when plays arrive or change. */
@@ -350,8 +390,17 @@ export class FootballFeed {
   score: LiveScore | null = null;
   /** True once the play feed has been read in full. */
   loaded = false;
+  /**
+   * Both teams' depth charts (NFL) as ESPN sent them, once fetched: the
+   * theater reads them (`FootballDepthChart`) and places its snaps on them
+   * (`FootballTheaterWatch`). Replaced only when they come.
+   */
+  charts: Readonly<Partial<Record<Side, JSONValue>>> = {};
   /** Bumped on every change: a snapshot for `useSyncExternalStore`. */
   version = 0;
+
+  /** Depth charts by season and team, kept for the day across pages: they change once a week. */
+  static chartCache = new Map<string, { readonly chart: JSONValue; readonly fetched: number }>();
 
   private fetched = 0;
   private lastPlayRef: string | null = null;
@@ -366,6 +415,8 @@ export class FootballFeed {
   private retracted: string[] = [];
   private moments: LiveMoment[] = [];
   private primed = false;
+  /** When the depth charts were last asked for. */
+  private chartsAsked: number | null = null;
   private inflight: Promise<void> | null = null;
   private listeners = new Set<() => void>();
   private drive_: { plays: readonly DrivePlay[]; drive: readonly DrivePlay[] } | null = null;
@@ -452,6 +503,11 @@ export class FootballFeed {
       const lastID = lastRef ? playIDFromRef(lastRef) : null;
       if (!signal?.aborted && (lastID == null || lastID === this.newestID)) this.lastPlayRef = lastRef;
     }
+    // Who starts where, once a game (college has no depth charts).
+    if (league === "nfl" && Object.keys(this.charts).length === 0 && this.now() - (this.chartsAsked ?? -Infinity) > CHARTS_RETRY_MS) {
+      this.chartsAsked = this.now();
+      if (await this.loadCharts(fetcher, teams, signal)) changed = true;
+    }
     if (signal?.aborted) {
       if (changed) this.emit();
       return;
@@ -476,6 +532,23 @@ export class FootballFeed {
       }
     }
     if (changed) this.emit();
+  }
+
+  /**
+   * Both teams' depth charts, from the day's cache or fetched together
+   * (official ESPN core, about 20 KB each); the theater then places the snap
+   * showing on them (`FootballTheaterWatch`). True when they came.
+   */
+  private async loadCharts(fetcher: Fetcher, teams: FootballTeams, signal?: AbortSignal): Promise<boolean> {
+    const now = this.now();
+    const season = footballSeason(now);
+    const [top, bottom] = await Promise.all([depthChart(fetcher, teams.topID, season, now, signal), depthChart(fetcher, teams.bottomID, season, now, signal)]);
+    const found: { top?: JSONValue; bottom?: JSONValue } = {};
+    if (top) found.top = top;
+    if (bottom) found.bottom = bottom;
+    if (Object.keys(found).length === 0 || signal?.aborted) return false;
+    this.charts = found;
+    return true;
   }
 
   private async loadPlays(fetcher: Fetcher, base: string, teams: FootballTeams, signal?: AbortSignal): Promise<boolean> {

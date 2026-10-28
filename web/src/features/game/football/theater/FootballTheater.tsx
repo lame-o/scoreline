@@ -85,7 +85,7 @@ class TheaterFollow {
   }
 
   private process(): boolean {
-    const changed = this.watch.update(this.feed.items, this.teams, this.primed);
+    const changed = this.watch.update(this.feed.items, this.teams, this.primed, Date.now(), this.feed.charts);
     this.primed = this.feed.loaded;
     return changed;
   }
@@ -104,7 +104,7 @@ class TheaterFollow {
 const none = () => () => {};
 
 function useTheaterState(feed: FootballFeed | null, teams: LaneTeams | null): FootballTheaterState {
-  const key = teams ? `${teams.topIsHome}|${teams.topID}|${teams.bottomID}|${teams.homeAbbreviation}|${teams.awayAbbreviation}` : "";
+  const key = teams ? `${teams.topIsHome}|${teams.topID}|${teams.bottomID}|${teams.homeAbbreviation}|${teams.awayAbbreviation}|${teams.homeName ?? ""}|${teams.awayName ?? ""}` : "";
   // One follower per lane and teams (the page's teams object is new on every poll; its values aren't).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const follow = useMemo(() => (feed && teams ? new TheaterFollow(feed, teams) : null), [feed, key]);
