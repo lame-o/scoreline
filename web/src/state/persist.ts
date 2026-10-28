@@ -69,11 +69,27 @@ const indexedStorage: AsyncStorage<PersistedQuery> = {
   removeItem: async (key) => {
     await run("readwrite", (s) => s.delete(key));
   },
-  entries: async () => {
-    const keys = ((await run<IDBValidKey[]>("readonly", (s) => s.getAllKeys())) ?? []).map(String);
-    const values = (await run<PersistedQuery[]>("readonly", (s) => s.getAll())) ?? [];
-    return keys.map((k, i) => [k, values[i]!] as [string, PersistedQuery]);
-  },
+  // One pass of a cursor, so keys and values come from the same moment.
+  entries: () =>
+    database().then(
+      (db) =>
+        new Promise<Array<[string, PersistedQuery]>>((resolve) => {
+          const out: Array<[string, PersistedQuery]> = [];
+          if (!db) return resolve(out);
+          try {
+            const request = db.transaction(STORE, "readonly").objectStore(STORE).openCursor();
+            request.onsuccess = () => {
+              const cursor = request.result;
+              if (!cursor) return resolve(out);
+              out.push([String(cursor.key), cursor.value as PersistedQuery]);
+              cursor.continue();
+            };
+            request.onerror = () => resolve(out);
+          } catch {
+            resolve(out);
+          }
+        }),
+    ),
 };
 
 let storage: AsyncStorage<PersistedQuery> = indexedStorage;
