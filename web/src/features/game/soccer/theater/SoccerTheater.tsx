@@ -31,7 +31,7 @@ import type { SoccerFeed } from "../../../../data/liveFeeds/soccer";
 import { dress, type TheaterKits } from "../../../../data/mlb/theaterTeams";
 import { goalOf, scored, type SoccerScene, type SoccerTheaterState } from "../../../../data/theater/soccerScene";
 import { SoccerScript } from "../../../../data/theater/soccerScript";
-import { GoalCelebration, PitchProjection, sentences, soccerShown, SoccerTheaterWatch } from "../../../../data/theater/soccerTheater";
+import { GoalCelebration, PitchProjection, sentences, soccerKey, soccerShown, SoccerTheaterWatch } from "../../../../data/theater/soccerTheater";
 import { HOLD_MS } from "../../../../data/theater/theaterKit";
 import { useSettings } from "../../../../state/settings";
 import { useColorScheme } from "../../../../state/theme";
@@ -109,12 +109,20 @@ export default function SoccerTheater({ feed, homeTeamID, kits, preloaded = null
   const [replay, setReplay] = useState<{ readonly id: string; readonly done: boolean } | null>(null);
   const [rested, setRested] = useState<string | null>(null);
   // A new moment replays from its first touch; with Reduce Motion it's over at once (its end crossfades in, and holds). History doesn't.
+  // A goal just struck off replays as its NO GOAL beat.
   useEffect(() => {
+    if (frozen != null) return;
+    const struck = state.overturned;
+    if (struck && soccerShown(state, replay?.id ?? null, rested) === struck) {
+      const key = soccerKey(struck);
+      setReplay((r) => (r?.id === key ? r : { id: key, done: reduceMotion }));
+      return;
+    }
     const s = state.scene;
-    if (frozen != null || !state.news || !s) return;
+    if (!state.news || !s) return;
     setReplay((r) => (r?.id === s.id ? r : { id: s.id, done: reduceMotion }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.scene?.id]);
+  }, [state.scene?.id, state.overturned?.id]);
   // Done: its end holds a while (unless the next moment comes), then the pitch goes quiet.
   useEffect(() => {
     if (!replay?.done) return;
@@ -123,10 +131,13 @@ export default function SoccerTheater({ feed, homeTeamID, kits, preloaded = null
   }, [replay]);
   /** The moment on screen: a replay, then its end until it has held; else none (the quiet pitch). */
   const scene = soccerShown(state, replay?.id ?? null, rested);
-  const news = replay != null && scene != null && replay.id === scene.id ? !replay.done : state.news;
+  const key = scene ? soccerKey(scene) : null;
+  // (A goal just struck off is about to replay as its NO GOAL beat.)
+  const news = replay != null && key != null && replay.id === key ? !replay.done : scene != null && scene === state.overturned ? true : state.news;
 
-  // The moment's script, built once (a render for anything else reuses it).
-  const script = useMemo(() => (scene ? SoccerScript.build(scene) : new SoccerScript()), [scene]);
+  // The moment's script with both elevens, built once (a render for anything else reuses it).
+  const lineups = state.lineups;
+  const script = useMemo(() => (scene ? SoccerScript.build(scene, lineups ?? {}) : new SoccerScript()), [scene, lineups]);
   const dressed = useMemo(
     () => dress(kits, scheme),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -156,7 +167,7 @@ export default function SoccerTheater({ feed, homeTeamID, kits, preloaded = null
     };
     const color = accentOf(teams.attacking, ink);
     const inputs: StageInputs = {
-      id: scene?.id ?? null,
+      id: key,
       news,
       // Its course run: its end holds.
       onEnd: (id) => setReplay((r) => (r && r.id === id && !r.done ? { id, done: true } : r)),
@@ -169,7 +180,7 @@ export default function SoccerTheater({ feed, homeTeamID, kits, preloaded = null
         scene && moment
           ? (size) => {
               // The end state: a bloom over the net it went into.
-              if (moment.id !== scene.id || !scored(scene) || level === "off") return null;
+              if (moment.id !== scene.id || !scored(scene) || scene.review === "overturned" || level === "off") return null;
               const cue = cueFor(moment, { level, reduceMotion: true, preset: presetFor(size.height), direction: Math.PI / 2 });
               if (!cue) return null;
               const goal = goalOf(scene);
@@ -188,7 +199,7 @@ export default function SoccerTheater({ feed, homeTeamID, kits, preloaded = null
       },
     };
     stage.current?.update(inputs);
-  }, [scene, news, script, teams, ink, moment, level, reduceMotion, frozen]);
+  }, [scene, key, news, script, teams, ink, moment, level, reduceMotion, frozen]);
 
   return (
     <div className={styles.theater}>

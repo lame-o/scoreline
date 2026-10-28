@@ -7,26 +7,31 @@
  * tests can check that the keeper's hands are where the ball is when he
  * saves it.
  *
- * Time is a broadcast replay's: the build-up a little quicker than the
- * game's (passes at 24 m/s, the man on the ball at 8.5), so eight passes take
- * about five seconds, not twenty; the shot at its own pace; then the payoff
- * holds: the net ripples and the scorer wheels away, or the keeper comes up
- * with it. The replay ends on the frame the theater holds until the next
+ * Time is the match clock's: each touch comes when ESPN logged it, the gaps
+ * between them squeezed by one factor so a move fits about five seconds (a
+ * long one picks up a few touches in), never quicker than the ball and the
+ * man on it can go, and a ball through the air takes as long as it hangs and
+ * arrives as it's met; the shot at its own pace, seen again from behind the
+ * net when it's on target; then the payoff holds: the net ripples and the
+ * scorer wheels away, or the keeper comes up with it (or punches it to where
+ * it landed). The replay ends on the frame the theater holds until the next
  * moment.
  *
- * Every figure is a player who touched the ball, standing where he touched
- * it, and the keeper; nobody is invented. The script also says what each one
- * does (a strike, a header, a dive, arms up), when the headline lands, and
- * where the broadcast camera looks (`PitchCamera`, below).
+ * The men who touched the ball are where they touched it, struck with the
+ * foot or the head Opta logs; with the lineups, everyone else in both
+ * elevens stands in his team's shape and moves with the ball. The script
+ * also says what each one does (a strike, a header, a dive, arms up), when
+ * the headline lands, and where the broadcast camera looks (`PitchCamera`,
+ * below).
  *
- *     const script = SoccerScript.build(scene);
+ *     const script = SoccerScript.build(scene, lineups);
  *     script.ball(2.1); script.frame(2.1); script.actors[0].position(2.1);
  */
 import { CameraFrame } from "../mlb/playCamera";
 import { Move } from "../mlb/playScript";
 import { easeValue, fieldPoint, ground, type Ease, type FieldPoint, type Point } from "../mlb/theaterField";
-import { attacksRight, characters, crossbar, goalOf, Pitch, scored, stampDetail, surname, type SoccerScene, type Touch } from "./soccerScene";
-import { ballMemo, RigTrack, type RigFacing } from "./rig";
+import { attacksRight, characters, crossbar, goalOf, Pitch, scored, SoccerLineup, stampDetail, surname, type KeeperAction, type LineupPlayer, type Lineups, type SoccerScene, type Touch } from "./soccerScene";
+import { ballMemo, Rig, RigTrack, type RigFacing } from "./rig";
 import { CameraFollow } from "./theaterKit";
 import { BIG_CHANCE_XG } from "../liveFeeds/soccer";
 
@@ -49,7 +54,13 @@ export type ActionKind =
   /** Arms up, held. */
   | "celebrate"
   /** Hands on his head, held. */
-  | "dejected";
+  | "dejected"
+  /** A header won in the air: up off the ground for it, then through it. */
+  | "aerial"
+  /** The keeper's fists to it, over his head. */
+  | "punch"
+  /** The keeper takes it high, in both hands, and holds it. */
+  | "claim";
 
 /** A moment of the play in his feet, head or hands. */
 export interface Action {
@@ -57,6 +68,8 @@ export interface Action {
   readonly at: number;
   /** Where it's aimed: he faces it. */
   readonly toward: Point;
+  /** Struck with his left foot (the strike mirrored). */
+  readonly left: boolean;
 }
 
 /** The keeper at full stretch: from `start` his hands go to `target`, reaching it at `reach`; then he's down. */
@@ -73,6 +86,10 @@ export class Actor {
   role: Role;
   name: string;
   at: Point;
+  /** ESPN's athlete ID, when it credits him. */
+  athlete: string | null = null;
+  /** In his team's shape: a man from the lineup who didn't touch the ball. */
+  shaped = false;
   moves: Move[] = [];
   actions: Action[] = [];
   dive: Dive | null = null;
@@ -117,8 +134,8 @@ export class Actor {
     return { speed: d / dt, heading: { x: (b.x - a.x) / d, y: (b.y - a.y) / d } };
   }
 
-  act(kind: ActionKind, time: number, toward: Point): void {
-    this.actions.push({ kind, at: time, toward });
+  act(kind: ActionKind, time: number, toward: Point, left = false): void {
+    this.actions.push({ kind, at: time, toward, left });
   }
 
   move(path: readonly Point[], start: number, end: number, ease: Ease = "inOut"): void {
@@ -151,8 +168,9 @@ export class Flight {
     readonly kind: FlightKind,
     readonly start: number,
     readonly end: number,
-    readonly from: FieldPoint,
-    readonly to: FieldPoint,
+    /** (Its ends' heights are levelled once the moves are laid: `level`.) */
+    public from: FieldPoint,
+    public to: FieldPoint,
     readonly arc: Arc = STRAIGHT,
     readonly ease: Ease = "linear",
   ) {}
@@ -228,13 +246,19 @@ export class SoccerScript {
   /** Each player's motion through the replay (his heading, stride and footfalls), measured once: by actor. */
   rig: RigTrack[] = [];
 
-  /** The moment's replay. (`new SoccerScript()` is the pitch with nobody on it: no moment yet.) */
-  static build(scene: SoccerScene): SoccerScript {
-    const b = new Builder(scene);
+  /**
+   * The moment's replay, with everyone in both starting elevens when the
+   * lineups are known. (`new SoccerScript()` is the pitch with nobody on it:
+   * no moment yet.)
+   */
+  static build(scene: SoccerScene, lineups: Lineups = {}): SoccerScript {
+    const b = new Builder(scene, lineups);
     b.buildUp();
     b.strike();
     b.payoff();
+    b.level();
     b.cut();
+    b.squads();
     b.finish();
     b.headline();
     b.measureStamp();
@@ -312,6 +336,8 @@ export const loftSpeed = 19;
 export const carrySpeed = 8.5;
 /** Off-the-ball runs never look faster than a sprint. */
 export const runSpeed = 9;
+/** The shape moves no faster than a jog. */
+export const jogSpeed = 6.5;
 /** The build-up runs no longer than this, if it can help it: a longer move plays its early passes faster. */
 export const buildUpLimit = 5.0;
 
@@ -352,31 +378,53 @@ export class Builder {
   payoffAt = 0;
   readonly right: boolean;
   readonly goal: Point;
+  /** Both starting elevens (empty: only the men who touched the ball, and the keeper). */
+  readonly lineups: Lineups;
 
-  constructor(scene: SoccerScene) {
+  constructor(scene: SoccerScene, lineups: Lineups = {}) {
     this.scene = scene;
+    this.lineups = lineups;
     this.right = attacksRight(scene);
     this.goal = goalOf(scene);
     // The keeper first: always there, on his line.
     const start = scene.touches[0]?.at ?? scene.shot.from;
-    this.keeper = this.actor("defending", scene.keeper.name ?? "keeper", this.keeperSpot(fieldPoint(start), null), "keeper");
+    const defending = lineups[scene.side === "top" ? "bottom" : "top"];
+    this.keeper = this.actor("defending", scene.keeper.name ?? "keeper", this.keeperSpot(fieldPoint(start), null), "keeper", false, scene.keeper.credit?.athlete ?? defending?.players.find((p) => p.place === 1)?.athlete ?? null);
   }
 
-  /** The actor for a player, made the first time he's needed. The keeper is one man, whatever the feed calls him. */
-  actor(team: Team, name: string, at: Point, role: Role = "outfield", keeper = false): number {
+  /**
+   * The actor for a player, made the first time he's needed: by ESPN's
+   * athlete ID when it credits him, else by name. The keeper is one man,
+   * whatever the feed calls him.
+   */
+  actor(team: Team, name: string, at: Point, role: Role = "outfield", keeper = false, athlete: string | null = null): number {
     if (keeper && team === "defending" && [...this.index.values()].includes(this.keeper)) return this.keeper;
-    const key = `${team === "attacking" ? "A" : "D"}:${name}`;
-    const known = this.index.get(key);
-    if (known != null) return known;
+    const side = team === "attacking" ? "A" : "D";
+    const known = (i: number): number => {
+      if (athlete != null) {
+        this.index.set(`${side}#${athlete}`, i);
+        if (this.script.actors[i]!.athlete == null) this.script.actors[i]!.athlete = athlete;
+      }
+      return i;
+    };
+    if (athlete != null) {
+      const i = this.index.get(`${side}#${athlete}`);
+      if (i != null) return i;
+    }
+    const key = `${side}:${name}`;
+    const named = name !== "" ? this.index.get(key) : undefined;
+    if (named != null) return known(named);
     // The keeper by name: his touches are his.
     const keeperName = this.scene.keeper.name;
     if (team === "defending" && role === "outfield" && keeperName != null && name === keeperName) {
       const i = this.index.get(`D:${keeperName}`);
-      if (i != null) return i;
+      if (i != null) return known(i);
     }
-    this.script.actors.push(new Actor(team, role, name, at));
+    const made = new Actor(team, role, name, at);
+    made.athlete = athlete;
+    this.script.actors.push(made);
     this.index.set(key, this.script.actors.length - 1);
-    return this.script.actors.length - 1;
+    return known(this.script.actors.length - 1);
   }
 
   mark(actor: number, t: number, at: Point, ease: Ease | null = null, soft = false): void {
@@ -411,10 +459,6 @@ export class Builder {
     return lofted ? Math.min(Math.max(d / loftSpeed + 0.25, 0.6), 1.5) : Math.min(Math.max(d / passSpeed, 0.28), 1.1);
   }
 
-  carryTime(d: number): number {
-    return d < 1.2 ? 0.14 : Math.min(Math.max(d / carrySpeed, 0.2), 1.3);
-  }
-
   /** A lofted ball's height over the line: higher the longer it goes. */
   peak(d: number, cross: boolean): number {
     return cross ? Math.min(2.2 + d * 0.09, 7) : Math.min(2.5 + d * 0.11, 11);
@@ -423,9 +467,11 @@ export class Builder {
   // MARK: Build-up
 
   /**
-   * The move, touch by touch: the ball goes from each man to the next (to
-   * where a pass was aimed, then at the receiver's feet to where he next
-   * played it), and every player is where ESPN says he was when he played it.
+   * The move, touch by touch, at its real pace: the ball goes from each man
+   * to the next (to where a pass was aimed, a punch to where it landed, then
+   * at the receiver's feet to where he next played it), every player where
+   * ESPN says he was when he played it, each touch when the match clock
+   * says, squeezed to the replay's length.
    */
   buildUp(): void {
     const { scene, script } = this;
@@ -433,133 +479,221 @@ export class Builder {
     // A set piece opens on the taker standing over it.
     let t = scene.start === "openPlay" || touches.length < scene.touches.length ? 0.5 : 0.8;
     if (scene.shot.penalty) t = 1.3;
-    const paces = this.paces(touches);
+    const plan = this.beats(touches);
+    const assist = this.assistIndex(touches);
     touches.forEach((touch, i) => {
-      const pace = paces[i]!;
+      const beat = plan.beats[i]!;
+      const ends = t + beat;
       const team: Team = touch.defending ? "defending" : "attacking";
-      const who = this.actor(team, touch.player, touch.at, "outfield", touch.keeper);
+      const who = this.actor(team, touch.player, touch.at, "outfield", touch.keeper, touch.credit?.athlete ?? null);
       const played = t;
       this.mark(who, t, touch.at);
-      const following = touches[i + 1];
-      const next = following
-        ? { player: following.player, at: following.at, defending: following.defending, keeper: following.keeper }
-        : { player: scene.shooter, at: scene.shot.from, defending: scene.outcome === "ownGoal", keeper: false };
-      // Played on from where it came to him: at the height it arrived (off a defender's body, a keeper's hands).
+      const next = this.upcoming(touches, i);
+      const way = this.route(touches, i);
+      // Played from the height it came to him at (off a defender's body, a keeper's fists, a head).
       const previous = script.flights[script.flights.length - 1];
-      const arrived = previous && this.distance(ground(previous.to), touch.at) < 0.5 ? previous.to.z : 0.11;
+      const arrived = previous && this.distance(ground(previous.to), touch.at) < 0.5 ? previous.to.z : this.height(touches, i, assist);
       const ball = fieldPoint(touch.at, arrived);
-      const aim: Point = next.defending || touch.to == null ? next.at : touch.to;
-      const sameMan = next.player === touch.player && next.defending === touch.defending;
-      switch (touch.kind) {
-        case "pass":
-        case "cross":
-        case "restart":
-        case "shot": {
-          // Struck toward where it was aimed; the receiver meets it there.
-          const isLofted = touch.lofted || (touch.kind === "restart" && scene.start === "throwIn");
-          const d = this.distance(touch.at, aim);
-          const flightTime = Math.max(this.passTime(d, isLofted) * pace, this.minimumFlight);
-          const from = scene.start === "throwIn" && touch.kind === "restart" ? fieldPoint(touch.at, 2.1) : ball;
-          // A cross met first time arrives where it's met: at his head, or a volley's height.
-          const met = i + 1 === touches.length && this.distance(aim, scene.shot.from) < 1.5 ? this.strikeHeight : 0.11;
-          const to = fieldPoint(aim, next.defending ? 0.9 : met);
-          script.flights.push(new Flight(touch.kind === "shot" ? "shot" : "pass", t, t + flightTime, from, to, isLofted ? lofted(this.peak(d, touch.kind === "cross")) : STRAIGHT));
-          script.actors[who]!.act(scene.start === "throwIn" && touch.kind === "restart" ? "throwIn" : "kick", t, aim);
-          const arrives = t + flightTime;
-          const receiver = this.actor(next.defending ? "defending" : "attacking", next.player, aim, "outfield", next.keeper);
-          this.possession.push({ from: t, to: arrives, actors: [who, receiver], flight: script.flights.length - 1 });
-          if (sameMan && !next.defending) {
-            // Played into space and run onto: he gets there as it does.
-            this.mark(who, arrives, aim);
-          } else {
-            this.mark(receiver, arrives, aim);
-          }
-          t = arrives;
-          // Then he takes it on to where he played it next.
-          const onward = this.distance(aim, next.at);
-          if (!next.defending && onward > 1.2) {
-            t = this.carry(receiver, aim, next.at, t, pace);
-          } else if (i + 1 < touches.length || scene.shot.technique === "foot") {
-            t += 0.12 * pace;
-          }
-          break;
+      const keeping = this.keeperAction(touch);
+      const headed = touch.aerial || (i === assist && scene.assistKind === "headedPass");
+      // Met where it was going at the height he takes it (his head, a keeper's fists); else along the grass.
+      const met = this.distance(way.aim, next.at) < 1.5 ? (i + 1 < touches.length ? this.height(touches, i + 1, assist) : this.strikeHeight) : next.defending ? 0.9 : 0.11;
+      let acted = false;
+      if (way.flies) {
+        const d = this.distance(touch.at, way.aim);
+        let flightTime = this.flight(d, way.lofted, plan.compression, beat - way.onward);
+        // Nothing waits in the air: a ball met there (a head, a keeper's fists) arrives as it's met, so the man
+        // delivering it takes his time on the ground first (a corner's run-up, a touch before the cross); one
+        // played on in the air (a flick-on, a punch) to a man who meets it in the air flies the whole beat.
+        let kick = t;
+        if (met > 1) {
+          if (arrived > 1) flightTime = beat;
+          else kick = Math.max(t, ends - flightTime);
+          flightTime = ends - kick;
         }
-        case "takeOn":
-        case "touch":
-        case "regain": {
-          if (sameMan) {
-            t = this.carry(who, touch.at, next.at, t + 0.1 * pace, pace);
-          } else {
-            // Knocked on to the next man (or off a defender).
-            const d = this.distance(touch.at, next.at);
-            const isLofted = d > 30;
-            const flightTime = Math.max(this.passTime(d, isLofted) * pace, this.minimumFlight);
-            script.flights.push(new Flight("pass", t, t + flightTime, ball, fieldPoint(next.at, next.defending ? 0.9 : 0.11), isLofted ? lofted(this.peak(d, false)) : STRAIGHT));
-            if (!touch.defending) script.actors[who]!.act("kick", t, next.at);
-            const receiver = this.actor(next.defending ? "defending" : "attacking", next.player, next.at, "outfield", next.keeper);
-            this.possession.push({ from: t, to: t + flightTime, actors: [who, receiver], flight: script.flights.length - 1 });
-            t += flightTime;
-            this.mark(receiver, t, next.at);
-            if (i + 1 < touches.length) t += 0.1 * pace;
-          }
-          break;
+        const at = kick;
+        // (Over the ball until he plays it.)
+        if (kick > played) this.mark(who, kick, touch.at);
+        const from = scene.start === "throwIn" && touch.kind === "restart" ? fieldPoint(touch.at, 2.1) : ball;
+        script.flights.push(
+          new Flight(touch.kind === "shot" ? "shot" : "pass", at, at + flightTime, from, fieldPoint(way.aim, met), way.lofted ? lofted(this.peak(d, touch.kind === "cross" || touch.kind === "restart")) : STRAIGHT),
+        );
+        const kind: ActionKind | null =
+          scene.start === "throwIn" && touch.kind === "restart"
+            ? "throwIn"
+            : keeping?.kind === "punch"
+              ? "punch"
+              : keeping?.kind === "claim"
+                ? "claim"
+                : touch.aerial
+                  ? "aerial"
+                  : headed
+                    ? "header"
+                    : touch.defending
+                      ? null
+                      : "kick";
+        if (kind) {
+          script.actors[who]!.act(kind, at, way.aim);
+          acted = true;
         }
+        const arrives = at + flightTime;
+        const receiver = this.actor(next.defending ? "defending" : "attacking", next.player, way.aim, "outfield", next.keeper, next.athlete);
+        this.possession.push({ from: at, to: arrives, actors: [who, receiver], flight: script.flights.length - 1 });
+        const runner = way.sameMan && !next.defending ? who : receiver;
+        this.mark(runner, arrives, way.aim);
+        // A through ball: played into the space ahead of him, and he runs onto it.
+        if (i === assist && scene.assistKind === "throughBall" && !next.defending) {
+          const p = { x: way.aim.x - touch.at.x, y: way.aim.y - touch.at.y };
+          const g = { x: this.goal.x - way.aim.x, y: this.goal.y - way.aim.y };
+          const lp = Math.max(Math.hypot(p.x, p.y), 0.1);
+          const lg = Math.max(Math.hypot(g.x, g.y), 0.1);
+          const u = { x: p.x / lp + g.x / lg, y: p.y / lp + g.y / lg };
+          const lu = Math.max(Math.hypot(u.x, u.y), 0.1);
+          const back = Math.min(7.5 * flightTime, 9);
+          this.mark(runner, at, { x: way.aim.x - (u.x / lu) * back, y: way.aim.y - (u.y / lu) * back }, null, true);
+        }
+        // Then on with it to where he played it next, in what's left of the beat.
+        if (!next.defending && met <= 1 && this.distance(way.aim, next.at) > 1.2) this.carry(runner, way.aim, next.at, arrives + 0.06, ends);
+      } else {
+        this.carry(who, touch.at, next.at, t + 0.1, ends);
       }
-      if (touch.defending) script.actors[who]!.act("block", played, touch.at);
+      if (touch.defending && !acted) script.actors[who]!.act("block", played, touch.at);
+      t = ends;
     });
     if (scene.start === "penalty" || touches.length === 0) {
       // No move: the taker stands over it (a penalty's run-up comes with the strike).
       script.flights.push(new Flight("carry", 0, 0.01, fieldPoint(scene.shot.from, 0.11), fieldPoint(scene.shot.from, 0.11)));
     }
-    this.shooter = this.actor(scene.outcome === "ownGoal" ? "defending" : "attacking", scene.shooter, scene.shot.from);
+    this.shooter = this.actor(scene.outcome === "ownGoal" ? "defending" : "attacking", scene.shooter, scene.shot.from, "outfield", false, scene.shooterCredit?.athlete ?? null);
     script.strike = Math.max(t, 0.6);
     this.mark(this.shooter, script.strike, scene.shot.from);
   }
 
-  /** One touch's beat at full pace: the ball on to the next man, and his run with it. */
-  length(touches: readonly Touch[], i: number): number {
-    const touch = touches[i]!;
-    const next = touches[i + 1]?.at ?? this.scene.shot.from;
-    const to = touch.to;
-    if (to != null && touch.kind !== "touch" && touch.kind !== "takeOn" && touch.kind !== "regain") {
-      return this.passTime(this.distance(touch.at, to), touch.lofted) + this.carryTime(this.distance(to, next));
+  /** Who has the ball after touch `i`: the next touch's man, or the shooter. */
+  upcoming(touches: readonly Touch[], i: number): { player: string; athlete: string | null; at: Point; defending: boolean; keeper: boolean } {
+    const n = touches[i + 1];
+    if (!n) {
+      const { scene } = this;
+      return { player: scene.shooter, athlete: scene.shooterCredit?.athlete ?? null, at: scene.shot.from, defending: scene.outcome === "ownGoal", keeper: false };
     }
-    return this.carryTime(this.distance(touch.at, next)) + 0.1;
+    return { player: n.player, athlete: n.credit?.athlete ?? null, at: n.at, defending: n.defending, keeper: n.keeper };
+  }
+
+  /**
+   * Where touch `i` sends the ball: a pass where it was aimed (to the next
+   * man, when he's the other team's), a punch where it landed, a touch on
+   * to the next man; whether it goes there in the air; whether the same man
+   * plays it next (he runs on with it); and the least time the man who gets
+   * it needs to take it on to his next touch.
+   */
+  route(touches: readonly Touch[], i: number): { aim: Point; lofted: boolean; flies: boolean; sameMan: boolean; onward: number } {
+    const touch = touches[i]!;
+    const next = this.upcoming(touches, i);
+    const mine = touch.credit?.athlete ?? null;
+    const sameMan = next.defending === touch.defending && (next.athlete != null && mine != null ? next.athlete === mine : next.player === touch.player);
+    const passing = touch.kind === "pass" || touch.kind === "cross" || touch.kind === "restart" || touch.kind === "shot";
+    let aim = passing && !next.defending ? (touch.to ?? next.at) : next.at;
+    let isLofted = passing ? touch.lofted || (touch.kind === "restart" && this.scene.start === "throwIn") : this.distance(touch.at, next.at) > 30;
+    const punch = this.keeperAction(touch);
+    if (punch?.kind === "punch" && punch.to) {
+      aim = punch.to;
+      isLofted = true;
+    }
+    const flies = passing || !sameMan;
+    const onward = this.distance(aim, next.at) > 1.2 && !next.defending ? 0.06 + this.distance(aim, next.at) / carrySpeed : 0.1;
+    return { aim, lofted: isLofted, flies, sameMan, onward: flies ? onward : 0.1 + this.distance(touch.at, next.at) / carrySpeed };
+  }
+
+  /** How high the ball is when touch `i` meets it: at head height in the air, a keeper's fists over his head for a punch, his hands for a claim, off a defender's body; else along the grass. */
+  height(touches: readonly Touch[], i: number, assist: number | null): number {
+    const touch = touches[i]!;
+    switch (this.keeperAction(touch)?.kind) {
+      case "punch":
+        return 2.5;
+      case "claim":
+        return 2.2;
+      default:
+        break;
+    }
+    if (touch.aerial || (i === assist && this.scene.assistKind === "headedPass")) return 1.9;
+    return touch.defending ? 0.9 : 0.11;
+  }
+
+  /** The defending keeper's logged action for one of his touches: same second, same spot. */
+  keeperAction(touch: Touch): KeeperAction | null {
+    if (!touch.keeper) return null;
+    return this.scene.keeperActions.find((a) => Math.abs(a.clock - touch.clock) <= 1 && this.distance(a.at, touch.at) < 2) ?? null;
+  }
+
+  /** The assister's touch: the last one by the man credited with the assist. */
+  assistIndex(touches: readonly Touch[]): number | null {
+    const { scene } = this;
+    for (let i = touches.length - 1; i >= 0; i--) {
+      const t = touches[i]!;
+      if (t.defending) continue;
+      const credited = scene.assistCredit ? scene.assistCredit.athlete === t.credit?.athlete : scene.assist != null && t.player === scene.assist;
+      if (credited) return i;
+    }
+    return null;
   }
 
   /** No pass, however hurried, is quicker than this: it would read as a jump. */
   readonly minimumFlight = 0.2;
 
-  /**
-   * Each touch's pace, as a broadcast replay cuts a long move: the early
-   * passes hurried (up to about half again the game's pace), the last two
-   * (the ball that made the chance, and its delivery) at full pace, so the
-   * move slows into the finish. Only a short move that's still too long
-   * hurries them too, a little.
-   */
-  paces(touches: readonly Touch[]): number[] {
-    const lengths = touches.map((_, i) => this.length(touches, i));
-    const finish = Math.max(touches.length - 2, 0);
-    const early = lengths.slice(0, finish).reduce((a, b) => a + b, 0);
-    const late = lengths.slice(finish).reduce((a, b) => a + b, 0);
-    const limit = buildUpLimit;
-    if (!(early + late > limit)) return lengths.map(() => 1);
-    const hurried = Math.max((limit - late) / Math.max(early, 0.01), 0.7);
-    const closing = early * hurried + late > limit ? Math.max((limit - early * hurried) / Math.max(late, 0.01), 0.85) : 1;
-    return touches.map((_, i) => (i < finish ? hurried : closing));
+  /** A ball through the air takes as long as it hangs; one along the grass is squeezed with the rest of the move, never past 30 m/s, and leaves the man who gets it the time he needs. */
+  flight(d: number, isLofted: boolean, c: number, room: number): number {
+    if (isLofted) return this.passTime(d, true);
+    const fastest = Math.max(d / 30, this.minimumFlight);
+    return Math.max(Math.min((d / passSpeed) * c, room), fastest);
+  }
+
+  /** The least a touch's beat can be: the ball at its fastest to where it went, and the man on to his next touch. */
+  least(touches: readonly Touch[], i: number): number {
+    const way = this.route(touches, i);
+    if (!way.flies) return way.onward;
+    const d = this.distance(touches[i]!.at, way.aim);
+    return (way.lofted ? this.passTime(d, true) : Math.max(d / 30, this.minimumFlight)) + way.onward;
+  }
+
+  /** The real gap after each touch on the match clock (whole seconds: a first-time touch's 0 counts as half of one), to the next or to the shot. */
+  gaps(touches: readonly Touch[]): number[] {
+    return touches.map((touch, i) => Math.max((touches[i + 1]?.clock ?? this.scene.clock) - touch.clock, 0.5));
   }
 
   /**
-   * The move as the replay shows it: a long one picks up a few passes in, as
-   * a broadcast replay does, rather than hurry them all; it keeps its last
-   * three touches at least.
+   * Each touch's beat, from when it's played to when the next one is: its
+   * real gap, all of them squeezed by one factor (`compression`) so the move
+   * fits the replay's five seconds, a quick one-two staying quick and a
+   * patient spell slower; never quicker than the ball and the man on it can
+   * go. A move that fits plays in real time.
+   */
+  beats(touches: readonly Touch[]): { beats: number[]; compression: number } {
+    const real = this.gaps(touches);
+    const floors = touches.map((_, i) => this.least(touches, i));
+    const total = (c: number) => real.reduce((sum, gap, k) => sum + Math.max(floors[k]!, gap * c), 0);
+    let c = 1;
+    if (total(1) > buildUpLimit) {
+      let lo = 0;
+      let hi = 1;
+      for (let k = 0; k < 24; k++) {
+        const mid = (lo + hi) / 2;
+        if (total(mid) > buildUpLimit) hi = mid;
+        else lo = mid;
+      }
+      c = lo;
+    }
+    return { beats: real.map((gap, k) => Math.max(floors[k]!, gap * c)), compression: c };
+  }
+
+  /**
+   * The move as the replay shows it: a long one picks up a few touches in,
+   * as a broadcast replay does, rather than race through them all (squeezed
+   * more than about twice); it keeps its last three touches at least.
    */
   shown(touches: readonly Touch[]): Touch[] {
-    const shown = [...touches];
-    const fits = () => {
-      const paces = this.paces(shown);
-      return shown.reduce((sum, _, i) => sum + this.length(shown, i) * paces[i]!, 0) <= buildUpLimit + 0.01;
-    };
+    const shown = Builder.headers(touches);
+    const fits = () =>
+      shown.reduce((sum, _, i) => sum + this.least(shown, i), 0) <= buildUpLimit + 0.01 && this.gaps(shown).reduce((a, b) => a + b, 0) <= buildUpLimit * 2.2;
     while (shown.filter((t) => !t.defending).length > 3 && !fits()) {
       shown.shift();
       // A move never opens on the other team's touch.
@@ -568,14 +702,35 @@ export class Builder {
     return shown;
   }
 
-  /** He runs with it: the ball at his feet. */
-  carry(who: number, from: Point, to: Point, t: number, pace: number): number {
-    const time = this.carryTime(this.distance(from, to)) * pace;
-    this.mark(who, t, from);
-    this.mark(who, t + time, to, "linear");
-    this.script.flights.push(new Flight("carry", t, t + time, fieldPoint(from, 0.11), fieldPoint(to, 0.11)));
-    this.possession.push({ from: t, to: t + time, actors: [who], flight: this.script.flights.length - 1 });
-    return t + time;
+  /** A header won in the air and the pass it was, logged as two touches a second apart ("aerial", then "pass"), as one: the header. */
+  static headers(touches: readonly Touch[]): Touch[] {
+    const out: Touch[] = [];
+    for (const touch of touches) {
+      const last = out[out.length - 1];
+      if (
+        last &&
+        last.aerial &&
+        !last.defending &&
+        !touch.defending &&
+        touch.clock - last.clock <= 1 &&
+        (last.credit?.athlete != null ? last.credit.athlete === touch.credit?.athlete : last.player === touch.player) &&
+        Math.hypot(touch.at.x - last.at.x, touch.at.y - last.at.y) < 1.5
+      ) {
+        out[out.length - 1] = { ...touch, aerial: true, at: last.at, clock: last.clock };
+        continue;
+      }
+      out.push(touch);
+    }
+    return out;
+  }
+
+  /** He runs with it, the ball at his feet, from `start` to `end`. */
+  carry(who: number, from: Point, to: Point, start: number, end: number): void {
+    const time = Math.max(end - start, 0.14);
+    this.mark(who, start, from);
+    this.mark(who, start + time, to, "linear");
+    this.script.flights.push(new Flight("carry", start, start + time, fieldPoint(from, 0.11), fieldPoint(to, 0.11)));
+    this.possession.push({ from: start, to: start + time, actors: [who], flight: this.script.flights.length - 1 });
   }
 
   // MARK: Shot
@@ -646,10 +801,12 @@ export class Builder {
       script.actors[this.shooter]!.at = { x: s.from.x - (this.right ? 1 : -1) * 3.2, y: s.from.y - 1.8 };
     }
     // (An own goal's defender only gets something on it.)
+    // With the foot (or the head) Opta logs: a left-footer's strike is the right-footer's mirrored.
     const struck: ActionKind = scene.outcome === "ownGoal" ? "block" : s.technique === "header" ? "header" : "kick";
-    script.actors[this.shooter]!.act(struck, t0, { x: target.x, y: target.y });
+    script.actors[this.shooter]!.act(struck, t0, { x: target.x, y: target.y }, s.contact === "leftFoot");
 
-    // The keeper: set as it's struck, then at full stretch, standing, or beaten.
+    // The keeper: set as it's struck, then at full stretch, standing, or beaten (unless it's his own touch that turned it in).
+    if (this.shooter === this.keeper) return;
     const set = this.keeperSpot(fieldPoint(s.from), s.penalty ? 0.2 : null);
     // A keeper who came out for it in the move (a sweep, a header won) gets back as fast as he can run,
     // and has no dive to make.
@@ -675,10 +832,13 @@ export class Builder {
     switch (scene.outcome) {
       case "saved": {
         const lateral = Math.abs(end.y - set.y);
-        if (lateral < 1.0 && end.z < 1.9) {
-          // Straight at him: he takes it in.
+        // What he did with it, as the feed logs it after the shot: punched it away, claimed it high, or held it.
+        const after = scene.keeperActions.find((a) => a.clock >= scene.clock && a.kind !== "save" && a.kind !== "sweep");
+        if (lateral < 1.0 && (end.z < 1.9 || after?.kind === "punch" || after?.kind === "claim")) {
+          // Straight at him: he takes it in, or punches it clear.
           this.mark(this.keeper, reachAt, { x: end.x - side * 0.35, y: end.y });
-          script.actors[this.keeper]!.act("gather", reachAt, s.from);
+          const kind: ActionKind = after?.kind === "punch" ? "punch" : after?.kind === "claim" || end.z > 1.5 ? "claim" : "gather";
+          script.actors[this.keeper]!.act(kind, reachAt, s.from);
         } else {
           this.dive(end, set, react, reachAt);
         }
@@ -812,6 +972,14 @@ export class Builder {
       return;
     }
     const from = scene.shot.from;
+    if (scene.review === "overturned") {
+      // Struck off by VAR: he wheels away, and it's taken back.
+      this.mark(this.shooter, t + 0.2, from);
+      this.mark(this.shooter, t + 1.4, { x: from.x - (right ? 1 : -1) * 5, y: Math.max(from.y - 4, 2.5) }, "out");
+      script.actors[this.shooter]!.act("dejected", t + 1.35, goal);
+      this.payoffAt = t + 1.6;
+      return;
+    }
     const flag = { x: goal.x - (right ? 1 : -1) * 12, y: 0 };
     const dx = flag.x - from.x;
     const dy = flag.y - from.y;
@@ -824,12 +992,8 @@ export class Builder {
     // The assist first to him, then whoever else is near.
     const teammates = script.actors.map((_, i) => i).filter((i) => i !== this.shooter && script.actors[i]!.team === "attacking");
     const rank = (i: number) => (script.actors[i]!.name === scene.assist ? 0 : 1);
-    const near = teammates
-      .filter((i) => {
-        const p = this.lastMark(i) ?? script.actors[i]!.at;
-        return this.distance(p, spot) < 20;
-      })
-      .sort((a, b) => rank(a) - rank(b));
+    const away = (i: number) => this.distance(this.lastMark(i) ?? script.actors[i]!.at, spot);
+    const near = teammates.filter((i) => away(i) < 20).sort((a, b) => rank(a) - rank(b) || away(a) - away(b));
     near.slice(0, 3).forEach((i, n) => {
       // Either side of him and a little behind, across the camera's view so they don't hide him.
       const across = (n % 2 === 0 ? -1.0 : 1.0) * (1.9 + Math.trunc(n / 2) * 1.6);
@@ -867,6 +1031,145 @@ export class Builder {
     return latestMark(this.marks.get(i))?.at ?? null;
   }
 
+  /**
+   * The ball never jumps: each flight leaves from where, and as high as, the
+   * one before came down (a header's flick-on from his head, a punch from
+   * the keeper's fists); a shot struck at head height or on the volley is
+   * met there by the ball that came to it.
+   */
+  level(): void {
+    const flights = this.script.flights;
+    for (let k = 1; k < flights.length; k++) {
+      const a = flights[k - 1]!;
+      const b = flights[k]!;
+      if (!(b.start <= a.end + 0.2 && this.distance(ground(b.from), ground(a.to)) < 1.5 && Math.abs(b.from.z - a.to.z) > 0.001)) continue;
+      if (b.kind === "shot") a.to = { ...a.to, z: b.from.z };
+      else b.from = { ...b.from, z: a.to.z };
+    }
+  }
+
+  // MARK: Shape
+
+  /**
+   * Everyone in both starting elevens who didn't touch the ball, in his
+   * team's shape (the lineup's formation) as the ball moves: the attack
+   * pushed up behind the ball and drawn across to it, the defense between
+   * the ball and its goal, tighter the nearer it comes; at a corner or a
+   * free kick both packed into the box until the delivery's in; on a counter
+   * the defense caught upfield, getting back. A substitute who touched it
+   * stands in for a man who came off. A man in the move comes into his first
+   * touch from his place in the shape. Two lines and a front, at a jog.
+   */
+  squads(): void {
+    const { scene, script, right } = this;
+    const other = scene.side === "top" ? "bottom" : "top";
+    const attack = this.lineups[scene.side];
+    const defence = this.lineups[other];
+    if (!attack || !defence || attack.players.length < 10 || defence.players.length < 10) return;
+    // (Swift's floating stride: each time k × 0.6, not a running sum.)
+    const times: number[] = [];
+    for (let k = 0; k * 0.6 < script.strike; k++) times.push(k * 0.6);
+    times.push(script.strike, script.arrive + 0.8);
+    const balls = times.map((t) => {
+      const b = script.ball(Math.min(t, script.strike));
+      return b ? ground(b) : scene.shot.from;
+    });
+    const firstMark = (i: number) => {
+      let first: Mark | null = null;
+      for (const m of this.marks.get(i) ?? []) if (!first || m.t < first.t) first = m;
+      return first;
+    };
+    for (const [team, lineup, facing] of [
+      ["attacking", attack, right],
+      ["defending", defence, !right],
+    ] as const) {
+      const players = [...lineup.players];
+      const figures = script.actors.flatMap((a, i) => (a.team === team ? [i] : []));
+      const athletes = new Set(figures.flatMap((i) => script.actors[i]!.athlete ?? []));
+      // A substitute in the move takes the place of a man who went off (else of the nearest who didn't touch it).
+      for (const i of figures) {
+        const athlete = script.actors[i]!.athlete;
+        if (!(athlete != null && !players.some((p) => p.athlete === athlete))) continue;
+        if (!(script.actors[i]!.role !== "keeper" || team === "attacking")) continue;
+        const first = firstMark(i)?.at ?? script.actors[i]!.at;
+        const gap = (k: number) => this.distance(this.home(players[k]!, facing), first);
+        const open = players.flatMap((p, k) => (!athletes.has(p.athlete) && p.place !== 1 ? [k] : []));
+        const nearestOf = (list: readonly number[]) => list.reduce<number | null>((m, k) => (m == null || gap(k) < gap(m) ? k : m), null);
+        const k = nearestOf(open.filter((k) => players[k]!.subbedOut)) ?? nearestOf(open);
+        if (k != null) players.splice(k, 1);
+      }
+      const lines = players.length > 0 ? Math.max(...players.map((p) => p.line)) : 4;
+      for (const p of players) {
+        // The defending keeper is the keeper already on his line.
+        if (team === "defending" && p.place === 1) continue;
+        const places = times.map((t, k) => this.shape(p, team, facing, lines, balls[k]!, t));
+        const known = figures.find((i) => script.actors[i]!.athlete === p.athlete);
+        if (known != null) {
+          // In the move: from his place in the shape into his first touch, if he can get there.
+          const first = firstMark(known);
+          if (first && first.t > 0.3 && this.distance(places[0]!, first.at) <= runSpeed * 0.8 * first.t) this.mark(known, 0, places[0]!, null, true);
+          continue;
+        }
+        const i = this.actor(team, p.name ?? p.athlete, places[0]!, p.place === 1 ? "keeper" : "outfield", false, p.athlete);
+        script.actors[i]!.shaped = true;
+        times.forEach((t, k) => this.mark(i, t, places[k]!, null, true));
+      }
+    }
+  }
+
+  /** A man's nominal spot, in metres on the pitch. */
+  home(p: LineupPlayer, right: boolean): Point {
+    const n = Pitch.metres(p.spot.x, p.spot.y);
+    return right ? n : { x: Pitch.length - n.x, y: Pitch.width - n.y };
+  }
+
+  /** Where a man stands in his team's shape with the ball at `ball`, at t: worked in his team's own frame (attacking toward x = 105), then turned onto the pitch. */
+  shape(p: LineupPlayer, team: Team, right: boolean, lines: number, ball: Point, t: number): Point {
+    const { scene, script } = this;
+    const turned = (q: Point): Point => (right ? q : { x: Pitch.length - q.x, y: Pitch.width - q.y });
+    const n = Pitch.metres(p.spot.x, p.spot.y);
+    const b = turned(ball);
+    // The defense's back line, in its own frame: deeper and tighter the nearer the ball (at x from its goal).
+    const backLine = (bx: number) => Math.min(Math.max(bx * 0.45 + 2, 6), 34);
+    let q: Point;
+    if (team === "attacking") {
+      if (p.place === 1) {
+        q = { x: n.x + Math.max(b.x - 52.5, 0) * 0.3, y: 34 + (b.y - 34) * 0.15 };
+      } else {
+        q = { x: n.x + (b.x - 52.5) * 0.6, y: 34 + (n.y - 34) * 0.9 + (b.y - 34) * 0.3 };
+        // Onside: no further than the defense's back line, or the ball.
+        q = { x: Math.min(q.x, Math.max(Pitch.length - backLine(Pitch.length - b.x) + 0.5, b.x)), y: q.y };
+      }
+    } else {
+      const k = Math.min(Math.max(b.x / 55, 0.35), 1);
+      let back = backLine(b.x);
+      // On the counter: caught upfield at first, getting back as the move goes.
+      if (scene.shot.situation === "fastBreak") back += (Math.max(back, 40) - back) * (1 - Rig.smooth(t / Math.max(script.strike, 0.1)));
+      q = { x: back + (n.x - 21) * k, y: 34 + (n.y - 34) * (0.7 + 0.25 * k) + (b.y - 34) * 0.35 };
+    }
+    // A corner or a free kick into the box: packed in until the delivery's in, then back out to the shape.
+    const restart = scene.start === "corner" || scene.start === "freeKick";
+    const situation = scene.shot.situation;
+    const secondPhase = scene.start === "openPlay" && (situation === "corner" || situation === "setPiece" || situation === "freeKick");
+    if (restart || secondPhase) {
+      const until = restart ? (script.flights[0]?.end ?? 0) : 0;
+      const w = 1 - Rig.smooth((t - until) / 1.8);
+      if (w > 0) {
+        const across = (p.place % 5) / 4;
+        let packed: Point;
+        if (team === "attacking") {
+          const central = SoccerLineup.lateral(p.position) !== 2 && SoccerLineup.lateral(p.position) !== -2;
+          packed = p.place === 1 ? q : (p.line === 1 && central) || p.line >= 3 ? { x: 93 + (p.place % 3) * 2.5, y: 27 + 14 * across } : { x: 60 + p.line * 5, y: n.y };
+        } else {
+          packed = p.line === lines ? { x: 26, y: 34 + (n.y - 34) * 0.4 } : { x: 3.5 + (p.line - 1) * 3, y: 34 + (n.y - 34) * 0.42 };
+        }
+        q = { x: q.x + (packed.x - q.x) * w, y: q.y + (packed.y - q.y) * w };
+      }
+    }
+    q = { x: Math.min(Math.max(q.x, 1), Pitch.length - 1), y: Math.min(Math.max(q.y, 1.5), Pitch.width - 1.5) };
+    return turned(q);
+  }
+
   // MARK: Paths and end
 
   /**
@@ -901,7 +1204,7 @@ export class Builder {
           list.push(m);
         }
       }
-      if (actor.role === "keeper") {
+      if (actor.role === "keeper" || actor.shaped || first.t === 0) {
         actor.at = first.at;
       } else if (!(scene.shot.penalty && i === this.shooter)) {
         // Into his first touch from a couple of strides off it, so he's moving when it comes.
@@ -909,21 +1212,26 @@ export class Builder {
         actor.at = { x: first.at.x - side * lead * 0.7, y: first.at.y - lead * 0.7 };
       }
       let previous: Mark = { t: 0, at: actor.at, ease: null, soft: false };
+      // The shape jogs; the men in the move run.
+      const pace = actor.shaped ? jogSpeed : runSpeed;
       for (const mark of list) {
         const m = { ...mark };
-        // Back to his line after coming out, the keeper arrives when he can.
+        // Back to his line after coming out, the keeper arrives when he can; the shape gets as far as a jog takes it.
         if (m.soft && m.t > previous.t) {
           const d = this.distance(previous.at, m.at);
-          const reach = runSpeed * (m.t - previous.t);
+          const reach = pace * (m.t - previous.t);
           if (d > reach) m.at = { x: previous.at.x + ((m.at.x - previous.at.x) * reach) / d, y: previous.at.y + ((m.at.y - previous.at.y) * reach) / d };
         }
         const d = this.distance(previous.at, m.at);
         if (m.ease != null) {
           // On the ball (or a dive): exactly from the mark before.
           if (d > 0.02) actor.move([m.at], previous.t, m.t, m.ease);
+        } else if (d > 0.05 && actor.shaped) {
+          // The shape drifts steadily from one place to the next.
+          actor.move([m.at], previous.t, m.t, "linear");
         } else if (d > 0.05) {
           // Off it: sets off in time to get there at a run, never before the mark before.
-          const need = d / runSpeed;
+          const need = d / pace;
           const leave = Math.max(previous.t + 0.05, m.t - Math.max(need * 1.5, 0.3));
           actor.move([m.at], Math.min(leave, m.t - 0.05), m.t, m.t - leave > 0.6 ? "inOut" : "linear");
         }
@@ -967,7 +1275,10 @@ export class Builder {
       script.banners.push({ text, tone, at, until: Math.max(end, at + 1.6), confetti });
     };
     if (scene.shot.penalty) banner("PENALTY", "team", 0.25, script.strike - 0.15);
-    switch (scene.outcome) {
+    switch (scene.review === "overturned" ? "overturned" : scene.outcome) {
+      case "overturned":
+        banner("NO GOAL", "neutral", t + 1.1);
+        break;
       case "goal":
         banner("GOAL", scene.decisive ? "gold" : "team", t + 0.08, until, true);
         break;
@@ -1088,23 +1399,80 @@ export class Builder {
       }
       return CameraFrame.headroom + (CameraFrame.bannerRoom - CameraFrame.headroom) * up;
     };
-    script.camera = CameraFollow.samples(script.settle, (t) => {
-      let k = 0;
-      for (let i = shots.length - 1; i >= 0; i--) {
-        if (shots[i]!.from <= t) {
-          k = i;
-          break;
+    const arrive = script.arrive;
+    const principals = script.actors.filter((a) => !a.shaped);
+    /**
+     * The track, making room for the stamp from `early` before it lands, with
+     * `margin` more than its corner (someone walking into it is out again
+     * before the camera catches up), looking `ahead` at where everyone's
+     * going, and minding (by `reach`) men just past the edge of the view.
+     */
+    const track = (early: number, margin: number, ahead: number, reach: number): CameraFrame[] =>
+      CameraFollow.samples(script.settle, (t) => {
+        let k = 0;
+        for (let i = shots.length - 1; i >= 0; i--) {
+          if (shots[i]!.from <= t) {
+            k = i;
+            break;
+          }
         }
+        const shot = shots[k]!;
+        const rooms = shot.rooms(script, t, goal);
+        // (Behind the cut from behind the goal, the main camera makes room for the stamp unseen; on it, never before
+        // the shot's there: it pushes in for the shot, it doesn't widen for a stamp to come.)
+        if (!(t >= Math.min(Math.max(stamp - early, arrive + 0.05), reverse?.from ?? Infinity))) return PitchCamera.fitting(rooms, band(t), shot.closest);
+        // The stamp never sits on anyone in the play, in view or not (a teammate running to the scorer).
+        const everyone: Room[] = [];
+        for (const a of principals) {
+          for (let n = 0; t + n * 0.3 <= t + ahead; n++) everyone.push(room(fieldPoint(a.position(t + n * 0.3)), true));
+        }
+        return PitchCamera.fitting(rooms, band(t), shot.closest, { width: corner.width + margin, height: corner.height + margin + 0.01 }, cornerRight, everyone, STAND, reach);
+      });
+    /**
+     * How many frames once the stamp is down have a man in the play standing
+     * in its corner, as the camera (a beat behind its goal) actually frames
+     * them (through PitchProjection's lens, inline: soccerTheater.ts imports
+     * this module).
+     */
+    const crowded = (samples: readonly CameraFrame[]): number => {
+      const view = { width: 2, height: 1 };
+      let count = 0;
+      for (let n = 0; stamp + 0.2 + n / 30 <= script.duration; n++) {
+        const t = stamp + 0.2 + n / 30;
+        if (reverse && t >= reverse.from && t < reverse.until) continue;
+        const frame = CameraFollow.frame(samples, t);
+        if (!frame) continue;
+        const b = PitchCamera.basis(frame, STAND);
+        const half = Math.max(frame.span, 1) / 2 / b.distance;
+        const focal = Math.max(Math.min(view.height / 2 / half, view.width / 2 / (half * CameraFrame.aspect)), 1);
+        const inCorner = principals.some((a) => {
+          const p = a.position(t);
+          const q = b.tangent({ x: p.x, y: p.y, z: 0 });
+          const x = (view.width / 2 + q.u * focal) / view.width;
+          const y = (view.height / 2 - q.v * focal) / view.height;
+          return (cornerRight ? x > 1 - corner.width : x < corner.width) && x > 0 && x < 1 && y > 1 - corner.height && y < 1;
+        });
+        if (inCorner) count += 1;
       }
-      const shot = shots[k]!;
-      const rooms = shot.rooms(script, t, goal);
-      // (Behind the cut from behind the goal, the main camera makes room for the stamp unseen.)
-      if (!(t >= Math.min(stamp - 0.3, reverse?.from ?? Infinity))) return PitchCamera.fitting(rooms, band(t), shot.closest);
-      // The stamp never sits on anyone in view, in the play or not (a teammate running to the scorer).
-      const everyone = script.actors.flatMap((a) => [t, t + 0.3].map((u) => room(fieldPoint(a.position(u)), true)));
-      // (A little more than the stamp's corner: someone walking into it is out again before the camera catches up.)
-      return PitchCamera.fitting(rooms, band(t), shot.closest, { width: corner.width + 0.03, height: corner.height + 0.04 }, cornerRight, everyone);
-    });
+      return count;
+    };
+    // The plainest track that keeps the corner clear; failing that, more care, a step at a time.
+    let best: { samples: CameraFrame[]; crowded: number } | null = null;
+    const care = [
+      [0.3, 0.03, 0.3, 0.0],
+      [0.6, 0.05, 0.9, 0.0],
+      [0.9, 0.05, 0.9, 0.1],
+      [1.2, 0.08, 1.2, 0.2],
+      [1.6, 0.08, 1.5, 0.4],
+      [2.0, 0.1, 1.8, 0.8],
+    ] as const;
+    for (const [early, margin, ahead, reach] of care) {
+      const samples = track(early, margin, ahead, reach);
+      const count = crowded(samples);
+      if (best == null || count < best.crowded) best = { samples, crowded: count };
+      if (count === 0) break;
+    }
+    script.camera = best?.samples ?? [];
   }
 }
 
@@ -1257,7 +1625,9 @@ export const PitchCamera = {
    * `headroom`, no tighter than `closest` metres top to bottom, and (with a
    * `corner`) keeping them, and any of `others` in view, out of the stamp's
    * corner: it slides the least it can, or widens. Through the main camera,
-   * or the one behind a goal (`angle`).
+   * or the one behind a goal (`angle`). With `reach`, a bystander just past
+   * the edge of the view counts too (a camera still easing in from wider
+   * shows him).
    */
   fitting(
     items: readonly Room[],
@@ -1267,6 +1637,7 @@ export const PitchCamera = {
     cornerRight = false,
     others: readonly Room[] = [],
     angle: Angle = STAND,
+    reach = 0,
   ): CameraFrame {
     if (items.length === 0) return PitchCamera.rest;
     let x0 = Infinity;
@@ -1329,11 +1700,12 @@ export const PitchCamera = {
       if (corner.width > 0 && corner.height > 0) {
         // Bystanders needn't be in frame, but none may stand in the stamp's corner.
         const bystanders = others.map(box);
-        for (let k = 0; k < 6; k++) {
+        // (Clearing one man can bring the next in: a few more goes than there are usually men to clear.)
+        for (let k = 0; k < 10; k++) {
           const across = (u: number) => 0.5 + (u - cu) / (2 * h * aspect);
           const upward = (v: number) => 0.5 + (v - cv) / (2 * h);
-          const shown = (b: { u0: number; u1: number; v0: number; v1: number }) => across(b.u1) > 0 && across(b.u0) < 1 && upward(b.v1) > 0 && upward(b.v0) < 1;
-          // In the corner: the stamp's side of the view, low down.
+          const shown = (b: { u0: number; u1: number; v0: number; v1: number }) => across(b.u1) > -reach && across(b.u0) < 1 + reach && upward(b.v1) > -reach && upward(b.v0) < 1;
+          // In the corner: the stamp's side of the view, low down (with `reach`, a bystander just past the edge counts).
           const inside = [...boxes, ...bystanders.filter(shown)].filter((box) => upward(box.v0) < corner.height && (cornerRight ? across(box.u1) > 1 - corner.width : across(box.u0) < corner.width));
           if (inside.length === 0) break;
           const slide = cornerRight ? Math.max(...inside.map((box) => across(box.u1) - (1 - corner.width))) : Math.max(...inside.map((box) => corner.width - across(box.u0)));

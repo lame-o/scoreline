@@ -9,7 +9,7 @@
 import { cueFor, presetFor, sparks, cueDuration, type CelebrationCue, type CelebrationLevel, type Effect } from "../celebrations";
 import type { JSONValue } from "../json";
 import type { Side } from "../models";
-import { pitchScale, type PitchScale } from "../liveFeeds/soccer";
+import { pitchScale, REVIEW_MS, type PitchScale } from "../liveFeeds/soccer";
 import { decisive, type LiveMoment } from "../moments";
 import { CameraFrame } from "../mlb/playCamera";
 import type { FieldPoint, Point } from "../mlb/theaterField";
@@ -115,7 +115,8 @@ export const GoalCelebration = {
    * sparks. Nothing for another moment, or when the level is Off.
    */
   theater(moment: LiveMoment | null, scene: SoccerScene, script: SoccerScript, level: CelebrationLevel, reduceMotion: boolean, height: number): Burst[] {
-    if (!moment || moment.id !== scene.id || moment.chart !== "pitch") return [];
+    // A goal VAR took back celebrates nothing.
+    if (!moment || moment.id !== scene.id || moment.chart !== "pitch" || scene.review === "overturned") return [];
     const gold = scene.decisive || decisive(moment);
     const cue = (effects: readonly Effect[]): CelebrationCue | null => {
       const c = cueFor(moment, { level, reduceMotion, preset: presetFor(height), direction: Math.PI / 2, effects });
@@ -148,21 +149,29 @@ export const GoalCelebration = {
 
 // MARK: - What the theater shows
 
-/** BaseballFeed.recent: a moment this fresh is news even on a page that only just opened (ESPN posts plays late). */
 /**
- * What the stage shows (SoccerTheater.swift `SoccerTheater.shown`): a
- * moment replaying, then its end (the scorer wheeling away, the stamp) until
- * it has held (`rested`); a new moment not yet begun; otherwise null, the
- * quiet pitch. History that isn't news is never shown: moments can be twenty
- * minutes apart, and on opening the page the pitch is quiet. (pure; tested)
+ * What the stage shows (SoccerTheater.shown): a moment replaying, then its
+ * end (the scorer wheeling away, the stamp) until it has held (`rested`); a
+ * new moment not yet begun; otherwise null, the quiet pitch. History that
+ * isn't news is never shown: moments can be twenty minutes apart, and on
+ * opening the page the pitch is quiet. A goal VAR has just struck off
+ * replays once more, as a NO GOAL beat. Replays go by `soccerKey`. (pure; tested)
  */
-export function soccerShown(state: SoccerTheaterState, replaying: string | null, rested: string | null): SoccerScene | null {
+export function soccerShown(state: SoccerTheaterState, replaying: string | null, rested: string | null, now: number = Date.now()): SoccerScene | null {
+  const struck = state.overturned;
+  if (struck && struck.wallclock != null && now - struck.wallclock < REVIEW_MS + 120_000 && rested !== soccerKey(struck)) return struck;
   const scene = state.scene;
   if (!scene) return null;
-  if (replaying === scene.id) return rested === scene.id ? null : scene;
+  if (replaying === soccerKey(scene)) return rested === soccerKey(scene) ? null : scene;
   return state.news ? scene : null;
 }
 
+/** A moment's replay, by its play; a goal struck off by VAR replays as a beat of its own. */
+export function soccerKey(scene: SoccerScene): string {
+  return scene.review === "overturned" ? `${scene.id}-var` : scene.id;
+}
+
+/** BaseballFeed.recent: a moment this fresh is news even on a page that only just opened (ESPN posts plays late). */
 export const RECENT_MS = 60_000;
 
 /**

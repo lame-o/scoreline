@@ -16,7 +16,12 @@ import type { JSONValue } from "../../src/data/json";
 import { confirmed, REVIEW_MS, SoccerFeed, struckOff, type Review } from "../../src/data/liveFeeds/soccer";
 import type { ScoreEvent, Side } from "../../src/data/models";
 import { isMoment, keepers, parse, Pitch, playID, readLineups, SoccerLineup, window as moveWindow, type SoccerScene } from "../../src/data/theater/soccerScene";
-import { retracting, soccerShown, SoccerTheaterWatch, soccerTheaterState } from "../../src/data/theater/soccerTheater";
+import { GoalCelebration, retracting, soccerKey, soccerShown, SoccerTheaterWatch, soccerTheaterState, stampDetail } from "../../src/data/theater/soccerTheater";
+import { Builder, buildUpLimit, jogSpeed, SoccerScript, type ActionKind } from "../../src/data/theater/soccerScript";
+import { liveMoment, Tier } from "../../src/data/moments";
+import type { Point } from "../../src/data/mlb/theaterField";
+import { actorPose } from "../../src/features/game/soccer/theater/drawSoccer";
+import { jointsBreak } from "./rigJoints";
 import { fixture } from "./fixtures";
 
 interface Team {
@@ -414,5 +419,242 @@ describe("soccer fidelity: the lineups reach the theater", () => {
     await feed.update(f.fetcher, { league: "eng.1", eventID: m.id, homeTeamID: m.home.id, rosters: JSON.parse(JSON.stringify(rosters)) });
     expect(renders).toBe(seen);
     expect(watch.update(feed.plays, m.home.id, true, Date.UTC(2030, 0, 1), { struck: feed.struck, rosters: feed.rosters })).toBe(false);
+  });
+});
+
+/**
+ * The choreography reading every field, on the same real clips
+ * (SoccerTheaterTests.swift `soccerSequencing`): all 22 in their lineups'
+ * shape, each touch at its real pace, the foot or head Opta logs, the
+ * assist's kind, the keeper's own actions (Petrovic's punch from a corner,
+ * mid-move, in the clip that made the ball jump), a set piece's crowded box,
+ * and VAR's NO GOAL.
+ */
+describe("soccer theater: every touch in the order and at the pace it happened", () => {
+  interface Sequenced {
+    readonly plays: readonly JSONValue[];
+    readonly home: string;
+    readonly lineups: ReturnType<typeof SoccerLineup.lineups>;
+  }
+  const sequenced: Sequenced[] = matches.flatMap((m) => {
+    const lineups = SoccerLineup.lineups(m.rosters, sideOf(m));
+    return m.clips.map((plays) => ({ plays, home: m.home.id, lineups }));
+  });
+  const findIn = (clue: string): { scene: SoccerScene; clip: Sequenced } | null => {
+    for (const clip of sequenced) {
+      const i = clip.plays.findIndex((p) => isMoment(p) && textOf(p).includes(clue));
+      if (i < 0) continue;
+      const scene = parse(clip.plays, i, clip.home, keepers(clip.plays));
+      if (scene) return { scene, clip };
+    }
+    return null;
+  };
+  const near = (a: Point | null | undefined, b: Point | null | undefined, tolerance: number) => a != null && b != null && Math.hypot(a.x - b.x, a.y - b.y) <= tolerance;
+  const acts = (script: SoccerScript, kind: ActionKind) => script.actors.flatMap((a) => a.actions.filter((x) => x.kind === kind));
+
+  it("Cunha's chance: Petrovic punches Mount's corner from over his head, to where the feed says it landed", () => {
+    const found = findIn("Matheus Cunha (Manchester United) header")!;
+    expect(found).not.toBeNull();
+    const { scene: s, clip } = found;
+    const script = SoccerScript.build(s, clip.lineups);
+    const keeper = script.actors.findIndex((a) => a.team === "defending" && a.role === "keeper");
+    const punch = s.keeperActions.find((a) => a.kind === "punch");
+    const punched = keeper >= 0 ? script.actors[keeper]!.actions.find((a) => a.kind === "punch") : undefined;
+    const away = punched ? script.flights.find((f) => Math.abs(f.start - punched.at) < 0.01) : undefined;
+    expect(punch).toBeDefined();
+    expect(punched).toBeDefined();
+    expect(Math.abs(away!.from.z - 2.5)).toBeLessThan(0.01);
+    expect(near(away!.to, punch!.to, 0.5)).toBe(true);
+  });
+
+  it("…the header from his head, met there by the ball that came to it: no flight starts higher or lower than the last came down; the duels before it in the air, up for them", () => {
+    const { scene: s, clip } = findIn("Matheus Cunha (Manchester United) header")!;
+    const script = SoccerScript.build(s, clip.lineups);
+    const shot = script.shot != null ? script.flights[script.shot] : undefined;
+    let into: (typeof script.flights)[number] | undefined;
+    for (const f of script.flights) if (f.end <= script.strike + 0.01 && f.kind !== "shot") into = f;
+    expect(Math.abs(shot!.from.z - 1.95)).toBeLessThan(0.01);
+    expect(Math.abs(into!.to.z - 1.95)).toBeLessThan(0.01);
+    const jumps = script.flights.slice(1).filter((b, k) => {
+      const a = script.flights[k]!;
+      return b.start <= a.end + 0.2 && Math.hypot(b.from.x - a.to.x, b.from.y - a.to.y) < 1.5 && !(Math.abs(b.from.z - a.to.z) < 0.01);
+    });
+    expect(jumps.map((f) => `${f.from.z.toFixed(2)}`)).toEqual([]);
+    expect(script.actors.some((a) => a.actions.some((x) => x.kind === "aerial"))).toBe(true);
+  });
+
+  it("Cherki strikes it with his left foot, as Opta logs it (the strike mirrored); Gabriel with his head", () => {
+    const { scene: s } = findIn("Rayan Cherki (Manchester City) left footed shot from the centre")!;
+    const script = SoccerScript.build(s);
+    const strike = acts(script, "kick").find((a) => Math.abs(a.at - script.strike) < 0.01);
+    expect(s.shot.contact).toBe("leftFoot");
+    expect(strike?.left).toBe(true);
+    const gabriel = SoccerScript.build(findIn("Gabriel Magalhães (Arsenal) header from very close range")!.scene);
+    expect(acts(gabriel, "header").some((a) => Math.abs(a.at - gabriel.strike) < 0.01)).toBe(true);
+  });
+
+  it("every move at its real pace: each touch's beat its gap on the match clock, squeezed by one factor to fit five seconds, never quicker than the ball can go; and a move that fits plays in real time", () => {
+    let proportional = 0;
+    let measured = 0;
+    let realTime = 0;
+    let short = 0;
+    for (const clip of sequenced) {
+      clip.plays.forEach((p, i) => {
+        if (!isMoment(p)) return;
+        const s = parse(clip.plays, i, clip.home, keepers(clip.plays));
+        if (!s || s.shot.penalty) return;
+        const b = new Builder(s);
+        const touches = b.shown(s.touches);
+        if (touches.length < 2) return;
+        const plan = b.beats(touches);
+        const gaps = b.gaps(touches);
+        const floors = touches.map((_, k) => b.least(touches, k));
+        measured += 1;
+        // Where the speed limits don't bind, each beat is its real gap times one factor.
+        const free = touches.map((_, k) => k).filter((k) => plan.beats[k]! > floors[k]! + 1e-6);
+        if (free.every((k) => Math.abs(plan.beats[k]! - gaps[k]! * plan.compression) < 1e-6) && plan.beats.reduce((a, x) => a + x, 0) <= buildUpLimit + 0.01) proportional += 1;
+        if (touches.reduce((sum, _, k) => sum + Math.max(gaps[k]!, floors[k]!), 0) <= buildUpLimit) {
+          short += 1;
+          if (plan.compression === 1 && touches.every((_, k) => plan.beats[k] === Math.max(gaps[k]!, floors[k]!))) realTime += 1;
+        }
+      });
+    }
+    console.log(`    pace: ${proportional} of ${measured} proportional; ${realTime} of ${short} in real time`);
+    expect(measured).toBeGreaterThanOrEqual(15);
+    expect(proportional).toBe(measured);
+    expect(short).toBeGreaterThan(0);
+    expect(realTime).toBe(short);
+  });
+
+  it("Gvardiol's headed pass to Fernández: he heads it on, the ball coming to him at head height", () => {
+    const { scene: s, clip } = findIn("Enzo Fernández (Manchester City) right footed shot from the centre of the box is blocked")!;
+    const script = SoccerScript.build(s, clip.lineups);
+    const assister = script.actors.find((a) => a.athlete != null && a.athlete === s.assistCredit?.athlete);
+    const header = assister?.actions.find((a) => a.kind === "header" || a.kind === "aerial");
+    let into: (typeof script.flights)[number] | undefined;
+    if (header) for (const f of script.flights) if (Math.abs(f.end - header.at) < 0.4 && f.end <= header.at + 0.01) into = f;
+    expect(s.assistKind).toBe("headedPass");
+    expect(header).toBeDefined();
+    expect(Math.abs(into!.to.z - 1.9)).toBeLessThan(0.01);
+  });
+
+  it("a through ball: played into space, and he runs onto it at speed", () => {
+    const { scene, clip } = findIn("Harvey Barnes (Newcastle United)")!;
+    const before = SoccerScript.build(scene, clip.lineups);
+    const through = SoccerScript.build({ ...scene, assistKind: "throughBall" }, clip.lineups);
+    const pace = (script: SoccerScript) => {
+      let pass: (typeof script.flights)[number] | undefined;
+      for (const f of script.flights) if (f.kind === "pass" && f.end <= script.strike + 0.01) pass = f;
+      if (!pass) return 0;
+      const runner = script.actors.find((a) => near(a.position(pass.end), pass.to, 0.6) && a.team === "attacking");
+      if (!runner) return 0;
+      const a = runner.position(pass.end - 0.15);
+      const b = runner.position(pass.end);
+      return Math.hypot(b.x - a.x, b.y - a.y) / 0.15;
+    };
+    console.log(`    through ball: ${pace(through).toFixed(1)} m/s vs ${pace(before).toFixed(1)}`);
+    expect(pace(through)).toBeGreaterThan(4);
+    expect(pace(through)).toBeGreaterThan(pace(before));
+  });
+
+  it("Gabriel's header with both elevens: 22 on the pitch, one keeper each, every man who touched the ball once, as himself; Everton's back line deep, the shape at a jog, the attack onside", () => {
+    const { scene: s, clip } = findIn("Gabriel Magalhães (Arsenal) header from very close range")!;
+    const script = SoccerScript.build(s, clip.lineups);
+    const attackers = script.actors.filter((a) => a.team === "attacking");
+    const defenders = script.actors.filter((a) => a.team === "defending");
+    const athletes = script.actors.flatMap((a) => a.athlete ?? []);
+    expect(attackers.length).toBe(11);
+    expect(defenders.length).toBe(11);
+    expect(script.actors.filter((a) => a.role === "keeper").length).toBe(2);
+    expect(new Set(athletes).size).toBe(athletes.length);
+    expect(s.touches.every((t) => (t.credit ? athletes.includes(t.credit.athlete) : true))).toBe(true);
+    const t = script.strike;
+    const shaped = script.actors.filter((a) => a.shaped);
+    const backLine = new Set(clip.lineups.bottom?.players.filter((p) => p.line === 1).map((p) => p.athlete) ?? []);
+    const back = defenders.filter((a) => a.shaped && a.athlete != null && backLine.has(a.athlete));
+    const xs = back.map((a) => a.position(t).x);
+    console.log(`    Everton's back line at the cross: ${JSON.stringify(xs.map((x) => Math.trunc(x)))}`);
+    expect(back.length).toBeGreaterThan(0);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(8);
+    expect(xs.every((x) => x > Pitch.length - 30)).toBe(true);
+    const fastest = Math.max(0, ...shaped.flatMap((a) => a.moves.map((m) => m.length / Math.max(m.end - m.start, 0.01))));
+    expect(fastest).toBeLessThanOrEqual(jogSpeed + 0.01);
+    const goalSide = script.actors.filter((a) => a.team === "defending" && a.role !== "keeper").map((a) => a.position(t).x).sort((a, b) => b - a);
+    const offside = goalSide.length > 1 ? goalSide[0]! : Pitch.length;
+    const ball = script.ball(t)?.x ?? 0;
+    expect(attackers.filter((a) => a.shaped).every((a) => a.position(t).x <= Math.max(offside, ball) + 1.5)).toBe(true);
+  });
+
+  it("a corner: Everton packed into its box (all but one up the pitch) as it's swung in", () => {
+    const { scene: s, clip } = findIn("Ezri Konsa (Arsenal) right footed shot from very close range")!;
+    const script = SoccerScript.build(s, clip.lineups);
+    const box = script.actors.filter((a) => a.team === "defending" && a.shaped && a.role !== "keeper");
+    const inside = box.filter((a) => {
+      const p = a.position(0.2);
+      return p.x > Pitch.length - Pitch.boxDepth - 1 && Math.abs(p.y - Pitch.width / 2) < Pitch.boxWidth / 2 + 2;
+    });
+    expect(s.start).toBe("corner");
+    expect(box.length).toBeGreaterThanOrEqual(8);
+    expect(inside.length).toBeGreaterThanOrEqual(box.length - 1);
+  });
+
+  it("a goal from a set piece says so, as Opta tags it", () => {
+    const { scene: s } = findIn("Erling Haaland (Manchester City) header from very close range")!;
+    expect(stampDetail(s)).toContain("SET PIECE");
+    expect(stampDetail(s).startsWith("ASSISTED BY")).toBe(true);
+  });
+
+  it("Osula's goal struck off by VAR: it goes in, he wheels away, and NO GOAL lands (no confetti, no celebration, no fireworks); replayed once more while the decision is fresh, then the pitch goes quiet", () => {
+    const { scene: osula, clip } = findIn("William Osula (Newcastle United)")!;
+    const when = osula.wallclock!;
+    const showing = { scene: osula, news: true, lineups: clip.lineups };
+    const struck = retracting(new Set([osula.id]), showing, clip.plays, clip.home, keepers(clip.plays));
+    const off = struck.overturned!;
+    expect(off).toBeDefined();
+    const script = SoccerScript.build(off, clip.lineups);
+    const scorer = script.actors.find((a) => a.athlete === osula.shooterCredit?.athlete);
+    expect(script.banners.map((b) => b.text)).toEqual(["NO GOAL"]);
+    expect(script.banners.every((b) => !b.confetti && b.tone === "neutral")).toBe(true);
+    expect(script.impacts.some((i) => i.kind === "net")).toBe(true);
+    expect(scorer?.actions.some((a) => a.kind === "dejected")).toBe(true);
+    expect(scorer?.actions.some((a) => a.kind === "celebrate")).toBe(false);
+    expect(stampDetail(off)).toBe("GOAL OVERTURNED BY VAR");
+    const m = { ...liveMoment({ id: off.id, chart: "pitch", tier: Tier.score, kind: "goal", lead: "Goal", detail: "" }), burst: true };
+    expect(GoalCelebration.theater(m, off, script, "full", false, 320)).toEqual([]);
+    expect(soccerShown(struck, null, null, when + 150_000)).toBe(off);
+    expect(soccerShown(struck, soccerKey(off), soccerKey(off), when + 150_000)).toBeNull();
+    expect(soccerShown(struck, null, null, when + 3_600_000)).toBeNull();
+    expect(soccerKey(off)).not.toBe(off.id);
+  });
+
+  const full: [SoccerScene, SoccerScript][] = [];
+  for (const clip of sequenced) {
+    const found = keepers(clip.plays);
+    clip.plays.forEach((p, i) => {
+      if (!isMoment(p)) return;
+      const scene = parse(clip.plays, i, clip.home, found);
+      if (scene) full.push([scene, SoccerScript.build(scene, clip.lineups)]);
+    });
+  }
+
+  it("every moment with its lineups: eleven a side, everyone on the pitch, every frame", () => {
+    const eleven = (s: SoccerScript, team: "attacking" | "defending") => s.actors.filter((a) => a.team === team).length === 11;
+    const whole = full.filter(([, s]) => eleven(s, "attacking") && eleven(s, "defending"));
+    const onPitch = (p: Point) => Number.isFinite(p.x) && Number.isFinite(p.y) && p.x > -6 && p.x < Pitch.length + 6 && p.y > -4 && p.y < Pitch.width + 4;
+    const finite = full.every(([, s]) => {
+      for (let k = 0; k * 0.05 <= s.duration; k++) if (!s.actors.every((a) => onPitch(a.position(k * 0.05)))) return false;
+      return true;
+    });
+    console.log(`    with both elevens: ${whole.length} of ${full.length}`);
+    expect(whole.length).toBe(full.length);
+    expect(finite).toBe(true);
+  });
+
+  it("the new poses (a leap for a header, the keeper's punch and claim, a left foot's strike), every blend: knees and elbows bend their own way", { timeout: 180_000 }, () => {
+    const broken = full.flatMap(([scene, s]) => {
+      const where = jointsBreak(s.duration, s.actors.length, (i, t) => actorPose(s, s.actors[i]!, i, t, s.actors[i]!.position(t), 1.1 / 2.5)[0]);
+      return where ? [`${scene.shooter}: ${where}`] : [];
+    });
+    expect(broken.slice(0, 3)).toEqual([]);
   });
 });
