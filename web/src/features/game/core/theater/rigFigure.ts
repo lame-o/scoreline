@@ -257,21 +257,33 @@ function disc(ctx: Ctx, p: Point, r: number, color: string): void {
   ctx.fill();
 }
 
+/** A limb's screen box, grown by a stroke's width. */
+function box(l: RigLimb, grow: number): [number, number, number, number] {
+  return [
+    Math.min(l.root.x, l.joint.x, l.end.x) - grow,
+    Math.min(l.root.y, l.joint.y, l.end.y) - grow,
+    Math.max(l.root.x, l.joint.x, l.end.x) + grow,
+    Math.max(l.root.y, l.joint.y, l.end.y) + grow,
+  ];
+}
+
 /**
  * A pictogram (TheaterDraw.figure): its rim first (so the lines and figures
  * behind stop short of it), the limbs behind the body (shaded by how far
- * behind), the body, the limbs in front (each over an inner rim of its own
- * when it's big enough to carry one, so crossing limbs read as layered), the
- * head in the team's own color.
+ * behind), the body, the limbs in front over an inner rim when it's big
+ * enough to carry one (each over its own where they cross, so crossing limbs
+ * read as layered), the head in the team's own color. Limbs that don't need
+ * their own stroke share one: the cost of a figure is its strokes.
  */
 export function drawFigure(ctx: Ctx, f: RigFigure, inks: FigureInks, height: number, opacity: number): void {
   const halo = Math.max(height * 0.045, 0.8);
+  const limbs = f.limbs;
   ctx.globalAlpha = opacity;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.strokeStyle = inks.rim;
   ctx.beginPath();
-  for (const l of f.limbs) limbPath(ctx, l);
+  for (const l of limbs) limbPath(ctx, l);
   ctx.lineWidth = f.limb + 2 * halo;
   ctx.stroke();
   ctx.beginPath();
@@ -280,28 +292,56 @@ export function drawFigure(ctx: Ctx, f: RigFigure, inks: FigureInks, height: num
   ctx.lineWidth = f.torso + 2 * halo;
   ctx.stroke();
   disc(ctx, f.head, f.headRadius + halo, inks.rim);
-  let drewBody = false;
+  // Behind the body, far to near: a run of the same shade in one stroke.
+  ctx.lineWidth = f.limb;
+  let i = 0;
+  while (i < limbs.length && !limbs[i]!.front) {
+    const shade = limbs[i]!.shade;
+    ctx.beginPath();
+    while (i < limbs.length && !limbs[i]!.front && limbs[i]!.shade === shade) limbPath(ctx, limbs[i++]!);
+    ctx.strokeStyle = inks.shades[Math.min(Math.max(shade, 0), inks.shades.length - 1)]!;
+    ctx.stroke();
+  }
+  body(ctx, f, inks.jersey);
+  // In front: together, unless two cross on screen; then far to near, each over its own inner rim.
   // Small figures lose their inner rim: it would only blur them.
   const rimmed = height >= 15;
-  for (const l of f.limbs) {
-    if (l.front && !drewBody) {
-      body(ctx, f, inks.jersey);
-      drewBody = true;
+  let crossing = false;
+  if (rimmed) {
+    for (let a = i; a < limbs.length && !crossing; a++) {
+      const p = box(limbs[a]!, f.limb);
+      for (let b = a + 1; b < limbs.length; b++) {
+        const q = box(limbs[b]!, f.limb);
+        if (p[0] <= q[2] && q[0] <= p[2] && p[1] <= q[3] && q[1] <= p[3]) {
+          crossing = true;
+          break;
+        }
+      }
     }
-    if (l.front && rimmed) {
+  }
+  if (crossing) {
+    for (let k = i; k < limbs.length; k++) {
       ctx.beginPath();
-      limbPath(ctx, l);
+      limbPath(ctx, limbs[k]!);
+      ctx.strokeStyle = inks.inner;
+      ctx.lineWidth = f.limb + 1.2;
+      ctx.stroke();
+      ctx.strokeStyle = inks.jersey;
+      ctx.lineWidth = f.limb;
+      ctx.stroke();
+    }
+  } else if (i < limbs.length) {
+    ctx.beginPath();
+    for (let k = i; k < limbs.length; k++) limbPath(ctx, limbs[k]!);
+    if (rimmed) {
       ctx.strokeStyle = inks.inner;
       ctx.lineWidth = f.limb + 1.2;
       ctx.stroke();
     }
-    ctx.beginPath();
-    limbPath(ctx, l);
-    ctx.strokeStyle = inks.shades[Math.min(l.shade, inks.shades.length - 1)]!;
+    ctx.strokeStyle = inks.jersey;
     ctx.lineWidth = f.limb;
     ctx.stroke();
   }
-  if (!drewBody) body(ctx, f, inks.jersey);
   disc(ctx, f.head, f.headRadius, inks.cap);
   ctx.globalAlpha = 1;
 }

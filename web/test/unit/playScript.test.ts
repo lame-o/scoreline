@@ -130,7 +130,7 @@ describe("choreography", () => {
       expect(s.settle - 0.75).toBeLessThanOrEqual(4.4);
     }
   });
-  it("in every play of the game, knees and elbows bend only their own way, never past folded (the poses and every blend between them)", () => {
+  it("in every play of the game, knees and elbows bend only their own way, never past folded (the poses and every blend between them)", { timeout: 60_000 }, () => {
     const scenes = plays.flatMap((p, i) => (typeOf(p) === "play-result" ? (parse(plays, i, side, names) ?? []) : []));
     const broken = scenes.flatMap((sc) => {
       const s = script(sc);

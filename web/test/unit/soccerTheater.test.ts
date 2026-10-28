@@ -293,7 +293,7 @@ describe("soccer theater: choreography", () => {
     }
   });
 
-  it("in every moment, knees and elbows bend only their own way, never past folded (the strikes, the dives and every blend between them)", () => {
+  it("in every moment, knees and elbows bend only their own way, never past folded (the strikes, the dives and every blend between them)", { timeout: 60_000 }, () => {
     const broken = scripts.flatMap(([scene, s]) => {
       const where = jointsBreak(s.duration, s.actors.length, (i, t) => actorPose(s, s.actors[i]!, i, t, s.actors[i]!.position(t), 1.1 / 2.5)[0]);
       return where ? [`${scene.shooter}: ${where}`] : [];

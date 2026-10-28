@@ -31,12 +31,12 @@ export const BaseballPoses = {
   }),
   /** Feet first: leaning back, the lead leg out along the dirt, the other folded under, a hand up. */
   slide: rigPose({
-    hip: vec(-0.1, 0, 0.11),
-    lean: -1.05,
-    left: vec(0.4, 0.04, 0.02),
+    hip: vec(-0.12, 0, 0.09),
+    lean: -1.25,
+    left: vec(0.42, 0.04, 0.02),
     right: vec(0.14, -0.07, 0),
     knees: 0.15,
-    leftArm: rigArm({ swing: 2.45, spread: 0.35, turn: 0, bend: 0.3 }),
+    leftArm: rigArm({ swing: 2.45, spread: 0, turn: 0.5, bend: 0.3 }),
     rightArm: rigArm({ swing: 0.9, spread: 0.45, turn: 0.2, bend: 0.4 }),
   }),
 

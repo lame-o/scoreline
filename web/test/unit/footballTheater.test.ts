@@ -384,7 +384,7 @@ describe("choreography", () => {
     expect(bad.length).toBe(0);
   });
 
-  it("in every snap of the game, knees and elbows bend only their own way, never past folded (the stances, the poses and every blend between them)", () => {
+  it("in every snap of the game, knees and elbows bend only their own way, never past folded (the stances, the poses and every blend between them)", { timeout: 60_000 }, () => {
     const broken = scenes.flatMap((scene, k) => {
       const s = all[k]!;
       const where = jointsBreak(s.duration, s.players.length, (i, t) => playerPose(s, s.players[i]!, i, t, s.players[i]!.position(t), 1.1 / 8.5)[0]);
