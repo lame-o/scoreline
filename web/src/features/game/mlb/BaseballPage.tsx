@@ -52,6 +52,7 @@ export function useBaseballPage(game: GameContext): SportPage {
     const before = feed.score;
     shownRuns.current = runsShown(event);
     await feed.update(getJSON, { path: ref.path, eventID: ref.id, names: detail.athleteNames, side, signal });
+    game.moments.retract(feed.takeRetractions());
     game.moments.offer(feed.takeMoments());
     // A score: refresh the rest (scoring list, line score) now, not in half a minute. On the first
     // look, a lane already ahead of the page's numbers counts as one.
