@@ -18,7 +18,10 @@ import type { JSONValue } from "../../src/data/json";
 import { FootballFeed, type FootballTeams } from "../../src/data/liveFeeds/football";
 import { FootballScene, FootballDepthChart, parse, positionFromESPN, ruling } from "../../src/data/theater/footballScene";
 import { FootballTheaterWatch, footballTheaterState } from "../../src/data/theater/footballTheater";
-import { Builder } from "../../src/data/theater/footballScript";
+import { Builder, FootballScript, footballStamp, Gridiron, type Action } from "../../src/data/theater/footballScript";
+import type { Point } from "../../src/data/mlb/theaterField";
+import { cocked, playerPose } from "../../src/features/game/football/theater/drawFootball";
+import { jointsBreak } from "./rigJoints";
 import { footballSeason } from "../../src/data/liveFeeds/football";
 import { fixture } from "./fixtures";
 
@@ -516,5 +519,279 @@ describe("football fidelity: the depth charts reach the theater", () => {
     expect(watch.state.play?.stripper?.slot).toBe("slb");
     const next = footballTheaterState(parse(sea.items[stripAt + 1]!, sea.teams)!, watch.state, true, 0);
     expect(next.charts).toBe(watch.state.charts);
+  });
+});
+
+/**
+ * The choreography reading every field, on the same real plays
+ * (FootballTheaterTests.swift `footballSequencing`): the hit as he throws,
+ * the strip and the scramble for the ball, the split sack, the blocked kick,
+ * each flag at the moment and the place of its foul and its walk, college's
+ * exact spots, the defense in its own front with each credited man in his
+ * slot, and the ball in the throwing hand.
+ */
+describe("football theater: every play in the order it happened", () => {
+  const raw = (fixture("nfl-depthcharts.json") as { teams: Record<string, JSONValue> }).teams;
+  const kc = FootballDepthChart.from(raw["12"]);
+  const sea = FootballDepthChart.from(raw["26"]);
+  /** The play whose text says this, parsed with its game's teams (Kansas City at Seattle's on their depth charts). */
+  const placed = (clue: string, set: readonly Game[]): FootballScene | null => {
+    for (const game of set) {
+      const item = game.items.find((i) => textOf(i).includes(clue));
+      const s = item ? parse(item, game.teams) : null;
+      if (!s) continue;
+      if (game.teams.topID === "12" && kc && sea) return s.slotted({ top: kc, bottom: sea });
+      return s;
+    }
+    return null;
+  };
+  const proPlay = (clue: string) => placed(clue, nfl);
+  const cfbPlay = (clue: string) => placed(clue, college);
+  const near = (a: Point | null | undefined, b: Point | null | undefined, tolerance: number) => a != null && b != null && Math.hypot(a.x - b.x, a.y - b.y) <= tolerance;
+  /** Who has a pose of this kind, and when. */
+  const acting = (s: FootballScript, kind: Action["kind"]) => s.players.flatMap((p, i) => p.actions.filter((a) => a.kind === kind).map((a) => ({ player: i, at: a.at })));
+  const quarterback = (s: FootballScript) => s.players.findIndex((p) => p.role === "quarterback");
+  const throwAt = (s: FootballScript, qb: number) => s.players[qb]!.actions.find((a) => a.kind === "throwBall")?.at ?? 0;
+
+  it("Seattle in its base 3-4: three down, a nose tackle over the ball; Kansas City's 4-3, four down; eleven a side", () => {
+    const sea3 = proPlay("P.Mahomes pass incomplete deep right to X.Worthy [D.Hall]")!;
+    const kc4 = proPlay("S.Darnold pass incomplete short middle to J.Smith-Njigba")!;
+    const a = FootballScript.play(sea3);
+    const b = FootballScript.play(kc4);
+    const down = a.players.filter((p) => p.team === "defense" && p.role === "front");
+    expect(sea3.front).toBe("threeFour");
+    expect(down.length).toBe(3);
+    expect(down.some((p) => p.key === "nt" && Math.abs(p.at.x) < 1)).toBe(true);
+    expect(b.players.filter((p) => p.team === "defense" && p.role === "front").length).toBe(4);
+    expect(a.players.filter((p) => p.team === "defense").length).toBe(11);
+    expect(a.players.filter((p) => p.team === "offense").length).toBe(11);
+  });
+
+  it("every man in a depth-chart slot: the defense's left corner on the offense's right, its left tackle on its left", () => {
+    const a = FootballScript.play(proPlay("P.Mahomes pass incomplete deep right to X.Worthy [D.Hall]")!);
+    const keys = new Set(a.players.flatMap((p) => p.key ?? []));
+    for (const k of ["lde", "rde", "nt", "wlb", "lcb", "rcb", "ss", "fs", "lt", "rt", "c", "qb"]) expect(keys.has(k), k).toBe(true);
+    expect(a.players.filter((p) => p.key === "lcb").every((p) => p.at.x > 0)).toBe(true);
+    expect(a.players.filter((p) => p.key === "lt").every((p) => p.at.x < 0)).toBe(true);
+  });
+
+  it("a hit as he threw: Seattle's backer (Hall, credited in brackets) gets to Mahomes as the ball leaves, and puts him on his back after it; the throw still goes, deep right", () => {
+    const hit = proPlay("P.Mahomes pass incomplete deep right to X.Worthy [D.Hall]")!;
+    const s = FootballScript.play(hit);
+    const qb = quarterback(s);
+    const release = throwAt(s, qb);
+    const hitter = acting(s, "tackle").find((a) => a.at > release - 0.05 && a.at < release + 0.25);
+    expect(hitter).toBeDefined();
+    expect(near(s.players[hitter!.player]!.position(hitter!.at), s.players[qb]!.position(release), 3.5)).toBe(true);
+    expect(s.players[hitter!.player]!.role).toBe("backer");
+    expect(s.players[hitter!.player]!.position(0).x * (hit.lane === "left" ? -1 : 1)).not.toBe(0);
+    expect(s.players[qb]!.holds.some((h) => h.kind === "knocked" && h.from > release)).toBe(true);
+    expect(s.flashes.some((f) => f.beat === "hit" && f.at > release)).toBe(true);
+    expect(s.flights.some((f) => f.start === release && f.end - f.start > 0.5)).toBe(true);
+  });
+
+  it("a hurried throw (college's \"QB hurried by\"): both men close on him as he throws, a stride short, no hit", () => {
+    const s = FootballScript.play(cfbPlay("QB hurried by #3 M.Ratcliffe and #10 M.Jones")!);
+    const qb = quarterback(s);
+    const release = throwAt(s, qb);
+    const at = s.players[qb]!.position(release);
+    const closing = s.players.filter((p) => p.team === "defense" && Math.hypot(p.position(release).x - at.x, p.position(release).y - at.y) < 8);
+    expect(closing.length).toBe(2);
+    expect(s.players[qb]!.holds.some((h) => h.kind === "knocked")).toBe(false);
+  });
+
+  it("a strip-sack: Muhammad's punch as he gets there, the ball out of Young's arms at the spot of the sack, Young down; the scramble, and Kancey scoops it up at the 32 and runs it back: TOUCHDOWN", () => {
+    const s = FootballScript.play(proPlay("B.Young sacked at CAR 31 for -9 yards (A.Muhammad). FUMBLES")!);
+    const qb = quarterback(s);
+    const stripped = acting(s, "strip")[0];
+    const pop = s.flights.find((f) => f.start > 1 && Math.abs(f.from.z - 3.4) < 0.01);
+    const recovery = acting(s, "scoop")[0];
+    expect(stripped && pop?.start === stripped.at).toBe(true);
+    expect(Math.abs(pop!.to.y - Gridiron.y(31))).toBeLessThan(0.5);
+    expect(s.players[qb]!.holds.some((h) => h.kind === "down")).toBe(true);
+    expect(recovery).toBeDefined();
+    expect(s.players[recovery!.player]!.team).toBe("defense");
+    expect(s.players[recovery!.player]!.role).toBe("front");
+    expect(Math.abs(s.players[recovery!.player]!.position(recovery!.at).y - Gridiron.y(32))).toBeLessThan(1);
+    expect(acting(s, "scramble").length).toBeGreaterThanOrEqual(2);
+    expect(s.players.some((p) => p.team === "offense" && p.actions.some((a) => a.kind === "scramble"))).toBe(true);
+    expect(s.end!.y).toBeLessThan(0);
+    expect(s.banner?.text).toBe("TOUCHDOWN");
+    expect(s.score!).toBeGreaterThan(recovery!.at);
+  });
+
+  it("a strip-sack he kept: Hall (Seattle's strong-side backer) punches it out, Mahomes falls on it at the 32, the ball still Kansas City's", () => {
+    const s = FootballScript.play(proPlay("P.Mahomes sacked at SEA 32 for -2 yards (D.Hall). FUMBLES")!);
+    const qb = quarterback(s);
+    const stripper = acting(s, "strip")[0];
+    expect(stripper && (s.players[stripper.player]!.key === "slb" || s.players[stripper.player]!.role === "backer")).toBe(true);
+    const last = [...s.legs].reverse().find((l) => !Number.isFinite(l.until));
+    expect(last?.hand).toEqual({ kind: "carry", player: qb });
+    expect(s.banner).toBeNull();
+    expect(s.next.gain!).toBeGreaterThan(s.next.scrimmage ?? 0);
+  });
+
+  it("a run fumbled: Gibbs stripped by McDuffie where it came out, Green Bay comes up with it, FUMBLE as he does, the lines turn round", () => {
+    const s = FootballScript.play(proPlay("J.Gibbs up the middle to GB 6 for 6 yards (I.McDuffie). FUMBLES")!);
+    const carrier = s.players.findIndex((p, i) => p.role === "back" && s.legs.some((l) => l.hand.kind === "carry" && l.hand.player === i));
+    const stripped = acting(s, "strip")[0];
+    const recovered = [...s.legs].reverse().find((l) => !Number.isFinite(l.until))?.from ?? 0;
+    expect(carrier).toBeGreaterThanOrEqual(0);
+    expect(stripped && Math.abs(s.players[carrier]!.position(stripped.at).y - Gridiron.y(94)) < 1).toBe(true);
+    expect(s.banner?.text).toBe("FUMBLE");
+    expect(Math.abs(s.banner!.at - recovered)).toBeLessThan(0.1);
+    expect(s.next.gain!).toBeLessThan(s.next.scrimmage ?? 0);
+  });
+
+  it("a college fumble kept: stripped at the 18, Texas A&M falls on it at the 22", () => {
+    const s = FootballScript.play(cfbPlay("fumbled by #10 M.Reed at TAM18 forced by #90 L.Simmons")!);
+    const takers = s.legs.flatMap((l) => (l.hand.kind === "carry" && !Number.isFinite(l.until) ? [l.hand.player] : []));
+    expect(acting(s, "strip").length).toBe(1);
+    expect(takers.every((i) => s.players[i]!.team === "offense")).toBe(true);
+    expect(Math.abs(s.end!.y - Gridiron.y(22))).toBeLessThan(1);
+  });
+
+  it("a botched snap: on the ground at Goff's feet, he goes down after it, Green Bay recovers", () => {
+    const s = FootballScript.play(proPlay("J.Goff FUMBLES (Aborted) at DET 41")!);
+    expect(s.flights.filter((f) => f.end - f.start > 0.1).length).toBeGreaterThanOrEqual(2);
+    expect(acting(s, "scramble").some((a) => s.players[a.player]!.role === "quarterback")).toBe(true);
+    expect(s.banner?.text).toBe("FUMBLE");
+  });
+
+  it("a split sack: Alexander and Reese both get to Stroud", () => {
+    const s = FootballScript.play(proPlay("sack split by D.Alexander and A.Reese")!);
+    const qb = quarterback(s);
+    const down = s.players[qb]!.holds.find((h) => h.kind === "down")?.from ?? 0;
+    const sackers = acting(s, "tackle").filter((a) => Math.abs(a.at - down) < 0.3);
+    expect(sackers.length).toBe(2);
+    expect(sackers.every((a) => near(s.players[a.player]!.position(a.at), s.players[qb]!.position(a.at), 5))).toBe(true);
+  });
+
+  it("a blocked field goal: Wonnum up at the line, both arms high, the ball off his hands a beat after the kick and away: BLOCKED", () => {
+    const s = FootballScript.play(proPlay("35 yard field goal is BLOCKED (D.Wonnum)")!);
+    const leap = acting(s, "leap")[0];
+    const off = s.flights.findIndex((f) => f.to.z > 7 && f.end - f.start < 0.3);
+    expect(leap).toBeDefined();
+    expect(off).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(s.flights[off]!.end - leap!.at)).toBeLessThan(0.01);
+    expect(s.flights[off + 1]!.to.z).toBeLessThan(1);
+    expect(s.score).toBeNull();
+    expect(s.banner?.text).toBe("BLOCKED");
+    expect(s.flashes.some((f) => f.beat === "deflect")).toBe(true);
+  });
+
+  it("a false start: no snap; the flag from the wing official, onto the lineman who moved; five yards walked off", () => {
+    const s = FootballScript.play(proPlay("PENALTY on SEA-G.Zabel, False Start")!);
+    const official = s.players.findIndex((p) => p.team === "official");
+    expect(s.flashes.some((f) => f.beat === "snap")).toBe(false);
+    expect(s.legs.some((l) => l.hand.kind === "carry")).toBe(false);
+    expect(s.flags.length).toBe(1);
+    expect(official >= 0 && Math.abs(s.players[official]!.at.x) > Gridiron.half).toBe(true);
+    expect(acting(s, "flagThrow").length).toBe(1);
+    expect(Math.abs(s.march!.to - s.march!.from - Gridiron.y(-5))).toBeLessThan(0.01);
+  });
+
+  it("holding on a run: the run plays out (Walker to the 39), the flag lands on Suamataia while it goes on; then walked off from where it was enforced (SEA 45) to KC's 45: \"Holding, Offense\"", () => {
+    const hold = proPlay("K.Walker left tackle to SEA 39 for 6 yards (U.Nwosu).PENALTY on KC-K.Suamataia")!;
+    const played = FootballScript.played(hold)!;
+    const s = FootballScript.play(hold);
+    const flag = s.flags[0];
+    const tackle = s.flashes.find((f) => f.beat === "hit")?.at ?? 0;
+    const fouler = s.players.findIndex((p) => p.key === hold.flags[0]?.player?.slot);
+    expect(played.kind.type).toBe("rush");
+    expect(played.to).toBe(61);
+    expect(s.flights.length).toBeGreaterThanOrEqual(2);
+    expect(flag!.thrown).toBeLessThan(tackle);
+    expect(fouler).toBeGreaterThanOrEqual(0);
+    expect(near(flag!.to, s.players[fouler]!.position(flag!.lands - 0.5), 4)).toBe(true);
+    expect(Math.abs(s.march!.from - Gridiron.y(55))).toBeLessThan(0.01);
+    expect(Math.abs(s.march!.to - Gridiron.y(45))).toBeLessThan(0.01);
+    expect(tackle).toBeLessThan(s.march!.start);
+    expect(footballStamp(hold).title).toBe("Holding, Offense · No play");
+  });
+
+  it("roughing the passer: the flag comes in on Goff just after the throw", () => {
+    const s = FootballScript.play(proPlay("J.Goff pass incomplete short right to S.LaPorta.PENALTY on GB-B.Cox, Roughing the Passer")!);
+    const qb = quarterback(s);
+    const release = throwAt(s, qb);
+    const flag = s.flags[0]!;
+    expect(flag.lands).toBeGreaterThan(release);
+    expect(flag.lands).toBeLessThan(release + 0.9);
+    expect(near(flag.to, s.players[qb]!.position(release), 6)).toBe(true);
+  });
+
+  it("pass interference: the flag where the ball comes down, as it does", () => {
+    const s = FootballScript.play(proPlay("PENALTY on CAR-A.Evans, Defensive Pass Interference")!);
+    const pass = s.flights.find((f) => f.start > 1 && f.end - f.start > 0.3)!;
+    const flag = s.flags[0]!;
+    expect(Math.abs(flag.lands - (pass.end + 0.45))).toBeLessThan(0.05);
+    expect(near(flag.to, pass.to, 6)).toBe(true);
+  });
+
+  it("a declined hold: the flag, DECLINED beside it, nothing walked off", () => {
+    const s = FootballScript.play(proPlay("sack split by D.Alexander and A.Reese")!);
+    expect(s.flags.length).toBe(1);
+    expect(s.flags[0]!.declined).toBe(true);
+    expect(s.march).toBeNull();
+  });
+
+  it("offsetting fouls: two flags from two officials, nothing walked off, NO PLAY", () => {
+    const offsetting = proPlay("Penalty on KC-J.Ezeudu, Offensive Holding, offsetting")!;
+    const s = FootballScript.play(offsetting);
+    expect(s.flags.length).toBe(2);
+    expect(s.march).toBeNull();
+    expect(new Set(s.players.filter((p) => p.team === "official").map((p) => p.at.x)).size).toBe(2);
+    expect(footballStamp(offsetting).parts.map((p) => p.text)).toEqual(["NO PLAY"]);
+    expect(footballStamp(offsetting).title).toBe("Offsetting penalties");
+  });
+
+  it("unnecessary roughness after the whistle: the flag once the play's over, then the walk", () => {
+    const s = FootballScript.play(proPlay("PENALTY on GB-D.Wyatt, Unnecessary Roughness")!);
+    const tackle = s.flashes.find((f) => f.beat === "hit")?.at ?? 0;
+    expect(s.flags[0]!.thrown).toBeGreaterThan(tackle);
+    expect(s.march).not.toBeNull();
+  });
+
+  it("college's exact spots: caught at the 24, 17 yards downfield; thrown to the 22, 7 yards, where it comes down", () => {
+    const caught = cfbPlay("#12 K.Russell pass complete short left to #7 R.Scott caught at TAM24")!;
+    const thrown = cfbPlay("pass incomplete short middle to #4 D.Hill thrown to TAM22")!;
+    const pass = FootballScript.play(caught).flights.find((f) => f.start > 1 && f.end - f.start > 0.3)!;
+    const miss = FootballScript.play(thrown).flights.find((f) => f.start > 1 && f.end - f.start > 0.3)!;
+    expect(Math.abs(pass.to.y - Gridiron.y(caught.from + 17))).toBeLessThan(0.01);
+    expect(Math.abs(miss.to.y - Gridiron.y(thrown.from + 7))).toBeLessThan(0.01);
+  });
+
+  it("the ball in both hands in the pocket, in his throwing hand once he cocks it, until it's away", () => {
+    const s = FootballScript.play(proPlay("P.Mahomes pass incomplete deep right to X.Worthy [D.Hall]")!);
+    const qb = quarterback(s);
+    const release = throwAt(s, qb);
+    const player = s.players[qb]!;
+    expect([cocked(player, release - 0.6), cocked(player, release - 0.15), cocked(player, release - 0.02), cocked(player, release + 0.2)]).toEqual([0, 1, 1, 0]);
+  });
+
+  const all = [...college, ...nfl].flatMap((g) => g.items.flatMap((i) => parse(i, g.teams) ?? []));
+  const scripts = all.map((scene) => [scene, FootballScript.play(scene)] as const);
+
+  it("every play of two college games and the NFL's turnovers, hits and flags: finite, the ball never under the grass, 2–11 s", () => {
+    const insane = scripts.filter(([, s]) => {
+      for (let k = 0; k * 0.1 <= s.duration; k++) {
+        const t = k * 0.1;
+        if (!s.players.every((p) => Number.isFinite(p.position(t).x) && Number.isFinite(p.position(t).y))) return true;
+        const b = s.ball(t);
+        if (b && !(Number.isFinite(b.x) && Number.isFinite(b.y) && b.z >= -0.01)) return true;
+      }
+      return !(s.duration > 2 && s.duration < 11 && s.stamp < s.settle);
+    });
+    expect(insane.slice(0, 3).map(([scene, s]) => `${scene.text.slice(0, 50)} ${s.duration}`)).toEqual([]);
+  });
+
+  it("the new poses (the strip, the scramble, the hit, the leap, the flag thrown), every blend: knees and elbows bend their own way", { timeout: 120_000 }, () => {
+    const broken = scripts
+      .filter(([scene]) => scene.flags.length > 0 || scene.loose != null || scene.pressure != null || scene.blocker != null)
+      .flatMap(([scene, s]) => {
+        const where = jointsBreak(s.duration, s.players.length, (i, t) => playerPose(s, s.players[i]!, i, t, s.players[i]!.position(t), 1.1 / 8.5)[0]);
+        return where ? [`${scene.text.slice(0, 30)}: ${where}`] : [];
+      });
+    expect(broken.slice(0, 3)).toEqual([]);
   });
 });
