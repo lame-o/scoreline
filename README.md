@@ -36,12 +36,6 @@ Scoreline is a free, native menu bar app for macOS. Pick your leagues and teams 
 
 **MLB · NFL · College Football · NBA · WNBA · Premier League · Champions League · Europa League · LaLiga · Serie A · Bundesliga · Ligue 1 · Championship · MLS · FIFA World Cup · Counter-Strike 2 · World Climbing Series**
 
-<!-- slot:menubar:start -->
-<p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/menubar-dark.webp"><img src="docs/screenshots/mac/menubar-light.webp" width="100%" alt="The menu bar, close up: Scoreline's item with a live score, MIL 3–2 TB, Top 12th"></picture>
-</p>
-<!-- slot:menubar:end -->
-
 ## Isometric views
 
 Every play comes back to life in a small isometric view the moment it happens: the swing and the throw in baseball, every made basket in basketball, the snap and the run in football, the cross and the header in soccer. Batted balls fly on Statcast's own launch angle, exit velocity and distance, so a 411-foot home run lands where it really did, and the big moments get their call: HOME RUN, TOUCHDOWN, GOAL, BUZZER-BEATER, POSTERIZED, REJECTED.
@@ -73,17 +67,14 @@ Each game page is built for its sport, and it's live: charts redraw as plays lan
 
 <!-- slot:games:start -->
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/baseball-dark.webp"><img src="docs/screenshots/mac/baseball-light.webp" width="100%" alt="A live baseball game: every pitch, and the home run replayed on the field"></picture>
-</p>
-
-<p align="center">
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/football-dark.webp"><img src="docs/screenshots/mac/football-light.webp" width="49%" alt="A live NFL game: the touchdown replayed, the drive on the field"></picture>
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/soccer-dark.webp"><img src="docs/screenshots/mac/soccer-light.webp" width="49%" alt="A live Premier League match: the goal rebuilt, the shot map"></picture>
 </p>
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/at-bat-dark.webp"><img src="docs/screenshots/mac/at-bat-light.webp" width="49%" alt="The at-bat, pitch by pitch, with MLB's pitch types and speeds"></picture>
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/spray-chart-dark.webp"><img src="docs/screenshots/mac/spray-chart-light.webp" width="49%" alt="A spray chart of every ball in play"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/at-bat-dark.webp"><img src="docs/screenshots/mac/at-bat-light.webp" width="32%" alt="The at-bat, pitch by pitch, with MLB's pitch types and speeds"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/spray-chart-dark.webp"><img src="docs/screenshots/mac/spray-chart-light.webp" width="32%" alt="A spray chart of every ball in play"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/shot-chart-dark.webp"><img src="docs/screenshots/mac/shot-chart-light.webp" width="32%" alt="An NBA shot chart"></picture>
 </p>
 <!-- slot:games:end -->
 
@@ -93,12 +84,11 @@ Everything around the game is a click away: every league's schedule and results,
 
 <!-- slot:schedules:start -->
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/schedule-dark.webp"><img src="docs/screenshots/web/schedule-light.webp" width="100%" alt="The schedule: today's games across every league"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/schedules-dark.webp"><img src="docs/screenshots/mac/schedules-light.webp" width="100%" alt="Schedules, results and standings"></picture>
 </p>
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/standings-dark.webp"><img src="docs/screenshots/web/standings-light.webp" width="49%" alt="The Premier League table, moving with live scores"></picture>
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/bracket-dark.webp"><img src="docs/screenshots/web/bracket-light.webp" width="49%" alt="A CS2 tournament: the Swiss stage and the playoff bracket"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/bracket-dark.webp"><img src="docs/screenshots/mac/bracket-light.webp" width="100%" alt="The MLB postseason bracket"></picture>
 </p>
 <!-- slot:schedules:end -->
 
@@ -108,8 +98,7 @@ Click a name anywhere and its page opens: a team's results, form, schedule, rost
 
 <!-- slot:people:start -->
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/team-dark.webp"><img src="docs/screenshots/web/team-light.webp" width="49%" alt="A team page: results, form, the schedule and the roster"></picture>
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/player-dark.webp"><img src="docs/screenshots/web/player-light.webp" width="49%" alt="A player page: the season, the game log and the career"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/people-dark.webp"><img src="docs/screenshots/mac/people-light.webp" width="100%" alt="A team page and a player page"></picture>
 </p>
 <!-- slot:people:end -->
 
@@ -119,8 +108,8 @@ Click a name anywhere and its page opens: a team's results, form, schedule, rost
 
 <!-- slot:esports:start -->
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/esports-dark.webp"><img src="docs/screenshots/web/esports-light.webp" width="49%" alt="A live Counter-Strike 2 match: maps, rounds and the economy"></picture>
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/climbing-dark.webp"><img src="docs/screenshots/web/climbing-light.webp" width="49%" alt="A live climbing final: the wall, high points and the ranking"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/counter-strike-dark.webp"><img src="docs/screenshots/mac/counter-strike-light.webp" width="49%" alt="A live Counter-Strike 2 match: maps, rounds and the economy"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/climbing-dark.webp"><img src="docs/screenshots/mac/climbing-light.webp" width="49%" alt="A live climbing final: the wall, high points and the ranking"></picture>
 </p>
 <!-- slot:esports:end -->
 
@@ -135,7 +124,12 @@ Click a name anywhere and its page opens: a team's results, form, schedule, rost
 
 <!-- slot:teams:start -->
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/scores-dark.webp"><img src="docs/screenshots/mac/scores-light.webp" width="100%" alt="Scores as a list and as tiles, your teams first"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/menubar-dark.webp"><img src="docs/screenshots/mac/menubar-light.webp" width="100%" alt="The menu bar, close up: Scoreline's item with a followed team's live score, MIL 3–2 TB, Top 12th"></picture>
+</p>
+
+<p align="center">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/scores-dark.webp"><img src="docs/screenshots/mac/scores-light.webp" width="49%" alt="Scores as a list and as tiles, your teams first"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/settings-dark.webp"><img src="docs/screenshots/mac/settings-light.webp" width="49%" alt="Settings"></picture>
 </p>
 <!-- slot:teams:end -->
 
@@ -158,6 +152,48 @@ Scoreline also runs in any browser at **[scoreline-web.lame-o.workers.dev](https
 Every screen, in your current appearance (light or dark). Full-size 2400×1500 versions of the feature images are in [`docs/screenshots/web/2400`](docs/screenshots/web/2400).
 
 <!-- gallery:mac:start -->
+<details>
+<summary><b>The Mac app</b> (20 screens)</summary>
+<br>
+
+<table>
+<tr>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/scores-dark.webp"><img src="docs/screenshots/mac/pages/scores-light.webp" width="100%" alt="Scores"></picture><br><sub>Scores</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/tiles-dark.webp"><img src="docs/screenshots/mac/pages/tiles-light.webp" width="100%" alt="Tiles"></picture><br><sub>Tiles</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/baseball-dark.webp"><img src="docs/screenshots/mac/pages/baseball-light.webp" width="100%" alt="Baseball, live"></picture><br><sub>Baseball, live</sub></td>
+</tr>
+<tr>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/baseball-slide-dark.webp"><img src="docs/screenshots/mac/pages/baseball-slide-light.webp" width="100%" alt="The scoring slide"></picture><br><sub>The scoring slide</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/baseball-docked-dark.webp"><img src="docs/screenshots/mac/pages/baseball-docked-light.webp" width="100%" alt="The score, docked as you scroll"></picture><br><sub>The score, docked as you scroll</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/baseball-compact-dark.webp"><img src="docs/screenshots/mac/pages/baseball-compact-light.webp" width="100%" alt="Baseball at the compact width"></picture><br><sub>Baseball at the compact width</sub></td>
+</tr>
+<tr>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/football-dark.webp"><img src="docs/screenshots/mac/pages/football-light.webp" width="100%" alt="NFL, live"></picture><br><sub>NFL, live</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/soccer-dark.webp"><img src="docs/screenshots/mac/pages/soccer-light.webp" width="100%" alt="Soccer, live"></picture><br><sub>Soccer, live</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/basketball-dark.webp"><img src="docs/screenshots/mac/pages/basketball-light.webp" width="100%" alt="NBA, live"></picture><br><sub>NBA, live</sub></td>
+</tr>
+<tr>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/basketball-final-dark.webp"><img src="docs/screenshots/mac/pages/basketball-final-light.webp" width="100%" alt="NBA, final"></picture><br><sub>NBA, final</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/counter-strike-dark.webp"><img src="docs/screenshots/mac/pages/counter-strike-light.webp" width="100%" alt="Counter-Strike 2, live"></picture><br><sub>Counter-Strike 2, live</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/climbing-lead-dark.webp"><img src="docs/screenshots/mac/pages/climbing-lead-light.webp" width="100%" alt="Climbing: a lead final"></picture><br><sub>Climbing: a lead final</sub></td>
+</tr>
+<tr>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/climbing-boulder-dark.webp"><img src="docs/screenshots/mac/pages/climbing-boulder-light.webp" width="100%" alt="Climbing: a boulder final"></picture><br><sub>Climbing: a boulder final</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/schedule-dark.webp"><img src="docs/screenshots/mac/pages/schedule-light.webp" width="100%" alt="Schedule"></picture><br><sub>Schedule</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/standings-dark.webp"><img src="docs/screenshots/mac/pages/standings-light.webp" width="100%" alt="Standings"></picture><br><sub>Standings</sub></td>
+</tr>
+<tr>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/bracket-dark.webp"><img src="docs/screenshots/mac/pages/bracket-light.webp" width="100%" alt="Playoff bracket"></picture><br><sub>Playoff bracket</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/team-dark.webp"><img src="docs/screenshots/mac/pages/team-light.webp" width="100%" alt="A team page"></picture><br><sub>A team page</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/team-docked-dark.webp"><img src="docs/screenshots/mac/pages/team-docked-light.webp" width="100%" alt="A team page: the roster"></picture><br><sub>A team page: the roster</sub></td>
+</tr>
+<tr>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/player-dark.webp"><img src="docs/screenshots/mac/pages/player-light.webp" width="100%" alt="A player page"></picture><br><sub>A player page</sub></td>
+<td width="33%" align="center" valign="top"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/pages/pitcher-dark.webp"><img src="docs/screenshots/mac/pages/pitcher-light.webp" width="100%" alt="A pitcher's page"></picture><br><sub>A pitcher's page</sub></td>
+</tr>
+</table>
+
+</details>
 <!-- gallery:mac:end -->
 
 <!-- gallery:web:start -->

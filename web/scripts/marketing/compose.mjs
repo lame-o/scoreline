@@ -191,14 +191,14 @@ try {
     }
   }
 
-  // MARK: The Mac app's pages: its clean panels (panels/<page>-<theme>.png), cut to at most 2:1 tall, as WebP
+  // MARK: The Mac app's pages: its clean panels (panels/<page>-<theme>.webp or .png), cut to at most 2:1 tall, as WebP
   for (const m of macGallery) {
     if (!wanted(`mac-${m.name}`) && !wanted("mac-pages")) continue;
     for (const theme of ["light", "dark"]) {
-      const file = join(MAC_RAW, "panels", `${m.source}-${theme}.png`);
-      if (!existsSync(file)) continue;
+      const file = [".webp", ".png"].map((ext) => join(MAC_RAW, "panels", `${m.source}-${theme}${ext}`)).find((f) => existsSync(f));
+      if (!file) continue;
       const png = join(TMP, `mac-${m.name}-${theme}.png`);
-      execFileSync("magick", [file, "-gravity", "North", "-crop", `100%x0`, "+repage", "-resize", "720x", "-crop", "720x1440+0+0", "+repage", png]);
+      execFileSync("magick", [file, "-resize", "720x", "-gravity", "North", "-crop", "720x1440+0+0", "+repage", png]);
       const size = webp(png, join(DOCS, "screenshots/mac/pages", `${m.name}-${theme}.webp`), { quality: 82 });
       console.log(`✓ mac page ${m.name} ${theme} (${kb(size)})`);
     }
@@ -228,9 +228,11 @@ try {
   // MARK: Social preview (1280×640 PNG; GitHub takes up to 1 MB)
   if (wanted("social")) {
     const image = raw(social.source, "dark");
-    if (image) {
+    // The Mac app's panel when the Mac renders exist; the web app in a browser until then.
+    const panel = social.macPanel ? [".webp", ".png"].map((ext) => join(MAC_RAW, "panels", `${social.macPanel}-dark${ext}`)).find((f) => existsSync(f)) : null;
+    if (image || panel) {
       const png = join(TMP, "social.png");
-      await render({ kind: "social", theme: "dark", width: 1280, height: 640, image, icon: pathToFileURL(join(repo, "web/public/icon-512.png")).href, url: "scoreline-web.lame-o.workers.dev", tagline: social.tagline, tags: social.tags }, png);
+      await render({ kind: "social", theme: "dark", width: 1280, height: 640, image, panel: panel ? pathToFileURL(panel).href : undefined, menubarText: social.menubarText, icon: pathToFileURL(join(repo, "web/public/icon-512.png")).href, url: "scoreline-web.lame-o.workers.dev", tagline: social.tagline, tags: social.tags }, png);
       const out = join(DOCS, "social-preview.png");
       execFileSync("magick", [png, "-strip", "-define", "png:compression-level=9", out]);
       if (statSync(out).size > 1_000_000) execFileSync("magick", [png, "-strip", "-dither", "FloydSteinberg", "-colors", "256", "-define", "png:compression-level=9", out]);

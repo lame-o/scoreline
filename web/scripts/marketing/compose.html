@@ -345,6 +345,23 @@ function render() {
       <p>${spec.tagline.split("\n").map(esc).join("<br>")}</p>
       <div class="tags">${esc(spec.tags)}</div>
     </div>`);
+    if (spec.panel) {
+      // The Mac app: its panel hanging from Scoreline's status item, the menu bar fading in from the left.
+      const s = 2.1 * U;
+      canvas.style.setProperty("--s", s + "px");
+      canvas.insertAdjacentHTML("beforeend", `<div class="menubar">
+        <div class="item active"><span class="score">${esc(spec.menubarText ?? "MIL 3–2 TB · Top 12th")}</span></div>
+        <div class="item">${ICONS.battery}</div><div class="item">${ICONS.wifi}</div><div class="item">${ICONS.search}</div><div class="item">${ICONS.cc}</div>
+        <div class="item">${esc(spec.clock ?? "Tue Oct 27  9:41 PM")}</div>
+      </div>`);
+      const pw = Math.round(480 * s);
+      const node = el(`<div class="panel" style="top:${Math.round(24 * s + 5 * s)}px; width:${pw}px"><img src="${spec.panel}"></div>`);
+      canvas.append(node);
+      root.append(canvas);
+      const item = canvas.querySelector(".menubar .item.active").getBoundingClientRect();
+      node.style.left = Math.round(Math.min(item.left + item.width / 2 - pw / 2, W - pw - Math.round(14 * s))) + "px";
+      return;
+    }
     const winW = Math.round(1400 * U);
     const s = winW / 1280;
     canvas.style.setProperty("--s", s + "px");

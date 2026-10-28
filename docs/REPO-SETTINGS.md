@@ -53,9 +53,10 @@ The screenshots, the README's buttons and the social preview are all made by `we
 ```sh
 cd web
 node scripts/marketing/capture.mjs            # raw captures, light and dark (test-results/marketing/raw)
+SCORELINE_MAC_RAW=<the Mac renders> \
 node scripts/marketing/compose.mjs            # frames, captions, WebP output into docs/, plus the Mac renders
 node scripts/marketing/readme-gallery.mjs     # the README's "Every page" galleries
 node scripts/marketing/check-readme.mjs       # every README image resolves; sizes
 ```
 
-The first two take name filters (`node scripts/marketing/capture.mjs mlb nfl`) to redo a few shots.
+The first two take name filters (`node scripts/marketing/capture.mjs mlb nfl`) to redo a few shots; `compose.mjs mac-` only carries the Mac renders over. The README's pictures are slots that readme-gallery.mjs fills with the Mac app's image where it exists and the web's otherwise, so it never shows a missing one.

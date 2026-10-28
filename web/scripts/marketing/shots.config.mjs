@@ -233,21 +233,14 @@ export const readmeSlots = [
       [[web("scores", "Scoreline: every live game in the sidebar, beside a live NBA game's shot chart and box score")]],
     ],
   },
-  { key: "menubar", options: [[[mac("menubar", "The menu bar, close up: Scoreline's item with a live score, MIL 3–2 TB, Top 12th")]], []] },
   { key: "isometric", options: [[[web("isometric", "Isometric views: a home run on its Statcast flight, a buzzer-beater three, a touchdown, and a header into the net")]]] },
   { key: "scoring-slide", options: [[[mac("scoring-slide", "The scoring slide: a home run's bar sliding in from the scoring team's side, in its colors, with who and how far")]], []] },
   {
     key: "games",
     options: [
       [
-        [mac("baseball", "A live baseball game: every pitch, and the home run replayed on the field")],
         [mac("football", "A live NFL game: the touchdown replayed, the drive on the field"), mac("soccer", "A live Premier League match: the goal rebuilt, the shot map")],
         [mac("at-bat", "The at-bat, pitch by pitch, with MLB's pitch types and speeds"), mac("spray-chart", "A spray chart of every ball in play"), mac("shot-chart", "An NBA shot chart")],
-      ],
-      [
-        [mac("baseball", "A live baseball game: every pitch, and the home run replayed on the field")],
-        [mac("football", "A live NFL game: the touchdown replayed, the drive on the field"), mac("soccer", "A live Premier League match: the goal rebuilt, the shot map")],
-        [mac("at-bat", "The at-bat, pitch by pitch, with MLB's pitch types and speeds"), mac("spray-chart", "A spray chart of every ball in play")],
       ],
       [[mac("football", "A live NFL game: the touchdown replayed, the drive on the field"), mac("soccer", "A live Premier League match: the goal rebuilt, the shot map")]],
       [
@@ -280,7 +273,7 @@ export const readmeSlots = [
   {
     key: "teams",
     options: [
-      [[mac("scores", "Scores as a list and as tiles, your teams first")], [mac("docked", "The score docked at the top of a game page"), mac("settings", "Settings")]],
+      [[mac("menubar", "The menu bar, close up: Scoreline's item with a followed team's live score, MIL 3–2 TB, Top 12th")], [mac("scores", "Scores as a list and as tiles, your teams first"), mac("settings", "Settings")]],
       [[mac("scores", "Scores as a list and as tiles, your teams first")]],
       [[web("follow", "A game's menu: follow either team, show the score in the tab, go to a team's schedule"), web("settings", "Settings: your teams, your sports and their order, appearance and alerts")]],
     ],
@@ -293,29 +286,34 @@ export const readmeSlots = [
   },
 ];
 
-/** The Mac pipeline's clean panels (`panels/<page>-<theme>.png`) for the Mac gallery, cut to at most twice as tall as wide. */
+/** The Mac pipeline's clean panels (`panels/<page>-<theme>.webp` or `.png`) for the Mac gallery, cut to at most twice as tall as wide. */
 export const macGallery = [
   { name: "scores", source: "scores", label: "Scores" },
   { name: "tiles", source: "tiles", label: "Tiles" },
   { name: "baseball", source: "baseball", label: "Baseball, live" },
-  { name: "baseball-docked", source: "baseball-docked", label: "The docked scoreboard" },
-  { name: "baseball-compact", source: "baseball-compact", label: "Baseball, compact width" },
+  { name: "baseball-slide", source: "baseball-slide", label: "The scoring slide" },
+  { name: "baseball-docked", source: "baseball-docked", label: "The score, docked as you scroll" },
+  { name: "baseball-compact", source: "baseball-compact", label: "Baseball at the compact width" },
   { name: "football", source: "football", label: "NFL, live" },
   { name: "soccer", source: "soccer", label: "Soccer, live" },
   { name: "basketball", source: "basketball", label: "NBA, live" },
   { name: "basketball-final", source: "basketball-final", label: "NBA, final" },
   { name: "counter-strike", source: "counter-strike", label: "Counter-Strike 2, live" },
-  { name: "climbing-lead", source: "climbing-lead", label: "Climbing: lead" },
-  { name: "climbing-boulder", source: "climbing-boulder", label: "Climbing: boulder" },
+  { name: "climbing-lead", source: "climbing-lead", label: "Climbing: a lead final" },
+  { name: "climbing-boulder", source: "climbing-boulder", label: "Climbing: a boulder final" },
   { name: "schedule", source: "schedule", label: "Schedule" },
   { name: "standings", source: "standings", label: "Standings" },
   { name: "bracket", source: "bracket", label: "Playoff bracket" },
   { name: "team", source: "team", label: "A team page" },
+  { name: "team-docked", source: "team-docked", label: "A team page: the roster" },
   { name: "player", source: "player", label: "A player page" },
+  { name: "pitcher", source: "pitcher", label: "A pitcher's page" },
 ];
 
 /** GitHub's social preview. */
 export const social = {
+  macPanel: "baseball",
+  menubarText: "MIL 3–2 TB · Top 12th",
   source: "mlb@9600",
   tagline: "Live scores in your Mac's menu bar.\nEvery home run, basket, touchdown\nand goal, replayed in 3D.",
   tags: "MLB · NFL · NBA · Soccer · CS2 · Climbing",
