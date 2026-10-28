@@ -29,6 +29,7 @@ import { usePageGeometry, useRemeasure, useSurface } from "./core/geometry";
 import { Hero, HeroSkeleton, HeroWash } from "./core/Hero";
 import { LinkedFocusProvider, LinkedFocusStore } from "./core/linked";
 import { MomentProvider, useCurrentMoment, useMomentSlot } from "./core/moments";
+import { LinkedPeekHost } from "./core/peek";
 import type { GameContext, SportPage } from "./core/sport";
 import { useGame, type GameData } from "./core/useGame";
 import { EMPTY_DETAIL } from "../../data/gameDetail";
@@ -280,6 +281,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
         <Sections placed={placed} sections={sport.sections} columns={columns} empty={emptyMessage(event)} />
       )}
       {detail.venue ? <p className={styles.venue}>{detail.venue}</p> : null}
+      {loading ? null : <LinkedPeekHost source={sport.peek} kind={pageKind(event.ref)} geometry={geometry} columns={columns} shown={shown} />}
     </>
   );
 }

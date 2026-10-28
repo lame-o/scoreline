@@ -59,6 +59,34 @@ describe("linked focus", () => {
     expect(store.focus()).toBeNull();
   });
 
+  it("holds the hover while the pointer rests on the chart peek, and lets go with the usual grace", () => {
+    const store = new LinkedFocusStore();
+    store.hover({ play: "a" }, true);
+    vi.advanceTimersByTime(80);
+    // Off the row and onto the peek within the grace: the hover stays.
+    store.hover({ play: "a" }, false);
+    store.hold(true);
+    vi.advanceTimersByTime(500);
+    expect(store.focus()).toEqual({ play: "a" });
+    expect(store.hovering()).toEqual({ play: "a" });
+    // Leaving the page while held clears nothing.
+    store.clear();
+    expect(store.focus()).toEqual({ play: "a" });
+    store.hold(false);
+    vi.advanceTimersByTime(80);
+    expect(store.focus()).toBeNull();
+  });
+
+  it("pins a hovered focus for the peek's click, and the pin outlives the hover", () => {
+    const store = new LinkedFocusStore();
+    store.hover({ play: "a" }, true);
+    vi.advanceTimersByTime(80);
+    store.pinFocus({ play: "a" });
+    store.clear();
+    expect(store.hovering()).toBeNull();
+    expect(store.focus()).toEqual({ play: "a" });
+  });
+
   it("matches a play, or everything in a period (for one team, if given)", () => {
     expect(matches({ play: "a", period: 5 }, { play: "a" })).toBe(true);
     expect(matches({ play: "a", period: 5 }, { play: "b", period: 5 })).toBe(false);

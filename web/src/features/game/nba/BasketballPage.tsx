@@ -113,6 +113,28 @@ export function useBasketballPage(game: GameContext): SportPage {
   const followBottom = useIsFollowing(event.content.kind === "match" ? event.content.bottom.id : null);
   const sectionWidth = game.split ? 320 : 380;
 
+  // The charts, shared by their sections and the chart peek.
+  const courtChart = (
+    <Court
+      shots={shots}
+      plays={plays}
+      palette={palette}
+      topName={names.top}
+      bottomName={names.bottom}
+      spokenTop={spoken.top}
+      spokenBottom={spoken.bottom}
+      players={players}
+      names={extraNames}
+      live={live}
+      now={now}
+      quarter={quarter}
+      streaks={streaks}
+      runs={runs}
+      playerRef={playerRef}
+      width={sectionWidth}
+    />
+  );
+  const flowChart = <GameFlow flow={flow} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} now={now} final={event.state === "final"} quarter={quarter} runs={runs} width={sectionWidth} />;
   const sections: Partial<Record<Section, ReactNode>> = { ...common };
   if (nba && (nba.shots.length > 0 || live)) {
     const lead = live ? "The last plays trail to the ball." : "Every shot. Play to replay the game.";
@@ -124,24 +146,7 @@ export function useBasketballPage(game: GameContext): SportPage {
         spokenCaption={`${lead} ${spoken.top} at the right basket, ${spoken.bottom} at the left.`}
         accessory={live ? "live" : event.state === "final" ? "final" : undefined}
       >
-        <Court
-          shots={shots}
-          plays={plays}
-          palette={palette}
-          topName={names.top}
-          bottomName={names.bottom}
-          spokenTop={spoken.top}
-          spokenBottom={spoken.bottom}
-          players={players}
-          names={extraNames}
-          live={live}
-          now={now}
-          quarter={quarter}
-          streaks={streaks}
-          runs={runs}
-          playerRef={playerRef}
-          width={sectionWidth}
-        />
+        {courtChart}
       </DetailSection>
     );
   }
@@ -153,7 +158,7 @@ export function useBasketballPage(game: GameContext): SportPage {
         caption={`The margin through the game. ${names.top} ahead above, ${names.bottom} below.`}
         spokenCaption={`The margin through the game. ${spoken.top} ahead above, ${spoken.bottom} below.`}
       >
-        <GameFlow flow={flow} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} now={now} final={event.state === "final"} quarter={quarter} runs={runs} width={sectionWidth} />
+        {flowChart}
       </DetailSection>
     );
   }
@@ -229,6 +234,25 @@ export function useBasketballPage(game: GameContext): SportPage {
     heroChip: clutch ? "CLUTCH" : null,
     // One chip at a time, by priority: CLUTCH, then a run (DockRules.chip).
     chip: clutch ? "CLUTCH" : run ? runLabel(run) : null,
+    // The chart peek (LinkedPeek): a key play, a quarter or a player lights their shots on the court, else the game flow.
+    peek: nba
+      ? {
+          inputs: {
+            shots: shots.map((x) => ({ id: x.id, period: x.period, side: x.side, player: x.player, lead: `${x.made ? "Made" : "Missed"} ${x.value}`, detail: x.text })),
+            flow: flow.map((p) => ({
+              id: p.id,
+              period: p.period,
+              side: p.scorer,
+              lead: p.top === p.bottom ? `Tied ${p.top}–${p.bottom}` : p.top > p.bottom ? `${names.top} ${p.top}–${p.bottom}` : `${names.bottom} ${p.bottom}–${p.top}`,
+              detail: p.clock,
+            })),
+            names: { ...extraNames, ...Object.fromEntries([...players].map(([id, box]) => [id, box.name])) },
+          },
+          chart: (section) => (section === "court" ? <StageProvider value={stage}>{courtChart}</StageProvider> : section === "flow" ? <StageProvider value={stage}>{flowChart}</StageProvider> : null),
+          aspect: { court: 94 / 50 },
+          picked: { get: () => stage.get().pinned, subscribe: stage.subscribe, pick: (player) => stage.togglePin(player), unpin: () => stage.unpin() },
+        }
+      : null,
   };
 }
 

@@ -24,7 +24,9 @@ import { FLAG_PALETTE } from "../../../data/teams";
 import type { TeamPalette } from "../../../data/teamColors";
 import { queryClient } from "../../../state/scores";
 import { useSettings } from "../../../state/settings";
+import { wallExcerpt } from "../../../data/peek";
 import { DetailSection } from "../core/DetailSection";
+import type { PeekSource } from "../core/peek";
 import { useCurrentMoment } from "../core/moments";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
 import { HighPoints } from "./HighPoints";
@@ -131,12 +133,37 @@ export function useClimbingPage(game: GameContext): SportPage {
     );
   }
 
+  // The chart peek (LinkedPeek): a result or a starting-order row lights its climber on the wall, the high points or the scorecards.
+  const peek: PeekSource = {
+    inputs: {
+      ascent: ascent && route ? route.climbers.map((c) => ({ id: String(c.id), lead: c.name, detail: c.label })) : [],
+      wall: detail.wall.flatMap((r) => r.climbers).map((c) => ({ id: String(c.id), lead: c.name, detail: c.label })),
+      cards: detail.boulders.map((c) => ({ id: String(c.id), lead: c.name, detail: c.score ?? "" })),
+    },
+    chart: (section, focus) => {
+      switch (section) {
+        case "ascent":
+          return route ? <LeadAscent route={route} upNext={detail.upNext} yours={yours} roundName={roundName} /> : null;
+        case "wall":
+          // List-like charts narrow to the climber (and their neighbors).
+          return <HighPoints routes={focus?.athlete != null ? wallExcerpt(detail.wall, focus.athlete) : detail.wall} live={isLive} yours={yours} />;
+        case "scorecard": {
+          const cards = focus?.athlete != null ? detail.boulders.filter((c) => c.id === focus.athlete) : [];
+          return <BoulderScorecard cards={cards.length > 0 ? cards : detail.boulders} problems={detail.boulderProblems} yours={yours} live={isLive} />;
+        }
+        default:
+          return null;
+      }
+    },
+  };
+
   const line = loaded ? dockClimber(detail, event.state) : null;
   const trophy = isFinalRound(roundName) && (event.state === "final" || decided(detail.wall)) ? "field" : null;
   const onWall = detail.wall.flatMap((r) => r.climbers).find((c) => c.onWall);
 
   return {
     sections,
+    peek,
     clockFallback: event.detail ?? "Live",
     fieldSummary: loaded ? liveFieldSummary(detail, event.state) : null,
     heroSpoken: live && onWall ? `${onWall.name} is climbing, at ${onWall.label}` : null,

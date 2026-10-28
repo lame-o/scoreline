@@ -19,6 +19,7 @@ import type { ReactNode } from "react";
 import { SectionTitle, type SectionTitleProps } from "../../../design/components";
 import { captioned, type LiveMoment } from "../../../data/moments";
 import type { Section } from "../../../data/sections";
+import { useChartPeek } from "./peek";
 import styles from "./DetailSection.module.css";
 
 export interface DetailSectionProps {
@@ -86,7 +87,10 @@ export interface Readout {
 }
 
 export function ChartFooter({ readout, moment, children }: { readout: Readout | null; moment?: LiveMoment | null; children?: ReactNode }) {
+  // In the chart peek the row being read says what's lit; the header names the chart.
+  const peek = useChartPeek();
   const caption = moment && captioned(moment) ? moment : null;
+  if (peek) return null;
   const covered = readout != null || caption != null;
   return (
     <div className={styles.footer}>

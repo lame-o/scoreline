@@ -1,0 +1,128 @@
+/* The chart peek (LinkedPeek.swift PeekCard, PeekPill): glass at the viewport's edge with the chart on a solid plate. */
+
+.frame {
+  position: fixed;
+  z-index: 40;
+  cursor: pointer;
+  will-change: transform, opacity;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  /* The Mac's 12pt card radius, tighter than the hero's. */
+  border-radius: calc(12 * var(--pt));
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  height: calc(22 * var(--pt));
+  padding: 0 calc(9 * var(--pt));
+  color: var(--label-secondary);
+}
+
+.chevron {
+  display: inline-flex;
+  flex: none;
+}
+
+/* The glyph is a chevron down; up when the chart is above. */
+.chevron[data-points="above"] {
+  transform: rotate(180deg);
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps, 0.05em);
+  text-transform: uppercase;
+}
+
+.flex {
+  flex: 1;
+}
+
+.unpin {
+  display: grid;
+  place-items: center;
+  width: calc(14 * var(--pt));
+  height: calc(14 * var(--pt));
+  margin-right: calc(-3 * var(--pt));
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .unpin:hover {
+    background: var(--fill-hover);
+    color: var(--label);
+  }
+}
+
+/* Charts drawn straight on glass wash out: a solid plate, the page's own color. */
+.plate {
+  margin: 0 calc(4 * var(--pt)) calc(4 * var(--pt));
+  padding: calc(6 * var(--pt));
+  border-radius: calc(10 * var(--pt));
+  background: var(--page);
+}
+
+@media (prefers-contrast: more) {
+  .plate {
+    box-shadow: inset 0 0 0 calc(0.5 * var(--pt)) color-mix(in srgb, var(--label) 25%, transparent);
+  }
+}
+
+/* Laid out at its own height for the width, never squeezed; the cap clips the rest. */
+.chart {
+  overflow: hidden;
+  pointer-events: none;
+  animation: peek-chart-in var(--dur-fade) var(--ease-out);
+}
+
+@keyframes peek-chart-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  height: calc(26 * var(--pt));
+  padding: 0 calc(10 * var(--pt));
+  max-width: calc(320 * var(--pt));
+}
+
+.pill .chevron {
+  color: var(--label-secondary);
+}
+
+.pillText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.pillText strong {
+  font-weight: 600;
+  color: var(--label);
+}
+
+.pillText span {
+  color: var(--label-secondary);
+}

@@ -150,6 +150,30 @@ export class PageGeometry {
     if (changed) this.visibilityListeners.forEach((l) => l());
   }
 
+  /**
+   * The visible part of the page in viewport pixels: under the sticky header,
+   * inside the pane that scrolls it (the detail pane beside the sidebar, else
+   * the window). The chart peek docks at its edges.
+   */
+  viewport(): { left: number; top: number; right: number; bottom: number } {
+    const box = this.scroller instanceof Window ? { left: 0, right: window.innerWidth } : this.scroller.getBoundingClientRect();
+    return { left: box.left, top: this.viewportTop(), right: box.right, bottom: this.viewportBottom() };
+  }
+
+  /** Whether the docked scorebar is down (it covers the top of the viewport). */
+  docked(): boolean {
+    return this.step >= 32;
+  }
+
+  /** Scrolls a section to the top of the visible area, `inset` px under it (smooth; instant with Reduce Motion). */
+  scrollToSection(section: string, inset: number): void {
+    const el = this.root?.querySelector<HTMLElement>(`[data-section="${CSS.escape(section)}"]`);
+    if (!el) return;
+    const offset = this.scroller instanceof Window ? window.scrollY : this.scroller.scrollTop;
+    const top = el.getBoundingClientRect().top - this.viewportTop() + offset - inset;
+    this.scroller.scrollTo({ top: Math.max(top, 0), behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  }
+
   /** Back to the top: the hero again (smooth; instant with Reduce Motion). */
   scrollToTop(): void {
     this.scroller.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
