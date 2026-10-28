@@ -10,7 +10,7 @@ import SwiftUI
 // at the wall it cleared. The footer under it (the diamond's last play) is
 // its caption.
 //
-// Drawn in two Canvases, the field and the figures, both projected through
+// Drawn in one Canvas, the field and the figures together, projected through
 // the camera (PlayCamera.swift), so lines stay crisp at any zoom. A
 // TimelineView exists only while a replay runs; between plays the scene is
 // static on the infield. Plays already on the page when it opened show as
@@ -108,145 +108,139 @@ struct TheaterInk: Equatable {
 
 /// The field itself: grass, the infield's clay and grass, the mound, the
 /// foul lines and boxes, the bases, the warning track, the wall with its
-/// poles and the first rows behind it. Equatable: redrawn for a new size,
-/// appearance or camera, never for a figure.
-struct BallparkLayer: View, Equatable {
-    let ink: TheaterInk
-    var camera: CameraFrame = .rest
-
-    var body: some View {
-        Canvas { context, size in
-            let f = FieldProjection(size: size, camera: camera)
-            context.clip(to: f.bounds)
-            func polygon(_ points: [CGPoint]) -> Path {
-                var path = Path()
-                path.addLines(points.map { f.point($0) })
-                path.closeSubpath()
-                return path
-            }
-            func circle(_ center: CGPoint, _ r: Double) -> Path {
-                let c = f.point(center)
-                return Path(ellipseIn: CGRect(x: c.x - r * f.scale, y: c.y - r * f.scale / 2, width: 2 * r * f.scale, height: r * f.scale))
-            }
-            let steps = 48
-            let bearings = (0...steps).map { -Double.pi / 4 + Double($0) / Double(steps) * .pi / 2 }
-            func fenceLine(inset: Double) -> [CGPoint] {
-                bearings.map { Ballpark.polar(Ballpark.fence($0) - inset, $0 * 180 / .pi) }
-            }
-            // Chalk thickens a little as the camera closes in.
-            let line = min(max(0.75, f.scale * 0.3), 1.6)
-
-            // The infield's clay reaches 95 ft round the rubber, between the lines.
-            let c = Ballpark.rubber, r = Ballpark.skin
-            let along = c.y / 2.squareRoot()
-            let t = along + (along * along - (c.y * c.y - r * r)).squareRoot()
-            let corner = t / 2.squareRoot()
-            let from = atan2(corner - c.y, corner), to = Double.pi - from
-            let arc = (0...32).map { i -> CGPoint in
-                let a = from + Double(i) / 32 * (to - from)
-                return CGPoint(x: c.x + r * cos(a), y: c.y + r * sin(a))
-            }
-            let skin = polygon([.zero] + arc)
-
-            // The first rows behind the wall, rising: where a home run lands.
-            let fence = fenceLine(inset: 0)
-            var stands = Path()
-            stands.addLines(fenceLine(inset: -6).map { f.point($0, z: Ballpark.wallHeight + 2) }
-                            + fenceLine(inset: -70).reversed().map { f.point($0, z: 44) })
-            stands.closeSubpath()
-            context.fill(stands, with: .color(ink.stands))
-            var rows = Path()
-            for row in stride(from: 22.0, through: 62, by: 13) {
-                rows.addLines(fenceLine(inset: -row).map { f.point($0, z: Ballpark.wallHeight + 2 + (row - 6) * 0.5) })
-            }
-            context.stroke(rows, with: .color(ink.stands), lineWidth: 0.5)
-
-            // Fair territory, mowed in a checkerboard (the outfield grass only),
-            // and the warning track inside the fence.
-            context.fill(polygon([.zero] + fence), with: .color(ink.grass))
-            var mowed = context
-            var grass = polygon(fenceLine(inset: 15) + [.zero])
-            grass.addPath(skin)
-            mowed.clip(to: grass, style: FillStyle(eoFill: true))
-            // Bands along each baseline, every other one lighter; where they cross, lighter still.
-            let band = 26.0 * 2.squareRoot()
-            for slope in [1.0, -1.0] {
-                var stripes = Path()
-                for i in stride(from: 0, through: 16, by: 2) {
-                    let low = Double(i) * band, high = low + band
-                    let corners: [CGPoint] = [CGPoint(x: -300, y: -300 * slope + low), CGPoint(x: 300, y: 300 * slope + low),
-                                              CGPoint(x: 300, y: 300 * slope + high), CGPoint(x: -300, y: -300 * slope + high)]
-                    stripes.addLines(corners.map { f.point($0) })
-                    stripes.closeSubpath()
-                }
-                mowed.fill(stripes, with: .color(ink.mow))
-            }
-            context.fill(polygon(fence + fenceLine(inset: 15).reversed()), with: .color(ink.dirt.opacity(0.7)))
-
-            context.fill(skin, with: .color(ink.dirt))
-            // The infield grass, inside the base paths.
-            let d = Ballpark.baseline / 2.squareRoot(), inset = 3 * 2.squareRoot()
-            context.fill(polygon([CGPoint(x: 0, y: inset), CGPoint(x: d - inset, y: d), CGPoint(x: 0, y: 2 * d - inset),
-                                  CGPoint(x: -(d - inset), y: d)]), with: .color(ink.infield))
-            // Cutouts round the bases (inside the lines: foul ground stays the
-            // well's), the circle round home, and the mound.
-            var fair = context
-            fair.clip(to: polygon([.zero] + fence))
-            for base in 1...3 { fair.fill(circle(Ballpark.base(base), 11), with: .color(ink.dirt)) }
-            context.fill(circle(.zero, 13), with: .color(ink.dirt))
-            context.fill(circle(CGPoint(x: 0, y: 59), 9), with: .color(ink.dirt))
-
-            // Foul lines to the poles.
-            var lines = Path()
-            for side in [-45.0, 45.0] {
-                lines.move(to: f.point(.zero))
-                lines.addLine(to: f.point(Ballpark.polar(Ballpark.fence(side * .pi / 180), side)))
-            }
-            context.stroke(lines, with: .color(ink.chalk), lineWidth: line)
-            // The batter's and catcher's boxes, where there's room to see them.
-            if f.scale >= 0.9 {
-                var boxes = Path()
-                for x in [-4.7, 0.7] { boxes.addRect(CGRect(x: x, y: -3, width: 4, height: 6)) }
-                boxes.addLines([CGPoint(x: -1.75, y: -3), CGPoint(x: -1.75, y: -10), CGPoint(x: 1.75, y: -10), CGPoint(x: 1.75, y: -3)])
-                let center = f.point(.zero)
-                let projected = boxes.applying(CGAffineTransform(a: f.scale, b: 0, c: 0, d: -f.scale / 2, tx: center.x, ty: center.y))
-                context.stroke(projected, with: .color(ink.chalk.opacity(0.6)), lineWidth: line * 0.7)
-            }
-
-            // The wall: its face, its top, and the poles.
-            var face = Path()
-            face.addLines(fence.map { f.point($0) } + fence.reversed().map { f.point($0, z: Ballpark.wallHeight) })
-            face.closeSubpath()
-            context.fill(face, with: .color(ink.wall))
-            var top = Path()
-            top.addLines(fence.map { f.point($0, z: Ballpark.wallHeight) })
-            context.stroke(top, with: .color(ink.wallTop), lineWidth: line)
-            var poles = Path()
-            for p in [fence[0], fence[fence.count - 1]] {
-                poles.move(to: f.point(p))
-                poles.addLine(to: f.point(p, z: 42))
-            }
-            context.stroke(poles, with: .color(Celebrate.gold.opacity(0.85)), style: StrokeStyle(lineWidth: line + 0.25, lineCap: .round))
-
-            // Bases, the rubber and home plate, a little larger than life (and never specks).
-            let bag = max(1.1 * f.scale, 2.4)
-            for base in 1...3 {
-                let p = f.point(Ballpark.base(base))
-                var square = Path()
-                square.addLines([CGPoint(x: p.x - bag, y: p.y), CGPoint(x: p.x, y: p.y - bag / 2),
-                                 CGPoint(x: p.x + bag, y: p.y), CGPoint(x: p.x, y: p.y + bag / 2)])
-                square.closeSubpath()
-                context.fill(square, with: .color(ink.chalk.opacity(1)))
-            }
-            let rubber = f.point(Ballpark.rubber), rw = max(1.3 * f.scale, 1.2)
-            context.fill(Path(CGRect(x: rubber.x - rw, y: rubber.y - rw / 8, width: 2 * rw, height: rw / 4)), with: .color(ink.chalk))
-            let h = f.point(.zero), pw = max(1.15 * f.scale, 2)
-            var plate = Path()
-            plate.addLines([CGPoint(x: h.x - pw, y: h.y - pw * 0.4), CGPoint(x: h.x + pw, y: h.y - pw * 0.4),
-                            CGPoint(x: h.x + pw, y: h.y), CGPoint(x: h.x, y: h.y + pw * 0.5), CGPoint(x: h.x - pw, y: h.y)])
-            plate.closeSubpath()
-            context.fill(plate, with: .color(ink.chalk))
+/// poles and the first rows behind it. Drawn in the play's own pass
+/// (PlayFrame), through the same camera at the same moment: drawn as a layer
+/// of its own, it could hold another framing than the figures over it.
+enum BallparkLayer {
+    static func draw(_ context: inout GraphicsContext, _ f: FieldProjection, ink: TheaterInk) {
+        func polygon(_ points: [CGPoint]) -> Path {
+            var path = Path()
+            path.addLines(points.map { f.point($0) })
+            path.closeSubpath()
+            return path
         }
+        func circle(_ center: CGPoint, _ r: Double) -> Path {
+            let c = f.point(center)
+            return Path(ellipseIn: CGRect(x: c.x - r * f.scale, y: c.y - r * f.scale / 2, width: 2 * r * f.scale, height: r * f.scale))
+        }
+        let steps = 48
+        let bearings = (0...steps).map { -Double.pi / 4 + Double($0) / Double(steps) * .pi / 2 }
+        func fenceLine(inset: Double) -> [CGPoint] {
+            bearings.map { Ballpark.polar(Ballpark.fence($0) - inset, $0 * 180 / .pi) }
+        }
+        // Chalk thickens a little as the camera closes in.
+        let line = min(max(0.75, f.scale * 0.3), 1.6)
+
+        // The infield's clay reaches 95 ft round the rubber, between the lines.
+        let c = Ballpark.rubber, r = Ballpark.skin
+        let along = c.y / 2.squareRoot()
+        let t = along + (along * along - (c.y * c.y - r * r)).squareRoot()
+        let corner = t / 2.squareRoot()
+        let from = atan2(corner - c.y, corner), to = Double.pi - from
+        let arc = (0...32).map { i -> CGPoint in
+            let a = from + Double(i) / 32 * (to - from)
+            return CGPoint(x: c.x + r * cos(a), y: c.y + r * sin(a))
+        }
+        let skin = polygon([.zero] + arc)
+
+        // The first rows behind the wall, rising: where a home run lands.
+        let fence = fenceLine(inset: 0)
+        var stands = Path()
+        stands.addLines(fenceLine(inset: -6).map { f.point($0, z: Ballpark.wallHeight + 2) }
+                        + fenceLine(inset: -70).reversed().map { f.point($0, z: 44) })
+        stands.closeSubpath()
+        context.fill(stands, with: .color(ink.stands))
+        var rows = Path()
+        for row in stride(from: 22.0, through: 62, by: 13) {
+            rows.addLines(fenceLine(inset: -row).map { f.point($0, z: Ballpark.wallHeight + 2 + (row - 6) * 0.5) })
+        }
+        context.stroke(rows, with: .color(ink.stands), lineWidth: 0.5)
+
+        // Fair territory, mowed in a checkerboard (the outfield grass only),
+        // and the warning track inside the fence.
+        context.fill(polygon([.zero] + fence), with: .color(ink.grass))
+        var mowed = context
+        var grass = polygon(fenceLine(inset: 15) + [.zero])
+        grass.addPath(skin)
+        mowed.clip(to: grass, style: FillStyle(eoFill: true))
+        // Bands along each baseline, every other one lighter; where they cross, lighter still.
+        let band = 26.0 * 2.squareRoot()
+        for slope in [1.0, -1.0] {
+            var stripes = Path()
+            for i in stride(from: 0, through: 16, by: 2) {
+                let low = Double(i) * band, high = low + band
+                let corners: [CGPoint] = [CGPoint(x: -300, y: -300 * slope + low), CGPoint(x: 300, y: 300 * slope + low),
+                                          CGPoint(x: 300, y: 300 * slope + high), CGPoint(x: -300, y: -300 * slope + high)]
+                stripes.addLines(corners.map { f.point($0) })
+                stripes.closeSubpath()
+            }
+            mowed.fill(stripes, with: .color(ink.mow))
+        }
+        context.fill(polygon(fence + fenceLine(inset: 15).reversed()), with: .color(ink.dirt.opacity(0.7)))
+
+        context.fill(skin, with: .color(ink.dirt))
+        // The infield grass, inside the base paths.
+        let d = Ballpark.baseline / 2.squareRoot(), inset = 3 * 2.squareRoot()
+        context.fill(polygon([CGPoint(x: 0, y: inset), CGPoint(x: d - inset, y: d), CGPoint(x: 0, y: 2 * d - inset),
+                              CGPoint(x: -(d - inset), y: d)]), with: .color(ink.infield))
+        // Cutouts round the bases (inside the lines: foul ground stays the
+        // well's), the circle round home, and the mound.
+        var fair = context
+        fair.clip(to: polygon([.zero] + fence))
+        for base in 1...3 { fair.fill(circle(Ballpark.base(base), 11), with: .color(ink.dirt)) }
+        context.fill(circle(.zero, 13), with: .color(ink.dirt))
+        context.fill(circle(CGPoint(x: 0, y: 59), 9), with: .color(ink.dirt))
+
+        // Foul lines to the poles.
+        var lines = Path()
+        for side in [-45.0, 45.0] {
+            lines.move(to: f.point(.zero))
+            lines.addLine(to: f.point(Ballpark.polar(Ballpark.fence(side * .pi / 180), side)))
+        }
+        context.stroke(lines, with: .color(ink.chalk), lineWidth: line)
+        // The batter's and catcher's boxes, where there's room to see them.
+        if f.scale >= 0.9 {
+            var boxes = Path()
+            for x in [-4.7, 0.7] { boxes.addRect(CGRect(x: x, y: -3, width: 4, height: 6)) }
+            boxes.addLines([CGPoint(x: -1.75, y: -3), CGPoint(x: -1.75, y: -10), CGPoint(x: 1.75, y: -10), CGPoint(x: 1.75, y: -3)])
+            let center = f.point(.zero)
+            let projected = boxes.applying(CGAffineTransform(a: f.scale, b: 0, c: 0, d: -f.scale / 2, tx: center.x, ty: center.y))
+            context.stroke(projected, with: .color(ink.chalk.opacity(0.6)), lineWidth: line * 0.7)
+        }
+
+        // The wall: its face, its top, and the poles.
+        var face = Path()
+        face.addLines(fence.map { f.point($0) } + fence.reversed().map { f.point($0, z: Ballpark.wallHeight) })
+        face.closeSubpath()
+        context.fill(face, with: .color(ink.wall))
+        var top = Path()
+        top.addLines(fence.map { f.point($0, z: Ballpark.wallHeight) })
+        context.stroke(top, with: .color(ink.wallTop), lineWidth: line)
+        var poles = Path()
+        for p in [fence[0], fence[fence.count - 1]] {
+            poles.move(to: f.point(p))
+            poles.addLine(to: f.point(p, z: 42))
+        }
+        context.stroke(poles, with: .color(Celebrate.gold.opacity(0.85)), style: StrokeStyle(lineWidth: line + 0.25, lineCap: .round))
+
+        // Bases, the rubber and home plate, a little larger than life (and never specks).
+        let bag = max(1.1 * f.scale, 2.4)
+        for base in 1...3 {
+            let p = f.point(Ballpark.base(base))
+            var square = Path()
+            square.addLines([CGPoint(x: p.x - bag, y: p.y), CGPoint(x: p.x, y: p.y - bag / 2),
+                             CGPoint(x: p.x + bag, y: p.y), CGPoint(x: p.x, y: p.y + bag / 2)])
+            square.closeSubpath()
+            context.fill(square, with: .color(ink.chalk.opacity(1)))
+        }
+        let rubber = f.point(Ballpark.rubber), rw = max(1.3 * f.scale, 1.2)
+        context.fill(Path(CGRect(x: rubber.x - rw, y: rubber.y - rw / 8, width: 2 * rw, height: rw / 4)), with: .color(ink.chalk))
+        let h = f.point(.zero), pw = max(1.15 * f.scale, 2)
+        var plate = Path()
+        plate.addLines([CGPoint(x: h.x - pw, y: h.y - pw * 0.4), CGPoint(x: h.x + pw, y: h.y - pw * 0.4),
+                        CGPoint(x: h.x + pw, y: h.y), CGPoint(x: h.x, y: h.y + pw * 0.5), CGPoint(x: h.x - pw, y: h.y)])
+        plate.closeSubpath()
+        context.fill(plate, with: .color(ink.chalk))
     }
 }
 
@@ -552,8 +546,8 @@ struct Figure {
 
 // MARK: - Figures and ball
 
-/// One frame of a play through the camera: the ball's trace and shadow, the
-/// figures far to near, the ball, the beats, the pitch's label, the
+/// One frame of a play through the camera: the field, the ball's trace and
+/// shadow, the figures far to near, the ball, the beats, the pitch's label, the
 /// headline and the scorer's mark. Equatable: at rest (t = ∞) an update
 /// elsewhere on the page doesn't redraw it.
 struct PlayFrame: View, Equatable {
@@ -578,6 +572,7 @@ struct PlayFrame: View, Equatable {
         Canvas { context, size in
             let f = FieldProjection(size: size, camera: script.camera.frame(at: t))
             context.clip(to: f.bounds)
+            BallparkLayer.draw(&context, f, ink: ink)
             drawTrace(&context, f)
             drawPuffs(&context, f)
             drawShadows(&context, f)
@@ -1167,10 +1162,19 @@ private struct PlayStage: View {
         var done = false
     }
 
-    /// The play on screen: a replay's own until it's over, else the latest.
+    /// A replayed play's end that has had its time on screen.
+    @State private var rested: String?
+
+    /// How long a replay's end stays up when the next at-bat hasn't begun.
+    static let hold: Duration = .seconds(8)
+
+    /// The play on screen: a replay's own until it's over; then how the
+    /// latest ended, until the next pitch or the hold; then none, and the
+    /// field shows the live bases and batter.
     private var play: PlayScene? {
         if let replay, !replay.done, replay.id == state.play?.id { return replay.play }
-        return state.play
+        guard let latest = state.play, !state.cleared, latest.id != rested else { return nil }
+        return latest
     }
 
     /// Half as tall as wide, up to this; wider than that, the field centers in the well.
@@ -1178,7 +1182,7 @@ private struct PlayStage: View {
 
     /// The field between plays: the live bases and batter, or how the play left them.
     private var rest: PlayScript.Rest {
-        guard let play = state.play else {
+        guard let play else {
             return PlayScript.Rest(bases: bases ?? [false, false, false], bats: state.bats)
         }
         let swapped = play.endsInning
@@ -1196,7 +1200,7 @@ private struct PlayStage: View {
             dressed = (Uniform(top), Uniform(bottom))
         }
         // The play's batting team; else the live one; else the top team (the visitors bat first).
-        let side = state.play?.batting ?? batting ?? .top
+        let side = play?.batting ?? batting ?? .top
         return side == .top ? TheaterTeams(batting: dressed.top, fielding: dressed.bottom)
             : TheaterTeams(batting: dressed.bottom, fielding: dressed.top)
     }
@@ -1216,9 +1220,6 @@ private struct PlayStage: View {
         return state.news && !reduceMotion
     }
 
-    /// On the frozen clock (the harness) every frame is a replay's.
-    private var moving: Bool { playing || clock != .live }
-
     var body: some View {
         let play = play
         let script = scripts.script(play, rest: rest)
@@ -1226,28 +1227,20 @@ private struct PlayStage: View {
         let teams = teams
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                // Between plays the field holds still under the crossfade.
-                if !moving { BallparkLayer(ink: ink).equatable().transition(.identity) }
                 Group {
                     if playing {
                         TimelineView(.animation) { context in
-                            let t = time(at: context.date)
-                            BallparkLayer(ink: ink, camera: script.camera.frame(at: t)).equatable()
-                            PlayFrame(scene: play, script: script, t: t, teams: teams, ink: ink, size: geo.size)
+                            PlayFrame(scene: play, script: script, t: time(at: context.date), teams: teams, ink: ink, size: geo.size)
                                 .equatable()
                         }
                         .transition(.identity)
                     } else {
-                        let t = time(at: .now)
-                        ZStack {
-                            if moving { BallparkLayer(ink: ink, camera: script.camera.frame(at: t)).equatable() }
-                            PlayFrame(scene: play, script: script, t: t, teams: teams, ink: ink, size: geo.size)
-                                .equatable()
-                        }
-                        .transition(.identity)
+                        PlayFrame(scene: play, script: script, t: time(at: .now), teams: teams, ink: ink, size: geo.size)
+                            .equatable()
+                            .transition(.identity)
                     }
                 }
-                .id(state.play?.id)
+                .id(play?.id)
                 // A replay cuts in; a play that isn't replayed crossfades to how it ended.
                 .transition(playing ? .identity : .opacity.animation(.easeInOut(duration: 0.35)))
                 if let play {
@@ -1264,10 +1257,17 @@ private struct PlayStage: View {
         .onAppear(perform: begin)
         .onChange(of: state.play?.id) { _, _ in begin() }
         .task(id: replay) {
-            guard let replay, !replay.done else { return }
-            try? await Task.sleep(for: .seconds(max(script.duration - Date.now.timeIntervalSince(replay.start), 0) + 0.05))
+            guard let replay else { return }
+            if !replay.done {
+                try? await Task.sleep(for: .seconds(max(script.duration - Date.now.timeIntervalSince(replay.start), 0) + 0.05))
+                guard !Task.isCancelled, self.replay?.id == replay.id else { return }
+                self.replay?.done = true
+                return
+            }
+            // Done: its end holds a while, then the field returns to the game.
+            try? await Task.sleep(for: Self.hold)
             guard !Task.isCancelled, self.replay?.id == replay.id else { return }
-            self.replay?.done = true
+            rested = replay.id
         }
     }
 
