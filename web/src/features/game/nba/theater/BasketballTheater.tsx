@@ -44,6 +44,7 @@ import styles from "../../core/theater/TheaterWell.module.css";
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
 import { drawBasketballFrame, drawCourt, HoopProjection, layoutLabels, type BasketballTeams, type Labels, type Paint } from "./drawBasketball";
+import { useSlideCourt } from "./slideCourt";
 
 export interface BasketballTheaterProps {
   /** The live lane: the theater reads its plays itself. Null in previews (`preloaded`). */
@@ -156,6 +157,8 @@ export default function BasketballTheater({ feed, teams: laneTeams, kits, palett
   // The play's script, or the court between plays: built once each (a render for anything else reuses it).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const script = useMemo(() => (play ? BasketballScript.play(play) : BasketballScript.rest({ offense: possession })), [play, play ? null : possession]);
+  // The scoring slide lands with this replay's climax.
+  useSlideCourt(state, play, script);
 
   const dressed = useMemo(
     () => dress(kits, scheme),
