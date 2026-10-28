@@ -1,0 +1,52 @@
+/**
+ * Marketing screenshots, step 3: the README's "Every page" galleries, written
+ * between the `<!-- gallery:web:start -->` / `<!-- gallery:mac:start -->`
+ * markers from shots.config.mjs and the images compose.mjs made. Only images
+ * that exist are listed, so it's safe to run at any point.
+ *
+ *     node scripts/marketing/readme-gallery.mjs
+ */
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { gallery, macGallery } from "./shots.config.mjs";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const repo = resolve(here, "../../..");
+const readmePath = join(repo, "README.md");
+
+const picture = (dir, name, label, width) =>
+  `<picture><source media="(prefers-color-scheme: dark)" srcset="${dir}/${name}-dark.webp"><img src="${dir}/${name}-light.webp" width="${width}" alt="${label}"></picture>`;
+
+/** A table of `columns` cells per row, each a picture and its caption. */
+function grid(items, dir, columns) {
+  const present = items.filter((i) => existsSync(join(repo, dir, `${i.name}-light.webp`)) && existsSync(join(repo, dir, `${i.name}-dark.webp`)));
+  const rows = [];
+  for (let i = 0; i < present.length; i += columns) {
+    const cells = present.slice(i, i + columns).map((item) => `<td width="${Math.floor(100 / columns)}%" align="center" valign="top">${picture(dir, item.name, item.label, "100%")}<br><sub>${item.label}</sub></td>`);
+    rows.push(`<tr>\n${cells.join("\n")}\n</tr>`);
+  }
+  return { count: present.length, html: rows.length ? `<table>\n${rows.join("\n")}\n</table>` : "" };
+}
+
+function section(title, body, count) {
+  return `<details>\n<summary><b>${title}</b>${count ? ` (${count} screens)` : ""}</summary>\n<br>\n\n${body}\n\n</details>`;
+}
+
+const desktop = grid(gallery.filter((g) => g.device !== "phone"), "docs/screenshots/web/pages", 2);
+const phones = grid(gallery.filter((g) => g.device === "phone"), "docs/screenshots/web/pages", 4);
+const web = section("The web app", [desktop.html, phones.html].filter(Boolean).join("\n\n"), desktop.count + phones.count);
+
+const mac = grid(macGallery, "docs/screenshots/mac/pages", 3);
+const macBlock = section("The Mac app", mac.count ? mac.html : "Screenshots of the Mac app are on their way.", mac.count);
+
+let readme = readFileSync(readmePath, "utf8");
+const replace = (key, block) => {
+  const re = new RegExp(`<!-- gallery:${key}:start -->[\\s\\S]*?<!-- gallery:${key}:end -->`);
+  if (!re.test(readme)) throw new Error(`README has no gallery:${key} markers`);
+  readme = readme.replace(re, `<!-- gallery:${key}:start -->\n${block}\n<!-- gallery:${key}:end -->`);
+};
+replace("mac", macBlock);
+replace("web", web);
+writeFileSync(readmePath, readme);
+console.log(`README galleries: web ${desktop.count + phones.count}, Mac ${mac.count}`);
