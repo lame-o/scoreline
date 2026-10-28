@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 /// Everything the detail page can show. Each source fills what it has; the view
 /// renders only the parts that are present. "Top"/"bottom" always follow the
@@ -49,7 +50,7 @@ struct GameDetail {
         let lastPlay: String?
     }
 
-    struct Baseball {
+    struct Baseball: Equatable {
         let balls: Int
         let strikes: Int
         let outs: Int
@@ -315,6 +316,117 @@ struct GameDetail {
         stats.isEmpty && linescore == nil && moments.isEmpty && recentPlays.isEmpty && football == nil
             && baseball == nil && maps.isEmpty && streams.isEmpty && ranking.isEmpty && topRoster.isEmpty
             && wall.isEmpty && startlist.isEmpty && boulders.isEmpty && battedBalls.isEmpty && basketball == nil
+    }
+}
+
+// MARK: - The hero's ledger
+
+/// The game page's sections against its hero (the live check, Game 4 and an
+/// NBA game on Oct 27): the summary-driven sections trail the hero by a
+/// minute or two, since the hero reads the sport's fast lane every few
+/// seconds and the summary is ESPN's slower copy. On the NBA page Q1's cell
+/// went back to 12–9 while T said 12–12 (`NBADetail.linescore` moves only
+/// the quarter being played), and the scores list still had the old score.
+/// A section never shows older data than the hero:
+///
+/// - The ledger keeps what the hero said in each period (its last reading
+///   there), and `reconciled` brings a line score that trails it up to date:
+///   each period's cell is at least what the hero's readings put in it, the
+///   period under way takes the rest when the line has its column, and the
+///   total is the hero's. A line that has caught up (or is ahead: a
+///   correction) is shown as ESPN has it.
+/// - `LaneScores` gives the scores list a game's newer score from its page's
+///   lane until the scoreboard catches up (ScoreStore.swift).
+///
+/// The web's page reads the same feeds the same way (web/src/data/headerSync.ts;
+/// its header is the hero here). Observed, so the line score follows it
+/// without its page rendering again.
+@MainActor
+@Observable
+final class HeaderLedger {
+    /// The hero's score, top first, and the period it was read in (nil: none known).
+    struct Reading: Equatable {
+        let period: Int?
+        let top: Int
+        let bottom: Int
+
+        init(period: Int?, top: Int, bottom: Int) {
+            self.period = period
+            self.top = top
+            self.bottom = bottom
+        }
+
+        /// The hero's score as numbers, when both are.
+        init?(top: String?, bottom: String?, period: Int?) {
+            guard let top = top.flatMap({ Int($0.trimmingCharacters(in: .whitespaces)) }),
+                  let bottom = bottom.flatMap({ Int($0.trimmingCharacters(in: .whitespaces)) }) else { return nil }
+            self.init(period: period, top: top, bottom: bottom)
+        }
+    }
+
+    /// The newest reading.
+    private(set) var now: Reading?
+    /// The last reading in each period: the score at its end (or now, in the
+    /// one under way). Changes only with `now`, so following `now` covers it.
+    @ObservationIgnored private var ends: [Int: Reading] = [:]
+
+    /// A reading of the hero; recorded (and said to followers) only when it's new.
+    func observe(_ reading: Reading?) {
+        guard let reading, reading != now else { return }
+        if let period = reading.period { ends[period] = reading }
+        now = reading
+    }
+
+    /// The hero's score at the end of a period (or now, in the period under way), when it was read in it.
+    func end(_ period: Int) -> Reading? { ends[period] }
+
+    /// The period in a sport's live text: an inning ("Top 7th", "Mid 7th", "End 7th"), a quarter ("3rd").
+    static func period(in text: String?) -> Int? {
+        guard let text else { return nil }
+        func digit(_ c: Character) -> Bool { c.isASCII && c.isNumber }
+        return Int(text.drop { !digit($0) }.prefix(while: digit))
+    }
+
+    /// A line score no older than the hero (pure; tested). Its period
+    /// columns are the ones before its total ("T", or baseball's "R"). While
+    /// the cells add up to less than the hero's score, each period's cell is
+    /// brought up to what the hero said at its end, the period under way
+    /// (when the line already has its column) takes what's left, and the
+    /// total is the hero's. Columns the line doesn't have yet aren't made
+    /// up: they come with the summary.
+    func reconciled(_ line: GameDetail.Linescore) -> GameDetail.Linescore {
+        guard let hero = now, let total = line.headers.firstIndex(where: { $0 == "T" || $0 == "R" }), total >= 1,
+              line.top.count == line.headers.count, line.bottom.count == line.headers.count else { return line }
+        func value(_ cell: String) -> Int? {
+            let digits = cell.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !digits.isEmpty && digits.allSatisfy({ $0.isASCII && $0.isNumber }) ? Int(digits) : nil
+        }
+        let top = line.top[..<total].map(value), bottom = line.bottom[..<total].map(value)
+        let lineTop = value(line.top[total]), lineBottom = value(line.bottom[total])
+        let behind = hero.top > top.compactMap { $0 }.reduce(0, +) || hero.bottom > bottom.compactMap { $0 }.reduce(0, +)
+        let totalBehind = lineTop.map { hero.top > $0 } == true || lineBottom.map { hero.bottom > $0 } == true
+        // Caught up, or ahead of the hero (a correction the hero hasn't read yet): ESPN's.
+        guard behind || totalBehind, hero.top >= lineTop ?? 0, hero.bottom >= lineBottom ?? 0 else { return line }
+        var nextTop = line.top, nextBottom = line.bottom
+        if behind {
+            var runningTop = 0, runningBottom = 0
+            for i in 0..<total {
+                let period = i + 1
+                var cellTop = top[i], cellBottom = bottom[i]
+                if let end = period == hero.period ? hero : ends[period] {
+                    // At least what the hero said by the end of it (the period under way: all that's left).
+                    if end.top - runningTop > cellTop ?? 0 { cellTop = end.top - runningTop }
+                    if end.bottom - runningBottom > cellBottom ?? 0 { cellBottom = end.bottom - runningBottom }
+                }
+                if let cellTop, cellTop != top[i] { nextTop[i] = "\(cellTop)" }
+                if let cellBottom, cellBottom != bottom[i] { nextBottom[i] = "\(cellBottom)" }
+                runningTop += cellTop ?? 0
+                runningBottom += cellBottom ?? 0
+            }
+        }
+        nextTop[total] = "\(hero.top)"
+        nextBottom[total] = "\(hero.bottom)"
+        return GameDetail.Linescore(headers: line.headers, top: nextTop, bottom: nextBottom)
     }
 }
 

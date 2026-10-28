@@ -136,7 +136,14 @@ final class ScoreStore {
     /// Event ID → league ID, from the result each event came in. "My Teams"
     /// rewrites captions, so a tile's league can't come from the caption.
     @ObservationIgnored private(set) var leagueByEvent: [String: String] = [:]
-    @ObservationIgnored private var boardCache: (version: Int, minute: Int, pinned: String?, value: Board)?
+    @ObservationIgnored private var boardCache: (version: Int, minute: Int, pinned: String?, lanes: Int, value: Board)?
+    /// The game pages' lane scores ahead of the scoreboard's, for the list's
+    /// rows and tiles only (`LaneScores`). A new reading bumps `laneRevision`,
+    /// which only `sections` and `board` read: the live count, the menu bar
+    /// and alerts keep to the polls, and never redraw for a lane.
+    @ObservationIgnored private var lanes = LaneScores()
+    private var laneRevision = 0
+    @ObservationIgnored private var shownCache: (version: Int, minute: Int, lanes: Int, value: [Section])?
     /// Refreshes are numbered; one superseded by a newer refresh is dropped.
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var consecutiveFailures = 0
@@ -326,7 +333,21 @@ final class ScoreStore {
         return value
     }
 
-    var sections: [Section] { derived.sections }
+    /// The list as shown: each game with its page's newer lane score while
+    /// the scoreboard trails it. Memoized like `derived`, plus the lanes.
+    var sections: [Section] {
+        let sections = derived.sections
+        let revision = laneRevision
+        guard !lanes.isEmpty else { return sections }
+        let minute = Int(Date().timeIntervalSince1970 / 60)
+        if let cache = shownCache, cache.version == version, cache.minute == minute, cache.lanes == revision { return cache.value }
+        let now = Date()
+        let value = sections.map { s in
+            Section(id: s.id, title: s.title, symbol: s.symbol, events: lanes.shown(s.events, now: now), failed: s.failed)
+        }
+        shownCache = (version, minute, revision, value)
+        return value
+    }
     /// Enabled leagues that loaded fine but have nothing to show.
     var quietLeagues: [League] { derived.quietLeagues }
     /// Live games the user would see: their filtered leagues plus followed teams.
@@ -422,18 +443,22 @@ final class ScoreStore {
     /// Memoized like the list, plus the pin (it orders the Live tier).
     var board: Board {
         let minute = Int(Date().timeIntervalSince1970 / 60)
-        if let cache = boardCache, cache.version == version, cache.minute == minute, cache.pinned == pinnedID {
+        if let cache = boardCache, cache.version == version, cache.minute == minute, cache.pinned == pinnedID,
+           cache.lanes == laneRevision {
             return cache.value
         }
         let value = computeBoard(sections: sections)
-        boardCache = (version, minute, pinnedID, value)
+        boardCache = (version, minute, pinnedID, laneRevision, value)
         return value
     }
 
     func computeBoard(sections: [Section]) -> Board {
         // A followed team's next game from its schedule isn't in any result: its league comes from the schedule.
         let scheduled = Dictionary(ScheduleStore.shared.nextGames.values.map { ($0.id, $0.league) }, uniquingKeysWith: { a, _ in a })
-        return Self.board(from: sections, source: { self.eventIndex[$0] }, leagueOf: { self.leagueByEvent[$0] ?? scheduled[$0] },
+        let now = Date()
+        // Each game's own copy, with its lane score as the list shows it.
+        return Self.board(from: sections, source: { self.eventIndex[$0].map { self.lanes.shown($0, now: now) } },
+                          leagueOf: { self.leagueByEvent[$0] ?? scheduled[$0] },
                           enabledIDs: enabledIDs, isFollowed: involvesFollowed, pinnedID: pinnedID)
     }
 
@@ -956,6 +981,14 @@ final class ScoreStore {
         return eventIndex[event.id] ?? event
     }
 
+    /// A game page's lane score for its event, top first (DetailView's
+    /// `HeaderSync`): the list's row and tile show it until the scoreboard
+    /// catches up. Only a new reading redraws the list, and only that game's
+    /// row and tile change (the others are equal and skip).
+    func publishLaneScore(_ eventID: String, top: String, bottom: String) {
+        if lanes.publish(eventID, top: top, bottom: bottom, now: .now) { laneRevision += 1 }
+    }
+
     private func detectChanges(from before: Event, to after: Event, now: Date) {
         let scoreChanged = before.competitors.map(\.score) != after.competitors.map(\.score)
         if after.state == .live && before.state == .live && scoreChanged {
@@ -995,6 +1028,62 @@ struct ScoreChange: Equatable {
             return c.key
         })
     }
+}
+
+/// The game pages' lane scores, for the scores list (the live check: the
+/// list trailed the game's hero by a minute or two). A game page whose fast
+/// lane reads a score ahead of the scoreboard's publishes it here; the list
+/// shows it on that game's row and tile until the scoreboard catches up.
+/// Only what's shown: alerts and the menu bar keep to the scoreboard's own
+/// polls (web/src/state/laneScores.ts).
+struct LaneScores {
+    /// A lane's score for an event, top first, and when it was read.
+    struct Reading: Equatable {
+        let top: String
+        let bottom: String
+        let at: Date
+    }
+
+    /// How long a lane's score stands in for the scoreboard's before the scoreboard is trusted again.
+    static let lapse: TimeInterval = 3 * 60
+
+    private var readings: [String: Reading] = [:]
+
+    var isEmpty: Bool { readings.isEmpty }
+
+    /// A page's reading for its event; false when it's the one already held
+    /// (nothing to redraw). A page closing leaves its last reading to stand
+    /// until the scoreboard catches up (or it lapses).
+    mutating func publish(_ eventID: String, top: String, bottom: String, now: Date) -> Bool {
+        if let was = readings[eventID], was.top == top, was.bottom == bottom { return false }
+        readings = readings.filter { now.timeIntervalSince($0.value.at) <= Self.lapse }
+        readings[eventID] = Reading(top: top, bottom: bottom, at: now)
+        return true
+    }
+
+    /// The event with its page's lane score while that's ahead of the
+    /// scoreboard's (both sides at least as high, one higher), for a live
+    /// game, within `lapse`; the event itself otherwise. (pure; tested)
+    static func withLaneScore(_ event: Event, _ lane: Reading?, now: Date) -> Event {
+        func number(_ score: String?) -> Int? { score.flatMap { Int($0.trimmingCharacters(in: .whitespaces)) } }
+        guard let lane, event.state == .live, case let .match(top, bottom) = event.content,
+              now.timeIntervalSince(lane.at) <= lapse, let laneTop = number(lane.top), let laneBottom = number(lane.bottom) else { return event }
+        if let wasTop = number(top.score), let wasBottom = number(bottom.score),
+           laneTop < wasTop || laneBottom < wasBottom || (laneTop == wasTop && laneBottom == wasBottom) {
+            return event
+        }
+        var shownTop = top, shownBottom = bottom
+        shownTop.score = lane.top
+        shownBottom.score = lane.bottom
+        return event.with(content: .match(top: shownTop, bottom: shownBottom))
+    }
+
+    /// An event as the list shows it.
+    func shown(_ event: Event, now: Date) -> Event { Self.withLaneScore(event, readings[event.id], now: now) }
+
+    /// The events as the list shows them. The same reading gives an equal
+    /// copy, so an equatable row or tile redraws only when its score does.
+    func shown(_ events: [Event], now: Date) -> [Event] { events.map { shown($0, now: now) } }
 }
 
 /// Climbing's three disciplines, as the settings toggle them.

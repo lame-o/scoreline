@@ -164,5 +164,54 @@ extension ScorelineTests {
         let odd = marks.filter { $0.wholeMatch(of: pattern) == nil }
         check(!marks.isEmpty && odd.isEmpty, "every Game 4 mark is scorer's notation (6-3, 4-6-3 DP, L4-3 DP, 3U, F8, K, SB, CS 2-4, FC 6-4, HR…)",
               odd.joined(separator: ", "))
+
+        // MARK: At the Plate between halves
+
+        // After the third out (the live check: 0 outs with the old batter for about 25 s, and once no
+        // batter at all), on Game 4's own entries: Turang grounds out to end the top of the 1st; then
+        // "Middle of the 1st", the bottom's start, and "Dustin May pitches to Yandy Diaz".
+        let third = at("4019080450005990057")
+        func upTo(_ n: Int) -> [JSON] { Array(plays[...(third + n)]) }
+        // ESPN's situation as reported: outs reset to 0, still naming Turang.
+        func reported(balls: Int = 0, onFirst: Bool = false, onThird: Bool = false, batter: String? = "B. Turang",
+                      batterID: String? = "41179", pitcher: String? = "G. Jax", pitcherID: String? = "42604") -> GameDetail.Baseball {
+            GameDetail.Baseball(balls: balls, strikes: 0, outs: 0, onFirst: onFirst, onSecond: false, onThird: onThird, batter: batter,
+                                pitcher: pitcher, lastPlay: "Turang grounded out to shortstop.", batterID: batterID, pitcherID: pitcherID)
+        }
+        // A pinch hitter's ID before the box score has his name.
+        var unnamed = names
+        unnamed["33481"] = nil
+        func settled(_ s: GameDetail.Baseball, _ n: Int, boxScore: [String: String]? = nil) -> GameDetail.Baseball? {
+            BaseballFeed.settledSituation(s, window: upTo(n), names: boxScore ?? names)
+        }
+        // Runners were left on first and third.
+        let halves = [0, 1, 2, 3].compactMap { settled(reported(balls: 1, onFirst: true, onThird: true), $0) }
+        func asEnded(_ s: GameDetail.Baseball) -> Bool {
+            let cleared = s.outs == 3 && s.balls == 0 && s.strikes == 0 && !s.onFirst && !s.onThird
+            return cleared && s.batter == "B. Turang" && s.pitcher == "G. Jax"
+        }
+        check(halves.count == 4 && halves.allSatisfy(asEnded),
+              "the half as it ended until the next half's batter: 3 outs, the count and bases cleared, the last matchup",
+              "\(halves.map { "\($0.outs) \($0.batter ?? "nil")" })")
+        let nobody = settled(reported(batter: nil, batterID: nil, pitcher: nil, pitcherID: nil), 2)
+        let nobodyMatchup: [String?] = [nobody?.batter, nobody?.batterID, nobody?.pitcher]
+        check(nobody?.outs == 3 && nobodyMatchup == ["B. Turang", "41179", "G. Jax"],
+              "…and when it names nobody, the batter's row stays", "\(String(describing: nobody))")
+        let nextHalf = reported(batter: "Y. Diaz", batterID: "33481", pitcher: "D. May", pitcherID: "40937")
+        check(settled(nextHalf, 2) == nextHalf, "the break as ESPN has it once it names the next half's batter")
+        // Bottom of the 1st under way in the plays; ESPN's situation still on Turang.
+        let underway = settled(reported(), 4)
+        let matchup: [String?] = [underway?.batter, underway?.batterID, underway?.pitcher, underway?.pitcherID]
+        check(underway?.outs == 0 && matchup == ["Y. Diaz", "33481", "D. May", "40937"],
+              "a situation still naming the batter the plays have retired takes the at-bat under way", "\(String(describing: underway))")
+        let pinch = settled(reported(), 4, boxScore: unnamed)
+        let pinchNamed = settled(reported(batter: nil, batterID: "33481", pitcher: "D. May", pitcherID: "40937"), 4, boxScore: unnamed)
+        let pinchRow: [String?] = [pinch?.batter, pinch?.batterID, pinchNamed?.batter]
+        check(pinchRow == ["Yandy Diaz", "33481", "Yandy Diaz"],
+              "a name the box score lacks comes from the at-bat's own words (\"Dustin May pitches to Yandy Diaz\")",
+              "\(pinch?.batter ?? "nil") \(pinchNamed?.batter ?? "nil")")
+        check(settled(nextHalf, 4) == nextHalf, "an at-bat the situation already has: unchanged")
+        check(BaseballFeed.matchup("Dustin May pitches to Yandy Diaz.").map { [$0.pitcher, $0.batter] } == ["Dustin May", "Yandy Diaz"]
+              && BaseballFeed.matchup("Mid 1st") == nil, "the matchup in an at-bat's words, without the full stop")
     }
 }

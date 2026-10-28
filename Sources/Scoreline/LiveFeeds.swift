@@ -1009,7 +1009,9 @@ final class BaseballFeed {
             let lastID = lastRef.flatMap { ref in ref.range(of: "/plays/").map { String(ref[$0.upperBound...].prefix { $0.isNumber }) } }
             if !Task.isCancelled, lastID == nil || lastID == newestID { lastPlayRef = lastRef }
         }
-        situation = Self.situation(s, names: names, lastPlay: window.last { $0["type"]["type"].string == "play-result" }?["text"].string)
+        let lastPlay = window.last { $0["type"]["type"].string == "play-result" }?["text"].string
+        let next = Self.settledSituation(Self.situation(s, names: names, lastPlay: lastPlay), window: window, names: names)
+        if next != situation { situation = next }
     }
 
     private func loadPlays(base: String, names: [String: String], side: (String?) -> GameDetail.Side?) async {
@@ -1278,6 +1280,55 @@ final class BaseballFeed {
             batter: name("batter"), pitcher: name("pitcher"), lastPlay: lastPlay,
             runners: GameDetail.Baseball.runners(s, names: names),
             batterID: s["batter"]["playerId"].int.map(String.init), pitcherID: s["pitcher"]["playerId"].int.map(String.init))
+    }
+
+    /// At the Plate as the plays have it (the live check, Game 4): after the
+    /// third out ESPN's situation resets the outs to 0 at once but goes on
+    /// naming the batter who made it for half a minute or so (and once named
+    /// nobody), so the diamond said 0 outs with the old batter, then lost its
+    /// batter row. Until the situation names the next half's batter, the half
+    /// is shown as it ended: 3 outs, the count and bases cleared, the last
+    /// matchup. And a situation still naming the batter whose at-bat the
+    /// plays have closed (or nobody, or someone the box score hasn't named
+    /// yet, a pinch hitter) takes the matchup from the at-bat under way
+    /// ("Dustin May pitches to Yandy Diaz"). (pure; tested)
+    static func settledSituation(_ s: GameDetail.Baseball?, window: [JSON], names: [String: String]) -> GameDetail.Baseball? {
+        guard let s else { return nil }
+        func type(_ e: JSON) -> String? { e["type"]["type"].string }
+        func half(_ e: JSON) -> String { "\(e["period"]["type"].string ?? "")\(e["period"]["number"].int ?? 0)" }
+        func startsAtBat(_ e: JSON) -> Bool { type(e) == "start-batterpitcher" || e["summaryType"].string == "P" }
+        func name(_ id: String?) -> String? { id.flatMap { names[$0] } }
+        // The third out, and nothing of the next half's at-bats after it: the half as it ended.
+        if let third = window.lastIndex(where: { type($0) == "play-result" && ($0["outs"].int ?? 0) >= 3 }),
+           !window[(third + 1)...].contains(where: { startsAtBat($0) && half($0) != half(window[third]) }) {
+            let batterID = PlayScene.participant(window[third], "batter"), pitcherID = PlayScene.participant(window[third], "pitcher")
+            if s.batterID == nil || s.batterID == batterID {
+                return GameDetail.Baseball(balls: 0, strikes: 0, outs: 3, onFirst: false, onSecond: false, onThird: false,
+                                           batter: name(batterID) ?? s.batter, pitcher: name(pitcherID) ?? s.pitcher,
+                                           lastPlay: s.lastPlay, runners: [nil, nil, nil],
+                                           batterID: batterID ?? s.batterID, pitcherID: pitcherID ?? s.pitcherID)
+            }
+        }
+        // The at-bat under way: the first entry after the last at-bat's result names both, by ID and in words.
+        let closed = window.lastIndex { type($0) == "play-result" && PlayScene.participant($0, "batter") != nil }
+        guard let start = window[(closed.map { $0 + 1 } ?? 0)...].first(where: startsAtBat) else { return s }
+        let batterID = PlayScene.participant(start, "batter"), pitcherID = PlayScene.participant(start, "pitcher")
+        let previous = closed.flatMap { PlayScene.participant(window[$0], "batter") }
+        let stale = s.batterID == nil || (s.batterID == previous && batterID != nil && batterID != previous)
+        let words = matchup(start["text"].string)
+        let batter = stale ? name(batterID) ?? words?.batter ?? s.batter : s.batter ?? (s.batterID == batterID ? words?.batter : nil)
+        let pitcher = stale ? name(pitcherID) ?? words?.pitcher ?? s.pitcher : s.pitcher ?? (s.pitcherID == pitcherID ? words?.pitcher : nil)
+        return GameDetail.Baseball(balls: s.balls, strikes: s.strikes, outs: s.outs, onFirst: s.onFirst, onSecond: s.onSecond,
+                                   onThird: s.onThird, batter: batter, pitcher: pitcher, lastPlay: s.lastPlay, runners: s.runners,
+                                   batterID: stale ? batterID : s.batterID, pitcherID: stale ? pitcherID ?? s.pitcherID : s.pitcherID)
+    }
+
+    /// "Dustin May pitches to Yandy Diaz" → the pitcher and the batter, as ESPN wrote them.
+    static func matchup(_ text: String?) -> (pitcher: String, batter: String)? {
+        guard let text, let range = text.range(of: " pitches to "), range.lowerBound > text.startIndex else { return nil }
+        var batter = text[range.upperBound...]
+        if batter.count > 1, batter.hasSuffix(".") { batter = batter.dropLast() }
+        return batter.isEmpty ? nil : (String(text[..<range.lowerBound]), String(batter))
     }
 }
 
