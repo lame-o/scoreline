@@ -173,14 +173,14 @@ describe("soccer theater: moments", () => {
     expect(s.keeper.name).toBe("Jordan Pickford");
   });
 
-  it("Cherki's chance: saved by Suzuki on his line, and held; its stamp: saved by Suzuki, 13 yards out", () => {
+  it("Cherki's chance: saved by Suzuki on his line, and held; its stamp: saved by Suzuki, how hard (0.42 xGOT), 13 yards out", () => {
     const s = save!.scene;
     expect(s.outcome).toBe("saved");
     expect(s.keeper.name).toBe("Zion Suzuki");
     expect(s.keeper.at!.x).toBeLessThan(Pitch.sixDepth);
     expect(s.shot.stopped!.x).toBeLessThan(2);
     expect(s.rebound).toBeNull();
-    expect(stampDetail(s)).toBe("SAVED BY SUZUKI · 13 YD");
+    expect(stampDetail(s)).toBe("SAVED BY SUZUKI · 0.42 xGOT · 13 YD");
   });
 
   it("Haaland's header blocked by Maatsen, from Foden's cross", () => {
@@ -226,7 +226,7 @@ describe("soccer theater: moments", () => {
     const s = find("Joe Gelhardt (Hull City) left footed shot from the centre of the box is close")!.scene;
     expect(s.outcome).toBe("wide");
     expect(s.shot.xg ?? 0).toBeGreaterThanOrEqual(BIG_CHANCE_XG);
-    expect(stampDetail(s)).toBe("BIG CHANCE · 0.61 XG · WIDE");
+    expect(stampDetail(s)).toBe("BIG CHANCE · 0.61 xG · WIDE");
   });
 
   it("decisive: a late equalizer or winner, not a third goal or a 60th-minute one", () => {
@@ -376,7 +376,7 @@ describe("soccer theater: choreography", () => {
     const end = scorer.position(Infinity);
     expect(Math.hypot(end.x - s.shot.from.x, end.y - s.shot.from.y)).toBeGreaterThan(6);
     expect(SoccerScript.build({ ...s, decisive: true }).banners[0]?.tone).toBe("gold");
-    expect(stampDetail(s)).toBe("AST WHITE · HEADER · 6 YD");
+    expect(stampDetail(s)).toBe("ASSISTED BY WHITE · HEADER · 6 YD");
   });
 
   it("a save: the keeper's hands are where the ball is when it gets there, and he holds on; SAVE, in neutral ink", () => {

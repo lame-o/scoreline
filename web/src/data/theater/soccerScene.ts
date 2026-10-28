@@ -212,6 +212,8 @@ export interface Touch {
   defending: boolean;
   /** The defending keeper's own: a save, a punch, coming off his line (credited to lineup role 1, or something only a keeper does). */
   keeper: boolean;
+  /** Won or contested in the air (Opta's "aerial"): a header, at head height. */
+  aerial: boolean;
 }
 
 /** Where a shot crossed (or would have crossed) the goal line: metres from the near touchline, and up. */
@@ -611,8 +613,9 @@ export function buildUp(
     if (touches.filter((t) => !t.defending).length >= touchLimit) break;
     const ours = teamID(item) === team;
     const player = name(item) ?? "";
-    const touch: Touch = { kind: "touch", player, credit: credit(item), at: spot, to: null, lofted: false, clock: time, defending: !ours, keeper: false };
+    const touch: Touch = { kind: "touch", player, credit: credit(item), at: spot, to: null, lofted: false, clock: time, defending: !ours, keeper: false, aerial: false };
     touch.to = place(item, "fieldPosition2X", "fieldPosition2Y", home, scale);
+    touch.aerial = type === "aerial";
     const length = touch.to ? Math.hypot(touch.to.x - spot.x, touch.to.y - spot.y) : 0;
     if (ours) {
       switch (type) {
@@ -844,16 +847,31 @@ export function stampDetail(scene: SoccerScene): string {
   let parts: (string | null)[] = [];
   const technique = scene.shot.penalty ? "Penalty" : scene.shot.technique === "header" ? "Header" : scene.shot.technique === "volley" ? "Volley" : null;
   const yards = scene.shot.penalty ? null : `${distance(scene)} yd`;
-  switch (scene.outcome) {
+  // How the move began, as Opta tags the shot, when it wasn't open play.
+  const situations: Partial<Record<NonNullable<SceneShot["situation"]>, string>> = {
+    corner: "From a corner",
+    freeKick: "Free kick",
+    setPiece: "Set piece",
+    throwIn: "From a throw-in",
+    fastBreak: "Fast break",
+  };
+  const from = scene.shot.situation != null ? (situations[scene.shot.situation] ?? null) : null;
+  switch (scene.review === "overturned" ? "overturned" : scene.outcome) {
+    case "overturned":
+      parts = ["Goal overturned by VAR"];
+      break;
     case "goal":
-      parts = [scene.assist != null ? `Ast ${surname(scene.assist)}` : null, technique, yards];
+      parts = [scene.assist != null ? `Assisted by ${surname(scene.assist)}` : null, technique, scene.shot.penalty ? null : from, yards];
       break;
     case "ownGoal":
       parts = ["Own goal"];
       break;
-    case "saved":
-      parts = [scene.keeper.name != null ? `Saved by ${surname(scene.keeper.name)}` : "Saved", technique, yards];
+    case "saved": {
+      // How hard it was to keep out: Opta's expected goals on target.
+      const xgot = scene.shot.xgot != null && scene.shot.xgot > 0 ? `${scene.shot.xgot.toFixed(2)} xGOT` : null;
+      parts = [scene.keeper.name != null ? `Saved by ${surname(scene.keeper.name)}` : "Saved", technique, xgot, yards];
       break;
+    }
     case "blocked":
       parts = [scene.blocker?.name != null ? `Blocked by ${surname(scene.blocker.name)}` : "Blocked", technique, yards];
       break;
@@ -867,10 +885,11 @@ export function stampDetail(scene: SoccerScene): string {
       break;
     }
   }
+  // Small capitals, but xG and xGOT keep their own case.
   return parts
     .filter((p): p is string => p != null)
-    .join(" · ")
-    .toUpperCase();
+    .map((p) => (p.includes("xG") ? p : p.toUpperCase()))
+    .join(" · ");
 }
 
 /** SoccerScene's static members, by their Swift names. */

@@ -1,12 +1,13 @@
 /**
- * The football and soccer play theaters (FootballTheater.swift,
- * SoccerTheater.swift): key frames from the render harness
- * (/dev/theater/football and /dev/theater/soccer, `?t=` frozen) at 390 and
- * 1440 pixels in light and dark, and the theaters on the live `?demo` pages:
- * football in the Field section above the drive chart, soccer at the top of
- * the Live Pitch with its caption; each draws, replays a play that arrives,
- * stops its frame loop off screen and holds still between plays. Saves
- * screenshots to SCORELINE_SCREENSHOTS.
+ * The football, soccer and basketball play theaters (FootballTheater.swift,
+ * SoccerTheater.swift, BasketballTheater.swift): key frames from the render
+ * harness (/dev/theater/football, /dev/theater/soccer and
+ * /dev/theater/basketball, `?t=` frozen) at 390 and 1440 pixels in light and
+ * dark, and the theaters on the live `?demo` pages: football in the Field
+ * section above the drive chart, soccer at the top of the Live Pitch with its
+ * caption, basketball in the Shot Chart above the court; each draws, replays
+ * a play that arrives, stops its frame loop off screen and holds still
+ * between plays. Saves screenshots to SCORELINE_SCREENSHOTS.
  */
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
@@ -17,6 +18,7 @@ mkdirSync(OUT, { recursive: true });
 
 const NFL = "/game/espn-401873016?demo";
 const SOCCER = "/game/espn-401879256?demo&league=eng.1&soccer=6";
+const NBA = "/game/espn-401909869?demo&league=nba&nba=16";
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -57,6 +59,13 @@ const KEY_FRAMES = {
     ["Save", "2.6"],
     ["Penalty", "0.9"],
   ],
+  basketball: [
+    // BUZZER-BEATER in gold with its confetti and the stamp; the posterizing slam at the rim; the block; the steal at the other end.
+    ["Buzzer-beater", "3.6"],
+    ["Posterized", "1.95"],
+    ["Rejected", "2.3"],
+    ["Steal and dunk", "1.0"],
+  ],
 } as const;
 
 for (const size of [
@@ -67,7 +76,7 @@ for (const size of [
     test.describe(`${size.name} ${scheme} theaters`, () => {
       test.use({ viewport: { width: size.width, height: size.height }, colorScheme: scheme, isMobile: size.mobile, hasTouch: size.mobile, deviceScaleFactor: 2 });
 
-      for (const sport of ["football", "soccer"] as const) {
+      for (const sport of ["football", "soccer", "basketball"] as const) {
         test(`${sport}: key frames from the harness`, async ({ page }) => {
           const errors = watchErrors(page);
           for (const [only, t] of KEY_FRAMES[sport].slice(0, size.frames)) {
@@ -145,6 +154,25 @@ test.describe("theaters on the live pages", () => {
     expect(errors).toEqual([]);
   });
 
+  test("basketball: in the Shot Chart above the court; the buzzer-beater replays as it arrives", async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto(NBA);
+    const court = page.locator('[data-section="court"]');
+    const canvas = court.locator("[data-theater] canvas");
+    await expect(canvas).toBeVisible({ timeout: 20_000 });
+    // Above the court, and no section of its own.
+    const theaterBox = await canvas.boundingBox();
+    const chartBox = await page.getByRole("img", { name: /^Shot chart\./ }).boundingBox();
+    expect(theaterBox && chartBox && theaterBox.y < chartBox.y).toBeTruthy();
+    expect(await inked(page, '[data-section="court"] [data-theater] canvas')).toBeGreaterThan(0.5);
+    // Edwards' 28-footer comes through the lane about 10 s in, and replays.
+    await expect(page.getByText("Buzzer-beater", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => frames(page), { timeout: 15_000 }).toBeGreaterThan(60);
+    await page.waitForTimeout(2500);
+    await court.screenshot({ path: join(OUT, "theater-basketball-live-page-1440-dark.png") });
+    expect(errors).toEqual([]);
+  });
+
   test("Reduce Motion: no replay, each play crossfades to how it ended", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(NFL);
@@ -173,6 +201,7 @@ test.describe("theaters on the live pages", () => {
   for (const [sport, only] of [
     ["football", "Field goal"],
     ["soccer", "Save"],
+    ["basketball", "Steal and dunk"],
   ] as const) {
     test(`${sport}: a replay runs its course, then the stage holds still`, async ({ page }) => {
       await page.goto(`/dev/theater/${sport}?only=${encodeURIComponent(only)}`);

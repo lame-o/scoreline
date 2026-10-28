@@ -34,6 +34,7 @@ import {
   playClimax,
   footballClimax,
   soccerClimax,
+  basketballClimax,
   playsConfetti,
   POSE_HOME,
   readBaseballPlay,
@@ -56,6 +57,8 @@ import {
 import { oklabFromHex } from "../../src/data/teamColors";
 import { parse as parseFootball } from "../../src/data/theater/footballScene";
 import { FootballScript } from "../../src/data/theater/footballScript";
+import { parseScene as parseCourt } from "../../src/data/theater/basketballScene";
+import { BasketballScript } from "../../src/data/theater/basketballScript";
 import { keepers, parse as parseSoccer } from "../../src/data/theater/soccerScene";
 import { SoccerScript } from "../../src/data/theater/soccerScript";
 import type { Climber, WallRoute } from "../../src/data/wallState";
@@ -397,6 +400,15 @@ describe("NBA: NY at BOS", () => {
     expect(george?.side).toBe("bottom");
     expect(george?.subline.endsWith("end of Q2")).toBe(true);
     expect(george?.score).toBe("BOS 50–49");
+  });
+
+  it("timed to the court's theater: George's three drops through the net this far into its replay", () => {
+    const george = slides.find((s) => s.id === idOf(game[231])) ?? null;
+    const scene = parseCourt(game, 231, teams);
+    const swish = scene ? basketballClimax(BasketballScript.play(scene)) : null;
+    console.log(`    NBA: the slide lands as the ball drops through the net (${(swish ?? -1).toFixed(2)} s into the theater's replay)`);
+    expect(scene?.id).toBe(george?.id);
+    expect(swish).toBeGreaterThan(0.3);
   });
 
   it("an 8–0 run doesn't slide (12 or more do); a 14–2 run: a normal slide, no chip; a clutch go-ahead", () => {

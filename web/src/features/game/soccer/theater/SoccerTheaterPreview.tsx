@@ -5,7 +5,9 @@
  * render harness, for the web): Gabriel's header after a nine-pass move,
  * Haaland's header from a free kick, McBurnie's penalty, Penders' own goal,
  * Cherki saved by Suzuki, Haaland blocked, Ndiaye off the post and
- * Gelhardt's big chance wide, each with a Replay button. `?t=4.2` draws
+ * Gelhardt's big chance wide, Petrovic punching a corner before Cunha's
+ * header, and Osula's goal struck off by VAR (its NO GOAL beat), each with
+ * both elevens from the summary's lineups and a Replay button. `?t=4.2` draws
  * every tile at that instant, frozen, for screenshots (`?t=end`: as it
  * ended); `?only=Gabriel` keeps the tiles whose title starts so. Fixtures
  * load lazily from test/fixtures, so nothing here ships.
@@ -15,7 +17,7 @@ import { useSearchParams } from "react-router";
 import type { JSONValue } from "../../../../data/json";
 import { actionMoment, pitchAction } from "../../../../data/liveFeeds/soccer";
 import type { LiveMoment } from "../../../../data/moments";
-import { isMoment, keepers, parse, type SoccerTheaterState } from "../../../../data/theater/soccerScene";
+import { isMoment, keepers, parse, SoccerLineup, type SoccerTheaterState } from "../../../../data/theater/soccerScene";
 import { MomentProvider, useMomentSlot } from "../../core/moments";
 import SoccerTheater from "./SoccerTheater";
 
@@ -29,7 +31,7 @@ interface Team {
 }
 
 interface Fixture {
-  readonly matches: readonly { readonly home: Team; readonly away: Team; readonly clips: readonly (readonly JSONValue[])[] }[];
+  readonly matches: readonly { readonly home: Team; readonly away: Team; readonly clips: readonly (readonly JSONValue[])[]; readonly rosters?: JSONValue }[];
 }
 
 interface Tile {
@@ -49,6 +51,8 @@ const CLUES: readonly [string, string][] = [
   ["Blocked", "Erling Haaland (Manchester City) header from the centre of the box is blocked"],
   ["Off the post", "Iliman Ndiaye (Manchester City) hits the left post"],
   ["Big chance", "Joe Gelhardt (Hull City) left footed shot from the centre of the box is close"],
+  ["Punch", "Matheus Cunha (Manchester United) header"],
+  ["No goal", "William Osula (Newcastle United)"],
 ];
 
 function tiles(fixture: Fixture): Tile[] {
@@ -58,11 +62,14 @@ function tiles(fixture: Fixture): Tile[] {
       for (const clip of match.clips) {
         const i = clip.findIndex((p) => isMoment(p) && String((p as { text?: string }).text ?? "").includes(clue));
         if (i < 0) continue;
-        const scene = parse(clip, i, match.home.id, keepers(clip));
-        if (!scene) continue;
+        const parsed = parse(clip, i, match.home.id, keepers(clip));
+        if (!parsed) continue;
+        // Struck off by VAR: its NO GOAL beat.
+        const scene = title === "No goal" ? { ...parsed, review: "overturned" as const } : parsed;
         const action = pitchAction(clip[i], 0, match.home.id);
         const m = action ? actionMoment(action) : null;
-        out.push({ title, state: { scene, news: true }, moment: m ? { ...m, burst: true } : null, home: match.home, away: match.away });
+        const lineups = SoccerLineup.lineups(match.rosters ?? [], (team) => (team === match.home.id ? "top" : "bottom"));
+        out.push({ title, state: { scene, news: true, lineups }, moment: m ? { ...m, burst: true } : null, home: match.home, away: match.away });
         break found;
       }
     }

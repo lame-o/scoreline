@@ -18,6 +18,13 @@
  * back to the new line; after a score, a kick or a turnover they hold where
  * it ended. A touchdown's try is a scene of its own, a shorter beat.
  *
+ * The play is told in the order it happened, by the men ESPN credits: the
+ * defense in its own base front, each man in his depth-chart slot; the rush
+ * that got home as he threw; the strip, the scramble for the ball and who
+ * came up with it, then the return; the kick blocked at the line; each flag
+ * thrown by the nearest official when and where its foul happened, and the
+ * yards walked off after.
+ *
  *     const script = FootballScript.play(scene);
  *     script.ball(2.1); script.camera.frame(2.1);
  */
@@ -25,7 +32,7 @@ import { CameraFrame, type Rect } from "../mlb/playCamera";
 import { Flight, Move, type Arc } from "../mlb/playScript";
 import { easeValue, fieldPoint, ground, type Ease, type FieldPoint, type Point } from "../mlb/theaterField";
 import type { Side } from "../models";
-import { kindIs, rounded, type FootballScene, type Lane, type Position } from "./footballScene";
+import { DepthSlot, kindIs, playText, rounded, type Flag as SceneFlag, type FootballScene, type Lane, type Participant, type Position } from "./footballScene";
 import { ballMemo, RigTrack, type RigFacing } from "./rig";
 import { CameraPath, CameraRig, clearing, intersects, maxY, midX, unionAll } from "./theaterKit";
 
@@ -86,22 +93,29 @@ export const Gridiron = {
 
 // MARK: - Script
 
-export type Team = "offense" | "defense";
+/** The two teams, and the official who throws a flag. */
+export type Team = "offense" | "defense" | "official";
 
 /** Who he is on the play: his stance and pose follow from it. */
-export type Role = "line" | "quarterback" | "back" | "receiver" | "tightEnd" | "front" | "backer" | "corner" | "safety" | "kicker" | "holder" | "punter" | "returner" | "cover";
+export type Role = "line" | "quarterback" | "back" | "receiver" | "tightEnd" | "front" | "backer" | "corner" | "safety" | "kicker" | "holder" | "punter" | "returner" | "cover" | "official";
 
-/** A moment of the play in his hands. */
+/**
+ * A moment of the play in his hands: besides the catch, the throw, the kick,
+ * the tackle and the block, a punch at the ball in another man's arms (the
+ * `strip`), laid out on the grass for a loose ball (`scramble`), an
+ * official's flag thrown (`flagThrow`), up off the line with both arms high
+ * for a kick (`leap`).
+ */
 export interface Action {
-  readonly kind: "catchHigh" | "catchChest" | "throwBall" | "handoff" | "kick" | "tackle" | "block" | "spike" | "scoop";
+  readonly kind: "catchHigh" | "catchChest" | "throwBall" | "handoff" | "kick" | "tackle" | "block" | "spike" | "scoop" | "strip" | "scramble" | "flagThrow" | "leap";
   readonly at: number;
   /** Where the ball comes from or goes: he turns to face it. */
   readonly toward: Point;
 }
 
-/** A pose held from a moment on: on a knee, down after the tackle, both arms up in the end zone, a hand up for the fair catch. */
+/** A pose held from a moment on: on a knee, down after the tackle, both arms up in the end zone, a hand up for the fair catch, on his back after a hit as he threw. */
 export interface Hold {
-  readonly kind: "kneel" | "down" | "touchdown" | "fairCatch";
+  readonly kind: "kneel" | "down" | "touchdown" | "fairCatch" | "knocked";
   readonly from: number;
   readonly until: number;
 }
@@ -112,6 +126,8 @@ export class Player {
   team: Team;
   at: Point;
   role: Role;
+  /** The depth-chart slot he lines up in ("lde", "rcb", "ss", "lt"): a credited man is this man, on this side. */
+  key: string | null = null;
   moves: Move[] = [];
   actions: Action[] = [];
   holds: Hold[] = [];
@@ -213,12 +229,13 @@ export interface Lines {
 
 const NO_LINES: Lines = { scrimmage: null, gain: null };
 
-/** A flag thrown in: from where, to where, when it lands. */
+/** A flag thrown in: from where, to where, when it lands; a declined one says so beside it once the play is over. */
 export interface Flag {
   readonly thrown: number;
   readonly lands: number;
   readonly from: FieldPoint;
   readonly to: Point;
+  readonly declined: boolean;
 }
 
 /** A flag's yards walked off: the spot moves from one line to another. */
@@ -260,7 +277,8 @@ export class FootballScript {
   lines: Lines = NO_LINES;
   next: Lines = NO_LINES;
   linesMove = Infinity;
-  flag: Flag | null = null;
+  /** Every flag on the play, in the order they're thrown. */
+  flags: Flag[] = [];
   march: March | null = null;
   banner: Banner | null = null;
   /** When the stamp lands. */
@@ -285,6 +303,11 @@ export class FootballScript {
   /** The room the camera keeps round a spot, at this script's yaw. */
   room(p: FieldPoint, figure: boolean): Rect {
     return Gridiron.room(p, figure, this.yaw);
+  }
+
+  /** The first flag thrown. */
+  get flag(): Flag | null {
+    return this.flags[0] ?? null;
   }
 
   /** The ball at t: in the air, in hand, on the ground. */
@@ -369,10 +392,42 @@ export class FootballScript {
   }
 
   static play(scene: FootballScene): FootballScript {
-    const b = new Builder(scene, Gridiron.y(scene.from), scene.shotgun);
+    const b = new Builder(FootballScript.played(scene) ?? scene, Gridiron.y(scene.from), scene.shotgun, scene);
     b.build();
     b.script.measureBodies();
     return b.script;
+  }
+
+  /**
+   * A snap a flag wiped out ("… - No Play"), as it was run before the flag
+   * came back: ESPN types it a penalty, but its words say what happened (a
+   * pass, a run, a sack) and where he was stopped. Null for a flag that
+   * stopped the snap, or a play the words don't name. (pure; tested)
+   */
+  static played(scene: FootballScene): FootballScene | null {
+    if (scene.kind.type !== "penalty" || scene.flags.some((f) => f.timing === "beforeSnap" && f.status === "accepted")) return null;
+    const words = playText(scene.text).toLowerCase();
+    let kind: FootballScene["kind"];
+    if (words.includes("sacked")) kind = { type: "sack" };
+    else if (words.includes("kneels") || words.includes("kneel down")) kind = { type: "kneel" };
+    else if (words.includes(" pass ") || words.startsWith("pass ")) kind = { type: words.includes("incomplete") ? "incomplete" : "pass" };
+    else if (words.includes(" rush") || words.includes("scrambles") || scene.gap != null || words.includes(" up the middle")) kind = { type: "rush" };
+    else return null;
+    const played = scene.clone();
+    played.kind = kind;
+    played.to = scene.stopped ?? scene.from;
+    played.scoring = null;
+    played.flips = false;
+    played.onDowns = false;
+    played.penalty = null;
+    played.flags = [];
+    played.stopped = null;
+    // The depth the words give, at the medians caught passes are thrown to (5 yards short, 20 deep).
+    if (kind.type === "pass" || kind.type === "incomplete") {
+      const gain = played.to - scene.from;
+      played.air = kind.type === "pass" ? Math.min(gain, scene.depth === "deep" ? 20 : 5) : scene.depth === "deep" ? 20 : 5;
+    }
+    return played;
   }
 
   /**
@@ -454,7 +509,10 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), h
 
 /** Assembles a script beat by beat. */
 export class Builder {
+  /** The play as it was run. */
   readonly scene: FootballScene | null;
+  /** The play as it stands: the same, unless a flag wiped it out (the spot, the lines, the stamp and the flags are its). */
+  readonly ruling: FootballScene | null;
   script = new FootballScript();
   /** The line of scrimmage, in feet. */
   readonly line: number;
@@ -467,9 +525,18 @@ export class Builder {
   slots = new Map<Slot, number>();
   /** When the action is over (the tackle, the ball coming down), before a flag's walk. */
   over = 0;
+  /** The play's moments, for a flag's: the throw, the ball arriving, the stop (and where). */
+  release: number | null = null;
+  arrival: { readonly at: number; readonly point: Point } | null = null;
+  stop: { readonly at: number; readonly point: Point } | null = null;
+  /** When a loose ball was recovered. */
+  recoveredAt: number | null = null;
+  /** The formation's strong side (the tight end's): 1 the offense's right, −1 its left. */
+  strong = 1;
 
-  constructor(scene: FootballScene | null, line: number, shotgun: boolean) {
+  constructor(scene: FootballScene | null, line: number, shotgun: boolean, ruling: FootballScene | null = null) {
     this.scene = scene;
+    this.ruling = ruling ?? scene;
     this.line = line;
     this.shotgun = shotgun;
     this.ballX = scene ? (scene.kind.type === "kickoff" || scene.pointAfter != null ? 0 : Gridiron.spot(scene.hash)) : 0;
@@ -523,6 +590,7 @@ export class Builder {
     const formation = this.scene?.formation ?? "base";
     // The strong side: the way the play went (the right when it doesn't say).
     const s = this.scene?.lane === "left" ? -1 : 1;
+    this.strong = s;
     const gun = this.shotgun && formation !== "victory";
     const kind = this.scene?.kind.type;
     const running = kind === "rush" || kind === "fumble" || kind === "other";
@@ -533,7 +601,16 @@ export class Builder {
     this.add(S.tackleRight, "offense", "line", 11, -3, true);
     this.add(S.quarterback, "offense", "quarterback", 0, gun ? -15 : -4.5, !gun);
     const skill = (slot: Slot, role: Role, x: number, dy: number, set = false) => this.add(slot, "offense", role, x * s, dy, set);
-    const defend = (fronts: readonly number[], backers: readonly (readonly [number, number])[], corners: readonly (readonly [number, number])[], safeties: readonly (readonly [number, number])[]) => {
+    const defend = (base: readonly number[], linebackers: readonly (readonly [number, number])[], corners: readonly (readonly [number, number])[], safeties: readonly (readonly [number, number])[]) => {
+      let fronts = base;
+      let backers = linebackers;
+      // A 3-4: a nose tackle over the ball and the ends a step inside; the fourth man stands up on the weak edge.
+      if (this.scene?.front === "threeFour" && fronts.length === 4) {
+        const low = Math.min(...fronts);
+        const high = Math.max(...fronts);
+        fronts = [low + 4, 0, high - 5];
+        backers = [...backers, [low - 4, 2.5]];
+      }
       fronts.forEach((x, i) => this.add(S.front(i), "defense", "front", x * s, 3, true));
       backers.forEach(([x, dy], i) => this.add(S.backer(i), "defense", "backer", x * s, dy));
       corners.forEach(([x, dy], i) => this.add(S.corner(i), "defense", "corner", x * s, dy));
@@ -683,6 +760,159 @@ export class Builder {
           ],
         );
         break;
+    }
+    this.label(s);
+  }
+
+  /**
+   * Each man's depth-chart slot, from where he lines up: the offense's
+   * linemen left to right (its left is "l"); the defense's ends and tackles
+   * (or the nose), its backers weak to strong (inside ones in a 3-4), the
+   * corners outside and the nickel in the slot, the strong safety on the
+   * tight end's side. The defense's left is the offense's right, as its
+   * depth chart has it.
+   */
+  label(s: number): void {
+    const x = (i: number) => this.position(i, 0).x - this.ballX;
+    const key = (i: number, k: string) => {
+      this.script.players[i]!.key = k;
+    };
+    const names: readonly (readonly [Slot, string])[] = [
+      [S.center, "c"],
+      [S.guardLeft, "lg"],
+      [S.guardRight, "rg"],
+      [S.tackleLeft, "lt"],
+      [S.tackleRight, "rt"],
+      [S.quarterback, "qb"],
+      [S.back, "rb"],
+      [S.fullback, "fb"],
+      [S.tightEnd, "te"],
+      [S.wing, "te"],
+      [S.wideStrong, "wr"],
+      [S.wideWeak, "wr"],
+      [S.slot, "wr"],
+    ];
+    for (const [slot, name] of names) {
+      const i = this.at(slot);
+      if (i != null) key(i, name);
+    }
+    const fronts = this.players("defense", "front").sort((a, b) => x(a) - x(b));
+    fronts.forEach((i, k) => {
+      const side = x(i) > 0 ? "l" : "r";
+      key(i, k === 0 || k === fronts.length - 1 ? `${side}de` : fronts.length === 3 ? "nt" : `${side}dt`);
+    });
+    const backers = this.players("defense", "backer");
+    const edge = backers.filter((i) => this.position(i, 0).y - this.line < 6);
+    for (const i of edge) key(i, x(i) * s > 0 ? "slb" : "wlb");
+    const inside = backers.filter((i) => !edge.includes(i)).sort((a, b) => x(a) * s - x(b) * s);
+    if (edge.length === 0) {
+      inside.forEach((i, k) => key(i, k === 0 && inside.length > 1 ? "wlb" : k === inside.length - 1 && inside.length > 2 ? "slb" : "mlb"));
+    } else {
+      // A 3-4: the strong-side backer, and the inside two by side.
+      if (inside.length >= 3) key(inside.pop()!, "slb");
+      for (const i of inside) key(i, inside.length === 1 ? "mlb" : x(i) > 0 ? "lilb" : "rilb");
+    }
+    const corners = this.players("defense", "corner");
+    // Swift's max(by:) and min(by:): the first of equals either way.
+    const left = corners.filter((i) => x(i) > 0).reduce<number | null>((m, i) => (m == null || x(m) < x(i) ? i : m), null);
+    const right = corners.filter((i) => x(i) <= 0).reduce<number | null>((m, i) => (m == null || x(i) < x(m) ? i : m), null);
+    for (const i of corners) key(i, i === left ? "lcb" : i === right ? "rcb" : "nb");
+    const safeties = this.players("defense", "safety").sort((a, b) => x(b) * s - x(a) * s);
+    safeties.forEach((i, k) => key(i, k === 0 && safeties.length > 1 ? "ss" : "fs"));
+  }
+
+  /**
+   * The man ESPN credits, on his team: the one in his depth-chart slot (the
+   * strong safety himself), else one of his slot's kind on its side of the
+   * ball (an inside backer for a middle one, a corner in the nickel's place),
+   * else the nearest of his position to the spot, else of `fallback`'s.
+   */
+  man(p: Participant | null | undefined, team: Team, spot: Point, t: number, excluding: ReadonlySet<number> = new Set(), fallback: readonly Role[] = []): number | null {
+    const pool = this.script.players.flatMap((player, i) => (player.team === team && !excluding.has(i) ? [i] : []));
+    const nearest = (among: readonly number[]): number | null => {
+      let best: number | null = null;
+      let bestDistance = Infinity;
+      for (const i of among) {
+        const d = hypotP(this.position(i, t), spot);
+        if (d < bestDistance) {
+          bestDistance = d;
+          best = i;
+        }
+      }
+      return best;
+    };
+    const slot = p?.slot;
+    if (slot != null) {
+      const own = pool.find((i) => this.script.players[i]!.key === slot);
+      if (own != null) return own;
+      const kind = Builder.kind(slot);
+      let alike = pool.filter((i) => {
+        const k = this.script.players[i]!.key;
+        return k != null && Builder.kind(k) === kind;
+      });
+      // His side: the slot's left or right, else the strong side (the tight end's) for the strong-side backer,
+      // the strong safety and the nickel, the weak side for the weak-side backer.
+      const lane = new DepthSlot(slot, [], team === "defense", null).lane;
+      const side = lane != null ? Builder.sign(lane) : ["slb", "ss", "nb"].includes(slot) ? this.strong : slot === "wlb" ? -this.strong : 0;
+      if (side !== 0) {
+        const sided = alike.filter((i) => (this.position(i, 0).x - this.ballX) * side > 0);
+        if (sided.length > 0) alike = sided;
+      }
+      const i = nearest(alike);
+      if (i != null) return i;
+    }
+    const roles = Builder.roles(p?.position ?? null);
+    if (roles.length > 0) {
+      const i = nearest(pool.filter((k) => roles.includes(this.script.players[k]!.role)));
+      if (i != null) return i;
+    }
+    if (fallback.length > 0) {
+      const i = nearest(pool.filter((k) => fallback.includes(this.script.players[k]!.role)));
+      if (i != null) return i;
+    }
+    return nearest(pool.filter((k) => this.script.players[k]!.role !== "official"));
+  }
+
+  /** A slot's kind, whichever side it's on: an end, an interior lineman, a backer, a corner, a safety; the offense's line, receivers, tight ends, backs. */
+  static kind(slot: string): string {
+    switch (slot) {
+      case "lde":
+      case "rde":
+        return "de";
+      case "ldt":
+      case "rdt":
+      case "nt":
+      case "ut":
+      case "ng":
+        return "dt";
+      case "wlb":
+      case "mlb":
+      case "slb":
+      case "lilb":
+      case "rilb":
+      case "lolb":
+      case "rolb":
+        return "lb";
+      case "lcb":
+      case "rcb":
+      case "nb":
+        return "cb";
+      case "ss":
+      case "fs":
+        return "s";
+      case "c":
+      case "lg":
+      case "rg":
+      case "lt":
+      case "rt":
+      case "og":
+      case "t":
+        return "ol";
+      case "rb":
+      case "fb":
+        return "rb";
+      default:
+        return slot;
     }
   }
 
@@ -847,17 +1077,22 @@ export class Builder {
     }
   }
 
-  /** The ones credited with the stop, by position (the nearest of each), else the nearest defender: they arrive with the ball carrier. */
-  tackle(runner: number, time: number, spot: Point, team: Team, credited: readonly (Position | null)[], start: number): number[] {
-    const taken = new Set<number>([runner]);
+  /**
+   * The ones credited with the stop (each the man in his slot, else the
+   * nearest of his position), else the nearest defender: they arrive with
+   * the ball carrier.
+   */
+  tackle(runner: number, time: number, spot: Point, team: Team, credited: readonly (Participant | null)[], start: number, excluding: ReadonlySet<number> = new Set()): number[] {
+    const taken = new Set<number>([...excluding, runner]);
     const tacklers: number[] = [];
-    for (const position of credited.slice(0, 3)) {
-      const i = this.nearest(team, spot, start, Builder.roles(position), taken) ?? this.nearest(team, spot, start, [], taken);
+    for (const credit of credited.slice(0, 3)) {
+      const i = this.man(credit, team, spot, start, taken);
       if (i != null) {
         taken.add(i);
         tacklers.push(i);
       }
     }
+    this.stop = { at: time, point: spot };
     tacklers.forEach((i, k) => {
       const here = this.position(i, start);
       const dx = here.x - spot.x;
@@ -944,7 +1179,9 @@ export class Builder {
     if (!scene) return;
     if (scene.kind.type === "fieldGoal") this.script.yaw = 0;
     if (scene.kind.type === "extraPoint") this.script.yaw = 0;
-    switch (scene.kind.type) {
+    // A foul before the snap (a false start, a delay): the ball is never snapped, whatever college logs after it.
+    const stopped = this.ruling?.flags.some((f) => f.timing === "beforeSnap" && f.status === "accepted") === true;
+    switch (stopped ? "penalty" : scene.kind.type) {
       case "pass":
       case "incomplete":
       case "interception":
@@ -968,10 +1205,15 @@ export class Builder {
         this.scrimmage();
         this.sack();
         break;
-      case "fumble":
+      case "fumble": {
+        // Lost from a sack (a strip-sack), after a catch, or on a run.
         this.scrimmage();
-        this.fumble();
+        const words = playText(scene.text).toLowerCase();
+        if (scene.sackers.length > 0 || words.includes("sacked")) this.sack();
+        else if (words.includes(" pass ") && !words.includes("incomplete")) this.pass();
+        else this.rush();
         break;
+      }
       case "punt":
         this.punt();
         break;
@@ -987,7 +1229,7 @@ export class Builder {
         this.penalty();
         break;
     }
-    this.flagAfter();
+    if (!stopped && scene.kind.type !== "penalty") this.flags();
     this.finish();
     this.headline();
     this.measureStamp();
@@ -1003,7 +1245,8 @@ export class Builder {
     const qb = this.at(S.quarterback);
     if (!scene || qb == null) return;
     const { snap, line, shotgun, script } = this;
-    const caught = scene.kind.type === "pass";
+    // (A catch that was then fumbled away is a catch first.)
+    const caught = scene.kind.type === "pass" || scene.kind.type === "fumble";
     const picked = scene.kind.type === "interception";
     const deep = scene.depth === "deep" || (scene.air ?? 0) >= 18;
     const lane = scene.lane ?? "middle";
@@ -1034,16 +1277,19 @@ export class Builder {
     this.move(receiver, catchPoint.y - start.y > 24 ? [stem, catchPoint] : [catchPoint], snap + 0.05, picked || !caught ? arrive + 0.05 : arrive, "inOut");
     this.decoys(new Set([receiver, qb]), release);
     this.protect(snap + 0.85);
-
+    this.release = release;
+    this.arrival = { at: arrive, point: catchPoint };
     const taken = new Set<number>([qb, receiver]);
+    for (const i of this.pressure(qb, release, pocket)) taken.add(i);
+
     if (picked) {
       this.interception(receiver, arrive, catchPoint, flight, taken);
       return;
     }
-    // The defender on him closes as the ball arrives.
+    // The defender on him closes as the ball arrives: the one credited with the breakup, else whoever covers him.
     const coverRoles: Role[] = deep ? ["corner", "safety"] : ["corner", "backer", "safety"];
-    const credited = Builder.roles(scene.position("passDefender"));
-    const defender = this.nearest("defense", catchPoint, snap, credited.length === 0 ? coverRoles : credited);
+    const breakup = scene.participants.find((p) => p.role === "passDefender") ?? null;
+    const defender = (breakup ? this.man(breakup, "defense", catchPoint, snap, taken, coverRoles) : null) ?? this.nearest("defense", catchPoint, snap, coverRoles, taken);
     if (!caught) {
       // Broken up, or just out of reach: it comes down on the grass.
       if (defender != null) this.move(defender, [{ x: catchPoint.x + 3, y: catchPoint.y + 2 }], snap + 0.1, arrive - 0.02);
@@ -1104,12 +1350,59 @@ export class Builder {
     }
   }
 
+  /**
+   * The rush getting home as he throws. A hit (the NFL's bracketed credit):
+   * the man in his slot, round the edge or straight up the middle, reaches
+   * the quarterback as the ball leaves and puts him on his back after it. A
+   * hurry (college's "QB hurried by"): he closes on him, a stride short.
+   * Returns who came.
+   */
+  pressure(qb: number, release: number, pocket: Point): Set<number> {
+    const pressure = this.scene?.pressure;
+    if (!pressure) return new Set();
+    const { snap, line, ballX, script } = this;
+    const thrower = this.position(qb, release);
+    const by: number[] = [];
+    pressure.by.slice(0, 2).forEach((credit, k) => {
+      const i = this.man(credit, "defense", pocket, 0, new Set(by), ["front", "backer"]);
+      if (i == null) return;
+      by.push(i);
+      const start = this.position(i, 0);
+      const side = start.x >= ballX ? 1 : -1;
+      const reach = pressure.hit ? 2.2 : 5.5;
+      const contact = { x: thrower.x + side * reach * 0.8, y: thrower.y + reach * 0.6 };
+      const wide = Math.abs(start.x - ballX) > 12;
+      const path = wide ? [{ x: ballX + side * Math.max(Math.abs(start.x - ballX) + 4, 16), y: line - 6 }, contact] : [contact];
+      const arrive = release + (pressure.hit ? 0.06 : -0.05) + k * 0.08;
+      this.move(i, path, snap + 0.04, arrive, "inOut");
+      if (pressure.hit) script.players[i]!.act("tackle", arrive + 0.04, thrower);
+    });
+    const hitter = by[0];
+    if (!pressure.hit || hitter == null) return new Set(by);
+    const hit = release + 0.1;
+    script.flashes.push({ beat: "hit", at: hit, point: fieldPoint(thrower, 4) });
+    // Driven back a stride from the hit, and down.
+    const from = this.position(hitter, hit);
+    const dx = thrower.x - from.x;
+    const dy = thrower.y - from.y;
+    const d = Math.max(Math.hypot(dx, dy), 0.1);
+    this.move(qb, [{ x: thrower.x + (dx / d) * 3, y: thrower.y + (dy / d) * 3 }], hit, hit + 0.35, "out");
+    script.players[qb]!.holds.push({ kind: "knocked", from: hit + 0.06, until: Infinity });
+    script.players[hitter]!.holds.push({ kind: "down", from: hit + 0.22, until: Infinity });
+    return new Set(by);
+  }
+
   interception(receiver: number, arrive: number, point: Point, flight: number, taken: Set<number>): void {
     const scene = this.scene;
     if (!scene) return;
     const { snap, line, script } = this;
-    const roles = Builder.roles(scene.position("returner") ?? scene.position("passDefender"));
-    const taker = this.nearest("defense", point, snap, roles.length === 0 ? ["corner", "safety", "backer"] : roles);
+    // The man who picked it off, by his slot: credited as the interceptor, or the returner, or for the breakup.
+    let credit: Participant | null = null;
+    for (const role of ["interceptor", "returner", "passDefender"]) {
+      credit = scene.participants.find((p) => p.role === role) ?? null;
+      if (credit) break;
+    }
+    const taker = this.man(credit, "defense", point, snap, taken, ["corner", "safety", "backer"]);
     if (taker == null) return;
     // He jumps the route: in front of the receiver as the ball arrives.
     const jump = { x: point.x - (point.x > this.ballX ? 2 : -2), y: point.y - 3 };
@@ -1128,11 +1421,43 @@ export class Builder {
    * The ball carrier from where he got it to where he was stopped: the
    * tacklers arrive with him, everyone else closes in. Into the end zone
    * with both arms up for a touchdown; out over the sideline when he went out.
+   * A fumble on the way (lost, or recovered by his own side) stops him
+   * where it came loose, and the scramble for it takes over.
    */
-  run(runner: number, start: Point, time: number, taken: ReadonlySet<number>, returning = false, path: readonly Point[] = []): void {
+  run(runner: number, start: Point, time: number, taken: ReadonlySet<number>, returning = false, path: readonly Point[] = [], recovered = false): void {
     const scene = this.scene;
     if (!scene) return;
     const script = this.script;
+    const opponents: Team = script.players[runner]!.team === "offense" ? "defense" : "offense";
+    const loose = scene.loose;
+    if (!returning && !recovered && loose != null && (scene.kind.type === "rush" || scene.kind.type === "pass" || scene.kind.type === "fumble")) {
+      // Stripped where it came loose: the man credited with it (else the first tackler) gets there with him.
+      const at = this.endPoint(path[path.length - 1] ?? start, scene.lane, Gridiron.y(loose));
+      let length = 0;
+      let previous = start;
+      for (const p of [...path, at]) {
+        length += hypotP(p, previous);
+        previous = p;
+      }
+      const arrive = time + clamp(length / 47, 0.35, 2.2);
+      this.move(runner, [...path, at], time, arrive, "out");
+      this.carry(runner, time, arrive);
+      const credit = scene.stripper ?? scene.participants.find((p) => p.role === "tackler") ?? null;
+      const stripped = new Set<number>([...taken, runner]);
+      const from = Math.max(time - 0.3, this.snap);
+      const stripper = this.man(credit, opponents, at, from, stripped);
+      if (stripper != null) {
+        const here = this.position(stripper, from);
+        const d = Math.max(hypotP(here, at), 1);
+        this.move(stripper, [{ x: at.x + ((here.x - at.x) / d) * 2.5, y: at.y + ((here.y - at.y) / d) * 2.5 }], from, arrive, "inOut");
+        script.players[stripper]!.act("strip", arrive, at);
+        stripped.add(stripper);
+      }
+      script.players[runner]!.holds.push({ kind: "down", from: arrive + 0.14, until: Infinity });
+      this.stop = { at: arrive, point: at };
+      this.fumbled(runner, arrive, at, stripped);
+      return;
+    }
     this.carry(runner, time, Infinity);
     // Stopped where the text says when a flag's yards come after; else at the end spot.
     const y = scene.scoring === "touchdown" ? this.endY : Gridiron.y((scene.penalty != null ? scene.stopped : null) ?? scene.to);
@@ -1149,7 +1474,6 @@ export class Builder {
     const arrive = time + duration;
     this.move(runner, route, time, arrive, "out");
     this.over = arrive;
-    const opponents: Team = script.players[runner]!.team === "offense" ? "defense" : "offense";
     if (scene.scoring === "touchdown") {
       script.players[runner]!.holds.push({ kind: "touchdown", from: arrive + 0.05, until: Infinity });
       // The moment the ball crosses the goal line.
@@ -1162,12 +1486,75 @@ export class Builder {
       script.stamp = arrive + 0.15;
       return;
     }
-    const credited = scene.tacklers;
+    const credited = scene.participants.filter((p) => p.role === "tackler" || p.role === "assistedBy");
     const tacklers =
-      scene.outOfBounds && credited.length === 0 ? [] : this.tackle(runner, arrive, finish, opponents, credited.length === 0 ? [null] : credited, Math.max(time - 0.3, this.snap));
+      scene.outOfBounds && credited.length === 0 ? [] : this.tackle(runner, arrive, finish, opponents, credited.length === 0 ? [null] : credited, Math.max(time - 0.3, this.snap), taken);
+    if (tacklers.length === 0) this.stop = { at: arrive, point: finish };
     this.converge(finish, time, arrive + 0.15, new Set([...taken, ...tacklers, runner]));
     script.end = fieldPoint(finish);
     script.stamp = arrive + 0.12;
+  }
+
+  /**
+   * The ball out: it pops from `carrier`'s arms at `time` where it came
+   * loose and skitters to where it was recovered, the nearest man from each
+   * side laying out for it, and the man ESPN credits comes up with it (the
+   * defense's on a fumble lost): then the return, or he stays down on it.
+   */
+  fumbled(carrier: number, time: number, loose: Point, taken: ReadonlySet<number>): void {
+    const scene = this.scene;
+    if (!scene) return;
+    const { script, snap } = this;
+    const lost = scene.kind.type === "fumble";
+    const own = script.players[carrier]!.team;
+    const team: Team = lost ? (own === "offense" ? "defense" : "offense") : own;
+    const recoveryY = Gridiron.y(scene.recovered ?? scene.turn ?? scene.loose ?? scene.to);
+    const recovery = { x: loose.x + (Math.abs(recoveryY - loose.y) > 3 ? 4 : 1.5), y: recoveryY };
+    // Up out of his arms, down, and away.
+    const out = time + 0.3;
+    this.fly(fieldPoint(this.position(carrier, time), 3.4), fieldPoint(loose, 0.6), time, 0.3, arc(3.5));
+    const rolls = Math.max(hypotP(recovery, loose) / 26, 0.35);
+    this.fly(fieldPoint(loose, 0.6), fieldPoint(recovery, 0.6), out, rolls, bounce(2), "out");
+    script.flashes.push({ beat: "deflect", at: time + 0.02, point: fieldPoint(this.position(carrier, time), 3.4) });
+    const reached = out + rolls;
+    this.recoveredAt = reached;
+    const busy = new Set<number>([...taken, carrier]);
+    const credit = scene.participants.find((p) => p.role === "recoverer") ?? null;
+    // (The man who lost it can fall on it himself: "and recovers".)
+    const others = new Set(taken);
+    others.delete(carrier);
+    const taker = this.man(credit, team, recovery, time, others) ?? carrier;
+    busy.add(taker);
+    const returns = lost && (scene.scoring === "touchdown" || Math.abs(Gridiron.y(scene.to) - recovery.y) > 4);
+    const advances = !lost && Math.abs(Gridiron.y(scene.to) - recovery.y) > 4;
+    if (taker !== carrier) {
+      this.move(taker, [recovery], Math.max(time - 0.2, snap), reached, "inOut");
+      script.players[taker]!.act(returns || advances ? "scoop" : "scramble", reached, recovery);
+      if (!(returns || advances)) script.players[taker]!.holds.push({ kind: "down", from: reached + 0.18, until: Infinity });
+    }
+    // The scramble: the nearest man on each side lays out for it, just behind him.
+    for (const side of ["offense", "defense"] as const) {
+      const i = this.nearest(side, recovery, time, [], busy);
+      if (i == null) continue;
+      busy.add(i);
+      const here = this.position(i, time);
+      const dx = here.x - recovery.x;
+      const dy = here.y - recovery.y;
+      const d = Math.max(Math.hypot(dx, dy), 1);
+      if (!(d < 60)) continue;
+      this.move(i, [{ x: recovery.x + (dx / d) * 3.5, y: recovery.y + (dy / d) * 3.5 }], time, reached + 0.08, "inOut");
+      script.players[i]!.act("scramble", reached + 0.08, recovery);
+      script.players[i]!.holds.push({ kind: "down", from: reached + 0.25, until: Infinity });
+    }
+    if (returns || advances) {
+      this.run(taker, recovery, reached + 0.06, busy, lost, [], true);
+      return;
+    }
+    this.carry(taker, reached, Infinity);
+    this.converge(recovery, time, reached + 0.3, busy);
+    this.over = reached + 0.35;
+    script.end = fieldPoint(recovery);
+    script.stamp = reached + 0.3;
   }
 
   // MARK: Run
@@ -1184,9 +1571,10 @@ export class Builder {
     if (!scene || qb == null || back == null) return;
     const { snap, line, shotgun, script } = this;
     const side = Builder.sign(scene.lane);
-    const keeper = scene.position("rusher") === "quarterback";
+    const carrier = scene.position("rusher") ?? scene.position("fumbler");
+    const keeper = carrier === "quarterback";
     let runner: number;
-    switch (scene.position("rusher")) {
+    switch (carrier) {
       case "quarterback":
         runner = qb;
         break;
@@ -1207,6 +1595,16 @@ export class Builder {
         runner = back;
     }
     const inHand = this.snapBall(qb);
+    if (scene.text.includes("(Aborted)")) {
+      // The snap never made it: on the ground at his feet, and the scramble for it.
+      script.legs.push({ from: inHand, until: inHand + 0.12, hand: { kind: "carry", player: qb } });
+      this.protect(snap + 0.6);
+      const loose = { x: this.position(qb, inHand).x + 1.5, y: Gridiron.y(scene.loose ?? scene.from) - 1 };
+      script.players[qb]!.act("scramble", inHand + 0.5, loose);
+      script.players[qb]!.holds.push({ kind: "down", from: inHand + 0.68, until: Infinity });
+      this.fumbled(qb, inHand + 0.12, loose, new Set([qb]));
+      return;
+    }
     const hole = scene.gap === "guard" ? 7 : scene.gap === "tackle" ? 13.5 : scene.gap === "end" ? 26 : 0;
     const holeX = this.ballX + side * hole;
     const gain = scene.to - scene.from;
@@ -1290,7 +1688,12 @@ export class Builder {
     script.stamp = throwAt + 0.2;
   }
 
-  /** The pocket collapses: the rusher ESPN credits gets free round the edge and takes the quarterback down where the sack was spotted. */
+  /**
+   * The pocket collapses: the men ESPN credits (two on a split sack), each
+   * from his own slot, round the edge or up the middle, take the quarterback
+   * down where the sack was spotted. A strip-sack: the stripper punches it
+   * out as they get there, and the scramble for the ball follows.
+   */
   sack(): void {
     const scene = this.scene;
     const qb = this.at(S.quarterback);
@@ -1299,68 +1702,47 @@ export class Builder {
     const inHand = this.snapBall(qb);
     const pocket = { x: this.ballX, y: line - 21 };
     this.move(qb, [pocket], snap + 0.08, snap + (shotgun ? 0.55 : 0.8), "out");
-    const down = { x: this.ballX + (scene.lane === "left" ? -6 : 6), y: Gridiron.y(scene.stopped ?? scene.to) };
+    const stripped = scene.loose != null && (scene.stripper != null || scene.kind.type === "fumble");
+    const down = { x: this.ballX + (scene.lane === "left" ? -6 : 6), y: Gridiron.y(scene.stopped ?? scene.loose ?? scene.to) };
     const hit = snap + 1.6;
     this.move(qb, [down], snap + 0.95, hit, "inOut");
-    this.carry(qb, inHand, Infinity);
+    this.carry(qb, inHand, stripped ? hit : Infinity);
     this.decoys(new Set([qb]), snap + 1.35);
     this.protect(snap + 0.85);
-    const roles = Builder.roles(scene.position("sackedBy"));
-    const sacker = this.nearest("defense", { x: this.ballX + 15, y: line }, 0, roles.length === 0 ? ["front"] : roles) ?? this.at(S.front(3))!;
-    const start = this.position(sacker, 0);
-    const side = start.x >= this.ballX ? 1 : -1;
-    const edge = { x: this.ballX + side * Math.max(Math.abs(start.x - this.ballX) + 6, 18), y: line - 8 };
-    this.move(sacker, [edge, { x: down.x + side * 3, y: down.y + 2 }], snap + 0.04, hit, "inOut");
-    script.players[sacker]!.act("tackle", hit, down);
+    const sackers: number[] = [];
+    const credits: (Participant | null)[] = scene.sackers.length === 0 ? [null] : scene.sackers.slice(0, 2);
+    for (const credit of credits) {
+      const i = this.man(credit, "defense", { x: this.ballX + 15, y: line }, 0, new Set(sackers), ["front"]);
+      if (i != null) sackers.push(i);
+    }
+    sackers.forEach((sacker, k) => {
+      const start = this.position(sacker, 0);
+      const side = start.x >= this.ballX ? 1 : -1;
+      const contact = { x: down.x + side * 3, y: down.y + 2 - k * 1.5 };
+      const edge = { x: this.ballX + side * Math.max(Math.abs(start.x - this.ballX) + 6, 18), y: line - 8 };
+      this.move(sacker, Math.abs(start.x - this.ballX) > 12 ? [edge, contact] : [contact], snap + 0.04, hit + k * 0.06, "inOut");
+      script.players[sacker]!.act("tackle", hit + k * 0.06, down);
+    });
     script.players[qb]!.holds.push({ kind: "down", from: hit + 0.12, until: Infinity });
     script.flashes.push({ beat: "hit", at: hit, point: fieldPoint(down, 3) });
+    this.stop = { at: hit, point: down };
+    const loose = scene.loose;
+    if (stripped && loose != null) {
+      // The punch at the ball as they arrive: one of the sackers, or a man of his own from his slot.
+      const busy = new Set<number>([...sackers, qb]);
+      const stripper = this.man(scene.stripper, "defense", down, 0, new Set([qb]));
+      if (stripper != null) {
+        if (!sackers.includes(stripper)) this.move(stripper, [{ x: down.x - 3, y: down.y + 3 }], snap + 0.04, hit, "inOut");
+        script.players[stripper]!.actions = script.players[stripper]!.actions.filter((a) => a.kind !== "tackle");
+        script.players[stripper]!.act("strip", hit, down);
+        busy.add(stripper);
+      }
+      this.fumbled(qb, hit, { x: down.x, y: Gridiron.y(loose) }, busy);
+      return;
+    }
     this.over = hit + 0.2;
     script.end = fieldPoint(down);
     script.stamp = hit + 0.15;
-  }
-
-  /** The ball carrier to where the ball came out; it bounces loose to where the other team fell on it, then any return. */
-  fumble(): void {
-    const scene = this.scene;
-    const qb = this.at(S.quarterback);
-    const back = this.at(S.back);
-    if (!scene || qb == null || back == null) return;
-    const { snap, line, script } = this;
-    const quarterback = scene.position("fumbler") === "quarterback" || scene.position("rusher") === "quarterback";
-    const carrier = quarterback ? qb : back;
-    const inHand = this.snapBall(qb);
-    const looseY = Gridiron.y(scene.loose ?? scene.turn ?? scene.from);
-    const loose = { x: this.ballX + Builder.sign(scene.lane) * 8, y: looseY };
-    const meshTime = snap + 0.42;
-    if (carrier === back) {
-      this.move(back, [{ x: this.ballX + 2, y: line - 11 }], snap + 0.02, meshTime);
-      this.carry(qb, inHand, meshTime);
-    }
-    const reach = meshTime + clamp(Math.abs(looseY - line) / 40, 0.3, 1.6);
-    this.move(carrier, [loose], meshTime, reach, "inOut");
-    this.carry(carrier, carrier === back ? meshTime : inHand, reach);
-    const recovery = { x: loose.x + 6, y: Gridiron.y(scene.turn ?? scene.to) };
-    this.fly(fieldPoint(loose, 3), fieldPoint(recovery, 0.6), reach, 0.6, bounce(3), "out");
-    script.flashes.push({ beat: "hit", at: reach, point: fieldPoint(loose, 3) });
-    const hitter = this.nearest("defense", loose, snap);
-    if (hitter != null) {
-      this.move(hitter, [{ x: loose.x + 2, y: loose.y + 3 }], snap + 0.1, reach);
-      script.players[hitter]!.act("tackle", reach, loose);
-    }
-    script.players[carrier]!.holds.push({ kind: "down", from: reach + 0.12, until: Infinity });
-    const roles = Builder.roles(scene.position("recoverer"));
-    const taker = this.nearest("defense", recovery, reach, roles);
-    if (taker == null) return;
-    this.move(taker, [recovery], reach - 0.2, reach + 0.6, "inOut");
-    script.players[taker]!.act("scoop", reach + 0.6, recovery);
-    if (Math.abs(Gridiron.y(scene.to) - recovery.y) > 4 || scene.scoring === "touchdown") {
-      this.run(taker, recovery, reach + 0.65, new Set([carrier, taker]), true);
-    } else {
-      this.carry(taker, reach + 0.6, Infinity);
-      this.over = reach + 0.8;
-      script.end = fieldPoint(recovery);
-      script.stamp = reach + 0.75;
-    }
   }
 
   // MARK: Kicks
@@ -1556,20 +1938,20 @@ export class Builder {
             : miss === "blocked"
               ? { x: this.ballX + 6, y: line - 6, z: 0 }
               : { x: 1.2, y: past, z: 14 };
+    if (miss === "blocked") {
+      this.block(kickAt, foot);
+      return;
+    }
     const d = Math.hypot(target.x - foot.x, target.y - foot.y);
-    const time = miss === "blocked" ? 0.45 : clamp(0.5 + d / 190, 0.8, 1.65);
-    const peak = miss === "blocked" ? 3 : miss === "short" ? 10 + d * 0.06 : Math.max(12, d * 0.1);
+    const time = clamp(0.5 + d / 190, 0.8, 1.65);
+    const peak = miss === "short" ? 10 + d * 0.06 : Math.max(12, d * 0.1);
     const flight = this.fly(foot, target, kickAt, time, arc(peak));
-    if (miss !== "blocked" && miss !== "short") {
+    if (miss !== "short") {
       // On into the net behind the posts, and put away.
       this.fly(target, { x: target.x * 1.2, y: target.y + 14, z: 0 }, kickAt + time, 0.35, STRAIGHT);
       script.ballGone = kickAt + time + 0.3;
     }
-    const blocker = this.at(S.rusher(4));
-    if (miss === "blocked" && blocker != null) {
-      script.players[blocker]!.act("block", kickAt + 0.1, ballSpot);
-      script.flashes.push({ beat: "deflect", at: kickAt + 0.08, point: { x: this.ballX + 2, y: line - 4, z: 7 } });
-    } else if (miss !== "short") {
+    if (miss !== "short") {
       // Crossing the end line: the crossbar's moment.
       const f = script.flights[flight]!;
       const u = (Gridiron.backLine - foot.y) / Math.max(target.y - foot.y, 1);
@@ -1589,40 +1971,207 @@ export class Builder {
     script.stamp = (script.score ?? kickAt + time) + 0.1;
   }
 
-  // MARK: Flags
-
-  /** A flag that stopped the snap: it's thrown in at the line, the players straighten up, and the yards are walked off. */
-  penalty(): void {
+  /**
+   * A kick blocked at the line: the man ESPN credits (the rusher on his
+   * slot's side) comes through and goes up, both arms high, the ball off his
+   * hands a beat after it's kicked, and away behind the line, bouncing.
+   */
+  block(kickAt: number, foot: FieldPoint): void {
     const scene = this.scene;
     if (!scene) return;
-    const { line, script } = this;
+    const { snap, line, ballX, script } = this;
+    const rushers = this.players("defense", "front");
+    const slot = scene.blocker?.slot;
+    const lane = slot != null ? new DepthSlot(slot, [], true, null).lane : null;
+    const side = Builder.sign(lane);
+    const sided = side === 0 ? rushers : rushers.filter((i) => (this.position(i, 0).x - ballX) * side > 0);
+    const aim = { x: ballX + side * 6, y: line };
+    let blocker: number | null = null;
+    for (const i of sided.length === 0 ? rushers : sided) {
+      if (blocker == null || hypotP(this.position(i, 0), aim) < hypotP(this.position(blocker, 0), aim)) blocker = i;
+    }
+    if (blocker == null) return;
+    const from = this.position(blocker, 0);
+    const through = { x: ballX + clamp(from.x - ballX, -7, 7), y: line - 2 };
+    const hands: FieldPoint = { x: through.x, y: through.y - 1, z: 8.5 };
+    const meets = kickAt + 0.14;
+    this.move(blocker, [through], snap + 0.03, meets - 0.04, "out");
+    script.players[blocker]!.act("leap", meets, ground(foot));
+    this.fly(foot, hands, kickAt, meets - kickAt, arc(1.2));
+    script.flashes.push({ beat: "deflect", at: meets, point: hands });
+    const away = through.x >= ballX ? 1 : -1;
+    const landing = { x: through.x + away * 12, y: line - 16 };
+    this.fly(hands, fieldPoint(landing, 0.6), meets, 0.85, bounce(2), "out");
+    for (let k = 0; k < 9; k++) {
+      const i = this.at(S.rusher(k));
+      if (i == null || i === blocker) continue;
+      const p = this.position(i, 0);
+      this.move(i, [{ x: ballX + (p.x - ballX) * 0.9, y: line - 3 }], snap + 0.03, snap + 0.6, "out");
+    }
+    this.over = meets + 0.85;
+    script.end = fieldPoint(landing);
+    script.stamp = meets + 0.5;
+  }
+
+  // MARK: Flags
+
+  /**
+   * A flag that stopped the snap: the man flagged moves early, the nearest
+   * official's flag comes in on him, the players straighten up, and the
+   * yards are walked off; the ball is never snapped.
+   */
+  penalty(): void {
+    const scene = this.scene;
+    const ruling = this.ruling;
+    if (!scene || !ruling) return;
+    const { line, ballX, script } = this;
     script.legs.push({ from: 0, until: 0, hand: { kind: "spot", point: this.spot } });
     const onDefense = scene.to >= scene.from;
     const lands = 1;
-    this.throwFlag({ x: this.ballX + (onDefense ? 9 : -9), y: line + (onDefense ? 4 : -4) }, lands);
+    const thrown = ruling.flags.filter((f) => f.timing === "beforeSnap" || ruling.flags.every((g) => g.timing !== "beforeSnap"));
+    (thrown.length === 0 ? [null] : thrown).forEach((flag, k) => {
+      const team: Team = flag?.side != null ? (flag.side === ruling.offense ? "offense" : "defense") : onDefense ? "defense" : "offense";
+      let at = { x: ballX + (team === "defense" ? 9 : -9), y: line + (team === "defense" ? 4 : -4) };
+      const fouler = this.man(flag?.player, team, ground(this.spot), 0);
+      if (fouler != null && flag?.player != null) {
+        // Out of his stance a beat early, a lurch, and back.
+        const here = this.position(fouler, 0);
+        const way = team === "offense" ? 1 : -1;
+        this.move(fouler, [{ x: here.x, y: here.y + 1.6 * way }], 0.42, 0.55, "out");
+        this.move(fouler, [here], 0.75, 1.2);
+        script.players[fouler]!.set = Math.min(script.players[fouler]!.set ?? 0.42, 0.42);
+        at = { x: here.x + 2, y: here.y + 1.6 * way };
+      }
+      this.throwFlag(at, lands + k * 0.2, flag?.status === "declined", true);
+    });
     for (const p of script.players) p.set = Math.min(p.set ?? lands, lands + 0.15);
     this.walk(line, Gridiron.y(scene.to), lands + 0.45, true);
   }
 
-  /** A flag on a play that stood (a hold on the return): after it's run, the flag, and the yards walked off from where he was stopped. */
-  flagAfter(): void {
-    const scene = this.scene;
-    if (!scene || scene.kind.type === "penalty" || !scene.penalty || scene.penalty.noPlay || scene.stopped == null) return;
-    if (!(Math.abs(scene.stopped - scene.to) > 0.5) || scene.scoring != null) return;
-    const from = Gridiron.y(scene.stopped);
-    const to = Gridiron.y(scene.to);
-    const lands = this.over + 0.4;
-    this.throwFlag({ x: -14, y: (from + to) / 2 }, lands);
+  /**
+   * The flags on a play that ran, each when and where its foul happened,
+   * on the man flagged (from the nearest official, the play going on round
+   * it): a hold mid-play, interference as the ball arrives, roughing the
+   * passer just after the throw, a horse collar or a face mask at the
+   * tackle, an offside at the snap, one after the whistle once it's over.
+   * Then the yards walked off, from where it was enforced to where it put
+   * the ball; a declined flag only says so, offsetting ones walk nothing off.
+   */
+  flags(): void {
+    const ruling = this.ruling;
+    if (!ruling || ruling.flags.length === 0) return;
+    const { script, snap } = this;
+    let walked: SceneFlag | null = null;
+    for (const flag of ruling.flags) {
+      const foul = this.moment(flag);
+      const team: Team = flag.side === ruling.offense ? "offense" : "defense";
+      const fouler = flag.player ? this.man(flag.player, team, foul.near, foul.at) : null;
+      let place = fouler != null ? this.position(fouler, foul.at) : foul.near;
+      if (foul.fixed) {
+        // Where it happened (the catch point, the passer, the tackle), and the man flagged in on it.
+        place = foul.near;
+        if (fouler != null && hypotP(this.position(fouler, foul.at), place) > 4) {
+          const from = Math.max(foul.at - 0.9, snap + 0.04);
+          this.move(fouler, [{ x: place.x + 2.5, y: place.y + 2 }], from, foul.at, "inOut");
+        }
+        const qb = this.at(S.quarterback);
+        if (fouler != null && foul.late && qb != null) {
+          // Roughing the passer: the hit after the ball's gone.
+          script.players[fouler]!.act("tackle", foul.at + 0.04, place);
+          if (!script.players[qb]!.holds.some((h) => h.kind === "knocked")) script.players[qb]!.holds.push({ kind: "knocked", from: foul.at + 0.12, until: Infinity });
+          script.flashes.push({ beat: "hit", at: foul.at + 0.04, point: fieldPoint(place, 4) });
+        }
+      }
+      this.throwFlag({ x: place.x + 2.5, y: place.y - 2 }, foul.at + 0.5, flag.status === "declined", Math.abs(foul.at - snap - 0.25) < 0.01);
+      if (flag.status === "accepted" && walked == null) walked = flag;
+    }
+    const end = Gridiron.y(ruling.to);
+    const ended = script.end?.y ?? end;
+    if (!walked || !(Math.abs(end - ended) > 0.5)) return;
+    const from = walked.from != null ? Gridiron.y(walked.from) : ended;
+    const lands = Math.max(script.flags.length > 0 ? Math.max(...script.flags.map((f) => f.lands)) : this.over, this.over);
     // The ball goes to the official's spot, then walks.
-    const ball = this.script.ball(this.over);
-    if (ball) this.fly(ball, { x: this.ballX, y: from, z: 0.6 }, this.over + 0.25, 0.45, arc(5));
-    this.walk(from, to, lands + 0.45, false);
+    const ball = script.ball(lands);
+    if (ball && (Math.abs(ball.y - from) > 1 || Math.abs(ball.x - this.ballX) > 1)) this.fly(ball, { x: this.ballX, y: from, z: 0.6 }, lands + 0.25, 0.45, arc(5));
+    this.walk(from, end, lands + 0.85, false);
   }
 
-  throwFlag(spot: Point, lands: number): void {
-    const from: FieldPoint = { x: spot.x > 0 ? Gridiron.half + 14 : -Gridiron.half - 14, y: spot.y + 12, z: 16 };
-    this.script.flag = { thrown: lands - 0.45, lands, from, to: spot };
+  /**
+   * When and near where a foul happened, by what it was (its slug, or its
+   * name); `fixed` when it happened at a place of its own (the catch point,
+   * the passer, the tackle), not wherever the man flagged is; `late` for a
+   * hit on the passer after the throw.
+   */
+  moment(flag: SceneFlag): { at: number; near: Point; fixed: boolean; late: boolean } {
+    const key = (flag.slug ?? flag.name).toLowerCase().replaceAll(" ", "-");
+    const { script, snap } = this;
+    const end = this.stop ?? { at: this.over, point: script.end ? ground(script.end) : ground(this.spot) };
+    const ballAt = (t: number): Point => {
+      const b = script.ball(t);
+      return b ? ground(b) : ground(this.spot);
+    };
+    const qb = this.at(S.quarterback);
+    if (flag.timing === "afterPlay") return { at: this.over + 0.35, near: end.point, fixed: true, late: false };
+    if (key.includes("interference") && this.arrival) return { at: this.arrival.at - 0.05, near: this.arrival.point, fixed: true, late: false };
+    if (key.includes("roughing-the-passer") && this.release != null && qb != null) return { at: this.release + 0.15, near: this.position(qb, this.release + 0.15), fixed: true, late: true };
+    if (["grounding", "illegal-forward"].some((k) => key.includes(k)) && this.release != null && qb != null) {
+      return { at: this.release + 0.1, near: this.position(qb, this.release + 0.1), fixed: true, late: false };
+    }
+    const atTheStop = ["horse-collar", "face-mask", "facemask", "unnecessary-roughness", "targeting", "tripping", "personal-foul", "roughing", "unsportsmanlike", "late-hit", "leverage", "lowering"];
+    if (atTheStop.some((k) => key.includes(k))) return { at: end.at, near: end.point, fixed: true, late: false };
+    const atTheSnap = ["offside", "encroachment", "neutral-zone", "illegal-shift", "illegal-motion", "illegal-formation", "false-start", "too-many", "substitution", "delay"];
+    if (atTheSnap.some((k) => key.includes(k))) return { at: snap + 0.25, near: ground(this.spot), fixed: false, late: false };
+    // A hold, a block in the back, illegal hands: while the play goes on, at the point of attack (in the pocket before a
+    // throw, as the back hits the hole, as the returner sets off).
+    let carried: number | null = null;
+    for (let i = script.legs.length - 1; i >= 0; i--) {
+      const leg = script.legs[i]!;
+      if (leg.hand.kind === "carry" && !Number.isFinite(leg.until)) {
+        carried = leg.from;
+        break;
+      }
+    }
+    const mid = this.release != null ? snap + (this.release - snap) * 0.6 : carried != null ? carried + clamp((end.at - carried) * 0.25, 0.1, 0.5) : snap + 0.9;
+    return { at: Math.min(mid, end.at), near: ballAt(mid), fixed: false, late: false };
+  }
+
+  /** An official's flag, thrown at the foul: from the official nearest it (at his post since the snap), end over end to the spot. */
+  throwFlag(spot: Point, lands: number, declined = false, wing = false): void {
+    const thrown = lands - 0.45;
+    const thrower = this.official(spot, wing);
+    const hand = this.position(thrower, thrown);
+    this.script.players[thrower]!.act("flagThrow", thrown, spot);
+    this.script.flags.push({ thrown, lands, from: fieldPoint(hand, 6.5), to: spot, declined });
     this.script.flashes.push({ beat: "flag", at: lands, point: fieldPoint(spot) });
+  }
+
+  /**
+   * The official nearest a spot, at his post: the referee behind the
+   * backfield, the umpire (the NFL's, in it), the line judge and the head
+   * linesman on the sidelines at the line, the back judge deep; a foul at
+   * the line (`wing`) is the sideline officials'. Added the first time one
+   * throws.
+   */
+  official(p: Point, wing = false): number {
+    const { line, ballX, script } = this;
+    const sides = [
+      { x: -Gridiron.half - 3, y: line },
+      { x: Gridiron.half + 3, y: line },
+    ];
+    const posts = wing
+      ? sides
+      : [
+          { x: ballX + 16, y: line - 40 },
+          { x: ballX - 12, y: line - 33 },
+          ...sides,
+          { x: ballX + 6, y: line + 75 },
+        ];
+    let post = posts[0]!;
+    for (const q of posts) if (hypotP(q, p) < hypotP(post, p)) post = q;
+    const i = script.players.findIndex((pl) => pl.team === "official" && pl.at.x === post.x && pl.at.y === post.y);
+    if (i >= 0) return i;
+    script.players.push(new Player("official", post, "official"));
+    return script.players.length - 1;
   }
 
   /** The ball slides from one spot to the other; with `moving`, the players walk with it. */
@@ -1646,7 +2195,7 @@ export class Builder {
 
   /** The action ends when the last thing stops; the stamp lands as it resolves; the lines move to the new spot with it. */
   finish(): void {
-    const scene = this.scene;
+    const scene = this.ruling;
     if (!scene) return;
     const { script } = this;
     script.legs = script.legs.map((leg, i) => ({ leg, i })).sort((a, b) => a.leg.from - b.leg.from || a.i - b.i).map(({ leg }) => leg);
@@ -1691,7 +2240,7 @@ export class Builder {
    */
   headline(): void {
     // A try keeps to its stamp: the touchdown had the headline.
-    const scene = this.scene;
+    const scene = this.ruling;
     if (!scene || scene.pointAfter != null) return;
     const { script } = this;
     const banner = (text: string, tone: Banner["tone"], at: number, confetti = false) => {
@@ -1714,11 +2263,11 @@ export class Builder {
     } else if (kindIs(k, "fieldGoal", true)) {
       banner("FIELD GOAL", { kind: "side", side: scene.offense }, script.score ?? script.stamp);
     } else if (kindIs(k, "fieldGoal", false)) {
-      banner("NO GOOD", { kind: "neutral" }, script.score ?? script.stamp);
+      banner(scene.miss === "blocked" ? "BLOCKED" : "NO GOOD", { kind: "neutral" }, script.score ?? script.stamp);
     } else if (k.type === "interception") {
       banner("INTERCEPTION", { kind: "neutral" }, (catchAt ?? script.stamp) + 0.05);
     } else if (k.type === "fumble") {
-      banner("FUMBLE", { kind: "neutral" }, script.stamp - 0.1);
+      banner("FUMBLE", { kind: "neutral" }, this.recoveredAt ?? script.stamp - 0.1);
     } else if (scene.onDowns) {
       banner("TURNOVER ON DOWNS", { kind: "neutral" }, script.stamp);
     }
@@ -1730,7 +2279,7 @@ export class Builder {
    * twice as wide as tall.
    */
   measureStamp(): void {
-    const scene = this.scene;
+    const scene = this.ruling;
     if (!scene) return;
     const stamp = footballStamp(scene);
     if (stamp.parts.length === 0) return;
@@ -1752,7 +2301,7 @@ export class Builder {
    * possession they stay where it ended.
    */
   settle(): void {
-    const scene = this.scene;
+    const scene = this.ruling;
     if (!scene) return;
     const { script } = this;
     const s = script.settle;
@@ -1783,10 +2332,10 @@ export class Builder {
    * line to gain, where it rests.
    */
   shoot(): void {
-    const scene = this.scene;
+    const scene = this.ruling;
     if (!scene) return;
     const { script, snap, line } = this;
-    const everyone = script.players.map((_, i) => i);
+    const everyone = script.players.flatMap((p, i) => (p.team !== "official" ? [i] : []));
     const returner = this.at(S.returner);
     const deep = this.at(S.deep);
     const opening =
@@ -1801,13 +2350,13 @@ export class Builder {
       if (!(f.end - f.start > 0.3 && f.start > snap + 0.1 && f.start < this.over)) return;
       let near: number | null = null;
       let best = Infinity;
-      script.players.forEach((_, a) => {
+      for (const a of everyone) {
         const d = hypotP(this.position(a, f.end), f.to);
         if (d < best) {
           best = d;
           near = a;
         }
-      });
+      }
       const kept = script.yaw === 0 ? Builder.posts : [];
       shots.push(shot(Math.max(f.start - 0.3, lastFrom() + 0.25), { flight: i, actors: near != null ? [near] : [], points: kept, closest: f.to.y - f.from.y > 90 ? 80 : 55 }));
     });
@@ -1824,6 +2373,23 @@ export class Builder {
       const runner = carry.hand.player;
       const closing = script.players.flatMap((p, i) => (p.actions.some((a) => a.kind === "tackle") ? [i] : []));
       shots.push(shot(Math.max(carry.from, lastFrom() + 0.25), { actors: [runner, ...closing], points: script.end ? [script.end] : [], closest: 75 }));
+    }
+    // A flag thrown while the play goes on: where it lands is in frame as it comes down.
+    for (const flag of script.flags) {
+      if (!(flag.lands < this.over)) continue;
+      let k = -1;
+      for (let i = shots.length - 1; i >= 0; i--) {
+        if (shots[i]!.from <= flag.thrown - 0.2) {
+          k = i;
+          break;
+        }
+      }
+      if (k < 0) continue;
+      const flagged: Shot = { ...shots[k]!, from: flag.thrown - 0.2, points: [...shots[k]!.points, fieldPoint(flag.to)] };
+      const resumed: Shot = { ...shots[k]!, from: flag.lands + 0.5 };
+      const next = k + 1 < shots.length ? shots[k + 1]!.from : Infinity;
+      shots.splice(k + 1, 0, flagged);
+      if (resumed.from < next) shots.splice(k + 2, 0, resumed);
     }
     // A flag's walk: both spots.
     const march = script.march;
@@ -1938,7 +2504,8 @@ export class Builder {
 
   /** What the camera rests on: everyone where they stand at the end, and the lines. */
   restRegion(): Rect {
-    const { script, scene } = this;
+    const { script } = this;
+    const scene = this.ruling;
     const t = script.duration + 1;
     let items = script.players.filter((p) => p.opacity(t) > 0.5).map((p) => script.room(fieldPoint(p.position(t)), true));
     const reform = scene ? scene.scoring == null && !scene.flips && !this.isKick : true;
@@ -2053,19 +2620,26 @@ export function footballStamp(scene: FootballScene): FootballStamp {
   let tone: FootballStamp["tone"] = "neutral";
   let missed = false;
   const k = scene.kind;
-  // A try: "XP ✓" by the kicker, "2PT ✓" by whoever ran or caught it.
+  // A try: "XP ✓" by the kicker, "2-PT ✓" by whoever ran or caught it (the NFL's terms).
   const tried = scene.pointAfter;
   if (tried != null) {
     const good = tried === "kick" ? kindIs(k, "extraPoint", true) : td;
     parts = [
-      { text: tried === "kick" ? "XP" : "2PT", heavy: false },
+      { text: tried === "kick" ? "XP" : "2-PT", heavy: false },
       { text: good ? "✓" : "✗", heavy: true },
     ];
     const how = tried === "pass" ? (names.target != null ? `to ${names.target}` : null) : scene.gap ? (scene.gap === "middle" ? "up the middle" : `${scene.lane ?? "middle"} ${scene.gap}`) : null;
     title = tried === "kick" ? (names.lead ?? "") : [names.lead ?? null, how].filter((x): x is string => x != null).join(tried === "pass" ? " " : ", ");
     return { parts, title, tone: good ? "score" : "neutral", missed: !good };
   }
-  switch (k.type) {
+  const offsetting = scene.flags.length > 1 && scene.flags.every((f) => f.status === "offsetting");
+  switch (offsetting ? "offsetting" : k.type) {
+    case "offsetting":
+      // Offsetting fouls: the down is played again.
+      parts = [{ text: "NO PLAY", heavy: true }];
+      title = "Offsetting penalties";
+      tone = "flag";
+      break;
     case "pass":
       parts = [{ text: yardsText(scene.yards), heavy: true }];
       title = thrown;
@@ -2107,7 +2681,7 @@ export function footballStamp(scene: FootballScene): FootballStamp {
       tone = td ? "score" : "loss";
       break;
     case "fumble":
-      parts = [{ text: "FUM", heavy: true }];
+      parts = [{ text: "FUMBLE", heavy: true }];
       title = titled(names.taker != null ? `Recovered by ${names.taker}` : null);
       tone = td ? "score" : "loss";
       break;
@@ -2136,31 +2710,37 @@ export function footballStamp(scene: FootballScene): FootballStamp {
       }
       break;
     }
-    case "fieldGoal":
+    case "fieldGoal": {
+      const good = kindIs(k, "fieldGoal", true);
       parts = [
         { text: "FG", heavy: false },
         { text: `${scene.kickYards ?? Math.trunc(117 - scene.from)}`, heavy: true },
-        { text: k.good ? "✓" : "✗", heavy: true },
+        { text: good ? "✓" : "✗", heavy: true },
       ];
-      title = titled(names.lead, k.good ? null : missWord(scene.miss));
-      tone = k.good ? "score" : "neutral";
-      missed = !k.good;
+      title = titled(names.lead, good ? null : missWord(scene.miss));
+      tone = good ? "score" : "neutral";
+      missed = !good;
       break;
-    case "extraPoint":
+    }
+    case "extraPoint": {
+      const good = kindIs(k, "extraPoint", true);
       parts = [
         { text: "XP", heavy: false },
-        { text: k.good ? "✓" : "✗", heavy: true },
+        { text: good ? "✓" : "✗", heavy: true },
       ];
-      tone = k.good ? "score" : "neutral";
-      missed = !k.good;
+      tone = good ? "score" : "neutral";
+      missed = !good;
       break;
+    }
     case "penalty": {
       const gained = rounded(scene.to - scene.from);
       parts = [
         { text: yardsText(gained === 0 ? scene.yards : gained), heavy: true },
         { text: "FLAG", heavy: false },
       ];
-      title = titled(scene.penalty?.name, scene.penalty?.noPlay === true ? "No play" : null);
+      const flag = scene.flags.find((f) => f.status === "accepted") ?? scene.flags[0] ?? null;
+      const name = scene.penalty?.name;
+      title = titled(name != null ? announced(name, flag?.side ?? null, scene.offense) : null, scene.penalty?.noPlay === true ? "No play" : null);
       tone = "flag";
       break;
     }
@@ -2173,6 +2753,18 @@ export function footballStamp(scene: FootballScene): FootballStamp {
     title = titled("Turnover on downs");
   }
   return { parts, title, tone, missed };
+}
+
+/** A foul as the referee announces it: the foul, then the side ("Holding, Offense", "Pass Interference, Defense"). */
+export function announced(name: string, side: Side | null, offense: Side | null): string {
+  for (const [prefix, team] of [
+    ["Offensive ", "Offense"],
+    ["Defensive ", "Defense"],
+  ] as const) {
+    if (name.startsWith(prefix)) return `${name.slice(prefix.length)}, ${team}`;
+  }
+  if (side == null || offense == null) return name;
+  return `${name}, ${side === offense ? "Offense" : "Defense"}`;
 }
 
 function missWord(miss: FootballScene["miss"]): string {

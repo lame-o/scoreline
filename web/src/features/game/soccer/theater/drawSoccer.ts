@@ -10,7 +10,7 @@
  * (`layoutLabels`).
  */
 import { fieldPoint, houseCurve, smooth, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
-import { gait, keyed, mix, over, Rig, rigArm, rigPose, RigPoses, RigTrack, vec, withPose, type RigArm, type RigPose, type RigVector } from "../../../../data/theater/rig";
+import { gait, keyed, mirrored, mix, over, Rig, rigArm, rigPose, RigPoses, RigTrack, vec, withPose, type RigArm, type RigPose, type RigVector } from "../../../../data/theater/rig";
 import type { Uniform } from "../../../../data/mlb/theaterTeams";
 import { Pitch, stampDetail, surname, type SoccerScene } from "../../../../data/theater/soccerScene";
 import type { Actor, SoccerScript } from "../../../../data/theater/soccerScript";
@@ -297,6 +297,35 @@ export const PitchPose = {
     leftArm: rigArm({ swing: 1.85, spread: 0.1, bend: 0.25 }),
     rightArm: rigArm({ swing: 1.85, spread: 0.1, bend: 0.25 }),
   }),
+  /** Up for a header contested in the air: higher than a header's rise, knees tucked, arms out for leverage, the head cocked. */
+  leap: rigPose({
+    hip: vec(-0.02, 0, 0.68),
+    lean: -0.1,
+    nod: -0.45,
+    left: vec(-0.08, 0.07, 0.24),
+    right: vec(-0.16, -0.07, 0.18),
+    leftArm: rigArm({ swing: 1.6, spread: 0.9, bend: 0.7 }),
+    rightArm: rigArm({ swing: 1.6, spread: 0.9, bend: 0.7 }),
+  }),
+  /** The keeper's punch: fists drawn in at his chest, then both thrust up through the ball, off his feet. */
+  punchCock: rigPose({
+    hip: vec(-0.02, 0, 0.44),
+    lean: 0.1,
+    left: vec(0.04, 0.12, 0),
+    right: vec(-0.04, -0.12, 0),
+    knees: 0.3,
+    leftArm: rigArm({ swing: 1.6, spread: 0.1, turn: -0.5, bend: 2.0 }),
+    rightArm: rigArm({ swing: 1.6, spread: 0.1, turn: -0.5, bend: 2.0 }),
+  }),
+  punch: rigPose({
+    hip: vec(0, 0, 0.56),
+    lean: -0.05,
+    nod: -0.3,
+    left: vec(0, 0.08, 0.06),
+    right: vec(-0.05, -0.08, 0.04),
+    leftArm: rigArm({ swing: 2.9, spread: 0.05, turn: -0.25, bend: 0.1 }),
+    rightArm: rigArm({ swing: 2.9, spread: 0.05, turn: -0.25, bend: 0.1 }),
+  }),
   /** Square to the shot, arms in, a stride wide: a block. */
   block: rigPose({
     hip: vec(0, 0, 0.42),
@@ -360,6 +389,9 @@ export const PitchPose = {
   },
 };
 
+/** The strike's keys, mirrored for a left foot. */
+const MIRRORED_STRIKE = [mirrored(PitchPose.backswing), mirrored(PitchPose.strike), mirrored(PitchPose.followThrough)] as const;
+
 const envelope = (x: number, attack: number, release: number) => (x < 0 ? Math.max(1 + x / attack, 0) : Math.max(1 - x / release, 0));
 
 /**
@@ -390,19 +422,22 @@ export function actorPose(script: SoccerScript, actor: Actor, index: number, t: 
   for (const action of actor.actions) {
     const x = t - action.at;
     switch (action.kind) {
-      case "kick":
+      case "kick": {
+        // A left-footer's strike is the right-footer's, mirrored.
+        const [back, strike, through] = action.left ? MIRRORED_STRIKE : [PitchPose.backswing, PitchPose.strike, PitchPose.followThrough];
         base =
           keyed(
             [
               [-0.24, base],
-              [-0.09, PitchPose.backswing],
-              [0, PitchPose.strike],
-              [0.13, PitchPose.followThrough],
+              [-0.09, back],
+              [0, strike],
+              [0.13, through],
               [0.45, base],
             ],
             x,
           ) ?? base;
         break;
+      }
       case "header":
         base =
           keyed(
@@ -415,6 +450,36 @@ export function actorPose(script: SoccerScript, actor: Actor, index: number, t: 
             ],
             x,
           ) ?? base;
+        break;
+      case "aerial":
+        base =
+          keyed(
+            [
+              [-0.36, base],
+              [-0.14, PitchPose.leap],
+              [0.02, PitchPose.header],
+              [0.14, PitchPose.header],
+              [0.45, base],
+            ],
+            x,
+          ) ?? base;
+        break;
+      case "punch":
+        base =
+          keyed(
+            [
+              [-0.3, base],
+              [-0.1, PitchPose.punchCock],
+              [0.02, PitchPose.punch],
+              [0.16, PitchPose.punch],
+              [0.5, base],
+            ],
+            x,
+          ) ?? base;
+        break;
+      case "claim":
+        // Takes it high in both hands, and holds it there.
+        base = over(base, RigPoses.catchHigh, x < 0 ? Math.max(1 + x / 0.22, 0) : 1 - 0.6 * smooth((x - 0.4) / 0.4), m.weight);
         break;
       case "throwIn":
         base =
@@ -503,7 +568,7 @@ export function layoutLabels(ctx: Ctx, scene: SoccerScene | null, script: Soccer
   let stamp: Block | null = null;
   if (scene) {
     const s = Math.min(Math.max(typeHeight * 0.105, 15 * pt), 30 * pt);
-    const tone = scene.outcome === "goal" ? (scene.decisive ? ink.gold : accentOf(teams.attacking, ink)) : primary(ink);
+    const tone = scene.outcome === "goal" && scene.review !== "overturned" ? (scene.decisive ? ink.gold : accentOf(teams.attacking, ink)) : primary(ink);
     const runs = [run(ctx, surname(scene.shooter), `800 ${s}px ${FONT}`, s, tone, -0.3 * pt), run(ctx, scene.minute, `600 ${s * 0.6}px ${FONT}`, s * 0.6, ink.secondary)];
     const spacing = s * 0.28;
     const detail = stampDetail(scene);
@@ -639,6 +704,19 @@ type Item =
   /** From behind a goal: all of it at once, at its goal line. */
   | { readonly depth: number; readonly kind: "goalBack" | "nearPost" | "goal"; readonly right: boolean };
 
+/**
+ * A man off the ball standing where the stamp lands steps back for it:
+ * faint under it once it's down (the camera keeps the men in the move out
+ * of its corner; with both elevens on, there isn't always room).
+ */
+function receding(script: SoccerScript, t: number, foot: Point, size: { readonly width: number; readonly height: number }): number {
+  if (!(t >= script.stamp)) return 1;
+  const x = foot.x / size.width;
+  const y = foot.y / size.height;
+  const under = (script.cornerRight ? x > 1 - script.corner.width : x < script.corner.width) && y > 1 - script.corner.height;
+  return under ? 1 - 0.75 * Math.min((t - script.stamp) / 0.25, 1) : 1;
+}
+
 /** A goal's parts, drawn in the order the camera needs them. */
 type GoalPart = "net" | "frame" | "nearPost";
 
@@ -670,7 +748,7 @@ function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: re
     if (item.kind === "actor") {
       const actor = script.actors[item.index]!;
       const placed = figures[item.index]!;
-      drawFigure(ctx, placed.figure, actor.team === "attacking" ? attacking : defending, placed.height, 1);
+      drawFigure(ctx, placed.figure, actor.team === "attacking" ? attacking : defending, placed.height, actor.shaped ? receding(script, t, placed.figure.ground, f.size) : 1);
       if (script.heldBy === item.index && t >= script.heldFrom) hands = placed.hands;
     } else if (item.kind === "goalBack") {
       drawGoal(ctx, f, input, item.right, ["net", "frame"]);

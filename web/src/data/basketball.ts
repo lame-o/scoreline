@@ -739,7 +739,7 @@ export function injuryDetail(i: Injury, now = Date.now()): string | null {
 /** Turnovers, the live placeholder 61 ("No Turnover") included. */
 export const TURNOVER_TYPES: ReadonlySet<number> = new Set([61, 62, 63, 64, 65, 67, 68, 69, 70, 71, 72, 73, 78, 84, 86, 87, 90]);
 /** Offensive foul, charge. */
-const OFFENSIVE_FOUL_TYPES: ReadonlySet<number> = new Set([42, 24]);
+export const OFFENSIVE_FOUL_TYPES: ReadonlySet<number> = new Set([42, 24]);
 /** Shooting, personal, take, loose ball, flagrant 1 and 2, away from the play. */
 const DEFENSIVE_FOUL_TYPES: ReadonlySet<number> = new Set([44, 45, 22, 43, 32, 31, 40]);
 

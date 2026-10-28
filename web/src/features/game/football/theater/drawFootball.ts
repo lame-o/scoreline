@@ -13,7 +13,7 @@ import { easeValue, houseCurve, type FieldPoint, type Point } from "../../../../
 import type { Uniform } from "../../../../data/mlb/theaterTeams";
 import type { Side } from "../../../../data/models";
 import type { FootballScene } from "../../../../data/theater/footballScene";
-import { FootballScript, footballStamp, Gridiron, type Player } from "../../../../data/theater/footballScript";
+import { FootballScript, footballStamp, Gridiron, type Flag, type Player } from "../../../../data/theater/footballScript";
 import { gait, keyed, mix, over, Rig, rigArm, rigPose, RigPoses, RigTrack, vec, withPose, type RigPose } from "../../../../data/theater/rig";
 import { FieldProjection } from "../../core/theater/fieldProjection";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
@@ -408,7 +408,81 @@ export const GridPose = {
     leftArm: rigArm({ swing: 1.4, spread: 0.85, turn: 0.2, bend: 0.25 }),
     rightArm: rigArm({ swing: -0.85, spread: 0.45, bend: 0.3 }),
   }),
+  /** The strip: lunging in low, one arm wrapping, the other punching down across at the ball. */
+  strip: rigPose({
+    hip: vec(0.02, 0, 0.4),
+    lean: 0.75,
+    twist: 0.35,
+    left: vec(0.16, 0.12, 0),
+    right: vec(-0.16, -0.12, 0),
+    knees: 0.3,
+    leftArm: rigArm({ swing: 1.35, spread: 0.2, turn: -0.3, bend: 0.7 }),
+    rightArm: rigArm({ swing: 0.95, spread: 0.05, turn: -0.55, bend: 0.25 }),
+  }),
+  /** Laid out on the grass for a loose ball, both arms reaching for it. */
+  scramble: rigPose({
+    hip: vec(0.15, 0, 0.2),
+    pitch: 1.4,
+    lean: 0.1,
+    nod: -0.5,
+    left: vec(-0.1, 0.1, 0.05),
+    right: vec(-0.3, -0.08, 0.1),
+    leftArm: rigArm({ swing: 2.7, spread: 0.3, turn: -0.2, bend: 0.5 }),
+    rightArm: rigArm({ swing: 2.9, spread: 0.2, turn: -0.2, bend: 0.35 }),
+  }),
+  /** Up off the line to block a kick: feet tucked, both arms straight up. */
+  leap: rigPose({
+    hip: vec(0, 0, 0.62),
+    lean: -0.05,
+    nod: -0.3,
+    left: vec(0, 0.07, 0.14),
+    right: vec(-0.05, -0.07, 0.12),
+    leftArm: rigArm({ swing: 3.0, spread: 0.12, turn: 0.2, bend: 0.05 }),
+    rightArm: rigArm({ swing: 3.0, spread: 0.12, turn: 0.2, bend: 0.05 }),
+  }),
+  /** On his back after a hit as he threw, arms flung out. */
+  knocked: rigPose({
+    hip: vec(-0.1, 0, 0.12),
+    pitch: -1.45,
+    nod: 0.35,
+    left: vec(0.02, 0.1, -0.36),
+    right: vec(0.06, -0.1, -0.3),
+    knees: 0.3,
+    leftArm: rigArm({ swing: 2.5, spread: 0.55, bend: 0.4 }),
+    rightArm: rigArm({ swing: 2.3, spread: 0.6, bend: 0.5 }),
+  }),
+  /** An official's flag: drawn back and up beside his head, then whipped through and down at the spot. */
+  flagBack: rigPose({
+    turn: -0.35,
+    twist: -0.3,
+    left: vec(0.08, 0.1, 0),
+    right: vec(-0.08, -0.1, 0),
+    leftArm: rigArm({ swing: 0.6, spread: 0.3, bend: 0.4 }),
+    rightArm: rigArm({ swing: 2.5, spread: 0.45, turn: 0.9, bend: 1.3 }),
+  }),
+  flagThrow: rigPose({
+    turn: 0.15,
+    lean: 0.25,
+    twist: 0.3,
+    left: vec(0.14, 0.1, 0),
+    right: vec(-0.12, -0.1, 0.02),
+    leftArm: rigArm({ swing: 0.3, spread: 0.35, bend: 0.4 }),
+    rightArm: rigArm({ swing: 1.35, spread: 0.15, turn: -0.3, bend: 0.2 }),
+  }),
 };
+
+/** An official's stripes, as near as a pictogram gets: white, a black cap. */
+export const OFFICIAL: Uniform = { jersey: "#ededed", cap: "#1a1a1a", piping: null, accent: "#ffffff" };
+
+/**
+ * How far the ball has gone from both hands into the throwing hand (his
+ * right) as he cocks to throw: none until the windup, all of it from then
+ * until it's away (FootballFrame.cocked). (pure; tested)
+ */
+export function cocked(player: Player, t: number): number {
+  const pass = player.actions.find((a) => (a.kind === "throwBall" || a.kind === "spike") && t > a.at - 0.34 && t < a.at + 0.05);
+  return pass ? smooth((t - pass.at + 0.34) / 0.14) : 0;
+}
 
 const THROW_KEYS: readonly (readonly [number, RigPose])[] = [
   [-0.3, RigPoses.cock],
@@ -464,6 +538,8 @@ export function playerPose(script: FootballScript, player: Player, index: number
         return [over(body, GridPose.touchdown, into, m.weight), m.heading];
       case "fairCatch":
         return [over(body, GridPose.fairCatch, smooth((t - hold.from) / 0.2), m.weight), m.heading];
+      case "knocked":
+        return [mix(body, GridPose.knocked, smooth((t - hold.from) / 0.3)), m.heading];
     }
   }
 
@@ -513,6 +589,29 @@ export function playerPose(script: FootballScript, player: Player, index: number
       case "tackle":
         body = mix(body, GridPose.dive, envelope(x, 0.16, 0.5));
         break;
+      case "strip":
+        body = mix(body, GridPose.strip, envelope(x, 0.18, 0.45));
+        break;
+      case "scramble":
+        body = mix(body, GridPose.scramble, envelope(x, 0.2, 0.6));
+        break;
+      case "leap":
+        body = mix(body, GridPose.leap, envelope(x, 0.22, 0.5));
+        break;
+      case "flagThrow": {
+        const throwing = keyed(
+          [
+            [-0.35, body],
+            [-0.12, GridPose.flagBack],
+            [0.04, GridPose.flagThrow],
+            [0.18, GridPose.flagThrow],
+            [0.55, body],
+          ],
+          x,
+        );
+        if (throwing) body = over(body, throwing, 1, m.weight);
+        break;
+      }
       case "block":
         // Held once engaged, while he's set.
         if (!(x > -0.2 && t < script.settle)) break;
@@ -528,6 +627,8 @@ export function playerPose(script: FootballScript, player: Player, index: number
 export interface Labels {
   readonly stamp: Block | null;
   readonly banner: Block | null;
+  /** "DECLINED", beside a declined flag (anchored at its bottom center). */
+  readonly declined: Block | null;
 }
 
 /** The team whose type it is: the offense's or the defense's accent, else the page's ink. */
@@ -587,8 +688,27 @@ export function layoutLabels(ctx: Ctx, scene: FootballScene | null, script: Foot
     const color = b.tone.kind === "side" ? sideColor(b.tone.side, scene, teams, ink) : b.tone.kind === "gold" ? ink.gold : primary(ink);
     banner = bannerBlock(ctx, b.text, color, TheaterType.bannerFitting(size, pt, b.text));
   }
+  let declined: Block | null = null;
+  if (script.flags.some((f) => f.declined)) {
+    const fs = TheaterType.title(size, pt) * 0.9;
+    const font = `800 ${fs}px ${FONT}`;
+    ctx.font = font;
+    const text = "DECLINED";
+    const width = measureTracked(ctx, text, 0.8 * pt);
+    const height = fs * LINE;
+    declined = {
+      width,
+      height,
+      draw: (c) => {
+        c.font = font;
+        c.fillStyle = rgba(GAIN_YELLOW, 1);
+        c.textAlign = "left";
+        fillTracked(c, text, -width / 2, -height + fs * ASCENT, 0.8 * pt);
+      },
+    };
+  }
   ctx.restore();
-  return { stamp, banner };
+  return { stamp, banner, declined };
 }
 
 // MARK: - A frame of the play
@@ -604,7 +724,7 @@ export interface FrameInputs {
 /** One frame of a play through the camera (FootballFrame): the lines, the flag, the shadows, the players far to near, the ball, the beats, the headline and the stamp. */
 export function drawFootballFrame(ctx: Ctx, f: GridProjection, input: FrameInputs): void {
   drawLines(ctx, f, input);
-  drawFlag(ctx, f, input);
+  drawFlags(ctx, f, input);
   const figures = posed(f, input);
   drawShadows(ctx, f, input, figures);
   drawPlayers(ctx, f, input, figures);
@@ -656,10 +776,13 @@ function drawLines(ctx: Ctx, f: GridProjection, { script, t }: FrameInputs): voi
   }
 }
 
-/** The flag: tossed in end over end, then lying where it landed until the field settles. */
-function drawFlag(ctx: Ctx, f: GridProjection, { script, t }: FrameInputs): void {
-  const flag = script.flag;
-  if (!flag || !(t >= flag.thrown && t < script.settle + 0.3)) return;
+/** The flags: each tossed in end over end, then lying where it landed until the field settles; a declined one says so beside it once the play is over. */
+function drawFlags(ctx: Ctx, f: GridProjection, input: FrameInputs): void {
+  const { script, t } = input;
+  for (const flag of script.flags) if (t >= flag.thrown && t < script.settle + 0.3) drawFlag(ctx, f, flag, input);
+}
+
+function drawFlag(ctx: Ctx, f: GridProjection, flag: Flag, { script, t, labels }: FrameInputs): void {
   const u = Math.min(Math.max((t - flag.thrown) / (flag.lands - flag.thrown), 0), 1);
   const x = flag.from.x + (flag.to.x - flag.from.x) * u;
   const y = flag.from.y + (flag.to.y - flag.from.y) * u;
@@ -679,13 +802,22 @@ function drawFlag(ctx: Ctx, f: GridProjection, { script, t }: FrameInputs): void
   ctx.lineWidth = 0.5;
   ctx.stroke();
   ctx.restore();
+  const declared = Math.max(flag.lands, script.stamp - 0.2);
+  if (flag.declined && t >= declared && labels.declined) {
+    ctx.save();
+    ctx.globalAlpha = Math.min((t - declared) / 0.2, 1) * (1 - Math.min(Math.max((t - script.settle) / 0.3, 0), 1));
+    ctx.translate(p.x, p.y - s * 1.2);
+    labels.declined.draw(ctx);
+    ctx.restore();
+  }
 }
 
 function drawShadows(ctx: Ctx, f: GridProjection, { script, t, ink }: FrameInputs, figures: readonly Posed[]): void {
   // Under the hips (longer for a man down); smaller and fainter as he leaves the ground.
   const w = f.figure * 0.3;
   for (const p of figures) {
-    const down = script.players[p.index]!.hold(t)?.kind === "down";
+    const held = script.players[p.index]!.hold(t)?.kind;
+    const down = held === "down" || held === "knocked";
     const air = Math.min(p.figure.air / 0.4, 1);
     drawShadow(ctx, p.figure.ground, (down ? w * 1.6 : w) * (1 - 0.35 * air), shadow(ink, p.opacity * (1 - 0.45 * air)));
   }
@@ -742,9 +874,15 @@ function posed(f: GridProjection, { script, t }: FrameInputs): Posed[] {
       const held = smooth((t - carry.from) / 0.15) * (Number.isFinite(carry.until) ? smooth((carry.until - t) / 0.15) : 1);
       const tucked = player.role === "quarterback" ? smooth(((script.rig[index]?.motion(t).speed ?? 0) - 1.5) / 1) : 1;
       const g = grip(figure);
-      const hand = figure.hands[0];
-      const loose = f.at(spot);
-      const hold = { x: g.x + (hand.x - g.x) * tucked, y: g.y + (hand.y - g.y) * tucked };
+      const tuck = figure.hands[0];
+      const throwing = figure.hands[1];
+      // Leaving his hands: toward where it goes next (the throw's first inch, the back's hands), not his middle.
+      const next = Number.isFinite(carry.until) && carry.until - t < 0.15 ? (script.ball(carry.until + 1e-4) ?? spot) : spot;
+      const loose = f.at(next);
+      let hold = { x: g.x + (tuck.x - g.x) * tucked, y: g.y + (tuck.y - g.y) * tucked };
+      // Cocked to throw: in the throwing hand, back by his ear.
+      const k = cocked(player, t);
+      hold = { x: hold.x + (throwing.x - hold.x) * k, y: hold.y + (throwing.y - hold.y) * k };
       ball = { x: loose.x + (hold.x - loose.x) * held, y: loose.y + (hold.y - loose.y) * held };
     }
     out.push({ index, figure, opacity: o, ball });
@@ -755,7 +893,12 @@ function posed(f: GridProjection, { script, t }: FrameInputs): Posed[] {
 function drawPlayers(ctx: Ctx, f: GridProjection, { script, teams, ink }: FrameInputs, figures: readonly Posed[]): void {
   const offense = figureInks(teams.offense, ink);
   const defense = figureInks(teams.defense, ink);
-  for (const p of figures) drawFigure(ctx, p.figure, script.players[p.index]!.team === "offense" ? offense : defense, f.figure, p.opacity);
+  // An official, only when one throws a flag: white, a black cap.
+  const official = script.players.some((p) => p.team === "official") ? figureInks(OFFICIAL, ink) : offense;
+  for (const p of figures) {
+    const team = script.players[p.index]!.team;
+    drawFigure(ctx, p.figure, team === "offense" ? offense : team === "defense" ? defense : official, f.figure, p.opacity);
+  }
 }
 
 /** A football: a brown oval along its flight in a soft glow, a comet tail while it's in the air, in his hands while he has it, its shadow on the grass (with the shadows). */

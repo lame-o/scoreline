@@ -173,7 +173,7 @@ describe("stamps", () => {
       ["1152", "+5 TD", "Pierce, left tackle"],
       ["1812", "PUNT 48", "Downed"],
       ["3701", "INT", "Overshown · 4 yd return"],
-      ["9361", "+5 FLAG", "Neutral Zone Infraction · No play"],
+      ["9361", "+5 FLAG", "Neutral Zone Infraction, Defense · No play"],
       ["1592", "KICK 65", "Touchback"],
       ["0940", "+25 RETURN", "Mingo"],
     ];
@@ -361,14 +361,14 @@ describe("choreography", () => {
     expect(s.next.gain!).toBeLessThan(s.next.scrimmage ?? 0);
   });
 
-  it("a flag: thrown in, then 5 yards walked off, then the stamp; a return, then the hold's 10 yards walked back", () => {
+  it("a flag: thrown in, then 5 yards walked off, then the stamp; a return, the flag on the hold during it, then 10 yards walked back from where it was enforced (DAL 28)", () => {
     const s = script("9361")!;
     expect([s.march!.from, s.march!.to]).toEqual([Gridiron.y(87), Gridiron.y(92)]);
     expect(s.flag!.lands).toBeLessThan(s.march!.start);
     expect(s.stamp).toBeGreaterThan(s.march!.end);
     const r = script("9423")!;
-    expect([r.march!.from, r.march!.to]).toEqual([Gridiron.y(68), Gridiron.y(82)]);
-    expect(r.flag).not.toBeNull();
+    expect([r.march!.from, r.march!.to]).toEqual([Gridiron.y(72), Gridiron.y(82)]);
+    expect(r.flag!.lands).toBeLessThan(r.march!.start);
   });
 
   it("every play's players and ball stay finite, the ball never under the grass", () => {
@@ -671,12 +671,12 @@ describe("the hash", () => {
     expect(turned.nextHash).toBe("left");
   });
 
-  it("the ball snapped from its hash, everyone inside the sidelines, the formation round it", { timeout: 30_000 }, () => {
+  it("the ball snapped from its hash, every player inside the sidelines (an official who throws a flag works from his), the formation round it", { timeout: 30_000 }, () => {
     const hashed = onHashes.map((s) => FootballScript.play(s));
     const onHash = onHashes.map((s, i) => [s, hashed[i]!] as const).filter(([s]) => s.kind.type !== "kickoff" && s.hash !== "middle");
     expect(onHash.length).toBeGreaterThan(30);
     expect(onHash.every(([s, script]) => Math.abs((script.ball(0)?.x ?? Infinity) - Gridiron.spot(s.hash)) < 0.01)).toBe(true);
-    expect(hashed.every((s) => s.players.every((p) => Math.abs(p.at.x) < Gridiron.half))).toBe(true);
+    expect(hashed.every((s) => s.players.filter((p) => p.team !== "official").every((p) => Math.abs(p.at.x) < Gridiron.half))).toBe(true);
     const i = onHashes.findIndex((s) => s.id.endsWith("9274"));
     const center = hashed[i + 1]!.players.find((p) => p.role === "line" && p.team === "offense")!.at;
     expect(Math.abs(center.x - Gridiron.spot("right"))).toBeLessThan(0.01);
@@ -722,7 +722,7 @@ describe("the try", () => {
     expect(s.duration).toBeLessThan(script("9213")!.duration);
   });
 
-  it("a two-point try: Prescott rushes left guard from the 2, and it succeeds, keeping it himself into the end zone: 2PT ✓", () => {
+  it("a two-point try: Prescott rushes left guard from the 2, and it succeeds, keeping it himself into the end zone: 2-PT ✓", () => {
     const two = scene("3048")!;
     const attempt = two.conversion!;
     const s = FootballScript.play(attempt);
@@ -730,14 +730,14 @@ describe("the try", () => {
     const carrier = s.players.findIndex((_, i) => s.legs.some((l) => l.hand.kind === "carry" && l.hand.player === i && !Number.isFinite(l.until)));
     expect(s.players[carrier]!.role).toBe("quarterback");
     expect(s.end!.y).toBeGreaterThan(300);
-    expect([stamp(attempt), footballStamp(attempt).title, s.banner]).toEqual(["2PT ✓", "Prescott, left guard", null]);
+    expect([stamp(attempt), footballStamp(attempt).title, s.banner]).toEqual(["2-PT ✓", "Prescott, left guard", null]);
   });
 
-  it("a try logged as its own entry replays as one: XP ✓ from the 15, a failed two-point pass 2PT ✗; a touchdown without its try has none", () => {
+  it("a try logged as its own entry replays as one: XP ✓ from the 15, a failed two-point pass 2-PT ✗; a touchdown without its try has none", () => {
     const separate = parse(entry("Extra Point Good", "C.Dicker extra point is GOOD, Center-C.Johnson, Holder-B.Mann.", 0, 0), teams)!;
     const failed = parse(entry("Two Point Pass", "TWO-POINT CONVERSION ATTEMPT. J.Hurts pass to D.Smith is incomplete. ATTEMPT FAILS.", 98, 98), teams)!;
     expect([separate.pointAfter, separate.from, stamp(separate)]).toEqual(["kick", 85, "XP ✓"]);
-    expect([failed.pointAfter, failed.kind.type, stamp(failed), FootballScript.play(failed).banner]).toEqual(["pass", "incomplete", "2PT ✗", null]);
+    expect([failed.pointAfter, failed.kind.type, stamp(failed), FootballScript.play(failed).banner]).toEqual(["pass", "incomplete", "2-PT ✗", null]);
     const bare = scene("1152")!.clone();
     bare.attempt = null;
     expect(bare.conversion).toBeNull();

@@ -136,6 +136,16 @@ export class BasketballFeed {
   streaks: Readonly<Record<string, number>> = {};
   /** ESPN's scoring run while one is on (8+ points of margin): the game flow's band. */
   runs: readonly Run[] = [];
+  /**
+   * The newest plays, in ESPN's order (the window), replaced only when one
+   * of them changed: the basketball theater reads them itself, beside the
+   * lane (BasketballFeed's `theater` and `updateTheater`:
+   * data/theater/basketballTheater.ts `BasketballTheaterWatch`), so the page
+   * never does and a clock reading doesn't redraw the theater.
+   */
+  items: readonly JSONValue[] = [];
+  /** Complete looks at the play list so far: a play is news only from a later look than the first (the theater's rule, `seenIn`). */
+  looks = 0;
 
   private window: JSONValue[] = [];
   /** Index in ESPN's full play list of `window[0]`. */
@@ -148,8 +158,7 @@ export class BasketballFeed {
   private announced = new Map<string, LiveMoment>();
   private retracted: string[] = [];
   private primed = false;
-  /** Looks at the play list so far, and the look each play was first seen in. */
-  private looks = 0;
+  /** The look each play was first seen in. */
   private firstSeen = new Map<string, number>();
   private teams: Teams | null = null;
   private quarter: number = QUARTER.nba;
@@ -222,6 +231,11 @@ export class BasketballFeed {
     if (!this.playing || !this.score) return summary;
     const lane = topIsHome ? { top: this.score.home, bottom: this.score.away } : { top: this.score.away, bottom: this.score.home };
     return laneLinescore(summary, lane, this.period);
+  }
+
+  /** The look a play was first seen in (null: not in the window). */
+  seenIn(id: string): number | null {
+    return this.firstSeen.get(id) ?? null;
   }
 
   /** The moments since the last call. */
@@ -380,6 +394,7 @@ export class BasketballFeed {
     }
     this.set("flow", points, sameJSON);
     this.set("recentPlays", recentPlays(this.window), sameJSON);
+    this.set("items", this.window, sameJSON);
     this.derive(court, teams);
   }
 
@@ -677,7 +692,11 @@ function lastLeader(index: number, plays: readonly JSONValue[], teams: Teams): n
 
 // MARK: - Parsing
 
-/** Core plays name teams and players by link; the summary parsers expect `team.id` and `participants[].athlete.id` (shooter first). */
+/**
+ * Core plays name teams and players by link; the summary parsers expect
+ * `team.id` and `participants[].athlete.id` (shooter first). Each keeps its
+ * part ("shooter", "assister", "blocker"): the theater reads it.
+ */
 export function normalized(item: JSONValue): JSONValue {
   if (item == null || typeof item !== "object" || Array.isArray(item)) return item;
   const raw: Record<string, unknown> = { ...(item as Record<string, unknown>) };
@@ -687,13 +706,17 @@ export function normalized(item: JSONValue): JSONValue {
     .map((p, offset) => ({ p, order: typeof at(p, "order") === "number" ? (at(p, "order") as number) : offset, offset }))
     .sort((a, b) => a.order - b.order || a.offset - b.offset);
   raw.participants = people.flatMap(({ p }) => {
-    const id = str(at(p, "athlete", "id"));
-    if (id) return [{ athlete: { id } }];
-    const ref = str(at(p, "athlete", "$ref"));
-    const i = ref?.indexOf("/athletes/") ?? -1;
-    if (!ref || i < 0) return [];
-    const digits = /^\d+/.exec(ref.slice(i + "/athletes/".length));
-    return digits ? [{ athlete: { id: digits[0] } }] : [];
+    let id = str(at(p, "athlete", "id"));
+    if (!id) {
+      const ref = str(at(p, "athlete", "$ref"));
+      const i = ref?.indexOf("/athletes/") ?? -1;
+      if (!ref || i < 0) return [];
+      const digits = /^\d+/.exec(ref.slice(i + "/athletes/".length));
+      if (!digits) return [];
+      id = digits[0];
+    }
+    const part = str(at(p, "type"));
+    return [part ? { athlete: { id }, type: part } : { athlete: { id } }];
   });
   return raw;
 }
