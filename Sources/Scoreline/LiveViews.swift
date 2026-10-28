@@ -647,12 +647,9 @@ struct StrikeZoneView: View {
     /// A pitch's names, longest first: full, short, code. (pure; tested)
     nonisolated static func names(_ pitch: GameDetail.Pitch) -> [String] {
         let short = pitch.type.flatMap { GameDetail.Pitch.names[$0] }
-        let full = pitch.typeName ?? short ?? pitch.type ?? "Pitch"
-        return [full, short ?? full, pitch.type.map { codes[$0] ?? $0 } ?? short ?? full]
+        let full = pitch.type.flatMap { GameDetail.Pitch.official[$0] } ?? pitch.typeName ?? short ?? pitch.type ?? "Pitch"
+        return [full, short ?? full, pitch.type ?? short ?? full]
     }
-
-    /// Codes as fans read them: a fastball is "FB", not Statcast's "FF".
-    nonisolated static let codes = ["FF": "FB", "FA": "FB"]
 
     /// The longest of a pitch's names that fits `room`. (pure; tested)
     nonisolated static func name(_ names: [String], room: CGFloat) -> String {

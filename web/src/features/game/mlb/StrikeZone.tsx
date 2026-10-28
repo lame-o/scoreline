@@ -3,7 +3,7 @@
  * the zone, numbered in order, beside the list of pitches with their type,
  * speed and what they did (Called, Swinging, Foul, Foul tip, Ball, In play).
  * Balls are rings, strikes and balls in play are filled, so the result never
- * depends on color alone. A fastball is "FB".
+ * depends on color alone. Pitches go by MLB's names and Statcast's codes (FF).
  *
  * Linked: pointing at a pitch (on the zone or in the list) rings it and
  * steps the others back; a click on a row pins it. The zone's lines stop

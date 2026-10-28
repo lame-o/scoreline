@@ -104,17 +104,17 @@ export const notationText = (n: Notation) => (n.backwards ? "ꓘ" : n.code);
 
 /** MLB pitch codes, for when ESPN sends only the abbreviation (GameDetail.swift `Pitch.names`). */
 export const PITCH_NAMES: Readonly<Record<string, string>> = {
-  FF: "Four-seam",
+  FF: "Four-Seam",
   FA: "Fastball",
-  FT: "Two-seam",
+  FT: "Two-Seam",
   SI: "Sinker",
   FC: "Cutter",
   SL: "Slider",
   ST: "Sweeper",
   SV: "Slurve",
   CU: "Curveball",
-  KC: "Knuckle curve",
-  CS: "Slow curve",
+  KC: "Knuckle Curve",
+  CS: "Slow Curve",
   CH: "Changeup",
   FS: "Splitter",
   FO: "Forkball",
@@ -122,7 +122,7 @@ export const PITCH_NAMES: Readonly<Record<string, string>> = {
   KN: "Knuckleball",
   EP: "Eephus",
   PO: "Pitchout",
-  IN: "Intentional ball",
+  IN: "Intentional Ball",
   UN: "Unknown",
 };
 
