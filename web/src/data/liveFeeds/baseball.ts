@@ -152,7 +152,7 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
         return;
       }
       const last = findLast(this.window, (p) => str(at(p, "type", "type")) === "play-result");
-      const next = baseballSituation(s, names, str(at(last, "text")) ?? null);
+      const next = settledSituation(baseballSituation(s, names, str(at(last, "text")) ?? null), this.window, names);
       if (!sameSituation(next, this.situation)) {
         this.situation = next;
         changed = true;
@@ -406,6 +406,70 @@ export function baseballSituation(s: JSONValue, names: Readonly<Record<string, s
     batterID: pid("batter"),
     pitcherID: pid("pitcher"),
   };
+}
+
+/**
+ * At the Plate as the plays have it (web; the live check, Game 4): after the
+ * third out ESPN's situation resets the outs to 0 at once but goes on naming
+ * the batter who made it for half a minute or so (and once named nobody), so
+ * the diamond said 0 outs with the old batter, then lost its batter row.
+ * Until the situation names the next half's batter, the half is shown as it
+ * ended: 3 outs, the count and bases cleared, the last matchup. And a
+ * situation still naming the batter whose at-bat the plays have closed (or
+ * nobody, or someone the box score hasn't named yet, a pinch hitter) takes
+ * the matchup from the at-bat under way ("Dustin May pitches to Yandy
+ * Diaz"). (pure; tested)
+ */
+export function settledSituation(s: Baseball | null, window: readonly JSONValue[], names: Readonly<Record<string, string>>): Baseball | null {
+  if (!s) return s;
+  const typeOf = (e: JSONValue) => str(at(e, "type", "type"));
+  const half = (e: JSONValue) => `${str(at(e, "period", "type")) ?? ""}${intOf(at(e, "period", "number")) ?? 0}`;
+  const startsAtBat = (e: JSONValue) => typeOf(e) === "start-batterpitcher" || str(at(e, "summaryType")) === "P";
+  const nameOf = (id: string | null) => (id != null ? (names[id] ?? null) : null);
+  const lastIndex = (test: (e: JSONValue) => boolean) => {
+    for (let i = window.length - 1; i >= 0; i--) if (test(window[i]!)) return i;
+    return -1;
+  };
+  // The third out, and nothing of the next half's at-bats after it: the half as it ended.
+  const third = lastIndex((e) => typeOf(e) === "play-result" && (intOf(at(e, "outs")) ?? 0) >= 3);
+  const ended = window[third];
+  if (ended !== undefined && !window.slice(third + 1).some((e) => startsAtBat(e) && half(e) !== half(ended))) {
+    const batterID = participantID(ended, "batter");
+    const pitcherID = participantID(ended, "pitcher");
+    if (s.batterID == null || s.batterID === batterID) {
+      return {
+        ...s,
+        balls: 0,
+        strikes: 0,
+        outs: 3,
+        onFirst: false,
+        onSecond: false,
+        onThird: false,
+        runners: [null, null, null],
+        batter: nameOf(batterID) ?? s.batter,
+        batterID: batterID ?? s.batterID,
+        pitcher: nameOf(pitcherID) ?? s.pitcher,
+        pitcherID: pitcherID ?? s.pitcherID,
+      };
+    }
+  }
+  // The at-bat under way: the first entry after the last at-bat's result names both, by ID and in words.
+  const closed = lastIndex((e) => typeOf(e) === "play-result" && participantID(e, "batter") != null);
+  const start = window.slice(closed + 1).find(startsAtBat);
+  if (start === undefined) return s;
+  const batterID = participantID(start, "batter");
+  const pitcherID = participantID(start, "pitcher");
+  const previous = window[closed] !== undefined ? participantID(window[closed]!, "batter") : null;
+  const stale = s.batterID == null || (s.batterID === previous && batterID != null && batterID !== previous);
+  const words = /^(.+?) pitches to (.+?)\.?$/.exec(str(at(start, "text")) ?? "");
+  const next: Baseball = stale
+    ? { ...s, batterID, batter: nameOf(batterID) ?? words?.[2] ?? s.batter, pitcherID: pitcherID ?? s.pitcherID, pitcher: nameOf(pitcherID) ?? words?.[1] ?? s.pitcher }
+    : {
+        ...s,
+        batter: s.batter ?? (s.batterID === batterID ? (words?.[2] ?? null) : null),
+        pitcher: s.pitcher ?? (s.pitcherID === pitcherID ? (words?.[1] ?? null) : null),
+      };
+  return next.batter === s.batter && next.batterID === s.batterID && next.pitcher === s.pitcher && next.pitcherID === s.pitcherID ? s : next;
 }
 
 function sameSituation(a: Baseball | null, b: Baseball | null): boolean {
