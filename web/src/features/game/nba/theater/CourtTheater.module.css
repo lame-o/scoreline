@@ -1,0 +1,4 @@
+/* Above the court, 10pt apart as on the Mac (the section's own gap is 8). */
+.slot {
+  margin-bottom: calc(2 * var(--pt));
+}
