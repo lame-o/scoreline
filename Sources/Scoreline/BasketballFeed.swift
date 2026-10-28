@@ -278,7 +278,8 @@ final class BasketballFeed {
             announced = edits.announced
             let lastSeen = window.lastIndex { previous.contains($0["id"].string ?? "") } ?? -1
             for index in window.indices where index > lastSeen {
-                if let moment = Self.moment(at: index, in: window, teams: teams, fromTipOff: windowStart == 0) {
+                if var moment = Self.moment(at: index, in: window, teams: teams, fromTipOff: windowStart == 0) {
+                    moment.facts = ScoringFacts(nba: window[index], topIsHome: teams.topIsHome)
                     moments.append(moment)
                     announced[moment.id] = moment
                 }

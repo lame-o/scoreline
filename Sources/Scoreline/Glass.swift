@@ -12,6 +12,12 @@ private struct GlassModifier<S: Shape>: ViewModifier {
     let clear: Bool
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    #if DEBUG
+    /// The render harness: Liquid Glass can't be captured offscreen.
+    @Environment(\.glassStandIn) private var standIn
+    #else
+    private let standIn = false
+    #endif
 
     /// Increase Contrast: every glass surface gets a visible edge, and clear
     /// glass (the hero card over a saturated wash) turns regular, so the
@@ -19,7 +25,7 @@ private struct GlassModifier<S: Shape>: ViewModifier {
     private var increased: Bool { contrast == .increased }
 
     func body(content: Content) -> some View {
-        if reduceTransparency {
+        if reduceTransparency || standIn {
             // Reduce Transparency: a solid surface with a defined edge.
             content
                 .background(shape.fill(tint?.opacity(0.9) ?? Color(nsColor: .controlBackgroundColor)))
@@ -76,9 +82,17 @@ extension View {
 struct GlassGroup<Content: View>: View {
     var spacing: CGFloat = 8
     @ViewBuilder let content: Content
+    #if DEBUG
+    /// The render harness: a glass container draws nothing offscreen.
+    @Environment(\.glassStandIn) private var standIn
+    #else
+    private let standIn = false
+    #endif
 
     var body: some View {
-        if #available(macOS 26.0, *) {
+        if standIn {
+            content
+        } else if #available(macOS 26.0, *) {
             GlassEffectContainer(spacing: spacing) { content }
         } else {
             content

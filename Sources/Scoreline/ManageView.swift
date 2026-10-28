@@ -43,6 +43,8 @@ struct ManageView: View {
                     groupLabel("Live Games", "sparkles")
                     GroupBox {
                         CelebrationLevelRow(level: $store.celebrationLevel)
+                        ToggleRow(title: "Scoring slides", subtitle: "A broadcast banner across the game when a team scores",
+                                  isOn: $store.scoringSlides)
                         ToggleRow(title: "Sounds", subtitle: "When the game you're watching scores",
                                   isOn: $store.celebrationSounds)
                             .disabled(store.celebrationLevel == .off)

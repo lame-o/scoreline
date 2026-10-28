@@ -293,12 +293,13 @@ struct HeroBeats: Equatable {
 
     func pops(_ side: GameDetail.Side) -> Int { pops[side] ?? 0 }
 
-    /// A score-tier moment on this page.
-    mutating func score(_ side: GameDetail.Side?, decisive: Bool, at now: Date) {
+    /// A score-tier moment on this page. `glint: false` when the scoring
+    /// slide carries it (its sheen is the decisive glint).
+    mutating func score(_ side: GameDetail.Side?, decisive: Bool, glint: Bool = true, at now: Date) {
         washSide = side
         washPulses += 1
         if decisive {
-            glints += 1
+            if glint { glints += 1 }
             lastDecisive = now
         }
         guard let side else { return }

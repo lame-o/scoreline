@@ -34,6 +34,10 @@ struct PitchAction: Identifiable, Equatable {
     var bottomScore: Int?
     /// The match clock in seconds (85' = 5100), counting on through stoppage and extra time.
     var clockSeconds: Double?
+    /// A goal's full commentary line (the foot, the assist) and ESPN's type
+    /// for it ("goal---header"), for the scoring slide.
+    var account: String?
+    var playType: String?
 
     /// A chance worth a caption even though it missed: Opta's "big chance" line.
     static let bigChanceXG = 0.3
@@ -65,6 +69,7 @@ struct PitchAction: Identifiable, Equatable {
         case .goal:
             var m = LiveMoment(id: playID, chart: .pitch, tier: .score, kind: .goal, lead: "Goal", detail: detail, side: side)
             if decidesMatch { m.accents.insert(.decisive) }
+            m.facts = ScoringFacts(soccer: self)
             return m
         case .yellow, .red:
             return LiveMoment(id: playID, chart: .pitch, tier: .swing, kind: .card(red: kind == .red),
@@ -411,6 +416,10 @@ final class SoccerFeed {
             action.goalY = orient(item["goalPositionY"].double)
             action.goalZ = item["goalPositionZ"].double
         }
+        if kind == .goal {
+            action.account = item["text"].string
+            action.playType = type
+        }
         action.topScore = item["homeScore"].int
         action.bottomScore = item["awayScore"].int
         action.clockSeconds = item["clock"]["value"].double
@@ -746,6 +755,7 @@ final class FootballFeed {
         if m.tier == .score, let side, play.decides(before: before, scorerIsHome: (side == .top) == topIsHome) {
             moment.accents.insert(.decisive)
         }
+        if m.tier == .score { moment.facts = ScoringFacts(football: play, before: before, topIsHome: topIsHome) }
         return moment
     }
 
@@ -1208,7 +1218,9 @@ final class BaseballFeed {
         let text = item["text"].string ?? ""
         let batting = side(item["team"]["id"].string)
         func moment(_ kind: LiveMoment.Kind, _ tier: LiveMoment.Tier, _ lead: String) -> LiveMoment {
-            LiveMoment(id: id, chart: .plate, tier: tier, kind: kind, lead: lead, detail: text, side: batting)
+            var m = LiveMoment(id: id, chart: .plate, tier: tier, kind: kind, lead: lead, detail: text, side: batting)
+            if tier == .score { m.facts = ScoringFacts(baseball: item, batting: batting) }
+            return m
         }
         let runs = item["scoreValue"].int ?? 1
         // The play theater's banner brings confetti for a triple, scored or not.

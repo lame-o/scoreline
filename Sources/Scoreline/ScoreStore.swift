@@ -100,6 +100,10 @@ final class ScoreStore {
     var celebrationSounds: Bool {
         didSet { defaults.set(celebrationSounds, forKey: Keys.celebrationSounds) }
     }
+    /// The broadcast banner across the open game when a team scores. On by default.
+    var scoringSlides: Bool {
+        didSet { defaults.set(scoringSlides, forKey: Keys.scoringSlides) }
+    }
     private(set) var collapsed: Set<String> {
         didSet { defaults.set(Array(collapsed), forKey: Keys.collapsed) }
     }
@@ -179,12 +183,13 @@ final class ScoreStore {
         static let landingView = "landingView"
         static let celebrationLevel = CelebrationLevel.defaultsKey
         static let celebrationSounds = CelebrationSound.defaultsKey
+        static let scoringSlides = "scoringSlides"
     }
 
     init() {
         defaults.register(defaults: [
             Keys.finished: true, Keys.liveCount: true, Keys.scoreInMenuBar: true,
-            Keys.notify: true, Keys.coStream: true, Keys.coStreamer: "ohnepixel",
+            Keys.notify: true, Keys.coStream: true, Keys.coStreamer: "ohnepixel", Keys.scoringSlides: true,
         ])
         let saved = defaults.stringArray(forKey: Keys.leagues) ?? League.defaultIDs
         enabledIDs = saved.filter { League.with(id: $0) != nil }
@@ -196,6 +201,7 @@ final class ScoreStore {
         climbingDisciplines = Set(defaults.stringArray(forKey: Keys.climbingDisciplines) ?? ClimbingDiscipline.all)
         celebrationLevel = defaults.string(forKey: Keys.celebrationLevel).flatMap(CelebrationLevel.init(rawValue:)) ?? .full
         celebrationSounds = defaults.bool(forKey: Keys.celebrationSounds)
+        scoringSlides = defaults.bool(forKey: Keys.scoringSlides)
         showCoStream = defaults.bool(forKey: Keys.coStream)
         coStreamer = defaults.string(forKey: Keys.coStreamer) ?? "ohnepixel"
         // Teams from sports that are no longer offered (hockey) drop out.

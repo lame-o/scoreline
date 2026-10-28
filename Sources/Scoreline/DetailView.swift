@@ -54,6 +54,8 @@ struct DetailView: View {
     @State private var footballFeed = FootballFeed()
     /// The page's one live moment: what just happened, shown by its chart.
     @State private var moments = MomentCenter()
+    /// The broadcast banner when a team scores: its line and the one on screen.
+    @State private var slides = ScoringSlides()
     /// Baseball's real-time lane: count, runners and each pitch as it's thrown.
     @State private var baseballFeed = BaseballFeed()
     /// The NBA's real-time lane: clock, score and each shot as it's taken.
@@ -139,8 +141,11 @@ struct DetailView: View {
             // The docked scorebar and the chart peek float over the scroll
             // view: neither ever changes the page's measured height.
             .overlay(alignment: .top) {
-                DockedScorebarHost(bar: dockBar, beats: beats, moments: moments, pinEvent: event, pinned: store.pinnedID == event.id)
+                DockedScorebarHost(bar: dockBar, beats: beats, moments: moments, pinEvent: event, pinned: store.pinnedID == event.id,
+                                   slides: slides)
             }
+            // A score's slide, once the docked bar is the scoreboard: just under it. Out of the hierarchy between scores.
+            .overlay(alignment: .top) { ScoringSlideHost(slides: slides, surface: .bar) }
             .overlay {
                 LinkedPeekHost(controller: peek, route: { focus, source in peekRoute(focus, source: source) },
                                readout: { focus, section in peekReadout(focus, section) }, title: peekTitle,
@@ -191,7 +196,10 @@ struct DetailView: View {
             if case .espn(_, _, .soccer)? = snapshot.ref { soccerFeed.beginPage() }
             await poll()
         }
-        .onDisappear { moments.clear() }
+        .onDisappear {
+            moments.clear()
+            slides.clear()
+        }
         .onChange(of: snapshot.id) { nbaStage.reset() }
         #if DEBUG
         .onAppear { probe?(PageProbe(geometry: geometry, linked: linked, peek: peek, stage: nbaStage, moments: moments)) }
@@ -199,7 +207,8 @@ struct DetailView: View {
         // The hero's scoreboard beat: a score-tier moment, on this page, now.
         .onChange(of: moments.current?.id) { _, _ in
             guard let m = moments.current, m.tier == .score, !resizing else { return }
-            beats.score(MatchRules.scorer(of: m), decisive: m.decisive, at: .now)
+            // A slide's sheen is the decisive glint: the hero's would sweep under it.
+            beats.score(MatchRules.scorer(of: m), decisive: m.decisive, glint: !slides.carries(m.id), at: .now)
             // A climbing final decided: the trophy arrives with the gold.
             if m.decisive, m.chart == .ascent { beats.trophy() }
         }
@@ -290,6 +299,8 @@ struct DetailView: View {
               // Decisive (or the final whistle): one sheen across the card,
               // while the hero (not the docked bar) is the scoreboard on screen.
               .scoreboardGlint(beats.glints, in: RoundedRectangle(cornerRadius: Metrics.heroRadius, style: .continuous), on: .hero)
+              // A score's slide takes the card over while it holds (out of the hierarchy between scores).
+              .overlay { ScoringSlideHost(slides: slides, surface: .hero) }
               coStreamBadge
               staleNote
             }
@@ -330,6 +341,7 @@ struct DetailView: View {
             // One hero style everywhere: clear glass over the page's wash.
             .floatingGlass(in: RoundedRectangle(cornerRadius: Metrics.heroRadius, style: .continuous), clear: true, interactive: false)
             .scoreboardGlint(beats.glints, in: RoundedRectangle(cornerRadius: Metrics.heroRadius, style: .continuous), on: .hero)
+            .overlay { ScoringSlideHost(slides: slides, surface: .hero) }
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(event.state == .live ? [.isHeader, .updatesFrequently] : .isHeader)
             .accessibilityHeading(.h1)
@@ -1558,9 +1570,9 @@ struct DetailView: View {
         if standings.isEmpty { standings = await store.standings(for: league) }
         await updated
         // A goal VAR struck off goes before anything new shows.
-        moments.retract(feed.takeRetractions())
+        retract(feed.takeRetractions())
         let fresh = feed.takeMoments()
-        moments.offer(fresh)
+        offer(fresh)
         // A goal or card: bring the timeline and key events along now, not in half a minute.
         if fresh.contains(where: { if case .card = $0.kind { return true }; return $0.kind == .goal }), detail != nil {
             await refreshDetail(current)
@@ -1909,6 +1921,87 @@ struct DetailView: View {
         })
     }
 
+    // MARK: Scoring slides
+
+    /// One update's moments: the scoring slides take the scores (and announce
+    /// them), the moment slot takes the update (and gives out the page's
+    /// burst), then each slide learns whether the burst is its own and when
+    /// to show.
+    private func offer(_ batch: [LiveMoment], detail loaded: GameDetail? = nil) {
+        guard store.scoringSlides, !batch.isEmpty else { return moments.offer(batch) }
+        let slid = slides.take(batch, context: slideContext(loaded ?? detail))
+        moments.offer(batch, quiet: slid)
+        guard !slid.isEmpty else { return }
+        slides.schedule(slid, granted: moments.current, claim: moments.claimBurst) { slidePlan(for: $0) }
+    }
+
+    private func retract(_ ids: [String]) {
+        moments.retract(ids)
+        slides.retract(ids)
+    }
+
+    /// Who's who for the slides: the two sides, and climbing's round and route.
+    private func slideContext(_ d: GameDetail?) -> SlideContext {
+        var context = SlideContext()
+        if case .match = event.content {
+            context.top = event.competitors.first.map(SlideTeam.init)
+            context.bottom = event.competitors.last.map(SlideTeam.init)
+        }
+        if let d {
+            context.final = MatchRules.isFinalRound(d.roundName)
+            context.climbers = Dictionary(d.wall.flatMap(\.climbers).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            context.maps = d.maps
+        }
+        return context
+    }
+
+    /// How a slide meets this page: whether the theater or chart that
+    /// celebrates its moment is on screen (it plays the burst there), and the
+    /// theater to time it to. Read once per score, never observed.
+    private func slidePlan(for m: LiveMoment) -> SlidePlan {
+        guard let d = detail else { return SlidePlan() }
+        func seen(_ section: Section) -> Bool { geometry.visibility[sectionID(section)].map { !$0.isHidden } ?? false }
+        var plan = SlidePlan()
+        switch m.chart {
+        case .plate:
+            // The theater owns a play's celebration when the page shows it; the spray chart otherwise.
+            let theater = has(.atPlate, d)
+            plan.ownerVisible = seen(theater ? .atPlate : .battedBalls)
+            if theater {
+                let feed = baseballFeed
+                plan.theater = .baseball(feed)
+                plan.follow = plan.ownerVisible && !reduceMotion
+                // A new plate appearance waits up to 3 s for Statcast before the theater has it.
+                plan.patience = 3.6
+                plan.batted = { feed.theater.play?.id == m.id ? feed.theater.play?.measured?.batted : nil }
+            }
+        case .field:
+            plan.ownerVisible = seen(.field)
+            if has(.field, d) {
+                plan.theater = .football(footballFeed)
+                plan.follow = plan.ownerVisible && !reduceMotion
+            }
+        case .pitch:
+            plan.ownerVisible = seen(.pitch)
+            if event.state == .live {
+                plan.theater = .soccer(soccerFeed)
+                plan.follow = plan.ownerVisible && !reduceMotion
+            }
+        case .court:
+            // The court's theater replays every basket and owns its celebration while it's shown.
+            plan.ownerVisible = seen(.court)
+            if event.state == .live {
+                plan.theater = .basketball(basketballFeed)
+                plan.follow = plan.ownerVisible && !reduceMotion
+            }
+        case .ascent, .rounds:
+            plan.ownerVisible = seen(DockRules.section(for: m.chart))
+        default:
+            break
+        }
+        return plan
+    }
+
     // MARK: Fast lane
 
     private func hasFastLane(_ event: Event) -> Bool {
@@ -1938,8 +2031,8 @@ struct DetailView: View {
                                                homeName: homeIsTop ? full.top : full.bottom, awayName: homeIsTop ? full.bottom : full.top)
                 let before = footballFeed.score
                 await footballFeed.update(path: path, eventID: id, teams: teams)
-                moments.retract(footballFeed.takeRetractions())
-                moments.offer(footballFeed.takeMoments())
+                retract(footballFeed.takeRetractions())
+                offer(footballFeed.takeMoments())
                 // A score: refresh the rest (scoring list, stats) now, not in half a minute.
                 if before != nil, footballFeed.score != before { await refreshDetail(current) }
             case let .espn(path, id, .baseball)?:
@@ -1950,8 +2043,8 @@ struct DetailView: View {
                 await baseballFeed.update(path: path, eventID: id, names: names, statcast: Statcast.Lookup(current)) { team in
                     team == top ? .top : team == bottom ? .bottom : nil
                 }
-                moments.retract(baseballFeed.takeRetractions())
-                moments.offer(baseballFeed.takeMoments())
+                retract(baseballFeed.takeRetractions())
+                offer(baseballFeed.takeMoments())
                 if before != nil, baseballFeed.score != before { await refreshDetail(current) }
             case let .espn(path, id, .basketball)? where path == NBADetail.path:
                 // Wait for the first full load: it says which team is home.
@@ -1961,15 +2054,15 @@ struct DetailView: View {
                                                  topName: current.competitors.first?.abbreviation ?? "",
                                                  bottomName: current.competitors.last?.abbreviation ?? "")
                 await basketballFeed.update(eventID: id, teams: teams)
-                moments.retract(basketballFeed.takeRetractions())
-                moments.offer(basketballFeed.takeMoments())
+                retract(basketballFeed.takeRetractions())
+                offer(basketballFeed.takeMoments())
             case .counterStrike?:
                 guard let matchID = Int(current.id.dropFirst(3)) else { return }
                 let ids = current.competitors.map { $0.id.flatMap { Int($0.dropFirst(3)) } }
                 let live = await CSDetail.liveState(matchID: matchID, topTeamID: ids.first ?? nil, bottomTeamID: ids.last ?? nil)
                 if !Task.isCancelled, detail != nil, live != detail?.csLive {
                     if let previous = detail?.csLive, let live {
-                        moments.offer(MatchRules.csMoments(from: previous, to: live,
+                        offer(MatchRules.csMoments(from: previous, to: live,
                                                            names: (current.competitors.first?.name ?? "", current.competitors.last?.name ?? ""),
                                                            maps: detail?.maps ?? []))
                     }
@@ -1998,7 +2091,7 @@ struct DetailView: View {
         // (so the score never steps back), and a newer one can carry a moment.
         if let lane = detail?.csLive {
             if let full = loaded.csLive, Self.newer(full, than: lane) {
-                moments.offer(MatchRules.csMoments(from: lane, to: full,
+                offer(MatchRules.csMoments(from: lane, to: full,
                                                    names: (event.competitors.first?.name ?? "", event.competitors.last?.name ?? ""),
                                                    maps: loaded.maps))
             } else {
@@ -2006,7 +2099,7 @@ struct DetailView: View {
             }
         }
         if let previous = detail, event.state == .live {
-            moments.offer(MatchRules.climbingMoments(from: previous, to: loaded))
+            offer(MatchRules.climbingMoments(from: previous, to: loaded), detail: loaded)
             // Climbing results, live: who moved up or down since the last look (same round only).
             if isClimbing, previous.roundName == loaded.roundName {
                 let deltas = MatchRules.rankDeltas(from: previous.ranking, to: loaded.ranking)
@@ -2200,8 +2293,20 @@ private final class ResumeOnce: Sendable {
 private struct PageHeadingFocus: ViewModifier {
     @AccessibilityFocusState private var focused: Bool
     @Environment(\.pageLive) private var live
+    #if DEBUG
+    @Environment(\.harnessScroll) private var harness
+    #endif
 
-    func body(content: Content) -> some View {
+    @ViewBuilder func body(content: Content) -> some View {
+        #if DEBUG
+        // ImageRenderer draws nothing for a view with accessibility focus state (as on profile pages).
+        if harness != nil { content } else { focusing(content) }
+        #else
+        focusing(content)
+        #endif
+    }
+
+    private func focusing(_ content: Content) -> some View {
         content
             .accessibilityFocused($focused)
             .task(id: live) {
