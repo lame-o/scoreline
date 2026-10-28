@@ -214,7 +214,7 @@ export const macImports = [
   { name: "counter-strike", from: "14-counter-strike" },
   { name: "climbing", from: "15-climbing" },
   { name: "settings", from: "16-settings" },
-  { name: "scoring-slide", from: "slide" },
+  { name: "scoring-slide", from: "17-scoring-slide" },
 ];
 
 /**
@@ -243,6 +243,11 @@ export const readmeSlots = [
         [mac("baseball", "A live baseball game: every pitch, and the home run replayed on the field")],
         [mac("football", "A live NFL game: the touchdown replayed, the drive on the field"), mac("soccer", "A live Premier League match: the goal rebuilt, the shot map")],
         [mac("at-bat", "The at-bat, pitch by pitch, with MLB's pitch types and speeds"), mac("spray-chart", "A spray chart of every ball in play"), mac("shot-chart", "An NBA shot chart")],
+      ],
+      [
+        [mac("baseball", "A live baseball game: every pitch, and the home run replayed on the field")],
+        [mac("football", "A live NFL game: the touchdown replayed, the drive on the field"), mac("soccer", "A live Premier League match: the goal rebuilt, the shot map")],
+        [mac("at-bat", "The at-bat, pitch by pitch, with MLB's pitch types and speeds"), mac("spray-chart", "A spray chart of every ball in play")],
       ],
       [[mac("football", "A live NFL game: the touchdown replayed, the drive on the field"), mac("soccer", "A live Premier League match: the goal rebuilt, the shot map")]],
       [
@@ -276,6 +281,7 @@ export const readmeSlots = [
     key: "teams",
     options: [
       [[mac("scores", "Scores as a list and as tiles, your teams first")], [mac("docked", "The score docked at the top of a game page"), mac("settings", "Settings")]],
+      [[mac("scores", "Scores as a list and as tiles, your teams first")]],
       [[web("follow", "A game's menu: follow either team, show the score in the tab, go to a team's schedule"), web("settings", "Settings: your teams, your sports and their order, appearance and alerts")]],
     ],
   },

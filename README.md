@@ -54,9 +54,12 @@ Every play comes back to life in a small isometric view the moment it happens: t
 
 ## The scoring slide
 
-When a team scores, a bar in its colors slides in from its side of the page: its logo, a headline you can read from across the room (HOME RUN, GRAND SLAM, TOUCHDOWN, GOAL, BUZZER-BEATER, MAP WON) and who and how, straight from the feeds: "Frelick · 408 ft · EV 104.4 mph". It lands at the isometric view's climax, as the ball clears the fence or crosses the line, for runs, touchdowns, goals, the NBA's decisive baskets, CS2 maps and climbing tops.
+When a team scores, a bar in its colors slides in from its side of the page: its logo, a headline you can read from across the room (HOME RUN, GRAND SLAM, TOUCHDOWN, GOAL, BUZZER-BEATER, MAP WON) and who and how, straight from the feeds: "Pratt · 396 ft · EV 99.1 mph". It lands at the isometric view's climax, as the ball clears the fence or crosses the line, for runs, touchdowns, goals, the NBA's decisive baskets, CS2 maps and climbing tops.
 
 <!-- slot:scoring-slide:start -->
+<p align="center">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/scoring-slide-dark.webp"><img src="docs/screenshots/mac/scoring-slide-light.webp" width="100%" alt="The scoring slide: a home run's bar sliding in from the scoring team's side, in its colors, with who and how far"></picture>
+</p>
 <!-- slot:scoring-slide:end -->
 
 ## Live game pages
@@ -70,8 +73,17 @@ Each game page is built for its sport, and it's live: charts redraw as plays lan
 
 <!-- slot:games:start -->
 <p align="center">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/baseball-dark.webp"><img src="docs/screenshots/mac/baseball-light.webp" width="100%" alt="A live baseball game: every pitch, and the home run replayed on the field"></picture>
+</p>
+
+<p align="center">
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/football-dark.webp"><img src="docs/screenshots/mac/football-light.webp" width="49%" alt="A live NFL game: the touchdown replayed, the drive on the field"></picture>
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/soccer-dark.webp"><img src="docs/screenshots/mac/soccer-light.webp" width="49%" alt="A live Premier League match: the goal rebuilt, the shot map"></picture>
+</p>
+
+<p align="center">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/at-bat-dark.webp"><img src="docs/screenshots/mac/at-bat-light.webp" width="49%" alt="The at-bat, pitch by pitch, with MLB's pitch types and speeds"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/spray-chart-dark.webp"><img src="docs/screenshots/mac/spray-chart-light.webp" width="49%" alt="A spray chart of every ball in play"></picture>
 </p>
 <!-- slot:games:end -->
 
@@ -123,8 +135,7 @@ Click a name anywhere and its page opens: a team's results, form, schedule, rost
 
 <!-- slot:teams:start -->
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/follow-dark.webp"><img src="docs/screenshots/web/follow-light.webp" width="49%" alt="A game's menu: follow either team, show the score in the tab, go to a team's schedule"></picture>
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/settings-dark.webp"><img src="docs/screenshots/web/settings-light.webp" width="49%" alt="Settings: your teams, your sports and their order, appearance and alerts"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/scores-dark.webp"><img src="docs/screenshots/mac/scores-light.webp" width="100%" alt="Scores as a list and as tiles, your teams first"></picture>
 </p>
 <!-- slot:teams:end -->
 
