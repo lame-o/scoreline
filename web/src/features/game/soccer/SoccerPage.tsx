@@ -27,7 +27,10 @@ import type { Section } from "../../../data/sections";
 import { tieLine } from "../../../data/soccer";
 import { withLaneScore } from "../../../data/standings";
 import { espnPlayerRef } from "../../profiles/ProfileLinks";
+import { shortened } from "../../../data/moments";
+import { headline } from "../core/CommonSections";
 import { DetailSection } from "../core/DetailSection";
+import type { PeekSource } from "../core/peek";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
 import { useCommonSections } from "../core/useCommonSections";
 import { SoccerTableWindow, useLeagueLive, useTableRows } from "../tables/GameTables";
@@ -80,6 +83,10 @@ export function useSoccerPage(game: GameContext): SportPage {
   const ids = useMemo(() => (event.content.kind === "match" ? [event.content.top.id, event.content.bottom.id].filter((x): x is string => x != null) : []), [event.content]);
 
   const sections: Partial<Record<Section, ReactNode>> = { ...common };
+  // The charts, shared by their sections and the chart peek (the same element, so the peek is the same chart).
+  const pitchChart = <Pitch trail={feed.trail} shots={feed.shots} cards={feed.cards} live={live} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} width={sectionWidth} theaterShown={live} />;
+  const minute = live ? soccerMinute(event.detail) : null;
+  const timelineChart = <Timeline moments={detail.moments} currentMinute={minute} palette={palette} topName={names.top} bottomName={names.bottom} width={sectionWidth} />;
   if (live ? feed.trail.length > 0 : feed.shots.length > 0) {
     sections.pitch = (
       <DetailSection
@@ -91,11 +98,10 @@ export function useSoccerPage(game: GameContext): SportPage {
       >
         {/* The play theater at the top of the Live Pitch, as on the Mac; it owns the moments it replays (GoalCelebration.pitchBursts). */}
         {live ? <PitchTheater feed={feed} homeTeamID={homeID} event={event} /> : null}
-        <Pitch trail={feed.trail} shots={feed.shots} cards={feed.cards} live={live} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} width={sectionWidth} theaterShown={live} />
+        {pitchChart}
       </DetailSection>
     );
   }
-  const minute = live ? soccerMinute(event.detail) : null;
   if (detail.moments.some((m) => m.minute != null) || live) {
     sections.timeline = (
       <DetailSection
@@ -104,7 +110,7 @@ export function useSoccerPage(game: GameContext): SportPage {
         caption={`Goals and cards by minute. ${names.top} above, ${names.bottom} below.${live ? " The red dot marks now." : ""}`}
         spokenCaption={`Goals and cards by minute. ${spoken.top} above, ${spoken.bottom} below.`}
       >
-        <Timeline moments={detail.moments} currentMinute={minute} palette={palette} topName={names.top} bottomName={names.bottom} width={sectionWidth} />
+        {timelineChart}
       </DetailSection>
     );
   }
@@ -140,11 +146,22 @@ export function useSoccerPage(game: GameContext): SportPage {
         }
       : undefined;
 
+  // The chart peek (LinkedPeek): a key event lights its shot on the pitch, else its mark on the timeline.
+  const peek: PeekSource = {
+    inputs: {
+      pitch: [...(live ? feed.trail : []), ...feed.shots, ...Object.entries(feed.cards).map(([id, a]) => ({ ...a, playID: id }))].map((a) => ({ id: a.playID, side: a.side, lead: a.minute, detail: shortened(a.text) })),
+      timeline: detail.moments.filter((m) => m.minute != null && m.kind !== "other" && m.kind !== "score").map((m) => ({ id: m.id, side: m.side, lead: m.clock, detail: headline(m) })),
+    },
+    chart: (section) => (section === "pitch" ? pitchChart : section === "timeline" ? timelineChart : null),
+    aspect: { pitch: 105 / 68 },
+  };
+
   return {
     sections,
     laneScores,
     clockFallback: event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live"),
     heroNote: tieLine(detail.soccerTie),
     dockSlot,
+    peek,
   };
 }

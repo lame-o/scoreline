@@ -445,31 +445,7 @@
   }
 }
 
-/* MARK: Sections */
-
-.section {
-  min-width: 0;
-  padding: calc(16 * var(--pt)) var(--gutter) 0;
-}
-
-.sectionHead {
-  display: flex;
-  flex-direction: column;
-  gap: calc(2 * var(--pt));
-  margin-bottom: calc(8 * var(--pt));
-}
-
-.caption {
-  max-width: var(--readable-width);
-  font-size: var(--text-caption);
-  color: var(--label-secondary);
-  text-wrap: pretty;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-}
+/* MARK: Sections (the titled block itself is design/components/DetailSection) */
 
 .controlRow {
   display: flex;

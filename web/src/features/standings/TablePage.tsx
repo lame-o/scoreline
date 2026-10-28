@@ -9,6 +9,7 @@
  *
  * The content assembles like a page entrance when clicked into; keyboard
  * arrivals (`state.viaKeyboard`) and data that lands later are instant.
+ * `footer` sits under the content (the stale note when a refresh failed).
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
@@ -41,7 +42,7 @@ export function pageLayout(width: number, old: PageLayout = INITIAL): PageLayout
 
 const INITIAL: PageLayout = { width: 340, split: false, page: "compact", column: "compact" };
 
-export function TablePage({ title, trailing, children }: { title: string; trailing?: ReactNode; children: (layout: PageLayout) => ReactNode }) {
+export function TablePage({ title, trailing, footer, children }: { title: string; trailing?: ReactNode; footer?: ReactNode; children: (layout: PageLayout) => ReactNode }) {
   const viaKeyboard = (useLocation().state as NavState | null)?.viaKeyboard === true;
   const content = useRef<HTMLDivElement>(null);
   const width = useWidth(content);
@@ -61,6 +62,7 @@ export function TablePage({ title, trailing, children }: { title: string; traili
       <div ref={content} className={styles.content}>
         {children(layout)}
       </div>
+      {footer}
     </div>
   );
 }

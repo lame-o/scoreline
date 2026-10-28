@@ -4,7 +4,7 @@
  *
  * - Tab: the Mac's menu bar item is the tab's title and icon here. A pinned
  *   game always shows; this decides whether a followed team's live game does.
- * - Sounds: stored for the game pages' celebrations (`celebrationSounds`).
+ * - Sounds: the game pages' celebration sounds (`celebrationSounds`; game/core/sound.ts), unlocking the browser's audio as it's switched on.
  * - Notifications: the toggle is on only when the browser allows alerts, and
  *   turning it on is the one place the app asks (never on load). The
  *   browser's answer shows under it, kept current.
@@ -14,6 +14,7 @@
 import { FormSection, GroupBox, Icon, ToggleRow, formStyles } from "../../design/components";
 import { requestNotificationPermission, useNotificationPermission, type NotificationPermissionState } from "../../state/notifications";
 import { settings, useSettings } from "../../state/settings";
+import { unlockAudio } from "../game/core/sound";
 import styles from "./Settings.module.css";
 
 export function TabSection() {
@@ -31,7 +32,19 @@ export function TabSection() {
 export function SoundsRow() {
   const sounds = useSettings((s) => s.celebrationSounds);
   const off = useSettings((s) => s.celebrationLevel === "off");
-  return <ToggleRow title="Sounds" subtitle="When the game you're watching scores" checked={sounds && !off} disabled={off} onChange={(v) => settings.set("celebrationSounds", v)} />;
+  return (
+    <ToggleRow
+      title="Sounds"
+      subtitle="When the game you're watching scores"
+      checked={sounds && !off}
+      disabled={off}
+      onChange={(v) => {
+        // The switch is a gesture: the browser lets the page's audio start now.
+        if (v) unlockAudio();
+        settings.set("celebrationSounds", v);
+      }}
+    />
+  );
 }
 
 const PERMISSION: Readonly<Record<NotificationPermissionState, { label: string; note: string | null; tone: "ok" | "neutral" | "warning" }>> = {

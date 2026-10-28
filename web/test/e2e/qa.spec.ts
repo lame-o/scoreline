@@ -141,6 +141,95 @@ test.describe("offline", () => {
   });
 });
 
+test.describe("failing upstream, online", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  // Online, an upstream answering 502 used to hold a page's placeholders for the 20–50 s
+  // of its retries. Now the first failure shows, and the page keeps trying behind it.
+  for (const { path, upstream, title, recovered } of [
+    { path: "/standings/nba", upstream: "**/api/site.api.espn.com/apis/v2/sports/basketball/nba/standings**", title: "Can't Load Table", recovered: /Eastern|Western/ },
+    { path: "/schedule/nba", upstream: "**/api/site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard**", title: "Can't Load Schedule", recovered: null },
+    { path: "/team/espn-football-12", upstream: "**/api/site.api.espn.com/apis/site/v2/sports/football/nfl/teams/12**", title: "Can't Load Team", recovered: null },
+  ]) {
+    test(`${path} says it can't load at its first failure, and keeps trying`, async ({ page, context }) => {
+      let failing = true;
+      let asked = 0;
+      await context.route(upstream, (route) => {
+        asked += 1;
+        return failing ? route.fulfill({ status: 502, body: "{}" }) : route.fallback();
+      });
+      const start = Date.now();
+      await page.goto(path);
+      await expect(page.getByRole("heading", { name: title })).toBeVisible({ timeout: 8_000 });
+      expect(Date.now() - start).toBeLessThan(8_000);
+      await expect(page.getByText("Scoreline will try again automatically.")).toBeVisible();
+      const first = asked;
+      // The first attempt after it comes at 5 s; the error stays up through it.
+      await page.waitForTimeout(6_000);
+      expect(asked).toBeGreaterThan(first);
+      await expect(page.getByRole("heading", { name: title })).toBeVisible();
+      if (recovered) {
+        failing = false;
+        await expect(page.getByText(recovered).first()).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByRole("heading", { name: title })).toHaveCount(0);
+      }
+    });
+  }
+});
+
+test.describe("worst-case chart labels", () => {
+  // ESPN's abbreviations are 2–5 letters; these aren't. The soccer summary's real match (Villa v City)
+  // under a scoreboard entry whose teams carry a club's whole name and a long code.
+  const board = JSON.parse(readFileSync(join(import.meta.dirname, "..", "fixtures", "espn-eng1-scoreboard.json"), "utf8")) as { events: Record<string, unknown>[] };
+  const summary = JSON.parse(readFileSync(join(import.meta.dirname, "..", "fixtures", "espn-soccer-summary.json"), "utf8")) as Record<string, unknown>;
+  const event = structuredClone(board.events[0]!) as { id: string; date: string; status: unknown; competitions: { competitors: { id: string; homeAway: string; team: Record<string, unknown>; score: string }[]; details: unknown[] }[] };
+  event.id = "999991";
+  event.date = new Date(Date.now() - 3 * 3_600_000).toISOString().replace(/:\d\d\.\d+Z$/, "Z");
+  event.status = { clock: 5400, displayClock: "90'", period: 2, type: { state: "post", completed: true, shortDetail: "FT", detail: "FT", name: "STATUS_FULL_TIME" } };
+  event.competitions[0]!.details = [];
+  const [home, away] = event.competitions[0]!.competitors;
+  home!.id = "362";
+  away!.id = "382";
+  Object.assign(home!.team, { id: "362", displayName: "Wolverhampton Wanderers Football Club", shortDisplayName: "Wolverhampton Wanderers", abbreviation: "WOLVERHAMPTON" });
+  Object.assign(away!.team, { id: "382", displayName: "Borussiamönchengladbach", shortDisplayName: "Borussiamönchengladbach", abbreviation: "BMGFVG" });
+
+  test.beforeEach(async ({ context }) => {
+    await context.addInitScript(() => localStorage.setItem("scoreline.settings.v1", JSON.stringify({ enabledLeagues: ["eng.1"] })));
+    await context.route("**/api/site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard**", (route) => route.fulfill({ json: { events: [event] } }));
+    await context.route("**/api/site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=999991**", (route) => route.fulfill({ json: summary }));
+  });
+
+  for (const width of [390, 1440]) {
+    test(`team labels stay in their room at ${width}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/game/espn-999991?league=eng.1");
+      const timeline = page.locator("section", { has: page.getByRole("img", { name: /^Timeline/ }) });
+      await expect(timeline).toBeVisible({ timeout: 15_000 });
+      // The lanes' names end before the track starts.
+      const track = (await timeline.locator("svg rect[class*='_track_']").boundingBox())!;
+      const names = timeline.locator("svg text[class*='_team_']");
+      await expect(names).toHaveCount(2);
+      for (const name of await names.all()) {
+        const r = (await name.boundingBox())!;
+        expect(r.x).toBeGreaterThanOrEqual(0);
+        expect(r.x + r.width).toBeLessThanOrEqual(track.x + 1);
+      }
+      // A cut name keeps its full name in the tooltip.
+      await expect(timeline.locator("svg text title").first()).toHaveText("WOLVERHAMPTON");
+      // The line score's names stop short of the periods.
+      const ls = page.locator("[class*='_lsNames_']").first();
+      if (await ls.count()) {
+        const box = (await ls.boundingBox())!;
+        for (const n of await ls.locator("[class*='_lsNameText_']").all()) {
+          const r = (await n.boundingBox())!;
+          expect(r.x + r.width).toBeLessThanOrEqual(box.x + box.width + 1);
+        }
+      }
+      expect(await page.evaluate(() => document.scrollingElement!.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    });
+  }
+});
+
 test.describe("worst-case names", () => {
   const fixture = JSON.parse(readFileSync(join(import.meta.dirname, "..", "fixtures", "espn-eng1-scoreboard.json"), "utf8")) as { events: Record<string, unknown>[] };
   const event = structuredClone(fixture.events[0]!) as { id: string; date: string; status: unknown; competitions: { competitors: { team: Record<string, unknown>; score: string }[]; details: unknown[] }[] };

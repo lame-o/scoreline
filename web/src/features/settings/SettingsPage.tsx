@@ -61,6 +61,12 @@ export function SettingsPage() {
                 ]}
               />
             </div>
+            <ToggleRow
+              title="Shapes as well as color"
+              subtitle="Charts tell teams and outcomes apart by shape too"
+              checked={s.differentiateWithoutColor}
+              onChange={(v) => settings.set("differentiateWithoutColor", v)}
+            />
           </GroupBox>
         </FormSection>
 

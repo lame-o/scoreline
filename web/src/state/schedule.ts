@@ -59,6 +59,7 @@ import {
 } from "../data/results";
 import { EMPTY_CALENDAR, scopeKey, sortDate, type CalendarWeek, type ResultRound, type ScheduleCalendar, type ScheduleItem, type ScheduleScope, type ScheduleTeamRef, type SeasonEvent, type TeamSeason } from "../data/schedule";
 import type { ListPreferences } from "../data/scoreboard";
+import { persisted } from "./persist";
 import { queryClient } from "./scores";
 
 const MINUTE = 60_000;
@@ -74,9 +75,69 @@ const todayEastern = () => dayKeyIn(Date.now(), EASTERN);
 
 // MARK: - Fetching through the cache
 
-/** A query read through the shared client: a fresh entry answers at once, a stale one refetches. */
-function cached<T>(queryKey: readonly unknown[], staleTime: number, fn: () => Promise<T>): Promise<T> {
-  return queryClient.fetchQuery({ queryKey, queryFn: fn, staleTime, gcTime: Math.max(staleTime, 30 * MINUTE) });
+/**
+ * A query read through the shared client: a fresh entry answers at once, a
+ * stale one refetches. It fails at its first failure (no retries of its own):
+ * the page's query answers `ok: false` at once and retries on the ladder
+ * (state/retry.ts), asking again only for what failed.
+ *
+ * Kept on disk across visits (state/persist.ts, ScheduleCache.swift): after
+ * a reload a window answers from its last copy at once; one that's stale is
+ * then fetched behind it, and the pages reading the cache refresh when it
+ * lands (`revalidate`), as the Mac's disk cache revalidates by ETag.
+ */
+async function cached<T>(queryKey: readonly unknown[], staleTime: number, fn: () => Promise<T>): Promise<T> {
+  const had = queryClient.getQueryState(queryKey)?.data !== undefined;
+  let fetched = false;
+  const persister = schedulePersister(staleTime);
+  const data = await queryClient.fetchQuery({
+    queryKey,
+    queryFn: () => {
+      fetched = true;
+      return fn();
+    },
+    staleTime,
+    gcTime: Math.max(staleTime, 30 * MINUTE),
+    retry: false,
+    persister,
+  });
+  // Answered from disk: its time arrives with the restore (a macrotask later); stale, fetch it again behind the page.
+  if (!had && !fetched) {
+    setTimeout(() => {
+      const state = queryClient.getQueryState(queryKey);
+      if (state && Date.now() - state.dataUpdatedAt > staleTime) revalidate(queryKey, fn, persister);
+    }, 0);
+  }
+  return data as T;
+}
+
+/** The persisted schedule's version: the module's URL, which a build fingerprints with the parsers' code. */
+const SCHEDULE_VERSION = `2:${import.meta.url}`;
+
+/** Kept as long as its freshness says, twice over, between 2 and 30 days. */
+function schedulePersister(staleTime: number, refetchOnRestore = false) {
+  return persisted({ family: "schedule", version: SCHEDULE_VERSION, maxAge: Math.min(FINAL_TTL, Math.max(2 * DAY, 2 * staleTime)), refetchOnRestore });
+}
+
+/** The calendar's entry for a page that reads it directly (useAgenda): restored, it revalidates when stale. */
+export const calendarPersister = () => schedulePersister(CALENDAR_TTL, true);
+
+/** The queries that read the schedule cache: they re-read it once a window revalidates. */
+const READERS = new Set(["agenda", "results", "nextGames", "footnote"]);
+let refresh: ReturnType<typeof setTimeout> | null = null;
+
+/** Fetches a restored, stale window again; when it lands, the pages reading it re-read (once for a burst). */
+function revalidate<T>(queryKey: readonly unknown[], fn: () => Promise<T>, persister: ReturnType<typeof schedulePersister>): void {
+  void queryClient
+    .fetchQuery({ queryKey, queryFn: fn, staleTime: 0, gcTime: 30 * MINUTE, retry: false, persister })
+    .then(() => {
+      if (refresh) clearTimeout(refresh);
+      refresh = setTimeout(() => {
+        refresh = null;
+        void queryClient.invalidateQueries({ predicate: (q) => READERS.has(String(q.queryKey[0])) });
+      }, 50);
+    })
+    .catch(() => {});
 }
 
 export interface Board {

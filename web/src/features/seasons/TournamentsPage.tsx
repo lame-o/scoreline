@@ -206,12 +206,12 @@ function TournamentsUpcoming({ scope, mode, onMode, switched, crossfade }: Sched
           {ready ? <SeasonDockBar summary={summary} axis={axis} hover={hover} onSelect={reveal} barRef={barRef} onTop={() => scrollToTop(root.current, !reduce)} /> : null}
         </ScheduleHeader>
       }
-      footer={<SeasonFooter updated={data.updated} stale={false} loading={data.fetching} />}
+      footer={<SeasonFooter updated={data.updated} stale={data.stale} loading={data.fetching} />}
     >
       {data.status === "loading" ? (
         <SeasonSkeleton />
       ) : data.events.length === 0 && data.status === "failed" ? (
-        <ErrorState subject="Tournaments" onRetry={data.refresh} />
+        <ErrorState subject="Tournaments" retriesAutomatically retrying={data.fetching} onRetry={data.refresh} />
       ) : data.events.length === 0 ? (
         <EmptyState icon="esports" title="No Tournaments" message="No S-tier tournaments are scheduled." />
       ) : (

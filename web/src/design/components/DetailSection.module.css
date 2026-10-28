@@ -1,0 +1,37 @@
+/* A titled block (Visualizations.swift `DetailSection`): 16pt above, the gutter at the sides. */
+/* Each section is a size container, so its content adds detail by the room it has (the Mac's width classes). */
+.section {
+  container: section / inline-size;
+  min-width: 0;
+  padding: calc(16 * var(--pt)) var(--gutter) 0;
+}
+
+/* The game page: blocks 8pt apart. */
+.section[data-layout="stack"] {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+}
+
+/* The profile pages: the content spaces itself, 8pt under the head. */
+.section[data-layout="flow"] > .head {
+  margin-bottom: calc(8 * var(--pt));
+}
+
+.caption {
+  max-width: var(--readable-width);
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}

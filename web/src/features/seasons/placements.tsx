@@ -6,7 +6,6 @@
  * starred and highlighted, as in the list.
  */
 import { memo } from "react";
-import { Link } from "react-router";
 import { Icon, TeamLogo } from "../../design/components";
 import { dayRangeLabel } from "../../data/days";
 import { plural } from "../../data/format";
@@ -14,7 +13,8 @@ import type { Placement } from "../../data/schedule";
 import { eventFlag, prize } from "../../data/seasons";
 import { lastPlace, type FinishedTournament } from "../../data/seasonResults";
 import { textWidth } from "../scores/measure";
-import { csTeamPath } from "./links";
+import { csTeamRef } from "./links";
+import { TeamLink } from "../profiles/ProfileLinks";
 import { TournamentLogo } from "./parts";
 import styles from "./placements.module.css";
 
@@ -44,9 +44,9 @@ export function ChampionCard({ tournament: t, final }: { tournament: FinishedTou
           <>
             <p className={styles.championLine}>
               <span aria-hidden="true">🏆</span>
-              <Link className={styles.championName} to={csTeamPath(champion.team)}>
+              <TeamLink team={csTeamRef(champion.team)} variant="plain" className={styles.championName}>
                 {champion.team.name}
-              </Link>
+              </TeamLink>
               <span className={styles.championWord}>Champions</span>
             </p>
             {final ? <p className={styles.final}>{final}</p> : null}
@@ -94,9 +94,9 @@ const PlacementRow = memo(function PlacementRow({ placement: p, showsPlace, gap,
         {showsPlace ? p.place : <span className="visually-hidden">{p.place}</span>}
       </span>
       <TeamLogo url={p.team.logo} size={16} />
-      <Link className={styles.team} to={csTeamPath(p.team)}>
+      <TeamLink team={csTeamRef(p.team)} variant="plain" className={styles.team}>
         {p.team.name}
-      </Link>
+      </TeamLink>
       {followed ? <Icon name="star" size={7} className={styles.star} label="Following" /> : null}
       <span className={styles.spacer} />
       {showsMoney && money ? (

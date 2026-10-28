@@ -20,12 +20,13 @@ import { plural } from "../../../data/format";
 import type { BattedBall } from "../../../data/gameDetail";
 import type { Side } from "../../../data/models";
 import { NEUTRAL, type TeamPalette } from "../../../data/teamColors";
-import { useColorScheme } from "../../../state/theme";
+import { useColorScheme, useShapes } from "../../../state/theme";
 import { colorResolver, fitCanvas } from "../core/canvasColors";
 import { CelebrationStage } from "../core/CelebrationStage";
 import { ChartFooter, Legend, LegendItem, VizWell } from "../core/DetailSection";
 import { matches, useFocus, useLinkedMarks } from "../core/linked";
 import { useChartMoment } from "../core/moments";
+import { markPath } from "../core/shapes";
 import { useReducedMotion } from "../core/useMedia";
 import styles from "./SprayChart.module.css";
 
@@ -77,6 +78,8 @@ export const SprayChart = memo(function SprayChart({ balls, palette, topName, bo
   const scheme = useColorScheme();
   const reduce = useReducedMotion();
   const moment = useChartMoment("plate");
+  // Shapes as well as color (Differentiate Without Color): the bottom team's balls are rounded squares.
+  const shapes = useShapes();
   const [size, setSize] = useState({ width: 0, height: 0 });
   const g = useMemo(() => geometry(size.width, size.height), [size]);
   const colorOf = (side: Side | null) => (side === "bottom" ? palette.bottom : palette.top);
@@ -102,9 +105,9 @@ export const SprayChart = memo(function SprayChart({ balls, palette, topName, bo
     const ink = colorResolver(canvas, scheme);
     drawField(ctx, g, ink);
     const shown = balls.filter((b) => b.id !== flying?.id);
-    drawBalls(ctx, shown, g, ink, colorOf, false);
+    drawBalls(ctx, shown, g, ink, colorOf, false, shapes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [balls, g, scheme, palette, flying?.id]);
+  }, [balls, g, scheme, palette, flying?.id, shapes]);
 
   // Balls picked out by the focus: drawn emphasized on their own layer; the field layer steps back.
   const focusKey = useFocus((f) => (f ? `${f.play ?? ""}|${f.period ?? ""}|${f.side ?? ""}` : null));
@@ -115,9 +118,9 @@ export const SprayChart = memo(function SprayChart({ balls, palette, topName, bo
     if (!canvas || g.width === 0) return;
     const fit = fitCanvas(canvas);
     if (!fit) return;
-    drawBalls(fit.ctx, picked, g, colorResolver(canvas, scheme), colorOf, true);
+    drawBalls(fit.ctx, picked, g, colorResolver(canvas, scheme), colorOf, true, shapes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picked, g, scheme, palette]);
+  }, [picked, g, scheme, palette, shapes]);
 
   const marks = useMemo(() => balls.map((b) => g.map(b.x, b.y)), [balls, g]);
   const hover = useLinkedMarks(marks, (i) => ({ play: balls[i]!.id, period: balls[i]!.period ?? undefined, side: balls[i]!.side }));
@@ -130,7 +133,7 @@ export const SprayChart = memo(function SprayChart({ balls, palette, topName, bo
         <div ref={box} className={styles.plot} style={{ aspectRatio: `${DOMAIN.width} / ${DOMAIN.height}` }} {...hover} aria-hidden="true">
           <canvas ref={base} className={styles.layer} data-receded={picked.length > 0} />
           <canvas ref={lit} className={styles.layer} />
-          {flying && g.width > 0 ? <Flight key={flying.id} ball={flying} g={g} color={colorOf(flying.side)} reduce={reduce} receded={focus != null} /> : null}
+          {flying && g.width > 0 ? <Flight key={flying.id} ball={flying} g={g} color={colorOf(flying.side)} reduce={reduce} receded={focus != null} square={shapes && flying.side === "bottom"} /> : null}
           {homer ? (
             <CelebrationStage moment={moment} origin={g.map(homer.x, homer.y)} colors={{ primary: colorOf(homer.side) }} delay={0.3} />
           ) : null}
@@ -145,7 +148,7 @@ export const SprayChart = memo(function SprayChart({ balls, palette, topName, bo
       >
         <Legend>
           <LegendItem label={topName} swatch={<span className={styles.swatch} style={{ background: swatch(palette.top) }} />} />
-          <LegendItem label={bottomName} swatch={<span className={styles.swatch} style={{ background: swatch(palette.bottom) }} />} />
+          <LegendItem label={bottomName} swatch={<span className={styles.swatch} data-square={shapes} style={{ background: swatch(palette.bottom) }} />} />
           <LegendItem label="Hit" swatch={<span className={styles.hit} />} />
           <LegendItem label="Out" swatch={<span className={styles.out} />} />
           <LegendItem label="Home run" swatch={<span className={styles.homer} />} />
@@ -225,7 +228,7 @@ function room(ball: BattedBall): number {
   return ball.outcome === "out" ? 0 : ball.outcome === "homeRun" ? 6.5 : 5.5;
 }
 
-function drawBalls(ctx: CanvasRenderingContext2D, balls: readonly BattedBall[], g: Geometry, ink: (css: string) => string, colorOf: (side: Side | null) => string, emphasized: boolean): void {
+function drawBalls(ctx: CanvasRenderingContext2D, balls: readonly BattedBall[], g: Geometry, ink: (css: string) => string, colorOf: (side: Side | null) => string, emphasized: boolean, shapes = false): void {
   const at = balls.map((b) => g.map(b.x, b.y));
   balls.forEach((ball, i) => {
     // Each hit clears room in the balls before it: clip out the rooms of the marks drawn after this one.
@@ -240,40 +243,38 @@ function drawBalls(ctx: CanvasRenderingContext2D, balls: readonly BattedBall[], 
       }
       ctx.clip("evenodd");
     }
-    drawBall(ctx, ball, at[i]!, ink, colorOf(ball.side), emphasized);
+    drawBall(ctx, ball, at[i]!, ink, colorOf(ball.side), emphasized, shapes && ball.side === "bottom");
     ctx.restore();
   });
 }
 
-function drawBall(ctx: CanvasRenderingContext2D, ball: BattedBall, c: { x: number; y: number }, ink: (css: string) => string, color: string, emphasized: boolean): void {
+function drawBall(ctx: CanvasRenderingContext2D, ball: BattedBall, c: { x: number; y: number }, ink: (css: string) => string, color: string, emphasized: boolean, square = false): void {
   const fill = ink(color);
   const grow = emphasized ? 1.4 : 1;
-  ctx.beginPath();
+  const mark = (r: number) => markPath(ctx, c.x, c.y, r, square);
   switch (ball.outcome) {
     case "out":
-      ctx.arc(c.x, c.y, 3.25 * grow, 0, 2 * Math.PI);
+      mark(3.25 * grow);
       ctx.strokeStyle = fill;
       ctx.lineWidth = 1.5;
       ctx.stroke();
       break;
     case "homeRun":
-      ctx.arc(c.x, c.y, 5 * grow, 0, 2 * Math.PI);
+      mark(5 * grow);
       ctx.fillStyle = fill;
       ctx.fill();
-      ctx.beginPath();
-      ctx.arc(c.x, c.y, 5 * grow + 1.5, 0, 2 * Math.PI);
+      mark(5 * grow + 1.5);
       ctx.strokeStyle = ink("var(--label)");
       ctx.lineWidth = 1;
       ctx.stroke();
       break;
     default:
-      ctx.arc(c.x, c.y, 4 * grow, 0, 2 * Math.PI);
+      mark(4 * grow);
       ctx.fillStyle = fill;
       ctx.fill();
   }
   if (emphasized && ball.outcome !== "homeRun") {
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, 6.5 * grow, 0, 2 * Math.PI);
+    mark(6.5 * grow);
     ctx.strokeStyle = ink("var(--label)");
     ctx.lineWidth = 1;
     ctx.stroke();
@@ -285,7 +286,7 @@ function drawBall(ctx: CanvasRenderingContext2D, ball: BattedBall, c: { x: numbe
  * (0.4 s, home runs arcing), the fence lights where it went out, then the
  * mark lands with a ping (from 0.3 s). Reduce Motion: it's simply there.
  */
-function Flight({ ball, g, color, reduce, receded }: { ball: BattedBall; g: Geometry; color: string; reduce: boolean; receded: boolean }) {
+function Flight({ ball, g, color, reduce, receded, square = false }: { ball: BattedBall; g: Geometry; color: string; reduce: boolean; receded: boolean; square?: boolean }) {
   const home = g.map(HOME.x, HOME.y);
   const land = g.map(ball.x, ball.y);
   const fence = FENCE * g.scale;
@@ -304,20 +305,23 @@ function Flight({ ball, g, color, reduce, receded }: { ball: BattedBall; g: Geom
   const a0 = arc(bearing - Math.PI / 18);
   const a1 = arc(bearing + Math.PI / 18);
   const c = swatch(color);
+  // A circle, or with shapes on, the bottom team's rounded square in the same box.
+  const mark = (r: number, style: React.CSSProperties, extra: { fill?: string; strokeWidth?: number } = {}) =>
+    square ? <rect x={-r} y={-r} width={2 * r} height={2 * r} rx={2 * r * 0.22} style={style} {...extra} /> : <circle r={r} style={style} {...extra} />;
   return (
     <svg className={styles.flight} data-reduce={reduce} data-receded={receded} data-out={ball.outcome === "out"} viewBox={`0 0 ${g.width} ${g.height}`}>
       <path className={styles.path} d={d} pathLength={1} style={{ stroke: c }} />
       {ball.outcome === "homeRun" ? <path className={styles.fence} d={`M${a0.x} ${a0.y}A${fence} ${fence} 0 0 1 ${a1.x} ${a1.y}`} pathLength={1} style={{ stroke: c }} /> : null}
       <g className={styles.landing} transform={`translate(${land.x} ${land.y})`}>
         {ball.outcome === "out" ? (
-          <circle r={3.25} fill="none" strokeWidth={1.5} style={{ stroke: c }} />
+          mark(3.25, { stroke: c }, { fill: "none", strokeWidth: 1.5 })
         ) : ball.outcome === "homeRun" ? (
           <>
-            <circle r={5} style={{ fill: c }} />
-            <circle r={6.5} fill="none" strokeWidth={1} style={{ stroke: "var(--label)" }} />
+            {mark(5, { fill: c })}
+            {mark(6.5, { stroke: "var(--label)" }, { fill: "none", strokeWidth: 1 })}
           </>
         ) : (
-          <circle r={4} style={{ fill: c }} />
+          mark(4, { fill: c })
         )}
         {ball.outcome !== "out" ? <circle className={styles.ping} r={6} fill="none" strokeWidth={1.5} style={{ stroke: c, "--reach": ball.outcome === "homeRun" ? 2.2 : 1.8 } as React.CSSProperties} /> : null}
       </g>

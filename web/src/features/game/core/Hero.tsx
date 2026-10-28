@@ -15,7 +15,7 @@
  * moves. Reduce Motion: no pop, a slower wash, a quick pill, no glint.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Link } from "react-router";
+import { TeamLink, teamRefFrom } from "../../profiles/ProfileLinks";
 import { GlassCard, Icon, LiveStatus, ScoreDigits, Skeleton, TeamLogo } from "../../../design/components";
 import { glintProgress, pillOpacity, popScale, sample, washPulse } from "../../../data/celebrations";
 import { countdown, countdownClock, dayAndTime, enDash, spokenStatus } from "../../../data/format";
@@ -233,11 +233,11 @@ function TeamColumn({ event, c, color, hasBall, inAir = false, trophy = null }: 
       </span>
       <span className={styles.nameLine}>
         {c.rank != null ? <span className={styles.rank}>{c.rank}</span> : null}
-        {/* The name opens the team's page: plain at rest, underlined under the pointer. */}
+        {/* The name opens the team's page: plain at rest, underlined under the pointer; a resting pointer prefetches it. */}
         {c.id ? (
-          <Link className={styles.nameLink} to={`/team/${encodeURIComponent(c.id)}`}>
+          <TeamLink team={teamRefFrom(c, null)} variant="plain" className={styles.nameLink}>
             {name}
-          </Link>
+          </TeamLink>
         ) : (
           name
         )}

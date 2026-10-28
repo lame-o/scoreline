@@ -8,9 +8,10 @@
  */
 import { useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { EmptyState, ErrorState } from "../../design/components";
+import { EmptyState, ErrorState, StaleNote } from "../../design/components";
 import { ringIDs } from "../../data/brackets";
 import type { BracketSource } from "../../data/schedule";
+import { loadState } from "../../state/retry";
 import { useBracket } from "../../state/standings";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { NotFound } from "../../app/NotFound";
@@ -34,13 +35,14 @@ export function BracketPage() {
   const source = useMemo(() => parseBracketSource(league, id, search), [league, id, search]);
   const ring = useMemo(() => ringIDs((search.get("ring") ?? "").split(",").filter(Boolean)), [search]);
   const query = useBracket(source);
+  const load = loadState(query);
   const fallback = source ? (source.kind === "espnPostseason" ? `${source.year} Postseason` : source.name) : "Bracket";
   const title = query.data?.title ?? fallback;
   useDocumentTitle(title);
   if (!source) return <NotFound />;
   const data = query.data;
   return (
-    <TablePage title={title}>
+    <TablePage title={title} footer={load.stale ? <StaleNote updated={load.updated} subject="bracket" /> : null}>
       {(layout) =>
         data ? (
           data.swiss == null && data.bracket == null ? (
@@ -66,8 +68,8 @@ export function BracketPage() {
               ) : null}
             </>
           )
-        ) : query.isError ? (
-          <ErrorState subject="Bracket" onRetry={() => void query.refetch()} />
+        ) : load.failed ? (
+          <ErrorState subject="Bracket" retriesAutomatically retrying={load.retrying} onRetry={() => void query.refetch()} />
         ) : (
           <div className={styles.loading}>
             <SkeletonTable rows={8} />

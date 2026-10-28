@@ -24,6 +24,7 @@ import type { Section } from "../../../data/sections";
 import type { TeamPalette } from "../../../data/teamColors";
 import type { PageGeometry } from "./geometry";
 import type { MomentSlot } from "./moments";
+import type { PeekSource } from "./peek";
 
 /** Everything a sport's page reads, from the core. */
 export interface GameContext {
@@ -90,6 +91,12 @@ export interface SportPage {
   readonly fieldSummary?: string | null;
   /** What sits beside each team's name on the docked bar (the possession glyph, red cards), given its room. */
   readonly dockSlot?: (side: Side, tier: AccessoryTier) => ReactNode;
+  /**
+   * The chart peek (core/peek.tsx): the charts a row can light from afar, as
+   * their sections draw them, and the marks a focus can land on. Absent: no
+   * peek (CS2, a sport the Mac doesn't peek for).
+   */
+  readonly peek?: PeekSource | null;
 }
 
 export type UseSportPage = (game: GameContext) => SportPage;

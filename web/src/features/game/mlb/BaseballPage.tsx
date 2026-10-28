@@ -18,7 +18,7 @@ import { theater as parseTheater, EMPTY_THEATER, type TheaterState } from "../..
 import { DetailSection } from "../core/DetailSection";
 import { MiniBases, OutDots } from "../core/DockedScorebar";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
-import { useCommonSections } from "../core/useCommonSections";
+import { linescoreChart, linescorePeek, useCommonSections } from "../core/useCommonSections";
 import { BaseballDiamond } from "./BaseballDiamond";
 import { SprayChart } from "./SprayChart";
 import { StrikeZone } from "./StrikeZone";
@@ -143,19 +143,23 @@ export function useBaseballPage(game: GameContext): SportPage {
       </DetailSection>
     );
   }
+  // The chart, shared by its section and the chart peek.
+  const sprayChart = (
+    <SprayChart
+      balls={balls}
+      palette={palette}
+      topName={names.top}
+      bottomName={names.bottom}
+      spokenTop={spoken.top}
+      spokenBottom={spoken.bottom}
+      celebrates={!(live && situation)}
+      width={sectionWidth}
+    />
+  );
   if (balls.length > 0) {
     sections.battedBalls = (
       <DetailSection id="battedBalls" title="Balls in Play" caption="Every batted ball this game, colored by batting team.">
-        <SprayChart
-          balls={balls}
-          palette={palette}
-          topName={names.top}
-          bottomName={names.bottom}
-          spokenTop={spoken.top}
-          spokenBottom={spoken.bottom}
-          celebrates={!(live && situation)}
-          width={sectionWidth}
-        />
+        {sprayChart}
       </DetailSection>
     );
   }
@@ -178,8 +182,19 @@ export function useBaseballPage(game: GameContext): SportPage {
           ) : null
       : undefined,
     chip: null,
+    // The chart peek (LinkedPeek): a scoring play or an inning lights its balls in play, else its inning in the line score.
+    peek: {
+      inputs: {
+        balls: balls.map((b) => ({ id: b.id, period: b.period, side: b.side, lead: OUTCOME[b.outcome], detail: b.text })),
+        linescore: linescorePeek(game),
+      },
+      chart: (section) => (section === "battedBalls" ? sprayChart : section === "linescore" ? linescoreChart(game) : null),
+      aspect: { battedBalls: 250 / 210 },
+    },
   };
 }
+
+const OUTCOME: Readonly<Record<BattedBall["outcome"], string>> = { single: "Single", extraBases: "Extra bases", homeRun: "Home run", out: "Out" };
 
 /** The runs the page shows now (the scoreboard's, or the summary's). */
 function runsShown(event: GameContext["event"]): number {

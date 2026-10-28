@@ -14,6 +14,8 @@
  * follow the pointer at once; leaving has an 80 ms grace so crossing the gap
  * to a neighbor doesn't flash everything back. A clicked row pins its focus
  * (again, or Esc, unpins), which charts show whenever nothing is hovered.
+ * While the pointer rests on the chart peek (core/peek.tsx) the hover it was
+ * showing holds (`hold`), so leaving the row for the peek doesn't clear it.
  *
  *     const lit = useFocus((f) => matches(f, { play: ball.id, period: ball.period, side: ball.side }));
  *     <div {...linkedRow(focus, { pinnable: true })}>…</div>
@@ -67,6 +69,8 @@ const SETTLE_MS = 80;
 export class LinkedFocusStore {
   private hovered: Focus | null = null;
   private pinned: Focus | null = null;
+  /** The pointer is on the chart peek: the hover stays. */
+  private held = false;
   /** A focus waiting to show (the pointer hasn't rested yet), or a clear waiting out its grace (focus null). */
   private pending: { focus: Focus | null; timer: ReturnType<typeof setTimeout> } | null = null;
   private listeners = new Set<() => void>();
@@ -74,6 +78,8 @@ export class LinkedFocusStore {
   /** What charts show: the hover, else the pin. */
   focus = (): Focus | null => this.hovered ?? this.pinned;
   pin = (): Focus | null => this.pinned;
+  /** What's pointed at right now (null while only a pin shows). */
+  hovering = (): Focus | null => this.hovered;
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -119,24 +125,45 @@ export class LinkedFocusStore {
         this.cancel();
         return;
       }
-      if (!sameFocus(this.hovered, next)) return;
-      this.cancel();
-      const timer = setTimeout(() => {
-        this.pending = null;
-        this.set(null);
-      }, SETTLE_MS);
-      this.pending = { focus: null, timer };
+      if (!sameFocus(this.hovered, next) || this.held) return;
+      this.clearSoon();
     }
   }
 
-  /** The pointer left the page: nothing is hovered. A pin stays. */
+  /** A short grace, so crossing the gap to a neighbor doesn't flash everything back. */
+  private clearSoon(): void {
+    this.cancel();
+    const timer = setTimeout(() => {
+      this.pending = null;
+      if (!this.held) this.set(null);
+    }, SETTLE_MS);
+    this.pending = { focus: null, timer };
+  }
+
+  /** The pointer left the page: nothing is hovered. A pin stays, and so does a held hover. */
   clear(): void {
+    if (this.held) return;
     this.cancel();
     this.set(null);
   }
 
+  /**
+   * The pointer entered (true) or left (false) the chart peek. Leaving starts
+   * the usual grace before the hover clears; landing on a row in the meantime
+   * simply takes over.
+   */
+  hold(on: boolean): void {
+    this.held = on;
+    if (!on && this.hovered) this.clearSoon();
+  }
+
   togglePin(focus: Focus): void {
     this.set(this.hovered, sameFocus(this.pinned, focus) ? null : focus);
+  }
+
+  /** Pins `focus` (the peek, clicked: the highlight survives the scroll to its chart). */
+  pinFocus(focus: Focus): void {
+    this.set(this.hovered, focus);
   }
 
   /** Whether there was a pin to drop (Esc unpins before it goes back). */

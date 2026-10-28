@@ -4,7 +4,8 @@
  * page that reads it. Tables and polls change when games end, so ten
  * minutes of reuse is plenty fresh; live movement is projected on top from
  * the scoreboard. Brackets are reused for a minute, and while a matchup is
- * live they refresh every minute.
+ * live they refresh every minute. A failure shows at once and retries on
+ * its own (state/retry.ts).
  *
  *     const table = useStandings(league);
  *     const polls = useRankings("football/college-football");
@@ -17,6 +18,7 @@ import { fetchStandings, tableKind } from "../data/standings";
 import { fetchRankings } from "../data/college";
 import { loadPostseason, loadTournament, type TournamentBrackets } from "../data/brackets";
 import type { BracketSource } from "../data/schedule";
+import { retrying } from "./retry";
 
 const TEN_MINUTES = 10 * 60_000;
 
@@ -26,8 +28,7 @@ export function useStandings(league: League | undefined) {
     queryFn: ({ signal }) => fetchStandings(league!, getJSON, signal),
     enabled: league != null && tableKind(league) !== "none",
     staleTime: TEN_MINUTES,
-    refetchInterval: TEN_MINUTES,
-    refetchIntervalInBackground: false,
+    ...retrying({ every: TEN_MINUTES }),
   });
 }
 
@@ -37,6 +38,7 @@ export function useRankings(path: string | null) {
     queryFn: ({ signal }) => fetchRankings(path!, getJSON, signal),
     enabled: path != null,
     staleTime: TEN_MINUTES,
+    ...retrying(),
   });
 }
 
@@ -53,7 +55,6 @@ export function useBracket(source: BracketSource | null) {
       source!.kind === "espnPostseason" ? loadPostseason(source!.path, source!.year, getJSON, Date.now(), signal) : loadTournament(source!.slug, getJSON, Date.now(), signal),
     enabled: source != null,
     staleTime: 60_000,
-    refetchInterval: (query) => (hasLive(query.state.data) ? 60_000 : false),
-    refetchIntervalInBackground: false,
+    ...retrying<TournamentBrackets>({ every: (query) => (hasLive(query.state.data as TournamentBrackets | undefined) ? 60_000 : false) }),
   });
 }

@@ -41,6 +41,7 @@ import { discloseLeft, discloseRight, OUTLINE_PREVIEW, parseStop, step, stopKey,
 import { pickOutline, pickSections, type PickSection } from "../../data/pickOutline";
 import { teamOptions, type TeamOption } from "../../data/providers/teams";
 import { useGoBack } from "../../app/navigation";
+import { hasFailed, retrying } from "../../state/retry";
 import { settings, useSettings } from "../../state/settings";
 import styles from "./Settings.module.css";
 
@@ -64,6 +65,7 @@ export function TeamPicks({ league }: { league: League }) {
     queryKey: ["teams", league.id],
     queryFn: ({ signal }) => teamOptions(league, getJSON, signal),
     staleTime: 6 * 3_600_000,
+    ...retrying(),
   });
   const [search, setSearch] = useState("");
   const [highlight, setHighlight] = useState<Highlight>({ key: null, keyboard: false });
@@ -169,15 +171,15 @@ export function TeamPicks({ league }: { league: League }) {
           </label>
         ) : null}
         <div id={`picks-${league.id}`}>
-          {query.isPending ? (
-            <PickSkeleton noun={noun} />
-          ) : query.isError ? (
+          {hasFailed(query) ? (
             <p className={formStyles.caption}>
-              Couldn't load {noun.toLowerCase()}. {ErrorCopy.message}{" "}
+              {ErrorCopy.inline(noun.toLowerCase())}{" "}
               <Button onClick={() => void query.refetch()} style={{ marginLeft: "calc(6 * var(--pt))" }}>
                 {ErrorCopy.retry}
               </Button>
             </p>
+          ) : query.isPending ? (
+            <PickSkeleton noun={noun} />
           ) : sections.length === 0 ? (
             <p className={styles.noMatches}>{search.trim() ? `No ${noun.toLowerCase()} match “${search.trim()}”` : `No ${noun.toLowerCase()}`}</p>
           ) : (

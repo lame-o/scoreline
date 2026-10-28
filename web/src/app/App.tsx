@@ -15,7 +15,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { LazyMotion, MotionConfig } from "motion/react";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import { queryClient } from "../state/scores";
-import { useApplyTheme } from "../state/theme";
+import { useApplyShapes, useApplyTheme } from "../state/theme";
 import { AppShell, ShellFrame } from "./AppShell";
 import { IndexRoute } from "./IndexRoute";
 import { NotFound } from "./NotFound";
@@ -59,6 +59,7 @@ const loadMotionFeatures = () => import("../design/motion-features").then((m) =>
 
 function Theme() {
   useApplyTheme();
+  useApplyShapes();
   return null;
 }
 

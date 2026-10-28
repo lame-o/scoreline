@@ -24,7 +24,8 @@ import { useCategoryResults, useClimbingCountries, useTournamentResults } from "
 import { useSettings } from "../../state/settings";
 import { rowDetail, ScheduleRow } from "../schedule/ScheduleRow";
 import rowStyles from "../schedule/ScheduleRow.module.css";
-import { climberPath, gamePath, tournamentBracketPath, useFollowedCS } from "./links";
+import { gamePath, tournamentBracketPath, useFollowedCS } from "./links";
+import { climberRef, PlayerLink } from "../profiles/ProfileLinks";
 import { SectionLink, SeasonFooter, SeasonSkeleton, SubLabel } from "./parts";
 import { ChampionCard, PlacementsTable } from "./placements";
 import { stackIn, useArrival } from "./SeasonPage";
@@ -124,12 +125,12 @@ function ClimbingCategoryPage() {
             {results.discipline === "speed" ? <p className={styles.footnote}>Final times in seconds. In brackets, the qualification time, which orders athletes out in the same round.</p> : null}
           </>
         ) : page.status === "failed" ? (
-          <ErrorState subject="Results" onRetry={page.refresh} />
+          <ErrorState subject="Results" retriesAutomatically retrying={page.fetching} onRetry={page.refresh} />
         ) : (
           <RankingSkeleton />
         )}
       </div>
-      <SeasonFooter updated={page.updated} stale={false} loading={page.status === "loading"} subject="results" />
+      <SeasonFooter updated={page.updated} stale={page.stale} loading={page.status === "loading"} subject="results" />
     </div>
   );
 }
@@ -248,9 +249,9 @@ const RankingRow = memo(function RankingRow({ row, yours, rounds, column }: { ro
       <span className={styles.flag} title={row.country ? countryName(row.country) : undefined} aria-hidden="true">
         {flagFromIOC(row.country) ?? ""}
       </span>
-      <Link className={styles.name} to={climberPath(row.athleteID, row.name, row.country)} title={row.name}>
+      <PlayerLink player={climberRef(row.athleteID, row.name, { country: row.country })} variant="plain" className={styles.name} title={row.name}>
         {row.name}
-      </Link>
+      </PlayerLink>
       <span className={styles.spacer} />
       {rounds ? (
         rounds.map((round) => {
@@ -423,12 +424,12 @@ function TournamentResultsDetailPage() {
             </>
           )
         ) : page.status === "failed" ? (
-          <ErrorState subject="Results" onRetry={page.refresh} />
+          <ErrorState subject="Results" retriesAutomatically retrying={page.fetching} onRetry={page.refresh} />
         ) : (
           <SeasonSkeleton label="Loading results" />
         )}
       </div>
-      <SeasonFooter updated={page.updated} stale={false} loading={page.status === "loading"} subject="results" />
+      <SeasonFooter updated={page.updated} stale={page.stale} loading={page.status === "loading"} subject="results" />
     </div>
   );
 }

@@ -45,6 +45,11 @@ export function LinkOrigin({ name, children }: { readonly name: string | null; r
   return <Origin.Provider value={name}>{children}</Origin.Provider>;
 }
 
+/** The name `LinkOrigin` gives the links inside it (null outside one). */
+export function useLinkOrigin(): string | null {
+  return useContext(Origin);
+}
+
 /** A team from a match row or hero (`Profile.TeamRef(competitor, league:)`). */
 export function teamRefFrom(c: Competitor, league: string | null): TeamRef {
   return teamRef({

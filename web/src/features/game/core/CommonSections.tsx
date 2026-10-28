@@ -79,7 +79,10 @@ export const LinescoreGrid = memo(function LinescoreGrid({ linescore, topName, b
         {rows.map((r) => (
           <span key={r.side} className={styles.lsName}>
             <span className={styles.teamDot} style={mark(r.color)} />
-            <span>{r.name}</span>
+            {/* A long name is cut (the periods keep their room); the spoken label has it whole. */}
+            <span className={styles.lsNameText} title={r.name.length > 5 ? r.name : undefined}>
+              {r.name}
+            </span>
           </span>
         ))}
       </div>
@@ -181,7 +184,10 @@ export const WinProbability = memo(function WinProbability({ topShare, draw, top
       <div className={styles.wpLabels} aria-hidden="true">
         <span className={styles.wpLabel}>
           <span className={styles.teamDot} style={mark(palette.top)} />
-          {topName} {pct(topShare)}
+          <span className={styles.wpName} title={topName.length > 5 ? topName : undefined}>
+            {topName}
+          </span>
+          {pct(topShare)}
         </span>
         {draw != null ? (
           <span className={styles.wpLabel}>
@@ -190,7 +196,10 @@ export const WinProbability = memo(function WinProbability({ topShare, draw, top
           </span>
         ) : null}
         <span className={styles.wpLabel}>
-          {pct(bottomShare)} {bottomName}
+          {pct(bottomShare)}
+          <span className={styles.wpName} title={bottomName.length > 5 ? bottomName : undefined}>
+            {bottomName}
+          </span>
           <span className={styles.teamDot} style={mark(palette.bottom)} />
         </span>
       </div>

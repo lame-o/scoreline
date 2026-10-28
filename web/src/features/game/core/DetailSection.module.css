@@ -1,31 +1,3 @@
-/* A titled block on the game page (Visualizations.swift `DetailSection`): 16pt above, the gutter at the sides. */
-/* Each section is a size container, so its charts add detail by the room they have (the Mac's width classes). */
-.section {
-  container: section / inline-size;
-  display: flex;
-  flex-direction: column;
-  gap: calc(8 * var(--pt));
-  padding: calc(16 * var(--pt)) var(--gutter) 0;
-  min-width: 0;
-}
-
-.head {
-  display: flex;
-  flex-direction: column;
-  gap: calc(2 * var(--pt));
-}
-
-.caption {
-  font-size: var(--text-caption);
-  color: var(--label-secondary);
-  max-width: var(--readable-width);
-  text-wrap: pretty;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
 /* The quiet surface behind spatial charts (VizKit.swift `VizWell`): light, a faint tint; dark, a plate. */
 .well {
   position: relative;

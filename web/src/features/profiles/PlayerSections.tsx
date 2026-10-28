@@ -15,6 +15,7 @@ import type { Sport } from "../../data/models";
 import { usePageSession, type PlayerView } from "../../state/profiles";
 import { gameHref, GameLogStrip, MatchStrip } from "./ProfileCharts";
 import { linkNameClass, rowLinkClass } from "./ProfileLinks";
+import { useGoToTeam } from "./GoToMenu";
 import { DetailSection, GroupHeader, MoreButton, TeamCrest } from "./ProfileParts";
 import styles from "./Profile.module.css";
 
@@ -113,30 +114,36 @@ function GameLogRow({ entry: e, columns }: { readonly entry: GameLogEntry; reado
   ]
     .filter(Boolean)
     .join(", ");
+  // The opponent's page from the row's context menu (PlayerSections.swift: GoToTeamItem).
+  const goTo = useGoToTeam(e.opponent, gameHref(e.eventID));
   return (
-    <Link to={gameHref(e.eventID)} className={rowLinkClass} aria-label={spoken} title={`Open this game: ${entryContext(e)}`}>
-      <span className={styles.logRow}>
-        <span className={styles.date}>{profileShort(e.date)}</span>
-        {e.opponent ? (
-          <>
-            <TeamCrest team={e.opponent} size={14} />
-            <span className={`${styles.logOpponent} ${linkNameClass}`}>{`${e.home ? "vs" : "at"} ${e.opponent.abbreviation ?? e.opponent.name}`}</span>
-          </>
-        ) : null}
-        <span className={styles.spacer} />
-        {e.result ? (
-          <span className={styles.result} data-draw={e.result === "D"}>
-            <strong>{e.result}</strong>
-            {score ? ` ${score}` : ""}
-          </span>
-        ) : null}
-        {columns.map((c) => (
-          <span key={c.key} className={styles.cell} style={{ width: `calc(${c.width} * var(--pt))` }}>
-            {gameLogValue(e.stats, c.key)}
-          </span>
-        ))}
-      </span>
-    </Link>
+    <>
+      {/* The menu sits beside the row, not in it: its clicks mustn't reach the row's link. */}
+      {goTo.menu}
+      <Link to={gameHref(e.eventID)} className={rowLinkClass} aria-label={spoken} title={`Open this game: ${entryContext(e)}`} {...goTo.props}>
+        <span className={styles.logRow}>
+          <span className={styles.date}>{profileShort(e.date)}</span>
+          {e.opponent ? (
+            <>
+              <TeamCrest team={e.opponent} size={14} />
+              <span className={`${styles.logOpponent} ${linkNameClass}`}>{`${e.home ? "vs" : "at"} ${e.opponent.abbreviation ?? e.opponent.name}`}</span>
+            </>
+          ) : null}
+          <span className={styles.spacer} />
+          {e.result ? (
+            <span className={styles.result} data-draw={e.result === "D"}>
+              <strong>{e.result}</strong>
+              {score ? ` ${score}` : ""}
+            </span>
+          ) : null}
+          {columns.map((c) => (
+            <span key={c.key} className={styles.cell} style={{ width: `calc(${c.width} * var(--pt))` }}>
+              {gameLogValue(e.stats, c.key)}
+            </span>
+          ))}
+        </span>
+      </Link>
+    </>
   );
 }
 

@@ -4,7 +4,9 @@
  * The All scope streams: each league is its own query and shows as it
  * lands. Filters apply outside the queries, so changing a pick regroups
  * without a request. Rounds and windows keep the previous page on screen
- * while the next loads (a cached step is instant).
+ * while the next loads (a cached step is instant). A source that fails
+ * shows at once (the page's error, or the footer's "Can't connect") and is
+ * asked again on the retry ladder (state/retry.ts).
  */
 import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
@@ -18,6 +20,7 @@ import { EMPTY_CALENDAR, scopeKey, scopeNavigator, weekID, type CalendarWeek, ty
 import {
   CALENDAR_STALE,
   calendarKey,
+  calendarPersister,
   loadCalendar,
   fetchLeagueList,
   fetchLeagueWeek,
@@ -33,7 +36,9 @@ import {
   filterResults,
   type LeagueFetch,
   type ResultsPage,
+  type TeamFetch,
 } from "../../state/schedule";
+import { retrying } from "../../state/retry";
 import { useSettings, type Settings } from "../../state/settings";
 import { useClimbingSeasonsForAgenda } from "./climbing";
 
@@ -93,17 +98,21 @@ export function useAgenda(scope: ScheduleScope): AgendaData {
       queryFn: () => fetchLeagueWindow(league, from, to, { followedCS, climbing: null }),
       staleTime: STALE,
       placeholderData: keepPreviousData,
+      // Climbing's row here is a stand-in (its items come from the seasons' store): nothing to ask again.
+      ...retrying<LeagueFetch>({ failed: (f) => !f.ok && league.id !== "ifsc" }),
     })),
   });
 
   // MARK: A league: its week, or its coming game days.
   const league = scope.kind === "league" ? leagueWithID(scope.id) : undefined;
-  const calendarQuery = useQuery({
+  const calendarQuery = useQuery<ScheduleCalendar>({
     // The same entry `fetchCalendar` reads, with the raw loader (a query can't fetch itself).
     queryKey: calendarKey(league?.source.kind === "espn" ? league.source.path : "-"),
     queryFn: () => (league?.source.kind === "espn" ? loadCalendar(league.source.path) : Promise.resolve(EMPTY_CALENDAR)),
     enabled: league?.source.kind === "espn" && navigator === "weekPicker",
     staleTime: CALENDAR_STALE,
+    persister: calendarPersister(),
+    ...retrying(),
   });
   const selectedWeek = useMemo(() => (weekChoice ? (calendarQuery.data?.weeks.find((w) => weekID(w) === weekChoice) ?? null) : null), [weekChoice, calendarQuery.data]);
   const leagueQuery = useQuery({
@@ -112,12 +121,13 @@ export function useAgenda(scope: ScheduleScope): AgendaData {
     enabled: league != null && (navigator !== "weekPicker" || weekChoice == null || calendarQuery.data != null),
     staleTime: STALE,
     placeholderData: keepPreviousData,
+    ...retrying<LeagueFetch>({ failed: (f) => !f.ok }),
   });
 
   // MARK: A team, your teams.
   const teams = scope.kind === "team" ? [scope.team] : scope.kind === "yourTeams" ? settings.followed.map((t) => ({ id: t.id, name: t.name, logo: t.logo })) : [];
   const teamQueries = useQueries({
-    queries: teams.map((team) => ({ queryKey: ["agenda", "team", team.id], queryFn: () => fetchTeam(team), staleTime: STALE })),
+    queries: teams.map((team) => ({ queryKey: ["agenda", "team", team.id], queryFn: () => fetchTeam(team), staleTime: STALE, ...retrying<TeamFetch>({ failed: (f) => !f.ok }) })),
   });
 
   const version = [...allQueries, leagueQuery, ...teamQueries].reduce((v, q) => v + q.dataUpdatedAt + q.errorUpdatedAt, 0);
@@ -320,6 +330,7 @@ export function useResults(scope: ScheduleScope): ResultsData {
     },
     staleTime: STALE,
     placeholderData: keepPreviousData,
+    ...retrying<ResultsPage>({ failed: (p) => !p.ok }),
   });
 
   const page = query.data ?? null;

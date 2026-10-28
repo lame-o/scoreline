@@ -1,25 +1,18 @@
 /**
- * Links out of the season pages: a climber's page, a CS2 team's page, a
- * match or round on the game page (ProfileLinks.swift `PlayerNameLink`,
- * `TeamNameLink`). Profile IDs follow the Mac's refs: climbers are
- * `ifsc-<athlete id>` (Profile.PlayerRef(source: .ifsc)), CS2 teams are their
- * competitor IDs (`cs-667`); the name and crest ride along as query values
- * so the page can title itself before it loads.
+ * Links out of the season pages: a CS2 team's reference for `TeamLink`, a
+ * match or round on the game page. Climbers and teams are linked with the
+ * profiles' `PlayerLink` and `TeamLink` (ProfileLinks.swift `PlayerNameLink`,
+ * `TeamNameLink`), so their pages prefetch on a dwell and paint the name and
+ * crest on the first frame.
  */
 import { useMemo } from "react";
+import { teamRef, type TeamRef } from "../../data/profiles/models";
 import { bracketPath, type ScheduleTeam, type SeasonEvent } from "../../data/schedule";
 import { useSettings } from "../../state/settings";
 
-export function climberPath(athleteID: number, name: string, country: string | null): string {
-  const q = new URLSearchParams({ name });
-  if (country) q.set("country", country);
-  return `/player/ifsc-${athleteID}?${q}`;
-}
-
-export function csTeamPath(team: ScheduleTeam): string {
-  const q = new URLSearchParams({ name: team.name, league: "cs2" });
-  if (team.logo) q.set("logo", team.logo);
-  return `/team/${encodeURIComponent(team.id ?? team.name)}?${q}`;
+/** A CS2 team on a season page, by its competitor ID (`cs-667`). */
+export function csTeamRef(team: ScheduleTeam): TeamRef {
+  return teamRef({ id: team.id ?? team.name, name: team.name, logo: team.logo, league: "cs2" });
 }
 
 export function gamePath(id: string): string {

@@ -7,7 +7,7 @@
  */
 import { AnimatePresence, LayoutGroup, m } from "motion/react";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { Button, EmptyState, ErrorState, type MenuEntry } from "../../design/components";
 import { spring, tween } from "../../design/motion";
 import { dayKeyOf, dayRangeLabel } from "../../data/days";
@@ -22,7 +22,8 @@ import { ScheduleHeader } from "../schedule/ScheduleHeader";
 import type { SchedulePageProps } from "../schedule/SchedulePage";
 import { ClimbingEventRow, useReducedMotion } from "./ClimbingRows";
 import { useHoverStore } from "./hover";
-import { climberPath, gamePath } from "./links";
+import { gamePath } from "./links";
+import { climberRef, PlayerLink } from "../profiles/ProfileLinks";
 import { LinkButton, MonthLabel, SectionLink, SeasonFooter, SeasonSkeleton, SubLabel } from "./parts";
 import { SeasonCard, SeasonDockBar, scrollToTop, scrollUnderBar, useSeasonDock } from "./SeasonCard";
 import { SeasonFrame, SplitColumns, stackIn, useArrival, useFocusOnArrival, useSeasonKeys, useSeasonWidth } from "./SeasonPage";
@@ -169,12 +170,12 @@ export function ClimbingResultsPage({ scope, mode, onMode, switched, crossfade }
           {ready ? <SeasonDockBar summary={summary} axis={axis} hover={hover} onSelect={reveal} barRef={barRef} onTop={() => scrollToTop(root.current, !reduce)} /> : null}
         </ScheduleHeader>
       }
-      footer={<SeasonFooter updated={data.updated} stale={false} loading={data.fetching} subject="results" />}
+      footer={<SeasonFooter updated={data.updated} stale={data.stale} loading={data.fetching} subject="results" />}
     >
       {data.status === "loading" ? (
         <SeasonSkeleton label="Loading results" />
       ) : data.events.length === 0 && data.status === "failed" ? (
-        <ErrorState subject="Results" onRetry={data.refresh} />
+        <ErrorState subject="Results" retriesAutomatically retrying={data.fetching} onRetry={data.refresh} />
       ) : finished.length === 0 ? (
         <EmptyState icon="flag" title="No Results Yet" message={`No finished competitions in ${data.season ?? "this season"} yet.`} actions={<Button onClick={() => onMode("upcoming", false)}>Show Upcoming</Button>} />
       ) : (
@@ -301,9 +302,9 @@ function AthleteLine({ rank, name, country, id, mine }: { rank: number; name: st
       <span className={styles.athleteFlag} title={country ? countryName(country) : undefined} aria-hidden="true">
         {flagFromIOC(country) ?? ""}
       </span>
-      <Link className={styles.athleteName} data-mine={mine} to={climberPath(id, name, country)}>
+      <PlayerLink player={climberRef(id, name, { country })} variant="plain" className={styles.athleteName} dataset={{ mine }}>
         {name}
-      </Link>
+      </PlayerLink>
     </p>
   );
 }

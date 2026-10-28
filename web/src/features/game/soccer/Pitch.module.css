@@ -61,6 +61,16 @@
   background: light-dark(#000, #fff);
 }
 
+/* Shapes as well as color: the bottom team's last-touch ring is dashed. */
+.ball[data-dashed="true"] {
+  box-shadow: none;
+  border: calc(1.25 * var(--pt)) dashed currentColor;
+}
+
+.ball[data-dashed="true"]::after {
+  inset: calc(1 * var(--pt));
+}
+
 .ball[data-reduce="true"] {
   transition: color var(--dur-fade) var(--ease-out);
 }
@@ -289,6 +299,11 @@
   width: calc(7 * var(--pt));
   height: calc(7 * var(--pt));
   border-radius: 50%;
+}
+
+/* Shapes as well as color: the bottom team's swatch is a rounded square, as its marks are. */
+.dot[data-square="true"] {
+  border-radius: calc(1.5 * var(--pt));
 }
 
 .ring {

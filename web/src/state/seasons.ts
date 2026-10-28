@@ -74,7 +74,8 @@ import {
 } from "../data/seasons";
 import { climbingCountries } from "../data/scoreboard";
 import { useNow } from "./clock";
-import { queryClient, retryOnline } from "./scores";
+import { hasFailed, loadState, retrying } from "./retry";
+import { queryClient } from "./scores";
 import { useSettings } from "./settings";
 
 const MINUTE = 60_000;
@@ -101,8 +102,15 @@ export const seasonKeys = {
 const climbingID = (e: SeasonEvent) => (e.kind.kind === "climbing" ? e.kind.id : null);
 const slugOf = (e: SeasonEvent) => (e.kind.kind === "tournament" ? e.kind.slug : null);
 
-/** Season data never polls on its own: it refreshes on return to the tab when stale, and with Refresh. */
-const quiet = { refetchOnWindowFocus: true, refetchInterval: false as const, retry: retryOnline(2) };
+/**
+ * Season data never polls on its own: it refreshes on return to the tab when
+ * stale, and with Refresh. A failure shows at once and is asked again on the
+ * retry ladder while the page is open (state/retry.ts).
+ */
+const quiet = { refetchOnWindowFocus: true, ...retrying() };
+
+/** Whether a page's data is on screen but its latest refresh failed (the footer's "Can't connect"). */
+const staleOf = (queries: readonly Parameters<typeof loadState>[0][]) => queries.some((q) => loadState(q).stale);
 
 function useDisciplines() {
   return useSettings((s) => s.climbingDisciplines);
@@ -173,6 +181,8 @@ export interface ClimbingSeasons {
   readonly defaultSeason: string | null;
   readonly status: LoadStatus;
   readonly updated: number | null;
+  /** Data on screen whose latest refresh failed. */
+  readonly stale: boolean;
   readonly fetching: boolean;
   readonly refresh: () => void;
 }
@@ -240,11 +250,12 @@ export function useClimbingSeasons(opened: readonly string[] = []): ClimbingSeas
   }, [version, minute, disciplines.join(","), countries.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const anyData = seasonQueries.some((q) => q.data);
-  const status: LoadStatus = anyData ? "ready" : root.isError || (seasonQueries.length > 0 && seasonQueries.every((q) => q.isError)) ? "failed" : "loading";
+  const status: LoadStatus = anyData ? "ready" : hasFailed(root) || (seasonQueries.length > 0 && seasonQueries.every(hasFailed)) ? "failed" : "loading";
   return {
     ...derived,
     status,
     updated: updatedOf(seasonQueries),
+    stale: staleOf([root, ...seasonQueries]),
     fetching: root.isFetching || seasonQueries.some((q) => q.isFetching) || detailQueries.some((q) => q.isFetching),
     refresh: () => void queryClient.invalidateQueries({ queryKey: ["seasons", "ifsc"] }),
   };
@@ -259,6 +270,8 @@ export interface Tournaments {
   readonly upcoming: readonly SeasonEvent[];
   readonly status: LoadStatus;
   readonly updated: number | null;
+  /** Data on screen whose latest refresh failed. */
+  readonly stale: boolean;
   readonly fetching: boolean;
   readonly refresh: () => void;
 }
@@ -306,11 +319,12 @@ export function useTournaments(opened: readonly string[] = []): Tournaments {
     });
     return { events, current: events.filter((e) => e.status === "live"), upcoming: events.filter((e) => e.status === "upcoming") };
   }, [version]); // eslint-disable-line react-hooks/exhaustive-deps
-  const status: LoadStatus = current.data || upcoming.data ? "ready" : current.isError && upcoming.isError ? "failed" : "loading";
+  const status: LoadStatus = current.data || upcoming.data ? "ready" : hasFailed(current) && hasFailed(upcoming) ? "failed" : "loading";
   return {
     ...derived,
     status,
     updated: updatedOf([current, upcoming]),
+    stale: staleOf([current, upcoming]),
     fetching: current.isFetching || upcoming.isFetching || detailQueries.some((q) => q.isFetching),
     refresh: () => void queryClient.invalidateQueries({ queryKey: ["seasons", "cs2"] }),
   };
@@ -334,6 +348,8 @@ export interface ClimbingResults {
   readonly finished: readonly SeasonEvent[];
   readonly status: LoadStatus;
   readonly updated: number | null;
+  /** Data on screen whose latest refresh failed. */
+  readonly stale: boolean;
   readonly fetching: boolean;
   readonly refresh: () => void;
 }
@@ -389,13 +405,14 @@ export function useClimbingResults(chosen: string | null): ClimbingResults {
     );
     return { events, finished: finishedEvents(events) };
   }, [version, minute, disciplines.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
-  const status: LoadStatus = seasonQ?.data ? "ready" : root.isError || seasonQ?.isError ? "failed" : "loading";
+  const status: LoadStatus = seasonQ?.data ? "ready" : hasFailed(root) || (seasonQ != null && hasFailed(seasonQ)) ? "failed" : "loading";
   return {
     menu: menuRefs.map((r) => r.name),
     season,
     ...derived,
     status,
     updated: seasonQ?.dataUpdatedAt || null,
+    stale: staleOf(seasonQ ? [root, seasonQ] : [root]),
     fetching: root.isFetching || seasonQueries.some((q) => q.isFetching) || detailQueries.some((q) => q.isFetching),
     refresh: () => void queryClient.invalidateQueries({ queryKey: ["seasons", "ifsc"] }),
   };
@@ -439,6 +456,9 @@ export interface CategoryPage {
   readonly results: CategoryResults | null;
   readonly status: LoadStatus;
   readonly updated: number | null;
+  readonly stale: boolean;
+  /** A request is out (the error state's "Retrying…"). */
+  readonly fetching: boolean;
   readonly refresh: () => void;
 }
 
@@ -456,8 +476,10 @@ export function useCategoryResults(eventID: number, dcatID: number): CategoryPag
   return {
     event: clockedEvent,
     results: results.data ?? null,
-    status: results.data ? "ready" : results.isError ? "failed" : "loading",
+    status: results.data ? "ready" : hasFailed(results) ? "failed" : "loading",
     updated: results.dataUpdatedAt || null,
+    stale: staleOf([results]),
+    fetching: event.isFetching || results.isFetching,
     refresh: () => {
       void queryClient.invalidateQueries({ queryKey: seasonKeys.ifscEvent(eventID) });
       void queryClient.invalidateQueries({ queryKey: seasonKeys.ifscCategory(eventID, dcatID) });
@@ -474,6 +496,9 @@ export interface FinishedTournaments {
   readonly loadMore: () => void;
   readonly status: LoadStatus;
   readonly updated: number | null;
+  readonly stale: boolean;
+  /** A request is out (the error state's "Retrying…"). */
+  readonly fetching: boolean;
   readonly refresh: () => void;
 }
 
@@ -496,8 +521,10 @@ export function useFinishedTournaments(): FinishedTournaments {
     more: q.hasNextPage,
     loadingMore: q.isFetchingNextPage,
     loadMore: () => void q.fetchNextPage(),
-    status: q.data ? "ready" : q.isError ? "failed" : "loading",
+    status: q.data ? "ready" : hasFailed(q) ? "failed" : "loading",
     updated: q.dataUpdatedAt || null,
+    stale: staleOf([q]),
+    fetching: q.isFetching,
     refresh: () => void q.refetch(),
   };
 }
@@ -511,6 +538,9 @@ export interface TournamentPage {
   readonly status: LoadStatus;
   readonly matchesStatus: LoadStatus;
   readonly updated: number | null;
+  readonly stale: boolean;
+  /** A request is out (the error state's "Retrying…"). */
+  readonly fetching: boolean;
   readonly refresh: () => void;
 }
 
@@ -562,15 +592,18 @@ export function useTournamentResults(slug: string): TournamentPage {
     const infos = stages.flatMap((s) => (s.data ? [s.data as StageInfo] : []));
     return matchGroups(matches.data, infos, tournament.event.name);
   }, [matches.dataUpdatedAt, stageVersion, tournament?.event.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const stagesSettled = stages.every((s) => !s.isPending);
+  // A stage that failed is settled too (its retries go on behind the page).
+  const stagesSettled = stages.every((s) => !s.isPending || hasFailed(s));
   return {
     tournament,
     groups: stagesSettled ? groups : [],
     matches: matches.data?.items.length ?? 0,
     final: tournament && stagesSettled ? finalLine(tournament, groups) : null,
-    status: tournament ? "ready" : bySlug.isError ? "failed" : "loading",
-    matchesStatus: matches.data && stagesSettled ? "ready" : matches.isError ? "failed" : "loading",
+    status: tournament ? "ready" : hasFailed(bySlug) ? "failed" : "loading",
+    matchesStatus: matches.data && stagesSettled ? "ready" : hasFailed(matches) ? "failed" : "loading",
     updated: matches.dataUpdatedAt || bySlug.dataUpdatedAt || null,
+    stale: staleOf([matches]),
+    fetching: bySlug.isFetching || matches.isFetching,
     refresh: () => {
       void queryClient.invalidateQueries({ queryKey: seasonKeys.csSlug(slug) });
       if (tournament) void queryClient.invalidateQueries({ queryKey: seasonKeys.csMatches(tournament.bo3ID) });
