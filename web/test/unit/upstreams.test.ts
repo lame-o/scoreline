@@ -43,6 +43,8 @@ describe("the upstream allowlist", () => {
     expect(resolveProxyPath("/api/site.api.espn.com/apis/site/v2/sports/football/nfl/teams/3/schedule", "")?.policy).toBe(SCHEDULE);
     expect(resolveProxyPath("/api/site.api.espn.com/apis/site/v2/sports/football/nfl/teams", "")?.policy).toBe(CATALOG);
     expect(resolveProxyPath("/api/ifsc.results.info/api/v1/category_rounds/1/results", "")?.policy).toBe(LIVE);
+    // An NFL team's depth chart (the football theater's, once a game): a season's, cached like a schedule.
+    expect(resolveProxyPath("/api/sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/2026/teams/12/depthcharts", "")?.policy).toBe(SCHEDULE);
     expect(resolveProxyPath("/api/ifsc.results.info/api/v1/", "")?.upstream.headers?.Referer).toBe("https://ifsc.results.info/");
   });
 });
@@ -71,6 +73,8 @@ describe("client requests", () => {
     expect(clientRequest(situation)).toEqual({ href: situation, cache: "no-store" });
     const athlete = "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/3112335/overview";
     expect(clientRequest(athlete)).toEqual({ href: athlete, cache: "default" });
+    const chart = "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/2026/teams/12/depthcharts";
+    expect(clientRequest(chart)).toEqual({ href: chart, cache: "default" });
   });
 
   it("keeps every other host behind the proxy", () => {
