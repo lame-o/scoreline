@@ -301,7 +301,7 @@ export function MoreButton({ children, onClick }: { readonly children: string; r
   );
 }
 
-/** Parts that didn't load, with the way to try again (a profile loads once per visit: nothing retries on its own). */
+/** Parts that didn't load, with the way to try again now (they retry on their own too, on the ladder in state/retry.ts). */
 export function Footnote({ text, onRetry }: { readonly text: string; readonly onRetry?: () => void }) {
   return (
     <div className={styles.footnote} role="status">

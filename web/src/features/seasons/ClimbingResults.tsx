@@ -7,7 +7,7 @@
  */
 import { AnimatePresence, LayoutGroup, m } from "motion/react";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { Button, EmptyState, ErrorState, type MenuEntry } from "../../design/components";
 import { spring, tween } from "../../design/motion";
 import { dayKeyOf, dayRangeLabel } from "../../data/days";
@@ -22,7 +22,8 @@ import { ScheduleHeader } from "../schedule/ScheduleHeader";
 import type { SchedulePageProps } from "../schedule/SchedulePage";
 import { ClimbingEventRow, useReducedMotion } from "./ClimbingRows";
 import { useHoverStore } from "./hover";
-import { climberPath, gamePath } from "./links";
+import { gamePath } from "./links";
+import { climberRef, PlayerLink } from "../profiles/ProfileLinks";
 import { LinkButton, MonthLabel, SectionLink, SeasonFooter, SeasonSkeleton, SubLabel } from "./parts";
 import { SeasonCard, SeasonDockBar, scrollToTop, scrollUnderBar, useSeasonDock } from "./SeasonCard";
 import { SeasonFrame, SplitColumns, stackIn, useArrival, useFocusOnArrival, useSeasonKeys, useSeasonWidth } from "./SeasonPage";
@@ -301,9 +302,9 @@ function AthleteLine({ rank, name, country, id, mine }: { rank: number; name: st
       <span className={styles.athleteFlag} title={country ? countryName(country) : undefined} aria-hidden="true">
         {flagFromIOC(country) ?? ""}
       </span>
-      <Link className={styles.athleteName} data-mine={mine} to={climberPath(id, name, country)}>
+      <PlayerLink player={climberRef(id, name, { country })} variant="plain" className={styles.athleteName} dataset={{ mine }}>
         {name}
-      </Link>
+      </PlayerLink>
     </p>
   );
 }

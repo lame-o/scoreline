@@ -24,7 +24,8 @@ import { useCategoryResults, useClimbingCountries, useTournamentResults } from "
 import { useSettings } from "../../state/settings";
 import { rowDetail, ScheduleRow } from "../schedule/ScheduleRow";
 import rowStyles from "../schedule/ScheduleRow.module.css";
-import { climberPath, gamePath, tournamentBracketPath, useFollowedCS } from "./links";
+import { gamePath, tournamentBracketPath, useFollowedCS } from "./links";
+import { climberRef, PlayerLink } from "../profiles/ProfileLinks";
 import { SectionLink, SeasonFooter, SeasonSkeleton, SubLabel } from "./parts";
 import { ChampionCard, PlacementsTable } from "./placements";
 import { stackIn, useArrival } from "./SeasonPage";
@@ -248,9 +249,9 @@ const RankingRow = memo(function RankingRow({ row, yours, rounds, column }: { ro
       <span className={styles.flag} title={row.country ? countryName(row.country) : undefined} aria-hidden="true">
         {flagFromIOC(row.country) ?? ""}
       </span>
-      <Link className={styles.name} to={climberPath(row.athleteID, row.name, row.country)} title={row.name}>
+      <PlayerLink player={climberRef(row.athleteID, row.name, { country: row.country })} variant="plain" className={styles.name} title={row.name}>
         {row.name}
-      </Link>
+      </PlayerLink>
       <span className={styles.spacer} />
       {rounds ? (
         rounds.map((round) => {

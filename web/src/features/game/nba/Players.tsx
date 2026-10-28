@@ -22,6 +22,7 @@ import { widthClassOf } from "../../../data/standings";
 import { espnPhoto } from "../../../data/profiles/photos";
 import { useWidth } from "../../../design/useWidth";
 import { PlayerLink, TeamLink, teamRefFrom, type PlayerRef } from "../../profiles/ProfileLinks";
+import { useGoToPlayer } from "../../profiles/GoToMenu";
 import { PlayerPhoto } from "../../profiles/PlayerPhoto";
 import { useFocus, useLinkedRow } from "../core/linked";
 import { useStage, useStageStore } from "./stage";
@@ -76,33 +77,38 @@ function LeaderCell({ leader, other, trailing, streaks, playerRef, path }: { lea
   const focus = useMemo(() => ({ player: id ?? undefined }), [id]);
   const row = useLinkedRow(focus);
   const lit = useFocus((f) => id != null && f?.player === id);
+  // The row's click picks the player for the court: "Go to …" and a double click open their page.
+  const goTo = useGoToPlayer(leader?.player ? playerRef(leader.player, leader.name) : null);
   if (!leader) return <span className={styles.leaderEmpty} data-trailing={trailing}>–</span>;
   const leads = (Number(leader.value) || 0) >= (Number(other?.value) || 0);
   const photo = leader.player ? espnPhoto(path, leader.player, "small") : leader.headshot;
   return (
-    <div className={styles.leader} data-trailing={trailing} data-picked={picked} data-lit={lit} onPointerEnter={row.onPointerEnter} onPointerLeave={row.onPointerLeave}>
-      <button
-        type="button"
-        className={styles.pick}
-        onClick={() => stage?.togglePin(id)}
-        aria-pressed={picked}
-        aria-label={picked ? "Show every player on the court" : `Show only ${leader.name}'s shots on the court`}
-        title={picked ? "Show every player on the court" : `Show only ${leader.name}'s shots on the court`}
-      />
-      <PlayerPhoto url={photo} name={leader.name} tint={null} size={28} className={styles.headshot} />
-      <span className={styles.who}>
-        <span className={styles.leaderName}>
-          <PlayerLink player={leader.player ? playerRef(leader.player, leader.name) : null} className={styles.link}>
-            <PlayerName name={leader.name} />
-          </PlayerLink>
-          <Flame streak={streaks[leader.player ?? ""] ?? 0} />
+    <>
+      {goTo.menu}
+      <div className={styles.leader} data-trailing={trailing} data-picked={picked} data-lit={lit} onPointerEnter={row.onPointerEnter} onPointerLeave={row.onPointerLeave} {...goTo.props}>
+        <button
+          type="button"
+          className={styles.pick}
+          onClick={() => stage?.togglePin(id)}
+          aria-pressed={picked}
+          aria-label={picked ? "Show every player on the court" : `Show only ${leader.name}'s shots on the court`}
+          title={picked ? "Show every player on the court" : `Show only ${leader.name}'s shots on the court`}
+        />
+        <PlayerPhoto url={photo} name={leader.name} tint={null} size={28} className={styles.headshot} />
+        <span className={styles.who}>
+          <span className={styles.leaderName}>
+            <PlayerLink player={leader.player ? playerRef(leader.player, leader.name) : null} className={styles.link}>
+              <PlayerName name={leader.name} />
+            </PlayerLink>
+            <Flame streak={streaks[leader.player ?? ""] ?? 0} />
+          </span>
+          {leader.detail ? <span className={styles.leaderDetail}>{leader.detail}</span> : null}
         </span>
-        {leader.detail ? <span className={styles.leaderDetail}>{leader.detail}</span> : null}
-      </span>
-      <span className={styles.value} data-leads={leads}>
-        {leader.value}
-      </span>
-    </div>
+        <span className={styles.value} data-leads={leads}>
+          {leader.value}
+        </span>
+      </div>
+    </>
   );
 }
 
@@ -209,35 +215,40 @@ function BoxRow({ p, columns, grid, highs, floor, live, streak, playerRef }: { p
   const focus = useMemo(() => ({ player: p.id }), [p.id]);
   const row = useLinkedRow(focus);
   const lit = useFocus((f) => f?.player === p.id);
+  // The row's click picks the player for the court: "Go to …" and a double click open their page.
+  const goTo = useGoToPlayer(playerRef(p.id, p.name));
   const onCourt = floor && p.onCourt;
   const onFire = streak >= FIRE_STREAK;
   const spoken = `${p.name}${onCourt ? ", on court" : ""}${onFire ? `, ${streak} straight makes` : ""}: ${p.stats.MIN ?? "0"} minutes, ${spokenBoxLine(p.stats, columns.filter((c) => c.label !== "MIN"))}`;
   return (
-    <div className={styles.row} style={grid} data-picked={picked} data-lit={lit} role="listitem" onPointerEnter={row.onPointerEnter} onPointerLeave={row.onPointerLeave}>
-      <button type="button" className={styles.pick} onClick={() => stage?.togglePin(p.id)} aria-pressed={picked} aria-label={spoken} title={picked ? "Show every player on the court" : `Show only ${p.name}'s shots on the court`} />
-      <span className={styles.player}>
-        {live ? <span className={styles.court} data-on={onCourt} title={onCourt ? "On court" : undefined} /> : null}
-        <PlayerLink player={playerRef(p.id, p.name)} className={styles.link}>
-          <PlayerName name={p.name} />
-        </PlayerLink>
-        <Flame streak={streak} />
-      </span>
-      {columns.map((c) => {
-        const text = p.stats[c.label] ?? "";
-        if (c.label === "MIN") return <span key={c.label} className={styles.quiet} aria-hidden="true">{text}</span>;
-        if (c.label === "+/-") return <span key={c.label} className={styles.quiet} aria-hidden="true">{signed(text)}</span>;
-        if (RANKED.has(c.label)) {
-          const value = Number.parseInt(text, 10) || 0;
-          const high = highs[c.label] ?? 0;
-          return (
-            <span key={c.label} aria-hidden="true" data-high={HIGHLIGHT.has(c.label) && value === high && high > 0}>
-              {value}
-            </span>
-          );
-        }
-        return <span key={c.label} aria-hidden="true">{text || "–"}</span>;
-      })}
-    </div>
+    <>
+      {goTo.menu}
+      <div className={styles.row} style={grid} data-picked={picked} data-lit={lit} role="listitem" onPointerEnter={row.onPointerEnter} onPointerLeave={row.onPointerLeave} {...goTo.props}>
+        <button type="button" className={styles.pick} onClick={() => stage?.togglePin(p.id)} aria-pressed={picked} aria-label={spoken} title={picked ? "Show every player on the court" : `Show only ${p.name}'s shots on the court`} />
+        <span className={styles.player}>
+          {live ? <span className={styles.court} data-on={onCourt} title={onCourt ? "On court" : undefined} /> : null}
+          <PlayerLink player={playerRef(p.id, p.name)} className={styles.link}>
+            <PlayerName name={p.name} />
+          </PlayerLink>
+          <Flame streak={streak} />
+        </span>
+        {columns.map((c) => {
+          const text = p.stats[c.label] ?? "";
+          if (c.label === "MIN") return <span key={c.label} className={styles.quiet} aria-hidden="true">{text}</span>;
+          if (c.label === "+/-") return <span key={c.label} className={styles.quiet} aria-hidden="true">{signed(text)}</span>;
+          if (RANKED.has(c.label)) {
+            const value = Number.parseInt(text, 10) || 0;
+            const high = highs[c.label] ?? 0;
+            return (
+              <span key={c.label} aria-hidden="true" data-high={HIGHLIGHT.has(c.label) && value === high && high > 0}>
+                {value}
+              </span>
+            );
+          }
+          return <span key={c.label} aria-hidden="true">{text || "–"}</span>;
+        })}
+      </div>
+    </>
   );
 }
 

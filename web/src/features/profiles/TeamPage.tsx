@@ -25,6 +25,7 @@ import { useOwnBackTitle } from "../../app/navigation";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { LinkOrigin } from "./ProfileLinks";
 import { DetailSection, Footnote, HeroGlow, LiveStrip, ProfileHeader, ProfileWash, RosterSkeleton, SectionColumns, StatTiles, TeamCrest, tintOf, useProfileLayout, useTeamColors, lightInkOn, type Slot } from "./ProfileParts";
+import { schedulePath } from "../../data/schedule";
 import { InjuryRows, LeadersGrid, NextGameRow, ResultsSection, RosterSection, StandingsWindow, TitleRows, TransactionRows } from "./TeamSections";
 import { RankTrack } from "./ProfileCharts";
 import type { WidthClass } from "../../data/profiles/display";
@@ -185,7 +186,8 @@ function renderSection(s: Section, width: WidthClass, team: TeamProfile, tint: s
       );
     }
     case "results":
-      return <ResultsSection results={team.results ?? []} form={team.form} sport={sport} />;
+      // "All Results": the team's schedule, facing back (TeamPage.swift: onOpenSchedule(.team, .results)).
+      return <ResultsSection results={team.results ?? []} form={team.form} sport={sport} allResults={schedulePath({ kind: "team", team: { id: ref.id, name: team.header?.shortName ?? (ref.name || "Team"), logo: team.header?.logo ?? ref.logo } }, "results")} />;
     case "roster":
       return (
         <DetailSection title={sport === "soccer" ? "Squad" : sport === "esports" ? "Players" : "Roster"} caption={rosterCaption(sport)}>
