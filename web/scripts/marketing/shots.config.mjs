@@ -123,6 +123,8 @@ export const compositions = [
     caption: { title: "Every play, *replayed*.", subtitle: "In isometric 3D, the moment it happens." },
     cards: [
       { source: "theater-mlb", title: "Baseball", detail: "Statcast-accurate flights" },
+      // The web has no basketball view yet: the Mac app's, cut from its README tile (the buzzer-beater).
+      { mac: "09-basketball-tile", crop: [570, 476, 892, 446], title: "Basketball", detail: "Every made basket", optional: true },
       { source: "theater-nfl", title: "Football", detail: "Every snap of the drive" },
       { source: "theater-soccer", title: "Soccer", detail: "Every shot, every angle" },
     ],
@@ -147,14 +149,6 @@ export const compositions = [
     kind: "phones",
     caption: { title: "Also on the *web*.", subtitle: "Installs to your phone's home screen, with the same live pages." },
     phones: [{ source: "phone-scores" }, { source: "phone-mlb@10400" }],
-  },
-  // The Mac app (renders from the Mac pipeline; a placeholder panel until they exist).
-  {
-    name: "hero",
-    kind: "mac",
-    caption: { title: "Live scores in\nyour *menu bar*.", subtitle: "Every pitch, drive, shot and round, one click away." },
-    spec: { titleSize: 104 },
-    panels: [{ source: "game-mlb", label: "Scoreline for Mac" }],
   },
 ];
 
@@ -197,19 +191,122 @@ export const gallery = [
   { name: "phone-nfl", source: "phone-nfl", device: "phone", label: "Football on a phone" },
 ];
 
-/** The Mac pipeline's framed images to carry into docs/screenshots/mac as they are (`from` is its output's name). */
-export const macImports = [{ name: "hero", from: "hero" }];
-
 /**
- * README images that appear only once their files exist (the Mac pipeline's), each between
- * `<!-- image:<key>:start -->` and `<!-- image:<key>:end -->`; until then the slot stays empty.
+ * The Mac pipeline's images, carried into docs/screenshots/mac as they are: its uncaptioned README
+ * tile (`<from>-tile-<theme>.webp`, 1600×1000; or `<from>-<theme>.webp` when it makes no tile, as for
+ * the menu bar close-up) becomes `<name>-<theme>.webp`. `from` is the name in its shots.json.
  */
-export const readmeImages = [
-  { key: "scoring-slide", dir: "docs/screenshots/mac", name: "scoring-slide", alt: "The scoring slide: a home run's bar sliding in from the scoring team's side, in its colors, with who and how far" },
+export const macImports = [
+  { name: "hero", from: "01-hero" },
+  { name: "menubar", from: "02-menubar" },
+  { name: "scores", from: "03-scores" },
+  { name: "baseball", from: "04-baseball" },
+  { name: "at-bat", from: "05-at-bat" },
+  { name: "spray-chart", from: "06-spray-chart" },
+  { name: "football", from: "07-football" },
+  { name: "soccer", from: "08-soccer" },
+  { name: "basketball", from: "09-basketball" },
+  { name: "shot-chart", from: "09-shot-chart" },
+  { name: "docked", from: "10-docked" },
+  { name: "schedules", from: "11-schedules" },
+  { name: "bracket", from: "12-bracket" },
+  { name: "people", from: "13-people" },
+  { name: "counter-strike", from: "14-counter-strike" },
+  { name: "climbing", from: "15-climbing" },
+  { name: "settings", from: "16-settings" },
+  { name: "scoring-slide", from: "slide" },
 ];
 
-/** The Mac renders to carry into docs/screenshots/mac/pages (by their file names in the Mac pipeline's output). */
-export const macGallery = [];
+/**
+ * The README's pictures, each between `<!-- slot:<key>:start -->` and `<!-- slot:<key>:end -->`.
+ * readme-gallery.mjs writes the first option whose files all exist (light and dark), so the README
+ * prefers the Mac app's images, falls back to the web's, and never shows a broken or missing one;
+ * an empty option leaves the slot empty. An option is rows of images; a row shares the width.
+ */
+const mac = (name, alt) => ({ dir: "docs/screenshots/mac", name, alt });
+const web = (name, alt) => ({ dir: "docs/screenshots/web", name, alt });
+export const readmeSlots = [
+  {
+    key: "hero",
+    options: [
+      [[mac("hero", "Scoreline's panel open under the Mac menu bar: a live World Series game, its home run replayed in the isometric view")]],
+      [[web("scores", "Scoreline: every live game in the sidebar, beside a live NBA game's shot chart and box score")]],
+    ],
+  },
+  { key: "menubar", options: [[[mac("menubar", "The menu bar, close up: Scoreline's item with a live score, MIL 3–2 TB, Top 12th")]], []] },
+  { key: "isometric", options: [[[web("isometric", "Isometric views: a home run on its Statcast flight, a buzzer-beater three, a touchdown, and a header into the net")]]] },
+  { key: "scoring-slide", options: [[[mac("scoring-slide", "The scoring slide: a home run's bar sliding in from the scoring team's side, in its colors, with who and how far")]], []] },
+  {
+    key: "games",
+    options: [
+      [
+        [mac("baseball", "A live baseball game: every pitch, and the home run replayed on the field")],
+        [mac("football", "A live NFL game: the touchdown replayed, the drive on the field"), mac("soccer", "A live Premier League match: the goal rebuilt, the shot map")],
+        [mac("at-bat", "The at-bat, pitch by pitch, with MLB's pitch types and speeds"), mac("spray-chart", "A spray chart of every ball in play"), mac("shot-chart", "An NBA shot chart")],
+      ],
+      [[mac("football", "A live NFL game: the touchdown replayed, the drive on the field"), mac("soccer", "A live Premier League match: the goal rebuilt, the shot map")]],
+      [
+        [web("game-mlb", "A live World Series game: at the plate, the isometric view of a double, the line score and win probability")],
+        [web("game-nfl", "A live NFL game: the drive on the field"), web("game-nba", "A live NBA game: the shot chart and game flow"), web("game-soccer", "A live Premier League match: the pitch and the shot map")],
+      ],
+    ],
+  },
+  {
+    key: "schedules",
+    options: [
+      [[mac("schedules", "Schedules, results and standings")], [mac("bracket", "The MLB postseason bracket")]],
+      [[web("schedule", "The schedule: today's games across every league")], [web("standings", "The Premier League table, moving with live scores"), web("bracket", "A CS2 tournament: the Swiss stage and the playoff bracket")]],
+    ],
+  },
+  {
+    key: "people",
+    options: [
+      [[mac("people", "A team page and a player page")]],
+      [[web("team", "A team page: results, form, the schedule and the roster"), web("player", "A player page: the season, the game log and the career")]],
+    ],
+  },
+  {
+    key: "esports",
+    options: [
+      [[mac("counter-strike", "A live Counter-Strike 2 match: maps, rounds and the economy"), mac("climbing", "A live climbing final: the wall, high points and the ranking")]],
+      [[web("esports", "A live Counter-Strike 2 match: maps, rounds and the economy"), web("climbing", "A live climbing final: the wall, high points and the ranking")]],
+    ],
+  },
+  {
+    key: "teams",
+    options: [
+      [[mac("scores", "Scores as a list and as tiles, your teams first")], [mac("docked", "The score docked at the top of a game page"), mac("settings", "Settings")]],
+      [[web("follow", "A game's menu: follow either team, show the score in the tab, go to a team's schedule"), web("settings", "Settings: your teams, your sports and their order, appearance and alerts")]],
+    ],
+  },
+  {
+    key: "web",
+    options: [
+      [[web("tiles", "Scoreline in a browser: every live game as tiles, beside a live NFL game")], [web("phones", "Scoreline on two phones: the scores, and a live game")]],
+    ],
+  },
+];
+
+/** The Mac pipeline's clean panels (`panels/<page>-<theme>.png`) for the Mac gallery, cut to at most twice as tall as wide. */
+export const macGallery = [
+  { name: "scores", source: "scores", label: "Scores" },
+  { name: "tiles", source: "tiles", label: "Tiles" },
+  { name: "baseball", source: "baseball", label: "Baseball, live" },
+  { name: "baseball-docked", source: "baseball-docked", label: "The docked scoreboard" },
+  { name: "baseball-compact", source: "baseball-compact", label: "Baseball, compact width" },
+  { name: "football", source: "football", label: "NFL, live" },
+  { name: "soccer", source: "soccer", label: "Soccer, live" },
+  { name: "basketball", source: "basketball", label: "NBA, live" },
+  { name: "basketball-final", source: "basketball-final", label: "NBA, final" },
+  { name: "counter-strike", source: "counter-strike", label: "Counter-Strike 2, live" },
+  { name: "climbing-lead", source: "climbing-lead", label: "Climbing: lead" },
+  { name: "climbing-boulder", source: "climbing-boulder", label: "Climbing: boulder" },
+  { name: "schedule", source: "schedule", label: "Schedule" },
+  { name: "standings", source: "standings", label: "Standings" },
+  { name: "bracket", source: "bracket", label: "Playoff bracket" },
+  { name: "team", source: "team", label: "A team page" },
+  { name: "player", source: "player", label: "A player page" },
+];
 
 /** GitHub's social preview. */
 export const social = {

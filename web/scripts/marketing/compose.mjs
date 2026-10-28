@@ -62,20 +62,17 @@ function macRaw(name, theme) {
 }
 
 /**
- * The Mac pipeline's own framed images, carried over as they are: `<from>-<theme>-1600.webp`
- * (the README's size) and `<from>-<theme>.webp` (2400×1500) from its output. Returns what it copied.
+ * The Mac pipeline's own images, carried over as they are (macImports): its uncaptioned README tile
+ * `<from>-tile-<theme>.webp`, else `<from>-<theme>.webp` (an image it makes no tile for). `from` may
+ * name a family (`slide` takes the first `slide-…`). Returns whether it copied one.
  */
 function importMac(item, theme) {
   if (!existsSync(MAC_RAW)) return false;
-  const find = (...names) => names.map((n) => join(MAC_RAW, n)).find((p) => existsSync(p));
-  const small = find(`${item.from}-${theme}-1600.webp`, `${item.from}-1600-${theme}.webp`);
-  const big = find(`${item.from}-${theme}.webp`);
-  if (!small) return false;
-  copyFileSync(small, join(DOCS, "screenshots/mac", `${item.name}-${theme}.webp`));
-  if (big) {
-    mkdirSync(join(DOCS, "screenshots/mac/2400"), { recursive: true });
-    copyFileSync(big, join(DOCS, "screenshots/mac/2400", `${item.name}-${theme}.webp`));
-  }
+  const files = readdirSync(MAC_RAW).filter((f) => f.endsWith(".webp")).sort();
+  const family = (f) => f === `${item.from}-tile-${theme}.webp` || f === `${item.from}-${theme}.webp` || f.startsWith(`${item.from}-`);
+  const pick = files.find((f) => family(f) && f.endsWith(`-tile-${theme}.webp`)) ?? files.find((f) => family(f) && f.endsWith(`-${theme}.webp`) && !f.includes("-tile-"));
+  if (!pick) return false;
+  copyFileSync(join(MAC_RAW, pick), join(DOCS, "screenshots/mac", `${item.name}-${theme}.webp`));
   return true;
 }
 
@@ -111,11 +108,19 @@ function webp(png, out, { quality = 84, width, height } = {}) {
   return statSync(out).size;
 }
 
-const browser = await chromium.launch({ headless: true, args: ["--force-color-profile=srgb", "--font-render-hinting=none"] });
-const page = await browser.newPage({ viewport: { width: 2400, height: 1500 }, deviceScaleFactor: 1 });
+// The browser starts with the first render, so carrying over the Mac images alone needs none.
+let browser = null;
+let page = null;
+async function ensurePage() {
+  if (page) return page;
+  browser = await chromium.launch({ headless: true, args: ["--force-color-profile=srgb", "--font-render-hinting=none"] });
+  page = await browser.newPage({ viewport: { width: 2400, height: 1500 }, deviceScaleFactor: 1 });
+  return page;
+}
 const report = [];
 
 async function render(spec, png) {
+  await ensurePage();
   await page.setViewportSize({ width: spec.width, height: spec.height });
   await page.goto(`${TEMPLATE}#${encodeURIComponent(JSON.stringify(spec))}`);
   // A new hash on the same file doesn't reload; make sure each spec renders fresh.
@@ -130,7 +135,7 @@ try {
   // MARK: The Mac pipeline's framed images (they replace this script's placeholders of the same name)
   const imported = new Set();
   for (const item of macImports) {
-    if (!wanted(item.name)) continue;
+    if (!wanted(`mac-${item.name}`)) continue;
     for (const theme of ["light", "dark"]) {
       if (importMac(item, theme)) {
         imported.add(`${item.name}-${theme}`);
@@ -186,19 +191,22 @@ try {
     }
   }
 
-  // MARK: The Mac app's pages, as rendered (converted, trimmed to WebP)
+  // MARK: The Mac app's pages: its clean panels (panels/<page>-<theme>.png), cut to at most 2:1 tall, as WebP
   for (const m of macGallery) {
-    if (!wanted(`mac-${m.name}`)) continue;
+    if (!wanted(`mac-${m.name}`) && !wanted("mac-pages")) continue;
     for (const theme of ["light", "dark"]) {
-      const file = macRaw(m.source, theme);
-      if (!file) continue;
-      const size = webp(fileURLToPath(file), join(DOCS, "screenshots/mac/pages", `${m.name}-${theme}.webp`), { quality: 82, width: m.width ?? 840 });
+      const file = join(MAC_RAW, "panels", `${m.source}-${theme}.png`);
+      if (!existsSync(file)) continue;
+      const png = join(TMP, `mac-${m.name}-${theme}.png`);
+      execFileSync("magick", [file, "-gravity", "North", "-crop", `100%x0`, "+repage", "-resize", "720x", "-crop", "720x1440+0+0", "+repage", png]);
+      const size = webp(png, join(DOCS, "screenshots/mac/pages", `${m.name}-${theme}.webp`), { quality: 82 });
       console.log(`✓ mac page ${m.name} ${theme} (${kb(size)})`);
     }
   }
 
   // MARK: The README's buttons (2×, transparent PNG)
   if (wanted("buttons")) {
+    await ensurePage();
     mkdirSync(join(DOCS, "buttons"), { recursive: true });
     for (const b of [
       { name: "download-mac", label: "Download for Mac", icon: "download", variant: "primary" },
@@ -230,6 +238,6 @@ try {
     }
   }
 } finally {
-  await browser.close();
+  await browser?.close();
   rmSync(TMP, { recursive: true, force: true });
 }

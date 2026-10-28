@@ -22,11 +22,11 @@
   <a href="https://scoreline-web.lame-o.workers.dev"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/buttons/try-web-dark.png"><img src="docs/buttons/try-web-light.png" height="52" alt="Try it on the web"></picture></a>
 </p>
 
-<!-- hero:start -->
+<!-- slot:hero:start -->
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/scores-dark.webp"><img src="docs/screenshots/web/scores-light.webp" width="100%" alt="Scoreline: every live game in the sidebar, beside a live NBA game's shot chart and box score"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/hero-dark.webp"><img src="docs/screenshots/mac/hero-light.webp" width="100%" alt="Scoreline's panel open under the Mac menu bar: a live World Series game, its home run replayed in the isometric view"></picture>
 </p>
-<!-- hero:end -->
+<!-- slot:hero:end -->
 
 <!-- Animated preview: drop the loop in as docs/screenshots/readme-loop.webp and uncomment.
 <p align="center"><img src="docs/screenshots/readme-loop.webp" width="100%" alt="Scoreline in motion: a live game, its play replayed, the score changing"></p>
@@ -36,146 +36,117 @@ Scoreline is a free, native menu bar app for macOS. Pick your leagues and teams 
 
 **MLB · NFL · College Football · NBA · WNBA · Premier League · Champions League · Europa League · LaLiga · Serie A · Bundesliga · Ligue 1 · Championship · MLS · FIFA World Cup · Counter-Strike 2 · World Climbing Series**
 
-<br>
+<!-- slot:menubar:start -->
+<p align="center">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/menubar-dark.webp"><img src="docs/screenshots/mac/menubar-light.webp" width="100%" alt="The menu bar, close up: Scoreline's item with a live score, MIL 3–2 TB, Top 12th"></picture>
+</p>
+<!-- slot:menubar:end -->
 
 ## Isometric views
 
 Every play comes back to life in a small isometric view the moment it happens: the swing and the throw in baseball, every made basket in basketball, the snap and the run in football, the cross and the header in soccer. Batted balls fly on Statcast's own launch angle, exit velocity and distance, so a 411-foot home run lands where it really did, and the big moments get their call: HOME RUN, TOUCHDOWN, GOAL, BUZZER-BEATER, POSTERIZED, REJECTED.
 
+<!-- slot:isometric:start -->
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/isometric-dark.webp">
-    <img src="docs/screenshots/web/isometric-light.webp" width="100%" alt="Isometric views: a home run on its Statcast flight, a touchdown, and a header into the net">
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/isometric-dark.webp"><img src="docs/screenshots/web/isometric-light.webp" width="100%" alt="Isometric views: a home run on its Statcast flight, a buzzer-beater three, a touchdown, and a header into the net"></picture>
 </p>
+<!-- slot:isometric:end -->
 
 ## The scoring slide
 
 When a team scores, a bar in its colors slides in from its side of the page: its logo, a headline you can read from across the room (HOME RUN, GRAND SLAM, TOUCHDOWN, GOAL, BUZZER-BEATER, MAP WON) and who and how, straight from the feeds: "Frelick · 408 ft · EV 104.4 mph". It lands at the isometric view's climax, as the ball clears the fence or crosses the line, for runs, touchdowns, goals, the NBA's decisive baskets, CS2 maps and climbing tops.
 
-<!-- image:scoring-slide:start -->
-<!-- image:scoring-slide:end -->
+<!-- slot:scoring-slide:start -->
+<!-- slot:scoring-slide:end -->
 
 ## Live game pages
 
-Each game page is built for its sport, and it's live: charts redraw as plays land, and big moments (a home run, a touchdown, a goal) arrive with a small celebration you can turn down or off.
+Each game page is built for its sport, and it's live: charts redraw as plays land, and big moments arrive with a celebration you can turn down or off.
 
 - **Baseball**: the count and runners, the at-bat pitch by pitch in the strike zone with MLB's pitch names, a spray chart of every ball in play, and the line score.
 - **Football**: the drive on the field, down and distance, the red zone and the two-minute drill, scoring plays and win probability.
 - **Basketball**: the shot chart, the game's flow and scoring runs, leaders, and the full box score.
 - **Soccer**: the live pitch, the shot map, the match timeline, lineups and VAR decisions.
 
+<!-- slot:games:start -->
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/game-mlb-dark.webp">
-    <img src="docs/screenshots/web/game-mlb-light.webp" width="100%" alt="A live World Series game: at the plate, the isometric view of a double, the line score and win probability">
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/football-dark.webp"><img src="docs/screenshots/mac/football-light.webp" width="49%" alt="A live NFL game: the touchdown replayed, the drive on the field"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/soccer-dark.webp"><img src="docs/screenshots/mac/soccer-light.webp" width="49%" alt="A live Premier League match: the goal rebuilt, the shot map"></picture>
 </p>
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/game-nfl-dark.webp">
-    <img src="docs/screenshots/web/game-nfl-light.webp" width="32%" alt="A live NFL game: the drive on the field">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/game-nba-dark.webp">
-    <img src="docs/screenshots/web/game-nba-light.webp" width="32%" alt="A live NBA game: the shot chart and game flow">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/game-soccer-dark.webp">
-    <img src="docs/screenshots/web/game-soccer-light.webp" width="32%" alt="A live Premier League match: the pitch and the shot map">
-  </picture>
-</p>
+<!-- slot:games:end -->
 
 ## Schedules, standings and brackets
 
 Everything around the game is a click away: every league's schedule and results, a day, a week or a round at a time; tables that move as the goals go in; the college polls; and playoff brackets, from the MLB postseason to every S-tier CS2 event.
 
+<!-- slot:schedules:start -->
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/schedule-dark.webp">
-    <img src="docs/screenshots/web/schedule-light.webp" width="100%" alt="The schedule: today's games across every league">
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/schedule-dark.webp"><img src="docs/screenshots/web/schedule-light.webp" width="100%" alt="The schedule: today's games across every league"></picture>
 </p>
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/standings-dark.webp">
-    <img src="docs/screenshots/web/standings-light.webp" width="49%" alt="The Premier League table">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/bracket-dark.webp">
-    <img src="docs/screenshots/web/bracket-light.webp" width="49%" alt="A CS2 tournament: the Swiss stage and the playoff bracket">
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/standings-dark.webp"><img src="docs/screenshots/web/standings-light.webp" width="49%" alt="The Premier League table, moving with live scores"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/bracket-dark.webp"><img src="docs/screenshots/web/bracket-light.webp" width="49%" alt="A CS2 tournament: the Swiss stage and the playoff bracket"></picture>
 </p>
+<!-- slot:schedules:end -->
 
 ## Team and player pages
 
 Click a name anywhere and its page opens: a team's results, form, schedule, roster and leaders; a player's season, game log and career. A page opens at once with what's already known and fills in as the rest arrives.
 
+<!-- slot:people:start -->
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/team-dark.webp">
-    <img src="docs/screenshots/web/team-light.webp" width="49%" alt="A team page: results, form, the schedule and the roster">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/player-dark.webp">
-    <img src="docs/screenshots/web/player-light.webp" width="49%" alt="A player page: the season, the game log and the career">
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/team-dark.webp"><img src="docs/screenshots/web/team-light.webp" width="49%" alt="A team page: results, form, the schedule and the roster"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/player-dark.webp"><img src="docs/screenshots/web/player-light.webp" width="49%" alt="A player page: the season, the game log and the career"></picture>
 </p>
+<!-- slot:people:end -->
 
 ## Counter-Strike 2 and climbing
 
 **Counter-Strike 2**: the S-tier events, with every map, round and economy swing as it happens, the official streams, and each tournament's bracket. **Climbing**: the World Climbing Series, with the wall and every climber's high point, the live ranking, boulder scorecards and who's up next.
 
+<!-- slot:esports:start -->
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/esports-dark.webp">
-    <img src="docs/screenshots/web/esports-light.webp" width="49%" alt="A live Counter-Strike 2 match: maps, rounds and the economy">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/climbing-dark.webp">
-    <img src="docs/screenshots/web/climbing-light.webp" width="49%" alt="A live climbing final: the wall, high points and the ranking">
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/esports-dark.webp"><img src="docs/screenshots/web/esports-light.webp" width="49%" alt="A live Counter-Strike 2 match: maps, rounds and the economy"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/climbing-dark.webp"><img src="docs/screenshots/web/climbing-light.webp" width="49%" alt="A live climbing final: the wall, high points and the ranking"></picture>
 </p>
+<!-- slot:esports:end -->
 
 ## Made for your teams
 
 - **Follow your teams**: they lead the list, their schedule fills in when there's no game today, and their live score can sit in the menu bar.
 - **Notifications** when your teams start, score and finish.
 - **Where to Watch**: each game's official broadcasters and streams.
-- **List or tiles**, a pinned scorebar for the game you're following, and sections you can reorder or hide.
+- **List or tiles**, a scoreboard that docks at the top as you scroll a game, and sections you can reorder or hide.
 - **Keyboard first**: arrows to move, Return to open, Esc to go back, ⌘R to refresh.
 - **Accessible**: VoiceOver reads scores and statuses as words, Reduce Motion turns movement into fades, and shapes can stand in for color.
 
+<!-- slot:teams:start -->
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/follow-dark.webp">
-    <img src="docs/screenshots/web/follow-light.webp" width="49%" alt="A game's menu: follow either team, show the score in the tab, go to a team's schedule">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/settings-dark.webp">
-    <img src="docs/screenshots/web/settings-light.webp" width="49%" alt="Settings: your teams, your sports and their order, appearance and alerts">
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/follow-dark.webp"><img src="docs/screenshots/web/follow-light.webp" width="49%" alt="A game's menu: follow either team, show the score in the tab, go to a team's schedule"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/settings-dark.webp"><img src="docs/screenshots/web/settings-light.webp" width="49%" alt="Settings: your teams, your sports and their order, appearance and alerts"></picture>
 </p>
+<!-- slot:teams:end -->
 
 ## On the web
 
 Scoreline also runs in any browser at **[scoreline-web.lame-o.workers.dev](https://scoreline-web.lame-o.workers.dev)**: the scores and the live game pages, on a desktop beside the scores, or on your phone, where it installs to the home screen like an app.
 
+<!-- slot:web:start -->
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/phones-dark.webp">
-    <img src="docs/screenshots/web/phones-light.webp" width="100%" alt="Scoreline on two phones: the scores, and a live game">
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/tiles-dark.webp"><img src="docs/screenshots/web/tiles-light.webp" width="100%" alt="Scoreline in a browser: every live game as tiles, beside a live NFL game"></picture>
 </p>
+
+<p align="center">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/phones-dark.webp"><img src="docs/screenshots/web/phones-light.webp" width="100%" alt="Scoreline on two phones: the scores, and a live game"></picture>
+</p>
+<!-- slot:web:end -->
 
 ## Every page
 
 Every screen, in your current appearance (light or dark). Full-size 2400×1500 versions of the feature images are in [`docs/screenshots/web/2400`](docs/screenshots/web/2400).
 
 <!-- gallery:mac:start -->
-
 <!-- gallery:mac:end -->
 
 <!-- gallery:web:start -->
