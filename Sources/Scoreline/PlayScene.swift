@@ -245,6 +245,9 @@ struct TheaterState: Equatable {
     var news = false
     /// The batter at the plate by the side he stands on; nil between innings.
     var bats: PlayScene.Hand?
+    /// A pitch since the play: the next at-bat is under way, so the field
+    /// shows the live scene, not how the play ended.
+    var cleared = false
 }
 
 // MARK: - Parsing
@@ -266,9 +269,11 @@ extension PlayScene {
               let index = plays.lastIndex(where: { $0["id"].string == play.id }) else {
             return TheaterState(bats: plays.last { $0["bats"].exists }.flatMap(hand))
         }
-        let next = plays[(index + 1)...].last { $0["type"]["type"].string == "start-batterpitcher" || $0["summaryType"].string == "P" }
+        let after = plays[(index + 1)...]
+        let next = after.last { $0["type"]["type"].string == "start-batterpitcher" || $0["summaryType"].string == "P" }
         let bats = next.flatMap(hand) ?? (play.batter == nil && !play.endsInning ? play.bats : nil)
-        return TheaterState(play: play, bats: bats)
+        let pitched = after.contains { $0["pitchCoordinate"].exists && ($0["summaryType"].string == "P" || ($0["text"].string ?? "").hasPrefix("Pitch")) }
+        return TheaterState(play: play, bats: bats, cleared: pitched)
     }
 
     /// The play-result at `index`, with what led to it. Nil for anything that

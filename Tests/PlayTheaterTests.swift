@@ -166,6 +166,17 @@ extension ScorelineTests {
         check(midAtBat.play?.kind == .stolenBase && midAtBat.bats == .left, "after a steal the same batter is still up (Yelich, left)")
         let endOfHalf = plays.firstIndex { $0["id"].string == "4019080440005990057" }!
         check(PlayScene.theater(Array(plays[...endOfHalf]), side: side).bats == nil, "after the third out nobody's in the box yet")
+        // The play's end gives way to the live field once the next at-bat's first pitch is in.
+        let walkAt = plays.firstIndex { $0["id"].string == "4019080440403990057" }!
+        let nextPitch = plays[(walkAt + 1)...].firstIndex { $0["pitchCoordinate"].exists && $0["summaryType"].string == "P" }
+        check(!PlayScene.theater(Array(plays[...walkAt]), side: side).cleared, "right after a play its end stays on the field")
+        if let nextPitch {
+            let pitched = PlayScene.theater(Array(plays[...nextPitch]), side: side)
+            check(pitched.cleared && pitched.play?.id == "4019080440403990057", "…and clears at the next at-bat's first pitch")
+        } else {
+            check(false, "a pitch follows the walk in the fixture")
+        }
+        check(!midAtBat.cleared, "a steal's end stays until the next pitch to the same batter")
 
         // MARK: Choreography
 
