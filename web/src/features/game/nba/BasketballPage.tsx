@@ -32,6 +32,7 @@ import { Court } from "./Court";
 import { GameFlow } from "./GameFlow";
 import { BoxScore, InjuryReport, Leaders } from "./Players";
 import { NBAStage, StageProvider } from "./stage";
+import { CourtTheater } from "./theater/CourtTheater";
 
 /** Game seconds played, from the scoreboard's clock (until the live lane reads its own). */
 function clockElapsed(clock: GameClock | null, quarter: number): number | null {
@@ -132,6 +133,8 @@ export function useBasketballPage(game: GameContext): SportPage {
       runs={runs}
       playerRef={playerRef}
       width={sectionWidth}
+      // The play theater above it owns live moments' bursts (BasketballCelebration.courtBursts(theaterShown: live)).
+      celebrates={!live}
     />
   );
   const flowChart = <GameFlow flow={flow} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} now={now} final={event.state === "final"} quarter={quarter} runs={runs} width={sectionWidth} />;
@@ -146,6 +149,8 @@ export function useBasketballPage(game: GameContext): SportPage {
         spokenCaption={`${lead} ${spoken.top} at the right basket, ${spoken.bottom} at the left.`}
         accessory={live ? "live" : event.state === "final" ? "final" : undefined}
       >
+        {/* The play theater, above the court as on the Mac: it reads the live lane's newest plays itself, so a basket redraws only the theater. */}
+        {live ? <CourtTheater feed={feed} teams={teams} event={event} palette={palette} names={names} topIsHome={detail.topIsHome ?? false} /> : null}
         {courtChart}
       </DetailSection>
     );

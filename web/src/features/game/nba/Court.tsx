@@ -104,6 +104,8 @@ export interface CourtProps {
   readonly playerRef: (id: string, name: string) => PlayerRef | null;
   /** The section's width in points (each team's shooting shows from large). */
   readonly width: number;
+  /** Bursts for its moments (off while the play theater above it shows them: one celebration per moment). Its shot stories play either way. */
+  readonly celebrates?: boolean;
 }
 
 /** The first version of each play shown (an edit plays only what it added), and those that arrived while replaying, narrowed or pointed at. Deliberately not state. */
@@ -125,12 +127,14 @@ const EFFECTS: Readonly<Record<string, Effect>> = {
 const confettiDirection = (side: Side | null) => ((side === "bottom" ? -70 : -110) * Math.PI) / 180;
 
 export const Court = memo(function Court(props: CourtProps) {
-  const { shots, plays, palette, topName, bottomName, spokenTop, spokenBottom, players, names, live, now, quarter, streaks, runs, playerRef, width } = props;
+  const { shots, plays, palette, topName, bottomName, spokenTop, spokenBottom, players, names, live, now, quarter, streaks, runs, playerRef, width, celebrates = true } = props;
   const stage = useStageStore();
   const pinned = useStage(stage, (s) => s.pinned);
   const paused = useStage(stage, (s) => s.paused);
   const playback = useStage(stage, (s) => s.playback);
-  const level = useSettings((s) => s.celebrationLevel);
+  const settingsLevel = useSettings((s) => s.celebrationLevel);
+  // Nor does the court celebrate while the theater above it does.
+  const level = celebrates ? settingsLevel : "off";
   const reduce = useReducedMotion();
   const scheme = useColorScheme();
   const linked = useLinkedStore();
@@ -452,7 +456,7 @@ export const Court = memo(function Court(props: CourtProps) {
           ) : null}
           <canvas ref={storyCanvas} className={styles.layer} data-hidden={pointing} />
           {story?.moment.kind === "steal" ? <span key={`${story.key}-ping`} className={styles.ping} style={{ transform: `translate(${center.x}px, ${center.y}px)`, color: css(color(story.side)) }} aria-hidden="true" /> : null}
-          {story && rimPx && time == null ? (
+          {story && rimPx && time == null && celebrates ? (
             <CelebrationStage
               key={`${story.key}-stage`}
               moment={story.moment}
