@@ -100,6 +100,7 @@ export function SettingsPage() {
               </div>
               <span className={formStyles.rowSubtitle}>Confetti, sparks and fireworks when big plays happen</span>
             </div>
+            <ToggleRow title="Scoring slides" subtitle="A broadcast banner across the game when a team scores" checked={s.scoringSlides} onChange={(v) => settings.set("scoringSlides", v)} />
             <SoundsRow />
           </GroupBox>
         </FormSection>

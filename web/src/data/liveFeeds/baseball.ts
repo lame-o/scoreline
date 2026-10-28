@@ -23,6 +23,7 @@ import { battedBalls as readBattedBalls, currentAtBat, intOf, runners, type Base
 import type { Fetcher } from "../http";
 import { arr, at, bool, has, num, str, type JSONValue } from "../json";
 import { liveMoment, Tier, type Accent, type LiveMoment, type MomentKind } from "../moments";
+import { baseballFacts } from "../scoringFacts";
 
 /** The score as of the newest play the fast lane has seen. */
 export interface LiveScore {
@@ -499,7 +500,7 @@ export function baseballMoment(item: JSONValue, side: SideOf): LiveMoment | null
   const text = str(at(item, "text")) ?? "";
   const batting = side(str(at(item, "team", "id")));
   const moment = (kind: MomentKind, tier: Tier, lead: string, accents: Accent[] = []) =>
-    liveMoment({ id, chart: "plate", tier, kind, lead, detail: text, side: batting, accents });
+    liveMoment({ id, chart: "plate", tier, kind, lead, detail: text, side: batting, accents, ...(tier === Tier.score ? { facts: baseballFacts(item, batting) } : {}) });
   const runs = intOf(at(item, "scoreValue")) ?? 1;
   const off = walkOff(item);
   // The play theater's banner brings confetti for a triple, scored or not.

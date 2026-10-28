@@ -49,6 +49,7 @@ import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
 import styles from "../../core/theater/TheaterWell.module.css";
 import { drawFootballFrame, drawGridiron, GridProjection, layoutLabels, type EndZone, type FootballTeams, type Labels } from "./drawFootball";
+import { useSlideField } from "./slideField";
 
 export interface FootballTheaterProps {
   /** The live lane: the theater reads its raw entries itself. Null in previews (`preloaded`). */
@@ -165,6 +166,8 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
   const restKey = rest ? `${rest.rest.yard}|${rest.rest.gain}` : "";
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const script = useMemo(() => (play ? FootballScript.play(play) : FootballScript.rest(rest?.rest ?? DEFAULT_REST)), [play, restKey]);
+  // The scoring slide lands with this replay's climax.
+  useSlideField(state, play, script);
 
   const offense: Side = play?.offense ?? rest?.offense ?? "top";
   const dressed = useMemo(

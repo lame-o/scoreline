@@ -42,6 +42,7 @@ import wellStyles from "../../core/theater/TheaterWell.module.css";
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
 import { drawPitch, drawSoccerFrame, layoutLabels, type Labels, type SoccerTeams } from "./drawSoccer";
+import { useSlidePitch } from "./slidePitch";
 import styles from "./SoccerTheater.module.css";
 
 export interface SoccerTheaterProps {
@@ -127,6 +128,8 @@ export default function SoccerTheater({ feed, homeTeamID, kits, preloaded = null
 
   // The moment's script, built once (a render for anything else reuses it).
   const script = useMemo(() => (scene ? SoccerScript.build(scene) : new SoccerScript()), [scene]);
+  // The scoring slide lands with this replay's climax.
+  useSlidePitch(state, scene, script);
   const dressed = useMemo(
     () => dress(kits, scheme),
     // eslint-disable-next-line react-hooks/exhaustive-deps

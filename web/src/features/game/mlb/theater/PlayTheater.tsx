@@ -55,6 +55,7 @@ import { useChartMoment } from "../../core/moments";
 import { TheaterRenderer } from "./renderer";
 import { theaterInk } from "./theaterInk";
 import { useMeasuredTheater } from "./useStatcast";
+import { useSlidePlate } from "./slidePlate";
 import styles from "./PlayTheater.module.css";
 
 export type { TeamKit, TheaterKits } from "../../../../data/mlb/theaterTeams";
@@ -139,6 +140,8 @@ export function PlayTheater({ state: lane, bases, batting, kits, event, frozen =
   const ink = useMemo(() => theaterInk(scheme), [scheme]);
   // Statcast's batted-ball line on the stamp (a grounder's without its first hop's distance).
   const statcast = play?.readout ?? null;
+  // The scoring slide lands with this replay's climax.
+  useSlidePlate(state, play, script);
 
   useEffect(() => {
     if (!canvas.current) return;
