@@ -23,6 +23,7 @@
 import { CameraFrame, CameraTrack, shoot, type Shot } from "./playCamera";
 import { coverer, isOut, type Hand, type PlayScene } from "./playScene";
 import { Ballpark, distanceBetween, easeValue, fieldPoint, ground, ORIGIN, samePoint, type Ease, type FieldPoint, type Point } from "./theaterField";
+import { RigTrack, type RigFacing } from "../theater/rig";
 
 export type Team = "fielding" | "batting";
 
@@ -311,6 +312,8 @@ export class PlayScript {
   /** The broadcast camera, shot by shot, and where it looks at each frame. */
   shots: Shot[] = [];
   camera = new CameraTrack();
+  /** Each figure's motion through the replay (its heading, stride and footfalls), measured once: by actor. */
+  rig: RigTrack[] = [];
 
   /** The field with nobody moving: no play yet. */
   static rest(rest: Rest): PlayScript {
@@ -318,6 +321,7 @@ export class PlayScript {
     for (let n = 1; n <= 9; n++) script.actors.push(new Actor("fielding", Ballpark.position(n), { kind: "fielder", n }, { crouch: n === 2 }));
     if (rest.bats) script.actors.push(new Actor("batting", Ballpark.box(rest.bats), { kind: "batter" }, { bats: rest.bats }));
     for (let base = 1; base <= 3; base++) if (rest.bases[base - 1]) script.actors.push(new Actor("batting", Ballpark.lead(base)));
+    script.measureBodies();
     return script;
   }
 
@@ -349,7 +353,38 @@ export class PlayScript {
     b.headline();
     b.measureStamp();
     shoot(b);
+    b.script.measureBodies();
     return b.script;
+  }
+
+  /**
+   * Each figure's motion, measured once (`RigTrack`, an 8.5 ft figure), and
+   * what each faces when he isn't running somewhere: a fielder the batter
+   * until the ball's in play, then the ball until the play is over; the
+   * catcher his pitcher; the batter the plate; a runner the mound; anyone
+   * with the ball coming to him or leaving his hand, it.
+   */
+  measureBodies(): void {
+    const contact = this.batted != null ? (this.flights[this.batted]?.start ?? null) : null;
+    const settle = this.settle;
+    this.rig = this.actors.map((actor) =>
+      RigTrack.measure(0, this.duration, 8.5, (t) => actor.position(t), (t): RigFacing => {
+        const a = actor.actions.find((a) => t > a.at - (a.kind === "throwBall" ? 0.5 : 0.45) && t < a.at + 0.2);
+        if (a) return { point: a.toward };
+        const role = actor.role;
+        switch (role.kind) {
+          case "fielder": {
+            if (role.n === 2) return { point: Ballpark.rubber };
+            const ball = contact != null && t > contact + 0.05 && t < settle ? this.ball(t) : null;
+            return { point: ball ? ground(ball) : ORIGIN };
+          }
+          case "batter":
+            return { point: ORIGIN };
+          case "runner":
+            return { point: Ballpark.rubber };
+        }
+      }),
+    );
   }
 
   /** The ball at t: in flight, held where its last flight ended, or gone. */

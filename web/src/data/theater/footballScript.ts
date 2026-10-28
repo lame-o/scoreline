@@ -26,6 +26,7 @@ import { Flight, Move, type Arc } from "../mlb/playScript";
 import { easeValue, fieldPoint, ground, type Ease, type FieldPoint, type Point } from "../mlb/theaterField";
 import type { Side } from "../models";
 import { kindIs, rounded, type FootballScene, type Lane, type Position } from "./footballScene";
+import { RigTrack, type RigFacing } from "./rig";
 import { CameraPath, CameraRig, clearing, intersects, maxY, midX, unionAll } from "./theaterKit";
 
 // MARK: - The field
@@ -278,6 +279,8 @@ export class FootballScript {
   yaw = Gridiron.yaw;
   /** The ball is put away from here (a kick that's through the posts). */
   ballGone = Infinity;
+  /** Each player's motion through the replay (his heading, stride and footfalls), measured once: by player. */
+  rig: RigTrack[] = [];
 
   /** The room the camera keeps round a spot, at this script's yaw. */
   room(p: FieldPoint, figure: boolean): Rect {
@@ -313,6 +316,16 @@ export class FootballScript {
         return { x: hand.from.x + (hand.to.x - hand.from.x) * u, y: hand.from.y + (hand.to.y - hand.from.y) * u, z: hand.from.z };
       }
     }
+  }
+
+  /** Who has the ball in his hands at t (as `ball` has it), since when, and until when it leaves them (∞: it never does). */
+  carrier(t: number): { readonly player: number; readonly from: number; readonly until: number } | null {
+    for (let i = this.legs.length - 1; i >= 0; i--) {
+      const leg = this.legs[i]!;
+      if (!(t >= leg.from)) continue;
+      return leg.hand.kind === "carry" ? { player: leg.hand.player, from: leg.from, until: i + 1 < this.legs.length ? leg.until : Infinity } : null;
+    }
+    return null;
   }
 
   /** The ball's flight at t, when it's in the air. */
@@ -351,13 +364,48 @@ export class FootballScript {
     b.script.next = b.script.lines;
     b.script.legs = [{ from: 0, until: 0, hand: { kind: "spot", point: { x: 0, y: Gridiron.y(rest.yard), z: 0.6 } } }];
     b.script.camera = new CameraPath(b.restFrame());
+    b.script.measureBodies();
     return b.script;
   }
 
   static play(scene: FootballScene): FootballScript {
     const b = new Builder(scene, Gridiron.y(scene.from), scene.shotgun);
     b.build();
+    b.script.measureBodies();
     return b.script;
+  }
+
+  /**
+   * Each player's motion, measured once (`RigTrack`, an 8.5 ft figure), and
+   * what each faces when he isn't running somewhere: the ball he's taking,
+   * throwing or tackling at; dropping back before the ball's away (a
+   * quarterback's drop, a defender's backpedal), up the field; once it's
+   * live, the ball; else up the field, his own way.
+   */
+  measureBodies(): void {
+    let snap = Infinity;
+    for (const p of this.players) if (p.set != null) snap = Math.min(snap, p.set);
+    if (!Number.isFinite(snap)) snap = 0.5;
+    const settle = this.settle;
+    this.rig = this.players.map((player) => {
+      const way = player.team === "offense" ? 1 : -1;
+      return RigTrack.measure(0, this.duration, 8.5, (t) => player.position(t), (t): RigFacing => {
+        const here = player.position(t);
+        const ahead = { x: here.x, y: here.y + 60 * way };
+        const a = player.actions.find((a) => t > a.at - 0.45 && t < a.at + 0.2);
+        if (a) return { point: a.kind === "spike" || a.kind === "kick" ? ahead : a.toward };
+        if (t > snap && t < snap + 1.6) {
+          const p = player.position(t - 0.05);
+          const q = player.position(t + 0.05);
+          if ((q.y - p.y) * way < -0.5 * Math.hypot(q.x - p.x, q.y - p.y)) return { point: ahead, always: true };
+        }
+        if (t > snap + 0.3 && t < settle) {
+          const ball = this.ball(t);
+          if (ball && Math.hypot(ball.x - here.x, ball.y - here.y) > 2) return { point: ground(ball) };
+        }
+        return { point: ahead };
+      });
+    });
   }
 }
 
