@@ -115,9 +115,10 @@ describe("choreography", () => {
     expect(fielders.length).toBe(9);
     expect(fielders.every((a) => a.team === "batting")).toBe(true);
   });
-  it("every play's figures and ball stay finite, the ball never under the grass; every replay runs 1.2–4.4 s", { timeout: 30_000 }, () => {
-    const all = plays.flatMap((p, i) => (typeOf(p) === "play-result" ? (parse(plays, i, side, names) ?? []) : [])).map((s) => script(s));
-    for (const s of all) {
+  it("every play's figures and ball stay finite, the ball never under the grass; every replay runs 1.2–4.4 s (one with runs, told in order, up to 5.6)", { timeout: 30_000 }, () => {
+    const scenes = plays.flatMap((p, i) => (typeOf(p) === "play-result" ? (parse(plays, i, side, names) ?? []) : []));
+    const all = scenes.map((s) => script(s));
+    all.forEach((s, i) => {
       for (let t = 0; t <= s.duration; t += 0.1) {
         for (const a of s.actors) {
           const p = a.position(t);
@@ -126,9 +127,10 @@ describe("choreography", () => {
         const ball = s.ball(t);
         if (ball) expect(Number.isFinite(ball.x) && Number.isFinite(ball.y) && Number.isFinite(ball.z) && ball.z >= -0.01).toBe(true);
       }
+      // A run-scoring play tells its runs in order once the ball's been handled (playCredits.test.ts): a little longer.
       expect(s.settle - 0.75).toBeGreaterThanOrEqual(1.2);
-      expect(s.settle - 0.75).toBeLessThanOrEqual(4.4);
-    }
+      expect(s.settle - 0.75).toBeLessThanOrEqual(scenes[i]!.runs === 0 ? 4.4 : 5.6);
+    });
   });
   it("in every play of the game, knees and elbows bend only their own way, never past folded (the poses and every blend between them)", { timeout: 60_000 }, () => {
     const scenes = plays.flatMap((p, i) => (typeOf(p) === "play-result" ? (parse(plays, i, side, names) ?? []) : []));
