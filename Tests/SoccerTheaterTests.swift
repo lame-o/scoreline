@@ -169,6 +169,19 @@ extension ScorelineTests {
                   "news: a moment that arrives while the page is open, or one 25 s old; not one ten minutes old, nor one already showing")
         }
 
+        // MARK: Between moments
+
+        if let s = header?.scene {
+            let fresh = SoccerTheaterState(scene: s, news: true), old = SoccerTheaterState(scene: s, news: false)
+            check(SoccerTheater.shown(old, replaying: nil, rested: nil) == nil && SoccerTheater.shown(fresh, replaying: nil, rested: nil) == s,
+                  "opening the page on an old moment shows the quiet pitch; a fresh one replays")
+            check(SoccerTheater.shown(fresh, replaying: s.id, rested: nil) == s && SoccerTheater.shown(fresh, replaying: s.id, rested: s.id) == nil,
+                  "a moment's end holds (the scorer wheeling away, the stamp), then the pitch goes quiet")
+            let quiet = SoccerScript()
+            check(quiet.actors.isEmpty && quiet.flights.isEmpty && quiet.stamp == .infinity && quiet.banners.isEmpty,
+                  "…the quiet pitch: nobody on it, no ball, no trail, no stamp")
+        }
+
         // MARK: Choreography
 
         let scripts = scenes.map { ($0, SoccerScript($0)) }
@@ -377,14 +390,15 @@ extension ScorelineTests {
 
         // MARK: The dive
 
+        // Toward a ball on his left at 0.6 (a top corner) to 1.8 rad (along the grass) off upright, a little in front of him.
+        func over(_ a: Double) -> RigVector { RigVector(0.15 * sin(a), 0.8 * sin(a), 0.8 * cos(a)) }
         let lines = stride(from: 0.6, through: 1.8, by: 0.3).allSatisfy { a in
-            let f = Figure(Pose.stretch(a), at: .zero, height: 40)
-            func angle(_ p: CGPoint, _ q: CGPoint) -> Double { atan2(q.x - p.x, p.y - q.y) }
-            let reach = hypot(f.near.hand.x - f.hip.x, f.near.hand.y - f.hip.y), head = hypot(f.head.x - f.hip.x, f.head.y - f.hip.y)
-            return abs(angle(f.hip, f.neck) - a) < 0.01 && abs(angle(f.neck, f.near.hand) - a) < 0.15 && abs(angle(f.near.foot, f.hip) - a) < 0.15
-                && reach > head
+            let k = RigSkeleton(.stretch(toward: over(a))), line = over(a) / (over(a) * over(a)).sum().squareRoot()
+            func along(_ p: RigVector, _ q: RigVector) -> Double { let d = q - p; return (d * line).sum() / (d * d).sum().squareRoot() }
+            let reach = ((k.hands.1 - k.hip) * line).sum(), head = ((k.head - k.hip) * line).sum()
+            return along(k.hip, k.neck) > 0.99 && along(k.neck, k.hands.1) > 0.97 && along(k.feet.1, k.hip) > 0.97 && reach > head
         }
-        check(lines && Pose.stretch(0.7).lean < Pose.stretch(1.6).lean,
+        check(lines && RigPose.stretch(toward: over(0.7)).bank < RigPose.stretch(toward: over(1.6)).bank,
               "a dive at full stretch: one line from the trailing foot through the body to the leading hand, beyond his head; "
                 + "leaning for a top corner, flat for a ball along the grass")
         let dives = scripts.compactMap { _, s in s.actors.first { $0.dive != nil }.flatMap(\.dive).map { (s, $0) } }
@@ -482,6 +496,16 @@ extension ScorelineTests {
             check(bursts.count == 1 && bursts[0].cue.glint && !bursts[0].cue.bursts, "a save glints in the keeper's hands (sparks, no confetti)")
         }
 
+        // Every player, every frame, every moment: the strikes, the dives and every blend between them.
+        let broken = scripts.compactMap { scene, s -> String? in
+            let teams = SoccerTeams(attacking: Uniform(.red), defending: Uniform(.blue))
+            return jointsBreak(s.duration, s.actors.count) { i, t in
+                SoccerFrame(scene: scene, script: s, t: t, teams: teams, ink: TheaterInk(.dark), size: CGSize(width: 312, height: 156))
+                    .pose(s.actors[i], i, at: s.actors[i].position(at: t), unit: 1.1 / 2.5).0
+            }.map { "\(scene.shooter): \($0)" }
+        }
+        check(broken.isEmpty, "in every moment, knees and elbows bend only their own way, never past folded", broken.prefix(3).joined(separator: " | "))
+
         // MARK: Drawn
 
         // The last frame of a replay is the moment at rest, pixel for pixel.
@@ -489,13 +513,10 @@ extension ScorelineTests {
             let script = SoccerScript(s)
             let teams = SoccerTeams(attacking: Uniform(.red), defending: Uniform(.blue))
             func frame(_ t: Double) -> Data? {
-                let view = ZStack {
-                    PitchLayer(ink: TheaterInk(.dark), camera: script.frame(at: t))
-                    SoccerFrame(scene: s, script: script, t: t, teams: teams, ink: TheaterInk(.dark), size: CGSize(width: 312, height: 156))
-                }
-                .frame(width: 312, height: 156)
-                .background(Color(white: 0.16))
-                .environment(\.colorScheme, .dark)
+                let view = SoccerFrame(scene: s, script: script, t: t, teams: teams, ink: TheaterInk(.dark), size: CGSize(width: 312, height: 156))
+                    .frame(width: 312, height: 156)
+                    .background(Color(white: 0.16))
+                    .environment(\.colorScheme, .dark)
                 let renderer = ImageRenderer(content: view)
                 renderer.scale = 2
                 return renderer.cgImage?.dataProvider?.data as Data?

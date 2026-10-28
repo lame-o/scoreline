@@ -246,6 +246,16 @@ extension ScorelineTests {
         let lengths = all.map { $0.settle - 0.75 }
         check(lengths.allSatisfy { $0 >= 1.2 && $0 <= 4.4 }, "every replay runs 1.2–4.4 s before it settles",
               "\(String(format: "%.2f", lengths.min() ?? 0))–\(String(format: "%.2f", lengths.max() ?? 0))")
+        // Every figure, every frame, every play: the poses and every blend between them.
+        let broken = zip(scenes, all).compactMap { scene, s -> String? in
+            let frame = { (t: Double) in PlayFrame(scene: scene, script: s, t: t, teams: TheaterTeams(batting: .blue, fielding: .gray),
+                                                   ink: TheaterInk(.dark), size: CGSize(width: 312, height: 156)) }
+            return jointsBreak(s.duration, s.actors.count) { i, t in
+                frame(t).pose(s.actors[i], i, at: s.actors[i].position(at: t), unit: 1.1 / 8.5).0
+            }.map { "\(scene.text.prefix(30)): \($0)" }
+        }
+        check(broken.isEmpty, "in every play of the game, knees and elbows bend only their own way, never past folded",
+              broken.prefix(3).joined(separator: " | "))
 
         // MARK: Drawn
 

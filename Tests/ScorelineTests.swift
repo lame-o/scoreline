@@ -62,6 +62,7 @@ struct ScorelineTests {
         playBroadcast()
         footballTheater()
         soccerTheater()
+        theaterRig()
         statcast()
         playStatcast()
 

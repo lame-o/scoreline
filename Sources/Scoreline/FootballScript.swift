@@ -263,6 +263,9 @@ struct FootballScript: Equatable {
     var yaw = Gridiron.yaw
     /// The ball is put away from here (a kick that's through the posts).
     var ballGone = Double.infinity
+    /// Each player's motion through the replay (his heading, stride and
+    /// footfalls), measured once: by player.
+    var rig: [RigTrack] = []
 
     /// The room the camera keeps round a spot, at this script's yaw.
     func room(_ p: FieldPoint, figure: Bool) -> CGRect { Gridiron.room(p, figure: figure, yaw: yaw) }
@@ -283,6 +286,13 @@ struct FootballScript: Equatable {
             let u = PlayScript.Ease.inOut.value(leg.until > leg.from ? (at - leg.from) / (leg.until - leg.from) : 1)
             return FieldPoint(x: from.x + (to.x - from.x) * u, y: from.y + (to.y - from.y) * u, z: from.z)
         }
+    }
+
+    /// Who has the ball in his hands at t (as `ball(at:)` has it), since
+    /// when, and until when it leaves them (∞: it never does).
+    func carrier(at t: Double) -> (player: Int, from: Double, until: Double)? {
+        guard let i = legs.lastIndex(where: { t >= $0.from }), case let .carry(p) = legs[i].hand else { return nil }
+        return (p, legs[i].from, i + 1 < legs.count ? legs[i].until : .infinity)
     }
 
     /// The ball's flight at t, when it's in the air.
@@ -328,12 +338,40 @@ extension FootballScript {
         b.script.legs = [Leg(from: 0, until: 0, hand: .spot(FieldPoint(x: 0, y: Gridiron.y(rest.yard), z: 0.6)))]
         b.script.camera = CameraPath(rest: b.restFrame())
         self = b.script
+        measureBodies()
     }
 
     init(_ scene: FootballScene) {
         var b = Builder(scene: scene, line: Gridiron.y(scene.from), shotgun: scene.shotgun)
         b.build()
         self = b.script
+        measureBodies()
+    }
+
+    /// Each player's motion, measured once (`RigTrack`, an 8.5 ft figure),
+    /// and what each faces when he isn't running somewhere: the ball he's
+    /// taking, throwing or tackling at; dropping back before the ball's away
+    /// (a quarterback's drop, a defender's backpedal), up the field; once
+    /// it's live, the ball; else up the field, his own way.
+    mutating func measureBodies() {
+        let snap = players.compactMap(\.set).min() ?? 0.5, settle = settle, script = self
+        rig = players.map { player in
+            let way: Double = player.team == .offense ? 1 : -1
+            return RigTrack(from: 0, through: duration, height: 8.5, position: player.position(at:)) { t in
+                let here = player.position(at: t), ahead = CGPoint(x: here.x, y: here.y + 60 * way)
+                if let a = player.actions.first(where: { t > $0.at - 0.45 && t < $0.at + 0.2 }) {
+                    return RigFacing(point: a.kind == .spike || a.kind == .kick ? ahead : a.toward)
+                }
+                if t > snap, t < snap + 1.6 {
+                    let a = player.position(at: t - 0.05), b = player.position(at: t + 0.05)
+                    if (b.y - a.y) * way < -0.5 * hypot(b.x - a.x, b.y - a.y) { return RigFacing(point: ahead, always: true) }
+                }
+                if t > snap + 0.3, t < settle, let ball = script.ball(at: t), hypot(ball.x - here.x, ball.y - here.y) > 2 {
+                    return RigFacing(point: ball.ground)
+                }
+                return RigFacing(point: ahead)
+            }
+        }
     }
 
     /// Assembles a script beat by beat.

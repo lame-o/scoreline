@@ -188,6 +188,9 @@ struct SoccerScript: Equatable {
     var camera: [CameraFrame] = []
     /// The cut behind the goal for a shot on target.
     var reverse: Reverse?
+    /// Each player's motion through the replay (his heading, stride and
+    /// footfalls), measured once: by actor.
+    var rig: [RigTrack] = []
 
     /// From just after the strike until the finish has been seen, the
     /// replay cuts to a camera behind the net the shot is going at, held
@@ -239,6 +242,24 @@ extension SoccerScript {
         b.measureStamp()
         b.shoot()
         self = b.script
+        measureBodies()
+    }
+
+    /// Each player's motion, measured once (`RigTrack`, a 2.5 m figure), and
+    /// what each faces when he isn't running somewhere: what he's striking,
+    /// heading, throwing or taking, and from his moment on whoever he's
+    /// celebrating toward or the goal he turned it into; else the ball.
+    mutating func measureBodies() {
+        let script = self
+        rig = actors.map { actor in
+            RigTrack(from: 0, through: duration, height: 2.5, position: actor.position(at:)) { t in
+                let held: [Actor.Action.Kind] = [.gather, .celebrate, .dejected]
+                if let a = actor.actions.last(where: { t > $0.at - 0.45 && (t < $0.at + 0.2 || held.contains($0.kind)) }) {
+                    return RigFacing(point: a.toward)
+                }
+                return script.ball(at: t).map { RigFacing(point: $0.ground) }
+            }
+        }
     }
 
     // Replay pace: metres a second, and the shortest and longest beats.
