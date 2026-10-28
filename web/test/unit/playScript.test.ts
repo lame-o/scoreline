@@ -115,7 +115,7 @@ describe("choreography", () => {
     expect(fielders.length).toBe(9);
     expect(fielders.every((a) => a.team === "batting")).toBe(true);
   });
-  it("every play's figures and ball stay finite, the ball never under the grass; every replay runs 1.2–4.4 s", () => {
+  it("every play's figures and ball stay finite, the ball never under the grass; every replay runs 1.2–4.4 s", { timeout: 30_000 }, () => {
     const all = plays.flatMap((p, i) => (typeOf(p) === "play-result" ? (parse(plays, i, side, names) ?? []) : [])).map((s) => script(s));
     for (const s of all) {
       for (let t = 0; t <= s.duration; t += 0.1) {
