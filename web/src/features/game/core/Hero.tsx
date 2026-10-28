@@ -61,9 +61,11 @@ export interface HeroProps {
   /** Wraps the card so the page can measure it (docking) and tuck it. */
   readonly heroRef?: React.Ref<HTMLDivElement>;
   readonly tuckRef?: React.Ref<HTMLDivElement>;
+  /** Over the card, in its frame (the scoring slide's host). */
+  readonly overlay?: ReactNode;
 }
 
-export function Hero({ event, palette, scores, beats, surface, clockFallback, clock, liveSecond, possession, possessionInAir = false, chip = null, note = null, staleSince, spoken, caption, trophy = null, badge = null, heroRef, tuckRef }: HeroProps) {
+export function Hero({ event, palette, scores, beats, surface, clockFallback, clock, liveSecond, possession, possessionInAir = false, chip = null, note = null, staleSince, spoken, caption, trophy = null, badge = null, heroRef, tuckRef, overlay = null }: HeroProps) {
   const glint = useRef<HTMLSpanElement>(null);
   const level = useSettings((s) => s.celebrationLevel);
   const reduce = useReducedMotion();
@@ -132,6 +134,7 @@ export function Hero({ event, palette, scores, beats, surface, clockFallback, cl
           <span className={styles.glintClip} aria-hidden="true">
             <span ref={glint} className={styles.glint} style={{ "--glint": dark ? 0.22 : 0.4 } as React.CSSProperties} />
           </span>
+          {overlay}
         </div>
         {badge}
         {staleSince != null ? (

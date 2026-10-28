@@ -871,11 +871,14 @@ export function inkContrast(p: SlidePaint): number {
  * full. A web addition: its small type is held to the page's text contrast.
  */
 export function smallInk(p: SlidePaint, alpha: number): number {
-  const slab = luminanceOf(p.slab);
-  const ink = inkLuminance(p.lightInk);
-  // The ink at `alpha` over the slab, blended in linear light (close enough for a check of the threshold).
-  const mixed = ink * alpha + slab * (1 - alpha);
-  const contrast = (Math.max(slab, mixed) + 0.05) / (Math.min(slab, mixed) + 0.05);
+  const slab = toRGB(p.slab);
+  // The ink at `alpha` over the slab, composited as the page does (in sRGB): white, or #141414.
+  const ink = p.lightInk ? 1 : 20 / 255;
+  const linear = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const luminance = (rgb: readonly number[]) => 0.2126 * linear(rgb[0]!) + 0.7152 * linear(rgb[1]!) + 0.0722 * linear(rgb[2]!);
+  const back = luminance(slab);
+  const mixed = luminance(slab.map((c) => ink * alpha + c * (1 - alpha)));
+  const contrast = (Math.max(back, mixed) + 0.05) / (Math.min(back, mixed) + 0.05);
   return contrast >= 4.5 ? alpha : 1;
 }
 
