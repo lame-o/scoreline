@@ -292,11 +292,9 @@ describe("who's up", () => {
     expect(playOnStage(after, false, null, null)?.id).toBe(id);
     expect(playOnStage({ ...pitched, news: false }, true, null, null)).toBeNull();
   });
-  it("the half-inning and the batter's plate appearance, for Statcast", () => {
+  it("the plate appearance, for MLB's feed: the half-inning, the batter's surname, his trip to the plate", () => {
     const single = scene("4019080440003990057");
-    expect(single?.inning).toBe(1);
-    expect(single?.top).toBe(true);
-    expect(single?.batterID).not.toBeNull();
-    expect(single?.batterOccurrence).toBe(0);
+    expect(single?.appearance).toMatchObject({ inning: 1, top: true, occurrence: 0, runnerPlay: null });
+    expect(single?.during).toBeNull();
   });
 });

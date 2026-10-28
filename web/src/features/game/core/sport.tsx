@@ -18,6 +18,7 @@
  */
 import { useEffect, useRef, type ReactNode } from "react";
 import type { GameDetail } from "../../../data/gameDetail";
+import type { HeaderLedger } from "../../../data/headerSync";
 import type { AccessoryTier } from "../../../data/matchRules";
 import type { GameClock, ScoreEvent, Side } from "../../../data/models";
 import type { Section } from "../../../data/sections";
@@ -44,6 +45,8 @@ export interface GameContext {
   readonly leagueID: string | null;
   /** An out-of-cycle detail refresh (the fast lane saw a score). */
   readonly refresh: () => void;
+  /** What the header has said, period by period: summary-driven sections are kept no older than it (core/headerSync.tsx). */
+  readonly header?: HeaderLedger;
 }
 
 /** What a sport's page gives the core. */
