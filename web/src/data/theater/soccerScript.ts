@@ -1407,6 +1407,9 @@ export class Builder {
      * before the camera catches up), looking `ahead` at where everyone's
      * going, and minding (by `reach`) men just past the edge of the view.
      */
+    // Before the stamp's care begins, every track asks the same framing at the same instants: each asked once (a web
+    // addition; the samples are the Swift's, each care level's track the same).
+    const plain = new Map<number, CameraFrame>();
     const track = (early: number, margin: number, ahead: number, reach: number): CameraFrame[] =>
       CameraFollow.samples(script.settle, (t) => {
         let k = 0;
@@ -1417,10 +1420,16 @@ export class Builder {
           }
         }
         const shot = shots[k]!;
-        const rooms = shot.rooms(script, t, goal);
         // (Behind the cut from behind the goal, the main camera makes room for the stamp unseen; on it, never before
         // the shot's there: it pushes in for the shot, it doesn't widen for a stamp to come.)
-        if (!(t >= Math.min(Math.max(stamp - early, arrive + 0.05), reverse?.from ?? Infinity))) return PitchCamera.fitting(rooms, band(t), shot.closest);
+        if (!(t >= Math.min(Math.max(stamp - early, arrive + 0.05), reverse?.from ?? Infinity))) {
+          const known = plain.get(t);
+          if (known) return known;
+          const frame = PitchCamera.fitting(shot.rooms(script, t, goal), band(t), shot.closest);
+          plain.set(t, frame);
+          return frame;
+        }
+        const rooms = shot.rooms(script, t, goal);
         // The stamp never sits on anyone in the play, in view or not (a teammate running to the scorer).
         const everyone: Room[] = [];
         for (const a of principals) {
@@ -1656,6 +1665,9 @@ export const PitchCamera = {
     const { tightest, widest } = PitchCamera;
     for (let pass = 0; pass < 6; pass++) {
       const b = PitchCamera.basis(frame, angle);
+      // (Basis.tangent, inline for the six points round each item: the camera's hottest loop, a few thousand
+      // calls a framing while the stamp's corner is kept clear; the same arithmetic, without an object a point.)
+      const { eye: from, forward: fw, right: rt, up: uw } = b;
       const box = (item: Room): { u0: number; u1: number; v0: number; v1: number } => {
         const p = item.point;
         const below = item.figure ? 0.3 : 0.5;
@@ -1665,20 +1677,24 @@ export const PitchCamera = {
         let u1 = -Infinity;
         let v0 = Infinity;
         let v1 = -Infinity;
-        for (const q of [
-          { x: p.x, y: p.y, z: p.z - below },
-          { x: p.x, y: p.y, z: p.z + above },
-          { x: p.x - half, y: p.y, z: p.z },
-          { x: p.x + half, y: p.y, z: p.z },
-          { x: p.x, y: p.y - half, z: p.z },
-          { x: p.x, y: p.y + half, z: p.z },
-        ]) {
-          const t = b.tangent(q);
-          u0 = Math.min(u0, t.u);
-          u1 = Math.max(u1, t.u);
-          v0 = Math.min(v0, t.v);
-          v1 = Math.max(v1, t.v);
-        }
+        const at = (x: number, y: number, z: number) => {
+          const dx = x - from.x;
+          const dy = y - from.y;
+          const dz = z - from.z;
+          const d = Math.max(dx * fw.x + dy * fw.y + dz * fw.z, 0.5);
+          const u = (dx * rt.x + dy * rt.y + dz * rt.z) / d;
+          const v = (dx * uw.x + dy * uw.y + dz * uw.z) / d;
+          u0 = Math.min(u0, u);
+          u1 = Math.max(u1, u);
+          v0 = Math.min(v0, v);
+          v1 = Math.max(v1, v);
+        };
+        at(p.x, p.y, p.z - below);
+        at(p.x, p.y, p.z + above);
+        at(p.x - half, p.y, p.z);
+        at(p.x + half, p.y, p.z);
+        at(p.x, p.y - half, p.z);
+        at(p.x, p.y + half, p.z);
         return { u0, u1, v0, v1 };
       };
       const boxes = items.map(box);
@@ -1702,16 +1718,33 @@ export const PitchCamera = {
         const bystanders = others.map(box);
         // (Clearing one man can bring the next in: a few more goes than there are usually men to clear.)
         for (let k = 0; k < 10; k++) {
-          const across = (u: number) => 0.5 + (u - cu) / (2 * h * aspect);
-          const upward = (v: number) => 0.5 + (v - cv) / (2 * h);
+          const wide = 2 * h * aspect;
+          const tall = 2 * h;
+          const across = (u: number) => 0.5 + (u - cu) / wide;
+          const upward = (v: number) => 0.5 + (v - cv) / tall;
           const shown = (b: { u0: number; u1: number; v0: number; v1: number }) => across(b.u1) > -reach && across(b.u0) < 1 + reach && upward(b.v1) > -reach && upward(b.v0) < 1;
           // In the corner: the stamp's side of the view, low down (with `reach`, a bystander just past the edge counts).
-          const inside = [...boxes, ...bystanders.filter(shown)].filter((box) => upward(box.v0) < corner.height && (cornerRight ? across(box.u1) > 1 - corner.width : across(box.u0) < corner.width));
-          if (inside.length === 0) break;
-          const slide = cornerRight ? Math.max(...inside.map((box) => across(box.u1) - (1 - corner.width))) : Math.max(...inside.map((box) => corner.width - across(box.u0)));
-          const raise = Math.max(...inside.map((box) => corner.height - upward(box.v0)));
-          const roomSide = cornerRight ? Math.min(...boxes.map((box) => across(box.u0))) - margin : 1 - margin - Math.max(...boxes.map((box) => across(box.u1)));
-          const roomUp = 1 - headroom - Math.max(...boxes.map((box) => upward(box.v1)));
+          const cornered = (b: { u0: number; u1: number; v0: number; v1: number }) => upward(b.v0) < corner.height && (cornerRight ? across(b.u1) > 1 - corner.width : across(b.u0) < corner.width);
+          // (The furthest in, each way, by plain loops: a framing asks this thousands of times.)
+          let inside = 0;
+          let slide = -Infinity;
+          let raise = -Infinity;
+          const take = (b: { u0: number; u1: number; v0: number; v1: number }) => {
+            inside += 1;
+            slide = Math.max(slide, cornerRight ? across(b.u1) - (1 - corner.width) : corner.width - across(b.u0));
+            raise = Math.max(raise, corner.height - upward(b.v0));
+          };
+          for (const q of boxes) if (cornered(q)) take(q);
+          for (const q of bystanders) if (shown(q) && cornered(q)) take(q);
+          if (inside === 0) break;
+          let side = cornerRight ? Infinity : -Infinity;
+          let top = -Infinity;
+          for (const q of boxes) {
+            side = cornerRight ? Math.min(side, across(q.u0)) : Math.max(side, across(q.u1));
+            top = Math.max(top, upward(q.v1));
+          }
+          const roomSide = cornerRight ? side - margin : 1 - margin - side;
+          const roomUp = 1 - headroom - top;
           if (slide <= roomSide && (slide * aspect <= raise || raise > roomUp)) {
             cu += (cornerRight ? 1 : -1) * slide * 2 * h * aspect;
           } else if (raise <= roomUp) {
