@@ -228,6 +228,18 @@ struct PlayScript: Equatable {
         var actions: [Action] = []
         /// Feet first into a base, from this moment until he's gone or settled.
         var slide: Double?
+        /// At full stretch for the ball (a diving or leaping catch).
+        var dive: Dive?
+
+        /// From `start` his glove goes to `target`, reaching it at `reach`;
+        /// a dive ends on the grass at `landing`. (The figures don't draw it
+        /// yet: a lunge stands in.)
+        struct Dive: Equatable {
+            var start: Double
+            var reach: Double
+            var target: FieldPoint
+            var landing: CGPoint
+        }
 
         static let fade = 0.3
 
@@ -529,9 +541,18 @@ extension PlayScript {
         /// The pitch as Statcast tracked it: its path, and when (seconds from
         /// its fit's start) it left the hand and crossed the front of the plate.
         let tracked: (pitch: Statcast.Pitch, release: Double, plate: Double)?
+        /// Who handled the ball, as MLB's official scorer credited it (nil: infer it).
+        let handling: PlayScene.Handling?
+        /// Each run as it crosses the plate: the runner, and when.
+        var crossings: [(actor: Int, at: Double)] = []
+        /// When a throw got away (a runner waiting on it goes on).
+        var loose: Double?
 
         init(scene: PlayScene) {
+            // MLB's official account of the runners, where it has one.
+            let scene = scene.official
             self.scene = scene
+            handling = scene.handling
             hand = scene.bats ?? .right
             if let p = scene.measured?.pitch, let plate = p.plateTime, let release = p.time(at: Ballpark.release),
                release < plate, p.plate.y >= 0.3 {
@@ -610,6 +631,11 @@ extension PlayScript {
         mutating func ballInPlay() {
             let trajectory = scene.flight
             var target = scene.spot.map(Ballpark.feet) ?? guessSpot()
+            // Marked at the plate, though a fielder out in the field took it (an upstream glitch): where he plays.
+            if atThePlate(target) { target = guessSpot() }
+            // A ground ball an outfielder fielded, marked where it got through the infield: on to him.
+            let through = self.through(target)
+            if let through { target = through }
             let caught: Bool = switch scene.kind {
             case .flyOut, .lineOut, .popOut, .foulOut, .sacrificeFly: true
             case .doublePlay, .triplePlay: trajectory != .ground
@@ -665,12 +691,12 @@ extension PlayScript {
                     time = min(max(1.15 + distance / 600, 1.2), 1.5); arc = .arc(95 + distance * 0.1); ease = .linear
                 }
                 land = contact + time
-                to = FieldPoint(target, z: caught ? 4.5 : 0)
+                to = FieldPoint(target, z: caught ? (scene.effort == .diving ? 1.2 : 4.5) : 0)
                 script.flights.append(Flight(start: contact, end: land, from: contactPoint, to: to, arc: arc, ease: ease))
                 if scene.kind == .homeRun { over = contact + time * min(max((fence - 2) / max(distance, 1), 0), 1) }
             }
 
-            let first = scene.fielders.first ?? scene.error ?? Ballpark.nearest(to: target)
+            let first = handling?.fielder ?? scene.fielders.first ?? scene.error ?? Ballpark.nearest(to: target)
             // Everyone else leans toward the ball.
             for n in 1...9 where n != first && n != 2 {
                 let home = Ballpark.position(n)
@@ -680,6 +706,7 @@ extension PlayScript {
                 script.actors[fielder(n)].move(to: [CGPoint(x: home.x + dx / d * step, y: home.y + dy / d * step)],
                                                from: contact + 0.1, to: contact + 0.75, ease: .out)
             }
+            if through != nil || handling?.deflection != nil { reachForIt(fielded: first) }
 
             if scene.kind == .homeRun {
                 // The outfielder runs back to the track and watches it go.
@@ -693,6 +720,7 @@ extension PlayScript {
                 script.stamp = over + 0.05
                 // The trot: quicker than the game's, so the replay ends with him crossing the plate.
                 runners(start: contact + 0.3, pace: 140, outs: [:])
+                sequenceTrot(after: over + Self.trotCut, pace: 140)
                 return
             }
 
@@ -709,15 +737,18 @@ extension PlayScript {
                 script.actors[f1].act(.scoop, at: land, toward: .zero)
                 script.landing = Landing(point: target, mark: scene.runners.contains(where: \.isOut) ? .out : .hit, at: land)
             } else {
-                // A hit falls in; the fielder gets to it a beat later (a measured one where it hops to him).
-                held = reached ?? land + 0.3
+                // A hit falls in; the fielder gets to it a beat later (a measured one where it hops to him,
+                // one through the infield as it gets to him).
+                held = reached ?? land + (through == nil ? 0.3 : 0)
                 script.actors[f1].move(to: [target], from: contact + 0.1, to: held, ease: .out)
                 script.actors[f1].act(.scoop, at: held, toward: .zero)
                 script.landing = Landing(point: target, mark: .hit, at: reached ?? land)
             }
+            if let effort = scene.effort { stretch(f1, effort, for: to, at: caught ? land : held) }
 
             let throwing = scene.text.contains("throwing error")
-            if scene.error != nil, !throwing, scene.fielders.count <= 1 {
+            // MLB's credits say who booted it, and every throw (one that got away too); else ESPN's text.
+            if handling?.fumble != nil || (handling == nil && scene.error != nil && !throwing && scene.fielders.count <= 1) {
                 // A fielding error: the ball gets away from him.
                 let d = max(Ballpark.distance(target), 1)
                 let loose = CGPoint(x: target.x + target.x / d * 18, y: target.y + target.y / d * 18)
@@ -725,7 +756,7 @@ extension PlayScript {
                 script.actors[f1].move(to: [loose], from: held + 0.05, to: held + 0.65, ease: .out)
                 holder = loose
                 held += 0.65
-            } else if throwing, scene.fielders.count <= 1 {
+            } else if handling == nil, throwing, scene.fielders.count <= 1 {
                 // A throwing error: wide of first, and on into foul ground.
                 script.actors[fielder(3)].move(to: [Ballpark.bag(1)], from: contact + 0.1, to: held)
                 throwBall(from: holder, to: Ballpark.bag(1), at: held + 0.16, overshoot: true, by: first)
@@ -736,10 +767,11 @@ extension PlayScript {
             holder = chain.holder
             held = chain.at
 
-            if scene.runners.allSatisfy({ !$0.isOut }) && scene.error == nil {
+            if scene.runners.allSatisfy({ !$0.isOut }) && scene.error == nil && handling?.chain.isEmpty != false {
                 if distance >= 165 {
                     // A hit to the outfield: the ball comes back in to the cutoff.
-                    let relay = target.x < 0 ? 6 : 4
+                    // (Not the man who went out for it.)
+                    let relay = first == 6 ? 4 : first == 4 ? 6 : target.x < 0 ? 6 : 4
                     let cutoff = Ballpark.polar(150, degrees * 0.8)
                     script.actors[fielder(relay)].move(to: [cutoff], from: contact + 0.2, to: held)
                     throwBall(from: holder, to: cutoff, at: held + 0.25, by: first, catcher: relay)
@@ -761,6 +793,9 @@ extension PlayScript {
                 script.actors[batter].move(to: [CGPoint(x: 22, y: 22)], from: contact + 0.15, to: land + 0.2, ease: .linear)
                 script.actors[batter].vanish = land + 0.25
             }
+            // The rest of the story in order: the runs once the ball's been handled, then the batter's base.
+            let lastOut = chain.outs.values.max()
+            sequenceRuns(after: max(chain.at, lastOut ?? 0), pace: 95, before: scene.outsAfter >= 3 ? lastOut : nil)
         }
 
         /// Replay seconds a second of a measured flight takes: one pace for
@@ -774,6 +809,8 @@ extension PlayScript {
         func battedFlight(toward espnSpot: CGPoint, caught: Bool) -> BattedFlight? {
             guard let batted = scene.measured?.batted, let speed = batted.launchSpeed, let angle = batted.launchAngle else { return nil }
             var spot = batted.spot.map { Ballpark.feet(CGPoint(x: $0.x, y: $0.y)) } ?? espnSpot
+            if atThePlate(spot) { spot = espnSpot }
+            spot = through(spot) ?? spot
             let degrees = Ballpark.bearing(spot) * 180 / .pi, fence = Ballpark.fence(Ballpark.bearing(spot))
             let measured = batted.distance.map { Ballpark.polar($0, degrees) }
             if scene.kind == .homeRun {
@@ -790,7 +827,7 @@ extension PlayScript {
 
         /// A spot for a ball in play ESPN didn't place: where the fielder named stands.
         func guessSpot() -> CGPoint {
-            if let n = scene.fielders.first ?? scene.error {
+            if let n = handling?.fielder ?? scene.fielders.first ?? scene.error {
                 return n == 2 ? CGPoint(x: 0, y: 12) : n == 1 ? CGPoint(x: 0, y: 45) : Ballpark.position(n)
             }
             switch scene.kind {
@@ -835,24 +872,32 @@ extension PlayScript {
                 return at
             }.sorted { ($0 == 0 ? 4 : $0) > ($1 == 0 ? 4 : $1) }
             let receivers = inferred ? [] : Array(scene.fielders.dropFirst())
-            var steps: [(receiver: Int?, base: Int?)] = []
+            var steps: [(receiver: Int?, base: Int?, wild: Bool)] = []
             if receivers.count >= bases.count {
                 let relays = receivers.count - bases.count
-                steps = receivers.prefix(relays).map { ($0, nil) } + zip(receivers.suffix(bases.count), bases).map { ($0, $1) }
+                steps = receivers.prefix(relays).map { ($0, nil, false) } + zip(receivers.suffix(bases.count), bases).map { ($0, $1, false) }
             } else {
                 let missing = bases.count - receivers.count
-                steps = bases.prefix(missing).map { (nil, $0) } + zip(receivers, bases.suffix(receivers.count)).map { ($0, $1) }
+                steps = bases.prefix(missing).map { (nil, $0, false) } + zip(receivers, bases.suffix(receivers.count)).map { ($0, $1, false) }
             }
+            if scene.error != nil, !inferred, scene.text.contains("throwing error"), !steps.isEmpty { steps[steps.count - 1].wild = true }
+            // MLB's credits name every throw: to whom, where, in the order of the outs, and the one that got away.
+            if let handling { steps = handling.chain.map { ($0.to, $0.base, $0.wild) } }
             var holder = start, number = first, held = time + 0.16
             var outs: [Int: Double] = [:]
-            var wild = scene.error != nil && !inferred && scene.text.contains("throwing error")
             for (i, step) in steps.enumerated() {
                 guard let base = step.base else {
                     // A relay: the cutoff man lines up between the ball and the next base.
                     guard let r = step.receiver else { continue }
                     let next = steps[(i + 1)...].first { $0.base != nil }?.base ?? 2
                     let bag = Ballpark.bag(next)
-                    let cutoff = CGPoint(x: holder.x + (bag.x - holder.x) * 0.45, y: holder.y + (bag.y - holder.y) * 0.45)
+                    var cutoff = CGPoint(x: holder.x + (bag.x - holder.x) * 0.45, y: holder.y + (bag.y - holder.y) * 0.45)
+                    // A runner caught between bases (no ball in play): each man in the rundown takes it at his own
+                    // bag, or chasing him off it toward the last one.
+                    if !scene.inPlay, let own = [2: 0, 3: 1, 4: 2, 5: 3, 6: 2][r] {
+                        let a = Ballpark.bag(own), b = Ballpark.bag(own == next ? own - 1 : own)
+                        cutoff = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+                    }
                     script.actors[fielder(r)].move(to: [cutoff], from: contact + 0.15, to: held)
                     let arrive = throwBall(from: holder, to: cutoff, at: held, by: number, catcher: r)
                     holder = cutoff; number = r; held = arrive + 0.1
@@ -862,9 +907,12 @@ extension PlayScript {
                 let near = hypot(bag.x - holder.x, bag.y - holder.y) < 32
                 if let receiver = step.receiver ?? (near ? nil : PlayScene.coverer(of: base, after: number)), receiver != number {
                     script.actors[fielder(receiver)].move(to: [bag], from: contact + 0.1, to: max(contact + 0.7, held - 0.05))
-                    let arrive = throwBall(from: holder, to: bag, at: held, overshoot: wild && i == steps.count - 1,
-                                           by: number, catcher: receiver)
-                    if wild && i == steps.count - 1 { wild = false; continue }
+                    let arrive = throwBall(from: holder, to: bag, at: held, overshoot: step.wild, by: number, catcher: receiver)
+                    if step.wild {
+                        // Past him: whoever was waiting on it goes on.
+                        loose = arrive - 0.1
+                        continue
+                    }
                     outs[base] = arrive
                     script.flashes.append(Flash(beat: .out, at: arrive, point: FieldPoint(Ballpark.base(base))))
                     holder = bag; number = receiver; held = arrive + 0.1
@@ -926,6 +974,7 @@ extension PlayScript {
                         if target >= 2 { script.actors[index].slide = max(arrive - 0.26, leave + 0.1) }
                     }
                 }
+                if let waits = r.waits, let loose { onTheThrow(r, index: index, waits: waits, loose: loose, leave: leave, pace: pace) }
             }
         }
 
@@ -951,6 +1000,7 @@ extension PlayScript {
             // A runner going on the pitch: strike him out, throw him out.
             let chain = throwChain(from: mitt.ground, holding: 2, at: pop, inferred: true)
             runners(start: pitchStart - 0.1, pace: 80, outs: chain.outs)
+            droppedThirdStrike(outs: chain.outs)
         }
 
         mutating func walk() {
@@ -972,7 +1022,8 @@ extension PlayScript {
 
         /// A steal, a pickoff, a wild pitch: the runners' play.
         mutating func runnersPlay() {
-            let pitched = scene.kind != .pickoff && scene.kind != .balk
+            // (A runner caught stealing on a pickoff: the pitcher's throw, as MLB credits it or the text says.)
+            let pitched = scene.kind != .pickoff && scene.kind != .balk && handling?.fielder != 1 && !scene.text.contains("picked off")
             var holder = mitt.ground, holding = 2, held = contact + 0.05
             if !pitched {
                 holder = Ballpark.position(1); holding = 1; held = 0.45
@@ -997,12 +1048,16 @@ extension PlayScript {
             let leave = !pitched ? 0.5 : scene.kind == .stolenBase || scene.kind == .caughtStealing ? pitchStart - 0.05 : contact + 0.1
             runners(start: leave, pace: 85, outs: chain.outs)
             if scene.kind == .stolenBase, let r = scene.runners.first(where: { $0.from > 0 }), case let .base(b) = r.end, b > r.from {
-                // The throw, a beat behind him.
-                let bag = Ballpark.bag(b)
-                script.actors[fielder(PlayScene.coverer(of: b, after: 2))].move(to: [bag], from: contact, to: contact + 0.6)
-                let safe = leave + Double(b - r.from) * Ballpark.baseline / 85 + 0.12
-                throwBall(from: holder, to: bag, at: max(safe - throwTime(from: holder, to: bag), held + 0.1),
-                          by: holding, catcher: PlayScene.coverer(of: b, after: 2))
+                // The throw, a beat behind him; one that got away (the text's throwing error) went to the
+                // base he stole, and he goes on from there as it's past.
+                let wild = b > r.from + 1 && scene.text.contains("throwing error")
+                let stolen = wild ? r.from + 1 : b
+                let bag = Ballpark.bag(stolen)
+                script.actors[fielder(PlayScene.coverer(of: stolen, after: 2))].move(to: [bag], from: contact, to: contact + 0.6)
+                let safe = leave + Double(stolen - r.from) * Ballpark.baseline / 85 + 0.12
+                let past = throwBall(from: holder, to: bag, at: max(safe - throwTime(from: holder, to: bag), held + 0.1), overshoot: wild,
+                                     by: holding, catcher: PlayScene.coverer(of: stolen, after: 2))
+                if wild, let index = runner[r.from] { onTheThrow(r, index: index, waits: stolen, loose: past - 0.1, leave: leave, pace: 85) }
             }
         }
 
@@ -1016,6 +1071,8 @@ extension PlayScript {
             let reached = script.actors[batter].moves.last?.end
             if !script.stamp.isFinite {
                 script.stamp = lastOut ?? max(reached ?? 0, script.landing?.at ?? contact + 0.3)
+                // The runs on the mark land as the last one crosses.
+                if let run = crossings.last?.at { script.stamp = max(script.stamp, run) }
             }
             let ends = [script.stamp + 0.4, script.flights.map(\.end).max() ?? 0, (script.flashes.map(\.at).max() ?? 0) + 0.45,
                         script.actors.flatMap { $0.moves.map(\.end) }.max() ?? 0]
@@ -1115,6 +1172,205 @@ extension PlayScript {
             }
             script.duration = back + Actor.fade
         }
+    }
+}
+
+// MARK: - The official account, told in order
+
+extension PlayScript.Builder {
+    /// A home run's trot is cut to this long after the ball clears the wall.
+    static let trotCut = 0.8
+
+    /// A ground ball an outfielder fielded (MLB's credit, else ESPN's text),
+    /// marked short of the outfield grass: that's where it got through the
+    /// infield, not where he picked it up. On along its line to where he
+    /// meets it, charging in from where he plays. Nil for anything else.
+    func through(_ spot: CGPoint) -> CGPoint? {
+        guard scene.flight == .ground, let n = handling?.fielder ?? scene.fielders.first, (7...9).contains(n),
+              hypot(spot.x - Ballpark.rubber.x, spot.y - Ballpark.rubber.y) < Ballpark.skin + 5 else { return nil }
+        let d = max(Ballpark.distance(spot), 1), u = CGPoint(x: spot.x / d, y: spot.y / d)
+        let home = Ballpark.position(n)
+        // Level with him on its line, less the ground he makes up charging it.
+        let meet = max(home.x * u.x + home.y * u.y - 50, d + 40)
+        return CGPoint(x: u.x * meet, y: u.y * meet)
+    }
+
+    /// A spot at the plate for a ball someone out in the field took (not the
+    /// pitcher or the catcher): a glitch upstream (ESPN's and MLB's alike).
+    func atThePlate(_ spot: CGPoint) -> Bool {
+        guard let n = handling?.fielder ?? scene.fielders.first else { return false }
+        return Ballpark.distance(spot) < 12 && n > 2
+    }
+
+    /// A ground ball through the infield: the infielders it gets between
+    /// reach for it as it goes by, and miss; the one MLB credits with a
+    /// deflection gets a glove on it. (How far each goes is inferred: MLB
+    /// says only who fielded it, and who it glanced off.)
+    mutating func reachForIt(fielded first: Int) {
+        guard let index = script.batted else { return }
+        let flight = script.flights[index]
+        for n in [1, 3, 4, 5, 6] where n != first {
+            let home = Ballpark.position(n)
+            // Where and when it passes nearest him, low enough to reach.
+            var near = (at: flight.end, d: Double.infinity, p: CGPoint.zero)
+            for k in 0...80 {
+                let t = flight.start + (flight.end - flight.start) * Double(k) / 80, p = flight.point(at: t)
+                let d = hypot(p.x - home.x, p.y - home.y)
+                if p.z < 6, d < near.d { near = (t, d, p.ground) }
+            }
+            // As far as he can get before it's by (about 28 ft a second), and near enough to try.
+            let glances = n == handling?.deflection, steps = max(near.at - contact - 0.1, 0) * 28
+            guard glances || (near.d < 32 && near.d - steps < 10) else { continue }
+            // A few quick steps (all the way, for the man it glances off), the glove down as it goes by.
+            let reach = glances ? 1 : min(max(1 - 6 / max(near.d, 1), 0), 0.8, steps / max(near.d, 1))
+            let spot = CGPoint(x: home.x + (near.p.x - home.x) * reach, y: home.y + (near.p.y - home.y) * reach)
+            script.actors[fielder(n)].move(to: [spot], from: contact + 0.06, to: near.at, ease: .out)
+            script.actors[fielder(n)].act(.scoop, at: near.at, toward: near.p)
+        }
+    }
+
+    /// A catch the scorer's text calls diving or leaping: his last strides
+    /// at full stretch, the glove to the ball low on the grass or up over
+    /// his head (`Actor.dive`, for the figures to draw; until they do, a
+    /// lunge stands in for a dive).
+    mutating func stretch(_ index: Int, _ effort: PlayScene.Effort, for ball: FieldPoint, at time: Double) {
+        let from = script.actors[index].position(at: time - 0.3)
+        let d = hypot(ball.x - from.x, ball.y - from.y)
+        let diving = effort == .diving
+        let landing = diving && d > 1 ? CGPoint(x: ball.x + (ball.x - from.x) / d * 4, y: ball.y + (ball.y - from.y) / d * 4) : ball.ground
+        let glove = FieldPoint(ball.ground, z: diving ? min(ball.z, 1.5) : max(ball.z, 8.5))
+        script.actors[index].dive = PlayScript.Actor.Dive(start: time - 0.3, reach: time, target: glove, landing: landing)
+        guard diving else { return }
+        script.actors[index].actions.removeAll { abs($0.at - time) < 0.01 }
+        script.actors[index].act(.scoop, at: time, toward: ball.ground)
+        script.actors[index].move(to: [landing], from: time, to: time + 0.3, ease: .out)
+    }
+
+    /// The rest of the play in the order a replay tells it: once the ball's
+    /// been handled (fielded, thrown, the outs made), each run crosses the
+    /// plate, the lead runner first, a beat apart; then the batter takes his
+    /// extra base. Runners leave as the play has them; one who'd be home
+    /// sooner (off screen, while the camera's on the ball) is held at third
+    /// first. A run beats a third out, though: after one it wouldn't count.
+    mutating func sequenceRuns(after told: Double, pace: Double, before third: Double?) {
+        var last = -Double.infinity, clear = -Double.infinity
+        for r in scene.runners.filter({ $0.end == .scored }).sorted(by: { $0.from > $1.from }) {
+            guard let index = runner[r.from], let leave = script.actors[index].moves.first?.start,
+                  let natural = script.actors[index].moves.last?.end else { continue }
+            let cross = third == nil ? max(natural, told + 0.55, last + 0.6) : natural
+            if cross > natural + 0.01 {
+                // Held at third, unless the man ahead is still there when he'd get to it.
+                let atThird = leave + Double(3 - min(r.from, 3)) * Ballpark.baseline / pace
+                holdThenRun(index, from: r.from, hold: atThird > clear + 0.1 ? 3 : 2, arrive: cross, was: natural, pace: pace)
+            }
+            crossings.append((index, cross))
+            last = cross
+            clear = cross - Ballpark.baseline / pace
+        }
+        // The batter into second or third once they're in, while he's still running it.
+        guard let last = crossings.last?.at, case let .base(b)? = scene.batter?.end, b >= 2, scene.batter?.waits == nil,
+              let move = script.actors[batter].moves.last, move.path.last == Ballpark.base(b), move.end < last + 0.45 else { return }
+        let arrive = last + 0.45
+        guard Double(b) * Ballpark.baseline / (arrive - move.start) >= 50 else { return }
+        script.actors[batter].move(to: basePath(from: 0, to: b), from: move.start, to: arrive)
+        if script.actors[batter].slide != nil { script.actors[batter].slide = arrive - 0.26 }
+    }
+
+    /// A home run's trot as the replay tells it: the runners watch it go,
+    /// then come in ahead of the batter, a beat apart, once the camera has
+    /// cut to the trot (so it sees every run cross); the batter last.
+    mutating func sequenceTrot(after cut: Double, pace: Double) {
+        var last = -Double.infinity
+        let order = scene.runners.filter { $0.end == .scored }.sorted { a, b in a.from == 0 ? false : b.from == 0 ? true : a.from > b.from }
+        for (k, r) in order.enumerated() {
+            guard let index = runner[r.from], let move = script.actors[index].moves.last else { continue }
+            let natural = move.end
+            let cross = max(natural, cut + 0.1 + 0.4 * Double(k), last + 0.4)
+            if cross > natural + 0.01 {
+                if r.from == 0 {
+                    // The batter: the same trot, a little slower.
+                    script.actors[index].move(to: basePath(from: 0, to: 4), from: move.start, to: cross)
+                    retime(index, from: natural, to: cross)
+                } else {
+                    holdThenRun(index, from: r.from, hold: nil, arrive: cross, was: natural, pace: pace)
+                }
+            }
+            crossings.append((index, cross))
+            last = cross
+        }
+    }
+
+    /// A runner who scores later than his pace would have him. On a ball in
+    /// play he runs on as far as `hold` (third, or second while the man
+    /// ahead is still on third) and is held there until he must go (from
+    /// his own base, a couple of shuffles off it first); on a home run
+    /// (`hold` nil) he watches it from his base, then trots. Either way he
+    /// crosses at `arrive`, and the plate's pop moves with him.
+    mutating func holdThenRun(_ index: Int, from base: Int, hold: Int?, arrive: Double, was natural: Double, pace: Double) {
+        guard let leave = script.actors[index].moves.first?.start else { return }
+        let at = script.actors[index].at, stop = max(hold ?? base, base)
+        let reach = leave + Double(stop - base) * Ballpark.baseline / pace
+        let go = max(arrive - Double(4 - stop) * Ballpark.baseline / pace, reach)
+        script.actors[index].moves.removeAll()
+        if stop > base {
+            script.actors[index].move(to: basePath(from: base, to: stop), from: leave, to: reach)
+        } else if hold != nil, go > leave + 0.3 {
+            let next = Ballpark.base(base + 1), d = hypot(next.x - at.x, next.y - at.y)
+            if d > 12 {
+                script.actors[index].move(to: [CGPoint(x: at.x + (next.x - at.x) / d * 8, y: at.y + (next.y - at.y) / d * 8)],
+                                          from: leave, to: min(leave + 0.5, go), ease: .out)
+            }
+        }
+        script.actors[index].move(to: basePath(from: stop, to: 4), from: go, to: arrive)
+        retime(index, from: natural, to: arrive)
+    }
+
+    /// Strike three that got away from the catcher (MLB credits his throw
+    /// to first): the batter drops the bat and runs for it once the pitch is
+    /// by, out a step behind the throw (or safe at first, when he beat it).
+    mutating func droppedThirdStrike(outs: [Int: Double]) {
+        guard let r = scene.batter else { return }
+        let base: Int
+        switch r.end {
+        case let .out(at?) where at > 0: base = at
+        case let .base(b) where b > 0: base = b
+        default: return
+        }
+        let arrive = max((outs[base] ?? pop + 1.0) + 0.1, pop + 0.7)
+        script.actors[batter].moves.removeAll()
+        script.actors[batter].move(to: basePath(from: 0, to: base), from: pop + 0.12, to: arrive)
+        script.actors[batter].dropsBat = pop + 0.12
+        script.actors[batter].vanish = r.isOut ? arrive + 0.25 : .infinity
+        // Not out at the plate after all.
+        let box = Ballpark.box(hand)
+        script.flashes.removeAll { $0.beat == .out && $0.point.ground == box }
+    }
+
+    /// A run's moment moved: the plate's pop, and when he's gone.
+    mutating func retime(_ index: Int, from natural: Double, to cross: Double) {
+        if let i = script.flashes.firstIndex(where: { $0.beat == .run && abs($0.at - natural) < 0.001 }) { script.flashes[i].at = cross }
+        script.actors[index].vanish = cross + 0.15
+    }
+
+    /// MLB's account of a runner who took his last base on a throw that got
+    /// away (or went elsewhere): he gets to the base before it, waits, and
+    /// goes on as the ball gets past.
+    mutating func onTheThrow(_ r: PlayScene.Runner, index: Int, waits: Int, loose: Double, leave: Double, pace: Double) {
+        let end: Int
+        switch r.end {
+        case let .base(b): end = b
+        case .scored: end = 4
+        default: return
+        }
+        guard waits > r.from || r.from == 0, waits < end else { return }
+        let reach = leave + Double(waits - r.from) * Ballpark.baseline / pace
+        let go = max(loose, reach + 0.1), arrive = go + Double(end - waits) * Ballpark.baseline / pace
+        let natural = script.actors[index].moves.last?.end ?? arrive
+        script.actors[index].moves.removeAll()
+        script.actors[index].move(to: basePath(from: r.from, to: waits), from: leave, to: reach)
+        script.actors[index].move(to: basePath(from: waits, to: end), from: go, to: arrive)
+        if end == 4 { retime(index, from: natural, to: arrive) }
+        if script.actors[index].slide != nil { script.actors[index].slide = arrive - 0.26 }
     }
 }
 

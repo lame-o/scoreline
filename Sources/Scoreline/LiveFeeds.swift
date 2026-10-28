@@ -926,6 +926,10 @@ final class FootballFeed {
 /// ESPN's real-time baseball lane while a match page is open: count, outs,
 /// runners, batter and pitcher every few seconds, and only the newest plays
 /// when something happens, so each pitch lands in the zone as it's thrown.
+/// ESPN rewrites entries behind the tail (a scorer's ruling posted minutes
+/// later, a steal that review made a caught stealing) and replaces a
+/// challenged pitch with a new ID: entries are known by ID, and each look
+/// (and a quiet look every 20 s) reads again from the previous at-bat.
 @MainActor
 @Observable
 final class BaseballFeed {
@@ -944,8 +948,13 @@ final class BaseballFeed {
     /// only when they change, so a pitch doesn't redraw the theater. A new
     /// plate appearance waits briefly for what Statcast measured of it.
     private(set) var theater = TheaterState()
-    /// The most recent plays, enough to hold the current at-bat.
+    /// The most recent plays, enough to hold the current at-bat, and where the first sits in the feed.
     @ObservationIgnored private var window: [JSON] = []
+    @ObservationIgnored private var windowStart = 0
+    /// When the plays were last read again from the previous at-bat.
+    @ObservationIgnored private var reread: Date?
+    /// Results rewritten into something they no longer are (or replaced) since the last call, for the page to take back.
+    @ObservationIgnored private var retracted: [String] = []
     /// The theater as ESPN's plays have it, before Statcast's measurements.
     @ObservationIgnored private var espnTheater = TheaterState()
     /// Statcast's measurements by play ID, and the plays already looked up (once each).
@@ -965,6 +974,8 @@ final class BaseballFeed {
 
     private static let pageSize = 25
     private static let windowSize = 80
+    /// A quiet game's plays are read again this often, for ESPN's rewrites.
+    private static let rereadInterval: TimeInterval = 20
 
     func update(path: String, eventID: String, names: [String: String], statcast: Statcast.Lookup? = nil,
                 side: @escaping (String?) -> GameDetail.Side?) async {
@@ -983,7 +994,7 @@ final class BaseballFeed {
         }
         guard let s else { return }
         let lastRef = s["lastPlay"]["$ref"].string
-        if lastRef != lastPlayRef || !loaded {
+        if lastRef != lastPlayRef || !loaded || reread.map({ Date.now.timeIntervalSince($0) > Self.rereadInterval }) == true {
             await loadPlays(base: base, names: names, side: side)
             let lastID = lastRef.flatMap { ref in ref.range(of: "/plays/").map { String(ref[$0.upperBound...].prefix { $0.isNumber }) } }
             if !Task.isCancelled, lastID == nil || lastID == newestID { lastPlayRef = lastRef }
@@ -996,46 +1007,115 @@ final class BaseballFeed {
         if fetched == nil {
             guard let url = URL(string: "\(base)/plays?limit=1"), let head = try? await JSON.fetch(url) else { return }
             fetched = max((head["count"].int ?? 0) - 2 * Self.pageSize, 0)
+            windowStart = fetched ?? 0
         }
-        guard var start = fetched else { return }
-        var page = start / Self.pageSize + 1
-        var new: [JSON] = []
+        guard let end = fetched else { return }
+        // From where the previous at-bat begins: what's there now replaces what was read.
+        let from = Self.rereadStart(window).map { windowStart + $0 } ?? end
+        var page = from / Self.pageSize + 1
+        var fresh: [JSON] = []
         var complete = false
+        var read = from
         while !Task.isCancelled, let url = URL(string: "\(base)/plays?limit=\(Self.pageSize)&page=\(page)"),
               let json = try? await JSON.fetch(url) {
             let items = json["items"].array
-            for (offset, item) in items.enumerated() where (page - 1) * Self.pageSize + offset >= start {
-                new.append(Self.normalized(item))
+            for (offset, item) in items.enumerated() where (page - 1) * Self.pageSize + offset >= from {
+                fresh.append(Self.normalized(item))
                 newestID = item["id"].string ?? newestID
                 if let latest = LiveScore(item) { score = latest }
             }
-            start = max(start, (page - 1) * Self.pageSize + items.count)
+            read = max(read, (page - 1) * Self.pageSize + items.count)
             if page >= (json["pageCount"].int ?? page) || items.isEmpty {
                 complete = true
                 break
             }
             page += 1
         }
-        fetched = start
-        guard !Task.isCancelled else { return }
+        // A look cut short says nothing about what's gone: the next one reads it again.
+        guard !Task.isCancelled, complete || from == end else { return }
+        reread = .now
+        fetched = read
+        let look = Self.reread(window, from: from - windowStart, fresh: fresh)
+        window = look.window
+        if window.count > Self.windowSize {
+            windowStart += window.count - Self.windowSize
+            window = Array(window.suffix(Self.windowSize))
+        }
         // Until a complete look it's history; after, at-bat results are news.
         let news = primed
-        if primed { moments += new.compactMap { Self.moment($0, side: side) } }
+        if primed { moments += look.new.compactMap { Self.moment($0, side: side) } }
+        // A result rewritten: its moment again (a bigger one is news again), and taken back if it no
+        // longer applies; it's measured again as what it is now. One replaced is taken back too.
+        let changed = look.revised.compactMap { $0.new["id"].string } + look.gone
+        for (old, new) in look.revised {
+            guard let id = new["id"].string else { continue }
+            let rewrite = Self.rewritten(old, new, side: side)
+            if rewrite.retract { retracted.append(id) }
+            if primed, let now = rewrite.offer { moments.append(now) }
+            measured[id] = nil
+            lookedUp.remove(id)
+        }
+        retracted += look.gone
         if complete { primed = true }
         loaded = true
-        guard !new.isEmpty else { return }
-        window = Array((window + new).suffix(Self.windowSize))
+        guard !look.new.isEmpty || !changed.isEmpty else { return }
         atBat = ESPNDetail.currentAtBat(window)
         updateTheater(news: news, names: names, side: side)
         let balls = ESPNDetail.battedBalls(window, side: side)
-        var byID = Dictionary(battedBalls.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
+        var byID = Dictionary(battedBalls.filter { !changed.contains($0.id) }.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
         for ball in balls { byID[ball.id] = ball }
         battedBalls = Array(byID.values)
     }
 
+    /// A result ESPN rewrote: its moment now (a bigger one is news again;
+    /// MomentCenter knows), and whether the one it was is taken back (gone,
+    /// or now something else, or less). (pure; tested)
+    static func rewritten(_ old: JSON, _ new: JSON, side: (String?) -> GameDetail.Side?) -> (offer: LiveMoment?, retract: Bool) {
+        let was = moment(old, side: side), now = moment(new, side: side)
+        guard let was else { return (now, false) }
+        return (now, now.map { $0.kind != was.kind || $0.tier < was.tier } ?? true)
+    }
+
+    /// Where a look reads again from: the previous at-bat's first entry in
+    /// the window (the current one's, if it's the only one). (pure; tested)
+    static func rereadStart(_ window: [JSON]) -> Int? {
+        var atBats: [String] = []
+        for entry in window {
+            if let id = entry["atBatId"].string, atBats.last != id { atBats.append(id) }
+        }
+        guard let previous = atBats.dropLast().last ?? atBats.last else { return nil }
+        return window.firstIndex { $0["atBatId"].string == previous }
+    }
+
+    /// A look at the feed from `index` in the window on: the window with
+    /// what's there now in place of what was, and what changed: entries new
+    /// to it, entries read again that read differently (rewritten), and IDs
+    /// no longer there (a challenged pitch replaced by a new ID). (pure; tested)
+    static func reread(_ window: [JSON], from index: Int, fresh: [JSON]) -> (window: [JSON], new: [JSON], revised: [(old: JSON, new: JSON)], gone: [String]) {
+        let keep = min(max(index, 0), window.count)
+        var known: [String: JSON] = [:]
+        for entry in window { if let id = entry["id"].string { known[id] = entry } }
+        func reads(_ e: JSON) -> [String?] {
+            [e["type"]["type"].string, e["alternativeType"]["type"].string, e["text"].string, e["scoreValue"].int.map(String.init),
+             e["outs"].int.map(String.init), e["participants"].array.compactMap { PlayScene.participant(e, $0["type"].string ?? "") }.joined(separator: ",")]
+        }
+        var new: [JSON] = [], revised: [(old: JSON, new: JSON)] = []
+        for entry in fresh {
+            guard let id = entry["id"].string else { continue }
+            if let was = known[id] {
+                if reads(was) != reads(entry) { revised.append((was, entry)) }
+            } else {
+                new.append(entry)
+            }
+        }
+        let now = Set(fresh.compactMap { $0["id"].string })
+        let gone = window[keep...].compactMap { $0["id"].string }.filter { !now.contains($0) }
+        return (Array(window[..<keep]) + fresh, new, revised, gone)
+    }
+
     private func updateTheater(news: Bool, names: [String: String], side: (String?) -> GameDetail.Side?) {
         espnTheater = Self.theater(window, after: espnTheater, primed: news, now: .now, names: names, side: side)
-        if let play = espnTheater.play, let lookup, play.appearance != nil, !lookedUp.contains(play.id) {
+        if let play = espnTheater.play, let lookup, play.appearance != nil || play.during != nil, !lookedUp.contains(play.id) {
             lookedUp.insert(play.id)
             measure(play, lookup)
         }
@@ -1053,7 +1133,8 @@ final class BaseballFeed {
         if next != theater { theater = next }
     }
 
-    /// Statcast for a new plate appearance: asked at once, then a few times
+    /// Statcast for a new plate appearance (or MLB's legs for a runner's
+    /// play between pitches): asked at once, then a few times
     /// more as its feed catches up (only for a new result, never on the
     /// poll's clock). The replay waits up to `measureHold`, then goes with
     /// ESPN's account alone; a measurement that lands later reaches the play
@@ -1111,6 +1192,12 @@ final class BaseballFeed {
     func takeMoments() -> [LiveMoment] {
         defer { moments = [] }
         return moments
+    }
+
+    /// Results ESPN has since rewritten into something else (or replaced), for the page to take back.
+    func takeRetractions() -> [String] {
+        defer { retracted = [] }
+        return retracted
     }
 
     /// An at-bat's result as a moment, from its structured type (the result

@@ -1944,6 +1944,7 @@ struct DetailView: View {
                 await baseballFeed.update(path: path, eventID: id, names: names, statcast: Statcast.Lookup(current)) { team in
                     team == top ? .top : team == bottom ? .bottom : nil
                 }
+                moments.retract(baseballFeed.takeRetractions())
                 moments.offer(baseballFeed.takeMoments())
                 if before != nil, baseballFeed.score != before { await refreshDetail(current) }
             case let .espn(path, id, .basketball)? where path == NBADetail.path:

@@ -297,16 +297,17 @@ extension PlayScript.Builder {
                 shots.append(Shot(from: fence.at + 0.1, points: [FieldPoint(x: wall.x - side.x, y: wall.y - side.y, z: 30),
                                                                  FieldPoint(x: wall.x + side.x, y: wall.y + side.y, z: 30),
                                                                  FieldPoint(target), FieldPoint(wall)], closest: 100))
-                // Cut to the trot: the batter coming home (a broadcast cuts; it doesn't sweep the park).
+                // Cut to the trot: the batter coming home behind his runners (a broadcast cuts; it doesn't sweep the park).
                 let home = script.flashes.filter { $0.beat == .run }.map(\.at).max() ?? fence.at + 1.2
-                shots.append(Shot(from: fence.at + 0.8, actors: [batter], points: [FieldPoint(x: 0, y: 0), FieldPoint(Ballpark.base(3))],
+                let trotting = [batter] + crossings.map { $0.actor }.filter { $0 != batter }
+                shots.append(Shot(from: fence.at + Self.trotCut, actors: trotting, points: [FieldPoint(x: 0, y: 0), FieldPoint(Ballpark.base(3))],
                                   cut: true))
                 shots.append(Shot(from: max(home + 0.1, fence.at + 1.2), points: Shot.infield))
                 script.shots = shots
                 script.camera = CameraTrack(shots: shots, script: script, settle: script.settle, back: script.duration)
                 return
             }
-            let first = scene.fielders.first ?? scene.error ?? Ballpark.nearest(to: flight.to.ground)
+            let first = handling?.fielder ?? scene.fielders.first ?? scene.error ?? Ballpark.nearest(to: flight.to.ground)
             // A beat before contact the camera starts to open up, as an operator reads the swing.
             shots.append(Shot(from: contact - 0.08, flight: i, actors: [fielder(first)], closest: 56))
             end = flight.end + 0.35
@@ -316,7 +317,16 @@ extension PlayScript.Builder {
             let outfield = Ballpark.distance(flight.to.ground) > 200
             if !scene.runners.contains(where: \.isOut), case let .base(b)? = scene.batter?.end, b >= 2 || outfield,
                let gathered = script.actors[fielder(first)].actions.first(where: { $0.kind == .scoop })?.at {
-                if b >= 2, let reach = script.actors[batter].moves.first(where: { $0.path.last == Ballpark.base(b) })?.end {
+                if let last = crossings.last?.at {
+                    // Runs: the camera takes the lead runner home, and each one after him, then the batter at his base.
+                    shots.append(Shot(from: gathered, actors: crossings.map { $0.actor }, points: [FieldPoint(x: 0, y: 0)], cut: outfield))
+                    end = last + 0.35
+                    if b >= 2, let reach = script.actors[batter].moves.first(where: { $0.path.last == Ballpark.base(b) })?.end {
+                        shots.append(Shot(from: last + 0.15, actors: [batter], points: [FieldPoint(Ballpark.base(b)), FieldPoint(Ballpark.base(b - 1))],
+                                          cut: true))
+                        end = max(end, reach + 0.5)
+                    }
+                } else if b >= 2, let reach = script.actors[batter].moves.first(where: { $0.path.last == Ballpark.base(b) })?.end {
                     shots.append(Shot(from: gathered, actors: [batter], points: [FieldPoint(Ballpark.base(b)), FieldPoint(Ballpark.base(b - 1))],
                                       cut: outfield))
                     end = reach + 0.5
@@ -327,12 +337,27 @@ extension PlayScript.Builder {
                 running = true
             }
         }
-        // The throws (and a ball that gets away), end to end.
-        let primary = Set([0, script.batted].compactMap { $0 })
-        for (j, flight) in script.flights.enumerated() where !primary.contains(j) && flight.start > contact - 0.3 && !running {
+        // The throws (and a ball that gets away), end to end; a rundown's, all its bases at once. (After the
+        // pitch: a pickoff has none, and its throw can come before a pitch would have.)
+        let primary = Set([0, script.batted].compactMap { $0 }), after = script.release == nil ? 0 : contact - 0.3
+        let rundown = script.batted == nil ? script.flights.indices.filter { !primary.contains($0) && script.flights[$0].start > after } : []
+        if rundown.count > 1, let first = rundown.first, let last = rundown.last {
+            shots.append(Shot(from: max(script.flights[first].start - 0.3, (shots.last?.from ?? 0) + 0.25),
+                              points: rundown.flatMap { [FieldPoint(script.flights[$0].from.ground), FieldPoint(script.flights[$0].to.ground)] }))
+            end = max(end, script.flights[last].end + 0.2)
+            running = true
+        }
+        for (j, flight) in script.flights.enumerated() where !primary.contains(j) && flight.start > after && !running {
             let from = max(flight.start - 0.3, (shots.last?.from ?? 0) + 0.25)
             shots.append(Shot(from: from, flight: j, points: [FieldPoint(flight.from.ground), FieldPoint(flight.to.ground)]))
             end = max(end, flight.end + 0.2)
+        }
+        // Runs after the throws (or a catch): the camera takes each one home (cutting in from the outfield).
+        if let lead = crossings.first?.at, let last = crossings.last?.at, !running, script.fence == nil {
+            let onBall = script.batted.map { b in shots.last?.flight == b && Ballpark.distance(script.flights[b].to.ground) > 200 } ?? false
+            shots.append(Shot(from: max(lead - 0.9, (shots.last?.from ?? 0) + 0.35), actors: crossings.map { $0.actor },
+                              points: [FieldPoint(x: 0, y: 0)], cut: onBall))
+            end = max(end, last + 0.35)
         }
         // A strikeout's mark sinks in on the battery before it widens.
         if script.batted == nil, script.stamp.isFinite { end = max(end, script.stamp + 0.5) }
