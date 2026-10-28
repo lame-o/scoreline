@@ -13,7 +13,7 @@ test.describe("persistent cache", () => {
     await page.goto("/team/espn-football-12");
     const heading = page.locator("main h1");
     await expect(heading).toContainText(/Chiefs/, { timeout: 25_000 });
-    const roster = page.locator('section[aria-label="Roster"] a').first();
+    const roster = page.getByRole("region", { name: "Roster" }).locator("a").first();
     await expect(roster).toBeVisible({ timeout: 25_000 });
     const player = (await roster.getAttribute("href"))!;
     // Give the writes a moment (they land after each response).
@@ -21,7 +21,7 @@ test.describe("persistent cache", () => {
     await context.route("**/api/**", (route) => route.fulfill({ status: 502, body: "{}" }));
     await page.reload();
     await expect(heading).toContainText(/Chiefs/, { timeout: 5_000 });
-    await expect(page.locator(`section[aria-label="Roster"] a[href="${player}"]`)).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("region", { name: "Roster" }).locator(`a[href="${player}"]`)).toBeVisible({ timeout: 5_000 });
   });
 
   test("a league's schedule paints from disk after a reload; the scores don't", async ({ page, context }) => {
