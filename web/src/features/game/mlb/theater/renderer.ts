@@ -8,6 +8,7 @@
  * it decides what to draw.
  *
  * - A new play that's news replays from its pitch; a new one mid-replay cuts to itself.
+ * - Its end is said (`onEnd`): the component holds it, then returns the field to the game.
  * - A play that isn't replayed (history, or Reduce Motion) crossfades to how it ended (0.35 s).
  * - With Reduce Motion a home run blooms softly at the plate instead of its fireworks.
  */
@@ -33,6 +34,8 @@ export interface StageInputs {
   readonly reduceMotion: boolean;
   /** Development: draw this instant of the play, frozen (the Swift harness's `.frozen(t)` clock). */
   readonly frozen: number | null;
+  /** Told once a replay has run its course (its end then holds; PlayStage's `replay.done`). */
+  readonly onEnd?: (id: string) => void;
 }
 
 const CROSSFADE_MS = 350;
@@ -48,7 +51,7 @@ export class TheaterRenderer {
   private labelsKey = "";
   private bursts: readonly TheaterBurst[] = [];
   private bloom: { cue: ReturnType<typeof cueFor>; start: number } | null = null;
-  private replay: { id: string; start: number } | null = null;
+  private replay: { id: string; start: number; ended?: boolean } | null = null;
   private fade: { snapshot: HTMLCanvasElement; start: number } | null = null;
   private shownID: string | null | undefined = undefined;
   private frame = 0;
@@ -163,6 +166,15 @@ export class TheaterRenderer {
     return Math.max(i.script.duration, ...this.bursts.map(burstEnd)) + 0.05;
   }
 
+  /** A replay past its script's end (its bursts may run on): said once, as PlayStage marks `replay.done`. */
+  private noteEnd(now: number): void {
+    const r = this.replay;
+    const i = this.inputs;
+    if (!r || r.ended || !i || i.scene?.id !== r.id || (now - r.start) / 1000 <= i.script.duration + 0.05) return;
+    r.ended = true;
+    i.onEnd?.(r.id);
+  }
+
   private moving(now: number): boolean {
     const t = this.time(now);
     if (Number.isFinite(t) && this.inputs?.frozen == null) return true;
@@ -181,6 +193,7 @@ export class TheaterRenderer {
     this.frame = requestAnimationFrame((now) => {
       this.frame = 0;
       this.draw(now);
+      this.noteEnd(now);
       if (this.moving(now)) this.schedule();
       else {
         this.fade = null;

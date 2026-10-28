@@ -10,11 +10,12 @@
  * (`layoutLabels`).
  */
 import { fieldPoint, houseCurve, smooth, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
-import { facing, figure, mixPose, Poses, samePose, type Figure, type Pose } from "../../../../data/mlb/theaterPose";
+import { gait, keyed, mix, over, Rig, rigArm, rigPose, RigPoses, RigTrack, vec, withPose, type RigArm, type RigPose, type RigVector } from "../../../../data/theater/rig";
 import type { Uniform } from "../../../../data/mlb/theaterTeams";
-import { goalOf, Pitch, stampDetail, surname, type SoccerScene } from "../../../../data/theater/soccerScene";
+import { Pitch, stampDetail, surname, type SoccerScene } from "../../../../data/theater/soccerScene";
 import type { Actor, SoccerScript } from "../../../../data/theater/soccerScript";
 import type { PitchProjection } from "../../../../data/theater/soccerTheater";
+import { drawFigure, figureInks, grip, RigLens, rigFigure, shift, type RigFigure } from "../../core/theater/rigFigure";
 import { hexRGB, rgba, type RGB, type TheaterInk } from "../../mlb/theater/theaterInk";
 import {
   accentOf,
@@ -23,9 +24,7 @@ import {
   chalk,
   chalkEdge,
   drawBall,
-  drawFigure,
   ellipse,
-  figureInks,
   FONT,
   fillTracked,
   glow,
@@ -231,181 +230,255 @@ export function drawPitch(ctx: Ctx, f: PitchProjection, ink: TheaterInk): void {
 
 // MARK: - Poses
 
-const pose = (lean: number, nearThigh: number, nearShin: number, farThigh: number, farShin: number, nearUpper: number, nearFore: number, farUpper: number, farFore: number, lift = 0): Pose => ({
-  lean,
-  nearThigh,
-  nearShin,
-  farThigh,
-  farShin,
-  nearUpper,
-  nearFore,
-  farUpper,
-  farFore,
-  lift,
-});
-
-/** Soccer's poses (SoccerTheater.swift's `Pose` extension). */
+/** Soccer's poses beyond the shared ones (SoccerTheater.swift's `RigPose` extension), for a right-footer, relative to his heading (at the ball, or where he's playing it). */
 export const PitchPose = {
-  // A strike: the swing leg drawn back, through the ball, and on; the arms out for balance.
-  backswing: pose(-0.12, -0.45, -1.45, 0.12, 0.05, -0.95, -0.6, 0.95, 1.15),
-  strike: pose(0.05, 0.95, 0.55, -0.06, -0.05, -0.7, -0.35, 1.2, 1.45),
-  followThrough: pose(0.18, 1.4, 1.3, -0.18, -0.1, -0.45, -0.1, 1.0, 1.2),
-  /** Up for a header: legs tucked, arms out, the head through it. */
-  header: pose(0.4, 0.55, -0.7, 0.15, -0.95, -1.5, -1.85, 1.55, 1.9, 0.2),
+  // A strike: the plant foot beside the ball, the swing leg drawn back, through the ball, and on; the arms out for balance.
+  backswing: rigPose({
+    hip: vec(-0.02, 0, 0.46),
+    lean: -0.1,
+    twist: -0.25,
+    left: vec(0.06, 0.11, 0),
+    right: vec(-0.3, -0.07, 0.22),
+    leftArm: rigArm({ swing: 0.75, spread: 0.95, turn: 0.1, bend: 0.3 }),
+    rightArm: rigArm({ swing: -0.45, spread: 0.6, bend: 0.35 }),
+  }),
+  strike: rigPose({
+    hip: vec(0.02, 0, 0.45),
+    lean: 0.08,
+    twist: 0.1,
+    left: vec(0.06, 0.12, 0),
+    right: vec(0.2, -0.04, 0.05),
+    leftArm: rigArm({ swing: 0.9, spread: 0.9, turn: 0.1, bend: 0.25 }),
+    rightArm: rigArm({ swing: -0.65, spread: 0.6, bend: 0.3 }),
+  }),
+  followThrough: rigPose({
+    hip: vec(0.05, 0, 0.47),
+    lean: 0.2,
+    twist: 0.3,
+    left: vec(0.06, 0.12, 0),
+    right: vec(0.4, -0.02, 0.3),
+    leftArm: rigArm({ swing: 0.6, spread: 0.85, turn: 0.2, bend: 0.3 }),
+    rightArm: rigArm({ swing: -0.3, spread: 0.5, bend: 0.35 }),
+  }),
+  /** Up for a header: off the ground, legs tucked, arms out, the head cocked back; then snapped through it. */
+  rise: rigPose({
+    hip: vec(0, 0, 0.6),
+    lean: -0.05,
+    nod: -0.4,
+    left: vec(-0.05, 0.07, 0.18),
+    right: vec(-0.12, -0.07, 0.13),
+    leftArm: rigArm({ swing: 0.9, spread: 1.0, bend: 0.6 }),
+    rightArm: rigArm({ swing: 0.9, spread: 1.0, bend: 0.6 }),
+  }),
+  header: rigPose({
+    hip: vec(0.02, 0, 0.62),
+    lean: 0.42,
+    nod: 0.55,
+    left: vec(-0.06, 0.07, 0.2),
+    right: vec(-0.12, -0.07, 0.15),
+    leftArm: rigArm({ swing: 0.4, spread: 1.15, bend: 0.5 }),
+    rightArm: rigArm({ swing: 0.4, spread: 1.15, bend: 0.5 }),
+  }),
   /** Both hands over his head, then through: a throw-in. */
-  throwBack: pose(-0.25, 0.35, 0.2, -0.3, -0.2, 2.75, -2.9, 2.65, -3.0),
-  throwThrough: pose(0.3, 0.4, 0.15, -0.35, -0.4, 1.9, 1.55, 1.75, 1.45),
+  throwBack: rigPose({
+    hip: vec(-0.03, 0, 0.47),
+    lean: -0.28,
+    nod: -0.15,
+    left: vec(0.14, 0.07, 0),
+    right: vec(-0.14, -0.08, 0),
+    leftArm: rigArm({ swing: 2.85, spread: 0.12, bend: 1.45 }),
+    rightArm: rigArm({ swing: 2.85, spread: 0.12, bend: 1.45 }),
+  }),
+  throwThrough: rigPose({
+    hip: vec(0.03, 0, 0.46),
+    lean: 0.3,
+    left: vec(0.14, 0.07, 0),
+    right: vec(-0.14, -0.08, 0.02),
+    leftArm: rigArm({ swing: 1.85, spread: 0.1, bend: 0.25 }),
+    rightArm: rigArm({ swing: 1.85, spread: 0.1, bend: 0.25 }),
+  }),
   /** Square to the shot, arms in, a stride wide: a block. */
-  block: pose(-0.12, 0.5, 0.3, -0.5, -0.3, -0.25, 0.35, 0.25, -0.35),
+  block: rigPose({
+    hip: vec(0, 0, 0.42),
+    lean: -0.12,
+    left: vec(0, 0.17, 0),
+    right: vec(0, -0.17, 0),
+    knees: 0.3,
+    leftArm: rigArm({ swing: 0.3, spread: 0.0, turn: -0.7, bend: 1.7 }),
+    rightArm: rigArm({ swing: 0.3, spread: 0.0, turn: -0.7, bend: 1.7 }),
+  }),
   /** The keeper takes it into his chest. */
-  gather: pose(0.22, 0.5, 0.1, -0.35, -0.15, 1.3, 1.75, 1.1, 1.65),
+  gather: rigPose({
+    hip: vec(-0.02, 0, 0.44),
+    lean: 0.25,
+    left: vec(0.05, 0.1, 0),
+    right: vec(-0.05, -0.1, 0),
+    leftArm: rigArm({ swing: 0.95, spread: 0.1, turn: -0.55, bend: 1.55 }),
+    rightArm: rigArm({ swing: 0.95, spread: 0.1, turn: -0.55, bend: 1.55 }),
+  }),
   /** Arms up, chest out. */
-  celebrate: pose(-0.12, 0.22, 0.12, -0.22, -0.12, 2.55, 2.75, -2.55, -2.75),
+  celebrate: rigPose({ lean: -0.15, nod: -0.25, leftArm: rigArm({ swing: 2.45, spread: 0, turn: 1.25, bend: 0.15 }), rightArm: rigArm({ swing: 2.45, spread: 0, turn: 1.25, bend: 0.15 }) }),
   /** Hands on his head. */
-  dejected: pose(0.05, 0.1, 0.05, -0.1, -0.05, 2.25, -2.2, -2.25, 2.2),
+  dejected: rigPose({
+    lean: 0.08,
+    nod: 0.25,
+    leftArm: rigArm({ swing: 2.2, spread: 0, turn: 1.15, bend: 2.3 }),
+    rightArm: rigArm({ swing: 2.2, spread: 0, turn: 1.15, bend: 2.3 }),
+  }),
+
   /**
-   * The keeper at full stretch, `angle` off upright toward the ball (a top
-   * corner leans him over, a ball along the grass lays him flat): one line
-   * from the trailing foot to the leading hand, the top arm leading, the
-   * other just behind it, the push-off leg folded under. Facing the way he dives.
+   * The keeper at full stretch toward `d` (from his hips, in his heading's
+   * frame, body units): his body on the line to it, a top corner leaning him
+   * over and a ball along the grass laying him flat; one line from the
+   * trailing foot through him to the leading hand (the top one), the other
+   * just behind it, the push-off leg folded under.
    */
-  stretch(angle: number): Pose {
-    const a = Math.min(Math.max(angle, 0.55), 1.8);
-    const reach = Math.PI - a;
-    return pose(a, -a + 0.1, -a, -a + 0.55, -a - 0.5, reach - 0.04, reach - 0.08, reach + 0.34, reach + 0.06);
+  stretch(d: RigVector): RigPose {
+    const side = d.y >= 0 ? 1 : -1;
+    const across = Math.max(Math.hypot(d.x, d.y), 1e-6);
+    // From upright toward the ball: a lean for a top corner, just past flat for one along the grass.
+    const overUp = Math.min(Math.max(Math.atan2(across, d.z), 0.55), 1.8);
+    const line = vec((Math.sin(overUp) * d.x) / across, (Math.sin(overUp) * d.y) / across, Math.cos(overUp));
+    // Leaning forward with the ball's forward part, then over toward it: his chest to the shooter all the way down.
+    const p = rigPose({ hip: vec(0, 0, 0.45), pitch: Math.asin(line.x), bank: Math.atan2(line.y, line.z), left: vec(0, 0.06, -0.04), right: vec(0, -0.06, -0.04), knees: 0 });
+    const top: RigArm = rigArm({ swing: 3.08, spread: 0.15, bend: 0.03 });
+    const under: RigArm = rigArm({ swing: 2.8, spread: 0.18, bend: 0.15 });
+    const push = vec(-0.1, side * 0.07, 0.15);
+    return side > 0 ? withPose(p, { rightArm: top, leftArm: under, left: push }) : withPose(p, { leftArm: top, rightArm: under, right: push });
   },
-  /** Down on the grass after it. */
-  down: pose(1.5, -1.45, -1.55, -1.35, -1.5, 1.55, 1.45, 1.05, 1.3),
+
+  /** Down on the grass after it, on his side. */
+  down(side: number): RigPose {
+    return rigPose({
+      hip: vec(0, 0, 0.1),
+      bank: side * 1.45,
+      left: vec(0, 0.06, -0.36),
+      right: vec(-0.06, -0.07, -0.3),
+      leftArm: rigArm({ swing: 2.6, spread: 0.3, bend: 0.5 }),
+      rightArm: rigArm({ swing: 2.4, spread: 0.2, bend: 0.6 }),
+    });
+  },
 };
 
 const envelope = (x: number, attack: number, release: number) => (x < 0 ? Math.max(1 + x / attack, 0) : Math.max(1 - x / release, 0));
 
-function keyed(keys: readonly (readonly [number, Pose])[], x: number, way: number, base: Pose): Pose {
-  let i = -1;
-  for (let k = keys.length - 1; k >= 0; k--) {
-    if (keys[k]![0] <= x) {
-      i = k;
-      break;
-    }
+/**
+ * The body at t, and its heading (SoccerFrame.pose): at full stretch for the
+ * ball; else what he's doing (a strike, a header, a block, arms up) over how
+ * he's moving (striding to his planted feet), else how he stands: watching
+ * the ball. `unit`: body units to the metre where he stands. (tested)
+ */
+export function actorPose(script: SoccerScript, actor: Actor, index: number, t: number, here: Point, unit: number): [RigPose, number] {
+  const track = script.rig[index] ?? RigTrack.standing(here, 0, 2.5);
+  const m = track.motion(t);
+  const dive = actor.dive;
+  if (dive && t >= dive.start) {
+    const set = actor.position(dive.start);
+    const u = Math.min(Math.max((t - dive.start) / Math.max(dive.reach - dive.start, 0.01), 0), 1);
+    const fall = Math.min(Math.max((t - dive.reach) / 0.32, 0), 1);
+    // Toward the ball from his hips, as he set: along and across his heading, and up.
+    const toward = Rig.yaw(vec((dive.target.x - set.x) * unit, (dive.target.y - set.y) * unit, 0), -m.heading);
+    const d = vec(toward.x, toward.y, dive.target.z * unit - 0.45);
+    const body = mix(mix(RigPoses.ready, PitchPose.stretch(d), smooth(u * 1.3)), PitchPose.down(d.y >= 0 ? 1 : -1), smooth(fall));
+    // Off the ground on the way: daylight under him, gone as his hands reach the ball.
+    const lift = fall > 0 ? 0 : 4 * u * (1 - u) * 0.17;
+    return [withPose(body, { hip: vec(body.hip.x, body.hip.y, body.hip.z + lift) }), m.heading];
   }
-  if (i < 0 || i + 1 >= keys.length) return base;
-  const [a, pa] = keys[i]!;
-  const [b, pb] = keys[i + 1]!;
-  // Poses are written facing right; the base already faces his way.
-  const turn = (p: Pose) => (samePose(p, base) ? p : facing(p, way));
-  return mixPose(turn(pa), turn(pb), smooth((x - a) / (b - a)));
-}
-
-/** The pose at t: what he's doing (a strike, a header, a block, arms up), else how he's moving, else how he stands: watching the ball. */
-function actorPose(script: SoccerScript, scene: SoccerScene | null, actor: Actor, index: number, f: PitchProjection, t: number): Pose {
-  const here = actor.position(t);
-  const ballPoint = script.ball(t);
-  const ball = ballPoint ? { x: ballPoint.x, y: ballPoint.y } : scene ? goalOf(scene) : Pitch.center;
-  const hereX = f.pointGround(here).x;
-  const facingToward = (p: Point) => (f.pointGround(p).x - hereX >= 0 ? 1 : -1);
-  let base: Pose;
-  const motion = actor.motion(t);
-  if (motion && motion.speed > 1.2) {
-    const way = facingToward({ x: here.x + motion.heading.x, y: here.y + motion.heading.y });
-    base = motion.speed > 4.5 ? facing(Poses.run(2 * Math.PI * 2.6 * t + index), way) : facing(Poses.walk(2 * Math.PI * 1.8 * t + index), way);
-  } else {
-    base = facing(actor.role === "keeper" ? Poses.ready : Poses.stand, facingToward(ball));
-  }
+  const still = actor.role === "keeper" ? RigPoses.ready : RigPoses.stand;
+  const feet = track.feet(t, here, m.heading, unit, m.speed, { left: still.left, right: still.right });
+  let base = mix(still, gait(m, feet), m.weight);
   for (const action of actor.actions) {
     const x = t - action.at;
-    const way = facingToward(action.toward);
     switch (action.kind) {
       case "kick":
-        if (!(x > -0.24 && x < 0.45)) break;
-        base = keyed(
-          [
-            [-0.24, base],
-            [-0.09, PitchPose.backswing],
-            [0, PitchPose.strike],
-            [0.13, PitchPose.followThrough],
-            [0.45, base],
-          ],
-          x,
-          way,
-          base,
-        );
+        base =
+          keyed(
+            [
+              [-0.24, base],
+              [-0.09, PitchPose.backswing],
+              [0, PitchPose.strike],
+              [0.13, PitchPose.followThrough],
+              [0.45, base],
+            ],
+            x,
+          ) ?? base;
         break;
       case "header":
-        if (!(x > -0.32 && x < 0.42)) break;
-        base = keyed(
-          [
-            [-0.32, base],
-            [-0.02, PitchPose.header],
-            [0.1, PitchPose.header],
-            [0.42, base],
-          ],
-          x,
-          way,
-          base,
-        );
+        base =
+          keyed(
+            [
+              [-0.32, base],
+              [-0.12, PitchPose.rise],
+              [0.02, PitchPose.header],
+              [0.12, PitchPose.header],
+              [0.42, base],
+            ],
+            x,
+          ) ?? base;
         break;
       case "throwIn":
-        if (!(x > -0.5 && x < 0.45)) break;
-        base = keyed(
-          [
-            [-0.5, base],
-            [-0.15, PitchPose.throwBack],
-            [0.04, PitchPose.throwThrough],
-            [0.45, base],
-          ],
-          x,
-          way,
-          base,
-        );
+        base =
+          keyed(
+            [
+              [-0.5, base],
+              [-0.15, PitchPose.throwBack],
+              [0.04, PitchPose.throwThrough],
+              [0.45, base],
+            ],
+            x,
+          ) ?? base;
         break;
       case "control":
-        base = mixPose(base, facing(PitchPose.gather, way), envelope(x, 0.12, 0.2) * 0.4);
+        base = over(base, PitchPose.gather, envelope(x, 0.12, 0.2) * 0.4, m.weight);
         break;
       case "block":
-        base = mixPose(base, facing(PitchPose.block, way), envelope(x, 0.18, 0.5));
+        base = over(base, PitchPose.block, envelope(x, 0.18, 0.5), m.weight);
         break;
       case "gather":
         // Takes it in and holds it there.
-        base = mixPose(base, facing(PitchPose.gather, way), x < 0 ? Math.max(1 + x / 0.2, 0) : 1);
+        base = over(base, PitchPose.gather, x < 0 ? Math.max(1 + x / 0.2, 0) : 1, m.weight);
         break;
       case "celebrate":
-        base = mixPose(base, facing(PitchPose.celebrate, way), smooth((x + 0.25) / 0.35));
+        base = over(base, PitchPose.celebrate, smooth((x + 0.25) / 0.35), m.weight);
         break;
       case "dejected":
-        base = mixPose(base, facing(PitchPose.dejected, way), smooth(x / 0.35));
+        base = over(base, PitchPose.dejected, smooth(x / 0.35), m.weight);
         break;
     }
   }
-  return base;
+  return [base, m.heading];
 }
 
-/** A player posed and placed at t; and where his hands are (a keeper holding the ball has it there). */
-function place(script: SoccerScript, scene: SoccerScene | null, actor: Actor, index: number, f: PitchProjection, t: number): { figure: Figure; height: number; hands: Point } {
+/** A player posed and placed at t: his figure, its height, and where his hands are (a keeper holding the ball has it there). */
+interface Posed {
+  readonly figure: RigFigure;
+  readonly height: number;
+  readonly hands: Point;
+}
+
+/** Everyone at t, by actor. */
+function posed(f: PitchProjection, { script, t }: FrameInputs): Posed[] {
+  return script.actors.map((actor, index) => place(script, actor, index, f, t));
+}
+
+function place(script: SoccerScript, actor: Actor, index: number, f: PitchProjection, t: number): Posed {
   const at = actor.position(t);
-  const foot = f.pointGround(at);
-  const height = f.figure(at);
-  // The keeper at full stretch: his hands go exactly to the ball.
+  const lens = RigLens.pitch(f, at);
+  const [body, heading] = actorPose(script, actor, index, t, at, lens.unit);
+  const figure = rigFigure(body, heading, lens);
+  // At full stretch, his leading hand goes exactly to the ball.
   const dive = actor.dive;
   if (dive && t >= dive.start) {
     const target = f.point(dive.target);
-    const set = f.pointGround(actor.position(dive.start));
-    // His body along the line from his hips to the ball, as the camera sees it.
-    const hip = { x: set.x, y: set.y - height * 0.45 };
-    const way = target.x >= hip.x ? 1 : -1;
+    const side = body.bank >= 0 ? 1 : -1;
     const u = Math.min(Math.max((t - dive.start) / Math.max(dive.reach - dive.start, 0.01), 0), 1);
     const fall = Math.min(Math.max((t - dive.reach) / 0.32, 0), 1);
-    const flying = PitchPose.stretch(Math.atan2(Math.abs(target.x - hip.x), hip.y - target.y));
-    const p = facing(mixPose(mixPose(Poses.ready, flying, smooth(u * 1.3)), PitchPose.down, smooth(fall)), way);
-    const first = figure(p, foot, height);
+    const lead = side > 0 ? figure.hands[1] : figure.hands[0];
     const pull = fall > 0 ? 1 - smooth(fall) : smooth(u);
-    const reach = { x: (target.x - first.near.hand.x) * pull, y: (target.y - first.near.hand.y) * pull };
-    // Off the ground on the way: daylight under him, gone as his hands reach the ball.
-    const air = fall > 0 ? 0 : 4 * u * (1 - u) * height * 0.16;
-    const placed = figure(p, { x: foot.x + reach.x, y: Math.min(foot.y + reach.y, foot.y) - air }, height);
-    return { figure: placed, height, hands: placed.near.hand };
+    shift(figure, (target.x - lead.x) * pull, (target.y - lead.y) * pull);
+    return { figure, height: lens.height, hands: side > 0 ? figure.hands[1] : figure.hands[0] };
   }
-  const fig = figure(actorPose(script, scene, actor, index, f, t), foot, height);
-  return { figure: fig, height, hands: { x: (fig.near.hand.x + fig.far.hand.x) / 2, y: (fig.near.hand.y + fig.far.hand.y) / 2 } };
+  return { figure, height: lens.height, hands: grip(figure) };
 }
 
 // MARK: - Labels (laid out once per moment and size)
@@ -480,8 +553,9 @@ export interface FrameInputs {
 /** One frame of a moment through the camera (SoccerFrame). */
 export function drawSoccerFrame(ctx: Ctx, f: PitchProjection, input: FrameInputs): void {
   drawTrails(ctx, f, input);
-  drawShadows(ctx, f, input);
-  const hands = drawStage(ctx, f, input);
+  const figures = posed(f, input);
+  drawShadows(ctx, f, input, figures);
+  const hands = drawStage(ctx, f, input, figures);
   drawTheBall(ctx, f, input, hands);
   drawImpacts(ctx, f, input);
   drawLabels(ctx, f, input);
@@ -528,13 +602,14 @@ function drawTrails(ctx: Ctx, f: PitchProjection, { script, t, teams, ink }: Fra
   });
 }
 
-function drawShadows(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs): void {
-  ctx.fillStyle = shadow(ink);
-  for (const actor of script.actors) {
-    const at = actor.position(t);
-    const p = f.pointGround(at);
-    const w = f.figure(at) * 0.3;
-    ellipse(ctx, p.x, p.y, w, w * 0.3);
+function drawShadows(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs, figures: readonly Posed[]): void {
+  // Under the hips; smaller and fainter as he leaves the ground.
+  for (const p of figures) {
+    const air = Math.min(p.figure.air / 0.4, 1);
+    const w = p.height * 0.3 * (1 - 0.35 * air);
+    const g = p.figure.ground;
+    ellipse(ctx, g.x, g.y, w, w * 0.3);
+    ctx.fillStyle = shadow(ink, 1 - 0.45 * air);
     ctx.fill();
   }
   // The ball's: under it on the grass, larger and softer the higher it flies, a hairline up to it once it's well up.
@@ -568,8 +643,8 @@ type Item =
 type GoalPart = "net" | "frame" | "nearPost";
 
 /** The goals and the players, far to near (a man in front of the post covers it). Returns where the keeper holding the ball has his hands. */
-function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs): Point | null {
-  const { script, scene, t, teams, ink } = input;
+function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: readonly Posed[]): Point | null {
+  const { script, t, teams, ink } = input;
   const attacking = figureInks(teams.attacking, ink);
   const defending = figureInks(teams.defending, ink);
   let items: Item[];
@@ -594,7 +669,7 @@ function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs): Point | nu
   for (const { item } of order) {
     if (item.kind === "actor") {
       const actor = script.actors[item.index]!;
-      const placed = place(script, scene, actor, item.index, f, t);
+      const placed = figures[item.index]!;
       drawFigure(ctx, placed.figure, actor.team === "attacking" ? attacking : defending, placed.height, 1);
       if (script.heldBy === item.index && t >= script.heldFrom) hands = placed.hands;
     } else if (item.kind === "goalBack") {

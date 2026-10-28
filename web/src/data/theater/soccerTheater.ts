@@ -148,6 +148,20 @@ export const GoalCelebration = {
 // MARK: - What the theater shows
 
 /** BaseballFeed.recent: a moment this fresh is news even on a page that only just opened (ESPN posts plays late). */
+/**
+ * What the stage shows (SoccerTheater.swift `SoccerTheater.shown`): a
+ * moment replaying, then its end (the scorer wheeling away, the stamp) until
+ * it has held (`rested`); a new moment not yet begun; otherwise null, the
+ * quiet pitch. History that isn't news is never shown: moments can be twenty
+ * minutes apart, and on opening the page the pitch is quiet. (pure; tested)
+ */
+export function soccerShown(state: SoccerTheaterState, replaying: string | null, rested: string | null): SoccerScene | null {
+  const scene = state.scene;
+  if (!scene) return null;
+  if (replaying === scene.id) return rested === scene.id ? null : scene;
+  return state.news ? scene : null;
+}
+
 export const RECENT_MS = 60_000;
 
 /**

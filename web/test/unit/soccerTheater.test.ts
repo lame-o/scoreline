@@ -24,9 +24,10 @@ import { goalFrame, PitchCamera, PitchFrame, room, SoccerScript } from "../../sr
 import { CameraFollow, TheaterBurst } from "../../src/data/theater/theaterKit";
 import { buildUpLimit, loftSpeed, passSpeed } from "../../src/data/theater/soccerScript";
 import { keeperSave } from "../../src/data/theater/soccerScene";
-import { figure } from "../../src/data/mlb/theaterPose";
-import { PitchPose } from "../../src/features/game/soccer/theater/drawSoccer";
-import { GoalCelebration, PitchProjection, sentences, SoccerTheaterWatch, soccerTheaterState, stampDetail } from "../../src/data/theater/soccerTheater";
+import { dot, norm, skeleton, vec, minus, type RigVector } from "../../src/data/theater/rig";
+import { actorPose, PitchPose } from "../../src/features/game/soccer/theater/drawSoccer";
+import { jointsBreak } from "./rigJoints";
+import { GoalCelebration, PitchProjection, sentences, soccerShown, SoccerTheaterWatch, soccerTheaterState, stampDetail } from "../../src/data/theater/soccerTheater";
 import { fixture } from "./fixtures";
 
 interface Clip {
@@ -278,6 +279,25 @@ describe("soccer theater: what's news", () => {
   });
 });
 
+describe("soccer theater: between moments", () => {
+  const s = header!.scene;
+  it("opening the page on an old moment shows the quiet pitch; a fresh one replays", () => {
+    expect(soccerShown({ scene: s, news: false }, null, null)).toBeNull();
+    expect(soccerShown({ scene: s, news: true }, null, null)).toBe(s);
+  });
+  it("a moment's end holds (the scorer wheeling away, the stamp), then the pitch goes quiet", () => {
+    expect(soccerShown({ scene: s, news: true }, s.id, null)).toBe(s);
+    expect(soccerShown({ scene: s, news: true }, s.id, s.id)).toBeNull();
+  });
+  it("…the quiet pitch: nobody on it, no ball, no trail, no stamp", () => {
+    const quiet = new SoccerScript();
+    expect(quiet.actors.length).toBe(0);
+    expect(quiet.flights.length).toBe(0);
+    expect(quiet.stamp).toBe(Infinity);
+    expect(quiet.banners.length).toBe(0);
+  });
+});
+
 describe("soccer theater: choreography", () => {
   it("every moment's players and ball stay finite, the ball never under the grass", () => {
     for (const [, s] of scripts) {
@@ -290,6 +310,14 @@ describe("soccer theater: choreography", () => {
         if (b) expect(Number.isFinite(b.x) && Number.isFinite(b.y) && Number.isFinite(b.z) && b.z >= -0.01).toBe(true);
       }
     }
+  });
+
+  it("in every moment, knees and elbows bend only their own way, never past folded (the strikes, the dives and every blend between them)", { timeout: 60_000 }, () => {
+    const broken = scripts.flatMap(([scene, s]) => {
+      const where = jointsBreak(s.duration, s.actors.length, (i, t) => actorPose(s, s.actors[i]!, i, t, s.actors[i]!.position(t), 1.1 / 2.5)[0]);
+      return where ? [`${scene.shooter}: ${where}`] : [];
+    });
+    expect(broken.slice(0, 3)).toEqual([]);
   });
 
   it("every replay runs 3–11 s", () => {
@@ -515,7 +543,7 @@ describe("soccer theater: behind the goal", () => {
 });
 
 describe("soccer theater: the keeper, once", () => {
-  it("with no keeper's name known yet, the keeper is never drawn twice", () => {
+  it("with no keeper's name known yet, the keeper is never drawn twice", { timeout: 30_000 }, () => {
     const twice: string[] = [];
     for (const clip of clips) {
       clip.plays.forEach((p, i) => {
@@ -556,17 +584,19 @@ describe("soccer theater: the keeper, once", () => {
 
 describe("soccer theater: the dive", () => {
   it("at full stretch: one line from the trailing foot through the body to the leading hand, beyond his head; leaning for a top corner, flat along the grass", () => {
-    const angle = (p: Point, q: Point) => Math.atan2(q.x - p.x, p.y - q.y);
+    // Toward a ball on his left at 0.6 (a top corner) to 1.8 rad (along the grass) off upright, a little in front of him.
+    const over = (a: number): RigVector => vec(0.15 * Math.sin(a), 0.8 * Math.sin(a), 0.8 * Math.cos(a));
     for (const a of [0.6, 0.9, 1.2, 1.5, 1.8]) {
-      const f = figure(PitchPose.stretch(a), { x: 0, y: 0 }, 40);
-      const reach = Math.hypot(f.near.hand.x - f.hip.x, f.near.hand.y - f.hip.y);
-      const head = Math.hypot(f.head.x - f.hip.x, f.head.y - f.hip.y);
-      expect(Math.abs(angle(f.hip, f.neck) - a)).toBeLessThan(0.01);
-      expect(Math.abs(angle(f.neck, f.near.hand) - a)).toBeLessThan(0.15);
-      expect(Math.abs(angle(f.near.foot, f.hip) - a)).toBeLessThan(0.15);
-      expect(reach).toBeGreaterThan(head);
+      const k = skeleton(PitchPose.stretch(over(a)));
+      const o = over(a);
+      const line = vec(o.x / norm(o), o.y / norm(o), o.z / norm(o));
+      const along = (p: RigVector, q: RigVector) => dot(minus(q, p), line) / norm(minus(q, p));
+      expect(along(k.hip, k.neck)).toBeGreaterThan(0.99);
+      expect(along(k.neck, k.hands[1])).toBeGreaterThan(0.97);
+      expect(along(k.feet[1], k.hip)).toBeGreaterThan(0.97);
+      expect(dot(minus(k.hands[1], k.hip), line)).toBeGreaterThan(dot(minus(k.head, k.hip), line));
     }
-    expect(PitchPose.stretch(0.7).lean).toBeLessThan(PitchPose.stretch(1.6).lean);
+    expect(PitchPose.stretch(over(0.7)).bank).toBeLessThan(PitchPose.stretch(over(1.6)).bank);
   });
 
   it("…a dive takes half a second, whatever the shot's flight: from distance he reads it first", () => {

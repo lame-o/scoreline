@@ -26,6 +26,7 @@ import { CameraFrame } from "../mlb/playCamera";
 import { Move } from "../mlb/playScript";
 import { easeValue, fieldPoint, ground, type Ease, type FieldPoint, type Point } from "../mlb/theaterField";
 import { attacksRight, characters, crossbar, goalOf, Pitch, scored, stampDetail, surname, type SoccerScene, type Touch } from "./soccerScene";
+import { ballMemo, RigTrack, type RigFacing } from "./rig";
 import { CameraFollow } from "./theaterKit";
 import { BIG_CHANCE_XG } from "../liveFeeds/soccer";
 
@@ -189,6 +190,9 @@ export interface Banner {
   confetti: boolean;
 }
 
+/** The actions a player holds once he's made them: he keeps facing what they face. */
+const HELD: ReadonlySet<ActionKind> = new Set(["gather", "celebrate", "dejected"]);
+
 export class SoccerScript {
   actors: Actor[] = [];
   flights: Flight[] = [];
@@ -221,6 +225,8 @@ export class SoccerScript {
   camera: CameraFrame[] = [];
   /** The cut behind the goal for a shot on target. */
   reverse: Reverse | null = null;
+  /** Each player's motion through the replay (his heading, stride and footfalls), measured once: by actor. */
+  rig: RigTrack[] = [];
 
   /** The moment's replay. (`new SoccerScript()` is the pitch with nobody on it: no moment yet.) */
   static build(scene: SoccerScene): SoccerScript {
@@ -233,7 +239,28 @@ export class SoccerScript {
     b.headline();
     b.measureStamp();
     b.shoot();
+    b.script.measureBodies();
     return b.script;
+  }
+
+  /**
+   * Each player's motion, measured once (`RigTrack`, a 2.5 m figure), and
+   * what each faces when he isn't running somewhere: what he's striking,
+   * heading, throwing or taking, and from his moment on whoever he's
+   * celebrating toward or the goal he turned it into; else the ball.
+   */
+  measureBodies(): void {
+    const ball = ballMemo(this);
+    this.rig = this.actors.map((actor) =>
+      RigTrack.measure(0, this.duration, 2.5, (t) => actor.position(t), (t): RigFacing | null => {
+        for (let i = actor.actions.length - 1; i >= 0; i--) {
+          const a = actor.actions[i]!;
+          if (t > a.at - 0.45 && (t < a.at + 0.2 || HELD.has(a.kind))) return { point: a.toward };
+        }
+        const b = ball(t);
+        return b ? { point: ground(b) } : null;
+      }),
+    );
   }
 
   /** The ball at t: in flight, held where its last flight ended, or gone. */
