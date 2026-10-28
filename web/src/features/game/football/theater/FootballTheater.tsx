@@ -16,9 +16,14 @@
  * pictogram figures, ball and type; core/theater). Drawn on one canvas
  * through the camera (TheaterStage, drawFootball.ts). It reads the live
  * lane itself (and nothing above it does), so a new play redraws the
- * theater alone. Plays already on the page when it opened show as they
- * ended; a new one mid-replay cuts to itself; with Reduce Motion each play
- * crossfades to how it ended and the camera never moves. Decorative for
+ * theater alone. A new play replays (a new one mid-replay cuts to itself;
+ * with Reduce Motion it crossfades to how it ended and the camera never
+ * moves), and its end holds (the stamp, the ball, the players where it
+ * ended) until the next snap or `HOLD_MS`, then crossfades to the game as it
+ * stands: both teams set at the live line, the blue and yellow lines, no
+ * stamp. History isn't shown: on opening the page the field is the live
+ * one (`footballShown`). The field and the players are one canvas pass,
+ * through the same camera. Decorative for
  * screen readers: the drive chart carries the play. Lazy: the page loads
  * this module only when it shows a field.
  *
@@ -33,7 +38,8 @@ import { cueFor, presetFor } from "../../../../data/celebrations";
 import { NEUTRAL, type Scheme, type TeamPalette } from "../../../../data/teamColors";
 import type { FootballTheaterState } from "../../../../data/theater/footballScene";
 import { FootballScript } from "../../../../data/theater/footballScript";
-import { DEFAULT_REST, FootballCelebration, FootballTheaterWatch, footballRest, type FootballBurst } from "../../../../data/theater/footballTheater";
+import { DEFAULT_REST, FootballCelebration, footballShown, FootballTheaterWatch, footballRest, type FootballBurst } from "../../../../data/theater/footballTheater";
+import { HOLD_MS } from "../../../../data/theater/theaterKit";
 import { useSettings } from "../../../../state/settings";
 import { useColorScheme } from "../../../../state/theme";
 import { useChartMoment } from "../../core/moments";
@@ -119,14 +125,40 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
   const level = useSettings((s) => s.celebrationLevel);
   const reduceMotion = useReducedMotion();
   const moment = useChartMoment("field");
-  // A touchdown replayed here is followed by its try, as a short beat of its own: a cut to the try's
-  // formation, a breath, the snap (FootballStage.follow). `replayed`: the last play whose replay ran its course.
-  const [replayed, setReplayed] = useState<string | null>(null);
-  const conversion = state.play?.conversion ?? null;
-  const following = conversion != null && frozen == null && !reduceMotion && replayed === state.play?.id;
-  /** The play on screen: the last snap, or a touchdown's try once its beat has begun. */
-  const play = following ? conversion : state.play;
-  const news = following ? true : state.news;
+  // The replay begun on the stage (FootballStage.replay): which play, and whether it has run its course;
+  // and the replay whose end has had its time on screen.
+  const [replay, setReplay] = useState<{ readonly id: string; readonly done: boolean } | null>(null);
+  const [rested, setRested] = useState<string | null>(null);
+  const clockLive = frozen == null;
+  // A new play replays from its snap; with Reduce Motion it's over at once (its end crossfades in, and holds). History doesn't.
+  useEffect(() => {
+    const p = state.play;
+    if (!clockLive || !state.news || !p) return;
+    setReplay((r) => (r?.id === p.id ? r : { id: p.id, done: reduceMotion }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.play?.id]);
+  // A touchdown replayed here is followed by its try, as a short beat of its own: a cut to the try's formation, a breath, the snap.
+  useEffect(() => {
+    const p = state.play;
+    const attempt = p?.conversion;
+    if (!clockLive || reduceMotion || !p || !attempt || replay?.id !== p.id || !replay.done) return;
+    setReplay({ id: attempt.id, done: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replay, state.play?.conversion?.id]);
+  // Done: its end holds a while (unless the next play comes), then the field returns to the game.
+  useEffect(() => {
+    if (!replay?.done) return;
+    const id = setTimeout(() => setRested(replay.id), HOLD_MS);
+    return () => clearTimeout(id);
+  }, [replay]);
+  /** The play on screen: a replay, a touchdown's try in its own beat, then its end until it has held; else none (the game as it stands). */
+  const shownNow = footballShown(state, replay?.id ?? null, rested);
+  // A try is made from its touchdown each time it's asked for: one per touchdown, so its script is built once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const play = useMemo(() => shownNow, [shownNow?.id, state.play]);
+  const replaying = replay != null && play != null && replay.id === play.id;
+  const news = replaying ? !replay.done : state.news;
+  const following = replaying && play.id === state.play?.conversion?.id;
 
   // The field between plays when no play has come yet: the live spot, else the offense at its 25.
   const rest = situation ? footballRest(situation) : null;
@@ -172,10 +204,8 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
       id: play?.id ?? null,
       news,
       lead: following ? 0.3 : 0,
-      // The touchdown's end starts its try; the try's own end changes nothing (the try stays on screen).
-      onEnd: (id) => {
-        if (id === state.play?.id) setReplayed(id);
-      },
+      // Its course run: the touchdown's try follows, or its end holds.
+      onEnd: (id) => setReplay((r) => (r && r.id === id && !r.done ? { id, done: true } : r)),
       duration: script.duration,
       frozen,
       reduceMotion,
@@ -203,7 +233,7 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
       },
     };
     stage.current?.update(inputs);
-  }, [play, news, following, state.play, script, teams, zones, ink, moment, level, reduceMotion, frozen]);
+  }, [play, news, following, script, teams, zones, ink, moment, level, reduceMotion, frozen]);
 
   return (
     <div className={styles.well} data-theater="football" aria-hidden="true">

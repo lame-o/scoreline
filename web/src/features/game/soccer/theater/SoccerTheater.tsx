@@ -14,21 +14,25 @@
  *
  * Drawn on one canvas through the camera (TheaterStage, drawSoccer.ts). It
  * reads the live lane itself (and nothing above it does), so a new moment
- * redraws the theater alone. Moments already on the page when it opened
- * show as they ended; a new one mid-replay cuts to itself; with Reduce
- * Motion each moment crossfades to how it ended and the camera never moves.
- * The stage is decorative for screen readers: the caption carries the
+ * redraws the theater alone. A new moment replays (a new one mid-replay
+ * cuts to itself; with Reduce Motion it crossfades to how it ended and the
+ * camera never moves), and its end holds (the scorer wheeling away, the
+ * stamp) until the next moment or `HOLD_MS`, then the pitch goes quiet.
+ * History isn't shown: moments can be twenty minutes apart, and on opening
+ * the page the pitch is quiet (`soccerShown`). The pitch and the players are
+ * one canvas pass, through the same camera. The stage is decorative for screen readers: the caption carries the
  * moment. Lazy: the page loads this module only when it shows a live pitch.
  *
  *     <SoccerTheater feed={feed} homeTeamID="362" kits={kits} />
  */
-import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { cueFor, presetFor } from "../../../../data/celebrations";
 import type { SoccerFeed } from "../../../../data/liveFeeds/soccer";
 import { dress, type TheaterKits } from "../../../../data/mlb/theaterTeams";
 import { goalOf, scored, type SoccerScene, type SoccerTheaterState } from "../../../../data/theater/soccerScene";
 import { SoccerScript } from "../../../../data/theater/soccerScript";
-import { GoalCelebration, PitchProjection, sentences, SoccerTheaterWatch } from "../../../../data/theater/soccerTheater";
+import { GoalCelebration, PitchProjection, sentences, soccerShown, SoccerTheaterWatch } from "../../../../data/theater/soccerTheater";
+import { HOLD_MS } from "../../../../data/theater/theaterKit";
 import { useSettings } from "../../../../state/settings";
 import { useColorScheme } from "../../../../state/theme";
 import { useChartMoment } from "../../core/moments";
@@ -101,7 +105,25 @@ export default function SoccerTheater({ feed, homeTeamID, kits, preloaded = null
   const level = useSettings((s) => s.celebrationLevel);
   const reduceMotion = useReducedMotion();
   const moment = useChartMoment("pitch");
-  const scene = state.scene;
+  // The replay begun on the stage (SoccerStage.replay) and whether it has run its course; the one whose end has had its time.
+  const [replay, setReplay] = useState<{ readonly id: string; readonly done: boolean } | null>(null);
+  const [rested, setRested] = useState<string | null>(null);
+  // A new moment replays from its first touch; with Reduce Motion it's over at once (its end crossfades in, and holds). History doesn't.
+  useEffect(() => {
+    const s = state.scene;
+    if (frozen != null || !state.news || !s) return;
+    setReplay((r) => (r?.id === s.id ? r : { id: s.id, done: reduceMotion }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.scene?.id]);
+  // Done: its end holds a while (unless the next moment comes), then the pitch goes quiet.
+  useEffect(() => {
+    if (!replay?.done) return;
+    const id = setTimeout(() => setRested(replay.id), HOLD_MS);
+    return () => clearTimeout(id);
+  }, [replay]);
+  /** The moment on screen: a replay, then its end until it has held; else none (the quiet pitch). */
+  const scene = soccerShown(state, replay?.id ?? null, rested);
+  const news = replay != null && scene != null && replay.id === scene.id ? !replay.done : state.news;
 
   // The moment's script, built once (a render for anything else reuses it).
   const script = useMemo(() => (scene ? SoccerScript.build(scene) : new SoccerScript()), [scene]);
@@ -135,7 +157,9 @@ export default function SoccerTheater({ feed, homeTeamID, kits, preloaded = null
     const color = accentOf(teams.attacking, ink);
     const inputs: StageInputs = {
       id: scene?.id ?? null,
-      news: state.news,
+      news,
+      // Its course run: its end holds.
+      onEnd: (id) => setReplay((r) => (r && r.id === id && !r.done ? { id, done: true } : r)),
       duration: script.duration,
       frozen,
       reduceMotion,
@@ -164,14 +188,14 @@ export default function SoccerTheater({ feed, homeTeamID, kits, preloaded = null
       },
     };
     stage.current?.update(inputs);
-  }, [scene, state.news, script, teams, ink, moment, level, reduceMotion, frozen]);
+  }, [scene, news, script, teams, ink, moment, level, reduceMotion, frozen]);
 
   return (
     <div className={styles.theater}>
       <div className={wellStyles.well} data-theater="soccer" aria-hidden="true">
         <canvas ref={canvas} className={wellStyles.canvas} />
       </div>
-      <Caption scene={scene} />
+      <Caption scene={state.scene} />
     </div>
   );
 }

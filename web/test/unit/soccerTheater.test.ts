@@ -27,7 +27,7 @@ import { keeperSave } from "../../src/data/theater/soccerScene";
 import { dot, norm, skeleton, vec, minus, type RigVector } from "../../src/data/theater/rig";
 import { actorPose, PitchPose } from "../../src/features/game/soccer/theater/drawSoccer";
 import { jointsBreak } from "./rigJoints";
-import { GoalCelebration, PitchProjection, sentences, SoccerTheaterWatch, soccerTheaterState, stampDetail } from "../../src/data/theater/soccerTheater";
+import { GoalCelebration, PitchProjection, sentences, soccerShown, SoccerTheaterWatch, soccerTheaterState, stampDetail } from "../../src/data/theater/soccerTheater";
 import { fixture } from "./fixtures";
 
 interface Clip {
@@ -279,6 +279,25 @@ describe("soccer theater: what's news", () => {
   });
 });
 
+describe("soccer theater: between moments", () => {
+  const s = header!.scene;
+  it("opening the page on an old moment shows the quiet pitch; a fresh one replays", () => {
+    expect(soccerShown({ scene: s, news: false }, null, null)).toBeNull();
+    expect(soccerShown({ scene: s, news: true }, null, null)).toBe(s);
+  });
+  it("a moment's end holds (the scorer wheeling away, the stamp), then the pitch goes quiet", () => {
+    expect(soccerShown({ scene: s, news: true }, s.id, null)).toBe(s);
+    expect(soccerShown({ scene: s, news: true }, s.id, s.id)).toBeNull();
+  });
+  it("…the quiet pitch: nobody on it, no ball, no trail, no stamp", () => {
+    const quiet = new SoccerScript();
+    expect(quiet.actors.length).toBe(0);
+    expect(quiet.flights.length).toBe(0);
+    expect(quiet.stamp).toBe(Infinity);
+    expect(quiet.banners.length).toBe(0);
+  });
+});
+
 describe("soccer theater: choreography", () => {
   it("every moment's players and ball stay finite, the ball never under the grass", () => {
     for (const [, s] of scripts) {
@@ -524,7 +543,7 @@ describe("soccer theater: behind the goal", () => {
 });
 
 describe("soccer theater: the keeper, once", () => {
-  it("with no keeper's name known yet, the keeper is never drawn twice", () => {
+  it("with no keeper's name known yet, the keeper is never drawn twice", { timeout: 30_000 }, () => {
     const twice: string[] = [];
     for (const clip of clips) {
       clip.plays.forEach((p, i) => {

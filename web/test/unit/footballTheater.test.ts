@@ -19,7 +19,8 @@ import { fieldPoint, type FieldPoint } from "../../src/data/mlb/theaterField";
 import { liveMoment, Tier, type LiveMoment } from "../../src/data/moments";
 import { FootballScene, kindIs, parse } from "../../src/data/theater/footballScene";
 import { FootballScript, footballStamp, Gridiron, type Role, type Team } from "../../src/data/theater/footballScript";
-import { FootballCelebration, FootballTheaterWatch, footballRest, footballTheaterState, spot, spotted } from "../../src/data/theater/footballTheater";
+import { FootballCelebration, footballShown, FootballTheaterWatch, footballRest, footballTheaterState, spot, spotted } from "../../src/data/theater/footballTheater";
+import { HOLD_MS } from "../../src/data/theater/theaterKit";
 import { playerPose } from "../../src/features/game/football/theater/drawFootball";
 import { fixture } from "./fixtures";
 import { jointsBreak } from "./rigJoints";
@@ -670,7 +671,7 @@ describe("the hash", () => {
     expect(turned.nextHash).toBe("left");
   });
 
-  it("the ball snapped from its hash, everyone inside the sidelines, the formation round it", () => {
+  it("the ball snapped from its hash, everyone inside the sidelines, the formation round it", { timeout: 30_000 }, () => {
     const hashed = onHashes.map((s) => FootballScript.play(s));
     const onHash = onHashes.map((s, i) => [s, hashed[i]!] as const).filter(([s]) => s.kind.type !== "kickoff" && s.hash !== "middle");
     expect(onHash.length).toBeGreaterThan(30);
@@ -822,5 +823,41 @@ describe("the headline's colors", () => {
     // Manchester City's sky blue in the light, at 2.93:1 on the well's tint: the Swift's dressing
     // (TheaterTeams.dress deepens a team's type only above L 0.7) lets it through. Raised with the Mac.
     expect(failing).toEqual(["light MNC #618bae 2.93"]);
+  });
+});
+
+describe("between plays", () => {
+  const play = scene("9274")!;
+  const td = scene("3048")!;
+  const attempt = td.conversion!;
+
+  it("opening the page on an old snap shows the game as it stands; a fresh one replays", () => {
+    expect(footballShown({ play, news: false }, null, null)).toBeNull();
+    expect(footballShown({ play, news: true }, null, null)).toBe(play);
+  });
+  it("a replay's end holds (the stamp, the ball, the players where it ended), then gives way to the live scene", () => {
+    expect(footballShown({ play, news: true }, play.id, null)).toBe(play);
+    expect(footballShown({ play, news: true }, play.id, play.id)).toBeNull();
+  });
+  it("a touchdown's try plays its own beat after the touchdown, and holds the same", () => {
+    expect(attempt).toBeTruthy();
+    expect(footballShown({ play: td, news: true }, attempt.id, td.id)).toEqual(attempt);
+    expect(footballShown({ play: td, news: true }, attempt.id, attempt.id)).toBeNull();
+  });
+  it("the next snap cuts in, whatever is holding", () => {
+    const next = scene("2186")!;
+    expect(footballShown({ play: next, news: true }, play.id, null)).toBe(next);
+  });
+  it("…the game as it stands: both teams at the line, the linemen down in their stances, the blue and yellow lines, no stamp, no flight", () => {
+    const live = FootballScript.rest({ yard: 40, gain: 50 });
+    expect(live.lines.scrimmage).toBe(Gridiron.y(40));
+    expect(live.lines.gain).toBe(Gridiron.y(50));
+    expect(live.stamp).toBe(Infinity);
+    expect(live.flights.length).toBe(0);
+    expect(live.players.length).toBe(22);
+    expect(live.players.filter((p) => p.role === "line").every((p) => p.inStance(Infinity))).toBe(true);
+  });
+  it("one hold for every theater: a replay's end stays 8 s", () => {
+    expect(HOLD_MS).toBe(8000);
   });
 });

@@ -38,6 +38,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import type { ScoreEvent, Side } from "../../../../data/models";
 import { PlayScript, type Rest } from "../../../../data/mlb/playScript";
 import { playOnStage, type TheaterState } from "../../../../data/mlb/playScene";
+import { HOLD_MS } from "../../../../data/theater/theaterKit";
 import { theaterTeams, type TheaterKits } from "../../../../data/mlb/theaterTeams";
 import type { TeamPalette } from "../../../../data/teamColors";
 import { useSettings } from "../../../../state/settings";
@@ -72,9 +73,6 @@ const subscribeReduce = (listener: () => void) => {
   reduceQuery?.addEventListener("change", listener);
   return () => reduceQuery?.removeEventListener("change", listener);
 };
-
-/** How long a replay's end stays up when the next at-bat hasn't begun (PlayStage.hold). */
-export const HOLD_MS = 8000;
 
 /** The system's Reduce Motion, live. */
 export function usePrefersReducedMotion(): boolean {

@@ -29,6 +29,23 @@ export function footballRest(situation: Football): { rest: Rest; offense: Side }
 /** With no situation at all: the offense at its 25, ten to go. */
 export const DEFAULT_REST: Rest = { yard: 25, gain: 35 };
 
+/**
+ * What the stage shows (FootballTheater.swift `FootballTheater.shown`): a
+ * play replaying, then its end until it has held (`rested`); a touchdown's
+ * try in a beat of its own, the same; a new play not yet begun; otherwise
+ * null, the game as it stands (both teams set at the line). History that
+ * isn't news is never shown: on opening the page, the field is the live one.
+ * `replaying`: the replay begun on the stage, if any. (pure; tested)
+ */
+export function footballShown(state: FootballTheaterState, replaying: string | null, rested: string | null): FootballScene | null {
+  const play = state.play;
+  if (!play) return null;
+  const attempt = play.conversion;
+  if (attempt && replaying === attempt.id) return rested === attempt.id ? null : attempt;
+  if (replaying === play.id) return rested === play.id ? null : play;
+  return state.news ? play : null;
+}
+
 // MARK: - What the theater shows
 
 /** How long ago a play may have happened and still be news on a page that just opened (BaseballFeed.recent). */

@@ -1,7 +1,8 @@
 /**
- * What the football and soccer play theaters share, whatever the sport
- * (TheaterKit.swift § Camera): the broadcast camera's spring and its shot
- * blends, and a camera's path through a replay. The baseball theater came
+ * What the play theaters share, whatever the sport (TheaterKit.swift § Hold
+ * and § Camera): how long a replay's end holds (all three), and for football
+ * and soccer the broadcast camera's spring and its shot blends, and a
+ * camera's path through a replay. The baseball theater came
  * first and keeps its own copies (data/mlb/playCamera.ts) with the same
  * constants; these are the general form, for any projection. Pure numbers:
  * the drawing half of TheaterKit (figures, the ball, the type) is
@@ -10,6 +11,15 @@
 import type { Particle } from "../celebrations";
 import { CameraFrame, union, type Rect } from "../mlb/playCamera";
 import type { FieldPoint, Point } from "../mlb/theaterField";
+
+// MARK: - Hold
+
+/**
+ * How long a replay's end stays up when nothing new has come
+ * (TheaterKit.hold): then the theater returns to the game as it stands (the
+ * next batter up, both teams set at the line, the quiet pitch).
+ */
+export const HOLD_MS = 8000;
 
 // MARK: - Camera
 
