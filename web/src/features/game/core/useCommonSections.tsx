@@ -11,7 +11,9 @@ import { competitors } from "../../../data/models";
 import { bracketPath } from "../../../data/schedule";
 import type { PeekInputs } from "../../../data/peek";
 import { pageKind, type Section } from "../../../data/sections";
-import { LatestPlays, LinescoreGrid, MomentList, SeriesLink, StatBars, WhereToWatch, WinProbability } from "./CommonSections";
+import { reconcileLinescore } from "../../../data/headerSync";
+import { LatestPlays, MomentList, SeriesLink, StatBars, WhereToWatch, WinProbability } from "./CommonSections";
+import { SyncedLinescore } from "./headerSync";
 import { DetailSection } from "./DetailSection";
 import type { GameContext } from "./sport";
 
@@ -29,12 +31,16 @@ export function linescoreChart(game: GameContext): ReactNode {
   const { detail, names, spoken, palette } = game;
   if (!detail.linescore) return null;
   const baseball = pageKind(game.event.ref) === "baseball";
-  return <LinescoreGrid linescore={detail.linescore} topName={names.top} bottomName={names.bottom} totals={baseball ? 3 : 1} palette={palette} spokenTop={spoken.top} spokenBottom={spoken.bottom} />;
+  // No older than the header (the summary trails the lanes).
+  return (
+    <SyncedLinescore ledger={game.header} linescore={detail.linescore} topName={names.top} bottomName={names.bottom} totals={baseball ? 3 : 1} palette={palette} spokenTop={spoken.top} spokenBottom={spoken.bottom} />
+  );
 }
 
 /** The line score as the chart peek's pill reads it. */
 export function linescorePeek(game: GameContext): PeekInputs["linescore"] {
-  const line = game.detail.linescore;
+  const summary = game.detail.linescore;
+  const line = summary && game.header ? reconcileLinescore(summary, game.header) : summary;
   return line ? { headers: line.headers, top: line.top, bottom: line.bottom, names: game.names } : null;
 }
 
