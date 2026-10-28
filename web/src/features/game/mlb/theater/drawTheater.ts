@@ -332,33 +332,52 @@ export function layoutLabels(ctx: Ctx, input: LabelInputs): Labels {
   ctx.save();
   ctx.textBaseline = "alphabetic";
 
-  // The pitch: its name and speed, low in the foul ground on the right, across from the stamp.
+  // The pitch: its name and speed, low in the foul ground on the right, across from the stamp,
+  // and under them its spin when Statcast tracked it ("2,509 rpm").
   let pitch: Block | null = null;
   const p = scene?.pitch;
-  if (p && (p.mph != null || p.code != null)) {
-    const name = (p.code != null ? PITCH_NAMES[p.code] : undefined) ?? p.name ?? p.code ?? "";
+  const tracked = scene?.measured?.pitch ?? null;
+  const code = p?.code ?? tracked?.type ?? null;
+  const mph = p?.mph ?? (tracked?.mph != null ? Math.round(tracked.mph) : null);
+  if (mph != null || code != null) {
+    const name = (code != null ? PITCH_NAMES[code] : undefined) ?? p?.name ?? code ?? "";
     const fs = Math.min(Math.max(typeHeight * 0.068, 9.5 * pt), 15 * pt);
-    const parts: [string, string, string][] = [
-      [name, `500 ${fs}px ${FONT}`, ink.secondary],
-      [p.mph != null ? `  ${p.mph}` : "", `600 ${fs}px ${FONT}`, primary],
-      [p.mph != null ? " mph" : "", `500 ${fs}px ${FONT}`, ink.secondary],
+    const lines: [string, string, string][][] = [
+      [
+        [name, `500 ${fs}px ${FONT}`, ink.secondary],
+        [mph != null ? `  ${mph}` : "", `600 ${fs}px ${FONT}`, primary],
+        [mph != null ? " mph" : "", `500 ${fs}px ${FONT}`, ink.secondary],
+      ],
     ];
-    const widths = parts.map(([text, font]) => {
-      ctx.font = font;
-      return ctx.measureText(text).width;
-    });
-    const width = widths.reduce((a, b) => a + b, 0);
+    if (tracked?.spin != null) {
+      lines.push([
+        [tracked.spin.toLocaleString("en-US"), `600 ${fs}px ${FONT}`, primary],
+        [" rpm", `500 ${fs}px ${FONT}`, ink.secondary],
+      ]);
+    }
+    const widths = lines.map((parts) =>
+      parts.map(([text, font]) => {
+        ctx.font = font;
+        return ctx.measureText(text).width;
+      }),
+    );
+    const lineWidths = widths.map((w) => w.reduce((a, b) => a + b, 0));
+    const width = Math.max(...lineWidths);
+    const lead = fs * 1.2 + fs * 0.12;
     pitch = {
       width,
-      height: fs * 1.2,
-      // Anchored bottom-trailing.
+      height: fs * 1.2 + (lines.length - 1) * lead,
+      // Anchored bottom-trailing, each line flush right.
       draw: (c) => {
-        let x = -width;
-        parts.forEach(([text, font, color], i) => {
-          c.font = font;
-          c.fillStyle = color;
-          c.fillText(text, x, -fs * 0.25);
-          x += widths[i]!;
+        lines.forEach((parts, line) => {
+          let x = -lineWidths[line]!;
+          const y = -fs * 0.25 - (lines.length - 1 - line) * lead;
+          parts.forEach(([text, font, color], i) => {
+            c.font = font;
+            c.fillStyle = color;
+            c.fillText(text, x, y);
+            x += widths[line]![i]!;
+          });
         });
       },
     };
@@ -550,7 +569,7 @@ function drawTrace(ctx: Ctx, f: FieldProjection, { script, t, teams, ink }: Fram
   // Where it came down: the spray chart's marks (filled, a ring, a ringed dot).
   const landing = script.landing;
   if (!landing || !(t >= landing.at)) return;
-  const p = f.point(landing.point);
+  const p = f.point(landing.point, landing.z ?? 0);
   const grow = Math.min((t - landing.at) / 0.2, 1);
   const r = Math.max(f.figure * 0.16, 2.6) * (0.6 + 0.4 * grow);
   const color = accentOf(teams.batting, ink);

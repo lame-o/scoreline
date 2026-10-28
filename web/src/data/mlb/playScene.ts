@@ -17,11 +17,15 @@
  *     const state = theater(plays, (team) => (team === "8" ? "top" : "bottom"), names);
  *     state.play?.notation.code; // "6-4-3 DP"
  *
- * Web additions (not in the Swift model): `inning`, `top`, `batterID` and
- * `batterOccurrence`, so a play can find its Statcast at-bat (statcast.ts).
+ * MLB's feed (statcast.ts) adds what ESPN's doesn't say: what Statcast
+ * measured, and its official scorer's account of every runner's legs and
+ * every fielder's credits. Where it's been found for a play (`measured`),
+ * the choreography follows it (`official`, `handling`) instead of reading
+ * ESPN's text and inferring the rest.
  */
 import { arr, at, bool, has, int, num, str } from "../json";
 import type { Side } from "../models";
+import { assisted, atBatResult, battedLine, match, type Movement, type StatcastAtBat, type StatcastBatted, type StatcastPitch } from "./statcast";
 import type { Point } from "./theaterField";
 
 export type Hand = "L" | "R";
@@ -90,6 +94,67 @@ export interface Runner {
   readonly id: string | null;
   readonly from: number;
   readonly end: RunnerEnd;
+  /** Which out of the inning he was (MLB's official account only). */
+  readonly outNumber?: number | null;
+  /**
+   * The base he waited at until a throw got away or went elsewhere, then went
+   * on (MLB's official account only).
+   */
+  readonly waits?: number | null;
+}
+
+/** A catch made at full stretch, as the scorer's text tells it. */
+export type Effort = "diving" | "leaping";
+
+/**
+ * What MLB's Statcast measured of a plate appearance: the ball off the bat
+ * (exit velocity, launch angle, distance, spot) and the pitch that decided
+ * it, as tracked; and how its official scorer recorded the play: every
+ * runner's legs and every fielder's part.
+ */
+export interface Measured {
+  readonly batted: StatcastBatted | null;
+  readonly pitch: StatcastPitch | null;
+  readonly movements: readonly Movement[];
+}
+
+/** A plate appearance as MLB's feed has it: the half-inning, the batter's surname, his nth trip to the plate in it. */
+export interface Appearance {
+  readonly inning: number;
+  readonly top: boolean;
+  readonly surname: string;
+  readonly occurrence: number;
+  /** A runner's play during it: which of the at-bat's it was (null: its result). */
+  readonly runnerPlay: number | null;
+}
+
+/** A throw in MLB's credited chain: to the man who took it, at the base where it made an out (0: home; null: a relay to a cutoff man). */
+export interface Throw {
+  readonly to: number;
+  readonly base: number | null;
+  /** A throwing error: it sails past him at `base`, and nobody's out. */
+  readonly wild: boolean;
+}
+
+/**
+ * Who handled the ball, as MLB's official scorer credited it: who fielded it
+ * (and who it glanced off first), whether he booted it, then each throw in
+ * the order of the outs they made, to the man who took it and the base where
+ * it made one, and a throw that got away.
+ */
+export interface Handling {
+  readonly fielder: number;
+  readonly deflection: number | null;
+  /** A fielding error: it gets away from him. */
+  readonly fumble: number | null;
+  readonly chain: readonly Throw[];
+}
+
+/** The scorer's chain: who fielded it and each man who took a throw (not one that got away, nor his own carry). */
+export function credited(h: Handling): number[] {
+  const out = [h.fielder];
+  for (const t of h.chain) if (!t.wild && t.to !== out[out.length - 1]) out.push(t.to);
+  return out;
 }
 
 export const isOut = (r: Runner) => r.end.kind === "out";
@@ -138,6 +203,8 @@ export class PlayScene {
   fielders: number[] = [];
   /** The fielder charged with an error. */
   error: number | null = null;
+  /** Diving or leaping for it, when the text says so. */
+  effort: Effort | null = null;
   /** Every runner on the play, the batter first (from 0). */
   runners: Runner[] = [];
   outsBefore = 0;
@@ -152,17 +219,22 @@ export class PlayScene {
   wallclock: number | null = null;
   /** The home team went ahead in the bottom of the 9th or later: the game ends on it. */
   walkOff = false;
-  // Web: the half-inning and the batter, for the Statcast match.
-  inning: number | null = null;
-  /** The top of the inning (the visitors batting). */
-  top: boolean | null = null;
-  batterID: string | null = null;
-  /** How many earlier plate appearances this batter had in the same half-inning (a team batting around). */
-  batterOccurrence = 0;
+  /** Who batted, to find the play in Statcast (null: a runner's play). */
+  appearance: Appearance | null = null;
+  /** A runner's play: the plate appearance it came during, to find its legs in MLB's feed. */
+  during: Appearance | null = null;
+  /** What Statcast measured, once it's been found. */
+  measured: Measured | null = null;
 
   constructor(id: string, kind: Kind) {
     this.id = id;
     this.kind = kind;
+  }
+
+  /** The same play, a copy to change (Swift's value semantics). */
+  copy(changes: Partial<Pick<PlayScene, "runners" | "measured" | "spot" | "effort" | "runs">> = {}): PlayScene {
+    const next = Object.assign(Object.create(PlayScene.prototype) as PlayScene, this, { fielders: [...this.fielders], runners: [...this.runners] });
+    return Object.assign(next, changes);
   }
 
   get batter(): Runner | null {
@@ -236,11 +308,13 @@ export class PlayScene {
   }
 
   get notation(): Notation {
-    const chain = this.fielders.join("-");
-    const first = this.fielders[0] != null ? String(this.fielders[0]) : "";
+    const k = this.kind;
+    // ESPN's chain, else (for a mark that prints one) the one MLB credits: a pickoff into a rundown, "CS 1-3-6-4".
+    const fielders = this.fielders.length === 0 && CHARTED.has(k.type) ? (this.handling ? credited(this.handling) : []) : this.fielders;
+    const chain = fielders.join("-");
+    const first = fielders[0] != null ? String(fielders[0]) : "";
     const tagged = (tag: string) => (chain === "" ? tag : `${tag} ${chain}`);
     const n = (code: string, backwards = false): Notation => ({ code, backwards });
-    const k = this.kind;
     switch (k.type) {
       // A hit the batter stretched on an error carries it: "1B E5".
       case "single":
@@ -252,7 +326,7 @@ export class PlayScene {
       case "homeRun":
         return n("HR");
       case "groundOut":
-        return n(this.fielders.length === 1 ? `${first}U` : chain === "" ? "GO" : chain);
+        return n(fielders.length === 1 ? `${first}U` : chain === "" ? "GO" : chain);
       case "flyOut":
         return n(`F${first}`);
       case "lineOut":
@@ -275,14 +349,16 @@ export class PlayScene {
         return n(tagged("SAC"));
       case "error":
         return n(`E${this.error != null ? String(this.error) : first}`);
+      // Strike three dropped and thrown to first: "K 2-3" (the backwards K stays a K alone: it's drawn mirrored).
       case "strikeout":
-        return n("K", (k as { looking: boolean }).looking);
+        return n(!(k as { looking: boolean }).looking && fielders.length === 2 && fielders[0] === 2 && fielders[1] === 3 ? "K 2-3" : "K", (k as { looking: boolean }).looking);
       case "walk":
         return n((k as { intentional: boolean }).intentional ? "IBB" : "BB");
       case "hitByPitch":
         return n("HBP");
+      // A steal the catcher's wild throw let go on: "SB E2".
       case "stolenBase":
-        return n("SB");
+        return n(this.error != null ? `SB E${this.error}` : "SB");
       case "caughtStealing":
         return n(tagged("CS"));
       case "pickoff":
@@ -331,7 +407,7 @@ export class PlayScene {
       case "sacrificeFly":
         return "Sacrifice fly";
       case "sacrificeBunt":
-        return "Sacrifice";
+        return "Sacrifice bunt";
       case "error":
         return "Error";
       case "strikeout":
@@ -343,7 +419,7 @@ export class PlayScene {
       case "stolenBase":
         return "Stolen base";
       case "caughtStealing":
-        return "Caught stealing";
+        return this.text.includes("picked off") ? "Picked off" : "Caught stealing";
       case "pickoff":
         return "Picked off";
       case "wildPitch":
@@ -358,6 +434,249 @@ export class PlayScene {
         return "";
     }
   }
+
+  /**
+   * What Statcast measured of the ball in play, as the stamp's third line
+   * has it: "104.4 MPH · 12° · 273 FT" (a grounder's distance is only its
+   * first hop, so it's left off). Null unless it was measured.
+   */
+  get readout(): string | null {
+    const batted = this.measured?.batted;
+    if (!this.inPlay || !batted || batted.launchSpeed == null) return null;
+    return battedLine(batted, batted.trajectory !== "ground_ball" && this.flight !== "ground");
+  }
+
+  // MARK: Statcast
+
+  /** Statcast's at-bat for this plate appearance: the same half-inning, the batter by surname, his nth trip to the plate in it. */
+  atBat(atBats: readonly StatcastAtBat[]): StatcastAtBat | null {
+    const a = this.appearance;
+    return a ? match(a.inning, a.top, a.surname, atBats, a.occurrence) : null;
+  }
+
+  /**
+   * What Statcast measured of this plate appearance, once its at-bat is over
+   * and agrees with ESPN's account: the same result, a ball in play only for
+   * a play in play, fielded at the same spot (ESPN's spot is MLB's,
+   * truncated). Null otherwise: the theater keeps to ESPN's. (pure; tested)
+   */
+  measurement(atBats: readonly StatcastAtBat[]): Measured | null {
+    const atBat = this.atBat(atBats);
+    if (!atBat || !atBat.complete || atBat.event == null || !this.agrees(atBat.event)) return null;
+    // A ball in play waits for its hitData (it can post seconds after the result): asked again.
+    if (this.inPlay && atBat.batted == null) return null;
+    const batted = this.inPlay ? atBat.batted : null;
+    if (this.spot && batted?.spot && Math.hypot(batted.spot[0] - this.spot.x, batted.spot[1] - this.spot.y) > 3) return null;
+    // (An intentional walk has nothing to measure, and that's found too: nobody asks again.)
+    return { batted, pitch: atBat.pitches[atBat.pitches.length - 1] ?? null, movements: atBatResult(atBat) };
+  }
+
+  /** Whether Statcast's name for a result could be this play: a hit the same hit, a strikeout, walk or hit batter the same, an out any out. */
+  agrees(event: string): boolean {
+    const e = event.toLowerCase();
+    switch (this.kind.type) {
+      case "single":
+        return e === "single";
+      case "double":
+        return e === "double";
+      case "triple":
+        return e === "triple";
+      case "homeRun":
+        return e === "home run";
+      case "strikeout":
+        return e.startsWith("strikeout");
+      case "walk":
+        return e.endsWith("walk");
+      case "hitByPitch":
+        return e === "hit by pitch";
+      default:
+        return !REACHED.has(e) && !e.startsWith("strikeout");
+    }
+  }
+
+  /** A runner's play's at-bat in MLB's feed: the one it came during. */
+  duringAtBat(atBats: readonly StatcastAtBat[]): StatcastAtBat | null {
+    const d = this.during;
+    return d ? match(d.inning, d.top, d.surname, atBats, d.occurrence) : null;
+  }
+
+  /**
+   * MLB's legs for a runner's play (a steal, a pickoff, a wild pitch): the
+   * at-bat it came during, and that at-bat's runner's events in turn (the
+   * ones no leg of the batter's is on), when they're the runners ESPN has on
+   * it. Null otherwise. (pure; tested)
+   */
+  runnerMeasurement(atBats: readonly StatcastAtBat[]): Measured | null {
+    const k = this.during?.runnerPlay;
+    const atBat = this.duringAtBat(atBats);
+    if (k == null || !atBat) return null;
+    const events = (legs: readonly Movement[]) => legs.flatMap((m) => (m.event != null ? [m.event] : []));
+    const batters = new Set(events(atBat.runners.filter((m) => m.from === 0)));
+    const runnerEvents = [...new Set(events(atBat.runners))].filter((e) => !batters.has(e)).sort((a, b) => a - b);
+    const event = runnerEvents[k];
+    if (event == null) return null;
+    const legs = atBat.runners.filter((m) => m.event === event);
+    // Each runner by the base he started from (his first leg's).
+    const starts = new Map<number, number>();
+    for (const leg of legs) if (!starts.has(leg.runner)) starts.set(leg.runner, leg.from);
+    const froms = new Set(this.runners.map((r) => r.from));
+    if (![...starts.values()].every((from) => froms.has(from))) return null;
+    return { batted: null, pitch: null, movements: legs };
+  }
+
+  // MARK: The official account
+
+  /** The batter's out is the catch itself (or strike three): no throw, unless MLB credits one (a third strike dropped, and thrown to first). */
+  get caughtOut(): boolean {
+    switch (this.kind.type) {
+      case "flyOut":
+      case "lineOut":
+      case "popOut":
+      case "foulOut":
+      case "sacrificeFly":
+      case "strikeout":
+        return true;
+      case "doublePlay":
+      case "triplePlay":
+        return this.inPlay && this.flight !== "ground";
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * MLB's legs for this play, when they tell all of it: the batter on them
+   * (MLB lists every man who moved, and him always, but for a runner's play)
+   * and as many runs as ESPN counted. Null until then (not found yet, or
+   * still being posted).
+   */
+  get legs(): readonly Movement[] | null {
+    const movements = this.measured?.movements;
+    if (!movements || movements.length === 0) return null;
+    if (this.batter != null && !movements.some((m) => m.from === 0)) return null;
+    if (movements.filter((m) => m.to === 4).length !== this.runs) return null;
+    return movements;
+  }
+
+  /** The ball's handling as MLB credited it; null without MLB's account, or when it credited nobody (a walk, a home run). (pure; tested) */
+  get handling(): Handling | null {
+    const movements = this.legs;
+    if (!movements) return null;
+    const credits = movements.flatMap((m) => m.credits);
+    const first = (...kinds: string[]) => credits.find((c) => kinds.includes(c.kind))?.position ?? null;
+    // Each out's chain, in the order they were made: the assists, then the putout.
+    const outs = movements
+      .filter((m) => m.out != null && !(m.from === 0 && this.caughtOut && !assisted(m)))
+      .sort((a, b) => (a.outNumber ?? 0) - (b.outNumber ?? 0));
+    const chainOf = (m: Movement) => m.credits.filter((c) => c.kind === "assist" || c.kind === "outfieldAssist" || c.kind === "putout").map((c) => c.position);
+    const fielder = first("fielded") ?? outs.map((o) => chainOf(o)[0]).find((p) => p != null) ?? first("putout", "assist", "fieldingError", "throwingError");
+    if (fielder == null) return null;
+    const chain: Throw[] = [];
+    let holder = fielder;
+    for (const out of outs) {
+      const positions = chainOf(out);
+      positions.forEach((p, i) => {
+        const putout = i === positions.length - 1;
+        // His own assist: he has it already. His own putout: he takes it there himself.
+        if (p === holder && !putout) return;
+        chain.push({ to: p, base: putout && out.out != null ? out.out % 4 : null, wild: false });
+        holder = p;
+      });
+    }
+    // A throw that got away: to the base its runner had just reached on the play (the batter's, first),
+    // else to the one he was going for.
+    movements.forEach((m, i) => {
+      const thrower = m.credits.find((c) => c.kind === "throwingError")?.position;
+      if (thrower == null) return;
+      if (thrower !== holder) chain.push({ to: thrower, base: null, wild: false });
+      const reached = m.from === 0 || movements.slice(0, i).some((x) => x.runner === m.runner && x.to === m.from);
+      const base = m.from === 0 ? 1 : reached ? m.from : (m.from + 1) % 4;
+      chain.push({ to: coverer(base, thrower), base, wild: true });
+      holder = thrower;
+    });
+    return { fielder, deflection: first("deflection"), fumble: first("fieldingError"), chain };
+  }
+
+  /**
+   * The play with MLB's official account of its runners in place of ESPN's
+   * (which reads who scored and who was out from the text, and infers the
+   * rest). ESPN's as it is without MLB's.
+   */
+  get official(): PlayScene {
+    const movements = this.legs;
+    if (!movements) return this;
+    return this.copy({ runners: officialRunners(this.runners, movements, this.caughtOut, this.kind.type === "strikeout") });
+  }
+}
+
+/** Marks that print the scorer's chain (ESPN's, else MLB's credited one). */
+const CHARTED: ReadonlySet<string> = new Set(["groundOut", "fieldersChoice", "doublePlay", "triplePlay", "sacrificeBunt", "caughtStealing", "pickoff"]);
+
+/** Statcast's names for the batter reaching: never an out. */
+const REACHED: ReadonlySet<string> = new Set(["single", "double", "triple", "home run", "walk", "intent walk", "hit by pitch"]);
+
+/**
+ * ESPN's runners (by the base each started from) where MLB's legs took them:
+ * to a base, home, or out at a base (the batter's at the catch, or at the
+ * plate on strike three), in the order of the outs, and waiting at a base for
+ * a throw that got away or went elsewhere. One MLB doesn't list stayed put;
+ * one only MLB has joins them. (pure; tested)
+ */
+export function officialRunners(espn: readonly Runner[], movements: readonly Movement[], caughtOut: boolean, struckOut: boolean): Runner[] {
+  const legs = new Map<number, Movement[]>();
+  const order: number[] = [];
+  for (const m of movements) {
+    const list = legs.get(m.runner);
+    if (list) list.push(m);
+    else {
+      order.push(m.runner);
+      legs.set(m.runner, [m]);
+    }
+  }
+  const runner = (moves: readonly Movement[], id: string | null): Runner => {
+    const from = moves[0]?.from ?? 0;
+    let end: RunnerEnd = { kind: "base", base: from };
+    let outNumber: number | null = null;
+    const out = moves.find((m) => m.out != null);
+    const last = moves[moves.length - 1];
+    if (out) {
+      // (The batter's out where MLB credits a throw, a dropped third strike's, is at its base.)
+      const caught = from === 0 && !assisted(out);
+      end = { kind: "out", at: caught && struckOut ? 0 : caught && caughtOut ? null : out.out != null ? out.out % 4 : null };
+      outNumber = out.outNumber;
+    } else if (last?.to != null) {
+      end = last.to === 4 ? { kind: "scored" } : { kind: "base", base: last.to };
+    }
+    let waits: number | null = null;
+    const i = moves.findIndex((m) => m.reason === "r_adv_throw" || m.credits.some((c) => c.kind === "throwingError"));
+    const leg = moves[i];
+    if (leg) {
+      // Where the ball got past (as `handling` throws it): first for the batter, the base he'd just
+      // reached on the play, else the one he was going for. He goes on from there.
+      const at = leg.from === 0 ? 1 : i > 0 ? leg.from : leg.from + 1;
+      const to = end.kind === "base" ? end.base : end.kind === "scored" ? 4 : at;
+      waits = at < to ? at : null;
+    }
+    return { id, from, end, outNumber, waits };
+  };
+  const claimed = new Set<number>();
+  const out: Runner[] = espn.map((r) => {
+    const id = order.find((x) => !claimed.has(x) && legs.get(x)?.[0]?.from === r.from);
+    if (id == null) {
+      // Not on MLB's account: he didn't move.
+      return r.from === 0 ? r : { id: r.id, from: r.from, end: { kind: "base", base: r.from } };
+    }
+    claimed.add(id);
+    return runner(legs.get(id) ?? [], r.id);
+  });
+  for (const id of order) {
+    const moves = legs.get(id);
+    if (claimed.has(id) || !moves?.[0]) continue;
+    const from = moves[0].from;
+    if (!out.some((r) => r.from === from)) out.push(runner(moves, null));
+  }
+  // The batter first, then from the lead runner back.
+  return out.sort((a, b) => (a.from === 0 ? (b.from === 0 ? 0 : -1) : b.from === 0 ? 1 : b.from - a.from));
 }
 
 /** What the play theater shows: the last play on the field and who's up now. */
@@ -516,6 +835,8 @@ export function parse(plays: readonly unknown[], index: number, side: SideOf, na
       y: dv(at(pitchEntry, "pitchCoordinate", "y")) ?? null,
     };
   }
+  scene.appearance = appearance(plays, index, scene.text, names);
+  if (scene.appearance == null) scene.during = during(plays, index, earlier, names);
   const wallclock = str(at(result, "wallclock"));
   const time = wallclock != null ? Date.parse(wallclock) : Number.NaN;
   scene.wallclock = Number.isFinite(time) ? time : null;
@@ -530,6 +851,7 @@ export function parse(plays: readonly unknown[], index: number, side: SideOf, na
   const short = fieldersFromText(scene.text);
   scene.fielders = scorer.chain.length === 0 ? short.chain : scorer.chain;
   scene.error = scorer.error ?? short.error;
+  if (scene.inPlay) scene.effort = effort(`${scene.text} ${scorerText ?? ""}`);
   // A ground ball (or a bunt) the text credits to one infielder went on to first.
   if (
     (k.type === "groundOut" || k.type === "doublePlay" || k.type === "sacrificeBunt") &&
@@ -566,21 +888,81 @@ export function parse(plays: readonly unknown[], index: number, side: SideOf, na
     const forced = scene.runners.find((r) => r.end.kind === "out" && r.end.at != null && r.from > 0);
     if (forced && forced.end.kind === "out" && forced.end.at != null) scene.fielders.push(coverer(forced.end.at, scene.fielders[0] ?? 0));
   }
-
-  // Web: the half-inning and the batter's plate appearance in it, for Statcast.
-  scene.inning = iv(at(result, "period", "number")) ?? null;
-  const halfType = str(at(result, "period", "type"))?.toLowerCase();
-  scene.top = halfType == null ? null : halfType.startsWith("top");
-  scene.batterID = participant(result, "batter");
-  if (scene.batterID != null) {
-    let count = 0;
-    for (let i = 0; i < index; i++) {
-      const e = plays[i];
-      if (typeOf(e) === "play-result" && halfInning(e) === half && isPlay(e) && participant(e, "batter") === scene.batterID) count++;
-    }
-    scene.batterOccurrence = count;
-  }
   return scene;
+}
+
+/**
+ * The plate appearance a result closes: its half-inning, the batter's surname
+ * (from the box score's names, else the text's opening words), and how many
+ * trips he'd already made in that half. Null for a runner's play: nobody batted.
+ */
+export function appearance(
+  plays: readonly unknown[],
+  index: number,
+  text: string,
+  names: Readonly<Record<string, string>>,
+  batterID: string | null = null,
+): Appearance | null {
+  const result = plays[index];
+  const batter = batterID ?? participant(result, "batter");
+  const inning = iv(at(result, "period", "number"));
+  if (batter == null || inning == null) return null;
+  const known = names[batter];
+  const name = known != null ? surname(known) : leadingName(text);
+  if (name == null) return null;
+  const half = halfInning(result);
+  // His earlier at-bats in the half-inning, by ID (a result ESPN rewrote is still one).
+  const earlier = new Set<string>();
+  const own = sv(at(result, "atBatId"));
+  for (let i = index - 1; i >= 0; i--) {
+    const entry = plays[i];
+    if (halfInning(entry) !== half || typeOf(entry) === "start-inning") break;
+    const id = sv(at(entry, "atBatId")) ?? sv(at(entry, "id"));
+    if (typeOf(entry) === "play-result" && participant(entry, "batter") === batter && id != null && id !== own) earlier.add(id);
+  }
+  return {
+    inning,
+    top: str(at(result, "period", "type"))?.toLowerCase().startsWith("top") ?? true,
+    surname: name,
+    occurrence: earlier.size,
+    runnerPlay: null,
+  };
+}
+
+/**
+ * A runner's play (a steal, a wild pitch): the plate appearance it came
+ * during (its batter from the at-bat's pitches, his name from the box
+ * score's), and which of the at-bat's runner's plays it is.
+ */
+export function during(plays: readonly unknown[], index: number, earlier: readonly unknown[], names: Readonly<Record<string, string>>): Appearance | null {
+  let batter: string | null = null;
+  for (const e of earlier) {
+    batter = participant(e, "batter");
+    if (batter != null) break;
+  }
+  if (batter == null || names[batter] == null) return null;
+  const found = appearance(plays, index, "", names, batter);
+  if (!found) return null;
+  return { ...found, runnerPlay: earlier.filter((e) => isPlay(e) && participant(e, "batter") == null).length };
+}
+
+/** The name a result's text opens with: "Mesa Jr. lined out to center." → "Mesa Jr". */
+export function leadingName(text: string): string | null {
+  const words: string[] = [];
+  for (const word of text.split(" ")) {
+    if (word === "") continue;
+    if (!/^\p{Lu}/u.test(word)) break;
+    words.push(word);
+  }
+  return words.length === 0 ? null : surname(words.join(" "));
+}
+
+/** "…on a diving catch", "leaping catch at the wall": the fielder at full stretch. */
+export function effort(text: string): Effort | null {
+  const t = text.toLowerCase();
+  if (["diving", "dives", "sliding catch"].some((w) => t.includes(w))) return "diving";
+  if (["leaping", "leaps", "jumping"].some((w) => t.includes(w))) return "leaping";
+  return null;
 }
 
 /**
@@ -843,24 +1225,32 @@ export function movements(
   if (k.type === "homeRun") return starts.map((s) => ({ id: s.id, from: s.from, end: { kind: "scored" } }));
   const landed = new Map<string, number>();
   for (const [base, id] of after) landed.set(id, Math.max(landed.get(id) ?? -Infinity, base));
-  const runners: Runner[] = [];
-  const gone: { id: string | null; from: number }[] = [];
-  for (const start of starts) {
-    const base = start.id != null ? landed.get(start.id) : undefined;
-    if (start.id != null && base != null && base >= start.from) {
-      runners.push({ id: start.id, from: start.from, end: { kind: "base", base } });
-    } else {
-      gone.push(start);
-    }
-  }
-  let runsLeft = Math.max(runs, 0);
-  let outsLeft = Math.max(outs, 0);
   const parts = clauses(text);
   const surnameOf = (id: string | null): string | null => {
     if (id == null) return null;
     const name = names[id];
     return name == null ? null : surname(name);
   };
+  // A runner the text puts further on than the result's bases do (they can lag a throwing error):
+  // "Yelich safe at third on throwing error by catcher".
+  const safeAt = (id: string): number | null => {
+    const name = surnameOf(id);
+    const clause = name != null ? parts.find((c) => c.includes(`${name} safe at`)) : undefined;
+    const m = clause != null ? /safe at (first|second|third)/.exec(clause) : null;
+    return m?.[1] != null ? ({ first: 1, second: 2, third: 3 } as Record<string, number>)[m[1]]! : null;
+  };
+  const runners: Runner[] = [];
+  const gone: { id: string | null; from: number }[] = [];
+  for (const start of starts) {
+    const base = start.id != null ? landed.get(start.id) : undefined;
+    if (start.id != null && base != null && base >= start.from) {
+      runners.push({ id: start.id, from: start.from, end: { kind: "base", base: start.from > 0 ? Math.max(base, safeAt(start.id) ?? 0) : base } });
+    } else {
+      gone.push(start);
+    }
+  }
+  let runsLeft = Math.max(runs, 0);
+  let outsLeft = Math.max(outs, 0);
   const baseIn = (clause: string): number | null => {
     const m = /(?:at|stealing|off) (first|1st|second|2nd|third|3rd|home)/.exec(clause);
     if (!m?.[1]) return null;
@@ -877,6 +1267,10 @@ export function movements(
         case "foulOut":
         case "sacrificeFly":
           return null;
+        // Lined (or flied) into a double play: his out is the catch.
+        case "doublePlay":
+        case "triplePlay":
+          return air ? null : 1;
         default:
           return 1;
       }

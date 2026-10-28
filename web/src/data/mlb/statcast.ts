@@ -1,19 +1,17 @@
 /**
  * MLB's own pitch-by-pitch feed (Statcast.swift; statsapi.mlb.com): each
  * batted ball's launch speed, angle and distance, and each pitch's measured
- * flight. ESPN says where a ball went; this says how it got there. Public and
- * keyless; trimmed with `fields` to about 60 KB a game, and fetched when an
- * at-bat ends, never on the live lane's clock.
+ * flight; and its official scorer's account of every play: each runner's
+ * legs and each fielder's credits. ESPN says where a ball went; this says
+ * how it got there and who handled it. Public and keyless; trimmed with
+ * `fields` to about 65 KB a game, and fetched when an at-bat ends, never on
+ * the live lane's clock.
  *
  *     const game = statcastGame(schedule, ["Brewers", "Rays"]);   // 849804
  *     const atBats = statcastAtBats(feed);
- *     matchScene(scene, atBats, names)?.batted?.line;              // "104.4 MPH · 12° · 273 FT"
- *
- * The Mac app ports the parser and matcher but doesn't show them yet; the
- * web's play theater puts the batted-ball line on the stamp.
+ *     scene.measurement(atBats)?.batted;                           // playScene.ts: the play's own at-bat, once it's over
  */
 import { arr, at, bool, num, str } from "../json";
-import { surname, type PlayScene } from "./playScene";
 
 type Vec3 = readonly [number, number, number];
 
@@ -60,21 +58,70 @@ export interface StatcastBatted {
   readonly trajectory: string | null;
   /** Where it was fielded or landed, in the hit chart's space (home plate ≈ (125, 205)): ESPN's `hitCoordinate` comes from MLB. */
   readonly spot: readonly [number, number] | null;
+  /** Who fielded it, by scorer's number (MLB's `location`). */
+  readonly fielder: number | null;
 }
 
 /** Swift's `.rounded()`: halves away from zero. */
 const rounded = (v: number) => Math.sign(v) * Math.round(Math.abs(v));
 
-/** "104.4 MPH · 12° · 273 FT", as much as is known. */
-export function battedLine(b: StatcastBatted): string | null {
+/**
+ * "104.4 MPH · 12° · 273 FT", as much as is known. A grounder's distance is
+ * only its first hop, so it can be left off (`distance`).
+ */
+export function battedLine(b: StatcastBatted, distance = true): string | null {
   const parts = [
     b.launchSpeed != null ? `${b.launchSpeed.toFixed(1)} MPH` : null,
     // A true minus for a ball hit into the ground ("−29°").
     b.launchAngle != null ? `${rounded(b.launchAngle)}°`.replace("-", "\u2212") : null,
-    b.distance != null ? `${rounded(b.distance)} FT` : null,
+    distance && b.distance != null ? `${rounded(b.distance)} FT` : null,
   ].filter((p): p is string => p != null);
   return parts.length === 0 ? null : parts.join(" · ");
 }
+
+/** A fielder's part in a runner's leg (Statcast.Credit.Kind), by MLB's name for it. */
+export type CreditKind = "fielded" | "assist" | "outfieldAssist" | "putout" | "throwingError" | "fieldingError" | "deflection" | "other";
+
+const CREDIT_KINDS: Readonly<Record<string, CreditKind>> = {
+  f_fielded_ball: "fielded",
+  f_assist: "assist",
+  f_assist_of: "outfieldAssist",
+  f_putout: "putout",
+  f_throwing_error: "throwingError",
+  f_fielding_error: "fieldingError",
+  f_deflection: "deflection",
+};
+
+/** A fielder's part in a runner's leg, by scorer's number. */
+export interface Credit {
+  readonly position: number;
+  readonly kind: CreditKind;
+}
+
+/**
+ * One leg of a runner's way on a play, as MLB's official scorer recorded it:
+ * base to base (0: the plate, where the batter starts; 4: home, a run), or put
+ * out at a base, the outs numbered in the order they were made, with every
+ * fielder's part in it.
+ */
+export interface Movement {
+  /** MLB's ID for the runner: the same on each of his legs. */
+  readonly runner: number;
+  readonly from: number;
+  /** Null when he was put out on this leg. */
+  readonly to: number | null;
+  /** Where he was put out (4: home), and which out of the inning it was. */
+  readonly out: number | null;
+  readonly outNumber: number | null;
+  /** "r_adv_force", "r_adv_play", "r_out_stretching", "r_doubled_off"… */
+  readonly reason: string | null;
+  /** The at-bat's event it came on (its last pitch, or a steal between pitches). */
+  readonly event: number | null;
+  readonly credits: readonly Credit[];
+}
+
+/** Someone threw to the putout (not a catch or a tag by the man who fielded it). */
+export const assisted = (m: Movement): boolean => m.credits.some((c) => c.kind === "assist" || c.kind === "outfieldAssist");
 
 export interface StatcastAtBat {
   readonly index: number;
@@ -86,14 +133,34 @@ export interface StatcastAtBat {
   readonly event: string | null;
   readonly pitches: readonly StatcastPitch[];
   readonly batted: StatcastBatted | null;
+  /**
+   * Over (MLB's `isComplete`): `event` alone isn't, since MLB names it
+   * mid-at-bat for whatever just happened ("Mound Visit", "Batter Timeout",
+   * "Stolen Base 2B").
+   */
+  readonly complete: boolean;
+  /** Every runner's legs in the at-bat (a steal's between pitches too). */
+  readonly runners: readonly Movement[];
+  /** The event that ended it (its last pitch, or a pickoff): the result's legs are the ones on it. */
+  readonly closing: number | null;
+  /** Its last pitch was put in play. */
+  readonly inPlay: boolean;
 }
 
-/** Only what the theater reads: about a quarter of the feed. */
+/** The legs on the play that ended the at-bat (AtBat.result). */
+export const atBatResult = (a: StatcastAtBat): Movement[] => a.runners.filter((m) => m.event === a.closing);
+
+/** Over, with all of it posted: complete and named, a ball put in play with its hitData (AtBat.over). */
+export const atBatOver = (a: StatcastAtBat): boolean => a.complete && a.event != null && (!a.inPlay || a.batted != null);
+
+/** Only what the theater reads: about a third of the feed. */
 export const STATCAST_FIELDS = [
   "liveData", "plays", "allPlays", "about", "atBatIndex", "inning", "isTopInning", "matchup", "batter", "fullName",
   "result", "event", "playEvents", "isPitch", "details", "type", "code", "pitchData", "startSpeed", "strikeZoneTop",
   "strikeZoneBottom", "coordinates", "x0", "y0", "z0", "vX0", "vY0", "vZ0", "aX", "aY", "aZ", "pX", "pZ", "breaks",
-  "spinRate", "hitData", "launchSpeed", "launchAngle", "totalDistance", "trajectory", "coordX", "coordY",
+  "spinRate", "hitData", "launchSpeed", "launchAngle", "totalDistance", "trajectory", "coordX", "coordY", "location",
+  "index", "runners", "movement", "start", "end", "isOut", "outBase", "outNumber", "movementReason", "runner", "id",
+  "playIndex", "credits", "credit", "position", "isComplete",
 ].join(",");
 
 export function feedURL(game: number): string {
@@ -134,7 +201,15 @@ export function statcastAtBats(feed: unknown): StatcastAtBat[] {
     if (index == null || inning == null) continue;
     const pitches: StatcastPitch[] = [];
     let batted: StatcastBatted | null = null;
-    for (const event of arr(at(play, "playEvents"))) {
+    let closing: number | null = null;
+    let inPlay = false;
+    arr(at(play, "playEvents")).forEach((event, i) => {
+      const code = str(at(event, "details", "code"));
+      if (bool(at(event, "isPitch")) === true) {
+        const n = num(at(event, "index"));
+        closing = n != null ? Math.trunc(n) : i;
+        inPlay = code != null && IN_PLAY.has(code);
+      }
       const data = at(event, "pitchData");
       const c = at(data, "coordinates");
       const v = (k: string) => num(at(c, k));
@@ -158,19 +233,29 @@ export function statcastAtBats(feed: unknown): StatcastAtBat[] {
           type: str(at(event, "details", "type", "code")) ?? null,
         });
       }
+      // A ball in play's (a foul can carry hitData too).
       const hit = at(event, "hitData");
-      if (hit != null && typeof hit === "object") {
+      if (hit != null && typeof hit === "object" && (code == null || IN_PLAY.has(code))) {
         const x = num(at(hit, "coordinates", "coordX"));
         const y = num(at(hit, "coordinates", "coordY"));
+        // ("89": between two of them, no one's.)
+        const location = str(at(hit, "location"));
+        const fielder = location != null && /^\d+$/.test(location) ? Number(location) : null;
         batted = {
           launchSpeed: num(at(hit, "launchSpeed")) ?? null,
           launchAngle: num(at(hit, "launchAngle")) ?? null,
           distance: num(at(hit, "totalDistance")) ?? null,
           trajectory: str(at(hit, "trajectory")) ?? null,
           spot: x != null && y != null ? [x, y] : null,
+          fielder: fielder != null && fielder >= 1 && fielder <= 9 ? fielder : null,
         };
       }
-    }
+    });
+    const runners = arr(at(play, "runners")).flatMap((r) => movement(r) ?? []);
+    // Its last pitch, or a pickoff after it that ended it.
+    const events = runners.flatMap((m) => (m.event != null ? [m.event] : []));
+    const last = events.length > 0 ? Math.max(...events) : null;
+    const ended = closing == null ? last : last == null ? closing : Math.max(closing, last);
     out.push({
       index: Math.trunc(index),
       inning: Math.trunc(inning),
@@ -179,9 +264,59 @@ export function statcastAtBats(feed: unknown): StatcastAtBat[] {
       event: str(at(play, "result", "event")) ?? null,
       pitches,
       batted,
+      complete: bool(at(about, "isComplete")) ?? true,
+      runners,
+      closing: ended,
+      inPlay,
     });
   }
   return out;
+}
+
+/** A pitch's call that put the ball in play: in play, out(s); in play, no out; in play, run(s). */
+const IN_PLAY: ReadonlySet<string> = new Set(["X", "D", "E"]);
+
+/** MLB's bases: "1B"…"3B", and "4B" and "score" home. */
+function base(s: string | undefined): number | null {
+  switch (s) {
+    case "1B":
+      return 1;
+    case "2B":
+      return 2;
+    case "3B":
+      return 3;
+    case "4B":
+    case "score":
+      return 4;
+    default:
+      return null;
+  }
+}
+
+/** A runner's leg from MLB's `runners`: the batter starts from nowhere (the plate). */
+export function movement(entry: unknown): Movement | null {
+  const m = at(entry, "movement");
+  const details = at(entry, "details");
+  const id = num(at(details, "runner", "id"));
+  if (id == null) return null;
+  const out = bool(at(m, "isOut")) === true;
+  const credits = arr(at(entry, "credits")).flatMap((c): Credit[] => {
+    const code = str(at(c, "position", "code"));
+    if (code == null || !/^\d+$/.test(code)) return [];
+    return [{ position: Number(code), kind: CREDIT_KINDS[str(at(c, "credit")) ?? ""] ?? "other" }];
+  });
+  const outNumber = num(at(m, "outNumber"));
+  const event = num(at(details, "playIndex"));
+  return {
+    runner: Math.trunc(id),
+    from: base(str(at(m, "start"))) ?? 0,
+    to: out ? null : base(str(at(m, "end"))),
+    out: out ? base(str(at(m, "outBase"))) : null,
+    outNumber: out && outNumber != null ? Math.trunc(outNumber) : null,
+    reason: str(at(details, "movementReason")) ?? null,
+    event: event != null ? Math.trunc(event) : null,
+    credits,
+  };
 }
 
 /** Accents and case aside (Swift `folding(options: [.diacriticInsensitive, .caseInsensitive])`). */
@@ -201,25 +336,4 @@ export function match(inning: number, top: boolean, name: string, atBats: readon
   if (key === "") return null;
   const theirs = atBats.filter((a) => a.inning === inning && a.top === top && bare(a.batter).endsWith(key));
   return theirs[occurrence] ?? null;
-}
-
-/**
- * A play's Statcast at-bat (web): by its half-inning and its batter's
- * surname, from the box score's short name ("J. Chourio") or else the text's
- * leading capitalized words ("Turang grounded out…", "De La Cruz singled…").
- */
-export function matchScene(scene: PlayScene, atBats: readonly StatcastAtBat[], names: Readonly<Record<string, string>> = {}): StatcastAtBat | null {
-  if (scene.inning == null || scene.top == null || scene.batter == null) return null;
-  const known = scene.batterID != null ? names[scene.batterID] : undefined;
-  let key = known != null ? surname(known) : "";
-  if (key === "") {
-    const words: string[] = [];
-    for (const word of scene.text.split(/\s+/)) {
-      if (!/^\p{Lu}/u.test(word)) break;
-      words.push(word);
-    }
-    key = words.join(" ").replace(/[.,]+$/, "");
-  }
-  if (key === "") return null;
-  return match(scene.inning, scene.top, key, atBats, scene.batterOccurrence);
 }

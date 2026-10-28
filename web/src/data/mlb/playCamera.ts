@@ -146,6 +146,9 @@ export class Box {
 }
 
 /** One shot of the broadcast: from when, and what it keeps in frame. */
+/** A home run's trot is cut to this long after the ball clears the wall (PlayScript.Builder.trotCut: the script times the runs to it). */
+export const TROT_CUT = 0.8;
+
 export interface Shot {
   readonly from: number;
   /** A flight's ball, now and a beat ahead, and its shadow. */
@@ -375,7 +378,7 @@ export class CameraTrack {
  * runners' last bases, where it rests.
  */
 export function shoot(b: Builder): void {
-  const { script, scene, contact, batter } = b;
+  const { script, scene, contact, batter, crossings } = b;
   const shots: Shot[] = [shot(0, { points: BATTERY })];
   let end = contact + 0.45;
   let running = false;
@@ -417,15 +420,16 @@ export function shoot(b: Builder): void {
           closest: 100,
         }),
       );
-      // Cut to the trot: the batter coming home (a broadcast cuts; it doesn't sweep the park).
+      // Cut to the trot: the batter coming home behind his runners (a broadcast cuts; it doesn't sweep the park).
       const runs = script.flashes.filter((f) => f.beat === "run").map((f) => f.at);
       const home = runs.length > 0 ? Math.max(...runs) : fence.at + 1.2;
-      shots.push(shot(fence.at + 0.8, { actors: [batter], points: [{ x: 0, y: 0, z: 0 }, fieldPoint(Ballpark.base(3))], cut: true }));
+      const trotting = [batter, ...crossings.map((c) => c.actor).filter((a) => a !== batter)];
+      shots.push(shot(fence.at + TROT_CUT, { actors: trotting, points: [{ x: 0, y: 0, z: 0 }, fieldPoint(Ballpark.base(3))], cut: true }));
       shots.push(shot(Math.max(home + 0.1, fence.at + 1.2), { points: INFIELD }));
       finish();
       return;
     }
-    const first = scene.fielders[0] ?? scene.error ?? Ballpark.nearest(ground(flight.to));
+    const first = b.handling?.fielder ?? scene.fielders[0] ?? scene.error ?? Ballpark.nearest(ground(flight.to));
     // A beat before contact the camera starts to open up, as an operator reads the swing.
     shots.push(shot(contact - 0.08, { flight: i, actors: [b.fielder(first)], closest: 56 }));
     end = flight.end + 0.35;
@@ -442,7 +446,16 @@ export function shoot(b: Builder): void {
         const last = m.path[m.path.length - 1];
         return last != null && samePoint(last, Ballpark.base(base));
       })?.end;
-      if (base >= 2 && reach != null) {
+      const lastRun = crossings[crossings.length - 1]?.at;
+      if (lastRun != null) {
+        // Runs: the camera takes the lead runner home, and each one after him, then the batter at his base.
+        shots.push(shot(gathered, { actors: crossings.map((c) => c.actor), points: [{ x: 0, y: 0, z: 0 }], cut: outfield }));
+        end = lastRun + 0.35;
+        if (base >= 2 && reach != null) {
+          shots.push(shot(lastRun + 0.15, { actors: [batter], points: [fieldPoint(Ballpark.base(base)), fieldPoint(Ballpark.base(base - 1))], cut: true }));
+          end = Math.max(end, reach + 0.5);
+        }
+      } else if (base >= 2 && reach != null) {
         shots.push(shot(gathered, { actors: [batter], points: [fieldPoint(Ballpark.base(base)), fieldPoint(Ballpark.base(base - 1))], cut: outfield }));
         end = reach + 0.5;
       } else {
@@ -452,14 +465,37 @@ export function shoot(b: Builder): void {
       running = true;
     }
   }
-  // The throws (and a ball that gets away), end to end.
+  // The throws (and a ball that gets away), end to end; a rundown's, all its bases at once. (After the
+  // pitch: a pickoff has none, and its throw can come before a pitch would have.)
   const primary = new Set([0, ...(script.batted != null ? [script.batted] : [])]);
+  const after = script.release == null ? 0 : contact - 0.3;
+  const rundown = script.batted == null ? script.flights.flatMap((f, j) => (!primary.has(j) && f.start > after ? [j] : [])) : [];
+  if (rundown.length > 1) {
+    const firstThrow = script.flights[rundown[0]!]!;
+    const lastThrow = script.flights[rundown[rundown.length - 1]!]!;
+    shots.push(
+      shot(Math.max(firstThrow.start - 0.3, (shots[shots.length - 1]?.from ?? 0) + 0.25), {
+        points: rundown.flatMap((j) => [fieldPoint(ground(script.flights[j]!.from)), fieldPoint(ground(script.flights[j]!.to))]),
+      }),
+    );
+    end = Math.max(end, lastThrow.end + 0.2);
+    running = true;
+  }
   script.flights.forEach((flight, j) => {
-    if (primary.has(j) || !(flight.start > contact - 0.3) || running) return;
+    if (primary.has(j) || !(flight.start > after) || running) return;
     const from = Math.max(flight.start - 0.3, (shots[shots.length - 1]?.from ?? 0) + 0.25);
     shots.push(shot(from, { flight: j, points: [fieldPoint(ground(flight.from)), fieldPoint(ground(flight.to))] }));
     end = Math.max(end, flight.end + 0.2);
   });
+  // Runs after the throws (or a catch): the camera takes each one home (cutting in from the outfield).
+  const lead = crossings[0]?.at;
+  const lastRun = crossings[crossings.length - 1]?.at;
+  if (lead != null && lastRun != null && !running && script.fence == null) {
+    const previous = shots[shots.length - 1];
+    const onBall = script.batted != null && previous?.flight === script.batted && Ballpark.distance(ground(script.flights[script.batted]!.to)) > 200;
+    shots.push(shot(Math.max(lead - 0.9, (previous?.from ?? 0) + 0.35), { actors: crossings.map((c) => c.actor), points: [{ x: 0, y: 0, z: 0 }], cut: onBall }));
+    end = Math.max(end, lastRun + 0.35);
+  }
   // A strikeout's mark sinks in on the battery before it widens.
   if (script.batted == null && Number.isFinite(script.stamp)) end = Math.max(end, script.stamp + 0.5);
   shots.push(shot(Math.min(Math.max(end, (shots[shots.length - 1]?.from ?? 0) + 0.25), script.settle - 0.2), { points: INFIELD }));

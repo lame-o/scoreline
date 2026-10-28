@@ -29,6 +29,7 @@ import { usePageGeometry, useRemeasure, useSurface } from "./core/geometry";
 import { Hero, HeroSkeleton, HeroWash } from "./core/Hero";
 import { LinkedFocusProvider, LinkedFocusStore } from "./core/linked";
 import { MomentProvider, useCurrentMoment, useMomentSlot } from "./core/moments";
+import { useHeaderLedger, useHeaderSync } from "./core/headerSync";
 import { ScoringSlideHost, SlidesProvider, useBindSlides, useScoringSlides, useScoringSlidesContext } from "./core/scoringSlides";
 import { LinkedPeekHost } from "./core/peek";
 import { listenForUnlock } from "./core/sound";
@@ -202,6 +203,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
   const live = event.state === "live";
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
+  const header = useHeaderLedger();
   const context: GameContext = {
     event,
     detail,
@@ -214,6 +216,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
     geometry,
     leagueID: game.leagueID,
     refresh: game.refresh,
+    header,
   };
   // A page's kind never changes while it's mounted (the body is keyed by event and kind), so this is always the same hook.
   const useSportPage = use(sportPage(pageKind(event.ref)));
@@ -221,6 +224,8 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
 
   // The hero's numbers (the lane's while it's ahead).
   const scores = { top: sport.laneScores?.top ?? top?.score ?? null, bottom: sport.laneScores?.bottom ?? bottom?.score ?? null };
+  // The summary-driven sections and the scores list kept no older than these numbers.
+  useHeaderSync(header, event, scores, sport);
   useBeatTriggers(event, scores, setBeats, sport.trophy != null);
   // The scoring slides: who's who, and how each score meets this page.
   useBindSlides(event, game.detail, geometry);

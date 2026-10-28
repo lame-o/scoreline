@@ -32,6 +32,8 @@ export const Ballpark = {
   baseline: 90,
   /** The pitcher's rubber. */
   rubber: { x: 0, y: 60.5 } as Point,
+  /** Where the pitch leaves his hand: a stride (6.5 ft) off the rubber. */
+  release: 54,
   /** The infield's dirt reaches 95 ft from the rubber. */
   skin: 95,
   wallHeight: 10,
