@@ -15,7 +15,12 @@
  * between plays the scene is a still on the infield. Plays already on the
  * page when it opened show as they ended; a new one mid-replay cuts to
  * itself; with Reduce Motion each play crossfades to how it ended and the
- * camera never moves. Decorative for screen readers: the caption carries the play.
+ * camera never moves. A play's end (its trace, the stamp, the Statcast line)
+ * stays until the next at-bat's first pitch, or `HOLD_MS` after its replay,
+ * whichever comes first; then the field crossfades to the game as it is (the
+ * live bases and batter). The field and the figures are one canvas pass,
+ * through the same camera at the same moment. Decorative for screen readers:
+ * the caption carries the play.
  *
  *     <PlayTheater state={theater} bases={[on1, on2, on3]} batting="top" palette={palette} kits={kits} event={event} />
  *
@@ -29,10 +34,10 @@
  * - Text is measured with the canvas, not SwiftUI's layout, so the stamp's line boxes are approximations of SF's metrics.
  * - Team colors mix in OKLab for the far limbs (SwiftUI's `mix` is its own perceptual space).
  */
-import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ScoreEvent, Side } from "../../../../data/models";
 import { PlayScript, type Rest } from "../../../../data/mlb/playScript";
-import type { TheaterState } from "../../../../data/mlb/playScene";
+import { playOnStage, type TheaterState } from "../../../../data/mlb/playScene";
 import { theaterTeams, type TheaterKits } from "../../../../data/mlb/theaterTeams";
 import type { TeamPalette } from "../../../../data/teamColors";
 import { useSettings } from "../../../../state/settings";
@@ -68,6 +73,9 @@ const subscribeReduce = (listener: () => void) => {
   return () => reduceQuery?.removeEventListener("change", listener);
 };
 
+/** How long a replay's end stays up when the next at-bat hasn't begun (PlayStage.hold). */
+export const HOLD_MS = 8000;
+
 /** The system's Reduce Motion, live. */
 export function usePrefersReducedMotion(): boolean {
   return useSyncExternalStore(subscribeReduce, () => reduceQuery?.matches ?? false, () => false);
@@ -80,7 +88,19 @@ export function PlayTheater({ state, bases, batting, kits, event, names, frozen 
   const level = useSettings((s) => s.celebrationLevel);
   const reduceMotion = usePrefersReducedMotion();
   const moment = useChartMoment("plate");
-  const play = state.play;
+  // The replay that has run its course, and the one whose end has had its time on screen.
+  const [ended, setEnded] = useState<string | null>(null);
+  const [rested, setRested] = useState<string | null>(null);
+  // The play on screen: a replay's own until it's over; then how the latest
+  // ended, until the next pitch or the hold; then none, and the field shows
+  // the live bases and batter.
+  const play = playOnStage(state, frozen == null && !reduceMotion, ended, rested);
+  useEffect(() => {
+    if (ended == null) return;
+    // Done: its end holds a while, then the field returns to the game.
+    const id = setTimeout(() => setRested(ended), HOLD_MS);
+    return () => clearTimeout(id);
+  }, [ended]);
 
   // The field between plays: the live bases and batter, or how the play left them.
   const swapped = play?.endsInning ?? false;
@@ -114,7 +134,7 @@ export function PlayTheater({ state, bases, batting, kits, event, names, frozen 
   }, []);
 
   useEffect(() => {
-    renderer.current?.update({ scene: play, news: state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen });
+    renderer.current?.update({ scene: play, news: state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen, onEnd: setEnded });
   }, [play, state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen]);
 
   return (

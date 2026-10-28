@@ -5,7 +5,8 @@
  * by athlete ID, and who's up.
  */
 import { describe, expect, it } from "vitest";
-import { isPlay, notationText, parse, theater, type PlayScene, type SideOf } from "../../src/data/mlb/playScene";
+import { isPlay, notationText, parse, playOnStage, theater, type PlayScene, type SideOf } from "../../src/data/mlb/playScene";
+import { has } from "../../src/data/json";
 import { fixture } from "./fixtures";
 
 const g3 = fixture("mlb-ws-g3-plays.json") as { items: unknown[]; names: Record<string, string> };
@@ -262,6 +263,34 @@ describe("who's up", () => {
   it("after the third out nobody's in the box yet", () => {
     const end = index("4019080440005990057");
     expect(theater(plays.slice(0, end + 1), side).bats).toBeNull();
+  });
+  it("the play's end gives way to the live field once the next at-bat's first pitch is in", () => {
+    const walk = index("4019080440403990057");
+    const nextPitch = plays.findIndex((p, i) => i > walk && has(p, "pitchCoordinate") && (p as { summaryType?: string }).summaryType === "P");
+    expect(theater(plays.slice(0, walk + 1), side).cleared).toBe(false);
+    expect(nextPitch).toBeGreaterThan(walk);
+    const pitched = theater(plays.slice(0, nextPitch + 1), side);
+    expect(pitched.cleared).toBe(true);
+    expect(pitched.play?.id).toBe("4019080440403990057");
+    // A steal's end stays until the next pitch to the same batter.
+    expect(theater(plays.slice(0, index("4019080440804050298") + 1), side).cleared).toBe(false);
+  });
+  it("on the stage: the walk replays, its end holds until the next pitch or its time is up, then the live field (no play)", () => {
+    const walk = index("4019080440403990057");
+    const nextPitch = plays.findIndex((p, i) => i > walk && has(p, "pitchCoordinate") && (p as { summaryType?: string }).summaryType === "P");
+    const id = "4019080440403990057";
+    const after = { ...theater(plays.slice(0, walk + 1), side), news: true };
+    const pitched = { ...theater(plays.slice(0, nextPitch + 1), side), news: true };
+    // Replaying, it's on screen even once the next pitch is in; done, its end stays until the pitch, or the hold.
+    expect(playOnStage(after, true, null, null)?.id).toBe(id);
+    expect(playOnStage(pitched, true, null, null)?.id).toBe(id);
+    expect(playOnStage(after, true, id, null)?.id).toBe(id);
+    expect(playOnStage(pitched, true, id, null)).toBeNull();
+    expect(playOnStage(after, true, id, id)).toBeNull();
+    // History (or Reduce Motion) isn't replayed: it shows as it ended, until the pitch.
+    expect(playOnStage({ ...after, news: false }, true, null, null)?.id).toBe(id);
+    expect(playOnStage(after, false, null, null)?.id).toBe(id);
+    expect(playOnStage({ ...pitched, news: false }, true, null, null)).toBeNull();
   });
   it("the half-inning and the batter's plate appearance, for Statcast", () => {
     const single = scene("4019080440003990057");

@@ -367,9 +367,26 @@ export interface TheaterState {
   readonly news: boolean;
   /** The batter at the plate by the side he stands on; null between innings. */
   readonly bats: Hand | null;
+  /** A pitch since the play: the next at-bat is under way, so the field shows the live scene, not how the play ended. (Absent: false.) */
+  readonly cleared?: boolean;
 }
 
 export const EMPTY_THEATER: TheaterState = { play: null, news: false, bats: null };
+
+/**
+ * The play the stage shows (PlayTheater.swift `PlayStage.play`): a replay's
+ * own until it's over; then how the latest ended, until the next at-bat's
+ * first pitch (`cleared`) or its hold after the replay (`rested`); then
+ * none, and the field shows the live bases and batter. `replays`: news is
+ * replayed here (the live clock, without Reduce Motion); `ended`, the replay
+ * that has run its course; `rested`, the one whose end has had its time.
+ */
+export function playOnStage(state: TheaterState, replays: boolean, ended: string | null, rested: string | null): PlayScene | null {
+  const latest = state.play;
+  if (!latest) return null;
+  if (replays && state.news && ended !== latest.id) return latest;
+  return !state.cleared && latest.id !== rested ? latest : null;
+}
 
 export type SideOf = (teamID: string | undefined) => Side | null;
 
@@ -437,7 +454,12 @@ export function theater(plays: readonly unknown[], side: SideOf, names: Readonly
     }
   }
   const bats = (next !== undefined ? hand(next) : null) ?? (play.batter == null && !play.endsInning ? play.bats : null);
-  return { play, news: false, bats };
+  let pitched = false;
+  for (let i = index + 1; i < plays.length && !pitched; i++) {
+    const e = plays[i];
+    pitched = has(e, "pitchCoordinate") && (sv(at(e, "summaryType")) === "P" || (sv(at(e, "text")) ?? "").startsWith("Pitch"));
+  }
+  return { play, news: false, bats, cleared: pitched };
 }
 
 /** The play-result at `index`, with what led to it. Null for anything that isn't a play on the field. */
