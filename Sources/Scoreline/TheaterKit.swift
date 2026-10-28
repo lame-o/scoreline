@@ -90,6 +90,15 @@ enum CameraRig {
 }
 
 extension CameraFrame {
+    /// The framing that fits a region, no closer than `closest` nor than
+    /// `tightest` (the ballpark's battery by default; a court frames tighter,
+    /// a man and the rim he's going at).
+    static func fitting(_ region: CGRect, headroom: Double, closest: Double, tightest: Double) -> CameraFrame {
+        let tall = 1 - headroom - margin, wide = aspect * (1 - 2 * margin)
+        let span = min(max(region.height / tall, region.width / wide, closest, tightest), widest)
+        return CameraFrame(x: region.midX, y: region.midY + (headroom - margin) * span / 2, span: span)
+    }
+
     /// The framing that fits a region and keeps its corner clear (the
     /// stamp's), checked again after every move: sliding the play over or
     /// up can bring someone else into the corner (a pile trailing the play,
@@ -97,8 +106,8 @@ extension CameraFrame {
     /// `items` must stay in view; `others` need only stay out of the corner.
     /// (The ballpark's `fitting(_:items:others:…)` with a field's crowd in mind.)
     static func clearing(_ region: CGRect, items: [CGRect], others: [CGRect], headroom: Double, closest: Double,
-                         corner: CGSize) -> CameraFrame {
-        var frame = fitting(region, headroom: headroom, closest: closest)
+                         corner: CGSize, tightest: Double = CameraFrame.tightest) -> CameraFrame {
+        var frame = fitting(region, headroom: headroom, closest: closest, tightest: tightest)
         guard corner.width > 0, corner.height > 0 else { return frame }
         for _ in 0..<10 {
             let w = frame.span * aspect

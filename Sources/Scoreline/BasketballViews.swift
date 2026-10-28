@@ -88,6 +88,9 @@ struct CourtView: View {
     /// Opens a player's page (ESPN athlete ID): the picked player's quiet
     /// "Profile ›" link under the court. Nil: no link.
     var onOpenProfile: ((String) -> Void)? = nil
+    /// Bursts for its moments (off while the play theater above it shows
+    /// them: one celebration per moment). Its shot stories play either way.
+    var celebrates = true
     @Environment(LinkedFocus.self) private var linked: LinkedFocus?
     @Environment(MomentCenter.self) private var moments: MomentCenter?
     @Environment(NBAStage.self) private var pageStage: NBAStage?
@@ -319,8 +322,9 @@ struct CourtView: View {
             .overlay(alignment: .topLeading) {
                 live(scene, story: story, playing: phase.playing, ballAway: ballAway, time: time, size: geo.size, point: point,
                      dimmed: dimmed, pointing: focus != nil)
-                    // A replay never celebrates (a live moment landing mid-replay included).
-                    .environment(\.celebrationLevel, time != nil ? .off : level)
+                    // A replay never celebrates (a live moment landing mid-replay included); nor does
+                    // the court while the theater above it does.
+                    .environment(\.celebrationLevel, time != nil || !celebrates ? .off : level)
             }
             .contentShape(Rectangle())
             .linkedMarks(targets.map { HoverMark(point($0.point)) }) { index in targets[index].focus }
