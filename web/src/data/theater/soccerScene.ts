@@ -15,6 +15,11 @@
  * (`goalPositionZ`: the bar at 38). The scene puts all of it on one pitch in
  * metres, home attacking right as the Live Pitch draws it, through Opta's
  * pitch markings, so a touch on the edge of the box is on its line.
+ * Every entry credits who did it (athlete, shirt, lineup role: 1 is the
+ * keeper; `credit`), a shot its contact, situation and xGOT; the summary's
+ * rosters give both starting elevens their spots (`SoccerLineup`). An
+ * entry's own reads (`isGoal`, `credit`, `teamID`, `playID`) live in
+ * soccerEntries.ts, so the lane can read them without this parser.
  *
  * Web-only: archived feeds measured 0…1 toward x = 0 (`pitchScale` says
  * "unit", data/liveFeeds/soccer.ts) are read through the same turn-round as
@@ -22,10 +27,13 @@
  *
  *     const scene = SoccerScene.latest(plays, homeTeamID, SoccerScene.keepers(plays));
  */
-import { at, bool, type JSONValue } from "../json";
+import { arr, at, bool, type JSONValue } from "../json";
 import { BIG_CHANCE_XG, LATE_SECONDS, type PitchScale } from "../liveFeeds/soccer";
 import type { Side } from "../models";
 import type { Point } from "../mlb/theaterField";
+import { credit, isGoal, playID, string, teamID, type Credit } from "./soccerEntries";
+
+export { credit, isGoal, playID, teamID, type Credit } from "./soccerEntries";
 
 // MARK: - Swift JSON's coercions
 
@@ -43,13 +51,6 @@ function double(v: JSONValue): number | null {
 function int(v: JSONValue): number | null {
   const d = double(v);
   return d == null ? null : Math.trunc(d);
-}
-
-/** `JSON.string`: a string, or a number's text. */
-function string(v: JSONValue): string | null {
-  if (typeof v === "string") return v;
-  if (typeof v === "number" && Number.isFinite(v)) return String(v);
-  return null;
 }
 
 /** A value read on the feed's scale: unit-scale feeds turned round (a half turn) onto the percent scale (web-only). */
@@ -152,6 +153,35 @@ export type Start = "openPlay" | "corner" | "freeKick" | "throwIn" | "goalKick" 
 
 export type Technique = "foot" | "header" | "volley";
 
+/** What struck it, as Opta logs it (`contactType`). */
+export type Contact = "leftFoot" | "rightFoot" | "head";
+
+/** How the move that made the chance began, as Opta tags the shot (`shotInfo`), even when the build-up doesn't reach back that far. */
+export type Situation = "openPlay" | "corner" | "setPiece" | "freeKick" | "throwIn" | "fastBreak" | "penalty" | "ownGoal";
+
+/** The assist's kind, from the text ("Assisted by Ben White with a cross"). */
+export type AssistKind = "cross" | "throughBall" | "headedPass";
+
+/** VAR's word on a goal: confirmed ("Goal confirmed following VAR Review."), or struck off (`SoccerFeed` takes it off the stage). */
+export type Review = "confirmed" | "overturned";
+
+export type KeeperActionKind = "save" | "punch" | "claim" | "smother" | "sweep" | "spill";
+
+/**
+ * What the defending keeper did, and where, as the feed logs it (it has no
+ * save type: diving, catching): a save at his spot, a punch and where it
+ * landed, a claim in the air, a smother at a forward's feet, a rush off his
+ * line, the ball spilled.
+ */
+export interface KeeperAction {
+  readonly kind: KeeperActionKind;
+  readonly at: Point;
+  /** Where a punch landed. */
+  readonly to: Point | null;
+  /** Match clock, in seconds. */
+  readonly clock: number;
+}
+
 export type TouchKind =
   | "pass"
   | "cross"
@@ -168,17 +198,19 @@ export type TouchKind =
 export interface Touch {
   kind: TouchKind;
   player: string;
+  /** Who, exactly (athlete, shirt, lineup role). */
+  credit: Credit | null;
   /** Where it happened, in metres. */
   at: Point;
   /** Where a pass, a cross or an earlier shot went. */
   to: Point | null;
   /** In the air: a cross, a corner, a long ball. */
   lofted: boolean;
-  /** Match clock, in seconds. */
+  /** Match clock, in seconds (1 s resolution): the real gaps between touches, for pacing. */
   clock: number;
   /** The other team's: a deflection, a header won, a save. */
   defending: boolean;
-  /** The defending keeper's own: a save, a punch, coming off his line (whether or not the feed has learned his name yet). */
+  /** The defending keeper's own: a save, a punch, coming off his line (credited to lineup role 1, or something only a keeper does). */
   keeper: boolean;
 }
 
@@ -195,15 +227,20 @@ export interface SceneShot {
   /** Where it was stopped: the keeper's hands, the block. */
   stopped: Point | null;
   technique: Technique;
+  contact: Contact | null;
+  situation: Situation | null;
   penalty: boolean;
   /** Opta's expected goals. */
   xg: number | null;
+  /** Expected goals on target: how hard it was to keep out (0 off target). */
+  xgot: number | null;
 }
 
 /** A player the moment names, and where he was (if ESPN placed him). */
 export interface Person {
   name: string | null;
   at: Point | null;
+  credit?: Credit | null;
 }
 
 export interface SoccerScene {
@@ -217,9 +254,15 @@ export interface SoccerScene {
   shot: SceneShot;
   /** Who struck it (an own goal's defender). */
   shooter: string;
+  shooterCredit: Credit | null;
   assist: string | null;
+  assistCredit: Credit | null;
+  assistKind: AssistKind | null;
   keeper: Person;
   blocker: Person | null;
+  /** The defending keeper's actions in the move and just after the shot, oldest first. */
+  keeperActions: KeeperAction[];
+  review: Review | null;
   /** Where the ball went after a save, a block or the woodwork, if it's known; null when the keeper held it. */
   rebound: Point | null;
   /** "37'", "90+3'". */
@@ -274,7 +317,14 @@ export interface SoccerTheaterState {
   readonly scene: SoccerScene | null;
   /** Arrived while the page was open, or only just happened: replay it. Otherwise it's history, and shows as it ended. */
   readonly news: boolean;
+  /** A goal VAR struck off after it showed (`review` overturned): no longer the scene, so it never replays or celebrates; kept for a "no goal" beat. */
+  readonly overturned?: SoccerScene | null;
+  /** Both starting elevens and their nominal spots, from the match summary. */
+  readonly lineups?: Lineups;
 }
+
+/** Lineups by side (Swift's `[GameDetail.Side: SoccerLineup]`). */
+export type Lineups = Readonly<Partial<Record<Side, SoccerLineup>>>;
 
 // MARK: - Parsing
 
@@ -298,27 +348,23 @@ export function isMoment(item: JSONValue): boolean {
 }
 
 /** The newest moment in a run of plays, with its build-up. */
-export function latest(plays: readonly JSONValue[], homeTeamID: string | null, keeperNames: Readonly<Record<string, string>> = {}, scale: PitchScale = "percent"): SoccerScene | null {
+export function latest(plays: readonly JSONValue[], homeTeamID: string | null, keepers: Readonly<Record<string, Person>> = {}, scale: PitchScale = "percent"): SoccerScene | null {
   for (let index = plays.length - 1; index >= 0; index--) {
     if (!isMoment(plays[index])) continue;
-    const scene = parse(plays, index, homeTeamID, keeperNames, scale);
+    const scene = parse(plays, index, homeTeamID, keepers, scale);
     if (scene) return scene;
   }
   return null;
 }
 
-/** Goalkeepers by team ID, from what only a keeper does (a claim, a punch, a smother) and who saves are credited to. */
-export function keepers(plays: readonly JSONValue[]): Record<string, string> {
-  const found: Record<string, string> = {};
-  let saved = false;
+/** Goalkeepers by team ID: whoever ESPN credits in lineup role 1, or with what only a keeper does (a substitute keeper's role is 27). */
+export function keepers(plays: readonly JSONValue[]): Record<string, Person> {
+  const found: Record<string, Person> = {};
   for (const item of plays) {
-    const type = typeOf(item);
     const team = teamID(item);
-    const who = name(item);
-    if ((keeperOnly(type) || (type === "save" && saved)) && team != null && who != null) found[team] = who;
-    // A save after a shot on target is the keeper's (after a block, the blocker's).
-    if (type.startsWith("shot-")) saved = type === "shot-on-target" || (string(at(item, "text"))?.includes(" saved ") ?? false);
-    else if (!["assist", "assists-shot", "save"].includes(type)) saved = false;
+    const c = credit(item);
+    if (team == null || c == null || !(c.keeper || keeperOnly(typeOf(item)))) continue;
+    found[team] = { name: name(item), at: null, credit: c };
   }
   return found;
 }
@@ -328,7 +374,7 @@ export function parse(
   plays: readonly JSONValue[],
   index: number,
   homeTeamID: string | null,
-  keeperNames: Readonly<Record<string, string>> = {},
+  keepers: Readonly<Record<string, Person>> = {},
   scale: PitchScale = "percent",
 ): SoccerScene | null {
   const item = plays[index];
@@ -357,10 +403,14 @@ export function parse(
     outcome = "wide";
   }
 
-  const shot: SceneShot = { from, mouth: null, stopped: null, technique: "foot", penalty: false, xg: null };
+  const shot: SceneShot = { from, mouth: null, stopped: null, technique: "foot", contact: null, situation: null, penalty: false, xg: null, xgot: null };
   shot.penalty = bool(at(item, "penaltyKick")) === true || type.startsWith("penalty---");
-  shot.technique = lower.includes("header") || type === "goal---header" ? "header" : type === "goal---volley" || lower.includes("volley") ? "volley" : "foot";
+  shot.contact = contact(string(at(item, "contactType", "text")));
+  shot.situation = situation(string(at(item, "shotInfo", "text")));
+  const header = shot.contact != null ? shot.contact === "head" : lower.includes("header") || type === "goal---header";
+  shot.technique = header ? "header" : type === "goal---volley" || lower.includes("volley") ? "volley" : "foot";
   shot.xg = double(at(item, "expectedGoals"));
+  shot.xgot = double(at(item, "expectedGoalsOnTarget"));
   const gy = scaled(double(at(item, "goalPositionY")), scale);
   if (gy != null) {
     // In the shooter's frame like everything else: the away team's mouth turns round.
@@ -380,9 +430,14 @@ export function parse(
     touches: [],
     shot,
     shooter,
+    shooterCredit: null,
     assist: null,
+    assistCredit: null,
+    assistKind: null,
     keeper: { name: null, at: null },
     blocker: null,
+    keeperActions: [],
+    review: null,
     rebound: null,
     minute: "",
     clock: 0,
@@ -392,7 +447,14 @@ export function parse(
     decisive: false,
     wallclock: null,
   };
+  scene.shooterCredit = credit(item);
   scene.assist = /Assisted by (.+?)(?: with | following |\.|$)/.exec(text)?.[1] ?? null;
+  // The assister: credited by role, else second (the shooter is first).
+  const credits = arr(at(item, "participants"));
+  const assister = credits.findIndex((c) => string(at(c, "type")) === "assister");
+  scene.assistCredit = assister >= 0 ? credit(item, assister) : credits.length > 1 && string(at(credits[1], "type")) == null ? credit(item, 1) : null;
+  scene.assistKind = lower.includes("with a cross") ? "cross" : lower.includes("with a through ball") ? "throughBall" : lower.includes("with a headed pass") ? "headedPass" : null;
+  if (lower.includes("goal confirmed following var review")) scene.review = "confirmed";
   scene.text = text;
   scene.clock = double(at(item, "clock", "value")) ?? 0;
   scene.minute = minute(string(at(item, "clock", "displayValue")) ?? "");
@@ -403,7 +465,8 @@ export function parse(
   if (shot.penalty) scene.start = "penalty";
 
   // After the shot: the keeper's save or the block (an entry credited
-  // to the defending team, where it was made), and where the ball went.
+  // to the defending team, where it was made, sometimes after the
+  // header that made it), and where the ball went.
   let defending: string | null = null;
   for (const p of plays) {
     const t = teamID(p);
@@ -412,54 +475,99 @@ export function parse(
       break;
     }
   }
-  const names: Record<string, string> = { ...keeperNames };
-  const saver = savedBy(text);
-  if (saver != null && defending != null) names[defending] = saver;
-  scene.keeper.name = defending != null ? (names[defending] ?? null) : null;
+  const known = defending != null ? keepers[defending] : undefined;
+  if (known) scene.keeper = { ...known };
+  // The text names him before any entry of his has ("saved … by Zion Suzuki").
+  if (scene.keeper.name == null) scene.keeper.name = savedBy(text);
+  let settled = false;
   for (let i = index + 1; i < plays.length && i <= index + 6; i++) {
     const next = plays[i];
     const nextType = typeOf(next);
     if (!(Math.abs((double(at(next, "clock", "value")) ?? scene.clock) - scene.clock) <= 4)) break;
     if (["assist", "assists-shot"].includes(nextType)) continue;
+    // Another attempt: what follows is its own.
+    if (nextType.startsWith("shot-") || isGoal(next)) break;
     const spot = place(next, "fieldPositionX", "fieldPositionY", homeTeamID, scale);
-    if (nextType === "save" && teamID(next) !== team) {
-      if (outcome === "blocked") {
-        scene.blocker = { name: name(next), at: spot };
-      } else if (outcome === "saved" || name(next) === scene.keeper.name) {
+    const theirs = teamID(next) !== team;
+    const nextCredit = credit(next);
+    const keeper = theirs && (nextCredit?.keeper === true || keeperOnly(nextType));
+    if (keeper) {
+      const action = keeperAction(next, homeTeamID, scale);
+      if (action) scene.keeperActions.push(action);
+      scene.keeper.credit = nextCredit ?? scene.keeper.credit ?? null;
+      scene.keeper.name = scene.keeper.name ?? name(next);
+    }
+    if (nextType === "save" && theirs) {
+      if (keeper || (nextCredit == null && outcome === "saved")) {
         scene.keeper.at = spot;
-        if (scene.keeper.name == null) scene.keeper.name = name(next);
+        scene.keeper.name = name(next) ?? scene.keeper.name;
+      } else {
+        scene.blocker = { name: name(next), at: spot, credit: nextCredit };
       }
       continue;
     }
+    if (settled) continue;
     if (scored(scene) || spot == null) break;
-    const keeper = scene.keeper.name;
+    settled = true;
     if (nextType === "corner-awarded") {
       // Turned behind: past the post on the side it was going.
       const mouthY = shot.mouth?.y ?? Pitch.width / 2;
       const beyond = side === "top" ? Pitch.length + 2.5 : -2.5;
       scene.rebound = { x: beyond, y: mouthY < Pitch.width / 2 ? Pitch.posts.near - 3 : Pitch.posts.far + 3 };
-    } else if (teamID(next) !== team && keeper != null && (name(next) === keeper || keeperOnly(nextType))) {
-      // The keeper has it: held.
-      scene.rebound = null;
+    } else if (keeper) {
+      // The keeper's: a punch flies to where it landed, a spill drops at his feet; anything else he held.
+      scene.rebound = nextType === "punch" ? (place(next, "fieldPosition2X", "fieldPosition2Y", homeTeamID, scale) ?? spot) : nextType === "drop-of-ball" ? spot : null;
     } else {
       scene.rebound = spot;
     }
-    break;
   }
 
   if (!shot.penalty) {
     const chain = buildUp(plays, index, team, shooter, from, scene.clock, homeTeamID, shot.technique !== "foot", scale);
     scene.touches = chain.touches;
     scene.start = chain.start;
-    // His touches are the keeper's, by name or by what only a keeper does; one the feed
-    // hasn't learned yet is named by them.
-    for (const touch of scene.touches) if (touch.defending && touch.player === scene.keeper.name) touch.keeper = true;
-    if (scene.keeper.name == null) {
-      const his = scene.touches.findLast((t) => t.keeper);
-      if (his && his.player !== "") scene.keeper.name = his.player;
+    const his = scene.keeper.credit == null ? scene.touches.findLast((t) => t.keeper) : undefined;
+    if (his) {
+      scene.keeper.credit = his.credit;
+      if (scene.keeper.name == null && his.player !== "") scene.keeper.name = his.player;
     }
+    // The keeper's actions in the moment's window (a corner punched out before the move), then after the shot.
+    const first = Math.min(scene.touches[0]?.clock ?? scene.clock, scene.clock - window);
+    const before = plays.slice(Math.max(index - 30, 0), index).filter((p) => teamID(p) !== team && (double(at(p, "clock", "value")) ?? 0) >= first && (credit(p)?.keeper === true || keeperOnly(typeOf(p))));
+    scene.keeperActions = [...before.flatMap((p) => keeperAction(p, homeTeamID, scale) ?? []), ...scene.keeperActions];
   }
   return scene;
+}
+
+/** A keeper's entry as an action: a save, a punch (and where it landed), a claim, a smother, a rush off his line, a spill. */
+export function keeperAction(item: JSONValue, home: string | null, scale: PitchScale = "percent"): KeeperAction | null {
+  let kind: KeeperActionKind;
+  switch (typeOf(item)) {
+    case "save":
+      kind = "save";
+      break;
+    case "punch":
+      kind = "punch";
+      break;
+    case "claim":
+    case "keeper-pick-up":
+      kind = "claim";
+      break;
+    case "smother":
+      kind = "smother";
+      break;
+    case "keeper-sweeper":
+      kind = "sweep";
+      break;
+    case "drop-of-ball":
+      kind = "spill";
+      break;
+    default:
+      return null;
+  }
+  const spot = place(item, "fieldPositionX", "fieldPositionY", home, scale);
+  if (spot == null) return null;
+  return { kind, at: spot, to: kind === "punch" ? place(item, "fieldPosition2X", "fieldPosition2Y", home, scale) : null, clock: double(at(item, "clock", "value")) ?? 0 };
 }
 
 /** How far back a move reaches: seconds before the shot, the longest pause in it, its touches. */
@@ -503,7 +611,7 @@ export function buildUp(
     if (touches.filter((t) => !t.defending).length >= touchLimit) break;
     const ours = teamID(item) === team;
     const player = name(item) ?? "";
-    const touch: Touch = { kind: "touch", player, at: spot, to: null, lofted: false, clock: time, defending: !ours, keeper: false };
+    const touch: Touch = { kind: "touch", player, credit: credit(item), at: spot, to: null, lofted: false, clock: time, defending: !ours, keeper: false };
     touch.to = place(item, "fieldPosition2X", "fieldPosition2Y", home, scale);
     const length = touch.to ? Math.hypot(touch.to.x - spot.x, touch.to.y - spot.y) : 0;
     if (ours) {
@@ -587,7 +695,7 @@ export function buildUp(
         case "keeper-sweeper":
         case "challenge":
         case "shield-ball-opp":
-          touch.keeper = keeperOnly(type) || (type === "save" && keeperSave(plays, i));
+          touch.keeper = touch.credit?.keeper === true || keeperOnly(type) || (type === "save" && keeperSave(plays, i));
           touches.push(touch);
           break;
         case "pass":
@@ -629,20 +737,6 @@ export function place(item: JSONValue, xKey: string, yKey: string, home: string 
   return Pitch.metres(isHome ? x : 100 - x, isHome ? y : 100 - y);
 }
 
-/** ".../teams/362?lang=en" → "362". */
-export function teamID(item: JSONValue): string | null {
-  const ref = string(at(item, "team", "$ref"));
-  if (ref == null) return null;
-  const i = ref.indexOf("/teams/");
-  if (i < 0) return null;
-  const id = /^\d+/.exec(ref.slice(i + "/teams/".length))?.[0];
-  return id ? id : null;
-}
-
-export function playID(item: JSONValue): string | null {
-  return string(at(item, "id"));
-}
-
 /** "Martin Ødegaard Pass" less its type: "Martin Ødegaard". */
 export function name(item: JSONValue): string | null {
   const short = string(at(item, "shortText"));
@@ -660,8 +754,10 @@ export function savedBy(text: string): string | null {
   return /saved [^.]*? by ([^(.]+?) \(/.exec(text)?.[1] ?? null;
 }
 
-/** A save entry is the keeper's when the shot just before it was on target; after a block it's the blocker's. */
+/** A save entry is the keeper's when ESPN credits it to lineup role 1. Without a credit: when the shot just before it was on target (after a block it's the blocker's). */
 export function keeperSave(plays: readonly JSONValue[], index: number): boolean {
+  const c = credit(plays[index]);
+  if (c) return c.keeper;
   for (let k = index - 1; k >= Math.max(index - 3, 0); k--) {
     const item = plays[k];
     const type = typeOf(item);
@@ -669,6 +765,36 @@ export function keeperSave(plays: readonly JSONValue[], index: number): boolean 
     return type !== "shot-blocked" || (string(at(item, "text")) ?? "").includes(" saved ");
   }
   return false;
+}
+
+/** "Left Foot", "Right Foot", "Header". */
+export function contact(text: string | null): Contact | null {
+  switch (text?.toLowerCase()) {
+    case "left foot":
+      return "leftFoot";
+    case "right foot":
+      return "rightFoot";
+    case "header":
+    case "head":
+      return "head";
+    default:
+      return null;
+  }
+}
+
+/** "Regular Play", "From Corner", "Set Piece", "Free Kick", "Throw-in Set Piece", "Fast Break", "Penalty", "Own Goal". */
+export function situation(text: string | null): Situation | null {
+  if (text == null) return null;
+  const t = text.toLowerCase();
+  if (t.includes("corner")) return "corner";
+  if (t.includes("throw")) return "throwIn";
+  if (t.includes("free kick")) return "freeKick";
+  if (t.includes("set piece")) return "setPiece";
+  if (t.includes("fast break")) return "fastBreak";
+  if (t.includes("penalty")) return "penalty";
+  if (t.includes("own goal")) return "ownGoal";
+  if (t.includes("regular")) return "openPlay";
+  return null;
 }
 
 export function keeperOnly(type: string): boolean {
@@ -750,9 +876,11 @@ export function stampDetail(scene: SoccerScene): string {
 /** SoccerScene's static members, by their Swift names. */
 export const SoccerScene = {
   isMoment,
+  isGoal,
   latest,
   keepers,
   parse,
+  keeperAction,
   buildUp,
   window,
   lull,
@@ -763,8 +891,187 @@ export const SoccerScene = {
   name,
   savedBy,
   keeperSave,
+  credit,
+  contact,
+  situation,
   keeperOnly,
   minute,
   decides,
   surname,
 };
+
+// MARK: - Lineups
+
+/** One of a team's starting eleven (SoccerLineup.Player). */
+export interface LineupPlayer {
+  readonly athlete: string;
+  /** "Zion Suzuki". */
+  readonly name: string | null;
+  readonly jersey: string | null;
+  /**
+   * ESPN's abbreviation: "G", "CD-L", "AM-R", "LM"… Ambiguous alone: LM and
+   * RM are the holding pair in a 4-2-3-1 but the wing-backs in a 3-4-2-1, so
+   * the formation decides where he stands.
+   */
+  readonly position: string;
+  /** Opta's formation place: 1 the keeper, 2 to 11 by the formation's numbering. */
+  readonly place: number;
+  /** His line: 0 the keeper, 1 the back line, and so on up the pitch. */
+  line: number;
+  /**
+   * Where the shape puts him, in his team's own frame on Opta's pitch: x
+   * toward the goal it attacks (0…100), y from its right touchline (0) to
+   * its left (100).
+   */
+  spot: Point;
+  readonly subbedOut: boolean;
+}
+
+/**
+ * A team's starting eleven as the match summary lists it (`rosters[]`, which
+ * the page's summary load already fetches): the formation, and each
+ * starter's place in it, so every player has a nominal spot on the pitch,
+ * not only those who touch the ball.
+ */
+export class SoccerLineup {
+  private constructor(
+    /** The team's ID. */
+    readonly team: string,
+    /** "4-2-3-1", "3-4-2-1", "5-4-1". */
+    readonly formation: string | null,
+    /** The starting eleven, by formation place. */
+    readonly players: readonly LineupPlayer[],
+  ) {}
+
+  /** A player's nominal spot on the pitch, in metres (home attacks right, as the scene draws it). */
+  spot(athlete: string, attacksRight: boolean): Point | null {
+    const p = this.players.find((x) => x.athlete === athlete);
+    if (!p) return null;
+    return Pitch.metres(attacksRight ? p.spot.x : 100 - p.spot.x, attacksRight ? p.spot.y : 100 - p.spot.y);
+  }
+
+  /** One roster from the summary; null without a starting eleven (Swift's failable init). */
+  static from(roster: JSONValue): SoccerLineup | null {
+    const team = string(at(roster, "team", "id"));
+    if (team == null) return null;
+    const players = arr(at(roster, "roster"))
+      .filter((r) => bool(at(r, "starter")) === true)
+      .flatMap((r): LineupPlayer[] => {
+        const athlete = string(at(r, "athlete", "id"));
+        if (athlete == null) return [];
+        return [
+          {
+            athlete,
+            name: string(at(r, "athlete", "displayName")),
+            jersey: string(at(r, "jersey")),
+            position: string(at(r, "position", "abbreviation")) ?? "",
+            place: int(at(r, "formationPlace")) ?? 0,
+            line: 0,
+            spot: { x: 50, y: 50 },
+            subbedOut: bool(at(r, "subbedOut")) ?? false,
+          },
+        ];
+      });
+    if (players.length === 0) return null;
+    const formation = string(at(roster, "formation"));
+    return new SoccerLineup(team, formation, SoccerLineup.shaped([...players].sort((a, b) => a.place - b.place), formation));
+  }
+
+  /** Both teams' lineups from a summary's `rosters`, by side. */
+  static lineups(rosters: JSONValue, side: (team: string | null) => Side | null): Lineups {
+    const out: { top?: SoccerLineup; bottom?: SoccerLineup } = {};
+    for (const roster of arr(rosters)) {
+      const lineup = SoccerLineup.from(roster);
+      const s = lineup ? side(lineup.team) : null;
+      if (lineup && s) out[s] = lineup;
+    }
+    return out;
+  }
+
+  /**
+   * Lays the eleven out from the formation string: the keeper, then one line
+   * per number, filled from the back by each position's depth (a back, a
+   * holding or wide midfielder, an attacking midfielder, a second striker,
+   * the striker), each line ordered across by its side (right, centre,
+   * left) and spread evenly. Without a usable formation, a line per depth.
+   * (pure; tested)
+   */
+  static shaped(players: readonly LineupPlayer[], formation: string | null): LineupPlayer[] {
+    const out = players.map((p) => ({ ...p }));
+    const keeper = out.findIndex((p) => p.place === 1 || p.position === "G");
+    const outfield = out
+      .map((_, i) => i)
+      .filter((i) => i !== keeper)
+      .sort((a, b) => SoccerLineup.depth(out[a]!.position) - SoccerLineup.depth(out[b]!.position) || out[a]!.place - out[b]!.place);
+    // Swift's `split(separator: "-").compactMap { Int($0) }`.
+    const counts = (formation ?? "")
+      .split("-")
+      .filter((x) => x !== "")
+      .flatMap((x) => (/^[+-]?\d+$/.test(x) ? [Number(x)] : []));
+    const lines: number[][] = [];
+    if (counts.reduce((a, b) => a + b, 0) === outfield.length && counts.length > 0) {
+      let rest = outfield;
+      for (const n of counts) {
+        lines.push(rest.slice(0, n));
+        rest = rest.slice(n);
+      }
+    } else {
+      for (const i of outfield) {
+        const last = lines.at(-1)?.at(-1);
+        if (last != null && SoccerLineup.depth(out[last]!.position) === SoccerLineup.depth(out[i]!.position)) lines[lines.length - 1]!.push(i);
+        else lines.push([i]);
+      }
+    }
+    if (keeper >= 0) {
+      out[keeper]!.line = 0;
+      out[keeper]!.spot = { x: 5, y: 50 };
+    }
+    lines.forEach((line, n) => {
+      // The back line about a fifth of the way up, the striker past halfway.
+      const x = lines.length > 1 ? 22 + (40 * n) / (lines.length - 1) : 40;
+      const across = [...line].sort((a, b) => SoccerLineup.lateral(out[a]!.position) - SoccerLineup.lateral(out[b]!.position) || out[a]!.place - out[b]!.place);
+      const width = Math.min(76, 22 * (across.length - 1));
+      across.forEach((i, k) => {
+        out[i]!.line = n + 1;
+        out[i]!.spot = { x, y: across.length > 1 ? 50 - width / 2 + (width * k) / (across.length - 1) : 50 };
+      });
+    });
+    return out;
+  }
+
+  /**
+   * How far up the pitch a position plays: the backs, a holding midfielder,
+   * the midfield line (wing-backs and wide men in it), the attacking
+   * midfielders, a second striker, the striker.
+   */
+  static depth(position: string): number {
+    const p = position.toUpperCase();
+    if (["RB", "LB", "CB", "D", "SW"].includes(p) || p.startsWith("CD")) return 1;
+    if (p.startsWith("DM") || p === "CDM") return 1.8;
+    if (["LM", "RM", "M", "LWB", "RWB"].includes(p) || p.startsWith("CM")) return 2;
+    if (p.startsWith("AM") || p === "CAM") return 3;
+    if (p.startsWith("CF-") || ["SS", "RW", "LW", "RF", "LF"].includes(p)) return 3.5;
+    if (["F", "CF", "ST", "FW"].includes(p)) return 4;
+    return 2.5;
+  }
+
+  /** Across the pitch from the team's right: a wide right player, right of centre ("-R"), central, left of centre ("-L"), wide left. */
+  static lateral(position: string): number {
+    const p = position.toUpperCase();
+    if (["RB", "RM", "RW", "RWB", "RF"].includes(p)) return -2;
+    if (["LB", "LM", "LW", "LWB", "LF"].includes(p)) return 2;
+    if (p.endsWith("-R")) return -1;
+    if (p.endsWith("-L")) return 1;
+    return 0;
+  }
+}
+
+/** Both lineups from each side's roster as the summary sent it (GameDetail's `soccerRosters`); a side without a starting eleven is left out. */
+export function readLineups(rosters: Readonly<Partial<Record<Side, JSONValue>>>): Lineups {
+  const out: { top?: SoccerLineup; bottom?: SoccerLineup } = {};
+  for (const side of ["top", "bottom"] as const) {
+    const lineup = rosters[side] != null ? SoccerLineup.from(rosters[side]) : null;
+    if (lineup) out[side] = lineup;
+  }
+  return out;
+}

@@ -228,6 +228,13 @@ export interface GameDetail {
   /** Soccer knockouts: the leg, the aggregate and the shootout (data/soccer.ts). */
   readonly soccerTie: SoccerTie | null;
   /**
+   * Soccer: each side's roster from the summary (`rosters[]`), as ESPN sent
+   * it, for the theater: both starting elevens in their formation
+   * (GameDetail.swift `lineups`; the theater reads them as `SoccerLineup`,
+   * so this layer never loads its parser).
+   */
+  readonly soccerRosters: Readonly<Partial<Record<Side, JSONValue>>>;
+  /**
    * Baseball, live: the summary's plays, for the play theater until the live
    * lane has spoken (`theater()` in data/mlb/playScene.ts reads them).
    */
@@ -289,6 +296,7 @@ export const EMPTY_DETAIL: GameDetail = {
   battedBalls: [],
   basketball: null,
   soccerTie: null,
+  soccerRosters: {},
   plays: [],
   topIsHome: null,
   athleteNames: {},
@@ -487,11 +495,16 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
   let plays: readonly JSONValue[] = [];
   const athleteNames: Record<string, string> = {};
   let basketball: Basketball | null = null;
+  const soccerRosters: { top?: JSONValue; bottom?: JSONValue } = {};
 
   // The NBA and WNBA have their own page (data/basketball.ts); other basketball reads like the rest.
   switch (sport === "basketball" && (path === NBA_PATH_ || path === WNBA_PATH) ? "nba" : sport) {
     case "soccer":
       moments = arr(at(summary, "keyEvents")).flatMap((e) => soccerMoment(e, side) ?? []);
+      for (const roster of arr(at(summary, "rosters"))) {
+        const s = side(str(at(roster, "team", "id")));
+        if (s) soccerRosters[s] = roster;
+      }
       recentPlays = arr(at(summary, "commentary"))
         .slice(-4)
         .reverse()
@@ -620,6 +633,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     battedBalls: battedBallsList,
     basketball,
     soccerTie: sport === "soccer" ? soccerTie(competition, topComp, bottomComp) : null,
+    soccerRosters,
     plays,
     athleteNames,
     playerNames,

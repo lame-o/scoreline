@@ -60,6 +60,9 @@ export function useFootballPage(game: GameContext): SportPage {
       bottomID: id(bottom),
       homeAbbreviation: topIsHome ? top.abbreviation : bottom.abbreviation,
       awayAbbreviation: topIsHome ? bottom.abbreviation : top.abbreviation,
+      // College writes some spots with the team's name ("Kent38"), not its abbreviation.
+      homeName: topIsHome ? top.name : bottom.name,
+      awayName: topIsHome ? bottom.name : top.name,
     };
   }, [topIsHome, top, bottom]);
 

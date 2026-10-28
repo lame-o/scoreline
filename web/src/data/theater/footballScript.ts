@@ -824,6 +824,9 @@ export class Builder {
         return ["corner"];
       case "safety":
         return ["safety"];
+      // College credits a "DB" without saying corner or safety.
+      case "defensiveBack":
+        return ["corner", "safety"];
       case "receiver":
         return ["receiver"];
       case "tightEnd":

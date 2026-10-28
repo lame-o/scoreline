@@ -54,11 +54,15 @@ export function useSoccerPage(game: GameContext): SportPage {
   const [homeID] = espnTeamIDs(event);
   const look = async (signal?: AbortSignal) => {
     if (!ref || !slug) return;
-    await feed.update(getJSON, { league: slug, eventID: ref.id, homeTeamID: homeID, signal });
+    await feed.update(getJSON, { league: slug, eventID: ref.id, homeTeamID: homeID, rosters: detail.soccerRosters, signal });
+    // A goal VAR struck off goes before anything new shows.
+    const struck = feed.takeRetractions();
+    game.moments.retract(struck);
     const fresh = feed.takeMoments();
     game.moments.offer(fresh);
-    // A goal or a card: bring the timeline and key events along now, not in half a minute.
-    if (fresh.some((m) => m.kind === "goal" || m.kind === "yellowCard" || m.kind === "redCard")) game.refresh();
+    // A goal or a card: bring the timeline and key events along now, not in half a minute (and a goal struck off,
+    // so the timeline and the score drop it: a web addition).
+    if (struck.length > 0 || fresh.some((m) => m.kind === "goal" || m.kind === "yellowCard" || m.kind === "redCard")) game.refresh();
   };
   // A finished match's shot map: one load. Live, the fast lane takes over.
   const started = event.state !== "scheduled";

@@ -73,7 +73,7 @@ class TheaterFollow {
   }
 
   private process(): boolean {
-    const changed = this.watch.update(this.feed.plays, this.homeTeamID, this.primed);
+    const changed = this.watch.update(this.feed.plays, this.homeTeamID, this.primed, Date.now(), { struck: this.feed.struck, rosters: this.feed.rosters });
     this.primed = this.feed.loaded;
     return changed;
   }
