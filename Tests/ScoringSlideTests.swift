@@ -17,6 +17,15 @@ extension ScorelineTests {
             s.map { "\($0.headline) | \($0.chip ?? "-") | \($0.subline) | \($0.score ?? "-") | \($0.spoken)" } ?? "nil"
         }
         let brewers = SlideTeam(name: "Brewers", abbreviation: "MIL", color: "12284b", alternate: "ffc52f")
+        // A run of names ahead of "scored" is one list, not three clauses.
+        let listedSlam = BaseballPlay("Rice homered to right (408 feet), McMahon, Jones, and Goldschmidt scored.")
+        check(listedSlam.scorers == ["McMahon", "Jones", "Goldschmidt"] && BaseballPlay.scored(listedSlam.scorers) == "McMahon, Jones and Goldschmidt score"
+              && listedSlam.feet == 408, "a grand slam's runners, listed: McMahon, Jones and Goldschmidt score", "\(listedSlam.scorers)")
+        let movedUp = BaseballPlay("Pratt doubled to left, Frelick scored, Yelich to third.")
+        check(movedUp.scorers == ["Frelick"], "a runner who moved up isn't a scorer", "\(movedUp.scorers)")
+        let joined = BaseballPlay("Chourio singled to center, Turang and Yelich scored.")
+        check(joined.scorers == ["Turang", "Yelich"], "two scorers joined by and", "\(joined.scorers)")
+
         let rays = SlideTeam(name: "Rays", abbreviation: "TB", color: "092c5c", alternate: "8fbce6")
 
         // MARK: Baseball, Game 3 (MIL at TB: the Brewers bat first, on the left)

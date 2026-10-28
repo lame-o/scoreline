@@ -482,14 +482,26 @@ struct BaseballPlay: Equatable {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         let sentence = trimmed.hasSuffix(".") ? String(trimmed.dropLast()) : trimmed
         var main: String?
+        // Names listed ahead of a "scored": "McMahon, Jones, and Goldschmidt scored".
+        var listed: [String] = []
         for clause in sentence.components(separatedBy: ", ") {
             if clause.contains(" scored") {
-                // "Chourio scored and Yelich scored", "Pratt scored on error".
+                // "Chourio scored and Yelich scored", "Jones and Goldschmidt scored", "Pratt scored on error".
                 for part in clause.components(separatedBy: " and ") {
-                    if let r = part.range(of: " scored") { scorers.append(String(part[..<r.lowerBound])) }
+                    let name = part.hasPrefix("and ") ? String(part.dropFirst(4)) : part
+                    if let r = name.range(of: " scored") {
+                        scorers += listed + [String(name[..<r.lowerBound])]
+                        listed = []
+                    } else if !name.isEmpty {
+                        listed.append(name)
+                    }
                 }
             } else if main == nil {
                 main = clause
+            } else if Self.isName(clause) {
+                listed.append(clause)
+            } else {
+                listed = []
             }
         }
         var clause = main ?? sentence
@@ -504,6 +516,13 @@ struct BaseballPlay: Equatable {
         } else {
             action = clause
         }
+    }
+
+    /// A clause that's only a name, one of a list ("Jones", "J.D. Martinez", "De La Cruz"):
+    /// a few capitalized words, no verb.
+    static func isName(_ clause: String) -> Bool {
+        let words = clause.split(separator: " ")
+        return !words.isEmpty && words.count <= 4 && words.allSatisfy { $0.first?.isUppercase == true || ["de", "la", "del", "van", "von"].contains($0) }
     }
 
     /// "Caminero scores", "Chourio and Yelich score", "Chourio, Yelich and Turang score".

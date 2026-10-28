@@ -28,9 +28,7 @@
 </p>
 <!-- slot:hero:end -->
 
-<!-- Animated preview: drop the loop in as docs/screenshots/readme-loop.webp and uncomment.
-<p align="center"><img src="docs/screenshots/readme-loop.webp" width="100%" alt="Scoreline in motion: a live game, its play replayed, the score changing"></p>
--->
+<p align="center"><img src="docs/screenshots/readme-loop.webp" width="100%" alt="A grand slam replayed in Scoreline's isometric view: the swing, the flight over the wall, the GRAND SLAM banner"></p>
 
 Scoreline is a free, native menu bar app for macOS. Pick your leagues and teams once: the scores sit in the menu bar, and a click opens the full live game, with a page built for each sport.
 
