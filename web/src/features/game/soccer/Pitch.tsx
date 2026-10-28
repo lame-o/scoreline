@@ -38,6 +38,8 @@ import { useFocus, useLinkedMarks, type HoverMark } from "../core/linked";
 import { pitchBursts } from "../../../data/theater/goalCelebrationRules";
 import { useChartMoment } from "../core/moments";
 import { pointSize, useReducedMotion } from "../core/useMedia";
+import { useShapes } from "../../../state/theme";
+import { markPath } from "../core/shapes";
 import styles from "./Pitch.module.css";
 
 /** Fills the width up to this tall, then centers with its footer. */
@@ -76,6 +78,8 @@ export const Pitch = memo(function Pitch({ trail, shots, cards, live, palette, t
   const scheme = useColorScheme();
   const reduce = useReducedMotion();
   const level = useSettings((s) => s.celebrationLevel);
+  // Shapes as well as color (Differentiate Without Color): the bottom team's marks are rounded squares, its last-touch ring dashed.
+  const shapes = useShapes();
   const moment = useChartMoment("pitch");
 
   useLayoutEffect(() => {
@@ -115,7 +119,7 @@ export const Pitch = memo(function Pitch({ trail, shots, cards, live, palette, t
     const ink = colorResolver(canvas, scheme);
     const pt = pointSize();
     const { ctx } = fit;
-    drawMarks(ctx, size, shots, trail, live, (side) => ink(css(color(side))), pt);
+    drawMarks(ctx, size, shots, trail, live, (side) => ink(css(color(side))), pt, shapes);
     // Rooms: the ball's (live) and the focused mark's. Everything under them stops short.
     ctx.save();
     ctx.globalCompositeOperation = "destination-out";
@@ -132,7 +136,7 @@ export const Pitch = memo(function Pitch({ trail, shots, cards, live, palette, t
     }
     ctx.restore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [size, scheme, shots, trail, live, palette, ballAt?.x, ballAt?.y, target]);
+  }, [size, scheme, shots, trail, live, palette, ballAt?.x, ballAt?.y, target, shapes]);
 
   // Hover targets: every shot; live, the recent actions too. Goals and the live trail answer anywhere along their line.
   const hoverable = useMemo(() => (live ? [...trail, ...shots] : shots), [live, trail, shots]);
@@ -191,19 +195,19 @@ export const Pitch = memo(function Pitch({ trail, shots, cards, live, palette, t
           <canvas ref={lines} className={styles.layer} />
           <canvas ref={marks} className={styles.layer} data-receded={target != null} />
           {ballAt && last ? (
-            <span className={styles.ball} data-reduce={reduce} style={{ transform: `translate(${ballAt.x}px, ${ballAt.y}px)`, color: css(color(last.side)) }} aria-hidden="true" />
+            <span className={styles.ball} data-reduce={reduce} data-dashed={shapes && last.side === "bottom"} style={{ transform: `translate(${ballAt.x}px, ${ballAt.y}px)`, color: css(color(last.side)) }} aria-hidden="true" />
           ) : null}
           {moment && momentAction && size.width > 0 ? (
             <Moment key={moment.id} moment={moment} action={momentAction} size={size} color={css(color(momentAction.side))} reduce={reduce} level={level} hidden={target != null} />
           ) : null}
-          {target && size.width > 0 ? <Focused action={target} size={size} color={css(color(target.side))} /> : null}
+          {target && size.width > 0 ? <Focused action={target} size={size} color={css(color(target.side))} square={shapes && target.side === "bottom"} /> : null}
           {stage ? <CelebrationStage key={`${moment!.id}-stage`} moment={moment} origin={stage.origin} colors={{ primary: stage.color }} direction={stage.direction} /> : null}
         </div>
       </VizWell>
       <ChartFooter readout={target ? { lead: target.minute, detail: shortened(target.text) } : null} moment={moment}>
         <Legend>
           <LegendItem label={`${topName} →`} swatch={<span className={styles.dot} style={{ background: css(palette.top) }} />} />
-          <LegendItem label={`← ${bottomName}`} swatch={<span className={styles.dot} style={{ background: css(palette.bottom) }} />} />
+          <LegendItem label={`← ${bottomName}`} swatch={<span className={styles.dot} data-square={shapes} style={{ background: css(palette.bottom) }} />} />
           {live && last ? (
             <span className={styles.latest}>{`${last.minute} ${last.text}`}</span>
           ) : (
@@ -264,8 +268,10 @@ function drawMarkings(ctx: CanvasRenderingContext2D, width: number, height: numb
  * it and its path from where it was struck to the line; live, the shots step
  * back to 0.3 and the last actions trail over them, the oldest faintest.
  */
-function drawMarks(ctx: CanvasRenderingContext2D, size: Size, shots: readonly PitchAction[], trail: readonly PitchAction[], live: boolean, colorOf: (side: Side) => string, pt: number): void {
+function drawMarks(ctx: CanvasRenderingContext2D, size: Size, shots: readonly PitchAction[], trail: readonly PitchAction[], live: boolean, colorOf: (side: Side) => string, pt: number, shapes = false): void {
   const at = (a: PitchAction) => point(size, a.x, a.y);
+  // A mark's outline: a circle, or with shapes on, a rounded square for the bottom team (LiveViews.swift `shape`).
+  const outline = (side: Side, x: number, y: number, r: number) => markPath(ctx, x, y, r, shapes && side === "bottom");
   // Goals' paths first, under the marks.
   for (const s of shots) {
     if (s.kind !== "goal" || s.endX == null || s.endY == null) continue;
@@ -298,13 +304,12 @@ function drawMarks(ctx: CanvasRenderingContext2D, size: Size, shots: readonly Pi
       ctx.clip("evenodd");
     }
     ctx.globalAlpha = live ? 0.3 : 1;
-    ctx.beginPath();
     if (s.kind === "goal") {
-      ctx.arc(c.x, c.y, 5 * pt, 0, 2 * Math.PI);
+      outline(s.side, c.x, c.y, 5 * pt);
       ctx.fillStyle = colorOf(s.side);
       ctx.fill();
     } else {
-      ctx.arc(c.x, c.y, 3.25 * pt, 0, 2 * Math.PI);
+      outline(s.side, c.x, c.y, 3.25 * pt);
       ctx.strokeStyle = colorOf(s.side);
       ctx.lineWidth = 1.5 * pt;
       ctx.stroke();
@@ -331,15 +336,17 @@ function drawMarks(ctx: CanvasRenderingContext2D, size: Size, shots: readonly Pi
       ctx.lineCap = "round";
       ctx.stroke();
     }
-    ctx.beginPath();
-    ctx.arc(start.x, start.y, 1.5 * pt, 0, 2 * Math.PI);
+    outline(a.side, start.x, start.y, 1.5 * pt);
     ctx.fill();
     ctx.restore();
   });
 }
 
 /** The focused shot, larger and ringed, with its path; a recent action ringed; a card as the card itself. */
-function Focused({ action, size, color }: { action: PitchAction; size: Size; color: string }) {
+function Focused({ action, size, color, square = false }: { action: PitchAction; size: Size; color: string; square?: boolean }) {
+  /** A circle, or with shapes on, the bottom team's rounded square in the same box. */
+  const mark = (r: number, paint: { fill: string; stroke?: string; strokeWidth?: number }) =>
+    square ? <rect x={c.x - r} y={c.y - r} width={2 * r} height={2 * r} rx={2 * r * 0.22} {...paint} /> : <circle cx={c.x} cy={c.y} r={r} {...paint} />;
   const c = point(size, action.x, action.y);
   const end = action.endX != null && action.endY != null ? point(size, action.endX, action.endY) : null;
   const card = action.kind === "yellow" || action.kind === "red";
@@ -356,13 +363,13 @@ function Focused({ action, size, color }: { action: PitchAction; size: Size; col
           <rect x={c.x - 4} y={c.y - 5.5} width={8} height={11} rx={1.5} className={styles.card} data-red={action.kind === "red"} transform={`rotate(8 ${c.x} ${c.y})`} />
         ) : action.kind === "pass" || action.kind === "other" ? (
           <>
-            <circle cx={c.x} cy={c.y} r={3.5} fill={color} />
-            <circle cx={c.x} cy={c.y} r={5.5} fill="none" stroke="var(--label)" strokeWidth={1} />
+            {mark(3.5, { fill: color })}
+            {mark(5.5, { fill: "none", stroke: "var(--label)", strokeWidth: 1 })}
           </>
         ) : (
           <>
-            {action.kind === "goal" ? <circle cx={c.x} cy={c.y} r={6} fill={color} /> : <circle cx={c.x} cy={c.y} r={5} fill="none" stroke={color} strokeWidth={2} />}
-            <circle cx={c.x} cy={c.y} r={8} fill="none" stroke="var(--label)" strokeWidth={1} />
+            {action.kind === "goal" ? mark(6, { fill: color }) : mark(5, { fill: "none", stroke: color, strokeWidth: 2 })}
+            {mark(8, { fill: "none", stroke: "var(--label)", strokeWidth: 1 })}
           </>
         )}
       </g>

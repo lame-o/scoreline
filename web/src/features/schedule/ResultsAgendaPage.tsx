@@ -190,7 +190,7 @@ export function ResultsAgendaPage({ scope, mode, onMode, switched, crossfade }: 
 
   const content = (() => {
     if (data.loading) return <AgendaSkeleton days={1} rows={4} />;
-    if (!state || (!state.ok && state.items.length === 0 && !state.season)) return <ErrorState subject="Results" onRetry={data.refresh} />;
+    if (!state || (!state.ok && state.items.length === 0 && !state.season)) return <ErrorState subject="Results" retriesAutomatically retrying={data.fetching} onRetry={data.refresh} />;
     if (navigation === "list") {
       if (scope.kind === "yourTeams" && followed.length === 0) {
         return <EmptyState icon="star" title="No Teams" message="Follow a team from any game's page to see its results here." />;

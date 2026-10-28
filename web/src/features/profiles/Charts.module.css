@@ -268,6 +268,13 @@
   box-shadow: inset 0 0 0 calc(1 * var(--pt)) light-dark(rgb(0 0 0 / 0.28), rgb(255 255 255 / 0.3));
 }
 
+/* Shapes as well as color: a win full, a draw half, a loss empty, not told apart by shade alone. */
+:global([data-shapes="true"]) .mark[data-letter="D"]::before,
+:global([data-shapes="true"]) .mark[data-letter="T"]::before {
+  background: linear-gradient(135deg, light-dark(rgb(0 0 0 / 0.16), rgb(255 255 255 / 0.18)) 50%, transparent 50%);
+  box-shadow: inset 0 0 0 calc(1 * var(--pt)) light-dark(rgb(0 0 0 / 0.28), rgb(255 255 255 / 0.3));
+}
+
 /* The pointed-at mark: an accent ring just outside it (instant). */
 .mark[data-lit="true"]::after {
   content: "";

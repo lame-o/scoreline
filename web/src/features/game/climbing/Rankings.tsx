@@ -28,6 +28,7 @@ import type { LiveMoment } from "../../../data/moments";
 import { countryName, flagFromIOC } from "../../../data/teams";
 import { useSettings } from "../../../state/settings";
 import { climberRef, linkNameClass, PlayerLink } from "../../profiles/ProfileLinks";
+import { useGoToPlayer } from "../../profiles/GoToMenu";
 import { CelebrationStage } from "../core/CelebrationStage";
 import { ChartFooter, Legend, LegendItem } from "../core/DetailSection";
 import { useFocus, useLinkedRow, type Focus } from "../core/linked";
@@ -134,39 +135,45 @@ function CardRow({ card, problems, mine, delta, moment }: { card: BoulderCard; p
     .filter(Boolean)
     .join(", ");
   const ref = climberRef(card.id, card.name, { country: card.country });
+  // The row's click pins the climber: "Go to …" and a double click open their page (LiveViews.swift `playerPageLink`).
+  const goTo = useGoToPlayer(ref);
   return (
-    <div className={styles.cardRow} data-mine={mine} data-onwall={card.onWall} data-lit={lit} {...linked} role="group" aria-label={said}>
-      <span ref={washRef} className={styles.wash} />
-      <span className={styles.cardRank} aria-hidden="true">
-        {card.rank ?? "–"}
-      </span>
-      <span className={styles.cardFlag} title={card.country ? countryName(card.country) : undefined} aria-hidden="true">
-        {card.flag ?? ""}
-      </span>
-      {/* Every name at one size: a long one truncates. A click on it opens the climber's page. */}
-      <PlayerLink player={ref} className={[styles.cardName, linkNameClass].join(" ")} title={`Go to ${card.name}`}>
-        {card.name}
-      </PlayerLink>
-      {card.onWall ? (
-        <span title="Climbing now">
-          <LiveDot />
+    <>
+      {/* Beside the row, not in it: the menu's clicks mustn't pin the row. */}
+      {goTo.menu}
+      <div className={styles.cardRow} data-mine={mine} data-onwall={card.onWall} data-lit={lit} {...linked} {...goTo.props} role="group" aria-label={said}>
+        <span ref={washRef} className={styles.wash} />
+        <span className={styles.cardRank} aria-hidden="true">
+          {card.rank ?? "–"}
         </span>
-      ) : null}
-      {delta ? <DeltaChip delta={delta} className={styles.deltaIn} /> : null}
-      <span className={styles.cardSpacer} />
-      {card.problems.map((p, i) => (
-        <Cell key={i} problem={p} label={problems[i] ?? null} moment={moment?.id.startsWith(`boulder:${card.id}:${i}:`) ? moment : null} />
-      ))}
-      <span className={`${styles.cardCount} ${styles.totals}`} aria-hidden="true">
-        {totals.tops}
-      </span>
-      <span className={`${styles.cardCount} ${styles.totals}`} aria-hidden="true">
-        {totals.zones}
-      </span>
-      <span className={styles.cardPoints} aria-hidden="true">
-        {card.score?.trim() ?? ""}
-      </span>
-    </div>
+        <span className={styles.cardFlag} title={card.country ? countryName(card.country) : undefined} aria-hidden="true">
+          {card.flag ?? ""}
+        </span>
+        {/* Every name at one size: a long one truncates. A click on it opens the climber's page. */}
+        <PlayerLink player={ref} className={[styles.cardName, linkNameClass].join(" ")} title={`Go to ${card.name}`}>
+          {card.name}
+        </PlayerLink>
+        {card.onWall ? (
+          <span title="Climbing now">
+            <LiveDot />
+          </span>
+        ) : null}
+        {delta ? <DeltaChip delta={delta} className={styles.deltaIn} /> : null}
+        <span className={styles.cardSpacer} />
+        {card.problems.map((p, i) => (
+          <Cell key={i} problem={p} label={problems[i] ?? null} moment={moment?.id.startsWith(`boulder:${card.id}:${i}:`) ? moment : null} />
+        ))}
+        <span className={`${styles.cardCount} ${styles.totals}`} aria-hidden="true">
+          {totals.tops}
+        </span>
+        <span className={`${styles.cardCount} ${styles.totals}`} aria-hidden="true">
+          {totals.zones}
+        </span>
+        <span className={styles.cardPoints} aria-hidden="true">
+          {card.score?.trim() ?? ""}
+        </span>
+      </div>
+    </>
   );
 }
 
@@ -240,30 +247,36 @@ export const RankingList = memo(function RankingList({ athletes, yours, live }: 
 function RankRow({ athlete: a, mine, delta }: { athlete: Athlete; mine: boolean; delta: number | null }) {
   const linked = useLinkedRow({ athlete: a.id }, { pinnable: true, links: true });
   const lit = useFocus((f) => f?.athlete === a.id);
+  // The row's click pins the climber on the charts: "Go to …" and a double click open their page.
+  const goTo = useGoToPlayer(climberRef(a.id, a.name, { country: a.country }));
   const washRef = useWash(delta != null && delta > 0 ? delta : undefined);
   const country = a.country ? countryName(a.country) : null;
   const said = [a.rank != null ? ordinal(a.rank) : null, delta ? (delta > 0 ? `up ${delta}` : `down ${-delta}`) : null, a.name, country, a.score ? `score ${a.score}` : null, mine ? "Your country" : null].filter(Boolean).join(", ");
   return (
-    <div className={styles.rankRow} data-mine={mine} data-lit={lit} {...linked} role="group" aria-label={said}>
-      <span ref={washRef} className={styles.wash} />
-      <span className={styles.rankNumber} data-podium={a.rank != null && a.rank <= 3} aria-hidden="true">
-        {a.rank ?? "–"}
-      </span>
-      {/* Flags carry the color on climbing pages. */}
-      <span className={styles.rankFlag} title={country ?? undefined} aria-hidden="true">
-        {flagFromIOC(a.country) ?? ""}
-      </span>
-      <PlayerLink player={climberRef(a.id, a.name, { country: a.country })} className={[styles.rankName, linkNameClass].join(" ")} title={`Go to ${a.name}`}>
-        {a.name}
-      </PlayerLink>
-      {/* After the name, so nothing else in the row moves when it comes and goes. */}
-      {delta ? <DeltaChip delta={delta} className={styles.deltaIn} /> : null}
-      {a.score ? (
-        <span className={styles.rankScore} aria-hidden="true">
-          {a.score}
+    <>
+      {/* Beside the row, not in it: the menu's clicks mustn't pin the row. */}
+      {goTo.menu}
+      <div className={styles.rankRow} data-mine={mine} data-lit={lit} {...linked} {...goTo.props} role="group" aria-label={said}>
+        <span ref={washRef} className={styles.wash} />
+        <span className={styles.rankNumber} data-podium={a.rank != null && a.rank <= 3} aria-hidden="true">
+          {a.rank ?? "–"}
         </span>
-      ) : null}
-    </div>
+        {/* Flags carry the color on climbing pages. */}
+        <span className={styles.rankFlag} title={country ?? undefined} aria-hidden="true">
+          {flagFromIOC(a.country) ?? ""}
+        </span>
+        <PlayerLink player={climberRef(a.id, a.name, { country: a.country })} className={[styles.rankName, linkNameClass].join(" ")} title={`Go to ${a.name}`}>
+          {a.name}
+        </PlayerLink>
+        {/* After the name, so nothing else in the row moves when it comes and goes. */}
+        {delta ? <DeltaChip delta={delta} className={styles.deltaIn} /> : null}
+        {a.score ? (
+          <span className={styles.rankScore} aria-hidden="true">
+            {a.score}
+          </span>
+        ) : null}
+      </div>
+    </>
   );
 }
 

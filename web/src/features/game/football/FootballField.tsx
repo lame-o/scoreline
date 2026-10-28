@@ -382,7 +382,9 @@ function Timeouts({ count, color, team }: { count: number | null; color: string;
 function EndZone({ label, color, side }: { label: string; color: string; side: "left" | "right" }) {
   return (
     <span className={styles.endZone} data-side={side} style={{ "--team": color === NEUTRAL ? "var(--viz-neutral)" : color } as CSSProperties}>
-      <span className={styles.endLabel}>{label}</span>
+      <span className={styles.endLabel} title={label.length > 5 ? label : undefined}>
+        {label}
+      </span>
     </span>
   );
 }
@@ -447,6 +449,7 @@ function FieldFooter({ rows, moment, redZone }: { rows: readonly DrivePlay[]; mo
             <LegendItem label="Gain" swatch={<span className={styles.swatchBar} />} />
             <LegendItem label="Loss" swatch={<span className={styles.swatchBar} data-loss="true" />} />
             {rows.some((r) => r.kind === "penalty") ? <LegendItem label="Penalty" swatch={<span className={styles.swatchBar} data-tone="flag" />} /> : null}
+            {rows.some((r) => r.kind === "turnover") ? <LegendItem label="Turnover" swatch={<span className={styles.swatchBar} data-tone="turnover" />} /> : null}
           </>
         ) : null}
         {redZone ? <LegendItem label="Red zone: inside the 20" swatch={<span className={styles.swatchZone} />} /> : null}

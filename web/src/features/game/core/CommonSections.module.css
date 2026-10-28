@@ -37,6 +37,13 @@
   white-space: nowrap;
 }
 
+/* ESPN's abbreviations fit; a longer name stops at 72pt with an ellipsis, so the periods keep their room. */
+.lsNameText {
+  max-width: calc(72 * var(--pt));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .lsHead {
   align-self: start;
   font-size: calc(9.5 * var(--pt));
@@ -145,7 +152,15 @@
   display: inline-flex;
   align-items: center;
   gap: calc(4 * var(--pt));
+  min-width: 0;
   white-space: nowrap;
+}
+
+/* The percentage always shows; a long name gives way first. */
+.wpName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .wpTrack {

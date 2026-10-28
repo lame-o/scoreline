@@ -157,6 +157,8 @@
   place-items: center;
   background: color-mix(in srgb, var(--team) 25%, transparent);
   overflow: hidden;
+  /* The label runs up the end zone: it may be as long as the zone is tall. */
+  container-type: size;
 }
 
 .endZone[data-side="left"],
@@ -171,6 +173,9 @@
 
 .endLabel {
   transform: rotate(-90deg);
+  max-width: calc(100cqh - 8 * var(--pt));
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: calc(9 * var(--pt));
   font-weight: 700;
   color: var(--label);
@@ -531,6 +536,26 @@
 
 .swatchBar[data-tone="flag"] {
   background: color-mix(in srgb, var(--flag) 80%, transparent);
+}
+
+/*
+ * Shapes as well as color (Settings → Appearance; Differentiate Without
+ * Color): a gain stays solid and a loss outlined; a penalty's bar is dotted
+ * and a turnover's dashed, so neither reads by its color alone.
+ */
+:global([data-shapes="true"]) .capsule[data-kind="penalty"]:not([data-loss="true"]),
+:global([data-shapes="true"]) .swatchBar[data-tone="flag"] {
+  --dot: color-mix(in srgb, var(--tone, var(--flag)) 85%, transparent);
+  background: radial-gradient(circle, var(--dot) 0 calc(1.3 * var(--pt)), transparent calc(1.45 * var(--pt))) 0 50% / calc(3.25 * var(--pt)) 100% repeat-x;
+}
+
+:global([data-shapes="true"]) .swatchBar[data-tone="flag"] {
+  --tone: var(--flag);
+}
+
+:global([data-shapes="true"]) .capsule[data-kind="turnover"],
+:global([data-shapes="true"]) .swatchBar[data-tone="turnover"] {
+  background: repeating-linear-gradient(90deg, var(--tone, var(--viz-neutral)) 0 calc(4 * var(--pt)), transparent calc(4 * var(--pt)) calc(6 * var(--pt)));
 }
 
 .swatchZone {

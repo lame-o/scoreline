@@ -47,6 +47,12 @@ describe("settings", () => {
     expect(sanitize(null)).toEqual(DEFAULTS);
   });
 
+  it("keeps Shapes as well as color off unless it's a stored true", () => {
+    expect(DEFAULTS.differentiateWithoutColor).toBe(false);
+    expect(sanitize({ differentiateWithoutColor: true }).differentiateWithoutColor).toBe(true);
+    expect(sanitize({ differentiateWithoutColor: "yes" }).differentiateWithoutColor).toBe(false);
+  });
+
   it("adds a league at the end, and reorders by drop or by one step", () => {
     settings.setEnabled("nba", true);
     expect(getSettings().enabledLeagues.at(-1)).toBe("nba");

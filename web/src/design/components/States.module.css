@@ -59,3 +59,27 @@
     }
   }
 }
+
+/* "Retrying…": a quiet caption that holds its line (no shift as it comes and goes), fading in and out. */
+.retrying {
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  opacity: 0;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.retrying[data-showing="true"] {
+  opacity: 1;
+}
+
+/* StaleNote: the offline footer line (UpdatedLabel), centered under the page's content. */
+.stale {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(4 * var(--pt));
+  padding: calc(14 * var(--pt)) var(--gutter, calc(16 * var(--pt))) 0;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  text-align: center;
+}

@@ -45,6 +45,7 @@ import { ChartFooter, Legend, LegendItem, VizWell } from "../core/DetailSection"
 import { useFocus, useLinkedStore, type Focus } from "../core/linked";
 import { useChartMoment } from "../core/moments";
 import { useReducedMotion } from "../core/useMedia";
+import { FittedName } from "../core/chartLabels";
 import styles from "./CounterStrike.module.css";
 
 export const REASON_ICON: Readonly<Record<RoundReason, IconName>> = { elimination: "xmark", bombed: "flame", defused: "scissors", time: "clock" };
@@ -236,7 +237,8 @@ function RoundBlock({ index, slots, peak, palette, names, spoken, hovered, celeb
   const row = (side: Side) => (
     <div className={styles.row} style={teamStyle(side === "top" ? palette.top : palette.bottom)}>
       <span className={styles.rowName} aria-hidden="true">
-        {side === "top" ? names.top : names.bottom}
+        {/* bo3.gg's acronym is short; a team without one is named whole: shrunk, then cut (core/chartLabels.tsx). */}
+        <FittedName text={side === "top" ? names.top : names.bottom} room={28} />
       </span>
       {slots.map((slot) => {
         const won = slot.winner === side;

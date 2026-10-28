@@ -9,10 +9,11 @@
  */
 import { memo, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { EmptyState, ErrorState, Icon, SegmentedControl, TeamLogo } from "../../design/components";
+import { EmptyState, ErrorState, Icon, SegmentedControl, StaleNote, TeamLogo } from "../../design/components";
 import { leagueWithID } from "../../data/leagues";
 import { movement, perColumn, pollLabel, pollPoints, spokenPollEntry, type Poll, type PollEntry } from "../../data/college";
 import { useSettings } from "../../state/settings";
+import { loadState } from "../../state/retry";
 import { useRankings } from "../../state/standings";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { NotFound } from "../../app/NotFound";
@@ -29,6 +30,7 @@ export function RankingsPage() {
   useDocumentTitle("Top 25");
   const path = league?.source.kind === "espn" ? league.source.path : null;
   const polls = useRankings(path);
+  const load = loadState(polls);
   const [search] = useSearchParams();
   const followed = useSettings(followedSelector);
   const highlight = useMemo(() => new Set([...(search.get("ring") ?? "").split(",").filter(Boolean), ...followed.map((t) => t.id)]), [search, followed]);
@@ -37,7 +39,7 @@ export function RankingsPage() {
   const list = polls.data ?? [];
   const poll = list.find((p) => p.name === selected) ?? list[0];
   return (
-    <TablePage title="Top 25">
+    <TablePage title="Top 25" footer={load.stale ? <StaleNote updated={load.updated} subject="rankings" /> : null}>
       {(layout) =>
         poll ? (
           <>
@@ -55,10 +57,10 @@ export function RankingsPage() {
               <PollList poll={poll} highlight={highlight} columns={layout.split ? 2 : 1} />
             </Section>
           </>
-        ) : polls.isPending ? (
+        ) : load.failed ? (
+          <ErrorState subject="Rankings" retriesAutomatically retrying={load.retrying} onRetry={() => void polls.refetch()} />
+        ) : load.loading ? (
           <SkeletonTable rows={25} />
-        ) : polls.isError ? (
-          <ErrorState subject="Rankings" onRetry={() => void polls.refetch()} />
         ) : (
           <EmptyState icon="list" title="No Rankings Yet" message="This week's polls haven't been published yet." />
         )

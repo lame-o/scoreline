@@ -56,14 +56,14 @@ export function PlayerPage() {
   return <PlayerViewPage key={playerKey(ref)} playerRef={ref} viaKeyboard={nav?.viaKeyboard === true} />;
 }
 
-function NotAvailable({ retry }: { readonly retry?: () => void }) {
+function NotAvailable({ retry, retrying = false }: { readonly retry?: () => void; readonly retrying?: boolean }) {
   const split = useSplit();
   useDocumentTitle("Player");
   return (
     <div className={styles.page}>
       <ProfileHeader />
       {retry ? (
-        <ErrorState level={1} subject="Player" onRetry={retry} />
+        <ErrorState level={1} subject="Player" retriesAutomatically retrying={retrying} onRetry={retry} />
       ) : (
         <EmptyState level={1} icon="sportscourt" title="Player Not Available" message="Scoreline doesn't have a page for this player yet." />
       )}
@@ -157,7 +157,7 @@ function PlayerViewPage({ playerRef: ref, viaKeyboard }: { readonly playerRef: P
   const slot = (s: Section): Slot => (s === "season" ? "span" : ["about", "career", "awards", "table"].includes(s) ? "right" : "left");
 
   const failedBio = player.loaded && !loadedBio;
-  if (failedBio) return <NotAvailable retry={player.failed.has("bio") ? player.reload : undefined} />;
+  if (failedBio) return <NotAvailable retry={player.failed.has("bio") ? player.reload : undefined} retrying={player.fetching} />;
 
   const trailing = bio.link ? <IconButton icon="external" label="Open in Browser" onClick={() => window.open(bio.link!, "_blank", "noopener,noreferrer")} /> : null;
   return (

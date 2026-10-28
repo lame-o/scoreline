@@ -29,6 +29,10 @@ import { usePageGeometry, useRemeasure, useSurface } from "./core/geometry";
 import { Hero, HeroSkeleton, HeroWash } from "./core/Hero";
 import { LinkedFocusProvider, LinkedFocusStore } from "./core/linked";
 import { MomentProvider, useCurrentMoment, useMomentSlot } from "./core/moments";
+import { LinkedPeekHost } from "./core/peek";
+import { listenForUnlock } from "./core/sound";
+import { soundsEnabled } from "../../data/celebrationSound";
+import { useSettings } from "../../state/settings";
 import type { GameContext, SportPage } from "./core/sport";
 import { useGame, type GameData } from "./core/useGame";
 import { EMPTY_DETAIL } from "../../data/gameDetail";
@@ -67,7 +71,7 @@ export function GamePage() {
         {game.status === "loading" ? (
           <HeroSkeleton />
         ) : game.status === "failed" ? (
-          <ErrorState level={1} subject="Game" onRetry={game.refresh} />
+          <ErrorState level={1} subject="Game" retriesAutomatically retrying={game.retrying} onRetry={game.refresh} />
         ) : (
           <EmptyState
             level={1}
@@ -117,6 +121,10 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   const [beats, setBeats] = useState(NO_BEATS);
   // A field event's wash (a climber's flag), from its sport page.
   const [fieldWash, setFieldWash] = useState<TeamPalette | null>(null);
+
+  // Celebration sounds: the browser's audio unlocks on the first press on the page (core/sound.ts).
+  const sounds = useSettings((s) => soundsEnabled(s));
+  useEffect(() => (sounds ? listenForUnlock() : undefined), [sounds]);
 
   // Esc drops a pin before it goes back (DetailView.back).
   useEffect(() => {
@@ -280,6 +288,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
         <Sections placed={placed} sections={sport.sections} columns={columns} empty={emptyMessage(event)} />
       )}
       {detail.venue ? <p className={styles.venue}>{detail.venue}</p> : null}
+      {loading ? null : <LinkedPeekHost source={sport.peek} kind={pageKind(event.ref)} geometry={geometry} columns={columns} shown={shown} />}
     </>
   );
 }

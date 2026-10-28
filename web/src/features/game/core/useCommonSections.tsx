@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import type { DetailMoment } from "../../../data/gameDetail";
 import { competitors } from "../../../data/models";
 import { bracketPath } from "../../../data/schedule";
+import type { PeekInputs } from "../../../data/peek";
 import { pageKind, type Section } from "../../../data/sections";
 import { LatestPlays, LinescoreGrid, MomentList, SeriesLink, StatBars, WhereToWatch, WinProbability } from "./CommonSections";
 import { DetailSection } from "./DetailSection";
@@ -21,6 +22,20 @@ export interface CommonOptions {
   readonly plays?: readonly string[];
   /** A scoring play's words with its players' names as links (football). */
   readonly momentText?: (m: DetailMoment, text: string) => ReactNode;
+}
+
+/** The line score's chart, as its section and the chart peek draw it (null without one). */
+export function linescoreChart(game: GameContext): ReactNode {
+  const { detail, names, spoken, palette } = game;
+  if (!detail.linescore) return null;
+  const baseball = pageKind(game.event.ref) === "baseball";
+  return <LinescoreGrid linescore={detail.linescore} topName={names.top} bottomName={names.bottom} totals={baseball ? 3 : 1} palette={palette} spokenTop={spoken.top} spokenBottom={spoken.bottom} />;
+}
+
+/** The line score as the chart peek's pill reads it. */
+export function linescorePeek(game: GameContext): PeekInputs["linescore"] {
+  const line = game.detail.linescore;
+  return line ? { headers: line.headers, top: line.top, bottom: line.bottom, names: game.names } : null;
 }
 
 export function useCommonSections(game: GameContext, options: CommonOptions = {}): Partial<Record<Section, ReactNode>> {
@@ -37,7 +52,7 @@ export function useCommonSections(game: GameContext, options: CommonOptions = {}
     const title = baseball ? "Score by Inning" : kind === "espn" || kind === "football" || nba ? "Score by Quarter" : "Score by Period";
     sections.linescore = (
       <DetailSection id="linescore" title={title} caption={baseball ? "Runs per inning. R runs, H hits, E errors." : "Points per period. T is the total."}>
-        <LinescoreGrid linescore={detail.linescore} topName={names.top} bottomName={names.bottom} totals={baseball ? 3 : 1} palette={palette} spokenTop={spoken.top} spokenBottom={spoken.bottom} />
+        {linescoreChart(game)}
       </DetailSection>
     );
   }

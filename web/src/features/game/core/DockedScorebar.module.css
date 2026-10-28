@@ -78,6 +78,10 @@
 }
 
 .abbr {
+  /* Abbreviations are 2–5 letters; a longer one (a club with no code) stops short of the score. */
+  max-width: calc(64 * var(--pt));
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: calc(12 * var(--pt));
   font-weight: 600;
   white-space: nowrap;

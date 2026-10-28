@@ -377,6 +377,25 @@
   }
 }
 
+/* "Profile ›" at the end of the picked player's line (PinnedPlayerLine's ProfileLink). */
+.profile {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  margin-left: auto;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile:hover {
+    color: var(--label);
+  }
+}
+
 .line {
   min-width: 0;
   font-size: var(--text-caption);

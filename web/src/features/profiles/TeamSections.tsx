@@ -18,6 +18,8 @@ import { usePageSession, type TeamProfile } from "../../state/profiles";
 import { useScoreboard } from "../../state/scores";
 import { FormStrip, gameHref } from "./ProfileCharts";
 import { linkNameClass, PlayerLink, rowLinkClass, TeamLink } from "./ProfileLinks";
+import { SectionLink } from "../seasons/parts";
+import { useGoToTeam } from "./GoToMenu";
 import { DetailSection, GroupHeader, MoreButton, TeamCrest } from "./ProfileParts";
 import { PlayerPhoto } from "./PlayerPhoto";
 import styles from "./Profile.module.css";
@@ -27,18 +29,24 @@ import styles from "./Profile.module.css";
 /** The next (or live, or last) game: the opponent, when and where to watch, and the countdown or result. */
 export function NextGameRow({ game }: { readonly game: GameRef }) {
   const id = game.id.startsWith("cs-") ? game.id : `espn-${game.id}`;
+  // The opponent's page from the row's context menu (TeamSections.swift: GoToTeamItem).
+  const goTo = useGoToTeam(game.opponent, gameHref(id));
   return (
-    <Link to={gameHref(id)} className={rowLinkClass} title="Open the match">
-      <span className={styles.gameRow}>
-        {game.opponent ? <TeamCrest team={game.opponent} size={22} /> : null}
-        <span className={styles.rowText}>
-          <span className={`${styles.gameTitle} ${linkNameClass}`}>{game.opponent ? `${game.home ? "vs" : "at"} ${game.opponent.name}` : "TBD"}</span>
-          <span className={styles.rowSub}>{[dayAndTime(game.date, Date.now()), game.network, game.competition].filter(Boolean).join(" · ")}</span>
+    <>
+      {/* The menu sits beside the row, not in it: its clicks mustn't reach the row's link. */}
+      {goTo.menu}
+      <Link to={gameHref(id)} className={rowLinkClass} title="Open the match" {...goTo.props}>
+        <span className={styles.gameRow}>
+          {game.opponent ? <TeamCrest team={game.opponent} size={22} /> : null}
+          <span className={styles.rowText}>
+            <span className={`${styles.gameTitle} ${linkNameClass}`}>{game.opponent ? `${game.home ? "vs" : "at"} ${game.opponent.name}` : "TBD"}</span>
+            <span className={styles.rowSub}>{[dayAndTime(game.date, Date.now()), game.network, game.competition].filter(Boolean).join(" · ")}</span>
+          </span>
+          <span className={styles.spacer} />
+          <GameTrailing game={game} eventID={id} />
         </span>
-        <span className={styles.spacer} />
-        <GameTrailing game={game} eventID={id} />
-      </span>
-    </Link>
+      </Link>
+    </>
   );
 }
 
@@ -67,8 +75,8 @@ function GameTrailing({ game, eventID }: { readonly game: GameRef; readonly even
 
 // MARK: - Results
 
-/** The season's results: the last five as a form strip, then the latest rows, newest first. */
-export function ResultsSection({ results, form, sport }: { readonly results: readonly GameRef[]; readonly form: readonly FormMark[]; readonly sport: Sport | null }) {
+/** The season's results: the last five as a form strip, then the latest rows, newest first, and "All Results" (the team's schedule, facing back). */
+export function ResultsSection({ results, form, sport, allResults = null }: { readonly results: readonly GameRef[]; readonly form: readonly FormMark[]; readonly sport: Sport | null; readonly allResults?: string | null }) {
   const caption = sport === "soccer" ? "All competitions, newest first." : sport === "esports" ? "From bo3.gg." : "This season, newest first.";
   return (
     <DetailSection title="Results" caption={caption}>
@@ -78,6 +86,11 @@ export function ResultsSection({ results, form, sport }: { readonly results: rea
           <ResultRow key={g.id} game={g} />
         ))}
       </div>
+      {allResults ? (
+        <SectionLink to={allResults} title="Every result this season">
+          All Results
+        </SectionLink>
+      ) : null}
     </DetailSection>
   );
 }
@@ -94,22 +107,26 @@ function ResultRow({ game }: { readonly game: GameRef }) {
   ]
     .filter(Boolean)
     .join(", ");
+  const goTo = useGoToTeam(game.opponent, gameHref(game.id));
   return (
-    <Link to={gameHref(game.id)} className={rowLinkClass} aria-label={spoken} title="Open the match">
-      <span className={styles.resultRow}>
-        <span className={styles.resultLine}>
-          <span className={styles.date}>{profileShort(game.date)}</span>
-          {game.opponent ? <TeamCrest team={game.opponent} size={14} /> : null}
-          <span className={`${styles.opponent} ${linkNameClass}`}>{game.opponent ? `${game.home ? "vs" : "at"} ${game.opponent.name}` : "TBD"}</span>
-          <span className={styles.spacer} />
-          <span className={styles.result} data-lost={game.result === "L"}>
-            <strong>{game.result}</strong>
-            {score ? ` ${score}` : ""}
+    <>
+      {goTo.menu}
+      <Link to={gameHref(game.id)} className={rowLinkClass} aria-label={spoken} title="Open the match" {...goTo.props}>
+        <span className={styles.resultRow}>
+          <span className={styles.resultLine}>
+            <span className={styles.date}>{profileShort(game.date)}</span>
+            {game.opponent ? <TeamCrest team={game.opponent} size={14} /> : null}
+            <span className={`${styles.opponent} ${linkNameClass}`}>{game.opponent ? `${game.home ? "vs" : "at"} ${game.opponent.name}` : "TBD"}</span>
+            <span className={styles.spacer} />
+            <span className={styles.result} data-lost={game.result === "L"}>
+              <strong>{game.result}</strong>
+              {score ? ` ${score}` : ""}
+            </span>
           </span>
+          {game.competition ? <span className={styles.resultCaption}>{game.competition}</span> : null}
         </span>
-        {game.competition ? <span className={styles.resultCaption}>{game.competition}</span> : null}
-      </span>
-    </Link>
+      </Link>
+    </>
   );
 }
 

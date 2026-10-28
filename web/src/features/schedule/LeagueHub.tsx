@@ -10,7 +10,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef } from "react";
 import { Link } from "react-router";
-import { SectionTitle } from "../../design/components";
+import { ErrorCopy, SectionTitle } from "../../design/components";
 import { useWidth } from "../../design/useWidth";
 import { dayID, dayKeyOf, daysBetween, dayRangeLabel, mediumDayLabel, relativeDay, type DayKey } from "../../data/days";
 import { dayItems, hubResults, hubUpcoming, relativeWhen, HUB_LIMIT } from "../../data/agenda";
@@ -18,7 +18,8 @@ import { plural } from "../../data/format";
 import type { League } from "../../data/models";
 import { eventResultsPath, schedulePath, scopeFor, scopeKey, type ScheduleItem } from "../../data/schedule";
 import { flagFromISO } from "../../data/teams";
-import { loadLeagueResults } from "../../state/schedule";
+import { hasFailed, retrying } from "../../state/retry";
+import { loadLeagueResults, type ResultsPage } from "../../state/schedule";
 import { useClimbingSeasons, useFinishedTournaments, useTournaments } from "../../state/seasons";
 import { finishedSlug } from "../../data/seasonResults";
 import { useSettings } from "../../state/settings";
@@ -115,7 +116,7 @@ function ESPNUpcoming({ league }: { league: League }) {
   return (
     <section className={styles.section} aria-label="Upcoming">
       <Header title="Upcoming" link="Full Schedule" linkTitle={weekly ? "Week by week" : "Every coming game day"} to={schedulePath(scope)} caption={caption} />
-      {data.loading ? <HubSkeleton /> : data.failed ? <Note>Couldn't load the schedule. Check your internet connection.</Note> : items.length === 0 ? <Note>No games scheduled.</Note> : <DayRows items={items} details={false} />}
+      {data.loading ? <HubSkeleton /> : data.failed ? <Note>{ErrorCopy.inline("the schedule")}</Note> : items.length === 0 ? <Note>No games scheduled.</Note> : <DayRows items={items} details={false} />}
     </section>
   );
 }
@@ -125,7 +126,7 @@ function ESPNResults({ league }: { league: League }) {
   const followed = useSettings((s) => s.followed);
   const details = useSettings((s) => s.resultsDetails);
   // The latest round, whatever the Results page has open.
-  const query = useQuery({ queryKey: ["results", scopeKey(scope), "hub"], queryFn: () => loadLeagueResults(league, null, null), staleTime: 60_000 });
+  const query = useQuery({ queryKey: ["results", scopeKey(scope), "hub"], queryFn: () => loadLeagueResults(league, null, null), staleTime: 60_000, ...retrying<ResultsPage>({ failed: (p) => !p.ok }) });
   const page = query.data;
   const round = page?.rounds.find((r) => r.id === page.selected) ?? null;
   const played = (page?.items ?? []).filter((i) => i.status === "final" || i.status === "postponed" || i.status === "canceled");
@@ -136,7 +137,7 @@ function ESPNResults({ league }: { league: League }) {
     <section className={styles.section} aria-label="Results">
       <Header title="Results" link="All Results" linkTitle={league.source.kind === "espn" && league.source.weekly ? "Week by week" : "Round by round"} to={schedulePath(scope, "results")} caption={caption} />
       {/* A round that didn't load (offline, ESPN down) isn't a season without results. */}
-      {query.isPending ? <HubSkeleton /> : query.isError || (page && !page.ok && rows.length === 0) ? <Note>Couldn't load the results. Check your internet connection.</Note> : rows.length === 0 ? <Note>No results yet this season.</Note> : <DayRows items={rows} details={details} />}
+      {hasFailed(query) || (page && !page.ok && rows.length === 0) ? <Note>{ErrorCopy.inline("the results")}</Note> : query.isPending ? <HubSkeleton /> : rows.length === 0 ? <Note>No results yet this season.</Note> : <DayRows items={rows} details={details} />}
     </section>
   );
 }
@@ -164,7 +165,7 @@ function ClimbingUpcoming({ league }: { league: League }) {
         {seasons.status === "loading" ? (
           <HubSkeleton />
         ) : next.length === 0 ? (
-          <Note>{seasons.status === "failed" ? "Couldn't load the calendar. Check your internet connection." : "The next season's calendar isn't published yet."}</Note>
+          <Note>{seasons.status === "failed" ? ErrorCopy.inline("the calendar") : "The next season's calendar isn't published yet."}</Note>
         ) : (
           <div className={styles.seasonRows}>
             {next.map((e) => (
@@ -202,7 +203,7 @@ function TournamentsUpcoming({ league }: { league: League }) {
         {tournaments.status === "loading" ? (
           <HubSkeleton />
         ) : next.length === 0 ? (
-          <Note>{tournaments.status === "failed" ? "Couldn't load tournaments. Check your internet connection." : "No tournaments announced."}</Note>
+          <Note>{tournaments.status === "failed" ? ErrorCopy.inline("tournaments") : "No tournaments announced."}</Note>
         ) : (
           <div className={styles.seasonRows}>
             {next.map((e) => (

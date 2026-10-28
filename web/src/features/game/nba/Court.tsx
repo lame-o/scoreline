@@ -524,8 +524,9 @@ export const Court = memo(function Court(props: CourtProps) {
 
 /**
  * The picked player in the footer (PinnedPlayerLine): a quiet chip with
- * their name (a link to their page) and a clear button, then their line.
- * Where room is short the first name goes, then the threes.
+ * their name and a clear button, then their line, and "Profile ›" to their
+ * page at the end. Where room is short the first name goes, then the
+ * threes; the line truncates, never the name or the link.
  */
 function PinnedLine({ name, player, numbers, when, streak, onClear }: { name: string; player: PlayerRef | null; numbers: { fg: readonly [number, number]; threes: readonly [number, number]; points: number }; when: string | null; streak: number; onClear: () => void }) {
   const full = `${shooting(numbers.fg, numbers.threes)}, ${numbers.points} PTS`;
@@ -533,10 +534,10 @@ function PinnedLine({ name, player, numbers, when, streak, onClear }: { name: st
   return (
     <span className={styles.pinned}>
       <span className={styles.chip}>
-        <PlayerLink player={player} className={styles.chipName}>
+        <span className={styles.chipName}>
           <span className={styles.full}>{name}</span>
           <span className={styles.short}>{lastName(name)}</span>
-        </PlayerLink>
+        </span>
         {streak >= FIRE_STREAK ? <Icon name="flame" size={8} className={styles.flame} label={`${streak} straight makes`} /> : null}
         <button type="button" className={styles.clear} onClick={onClear} title="Show every player" aria-label="Show every player">
           <Icon name="xmark" size={7} />
@@ -546,6 +547,12 @@ function PinnedLine({ name, player, numbers, when, streak, onClear }: { name: st
         <span className={styles.lineFull}>{when ? `${full} · ${when}` : full}</span>
         <span className={styles.lineBrief}>{brief}</span>
       </span>
+      {player ? (
+        <PlayerLink player={player} className={styles.profile} title={`Go to ${name}`}>
+          Profile
+          <Icon name="chevronRight" size={7} />
+        </PlayerLink>
+      ) : null}
     </span>
   );
 }
