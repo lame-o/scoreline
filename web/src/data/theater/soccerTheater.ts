@@ -8,11 +8,12 @@
  */
 import { cueFor, presetFor, sparks, cueDuration, type CelebrationCue, type CelebrationLevel, type Effect } from "../celebrations";
 import type { JSONValue } from "../json";
+import type { Side } from "../models";
 import { pitchScale, type PitchScale } from "../liveFeeds/soccer";
 import { decisive, type LiveMoment } from "../moments";
 import { CameraFrame } from "../mlb/playCamera";
 import type { FieldPoint, Point } from "../mlb/theaterField";
-import { attacksRight, goalOf, isMoment, keepers, parse, Pitch, playID, scored, type SoccerScene, type SoccerTheaterState } from "./soccerScene";
+import { attacksRight, goalOf, isMoment, keepers, latest, parse, Pitch, playID, readLineups, scored, type Person, type SoccerScene, type SoccerTheaterState } from "./soccerScene";
 import { pitchBursts, theaterOwns } from "./goalCelebrationRules";
 import { PitchCamera, PitchFrame, type Basis, type SoccerScript } from "./soccerScript";
 import { TheaterBurst } from "./theaterKit";
@@ -172,55 +173,124 @@ export const RECENT_MS = 60_000;
  */
 export function soccerTheaterState(scene: SoccerScene, previous: SoccerTheaterState, primed: boolean, now: number): SoccerTheaterState {
   const news = scene.id === previous.scene?.id ? previous.news : primed || (scene.wallclock != null && now - scene.wallclock < RECENT_MS);
-  return { scene, news };
+  return { ...previous, scene, news };
 }
 
 /**
- * The lane's `updateTheater` (LiveFeeds.swift `SoccerFeed`), outside the
- * lane: it follows the web lane's window of raw core plays
+ * The theater once VAR has struck goals off: one showing leaves the stage
+ * (kept as `overturned`, never to replay or celebrate as a goal), and the
+ * moment before it shows instead, as it ended. (SoccerFeed.retracting; pure;
+ * tested)
+ */
+export function retracting(
+  ids: ReadonlySet<string>,
+  state: SoccerTheaterState,
+  plays: readonly JSONValue[],
+  homeTeamID: string | null,
+  keepers: Readonly<Record<string, Person>>,
+  scale: PitchScale = "percent",
+): SoccerTheaterState {
+  const shown = state.scene;
+  if (!shown || !ids.has(shown.id)) return state;
+  const rest = plays.filter((p) => {
+    const id = playID(p);
+    return id == null || !ids.has(id);
+  });
+  return { ...state, overturned: { ...shown, review: "overturned" }, scene: latest(rest, homeTeamID, keepers, scale), news: false };
+}
+
+/** What the theater reads from the lane beside the window: the goals VAR struck off (`SoccerFeed.struck`) and each side's roster (`SoccerFeed.rosters`). */
+export interface LaneExtras {
+  readonly struck?: ReadonlySet<string>;
+  readonly rosters?: Readonly<Partial<Record<Side, JSONValue>>>;
+}
+
+/**
+ * The lane's `updateTheater` and `retract` (LiveFeeds.swift `SoccerFeed`),
+ * outside the lane: it follows the web lane's window of raw core plays
  * (`SoccerFeed.plays`, data/liveFeeds/soccer.ts) and parses a moment only
  * when one has arrived (or the one showing has been followed by its save or
- * block), with the plays before it. The lane trims its window to the newest
- * 80 and keeps each play's object, so what's new is what follows the last
- * window's newest play. (The Mac parses from the old window plus the new
- * plays, untrimmed: a batch of more than 80 is the only difference.)
+ * block, or edited), with the plays before it. Entries are known by ID, as
+ * the lane knows them: what's new is what the last window didn't have, and
+ * one it had that's a new object was edited (the lane swaps in an entry ESPN
+ * retyped or reworded). A goal the lane says VAR struck off leaves the stage
+ * first (`retracting`); the summary's lineups ride along on the state. The
+ * lane trims its window to the newest 80 (the Mac parses from the old window
+ * plus the new plays, untrimmed: a batch of more than 80 is the only
+ * difference).
  *
  *     const watch = new SoccerTheaterWatch();
- *     if (watch.update(feed.plays, homeID, wasLoaded)) render(watch.state);
+ *     if (watch.update(feed.plays, homeID, wasLoaded, Date.now(), { struck: feed.struck, rosters: feed.rosters })) render(watch.state);
  */
 export class SoccerTheaterWatch {
   state: SoccerTheaterState = { scene: null, news: false };
   /** Goalkeepers by team ID, as the plays reveal them. */
-  private keepers: Record<string, string> = {};
-  /** The newest play of the window last seen. */
-  private newest: JSONValue | undefined = undefined;
+  private keepers: Record<string, Person> = {};
+  /** The window last seen, by play ID (an entry without one, by itself). */
+  private known = new Map<unknown, JSONValue>();
+  /** The lane's struck-off goals already taken off the stage. */
+  private struck: ReadonlySet<string> = new Set();
+  private rosters: LaneExtras["rosters"] = undefined;
   private scale: PitchScale | null = null;
 
-  /** After a change to the lane's window. `primed`: the lane had a complete load before this change. Returns whether `state` changed. */
-  update(window: readonly JSONValue[], homeTeamID: string | null, primed: boolean, now: number = Date.now()): boolean {
-    let first = 0;
-    if (this.newest !== undefined) {
-      const i = window.lastIndexOf(this.newest);
-      first = i >= 0 ? i + 1 : 0;
+  /** After a change to the lane. `primed`: the lane had a complete load before this change. Returns whether `state` changed. */
+  update(window: readonly JSONValue[], homeTeamID: string | null, primed: boolean, now: number = Date.now(), lane: LaneExtras = {}): boolean {
+    let changed = false;
+    // Both starting elevens, once the page has the summary.
+    if (lane.rosters && lane.rosters !== this.rosters) {
+      this.rosters = lane.rosters;
+      const lineups = readLineups(lane.rosters);
+      if (Object.keys(lineups).length > 0 && JSON.stringify(lineups) !== JSON.stringify(this.state.lineups ?? {})) {
+        this.state = { ...this.state, lineups };
+        changed = true;
+      }
     }
-    const fresh = window.slice(first);
-    if (fresh.length === 0) return false;
-    this.newest = window[window.length - 1];
     this.scale ??= pitchScale(window);
+    // A goal VAR struck off goes before anything new shows.
+    if (lane.struck && lane.struck !== this.struck) {
+      const ids = new Set([...lane.struck].filter((id) => !this.struck.has(id)));
+      this.struck = lane.struck;
+      const next = retracting(ids, this.state, window, homeTeamID, this.keepers, this.scale ?? "percent");
+      if (next !== this.state) {
+        this.state = next;
+        changed = true;
+      }
+    }
+    // What's new since the last window (a run at its end), and what was edited in it.
+    const known = new Map<unknown, JSONValue>();
+    const revised = new Set<string>();
+    let first = window.length;
+    window.forEach((p, i) => {
+      const id = playID(p);
+      const key = id ?? p;
+      if (!this.known.has(key)) first = Math.min(first, i);
+      else if (this.known.get(key) !== p && id != null) revised.add(id);
+      known.set(key, p);
+    });
+    this.known = known;
+    const fresh = window.slice(first);
+    const shown = this.state.scene?.id ?? null;
+    if (fresh.length === 0 && !(shown != null && revised.has(shown))) return changed;
     Object.assign(this.keepers, keepers(fresh));
     const index = window.findLastIndex((p) => isMoment(p));
-    if (index < 0) return false;
-    if (!(index >= first || (index >= first - 6 && playID(window[index]) === this.state.scene?.id))) return false;
+    if (index < 0) return changed;
+    const id = playID(window[index]);
+    if (!(index >= first || (id === shown && (index >= first - 6 || (id != null && revised.has(id)))))) return changed;
     const scene = parse(window, index, homeTeamID, this.keepers, this.scale ?? "percent");
-    if (!scene) return false;
+    if (!scene) return changed;
     const next = soccerTheaterState(scene, this.state, primed, now);
-    if (sameState(next, this.state)) return false;
+    if (sameState(next, this.state)) return changed;
     this.state = next;
     return true;
   }
 }
 
-/** `SoccerTheaterState ==`: the same moment, as parsed, and the same news. */
+/** `SoccerTheaterState ==`: the same moment, as parsed, the same news, the same goal struck off and the same lineups. */
 function sameState(a: SoccerTheaterState, b: SoccerTheaterState): boolean {
-  return a.news === b.news && JSON.stringify(a.scene) === JSON.stringify(b.scene);
+  return (
+    a.news === b.news &&
+    JSON.stringify(a.scene) === JSON.stringify(b.scene) &&
+    JSON.stringify(a.overturned ?? null) === JSON.stringify(b.overturned ?? null) &&
+    JSON.stringify(a.lineups ?? {}) === JSON.stringify(b.lineups ?? {})
+  );
 }

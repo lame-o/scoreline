@@ -8,6 +8,12 @@
  * complete load are news (moments for the pitch); cards have no position of
  * their own and are placed at the foul that drew them.
  *
+ * ESPN edits entries in place, behind the tail (VAR striking a goal off
+ * retypes it): entries are known by ID, and for a few minutes after a goal
+ * each refresh reads again from its page. A goal struck off is taken back
+ * from the page's moments (`takeRetractions`), the shot map, the trail and
+ * the theater's window.
+ *
  * Plain TypeScript, no React: fields are replaced only when they change
  * (`subscribe` to hear it; `version` changes with every change).
  */
@@ -15,6 +21,7 @@ import type { Fetcher } from "../http";
 import { arr, at, bool, num, str, type JSONValue } from "../json";
 import type { Side } from "../models";
 import { liveMoment, shortened, Tier, type Accent, type LiveMoment, type MomentKind } from "../moments";
+import { credit, isGoal, teamID } from "../theater/soccerEntries";
 import { teamIDFromRef } from "./baseball";
 
 export type ActionKind = "pass" | "shot" | "goal" | "yellow" | "red" | "other";
@@ -23,7 +30,7 @@ export type ShotOutcome = "saved" | "blocked" | "wide" | "woodwork";
 
 /** One positioned action on the pitch, oriented so the home (top) team attacks right. Coordinates are 0…100 on both axes. */
 export interface PitchAction {
-  /** Its index in ESPN's play list. */
+  /** Its place among the entries read, in the order they arrived (an entry inserted behind the tail mustn't reuse a position's). */
   readonly id: number;
   readonly kind: ActionKind;
   readonly side: Side;
@@ -227,7 +234,58 @@ export interface SoccerUpdate {
   readonly eventID: string;
   /** Soccer lists the home side first: the top competitor's ESPN team ID. */
   readonly homeTeamID: string | null;
+  /** Each side's roster from the match summary, as ESPN sent it (GameDetail's `soccerRosters`): the theater's lineups. */
+  readonly rosters?: Readonly<Partial<Record<Side, JSONValue>>>;
   readonly signal?: AbortSignal;
+}
+
+/** A goal under review: where it was read, and when (SoccerFeed.Review). */
+export interface Review {
+  readonly id: string;
+  readonly team: string | null;
+  /** Who scored it (athlete ID). */
+  readonly scorer: string | null;
+  /** Match clock, in seconds. */
+  readonly clock: number;
+  /** Its position in the feed when read. */
+  readonly index: number;
+  /** Epoch milliseconds. */
+  readonly since: number;
+}
+
+/** How long a goal stays open to VAR: checks take a minute or two, and ESPN a little longer. */
+export const REVIEW_MS = 300_000;
+
+/**
+ * Goals VAR has struck off, from what the feed says now: the goal's own
+ * entry retyped (to "deleted-after-review", or anything not a goal); or a
+ * "GOAL OVERTURNED BY VAR" or "VAR Decision: No Goal" entry naming the same
+ * scorer (else the same team's latest goal), within six minutes after it.
+ * (SoccerFeed.struckOff; pure; tested)
+ */
+export function struckOff(reviews: readonly Review[], entries: readonly JSONValue[]): Set<string> {
+  const struck = new Set<string>();
+  for (const item of entries) {
+    const review = reviews.find((r) => r.id === playID(item));
+    if (review) {
+      if (!isGoal(item)) struck.add(review.id);
+      continue;
+    }
+    const type = str(at(item, "type", "type")) ?? "";
+    const clock = num(at(item, "clock", "value"));
+    if (!(type === "deleted-after-review" || (type.startsWith("var---") && (str(at(item, "text")) ?? "").includes("No Goal"))) || clock == null) continue;
+    const named = credit(item)?.athlete ?? null;
+    const team = teamID(item);
+    const candidates = reviews.filter((r) => r.team === team && clock >= r.clock - 5 && clock - r.clock <= 360 && (named == null || r.scorer == null || named === r.scorer));
+    const goal = candidates.reduce<Review | null>((best, r) => (best == null || r.clock > best.clock ? r : best), null);
+    if (goal) struck.add(goal.id);
+  }
+  return struck;
+}
+
+/** "…with a cross.Goal confirmed following VAR Review.": it stands. (SoccerFeed.confirmed) */
+export function confirmed(item: JSONValue): boolean {
+  return isGoal(item) && (str(at(item, "text")) ?? "").includes("confirmed following VAR");
 }
 
 /** The first load takes the match in big pages; later refreshes ask for small ones. */
@@ -253,6 +311,14 @@ export class SoccerFeed {
   plays: readonly JSONValue[] = [];
   /** The score as of the newest play, home (top) first: ahead of the scoreboard's 30 s poll (a web-only addition: the Mac's hero waits for the poll). */
   score: { readonly top: number; readonly bottom: number } | null = null;
+  /**
+   * Every goal VAR has struck off so far, by play ID (replaced as it grows):
+   * the theater beside the lane takes each off its stage
+   * (`SoccerTheaterWatch`; the Mac's lane does it itself, `retract`).
+   */
+  struck: ReadonlySet<string> = new Set();
+  /** Each side's roster from the summary, as ESPN sent it, once the page has it: the theater's lineups (`SoccerUpdate.rosters`). */
+  rosters: Readonly<Partial<Record<Side, JSONValue>>> = {};
   loaded = false;
   version = 0;
 
@@ -262,9 +328,22 @@ export class SoccerFeed {
   /** The last few located actions, so a card can be put at its foul. */
   private recent: PitchAction[] = [];
   private fetched = 0;
+  /** Every entry read, by ID: one read again is an edit, not news. */
+  private seen = new Set<string>();
+  /** New entries so far: the IDs the trail's actions take. */
+  private serial = 0;
+  /** Goals VAR may still strike off. */
+  private reviews: Review[] = [];
+  /** Goals struck off since the last call, for the page to take back. */
+  private retracted: string[] = [];
   private scale: PitchScale | null = null;
   private inflight: Promise<void> | null = null;
   private listeners = new Set<() => void>();
+  private readonly now: () => number;
+
+  constructor(now: () => number = Date.now) {
+    this.now = now;
+  }
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -283,10 +362,20 @@ export class SoccerFeed {
     }
   }
 
-  private async look(fetcher: Fetcher, { league, eventID, homeTeamID, signal }: SoccerUpdate): Promise<void> {
+  private async look(fetcher: Fetcher, { league, eventID, homeTeamID, rosters, signal }: SoccerUpdate): Promise<void> {
+    let lineups = false;
+    if (rosters && Object.keys(rosters).length > 0 && JSON.stringify(rosters) !== JSON.stringify(this.rosters)) {
+      this.rosters = rosters;
+      lineups = true;
+    }
     const base = `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${league}/events/${eventID}/competitions/${eventID}/plays`;
     const size = this.loaded ? UPDATE_PAGE_SIZE : FIRST_PAGE_SIZE;
     let page = Math.floor(this.fetched / size) + 1;
+    // A goal still open to review: read again from its page, not just the tail (one more
+    // small request at most, for a few minutes after each goal).
+    const now = this.now();
+    this.reviews = this.reviews.filter((r) => now - r.since <= REVIEW_MS);
+    if (this.loaded && this.reviews.length > 0) page = Math.min(page, Math.floor(Math.max(Math.min(...this.reviews.map((r) => r.index)) - 2, 0) / size) + 1);
     const pages: { page: number; items: readonly JSONValue[] }[] = [];
     let complete = false;
     const get = (n: number) => fetcher(`${base}?limit=${size}&page=${n}`, { signal }).catch(() => null);
@@ -310,23 +399,43 @@ export class SoccerFeed {
       }
       page += 1;
     }
-    if (signal?.aborted) return;
-    this.read(pages, size, complete, homeTeamID);
+    if (signal?.aborted) {
+      if (lineups) this.emit();
+      return;
+    }
+    this.read(pages, size, complete, homeTeamID, lineups);
   }
 
-  /** Pages of plays read (pure apart from the feed's own state; tests call it with recorded pages). */
-  read(pages: readonly { page: number; items: readonly JSONValue[] }[], size: number, complete: boolean, homeTeamID: string | null): void {
-    const fresh: PitchAction[] = [];
-    const raw: JSONValue[] = [];
+  private emit(): void {
+    this.version += 1;
+    for (const l of this.listeners) l();
+  }
+
+  /** Pages of plays read (pure apart from the feed's own state; tests call it with recorded pages). `changed`: something else changed with them (the rosters). */
+  read(pages: readonly { page: number; items: readonly JSONValue[] }[], size: number, complete: boolean, homeTeamID: string | null, changed = false): void {
+    let fresh: PitchAction[] = [];
+    let raw: JSONValue[] = [];
+    const revised: JSONValue[] = [];
     const newCards: Record<string, PitchAction> = {};
     const unplaced: LiveMoment[] = [];
+    const now = this.now();
     this.scale ??= pitchScale(pages.flatMap((p) => p.items));
     const scale = this.scale ?? "percent";
     for (const { page, items } of pages) {
       items.forEach((item, offset) => {
-        const index = (page - 1) * size + offset;
-        if (index < this.fetched) return;
+        const id = playID(item);
+        // Read before: an edit, if anything changed.
+        if (id !== "" && this.seen.has(id)) {
+          revised.push(item);
+          return;
+        }
+        this.seen.add(id);
         raw.push(item);
+        const index = this.serial++;
+        const wallclock = Date.parse(str(at(item, "wallclock")) ?? "");
+        if ((this.loaded || (Number.isFinite(wallclock) && now - wallclock < REVIEW_MS)) && isGoal(item)) {
+          this.reviews.push({ id, team: teamID(item), scorer: credit(item)?.athlete ?? null, clock: num(at(item, "clock", "value")) ?? 0, index: (page - 1) * size + offset, since: now });
+        }
         const action = pitchAction(item, index, homeTeamID, scale);
         if (action) {
           fresh.push(action);
@@ -344,21 +453,47 @@ export class SoccerFeed {
       });
       this.fetched = Math.max(this.fetched, (page - 1) * size + items.length);
     }
+    // Edits behind the tail: VAR's word on a goal under review.
+    const struck = struckOff(this.reviews, [...revised, ...raw]);
+    this.reviews = this.reviews.filter((r) => !struck.has(r.id) && !revised.some((e) => playID(e) === r.id && confirmed(e)));
+    // An entry read again that reads differently (its type, its words): the window takes the new version.
+    let window = this.plays.map((old) => {
+      const edit = revised.find((e) => playID(e) === playID(old));
+      if (edit === undefined || (str(at(edit, "type", "type")) === str(at(old, "type", "type")) && str(at(edit, "text")) === str(at(old, "text")))) return old;
+      changed = true;
+      return edit;
+    });
+    if (struck.size > 0) {
+      // A goal struck off: out of the shot map and the trail, taken back from the page's moments, and off the stage.
+      this.retracted.push(...struck);
+      this.struck = new Set([...this.struck, ...struck]);
+      const shots = this.shots.filter((a) => !struck.has(a.playID));
+      if (shots.length !== this.shots.length) this.shots = shots;
+      const trail = this.trail.filter((a) => !struck.has(a.playID));
+      if (trail.length !== this.trail.length) this.trail = trail;
+      window = window.filter((p) => !(struck.has(playID(p)) && isGoal(p)));
+      // Struck off before it was ever shown: it never arrives.
+      raw = raw.filter((p) => !(struck.has(playID(p)) && isGoal(p)));
+      fresh = fresh.filter((a) => !struck.has(a.playID));
+      // The lane's score counted it (web-only): the newest entry's below, else the scoreboard's until one comes.
+      this.score = null;
+      changed = true;
+    }
     // Until this page has had a complete load it's history; after, goals, shots and cards are news.
     if (this.primed) this.moments.push(...fresh.flatMap((a) => actionMoment(a) ?? []), ...Object.values(newCards).flatMap((a) => actionMoment(a) ?? []), ...unplaced);
     if (complete) this.primed = true;
-    let changed = !this.loaded;
+    changed ||= !this.loaded;
     this.loaded = true;
-    if (raw.length > 0) {
-      this.plays = [...this.plays, ...raw].slice(-THEATER_WINDOW);
+    if (raw.length > 0 || window.length !== this.plays.length || window.some((p, i) => p !== this.plays[i])) {
+      this.plays = [...window, ...raw].slice(-THEATER_WINDOW);
       changed = true;
-      for (let i = raw.length - 1; i >= 0; i--) {
-        const home = intOf(at(raw[i], "homeScore"));
-        const away = intOf(at(raw[i], "awayScore"));
-        if (home == null || away == null) continue;
-        if (this.score?.top !== home || this.score?.bottom !== away) this.score = { top: home, bottom: away };
-        break;
-      }
+    }
+    for (let i = raw.length - 1; i >= 0; i--) {
+      const home = intOf(at(raw[i], "homeScore"));
+      const away = intOf(at(raw[i], "awayScore"));
+      if (home == null || away == null) continue;
+      if (this.score?.top !== home || this.score?.bottom !== away) this.score = { top: home, bottom: away };
+      break;
     }
     if (Object.keys(newCards).length > 0) {
       this.cards = { ...this.cards, ...newCards };
@@ -370,16 +505,20 @@ export class SoccerFeed {
       this.trail = [...this.trail, ...fresh].slice(-TRAIL_LENGTH);
       changed = true;
     }
-    if (changed) {
-      this.version += 1;
-      for (const l of this.listeners) l();
-    }
+    if (changed) this.emit();
   }
 
   /** The moments since the last call. */
   takeMoments(): LiveMoment[] {
     const out = this.moments;
     this.moments = [];
+    return out;
+  }
+
+  /** Play IDs of goals VAR struck off since the last call. */
+  takeRetractions(): string[] {
+    const out = this.retracted;
+    this.retracted = [];
     return out;
   }
 }
