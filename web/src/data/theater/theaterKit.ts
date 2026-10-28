@@ -144,6 +144,20 @@ function follow(end: number, goal: (t: number) => CameraFrame, cuts: readonly nu
 }
 
 /**
+ * The framing that fits a region, no closer than `closest` nor than
+ * `tightest` (the ballpark's battery by default; a court frames tighter, a
+ * man and the rim he's going at). (TheaterKit.swift
+ * `CameraFrame.fitting(_:headroom:closest:tightest:)`.)
+ */
+export function fitting(region: Rect, headroom: number, closest: number, tightest: number = CameraFrame.tightest): CameraFrame {
+  const { aspect, margin, widest } = CameraFrame;
+  const tall = 1 - headroom - margin;
+  const wide = aspect * (1 - 2 * margin);
+  const span = Math.min(Math.max(region.height / tall, region.width / wide, closest, tightest), widest);
+  return { x: midX(region), y: midY(region) + ((headroom - margin) * span) / 2, span };
+}
+
+/**
  * The framing that fits a region and keeps its corner clear (the stamp's),
  * checked again after every move: sliding the play over or up can bring
  * someone else into the corner (a pile trailing the play, a man jogging
@@ -159,8 +173,9 @@ export function clearing(
   headroom: number,
   closest: number,
   corner: { readonly width: number; readonly height: number },
+  tightest: number = CameraFrame.tightest,
 ): CameraFrame {
-  let frame = CameraFrame.fit(region, headroom, closest);
+  let frame = fitting(region, headroom, closest, tightest);
   if (!(corner.width > 0 && corner.height > 0)) return frame;
   const { aspect, margin, widest } = CameraFrame;
   for (let pass = 0; pass < 10; pass++) {
