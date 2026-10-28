@@ -155,12 +155,21 @@ struct GameDetail {
         /// Nil for a ball, a ball in play, or a strike ESPN doesn't explain (an automatic one).
         var strike: Strike? = nil
 
-        /// MLB pitch codes, for when ESPN sends only the abbreviation.
-        static let names: [String: String] = [
-            "FF": "Four-seam", "FA": "Fastball", "FT": "Two-seam", "SI": "Sinker", "FC": "Cutter", "SL": "Slider",
-            "ST": "Sweeper", "SV": "Slurve", "CU": "Curveball", "KC": "Knuckle curve", "CS": "Slow curve",
+        /// MLB's own names for its pitch codes (Statcast's), preferred over
+        /// ESPN's shorthand ("Four-seam FB", "Curve").
+        static let official: [String: String] = [
+            "FF": "Four-Seam Fastball", "FA": "Fastball", "FT": "Two-Seam Fastball", "SI": "Sinker", "FC": "Cutter",
+            "SL": "Slider", "ST": "Sweeper", "SV": "Slurve", "CU": "Curveball", "KC": "Knuckle Curve", "CS": "Slow Curve",
             "CH": "Changeup", "FS": "Splitter", "FO": "Forkball", "SC": "Screwball", "KN": "Knuckleball",
-            "EP": "Eephus", "PO": "Pitchout", "IN": "Intentional ball", "UN": "Unknown",
+            "EP": "Eephus", "PO": "Pitchout", "IN": "Intentional Ball", "UN": "Unknown",
+        ]
+
+        /// The same, shortened for a tight row.
+        static let names: [String: String] = [
+            "FF": "Four-Seam", "FA": "Fastball", "FT": "Two-Seam", "SI": "Sinker", "FC": "Cutter", "SL": "Slider",
+            "ST": "Sweeper", "SV": "Slurve", "CU": "Curveball", "KC": "Knuckle Curve", "CS": "Slow Curve",
+            "CH": "Changeup", "FS": "Splitter", "FO": "Forkball", "SC": "Screwball", "KN": "Knuckleball",
+            "EP": "Eephus", "PO": "Pitchout", "IN": "Intentional Ball", "UN": "Unknown",
         ]
     }
 

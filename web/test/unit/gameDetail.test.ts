@@ -7,7 +7,6 @@ import {
   fetchDetail,
   magnitude,
   parseESPNDetail,
-  pitchCode,
   pitchNames,
   pitchResultWord,
   scoreAfter,
@@ -134,7 +133,7 @@ describe("the ESPN summary, baseball", () => {
     expect(pitches.map((p) => p.number)).toEqual(pitches.map((_, i) => i + 1));
     for (const p of pitches) {
       expect(["ball", "strike", "inPlay"]).toContain(p.result);
-      expect(pitchNames(p)[2]).not.toBe("FF");
+      expect(pitchNames(p)[2]).toBe(p.type ?? pitchNames(p)[1]);
     }
   });
 });
@@ -176,15 +175,13 @@ describe("pitches", () => {
     ]);
   });
 
-  it("writes the four-seamer as FB, with its speed", () => {
+  it("names the four-seamer as MLB does, with Statcast's code and its speed", () => {
     const [p] = currentAtBat([pitch("ball")]);
     expect(p!.type).toBe("FF");
-    expect(pitchNames(p!)).toEqual(["Four-seam FB", "Four-seam", "FB"]);
+    expect(pitchNames(p!)).toEqual(["Four-Seam Fastball", "Four-Seam", "FF"]);
     expect(pitchResultWord(p!)).toBe("Ball");
     expect(p!.typeName).toBe("Four-seam FB");
     expect(p!.mph).toBe(97);
-    expect(pitchCode("SL")).toBe("SL");
-    expect(pitchCode("FF")).toBe("FB");
   });
 
   it("only counts the pitches after the last completed at-bat", () => {

@@ -102,34 +102,36 @@ export interface Pitch {
   readonly x: number;
   readonly y: number;
   readonly result: PitchResult;
-  /** ESPN's abbreviation ("FF"); shown through `pitchCode` ("FB"). */
+  /** Statcast's code, as ESPN sends it ("FF"). */
   readonly type: string | null;
-  /** Full name ("Four-seam fastball"). */
+  /** ESPN's name for it ("Four-seam FB"); the page shows MLB's ("Four-Seam Fastball"). */
   readonly typeName: string | null;
   readonly mph: number | null;
   /** Null for a ball, a ball in play, or a strike ESPN doesn't explain (an automatic one). */
   readonly strike: StrikeKind | null;
 }
 
-/** MLB pitch codes, for when ESPN sends only the abbreviation (GameDetail.Pitch.names). */
-export const PITCH_NAMES: Readonly<Record<string, string>> = {
-  FF: "Four-seam", FA: "Fastball", FT: "Two-seam", SI: "Sinker", FC: "Cutter", SL: "Slider",
-  ST: "Sweeper", SV: "Slurve", CU: "Curveball", KC: "Knuckle curve", CS: "Slow curve",
+/** MLB's own names for its pitch codes (Statcast's), preferred over ESPN's shorthand ("Four-seam FB", "Curve") (GameDetail.Pitch.official). */
+export const PITCH_OFFICIAL: Readonly<Record<string, string>> = {
+  FF: "Four-Seam Fastball", FA: "Fastball", FT: "Two-Seam Fastball", SI: "Sinker", FC: "Cutter",
+  SL: "Slider", ST: "Sweeper", SV: "Slurve", CU: "Curveball", KC: "Knuckle Curve", CS: "Slow Curve",
   CH: "Changeup", FS: "Splitter", FO: "Forkball", SC: "Screwball", KN: "Knuckleball",
-  EP: "Eephus", PO: "Pitchout", IN: "Intentional ball", UN: "Unknown",
+  EP: "Eephus", PO: "Pitchout", IN: "Intentional Ball", UN: "Unknown",
 };
 
-/** Codes as fans read them: a fastball is "FB", not Statcast's "FF" (StrikeZoneView.codes). */
-export function pitchCode(code: string | null | undefined): string | null {
-  if (!code) return null;
-  return code === "FF" || code === "FA" ? "FB" : code;
-}
+/** The same, shortened for a tight row (GameDetail.Pitch.names). */
+export const PITCH_NAMES: Readonly<Record<string, string>> = {
+  FF: "Four-Seam", FA: "Fastball", FT: "Two-Seam", SI: "Sinker", FC: "Cutter", SL: "Slider",
+  ST: "Sweeper", SV: "Slurve", CU: "Curveball", KC: "Knuckle Curve", CS: "Slow Curve",
+  CH: "Changeup", FS: "Splitter", FO: "Forkball", SC: "Screwball", KN: "Knuckleball",
+  EP: "Eephus", PO: "Pitchout", IN: "Intentional Ball", UN: "Unknown",
+};
 
-/** A pitch's names, longest first: full ("Four-seam fastball"), short ("Four-seam"), code ("FB") (StrikeZoneView.names). */
+/** A pitch's names, longest first: MLB's full name, short, and Statcast's code ("FF") (StrikeZoneView.names). */
 export function pitchNames(pitch: Pitch): readonly [string, string, string] {
   const short = pitch.type ? PITCH_NAMES[pitch.type] : undefined;
-  const full = pitch.typeName ?? short ?? pitch.type ?? "Pitch";
-  return [full, short ?? full, pitchCode(pitch.type) ?? short ?? full];
+  const full = (pitch.type ? PITCH_OFFICIAL[pitch.type] : undefined) ?? pitch.typeName ?? short ?? pitch.type ?? "Pitch";
+  return [full, short ?? full, pitch.type ?? short ?? full];
 }
 
 /** What the pitch did, in the list: how a strike came, not just "Strike" (StrikeZoneView.resultWord). */
