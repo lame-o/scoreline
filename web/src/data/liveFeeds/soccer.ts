@@ -21,6 +21,7 @@ import type { Fetcher } from "../http";
 import { arr, at, bool, num, str, type JSONValue } from "../json";
 import type { Side } from "../models";
 import { liveMoment, shortened, Tier, type Accent, type LiveMoment, type MomentKind } from "../moments";
+import { soccerFacts } from "../scoringFacts";
 import { credit, isGoal, teamID } from "../theater/soccerEntries";
 import { teamIDFromRef } from "./baseball";
 
@@ -54,6 +55,9 @@ export interface PitchAction {
   readonly bottomScore: number | null;
   /** The match clock in seconds (85' = 5100), counting on through stoppage and extra time. */
   readonly clockSeconds: number | null;
+  /** A goal's full commentary line (the foot, the assist) and ESPN's type for it ("goal---header"), for the scoring slide. */
+  readonly account?: string | null;
+  readonly playType?: string | null;
 }
 
 /** A chance worth a caption even though it missed: Opta's "big chance" line. */
@@ -90,7 +94,7 @@ export function actionMoment(a: PitchAction): LiveMoment | null {
   const detail = shortened(a.text);
   switch (a.kind) {
     case "goal":
-      return liveMoment({ id: a.playID, chart: "pitch", tier: Tier.score, kind: "goal", lead: "Goal", detail, side: a.side, accents: decidesMatch(a) ? ["decisive"] : [] });
+      return liveMoment({ id: a.playID, chart: "pitch", tier: Tier.score, kind: "goal", lead: "Goal", detail, side: a.side, accents: decidesMatch(a) ? ["decisive"] : [], facts: soccerFacts(a) });
     case "yellow":
     case "red":
       return liveMoment({ id: a.playID, chart: "pitch", tier: Tier.swing, kind: a.kind === "red" ? "redCard" : "yellowCard", lead: a.kind === "red" ? "Red card" : "Yellow card", detail, side: a.side });
@@ -185,6 +189,7 @@ export function pitchAction(item: JSONValue, index: number, homeTeamID: string |
     topScore: intOf(at(item, "homeScore")),
     bottomScore: intOf(at(item, "awayScore")),
     clockSeconds: num(at(item, "clock", "value")) ?? null,
+    ...(kind === "goal" ? { account: str(at(item, "text")) ?? null, playType: type } : {}),
   };
 }
 
