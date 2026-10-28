@@ -128,7 +128,6 @@ export function useBaseballPage(game: GameContext): SportPage {
               palette={palette}
               kits={kits}
               event={event}
-              names={detail.athleteNames}
             />
           </Suspense>
         </BaseballDiamond>

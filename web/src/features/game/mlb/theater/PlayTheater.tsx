@@ -5,7 +5,12 @@
  * delivery and the pitch (its type and speed), follows the ball off the bat
  * with the fielder going for it, frames each throw end to end, then settles
  * on the runners' last bases as the scorer's mark lands (with Statcast's
- * batted-ball line under it when MLB has the at-bat). Marquee plays get a
+ * batted-ball line under it when MLB has the at-bat). Where MLB's feed has
+ * the play (useStatcast.ts), it's told from MLB's official account: the ball
+ * to the man credited with fielding it, the throws along the credited chain,
+ * every runner where MLB says, each run crossing in turn with the camera on
+ * it. A replay keeps the play it began with: MLB's account landing
+ * mid-replay waits for its end. Marquee plays get a
  * headline across the top (HOME RUN, TRIPLE, DOUBLE PLAY), and a home run's
  * fireworks burst at the wall it cleared. The footer under it (the
  * diamond's last play) is its caption.
@@ -37,7 +42,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ScoreEvent, Side } from "../../../../data/models";
 import { PlayScript, type Rest } from "../../../../data/mlb/playScript";
-import { playOnStage, type TheaterState } from "../../../../data/mlb/playScene";
+import { playOnStage, type PlayScene, type TheaterState } from "../../../../data/mlb/playScene";
 import { HOLD_MS } from "../../../../data/theater/theaterKit";
 import { theaterTeams, type TheaterKits } from "../../../../data/mlb/theaterTeams";
 import type { TeamPalette } from "../../../../data/teamColors";
@@ -46,7 +51,7 @@ import { useColorScheme } from "../../../../state/theme";
 import { useChartMoment } from "../../core/moments";
 import { TheaterRenderer } from "./renderer";
 import { theaterInk } from "./theaterInk";
-import { useStatcastLine } from "./useStatcast";
+import { useMeasuredTheater } from "./useStatcast";
 import styles from "./PlayTheater.module.css";
 
 export type { TeamKit, TheaterKits } from "../../../../data/mlb/theaterTeams";
@@ -60,10 +65,8 @@ export interface PlayTheaterProps {
   readonly palette: TeamPalette;
   /** The teams' own and second colors, so the figures always contrast. */
   readonly kits: TheaterKits;
-  /** For Statcast: the game's date and teams. */
+  /** For MLB's feed: the game's date and teams. */
   readonly event: ScoreEvent;
-  /** Box score short names by athlete ID ("J. Chourio"), for the Statcast match. Optional. */
-  readonly names?: Readonly<Record<string, string>>;
   /** Development: draw this instant of the play, frozen (seconds from the pitch). */
   readonly frozen?: number | null;
 }
@@ -79,7 +82,7 @@ export function usePrefersReducedMotion(): boolean {
   return useSyncExternalStore(subscribeReduce, () => reduceQuery?.matches ?? false, () => false);
 }
 
-export function PlayTheater({ state, bases, batting, kits, event, names, frozen = null }: PlayTheaterProps) {
+export function PlayTheater({ state: lane, bases, batting, kits, event, frozen = null }: PlayTheaterProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<TheaterRenderer | null>(null);
   const scheme = useColorScheme();
@@ -89,10 +92,17 @@ export function PlayTheater({ state, bases, batting, kits, event, names, frozen 
   // The replay that has run its course, and the one whose end has had its time on screen.
   const [ended, setEnded] = useState<string | null>(null);
   const [rested, setRested] = useState<string | null>(null);
+  // The lane's play with MLB's account in it, once found (a new one waits briefly for it).
+  const state = useMeasuredTheater(event, lane);
   // The play on screen: a replay's own until it's over; then how the latest
   // ended, until the next pitch or the hold; then none, and the field shows
   // the live bases and batter.
-  const play = playOnStage(state, frozen == null && !reduceMotion, ended, rested);
+  const latest = playOnStage(state, frozen == null && !reduceMotion, ended, rested);
+  // A replay keeps the play it began with (MLB's account landing mid-replay waits for its end).
+  const began = useRef<PlayScene | null>(null);
+  const replaying = latest != null && frozen == null && !reduceMotion && state.news && ended !== latest.id;
+  if (replaying && began.current?.id !== latest.id) began.current = latest;
+  const play = replaying ? began.current : latest;
   useEffect(() => {
     if (ended == null) return;
     // Done: its end holds a while, then the field returns to the game.
@@ -107,9 +117,9 @@ export function PlayTheater({ state, bases, batting, kits, event, names, frozen 
   const script = useMemo(() => {
     const rest: Rest = { bases: restBases, bats: state.bats, swapped };
     return play ? PlayScript.play(play, rest) : PlayScript.rest(rest);
-    // A play keeps one script per field it settles to (the play's object may be re-made by a poll).
+    // A play keeps one script per field it settles to and reading of MLB's account (the play's object may be re-made by a poll).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [play?.id, restKey]);
+  }, [play?.id, play?.measured, restKey]);
 
   // The play's batting team; else the live one; else the top team (the visitors bat first).
   const side = play?.batting ?? batting ?? "top";
@@ -119,7 +129,8 @@ export function PlayTheater({ state, bases, batting, kits, event, names, frozen 
     [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, side],
   );
   const ink = useMemo(() => theaterInk(scheme), [scheme]);
-  const statcast = useStatcastLine(event, play, names);
+  // Statcast's batted-ball line on the stamp (a grounder's without its first hop's distance).
+  const statcast = play?.readout ?? null;
 
   useEffect(() => {
     if (!canvas.current) return;
