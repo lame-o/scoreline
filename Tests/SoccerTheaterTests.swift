@@ -529,3 +529,155 @@ extension ScorelineTests {
               && SoccerTheater.sentences("0.39 xG.") == "0.39 xG.", "the caption puts a space where ESPN ran two sentences together")
     }
 }
+
+// What the soccer feed says beyond where the ball went, read on the same real
+// clips (Tests/Fixtures/soccer-theater-plays.json): every touch's credit
+// (athlete, shirt, lineup role), each shot's contact, situation and xGOT, the
+// keeper's own actions, VAR's word on a goal (Newcastle's struck off at
+// Crystal Palace, Gabriel's confirmed), and the summary's starting elevens.
+
+extension ScorelineTests {
+    static func soccerFidelity() {
+        print("\nSoccer theater: what the feed says")
+        guard let data = try? Data(contentsOf: FixtureProtocol.directory.appendingPathComponent("soccer-theater-plays.json")) else {
+            return check(false, "soccer theater fixture loads")
+        }
+        struct Clip {
+            let plays: [JSON]
+            let home: String?
+        }
+        let matches = JSON(data: data)["matches"].array
+        let clips = matches.flatMap { m in m["clips"].array.map { Clip(plays: $0.array, home: m["home"]["id"].string) } }
+        func find(_ clue: String) -> (scene: SoccerScene, clip: Clip, index: Int)? {
+            for clip in clips {
+                guard let i = clip.plays.firstIndex(where: { SoccerScene.isMoment($0) && ($0["text"].string ?? "").contains(clue) }),
+                      let scene = SoccerScene.parse(clip.plays, at: i, homeTeamID: clip.home, keepers: SoccerScene.keepers(in: clip.plays))
+                else { continue }
+                return (scene, clip, i)
+            }
+            return nil
+        }
+        var scenes: [SoccerScene] = []
+        for clip in clips {
+            let keepers = SoccerScene.keepers(in: clip.plays)
+            for i in clip.plays.indices where SoccerScene.isMoment(clip.plays[i]) {
+                if let scene = SoccerScene.parse(clip.plays, at: i, homeTeamID: clip.home, keepers: keepers) { scenes.append(scene) }
+            }
+        }
+
+        // MARK: Who, exactly
+
+        let touches = scenes.flatMap(\.touches)
+        check(!touches.isEmpty && touches.allSatisfy { $0.credit != nil } && scenes.allSatisfy { $0.shooterCredit != nil },
+              "every touch and every shooter is credited exactly: athlete, shirt and lineup role (\(touches.count) touches)")
+        check(!touches.filter(\.keeper).isEmpty && touches.filter(\.keeper).allSatisfy { $0.credit?.keeper == true }
+              && touches.filter { $0.credit?.keeper == true && $0.defending }.allSatisfy(\.keeper),
+              "the keeper is lineup role 1, never guessed from a name")
+        let villa = clips.first { clip in clip.plays.contains { ($0["text"].string ?? "").contains("Rayan Cherki (Manchester City) left footed shot") } }
+        let suzuki = villa.map { SoccerScene.keepers(in: $0.plays)["362"] } ?? nil
+        check(suzuki?.name == "Zion Suzuki" && suzuki?.credit?.keeper == true && suzuki?.credit?.jersey == "1", "Villa's keeper: Suzuki, role 1, number 1")
+
+        // MARK: The shot
+
+        if let s = find("Gabriel Magalhães (Arsenal) header from very close range")?.scene {
+            check(s.shot.contact == .head && s.shot.technique == .header && s.shot.situation == .openPlay && (s.shot.xgot ?? 0) > 0.9
+                  && s.assistCredit?.athlete == "241077" && s.assistKind == .cross && s.shooterCredit?.athlete == "236322" && s.shooterCredit?.jersey == "6",
+                  "Gabriel's header: Opta's head, open play, 0.98 xGOT; White's cross, by athlete ID")
+            check(s.review == .confirmed && s.outcome == .goal, "…confirmed following VAR review: it stays a goal")
+        } else {
+            check(false, "Gabriel's header parses")
+        }
+        if let s = find("Rayan Cherki (Manchester City) left footed shot from the centre")?.scene {
+            check(s.shot.contact == .leftFoot && s.shot.xgot == 0.421 && s.keeper.credit?.keeper == true && s.keeper.at != nil
+                  && s.keeperActions.contains { $0.kind == .save && $0.at == s.keeper.at },
+                  "Cherki's shot: left foot, 0.42 xGOT, saved by the role-1 keeper where his save is logged")
+        }
+        if let s = find("Erling Haaland (Manchester City) header from very close range")?.scene {
+            check(s.shot.situation == .setPiece && s.assistCredit?.jersey == "7", "Haaland's header: a set piece, assisted by number 7")
+        }
+        check(scenes.allSatisfy { s in s.touches.allSatisfy { $0.clock <= s.clock && $0.clock >= s.clock - SoccerScene.window } }
+              && scenes.contains { s in Set(zip(s.touches, s.touches.dropFirst()).map { $1.clock - $0.clock }).count > 2 },
+              "each touch keeps its real match second, for pacing: varied gaps, all inside the move's window")
+
+        // MARK: The keeper's actions
+
+        if let s = find("Iliman Ndiaye (Manchester City) left footed shot from the right side")?.scene {
+            let punch = s.keeperActions.first
+            check(s.keeperActions.map(\.kind) == [.punch, .save] && punch?.to.map { $0.x > punch!.at.x + 8 } == true && s.shot.situation == .corner
+                  && s.start == .openPlay,
+                  "Ndiaye's chance: Suzuki punched the corner out (and where it landed), then saved; Opta tags it from the corner, "
+                    + "a second phase the build-up starts after", "\(s.keeperActions)")
+        }
+        let blocks = scenes.filter { $0.outcome == .blocked }
+        check(!blocks.isEmpty && blocks.allSatisfy { $0.blocker?.credit.map { !$0.keeper } == true },
+              "every block is credited to the outfield player who made it (\(blocks.count))")
+
+        // MARK: VAR
+
+        let palace = clips.first { clip in clip.plays.contains { $0["type"]["type"].string == "deleted-after-review" } }
+        if let palace, let deleted = palace.plays.first(where: { $0["type"]["type"].string == "deleted-after-review" }),
+           let decision = palace.plays.first(where: { $0["type"]["type"].string == "var---referee-decision-cancelled" }) {
+            let willock = SoccerFeed.Review(id: "54282228", team: "361", scorer: "259517", clock: 3068, index: 0, since: .now)
+            let osula = SoccerFeed.Review(id: "54281457", team: "361", scorer: "319431", clock: 2810, index: 0, since: .now)
+            check(SoccerFeed.struckOff([willock, osula], entries: [deleted]) == ["54282228"]
+                  && SoccerFeed.struckOff([willock, osula], entries: [decision]) == ["54282228"]
+                  && SoccerFeed.struckOff([osula], entries: palace.plays).isEmpty,
+                  "Willock's goal struck off: its entry retyped \"deleted-after-review\", and VAR's \"No Goal\" naming him; Osula's, four minutes before, stands")
+            check(!palace.plays.indices.contains { SoccerScene.isMoment(palace.plays[$0]) && SoccerScene.playID(palace.plays[$0]) == "54282228" },
+                  "…a goal struck off is no moment: it never replays")
+        } else {
+            check(false, "the VAR clip loads")
+        }
+        if let found = find("William Osula (Newcastle United)") {
+            let lineups = SoccerLineup.lineups(matches.first { $0["id"].string == "401879254" }?["rosters"] ?? JSON(nil)) { $0 == found.clip.home ? .top : .bottom }
+            let showing = SoccerTheaterState(scene: found.scene, news: true, lineups: lineups)
+            let next = SoccerFeed.retracting([found.scene.id], from: showing, plays: found.clip.plays, homeTeamID: found.clip.home,
+                                             keepers: SoccerScene.keepers(in: found.clip.plays))
+            check(next.scene?.id != found.scene.id && !next.news && next.overturned?.id == found.scene.id && next.overturned?.review == .overturned
+                  && next.lineups == lineups && lineups.count == 2,
+                  "a goal struck off while it shows leaves the stage (kept aside as overturned), and what came before shows as it ended")
+        }
+        check(SoccerFeed.confirmed(JSON(["type": ["type": "goal---header"], "scoringPlay": true,
+                                         "text": "Goal! … with a cross.Goal confirmed following VAR Review."] as [String: Any])),
+              "\"Goal confirmed following VAR Review.\" settles it")
+
+        // MARK: Lineups
+
+        var shapes: [String: SoccerLineup] = [:]
+        for m in matches {
+            for (side, lineup) in SoccerLineup.lineups(m["rosters"], side: { $0 == m["home"]["id"].string ? .top : .bottom }) {
+                shapes[(side == .top ? m["home"] : m["away"])["abbreviation"].string ?? ""] = lineup
+            }
+        }
+        check(shapes.count == 14 && shapes.values.allSatisfy { l in l.players.count == 11 && l.players.allSatisfy { (0...100).contains($0.spot.x) && (0...100).contains($0.spot.y) } },
+              "all fourteen starting elevens, every man with a spot on the pitch")
+        func at(_ team: String, _ position: String) -> SoccerLineup.Player? { shapes[team]?.players.first { $0.position == position } }
+        if let ars = shapes["ARS"], ars.formation == "4-2-3-1" {
+            let pair = [at("ARS", "RM"), at("ARS", "LM")].compactMap { $0 }
+            check(pair.count == 2 && pair.allSatisfy { $0.line == 2 && (30...70).contains($0.spot.y) } && pair[0].spot.y < pair[1].spot.y
+                  && [at("ARS", "AM-R"), at("ARS", "AM"), at("ARS", "AM-L")].compactMap { $0?.spot.y } == [28, 50, 72]
+                  && at("ARS", "RB").map { $0.line == 1 && $0.spot.y < 20 } == true && at("ARS", "F")?.line == 4 && at("ARS", "G")?.line == 0,
+                  "Arsenal's 4-2-3-1: RM and LM are the holding pair, central; three behind the striker; the back four")
+        }
+        if let che = shapes["CHE"], che.formation == "3-4-2-1" {
+            check(at("CHE", "RM").map { $0.line == 2 && $0.spot.y < 20 } == true && at("CHE", "LM").map { $0.line == 2 && $0.spot.y > 80 } == true
+                  && at("CHE", "CF-R")?.line == 3 && at("CHE", "F")?.line == 4 && che.players.filter { $0.line == 1 }.count == 3,
+                  "Chelsea's 3-4-2-1: the same RM and LM are the wing-backs, out wide; three at the back")
+        }
+        if let hul = shapes["HUL"] {
+            check(hul.formation == "5-4-1" && hul.players.filter { $0.line == 1 }.count == 5 && at("HUL", "F")?.line == 3,
+                  "Hull's 5-4-1: five at the back, one up")
+        }
+        if let ars = shapes["ARS"], let striker = at("ARS", "F"), let keeper = at("ARS", "G") {
+            let home = ars.spot(of: striker.athlete, attacksRight: true), away = ars.spot(of: striker.athlete, attacksRight: false)
+            check(home.map { $0.x > Pitch.length / 2 } == true && away.map { $0.x < Pitch.length / 2 } == true
+                  && ars.spot(of: keeper.athlete, attacksRight: true).map { $0.x < Pitch.sixDepth } == true,
+                  "on the pitch: the striker past halfway toward the goal his team attacks, the keeper on his line")
+        }
+        if let scene = scenes.first {
+            let lineups = SoccerLineup.lineups(matches[0]["rosters"]) { $0 == matches[0]["home"]["id"].string ? .top : .bottom }
+            check(SoccerFeed.theater(scene, after: SoccerTheaterState(lineups: lineups), primed: true, now: .now).lineups == lineups,
+                  "the lineups ride along on the theater's state")
+        }
+    }
+}

@@ -95,7 +95,9 @@ struct PitchAction: Identifiable, Equatable {
 /// ESPN's event-level feed (each pass, shot, tackle with a location). It loads
 /// a match once, then each refresh fetches only plays added since the last.
 /// Positions are relative to the acting team's attack, so away actions are
-/// flipped onto a single pitch.
+/// flipped onto a single pitch. ESPN edits entries in place, behind the tail
+/// (VAR striking a goal off retypes it): entries are known by ID, and for a
+/// few minutes after a goal each refresh reads again from its page.
 @MainActor
 @Observable
 final class SoccerFeed {
@@ -111,7 +113,7 @@ final class SoccerFeed {
     /// The most recent plays, enough to hold a moment's build-up.
     @ObservationIgnored private var window: [JSON] = []
     /// Goalkeepers by team ID, as the plays reveal them.
-    @ObservationIgnored private var keepers: [String: String] = [:]
+    @ObservationIgnored private var keepers: [String: SoccerScene.Person] = [:]
     /// Goals, shots and cards that arrived since the page opened.
     @ObservationIgnored private var moments: [LiveMoment] = []
     /// Whether this page has had a complete load: before it, everything is
@@ -125,6 +127,30 @@ final class SoccerFeed {
     /// One update at a time: two overlapping ones (a page left and reopened)
     /// could finish out of order and leave the trail on older actions.
     @ObservationIgnored private var updating = false
+    /// Every entry read, by ID: one read again is an edit, not news.
+    @ObservationIgnored private var seen: Set<String> = []
+    /// New entries so far: the IDs the trail's actions take (an entry
+    /// inserted behind the tail mustn't reuse a position's).
+    @ObservationIgnored private var serial = 0
+    /// Goals VAR may still strike off.
+    @ObservationIgnored private var reviews: [Review] = []
+    /// Goals struck off since the last call, for the page to take back.
+    @ObservationIgnored private var retracted: [String] = []
+
+    /// A goal under review: where it was read, and when.
+    struct Review: Equatable {
+        let id: String
+        let team: String?
+        /// Who scored it (athlete ID).
+        var scorer: String?
+        /// Match clock, in seconds.
+        let clock: Double
+        /// Its position in the feed when read.
+        let index: Int
+        let since: Date
+    }
+    /// How long a goal stays open to VAR: checks take a minute or two, and ESPN a little longer.
+    static let reviewTime: TimeInterval = 300
 
     /// The first load takes the match in big pages; later refreshes ask for
     /// small ones, so a live update is a few kilobytes, not the last 200 plays.
@@ -133,26 +159,44 @@ final class SoccerFeed {
     private static let trailLength = 10
     private static let windowSize = 80
 
-    func update(league: String, eventID: String, homeTeamID: String?) async {
+    func update(league: String, eventID: String, homeTeamID: String?, lineups: [GameDetail.Side: SoccerLineup] = [:]) async {
         guard !updating else { return }
         updating = true
         defer { updating = false }
+        if !lineups.isEmpty, lineups != theater.lineups { theater.lineups = lineups }
         let base = "https://sports.core.api.espn.com/v2/sports/soccer/leagues/\(league)/events/\(eventID)/competitions/\(eventID)/plays"
         let size = loaded ? Self.updatePageSize : Self.firstPageSize
         var page = fetched / size + 1
+        // A goal still open to review: read again from its page, not just the tail (one more
+        // small request at most, for a few minutes after each goal).
+        reviews.removeAll { Date.now.timeIntervalSince($0.since) > Self.reviewTime }
+        if loaded, let oldest = reviews.map(\.index).min() { page = min(page, max(oldest - 2, 0) / size + 1) }
         var newActions: [PitchAction] = []
         var newCards: [String: PitchAction] = [:]
         var unplaced: [LiveMoment] = []
         var newItems: [JSON] = []
+        var revised: [JSON] = []
         var complete = false
         while true {
             guard !Task.isCancelled, let url = URL(string: "\(base)?limit=\(size)&page=\(page)"),
                   let json = try? await JSON.fetch(url) else { break }
             let items = json["items"].array
             for (offset, item) in items.enumerated() {
-                let index = (page - 1) * size + offset
-                guard index >= fetched else { continue }
+                let id = Self.playID(item)
+                // Read before: an edit, if anything changed.
+                if !id.isEmpty, seen.contains(id) {
+                    revised.append(item)
+                    continue
+                }
+                seen.insert(id)
                 newItems.append(item)
+                let index = serial
+                serial += 1
+                if loaded || DateParser.parse(item["wallclock"].string).map({ Date.now.timeIntervalSince($0) < Self.reviewTime }) == true,
+                   SoccerScene.isGoal(item) {
+                    reviews.append(Review(id: id, team: SoccerScene.teamID(item), scorer: SoccerScene.credit(item)?.athlete,
+                                          clock: item["clock"]["value"].double ?? 0, index: (page - 1) * size + offset, since: .now))
+                }
                 if let action = Self.action(item, index: index, homeTeamID: homeTeamID) {
                     newActions.append(action)
                     recent = Array((recent + [action]).suffix(6))
@@ -171,7 +215,26 @@ final class SoccerFeed {
             }
             page += 1
         }
-        updateTheater(newItems, homeTeamID: homeTeamID, news: primed)
+        // Edits behind the tail: VAR's word on a goal under review.
+        let struck = Self.struckOff(reviews, entries: revised + newItems)
+        reviews.removeAll { review in
+            struck.contains(review.id) || revised.contains { Self.playID($0) == review.id && Self.confirmed($0) }
+        }
+        // An entry read again that reads differently (its type, its words): the window takes the new version.
+        var edited = Set<String>()
+        window = window.map { old in
+            guard let new = revised.first(where: { Self.playID($0) == Self.playID(old) }),
+                  new["type"]["type"].string != old["type"]["type"].string || new["text"].string != old["text"].string else { return old }
+            edited.insert(Self.playID(new))
+            return new
+        }
+        if !struck.isEmpty {
+            retract(struck, homeTeamID: homeTeamID)
+            // Struck off before it was ever shown: it never arrives.
+            newItems.removeAll { struck.contains(Self.playID($0)) && SoccerScene.isGoal($0) }
+            newActions.removeAll { struck.contains($0.playID) }
+        }
+        updateTheater(newItems, revised: edited, homeTeamID: homeTeamID, news: primed)
         // Until this page has had a complete load it's history; after, goals,
         // shots and cards are news.
         if primed {
@@ -191,19 +254,84 @@ final class SoccerFeed {
         return moments
     }
 
+    /// Play IDs of goals VAR struck off since the last call.
+    func takeRetractions() -> [String] {
+        defer { retracted = [] }
+        return retracted
+    }
+
     /// Parses a moment only when one has arrived (or the one showing has
-    /// been followed by its save or block), with the plays before it.
-    private func updateTheater(_ new: [JSON], homeTeamID: String?, news: Bool) {
-        guard !new.isEmpty else { return }
+    /// been followed by its save or block, or edited), with the plays before it.
+    private func updateTheater(_ new: [JSON], revised: Set<String> = [], homeTeamID: String?, news: Bool) {
+        let shown = theater.scene?.id
+        guard !new.isEmpty || shown.map(revised.contains) == true else { return }
         let plays = window + new
         window = Array(plays.suffix(Self.windowSize))
         keepers.merge(SoccerScene.keepers(in: new)) { _, newer in newer }
         let first = plays.count - new.count
         guard let index = plays.indices.last(where: { SoccerScene.isMoment(plays[$0]) }),
-              index >= first || (index >= first - 6 && SoccerScene.playID(plays[index]) == theater.scene?.id),
+              case let id = SoccerScene.playID(plays[index]),
+              index >= first || (id == shown && (index >= first - 6 || id.map(revised.contains) == true)),
               let scene = SoccerScene.parse(plays, at: index, homeTeamID: homeTeamID, keepers: keepers) else { return }
         let next = Self.theater(scene, after: theater, primed: news, now: .now)
         if next != theater { theater = next }
+    }
+
+    /// A goal struck off: out of the shot map and the trail, taken back from
+    /// the page's moments, and off the stage.
+    private func retract(_ ids: Set<String>, homeTeamID: String?) {
+        retracted += ids
+        shots.removeAll { ids.contains($0.playID) }
+        trail.removeAll { ids.contains($0.playID) }
+        window.removeAll { SoccerScene.playID($0).map(ids.contains) == true && SoccerScene.isGoal($0) }
+        let next = Self.retracting(ids, from: theater, plays: window, homeTeamID: homeTeamID, keepers: keepers)
+        if next != theater { theater = next }
+    }
+
+    /// Goals VAR has struck off, from what the feed says now: the goal's own
+    /// entry retyped (to "deleted-after-review", or anything not a goal); or
+    /// a "GOAL OVERTURNED BY VAR" or "VAR Decision: No Goal" entry naming
+    /// the same scorer (else the same team's latest goal), within six
+    /// minutes after it. (pure; tested)
+    static func struckOff(_ reviews: [Review], entries: [JSON]) -> Set<String> {
+        var struck = Set<String>()
+        for item in entries {
+            if let review = reviews.first(where: { $0.id == playID(item) }) {
+                if !SoccerScene.isGoal(item) { struck.insert(review.id) }
+                continue
+            }
+            let type = item["type"]["type"].string ?? ""
+            guard type == "deleted-after-review" || (type.hasPrefix("var---") && (item["text"].string ?? "").contains("No Goal")),
+                  let clock = item["clock"]["value"].double else { continue }
+            let named = SoccerScene.credit(item)?.athlete
+            let candidates = reviews.filter { review in
+                review.team == SoccerScene.teamID(item) && clock >= review.clock - 5 && clock - review.clock <= 360
+                    && (named == nil || review.scorer == nil || named == review.scorer)
+            }
+            if let goal = candidates.max(by: { $0.clock < $1.clock }) { struck.insert(goal.id) }
+        }
+        return struck
+    }
+
+    /// "…with a cross.Goal confirmed following VAR Review.": it stands.
+    static func confirmed(_ item: JSON) -> Bool {
+        SoccerScene.isGoal(item) && (item["text"].string ?? "").contains("confirmed following VAR")
+    }
+
+    /// The theater once VAR has struck goals off: one showing leaves the
+    /// stage (kept as `overturned`, never to replay or celebrate as a goal),
+    /// and the moment before it shows instead, as it ended. (pure; tested)
+    static func retracting(_ ids: Set<String>, from state: SoccerTheaterState, plays: [JSON], homeTeamID: String?,
+                           keepers: [String: SoccerScene.Person]) -> SoccerTheaterState {
+        guard let shown = state.scene, ids.contains(shown.id) else { return state }
+        var next = state
+        var struck = shown
+        struck.review = .overturned
+        next.overturned = struck
+        let rest = plays.filter { SoccerScene.playID($0).map(ids.contains) != true }
+        next.scene = SoccerScene.latest(in: rest, homeTeamID: homeTeamID, keepers: keepers)
+        next.news = false
+        return next
     }
 
     /// The theater after a look at a moment. It's news if it arrived after
@@ -211,9 +339,11 @@ final class SoccerFeed {
     /// right after it); otherwise it's history, shown as it ended. A moment
     /// already showing keeps what it was. (pure; tested)
     static func theater(_ scene: SoccerScene, after previous: SoccerTheaterState, primed: Bool, now: Date) -> SoccerTheaterState {
-        let news = scene.id == previous.scene?.id ? previous.news
+        var next = previous
+        next.news = scene.id == previous.scene?.id ? previous.news
             : primed || scene.wallclock.map { now.timeIntervalSince($0) < BaseballFeed.recent } == true
-        return SoccerTheaterState(scene: scene, news: news)
+        next.scene = scene
+        return next
     }
 
     /// A match page opened: what the feed fetches until its next complete
@@ -223,7 +353,9 @@ final class SoccerFeed {
         moments = []
         // The theater's moment was on screen before: it shows as it ended, unless it only just happened.
         if theater.news, let scene = theater.scene {
-            theater = Self.theater(scene, after: SoccerTheaterState(), primed: false, now: .now)
+            var shown = theater
+            shown.scene = nil
+            theater = Self.theater(scene, after: shown, primed: false, now: .now)
         }
     }
 
@@ -435,6 +567,11 @@ final class FootballFeed {
     @ObservationIgnored private var theaterSequence: Double = -1
     @ObservationIgnored private var primed = false
     @ObservationIgnored private var updating = false
+    /// Both teams' depth charts (NFL), once fetched; when they were last asked for.
+    @ObservationIgnored private var charts: [GameDetail.Side: FootballDepthChart] = [:]
+    @ObservationIgnored private var chartsAsked: Date?
+    /// Depth charts by season and team, kept for the day across pages: they change once a week.
+    private static var chartCache: [String: (chart: FootballDepthChart, fetched: Date)] = [:]
 
     private static let pageSize = 50
     /// Clock stoppages and admin entries, not snaps.
@@ -453,6 +590,10 @@ final class FootballFeed {
         let bottomID: String?
         let homeAbbreviation: String
         let awayAbbreviation: String
+        /// The teams' names ("Kent State"): college's text writes some spots
+        /// with them ("Kent38"), not the abbreviation.
+        var homeName = ""
+        var awayName = ""
         func side(_ id: String?) -> GameDetail.Side? { id == topID ? .top : id == bottomID ? .bottom : nil }
     }
 
@@ -485,6 +626,11 @@ final class FootballFeed {
             // until it has the play the situation points to.
             let lastID = lastRef.flatMap { ref in ref.range(of: "/plays/").map { String(ref[$0.upperBound...].prefix { $0.isNumber }) } }
             if !Task.isCancelled, lastID == nil || lastID == newestID { lastPlayRef = lastRef }
+        }
+        // Who starts where, once a game (college has no depth charts).
+        if league == "nfl", charts.isEmpty, Date.now.timeIntervalSince(chartsAsked ?? .distantPast) > 300 {
+            chartsAsked = .now
+            await loadCharts(teams: teams)
         }
         // The ball moves with its play: hold a new spot back (briefly) until
         // the play that put it there is in, so the two animate together.
@@ -552,8 +698,9 @@ final class FootballFeed {
                 .map(\.element)
         }
         // The newest few snaps, oldest first: each is spotted on its hash from the one before.
+        let charts = charts
         let recent = Array(newer.sorted { $0.sequence > $1.sequence }.lazy
-            .compactMap { entry in FootballScene.parse(entry.item, teams: teams).map { (scene: $0, sequence: entry.sequence) } }
+            .compactMap { entry in FootballScene.parse(entry.item, teams: teams).map { (scene: $0.slotted(by: charts), sequence: entry.sequence) } }
             .prefix(5).reversed())
         if let snap = recent.last, !Task.isCancelled {
             theaterSequence = snap.sequence
@@ -619,8 +766,44 @@ final class FootballFeed {
     /// opened right after it); otherwise it's history, shown as it ended. A
     /// snap already showing keeps what it was, edits and all. (pure; tested)
     static func theater(_ scene: FootballScene, after previous: FootballTheaterState, primed: Bool, now: Date) -> FootballTheaterState {
-        FootballTheaterState(play: scene, news: scene.id == previous.play?.id ? previous.news
-                                 : primed || scene.wallclock.map { now.timeIntervalSince($0) < BaseballFeed.recent } == true)
+        var next = previous
+        next.play = scene
+        next.news = scene.id == previous.play?.id ? previous.news
+            : primed || scene.wallclock.map { now.timeIntervalSince($0) < BaseballFeed.recent } == true
+        return next
+    }
+
+    /// Both teams' depth charts, from the day's cache or fetched together
+    /// (official ESPN core, about 20 KB each); the snap showing is then
+    /// placed on them.
+    private func loadCharts(teams: Teams) async {
+        let season = Self.season(.now)
+        async let top = Self.depthChart(team: teams.topID, season: season)
+        async let bottom = Self.depthChart(team: teams.bottomID, season: season)
+        var found: [GameDetail.Side: FootballDepthChart] = [:]
+        (found[.top], found[.bottom]) = await (top, bottom)
+        guard !found.isEmpty, !Task.isCancelled else { return }
+        charts = found
+        var next = theater
+        next.charts = found
+        next.play = next.play?.slotted(by: found)
+        if next != theater { theater = next }
+    }
+
+    static func depthChart(team: String?, season: Int) async -> FootballDepthChart? {
+        guard let team else { return nil }
+        let key = "\(season)/\(team)"
+        if let cached = chartCache[key], Date.now.timeIntervalSince(cached.fetched) < 86_400 { return cached.chart }
+        guard let url = URL(string: "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/\(season)/teams/\(team)/depthcharts"),
+              let json = try? await JSON.fetch(url), let chart = FootballDepthChart(json) else { return nil }
+        chartCache[key] = (chart, .now)
+        return chart
+    }
+
+    /// The NFL season a date falls in: September to February. (pure; tested)
+    static func season(_ date: Date) -> Int {
+        let parts = Calendar(identifier: .gregorian).dateComponents(in: TimeZone(identifier: "America/New_York") ?? .current, from: date)
+        return (parts.year ?? 2026) - ((parts.month ?? 9) <= 2 ? 1 : 0)
     }
 
     /// Spots each snap on its hash from the one before it (oldest first;

@@ -83,6 +83,52 @@ struct SoccerScene: Equatable, Identifiable {
         case foot, header, volley
     }
 
+    /// What struck it, as Opta logs it (`contactType`).
+    enum Contact: Equatable {
+        case leftFoot, rightFoot, head
+    }
+
+    /// How the move that made the chance began, as Opta tags the shot
+    /// (`shotInfo`), even when the build-up doesn't reach back that far.
+    enum Situation: Equatable {
+        case openPlay, corner, setPiece, freeKick, throwIn, fastBreak, penalty, ownGoal
+    }
+
+    /// The assist's kind, from the text ("Assisted by Ben White with a cross").
+    enum AssistKind: Equatable {
+        case cross, throughBall, headedPass
+    }
+
+    /// VAR's word on a goal: confirmed ("Goal confirmed following VAR
+    /// Review."), or struck off (`SoccerFeed` takes it off the stage).
+    enum Review: Equatable {
+        case confirmed, overturned
+    }
+
+    /// A player exactly as ESPN credits him: athlete ID, shirt number and
+    /// lineup role (ESPN's soccer position: 1 the keeper, 4 CD-L, 5 CD-R, 8 LB,
+    /// 9 RB, 14 AM, 16 LM, 17 RM, 19 F, 27 a substitute, 32 AM-L, 33 AM-R).
+    struct Credit: Equatable {
+        var athlete: String
+        var jersey: String?
+        var role: Int?
+        var keeper: Bool { role == 1 }
+    }
+
+    /// What the defending keeper did, and where, as the feed logs it (it has
+    /// no save type: diving, catching): a save at his spot, a punch and
+    /// where it landed, a claim in the air, a smother at a forward's feet, a
+    /// rush off his line, the ball spilled.
+    struct KeeperAction: Equatable {
+        enum Kind: Equatable { case save, punch, claim, smother, sweep, spill }
+        var kind: Kind
+        var at: CGPoint
+        /// Where a punch landed.
+        var to: CGPoint?
+        /// Match clock, in seconds.
+        var clock: Double
+    }
+
     /// Somebody on the ball (or at it) on the way to the shot.
     struct Touch: Equatable {
         enum Kind: Equatable {
@@ -96,18 +142,21 @@ struct SoccerScene: Equatable, Identifiable {
         }
         var kind: Kind
         var player: String
+        /// Who, exactly (athlete, shirt, lineup role).
+        var credit: Credit?
         /// Where it happened, in metres.
         var at: CGPoint
         /// Where a pass, a cross or an earlier shot went.
         var to: CGPoint?
         /// In the air: a cross, a corner, a long ball.
         var lofted = false
-        /// Match clock, in seconds.
+        /// Match clock, in seconds (1 s resolution): the real gaps between
+        /// touches, for pacing.
         var clock: Double
         /// The other team's: a deflection, a header won, a save.
         var defending = false
         /// The defending keeper's own: a save, a punch, coming off his line
-        /// (whether or not the feed has learned his name yet).
+        /// (credited to lineup role 1, or something only a keeper does).
         var keeper = false
     }
 
@@ -124,15 +173,20 @@ struct SoccerScene: Equatable, Identifiable {
         /// Where it was stopped: the keeper's hands, the block.
         var stopped: CGPoint?
         var technique = Technique.foot
+        var contact: Contact?
+        var situation: Situation?
         var penalty = false
         /// Opta's expected goals.
         var xg: Double?
+        /// Expected goals on target: how hard it was to keep out (0 off target).
+        var xgot: Double?
     }
 
     /// A player the moment names, and where he was (if ESPN placed him).
     struct Person: Equatable {
         var name: String?
         var at: CGPoint?
+        var credit: Credit?
     }
 
     let id: String
@@ -145,9 +199,15 @@ struct SoccerScene: Equatable, Identifiable {
     var shot: Shot
     /// Who struck it (an own goal's defender).
     var shooter: String
+    var shooterCredit: Credit?
     var assist: String?
+    var assistCredit: Credit?
+    var assistKind: AssistKind?
     var keeper = Person()
     var blocker: Person?
+    /// The defending keeper's actions in the move and just after the shot, oldest first.
+    var keeperActions: [KeeperAction] = []
+    var review: Review?
     /// Where the ball went after a save, a block or the woodwork, if it's
     /// known; nil when the keeper held it.
     var rebound: CGPoint?
@@ -202,6 +262,11 @@ struct SoccerTheaterState: Equatable {
     /// Arrived while the page was open, or only just happened: replay it.
     /// Otherwise it's history, and shows as it ended.
     var news = false
+    /// A goal VAR struck off after it showed (`review` overturned): no longer
+    /// the scene, so it never replays or celebrates; kept for a "no goal" beat.
+    var overturned: SoccerScene?
+    /// Both starting elevens and their nominal spots, from the match summary.
+    var lineups: [GameDetail.Side: SoccerLineup] = [:]
 }
 
 // MARK: - Parsing
@@ -220,33 +285,34 @@ extension SoccerScene {
         }
     }
 
+    /// A goal, as the entry stands (VAR may retype it later).
+    static func isGoal(_ item: JSON) -> Bool {
+        let type = item["type"]["type"].string ?? ""
+        return item["scoringPlay"].bool == true || type == "goal" || type.hasPrefix("goal---") || type == "own-goal" || type == "penalty---scored"
+    }
+
     /// The newest moment in a run of plays, with its build-up.
-    static func latest(in plays: [JSON], homeTeamID: String?, keepers: [String: String] = [:]) -> SoccerScene? {
+    static func latest(in plays: [JSON], homeTeamID: String?, keepers: [String: Person] = [:]) -> SoccerScene? {
         for index in plays.indices.reversed() where isMoment(plays[index]) {
             if let scene = parse(plays, at: index, homeTeamID: homeTeamID, keepers: keepers) { return scene }
         }
         return nil
     }
 
-    /// Goalkeepers by team ID, from what only a keeper does (a claim, a
-    /// punch, a smother) and who saves are credited to.
-    static func keepers(in plays: [JSON]) -> [String: String] {
-        var found: [String: String] = [:]
-        var saved = false
+    /// Goalkeepers by team ID: whoever ESPN credits in lineup role 1, or with
+    /// what only a keeper does (a substitute keeper's role is 27).
+    static func keepers(in plays: [JSON]) -> [String: Person] {
+        var found: [String: Person] = [:]
         for item in plays {
-            let type = item["type"]["type"].string ?? ""
-            if keeperOnly(type) || (type == "save" && saved), let team = teamID(item), let name = name(item) {
-                found[team] = name
-            }
-            // A save after a shot on target is the keeper's (after a block, the blocker's).
-            if type.hasPrefix("shot-") { saved = type == "shot-on-target" || item["text"].string?.contains(" saved ") == true }
-            else if !["assist", "assists-shot", "save"].contains(type) { saved = false }
+            guard let team = teamID(item), let credit = credit(item),
+                  credit.keeper || keeperOnly(item["type"]["type"].string ?? "") else { continue }
+            found[team] = Person(name: name(item), credit: credit)
         }
         return found
     }
 
     /// The moment at `index`, with what led to it. Nil for anything that isn't one.
-    static func parse(_ plays: [JSON], at index: Int, homeTeamID: String?, keepers: [String: String] = [:]) -> SoccerScene? {
+    static func parse(_ plays: [JSON], at index: Int, homeTeamID: String?, keepers: [String: Person] = [:]) -> SoccerScene? {
         let item = plays[index]
         guard isMoment(item), let id = playID(item), let team = teamID(item),
               let from = place(item, "fieldPositionX", "fieldPositionY", home: homeTeamID) else { return nil }
@@ -272,9 +338,12 @@ extension SoccerScene {
 
         var shot = Shot(from: from)
         shot.penalty = item["penaltyKick"].bool == true || type.hasPrefix("penalty---")
-        shot.technique = lower.contains("header") || type == "goal---header" ? .header
-            : type == "goal---volley" || lower.contains("volley") ? .volley : .foot
+        shot.contact = contact(item["contactType"]["text"].string)
+        shot.situation = situation(item["shotInfo"]["text"].string)
+        let header = shot.contact.map { $0 == .head } ?? (lower.contains("header") || type == "goal---header")
+        shot.technique = header ? .header : type == "goal---volley" || lower.contains("volley") ? .volley : .foot
         shot.xg = item["expectedGoals"].double
+        shot.xgot = item["expectedGoalsOnTarget"].double
         if let gy = item["goalPositionY"].double {
             // In the shooter's frame like everything else: the away team's mouth turns round.
             shot.mouth = Mouth(y: Pitch.across(side == .top ? gy : 100 - gy), z: Pitch.height(item["goalPositionZ"].double ?? 0))
@@ -285,7 +354,15 @@ extension SoccerScene {
 
         let shooter = name(item) ?? (outcome == .ownGoal ? text.firstMatch(of: #/Own Goal by ([^,]+),/#).map { String($0.1) } : nil) ?? ""
         var scene = SoccerScene(id: id, outcome: outcome, side: side, shot: shot, shooter: shooter)
+        scene.shooterCredit = credit(item)
         scene.assist = text.firstMatch(of: #/Assisted by (.+?)(?: with | following |\.|$)/#).map { String($0.1) }
+        // The assister: credited by role, else second (the shooter is first).
+        let credits = item["participants"].array
+        scene.assistCredit = credits.firstIndex { $0["type"].string == "assister" }.map { credit(item, at: $0) }
+            ?? (credits.count > 1 && credits[1]["type"].string == nil ? credit(item, at: 1) : nil)
+        scene.assistKind = lower.contains("with a cross") ? .cross : lower.contains("with a through ball") ? .throughBall
+            : lower.contains("with a headed pass") ? .headedPass : nil
+        if lower.contains("goal confirmed following var review") { scene.review = .confirmed }
         scene.text = text
         scene.clock = item["clock"]["value"].double ?? 0
         scene.minute = minute(item["clock"]["displayValue"].string ?? "")
@@ -296,41 +373,54 @@ extension SoccerScene {
         if shot.penalty { scene.start = .penalty }
 
         // After the shot: the keeper's save or the block (an entry credited
-        // to the defending team, where it was made), and where the ball went.
+        // to the defending team, where it was made, sometimes after the
+        // header that made it), and where the ball went.
         let defending = plays.lazy.compactMap(teamID).first { $0 != team }
-        var keeperNames = keepers
-        if let saver = savedBy(text), let defending { keeperNames[defending] = saver }
-        scene.keeper.name = defending.flatMap { keeperNames[$0] }
+        if let defending, let known = keepers[defending] { scene.keeper = known }
+        // The text names him before any entry of his has ("saved … by Zion Suzuki").
+        if scene.keeper.name == nil { scene.keeper.name = savedBy(text) }
         var i = index + 1
+        var settled = false
         while i < plays.count, i <= index + 6 {
             let next = plays[i]
             let nextType = next["type"]["type"].string ?? ""
             defer { i += 1 }
             guard abs((next["clock"]["value"].double ?? scene.clock) - scene.clock) <= 4 else { break }
             if ["assist", "assists-shot"].contains(nextType) { continue }
+            // Another attempt: what follows is its own.
+            if nextType.hasPrefix("shot-") || isGoal(next) { break }
             let at = place(next, "fieldPositionX", "fieldPositionY", home: homeTeamID)
-            if nextType == "save", teamID(next) != team {
-                if outcome == .blocked {
-                    scene.blocker = Person(name: name(next), at: at)
-                } else if outcome == .saved || name(next) == scene.keeper.name {
+            let theirs = teamID(next) != team
+            let keeper = theirs && (credit(next)?.keeper == true || keeperOnly(nextType))
+            if keeper, let action = keeperAction(next, home: homeTeamID) { scene.keeperActions.append(action) }
+            if keeper {
+                scene.keeper.credit = credit(next) ?? scene.keeper.credit
+                scene.keeper.name = scene.keeper.name ?? name(next)
+            }
+            if nextType == "save", theirs {
+                if keeper || (credit(next) == nil && outcome == .saved) {
                     scene.keeper.at = at
-                    if scene.keeper.name == nil { scene.keeper.name = name(next) }
+                    scene.keeper.name = name(next) ?? scene.keeper.name
+                } else {
+                    scene.blocker = Person(name: name(next), at: at, credit: credit(next))
                 }
                 continue
             }
+            if settled { continue }
             guard !scene.scored, let at else { break }
+            settled = true
             if nextType == "corner-awarded" {
                 // Turned behind: past the post on the side it was going.
                 let mouthY = shot.mouth?.y ?? Pitch.width / 2
                 let beyond = side == .top ? Pitch.length + 2.5 : -2.5
                 scene.rebound = CGPoint(x: beyond, y: mouthY < Pitch.width / 2 ? Pitch.posts.near - 3 : Pitch.posts.far + 3)
-            } else if teamID(next) != team, let keeper = scene.keeper.name, name(next) == keeper || keeperOnly(nextType) {
-                // The keeper has it: held.
-                scene.rebound = nil
+            } else if keeper {
+                // The keeper's: a punch flies to where it landed, a spill drops at his feet; anything else he held.
+                scene.rebound = nextType == "punch" ? place(next, "fieldPosition2X", "fieldPosition2Y", home: homeTeamID) ?? at
+                    : nextType == "drop-of-ball" ? at : nil
             } else {
                 scene.rebound = at
             }
-            break
         }
 
         if !shot.penalty {
@@ -338,16 +428,37 @@ extension SoccerScene {
                                 lofting: shot.technique != .foot)
             scene.touches = chain.touches
             scene.start = chain.start
-            // His touches are the keeper's, by name or by what only a keeper does; one the feed
-            // hasn't learned yet is named by them.
-            for i in scene.touches.indices where scene.touches[i].defending && scene.touches[i].player == scene.keeper.name {
-                scene.touches[i].keeper = true
+            if scene.keeper.credit == nil, let his = scene.touches.last(where: \.keeper) {
+                scene.keeper.credit = his.credit
+                if scene.keeper.name == nil, !his.player.isEmpty { scene.keeper.name = his.player }
             }
-            if scene.keeper.name == nil, let his = scene.touches.last(where: \.keeper), !his.player.isEmpty {
-                scene.keeper.name = his.player
+            // The keeper's actions in the moment's window (a corner punched out before the move), then after the shot.
+            let first = min(scene.touches.first?.clock ?? scene.clock, scene.clock - window)
+            let before = plays[max(index - 30, 0)..<index].filter { item in
+                teamID(item) != team && (item["clock"]["value"].double ?? 0) >= first
+                    && (credit(item)?.keeper == true || keeperOnly(item["type"]["type"].string ?? ""))
             }
+            scene.keeperActions = before.compactMap { keeperAction($0, home: homeTeamID) } + scene.keeperActions
         }
         return scene
+    }
+
+    /// A keeper's entry as an action: a save, a punch (and where it landed),
+    /// a claim, a smother, a rush off his line, a spill.
+    static func keeperAction(_ item: JSON, home: String?) -> KeeperAction? {
+        let kind: KeeperAction.Kind
+        switch item["type"]["type"].string ?? "" {
+        case "save": kind = .save
+        case "punch": kind = .punch
+        case "claim", "keeper-pick-up": kind = .claim
+        case "smother": kind = .smother
+        case "keeper-sweeper": kind = .sweep
+        case "drop-of-ball": kind = .spill
+        default: return nil
+        }
+        guard let at = place(item, "fieldPositionX", "fieldPositionY", home: home) else { return nil }
+        return KeeperAction(kind: kind, at: at, to: kind == .punch ? place(item, "fieldPosition2X", "fieldPosition2Y", home: home) : nil,
+                            clock: item["clock"]["value"].double ?? 0)
     }
 
     /// The move before the shot: back through the plays while the attacking
@@ -377,7 +488,7 @@ extension SoccerScene {
             if touches.filter({ !$0.defending }).count >= touchLimit { break }
             let ours = teamID(item) == team
             let player = name(item) ?? ""
-            var touch = Touch(kind: .touch, player: player, at: at, clock: time, defending: !ours)
+            var touch = Touch(kind: .touch, player: player, credit: credit(item), at: at, clock: time, defending: !ours)
             touch.to = place(item, "fieldPosition2X", "fieldPosition2Y", home: home)
             let length = touch.to.map { hypot($0.x - at.x, $0.y - at.y) } ?? 0
             if ours {
@@ -430,7 +541,7 @@ extension SoccerScene {
                 switch type {
                 case "aerial", "ball-touch", "blocked-pass", "attempted-tackle", "save", "punch", "keeper-sweeper", "challenge",
                      "shield-ball-opp":
-                    touch.keeper = keeperOnly(type) || (type == "save" && keeperSave(plays, at: i))
+                    touch.keeper = touch.credit?.keeper == true || keeperOnly(type) || (type == "save" && keeperSave(plays, at: i))
                     touches.append(touch)
                 case "pass" where length < 6 && last - time <= 4:
                     // A pass of a few yards straight back to the attack: a header won and lost, really.
@@ -492,15 +603,54 @@ extension SoccerScene {
         text.firstMatch(of: #/saved [^.]*? by ([^(.]+?) \(/#).map { String($0.1) }
     }
 
-    /// A save entry is the keeper's when the shot just before it was on
-    /// target; after a block it's the blocker's.
+    /// A save entry is the keeper's when ESPN credits it to lineup role 1.
+    /// Without a credit: when the shot just before it was on target (after a
+    /// block it's the blocker's).
     static func keeperSave(_ plays: [JSON], at index: Int) -> Bool {
+        if let credit = credit(plays[index]) { return credit.keeper }
         for item in plays[max(index - 3, 0)..<index].reversed() {
             let type = item["type"]["type"].string ?? ""
             guard type.hasPrefix("shot-") || type.hasPrefix("goal") || type.hasPrefix("penalty") else { continue }
             return type != "shot-blocked" || item["text"].string?.contains(" saved ") == true
         }
         return false
+    }
+
+    /// Who an entry credits, exactly: its first participant by default
+    /// (the shooter, the passer), the assister second.
+    static func credit(_ item: JSON, at index: Int = 0) -> Credit? {
+        let p = item["participants"][index]
+        guard let ref = p["athlete"]["$ref"].string, let range = ref.range(of: "/athletes/") else { return nil }
+        let athlete = ref[range.upperBound...].prefix { $0.isNumber }
+        guard !athlete.isEmpty else { return nil }
+        let role = p["position"]["$ref"].string.flatMap { ref in
+            ref.range(of: "/positions/").flatMap { Int(ref[$0.upperBound...].prefix { $0.isNumber }) }
+        }
+        return Credit(athlete: String(athlete), jersey: p["jersey"].string, role: role)
+    }
+
+    /// "Left Foot", "Right Foot", "Header".
+    static func contact(_ text: String?) -> Contact? {
+        switch text?.lowercased() {
+        case "left foot"?: .leftFoot
+        case "right foot"?: .rightFoot
+        case "header"?, "head"?: .head
+        default: nil
+        }
+    }
+
+    /// "Regular Play", "From Corner", "Set Piece", "Free Kick", "Throw-in Set Piece", "Fast Break", "Penalty", "Own Goal".
+    static func situation(_ text: String?) -> Situation? {
+        guard let text = text?.lowercased() else { return nil }
+        if text.contains("corner") { return .corner }
+        if text.contains("throw") { return .throwIn }
+        if text.contains("free kick") { return .freeKick }
+        if text.contains("set piece") { return .setPiece }
+        if text.contains("fast break") { return .fastBreak }
+        if text.contains("penalty") { return .penalty }
+        if text.contains("own goal") { return .ownGoal }
+        if text.contains("regular") { return .openPlay }
+        return nil
     }
 
     static func keeperOnly(_ type: String) -> Bool {
@@ -523,4 +673,136 @@ extension SoccerScene {
     /// "2026-10-24T11:32:05Z". (Formatters are costly to make: one, reused.)
     private static func parseDate(_ s: String) -> Date? { wallclockFormat.date(from: s) }
     nonisolated(unsafe) private static let wallclockFormat = ISO8601DateFormatter()
+}
+
+// MARK: - Lineups
+
+/// A team's starting eleven as the match summary lists it (`rosters[]`,
+/// which `ESPNDetail.load` already fetches): the formation, and each
+/// starter's place in it, so every player has a nominal spot on the pitch,
+/// not only those who touch the ball.
+struct SoccerLineup: Equatable {
+    struct Player: Equatable {
+        var athlete: String
+        /// "Zion Suzuki".
+        var name: String?
+        var jersey: String?
+        /// ESPN's abbreviation: "G", "CD-L", "AM-R", "LM"… Ambiguous alone:
+        /// LM and RM are the holding pair in a 4-2-3-1 but the wing-backs in a
+        /// 3-4-2-1, so the formation decides where he stands.
+        var position: String
+        /// Opta's formation place: 1 the keeper, 2 to 11 by the formation's numbering.
+        var place: Int
+        /// His line: 0 the keeper, 1 the back line, and so on up the pitch.
+        var line = 0
+        /// Where the shape puts him, in his team's own frame on Opta's
+        /// pitch: x toward the goal it attacks (0…100), y from its right
+        /// touchline (0) to its left (100).
+        var spot = CGPoint(x: 50, y: 50)
+        var subbedOut = false
+    }
+
+    /// The team's ID.
+    var team: String
+    /// "4-2-3-1", "3-4-2-1", "5-4-1".
+    var formation: String?
+    /// The starting eleven, by formation place.
+    var players: [Player]
+
+    /// A player's nominal spot on the pitch, in metres (home attacks right, as the scene draws it).
+    func spot(of athlete: String, attacksRight: Bool) -> CGPoint? {
+        guard let p = players.first(where: { $0.athlete == athlete }) else { return nil }
+        return Pitch.metres(x: attacksRight ? p.spot.x : 100 - p.spot.x, y: attacksRight ? p.spot.y : 100 - p.spot.y)
+    }
+
+    /// One roster from the summary; nil without a starting eleven.
+    init?(_ roster: JSON) {
+        guard let team = roster["team"]["id"].string else { return nil }
+        let starters = roster["roster"].array.filter { $0["starter"].bool == true }
+        let players = starters.compactMap { r -> Player? in
+            guard let athlete = r["athlete"]["id"].string else { return nil }
+            return Player(athlete: athlete, name: r["athlete"]["displayName"].string, jersey: r["jersey"].string,
+                          position: r["position"]["abbreviation"].string ?? "", place: r["formationPlace"].int ?? 0,
+                          subbedOut: r["subbedOut"].bool ?? false)
+        }
+        guard !players.isEmpty else { return nil }
+        self.team = team
+        formation = roster["formation"].string
+        self.players = Self.shaped(players.sorted { $0.place < $1.place }, formation: formation)
+    }
+
+    /// Both teams' lineups from a summary's `rosters`, by side.
+    static func lineups(_ rosters: JSON, side: (String?) -> GameDetail.Side?) -> [GameDetail.Side: SoccerLineup] {
+        var out: [GameDetail.Side: SoccerLineup] = [:]
+        for roster in rosters.array {
+            if let lineup = SoccerLineup(roster), let s = side(lineup.team) { out[s] = lineup }
+        }
+        return out
+    }
+
+    /// Lays the eleven out from the formation string: the keeper, then one
+    /// line per number, filled from the back by each position's depth (a
+    /// back, a holding or wide midfielder, an attacking midfielder, a second
+    /// striker, the striker), each line ordered across by its side (right,
+    /// centre, left) and spread evenly. Without a usable formation, a line
+    /// per depth. (pure; tested)
+    static func shaped(_ players: [Player], formation: String?) -> [Player] {
+        var out = players
+        let keeper = out.firstIndex { $0.place == 1 || $0.position == "G" }
+        let outfield = out.indices.filter { $0 != keeper }.sorted { (depth(out[$0].position), out[$0].place) < (depth(out[$1].position), out[$1].place) }
+        let counts = (formation ?? "").split(separator: "-").compactMap { Int($0) }
+        var lines: [[Int]] = []
+        if counts.reduce(0, +) == outfield.count, !counts.isEmpty {
+            var rest = outfield[...]
+            for n in counts {
+                lines.append(Array(rest.prefix(n)))
+                rest = rest.dropFirst(n)
+            }
+        } else {
+            for i in outfield {
+                if let last = lines.last?.last, depth(out[last].position) == depth(out[i].position) { lines[lines.count - 1].append(i) }
+                else { lines.append([i]) }
+            }
+        }
+        if let keeper {
+            out[keeper].line = 0
+            out[keeper].spot = CGPoint(x: 5, y: 50)
+        }
+        for (n, line) in lines.enumerated() {
+            // The back line about a fifth of the way up, the striker past halfway.
+            let x = lines.count > 1 ? 22 + 40 * Double(n) / Double(lines.count - 1) : 40
+            let across = line.sorted { (lateral(out[$0].position), out[$0].place) < (lateral(out[$1].position), out[$1].place) }
+            let width = min(76, 22 * Double(across.count - 1))
+            for (k, i) in across.enumerated() {
+                out[i].line = n + 1
+                out[i].spot = CGPoint(x: x, y: across.count > 1 ? 50 - width / 2 + width * Double(k) / Double(across.count - 1) : 50)
+            }
+        }
+        return out
+    }
+
+    /// How far up the pitch a position plays: the backs, a holding
+    /// midfielder, the midfield line (wing-backs and wide men in it), the
+    /// attacking midfielders, a second striker, the striker.
+    static func depth(_ position: String) -> Double {
+        let p = position.uppercased()
+        if ["RB", "LB", "CB", "D", "SW"].contains(p) || p.hasPrefix("CD") { return 1 }
+        if p.hasPrefix("DM") || p == "CDM" { return 1.8 }
+        if ["LM", "RM", "M", "LWB", "RWB"].contains(p) || p.hasPrefix("CM") { return 2 }
+        if p.hasPrefix("AM") || p == "CAM" { return 3 }
+        if p.hasPrefix("CF-") || ["SS", "RW", "LW", "RF", "LF"].contains(p) { return 3.5 }
+        if ["F", "CF", "ST", "FW"].contains(p) { return 4 }
+        return 2.5
+    }
+
+    /// Across the pitch from the team's right: a wide right player, right
+    /// of centre ("-R"), central, left of centre ("-L"), wide left.
+    static func lateral(_ position: String) -> Int {
+        let p = position.uppercased()
+        if ["RB", "RM", "RW", "RWB", "RF"].contains(p) { return -2 }
+        if ["LB", "LM", "LW", "LWB", "LF"].contains(p) { return 2 }
+        if p.hasSuffix("-R") { return -1 }
+        if p.hasSuffix("-L") { return 1 }
+        return 0
+    }
 }

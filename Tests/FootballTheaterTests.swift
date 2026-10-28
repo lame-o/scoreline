@@ -576,3 +576,196 @@ extension ScorelineTests {
         }
     }
 }
+
+// Every field the feed gives, read on real games: two college games
+// (Tests/Fixtures/cfb-plays.json, every entry, in college's own grammar), the
+// NFL's turnovers, sacks, flags and hits from four games of 25 Oct
+// (nfl-turnovers-plays.json), and two NFL depth charts (nfl-depthcharts.json).
+
+extension ScorelineTests {
+    static func footballFidelity() {
+        print("\nFootball theater: what the feed says")
+        struct Game {
+            let teams: FootballFeed.Teams
+            let items: [JSON]
+        }
+        func games(_ file: String) -> [Game] {
+            guard let data = try? Data(contentsOf: FixtureProtocol.directory.appendingPathComponent(file)) else { return [] }
+            return JSON(data: data)["games"].array.map { g in
+                // The away team on top, as on the MNF page.
+                Game(teams: FootballFeed.Teams(topIsHome: false, topID: g["away"]["id"].string, bottomID: g["home"]["id"].string,
+                                               homeAbbreviation: g["home"]["abbreviation"].string ?? "",
+                                               awayAbbreviation: g["away"]["abbreviation"].string ?? "",
+                                               homeName: g["home"]["name"].string ?? "", awayName: g["away"]["name"].string ?? ""),
+                     items: g["items"].array)
+            }
+        }
+        let college = games("cfb-plays.json"), nfl = games("nfl-turnovers-plays.json")
+        guard college.count == 2, nfl.count == 4 else { return check(false, "football fidelity fixtures load") }
+        /// The play whose text says this, parsed with its game's teams.
+        func play(_ clue: String, in set: [Game]) -> FootballScene? {
+            for game in set {
+                if let item = game.items.first(where: { ($0["text"].string ?? "").contains(clue) }) { return FootballScene.parse(item, teams: game.teams) }
+            }
+            return nil
+        }
+        func cfb(_ clue: String) -> FootballScene? { play(clue, in: college) }
+        func pro(_ clue: String) -> FootballScene? { play(clue, in: nfl) }
+
+        // MARK: Positions
+
+        check(FootballScene.Position(espn: 35) == .defensiveBack && FootballScene.Position(espn: 37) == .defensiveLine
+              && FootballScene.Position(espn: 45) == .lineman, "ESPN's 35 is a defensive back, 37 a defensive lineman, 45 an offensive lineman")
+        check(FootballScene.Position(espn: 19) == .corner && FootballScene.Position(espn: 21) == .safety && FootballScene.Position(espn: 34) == .defensiveBack
+              && FootballScene.Position(espn: 26) == .linebacker && FootballScene.Position(espn: 24) == .defensiveLine && FootballScene.Position(espn: 39) == .snapper
+              && FootballScene.Position(espn: 79) == nil,
+              "…and the depth chart's slots: RCB 19 a corner, FS 21 a safety, the nickel back, WLB, LDT, the long snapper (a holder is no position)")
+
+        // MARK: College's grammar
+
+        var tally: [String: (Int, Int)] = [:]
+        func count(_ key: String, _ ok: Bool) { let (a, b) = tally[key] ?? (0, 0); tally[key] = (a + (ok ? 1 : 0), b + 1) }
+        for game in college {
+            for item in game.items {
+                let type = (item["type"]["text"].string ?? "").lowercased()
+                guard let s = FootballScene.parse(item, teams: game.teams) else { continue }
+                count("lead", s.names["lead"] != nil)
+                if ["pass reception", "pass incompletion", "passing touchdown"].contains(type) {
+                    count("pass", s.depth != nil && s.lane != nil && s.air != nil)
+                }
+                if ["rush", "pass reception", "sack"].contains(type), !(item["text"].string ?? "").contains("TOUCHDOWN") { count("stop", s.stopped != nil) }
+                if ["kickoff", "punt"].contains(type) { count("kick", s.kickYards != nil && s.turn != nil) }
+                if type.contains("interception") { count("turnover", s.turn != nil) }
+                if type.contains("fumble") { count("turnover", s.loose != nil && s.recovered != nil) }
+            }
+        }
+        func share(_ key: String) -> Double { tally[key].map { Double($0.0) / Double(max($0.1, 1)) } ?? 0 }
+        func shown(_ key: String) -> String { tally[key].map { "\($0.0)/\($0.1)" } ?? "none" }
+        check(share("lead") >= 0.95 && share("stop") == 1 && share("pass") == 1 && share("kick") == 1 && share("turnover") == 1,
+              "two college games: who has the ball \(shown("lead")), where he was stopped \(shown("stop")), every pass's depth, side and spot "
+                + "\(shown("pass")), every kick's landing \(shown("kick")), every turnover's spots \(shown("turnover")) (all none before)")
+
+        let run = cfb("#4 D.Hill rush middle for 2 yards gain to the ALA43")
+        check(run?.lane == .middle && run?.gap == .middle && run?.stopped == 43 && run?.names["lead"] == "Hill" && run?.names["stop"] == "Jones",
+              "Hill up the middle to Alabama's 43, stopped by Jones", "\(String(describing: run))")
+        let caught = cfb("#12 K.Russell pass complete short left to #7 R.Scott caught at TAM24")
+        check(caught?.depth == .short && caught?.lane == .left && caught?.air == 17 && caught?.stopped == 76 && caught?.names["target"] == "Scott",
+              "a short pass left, caught exactly 17 yards downfield (\"caught at TAM24\"), to Scott")
+        let thrown = cfb("pass incomplete short middle to #4 D.Hill thrown to TAM22")
+        check(thrown?.kind == .incomplete && thrown?.air == 7, "an incompletion thrown exactly 7 yards downfield (\"thrown to TAM22\")")
+        let kick = cfb("kickoff 41 yards to the ALA24 #81 K.Edwards return 9 yards")
+        check(kick?.kickYards == 41 && kick?.turn == 76 && kick?.kick == .returned && kick?.stopped == 67 && kick?.returnYards == 9
+              && kick?.names["returner"] == "Edwards", "a kickoff 41 yards to the 24, returned 9 by Edwards")
+        check(cfb("punt 46 yards to the TAM00, Touchback")?.turn == 105 && cfb("punt 46 yards to the TAM00, Touchback")?.kick == .touchback
+              && cfb("punt 49 yards to the ALA26 fair catch")?.kick == .fairCatch && cfb("punt 49 yards to the ALA26 fair catch")?.turn == 74,
+              "a punt into the end zone, a touchback; another fair caught at the 26")
+        let pick = cfb("intercepted by #5 D.Lee Jr. at TAM39")
+        check(pick?.kind == .interception && pick?.turn == 39 && pick?.names["taker"] == "Lee Jr." && pick?.pickSix == true,
+              "Lee's pick at the 39, returned for a touchdown")
+        let lost = cfb("fumbled by #10 M.Reed at TAM45 recovered by ALA #36 Q.Reese")
+        check(lost?.kind == .fumble && lost?.loose == 45 && lost?.turn == 45 && lost?.names["taker"] == "Reese", "a fumble lost at the 45, Reese on it")
+        let kept = cfb("fumbled by #10 M.Reed at TAM18 forced by #90 L.Simmons")
+        check(kept?.kind == .rush && kept?.loose == 18 && kept?.recovered == 22 && kept?.stripper?.name == "Simmons" && kept?.stripper?.id != nil,
+              "a fumble kept: knocked out at the 18 by Simmons (his credit), recovered at the 22")
+        let split = cfb("sacked for loss of 5 yards to the TAM15 (#3 M.Ratcliffe, #10 M.Jones)")
+        check(split?.sackers.map(\.name) == ["Ratcliffe", "Jones"] && split?.sackers.allSatisfy { $0.id != nil } == true && split?.stopped == 85,
+              "a split sack: Ratcliffe and Jones, both credited, down at the 15")
+        let hurried = cfb("QB hurried by #3 M.Ratcliffe and #10 M.Jones")
+        check(hurried?.pressure?.hit == false && hurried?.pressure?.by.map(\.name) == ["Ratcliffe", "Jones"] && hurried?.pressure?.by.first?.jersey == "3",
+              "a hurried throw: Ratcliffe (#3) and Jones")
+        let targeting = cfb("PENALTY ALA Targeting (#6 R.Morgan)")
+        let flag = targeting?.flags.first
+        check(flag?.name == "Targeting" && flag?.yards == 15 && flag?.from == 71 && flag?.to == 86 && flag?.noPlay == true && flag?.side == .bottom
+              && flag?.player?.name == "Morgan" && flag?.player?.id != nil && flag?.timing == .duringPlay && targeting?.penalty?.name == "Targeting",
+              "a college flag from the text: targeting on Alabama's Morgan, 15 yards from the 29 to the 14, no play", "\(String(describing: flag))")
+        check(cfb("PENALTY ALA False Start (#65 T.Miller)")?.flags.first?.timing == .beforeSnap
+              && cfb("PENALTY ALA Offside declined")?.flags.first?.status == .declined && cfb("PENALTY ALA Offside declined")?.penalty == nil,
+              "…a false start before the snap; a declined offside that doesn't count")
+        let overturned = cfb("pass intercepted by #19 C.McDonald III at TAM41, End Of Play. The previous play")
+        check(overturned?.kind == .interception && overturned?.turn == 41 && overturned?.names["taker"] == "McDonald III",
+              "a review that made it an interception: the ruling that stood, not the original", "\(String(describing: overturned))")
+        // Kent State's spots by its name ("Kent38"), Akron's too.
+        let named = cfb("punt 42 yards to the Akron09 fair catch by #13 S.Patrick at Akron09")
+        check(named?.turn == 91 && named?.kick == .fairCatch, "spots by a team's name: a punt to Akron's 9")
+        let offsetting = cfb("PENALTY Kent UNS: Unsportsmanlike Conduct offsetting Akron")
+        check(offsetting?.flags.count == 2 && offsetting?.flags.allSatisfy { $0.status == .offsetting && $0.timing == .afterPlay } == true
+              && Set(offsetting?.flags.compactMap(\.side) ?? []).count == 2, "offsetting fouls run together: two flags, one each, after the play")
+        let muffed = cfb("muffed by #28 L.Reed at Akron04 recovered by Kent #24 T.Mintz at Akron13")
+        check(muffed?.kick == .returned && muffed?.stopped == 87, "a muffed kick, recovered by the kicking team at the 13")
+
+        // MARK: NFL turnovers
+
+        let ints = nfl.flatMap { g in g.items.filter { ($0["type"]["text"].string ?? "").contains("Interception") }.compactMap { FootballScene.parse($0, teams: g.teams) } }
+        // A fumble in the ruling that stood (one the review reversed isn't).
+        let fumbles = nfl.flatMap { g in g.items.filter { FootballScene.ruling($0["text"].string ?? "").contains("FUMBLES") }.compactMap { FootballScene.parse($0, teams: g.teams) } }
+        check(ints.count == 5 && ints.allSatisfy { $0.turn != nil } && fumbles.count >= 8 && fumbles.allSatisfy { $0.loose != nil && $0.recovered != nil },
+              "every NFL pick has its spot (\(ints.filter { $0.turn != nil }.count)/\(ints.count); 2 before), every fumble where it came loose and "
+                + "where it was recovered (\(fumbles.filter { $0.loose != nil && $0.recovered != nil }.count)/\(fumbles.count); 1 and 3 of 8 before)")
+        let okada = pro("INTERCEPTED by T.Okada [N.Emmanwori] at SEA 34")
+        check(okada?.turn == 66 && okada?.pressure?.hit == true && okada?.pressure?.by.first?.name == "Emmanwori" && okada?.pressure?.by.first?.id != nil,
+              "a pick past the hitter's [brackets]: at SEA 34, Emmanwori credited with the hit on Mahomes")
+        check(pro("INTERCEPTED by N.Williams [G.Karlaftis] at KC -9")?.turn == 109 && pro("INTERCEPTED by T.Smith (K.Scott) at CAR 32")?.turn == 32
+              && pro("INTERCEPTED by Z.McCollum at 50")?.turn == 50,
+              "…in the end zone (KC -9), past a breakup in (parentheses), at midfield")
+        let strip = pro("P.Mahomes sacked at SEA 32 for -2 yards (D.Hall). FUMBLES (D.Hall) [D.Hall], touched at SEA 27, and recovers at SEA 32")
+        check(strip?.kind == .sack && strip?.loose == 68 && strip?.recovered == 68 && strip?.stripper?.name == "Hall" && strip?.stripper?.id != nil
+              && strip?.sackers.first?.name == "Hall", "a strip-sack he kept: loose where Hall sacked him, recovered there (\"and recovers at\")")
+        let scoop = pro("FUMBLES (A.Muhammad) [A.Muhammad], RECOVERED by TB-C.Kancey at CAR 32")
+        check(scoop?.kind == .fumble && scoop?.loose == 31 && scoop?.turn == 32 && scoop?.scoring == .touchdown && scoop?.stripper?.name == "Muhammad"
+              && scoop?.sackers.map(\.name) == ["Muhammad"], "a strip-sack scooped for a touchdown: loose at the 31, Kancey's at the 32")
+        let aborted = pro("J.Goff FUMBLES (Aborted) at DET 41")
+        check(aborted?.loose == 41 && aborted?.turn == 42, "a botched snap: loose at the 41, recovered at the 42")
+        let lower = pro("FUMBLES (W.Lee), recovered by TB-D.Sills at CAR 37")
+        check(lower?.loose == 63 && lower?.recovered == 63 && lower?.stripper?.name == "Lee", "\"recovered by\" in lower case, and who punched it out")
+        let splitSack = pro("sack split by D.Alexander and A.Reese")
+        check(splitSack?.sackers.map(\.name) == ["Alexander", "Reese"] && splitSack?.sackers.allSatisfy { $0.id != nil } == true && splitSack?.stopped == 40,
+              "a split sack, both credited, at HST 40 (the gamebook's code for Houston)")
+        let blocked = pro("35 yard field goal is BLOCKED (D.Wonnum)")
+        check(blocked?.blocker?.name == "Wonnum" && blocked?.blocker?.id != nil && blocked?.blocker?.position == .linebacker, "a blocked field goal: Wonnum got a hand on it")
+        let hit = pro("P.Mahomes pass incomplete deep right to X.Worthy [D.Hall].")
+        check(hit?.pressure?.hit == true && hit?.pressure?.by.map(\.name) == ["Hall"] && hit?.pressure?.by.first?.position == .linebacker,
+              "a hit as he threw: Hall, from the brackets and the `other` credit")
+        check(pro("(Shotgun) P.Mahomes pass incomplete deep right to X.Worthy.")?.pressure == nil
+              && pro("(Shotgun) P.Mahomes pass incomplete deep right to X.Worthy.")?.participants.contains { $0.role == "other" } == true,
+              "…an `other` with no brackets isn't a hit (its play stats show none)")
+
+        // MARK: NFL flags
+
+        let shift = pro("PENALTY on KC-T.Kelce, Illegal Shift, 5 yards, enforced at SEA 46 - No Play.")?.flags.first
+        check(shift?.slug == "illegal-shift" && shift?.player?.name == "Kelce" && shift?.player?.id != nil && shift?.from == 54 && shift?.to == 49
+              && shift?.noPlay == true && shift?.side == .top && shift?.timing == .duringPlay,
+              "the flag on Kelce: an illegal shift, enforced at SEA 46, walked back to KC's 49, no play", "\(String(describing: shift))")
+        let both = pro("Penalty on KC-J.Ezeudu, Offensive Holding, offsetting")?.flags
+        check(both?.map(\.status) == [.offsetting, .offsetting] && both?.map(\.side) == [.top, .bottom] && both?.last?.name == "Horse Collar Tackle",
+              "offsetting flags: Kansas City's hold, Seattle's horse collar")
+        let declined = pro("Penalty on GB-K.Brooks, Defensive Offside, declined.")
+        check(declined?.flags.first?.status == .declined && declined?.penalty == nil, "a declined flag is on the play, but walks nothing off")
+        check(pro("PENALTY on SEA, Delay of Game")?.flags.first?.timing == .beforeSnap && pro("PENALTY on SEA, Delay of Game")?.flags.first?.player == nil
+              && pro("Illegal Formation, 5 yards, enforced between downs")?.flags.first?.timing == .afterPlay,
+              "a delay of game before the snap (on the team, no one player); a foul enforced between downs, after the play")
+
+        // MARK: Depth charts
+
+        guard let data = try? Data(contentsOf: FixtureProtocol.directory.appendingPathComponent("nfl-depthcharts.json")) else {
+            return check(false, "depth charts fixture loads")
+        }
+        let raw = JSON(data: data)["teams"]
+        let kc = FootballDepthChart(raw["12"]), sea = FootballDepthChart(raw["26"])
+        check(kc?.front == .fourThree && sea?.front == .threeFour && sea?.slots.contains { $0.key == "nt" } == true,
+              "Kansas City's base 4-3, Seattle's base 3-4 (a nose tackle)")
+        check(sea?.slot(of: "4247808")?.key == "ss" && sea?.slots.first { $0.key == "lde" }?.lane == .right
+              && sea?.slots.first { $0.key == "rcb" }?.lane == .left && kc?.slots.first { $0.key == "lt" }?.lane == .left
+              && kc?.slots.first { $0.key == "lt" }?.position == .lineman,
+              "each man in his slot: the strong safety; the defense's left end on the offense's right, its right corner on the left")
+        if let strip, let kc, let sea {
+            let placed = strip.slotted(by: [.top: kc, .bottom: sea])
+            check(placed.stripper?.slot == "slb" && placed.sackers.first?.slot == "slb" && placed.front == .threeFour,
+                  "the strip-sack on the chart: Hall is Seattle's strong-side backer, in a 3-4")
+        }
+        var october = DateComponents(calendar: Calendar(identifier: .gregorian), timeZone: TimeZone(identifier: "UTC"), year: 2026, month: 10, day: 27, hour: 18)
+        let fall = october.date
+        october.year = 2027
+        october.month = 2
+        check(fall.map(FootballFeed.season) == 2026 && october.date.map(FootballFeed.season) == 2026, "the season a game falls in: October's and February's are 2026's")
+    }
+}

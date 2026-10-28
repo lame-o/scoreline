@@ -281,6 +281,8 @@ struct GameDetail {
     /// Player ID → short name ("Y. Diaz"), from the box score, so the live
     /// lane can name the batter and pitcher without another request.
     var athleteNames: [String: String] = [:]
+    /// Soccer: both starting elevens in their formation, for the theater.
+    var lineups: [Side: SoccerLineup] = [:]
     /// Climbing order for a round with no results yet (rank = start position):
     /// the current round before anyone finishes, or the next round.
     var startlist: [Athlete] = []
@@ -437,6 +439,7 @@ enum ESPNDetail {
         switch sport {
         case .soccer:
             detail.moments = summary["keyEvents"].array.compactMap { soccerMoment($0, side: side) }
+            detail.lineups = SoccerLineup.lineups(summary["rosters"], side: side)
             detail.recentPlays = summary["commentary"].array.suffix(4).reversed().compactMap { c in
                 guard let text = c["text"].string else { return nil }
                 let time = c["time"]["displayValue"].string ?? ""

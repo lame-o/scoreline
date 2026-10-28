@@ -1548,9 +1548,11 @@ struct DetailView: View {
         // Soccer lists the home side first.
         let homeID = current.competitors.first?.id?.split(separator: "-").last.map(String.init)
         let feed = soccerFeed
-        async let updated: Void = feed.update(league: String(slug), eventID: id, homeTeamID: homeID)
+        async let updated: Void = feed.update(league: String(slug), eventID: id, homeTeamID: homeID, lineups: detail?.lineups ?? [:])
         if standings.isEmpty { standings = await store.standings(for: league) }
         await updated
+        // A goal VAR struck off goes before anything new shows.
+        moments.retract(feed.takeRetractions())
         let fresh = feed.takeMoments()
         moments.offer(fresh)
         // A goal or card: bring the timeline and key events along now, not in half a minute.
@@ -1923,9 +1925,11 @@ struct DetailView: View {
                 guard let homeIsTop = detail?.topIsHome else { break }
                 let ids = current.competitors.map { $0.id?.split(separator: "-").last.map(String.init) }
                 let names = (top: current.competitors.first?.abbreviation ?? "", bottom: current.competitors.last?.abbreviation ?? "")
+                let full = (top: current.competitors.first?.name ?? "", bottom: current.competitors.last?.name ?? "")
                 let teams = FootballFeed.Teams(topIsHome: homeIsTop, topID: ids.first ?? nil, bottomID: ids.last ?? nil,
                                                homeAbbreviation: homeIsTop ? names.top : names.bottom,
-                                               awayAbbreviation: homeIsTop ? names.bottom : names.top)
+                                               awayAbbreviation: homeIsTop ? names.bottom : names.top,
+                                               homeName: homeIsTop ? full.top : full.bottom, awayName: homeIsTop ? full.bottom : full.top)
                 let before = footballFeed.score
                 await footballFeed.update(path: path, eventID: id, teams: teams)
                 moments.retract(footballFeed.takeRetractions())

@@ -639,6 +639,8 @@ extension FootballScript {
             case .linebacker?: [.backer]
             case .corner?: [.corner]
             case .safety?: [.safety]
+            // College credits a "DB" without saying corner or safety.
+            case .defensiveBack?: [.corner, .safety]
             case .receiver?: [.receiver]
             case .tightEnd?: [.tightEnd]
             case .back?, .fullback?: [.back]
