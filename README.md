@@ -41,12 +41,12 @@ Scoreline is a free, native menu bar app for macOS. Pick your leagues and teams 
 
 ## Play theaters
 
-Baseball, football and soccer plays come back to life in a small isometric theater the moment they happen: the swing and the throw, the snap and the run, the cross and the header. Batted balls fly on Statcast's own launch angle, exit velocity and distance, so a 410-foot home run lands where it really did. Basketball is next.
+Baseball, football and soccer plays come back to life in a small isometric theater the moment they happen: the swing and the throw, the snap and the run, the cross and the header. Batted balls fly on Statcast's own launch angle, exit velocity and distance, so a 411-foot home run lands where it really did. Basketball is next.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/isometric-dark.webp">
-    <img src="docs/screenshots/web/isometric-light.webp" width="100%" alt="Three play theaters side by side: a home run's flight in baseball, a touchdown in football, a header in soccer">
+    <img src="docs/screenshots/web/isometric-light.webp" width="100%" alt="Play theaters: a home run on its Statcast flight, a touchdown, and a header into the net">
   </picture>
 </p>
 
