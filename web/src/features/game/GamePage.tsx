@@ -30,6 +30,9 @@ import { Hero, HeroSkeleton, HeroWash } from "./core/Hero";
 import { LinkedFocusProvider, LinkedFocusStore } from "./core/linked";
 import { MomentProvider, useCurrentMoment, useMomentSlot } from "./core/moments";
 import { LinkedPeekHost } from "./core/peek";
+import { listenForUnlock } from "./core/sound";
+import { soundsEnabled } from "../../data/celebrationSound";
+import { useSettings } from "../../state/settings";
 import type { GameContext, SportPage } from "./core/sport";
 import { useGame, type GameData } from "./core/useGame";
 import { EMPTY_DETAIL } from "../../data/gameDetail";
@@ -118,6 +121,10 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   const [beats, setBeats] = useState(NO_BEATS);
   // A field event's wash (a climber's flag), from its sport page.
   const [fieldWash, setFieldWash] = useState<TeamPalette | null>(null);
+
+  // Celebration sounds: the browser's audio unlocks on the first press on the page (core/sound.ts).
+  const sounds = useSettings((s) => soundsEnabled(s));
+  useEffect(() => (sounds ? listenForUnlock() : undefined), [sounds]);
 
   // Esc drops a pin before it goes back (DetailView.back).
   useEffect(() => {

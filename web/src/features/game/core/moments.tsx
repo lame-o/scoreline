@@ -2,7 +2,7 @@
  * The page's single moment slot, for React (Moments.swift `MomentCenter`):
  * one per game page, created by the page and offered each fast-lane batch.
  * A moment holds 4 s (a score 6 s), is announced politely when it's a score,
- * and goes. Charts read the slot for their own chart only, so a moment
+ * plays its sound when Settings asks for sounds (core/sound.ts), and goes. Charts read the slot for their own chart only, so a moment
  * re-renders the chart that shows it, not the page.
  *
  *     const moments = useMomentSlot();            // in GamePage
@@ -13,6 +13,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useSyncExternalS
 import { wantsBurst } from "../../../data/celebrations";
 import { MomentCenter, Tier, type LiveMoment, type MomentChart } from "../../../data/moments";
 import { announce } from "./announce";
+import { playCelebrationSound } from "./sound";
 
 export interface MomentSlot {
   readonly current: () => LiveMoment | null;
@@ -50,6 +51,8 @@ function createSlot(): MomentSlot {
     offer: (batch) => {
       const shown = center.offer(batch);
       if (!shown) return;
+      // Same call as the visual, so sound and picture start together (opt-in, off by default).
+      playCelebrationSound(shown);
       stop();
       if (shown.tier === Tier.score) announce(`${shown.lead}. ${shown.detail}`);
       timer = setTimeout(() => {
