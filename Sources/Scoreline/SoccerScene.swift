@@ -158,6 +158,8 @@ struct SoccerScene: Equatable, Identifiable {
         /// The defending keeper's own: a save, a punch, coming off his line
         /// (credited to lineup role 1, or something only a keeper does).
         var keeper = false
+        /// Won or contested in the air (Opta's "aerial"): a header, at head height.
+        var aerial = false
     }
 
     /// Where a shot crossed (or would have crossed) the goal line: metres
@@ -490,6 +492,7 @@ extension SoccerScene {
             let player = name(item) ?? ""
             var touch = Touch(kind: .touch, player: player, credit: credit(item), at: at, clock: time, defending: !ours)
             touch.to = place(item, "fieldPosition2X", "fieldPosition2Y", home: home)
+            touch.aerial = type == "aerial"
             let length = touch.to.map { hypot($0.x - at.x, $0.y - at.y) } ?? 0
             if ours {
                 switch type {

@@ -7,18 +7,21 @@ import SwiftUI
 // can draw t = 4.2 without playing 0…4.2, and the tests can check that the
 // keeper's hands are where the ball is when he saves it.
 //
-// Time is a broadcast replay's: the build-up a little quicker than the
-// game's (passes at 24 m/s, the man on the ball at 8.5), a long move's early
-// passes hurried so it slows into the finish, so eight passes take under
-// five seconds, not twenty; the shot at its own pace, seen again from behind
-// the net when it's on target; then the payoff holds: the net ripples and
-// the scorer wheels away, or the keeper comes up with it. The replay ends on
-// the frame the theater holds until the next moment.
+// Time is the match clock's: each touch comes when ESPN logged it, the gaps
+// between them squeezed by one factor so a move fits about five seconds (a
+// long one picks up a few touches in), never quicker than the ball and the
+// man on it can go, and a ball through the air takes as long as it hangs and
+// arrives as it's met; the shot at its own pace, seen again from behind the
+// net when it's on target; then the payoff holds: the net ripples and the
+// scorer wheels away, or the keeper comes up with it (or punches it to where
+// it landed). The replay ends on the frame the theater holds until the next
+// moment.
 //
-// Every figure is a player who touched the ball, standing where he touched
-// it, and the keeper; nobody is invented. The script also says what each one
-// does (a strike, a header, a dive, arms up), when the headline lands, and
-// where the broadcast camera looks.
+// The men who touched the ball are where they touched it, struck with the
+// foot or the head Opta logs; with the lineups, everyone else in both
+// elevens stands in his team's shape and moves with the ball. The script
+// also says what each one does (a strike, a header, a dive, arms up), when
+// the headline lands, and where the broadcast camera looks.
 
 struct SoccerScript: Equatable {
     enum Team { case attacking, defending }
@@ -44,11 +47,19 @@ struct SoccerScript: Equatable {
                 case celebrate
                 /// Hands on his head, held.
                 case dejected
+                /// A header won in the air: up off the ground for it, then through it.
+                case aerial
+                /// The keeper's fists to it, over his head.
+                case punch
+                /// The keeper takes it high, in both hands, and holds it.
+                case claim
             }
             var kind: Kind
             var at: Double
             /// Where it's aimed: he faces it.
             var toward: CGPoint
+            /// Struck with his left foot (the strike mirrored).
+            var left = false
         }
 
         /// The keeper at full stretch: from `start` his hands go to `target`,
@@ -65,6 +76,10 @@ struct SoccerScript: Equatable {
         var role = Role.outfield
         var name: String
         var at: CGPoint
+        /// ESPN's athlete ID, when it credits him.
+        var athlete: String? = nil
+        /// In his team's shape: a man from the lineup who didn't touch the ball.
+        var shaped = false
         var moves: [PlayScript.Move] = []
         var actions: [Action] = []
         var dive: Dive?
@@ -85,8 +100,8 @@ struct SoccerScript: Equatable {
             return (d / dt, CGPoint(x: (b.x - a.x) / d, y: (b.y - a.y) / d))
         }
 
-        mutating func act(_ kind: Action.Kind, at time: Double, toward point: CGPoint) {
-            actions.append(Action(kind: kind, at: time, toward: point))
+        mutating func act(_ kind: Action.Kind, at time: Double, toward point: CGPoint, left: Bool = false) {
+            actions.append(Action(kind: kind, at: time, toward: point, left: left))
         }
 
         mutating func move(to path: [CGPoint], from start: Double, to end: Double, ease: PlayScript.Ease = .inOut) {
@@ -230,13 +245,17 @@ struct SoccerScript: Equatable {
 // MARK: - Building
 
 extension SoccerScript {
-    /// The moment's replay. (`SoccerScript()` is the pitch with nobody on it: no moment yet.)
-    init(_ scene: SoccerScene) {
-        var b = Builder(scene: scene)
+    /// The moment's replay, with everyone in both starting elevens when
+    /// the lineups are known. (`SoccerScript()` is the pitch with nobody on
+    /// it: no moment yet.)
+    init(_ scene: SoccerScene, lineups: [GameDetail.Side: SoccerLineup] = [:]) {
+        var b = Builder(scene: scene, lineups: lineups)
         b.buildUp()
         b.strike()
         b.payoff()
+        b.level()
         b.cut()
+        b.squads()
         b.finish()
         b.headline()
         b.measureStamp()
@@ -271,6 +290,8 @@ extension SoccerScript {
     static let carrySpeed = 8.5
     /// Off-the-ball runs never look faster than a sprint.
     static let runSpeed = 9.0
+    /// The shape moves no faster than a jog.
+    static let jogSpeed = 6.5
     /// The build-up runs no longer than this, if it can help it: a longer
     /// move plays its early passes faster.
     static let buildUpLimit = 5.0
@@ -295,29 +316,44 @@ extension SoccerScript {
         var payoffAt = 0.0
         let right: Bool
         let goal: CGPoint
+        /// Both starting elevens (empty: only the men who touched the ball, and the keeper).
+        let lineups: [GameDetail.Side: SoccerLineup]
 
-        init(scene: SoccerScene) {
+        init(scene: SoccerScene, lineups: [GameDetail.Side: SoccerLineup] = [:]) {
             self.scene = scene
+            self.lineups = lineups
             right = scene.attacksRight
             goal = scene.goal
             // The keeper first: always there, on his line.
             let start = scene.touches.first?.at ?? scene.shot.from
-            keeper = actor(.defending, scene.keeper.name ?? "keeper", at: keeperSpot(for: FieldPoint(start), distance: nil), role: .keeper)
+            keeper = actor(.defending, scene.keeper.name ?? "keeper", at: keeperSpot(for: FieldPoint(start), distance: nil), role: .keeper,
+                           athlete: scene.keeper.credit?.athlete ?? lineups[scene.side == .top ? .bottom : .top]?.players.first { $0.place == 1 }?.athlete)
         }
 
-        /// The actor for a player, made the first time he's needed. The
-        /// keeper is one man, whatever the feed calls him.
-        mutating func actor(_ team: Team, _ name: String, at: CGPoint, role: Actor.Role = .outfield, keeper: Bool = false) -> Int {
+        /// The actor for a player, made the first time he's needed: by
+        /// ESPN's athlete ID when it credits him, else by name. The keeper
+        /// is one man, whatever the feed calls him.
+        mutating func actor(_ team: Team, _ name: String, at: CGPoint, role: Actor.Role = .outfield, keeper: Bool = false,
+                            athlete: String? = nil) -> Int {
             if keeper, team == .defending, index.values.contains(self.keeper) { return self.keeper }
-            let key = "\(team == .attacking ? "A" : "D"):\(name)"
-            if let i = index[key] { return i }
-            // The keeper by name: his touches are his.
-            if team == .defending, role == .outfield, let keeperName = scene.keeper.name, name == keeperName, let i = index["D:\(keeperName)"] {
+            let side = team == .attacking ? "A" : "D"
+            func known(_ i: Int) -> Int {
+                if let athlete {
+                    index["\(side)#\(athlete)"] = i
+                    if script.actors[i].athlete == nil { script.actors[i].athlete = athlete }
+                }
                 return i
             }
-            script.actors.append(Actor(team: team, role: role, name: name, at: at))
+            if let athlete, let i = index["\(side)#\(athlete)"] { return i }
+            let key = "\(side):\(name)"
+            if !name.isEmpty, let i = index[key] { return known(i) }
+            // The keeper by name: his touches are his.
+            if team == .defending, role == .outfield, let keeperName = scene.keeper.name, name == keeperName, let i = index["D:\(keeperName)"] {
+                return known(i)
+            }
+            script.actors.append(Actor(team: team, role: role, name: name, at: at, athlete: athlete))
             index[key] = script.actors.count - 1
-            return script.actors.count - 1
+            return known(script.actors.count - 1)
         }
 
         struct Mark {
@@ -351,135 +387,210 @@ extension SoccerScript {
             lofted ? min(max(d / SoccerScript.loftSpeed + 0.25, 0.6), 1.5) : min(max(d / SoccerScript.passSpeed, 0.28), 1.1)
         }
 
-        func carryTime(_ d: Double) -> Double { d < 1.2 ? 0.14 : min(max(d / SoccerScript.carrySpeed, 0.2), 1.3) }
 
         /// A lofted ball's height over the line: higher the longer it goes.
         func peak(_ d: Double, cross: Bool) -> Double { cross ? min(2.2 + d * 0.09, 7) : min(2.5 + d * 0.11, 11) }
 
         // MARK: Build-up
 
-        /// The move, touch by touch: the ball goes from each man to the
-        /// next (to where a pass was aimed, then at the receiver's feet to
-        /// where he next played it), and every player is where ESPN says he
-        /// was when he played it.
+        /// The move, touch by touch, at its real pace: the ball goes from
+        /// each man to the next (to where a pass was aimed, a punch to where
+        /// it landed, then at the receiver's feet to where he next played it),
+        /// every player where ESPN says he was when he played it, each touch
+        /// when the match clock says, squeezed to the replay's length.
         mutating func buildUp() {
             let touches = shown(scene.touches)
             // A set piece opens on the taker standing over it.
             var t = scene.start == .openPlay || touches.count < scene.touches.count ? 0.5 : 0.8
             if scene.shot.penalty { t = 1.3 }
-            let paces = paces(touches)
+            let plan = beats(touches)
+            let assist = assistIndex(touches)
             for (i, touch) in touches.enumerated() {
-                let pace = paces[i]
+                let beat = plan.beats[i], ends = t + beat
                 let team: Team = touch.defending ? .defending : .attacking
-                let who = actor(team, touch.player, at: touch.at, keeper: touch.keeper)
+                let who = actor(team, touch.player, at: touch.at, keeper: touch.keeper, athlete: touch.credit?.athlete)
                 let played = t
                 mark(who, t, touch.at)
-                let next: (player: String, at: CGPoint, defending: Bool, keeper: Bool) = i + 1 < touches.count
-                    ? (touches[i + 1].player, touches[i + 1].at, touches[i + 1].defending, touches[i + 1].keeper)
-                    : (scene.shooter, scene.shot.from, scene.outcome == .ownGoal, false)
-                // Played on from where it came to him: at the height it arrived (off a defender's body, a keeper's hands).
-                let arrived = script.flights.last.flatMap { distance($0.to.ground, touch.at) < 0.5 ? $0.to.z : nil } ?? 0.11
+                let next = upcoming(touches, i)
+                let way = route(touches, i)
+                // Played from the height it came to him at (off a defender's body, a keeper's fists, a head).
+                let arrived = script.flights.last.flatMap { distance($0.to.ground, touch.at) < 0.5 ? $0.to.z : nil } ?? height(touches, i, assist: assist)
                 let ball = FieldPoint(touch.at, z: arrived)
-                let aim: CGPoint = next.defending || touch.to == nil ? next.at : touch.to!
-                let sameMan = next.player == touch.player && next.defending == touch.defending
-                switch touch.kind {
-                case .pass, .cross, .restart, .shot:
-                    // Struck toward where it was aimed; the receiver meets it there.
-                    let lofted = touch.lofted || (touch.kind == .restart && scene.start == .throwIn)
-                    let d = distance(touch.at, aim)
-                    let flightTime = max(passTime(d, lofted: lofted) * pace, minimumFlight)
+                let keeping = keeperAction(for: touch)
+                let headed = touch.aerial || (i == assist && scene.assistKind == .headedPass)
+                // Met where it was going at the height he takes it (his head, a keeper's fists); else along the grass.
+                let met = distance(way.aim, next.at) < 1.5 ? (i + 1 < touches.count ? height(touches, i + 1, assist: assist) : strikeHeight)
+                    : next.defending ? 0.9 : 0.11
+                var acted = false
+                if way.flies {
+                    let d = distance(touch.at, way.aim)
+                    var flightTime = flight(d, lofted: way.lofted, compression: plan.compression, within: beat - way.onward)
+                    // Nothing waits in the air: a ball met there (a head, a keeper's fists) arrives as it's met, so the man
+                    // delivering it takes his time on the ground first (a corner's run-up, a touch before the cross); one
+                    // played on in the air (a flick-on, a punch) to a man who meets it in the air flies the whole beat.
+                    var kick = t
+                    if met > 1 {
+                        if arrived > 1 { flightTime = beat } else { kick = max(t, ends - flightTime) }
+                        flightTime = ends - kick
+                    }
+                    let t = kick
+                    // (Over the ball until he plays it.)
+                    if kick > played { mark(who, kick, touch.at) }
                     let from = scene.start == .throwIn && touch.kind == .restart ? FieldPoint(touch.at, z: 2.1) : ball
-                    // A cross met first time arrives where it's met: at his head, or a volley's height.
-                    let met = i + 1 == touches.count && distance(aim, scene.shot.from) < 1.5 ? strikeHeight : 0.11
-                    let to = FieldPoint(aim, z: next.defending ? 0.9 : met)
-                    script.flights.append(Flight(kind: touch.kind == .shot ? .shot : .pass, start: t, end: t + flightTime, from: from, to: to,
-                                                 arc: lofted ? .lofted(peak(d, cross: touch.kind == .cross)) : .straight))
-                    script.actors[who].act(scene.start == .throwIn && touch.kind == .restart ? .throwIn : .kick, at: t, toward: aim)
+                    script.flights.append(Flight(kind: touch.kind == .shot ? .shot : .pass, start: t, end: t + flightTime, from: from,
+                                                 to: FieldPoint(way.aim, z: met),
+                                                 arc: way.lofted ? .lofted(peak(d, cross: touch.kind == .cross || touch.kind == .restart)) : .straight))
+                    let kind: Actor.Action.Kind? = scene.start == .throwIn && touch.kind == .restart ? .throwIn
+                        : keeping?.kind == .punch ? .punch : keeping?.kind == .claim ? .claim
+                        : touch.aerial ? .aerial : headed ? .header : touch.defending ? nil : .kick
+                    if let kind {
+                        script.actors[who].act(kind, at: t, toward: way.aim)
+                        acted = true
+                    }
                     let arrives = t + flightTime
-                    let receiver = actor(next.defending ? .defending : .attacking, next.player, at: aim, keeper: next.keeper)
+                    let receiver = actor(next.defending ? .defending : .attacking, next.player, at: way.aim, keeper: next.keeper, athlete: next.athlete)
                     possession.append((t, arrives, [who, receiver], script.flights.count - 1))
-                    if sameMan && !next.defending {
-                        // Played into space and run onto: he gets there as it does.
-                        mark(who, arrives, aim)
-                    } else {
-                        mark(receiver, arrives, aim)
+                    let runner = way.sameMan && !next.defending ? who : receiver
+                    mark(runner, arrives, way.aim)
+                    // A through ball: played into the space ahead of him, and he runs onto it.
+                    if i == assist, scene.assistKind == .throughBall, !next.defending {
+                        let p = CGPoint(x: way.aim.x - touch.at.x, y: way.aim.y - touch.at.y), g = CGPoint(x: goal.x - way.aim.x, y: goal.y - way.aim.y)
+                        let lp = max(hypot(p.x, p.y), 0.1), lg = max(hypot(g.x, g.y), 0.1)
+                        let u = CGPoint(x: p.x / lp + g.x / lg, y: p.y / lp + g.y / lg), lu = max(hypot(u.x, u.y), 0.1)
+                        let back = min(7.5 * flightTime, 9)
+                        mark(runner, t, CGPoint(x: way.aim.x - u.x / lu * back, y: way.aim.y - u.y / lu * back), soft: true)
                     }
-                    t = arrives
-                    // Then he takes it on to where he played it next.
-                    let onward = distance(aim, next.at)
-                    if !next.defending, onward > 1.2 {
-                        t = carry(receiver, from: aim, to: next.at, at: t, pace: pace)
-                    } else if i + 1 < touches.count || scene.shot.technique == .foot {
-                        t += 0.12 * pace
+                    // Then on with it to where he played it next, in what's left of the beat.
+                    if !next.defending, met <= 1, distance(way.aim, next.at) > 1.2 {
+                        carry(runner, from: way.aim, to: next.at, from: arrives + 0.06, until: ends)
                     }
-                case .takeOn, .touch, .regain:
-                    if sameMan {
-                        t = carry(who, from: touch.at, to: next.at, at: t + 0.1 * pace, pace: pace)
-                    } else {
-                        // Knocked on to the next man (or off a defender).
-                        let d = distance(touch.at, next.at)
-                        let lofted = d > 30
-                        let flightTime = max(passTime(d, lofted: lofted) * pace, minimumFlight)
-                        script.flights.append(Flight(kind: .pass, start: t, end: t + flightTime, from: ball,
-                                                     to: FieldPoint(next.at, z: next.defending ? 0.9 : 0.11),
-                                                     arc: lofted ? .lofted(peak(d, cross: false)) : .straight))
-                        if !touch.defending { script.actors[who].act(.kick, at: t, toward: next.at) }
-                        let receiver = actor(next.defending ? .defending : .attacking, next.player, at: next.at, keeper: next.keeper)
-                        possession.append((t, t + flightTime, [who, receiver], script.flights.count - 1))
-                        t += flightTime
-                        mark(receiver, t, next.at)
-                        if i + 1 < touches.count { t += 0.1 * pace }
-                    }
+                } else {
+                    carry(who, from: touch.at, to: next.at, from: t + 0.1, until: ends)
                 }
-                if touch.defending { script.actors[who].act(.block, at: played, toward: touch.at) }
+                if touch.defending, !acted { script.actors[who].act(.block, at: played, toward: touch.at) }
+                t = ends
             }
             if scene.start == .penalty || touches.isEmpty {
                 // No move: the taker stands over it (a penalty's run-up comes with the strike).
                 script.flights.append(Flight(kind: .carry, start: 0, end: 0.01, from: FieldPoint(scene.shot.from, z: 0.11),
                                              to: FieldPoint(scene.shot.from, z: 0.11)))
             }
-            shooter = actor(scene.outcome == .ownGoal ? .defending : .attacking, scene.shooter, at: scene.shot.from)
+            shooter = actor(scene.outcome == .ownGoal ? .defending : .attacking, scene.shooter, at: scene.shot.from, athlete: scene.shooterCredit?.athlete)
             script.strike = max(t, 0.6)
             mark(shooter, script.strike, scene.shot.from)
         }
 
-        /// One touch's beat at full pace: the ball on to the next man, and his run with it.
-        func length(_ touches: [SoccerScene.Touch], _ i: Int) -> Double {
-            let touch = touches[i]
-            let next = i + 1 < touches.count ? touches[i + 1].at : scene.shot.from
-            if let to = touch.to, touch.kind != .touch, touch.kind != .takeOn, touch.kind != .regain {
-                return passTime(distance(touch.at, to), lofted: touch.lofted) + carryTime(distance(to, next))
+        /// Who has the ball after touch `i`: the next touch's man, or the shooter.
+        func upcoming(_ touches: [SoccerScene.Touch], _ i: Int) -> (player: String, athlete: String?, at: CGPoint, defending: Bool, keeper: Bool) {
+            guard i + 1 < touches.count else {
+                return (scene.shooter, scene.shooterCredit?.athlete, scene.shot.from, scene.outcome == .ownGoal, false)
             }
-            return carryTime(distance(touch.at, next)) + 0.1
+            let n = touches[i + 1]
+            return (n.player, n.credit?.athlete, n.at, n.defending, n.keeper)
+        }
+
+        /// Where touch `i` sends the ball: a pass where it was aimed (to the
+        /// next man, when he's the other team's), a punch where it landed, a
+        /// touch on to the next man; whether it goes there in the air;
+        /// whether the same man plays it next (he runs on with it); and the
+        /// least time the man who gets it needs to take it on to his next touch.
+        func route(_ touches: [SoccerScene.Touch], _ i: Int) -> (aim: CGPoint, lofted: Bool, flies: Bool, sameMan: Bool, onward: Double) {
+            let touch = touches[i], next = upcoming(touches, i)
+            let sameMan = next.defending == touch.defending
+                && (next.athlete != nil && touch.credit?.athlete != nil ? next.athlete == touch.credit?.athlete : next.player == touch.player)
+            let passing = [SoccerScene.Touch.Kind.pass, .cross, .restart, .shot].contains(touch.kind)
+            var aim = passing && !next.defending ? touch.to ?? next.at : next.at
+            var lofted = passing ? touch.lofted || (touch.kind == .restart && scene.start == .throwIn) : distance(touch.at, next.at) > 30
+            if let punch = keeperAction(for: touch), punch.kind == .punch, let to = punch.to {
+                aim = to
+                lofted = true
+            }
+            let flies = passing || !sameMan
+            let onward = distance(aim, next.at) > 1.2 && !next.defending ? 0.06 + distance(aim, next.at) / SoccerScript.carrySpeed : 0.1
+            return (aim, lofted, flies, sameMan, flies ? onward : 0.1 + distance(touch.at, next.at) / SoccerScript.carrySpeed)
+        }
+
+        /// How high the ball is when touch `i` meets it: at head height in
+        /// the air, a keeper's fists over his head for a punch, his hands for
+        /// a claim, off a defender's body; else along the grass.
+        func height(_ touches: [SoccerScene.Touch], _ i: Int, assist: Int?) -> Double {
+            let touch = touches[i]
+            switch keeperAction(for: touch)?.kind {
+            case .punch?: return 2.5
+            case .claim?: return 2.2
+            default: break
+            }
+            if touch.aerial || (i == assist && scene.assistKind == .headedPass) { return 1.9 }
+            return touch.defending ? 0.9 : 0.11
+        }
+
+        /// The defending keeper's logged action for one of his touches: same second, same spot.
+        func keeperAction(for touch: SoccerScene.Touch) -> SoccerScene.KeeperAction? {
+            guard touch.keeper else { return nil }
+            return scene.keeperActions.first { abs($0.clock - touch.clock) <= 1 && distance($0.at, touch.at) < 2 }
+        }
+
+        /// The assister's touch: the last one by the man credited with the assist.
+        func assistIndex(_ touches: [SoccerScene.Touch]) -> Int? {
+            touches.lastIndex { t in
+                !t.defending && (scene.assistCredit.map { $0.athlete == t.credit?.athlete } ?? (scene.assist != nil && t.player == scene.assist))
+            }
         }
 
         /// No pass, however hurried, is quicker than this: it would read as a jump.
         let minimumFlight = 0.2
 
-        /// Each touch's pace, as a broadcast replay cuts a long move: the
-        /// early passes hurried (up to about half again the game's pace),
-        /// the last two (the ball that made the chance, and its delivery) at
-        /// full pace, so the move slows into the finish. Only a short move
-        /// that's still too long hurries them too, a little.
-        func paces(_ touches: [SoccerScene.Touch]) -> [Double] {
-            let lengths = touches.indices.map { length(touches, $0) }
-            let finish = max(touches.count - 2, 0)
-            let early = lengths[..<finish].reduce(0, +), late = lengths[finish...].reduce(0, +)
-            let limit = SoccerScript.buildUpLimit
-            guard early + late > limit else { return lengths.map { _ in 1 } }
-            let hurried = max((limit - late) / max(early, 0.01), 0.7)
-            let closing = early * hurried + late > limit ? max((limit - early * hurried) / max(late, 0.01), 0.85) : 1
-            return touches.indices.map { $0 < finish ? hurried : closing }
+        /// A ball through the air takes as long as it hangs; one along the
+        /// grass is squeezed with the rest of the move, never past 30 m/s,
+        /// and leaves the man who gets it the time he needs.
+        func flight(_ d: Double, lofted: Bool, compression c: Double, within room: Double) -> Double {
+            if lofted { return passTime(d, lofted: true) }
+            let fastest = max(d / 30, minimumFlight)
+            return max(min(d / SoccerScript.passSpeed * c, room), fastest)
         }
 
-        /// The move as the replay shows it: a long one picks up a few passes
-        /// in, as a broadcast replay does, rather than hurry them all; it
-        /// keeps its last three touches at least.
+        /// The least a touch's beat can be: the ball at its fastest to where it went, and the man on to his next touch.
+        func least(_ touches: [SoccerScene.Touch], _ i: Int) -> Double {
+            let way = route(touches, i)
+            guard way.flies else { return way.onward }
+            let d = distance(touches[i].at, way.aim)
+            return (way.lofted ? passTime(d, lofted: true) : max(d / 30, minimumFlight)) + way.onward
+        }
+
+        /// The real gap after each touch on the match clock (whole seconds: a
+        /// first-time touch's 0 counts as half of one), to the next or to the shot.
+        func gaps(_ touches: [SoccerScene.Touch]) -> [Double] {
+            touches.indices.map { i in max((i + 1 < touches.count ? touches[i + 1].clock : scene.clock) - touches[i].clock, 0.5) }
+        }
+
+        /// Each touch's beat, from when it's played to when the next one is:
+        /// its real gap, all of them squeezed by one factor (`compression`)
+        /// so the move fits the replay's five seconds, a quick one-two staying
+        /// quick and a patient spell slower; never quicker than the ball and
+        /// the man on it can go. A move that fits plays in real time.
+        func beats(_ touches: [SoccerScene.Touch]) -> (beats: [Double], compression: Double) {
+            let real = gaps(touches), floors = touches.indices.map { least(touches, $0) }
+            func total(_ c: Double) -> Double { zip(real, floors).reduce(0) { $0 + max($1.1, $1.0 * c) } }
+            var c = 1.0
+            if total(1) > SoccerScript.buildUpLimit {
+                var lo = 0.0, hi = 1.0
+                for _ in 0..<24 {
+                    let mid = (lo + hi) / 2
+                    if total(mid) > SoccerScript.buildUpLimit { hi = mid } else { lo = mid }
+                }
+                c = lo
+            }
+            return (zip(real, floors).map { max($0.1, $0.0 * c) }, c)
+        }
+
+        /// The move as the replay shows it: a long one picks up a few touches
+        /// in, as a broadcast replay does, rather than race through them all
+        /// (squeezed more than about twice); it keeps its last three touches at least.
         func shown(_ touches: [SoccerScene.Touch]) -> [SoccerScene.Touch] {
-            var shown = touches
+            var shown = Self.headers(touches)
             func fits() -> Bool {
-                let paces = paces(shown)
-                return shown.indices.reduce(0) { $0 + length(shown, $1) * paces[$1] } <= SoccerScript.buildUpLimit + 0.01
+                shown.indices.reduce(0) { $0 + least(shown, $1) } <= SoccerScript.buildUpLimit + 0.01
+                    && gaps(shown).reduce(0, +) <= SoccerScript.buildUpLimit * 2.2
             }
             while shown.filter({ !$0.defending }).count > 3, !fits() {
                 shown.removeFirst()
@@ -489,14 +600,33 @@ extension SoccerScript {
             return shown
         }
 
-        /// He runs with it: the ball at his feet.
-        mutating func carry(_ who: Int, from: CGPoint, to: CGPoint, at t: Double, pace: Double) -> Double {
-            let time = carryTime(distance(from, to)) * pace
-            mark(who, t, from)
-            mark(who, t + time, to, ease: .linear)
-            script.flights.append(Flight(kind: .carry, start: t, end: t + time, from: FieldPoint(from, z: 0.11), to: FieldPoint(to, z: 0.11)))
-            possession.append((t, t + time, [who], script.flights.count - 1))
-            return t + time
+        /// A header won in the air and the pass it was, logged as two touches
+        /// a second apart ("aerial", then "pass"), as one: the header.
+        static func headers(_ touches: [SoccerScene.Touch]) -> [SoccerScene.Touch] {
+            var out: [SoccerScene.Touch] = []
+            for touch in touches {
+                if let last = out.last, last.aerial, !last.defending, !touch.defending, touch.clock - last.clock <= 1,
+                   last.credit?.athlete != nil ? last.credit?.athlete == touch.credit?.athlete : last.player == touch.player,
+                   hypot(touch.at.x - last.at.x, touch.at.y - last.at.y) < 1.5 {
+                    var header = touch
+                    header.aerial = true
+                    header.at = last.at
+                    header.clock = last.clock
+                    out[out.count - 1] = header
+                    continue
+                }
+                out.append(touch)
+            }
+            return out
+        }
+
+        /// He runs with it, the ball at his feet, from `start` to `end`.
+        mutating func carry(_ who: Int, from: CGPoint, to: CGPoint, from start: Double, until end: Double) {
+            let time = max(end - start, 0.14)
+            mark(who, start, from)
+            mark(who, start + time, to, ease: .linear)
+            script.flights.append(Flight(kind: .carry, start: start, end: start + time, from: FieldPoint(from, z: 0.11), to: FieldPoint(to, z: 0.11)))
+            possession.append((start, start + time, [who], script.flights.count - 1))
         }
 
         // MARK: Shot
@@ -556,10 +686,12 @@ extension SoccerScript {
                 script.actors[shooter].at = CGPoint(x: s.from.x - (right ? 1 : -1) * 3.2, y: s.from.y - 1.8)
             }
             // (An own goal's defender only gets something on it.)
+            // With the foot (or the head) Opta logs: a left-footer's strike is the right-footer's mirrored.
             let struck: Actor.Action.Kind = scene.outcome == .ownGoal ? .block : s.technique == .header ? .header : .kick
-            script.actors[shooter].act(struck, at: t0, toward: CGPoint(x: target.x, y: target.y))
+            script.actors[shooter].act(struck, at: t0, toward: CGPoint(x: target.x, y: target.y), left: s.contact == .leftFoot)
 
-            // The keeper: set as it's struck, then at full stretch, standing, or beaten.
+            // The keeper: set as it's struck, then at full stretch, standing, or beaten (unless it's his own touch that turned it in).
+            guard shooter != keeper else { return }
             let set = keeperSpot(for: FieldPoint(s.from), distance: s.penalty ? 0.2 : nil)
             // A keeper who came out for it in the move (a sweep, a header won) gets back as fast as he can run,
             // and has no dive to make.
@@ -583,10 +715,13 @@ extension SoccerScript {
                 if scene.outcome == .blocked { script.impacts.append(Impact(kind: .block, at: reachAt, point: end)) }
             case .saved:
                 let lateral = abs(end.y - set.y)
-                if lateral < 1.0, end.z < 1.9 {
-                    // Straight at him: he takes it in.
+                // What he did with it, as the feed logs it after the shot: punched it away, claimed it high, or held it.
+                let after = scene.keeperActions.first { $0.clock >= scene.clock && $0.kind != .save && $0.kind != .sweep }
+                if lateral < 1.0, end.z < 1.9 || after?.kind == .punch || after?.kind == .claim {
+                    // Straight at him: he takes it in, or punches it clear.
                     mark(keeper, reachAt, CGPoint(x: end.x - side * 0.35, y: end.y))
-                    script.actors[keeper].act(.gather, at: reachAt, toward: s.from)
+                    let kind: Actor.Action.Kind = after?.kind == .punch ? .punch : after?.kind == .claim || end.z > 1.5 ? .claim : .gather
+                    script.actors[keeper].act(kind, at: reachAt, toward: s.from)
                 } else {
                     dive(to: end, from: set, start: react, reach: reachAt)
                 }
@@ -697,6 +832,14 @@ extension SoccerScript {
                 return
             }
             let from = scene.shot.from
+            if scene.review == .overturned {
+                // Struck off by VAR: he wheels away, and it's taken back.
+                mark(shooter, t + 0.2, from)
+                mark(shooter, t + 1.4, CGPoint(x: from.x - (right ? 1 : -1) * 5, y: max(from.y - 4, 2.5)), ease: .out)
+                script.actors[shooter].act(.dejected, at: t + 1.35, toward: goal)
+                payoffAt = t + 1.6
+                return
+            }
             let flag = CGPoint(x: goal.x - (right ? 1 : -1) * 12, y: 0)
             let dx = flag.x - from.x, dy = flag.y - from.y, d = max(hypot(dx, dy), 1)
             let run = min(17.0, d - 3)
@@ -706,10 +849,10 @@ extension SoccerScript {
             script.actors[shooter].act(.celebrate, at: t + 1.85, toward: CGPoint(x: Pitch.length / 2, y: 0))
             // The assist first to him, then whoever else is near.
             let teammates = script.actors.indices.filter { $0 != shooter && script.actors[$0].team == .attacking }
-            let near = teammates.filter { i in
-                let p = lastMark(i) ?? script.actors[i].at
-                return distance(p, spot) < 20
-            }.sorted { a, b in (script.actors[a].name == scene.assist ? 0 : 1) < (script.actors[b].name == scene.assist ? 0 : 1) }
+            func away(_ i: Int) -> Double { distance(lastMark(i) ?? script.actors[i].at, spot) }
+            let near = teammates.filter { away($0) < 20 }.sorted { a, b in
+                (script.actors[a].name == scene.assist ? 0 : 1, away(a)) < (script.actors[b].name == scene.assist ? 0 : 1, away(b))
+            }
             for (n, i) in near.prefix(3).enumerated() {
                 // Either side of him and a little behind, across the camera's view so they don't hide him.
                 let across = (n % 2 == 0 ? -1.0 : 1.0) * (1.9 + Double(n / 2) * 1.6)
@@ -741,6 +884,123 @@ extension SoccerScript {
             script.reverse = SoccerScript.Reverse(from: from, until: until, right: right)
         }
 
+        /// The ball never jumps: each flight leaves from where, and as high
+        /// as, the one before came down (a header's flick-on from his head, a
+        /// punch from the keeper's fists); a shot struck at head height or on
+        /// the volley is met there by the ball that came to it.
+        mutating func level() {
+            for k in script.flights.indices.dropFirst() {
+                let a = script.flights[k - 1], b = script.flights[k]
+                guard b.start <= a.end + 0.2, distance(b.from.ground, a.to.ground) < 1.5, abs(b.from.z - a.to.z) > 0.001 else { continue }
+                if b.kind == .shot { script.flights[k - 1].to.z = b.from.z } else { script.flights[k].from.z = a.to.z }
+            }
+        }
+
+        // MARK: Shape
+
+        /// Everyone in both starting elevens who didn't touch the ball, in
+        /// his team's shape (the lineup's formation) as the ball moves: the
+        /// attack pushed up behind the ball and drawn across to it, the
+        /// defense between the ball and its goal, tighter the nearer it
+        /// comes; at a corner or a free kick both packed into the box until
+        /// the delivery's in; on a counter the defense caught upfield,
+        /// getting back. A substitute who touched it stands in for a man who
+        /// came off. A man in the move comes into his first touch from his
+        /// place in the shape. Two lines and a front, at a jog.
+        mutating func squads() {
+            let other: GameDetail.Side = scene.side == .top ? .bottom : .top
+            guard let attack = lineups[scene.side], let defence = lineups[other], attack.players.count >= 10, defence.players.count >= 10 else { return }
+            let times = Array(stride(from: 0.0, to: script.strike, by: 0.6)) + [script.strike, script.arrive + 0.8]
+            let balls = times.map { script.ball(at: min($0, script.strike))?.ground ?? scene.shot.from }
+            for (team, lineup, facing) in [(Team.attacking, attack, right), (.defending, defence, !right)] {
+                var players = lineup.players
+                let figures = script.actors.indices.filter { script.actors[$0].team == team }
+                let athletes = Set(figures.compactMap { script.actors[$0].athlete })
+                // A substitute in the move takes the place of a man who went off (else of the nearest who didn't touch it).
+                for i in figures where script.actors[i].athlete.map({ a in !players.contains { $0.athlete == a } }) ?? false {
+                    guard script.actors[i].role != .keeper || team == .attacking else { continue }
+                    let first = marks[i]?.min { $0.t < $1.t }?.at ?? script.actors[i].at
+                    func gap(_ k: Int) -> Double { distance(home(players[k], facing: facing), first) }
+                    let open = players.indices.filter { !athletes.contains(players[$0].athlete) && players[$0].place != 1 }
+                    if let k = open.filter({ players[$0].subbedOut }).min(by: { gap($0) < gap($1) }) ?? open.min(by: { gap($0) < gap($1) }) {
+                        players.remove(at: k)
+                    }
+                }
+                let lines = players.map(\.line).max() ?? 4
+                for p in players {
+                    // The defending keeper is the keeper already on his line.
+                    if team == .defending, p.place == 1 { continue }
+                    let places = times.indices.map { k in shape(p, team: team, facing: facing, lines: lines, ball: balls[k], at: times[k]) }
+                    if let i = figures.first(where: { script.actors[$0].athlete == p.athlete }) {
+                        // In the move: from his place in the shape into his first touch, if he can get there.
+                        if let first = marks[i]?.min(by: { $0.t < $1.t }), first.t > 0.3,
+                           distance(places[0], first.at) <= SoccerScript.runSpeed * 0.8 * first.t {
+                            mark(i, 0, places[0], soft: true)
+                        }
+                        continue
+                    }
+                    let i = actor(team, p.name ?? p.athlete, at: places[0], role: p.place == 1 ? .keeper : .outfield, athlete: p.athlete)
+                    script.actors[i].shaped = true
+                    for (k, t) in times.enumerated() { mark(i, t, places[k], soft: true) }
+                }
+            }
+        }
+
+        /// A man's nominal spot, in metres on the pitch.
+        func home(_ p: SoccerLineup.Player, facing right: Bool) -> CGPoint {
+            let n = Pitch.metres(x: p.spot.x, y: p.spot.y)
+            return right ? n : CGPoint(x: Pitch.length - n.x, y: Pitch.width - n.y)
+        }
+
+        /// Where a man stands in his team's shape with the ball at `ball`, at
+        /// t: worked in his team's own frame (attacking toward x = 105), then
+        /// turned onto the pitch.
+        func shape(_ p: SoccerLineup.Player, team: Team, facing right: Bool, lines: Int, ball: CGPoint, at t: Double) -> CGPoint {
+            func turned(_ q: CGPoint) -> CGPoint { right ? q : CGPoint(x: Pitch.length - q.x, y: Pitch.width - q.y) }
+            let n = Pitch.metres(x: p.spot.x, y: p.spot.y), b = turned(ball)
+            // The defense's back line, in its own frame: deeper and tighter the nearer the ball (at x from its goal).
+            func backLine(_ bx: Double) -> Double { min(max(bx * 0.45 + 2, 6), 34) }
+            var q: CGPoint
+            if team == .attacking {
+                if p.place == 1 {
+                    q = CGPoint(x: n.x + max(b.x - 52.5, 0) * 0.3, y: 34 + (b.y - 34) * 0.15)
+                } else {
+                    q = CGPoint(x: n.x + (b.x - 52.5) * 0.6, y: 34 + (n.y - 34) * 0.9 + (b.y - 34) * 0.3)
+                    // Onside: no further than the defense's back line, or the ball.
+                    q.x = min(q.x, max(Pitch.length - backLine(Pitch.length - b.x) + 0.5, b.x))
+                }
+            } else {
+                let k = min(max(b.x / 55, 0.35), 1)
+                var back = backLine(b.x)
+                // On the counter: caught upfield at first, getting back as the move goes.
+                if scene.shot.situation == .fastBreak { back += (max(back, 40) - back) * (1 - Rig.smooth(t / max(script.strike, 0.1))) }
+                q = CGPoint(x: back + (n.x - 21) * k, y: 34 + (n.y - 34) * (0.7 + 0.25 * k) + (b.y - 34) * 0.35)
+            }
+            // A corner or a free kick into the box: packed in until the delivery's in, then back out to the shape.
+            let restart = scene.start == .corner || scene.start == .freeKick
+            let secondPhase = scene.start == .openPlay && scene.shot.situation.map { [.corner, .setPiece, .freeKick].contains($0) } == true
+            if restart || secondPhase {
+                let until = restart ? script.flights.first.map { $0.end } ?? 0 : 0
+                let w = 1 - Rig.smooth((t - until) / 1.8)
+                if w > 0 {
+                    let across = Double(p.place % 5) / 4
+                    let packed: CGPoint
+                    if team == .attacking {
+                        let central = SoccerLineup.lateral(p.position) != 2 && SoccerLineup.lateral(p.position) != -2
+                        packed = p.place == 1 ? q : (p.line == 1 && central) || p.line >= 3
+                            ? CGPoint(x: 93 + Double(p.place % 3) * 2.5, y: 27 + 14 * across) : CGPoint(x: 60 + Double(p.line) * 5, y: n.y)
+                    } else {
+                        packed = p.line == lines ? CGPoint(x: 26, y: 34 + (n.y - 34) * 0.4)
+                            : CGPoint(x: 3.5 + Double(p.line - 1) * 3, y: 34 + (n.y - 34) * 0.42)
+                    }
+                    q = CGPoint(x: q.x + (packed.x - q.x) * w, y: q.y + (packed.y - q.y) * w)
+                }
+            }
+            q.x = min(max(q.x, 1), Pitch.length - 1)
+            q.y = min(max(q.y, 1.5), Pitch.width - 1.5)
+            return turned(q)
+        }
+
         // MARK: Paths and end
 
         /// Turns the marks into runs: each man gets to every mark on time,
@@ -768,7 +1028,7 @@ extension SoccerScript {
                     }
                 }
                 var actor = script.actors[i]
-                if actor.role == Actor.Role.keeper {
+                if actor.role == Actor.Role.keeper || actor.shaped || first.t == 0 {
                     actor.at = first.at
                 } else if !(scene.shot.penalty && i == shooter) {
                     // Into his first touch from a couple of strides off it, so he's moving when it comes.
@@ -776,19 +1036,24 @@ extension SoccerScript {
                     actor.at = CGPoint(x: first.at.x - side * lead * 0.7, y: first.at.y - lead * 0.7)
                 }
                 var previous = Mark(t: 0, at: actor.at)
+                // The shape jogs; the men in the move run.
+                let pace = actor.shaped ? SoccerScript.jogSpeed : SoccerScript.runSpeed
                 for var m in list {
-                    // Back to his line after coming out, the keeper arrives when he can.
+                    // Back to his line after coming out, the keeper arrives when he can; the shape gets as far as a jog takes it.
                     if m.soft, m.t > previous.t {
-                        let d = distance(previous.at, m.at), reach = SoccerScript.runSpeed * (m.t - previous.t)
+                        let d = distance(previous.at, m.at), reach = pace * (m.t - previous.t)
                         if d > reach { m.at = CGPoint(x: previous.at.x + (m.at.x - previous.at.x) * reach / d, y: previous.at.y + (m.at.y - previous.at.y) * reach / d) }
                     }
                     let d = distance(previous.at, m.at)
                     if let ease = m.ease {
                         // On the ball (or a dive): exactly from the mark before.
                         if d > 0.02 { actor.move(to: [m.at], from: previous.t, to: m.t, ease: ease) }
+                    } else if d > 0.05, actor.shaped {
+                        // The shape drifts steadily from one place to the next.
+                        actor.move(to: [m.at], from: previous.t, to: m.t, ease: .linear)
                     } else if d > 0.05 {
                         // Off it: sets off in time to get there at a run, never before the mark before.
-                        let need = d / SoccerScript.runSpeed
+                        let need = d / pace
                         let leave = max(previous.t + 0.05, m.t - max(need * 1.5, 0.3))
                         actor.move(to: [m.at], from: min(leave, m.t - 0.05), to: m.t, ease: m.t - leave > 0.6 ? .inOut : .linear)
                     }
@@ -826,6 +1091,7 @@ extension SoccerScript {
             }
             if scene.shot.penalty { banner("PENALTY", .team, at: 0.25, until: script.strike - 0.15) }
             switch scene.outcome {
+            case _ where scene.review == .overturned: banner("NO GOAL", .neutral, at: t + 1.1)
             case .goal: banner("GOAL", scene.decisive ? .gold : .team, at: t + 0.08, confetti: true)
             case .ownGoal: banner("OWN GOAL", scene.decisive ? .gold : .team, at: t + 0.08, confetti: true)
             case .saved: banner("SAVE", .neutral, at: t + 0.05)
@@ -951,7 +1217,7 @@ enum PitchCamera {
     /// `headroom`, no tighter than `closest` metres top to bottom, and (with
     /// a `corner`) keeping them out of the stamp's corner: it slides the
     /// least it can, or widens.
-    static func fitting(_ items: [Room], others: [Room] = [], headroom: Double, closest: Double, corner: CGSize = .zero,
+    static func fitting(_ items: [Room], others: [Room] = [], headroom: Double, closest: Double, corner: CGSize = .zero, reach: Double = 0,
                         cornerRight: Bool = false, angle: Angle = .stand) -> CameraFrame {
         guard !items.isEmpty else { return rest }
         let xs = items.map(\.point.x), ys = items.map(\.point.y)
@@ -981,12 +1247,14 @@ enum PitchCamera {
             if corner.width > 0, corner.height > 0 {
                 // Bystanders needn't be in frame, but none may stand in the stamp's corner.
                 let bystanders = others.map(box)
-                for _ in 0..<6 {
+                // (Clearing one man can bring the next in: a few more goes than there are usually men to clear.)
+                for _ in 0..<10 {
                     func across(_ u: Double) -> Double { 0.5 + (u - cu) / (2 * h * aspect) }
                     func upward(_ v: Double) -> Double { 0.5 + (v - cv) / (2 * h) }
-                    // In the corner: the stamp's side of the view, low down.
+                    // In the corner: the stamp's side of the view, low down (with `reach`, a bystander just past the edge
+                    // counts: a camera still easing in from wider shows him).
                     func shown(_ box: (u0: Double, u1: Double, v0: Double, v1: Double)) -> Bool {
-                        across(box.u1) > 0 && across(box.u0) < 1 && upward(box.v1) > 0 && upward(box.v0) < 1
+                        across(box.u1) > -reach && across(box.u0) < 1 + reach && upward(box.v1) > -reach && upward(box.v0) < 1
                     }
                     let inside = (boxes + bystanders.filter(shown)).filter { box in
                         upward(box.v0) < corner.height && (cornerRight ? across(box.u1) > 1 - corner.width : across(box.u0) < corner.width)
@@ -1142,18 +1410,54 @@ extension SoccerScript.Builder {
             }
             return CameraFrame.headroom + (CameraFrame.bannerRoom - CameraFrame.headroom) * up
         }
-        let script = self.script
-        self.script.camera = CameraFollow.samples(until: script.settle) { t in
-            let k = shots.lastIndex { $0.from <= t } ?? 0
-            let shot = shots[k]
-            let rooms = shot.rooms(in: script, at: t, goal: goal)
-            // (Behind the cut from behind the goal, the main camera makes room for the stamp unseen.)
-            guard t >= min(stamp - 0.3, reverse?.from ?? .infinity) else { return PitchCamera.fitting(rooms, headroom: band(t), closest: shot.closest) }
-            // The stamp never sits on anyone in view, in the play or not (a teammate running to the scorer).
-            let everyone = script.actors.flatMap { a in [t, t + 0.3].map { PitchCamera.Room(FieldPoint(a.position(at: $0)), figure: true) } }
-            // (A little more than the stamp's corner: someone walking into it is out again before the camera catches up.)
-            return PitchCamera.fitting(rooms, others: everyone, headroom: band(t), closest: shot.closest,
-                                       corner: CGSize(width: corner.width + 0.03, height: corner.height + 0.04), cornerRight: cornerRight)
+        let script = self.script, arrive = script.arrive
+        let principals = script.actors.filter { !$0.shaped }
+        /// The track, making room for the stamp from `early` before it lands, with `margin` more than its corner (someone
+        /// walking into it is out again before the camera catches up), looking `ahead` at where everyone's going, and
+        /// minding (by `reach`) men just past the edge of the view.
+        func track(early: Double, margin: Double, ahead: Double, reach: Double) -> [CameraFrame] {
+            CameraFollow.samples(until: script.settle) { t in
+                let k = shots.lastIndex { $0.from <= t } ?? 0
+                let shot = shots[k]
+                let rooms = shot.rooms(in: script, at: t, goal: goal)
+                // (Behind the cut from behind the goal, the main camera makes room for the stamp unseen; on it, never before
+                // the shot's there: it pushes in for the shot, it doesn't widen for a stamp to come.)
+                guard t >= min(max(stamp - early, arrive + 0.05), reverse?.from ?? .infinity) else {
+                    return PitchCamera.fitting(rooms, headroom: band(t), closest: shot.closest)
+                }
+                // The stamp never sits on anyone in the play, in view or not (a teammate running to the scorer).
+                let everyone = principals.flatMap { a in
+                    stride(from: t, through: t + ahead, by: 0.3).map { PitchCamera.Room(FieldPoint(a.position(at: $0)), figure: true) }
+                }
+                return PitchCamera.fitting(rooms, others: everyone, headroom: band(t), closest: shot.closest,
+                                           corner: CGSize(width: corner.width + margin, height: corner.height + margin + 0.01), reach: reach,
+                                           cornerRight: cornerRight)
+            }
         }
+        /// How many frames once the stamp is down have a man in the play standing in its corner, as the camera (a beat
+        /// behind its goal) actually frames them.
+        func crowded(_ samples: [CameraFrame]) -> Int {
+            let view = CGSize(width: 2, height: 1)
+            return stride(from: stamp + 0.2, through: script.duration, by: 1.0 / 30).filter { t in
+                let frame = reverse.map { t >= $0.from && t < $0.until } == true ? nil : CameraFollow.frame(samples, at: t)
+                guard let frame else { return false }
+                let f = PitchProjection(size: view, camera: PitchFrame(camera: frame))
+                return principals.contains { a in
+                    let foot = f.point(FieldPoint(a.position(at: t)))
+                    let x = foot.x / view.width, y = foot.y / view.height
+                    return (cornerRight ? x > 1 - corner.width : x < corner.width) && x > 0 && x < 1 && y > 1 - corner.height && y < 1
+                }
+            }.count
+        }
+        // The plainest track that keeps the corner clear; failing that, more care, a step at a time.
+        var best: (samples: [CameraFrame], crowded: Int)?
+        let care = [(0.3, 0.03, 0.3, 0.0), (0.6, 0.05, 0.9, 0.0), (0.9, 0.05, 0.9, 0.1), (1.2, 0.08, 1.2, 0.2), (1.6, 0.08, 1.5, 0.4), (2.0, 0.1, 1.8, 0.8)]
+        for (early, margin, ahead, reach) in care {
+            let samples = track(early: early, margin: margin, ahead: ahead, reach: reach)
+            let count = crowded(samples)
+            if best.map({ count < $0.crowded }) ?? true { best = (samples, count) }
+            if count == 0 { break }
+        }
+        self.script.camera = best?.samples ?? []
     }
 }

@@ -226,6 +226,27 @@ enum GridPose {
     static let through = RigPose(hip: RigVector(0.04, 0, 0.47), lean: -0.3, left: RigVector(0.06, 0.09, 0), right: RigVector(0.44, -0.05, 0.6),
                                  leftArm: RigArm(swing: 1.4, spread: 0.85, turn: 0.2, bend: 0.25),
                                  rightArm: RigArm(swing: -0.85, spread: 0.45, bend: 0.3))
+    /// The strip: lunging in low, one arm wrapping, the other punching down across at the ball.
+    static let strip = RigPose(hip: RigVector(0.02, 0, 0.4), lean: 0.75, twist: 0.35, left: RigVector(0.16, 0.12, 0), right: RigVector(-0.16, -0.12, 0),
+                               knees: 0.3, leftArm: RigArm(swing: 1.35, spread: 0.2, turn: -0.3, bend: 0.7),
+                               rightArm: RigArm(swing: 0.95, spread: 0.05, turn: -0.55, bend: 0.25))
+    /// Laid out on the grass for a loose ball, both arms reaching for it.
+    static let scramble = RigPose(hip: RigVector(0.15, 0, 0.2), pitch: 1.4, lean: 0.1, nod: -0.5, left: RigVector(-0.1, 0.1, 0.05),
+                                  right: RigVector(-0.3, -0.08, 0.1), leftArm: RigArm(swing: 2.7, spread: 0.3, turn: -0.2, bend: 0.5),
+                                  rightArm: RigArm(swing: 2.9, spread: 0.2, turn: -0.2, bend: 0.35))
+    /// Up off the line to block a kick: feet tucked, both arms straight up.
+    static let leap = RigPose(hip: RigVector(0, 0, 0.62), lean: -0.05, nod: -0.3, left: RigVector(0, 0.07, 0.14), right: RigVector(-0.05, -0.07, 0.12),
+                              leftArm: RigArm(swing: 3.0, spread: 0.12, turn: 0.2, bend: 0.05),
+                              rightArm: RigArm(swing: 3.0, spread: 0.12, turn: 0.2, bend: 0.05))
+    /// On his back after a hit as he threw, arms flung out.
+    static let knocked = RigPose(hip: RigVector(-0.1, 0, 0.12), pitch: -1.45, nod: 0.35, left: RigVector(0.02, 0.1, -0.36),
+                                 right: RigVector(0.06, -0.1, -0.3), knees: 0.3, leftArm: RigArm(swing: 2.5, spread: 0.55, bend: 0.4),
+                                 rightArm: RigArm(swing: 2.3, spread: 0.6, bend: 0.5))
+    /// An official's flag: drawn back and up beside his head, then whipped through and down at the spot.
+    static let flagBack = RigPose(turn: -0.35, twist: -0.3, left: RigVector(0.08, 0.1, 0), right: RigVector(-0.08, -0.1, 0),
+                                  leftArm: RigArm(swing: 0.6, spread: 0.3, bend: 0.4), rightArm: RigArm(swing: 2.5, spread: 0.45, turn: 0.9, bend: 1.3))
+    static let flagThrow = RigPose(turn: 0.15, lean: 0.25, twist: 0.3, left: RigVector(0.14, 0.1, 0), right: RigVector(-0.12, -0.1, 0.02),
+                                   leftArm: RigArm(swing: 0.3, spread: 0.35, bend: 0.4), rightArm: RigArm(swing: 1.35, spread: 0.15, turn: -0.3, bend: 0.2))
 }
 
 /// One frame of a play through the camera: the field, the lines on it, the
@@ -248,7 +269,10 @@ struct FootballFrame: View, Equatable {
     }
 
     /// The type, laid out once as views and drawn into each frame.
-    private enum Symbol: Hashable { case stamp, banner }
+    private enum Symbol: Hashable { case stamp, banner, declined }
+
+    /// An official's stripes, as near as a pictogram gets: white, a black cap.
+    static let official = Uniform(jersey: Color(white: 0.93), cap: Color(white: 0.1), accent: .white)
 
     /// The broadcast's lines: the line of scrimmage blue, the line to gain yellow.
     static let scrimmageBlue = Color(red: 0.25, green: 0.52, blue: 1)
@@ -271,6 +295,10 @@ struct FootballFrame: View, Equatable {
             GridironLayer.symbols(ink: ink, zones: zones)
             stamp.tag(Symbol.stamp)
             banner.tag(Symbol.banner)
+            if script.flags.contains(where: \.declined) {
+                Text("DECLINED").font(.system(size: TheaterType.title(size) * 0.9, weight: .heavy)).tracking(0.8)
+                    .foregroundStyle(Self.gainYellow).fixedSize().tag(Symbol.declined)
+            }
         }
     }
 
@@ -306,9 +334,16 @@ struct FootballFrame: View, Equatable {
         }
     }
 
-    /// The flag: tossed in end over end, then lying where it landed until the field settles.
+    /// The flags: each tossed in end over end, then lying where it landed
+    /// until the field settles; a declined one says so beside it once the
+    /// play is over.
     private func drawFlag(_ context: inout GraphicsContext, _ f: GridProjection) {
-        guard let flag = script.flag, t >= flag.thrown, t < script.settle + 0.3 else { return }
+        for flag in script.flags where t >= flag.thrown && t < script.settle + 0.3 {
+            drawFlag(flag, &context, f)
+        }
+    }
+
+    private func drawFlag(_ flag: FootballScript.Flag, _ context: inout GraphicsContext, _ f: GridProjection) {
         let u = min(max((t - flag.thrown) / (flag.lands - flag.thrown), 0), 1)
         let x = flag.from.x + (flag.to.x - flag.from.x) * u, y = flag.from.y + (flag.to.y - flag.from.y) * u
         let z = flag.from.z * (1 - u) + 10 * 4 * u * (1 - u)
@@ -321,6 +356,12 @@ struct FootballFrame: View, Equatable {
         let rect = CGRect(x: -s, y: -s * (u < 1 ? 0.7 : 0.35), width: 2 * s, height: s * (u < 1 ? 1.4 : 0.7))
         layer.fill(Path(roundedRect: rect, cornerRadius: s * 0.2), with: .color(Self.gainYellow))
         layer.stroke(Path(roundedRect: rect, cornerRadius: s * 0.2), with: .color(.black.opacity(0.3)), lineWidth: 0.5)
+        let declared = max(flag.lands, script.stamp - 0.2)
+        if flag.declined, t >= declared, let label = context.resolveSymbol(id: Symbol.declined) {
+            var type = context
+            type.opacity = min((t - declared) / 0.2, 1) * (1 - min(max((t - script.settle) / 0.3, 0), 1))
+            type.draw(label, at: CGPoint(x: p.x, y: p.y - s * 1.2), anchor: .bottom)
+        }
     }
 
     // MARK: Shadows
@@ -329,7 +370,7 @@ struct FootballFrame: View, Equatable {
         // Under the hips (longer for a man down); smaller and fainter as he leaves the ground.
         let w = f.figure * 0.3
         for p in figures {
-            let down = script.players[p.index].hold(at: t)?.kind == .down
+            let down = [.down, .knocked].contains(script.players[p.index].hold(at: t)?.kind)
             let air = min(p.figure.air / 0.4, 1)
             TheaterDraw.shadow(at: p.figure.ground, radius: (down ? w * 1.6 : w) * (1 - 0.35 * air), color: ink.shadow.opacity(p.opacity * (1 - 0.45 * air)),
                                in: context)
@@ -377,19 +418,40 @@ struct FootballFrame: View, Equatable {
                 if let carry = script.carrier(at: t), carry.player == index, let spot = script.ball(at: t) {
                     let held = Rig.smooth((t - carry.from) / 0.15) * (carry.until.isFinite ? Rig.smooth((carry.until - t) / 0.15) : 1)
                     let tucked = player.role == .quarterback ? Rig.smooth((script.rig[index].motion(at: t).speed - 1.5) / 1) : 1
-                    let grip = figure.grip, hand = figure.hands.0, loose = f.point(spot)
-                    let hold = CGPoint(x: grip.x + (hand.x - grip.x) * tucked, y: grip.y + (hand.y - grip.y) * tucked)
+                    let grip = figure.grip, tuck = figure.hands.0, throwing = figure.hands.1
+                    // Leaving his hands: toward where it goes next (the throw's first inch, the back's hands), not his middle.
+                    let next = carry.until.isFinite && carry.until - t < 0.15 ? script.ball(at: carry.until + 1e-4) ?? spot : spot
+                    let loose = f.point(next)
+                    var hold = CGPoint(x: grip.x + (tuck.x - grip.x) * tucked, y: grip.y + (tuck.y - grip.y) * tucked)
+                    // Cocked to throw: in the throwing hand, back by his ear.
+                    let cocked = Self.cocked(player, at: t)
+                    hold = CGPoint(x: hold.x + (throwing.x - hold.x) * cocked, y: hold.y + (throwing.y - hold.y) * cocked)
                     ball = CGPoint(x: loose.x + (hold.x - loose.x) * held, y: loose.y + (hold.y - loose.y) * held)
                 }
                 return Posed(index: index, figure: figure, opacity: o, ball: ball)
             }
     }
 
+    /// How far the ball has gone from both hands into the throwing hand
+    /// (his right) as he cocks to throw: none until the windup, all of it
+    /// from then until it's away. (pure; tested)
+    static func cocked(_ player: FootballScript.Player, at t: Double) -> Double {
+        guard let pass = player.actions.first(where: { ($0.kind == .throwBall || $0.kind == .spike) && t > $0.at - 0.34 && t < $0.at + 0.05 })
+        else { return 0 }
+        return Rig.smooth((t - pass.at + 0.34) / 0.14)
+    }
+
     private func drawPlayers(_ context: inout GraphicsContext, _ f: GridProjection, _ figures: [Posed]) {
         let offense = FigureInks(teams.offense, ink: ink, in: context), defense = FigureInks(teams.defense, ink: ink, in: context)
+        // An official, only when one throws a flag: white, a black cap.
+        let official = script.players.contains { $0.team == .official } ? FigureInks(Self.official, ink: ink, in: context) : offense
         for p in figures {
-            TheaterDraw.figure(p.figure, inks: script.players[p.index].team == .offense ? offense : defense, height: f.figure, opacity: p.opacity,
-                               in: context)
+            let inks = switch script.players[p.index].team {
+            case .offense: offense
+            case .defense: defense
+            case .official: official
+            }
+            TheaterDraw.figure(p.figure, inks: inks, height: f.figure, opacity: p.opacity, in: context)
         }
     }
 
@@ -425,6 +487,7 @@ struct FootballFrame: View, Equatable {
             case .kneel: return (body.mix(GridPose.kneel, into), m.heading)
             case .touchdown: return (body.over(GridPose.touchdown, into, moving: m.weight), m.heading)
             case .fairCatch: return (body.over(GridPose.fairCatch, smooth((t - hold.from) / 0.2), moving: m.weight), m.heading)
+            case .knocked: return (body.mix(GridPose.knocked, smooth((t - hold.from) / 0.3)), m.heading)
             }
         }
 
@@ -458,6 +521,16 @@ struct FootballFrame: View, Equatable {
                 body = kicking
             case .tackle:
                 body = body.mix(GridPose.dive, envelope(x, attack: 0.16, release: 0.5))
+            case .strip:
+                body = body.mix(GridPose.strip, envelope(x, attack: 0.18, release: 0.45))
+            case .scramble:
+                body = body.mix(GridPose.scramble, envelope(x, attack: 0.2, release: 0.6))
+            case .leap:
+                body = body.mix(GridPose.leap, envelope(x, attack: 0.22, release: 0.5))
+            case .flagThrow:
+                guard let throwing = RigPose.keyed([(-0.35, body), (-0.12, GridPose.flagBack), (0.04, GridPose.flagThrow), (0.18, GridPose.flagThrow),
+                                                    (0.55, body)], at: x) else { continue }
+                body = body.over(throwing, 1, moving: m.weight)
             case .block:
                 // Held once engaged, while he's set.
                 guard x > -0.2, t < script.settle else { continue }

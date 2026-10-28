@@ -111,7 +111,8 @@ extension ScorelineTests {
             check(s.outcome == .saved && s.keeper.name == "Zion Suzuki" && s.keeper.at.map { $0.x < Pitch.sixDepth } == true
                   && s.shot.stopped.map { $0.x < 2 } == true && s.rebound == nil,
                   "Cherki's chance: saved by Suzuki on his line, and held", "\(String(describing: s.keeper)) \(String(describing: s.rebound))")
-            check(SoccerFrame.detail(s) == "SAVED BY SUZUKI · 13 YD", "…its stamp: saved by Suzuki, 13 yards out", SoccerFrame.detail(s))
+            check(SoccerFrame.detail(s) == "SAVED BY SUZUKI · 0.42 xGOT · 13 YD", "…its stamp: saved by Suzuki, how hard (0.42 xGOT), 13 yards out",
+                  SoccerFrame.detail(s))
         } else {
             check(false, "Cherki's save parses")
         }
@@ -141,7 +142,7 @@ extension ScorelineTests {
                   && s.touches.contains { $0.defending }, "Ouattara's volley: after Damsgaard's header and a Hull touch")
         }
         if let s = find("Joe Gelhardt (Hull City) left footed shot from the centre of the box is close")?.scene {
-            check(s.outcome == .wide && (s.shot.xg ?? 0) >= PitchAction.bigChanceXG && SoccerFrame.detail(s) == "BIG CHANCE · 0.61 XG · WIDE",
+            check(s.outcome == .wide && (s.shot.xg ?? 0) >= PitchAction.bigChanceXG && SoccerFrame.detail(s) == "BIG CHANCE · 0.61 xG · WIDE",
                   "Gelhardt's miss: a big chance, wide", SoccerFrame.detail(s))
         }
         // A late goal that changes the result.
@@ -239,7 +240,8 @@ extension ScorelineTests {
             var late = s
             late.decisive = true
             check(SoccerScript(late).banners.first?.tone == .gold, "a late winner's headline is gold")
-            check(SoccerFrame.detail(s) == "AST WHITE · HEADER · 6 YD", "…its stamp: the assist, how, how far", SoccerFrame.detail(s))
+            check(SoccerFrame.detail(s) == "ASSISTED BY WHITE · HEADER · 6 YD", "…its stamp: the assist in the feed's words, how, how far",
+                  SoccerFrame.detail(s))
         }
         if let s = save?.scene {
             let script = SoccerScript(s)
@@ -679,5 +681,221 @@ extension ScorelineTests {
             check(SoccerFeed.theater(scene, after: SoccerTheaterState(lineups: lineups), primed: true, now: .now).lineups == lineups,
                   "the lineups ride along on the theater's state")
         }
+        soccerSequencing(matches)
+    }
+}
+
+// The choreography reading every field, on the same real clips: all 22 in
+// their lineups' shape, each touch at its real pace, the foot or head Opta
+// logs, the assist's kind, the keeper's own actions (Petrovic's punch from a
+// corner, mid-move, in the clip that made the ball jump), a set piece's
+// crowded box, and VAR's NO GOAL.
+
+extension ScorelineTests {
+    static func soccerSequencing(_ matches: [JSON]) {
+        print("\nSoccer theater: every touch in the order and at the pace it happened")
+        struct Clip {
+            let plays: [JSON]
+            let home: String?
+            let lineups: [GameDetail.Side: SoccerLineup]
+        }
+        var clips: [Clip] = []
+        for m in matches {
+            let home = m["home"]["id"].string
+            let lineups = SoccerLineup.lineups(m["rosters"]) { $0 == home ? .top : .bottom }
+            clips += m["clips"].array.map { Clip(plays: $0.array, home: home, lineups: lineups) }
+        }
+        func find(_ clue: String) -> (scene: SoccerScene, clip: Clip)? {
+            for clip in clips {
+                guard let i = clip.plays.firstIndex(where: { SoccerScene.isMoment($0) && ($0["text"].string ?? "").contains(clue) }),
+                      let scene = SoccerScene.parse(clip.plays, at: i, homeTeamID: clip.home, keepers: SoccerScene.keepers(in: clip.plays))
+                else { continue }
+                return (scene, clip)
+            }
+            return nil
+        }
+        func near(_ a: CGPoint?, _ b: CGPoint?, _ tolerance: Double) -> Bool {
+            guard let a, let b else { return false }
+            return hypot(a.x - b.x, a.y - b.y) <= tolerance
+        }
+
+        // MARK: The punch mid-move, and the ball that jumped
+
+        if case let (s, clip)? = find("Matheus Cunha (Manchester United) header") {
+            let script = SoccerScript(s, lineups: clip.lineups)
+            let keeper = script.actors.firstIndex { $0.team == .defending && $0.role == .keeper }
+            let punch = s.keeperActions.first { $0.kind == .punch }
+            let punched = keeper.flatMap { k in script.actors[k].actions.first { $0.kind == .punch } }
+            let away = punched.flatMap { p in script.flights.first { abs($0.start - p.at) < 0.01 } }
+            check(punch != nil && punched != nil && away.map { abs($0.from.z - 2.5) < 0.01 && near($0.to.ground, punch?.to, 0.5) } == true,
+                  "Cunha's chance: Petrovic punches Mount's corner from over his head, to where the feed says it landed")
+            let shot = script.shot.map { script.flights[$0] }
+            let into = script.flights.last { $0.end <= script.strike + 0.01 && $0.kind != .shot }
+            check(shot.map { abs($0.from.z - 1.95) < 0.01 } == true && into.map { abs($0.to.z - 1.95) < 0.01 } == true
+                  && zip(script.flights, script.flights.dropFirst()).allSatisfy { a, b in
+                      !(b.start <= a.end + 0.2 && hypot(b.from.x - a.to.x, b.from.y - a.to.y) < 1.5) || abs(b.from.z - a.to.z) < 0.01 },
+                  "…the header from his head, met there by the ball that came to it: no flight starts higher or lower than the last came down",
+                  script.flights.map { String(format: "%.2f→%.2f", $0.from.z, $0.to.z) }.joined(separator: " "))
+            let aerials = script.actors.filter { $0.actions.contains { $0.kind == .aerial } }
+            check(!aerials.isEmpty, "…the duels before it in the air, up for them")
+        } else {
+            check(false, "Cunha's blocked header is among the clips")
+        }
+
+        // MARK: The foot or the head
+
+        if case let (s, _)? = find("Rayan Cherki (Manchester City) left footed shot from the centre") {
+            let script = SoccerScript(s)
+            let strike = script.actors.flatMap(\.actions).first { $0.kind == .kick && abs($0.at - script.strike) < 0.01 }
+            check(s.shot.contact == .leftFoot && strike?.left == true, "Cherki strikes it with his left foot, as Opta logs it (the strike mirrored)")
+        }
+        if case let (s, _)? = find("Gabriel Magalhães (Arsenal) header from very close range") {
+            let script = SoccerScript(s)
+            check(script.actors.flatMap(\.actions).contains { $0.kind == .header && abs($0.at - script.strike) < 0.01 }, "…Gabriel with his head")
+        }
+
+        // MARK: The pace of the move
+
+        var proportional = 0, measured = 0, realTime = 0, short = 0
+        for clip in clips {
+            for i in clip.plays.indices where SoccerScene.isMoment(clip.plays[i]) {
+                guard let s = SoccerScene.parse(clip.plays, at: i, homeTeamID: clip.home, keepers: SoccerScene.keepers(in: clip.plays)), !s.shot.penalty
+                else { continue }
+                let b = SoccerScript.Builder(scene: s)
+                let touches = b.shown(s.touches)
+                guard touches.count >= 2 else { continue }
+                let plan = b.beats(touches), gaps = b.gaps(touches), floors = touches.indices.map { b.least(touches, $0) }
+                measured += 1
+                // Where the speed limits don't bind, each beat is its real gap times one factor.
+                let free = touches.indices.filter { plan.beats[$0] > floors[$0] + 1e-6 }
+                if free.allSatisfy({ abs(plan.beats[$0] - gaps[$0] * plan.compression) < 1e-6 }) && plan.beats.reduce(0, +) <= SoccerScript.buildUpLimit + 0.01 {
+                    proportional += 1
+                }
+                if touches.indices.reduce(0, { $0 + max(gaps[$1], floors[$1]) }) <= SoccerScript.buildUpLimit {
+                    short += 1
+                    if plan.compression == 1, touches.indices.allSatisfy({ plan.beats[$0] == max(gaps[$0], floors[$0]) }) { realTime += 1 }
+                }
+            }
+        }
+        check(measured >= 15 && proportional == measured, "every move at its real pace: each touch's beat its gap on the match clock, squeezed by one factor "
+              + "to fit five seconds, never quicker than the ball can go", "\(proportional) of \(measured)")
+        check(short > 0 && realTime == short, "…and a move that fits plays in real time", "\(realTime) of \(short)")
+
+        // MARK: The assist
+
+        if case let (s, clip)? = find("Enzo Fernández (Manchester City) right footed shot from the centre of the box is blocked") {
+            let script = SoccerScript(s, lineups: clip.lineups)
+            let assister = script.actors.first { $0.athlete != nil && $0.athlete == s.assistCredit?.athlete }
+            let header = assister?.actions.first { $0.kind == .header || $0.kind == .aerial }
+            let into = header.flatMap { h in script.flights.last { abs($0.end - h.at) < 0.4 && $0.end <= h.at + 0.01 } }
+            check(s.assistKind == .headedPass && header != nil && into.map { abs($0.to.z - 1.9) < 0.01 } == true,
+                  "Gvardiol's headed pass to Fernández: he heads it on, the ball coming to him at head height")
+        }
+        if case (var s, let clip)? = find("Harvey Barnes (Newcastle United)") {
+            let before = SoccerScript(s, lineups: clip.lineups)
+            s.assistKind = .throughBall
+            let through = SoccerScript(s, lineups: clip.lineups)
+            func pace(_ script: SoccerScript) -> Double {
+                guard let pass = script.flights.last(where: { $0.kind == .pass && $0.end <= script.strike + 0.01 }),
+                      let runner = script.actors.first(where: { near($0.position(at: pass.end), pass.to.ground, 0.6) && $0.team == .attacking }) else { return 0 }
+                let a = runner.position(at: pass.end - 0.15), b = runner.position(at: pass.end)
+                return hypot(b.x - a.x, b.y - a.y) / 0.15
+            }
+            check(pace(through) > 4 && pace(through) > pace(before), "a through ball: played into space, and he runs onto it at speed",
+                  String(format: "%.1f m/s vs %.1f", pace(through), pace(before)))
+        }
+
+        // MARK: All 22
+
+        if case let (s, clip)? = find("Gabriel Magalhães (Arsenal) header from very close range") {
+            let script = SoccerScript(s, lineups: clip.lineups)
+            let attackers = script.actors.filter { $0.team == .attacking }, defenders = script.actors.filter { $0.team == .defending }
+            let athletes = script.actors.compactMap(\.athlete)
+            check(attackers.count == 11 && defenders.count == 11 && script.actors.filter { $0.role == .keeper }.count == 2
+                  && Set(athletes).count == athletes.count && s.touches.allSatisfy { t in t.credit.map { athletes.contains($0.athlete) } ?? true },
+                  "Gabriel's header with both elevens: 22 on the pitch, one keeper each, every man who touched the ball once, as himself")
+            let t = script.strike
+            let shaped = script.actors.filter(\.shaped)
+            let backLine = Set(clip.lineups[.bottom]?.players.filter { $0.line == 1 }.map(\.athlete) ?? [])
+            let back = defenders.filter { a in a.shaped && a.athlete.map(backLine.contains) == true }
+            let xs = back.map { $0.position(at: t).x }
+            check(!back.isEmpty && (xs.max() ?? 0) - (xs.min() ?? 0) < 8 && xs.allSatisfy { $0 > Pitch.length - 30 },
+                  "…Everton's back line a line, deep in front of its goal as the cross comes in", "\(xs.map { Int($0) })")
+            let fastest = shaped.flatMap { a in a.moves.map { $0.length / max($0.end - $0.start, 0.01) } }.max() ?? 0
+            check(fastest <= SoccerScript.jogSpeed + 0.01, "…the men off the ball move with the shape, never faster than a jog", String(format: "%.1f m/s", fastest))
+            let goalSide = script.actors.indices.filter { script.actors[$0].team == .defending && script.actors[$0].role != .keeper }
+                .map { script.actors[$0].position(at: t).x }.sorted(by: >)
+            let offside = goalSide.count > 1 ? goalSide[0] : Pitch.length
+            let ball = script.ball(at: t)?.x ?? 0
+            check(attackers.filter(\.shaped).allSatisfy { $0.position(at: t).x <= max(offside, ball) + 1.5 },
+                  "…and the attack onside: none of Arsenal's men off the ball beyond Everton's last defender or the ball")
+        }
+        if case let (s, clip)? = find("Ezri Konsa (Arsenal) right footed shot from very close range") {
+            let script = SoccerScript(s, lineups: clip.lineups)
+            let box = script.actors.filter { $0.team == .defending && $0.shaped && $0.role != .keeper }
+            let inside = box.filter { a in let p = a.position(at: 0.2); return p.x > Pitch.length - Pitch.boxDepth - 1 && abs(p.y - Pitch.width / 2) < Pitch.boxWidth / 2 + 2 }
+            check(s.start == .corner && box.count >= 8 && inside.count >= box.count - 1,
+                  "a corner: Everton packed into its box (all but one up the pitch) as it's swung in", "\(inside.count) of \(box.count)")
+        }
+
+        // MARK: How the move began
+
+        if case let (s, _)? = find("Erling Haaland (Manchester City) header from very close range") {
+            check(SoccerFrame.detail(s).contains("SET PIECE") && SoccerFrame.detail(s).hasPrefix("ASSISTED BY"),
+                  "a goal from a set piece says so, as Opta tags it", SoccerFrame.detail(s))
+        }
+
+        // MARK: VAR
+
+        if case let (osula, clip)? = find("William Osula (Newcastle United)"), let when = osula.wallclock {
+            let showing = SoccerTheaterState(scene: osula, news: true, lineups: clip.lineups)
+            let struck = SoccerFeed.retracting([osula.id], from: showing, plays: clip.plays, homeTeamID: clip.home, keepers: SoccerScene.keepers(in: clip.plays))
+            if let off = struck.overturned {
+                let script = SoccerScript(off, lineups: clip.lineups)
+                let scorer = script.actors.first { $0.athlete == osula.shooterCredit?.athlete }
+                check(script.banners.map(\.text) == ["NO GOAL"] && script.banners.allSatisfy { !$0.confetti && $0.tone == .neutral }
+                      && script.impacts.contains { $0.kind == .net } && scorer.map { $0.actions.contains { $0.kind == .dejected } && !$0.actions.contains { $0.kind == .celebrate } } == true
+                      && SoccerFrame.detail(off) == "GOAL OVERTURNED BY VAR",
+                      "Osula's goal struck off by VAR: it goes in, he wheels away, and NO GOAL lands (no confetti, no celebration)")
+                var m = LiveMoment(id: off.id, chart: .pitch, tier: .score, kind: .goal, lead: "Goal", detail: "")
+                m.burst = true
+                check(GoalCelebration.theater(m, scene: off, script: script, level: .full, reduceMotion: false, height: 320).isEmpty, "…and no fireworks")
+                check(SoccerTheater.shown(struck, replaying: nil, rested: nil, now: when + 150) == off
+                      && SoccerTheater.shown(struck, replaying: SoccerTheater.key(off), rested: SoccerTheater.key(off), now: when + 150) == nil
+                      && SoccerTheater.shown(struck, replaying: nil, rested: nil, now: when + 3600) == nil && SoccerTheater.key(off) != off.id,
+                      "…replayed once more as its NO GOAL beat while the decision is fresh, then the pitch goes quiet; not on a page opened later")
+            } else {
+                check(false, "the struck goal is kept aside")
+            }
+        }
+
+        // MARK: Every moment, with both elevens
+
+        var full: [(SoccerScene, SoccerScript)] = []
+        for clip in clips {
+            let keepers = SoccerScene.keepers(in: clip.plays)
+            for i in clip.plays.indices where SoccerScene.isMoment(clip.plays[i]) {
+                if let scene = SoccerScene.parse(clip.plays, at: i, homeTeamID: clip.home, keepers: keepers) {
+                    full.append((scene, SoccerScript(scene, lineups: clip.lineups)))
+                }
+            }
+        }
+        func eleven(_ s: SoccerScript, _ team: SoccerScript.Team) -> Bool { s.actors.filter { $0.team == team }.count == 11 }
+        let whole = full.filter { eleven($0.1, .attacking) && eleven($0.1, .defending) }
+        func onPitch(_ p: CGPoint) -> Bool { p.x.isFinite && p.y.isFinite && p.x > -6 && p.x < Pitch.length + 6 && p.y > -4 && p.y < Pitch.width + 4 }
+        let finite = full.allSatisfy { _, s in
+            stride(from: 0.0, through: s.duration, by: 0.05).allSatisfy { t in s.actors.allSatisfy { onPitch($0.position(at: t)) } }
+        }
+        check(whole.count == full.count && finite, "every moment with its lineups: eleven a side, everyone on the pitch, every frame",
+              "\(whole.count) of \(full.count)")
+        let teams = SoccerTeams(attacking: Uniform(.red), defending: Uniform(.blue))
+        let broken = full.compactMap { scene, s -> String? in
+            jointsBreak(s.duration, s.actors.count) { i, t in
+                SoccerFrame(scene: scene, script: s, t: t, teams: teams, ink: TheaterInk(.dark), size: CGSize(width: 312, height: 156))
+                    .pose(s.actors[i], i, at: s.actors[i].position(at: t), unit: 1.1 / 2.5).0
+            }.map { "\(scene.shooter): \($0)" }
+        }
+        check(broken.isEmpty, "the new poses (a leap for a header, the keeper's punch and claim, a left foot's strike), every blend: knees and elbows bend their own way",
+              broken.prefix(3).joined(separator: " | "))
     }
 }

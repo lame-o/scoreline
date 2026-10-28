@@ -224,6 +224,17 @@ extension RigPose {
                                    leftArm: RigArm(swing: 2.85, spread: 0.12, bend: 1.45), rightArm: RigArm(swing: 2.85, spread: 0.12, bend: 1.45))
     static let throwThrough = RigPose(hip: RigVector(0.03, 0, 0.46), lean: 0.3, left: RigVector(0.14, 0.07, 0), right: RigVector(-0.14, -0.08, 0.02),
                                       leftArm: RigArm(swing: 1.85, spread: 0.1, bend: 0.25), rightArm: RigArm(swing: 1.85, spread: 0.1, bend: 0.25))
+    /// Up for a header contested in the air: higher than a header's rise, knees tucked, arms out for leverage, the head cocked.
+    static let leap = RigPose(hip: RigVector(-0.02, 0, 0.68), lean: -0.1, nod: -0.45, left: RigVector(-0.08, 0.07, 0.24),
+                              right: RigVector(-0.16, -0.07, 0.18), leftArm: RigArm(swing: 1.6, spread: 0.9, bend: 0.7),
+                              rightArm: RigArm(swing: 1.6, spread: 0.9, bend: 0.7))
+    /// The keeper's punch: fists drawn in at his chest, then both thrust up through the ball, off his feet.
+    static let punchCock = RigPose(hip: RigVector(-0.02, 0, 0.44), lean: 0.1, left: RigVector(0.04, 0.12, 0), right: RigVector(-0.04, -0.12, 0),
+                                   knees: 0.3, leftArm: RigArm(swing: 1.6, spread: 0.1, turn: -0.5, bend: 2.0),
+                                   rightArm: RigArm(swing: 1.6, spread: 0.1, turn: -0.5, bend: 2.0))
+    static let punch = RigPose(hip: RigVector(0, 0, 0.56), lean: -0.05, nod: -0.3, left: RigVector(0, 0.08, 0.06), right: RigVector(-0.05, -0.08, 0.04),
+                               leftArm: RigArm(swing: 2.9, spread: 0.05, turn: -0.25, bend: 0.1),
+                               rightArm: RigArm(swing: 2.9, spread: 0.05, turn: -0.25, bend: 0.1))
     /// Square to the shot, arms in, a stride wide: a block.
     static let block = RigPose(hip: RigVector(0, 0, 0.42), lean: -0.12, left: RigVector(0, 0.17, 0), right: RigVector(0, -0.17, 0), knees: 0.3,
                                leftArm: RigArm(swing: 0.3, spread: 0.0, turn: -0.7, bend: 1.7), rightArm: RigArm(swing: 0.3, spread: 0.0, turn: -0.7, bend: 1.7))
@@ -410,12 +421,22 @@ struct SoccerFrame: View, Equatable {
                 drawGoal(&context, f, right: right, parts: right == f.behind ? [.nearPost, .frame, .net] : [.net, .frame, .nearPost])
             case let .actor(i):
                 let actor = script.actors[i], figure = figures[i]
-                TheaterDraw.figure(figure.figure, inks: actor.team == .attacking ? attacking : defending, height: figure.height, opacity: 1,
-                                   in: context)
+                TheaterDraw.figure(figure.figure, inks: actor.team == .attacking ? attacking : defending, height: figure.height,
+                                   opacity: actor.shaped ? receding(figure.figure.ground, size: f.size) : 1, in: context)
                 if script.heldBy == i, t >= script.heldFrom { hands = figure.hands }
             }
         }
         return hands
+    }
+
+    /// A man off the ball standing where the stamp lands steps back for it:
+    /// faint under it once it's down (the camera keeps the men in the move
+    /// out of its corner; with both elevens on, there isn't always room).
+    private func receding(_ foot: CGPoint, size: CGSize) -> Double {
+        guard t >= script.stamp else { return 1 }
+        let x = foot.x / size.width, y = foot.y / size.height
+        let under = (script.cornerRight ? x > 1 - script.corner.width : x < script.corner.width) && y > 1 - script.corner.height
+        return under ? 1 - 0.75 * min((t - script.stamp) / 0.25, 1) : 1
     }
 
     /// A goal's parts, drawn in the order the camera needs them.
@@ -571,9 +592,19 @@ struct SoccerFrame: View, Equatable {
             let x = t - action.at
             switch action.kind {
             case .kick:
-                base = RigPose.keyed([(-0.24, base), (-0.09, .backswing), (0, .strike), (0.13, .followThrough), (0.45, base)], at: x) ?? base
+                // A left-footer's strike is the right-footer's, mirrored.
+                let (back, strike, through): (RigPose, RigPose, RigPose) = action.left ? (RigPose.backswing.mirrored, RigPose.strike.mirrored,
+                                                                                          RigPose.followThrough.mirrored) : (.backswing, .strike, .followThrough)
+                base = RigPose.keyed([(-0.24, base), (-0.09, back), (0, strike), (0.13, through), (0.45, base)], at: x) ?? base
             case .header:
                 base = RigPose.keyed([(-0.32, base), (-0.12, .rise), (0.02, .header), (0.12, .header), (0.42, base)], at: x) ?? base
+            case .aerial:
+                base = RigPose.keyed([(-0.36, base), (-0.14, .leap), (0.02, .header), (0.14, .header), (0.45, base)], at: x) ?? base
+            case .punch:
+                base = RigPose.keyed([(-0.3, base), (-0.1, .punchCock), (0.02, .punch), (0.16, .punch), (0.5, base)], at: x) ?? base
+            case .claim:
+                // Takes it high in both hands, and holds it there.
+                base = base.over(.catchHigh, x < 0 ? max(1 + x / 0.22, 0) : 1 - 0.6 * smooth((x - 0.4) / 0.4), moving: m.weight)
             case .throwIn:
                 base = RigPose.keyed([(-0.5, base), (-0.15, .throwBack), (0.04, .throwThrough), (0.45, base)], at: x) ?? base
             case .control:
@@ -701,7 +732,7 @@ struct SoccerFrame: View, Equatable {
     private var stamp: some View {
         if let scene {
             let size = min(max(typeHeight * 0.105, 15), 30)
-            let tone: Color = scene.outcome == .goal ? (scene.decisive ? ink.gold : teams.attacking.accent) : .primary
+            let tone: Color = scene.outcome == .goal && scene.review != .overturned ? (scene.decisive ? ink.gold : teams.attacking.accent) : .primary
             let detail = Self.detail(scene)
             VStack(alignment: script.cornerRight ? .trailing : .leading, spacing: size * 0.06) {
                 HStack(alignment: .firstTextBaseline, spacing: size * 0.28) {
@@ -725,20 +756,34 @@ struct SoccerFrame: View, Equatable {
         }
     }
 
-    /// The stamp's second line: "AST ØDEGAARD · HEADER · 9 YD", "SAVED BY
-    /// SUZUKI · 18 YD", "BIG CHANCE · 0.61 XG · WIDE".
+    /// The stamp's second line, in the feed's own words and the game's
+    /// notation: "ASSISTED BY ØDEGAARD · HEADER · 9 YD", "SAVED BY SUZUKI ·
+    /// 0.42 xGOT · 18 YD", "BIG CHANCE · 0.61 xG · WIDE", "GOAL OVERTURNED BY VAR".
     static func detail(_ scene: SoccerScene) -> String {
         var parts: [String] = []
         let technique: String? = scene.shot.penalty ? "Penalty" : scene.shot.technique == .header ? "Header"
             : scene.shot.technique == .volley ? "Volley" : nil
         let yards = scene.shot.penalty ? nil : "\(scene.distance) yd"
+        // How the move began, as Opta tags the shot, when it wasn't open play.
+        let from: String? = switch scene.shot.situation {
+        case .corner?: "From a corner"
+        case .freeKick?: "Free kick"
+        case .setPiece?: "Set piece"
+        case .throwIn?: "From a throw-in"
+        case .fastBreak?: "Fast break"
+        default: nil
+        }
         switch scene.outcome {
+        case _ where scene.review == .overturned:
+            parts = ["Goal overturned by VAR"]
         case .goal:
-            parts = [scene.assist.map { "Ast \(SoccerScene.surname($0))" }, technique, yards].compactMap { $0 }
+            parts = [scene.assist.map { "Assisted by \(SoccerScene.surname($0))" }, technique, scene.shot.penalty ? nil : from, yards].compactMap { $0 }
         case .ownGoal:
             parts = ["Own goal"]
         case .saved:
-            parts = [scene.keeper.name.map { "Saved by \(SoccerScene.surname($0))" } ?? "Saved", technique, yards].compactMap { $0 }
+            // How hard it was to keep out: Opta's expected goals on target.
+            let xgot = scene.shot.xgot.flatMap { $0 > 0 ? String(format: "%.2f xGOT", $0) : nil }
+            parts = [scene.keeper.name.map { "Saved by \(SoccerScene.surname($0))" } ?? "Saved", technique, xgot, yards].compactMap { $0 }
         case .blocked:
             parts = [scene.blocker?.name.map { "Blocked by \(SoccerScene.surname($0))" } ?? "Blocked", technique, yards].compactMap { $0 }
         case .woodwork:
@@ -748,7 +793,8 @@ struct SoccerFrame: View, Equatable {
             parts = [(scene.shot.xg ?? 0) >= PitchAction.bigChanceXG ? "Big chance" : nil, scene.shot.xg.map { String(format: "%.2f xG", $0) },
                      technique, over ? "Over" : "Wide"].compactMap { $0 }
         }
-        return parts.joined(separator: " · ").uppercased()
+        // Small capitals, but xG and xGOT keep their own case.
+        return parts.map { $0.contains("xG") ? $0 : $0.uppercased() }.joined(separator: " · ")
     }
 }
 
@@ -788,12 +834,20 @@ struct SoccerTheater: View {
     /// wheeling away, the stamp) until it has held (`rested`); a new moment
     /// not yet begun; otherwise nil, the quiet pitch. History that isn't
     /// news is never shown: moments can be twenty minutes apart, and on
-    /// opening the page the pitch is quiet. (pure; tested)
-    static func shown(_ state: SoccerTheaterState, replaying: String?, rested: String?) -> SoccerScene? {
+    /// opening the page the pitch is quiet. A goal VAR has just struck off
+    /// replays once more, as a NO GOAL beat. (pure; tested)
+    static func shown(_ state: SoccerTheaterState, replaying: String?, rested: String?, now: Date = .now) -> SoccerScene? {
+        if let struck = state.overturned, let at = struck.wallclock, now.timeIntervalSince(at) < SoccerFeed.reviewTime + 120,
+           rested != key(struck) {
+            return struck
+        }
         guard let scene = state.scene else { return nil }
-        if replaying == scene.id { return rested == scene.id ? nil : scene }
+        if replaying == key(scene) { return rested == key(scene) ? nil : scene }
         return state.news ? scene : nil
     }
+
+    /// A moment's replay, by its play; a goal struck off by VAR replays as a beat of its own.
+    static func key(_ scene: SoccerScene) -> String { scene.review == .overturned ? scene.id + "-var" : scene.id }
 
     /// ESPN runs a note onto the end of a sentence ("…with a cross.Goal
     /// confirmed following VAR Review."): a space between them.
@@ -845,6 +899,9 @@ private struct SoccerStage: View {
     /// The moment on screen (see `SoccerTheater.shown`); nil, the quiet pitch.
     private var shown: SoccerScene? { SoccerTheater.shown(state, replaying: replay?.id, rested: rested) }
 
+    /// The replay key of the moment on screen.
+    private var shownKey: String? { shown.map(SoccerTheater.key) }
+
     /// Half as tall as wide, up to this; wider than that, the pitch centers in the well.
     static let maxHeight: CGFloat = 320
 
@@ -865,21 +922,21 @@ private struct SoccerStage: View {
     /// Seconds into the moment on screen; infinity once it has ended (or was never replayed).
     private func time(at date: Date) -> Double {
         if case let .frozen(t) = clock { return t }
-        guard let scene = shown else { return .infinity }
-        if let replay, replay.id == scene.id { return replay.done ? .infinity : date.timeIntervalSince(replay.start) }
+        guard shown != nil else { return .infinity }
+        if let replay, replay.id == shownKey { return replay.done ? .infinity : date.timeIntervalSince(replay.start) }
         // News not yet begun: its first frame (onChange begins it).
         return state.news && !reduceMotion ? 0 : .infinity
     }
 
     private var playing: Bool {
-        guard clock == .live, let scene = shown else { return false }
-        if let replay, replay.id == scene.id { return !replay.done }
+        guard clock == .live, shown != nil else { return false }
+        if let replay, replay.id == shownKey { return !replay.done }
         return state.news && !reduceMotion
     }
 
     var body: some View {
         let scene = shown
-        let script = built.script(for: scene)
+        let script = built.script(for: scene, lineups: state.lineups)
         let ink = TheaterInk(scheme)
         let teams = teams
         GeometryReader { geo in
@@ -897,13 +954,13 @@ private struct SoccerStage: View {
                             .transition(.identity)
                     }
                 }
-                .id(scene?.id)
+                .id(shownKey)
                 // A replay cuts in; a moment that isn't replayed crossfades to how it ended.
                 .transition(playing ? .identity : .opacity.animation(.easeInOut(duration: 0.35)))
                 if let scene {
                     SoccerCelebration(scene: scene, script: script, size: geo.size, color: teams.attacking.accent,
-                                      start: replay?.id == scene.id ? replay?.start : nil)
-                        .id(scene.id)
+                                      start: replay?.id == shownKey ? replay?.start : nil)
+                        .id(shownKey)
                 }
             }
         }
@@ -912,6 +969,7 @@ private struct SoccerStage: View {
         .accessibilityHidden(true)
         .onAppear(perform: begin)
         .onChange(of: state.scene?.id) { _, _ in begin() }
+        .onChange(of: state.overturned?.id) { _, _ in begin() }
         .task(id: replay) {
             guard let replay else { return }
             if !replay.done {
@@ -928,9 +986,15 @@ private struct SoccerStage: View {
     }
 
     /// A new moment replays from its first touch; with Reduce Motion it's
-    /// over at once (its end crossfades in, and holds). History doesn't.
+    /// over at once (its end crossfades in, and holds). History doesn't. A
+    /// goal just struck off replays as its NO GOAL beat.
     private func begin() {
-        guard clock == .live, state.news, let scene = state.scene, replay?.id != scene.id else { return }
+        guard clock == .live else { return }
+        if let struck = state.overturned, shown == struck {
+            if replay?.id != SoccerTheater.key(struck) { replay = Replay(id: SoccerTheater.key(struck), start: .now, done: reduceMotion) }
+            return
+        }
+        guard state.news, let scene = state.scene, replay?.id != scene.id else { return }
         replay = Replay(id: scene.id, start: .now, done: reduceMotion)
     }
 }
@@ -940,13 +1004,15 @@ private struct SoccerStage: View {
 /// milliseconds, and a body run that isn't about a new moment shouldn't.
 private final class ScriptCache {
     private var scene: SoccerScene?
+    private var lineups: [GameDetail.Side: SoccerLineup] = [:]
     private var script = SoccerScript()
 
-    func script(for scene: SoccerScene?) -> SoccerScript {
+    func script(for scene: SoccerScene?, lineups: [GameDetail.Side: SoccerLineup]) -> SoccerScript {
         guard let scene else { return SoccerScript() }
-        if scene != self.scene {
+        if scene != self.scene || lineups != self.lineups {
             self.scene = scene
-            script = SoccerScript(scene)
+            self.lineups = lineups
+            script = SoccerScript(scene, lineups: lineups)
         }
         return script
     }
@@ -1025,7 +1091,8 @@ enum GoalCelebration {
     /// sparks. Nothing for another moment, or when the level is Off.
     static func theater(_ moment: LiveMoment?, scene: SoccerScene, script: SoccerScript, level: CelebrationLevel,
                         reduceMotion: Bool, height: CGFloat) -> [Burst] {
-        guard let moment, moment.id == scene.id, moment.chart == .pitch else { return [] }
+        // A goal VAR took back celebrates nothing.
+        guard let moment, moment.id == scene.id, moment.chart == .pitch, scene.review != .overturned else { return [] }
         let gold = scene.decisive || moment.decisive
         func cue(_ effects: [CelebrationCue.Effect]) -> CelebrationCue? {
             var cue = Celebration.cue(for: moment, level: level, reduceMotion: reduceMotion, geometry: .init(height: height),

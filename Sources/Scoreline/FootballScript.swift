@@ -18,6 +18,13 @@ import SwiftUI
 // of a second on it. Then the field settles: on a new down the two teams jog
 // back to the new line; after a score, a kick or a turnover they hold where
 // it ended. A touchdown's try is a scene of its own, a shorter beat.
+//
+// The play is told in the order it happened, by the men ESPN credits: the
+// defense in its own base front, each man in his depth-chart slot; the rush
+// that got home as he threw; the strip, the scramble for the ball and who
+// came up with it, then the return; the kick blocked at the line; each flag
+// thrown by the nearest official when and where its foul happened, and the
+// yards walked off after.
 
 // MARK: - The field
 
@@ -90,18 +97,30 @@ struct GridProjection {
 // MARK: - Script
 
 struct FootballScript: Equatable {
-    enum Team { case offense, defense }
+    /// The two teams, and the official who throws a flag.
+    enum Team { case offense, defense, official }
 
     /// Who he is on the play: his stance and pose follow from it.
     enum Role: Equatable {
         case line, quarterback, back, receiver, tightEnd
         case front, backer, corner, safety
         case kicker, holder, punter, returner, cover
+        case official
     }
 
     /// A moment of the play in his hands.
     struct Action: Equatable {
-        enum Kind: Equatable { case catchHigh, catchChest, throwBall, handoff, kick, tackle, block, spike, scoop }
+        enum Kind: Equatable {
+            case catchHigh, catchChest, throwBall, handoff, kick, tackle, block, spike, scoop
+            /// A punch at the ball in another man's arms: the strip.
+            case strip
+            /// Laid out on the grass for a loose ball.
+            case scramble
+            /// An official's flag, thrown.
+            case flagThrow
+            /// Up off the line, both arms high: a kick blocked.
+            case leap
+        }
         var kind: Kind
         var at: Double
         /// Where the ball comes from or goes: he turns to face it.
@@ -109,9 +128,10 @@ struct FootballScript: Equatable {
     }
 
     /// A pose held from a moment on: on a knee, down after the tackle, both
-    /// arms up in the end zone, a hand up for the fair catch.
+    /// arms up in the end zone, a hand up for the fair catch, on his back
+    /// after a hit as he threw.
     struct Hold: Equatable {
-        enum Kind: Equatable { case kneel, down, touchdown, fairCatch }
+        enum Kind: Equatable { case kneel, down, touchdown, fairCatch, knocked }
         var kind: Kind
         var from: Double
         var until = Double.infinity
@@ -121,6 +141,9 @@ struct FootballScript: Equatable {
         var team: Team
         var at: CGPoint
         var role: Role
+        /// The depth-chart slot he lines up in ("lde", "rcb", "ss", "lt"):
+        /// a credited man is this man, on this side.
+        var key: String? = nil
         var moves: [PlayScript.Move] = []
         var actions: [Action] = []
         var holds: [Hold] = []
@@ -199,12 +222,14 @@ struct FootballScript: Equatable {
         var gain: Double?
     }
 
-    /// A flag thrown in: from where, to where, when it lands.
+    /// A flag thrown in: from where, to where, when it lands; a declined
+    /// one says so beside it once the play is over.
     struct Flag: Equatable {
         var thrown: Double
         var lands: Double
         var from: FieldPoint
         var to: CGPoint
+        var declined = false
     }
 
     /// A flag's yards walked off: the spot moves from one line to another.
@@ -242,7 +267,8 @@ struct FootballScript: Equatable {
     var lines = Lines()
     var next = Lines()
     var linesMove = Double.infinity
-    var flag: Flag?
+    /// Every flag on the play, in the order they're thrown.
+    var flags: [Flag] = []
     var march: March?
     var banner: Banner?
     /// When the stamp lands.
@@ -269,6 +295,9 @@ struct FootballScript: Equatable {
 
     /// The room the camera keeps round a spot, at this script's yaw.
     func room(_ p: FieldPoint, figure: Bool) -> CGRect { Gridiron.room(p, figure: figure, yaw: yaw) }
+
+    /// The first flag thrown.
+    var flag: Flag? { flags.first }
 
     /// The ball at t: in the air, in hand, on the ground.
     func ball(at t: Double) -> FieldPoint? {
@@ -342,10 +371,40 @@ extension FootballScript {
     }
 
     init(_ scene: FootballScene) {
-        var b = Builder(scene: scene, line: Gridiron.y(scene.from), shotgun: scene.shotgun)
+        var b = Builder(scene: Self.played(scene) ?? scene, ruling: scene, line: Gridiron.y(scene.from), shotgun: scene.shotgun)
         b.build()
         self = b.script
         measureBodies()
+    }
+
+    /// A snap a flag wiped out ("… - No Play"), as it was run before the
+    /// flag came back: ESPN types it a penalty, but its words say what
+    /// happened (a pass, a run, a sack) and where he was stopped. Nil for a
+    /// flag that stopped the snap, or a play the words don't name. (pure; tested)
+    static func played(_ scene: FootballScene) -> FootballScene? {
+        guard scene.kind == .penalty, !scene.flags.contains(where: { $0.timing == .beforeSnap && $0.status == .accepted }) else { return nil }
+        let words = FootballScene.playText(scene.text).lowercased()
+        let kind: FootballScene.Kind
+        if words.contains("sacked") { kind = .sack }
+        else if words.contains("kneels") || words.contains("kneel down") { kind = .kneel }
+        else if words.contains(" pass ") || words.hasPrefix("pass ") { kind = words.contains("incomplete") ? .incomplete : .pass }
+        else if words.contains(" rush") || words.contains("scrambles") || scene.gap != nil || words.contains(" up the middle") { kind = .rush }
+        else { return nil }
+        var played = scene
+        played.kind = kind
+        played.to = scene.stopped ?? scene.from
+        played.scoring = nil
+        played.flips = false
+        played.onDowns = false
+        played.penalty = nil
+        played.flags = []
+        played.stopped = nil
+        // The depth the words give, at the medians caught passes are thrown to (5 yards short, 20 deep).
+        if kind == .pass || kind == .incomplete {
+            let gain = played.to - scene.from
+            played.air = kind == .pass ? min(gain, scene.depth == .deep ? 20 : 5) : scene.depth == .deep ? 20 : 5
+        }
+        return played
     }
 
     /// Each player's motion, measured once (`RigTrack`, an 8.5 ft figure),
@@ -376,7 +435,11 @@ extension FootballScript {
 
     /// Assembles a script beat by beat.
     struct Builder {
+        /// The play as it was run.
         let scene: FootballScene?
+        /// The play as it stands: the same, unless a flag wiped it out (the
+        /// spot, the lines, the stamp and the flags are its).
+        let ruling: FootballScene?
         var script = FootballScript()
         /// The line of scrimmage, in feet.
         let line: Double
@@ -391,6 +454,14 @@ extension FootballScript {
         var slots: [Slot: Int] = [:]
         /// When the action is over (the tackle, the ball coming down), before a flag's walk.
         var over = 0.0
+        /// The play's moments, for a flag's: the throw, the ball arriving, the stop (and where).
+        var release: Double?
+        var arrival: (at: Double, point: CGPoint)?
+        var stop: (at: Double, point: CGPoint)?
+        /// When a loose ball was recovered.
+        var recoveredAt: Double?
+        /// The formation's strong side (the tight end's): 1 the offense's right, −1 its left.
+        var strong = 1.0
         /// Shots to come.
         var shots: [Shot] = []
 
@@ -405,8 +476,9 @@ extension FootballScript {
             case kicker, holder, punter, returner, deep, gunner(Int), protector(Int), lineman(Int), rusher(Int), cover(Int), setup(Int)
         }
 
-        init(scene: FootballScene?, line: Double, shotgun: Bool) {
+        init(scene: FootballScene?, ruling: FootballScene? = nil, line: Double, shotgun: Bool) {
             self.scene = scene
+            self.ruling = ruling ?? scene
             self.line = line
             self.shotgun = shotgun
             ballX = scene.map { $0.kind == .kickoff || $0.pointAfter != nil ? 0 : Gridiron.spot($0.hash) } ?? 0
@@ -444,11 +516,14 @@ extension FootballScript {
         /// lineman reported in (a heavy set), an empty backfield, a bunch,
         /// the kneel's victory formation. The defense answers it: nickel
         /// against three wide, base against two backs, eight in the box
-        /// against a heavy set, dime against empty.
+        /// against a heavy set, dime against empty; in its own base front
+        /// (a 3-4's nose tackle and a backer standing up on the edge), each
+        /// man in his depth-chart slot.
         mutating func scrimmage() {
             let formation = scene?.formation ?? .base
             // The strong side: the way the play went (the right when it doesn't say).
             let s: Double = scene?.lane == .left ? -1 : 1
+            strong = s
             let gun = shotgun && formation != .victory
             let running = [.rush, .fumble, .other].contains(scene?.kind)
             add(.center, .offense, .line, x: 0, dy: -2, set: true)
@@ -461,6 +536,12 @@ extension FootballScript {
                 add(slot, .offense, role, x: x * s, dy: dy, set: set)
             }
             func defend(fronts: [Double], backers: [(Double, Double)], corners: [(Double, Double)], safeties: [(Double, Double)]) {
+                var fronts = fronts, backers = backers
+                // A 3-4: a nose tackle over the ball and the ends a step inside; the fourth man stands up on the weak edge.
+                if scene?.front == .threeFour, fronts.count == 4, let low = fronts.min(), let high = fronts.max() {
+                    fronts = [low + 4, 0, high - 5]
+                    backers.append((low - 4, 2.5))
+                }
                 for (i, x) in fronts.enumerated() { add(.front(i), .defense, .front, x: x * s, dy: 3, set: true) }
                 for (i, (x, dy)) in backers.enumerated() { add(.backer(i), .defense, .backer, x: x * s, dy: dy) }
                 for (i, (x, dy)) in corners.enumerated() { add(.corner(i), .defense, .corner, x: x * s, dy: dy) }
@@ -522,6 +603,92 @@ extension FootballScript {
                 skill(.wing, .tightEnd, -17, -3, set: true)
                 defend(fronts: [-15, -5.5, 5.5, 15], backers: [(-12, 10), (0, 9), (12, 10)], corners: [(-28, 8), (28, 8)],
                         safeties: [(-12, 22), (12, 22)])
+            }
+            label(strong: s)
+        }
+
+        /// Each man's depth-chart slot, from where he lines up: the
+        /// offense's linemen left to right (its left is "l"); the defense's
+        /// ends and tackles (or the nose), its backers weak to strong (inside
+        /// ones in a 3-4), the corners outside and the nickel in the slot, the
+        /// strong safety on the tight end's side. The defense's left is the
+        /// offense's right, as its depth chart has it.
+        mutating func label(strong s: Double) {
+            func x(_ i: Int) -> Double { position(i, 0).x - ballX }
+            func key(_ i: Int, _ key: String) { script.players[i].key = key }
+            let names: [Slot: String] = [.center: "c", .guardLeft: "lg", .guardRight: "rg", .tackleLeft: "lt", .tackleRight: "rt",
+                                         .quarterback: "qb", .back: "rb", .fullback: "fb", .tightEnd: "te", .wing: "te", .wideStrong: "wr",
+                                         .wideWeak: "wr", .slot: "wr"]
+            for (slot, name) in names { if let i = at(slot) { key(i, name) } }
+            let fronts = players(.defense, .front).sorted { x($0) < x($1) }
+            for (k, i) in fronts.enumerated() {
+                let side = x(i) > 0 ? "l" : "r"
+                key(i, k == 0 || k == fronts.count - 1 ? side + "de" : fronts.count == 3 ? "nt" : side + "dt")
+            }
+            let backers = players(.defense, .backer)
+            let edge = backers.filter { position($0, 0).y - line < 6 }
+            for i in edge { key(i, x(i) * s > 0 ? "slb" : "wlb") }
+            var inside = backers.filter { !edge.contains($0) }.sorted { x($0) * s < x($1) * s }
+            if edge.isEmpty {
+                for (k, i) in inside.enumerated() {
+                    key(i, k == 0 && inside.count > 1 ? "wlb" : k == inside.count - 1 && inside.count > 2 ? "slb" : "mlb")
+                }
+            } else {
+                // A 3-4: the strong-side backer, and the inside two by side.
+                if inside.count >= 3, let strongest = inside.popLast() { key(strongest, "slb") }
+                for i in inside { key(i, inside.count == 1 ? "mlb" : x(i) > 0 ? "lilb" : "rilb") }
+            }
+            let corners = players(.defense, .corner)
+            let outside = [corners.filter { x($0) > 0 }.max { x($0) < x($1) }, corners.filter { x($0) <= 0 }.min { x($0) < x($1) }]
+            for i in corners { key(i, i == outside[0] ? "lcb" : i == outside[1] ? "rcb" : "nb") }
+            let safeties = players(.defense, .safety).sorted { x($0) * s > x($1) * s }
+            for (k, i) in safeties.enumerated() { key(i, k == 0 && safeties.count > 1 ? "ss" : "fs") }
+        }
+
+        /// The man ESPN credits, on his team: the one in his depth-chart
+        /// slot (the strong safety himself), else one of his slot's kind on
+        /// its side of the ball (an inside backer for a middle one, a corner
+        /// in the nickel's place), else the nearest of his position to the
+        /// spot, else of `fallback`'s.
+        func man(_ p: FootballScene.Participant?, _ team: Team, near spot: CGPoint, at t: Double, excluding: Set<Int> = [],
+                 fallback: [Role] = []) -> Int? {
+            let pool = script.players.indices.filter { script.players[$0].team == team && !excluding.contains($0) }
+            func nearest(_ among: [Int]) -> Int? {
+                among.min { hypot(position($0, t).x - spot.x, position($0, t).y - spot.y) < hypot(position($1, t).x - spot.x, position($1, t).y - spot.y) }
+            }
+            if let slot = p?.slot {
+                if let i = pool.first(where: { script.players[$0].key == slot }) { return i }
+                let kind = Self.kind(slot)
+                var alike = pool.filter { script.players[$0].key.map(Self.kind) == kind }
+                // His side: the slot's left or right, else the strong side (the tight end's) for the strong-side backer,
+                // the strong safety and the nickel, the weak side for the weak-side backer.
+                let lane = FootballDepthChart.Slot(key: slot, athletes: [], defense: team == .defense).lane.map(Self.sign)
+                let side = lane ?? (["slb", "ss", "nb"].contains(slot) ? strong : slot == "wlb" ? -strong : 0)
+                if side != 0 {
+                    let sided = alike.filter { (position($0, 0).x - ballX) * side > 0 }
+                    if !sided.isEmpty { alike = sided }
+                }
+                if let i = nearest(alike) { return i }
+            }
+            let roles = Self.roles(p?.position)
+            if !roles.isEmpty, let i = nearest(pool.filter { roles.contains(script.players[$0].role) }) { return i }
+            if !fallback.isEmpty, let i = nearest(pool.filter { fallback.contains(script.players[$0].role) }) { return i }
+            return nearest(pool.filter { script.players[$0].role != .official })
+        }
+
+        /// A slot's kind, whichever side it's on: an end, an interior
+        /// lineman, a backer, a corner, a safety; the offense's line,
+        /// receivers, tight ends, backs.
+        static func kind(_ slot: String) -> String {
+            switch slot {
+            case "lde", "rde": "de"
+            case "ldt", "rdt", "nt", "ut", "ng": "dt"
+            case "wlb", "mlb", "slb", "lilb", "rilb", "lolb", "rolb": "lb"
+            case "lcb", "rcb", "nb": "cb"
+            case "ss", "fs": "s"
+            case "c", "lg", "rg", "lt", "rt", "og", "t": "ol"
+            case "rb", "fb": "rb"
+            default: slot
             }
         }
 
@@ -652,19 +819,20 @@ extension FootballScript {
             }
         }
 
-        /// The ones credited with the stop, by position (the nearest of each),
-        /// else the nearest defender: they arrive with the ball carrier.
-        mutating func tackle(_ runner: Int, at time: Double, spot: CGPoint, by team: Team, credited: [FootballScene.Position?],
-                             from start: Double) -> [Int] {
-            var taken: Set<Int> = [runner]
+        /// The ones credited with the stop (each the man in his slot, else
+        /// the nearest of his position), else the nearest defender: they
+        /// arrive with the ball carrier.
+        mutating func tackle(_ runner: Int, at time: Double, spot: CGPoint, by team: Team, credited: [FootballScene.Participant?],
+                             from start: Double, excluding: Set<Int> = []) -> [Int] {
+            var taken: Set<Int> = excluding.union([runner])
             var tacklers: [Int] = []
-            for position in credited.prefix(3) {
-                if let i = nearest(team, to: spot, at: start, roles: Self.roles(position), excluding: taken)
-                    ?? nearest(team, to: spot, at: start, excluding: taken) {
+            for credit in credited.prefix(3) {
+                if let i = man(credit, team, near: spot, at: start, excluding: taken) {
                     taken.insert(i)
                     tacklers.append(i)
                 }
             }
+            stop = (time, spot)
             for (k, i) in tacklers.enumerated() {
                 let here = position(i, start)
                 let dx = here.x - spot.x, dy = here.y - spot.y, d = max(hypot(dx, dy), 1)
@@ -736,19 +904,27 @@ extension FootballScript {
             guard let scene else { return }
             if case .fieldGoal = scene.kind { script.yaw = 0 }
             if case .extraPoint = scene.kind { script.yaw = 0 }
-            switch scene.kind {
+            // A foul before the snap (a false start, a delay): the ball is never snapped, whatever college logs after it.
+            let stopped = ruling?.flags.contains { $0.timing == .beforeSnap && $0.status == .accepted } == true
+            switch stopped ? .penalty : scene.kind {
             case .pass, .incomplete, .interception: scrimmage(); pass()
             case .rush, .other: scrimmage(); rush()
             case .kneel: scrimmage(); kneel()
             case .spike: scrimmage(); spike()
             case .sack: scrimmage(); sack()
-            case .fumble: scrimmage(); fumble()
+            case .fumble:
+                // Lost from a sack (a strip-sack), after a catch, or on a run.
+                scrimmage()
+                let words = FootballScene.playText(scene.text).lowercased()
+                if !scene.sackers.isEmpty || words.contains("sacked") { sack() }
+                else if words.contains(" pass "), !words.contains("incomplete") { pass() }
+                else { rush() }
             case .punt: punt()
             case .kickoff: kickoff()
             case .fieldGoal, .extraPoint: fieldGoal()
             case .penalty: scrimmage(); penalty()
             }
-            flagAfter()
+            if !stopped, scene.kind != .penalty { flags() }
             finish()
             headline()
             measureStamp()
@@ -762,7 +938,8 @@ extension FootballScript {
         /// caught (or broken up, or picked off), the run after the catch and the stop.
         mutating func pass() {
             guard let scene, let qb = at(.quarterback) else { return }
-            let caught = scene.kind == .pass, picked = scene.kind == .interception
+            // (A catch that was then fumbled away is a catch first.)
+            let caught = scene.kind == .pass || scene.kind == .fumble, picked = scene.kind == .interception
             let deep = scene.depth == .deep || (scene.air ?? 0) >= 18
             let lane = scene.lane ?? .middle
             let receiver = target(scene.position("receiver"), lane: lane) ?? at(.tightEnd) ?? at(.back) ?? qb
@@ -794,16 +971,20 @@ extension FootballScript {
                  to: picked || !caught ? arrive + 0.05 : arrive, ease: .inOut)
             decoys(except: [receiver, qb], release: release)
             protect(rush: snap + 0.85)
-
+            self.release = release
+            arrival = (arrive, catchPoint)
             var taken: Set<Int> = [qb, receiver]
+            taken.formUnion(pressure(on: qb, at: release, in: pocket))
+
             if picked {
                 interception(receiver: receiver, at: arrive, point: catchPoint, flight: flight, taken: &taken)
                 return
             }
-            // The defender on him closes as the ball arrives.
+            // The defender on him closes as the ball arrives: the one credited with the breakup, else whoever covers him.
             let coverRoles: [Role] = deep ? [.corner, .safety] : [.corner, .backer, .safety]
-            let defender = nearest(.defense, to: catchPoint, at: snap, roles: Self.roles(scene.position("passDefender")).isEmpty ? coverRoles
-                                   : Self.roles(scene.position("passDefender")))
+            let breakup = scene.participants.first { $0.role == "passDefender" }
+            let defender = breakup.flatMap { man($0, .defense, near: catchPoint, at: snap, excluding: taken, fallback: coverRoles) }
+                ?? nearest(.defense, to: catchPoint, at: snap, roles: coverRoles, excluding: taken)
             if !caught {
                 // Broken up, or just out of reach: it comes down on the grass.
                 if let defender {
@@ -865,10 +1046,43 @@ extension FootballScript {
             }
         }
 
+        /// The rush getting home as he throws. A hit (the NFL's bracketed
+        /// credit): the man in his slot, round the edge or straight up the
+        /// middle, reaches the quarterback as the ball leaves and puts him
+        /// on his back after it. A hurry (college's "QB hurried by"): he
+        /// closes on him, a stride short. Returns who came.
+        mutating func pressure(on qb: Int, at release: Double, in pocket: CGPoint) -> Set<Int> {
+            guard let pressure = scene?.pressure else { return [] }
+            let thrower = position(qb, release)
+            var by: [Int] = []
+            for (k, credit) in pressure.by.prefix(2).enumerated() {
+                guard let i = man(credit, .defense, near: pocket, at: 0, excluding: Set(by), fallback: [.front, .backer]) else { continue }
+                by.append(i)
+                let start = position(i, 0), side: Double = start.x >= ballX ? 1 : -1
+                let reach = pressure.hit ? 2.2 : 5.5
+                let contact = CGPoint(x: thrower.x + side * reach * 0.8, y: thrower.y + reach * 0.6)
+                let wide = abs(start.x - ballX) > 12
+                let path = wide ? [CGPoint(x: ballX + side * max(abs(start.x - ballX) + 4, 16), y: line - 6), contact] : [contact]
+                let arrive = release + (pressure.hit ? 0.06 : -0.05) + Double(k) * 0.08
+                move(i, to: path, from: snap + 0.04, to: arrive, ease: .inOut)
+                if pressure.hit { script.players[i].act(.tackle, at: arrive + 0.04, toward: thrower) }
+            }
+            guard pressure.hit, let hitter = by.first else { return Set(by) }
+            let hit = release + 0.1
+            script.flashes.append(Flash(beat: .hit, at: hit, point: FieldPoint(thrower, z: 4)))
+            // Driven back a stride from the hit, and down.
+            let from = position(hitter, hit), dx = thrower.x - from.x, dy = thrower.y - from.y, d = max(hypot(dx, dy), 0.1)
+            move(qb, to: [CGPoint(x: thrower.x + dx / d * 3, y: thrower.y + dy / d * 3)], from: hit, to: hit + 0.35, ease: .out)
+            script.players[qb].holds.append(Hold(kind: .knocked, from: hit + 0.06))
+            script.players[hitter].holds.append(Hold(kind: .down, from: hit + 0.22))
+            return Set(by)
+        }
+
         mutating func interception(receiver: Int, at arrive: Double, point: CGPoint, flight: Int, taken: inout Set<Int>) {
             guard let scene else { return }
-            let roles = Self.roles(scene.position("returner") ?? scene.position("passDefender"))
-            guard let taker = nearest(.defense, to: point, at: snap, roles: roles.isEmpty ? [.corner, .safety, .backer] : roles) else { return }
+            // The man who picked it off, by his slot: credited as the interceptor, or the returner, or for the breakup.
+            let credit = ["interceptor", "returner", "passDefender"].lazy.compactMap { role in scene.participants.first { $0.role == role } }.first
+            guard let taker = man(credit, .defense, near: point, at: snap, excluding: taken, fallback: [.corner, .safety, .backer]) else { return }
             // He jumps the route: in front of the receiver as the ball arrives.
             let jump = CGPoint(x: point.x - (point.x > ballX ? 2 : -2), y: point.y - 3)
             move(taker, to: [jump], from: snap + 0.15, to: arrive, ease: .inOut)
@@ -884,9 +1098,34 @@ extension FootballScript {
         /// The ball carrier from where he got it to where he was stopped: the
         /// tacklers arrive with him, everyone else closes in. Into the end zone
         /// with both arms up for a touchdown; out over the sideline when he went out.
+        /// A fumble on the way (lost, or recovered by his own side) stops him
+        /// where it came loose, and the scramble for it takes over.
         mutating func run(_ runner: Int, from start: CGPoint, at time: Double, taken: Set<Int>, returning: Bool = false,
-                          path: [CGPoint] = []) {
+                          path: [CGPoint] = [], recovered: Bool = false) {
             guard let scene else { return }
+            let opponents: Team = script.players[runner].team == .offense ? .defense : .offense
+            if !returning, !recovered, let loose = scene.loose, [.rush, .pass, .fumble].contains(scene.kind) {
+                // Stripped where it came loose: the man credited with it (else the first tackler) gets there with him.
+                let at = endPoint(from: path.last ?? start, toward: scene.lane, y: Gridiron.y(loose))
+                var length = 0.0, previous = start
+                for p in path + [at] { length += hypot(p.x - previous.x, p.y - previous.y); previous = p }
+                let arrive = time + min(max(length / 47, 0.35), 2.2)
+                move(runner, to: path + [at], from: time, to: arrive, ease: .out)
+                carry(runner, from: time, until: arrive)
+                let credit = scene.stripper ?? scene.participants.first { $0.role == "tackler" }
+                var stripped = taken.union([runner])
+                if let stripper = man(credit, opponents, near: at, at: max(time - 0.3, snap), excluding: stripped) {
+                    let here = position(stripper, max(time - 0.3, snap)), d = max(hypot(here.x - at.x, here.y - at.y), 1)
+                    move(stripper, to: [CGPoint(x: at.x + (here.x - at.x) / d * 2.5, y: at.y + (here.y - at.y) / d * 2.5)],
+                         from: max(time - 0.3, snap), to: arrive, ease: .inOut)
+                    script.players[stripper].act(.strip, at: arrive, toward: at)
+                    stripped.insert(stripper)
+                }
+                script.players[runner].holds.append(Hold(kind: .down, from: arrive + 0.14))
+                stop = (arrive, at)
+                fumbled(from: runner, at: arrive, loose: at, taken: stripped)
+                return
+            }
             carry(runner, from: time, until: .infinity)
             // Stopped where the text says when a flag's yards come after; else at the end spot.
             let y = scene.scoring == .touchdown ? endY : Gridiron.y((scene.penalty != nil ? scene.stopped : nil) ?? scene.to)
@@ -899,7 +1138,6 @@ extension FootballScript {
             let arrive = time + duration
             move(runner, to: route, from: time, to: arrive, ease: .out)
             over = arrive
-            let opponents: Team = script.players[runner].team == .offense ? .defense : .offense
             if scene.scoring == .touchdown {
                 script.players[runner].holds.append(Hold(kind: .touchdown, from: arrive + 0.05))
                 // The moment the ball crosses the goal line.
@@ -912,13 +1150,66 @@ extension FootballScript {
                 script.stamp = arrive + 0.15
                 return
             }
-            let credited = scene.tacklers
+            let credited: [FootballScene.Participant?] = scene.participants.filter { $0.role == "tackler" || $0.role == "assistedBy" }
             let tacklers = scene.outOfBounds && credited.isEmpty ? []
                 : tackle(runner, at: arrive, spot: finish, by: opponents, credited: credited.isEmpty ? [nil] : credited,
-                         from: max(time - 0.3, snap))
+                         from: max(time - 0.3, snap), excluding: taken)
+            if tacklers.isEmpty { self.stop = (arrive, finish) }
             converge(on: finish, from: time, to: arrive + 0.15, except: taken.union(tacklers).union([runner]))
             script.end = FieldPoint(finish)
             script.stamp = arrive + 0.12
+        }
+
+        /// The ball out: it pops from `carrier`'s arms at `time` where it
+        /// came loose and skitters to where it was recovered, the nearest man
+        /// from each side laying out for it, and the man ESPN credits comes
+        /// up with it (the defense's on a fumble lost): then the return, or
+        /// he stays down on it.
+        mutating func fumbled(from carrier: Int, at time: Double, loose: CGPoint, taken: Set<Int>) {
+            guard let scene else { return }
+            let lost = scene.kind == .fumble
+            let own = script.players[carrier].team, team: Team = lost ? (own == .offense ? .defense : .offense) : own
+            let recoveryY = Gridiron.y(scene.recovered ?? scene.turn ?? scene.loose ?? scene.to)
+            let recovery = CGPoint(x: loose.x + (abs(recoveryY - loose.y) > 3 ? 4 : 1.5), y: recoveryY)
+            // Up out of his arms, down, and away.
+            let out = time + 0.3
+            fly(from: FieldPoint(position(carrier, time), z: 3.4), to: FieldPoint(loose, z: 0.6), start: time, time: 0.3, arc: .arc(3.5))
+            let rolls = max(hypot(recovery.x - loose.x, recovery.y - loose.y) / 26, 0.35)
+            fly(from: FieldPoint(loose, z: 0.6), to: FieldPoint(recovery, z: 0.6), start: out, time: rolls, arc: .bounce(2), ease: .out)
+            script.flashes.append(Flash(beat: .deflect, at: time + 0.02, point: FieldPoint(position(carrier, time), z: 3.4)))
+            let reached = out + rolls
+            recoveredAt = reached
+            var busy = taken.union([carrier])
+            let credit = scene.participants.first { $0.role == "recoverer" }
+            // (The man who lost it can fall on it himself: "and recovers".)
+            let taker = man(credit, team, near: recovery, at: time, excluding: taken.subtracting([carrier])) ?? carrier
+            busy.insert(taker)
+            let returns = lost && (scene.scoring == .touchdown || abs(Gridiron.y(scene.to) - recovery.y) > 4)
+            let advances = !lost && abs(Gridiron.y(scene.to) - recovery.y) > 4
+            if taker != carrier {
+                move(taker, to: [recovery], from: max(time - 0.2, snap), to: reached, ease: .inOut)
+                script.players[taker].act(returns || advances ? .scoop : .scramble, at: reached, toward: recovery)
+                if !(returns || advances) { script.players[taker].holds.append(Hold(kind: .down, from: reached + 0.18)) }
+            }
+            // The scramble: the nearest man on each side lays out for it, just behind him.
+            for side in [Team.offense, .defense] {
+                guard let i = nearest(side, to: recovery, at: time, excluding: busy) else { continue }
+                busy.insert(i)
+                let here = position(i, time), dx = here.x - recovery.x, dy = here.y - recovery.y, d = max(hypot(dx, dy), 1)
+                guard d < 60 else { continue }
+                move(i, to: [CGPoint(x: recovery.x + dx / d * 3.5, y: recovery.y + dy / d * 3.5)], from: time, to: reached + 0.08, ease: .inOut)
+                script.players[i].act(.scramble, at: reached + 0.08, toward: recovery)
+                script.players[i].holds.append(Hold(kind: .down, from: reached + 0.25))
+            }
+            if returns || advances {
+                run(taker, from: recovery, at: reached + 0.06, taken: busy, returning: lost, recovered: true)
+                return
+            }
+            carry(taker, from: reached, until: .infinity)
+            converge(on: recovery, from: time, to: reached + 0.3, except: busy)
+            over = reached + 0.35
+            script.end = FieldPoint(recovery)
+            script.stamp = reached + 0.3
         }
 
         // MARK: Run
@@ -929,9 +1220,10 @@ extension FootballScript {
         mutating func rush() {
             guard let scene, let qb = at(.quarterback), let back = at(.back) else { return }
             let side = Self.sign(scene.lane)
-            let keeper = scene.position("rusher") == .quarterback
+            let carrier = scene.position("rusher") ?? scene.position("fumbler")
+            let keeper = carrier == .quarterback
             let runner: Int
-            switch scene.position("rusher") {
+            switch carrier {
             case .quarterback?: runner = qb
             // A sweep: the receiver nearest the side it went.
             case .receiver?: runner = players(.offense, .receiver).min { abs(position($0, 0).x - across(side * 34)) < abs(position($1, 0).x - across(side * 34)) } ?? back
@@ -940,6 +1232,16 @@ extension FootballScript {
             default: runner = back
             }
             let inHand = snapBall(to: qb)
+            if scene.text.contains("(Aborted)") {
+                // The snap never made it: on the ground at his feet, and the scramble for it.
+                script.legs.append(Leg(from: inHand, until: inHand + 0.12, hand: .carry(qb)))
+                protect(rush: snap + 0.6)
+                let loose = CGPoint(x: position(qb, inHand).x + 1.5, y: Gridiron.y(scene.loose ?? scene.from) - 1)
+                script.players[qb].act(.scramble, at: inHand + 0.5, toward: loose)
+                script.players[qb].holds.append(Hold(kind: .down, from: inHand + 0.68))
+                fumbled(from: qb, at: inHand + 0.12, loose: loose, taken: [qb])
+                return
+            }
             let hole: Double = switch scene.gap {
             case .guard?: 7
             case .tackle?: 13.5
@@ -1025,69 +1327,56 @@ extension FootballScript {
             script.stamp = throwAt + 0.2
         }
 
-        /// The pocket collapses: the rusher ESPN credits gets free round the
-        /// edge and takes the quarterback down where the sack was spotted.
+        /// The pocket collapses: the men ESPN credits (two on a split sack),
+        /// each from his own slot, round the edge or up the middle, take the
+        /// quarterback down where the sack was spotted. A strip-sack: the
+        /// stripper punches it out as they get there, and the scramble for
+        /// the ball follows.
         mutating func sack() {
             guard let scene, let qb = at(.quarterback) else { return }
             let inHand = snapBall(to: qb)
             let pocket = CGPoint(x: ballX, y: line - 21)
             move(qb, to: [pocket], from: snap + 0.08, to: snap + (shotgun ? 0.55 : 0.8), ease: .out)
-            let down = CGPoint(x: ballX + (scene.lane == .left ? -6 : 6), y: Gridiron.y(scene.stopped ?? scene.to))
+            let stripped = scene.loose != nil && (scene.stripper != nil || scene.kind == .fumble)
+            let down = CGPoint(x: ballX + (scene.lane == .left ? -6 : 6), y: Gridiron.y(scene.stopped ?? scene.loose ?? scene.to))
             let hit = snap + 1.6
             move(qb, to: [down], from: snap + 0.95, to: hit, ease: .inOut)
-            carry(qb, from: inHand, until: .infinity)
+            carry(qb, from: inHand, until: stripped ? hit : .infinity)
             decoys(except: [qb], release: snap + 1.35)
             protect(rush: snap + 0.85)
-            let roles = Self.roles(scene.position("sackedBy"))
-            let sacker = nearest(.defense, to: CGPoint(x: ballX + 15, y: line), at: 0, roles: roles.isEmpty ? [.front] : roles) ?? at(.front(3))!
-            let start = position(sacker, 0), side: Double = start.x >= ballX ? 1 : -1
-            let edge = CGPoint(x: ballX + side * max(abs(start.x - ballX) + 6, 18), y: line - 8)
-            move(sacker, to: [edge, CGPoint(x: down.x + side * 3, y: down.y + 2)], from: snap + 0.04, to: hit, ease: .inOut)
-            script.players[sacker].act(.tackle, at: hit, toward: down)
+            var sackers: [Int] = []
+            for credit in scene.sackers.isEmpty ? [nil] : scene.sackers.prefix(2).map(Optional.some) {
+                if let i = man(credit, .defense, near: CGPoint(x: ballX + 15, y: line), at: 0, excluding: Set(sackers), fallback: [.front]) {
+                    sackers.append(i)
+                }
+            }
+            for (k, sacker) in sackers.enumerated() {
+                let start = position(sacker, 0), side: Double = start.x >= ballX ? 1 : -1
+                let contact = CGPoint(x: down.x + side * 3, y: down.y + 2 - Double(k) * 1.5)
+                let edge = CGPoint(x: ballX + side * max(abs(start.x - ballX) + 6, 18), y: line - 8)
+                move(sacker, to: abs(start.x - ballX) > 12 ? [edge, contact] : [contact], from: snap + 0.04, to: hit + Double(k) * 0.06, ease: .inOut)
+                script.players[sacker].act(.tackle, at: hit + Double(k) * 0.06, toward: down)
+            }
             script.players[qb].holds.append(Hold(kind: .down, from: hit + 0.12))
             script.flashes.append(Flash(beat: .hit, at: hit, point: FieldPoint(down, z: 3)))
+            stop = (hit, down)
+            if stripped, let loose = scene.loose {
+                // The punch at the ball as they arrive: one of the sackers, or a man of his own from his slot.
+                var busy = Set(sackers).union([qb])
+                if let stripper = man(scene.stripper, .defense, near: down, at: 0, excluding: [qb]) {
+                    if !sackers.contains(stripper) {
+                        move(stripper, to: [CGPoint(x: down.x - 3, y: down.y + 3)], from: snap + 0.04, to: hit, ease: .inOut)
+                    }
+                    script.players[stripper].actions.removeAll { $0.kind == .tackle }
+                    script.players[stripper].act(.strip, at: hit, toward: down)
+                    busy.insert(stripper)
+                }
+                fumbled(from: qb, at: hit, loose: CGPoint(x: down.x, y: Gridiron.y(loose)), taken: busy)
+                return
+            }
             over = hit + 0.2
             script.end = FieldPoint(down)
             script.stamp = hit + 0.15
-        }
-
-        /// The ball carrier to where the ball came out; it bounces loose to
-        /// where the other team fell on it, then any return.
-        mutating func fumble() {
-            guard let scene, let qb = at(.quarterback), let back = at(.back) else { return }
-            let quarterback = scene.position("fumbler") == .quarterback || scene.position("rusher") == .quarterback
-            let carrier = quarterback ? qb : back
-            let inHand = snapBall(to: qb)
-            let looseY = Gridiron.y(scene.loose ?? scene.turn ?? scene.from)
-            let loose = CGPoint(x: ballX + Self.sign(scene.lane) * 8, y: looseY)
-            let meshTime = snap + 0.42
-            if carrier == back {
-                move(back, to: [CGPoint(x: ballX + 2, y: line - 11)], from: snap + 0.02, to: meshTime)
-                carry(qb, from: inHand, until: meshTime)
-            }
-            let reach = meshTime + min(max(abs(looseY - line) / 40, 0.3), 1.6)
-            move(carrier, to: [loose], from: meshTime, to: reach, ease: .inOut)
-            carry(carrier, from: carrier == back ? meshTime : inHand, until: reach)
-            let recovery = CGPoint(x: loose.x + 6, y: Gridiron.y(scene.turn ?? scene.to))
-            fly(from: FieldPoint(loose, z: 3), to: FieldPoint(recovery, z: 0.6), start: reach, time: 0.6, arc: .bounce(3), ease: .out)
-            script.flashes.append(Flash(beat: .hit, at: reach, point: FieldPoint(loose, z: 3)))
-            if let hitter = nearest(.defense, to: loose, at: snap) {
-                move(hitter, to: [CGPoint(x: loose.x + 2, y: loose.y + 3)], from: snap + 0.1, to: reach)
-                script.players[hitter].act(.tackle, at: reach, toward: loose)
-            }
-            script.players[carrier].holds.append(Hold(kind: .down, from: reach + 0.12))
-            let roles = Self.roles(scene.position("recoverer"))
-            guard let taker = nearest(.defense, to: recovery, at: reach, roles: roles, excluding: []) else { return }
-            move(taker, to: [recovery], from: reach - 0.2, to: reach + 0.6, ease: .inOut)
-            script.players[taker].act(.scoop, at: reach + 0.6, toward: recovery)
-            if abs(Gridiron.y(scene.to) - recovery.y) > 4 || scene.scoring == .touchdown {
-                run(taker, from: recovery, at: reach + 0.65, taken: [carrier, taker], returning: true)
-            } else {
-                carry(taker, from: reach + 0.6, until: .infinity)
-                over = reach + 0.8
-                script.end = FieldPoint(recovery)
-                script.stamp = reach + 0.75
-            }
         }
 
         // MARK: Kicks
@@ -1245,19 +1534,20 @@ extension FootballScript {
             case .blocked?: FieldPoint(x: ballX + 6, y: line - 6, z: 0)
             default: FieldPoint(x: 1.2, y: past, z: 14)
             }
+            if miss == .blocked {
+                block(kickAt: kickAt, foot: foot)
+                return
+            }
             let d = hypot(target.x - foot.x, target.y - foot.y)
-            let time = miss == .blocked ? 0.45 : min(max(0.5 + d / 190, 0.8), 1.65)
-            let peak = miss == .blocked ? 3 : miss == .short ? 10 + d * 0.06 : max(12, d * 0.1)
+            let time = min(max(0.5 + d / 190, 0.8), 1.65)
+            let peak = miss == .short ? 10 + d * 0.06 : max(12, d * 0.1)
             let flight = fly(from: foot, to: target, start: kickAt, time: time, arc: .arc(peak))
-            if miss != .blocked, miss != .short {
+            if miss != .short {
                 // On into the net behind the posts, and put away.
                 fly(from: target, to: FieldPoint(x: target.x * 1.2, y: target.y + 14, z: 0), start: kickAt + time, time: 0.35, arc: .straight)
                 script.ballGone = kickAt + time + 0.3
             }
-            if miss == .blocked, let blocker = at(.rusher(4)) {
-                script.players[blocker].act(.block, at: kickAt + 0.1, toward: ballSpot)
-                script.flashes.append(Flash(beat: .deflect, at: kickAt + 0.08, point: FieldPoint(x: ballX + 2, y: line - 4, z: 7)))
-            } else if miss != .short {
+            if miss != .short {
                 // Crossing the end line: the crossbar's moment.
                 let f = script.flights[flight]
                 let u = (Gridiron.backLine - foot.y) / max(target.y - foot.y, 1)
@@ -1276,39 +1566,165 @@ extension FootballScript {
             script.stamp = (script.score ?? kickAt + time) + 0.1
         }
 
+        /// A kick blocked at the line: the man ESPN credits (the rusher on
+        /// his slot's side) comes through and goes up, both arms high, the
+        /// ball off his hands a beat after it's kicked, and away behind the
+        /// line, bouncing.
+        mutating func block(kickAt: Double, foot: FieldPoint) {
+            guard let scene else { return }
+            let rushers = players(.defense, .front)
+            let lane = scene.blocker?.slot.flatMap { FootballDepthChart.Slot(key: $0, athletes: [], defense: true).lane }
+            let side = Self.sign(lane)
+            let sided = side == 0 ? rushers : rushers.filter { (position($0, 0).x - ballX) * side > 0 }
+            let aim = CGPoint(x: ballX + side * 6, y: line)
+            guard let blocker = (sided.isEmpty ? rushers : sided).min(by: { hypot(position($0, 0).x - aim.x, position($0, 0).y - aim.y)
+                < hypot(position($1, 0).x - aim.x, position($1, 0).y - aim.y) }) else { return }
+            let from = position(blocker, 0)
+            let through = CGPoint(x: ballX + min(max(from.x - ballX, -7), 7), y: line - 2)
+            let hands = FieldPoint(x: through.x, y: through.y - 1, z: 8.5)
+            let meets = kickAt + 0.14
+            move(blocker, to: [through], from: snap + 0.03, to: meets - 0.04, ease: .out)
+            script.players[blocker].act(.leap, at: meets, toward: foot.ground)
+            fly(from: foot, to: hands, start: kickAt, time: meets - kickAt, arc: .arc(1.2))
+            script.flashes.append(Flash(beat: .deflect, at: meets, point: hands))
+            let away: Double = through.x >= ballX ? 1 : -1
+            let landing = CGPoint(x: through.x + away * 12, y: line - 16)
+            fly(from: hands, to: FieldPoint(landing, z: 0.6), start: meets, time: 0.85, arc: .bounce(2), ease: .out)
+            for k in 0..<9 {
+                guard let i = at(.rusher(k)), i != blocker else { continue }
+                let p = position(i, 0)
+                move(i, to: [CGPoint(x: ballX + (p.x - ballX) * 0.9, y: line - 3)], from: snap + 0.03, to: snap + 0.6, ease: .out)
+            }
+            over = meets + 0.85
+            script.end = FieldPoint(landing)
+            script.stamp = meets + 0.5
+        }
+
         // MARK: Flags
 
-        /// A flag that stopped the snap: it's thrown in at the line, the
-        /// players straighten up, and the yards are walked off.
+        /// A flag that stopped the snap: the man flagged moves early, the
+        /// nearest official's flag comes in on him, the players straighten
+        /// up, and the yards are walked off; the ball is never snapped.
         mutating func penalty() {
-            guard let scene else { return }
+            guard let scene, let ruling else { return }
             script.legs.append(Leg(from: 0, until: 0, hand: .spot(spot)))
             let onDefense = scene.to >= scene.from
             let lands = 1.0
-            throwFlag(at: CGPoint(x: ballX + (onDefense ? 9 : -9), y: line + (onDefense ? 4 : -4)), lands: lands)
+            let thrown = ruling.flags.filter { $0.timing == .beforeSnap || ruling.flags.allSatisfy { $0.timing != .beforeSnap } }
+            for (k, flag) in (thrown.isEmpty ? [nil] : thrown.map(Optional.some)).enumerated() {
+                let team: Team = flag?.side.map { $0 == ruling.offense ? .offense : .defense } ?? (onDefense ? .defense : .offense)
+                var at = CGPoint(x: ballX + (team == .defense ? 9 : -9), y: line + (team == .defense ? 4 : -4))
+                if let fouler = man(flag?.player, team, near: spot.ground, at: 0), flag?.player != nil {
+                    // Out of his stance a beat early, a lurch, and back.
+                    let here = position(fouler, 0), way: Double = team == .offense ? 1 : -1
+                    move(fouler, to: [CGPoint(x: here.x, y: here.y + 1.6 * way)], from: 0.42, to: 0.55, ease: .out)
+                    move(fouler, to: [here], from: 0.75, to: 1.2)
+                    script.players[fouler].set = min(script.players[fouler].set ?? 0.42, 0.42)
+                    at = CGPoint(x: here.x + 2, y: here.y + 1.6 * way)
+                }
+                throwFlag(at: at, lands: lands + Double(k) * 0.2, declined: flag?.status == .declined, wing: true)
+            }
             for i in script.players.indices { script.players[i].set = min(script.players[i].set ?? lands, lands + 0.15) }
             walk(from: line, to: Gridiron.y(scene.to), start: lands + 0.45, moving: true)
         }
 
-        /// A flag on a play that stood (a hold on the return): after it's run,
-        /// the flag, and the yards walked off from where he was stopped.
-        mutating func flagAfter() {
-            guard let scene, scene.kind != .penalty, let flag = scene.penalty, !flag.noPlay, let stopped = scene.stopped,
-                  abs(stopped - scene.to) > 0.5, scene.scoring == nil else { return }
-            let from = Gridiron.y(stopped), to = Gridiron.y(scene.to)
-            let lands = over + 0.4
-            throwFlag(at: CGPoint(x: -14, y: (from + to) / 2), lands: lands)
-            // The ball goes to the official's spot, then walks.
-            if let ball = script.ball(at: over) {
-                fly(from: ball, to: FieldPoint(x: ballX, y: from, z: 0.6), start: over + 0.25, time: 0.45, arc: .arc(5))
+        /// The flags on a play that ran, each when and where its foul
+        /// happened, on the man flagged (from the nearest official, the play
+        /// going on round it): a hold mid-play, interference as the ball
+        /// arrives, roughing the passer just after the throw, a horse collar
+        /// or a face mask at the tackle, an offside at the snap, one after the
+        /// whistle once it's over. Then the yards walked off, from where it
+        /// was enforced to where it put the ball; a declined flag only says
+        /// so, offsetting ones walk nothing off.
+        mutating func flags() {
+            guard let ruling, !ruling.flags.isEmpty else { return }
+            var walked: FootballScene.Flag?
+            for flag in ruling.flags {
+                let foul = moment(of: flag)
+                let team: Team = flag.side == ruling.offense ? .offense : .defense
+                let fouler = flag.player.flatMap { man($0, team, near: foul.near, at: foul.at) }
+                var place = fouler.map { position($0, foul.at) } ?? foul.near
+                if foul.fixed {
+                    // Where it happened (the catch point, the passer, the tackle), and the man flagged in on it.
+                    place = foul.near
+                    if let f = fouler, hypot(position(f, foul.at).x - place.x, position(f, foul.at).y - place.y) > 4 {
+                        let from = max(foul.at - 0.9, snap + 0.04)
+                        move(f, to: [CGPoint(x: place.x + 2.5, y: place.y + 2)], from: from, to: foul.at, ease: .inOut)
+                    }
+                    if let f = fouler, foul.late, let qb = at(.quarterback) {
+                        // Roughing the passer: the hit after the ball's gone.
+                        script.players[f].act(.tackle, at: foul.at + 0.04, toward: place)
+                        if !script.players[qb].holds.contains(where: { $0.kind == .knocked }) {
+                            script.players[qb].holds.append(Hold(kind: .knocked, from: foul.at + 0.12))
+                        }
+                        script.flashes.append(Flash(beat: .hit, at: foul.at + 0.04, point: FieldPoint(place, z: 4)))
+                    }
+                }
+                throwFlag(at: CGPoint(x: place.x + 2.5, y: place.y - 2), lands: foul.at + 0.5, declined: flag.status == .declined,
+                          wing: abs(foul.at - snap - 0.25) < 0.01)
+                if flag.status == .accepted, walked == nil { walked = flag }
             }
-            walk(from: from, to: to, start: lands + 0.45, moving: false)
+            let end = Gridiron.y(ruling.to), ended = script.end?.y ?? end
+            guard let walked, abs(end - ended) > 0.5 else { return }
+            let from = walked.from.map(Gridiron.y) ?? ended
+            let lands = max(script.flags.map(\.lands).max() ?? over, over)
+            // The ball goes to the official's spot, then walks.
+            if let ball = script.ball(at: lands), abs(ball.y - from) > 1 || abs(ball.x - ballX) > 1 {
+                fly(from: ball, to: FieldPoint(x: ballX, y: from, z: 0.6), start: lands + 0.25, time: 0.45, arc: .arc(5))
+            }
+            walk(from: from, to: end, start: lands + 0.85, moving: false)
         }
 
-        mutating func throwFlag(at spot: CGPoint, lands: Double) {
-            let from = FieldPoint(x: spot.x > 0 ? Gridiron.half + 14 : -Gridiron.half - 14, y: spot.y + 12, z: 16)
-            script.flag = Flag(thrown: lands - 0.45, lands: lands, from: from, to: spot)
+        /// When and near where a foul happened, by what it was (its slug, or
+        /// its name); `fixed` when it happened at a place of its own (the
+        /// catch point, the passer, the tackle), not wherever the man flagged
+        /// is; `late` for a hit on the passer after the throw.
+        func moment(of flag: FootballScene.Flag) -> (at: Double, near: CGPoint, fixed: Bool, late: Bool) {
+            let key = (flag.slug ?? flag.name).lowercased().replacingOccurrences(of: " ", with: "-")
+            let end = stop ?? (over, script.end?.ground ?? spot.ground)
+            func ball(_ t: Double) -> CGPoint { script.ball(at: t)?.ground ?? spot.ground }
+            if flag.timing == .afterPlay { return (over + 0.35, end.point, true, false) }
+            if key.contains("interference"), let arrival { return (arrival.at - 0.05, arrival.point, true, false) }
+            if key.contains("roughing-the-passer"), let release, let qb = at(.quarterback) { return (release + 0.15, position(qb, release + 0.15), true, true) }
+            if ["grounding", "illegal-forward"].contains(where: key.contains), let release, let qb = at(.quarterback) {
+                return (release + 0.1, position(qb, release + 0.1), true, false)
+            }
+            let atTheStop = ["horse-collar", "face-mask", "facemask", "unnecessary-roughness", "targeting", "tripping", "personal-foul", "roughing",
+                             "unsportsmanlike", "late-hit", "leverage", "lowering"]
+            if atTheStop.contains(where: key.contains) { return (end.at, end.point, true, false) }
+            let atTheSnap = ["offside", "encroachment", "neutral-zone", "illegal-shift", "illegal-motion", "illegal-formation", "false-start",
+                             "too-many", "substitution", "delay"]
+            if atTheSnap.contains(where: key.contains) { return (snap + 0.25, spot.ground, false, false) }
+            // A hold, a block in the back, illegal hands: while the play goes on, at the point of attack (in the pocket before a
+            // throw, as the back hits the hole, as the returner sets off).
+            let carried = script.legs.last { if case .carry = $0.hand { return $0.until.isInfinite }; return false }?.from
+            let mid = release.map { snap + ($0 - snap) * 0.6 } ?? carried.map { $0 + min(max((end.at - $0) * 0.25, 0.1), 0.5) } ?? snap + 0.9
+            return (min(mid, end.at), ball(mid), false, false)
+        }
+
+        /// An official's flag, thrown at the foul: from the official nearest
+        /// it (at his post since the snap), end over end to the spot.
+        mutating func throwFlag(at spot: CGPoint, lands: Double, declined: Bool = false, wing: Bool = false) {
+            let thrown = lands - 0.45
+            let thrower = official(near: spot, wing: wing)
+            let hand = position(thrower, thrown)
+            script.players[thrower].act(.flagThrow, at: thrown, toward: spot)
+            script.flags.append(Flag(thrown: thrown, lands: lands, from: FieldPoint(hand, z: 6.5), to: spot, declined: declined))
             script.flashes.append(Flash(beat: .flag, at: lands, point: FieldPoint(spot)))
+        }
+
+        /// The official nearest a spot, at his post: the referee behind the
+        /// backfield, the umpire (the NFL's, in it), the line judge and the
+        /// head linesman on the sidelines at the line, the back judge deep;
+        /// a foul at the line (`wing`) is the sideline officials'. Added the
+        /// first time one throws.
+        mutating func official(near p: CGPoint, wing: Bool = false) -> Int {
+            let sides = [CGPoint(x: -Gridiron.half - 3, y: line), CGPoint(x: Gridiron.half + 3, y: line)]
+            let posts = wing ? sides : [CGPoint(x: ballX + 16, y: line - 40), CGPoint(x: ballX - 12, y: line - 33)] + sides + [CGPoint(x: ballX + 6, y: line + 75)]
+            let post = posts.min { hypot($0.x - p.x, $0.y - p.y) < hypot($1.x - p.x, $1.y - p.y) }!
+            if let i = script.players.indices.first(where: { script.players[$0].team == .official && script.players[$0].at == post }) { return i }
+            script.players.append(Player(team: .official, at: post, role: .official))
+            return script.players.count - 1
         }
 
         /// The ball slides from one spot to the other; with `moving`, the
@@ -1335,7 +1751,7 @@ extension FootballScript {
         /// The action ends when the last thing stops; the stamp lands as it
         /// resolves; the lines move to the new spot with it.
         mutating func finish() {
-            guard let scene else { return }
+            guard let scene = ruling else { return }
             script.legs.sort { $0.from < $1.from }
             if !script.stamp.isFinite { script.stamp = max(over, snap + 0.6) }
             // The stamp holds a beat on the play before the field settles (a try's beat is shorter).
@@ -1366,7 +1782,7 @@ extension FootballScript {
         /// recovery. A gain, an incompletion and a punt keep to the stamp.
         mutating func headline() {
             // A try keeps to its stamp: the touchdown had the headline.
-            guard let scene, scene.pointAfter == nil else { return }
+            guard let scene = ruling, scene.pointAfter == nil else { return }
             func banner(_ text: String, _ tone: Banner.Tone, at time: Double, confetti: Bool = false) {
                 script.banner = Banner(text: text, tone: tone, at: time, until: max(script.settle, time + 1.4), confetti: confetti)
             }
@@ -1381,11 +1797,11 @@ extension FootballScript {
             case (_, .fieldGoal(true)):
                 banner("FIELD GOAL", .side(scene.offense), at: script.score ?? script.stamp)
             case (_, .fieldGoal(false)):
-                banner("NO GOOD", .neutral, at: script.score ?? script.stamp)
+                banner(scene.miss == .blocked ? "BLOCKED" : "NO GOOD", .neutral, at: script.score ?? script.stamp)
             case (_, .interception):
                 banner("INTERCEPTION", .neutral, at: (catchAt ?? script.stamp) + 0.05)
             case (_, .fumble):
-                banner("FUMBLE", .neutral, at: script.stamp - 0.1)
+                banner("FUMBLE", .neutral, at: recoveredAt ?? script.stamp - 0.1)
             default:
                 if scene.onDowns { banner("TURNOVER ON DOWNS", .neutral, at: script.stamp) }
             }
@@ -1395,7 +1811,7 @@ extension FootballScript {
         /// the view's height, the title under it at about an eighteenth, in a
         /// view twice as wide as tall.
         mutating func measureStamp() {
-            guard let scene else { return }
+            guard let scene = ruling else { return }
             let stamp = FootballStamp(scene)
             guard !stamp.parts.isEmpty else { return }
             // Each part's glyphs (the tag at 0.42 of the number's size) and the space after it.
@@ -1413,7 +1829,7 @@ extension FootballScript {
         /// and the ball is spotted there; after a score, a kick or a change of
         /// possession they stay where it ended.
         mutating func settle() {
-            guard let scene else { return }
+            guard let scene = ruling else { return }
             let s = script.settle, back = s + 0.75
             let reform = scene.scoring == nil && !scene.flips && !isKick && scene.pointAfter == nil
             if reform {
@@ -1439,8 +1855,8 @@ extension FootballScript {
         /// carrier with the men closing on him; then the end spot and the new
         /// line to gain, where it rests.
         mutating func shoot() {
-            guard let scene else { return }
-            let everyone = Array(script.players.indices)
+            guard let scene = ruling else { return }
+            let everyone = script.players.indices.filter { script.players[$0].team != .official }
             let opening: [Int] = switch scene.kind {
             case .punt: everyone.filter { $0 != at(.returner) }
             case .kickoff: everyone.filter { $0 != at(.returner) && $0 != at(.deep) }
@@ -1451,7 +1867,7 @@ extension FootballScript {
             var shots = [Shot(from: 0, actors: opening, points: points, closest: 60, at: 0)]
             // The ball's flights (the snap's aside): each followed with whoever's going for it.
             for (i, f) in script.flights.enumerated() where f.end - f.start > 0.3 && f.start > snap + 0.1 && f.start < over {
-                let near = script.players.indices.min { a, b in
+                let near = everyone.min { a, b in
                     hypot(position(a, f.end).x - f.to.x, position(a, f.end).y - f.to.y)
                         < hypot(position(b, f.end).x - f.to.x, position(b, f.end).y - f.to.y)
                 }
@@ -1467,6 +1883,18 @@ extension FootballScript {
                 }
                 shots.append(Shot(from: max(carry.from, (shots.last?.from ?? 0) + 0.25), actors: [runner] + closing,
                                   points: script.end.map { [$0] } ?? [], closest: 75))
+            }
+            // A flag thrown while the play goes on: where it lands is in frame as it comes down.
+            for flag in script.flags where flag.lands < over {
+                guard let k = shots.lastIndex(where: { $0.from <= flag.thrown - 0.2 }) else { continue }
+                var flagged = shots[k]
+                flagged.from = flag.thrown - 0.2
+                flagged.points.append(FieldPoint(flag.to))
+                var resumed = shots[k]
+                resumed.from = flag.lands + 0.5
+                let next = k + 1 < shots.count ? shots[k + 1].from : .infinity
+                shots.insert(flagged, at: k + 1)
+                if resumed.from < next { shots.insert(resumed, at: k + 2) }
             }
             // A flag's walk: both spots.
             if let march = script.march {
@@ -1553,13 +1981,13 @@ extension FootballScript {
             let t = script.duration + 1
             var items = script.players.indices.filter { script.players[$0].opacity(at: t) > 0.5 }
                 .map { script.room(FieldPoint(script.players[$0].position(at: t)), figure: true) }
-            let reform = scene.map { $0.scoring == nil && !$0.flips && !isKick } ?? true
+            let reform = ruling.map { $0.scoring == nil && !$0.flips && !isKick } ?? true
             if !reform {
                 // After a score, a kick or a turnover: the end of it, not the whole field.
                 let end = script.end ?? spot
                 items = items.filter { abs($0.midX - end.x) < 70 && abs($0.minY + 3 - end.y * 0.5) < 45 }
                 items.append(script.room(end, figure: true))
-                if scene?.scoring == .fieldGoal || scene.map({ if case .fieldGoal = $0.kind { return true }; return false }) == true {
+                if ruling?.scoring == .fieldGoal || ruling.map({ if case .fieldGoal = $0.kind { return true }; return false }) == true {
                     items += Self.posts.map { script.room($0, figure: false) }
                 }
             }
@@ -1668,10 +2096,10 @@ struct FootballStamp: Equatable {
         }
         let thrown = [way, names["target"].map { "to \($0)" }].compactMap { $0 }.joined(separator: " ")
         let td = scene.scoring == .touchdown
-        // A try: "XP ✓" by the kicker, "2PT ✓" by whoever ran or caught it.
+        // A try: "XP ✓" by the kicker, "2-PT ✓" by whoever ran or caught it (the NFL's terms).
         if let tried = scene.pointAfter {
             let good = tried == .kick ? scene.kind == .extraPoint(good: true) : td
-            parts = [Part(text: tried == .kick ? "XP" : "2PT", heavy: false), Part(text: good ? "✓" : "✗", heavy: true)]
+            parts = [Part(text: tried == .kick ? "XP" : "2-PT", heavy: false), Part(text: good ? "✓" : "✗", heavy: true)]
             let how = tried == .pass ? names["target"].map { "to \($0)" }
                 : scene.gap.map { gap in gap == .middle ? "up the middle" : "\(Self.word(scene.lane ?? .middle)) \(Self.word(gap))" }
             title = tried == .kick ? names["lead"] ?? "" : [names["lead"], how].compactMap { $0 }.joined(separator: tried == .pass ? " " : ", ")
@@ -1680,6 +2108,11 @@ struct FootballStamp: Equatable {
             return
         }
         switch scene.kind {
+        case _ where scene.flags.count > 1 && scene.flags.allSatisfy({ $0.status == .offsetting }):
+            // Offsetting fouls: the down is played again.
+            parts = [Part(text: "NO PLAY", heavy: true)]
+            title = "Offsetting penalties"
+            tone = .flag
         case .pass:
             parts = [Part(text: yards(scene.yards), heavy: true)]
             title = thrown
@@ -1704,7 +2137,7 @@ struct FootballStamp: Equatable {
             title = titled(names["taker"], scene.yards > 0 && !td ? "\(scene.yards) yd return" : nil)
             tone = td ? .score : .loss
         case .fumble:
-            parts = [Part(text: "FUM", heavy: true)]
+            parts = [Part(text: "FUMBLE", heavy: true)]
             title = titled(names["taker"].map { "Recovered by \($0)" })
             tone = td ? .score : .loss
         case .punt:
@@ -1732,7 +2165,8 @@ struct FootballStamp: Equatable {
         case .penalty:
             let gained = Int((scene.to - scene.from).rounded())
             parts = [Part(text: yards(gained == 0 ? scene.yards : gained), heavy: true), Part(text: "FLAG", heavy: false)]
-            title = titled(scene.penalty?.name, scene.penalty?.noPlay == true ? "No play" : nil)
+            let flag = scene.flags.first { $0.status == .accepted } ?? scene.flags.first
+            title = titled(scene.penalty?.name.map { Self.announced($0, side: flag?.side, offense: scene.offense) }, scene.penalty?.noPlay == true ? "No play" : nil)
             tone = .flag
         }
         if td {
@@ -1742,6 +2176,15 @@ struct FootballStamp: Equatable {
         } else if scene.onDowns {
             title = titled("Turnover on downs")
         }
+    }
+
+    /// A foul as the referee announces it: the foul, then the side ("Holding, Offense", "Pass Interference, Defense").
+    static func announced(_ name: String, side: GameDetail.Side?, offense: GameDetail.Side?) -> String {
+        for (prefix, team) in [("Offensive ", "Offense"), ("Defensive ", "Defense")] where name.hasPrefix(prefix) {
+            return "\(name.dropFirst(prefix.count)), \(team)"
+        }
+        guard let side, let offense else { return name }
+        return "\(name), \(side == offense ? "Offense" : "Defense")"
     }
 
     private static func word(_ lane: FootballScene.Lane) -> String { lane == .left ? "left" : lane == .right ? "right" : "middle" }

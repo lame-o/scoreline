@@ -113,7 +113,7 @@ extension ScorelineTests {
         let stamps: [(String, String, String)] = [("9274", "+12 1ST DOWN", "Short right to Barkley"), ("3888", "−8 SACK", "By Williams"),
                                                   ("9145", "INC", "Deep left to Lamb"), ("9213", "FG 55 ✓", "Aubrey"),
                                                   ("1152", "+5 TD", "Pierce, left tackle"), ("1812", "PUNT 48", "Downed"),
-                                                  ("3701", "INT", "Overshown · 4 yd return"), ("9361", "+5 FLAG", "Neutral Zone Infraction · No play"),
+                                                  ("3701", "INT", "Overshown · 4 yd return"), ("9361", "+5 FLAG", "Neutral Zone Infraction, Defense · No play"),
                                                   ("1592", "KICK 65", "Touchback"), ("0940", "+25 RETURN", "Mingo")]
         let wrong = stamps.filter { id, code, title in
             guard let s = scene(id) else { return true }
@@ -237,7 +237,8 @@ extension ScorelineTests {
                   "a flag: thrown in, then 5 yards walked off, then the stamp")
         }
         if let s = script("9423"), let march = s.march {
-            check(march.from == Gridiron.y(68) && march.to == Gridiron.y(82) && s.flag != nil, "a return, then the hold's 10 yards walked back")
+            check(march.from == Gridiron.y(72) && march.to == Gridiron.y(82) && s.flag.map { $0.lands < march.start } == true,
+                  "a return, the flag on the hold during it, then 10 yards walked back from where it was enforced (DAL 28)")
         }
         // Every play in the game: a sane, finite script that ends on the static scene.
         let all = scenes.map(FootballScript.init)
@@ -444,7 +445,8 @@ extension ScorelineTests {
             return abs(ball.x - Gridiron.spot(scene.hash)) < 0.01
         }
         check(onHash.count > 30 && snappedThere, "the ball snapped from its hash", "\(onHash.count) snaps on a hash")
-        check(hashed.allSatisfy { s in s.players.allSatisfy { abs($0.at.x) < Gridiron.half } }, "…and everyone lines up inside the sidelines")
+        check(hashed.allSatisfy { s in s.players.filter { $0.team != .official }.allSatisfy { abs($0.at.x) < Gridiron.half } },
+              "…and every player lines up inside the sidelines (an official who throws a flag works from his)")
         if let i = onHashes.firstIndex(where: { $0.id.hasSuffix("9274") }), i + 1 < onHashes.count {
             let next: FootballScript = hashed[i + 1]
             let center: CGPoint? = next.players.first { (p: FootballScript.Player) in p.role == .line && p.team == .offense }?.at
@@ -484,16 +486,16 @@ extension ScorelineTests {
                   && attempt.lane == .left && attempt.gap == .guard && attempt.from == 98,
                   "a two-point try: Prescott rushes left guard from the 2, and it succeeds")
             check(carrier.map { s.players[$0].role == .quarterback } == true && s.end.map { $0.y > 300 } == true
-                  && stamp(attempt) == "2PT ✓" && FootballStamp(attempt).title == "Prescott, left guard" && s.banner == nil,
-                  "…the quarterback who threw the touchdown keeps it, into the end zone: 2PT ✓")
+                  && stamp(attempt) == "2-PT ✓" && FootballStamp(attempt).title == "Prescott, left guard" && s.banner == nil,
+                  "…the quarterback who threw the touchdown keeps it, into the end zone: 2-PT ✓")
         }
         let separate = FootballScene.parse(entry("Extra Point Good", "C.Dicker extra point is GOOD, Center-C.Johnson, Holder-B.Mann.", from: 0, to: 0),
                                            teams: teams)
         let failed = FootballScene.parse(entry("Two Point Pass", "TWO-POINT CONVERSION ATTEMPT. J.Hurts pass to D.Smith is incomplete. ATTEMPT FAILS.",
                                                from: 98, to: 98), teams: teams)
         check(separate?.pointAfter == .kick && separate?.from == 85 && stamp(separate) == "XP ✓"
-              && failed?.pointAfter == .pass && failed?.kind == .incomplete && stamp(failed) == "2PT ✗" && failed.map { FootballScript($0).banner == nil } == true,
-              "a try logged as its own entry replays as one: XP ✓ from the 15, a failed two-point pass 2PT ✗")
+              && failed?.pointAfter == .pass && failed?.kind == .incomplete && stamp(failed) == "2-PT ✗" && failed.map { FootballScript($0).banner == nil } == true,
+              "a try logged as its own entry replays as one: XP ✓ from the 15, a failed two-point pass 2-PT ✗")
         if var bare = touchdown {
             bare.attempt = nil
             check(bare.conversion == nil, "a touchdown before ESPN adds its try has none to replay (the edit brings it)")
@@ -767,5 +769,244 @@ extension ScorelineTests {
         october.year = 2027
         october.month = 2
         check(fall.map(FootballFeed.season) == 2026 && october.date.map(FootballFeed.season) == 2026, "the season a game falls in: October's and February's are 2026's")
+        footballSequencing(college: college.map { ($0.teams, $0.items) }, nfl: nfl.map { ($0.teams, $0.items) }, kc: kc, sea: sea)
+    }
+}
+
+// The choreography reading every field, on the same real plays: the hit as
+// he throws, the strip and the scramble for the ball, the split sack, the
+// blocked kick, each flag at the moment and the place of its foul and its
+// walk, college's exact spots, the defense in its own front with each
+// credited man in his slot, and the ball in the throwing hand.
+
+extension ScorelineTests {
+    static func footballSequencing(college: [(FootballFeed.Teams, [JSON])], nfl: [(FootballFeed.Teams, [JSON])], kc: FootballDepthChart?,
+                                   sea: FootballDepthChart?) {
+        print("\nFootball theater: every play in the order it happened")
+        /// The play whose text says this, parsed with its game's teams (Kansas City at Seattle's on their depth charts).
+        func play(_ clue: String, in set: [(FootballFeed.Teams, [JSON])]) -> FootballScene? {
+            for (teams, items) in set {
+                guard let item = items.first(where: { ($0["text"].string ?? "").contains(clue) }), let s = FootballScene.parse(item, teams: teams)
+                else { continue }
+                if teams.topID == "12", let kc, let sea { return s.slotted(by: [.top: kc, .bottom: sea]) }
+                return s
+            }
+            return nil
+        }
+        func pro(_ clue: String) -> FootballScene? { play(clue, in: nfl) }
+        func cfb(_ clue: String) -> FootballScene? { play(clue, in: college) }
+        func near(_ a: CGPoint?, _ b: CGPoint?, _ tolerance: Double) -> Bool {
+            guard let a, let b else { return false }
+            return hypot(a.x - b.x, a.y - b.y) <= tolerance
+        }
+        /// Who has a pose of this kind, and when.
+        func acting(_ s: FootballScript, _ kind: FootballScript.Action.Kind) -> [(player: Int, at: Double)] {
+            s.players.indices.flatMap { i in s.players[i].actions.filter { $0.kind == kind }.map { (i, $0.at) } }
+        }
+        func quarterback(_ s: FootballScript) -> Int? { s.players.firstIndex { $0.role == .quarterback } }
+
+        // MARK: The defense, in its own front
+
+        if let sea3 = pro("P.Mahomes pass incomplete deep right to X.Worthy [D.Hall]"), let kc4 = pro("S.Darnold pass incomplete short middle to J.Smith-Njigba") {
+            let a = FootballScript(sea3), b = FootballScript(kc4)
+            let down = a.players.filter { $0.team == .defense && $0.role == .front }
+            let keys = Set(a.players.compactMap(\.key))
+            check(sea3.front == .threeFour && down.count == 3 && down.contains { $0.key == "nt" && abs($0.at.x) < 1 }
+                  && b.players.filter { $0.team == .defense && $0.role == .front }.count == 4
+                  && a.players.filter { $0.team == .defense }.count == 11 && a.players.filter { $0.team == .offense }.count == 11,
+                  "Seattle in its base 3-4: three down, a nose tackle over the ball; Kansas City's 4-3, four down; eleven a side")
+            check(["lde", "rde", "nt", "wlb", "lcb", "rcb", "ss", "fs", "lt", "rt", "c", "qb"].allSatisfy(keys.contains)
+                  && a.players.filter { $0.key == "lcb" }.allSatisfy { $0.at.x > 0 } && a.players.filter { $0.key == "lt" }.allSatisfy { $0.at.x < 0 },
+                  "every man in a depth-chart slot: the defense's left corner on the offense's right, its left tackle on its left")
+        }
+
+        // MARK: Pressure
+
+        if let hit = pro("P.Mahomes pass incomplete deep right to X.Worthy [D.Hall]") {
+            let s = FootballScript(hit)
+            let qb = quarterback(s)!
+            let release = s.players[qb].actions.first { $0.kind == .throwBall }?.at ?? 0
+            let hitter = acting(s, .tackle).first { $0.at > release - 0.05 && $0.at < release + 0.25 }
+            check(hitter.map { near(s.players[$0.player].position(at: $0.at), s.players[qb].position(at: release), 3.5)
+                    && s.players[$0.player].role == .backer && s.players[$0.player].position(at: 0).x * (hit.lane == .left ? -1 : 1) != 0 } == true
+                  && s.players[qb].holds.contains { $0.kind == .knocked && $0.from > release } && s.flashes.contains { $0.beat == .hit && $0.at > release },
+                  "a hit as he threw: Seattle's backer (Hall, credited in brackets) gets to Mahomes as the ball leaves, and puts him on his back after it")
+            check(s.flights.contains { $0.start == release && $0.end - $0.start > 0.5 }, "…the throw still goes, deep right")
+        }
+        if let hurried = cfb("QB hurried by #3 M.Ratcliffe and #10 M.Jones") {
+            let s = FootballScript(hurried)
+            let qb = quarterback(s)!
+            let release = s.players[qb].actions.first { $0.kind == .throwBall }?.at ?? 0
+            let closing = s.players.indices.filter { s.players[$0].team == .defense }
+                .filter { hypot(s.players[$0].position(at: release).x - s.players[qb].position(at: release).x,
+                                s.players[$0].position(at: release).y - s.players[qb].position(at: release).y) < 8 }
+            check(closing.count == 2 && !s.players[qb].holds.contains { $0.kind == .knocked },
+                  "a hurried throw (college's \"QB hurried by\"): both men close on him as he throws, a stride short, no hit")
+        }
+
+        // MARK: The strip and the scramble
+
+        if let strip = pro("B.Young sacked at CAR 31 for -9 yards (A.Muhammad). FUMBLES") {
+            let s = FootballScript(strip)
+            let qb = quarterback(s)!
+            let stripped = acting(s, .strip).first
+            let pop = s.flights.first { $0.start > 1 && abs($0.from.z - 3.4) < 0.01 }
+            let recovery = acting(s, .scoop).first
+            check(stripped.map { pop?.start == $0.at } == true && pop.map { abs($0.to.y - Gridiron.y(31)) < 0.5 } == true
+                  && s.players[qb].holds.contains { $0.kind == .down },
+                  "a strip-sack: Muhammad's punch as he gets there, the ball out of Young's arms at the spot of the sack, Young down")
+            check(recovery.map { r in s.players[r.player].team == .defense && s.players[r.player].role == .front
+                    && abs(s.players[r.player].position(at: r.at).y - Gridiron.y(32)) < 1 } == true
+                  && acting(s, .scramble).count >= 2 && s.players.contains { $0.team == .offense && $0.actions.contains { $0.kind == .scramble } },
+                  "…the scramble for it, a man from each side laid out, and Kancey (a lineman, as credited) scoops it up at the 32")
+            check(s.end.map { $0.y < 0 } == true && s.banner?.text == "TOUCHDOWN" && recovery.map { (s.score ?? 0) > $0.at } == true,
+                  "…and runs it back into the end zone: TOUCHDOWN once he's across, after the recovery")
+        }
+        if let kept = pro("P.Mahomes sacked at SEA 32 for -2 yards (D.Hall). FUMBLES") {
+            let s = FootballScript(kept)
+            let qb = quarterback(s)!
+            let stripper = acting(s, .strip).first
+            check(stripper.map { s.players[$0.player].key == "slb" || s.players[$0.player].role == .backer } == true
+                  && s.legs.last { $0.until.isInfinite }.map { $0.hand == .carry(qb) } == true && s.banner == nil
+                  && s.next.gain.map { $0 > (s.next.scrimmage ?? 0) } == true,
+                  "a strip-sack he kept: Hall (Seattle's strong-side backer) punches it out, Mahomes falls on it at the 32, the ball still Kansas City's")
+        }
+        if let run = pro("J.Gibbs up the middle to GB 6 for 6 yards (I.McDuffie). FUMBLES") {
+            let s = FootballScript(run)
+            let carrier = s.players.indices.first { i in s.legs.contains { $0.hand == .carry(i) } && s.players[i].role == .back }
+            let stripped = acting(s, .strip).first
+            let recovered = s.legs.last { $0.until.isInfinite }?.from ?? 0
+            check(carrier.map { c in stripped.map { abs(s.players[c].position(at: $0.at).y - Gridiron.y(94)) < 1 } == true } == true
+                  && s.banner?.text == "FUMBLE" && s.banner.map { abs($0.at - recovered) < 0.1 } == true
+                  && s.next.gain.map { $0 < (s.next.scrimmage ?? 0) } == true,
+                  "a run fumbled: Gibbs stripped by McDuffie where it came out, Green Bay comes up with it, FUMBLE as he does, the lines turn round")
+        }
+        if let keptRun = cfb("fumbled by #10 M.Reed at TAM18 forced by #90 L.Simmons") {
+            let s = FootballScript(keptRun)
+            let takers = s.legs.compactMap { leg -> Int? in if case let .carry(i) = leg.hand, leg.until.isInfinite { return i }; return nil }
+            check(acting(s, .strip).count == 1 && takers.allSatisfy { s.players[$0].team == .offense } && s.end.map { abs($0.y - Gridiron.y(22)) < 1 } == true,
+                  "a college fumble kept: stripped at the 18, Texas A&M falls on it at the 22")
+        }
+        if let aborted = pro("J.Goff FUMBLES (Aborted) at DET 41") {
+            let s = FootballScript(aborted)
+            check(s.flights.filter { $0.end - $0.start > 0.1 }.count >= 2 && acting(s, .scramble).contains { s.players[$0.player].role == .quarterback }
+                  && s.banner?.text == "FUMBLE", "a botched snap: on the ground at Goff's feet, he goes down after it, Green Bay recovers")
+        }
+
+        // MARK: Sacks and a blocked kick
+
+        if let split = pro("sack split by D.Alexander and A.Reese") {
+            let s = FootballScript(split)
+            let qb = quarterback(s)!
+            let down = s.players[qb].holds.first { $0.kind == .down }?.from ?? 0
+            let sackers = acting(s, .tackle).filter { abs($0.at - down) < 0.3 }
+            check(sackers.count == 2 && sackers.allSatisfy { near(s.players[$0.player].position(at: $0.at), s.players[qb].position(at: $0.at), 5) },
+                  "a split sack: Alexander and Reese both get to Stroud")
+        }
+        if let blocked = pro("35 yard field goal is BLOCKED (D.Wonnum)") {
+            let s = FootballScript(blocked)
+            let leap = acting(s, .leap).first
+            let off = s.flights.firstIndex { $0.to.z > 7 && $0.end - $0.start < 0.3 }
+            check(leap != nil && off.map { i in abs(s.flights[i].end - (leap?.at ?? 0)) < 0.01 && s.flights[i + 1].to.z < 1 } == true
+                  && s.score == nil && s.banner?.text == "BLOCKED" && s.flashes.contains { $0.beat == .deflect },
+                  "a blocked field goal: Wonnum up at the line, both arms high, the ball off his hands a beat after the kick and away: BLOCKED")
+        }
+
+        // MARK: Flags
+
+        if let false0 = pro("PENALTY on SEA-G.Zabel, False Start") {
+            let s = FootballScript(false0)
+            let official = s.players.firstIndex { $0.team == .official }
+            check(!s.flashes.contains { $0.beat == .snap } && !s.legs.contains { if case .carry = $0.hand { return true }; return false }
+                  && s.flags.count == 1 && official.map { abs(s.players[$0].at.x) > Gridiron.half } == true
+                  && acting(s, .flagThrow).count == 1 && s.march.map { abs($0.to - $0.from - Gridiron.y(-5)) < 0.01 } == true,
+                  "a false start: no snap; the flag from the wing official, onto the lineman who moved; five yards walked off")
+        }
+        if let hold = pro("K.Walker left tackle to SEA 39 for 6 yards (U.Nwosu).PENALTY on KC-K.Suamataia"),
+           let played = FootballScript.played(hold) {
+            let s = FootballScript(hold)
+            let flag = s.flags.first
+            let tackle = s.flashes.first { $0.beat == .hit }?.at ?? 0
+            let fouler = s.players.indices.first { s.players[$0].key == hold.flags.first?.player?.slot }
+            check(played.kind == .rush && played.to == 61 && s.flights.count >= 2 && flag.map { $0.thrown < tackle } == true
+                  && fouler.map { f in flag.map { near($0.to, s.players[f].position(at: $0.lands - 0.5), 4) } == true } == true,
+                  "holding on a run: the run plays out (the snap, the handoff, Walker to the 39), the flag lands on Suamataia while it goes on",
+                  "\(String(describing: played.kind)) \(played.to) \(String(describing: flag))")
+            check(s.march.map { abs($0.from - Gridiron.y(55)) < 0.01 && abs($0.to - Gridiron.y(45)) < 0.01 } == true
+                  && s.march.map { m in tackle < m.start } == true && FootballStamp(hold).title == "Holding, Offense · No play",
+                  "…then walked off from where it was enforced (SEA 45) to KC's 45: the stamp names it as the referee does, \"Holding, Offense\"",
+                  FootballStamp(hold).title)
+        }
+        if let rough = pro("J.Goff pass incomplete short right to S.LaPorta.PENALTY on GB-B.Cox, Roughing the Passer") {
+            let s = FootballScript(rough)
+            let qb = quarterback(s)!
+            let release = s.players[qb].actions.first { $0.kind == .throwBall }?.at ?? 0
+            check(s.flags.first.map { $0.lands > release && $0.lands < release + 0.9 && near($0.to, s.players[qb].position(at: release), 6) } == true,
+                  "roughing the passer: the flag comes in on Goff just after the throw")
+        }
+        if let interference = pro("PENALTY on CAR-A.Evans, Defensive Pass Interference") {
+            let s = FootballScript(interference)
+            let pass = s.flights.first { $0.start > 1 && $0.end - $0.start > 0.3 }
+            check(pass.map { p in s.flags.first.map { abs($0.lands - (p.end + 0.45)) < 0.05 && near($0.to, p.to.ground, 6) } == true } == true,
+                  "pass interference: the flag where the ball comes down, as it does")
+        }
+        if let declined = pro("sack split by D.Alexander and A.Reese") {
+            let s = FootballScript(declined)
+            check(s.flags.count == 1 && s.flags[0].declined && s.march == nil, "a declined hold: the flag, DECLINED beside it, nothing walked off")
+        }
+        if let offsetting = pro("Penalty on KC-J.Ezeudu, Offensive Holding, offsetting") {
+            let s = FootballScript(offsetting)
+            check(s.flags.count == 2 && s.march == nil && Set(s.players.filter { $0.team == .official }.map(\.at.x)).count == 2
+                  && FootballStamp(offsetting).parts.map(\.text) == ["NO PLAY"] && FootballStamp(offsetting).title == "Offsetting penalties",
+                  "offsetting fouls: two flags from two officials, nothing walked off, NO PLAY")
+        }
+        if let late = pro("PENALTY on GB-D.Wyatt, Unnecessary Roughness") {
+            let s = FootballScript(late)
+            let tackle = s.flashes.first { $0.beat == .hit }?.at ?? 0
+            check(s.flags.first.map { $0.thrown > tackle } == true && s.march != nil, "unnecessary roughness after the whistle: the flag once the play's over, then the walk")
+        }
+
+        // MARK: College's spots
+
+        if let caught = cfb("#12 K.Russell pass complete short left to #7 R.Scott caught at TAM24"),
+           let thrown = cfb("pass incomplete short middle to #4 D.Hill thrown to TAM22") {
+            let a = FootballScript(caught), b = FootballScript(thrown)
+            let pass = a.flights.first { $0.start > 1 && $0.end - $0.start > 0.3 }, miss = b.flights.first { $0.start > 1 && $0.end - $0.start > 0.3 }
+            check(pass.map { abs($0.to.y - Gridiron.y(caught.from + 17)) < 0.01 } == true && miss.map { abs($0.to.y - Gridiron.y(thrown.from + 7)) < 0.01 } == true,
+                  "college's exact spots: caught at the 24, 17 yards downfield; thrown to the 22, 7 yards, where it comes down")
+        }
+
+        // MARK: The ball in his hand
+
+        if let s = pro("P.Mahomes pass incomplete deep right to X.Worthy [D.Hall]").map(FootballScript.init), let qb = quarterback(s),
+           let release = s.players[qb].actions.first(where: { $0.kind == .throwBall })?.at {
+            let player = s.players[qb]
+            check(FootballFrame.cocked(player, at: release - 0.6) == 0 && FootballFrame.cocked(player, at: release - 0.15) == 1
+                  && FootballFrame.cocked(player, at: release - 0.02) == 1 && FootballFrame.cocked(player, at: release + 0.2) == 0,
+                  "the ball in both hands in the pocket, in his throwing hand once he cocks it, until it's away")
+        }
+
+        // MARK: Every play
+
+        let all = (college + nfl).flatMap { teams, items in items.compactMap { FootballScene.parse($0, teams: teams) } }
+        let scripts = all.map { ($0, FootballScript($0)) }
+        let sane = scripts.filter { _, s in
+            !(stride(from: 0.0, through: s.duration, by: 0.1).allSatisfy { t in
+                s.players.allSatisfy { p in let q = p.position(at: t); return q.x.isFinite && q.y.isFinite }
+                    && (s.ball(at: t).map { $0.x.isFinite && $0.y.isFinite && $0.z >= -0.01 } ?? true)
+            } && s.duration > 2 && s.duration < 11 && s.stamp < s.settle)
+        }
+        check(sane.isEmpty, "every play of two college games and the NFL's turnovers, hits and flags: finite, the ball never under the grass, 2–11 s",
+              sane.prefix(3).map { "\($0.0.text.prefix(50)) \($0.1.duration)" }.joined(separator: " | "))
+        let teams = FootballTeams(offense: Uniform(.blue), defense: Uniform(.orange))
+        let broken = scripts.filter { scene, _ in !scene.flags.isEmpty || scene.loose != nil || scene.pressure != nil || scene.blocker != nil }
+            .compactMap { scene, s -> String? in
+                jointsBreak(s.duration, s.players.count) { i, t in
+                    FootballFrame(scene: scene, script: s, t: t, teams: teams, ink: TheaterInk(.dark), size: CGSize(width: 312, height: 156))
+                        .pose(s.players[i], i, at: s.players[i].position(at: t), unit: 1.1 / 8.5).0
+                }.map { "\(scene.text.prefix(30)): \($0)" }
+            }
+        check(broken.isEmpty, "the new poses (the strip, the scramble, the hit, the leap, the flag thrown), every blend: knees and elbows bend their own way",
+              broken.prefix(3).joined(separator: " | "))
     }
 }

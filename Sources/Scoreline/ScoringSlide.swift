@@ -816,7 +816,7 @@ extension SlideTheater {
 
     @MainActor static func soccer(_ feed: SoccerFeed) -> SlideTheater {
         SlideTheater(playing: { feed.theater.news ? feed.theater.scene?.id : nil },
-                     climax: { feed.theater.scene.flatMap { ScoringSlide.climax(SoccerScript($0)) } })
+                     climax: { feed.theater.scene.flatMap { ScoringSlide.climax(SoccerScript($0, lineups: feed.theater.lineups)) } })
     }
 
     /// The NBA: the basket the court's theater replays (published with its moment).
