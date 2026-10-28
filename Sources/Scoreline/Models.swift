@@ -102,7 +102,8 @@ struct Competitor: Hashable {
     let name: String
     /// Short code for the menu bar ("ARS", "NAVI").
     let abbreviation: String
-    let score: String?
+    /// The scoreboard's (a game page's lane can be ahead of it: `LaneScores`).
+    var score: String?
     let logo: URL?
     let isWinner: Bool
     /// Team color as a hex string, when the source provides one.

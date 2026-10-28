@@ -62,6 +62,8 @@ struct DetailView: View {
     @State private var basketballFeed = BasketballFeed()
     /// NBA: the court's replay and the player picked in the box score or leaders, shared by every NBA view.
     @State private var nbaStage = NBAStage()
+    /// What the hero has said, period by period: the line score (and its peek) is kept no older than it.
+    @State private var ledger = HeaderLedger()
     /// The hero scoreboard's beats: digit pops, the wash pulse, the glint, the trophy.
     @State private var beats = HeroBeats()
     /// Climbing, live: who moved up or down the results in the last refresh.
@@ -165,6 +167,8 @@ struct DetailView: View {
         // Polls re-run only this modifier; the page re-renders when its event (or its table's live games) changed.
         .modifier(LiveEventSync(snapshot: snapshot, league: tableLeague, live: $live, leagueLive: $leagueLive,
                                 staleSince: $storeStaleSince))
+        // The line score and the scores list kept no older than the hero's numbers.
+        .modifier(HeaderSync(ledger: ledger, eventID: event.id, reading: heroReading, lane: laneScores.map { [$0.top, $0.bottom] }))
         // The wash sits behind the whole page, not inside the scroll content, so
         // it starts at the panel's top edge (under the header and its glass
         // buttons) and fades out below the card with no hard edge.
@@ -535,6 +539,15 @@ struct DetailView: View {
         guard case let .match(top, bottom) = event.content else { return [] }
         let lane = laneScores
         return [lane?.top ?? top.score, lane?.bottom ?? bottom.score]
+    }
+
+    /// The hero's numbers while the game is live, and the period they were read
+    /// in (the lane's clock, the scoreboard's, else the clock line's inning), for the ledger.
+    private var heroReading: HeaderLedger.Reading? {
+        guard event.state == .live else { return nil }
+        let scores = heroScores
+        return HeaderLedger.Reading(top: scores.first ?? nil, bottom: scores.last ?? nil,
+                                    period: liveClock?.period ?? HeaderLedger.period(in: liveClockFallback))
     }
 
     /// A real trophy: 9 pt, yellow. It appears with the symbol's own entrance
@@ -1150,8 +1163,9 @@ struct DetailView: View {
                 // instead of trailing it by up to the summary's 30 s.
                 let linescore = isNBA && event.state == .live
                     ? d.topIsHome.map { basketballFeed.linescore(summary, topIsHome: $0) } ?? summary : summary
-                LinescoreGrid(linescore: linescore, topName: names.top, bottomName: names.bottom,
-                              totals: isBaseball ? 3 : 1, palette: palette)
+                // Every sport: no older than the hero, period by period (the summary trails the lanes).
+                SyncedLinescore(ledger: ledger, linescore: linescore, topName: names.top, bottomName: names.bottom,
+                                totals: isBaseball ? 3 : 1, palette: palette)
             }
         case .battedBalls:
             SprayChartView(balls: battedBalls(d), palette: palette, topName: names.top, bottomName: names.bottom,
@@ -1817,7 +1831,9 @@ struct DetailView: View {
         var inputs = PeekInputs()
         inputs.shown = Set(order.filter { has($0, d) })
         let names = shortNames(d)
-        if let line = d.linescore {
+        if let summary = d.linescore {
+            // As the section shows it: no older than the hero.
+            let line = ledger.reconciled(summary)
             inputs.linescore = (line.headers, line.top, line.bottom, names)
         }
         switch event.ref {
@@ -2804,5 +2820,45 @@ private struct LiveEventSync: ViewModifier {
                 guard staleSince != new else { return }
                 withAnimation(Motion.fade) { staleSince = new }
             }
+    }
+}
+
+/// The page's line score and the scores list kept no older than the hero
+/// (HeaderLedger; the live check): records what the hero says while the game
+/// is live, period by period, and gives the scores list the lane's score
+/// while it's ahead of the scoreboard's (`ScoreStore.publishLaneScore`). Its
+/// actions write; nothing here is read while the page renders.
+private struct HeaderSync: ViewModifier {
+    let ledger: HeaderLedger
+    let eventID: String
+    /// The hero's numbers and their period while live (nil otherwise).
+    let reading: HeaderLedger.Reading?
+    /// The lane's score, top first, while live and never behind the scoreboard.
+    let lane: [String]?
+    @Environment(ScoreStore.self) private var store
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: reading, initial: true) { _, new in ledger.observe(new) }
+            .onChange(of: lane, initial: true) { _, new in
+                guard let new, new.count == 2 else { return }
+                store.publishLaneScore(eventID, top: new[0], bottom: new[1])
+            }
+    }
+}
+
+/// The line score as the hero has it now: follows the ledger itself, so a
+/// new reading redraws this grid, not the page.
+private struct SyncedLinescore: View {
+    let ledger: HeaderLedger
+    let linescore: GameDetail.Linescore
+    let topName: String
+    let bottomName: String
+    let totals: Int
+    let palette: TeamPalette
+
+    var body: some View {
+        LinescoreGrid(linescore: ledger.reconciled(linescore), topName: topName, bottomName: bottomName,
+                      totals: totals, palette: palette)
     }
 }

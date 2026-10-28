@@ -888,7 +888,9 @@ enum NBADetail {
     /// T trails the hero by up to half a minute. T takes the lane's score
     /// (top first); the points since the summary go to the current period's
     /// cell while the lane is still in the summary's last period (across a
-    /// break it can't say which period they belong to, so only T moves).
+    /// break it can't say which period they belong to, so only T moves: the
+    /// page's `HeaderLedger` then brings the quarter that ended up to what
+    /// the hero said at its end, so Q1 never reads 12–9 beside a 12–12 T).
     /// Never behind: a lane that trails the summary changes nothing.
     static func linescore(_ summary: GameDetail.Linescore, lane: (top: Int, bottom: Int), period: Int?) -> GameDetail.Linescore {
         let t = summary.headers.count - 1

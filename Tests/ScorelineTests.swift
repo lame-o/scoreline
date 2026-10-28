@@ -70,6 +70,7 @@ struct ScorelineTests {
         playStatcast()
         playCredits()
         playLive()
+        headerSync()
         await scoringSlides()
 
         print("\n\(passes) passed, \(failures) failed")
