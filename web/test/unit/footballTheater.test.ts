@@ -20,7 +20,9 @@ import { liveMoment, Tier, type LiveMoment } from "../../src/data/moments";
 import { FootballScene, kindIs, parse } from "../../src/data/theater/footballScene";
 import { FootballScript, footballStamp, Gridiron, type Role, type Team } from "../../src/data/theater/footballScript";
 import { FootballCelebration, FootballTheaterWatch, footballRest, footballTheaterState, spot, spotted } from "../../src/data/theater/footballTheater";
+import { playerPose } from "../../src/features/game/football/theater/drawFootball";
 import { fixture } from "./fixtures";
+import { jointsBreak } from "./rigJoints";
 
 const items = (fixture("mnf-dal-phi-plays.json") as { items: Record<string, unknown>[] }).items;
 // DAL (6) visiting, the top team; PHI (21) at home.
@@ -380,6 +382,15 @@ describe("choreography", () => {
       }),
     );
     expect(bad.length).toBe(0);
+  });
+
+  it("in every snap of the game, knees and elbows bend only their own way, never past folded (the stances, the poses and every blend between them)", () => {
+    const broken = scenes.flatMap((scene, k) => {
+      const s = all[k]!;
+      const where = jointsBreak(s.duration, s.players.length, (i, t) => playerPose(s, s.players[i]!, i, t, s.players[i]!.position(t), 1.1 / 8.5)[0]);
+      return where ? [`${scene.text.slice(0, 30)}: ${where}`] : [];
+    });
+    expect(broken.slice(0, 3)).toEqual([]);
   });
 
   it("every replay runs 3–10 s, settle included, and its stamp lands before the field settles", () => {

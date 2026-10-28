@@ -10,7 +10,10 @@ import { parse, type PlayScene, type SideOf } from "../../src/data/mlb/playScene
 import { PlayScript, type Rest } from "../../src/data/mlb/playScript";
 import { plateCelebration, sprayChartBursts } from "../../src/data/mlb/theaterCelebration";
 import { Ballpark, samePoint, type Point } from "../../src/data/mlb/theaterField";
-import { figure, Poses } from "../../src/data/mlb/theaterPose";
+import { BaseballPoses } from "../../src/data/mlb/theaterPose";
+import { gait, RigPoses, skeleton, vec } from "../../src/data/theater/rig";
+import { pose } from "../../src/features/game/mlb/theater/drawTheater";
+import { jointsBreak } from "./rigJoints";
 import { APART, dress, labDistance, type Uniform } from "../../src/data/mlb/theaterTeams";
 import { oklabFromHex } from "../../src/data/teamColors";
 import { fixture } from "./fixtures";
@@ -127,6 +130,15 @@ describe("choreography", () => {
       expect(s.settle - 0.75).toBeLessThanOrEqual(4.4);
     }
   });
+  it("in every play of the game, knees and elbows bend only their own way, never past folded (the poses and every blend between them)", () => {
+    const scenes = plays.flatMap((p, i) => (typeOf(p) === "play-result" ? (parse(plays, i, side, names) ?? []) : []));
+    const broken = scenes.flatMap((sc) => {
+      const s = script(sc);
+      const where = jointsBreak(s.duration, s.actors.length, (i, t) => pose(s, t, s.actors[i]!, i, s.actors[i]!.position(t), 1.1 / 8.5)[0]);
+      return where ? [`${sc.text.slice(0, 30)}: ${where}`] : [];
+    });
+    expect(broken.slice(0, 3)).toEqual([]);
+  });
   it("an unknown play with a spot still replays; a play with nothing to go on still makes a (quiet) script", () => {
     const odd = parse(
       [
@@ -234,10 +246,12 @@ describe("figures", () => {
     expect(script(flyOut).puffs.length).toBe(0);
   });
   it("every pose stands on the ground, head up", () => {
-    for (const p of [Poses.run(0), Poses.run(1), Poses.slide, Poses.stride, Poses.deliver, Poses.stance, Poses.finish, Poses.catchHigh, Poses.scoop]) {
-      const f = figure(p, { x: 50, y: 80 }, 20);
-      expect(Math.max(f.near.foot.y, f.far.foot.y)).toBeLessThanOrEqual(80.01);
-      expect(f.head.y).toBeLessThan(80);
+    const striding = [0.0, 0.3, 0.6].map((phase) => gait({ heading: 0, phase, speed: 6, push: 0, weight: 1 }, { left: vec(0.1, 0.06, 0), right: vec(-0.15, -0.06, 0.2) }));
+    const B = BaseballPoses;
+    for (const p of [...striding, B.slide, B.stride, B.deliver, B.stance, B.finish, RigPoses.catchHigh, RigPoses.scoop, B.squat, B.lead, B.set, B.kick]) {
+      const k = skeleton(p);
+      expect(Math.min(k.feet[0].z, k.feet[1].z)).toBeLessThanOrEqual(0.01);
+      expect(k.head.z).toBeGreaterThan(k.hip.z);
     }
   });
 });

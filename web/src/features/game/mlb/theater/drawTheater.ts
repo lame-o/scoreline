@@ -16,11 +16,13 @@ import { drawParticles, particles, type CelebrationPalette } from "../../../../d
 import { PITCH_NAMES, type Hand, type PlayScene } from "../../../../data/mlb/playScene";
 import { STAMP_MARKS, type Actor, type PlayScript } from "../../../../data/mlb/playScript";
 import { burstEnd, type TheaterBurst } from "../../../../data/mlb/theaterCelebration";
-import { Ballpark, easeValue, houseCurve, criticalSpring, ORIGIN, smooth, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
-import { facing, figure as poseFigure, mixPose, Poses, samePose, type Figure, type Pose } from "../../../../data/mlb/theaterPose";
+import { Ballpark, easeValue, houseCurve, criticalSpring, ORIGIN, type Point } from "../../../../data/mlb/theaterField";
+import { BaseballPoses } from "../../../../data/mlb/theaterPose";
 import type { TheaterTeams, Uniform } from "../../../../data/mlb/theaterTeams";
+import { keyed, mirrored, mix, over, Rig, RigPoses, RigTrack, gait, type RigPose } from "../../../../data/theater/rig";
 import { luminance } from "../../../../data/teamColors";
-import { hexRGB, mixHex, rgba, type TheaterInk } from "./theaterInk";
+import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
+import { rgba, type TheaterInk } from "./theaterInk";
 
 // The projection lives on its own so the football theater can share it without this drawing module.
 export { FieldProjection, type Size } from "../../core/theater/fieldProjection";
@@ -506,38 +508,12 @@ export interface FrameInputs {
   readonly labels: Labels;
 }
 
-interface TeamInks {
-  readonly rim: string;
-  readonly inner: string;
-  readonly far: string;
-  readonly jersey: string;
-  readonly cap: string;
-}
-
-const inkCache = new WeakMap<Uniform, Map<string, TeamInks>>();
-
-/** Each team's inks, resolved once per uniform and scheme: resolving a team color per stroke was most of a frame's cost. */
-function teamInks(u: Uniform, ink: TheaterInk): TeamInks {
-  const key = ink.dark ? "dark" : "light";
-  let byScheme = inkCache.get(u);
-  if (!byScheme) {
-    byScheme = new Map();
-    inkCache.set(u, byScheme);
-  }
-  const cached = byScheme.get(key);
-  if (cached) return cached;
-  const rim = u.piping ?? ink.halo;
-  const inner = u.piping ? rgba(hexRGB(u.piping), 0.7 * (u.piping.length > 7 ? Number.parseInt(u.piping.slice(7, 9), 16) / 255 : 1)) : ink.dark ? "rgb(0 0 0 / 0.35)" : "rgb(255 255 255 / 0.63)";
-  const made: TeamInks = { rim, inner, far: mixHex(u.jersey, "#000000", ink.dark ? 0.32 : 0.22), jersey: u.jersey, cap: u.cap };
-  byScheme.set(key, made);
-  return made;
-}
-
 export function drawFrame(ctx: Ctx, f: FieldProjection, input: FrameInputs): void {
   drawTrace(ctx, f, input);
   drawPuffs(ctx, f, input);
-  drawShadows(ctx, f, input);
-  drawFigures(ctx, f, input);
+  const figures = posed(f, input);
+  drawShadows(ctx, f, input, figures);
+  drawFigures(ctx, f, input, figures);
   drawBall(ctx, f, input);
   drawFlashes(ctx, f, input);
   drawLabels(ctx, f, input);
@@ -624,14 +600,15 @@ function drawPuffs(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs
   }
 }
 
-function drawShadows(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs): void {
+function drawShadows(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs, figures: readonly Posed[]): void {
+  // Under the hips; smaller and fainter as he leaves the ground.
   const w = f.figure * 0.3;
-  for (const actor of script.actors) {
-    const o = actor.opacity(t);
-    if (!(o > 0.01)) continue;
-    const p = f.point(actor.position(t));
-    ellipse(ctx, p.x, p.y, w, w * 0.32);
-    ctx.fillStyle = rgba(ink.shadow, ink.shadowAlpha * o);
+  for (const p of figures) {
+    const air = Math.min(p.figure.air / 0.4, 1);
+    const r = w * (1 - 0.35 * air);
+    const g = p.figure.ground;
+    ellipse(ctx, g.x, g.y, r, r * 0.32);
+    ctx.fillStyle = rgba(ink.shadow, ink.shadowAlpha * p.opacity * (1 - 0.45 * air));
     ctx.fill();
   }
   // The ball's: under it on the ground, larger and softer the higher it
@@ -658,184 +635,139 @@ function drawShadows(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInpu
   }
 }
 
-function limbs(ctx: Ctx, fig: Figure, which: "near" | "far"): void {
-  const l = fig[which];
-  ctx.moveTo(fig.hip.x, fig.hip.y);
-  ctx.lineTo(l.knee.x, l.knee.y);
-  ctx.lineTo(l.foot.x, l.foot.y);
-  ctx.moveTo(fig.neck.x, fig.neck.y);
-  ctx.lineTo(l.elbow.x, l.elbow.y);
-  ctx.lineTo(l.hand.x, l.hand.y);
+/** A figure posed and placed at t. */
+interface Posed {
+  readonly index: number;
+  readonly figure: RigFigure;
+  readonly opacity: number;
 }
 
-function drawFigures(ctx: Ctx, f: FieldProjection, input: FrameInputs): void {
-  const { script, t, teams, ink } = input;
-  const height = f.figure;
-  const batting = teamInks(teams.batting, ink);
-  const fielding = teamInks(teams.fielding, ink);
-  // Far to near: a figure in front covers the one behind.
+/** Everyone on the field at t, far to near: a figure in front covers the one behind. */
+function posed(f: FieldProjection, input: FrameInputs): Posed[] {
+  const { script, t } = input;
   const order = script.actors.map((actor, index) => ({ actor, index, at: actor.position(t) })).sort((a, b) => b.at.y - a.at.y);
-  // Small figures lose their inner rim: it would only blur them.
-  const rimmed = height >= 15;
-  const halo = Math.max(height * 0.045, 0.8);
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
+  const out: Posed[] = [];
   for (const { actor, index, at } of order) {
     const o = actor.opacity(t);
     if (!(o > 0.01)) continue;
-    const fig = poseFigure(pose(input, actor, index), f.point(at), height);
-    const team = actor.team === "batting" ? batting : fielding;
-    ctx.globalAlpha = o;
-    // The rim first, so lines and figures behind stop short of this one.
-    ctx.strokeStyle = team.rim;
-    ctx.beginPath();
-    limbs(ctx, fig, "far");
-    limbs(ctx, fig, "near");
-    ctx.lineWidth = fig.limb + 2 * halo;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(fig.hip.x, fig.hip.y);
-    ctx.lineTo(fig.neck.x, fig.neck.y);
-    ctx.lineWidth = fig.torso + 2 * halo;
-    ctx.stroke();
-    ctx.fillStyle = team.rim;
-    ellipse(ctx, fig.head.x, fig.head.y, fig.headRadius + halo, fig.headRadius + halo);
-    ctx.fill();
-    if (actor.bats && actor.dropsBat != null && t >= actor.dropsBat) {
-      ctx.globalAlpha = 1;
-      drawDroppedBat(ctx, f.point(Ballpark.box(actor.bats)), actor.bats, 1 - Math.min(Math.max((t - script.settle) / 0.4, 0), 1), f, ink);
-      ctx.globalAlpha = o;
-    }
-    ctx.strokeStyle = team.far;
-    ctx.lineWidth = fig.limb;
-    ctx.beginPath();
-    limbs(ctx, fig, "far");
-    ctx.stroke();
-    ctx.strokeStyle = team.jersey;
-    ctx.lineWidth = fig.torso;
-    ctx.beginPath();
-    ctx.moveTo(fig.hip.x, fig.hip.y);
-    ctx.lineTo(fig.neck.x, fig.neck.y);
-    ctx.stroke();
-    if (rimmed) {
-      ctx.strokeStyle = team.inner;
-      ctx.lineWidth = fig.limb + 1.2;
-      ctx.beginPath();
-      limbs(ctx, fig, "near");
-      ctx.stroke();
-    }
-    ctx.strokeStyle = team.jersey;
-    ctx.lineWidth = fig.limb;
-    ctx.beginPath();
-    limbs(ctx, fig, "near");
-    ctx.stroke();
-    ctx.fillStyle = team.cap;
-    ellipse(ctx, fig.head.x, fig.head.y, fig.headRadius, fig.headRadius);
-    ctx.fill();
-    if (actor.bats && (actor.dropsBat == null || t < actor.dropsBat)) {
-      drawBat(ctx, t, actor.bats, fig.near.hand, actor.swing, height * 0.62, team.rim, ink);
-    }
+    const lens = RigLens.field(f, at);
+    const [body, heading] = pose(script, t, actor, index, at, lens.unit);
+    out.push({ index, figure: rigFigure(body, heading, lens), opacity: o });
   }
-  ctx.globalAlpha = 1;
+  return out;
 }
 
-const PITCHER_KEYS: readonly (readonly [number, Pose])[] = [
-  [-0.55, Poses.ready],
-  [-0.42, Poses.set],
-  [-0.24, Poses.kick],
-  [-0.08, Poses.stride],
-  [0, Poses.deliver],
-  [0.16, Poses.follow],
-  [0.7, Poses.ready],
+function drawFigures(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: readonly Posed[]): void {
+  const { script, t, teams, ink } = input;
+  const batting = figureInks(teams.batting, ink);
+  const fielding = figureInks(teams.fielding, ink);
+  for (const p of figures) {
+    const actor = script.actors[p.index]!;
+    if (actor.bats && actor.dropsBat != null && t >= actor.dropsBat) {
+      drawDroppedBat(ctx, f.point(Ballpark.box(actor.bats)), actor.bats, 1 - Math.min(Math.max((t - script.settle) / 0.4, 0), 1), f, ink);
+    }
+    const inks = actor.team === "batting" ? batting : fielding;
+    drawFigure(ctx, p.figure, inks, f.figure, p.opacity);
+    if (actor.bats && (actor.dropsBat == null || t < actor.dropsBat)) {
+      ctx.globalAlpha = p.opacity;
+      drawBat(ctx, t, actor.bats, grip(p.figure), actor.swing, f.figure * 0.62, inks.rim, ink);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+const envelope = (x: number, attack: number, release: number) => (x < 0 ? Math.max(1 + x / attack, 0) : Math.max(1 - x / release, 0));
+
+const SWING_KEYS: readonly (readonly [number, RigPose])[] = [
+  [0, BaseballPoses.stance],
+  [0.4, BaseballPoses.contact],
+  [1, BaseballPoses.finish],
+];
+
+const PITCHER_KEYS: readonly (readonly [number, RigPose])[] = [
+  [-0.55, RigPoses.ready],
+  [-0.42, BaseballPoses.set],
+  [-0.24, BaseballPoses.kick],
+  [-0.08, BaseballPoses.stride],
+  [0, BaseballPoses.deliver],
+  [0.16, BaseballPoses.follow],
+  [0.45, BaseballPoses.fielding],
+  [0.7, BaseballPoses.fielding],
+];
+
+const THROW_KEYS: readonly (readonly [number, RigPose])[] = [
+  [-0.3, RigPoses.cock],
+  [-0.04, RigPoses.cock],
+  [0.1, RigPoses.release],
+  [0.4, RigPoses.release],
 ];
 
 /**
- * The pose at t: what he's doing (the delivery, a swing, a catch, a throw),
- * else how he's moving (running, walking, sliding), else how he stands for
- * his position.
+ * The body at t, and its heading (PlayFrame.pose): how he stands for his
+ * position, how he's moving (striding to his planted feet), and over that
+ * what he's doing (the delivery, a swing, a slide, a catch, a throw). `unit`:
+ * body units to the foot where he stands. (tested)
  */
-function pose({ script, t }: FrameInputs, actor: Actor, index: number): Pose {
-  const here = actor.position(t);
-  const facingToward = (p: Point) => (p.x - here.x >= 0 ? 1 : -1);
-  const envelope = (x: number, attack: number, release: number) => (x < 0 ? Math.max(1 + x / attack, 0) : Math.max(1 - x / release, 0));
+export function pose(script: PlayScript, t: number, actor: Actor, index: number, here: Point, unit: number): [RigPose, number] {
+  const track = script.rig[index] ?? RigTrack.standing(here);
+  const m = track.motion(t);
 
-  // How he moves, else how he stands.
-  let base: Pose;
-  const motion = actor.motion(t);
+  // How he stands, and how he moves.
+  const role = actor.role;
+  let still: RigPose;
+  if (role.kind === "fielder") {
+    if (role.n === 1) still = script.release != null && t > script.release ? BaseballPoses.fielding : RigPoses.ready;
+    else if (role.n === 2) still = actor.crouch ? BaseballPoses.squat : RigPoses.stand;
+    else still = role.n <= 6 ? RigPoses.ready : RigPoses.stand;
+  } else if (role.kind === "batter") still = RigPoses.stand;
+  // Leading off a base, low, watching the pitcher.
+  else still = Ballpark.distance(here) > 5 ? BaseballPoses.lead : RigPoses.stand;
+  const feet = track.feet(t, here, m.heading, unit, m.speed, { left: still.left, right: still.right });
+  let body = mix(still, gait(m, feet), m.weight);
+  const moving = actor.motion(t);
   if (actor.slide != null && t >= actor.slide) {
-    const heading = actor.motion(actor.slide + 0.05)?.heading ?? { x: 1, y: 0 };
-    const down = motion == null ? 1 : smooth((t - actor.slide) / 0.12);
-    const side = heading.x >= 0 ? 1 : -1;
-    base = mixPose(facing(Poses.run(2 * Math.PI * 3.6 * actor.slide + index), side), facing(Poses.slide, side), down);
-  } else if (motion && motion.speed > 3) {
-    const side = motion.heading.x >= 0 ? 1 : -1;
-    base = motion.speed > 40 ? facing(Poses.run(2 * Math.PI * 3.6 * t + index), side) : facing(Poses.walk(2 * Math.PI * 2.2 * t + index), side);
-  } else {
-    const role = actor.role;
-    if (role.kind === "fielder") {
-      base = role.n === 2 ? (actor.crouch ? Poses.squat : Poses.stand) : role.n <= 6 ? Poses.ready : Poses.stand;
-    } else if (role.kind === "batter") {
-      base = Poses.stand;
-    } else {
-      // Leading off, toward the next base: second and third are to the left, home to the right.
-      base = Ballpark.distance(here) > 5 ? facing(Poses.lead, here.x < -20 ? 1 : -1) : Poses.stand;
-    }
+    body = mix(body, BaseballPoses.slide, moving == null ? 1 : Rig.smooth((t - actor.slide) / 0.12));
   }
 
   // The batter in the box: the stance, the swing.
-  if (actor.role.kind === "batter" && actor.bats && (actor.dropsBat == null || t < actor.dropsBat) && motion == null) {
-    const side = actor.bats === "L" ? -1 : 1;
-    let p = Poses.stance;
+  if (role.kind === "batter" && actor.bats && (actor.dropsBat == null || t < actor.dropsBat) && moving == null) {
+    let p = BaseballPoses.stance;
     if (actor.swing != null) {
       const u = (t - (actor.swing - 0.09)) / 0.24;
-      p = u <= 0 ? Poses.stance : u < 0.4 ? mixPose(Poses.stance, Poses.contact, smooth(u / 0.4)) : mixPose(Poses.contact, Poses.finish, smooth((u - 0.4) / 0.6));
+      p = keyed(SWING_KEYS, u) ?? (u <= 0 ? BaseballPoses.stance : BaseballPoses.finish);
     }
-    base = facing(p, side);
+    body = actor.bats === "L" ? mirrored(p) : p;
   }
 
-  // The pitcher's delivery, facing the third-base side (a right-hander's set).
-  const r = script.release;
-  if (actor.role.kind === "fielder" && actor.role.n === 1 && r != null && t > r - 0.55 && t < r + 0.7 && motion == null) {
-    const x = t - r;
-    let i = -1;
-    for (let k = PITCHER_KEYS.length - 1; k >= 0; k--) {
-      if (PITCHER_KEYS[k]![0] <= x) {
-        i = k;
-        break;
-      }
-    }
-    if (i >= 0 && i + 1 < PITCHER_KEYS.length) {
-      const [a, pa] = PITCHER_KEYS[i]!;
-      const [b, pb] = PITCHER_KEYS[i + 1]!;
-      const mirrored = (p: Pose) => (samePose(p, Poses.ready) ? p : facing(p, -1));
-      base = mixPose(mirrored(pa), mirrored(pb), smooth((x - a) / (b - a)));
-    }
+  // The pitcher's delivery; then he's ready where he landed.
+  if (role.kind === "fielder" && role.n === 1 && script.release != null && moving == null) {
+    const p = keyed(PITCHER_KEYS, t - script.release);
+    if (p) body = p;
   }
 
-  // Hands on the ball: a catch, a scoop, a glove, a throw.
+  // Hands on the ball: a catch, a scoop, a glove, a throw. On the move, the legs keep running.
   for (const action of actor.actions) {
     const x = t - action.at;
-    const side = facingToward(action.toward);
     switch (action.kind) {
       case "catchHigh":
-        base = mixPose(base, facing(Poses.catchHigh, side), envelope(x, 0.28, 0.35));
+        body = over(body, RigPoses.catchHigh, envelope(x, 0.28, 0.35), m.weight);
         break;
       case "scoop":
-        base = mixPose(base, facing(Poses.scoop, side), envelope(x, 0.22, 0.2));
+        body = over(body, RigPoses.scoop, envelope(x, 0.22, 0.2), m.weight * 0.5);
         break;
       case "glove":
-        base = mixPose(base, facing(Poses.glove, side), envelope(x, 0.2, 0.22));
+        body = over(body, RigPoses.glove, envelope(x, 0.2, 0.22), m.weight);
         break;
       case "throwBall": {
         if (!(x > -0.24 && x < 0.4)) break;
-        const throwing = x < -0.04 ? Poses.cock : mixPose(Poses.cock, Poses.release, smooth((x + 0.04) / 0.14));
-        const e = envelope(x, 0.2, 0.36);
-        base = mixPose(base, facing(throwing, side), e > 0 ? Math.min(e * 1.6, 1) : 0);
+        const throwing = keyed(THROW_KEYS, x);
+        if (!throwing) break;
+        body = over(body, throwing, Math.min(envelope(x, 0.2, 0.36) * 1.6, 1), m.weight);
         break;
       }
     }
   }
-  return base;
+  return [body, m.heading];
 }
 
 /** The bat: on the shoulder, then round through the zone, level at contact, and on into the follow-through. */

@@ -9,13 +9,14 @@
  * a scaled bitmap. Type is laid out once per play and size (`layoutLabels`).
  */
 import type { CameraFrame } from "../../../../data/mlb/playCamera";
-import { easeValue, houseCurve, smooth, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
-import { facing, figure, mixPose, Poses, type Pose } from "../../../../data/mlb/theaterPose";
+import { easeValue, houseCurve, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
 import type { Uniform } from "../../../../data/mlb/theaterTeams";
 import type { Side } from "../../../../data/models";
 import type { FootballScene } from "../../../../data/theater/footballScene";
 import { FootballScript, footballStamp, Gridiron, type Player } from "../../../../data/theater/footballScript";
+import { gait, keyed, mix, over, Rig, rigArm, rigPose, RigPoses, RigTrack, vec, withPose, type RigPose } from "../../../../data/theater/rig";
 import { FieldProjection } from "../../core/theater/fieldProjection";
+import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
 import { hsb, rgba, type TheaterInk } from "../../mlb/theater/theaterInk";
 import {
   accentOf,
@@ -23,13 +24,11 @@ import {
   bannerBlock,
   chalk,
   chalkEdge,
-  drawFigure,
   drawGlow,
   drawRuns,
   drawShadow,
   drawTrail,
   ellipse,
-  figureInks,
   FONT,
   fillTracked,
   glow,
@@ -321,134 +320,207 @@ function withAlpha(hex: string, a: number): string {
 
 // MARK: - Poses
 
-const pose = (lean: number, nearThigh: number, nearShin: number, farThigh: number, farShin: number, nearUpper: number, nearFore: number, farUpper: number, farFore: number): Pose => ({
-  lean,
-  nearThigh,
-  nearShin,
-  farThigh,
-  farShin,
-  nearUpper,
-  nearFore,
-  farUpper,
-  farFore,
-  lift: 0,
-});
-
-/** Football's poses beyond baseball's: front on (or from behind) for the stances and the signals, in profile for the kick and the dive. */
+/** Football's poses beyond the shared ones, relative to his heading (up the field for the offense, down it for the defense). */
 export const GridPose = {
-  /** Down in a stance: knees bent wide, hands low. */
-  stance: pose(0, 1.05, -0.3, -1.05, 0.3, 0.3, 0.12, -0.3, -0.12),
-  /** The quarterback under center. */
-  center: pose(0, 0.7, -0.15, -0.7, 0.15, 0.6, 0.2, -0.6, -0.2),
-  /** Engaged: arms up and out in front. */
-  block: pose(0, 0.6, -0.15, -0.6, 0.15, 1.15, 1.85, -1.15, -1.85),
-  kneel: pose(0, 1.45, 0.05, 0.25, -1.4, 0.3, 0.8, -0.1, 0.5),
+  /** Down in a three-point stance: wide, hips up, a hand on the grass. */
+  stance: rigPose({
+    hip: vec(-0.08, 0, 0.33),
+    lean: 1.1,
+    left: vec(0.02, 0.15, 0),
+    right: vec(-0.08, -0.15, 0),
+    knees: 0.35,
+    leftArm: rigArm({ swing: 0.55, spread: 0.2, turn: -0.3, bend: 1.2 }),
+    rightArm: rigArm({ swing: 1.05, spread: 0.12, turn: -0.1, bend: 0.05 }),
+  }),
+  /** The quarterback under center, hands under him. */
+  center: rigPose({
+    hip: vec(-0.06, 0, 0.38),
+    lean: 0.5,
+    left: vec(0, 0.13, 0),
+    right: vec(0, -0.13, 0),
+    knees: 0.3,
+    leftArm: rigArm({ swing: 0.85, spread: 0.05, turn: -0.35, bend: 0.4 }),
+    rightArm: rigArm({ swing: 0.85, spread: 0.05, turn: -0.35, bend: 0.4 }),
+  }),
+  /** Engaged: low, arms up and out in front. */
+  block: rigPose({
+    hip: vec(-0.03, 0, 0.42),
+    lean: 0.4,
+    left: vec(0.1, 0.13, 0),
+    right: vec(-0.1, -0.13, 0),
+    knees: 0.3,
+    leftArm: rigArm({ swing: 1.45, spread: 0.2, turn: -0.25, bend: 0.65 }),
+    rightArm: rigArm({ swing: 1.45, spread: 0.2, turn: -0.25, bend: 0.65 }),
+  }),
+  /** On a knee: the quarterback's kneel, a returner's touchback. */
+  kneel: rigPose({
+    hip: vec(-0.02, 0, 0.26),
+    lean: 0.08,
+    left: vec(0.22, 0.08, 0),
+    right: vec(-0.26, -0.07, 0.01),
+    knees: 0.05,
+    leftArm: rigArm({ swing: 0.55, spread: 0.15, turn: -0.2, bend: 0.9 }),
+    rightArm: rigArm({ swing: 0.2, spread: 0.2, bend: 0.4 }),
+  }),
   /** Brought down: flat on the grass. */
-  down: pose(1.45, -1.35, -1.45, -1.5, -1.6, 2.0, 2.2, 1.6, 1.9),
+  down: rigPose({
+    hip: vec(0.1, 0, 0.1),
+    pitch: 1.5,
+    lean: 0.05,
+    nod: -0.4,
+    left: vec(-0.02, 0.08, -0.39),
+    right: vec(0.02, -0.09, -0.36),
+    leftArm: rigArm({ swing: 2.6, spread: 0.35, bend: 0.4 }),
+    rightArm: rigArm({ swing: 2.2, spread: 0.3, bend: 0.6 }),
+  }),
   /** The touchdown signal: both arms straight up. */
-  touchdown: pose(0, 0.12, 0.05, -0.12, -0.05, 2.9, 3.08, -2.9, -3.08),
+  touchdown: rigPose({ lean: -0.08, leftArm: rigArm({ swing: 3.05, spread: 0, turn: 0.4, bend: 0.05 }), rightArm: rigArm({ swing: 3.05, spread: 0, turn: 0.4, bend: 0.05 }) }),
   /** A hand up for the fair catch. */
-  fairCatch: pose(0, 0.1, 0.05, -0.1, -0.05, 2.95, 3.1, -0.25, -0.1),
-  dive: pose(1.15, 0.1, -0.7, -0.7, -1.5, 1.75, 1.65, 1.55, 1.45),
-  /** The kick: the leg cocked back, then through and high. */
-  windup: pose(-0.1, -0.9, -1.6, 0.05, 0, -0.6, -0.3, 0.9, 0.7),
-  through: pose(-0.25, 1.7, 1.9, -0.05, -0.05, -0.9, -0.7, 1.4, 1.5),
+  fairCatch: rigPose({ leftArm: rigArm({ swing: 2.85, spread: 0, turn: 0.6, bend: 0.1 }), rightArm: rigArm({ swing: 0.1, spread: 0.15, bend: 0.3 }) }),
+  /** Launched at a man: laid out forward, arms reaching. */
+  dive: rigPose({
+    hip: vec(0.12, 0, 0.36),
+    pitch: 1.1,
+    lean: 0.1,
+    left: vec(-0.04, 0.08, 0.02),
+    right: vec(-0.24, -0.08, 0.14),
+    leftArm: rigArm({ swing: 2.85, spread: 0.2, turn: -0.1, bend: 0.25 }),
+    rightArm: rigArm({ swing: 2.7, spread: 0.25, turn: -0.1, bend: 0.3 }),
+  }),
+  /** The ball in both hands at the chest: a quarterback in the pocket. */
+  pocket: rigPose({ leftArm: rigArm({ swing: 0.7, spread: 0.05, turn: -0.6, bend: 2.0 }), rightArm: rigArm({ swing: 0.75, spread: 0.08, turn: -0.55, bend: 2.05 }) }),
+  /** The ball tucked under his arm, the forearm across it. */
+  tuck: rigArm({ swing: 0.35, spread: 0.08, turn: -0.75, bend: 2.0 }),
+  /** The kick: the plant foot down, the leg cocked back, then through and high. */
+  windup: rigPose({
+    hip: vec(0, 0, 0.46),
+    lean: -0.1,
+    left: vec(0.06, 0.09, 0),
+    right: vec(-0.27, -0.07, 0.22),
+    leftArm: rigArm({ swing: 0.9, spread: 0.8, turn: 0.2, bend: 0.3 }),
+    rightArm: rigArm({ swing: -0.6, spread: 0.35, bend: 0.4 }),
+  }),
+  through: rigPose({
+    hip: vec(0.04, 0, 0.47),
+    lean: -0.3,
+    left: vec(0.06, 0.09, 0),
+    right: vec(0.44, -0.05, 0.6),
+    leftArm: rigArm({ swing: 1.4, spread: 0.85, turn: 0.2, bend: 0.25 }),
+    rightArm: rigArm({ swing: -0.85, spread: 0.45, bend: 0.3 }),
+  }),
 };
 
+const THROW_KEYS: readonly (readonly [number, RigPose])[] = [
+  [-0.3, RigPoses.cock],
+  [-0.04, RigPoses.cock],
+  [0.1, RigPoses.release],
+  [0.4, RigPoses.release],
+];
+
 const envelope = (x: number, attack: number, release: number) => (x < 0 ? Math.max(1 + x / attack, 0) : Math.max(1 - x / release, 0));
+const smooth = Rig.smooth;
 
 /**
- * The pose at t: a pose he holds (on a knee, down, a signal), else what he's
- * doing with the ball (a catch, a throw, a kick, a tackle), over how he's
- * moving (running, jogging), else how he stands (down in his stance before
- * the snap).
+ * The body at t, and its heading (FootballFrame.pose): a pose he holds (on a
+ * knee, down, a signal), else what he's doing with the ball (a catch, a
+ * throw, a kick, a tackle, a block) over how he's moving (striding to his
+ * planted feet), else how he stands (down in his stance before the snap and
+ * once he's set at the new line). `unit`: body units to the foot where he
+ * stands. (tested)
  */
-export function playerPose(script: FootballScript, player: Player, index: number, t: number): Pose {
-  const here = player.position(t);
-  // Offense faces up the field, the defense down it: in profile, right and left.
-  const home = player.team === "offense" ? 1 : -1;
-  const facingToward = (p: Point) => (Math.abs(p.x - here.x) < 2 ? home : p.x - here.x >= 0 ? 1 : -1);
+export function playerPose(script: FootballScript, player: Player, index: number, t: number, here: Point, unit: number): [RigPose, number] {
+  const track = script.rig[index] ?? RigTrack.standing(here);
+  const m = track.motion(t);
+
+  // How he stands: in his stance (out of it as the ball's snapped, into it as he sets at the new line), else ready or upright.
+  let upright: RigPose;
+  switch (player.role) {
+    case "line":
+    case "front":
+    case "backer":
+    case "corner":
+    case "safety":
+    case "tightEnd":
+      upright = RigPoses.ready;
+      break;
+    default:
+      upright = RigPoses.stand;
+  }
+  let set = player.set != null ? 1 - smooth((t - player.set) / 0.15) : 0;
+  if (player.resets != null) set = Math.max(set, smooth((t - player.resets + 0.3) / 0.3));
+  const still = mix(upright, player.role === "quarterback" ? GridPose.center : GridPose.stance, set);
+  const feet = track.feet(t, here, m.heading, unit, m.speed, { left: still.left, right: still.right });
+  let body = mix(still, gait(m, feet), m.weight);
 
   const hold = player.hold(t);
   if (hold) {
     const into = smooth((t - hold.from) / 0.16);
     switch (hold.kind) {
-      case "down": {
-        const heading = player.motion(hold.from - 0.05)?.heading.x ?? home;
-        const f = Math.abs(heading) < 0.15 ? home : heading > 0 ? 1 : -1;
-        return mixPose(facing(GridPose.dive, f), facing(GridPose.down, f), into);
-      }
+      case "down":
+        return [mix(GridPose.dive, GridPose.down, into), m.heading];
       case "kneel":
-        return mixPose(Poses.stand, facing(GridPose.kneel, home), into);
+        return [mix(body, GridPose.kneel, into), m.heading];
       case "touchdown":
-        return mixPose(Poses.stand, GridPose.touchdown, into);
+        return [over(body, GridPose.touchdown, into, m.weight), m.heading];
       case "fairCatch":
-        return facing(GridPose.fairCatch, home);
+        return [over(body, GridPose.fairCatch, smooth((t - hold.from) / 0.2), m.weight), m.heading];
     }
   }
 
-  let base: Pose;
-  const motion = player.motion(t);
-  if (motion && motion.speed > 3) {
-    const f = Math.abs(motion.heading.x) < 0.2 ? home : motion.heading.x > 0 ? 1 : -1;
-    base = motion.speed > 28 ? facing(Poses.run(2 * Math.PI * 3.4 * t + index), f) : facing(Poses.walk(2 * Math.PI * 2.2 * t + index), f);
-  } else if (player.inStance(t)) {
-    base = player.role === "quarterback" ? GridPose.center : GridPose.stance;
-  } else {
-    switch (player.role) {
-      case "line":
-      case "front":
-      case "backer":
-      case "corner":
-      case "safety":
-      case "tightEnd":
-        base = Poses.ready;
-        break;
-      default:
-        base = Poses.stand;
-    }
+  // With the ball: held at the chest in the pocket, tucked away on the run (the other arm still pumping).
+  const carry = script.carrier(t);
+  if (carry && carry.player === index) {
+    const held = smooth((t - carry.from) / 0.15) * (Number.isFinite(carry.until) ? smooth((carry.until - t) / 0.15) : 1);
+    const running = smooth((m.speed - 1.5) / 1);
+    if (player.role === "quarterback" && m.speed < 2.5) body = over(body, GridPose.pocket, held * (1 - running), 1);
+    body = over(body, withPose(body, { leftArm: GridPose.tuck }), held * (player.role === "quarterback" ? running : 1), 1);
   }
 
   for (const action of player.actions) {
     const x = t - action.at;
-    const f = facingToward(action.toward);
     switch (action.kind) {
       case "catchHigh":
-        base = mixPose(base, facing(Poses.catchHigh, f), envelope(x, 0.25, 0.3));
+        body = over(body, RigPoses.catchHigh, envelope(x, 0.25, 0.3), m.weight);
         break;
       case "catchChest":
       case "handoff":
-        base = mixPose(base, facing(Poses.glove, f), envelope(x, 0.2, 0.25));
+        body = over(body, RigPoses.glove, envelope(x, 0.2, 0.25), m.weight);
         break;
       case "scoop":
-        base = mixPose(base, facing(Poses.scoop, f), envelope(x, 0.2, 0.3));
+        body = over(body, RigPoses.scoop, envelope(x, 0.2, 0.3), m.weight * 0.5);
         break;
       case "throwBall":
       case "spike": {
         if (!(x > -0.24 && x < 0.4)) break;
-        const throwing = x < -0.04 ? Poses.cock : mixPose(Poses.cock, Poses.release, smooth((x + 0.04) / 0.14));
-        base = mixPose(base, facing(throwing, action.kind === "spike" ? home : f), Math.min(envelope(x, 0.2, 0.36) * 1.6, 1));
+        const throwing = keyed(THROW_KEYS, x);
+        if (throwing) body = over(body, throwing, Math.min(envelope(x, 0.2, 0.36) * 1.6, 1), m.weight);
         break;
       }
       case "kick": {
-        if (!(x > -0.3 && x < 0.6)) break;
-        const kicking = x < 0 ? mixPose(Poses.stand, GridPose.windup, smooth((x + 0.3) / 0.22)) : mixPose(GridPose.windup, GridPose.through, smooth(x / 0.1));
-        base = x < 0.25 ? facing(kicking, home) : mixPose(facing(kicking, home), base, smooth((x - 0.25) / 0.35));
+        const kicking = keyed(
+          [
+            [-0.3, body],
+            [-0.08, GridPose.windup],
+            [0.1, GridPose.through],
+            [0.25, GridPose.through],
+            [0.6, body],
+          ],
+          x,
+        );
+        if (kicking) body = kicking;
         break;
       }
       case "tackle":
-        base = mixPose(base, facing(GridPose.dive, f), envelope(x, 0.16, 0.5));
+        body = mix(body, GridPose.dive, envelope(x, 0.16, 0.5));
         break;
-      case "block": {
+      case "block":
         // Held once engaged, while he's set.
         if (!(x > -0.2 && t < script.settle)) break;
-        const moving = player.motion(t);
-        base = mixPose(base, facing(GridPose.block, f), smooth((x + 0.2) / 0.2) * (moving ? (moving.speed > 28 ? 0.3 : 1) : 1));
+        body = over(body, GridPose.block, smooth((x + 0.2) / 0.2), m.weight * 0.7);
         break;
-      }
     }
   }
-  return base;
+  return [body, m.heading];
 }
 
 // MARK: - Labels (laid out once per play and size)
@@ -533,9 +605,12 @@ export interface FrameInputs {
 export function drawFootballFrame(ctx: Ctx, f: GridProjection, input: FrameInputs): void {
   drawLines(ctx, f, input);
   drawFlag(ctx, f, input);
-  drawShadows(ctx, f, input);
-  drawPlayers(ctx, f, input);
-  drawFootball(ctx, f, input);
+  const figures = posed(f, input);
+  drawShadows(ctx, f, input, figures);
+  drawPlayers(ctx, f, input, figures);
+  let held: Point | null = null;
+  for (const p of figures) if (p.ball) held ??= p.ball;
+  drawFootball(ctx, f, input, held);
   drawFlashes(ctx, f, input);
   drawLabels(ctx, f, input);
 }
@@ -606,13 +681,13 @@ function drawFlag(ctx: Ctx, f: GridProjection, { script, t }: FrameInputs): void
   ctx.restore();
 }
 
-function drawShadows(ctx: Ctx, f: GridProjection, { script, t, ink }: FrameInputs): void {
+function drawShadows(ctx: Ctx, f: GridProjection, { script, t, ink }: FrameInputs, figures: readonly Posed[]): void {
+  // Under the hips (longer for a man down); smaller and fainter as he leaves the ground.
   const w = f.figure * 0.3;
-  for (const player of script.players) {
-    const o = player.opacity(t);
-    if (!(o > 0.01)) continue;
-    const down = player.hold(t)?.kind === "down";
-    drawShadow(ctx, f.point(player.position(t)), down ? w * 1.6 : w, shadow(ink, o));
+  for (const p of figures) {
+    const down = script.players[p.index]!.hold(t)?.kind === "down";
+    const air = Math.min(p.figure.air / 0.4, 1);
+    drawShadow(ctx, p.figure.ground, (down ? w * 1.6 : w) * (1 - 0.35 * air), shadow(ink, p.opacity * (1 - 0.45 * air)));
   }
   // The ball's: larger and softer the higher it flies, with a hairline up to it once it's well off the grass.
   const ball = script.ball(t);
@@ -635,31 +710,59 @@ function drawShadows(ctx: Ctx, f: GridProjection, { script, t, ink }: FrameInput
   }
 }
 
-function drawPlayers(ctx: Ctx, f: GridProjection, { script, t, teams, ink }: FrameInputs): void {
-  const height = f.figure;
-  const offense = figureInks(teams.offense, ink);
-  const defense = figureInks(teams.defense, ink);
+/** A player posed and placed at t; with the ball, where it is in his hands. */
+interface Posed {
+  readonly index: number;
+  readonly figure: RigFigure;
+  readonly opacity: number;
+  readonly ball: Point | null;
+}
+
+/** Everyone on the field at t, far to near: a player in front covers the one behind. */
+function posed(f: GridProjection, { script, t }: FrameInputs): Posed[] {
   const c = Math.cos(script.yaw);
   const s = Math.sin(script.yaw);
-  // Far to near: a player in front covers the one behind.
   const order = script.players.map((player, index) => {
     const at = player.position(t);
     return { player, index, at, depth: -at.x * s + at.y * c };
   });
   order.sort((a, b) => b.depth - a.depth);
+  const carry = script.carrier(t);
+  const out: Posed[] = [];
   for (const { player, index, at } of order) {
     const o = player.opacity(t);
     if (!(o > 0.01)) continue;
-    const fig = figure(playerPose(script, player, index, t), f.point(at), height);
-    drawFigure(ctx, fig, player.team === "offense" ? offense : defense, height, o);
+    const lens = RigLens.grid(f, at);
+    const [body, heading] = playerPose(script, player, index, t, at, lens.unit);
+    const figure = rigFigure(body, heading, lens);
+    // Carried: in both hands at the chest, or the tucking hand; from where it came, into them.
+    let ball: Point | null = null;
+    const spot = carry && carry.player === index ? script.ball(t) : null;
+    if (carry && spot) {
+      const held = smooth((t - carry.from) / 0.15) * (Number.isFinite(carry.until) ? smooth((carry.until - t) / 0.15) : 1);
+      const tucked = player.role === "quarterback" ? smooth(((script.rig[index]?.motion(t).speed ?? 0) - 1.5) / 1) : 1;
+      const g = grip(figure);
+      const hand = figure.hands[0];
+      const loose = f.at(spot);
+      const hold = { x: g.x + (hand.x - g.x) * tucked, y: g.y + (hand.y - g.y) * tucked };
+      ball = { x: loose.x + (hold.x - loose.x) * held, y: loose.y + (hold.y - loose.y) * held };
+    }
+    out.push({ index, figure, opacity: o, ball });
   }
+  return out;
 }
 
-/** A football: a brown oval along its flight in a soft glow, a comet tail while it's in the air, its shadow on the grass (with the shadows). */
-function drawFootball(ctx: Ctx, f: GridProjection, { script, t, ink }: FrameInputs): void {
+function drawPlayers(ctx: Ctx, f: GridProjection, { script, teams, ink }: FrameInputs, figures: readonly Posed[]): void {
+  const offense = figureInks(teams.offense, ink);
+  const defense = figureInks(teams.defense, ink);
+  for (const p of figures) drawFigure(ctx, p.figure, script.players[p.index]!.team === "offense" ? offense : defense, f.figure, p.opacity);
+}
+
+/** A football: a brown oval along its flight in a soft glow, a comet tail while it's in the air, in his hands while he has it, its shadow on the grass (with the shadows). */
+function drawFootball(ctx: Ctx, f: GridProjection, { script, t, ink }: FrameInputs, held: Point | null): void {
   const ball = script.ball(t);
   if (!ball) return;
-  const p = f.at(ball);
+  const p = held ?? f.at(ball);
   // A touch larger than life, as the baseball is: it's what the eye follows.
   const r = Math.min(Math.max(0.55 * f.scale, 2.2), Math.max(f.figure * 0.13, 2.2));
   const flight = script.flight(t);

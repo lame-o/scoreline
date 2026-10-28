@@ -14,10 +14,9 @@
  */
 import { cueDuration, drawParticles, particles, type CelebrationCue, type CelebrationPalette } from "../../../../data/celebrations";
 import { TheaterBurst } from "../../../../data/theater/theaterKit";
-import type { Figure } from "../../../../data/mlb/theaterPose";
 import type { Uniform } from "../../../../data/mlb/theaterTeams";
 import { criticalSpring, houseCurve, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
-import { hexRGB, hsb, mixHex, rgba, type RGB, type TheaterInk } from "../../mlb/theater/theaterInk";
+import { hsb, mixHex, rgba, type RGB, type TheaterInk } from "../../mlb/theater/theaterInk";
 
 export type Ctx = CanvasRenderingContext2D;
 
@@ -77,99 +76,10 @@ export const primary = (ink: TheaterInk) => rgba(ink.primary, ink.primaryAlpha);
 /** A team's type color: its accent, else the page's ink. */
 export const accentOf = (u: Uniform, ink: TheaterInk) => u.accent ?? primary(ink);
 
-/** A team's inks for one frame, resolved once per uniform and scheme: resolving a team color per stroke was most of a frame's cost. */
-export interface FigureInks {
-  readonly rim: string;
-  readonly inner: string;
-  readonly far: string;
-  readonly jersey: string;
-  readonly cap: string;
-}
-
-const inkCache = new WeakMap<Uniform, Map<string, FigureInks>>();
-
-export function figureInks(u: Uniform, ink: TheaterInk): FigureInks {
-  const key = ink.dark ? "dark" : "light";
-  let byScheme = inkCache.get(u);
-  if (!byScheme) {
-    byScheme = new Map();
-    inkCache.set(u, byScheme);
-  }
-  const cached = byScheme.get(key);
-  if (cached) return cached;
-  const rim = u.piping ?? ink.halo;
-  const inner = u.piping ? rgba(hexRGB(u.piping), 0.7 * (u.piping.length > 7 ? Number.parseInt(u.piping.slice(7, 9), 16) / 255 : 1)) : ink.dark ? "rgb(0 0 0 / 0.35)" : "rgb(255 255 255 / 0.63)";
-  const made: FigureInks = { rim, inner, far: mixHex(u.jersey, "#000000", ink.dark ? 0.32 : 0.22), jersey: u.jersey, cap: u.cap };
-  byScheme.set(key, made);
-  return made;
-}
-
 // MARK: - Figures and ball
 
-function limbs(ctx: Ctx, fig: Figure, which: "near" | "far"): void {
-  const l = fig[which];
-  ctx.moveTo(fig.hip.x, fig.hip.y);
-  ctx.lineTo(l.knee.x, l.knee.y);
-  ctx.lineTo(l.foot.x, l.foot.y);
-  ctx.moveTo(fig.neck.x, fig.neck.y);
-  ctx.lineTo(l.elbow.x, l.elbow.y);
-  ctx.lineTo(l.hand.x, l.hand.y);
-}
-
-/**
- * A pictogram (TheaterDraw.figure): its rim first (so the lines and
- * figures behind stop short of it), the far limbs in a shade of the
- * jersey, the body, an inner rim on the near limbs when it's big enough to
- * carry one, the near limbs, the head in the team's own color.
- */
-export function drawFigure(ctx: Ctx, fig: Figure, inks: FigureInks, height: number, opacity: number): void {
-  const halo = Math.max(height * 0.045, 0.8);
-  ctx.globalAlpha = opacity;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = inks.rim;
-  ctx.beginPath();
-  limbs(ctx, fig, "far");
-  limbs(ctx, fig, "near");
-  ctx.lineWidth = fig.limb + 2 * halo;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(fig.hip.x, fig.hip.y);
-  ctx.lineTo(fig.neck.x, fig.neck.y);
-  ctx.lineWidth = fig.torso + 2 * halo;
-  ctx.stroke();
-  ctx.fillStyle = inks.rim;
-  ellipse(ctx, fig.head.x, fig.head.y, fig.headRadius + halo, fig.headRadius + halo);
-  ctx.fill();
-  ctx.strokeStyle = inks.far;
-  ctx.lineWidth = fig.limb;
-  ctx.beginPath();
-  limbs(ctx, fig, "far");
-  ctx.stroke();
-  ctx.strokeStyle = inks.jersey;
-  ctx.lineWidth = fig.torso;
-  ctx.beginPath();
-  ctx.moveTo(fig.hip.x, fig.hip.y);
-  ctx.lineTo(fig.neck.x, fig.neck.y);
-  ctx.stroke();
-  // Small figures lose their inner rim: it would only blur them.
-  if (height >= 15) {
-    ctx.strokeStyle = inks.inner;
-    ctx.lineWidth = fig.limb + 1.2;
-    ctx.beginPath();
-    limbs(ctx, fig, "near");
-    ctx.stroke();
-  }
-  ctx.strokeStyle = inks.jersey;
-  ctx.lineWidth = fig.limb;
-  ctx.beginPath();
-  limbs(ctx, fig, "near");
-  ctx.stroke();
-  ctx.fillStyle = inks.cap;
-  ellipse(ctx, fig.head.x, fig.head.y, fig.headRadius, fig.headRadius);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-}
+// The pictogram and its inks (FigureInks, TheaterDraw.figure) are rigFigure.ts, shared with the baseball theater.
+export { drawFigure, figureInks, type FigureInks } from "./rigFigure";
 
 /** A soft oval under a figure or the ball. */
 export function drawShadow(ctx: Ctx, p: Point, r: number, color: string): void {
