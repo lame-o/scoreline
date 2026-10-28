@@ -1,7 +1,9 @@
 /**
  * Appearance: the resolved color scheme (Settings → Appearance, or the
  * system's), applied to <html> so CSS `light-dark()` follows, and read in
- * JS where colors are computed (team colors fitted to the scheme).
+ * JS where colors are computed (team colors fitted to the scheme). "Shapes
+ * as well as color" sets `data-shapes` on <html> for the cues CSS draws;
+ * canvases read `useShapes()`.
  */
 import { useEffect, useSyncExternalStore } from "react";
 import type { Scheme } from "../data/teamColors";
@@ -46,4 +48,19 @@ export function useApplyTheme(): void {
       }
     }
   }, [theme, scheme]);
+}
+
+/** Settings → Appearance → Shapes as well as color (the Mac's Differentiate Without Color). */
+export function useShapes(): boolean {
+  return useSettings((s) => s.differentiateWithoutColor);
+}
+
+/** Applies "Shapes as well as color" to the document, for the cues CSS draws (mounted once, at the root). */
+export function useApplyShapes(): void {
+  const shapes = useShapes();
+  useEffect(() => {
+    const root = document.documentElement;
+    if (shapes) root.dataset.shapes = "true";
+    else delete root.dataset.shapes;
+  }, [shapes]);
 }

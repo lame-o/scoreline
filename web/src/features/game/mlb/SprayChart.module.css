@@ -118,6 +118,11 @@
   border-radius: 50%;
 }
 
+/* Shapes as well as color: the bottom team's swatch is a rounded square, as its balls are. */
+.swatch[data-square="true"] {
+  border-radius: calc(1.5 * var(--pt));
+}
+
 .hit {
   width: calc(8 * var(--pt));
   height: calc(8 * var(--pt));

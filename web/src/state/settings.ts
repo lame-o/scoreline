@@ -48,6 +48,13 @@ export interface Settings {
   readonly landingView: LandingView;
   /** Appearance: follow the system, or always light or dark (web only). */
   readonly theme: Theme;
+  /**
+   * Appearance: charts tell teams and outcomes apart by shape as well as by
+   * color (the Mac's Differentiate Without Color, which the web can't read
+   * from the system): the second team's marks are rounded squares, a
+   * penalty's bar is hatched, a turnover's dashed.
+   */
+  readonly differentiateWithoutColor: boolean;
   /** How much live pages celebrate big plays (`celebrationLevel`). Used by game pages. */
   readonly celebrationLevel: CelebrationLevel;
   /** A soft sound when the open game scores (`celebrationSounds`). */
@@ -75,6 +82,7 @@ export const DEFAULTS: Settings = {
   collapsed: [],
   landingView: "list",
   theme: "system",
+  differentiateWithoutColor: false,
   celebrationLevel: "full",
   celebrationSounds: false,
   notifyFollowed: true,
@@ -128,6 +136,7 @@ export function sanitize(raw: unknown): Settings {
     collapsed: isStringArray(s.collapsed) ? s.collapsed : [],
     landingView: pick(s.landingView, ["list", "tiles"], DEFAULTS.landingView),
     theme: pick(s.theme, ["system", "light", "dark"], DEFAULTS.theme),
+    differentiateWithoutColor: flag(s.differentiateWithoutColor, DEFAULTS.differentiateWithoutColor),
     celebrationLevel: pick(s.celebrationLevel, ["full", "subtle", "off"], DEFAULTS.celebrationLevel),
     celebrationSounds: flag(s.celebrationSounds, DEFAULTS.celebrationSounds),
     notifyFollowed: flag(s.notifyFollowed, DEFAULTS.notifyFollowed),

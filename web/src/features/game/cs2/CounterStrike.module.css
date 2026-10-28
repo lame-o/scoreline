@@ -229,6 +229,11 @@
   background: color-mix(in srgb, var(--team) 40%, transparent);
 }
 
+/* Shapes as well as color (Differentiate Without Color): the bottom team's rounds are capsules, the top team's squares. */
+:global([data-shapes="true"]) .cell[data-side="bottom"][data-won="true"] {
+  border-radius: 999px;
+}
+
 /* The round being played now: an outline in the live red. */
 .cell[data-kind="next"] {
   background: transparent;
