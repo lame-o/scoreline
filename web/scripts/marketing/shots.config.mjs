@@ -200,6 +200,14 @@ export const gallery = [
 /** The Mac pipeline's framed images to carry into docs/screenshots/mac as they are (`from` is its output's name). */
 export const macImports = [{ name: "hero", from: "hero" }];
 
+/**
+ * README images that appear only once their files exist (the Mac pipeline's), each between
+ * `<!-- image:<key>:start -->` and `<!-- image:<key>:end -->`; until then the slot stays empty.
+ */
+export const readmeImages = [
+  { key: "scoring-slide", dir: "docs/screenshots/mac", name: "scoring-slide", alt: "The scoring slide: a home run's bar sliding in from the scoring team's side, in its colors, with who and how far" },
+];
+
 /** The Mac renders to carry into docs/screenshots/mac/pages (by their file names in the Mac pipeline's output). */
 export const macGallery = [];
 

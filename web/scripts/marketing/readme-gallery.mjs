@@ -12,7 +12,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { gallery, macGallery } from "./shots.config.mjs";
+import { gallery, macGallery, readmeImages } from "./shots.config.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../../..");
@@ -61,6 +61,12 @@ replace("web", web);
   const re = /<!-- hero:start -->[\s\S]*?<!-- hero:end -->/;
   if (!re.test(readme)) throw new Error("README has no hero markers");
   readme = readme.replace(re, `<!-- hero:start -->\n${heroBlock}\n<!-- hero:end -->`);
+}
+for (const item of readmeImages) {
+  const re = new RegExp(`<!-- image:${item.key}:start -->[\\s\\S]*?<!-- image:${item.key}:end -->`);
+  if (!re.test(readme)) throw new Error(`README has no image:${item.key} markers`);
+  const block = both(item.dir, item.name) ? `\n<p align="center">\n  ${picture(item.dir, item.name, item.alt, item.width ?? "100%")}\n</p>\n` : "\n";
+  readme = readme.replace(re, `<!-- image:${item.key}:start -->${block}<!-- image:${item.key}:end -->`);
 }
 writeFileSync(readmePath, readme);
 console.log(`README hero: ${hero.dir}/${hero.name}; galleries: web ${desktop.count + phones.count}, Mac ${mac.count}`);

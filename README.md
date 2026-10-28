@@ -49,6 +49,13 @@ Every play comes back to life in a small isometric view the moment it happens: t
   </picture>
 </p>
 
+## The scoring slide
+
+When a team scores, a bar in its colors slides in from its side of the page: its logo, a headline you can read from across the room (HOME RUN, GRAND SLAM, TOUCHDOWN, GOAL, BUZZER-BEATER, MAP WON) and who and how, straight from the feeds: "Frelick · 408 ft · EV 104.4 mph". It lands at the isometric view's climax, as the ball clears the fence or crosses the line, for runs, touchdowns, goals, the NBA's decisive baskets, CS2 maps and climbing tops.
+
+<!-- image:scoring-slide:start -->
+<!-- image:scoring-slide:end -->
+
 ## Live game pages
 
 Each game page is built for its sport, and it's live: charts redraw as plays land, and big moments (a home run, a touchdown, a goal) arrive with a small celebration you can turn down or off.
@@ -79,17 +86,6 @@ Each game page is built for its sport, and it's live: charts redraw as plays lan
     <img src="docs/screenshots/web/game-soccer-light.webp" width="32%" alt="A live Premier League match: the pitch and the shot map">
   </picture>
 </p>
-
-<!-- The scoring slide (second pass): uncomment when docs/screenshots/web/scoring-slide-*.webp exist.
-## The scoring slide
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/scoring-slide-dark.webp">
-    <img src="docs/screenshots/web/scoring-slide-light.webp" width="100%" alt="The scoring slide">
-  </picture>
-</p>
--->
 
 ## Schedules, standings and brackets
 
@@ -165,7 +161,7 @@ Click a name anywhere and its page opens: a team's results, form, schedule, rost
 
 ## On the web
 
-The same live pages run in any browser at **[scoreline-web.lame-o.workers.dev](https://scoreline-web.lame-o.workers.dev)**, on a desktop beside the scores, or on your phone, where it installs to the home screen like an app.
+Scoreline also runs in any browser at **[scoreline-web.lame-o.workers.dev](https://scoreline-web.lame-o.workers.dev)**: the scores and the live game pages, on a desktop beside the scores, or on your phone, where it installs to the home screen like an app.
 
 <p align="center">
   <picture>

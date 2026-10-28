@@ -309,9 +309,18 @@ function render() {
       <div class="shot" style="height:${h}px; --pos:${c.position ?? "center"}"><img src="${c.image}"></div>
       <div class="label"><b>${esc(c.title)}</b>${c.detail ? `<span>${esc(c.detail)}</span>` : ""}</div>
     </div>`;
-    const [first, ...rest] = spec.cards;
-    let html = card(first, x0, y0, W1, H1);
-    rest.slice(0, 2).forEach((c, i) => { html += card(c, x0 + W1 + G, y0 + i * (H2 + L + g), W2, H2); });
+    let html = "";
+    if (spec.cards.length === 4) {
+      // Four: two by two, as large as the canvas allows under the caption.
+      const h = Math.round((H - y0 - Math.round(70 * U) - 2 * L - g) / 2);
+      const w = Math.round(h / aspect);
+      const left = Math.round((W - (2 * w + G)) / 2);
+      spec.cards.forEach((c, i) => { html += card(c, left + (i % 2) * (w + G), y0 + Math.floor(i / 2) * (h + L + g), w, h); });
+    } else {
+      const [first, ...rest] = spec.cards;
+      html = card(first, x0, y0, W1, H1);
+      rest.slice(0, 2).forEach((c, i) => { html += card(c, x0 + W1 + G, y0 + i * (H2 + L + g), W2, H2); });
+    }
     canvas.insertAdjacentHTML("beforeend", html);
   } else if (spec.kind === "bare") {
     if (spec.phone) {

@@ -79,6 +79,21 @@ function importMac(item, theme) {
   return true;
 }
 
+/**
+ * A card's picture: a web capture (`source`), or a Mac render (`mac`, by name) cut to `crop`
+ * ([x, y, w, h] in its pixels), for the views only the Mac app has yet. Cards a theme lacks are left out.
+ */
+function cardImage(card, theme) {
+  if (!card.mac) return raw(card.source, theme);
+  const file = macRaw(card.mac, theme) ?? (card.fallbackTheme ? macRaw(card.mac, card.fallbackTheme) : null);
+  if (!file) return null;
+  if (!card.crop) return file;
+  const out = join(TMP, `card-${card.mac}-${theme}.png`);
+  const [x, y, w, h] = card.crop;
+  execFileSync("magick", [fileURLToPath(file), "-crop", `${w}x${h}+${x}+${y}`, "+repage", out]);
+  return pathToFileURL(out).href;
+}
+
 /** The color along the top edge of a capture (what a phone's status bar sits on), and the ink that reads on it. */
 function topEdge(fileURL) {
   const hex = execFileSync("magick", [fileURLToPath(fileURL), "-crop", "100%x1+0+0", "-resize", "1x1!", "-format", "%[hex:p{0,0}]", "info:"]).toString().trim().slice(0, 6);
@@ -133,8 +148,9 @@ try {
       if (c.kind === "browser") spec.image = raw(c.source, theme);
       if (c.kind === "phones") spec.phones = c.phones.map((p) => { const image = raw(p.source, theme); return { image, ...(image ? topEdge(image) : {}) }; });
       if (c.kind === "mac") Object.assign(spec, { panels: c.panels.map((p) => ({ image: macRaw(p.source, theme), label: p.label })), icon: pathToFileURL(join(repo, "web/public/icon-512.png")).href });
-      if (c.kind === "grid") Object.assign(spec, { kind: "grid", cards: c.cards.map((card) => ({ ...card, image: raw(card.source, theme) })) });
+      if (c.kind === "grid") Object.assign(spec, { kind: "grid", cards: c.cards.map((card) => ({ ...card, image: cardImage(card, theme) })) });
       // Nothing is drawn without its pixels: a Mac frame waits for the Mac renders rather than ship a placeholder.
+      if (spec.cards) spec.cards = spec.cards.filter((x, i) => x.image || !c.cards[i].optional);
       const missing = (spec.image === null) || spec.phones?.some((p) => !p.image) || spec.cards?.some((x) => !x.image) || spec.panels?.some((p) => !p.image);
       if (missing) {
         console.warn(`· ${c.name} ${theme}: missing raw capture, skipped`);
