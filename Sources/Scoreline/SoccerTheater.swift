@@ -13,10 +13,10 @@ import SwiftUI
 // net; the stamp names the scorer, the assist, the minute and the distance.
 // The moment's own words, under it, are its caption.
 //
-// Drawn in two Canvases, the pitch and the players, both projected through
-// the camera (SoccerScript.swift), so lines stay crisp at any zoom. A
-// TimelineView exists only while a replay runs; between moments the last
-// one holds as it ended. Moments already on the page when it opened show as
+// Drawn in one Canvas, the pitch and the players together, projected
+// through the camera (SoccerScript.swift), so lines stay crisp at any zoom
+// and the two never disagree on it. A TimelineView exists only while a
+// replay runs; between moments the last one holds as it ended. Moments already on the page when it opened show as
 // they ended; a new one mid-replay cuts to itself; with Reduce Motion each
 // moment crossfades to how it ended and the camera never moves. Decorative
 // for VoiceOver: the caption carries the moment.
@@ -72,124 +72,117 @@ struct PitchProjection {
 // MARK: - Pitch
 
 /// The pitch itself: the grass and its mowing, the lines, the boards and the
-/// stands beyond them. Equatable: redrawn for a new size, appearance or
-/// camera, never for a player. (The goals stand with the players, who can
-/// be in front of them or behind.)
-struct PitchLayer: View, Equatable {
-    let ink: TheaterInk
-    var camera: PitchFrame = .rest
+/// stands beyond them. Drawn first in the frame's own pass, through the same
+/// projection as the players, so the two can never disagree on the camera.
+/// (The goals stand with the players, who can be in front of them or behind.)
+enum PitchLayer {
+    static func draw(_ context: inout GraphicsContext, _ f: PitchProjection, ink: TheaterInk) {
+        func quad(_ a: FieldPoint, _ b: FieldPoint, _ c: FieldPoint, _ d: FieldPoint) -> Path {
+            var path = Path()
+            path.addLines([f.point(a), f.point(b), f.point(c), f.point(d)])
+            path.closeSubpath()
+            return path
+        }
+        func ground(_ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double) -> Path {
+            quad(FieldPoint(x: x0, y: y0), FieldPoint(x: x1, y: y0), FieldPoint(x: x1, y: y1), FieldPoint(x: x0, y: y1))
+        }
+        let L = Pitch.length, W = Pitch.width
+        // Chalk thickens a little as the camera closes in.
+        let ppm = f.scale(at: FieldPoint(x: f.camera.x, y: f.camera.y))
+        let line = min(max(0.75, ppm * 0.09), 1.7)
 
-    var body: some View {
-        Canvas { context, size in
-            let f = PitchProjection(size: size, camera: camera)
-            context.clip(to: f.bounds)
-            func quad(_ a: FieldPoint, _ b: FieldPoint, _ c: FieldPoint, _ d: FieldPoint) -> Path {
-                var path = Path()
-                path.addLines([f.point(a), f.point(b), f.point(c), f.point(d)])
-                path.closeSubpath()
-                return path
-            }
-            func ground(_ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double) -> Path {
-                quad(FieldPoint(x: x0, y: y0), FieldPoint(x: x1, y: y0), FieldPoint(x: x1, y: y1), FieldPoint(x: x0, y: y1))
-            }
-            let L = Pitch.length, W = Pitch.width
-            // Chalk thickens a little as the camera closes in.
-            let ppm = f.scale(at: FieldPoint(x: camera.x, y: camera.y))
-            let line = min(max(0.75, ppm * 0.09), 1.7)
-
-            // The bowl: the stands behind the boards on the far side and at each end, rising out of sight
-            // (one shape, so where they meet isn't darker), their tiers just there. From behind a goal,
-            // the stand at the camera's back is out of view and the near side's stand comes into it;
-            // nothing is drawn behind the lens.
-            let behind = f.behind
-            let x0 = behind == false ? -8.0 : -70, x1 = behind == true ? L + 8 : L + 70
-            var bowl = behind == nil ? ground(-70, -60, L + 70, W + 5) : Path(CGRect(origin: .zero, size: size))
-            bowl.addPath(quad(FieldPoint(x: x0, y: W + 5), FieldPoint(x: x1, y: W + 5), FieldPoint(x: x1, y: W + 60, z: 34),
-                              FieldPoint(x: x0, y: W + 60, z: 34)))
+        // The bowl: the stands behind the boards on the far side and at each end, rising out of sight
+        // (one shape, so where they meet isn't darker), their tiers just there. From behind a goal,
+        // the stand at the camera's back is out of view and the near side's stand comes into it;
+        // nothing is drawn behind the lens.
+        let behind = f.behind
+        let x0 = behind == false ? -8.0 : -70, x1 = behind == true ? L + 8 : L + 70
+        var bowl = behind == nil ? ground(-70, -60, L + 70, W + 5) : Path(CGRect(origin: .zero, size: f.size))
+        bowl.addPath(quad(FieldPoint(x: x0, y: W + 5), FieldPoint(x: x1, y: W + 5), FieldPoint(x: x1, y: W + 60, z: 34),
+                          FieldPoint(x: x0, y: W + 60, z: 34)))
+        if behind != nil {
+            bowl.addPath(quad(FieldPoint(x: x0, y: -5), FieldPoint(x: x1, y: -5), FieldPoint(x: x1, y: -60, z: 34),
+                              FieldPoint(x: x0, y: -60, z: 34)))
+        }
+        for (x, out, right) in [(-6.0, -40.0, false), (L + 6, 40.0, true)] where behind != right {
+            bowl.addPath(quad(FieldPoint(x: x, y: -60), FieldPoint(x: x, y: W + 5), FieldPoint(x: x + out, y: W + 5, z: 25),
+                              FieldPoint(x: x + out, y: -60, z: 25)))
+        }
+        context.fill(bowl, with: .color(ink.stands))
+        var tiers = Path()
+        for k in 1...5 {
+            let y = W + 5 + Double(k) * 9, z = Double(k) * 9 * 34 / 55
+            tiers.move(to: f.point(FieldPoint(x: x0, y: y, z: z)))
+            tiers.addLine(to: f.point(FieldPoint(x: x1, y: y, z: z)))
             if behind != nil {
-                bowl.addPath(quad(FieldPoint(x: x0, y: -5), FieldPoint(x: x1, y: -5), FieldPoint(x: x1, y: -60, z: 34),
-                                  FieldPoint(x: x0, y: -60, z: 34)))
+                tiers.move(to: f.point(FieldPoint(x: x0, y: -y + W, z: z)))
+                tiers.addLine(to: f.point(FieldPoint(x: x1, y: -y + W, z: z)))
             }
-            for (x, out, right) in [(-6.0, -40.0, false), (L + 6, 40.0, true)] where behind != right {
-                bowl.addPath(quad(FieldPoint(x: x, y: -60), FieldPoint(x: x, y: W + 5), FieldPoint(x: x + out, y: W + 5, z: 25),
-                                  FieldPoint(x: x + out, y: -60, z: 25)))
-            }
-            context.fill(bowl, with: .color(ink.stands))
-            var tiers = Path()
-            for k in 1...5 {
-                let y = W + 5 + Double(k) * 9, z = Double(k) * 9 * 34 / 55
-                tiers.move(to: f.point(FieldPoint(x: x0, y: y, z: z)))
-                tiers.addLine(to: f.point(FieldPoint(x: x1, y: y, z: z)))
-                if behind != nil {
-                    tiers.move(to: f.point(FieldPoint(x: x0, y: -y + W, z: z)))
-                    tiers.addLine(to: f.point(FieldPoint(x: x1, y: -y + W, z: z)))
-                }
-            }
-            context.stroke(tiers, with: .color(ink.stands), lineWidth: 0.5)
-            // The grass, with its run-off, mowed in bands across the pitch.
-            context.fill(ground(-4, -3.5, L + 4, W + 3.5), with: .color(ink.turf))
-            var bands = Path()
-            let band = L / 18
-            for i in stride(from: 0, to: 18, by: 2) {
-                bands.addPath(ground(Double(i) * band, -3.5, Double(i + 1) * band, W + 3.5))
-            }
-            context.fill(bands, with: .color(ink.mow))
-            // The boards along the far touchline and behind the goals.
-            var boards = Path(), tops = Path()
-            for (a, b) in [(CGPoint(x: -4, y: W + 4.2), CGPoint(x: L + 4, y: W + 4.2)), (CGPoint(x: -4.6, y: -2), CGPoint(x: -4.6, y: W + 4.2)),
-                           (CGPoint(x: L + 4.6, y: -2), CGPoint(x: L + 4.6, y: W + 4.2))] {
-                boards.addPath(quad(FieldPoint(a), FieldPoint(b), FieldPoint(b, z: 0.9), FieldPoint(a, z: 0.9)))
-                tops.move(to: f.point(a, z: 0.9))
-                tops.addLine(to: f.point(b, z: 0.9))
-            }
-            context.fill(boards, with: .color(ink.wall))
-            context.stroke(tops, with: .color(ink.wallTop), lineWidth: line * 0.7)
+        }
+        context.stroke(tiers, with: .color(ink.stands), lineWidth: 0.5)
+        // The grass, with its run-off, mowed in bands across the pitch.
+        context.fill(ground(-4, -3.5, L + 4, W + 3.5), with: .color(ink.turf))
+        var bands = Path()
+        let band = L / 18
+        for i in stride(from: 0, to: 18, by: 2) {
+            bands.addPath(ground(Double(i) * band, -3.5, Double(i + 1) * band, W + 3.5))
+        }
+        context.fill(bands, with: .color(ink.mow))
+        // The boards along the far touchline and behind the goals.
+        var boards = Path(), tops = Path()
+        for (a, b) in [(CGPoint(x: -4, y: W + 4.2), CGPoint(x: L + 4, y: W + 4.2)), (CGPoint(x: -4.6, y: -2), CGPoint(x: -4.6, y: W + 4.2)),
+                       (CGPoint(x: L + 4.6, y: -2), CGPoint(x: L + 4.6, y: W + 4.2))] {
+            boards.addPath(quad(FieldPoint(a), FieldPoint(b), FieldPoint(b, z: 0.9), FieldPoint(a, z: 0.9)))
+            tops.move(to: f.point(a, z: 0.9))
+            tops.addLine(to: f.point(b, z: 0.9))
+        }
+        context.fill(boards, with: .color(ink.wall))
+        context.stroke(tops, with: .color(ink.wallTop), lineWidth: line * 0.7)
 
-            // The lines.
-            var lines = Path()
-            func segment(_ a: CGPoint, _ b: CGPoint) {
-                lines.move(to: f.point(a))
-                lines.addLine(to: f.point(b))
+        // The lines.
+        var lines = Path()
+        func segment(_ a: CGPoint, _ b: CGPoint) {
+            lines.move(to: f.point(a))
+            lines.addLine(to: f.point(b))
+        }
+        func rect(_ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double) {
+            segment(CGPoint(x: x0, y: y0), CGPoint(x: x1, y: y0))
+            segment(CGPoint(x: x1, y: y0), CGPoint(x: x1, y: y1))
+            segment(CGPoint(x: x1, y: y1), CGPoint(x: x0, y: y1))
+            segment(CGPoint(x: x0, y: y1), CGPoint(x: x0, y: y0))
+        }
+        func arc(_ c: CGPoint, _ r: Double, from a0: Double, to a1: Double, steps: Int) {
+            let points = (0...steps).map { i -> CGPoint in
+                let a = a0 + (a1 - a0) * Double(i) / Double(steps)
+                return f.point(CGPoint(x: c.x + r * cos(a), y: c.y + r * sin(a)))
             }
-            func rect(_ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double) {
-                segment(CGPoint(x: x0, y: y0), CGPoint(x: x1, y: y0))
-                segment(CGPoint(x: x1, y: y0), CGPoint(x: x1, y: y1))
-                segment(CGPoint(x: x1, y: y1), CGPoint(x: x0, y: y1))
-                segment(CGPoint(x: x0, y: y1), CGPoint(x: x0, y: y0))
-            }
-            func arc(_ c: CGPoint, _ r: Double, from a0: Double, to a1: Double, steps: Int) {
-                let points = (0...steps).map { i -> CGPoint in
-                    let a = a0 + (a1 - a0) * Double(i) / Double(steps)
-                    return f.point(CGPoint(x: c.x + r * cos(a), y: c.y + r * sin(a)))
-                }
-                lines.move(to: points[0])
-                lines.addLines(points)
-            }
-            rect(0, 0, L, W)
-            segment(CGPoint(x: L / 2, y: 0), CGPoint(x: L / 2, y: W))
-            arc(Pitch.center, Pitch.circle, from: 0, to: 2 * .pi, steps: 48)
-            for right in [false, true] {
-                let x = right ? L : 0, s = right ? -1.0 : 1.0
-                rect(x, (W - Pitch.boxWidth) / 2, x + s * Pitch.boxDepth, (W + Pitch.boxWidth) / 2)
-                rect(x, (W - Pitch.sixWidth) / 2, x + s * Pitch.sixDepth, (W + Pitch.sixWidth) / 2)
-                // The D: the penalty arc outside the box.
-                let spot = CGPoint(x: x + s * Pitch.spot, y: W / 2)
-                let half = acos((Pitch.boxDepth - Pitch.spot) / Pitch.circle)
-                arc(spot, Pitch.circle, from: (right ? .pi : 0) - half, to: (right ? .pi : 0) + half, steps: 16)
-                // The corner arcs.
-                arc(CGPoint(x: x, y: 0), 1, from: right ? .pi / 2 : 0, to: right ? .pi : .pi / 2, steps: 5)
-                arc(CGPoint(x: x, y: W), 1, from: right ? .pi : -.pi / 2, to: right ? 1.5 * .pi : 0, steps: 5)
-            }
-            if let edge = ink.chalkEdge {
-                // On pale grass, each line sits in a soft edge of its own.
-                context.stroke(lines, with: .color(edge), style: StrokeStyle(lineWidth: line + 1.2, lineCap: .round, lineJoin: .round))
-            }
-            context.stroke(lines, with: .color(ink.chalk), style: StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round))
-            // The spots.
-            for p in [Pitch.center, CGPoint(x: Pitch.spot, y: W / 2), CGPoint(x: L - Pitch.spot, y: W / 2)] {
-                let c = f.point(p), r = max(0.22 * f.scale(at: FieldPoint(p)), 1.1)
-                context.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r * 0.5, width: 2 * r, height: r)), with: .color(ink.chalk))
-            }
+            lines.move(to: points[0])
+            lines.addLines(points)
+        }
+        rect(0, 0, L, W)
+        segment(CGPoint(x: L / 2, y: 0), CGPoint(x: L / 2, y: W))
+        arc(Pitch.center, Pitch.circle, from: 0, to: 2 * .pi, steps: 48)
+        for right in [false, true] {
+            let x = right ? L : 0, s = right ? -1.0 : 1.0
+            rect(x, (W - Pitch.boxWidth) / 2, x + s * Pitch.boxDepth, (W + Pitch.boxWidth) / 2)
+            rect(x, (W - Pitch.sixWidth) / 2, x + s * Pitch.sixDepth, (W + Pitch.sixWidth) / 2)
+            // The D: the penalty arc outside the box.
+            let spot = CGPoint(x: x + s * Pitch.spot, y: W / 2)
+            let half = acos((Pitch.boxDepth - Pitch.spot) / Pitch.circle)
+            arc(spot, Pitch.circle, from: (right ? .pi : 0) - half, to: (right ? .pi : 0) + half, steps: 16)
+            // The corner arcs.
+            arc(CGPoint(x: x, y: 0), 1, from: right ? .pi / 2 : 0, to: right ? .pi : .pi / 2, steps: 5)
+            arc(CGPoint(x: x, y: W), 1, from: right ? .pi : -.pi / 2, to: right ? 1.5 * .pi : 0, steps: 5)
+        }
+        if let edge = ink.chalkEdge {
+            // On pale grass, each line sits in a soft edge of its own.
+            context.stroke(lines, with: .color(edge), style: StrokeStyle(lineWidth: line + 1.2, lineCap: .round, lineJoin: .round))
+        }
+        context.stroke(lines, with: .color(ink.chalk), style: StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round))
+        // The spots.
+        for p in [Pitch.center, CGPoint(x: Pitch.spot, y: W / 2), CGPoint(x: L - Pitch.spot, y: W / 2)] {
+            let c = f.point(p), r = max(0.22 * f.scale(at: FieldPoint(p)), 1.1)
+            context.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r * 0.5, width: 2 * r, height: r)), with: .color(ink.chalk))
         }
     }
 }
@@ -207,53 +200,74 @@ struct SoccerTeams: Equatable {
 
 // MARK: - Poses
 
-extension Pose {
-    // A strike: the swing leg drawn back, through the ball, and on; the arms out for balance.
-    static let backswing = Pose(lean: -0.12, nearThigh: -0.45, nearShin: -1.45, farThigh: 0.12, farShin: 0.05,
-                                nearUpper: -0.95, nearFore: -0.6, farUpper: 0.95, farFore: 1.15)
-    static let strike = Pose(lean: 0.05, nearThigh: 0.95, nearShin: 0.55, farThigh: -0.06, farShin: -0.05,
-                             nearUpper: -0.7, nearFore: -0.35, farUpper: 1.2, farFore: 1.45)
-    static let followThrough = Pose(lean: 0.18, nearThigh: 1.4, nearShin: 1.3, farThigh: -0.18, farShin: -0.1,
-                                    nearUpper: -0.45, nearFore: -0.1, farUpper: 1.0, farFore: 1.2)
-    /// Up for a header: legs tucked, arms out, the head through it.
-    static let header = Pose(lean: 0.4, nearThigh: 0.55, nearShin: -0.7, farThigh: 0.15, farShin: -0.95,
-                             nearUpper: -1.5, nearFore: -1.85, farUpper: 1.55, farFore: 1.9, lift: 0.2)
+/// Soccer's poses beyond the shared ones, for a right-footer, relative to
+/// his heading (at the ball, or where he's playing it).
+extension RigPose {
+    // A strike: the plant foot beside the ball, the swing leg drawn back, through the ball, and on; the arms out for balance.
+    static let backswing = RigPose(hip: RigVector(-0.02, 0, 0.46), lean: -0.1, twist: -0.25, left: RigVector(0.06, 0.11, 0),
+                                   right: RigVector(-0.3, -0.07, 0.22), leftArm: RigArm(swing: 0.75, spread: 0.95, turn: 0.1, bend: 0.3),
+                                   rightArm: RigArm(swing: -0.45, spread: 0.6, bend: 0.35))
+    static let strike = RigPose(hip: RigVector(0.02, 0, 0.45), lean: 0.08, twist: 0.1, left: RigVector(0.06, 0.12, 0),
+                                right: RigVector(0.2, -0.04, 0.05), leftArm: RigArm(swing: 0.9, spread: 0.9, turn: 0.1, bend: 0.25),
+                                rightArm: RigArm(swing: -0.65, spread: 0.6, bend: 0.3))
+    static let followThrough = RigPose(hip: RigVector(0.05, 0, 0.47), lean: 0.2, twist: 0.3, left: RigVector(0.06, 0.12, 0),
+                                       right: RigVector(0.4, -0.02, 0.3), leftArm: RigArm(swing: 0.6, spread: 0.85, turn: 0.2, bend: 0.3),
+                                       rightArm: RigArm(swing: -0.3, spread: 0.5, bend: 0.35))
+    /// Up for a header: off the ground, legs tucked, arms out, the head cocked back; then snapped through it.
+    static let rise = RigPose(hip: RigVector(0, 0, 0.6), lean: -0.05, nod: -0.4, left: RigVector(-0.05, 0.07, 0.18), right: RigVector(-0.12, -0.07, 0.13),
+                              leftArm: RigArm(swing: 0.9, spread: 1.0, bend: 0.6), rightArm: RigArm(swing: 0.9, spread: 1.0, bend: 0.6))
+    static let header = RigPose(hip: RigVector(0.02, 0, 0.62), lean: 0.42, nod: 0.55, left: RigVector(-0.06, 0.07, 0.2),
+                                right: RigVector(-0.12, -0.07, 0.15), leftArm: RigArm(swing: 0.4, spread: 1.15, bend: 0.5),
+                                rightArm: RigArm(swing: 0.4, spread: 1.15, bend: 0.5))
     /// Both hands over his head, then through: a throw-in.
-    static let throwBack = Pose(lean: -0.25, nearThigh: 0.35, nearShin: 0.2, farThigh: -0.3, farShin: -0.2,
-                                nearUpper: 2.75, nearFore: -2.9, farUpper: 2.65, farFore: -3.0)
-    static let throwThrough = Pose(lean: 0.3, nearThigh: 0.4, nearShin: 0.15, farThigh: -0.35, farShin: -0.4,
-                                   nearUpper: 1.9, nearFore: 1.55, farUpper: 1.75, farFore: 1.45)
+    static let throwBack = RigPose(hip: RigVector(-0.03, 0, 0.47), lean: -0.28, nod: -0.15, left: RigVector(0.14, 0.07, 0), right: RigVector(-0.14, -0.08, 0),
+                                   leftArm: RigArm(swing: 2.85, spread: 0.12, bend: 1.45), rightArm: RigArm(swing: 2.85, spread: 0.12, bend: 1.45))
+    static let throwThrough = RigPose(hip: RigVector(0.03, 0, 0.46), lean: 0.3, left: RigVector(0.14, 0.07, 0), right: RigVector(-0.14, -0.08, 0.02),
+                                      leftArm: RigArm(swing: 1.85, spread: 0.1, bend: 0.25), rightArm: RigArm(swing: 1.85, spread: 0.1, bend: 0.25))
     /// Square to the shot, arms in, a stride wide: a block.
-    static let block = Pose(lean: -0.12, nearThigh: 0.5, nearShin: 0.3, farThigh: -0.5, farShin: -0.3,
-                            nearUpper: -0.25, nearFore: 0.35, farUpper: 0.25, farFore: -0.35)
+    static let block = RigPose(hip: RigVector(0, 0, 0.42), lean: -0.12, left: RigVector(0, 0.17, 0), right: RigVector(0, -0.17, 0), knees: 0.3,
+                               leftArm: RigArm(swing: 0.3, spread: 0.0, turn: -0.7, bend: 1.7), rightArm: RigArm(swing: 0.3, spread: 0.0, turn: -0.7, bend: 1.7))
     /// The keeper takes it into his chest.
-    static let gather = Pose(lean: 0.22, nearThigh: 0.5, nearShin: 0.1, farThigh: -0.35, farShin: -0.15,
-                             nearUpper: 1.3, nearFore: 1.75, farUpper: 1.1, farFore: 1.65)
+    static let gather = RigPose(hip: RigVector(-0.02, 0, 0.44), lean: 0.25, left: RigVector(0.05, 0.1, 0), right: RigVector(-0.05, -0.1, 0),
+                                leftArm: RigArm(swing: 0.95, spread: 0.1, turn: -0.55, bend: 1.55), rightArm: RigArm(swing: 0.95, spread: 0.1, turn: -0.55, bend: 1.55))
     /// Arms up, chest out.
-    static let celebrate = Pose(lean: -0.12, nearThigh: 0.22, nearShin: 0.12, farThigh: -0.22, farShin: -0.12,
-                                nearUpper: 2.55, nearFore: 2.75, farUpper: -2.55, farFore: -2.75)
+    static let celebrate = RigPose(lean: -0.15, nod: -0.25, leftArm: RigArm(swing: 2.45, spread: 0, turn: 1.25, bend: 0.15),
+                                   rightArm: RigArm(swing: 2.45, spread: 0, turn: 1.25, bend: 0.15))
     /// Hands on his head.
-    static let dejected = Pose(lean: 0.05, nearThigh: 0.1, nearShin: 0.05, farThigh: -0.1, farShin: -0.05,
-                               nearUpper: 2.25, nearFore: -2.2, farUpper: -2.25, farFore: 2.2)
-    /// The keeper at full stretch, `angle` off upright toward the ball (a
-    /// top corner leans him over, a ball along the grass lays him flat):
-    /// one line from the trailing foot to the leading hand, the top arm
-    /// leading, the other just behind it, the push-off leg folded under.
-    /// Facing the way he dives.
-    static func stretch(_ angle: Double) -> Pose {
-        let a = min(max(angle, 0.55), 1.8), reach = .pi - a
-        return Pose(lean: a, nearThigh: -a + 0.1, nearShin: -a, farThigh: -a + 0.55, farShin: -a - 0.5,
-                    nearUpper: reach - 0.04, nearFore: reach - 0.08, farUpper: reach + 0.34, farFore: reach + 0.06)
+    static let dejected = RigPose(lean: 0.08, nod: 0.25, leftArm: RigArm(swing: 2.2, spread: 0, turn: 1.15, bend: 2.3),
+                                  rightArm: RigArm(swing: 2.2, spread: 0, turn: 1.15, bend: 2.3))
+
+    /// The keeper at full stretch toward `d` (from his hips, in his heading's
+    /// frame, body units): his body on the line to it, a top corner leaning
+    /// him over and a ball along the grass laying him flat; one line from
+    /// the trailing foot through him to the leading hand (the top one), the
+    /// other just behind it, the push-off leg folded under.
+    static func stretch(toward d: RigVector) -> RigPose {
+        let side: Double = d.y >= 0 ? 1 : -1
+        let across = max(hypot(d.x, d.y), 1e-6)
+        // From upright toward the ball: a lean for a top corner, just past flat for one along the grass.
+        let over = min(max(atan2(across, d.z), 0.55), 1.8)
+        let line = RigVector(sin(over) * d.x / across, sin(over) * d.y / across, cos(over))
+        // Leaning forward with the ball's forward part, then over toward it: his chest to the shooter all the way down.
+        var p = RigPose(hip: RigVector(0, 0, 0.45), pitch: asin(line.x), bank: atan2(line.y, line.z), left: RigVector(0, 0.06, -0.04),
+                        right: RigVector(0, -0.06, -0.04), knees: 0)
+        let top = RigArm(swing: 3.08, spread: 0.15, bend: 0.03), under = RigArm(swing: 2.8, spread: 0.18, bend: 0.15)
+        let push = RigVector(-0.1, side * 0.07, 0.15)
+        if side > 0 { (p.rightArm, p.leftArm, p.left) = (top, under, push) } else { (p.leftArm, p.rightArm, p.right) = (top, under, push) }
+        return p
     }
-    /// Down on the grass after it.
-    static let down = Pose(lean: 1.5, nearThigh: -1.45, nearShin: -1.55, farThigh: -1.35, farShin: -1.5,
-                           nearUpper: 1.55, nearFore: 1.45, farUpper: 1.05, farFore: 1.3)
+
+    /// Down on the grass after it, on his side.
+    static func down(_ side: Double) -> RigPose {
+        RigPose(hip: RigVector(0, 0, 0.1), bank: side * 1.45, left: RigVector(0, 0.06, -0.36), right: RigVector(-0.06, -0.07, -0.3),
+                leftArm: RigArm(swing: 2.6, spread: 0.3, bend: 0.5), rightArm: RigArm(swing: 2.4, spread: 0.2, bend: 0.6))
+    }
 }
 
 // MARK: - Players and ball
 
-/// One frame of a moment through the camera: the move's trail on the grass
-/// and the shot's path, the shadows, the goals and the players far to near,
+/// One frame of a moment through the camera: the pitch, the move's trail on
+/// the grass and the shot's path, the shadows, the goals and the players far to near,
 /// the ball, what it hits, the headline and the stamp. Equatable: at rest
 /// (t = ∞) an update elsewhere on the page doesn't redraw it.
 struct SoccerFrame: View, Equatable {
@@ -280,9 +294,11 @@ struct SoccerFrame: View, Equatable {
         Canvas { context, size in
             let f = PitchProjection(size: size, camera: script.frame(at: t))
             context.clip(to: f.bounds)
+            PitchLayer.draw(&context, f, ink: ink)
             drawTrails(&context, f)
-            drawShadows(&context, f)
-            let hands = drawStage(&context, f)
+            let figures = posed(f)
+            drawShadows(&context, f, figures)
+            let hands = drawStage(&context, f, figures)
             drawBall(&context, f, hands: hands)
             drawImpacts(&context, f)
             drawLabels(&context, f)
@@ -331,11 +347,12 @@ struct SoccerFrame: View, Equatable {
 
     // MARK: Shadows
 
-    private func drawShadows(_ context: inout GraphicsContext, _ f: PitchProjection) {
-        for actor in script.actors {
-            let at = actor.position(at: t)
-            let p = f.point(at), w = f.figure(at: at) * 0.3
-            context.fill(Path(ellipseIn: CGRect(x: p.x - w, y: p.y - w * 0.3, width: 2 * w, height: w * 0.6)), with: .color(ink.shadow))
+    private func drawShadows(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed]) {
+        // Under the hips; smaller and fainter as he leaves the ground.
+        for p in figures {
+            let air = min(p.figure.air / 0.4, 1), w = p.height * 0.3 * (1 - 0.35 * air), g = p.figure.ground
+            context.fill(Path(ellipseIn: CGRect(x: g.x - w, y: g.y - w * 0.3, width: 2 * w, height: w * 0.6)),
+                         with: .color(ink.shadow.opacity(1 - 0.45 * air)))
         }
         // The ball's: under it on the grass, larger and softer the higher it flies, a hairline up to it once it's well up.
         if script.heldBy == nil || t < script.heldFrom, let ball = script.ball(at: t), ball.z > 0.25 {
@@ -358,7 +375,7 @@ struct SoccerFrame: View, Equatable {
 
     /// The goals and the players, far to near (a man in front of the post
     /// covers it). Returns where the keeper holding the ball has his hands.
-    private func drawStage(_ context: inout GraphicsContext, _ f: PitchProjection) -> CGPoint? {
+    private func drawStage(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed]) -> CGPoint? {
         let attacking = FigureInks(teams.attacking, ink: ink, in: context)
         let defending = FigureInks(teams.defending, ink: ink, in: context)
         enum Item {
@@ -392,8 +409,7 @@ struct SoccerFrame: View, Equatable {
                 // Seen from behind, the net is nearest the lens; from the far end, furthest.
                 drawGoal(&context, f, right: right, parts: right == f.behind ? [.nearPost, .frame, .net] : [.net, .frame, .nearPost])
             case let .actor(i):
-                let actor = script.actors[i]
-                let figure = place(actor, i, f)
+                let actor = script.actors[i], figure = figures[i]
                 TheaterDraw.figure(figure.figure, inks: actor.team == .attacking ? attacking : defending, height: figure.height, opacity: 1,
                                    in: context)
                 if script.heldBy == i, t >= script.heldFrom { hands = figure.hands }
@@ -493,94 +509,87 @@ struct SoccerFrame: View, Equatable {
         context.stroke(mesh, with: .color(ink.net), lineWidth: close ? min(max(f.scale(at: FieldPoint(x: x, y: Pitch.width / 2)) * 0.02, 0.6), 1.1) : 0.5)
     }
 
-    /// A player posed and placed at t; and where his hands are (a keeper
-    /// holding the ball has it there).
-    private func place(_ actor: SoccerScript.Actor, _ index: Int, _ f: PitchProjection) -> (figure: Figure, height: CGFloat, hands: CGPoint) {
-        let at = actor.position(at: t)
-        let foot = f.point(at)
-        let height = f.figure(at: at)
-        // The keeper at full stretch: his hands go exactly to the ball.
-        if let dive = actor.dive, t >= dive.start {
-            let target = f.point(dive.target)
-            let set = f.point(actor.position(at: dive.start))
-            // His body along the line from his hips to the ball, as the camera sees it.
-            let hip = CGPoint(x: set.x, y: set.y - height * 0.45)
-            let facing: Double = target.x >= hip.x ? 1 : -1
-            let u = min(max((t - dive.start) / max(dive.reach - dive.start, 0.01), 0), 1)
-            let fall = min(max((t - dive.reach) / 0.32, 0), 1)
-            let flying = Pose.stretch(atan2(abs(target.x - hip.x), hip.y - target.y))
-            let pose = Pose.ready.mix(flying, smooth(u * 1.3)).mix(Pose.down, smooth(fall)).facing(facing)
-            let figure = Figure(pose, at: foot, height: height)
-            let pull = fall > 0 ? 1 - smooth(fall) : smooth(u)
-            let reach = CGPoint(x: (target.x - figure.near.hand.x) * pull, y: (target.y - figure.near.hand.y) * pull)
-            // Off the ground on the way: daylight under him, gone as his hands reach the ball.
-            let air = fall > 0 ? 0 : 4 * u * (1 - u) * height * 0.16
-            let placed = Figure(pose, at: CGPoint(x: foot.x + reach.x, y: min(foot.y + reach.y, foot.y) - air), height: height)
-            return (placed, height, placed.near.hand)
-        }
-        let figure = Figure(pose(actor, index, f), at: foot, height: height)
-        let hands = CGPoint(x: (figure.near.hand.x + figure.far.hand.x) / 2, y: (figure.near.hand.y + figure.far.hand.y) / 2)
-        return (figure, height, hands)
+    /// A player posed and placed at t: his figure, its height, and where
+    /// his hands are (a keeper holding the ball has it there).
+    private struct Posed {
+        let figure: RigFigure
+        let height: CGFloat
+        let hands: CGPoint
     }
 
-    private func smooth(_ u: Double) -> Double { let c = min(max(u, 0), 1); return c * c * (3 - 2 * c) }
+    /// Everyone at t, by actor.
+    private func posed(_ f: PitchProjection) -> [Posed] {
+        script.actors.indices.map { place(script.actors[$0], $0, f) }
+    }
 
-    /// The pose at t: what he's doing (a strike, a header, a block, arms
-    /// up), else how he's moving, else how he stands: watching the ball.
-    private func pose(_ actor: SoccerScript.Actor, _ index: Int, _ f: PitchProjection) -> Pose {
-        let here = actor.position(at: t)
-        let ball = script.ball(at: t)?.ground ?? scene?.goal ?? Pitch.center
-        func facing(toward p: CGPoint) -> Double { f.point(p).x - f.point(here).x >= 0 ? 1 : -1 }
+    private func place(_ actor: SoccerScript.Actor, _ index: Int, _ f: PitchProjection) -> Posed {
+        let at = actor.position(at: t)
+        let lens = RigLens(f, at: at)
+        let (body, heading) = pose(actor, index, at: at, unit: lens.unit)
+        var figure = RigFigure(body, heading: heading, lens: lens)
+        // At full stretch, his leading hand goes exactly to the ball.
+        if let dive = actor.dive, t >= dive.start {
+            let target = f.point(dive.target), side = body.bank >= 0 ? 1.0 : -1.0
+            let u = min(max((t - dive.start) / max(dive.reach - dive.start, 0.01), 0), 1)
+            let fall = min(max((t - dive.reach) / 0.32, 0), 1)
+            let lead = side > 0 ? figure.hands.1 : figure.hands.0
+            let pull = fall > 0 ? 1 - smooth(fall) : smooth(u)
+            figure.shift(by: CGVector(dx: (target.x - lead.x) * pull, dy: (target.y - lead.y) * pull))
+            return Posed(figure: figure, height: lens.height, hands: side > 0 ? figure.hands.1 : figure.hands.0)
+        }
+        return Posed(figure: figure, height: lens.height, hands: figure.grip)
+    }
+
+    private func smooth(_ u: Double) -> Double { Rig.smooth(u) }
+
+    /// The body at t, and its heading: at full stretch for the ball; else
+    /// what he's doing (a strike, a header, a block, arms up) over how he's
+    /// moving (striding to his planted feet), else how he stands: watching
+    /// the ball. `unit`: body units to the metre where he stands. (tested)
+    func pose(_ actor: SoccerScript.Actor, _ index: Int, at here: CGPoint, unit: Double) -> (RigPose, Double) {
+        let track = index < script.rig.count ? script.rig[index] : RigTrack(at: here, height: 2.5)
+        let m = track.motion(at: t)
+        if let dive = actor.dive, t >= dive.start {
+            let set = actor.position(at: dive.start)
+            let u = min(max((t - dive.start) / max(dive.reach - dive.start, 0.01), 0), 1)
+            let fall = min(max((t - dive.reach) / 0.32, 0), 1)
+            // Toward the ball from his hips, as he set: along and across his heading, and up.
+            let toward = Rig.yaw(RigVector((dive.target.x - set.x) * unit, (dive.target.y - set.y) * unit, 0), -m.heading)
+            let d = RigVector(toward.x, toward.y, dive.target.z * unit - 0.45)
+            var body = RigPose.ready.mix(.stretch(toward: d), smooth(u * 1.3)).mix(.down(d.y >= 0 ? 1 : -1), smooth(fall))
+            // Off the ground on the way: daylight under him, gone as his hands reach the ball.
+            body.hip.z += fall > 0 ? 0 : 4 * u * (1 - u) * 0.17
+            return (body, m.heading)
+        }
         func envelope(_ x: Double, attack: Double, release: Double) -> Double {
             x < 0 ? max(1 + x / attack, 0) : max(1 - x / release, 0)
         }
-        var base: Pose
-        if let motion = actor.motion(at: t), motion.speed > 1.2 {
-            let ahead = CGPoint(x: here.x + motion.heading.x, y: here.y + motion.heading.y)
-            let way = facing(toward: ahead)
-            base = motion.speed > 4.5 ? Pose.run(2 * .pi * 2.6 * t + Double(index)).facing(way)
-                : Pose.walk(2 * .pi * 1.8 * t + Double(index)).facing(way)
-        } else {
-            base = (actor.role == .keeper ? Pose.ready : Pose.stand).facing(facing(toward: ball))
-        }
+        let still: RigPose = actor.role == .keeper ? .ready : .stand
+        let feet = track.feet(at: t, anchor: here, heading: m.heading, unit: unit, speed: m.speed, stand: (still.left, still.right))
+        var base = still.mix(.gait(m, feet: feet), m.weight)
         for action in actor.actions {
             let x = t - action.at
-            let way = facing(toward: action.toward)
             switch action.kind {
             case .kick:
-                guard x > -0.24, x < 0.45 else { continue }
-                let keys: [(Double, Pose)] = [(-0.24, base), (-0.09, .backswing), (0, .strike), (0.13, .followThrough), (0.45, base)]
-                base = keyed(keys, x, facing: way, base: base)
+                base = RigPose.keyed([(-0.24, base), (-0.09, .backswing), (0, .strike), (0.13, .followThrough), (0.45, base)], at: x) ?? base
             case .header:
-                guard x > -0.32, x < 0.42 else { continue }
-                let keys: [(Double, Pose)] = [(-0.32, base), (-0.02, .header), (0.1, .header), (0.42, base)]
-                base = keyed(keys, x, facing: way, base: base)
+                base = RigPose.keyed([(-0.32, base), (-0.12, .rise), (0.02, .header), (0.12, .header), (0.42, base)], at: x) ?? base
             case .throwIn:
-                guard x > -0.5, x < 0.45 else { continue }
-                let keys: [(Double, Pose)] = [(-0.5, base), (-0.15, .throwBack), (0.04, .throwThrough), (0.45, base)]
-                base = keyed(keys, x, facing: way, base: base)
+                base = RigPose.keyed([(-0.5, base), (-0.15, .throwBack), (0.04, .throwThrough), (0.45, base)], at: x) ?? base
             case .control:
-                base = base.mix(Pose.gather.facing(way), envelope(x, attack: 0.12, release: 0.2) * 0.4)
+                base = base.over(.gather, envelope(x, attack: 0.12, release: 0.2) * 0.4, moving: m.weight)
             case .block:
-                base = base.mix(Pose.block.facing(way), envelope(x, attack: 0.18, release: 0.5))
+                base = base.over(.block, envelope(x, attack: 0.18, release: 0.5), moving: m.weight)
             case .gather:
                 // Takes it in and holds it there.
-                base = base.mix(Pose.gather.facing(way), x < 0 ? max(1 + x / 0.2, 0) : 1)
+                base = base.over(.gather, x < 0 ? max(1 + x / 0.2, 0) : 1, moving: m.weight)
             case .celebrate:
-                base = base.mix(Pose.celebrate.facing(way), smooth((x + 0.25) / 0.35))
+                base = base.over(.celebrate, smooth((x + 0.25) / 0.35), moving: m.weight)
             case .dejected:
-                base = base.mix(Pose.dejected.facing(way), smooth(x / 0.35))
+                base = base.over(.dejected, smooth(x / 0.35), moving: m.weight)
             }
         }
-        return base
-    }
-
-    private func keyed(_ keys: [(Double, Pose)], _ x: Double, facing: Double, base: Pose) -> Pose {
-        guard let i = keys.lastIndex(where: { $0.0 <= x }), i + 1 < keys.count else { return base }
-        let (a, pa) = keys[i], (b, pb) = keys[i + 1]
-        // Poses are written facing right; the base already faces his way.
-        let turn = { (p: Pose) in p == base ? p : p.facing(facing) }
-        return turn(pa).mix(turn(pb), smooth((x - a) / (b - a)))
+        return (base, m.heading)
     }
 
     // MARK: Ball
@@ -775,6 +784,17 @@ struct SoccerTheater: View {
         }
     }
 
+    /// What the stage shows: a moment replaying, then its end (the scorer
+    /// wheeling away, the stamp) until it has held (`rested`); a new moment
+    /// not yet begun; otherwise nil, the quiet pitch. History that isn't
+    /// news is never shown: moments can be twenty minutes apart, and on
+    /// opening the page the pitch is quiet. (pure; tested)
+    static func shown(_ state: SoccerTheaterState, replaying: String?, rested: String?) -> SoccerScene? {
+        guard let scene = state.scene else { return nil }
+        if replaying == scene.id { return rested == scene.id ? nil : scene }
+        return state.news ? scene : nil
+    }
+
     /// ESPN runs a note onto the end of a sentence ("…with a cross.Goal
     /// confirmed following VAR Review."): a space between them.
     static func sentences(_ text: String) -> String {
@@ -819,6 +839,12 @@ private struct SoccerStage: View {
         var done = false
     }
 
+    /// A replayed moment's end that has had its time on screen.
+    @State private var rested: String?
+
+    /// The moment on screen (see `SoccerTheater.shown`); nil, the quiet pitch.
+    private var shown: SoccerScene? { SoccerTheater.shown(state, replaying: replay?.id, rested: rested) }
+
     /// Half as tall as wide, up to this; wider than that, the pitch centers in the well.
     static let maxHeight: CGFloat = 320
 
@@ -831,7 +857,7 @@ private struct SoccerStage: View {
             dressed = (Uniform(TheaterTeams.solid(palette.top, scheme)), Uniform(TheaterTeams.solid(palette.bottom, scheme)))
         }
         // The moment's attacking team (home is the top team).
-        let side = state.scene?.side ?? .top
+        let side = shown?.side ?? .top
         return side == .top ? SoccerTeams(attacking: dressed.top, defending: dressed.bottom)
             : SoccerTeams(attacking: dressed.bottom, defending: dressed.top)
     }
@@ -839,20 +865,21 @@ private struct SoccerStage: View {
     /// Seconds into the moment on screen; infinity once it has ended (or was never replayed).
     private func time(at date: Date) -> Double {
         if case let .frozen(t) = clock { return t }
-        guard let scene = state.scene else { return .infinity }
+        guard let scene = shown else { return .infinity }
         if let replay, replay.id == scene.id { return replay.done ? .infinity : date.timeIntervalSince(replay.start) }
         // News not yet begun: its first frame (onChange begins it).
         return state.news && !reduceMotion ? 0 : .infinity
     }
 
     private var playing: Bool {
-        guard clock == .live, let scene = state.scene else { return false }
+        guard clock == .live, let scene = shown else { return false }
         if let replay, replay.id == scene.id { return !replay.done }
         return state.news && !reduceMotion
     }
 
     var body: some View {
-        let script = built.script(for: state.scene)
+        let scene = shown
+        let script = built.script(for: scene)
         let ink = TheaterInk(scheme)
         let teams = teams
         GeometryReader { geo in
@@ -860,24 +887,20 @@ private struct SoccerStage: View {
                 Group {
                     if playing {
                         TimelineView(.animation) { context in
-                            let t = time(at: context.date)
-                            PitchLayer(ink: ink, camera: script.frame(at: t)).equatable()
-                            SoccerFrame(scene: state.scene, script: script, t: t, teams: teams, ink: ink, size: geo.size).equatable()
+                            SoccerFrame(scene: scene, script: script, t: time(at: context.date), teams: teams, ink: ink, size: geo.size)
+                                .equatable()
                         }
                         .transition(.identity)
                     } else {
-                        let t = time(at: .now)
-                        ZStack {
-                            PitchLayer(ink: ink, camera: script.frame(at: t)).equatable()
-                            SoccerFrame(scene: state.scene, script: script, t: t, teams: teams, ink: ink, size: geo.size).equatable()
-                        }
-                        .transition(.identity)
+                        SoccerFrame(scene: scene, script: script, t: time(at: .now), teams: teams, ink: ink, size: geo.size)
+                            .equatable()
+                            .transition(.identity)
                     }
                 }
-                .id(state.scene?.id)
+                .id(scene?.id)
                 // A replay cuts in; a moment that isn't replayed crossfades to how it ended.
                 .transition(playing ? .identity : .opacity.animation(.easeInOut(duration: 0.35)))
-                if let scene = state.scene {
+                if let scene {
                     SoccerCelebration(scene: scene, script: script, size: geo.size, color: teams.attacking.accent,
                                       start: replay?.id == scene.id ? replay?.start : nil)
                         .id(scene.id)
@@ -890,17 +913,25 @@ private struct SoccerStage: View {
         .onAppear(perform: begin)
         .onChange(of: state.scene?.id) { _, _ in begin() }
         .task(id: replay) {
-            guard let replay, !replay.done else { return }
-            try? await Task.sleep(for: .seconds(max(script.duration - Date.now.timeIntervalSince(replay.start), 0) + 0.05))
+            guard let replay else { return }
+            if !replay.done {
+                try? await Task.sleep(for: .seconds(max(script.duration - Date.now.timeIntervalSince(replay.start), 0) + 0.05))
+                guard !Task.isCancelled, self.replay?.id == replay.id else { return }
+                self.replay?.done = true
+                return
+            }
+            // Done: its end holds a while (unless the next moment comes), then the pitch goes quiet.
+            try? await Task.sleep(for: TheaterKit.hold)
             guard !Task.isCancelled, self.replay?.id == replay.id else { return }
-            self.replay?.done = true
+            rested = replay.id
         }
     }
 
-    /// A new moment replays from its first touch; history and Reduce Motion don't.
+    /// A new moment replays from its first touch; with Reduce Motion it's
+    /// over at once (its end crossfades in, and holds). History doesn't.
     private func begin() {
-        guard clock == .live, !reduceMotion, state.news, let scene = state.scene, replay?.id != scene.id else { return }
-        replay = Replay(id: scene.id, start: .now)
+        guard clock == .live, state.news, let scene = state.scene, replay?.id != scene.id else { return }
+        replay = Replay(id: scene.id, start: .now, done: reduceMotion)
     }
 }
 

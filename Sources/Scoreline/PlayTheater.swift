@@ -379,169 +379,62 @@ struct TheaterTeams: Equatable {
     }
 }
 
-// MARK: - Figures
+// MARK: - Poses
 
-/// A figure's pose: each limb's angle in radians from straight down,
-/// positive toward screen right (a shin or forearm absolute, not from its
-/// joint), and the torso's lean from upright. "Near" limbs draw in front of
-/// the body, "far" ones behind. Poses are written facing right; `facing`
-/// mirrors them. Simple and few: pictograms, not clip art.
-struct Pose: Equatable {
-    var lean = 0.0
-    var nearThigh = 0.1, nearShin = 0.05, farThigh = -0.1, farShin = -0.05
-    var nearUpper = 0.18, nearFore = 0.1, farUpper = -0.18, farFore = -0.1
-    /// Off the ground (a stride's bob), in figure heights.
-    var lift = 0.0
-
-    func facing(_ f: Double) -> Pose {
-        guard f < 0 else { return self }
-        return Pose(lean: -lean, nearThigh: -nearThigh, nearShin: -nearShin, farThigh: -farThigh, farShin: -farShin,
-                    nearUpper: -nearUpper, nearFore: -nearFore, farUpper: -farUpper, farFore: -farFore, lift: lift)
-    }
-
-    /// Part way to another pose, each joint the short way round.
-    func mix(_ o: Pose, _ u: Double) -> Pose {
-        guard u > 0 else { return self }
-        guard u < 1 else { return o }
-        func m(_ a: Double, _ b: Double) -> Double {
-            var d = (b - a).truncatingRemainder(dividingBy: 2 * .pi)
-            if d > .pi { d -= 2 * .pi } else if d < -.pi { d += 2 * .pi }
-            return a + d * u
-        }
-        return Pose(lean: m(lean, o.lean), nearThigh: m(nearThigh, o.nearThigh), nearShin: m(nearShin, o.nearShin),
-                    farThigh: m(farThigh, o.farThigh), farShin: m(farShin, o.farShin), nearUpper: m(nearUpper, o.nearUpper),
-                    nearFore: m(nearFore, o.nearFore), farUpper: m(farUpper, o.farUpper), farFore: m(farFore, o.farFore),
-                    lift: lift + (o.lift - lift) * u)
-    }
-
-    // Standing, front on: an outfielder, a runner at rest.
-    static let stand = Pose()
-    /// Front on, knees bent, hands low: an infielder as the pitch comes.
-    static let ready = Pose(lean: 0, nearThigh: 0.55, nearShin: -0.1, farThigh: -0.55, farShin: 0.1,
-                            nearUpper: 0.45, nearFore: 0.05, farUpper: -0.45, farFore: -0.05)
+/// Baseball's poses beyond the shared ones, for a right-hander (a lefty's
+/// are `mirrored`), relative to his heading: the batter faces the plate, the
+/// pitcher home, the catcher his pitcher, a fielder his throw.
+extension RigPose {
     /// The catcher's squat, the mitt up as a target.
-    static let squat = Pose(lean: 0, nearThigh: 1.3, nearShin: 0.12, farThigh: -1.3, farShin: -0.12,
-                            nearUpper: 1.15, nearFore: 2.3, farUpper: -0.7, farFore: -0.3)
-    /// Leading off a base: low, facing the next one.
-    static let lead = Pose(lean: 0.25, nearThigh: 0.6, nearShin: 0.1, farThigh: -0.55, farShin: -0.1,
-                           nearUpper: 0.5, nearFore: 0.3, farUpper: -0.35, farFore: -0.2)
+    static let squat = RigPose(hip: RigVector(-0.05, 0, 0.18), lean: 0.3, left: RigVector(0.05, 0.17, 0), right: RigVector(0.05, -0.17, 0),
+                               knees: 0.6, leftArm: RigArm(swing: 1.3, spread: 0.3, turn: -0.3, bend: 1.2),
+                               rightArm: RigArm(swing: 0.55, spread: 0.25, turn: 0, bend: 1.3))
+    /// Leading off: low and wide, side-on to the next base, watching the pitcher.
+    static let lead = RigPose(hip: RigVector(0, 0, 0.39), lean: 0.4, left: RigVector(0.02, 0.17, 0), right: RigVector(0.02, -0.17, 0), knees: 0.35,
+                              leftArm: RigArm(swing: 0.45, spread: 0.32, turn: -0.15, bend: 0.6),
+                              rightArm: RigArm(swing: 0.45, spread: 0.32, turn: -0.15, bend: 0.6))
+    /// Feet first: leaning back, the lead leg out along the dirt, the other folded under, a hand up.
+    static let slide = RigPose(hip: RigVector(-0.12, 0, 0.09), lean: -1.25, left: RigVector(0.42, 0.04, 0.02), right: RigVector(0.14, -0.07, 0),
+                               knees: 0.15, leftArm: RigArm(swing: 2.45, spread: 0, turn: 0.5, bend: 0.3),
+                               rightArm: RigArm(swing: 0.9, spread: 0.45, turn: 0.2, bend: 0.4))
 
-    /// A running stride at phase φ (radians): legs scissor, arms pump opposite, a bob.
-    static func run(_ phase: Double) -> Pose {
-        func leg(_ p: Double) -> (Double, Double) {
-            let thigh = 0.1 + 0.72 * sin(p)
-            // The trailing leg folds up behind; the leading one reaches.
-            return (thigh, thigh - 0.25 - 1.15 * max(0, -cos(p - 0.5)))
-        }
-        let near = leg(phase), far = leg(phase + .pi)
-        return Pose(lean: 0.32, nearThigh: near.0, nearShin: near.1, farThigh: far.0, farShin: far.1,
-                    nearUpper: -0.8 * sin(phase), nearFore: -0.8 * sin(phase) + 1.55,
-                    farUpper: 0.8 * sin(phase), farFore: 0.8 * sin(phase) + 1.55, lift: 0.04 * abs(cos(phase)))
-    }
+    // The pitcher's delivery, facing home: set side-on (his glove side to
+    // the plate), the leg kick, the stride with the arm cocked, the release
+    // over the top, the follow-through with the back leg up behind him, and
+    // square to the plate where he landed, ready to field.
+    static let set = RigPose(turn: -1.5, hip: RigVector(0, 0, 0.485), left: RigVector(0.07, 0.01, 0), right: RigVector(-0.07, -0.01, 0),
+                             leftArm: RigArm(swing: 0.8, spread: 0.1, turn: -0.55, bend: 1.6),
+                             rightArm: RigArm(swing: 0.75, spread: 0.1, turn: -0.6, bend: 1.65))
+    static let kick = RigPose(turn: -1.85, hip: RigVector(-0.03, 0, 0.49), lean: -0.12, left: RigVector(0.0, 0.04, 0.33),
+                              right: RigVector(-0.06, -0.01, 0), knees: 0.05, leftArm: RigArm(swing: 1.0, spread: 0.08, turn: -0.6, bend: 1.75),
+                              rightArm: RigArm(swing: 0.95, spread: 0.08, turn: -0.65, bend: 1.8))
+    static let stride = RigPose(turn: -1.35, hip: RigVector(0.24, -0.03, 0.38), twist: -0.5, left: RigVector(0.52, -0.1, 0),
+                                right: RigVector(-0.07, -0.01, 0), knees: 0.15, leftArm: RigArm(swing: 1.45, spread: 0.3, turn: 1.2, bend: 0.2),
+                                rightArm: RigArm(swing: 1.4, spread: 0.2, turn: 1.9, bend: 1.7))
+    static let deliver = RigPose(turn: -0.85, hip: RigVector(0.36, -0.05, 0.36), lean: 0.55, twist: 0.5, left: RigVector(0.52, -0.1, 0),
+                                 right: RigVector(0.0, -0.04, 0.12), knees: 0.15, leftArm: RigArm(swing: 0.5, spread: 0.2, turn: -0.4, bend: 1.8),
+                                 rightArm: RigArm(swing: 2.7, spread: 0.25, turn: -0.1, bend: 0.4))
+    static let follow = RigPose(turn: -0.35, hip: RigVector(0.43, -0.06, 0.36), lean: 0.95, twist: 0.4, left: RigVector(0.52, -0.1, 0),
+                                right: RigVector(0.17, 0.08, 0.3), knees: 0.2, leftArm: RigArm(swing: -0.4, spread: 0.3, turn: 0.2, bend: 1.2),
+                                rightArm: RigArm(swing: 0.4, spread: 0.0, turn: -0.9, bend: 0.35))
+    static let fielding = RigPose(hip: RigVector(0.44, -0.24, 0.41), lean: 0.55, left: RigVector(0.52, -0.1, 0), right: RigVector(0.42, -0.4, 0),
+                                  knees: 0.4, leftArm: RigArm(swing: 0.4, spread: 0.3, turn: -0.35, bend: 0.65),
+                                  rightArm: RigArm(swing: 0.4, spread: 0.3, turn: -0.35, bend: 0.65))
 
-    static func walk(_ phase: Double) -> Pose {
-        Pose(lean: 0.05, nearThigh: 0.32 * sin(phase), nearShin: 0.32 * sin(phase) - 0.2 * max(0, -cos(phase)),
-             farThigh: -0.32 * sin(phase), farShin: -0.32 * sin(phase) - 0.2 * max(0, cos(phase)),
-             nearUpper: -0.28 * sin(phase), nearFore: -0.28 * sin(phase) + 0.35, farUpper: 0.28 * sin(phase),
-             farFore: 0.28 * sin(phase) + 0.35)
-    }
-
-    /// Feet first: leaning back, the lead leg out to the bag, the other folded under.
-    static let slide = Pose(lean: -1.05, nearThigh: 1.38, nearShin: 1.52, farThigh: 0.95, farShin: -1.5,
-                            nearUpper: -2.5, nearFore: -2.9, farUpper: 0.7, farFore: 1.0)
-
-    // Fielding.
-    static let scoop = Pose(lean: 0.95, nearThigh: 0.95, nearShin: 0.15, farThigh: -0.7, farShin: -0.25,
-                            nearUpper: 0.4, nearFore: 0.3, farUpper: 0.2, farFore: 0.05)
-    static let catchHigh = Pose(lean: -0.05, nearThigh: 0.12, nearShin: 0.05, farThigh: -0.12, farShin: -0.05,
-                                nearUpper: 2.85, nearFore: 3.0, farUpper: 2.55, farFore: 2.85)
-    static let glove = Pose(lean: 0.2, nearThigh: 0.75, nearShin: 0.5, farThigh: -0.25, farShin: -0.15,
-                            nearUpper: 1.45, nearFore: 1.65, farUpper: 0.35, farFore: 0.6)
-    static let cock = Pose(lean: -0.12, nearThigh: 0.55, nearShin: 0.25, farThigh: -0.45, farShin: -0.35,
-                           nearUpper: 1.35, nearFore: 1.5, farUpper: -2.05, farFore: -2.85)
-    static let release = Pose(lean: 0.5, nearThigh: 0.45, nearShin: 0.1, farThigh: -1.0, farShin: -1.6,
-                              nearUpper: -0.35, nearFore: -0.15, farUpper: 0.9, farFore: 0.55)
-
-    // The pitcher's delivery: set, the leg kick, the stride with the arm cocked, the release over the top, the follow-through.
-    static let set = Pose(lean: 0, nearThigh: 0.06, nearShin: 0.03, farThigh: -0.06, farShin: -0.03,
-                          nearUpper: 0.3, nearFore: 1.85, farUpper: 0.2, farFore: 1.9)
-    static let kick = Pose(lean: -0.1, nearThigh: 1.6, nearShin: 0.2, farThigh: 0, farShin: 0,
-                           nearUpper: 0.35, nearFore: 1.9, farUpper: 0.25, farFore: 1.95)
-    static let stride = Pose(lean: 0.15, nearThigh: 0.9, nearShin: 0.4, farThigh: -0.6, farShin: -0.7,
-                             nearUpper: 1.45, nearFore: 1.3, farUpper: -2.0, farFore: -2.9)
-    static let deliver = Pose(lean: 0.45, nearThigh: 0.75, nearShin: 0.2, farThigh: -0.8, farShin: -1.3,
-                              nearUpper: 0.6, nearFore: 0.9, farUpper: -3.85, farFore: -4.05)
-    static let follow = Pose(lean: 0.75, nearThigh: 0.55, nearShin: 0.1, farThigh: -1.25, farShin: -1.95,
-                             nearUpper: -0.3, nearFore: 0.2, farUpper: 0.55, farFore: 0.25)
-
-    // The batter: the stance, the bat through the zone, the finish over the front shoulder.
-    static let stance = Pose(lean: 0.15, nearThigh: 0.42, nearShin: 0.12, farThigh: -0.38, farShin: -0.1,
-                             nearUpper: -0.35, nearFore: -2.45, farUpper: -0.15, farFore: -2.25)
-    static let contact = Pose(lean: 0.05, nearThigh: 0.38, nearShin: 0.3, farThigh: -0.45, farShin: -0.8,
-                              nearUpper: 1.3, nearFore: 1.45, farUpper: 1.1, farFore: 1.35)
-    static let finish = Pose(lean: -0.1, nearThigh: 0.32, nearShin: 0.26, farThigh: -0.4, farShin: -1.05,
-                             nearUpper: 2.6, nearFore: -2.6, farUpper: 2.4, farFore: -2.4)
-}
-
-/// A pose put on a figure: where its joints are, in points.
-struct Figure {
-    var head: CGPoint
-    var headRadius: CGFloat
-    var neck: CGPoint
-    var hip: CGPoint
-    var near: (knee: CGPoint, foot: CGPoint, elbow: CGPoint, hand: CGPoint)
-    var far: (knee: CGPoint, foot: CGPoint, elbow: CGPoint, hand: CGPoint)
-    /// Stroke widths.
-    var torso: CGFloat
-    var limb: CGFloat
-
-    /// The pose standing on `foot` (the ground point), `height` points tall.
-    init(_ pose: Pose, at foot: CGPoint, height: CGFloat) {
-        let s = height / 1.1
-        func down(_ from: CGPoint, _ angle: Double, _ length: Double) -> CGPoint {
-            CGPoint(x: from.x + sin(angle) * length, y: from.y - cos(angle) * length)
-        }
-        // Built in units from the hip (y up), then stood on the lower foot.
-        let nearKnee = down(.zero, pose.nearThigh, 0.25), nearFoot = down(nearKnee, pose.nearShin, 0.25)
-        let farKnee = down(.zero, pose.farThigh, 0.25), farFoot = down(farKnee, pose.farShin, 0.25)
-        let shoulder = CGPoint(x: sin(pose.lean) * 0.3, y: cos(pose.lean) * 0.3)
-        let headCenter = CGPoint(x: shoulder.x + sin(pose.lean) * 0.2, y: shoulder.y + cos(pose.lean) * 0.2)
-        let nearElbow = down(shoulder, pose.nearUpper, 0.18), nearHand = down(nearElbow, pose.nearFore, 0.17)
-        let farElbow = down(shoulder, pose.farUpper, 0.18), farHand = down(farElbow, pose.farFore, 0.17)
-        let ground = min(nearFoot.y, farFoot.y) - pose.lift
-        func pt(_ p: CGPoint) -> CGPoint { CGPoint(x: foot.x + p.x * s, y: foot.y - (p.y - ground) * s) }
-        head = pt(headCenter)
-        headRadius = max(0.115 * s, 1.5)
-        neck = pt(shoulder)
-        hip = pt(.zero)
-        near = (pt(nearKnee), pt(nearFoot), pt(nearElbow), pt(nearHand))
-        far = (pt(farKnee), pt(farFoot), pt(farElbow), pt(farHand))
-        torso = max(0.19 * s, 2)
-        limb = max(0.085 * s, 1.1)
-    }
-
-    var farLimbs: Path {
-        var p = Path()
-        p.addLines([hip, far.knee, far.foot])
-        p.addLines([neck, far.elbow, far.hand])
-        return p
-    }
-
-    var nearLimbs: Path {
-        var p = Path()
-        p.addLines([hip, near.knee, near.foot])
-        p.addLines([neck, near.elbow, near.hand])
-        return p
-    }
-
-    var body: Path {
-        var p = Path()
-        p.move(to: hip)
-        p.addLine(to: neck)
-        return p
-    }
-
-    var headRect: CGRect { CGRect(x: head.x - headRadius, y: head.y - headRadius, width: 2 * headRadius, height: 2 * headRadius) }
+    // The batter, facing the plate (a right-hander's front shoulder, his
+    // left, to the pitcher): the stance, wide and coiled, the hands by his
+    // back shoulder; the bat through the zone, the hips open, the back foot
+    // up on its toe; the finish over the front shoulder.
+    static let stance = RigPose(hip: RigVector(-0.04, -0.02, 0.4), lean: 0.35, roll: -0.05, twist: -0.35,
+                                left: RigVector(-0.08, 0.25, 0), right: RigVector(0.03, -0.21, 0), knees: 0.3,
+                                leftArm: RigArm(swing: 1.2, spread: 0.0, turn: -1.3, bend: 1.2),
+                                rightArm: RigArm(swing: 0.9, spread: 0.9, turn: -0.4, bend: 2.2))
+    static let contact = RigPose(turn: 0.9, hip: RigVector(-0.02, 0.06, 0.4), lean: 0.3, twist: 0.25, left: RigVector(-0.06, 0.27, 0),
+                                 right: RigVector(0.02, -0.17, 0.05), knees: 0.45, leftArm: RigArm(swing: 1.3, spread: 0.0, turn: -0.35, bend: 0.1),
+                                 rightArm: RigArm(swing: 1.1, spread: 0.0, turn: -0.75, bend: 0.5))
+    static let finish = RigPose(turn: 1.35, hip: RigVector(-0.02, 0.08, 0.43), lean: 0.12, twist: 0.55, left: RigVector(-0.06, 0.27, 0),
+                                right: RigVector(0.1, -0.08, 0.1), knees: 0.6, leftArm: RigArm(swing: 2.2, spread: 0.6, turn: 1.0, bend: 1.8),
+                                rightArm: RigArm(swing: 2.0, spread: 0.15, turn: -1.0, bend: 1.4))
 }
 
 // MARK: - Figures and ball
@@ -575,8 +468,9 @@ struct PlayFrame: View, Equatable {
             BallparkLayer.draw(&context, f, ink: ink)
             drawTrace(&context, f)
             drawPuffs(&context, f)
-            drawShadows(&context, f)
-            drawFigures(&context, f)
+            let figures = posed(f)
+            drawShadows(&context, f, figures)
+            drawFigures(&context, f, figures)
             drawBall(&context, f)
             drawFlashes(&context, f)
             drawLabels(&context, f)
@@ -645,14 +539,13 @@ struct PlayFrame: View, Equatable {
 
     // MARK: Shadows
 
-    private func drawShadows(_ context: inout GraphicsContext, _ f: FieldProjection) {
+    private func drawShadows(_ context: inout GraphicsContext, _ f: FieldProjection, _ figures: [Posed]) {
+        // Under the hips; smaller and fainter as he leaves the ground.
         let w = f.figure * 0.3
-        for actor in script.actors {
-            let o = actor.opacity(at: t)
-            guard o > 0.01 else { continue }
-            let p = f.point(actor.position(at: t))
-            context.fill(Path(ellipseIn: CGRect(x: p.x - w, y: p.y - w * 0.32, width: 2 * w, height: w * 0.64)),
-                         with: .color(ink.shadow.opacity(o)))
+        for p in figures {
+            let air = min(p.figure.air / 0.4, 1), r = w * (1 - 0.35 * air), g = p.figure.ground
+            context.fill(Path(ellipseIn: CGRect(x: g.x - r, y: g.y - r * 0.32, width: 2 * r, height: r * 0.64)),
+                         with: .color(ink.shadow.opacity(p.opacity * (1 - 0.45 * air))))
         }
         // The ball's: under it on the ground, larger and softer the higher it
         // flies, with a hairline up to the ball once it's well off the grass.
@@ -675,133 +568,105 @@ struct PlayFrame: View, Equatable {
 
     // MARK: Figures
 
-    private func drawFigures(_ context: inout GraphicsContext, _ f: FieldProjection) {
-        let height = f.figure
-        // Each team's inks, resolved once a frame: resolving a team color was most of a stroke's cost.
-        struct Inks {
-            let rim, inner, far, jersey, cap: GraphicsContext.Shading
-            let rimColor: Color
-        }
-        func inks(_ u: Uniform) -> Inks {
-            let rim = u.piping ?? ink.halo
-            return Inks(rim: context.resolve(.color(rim)), inner: context.resolve(.color(rim.opacity(0.7))),
-                        far: context.resolve(.color(u.jersey.mix(with: .black, by: ink.dark ? 0.32 : 0.22))),
-                        jersey: context.resolve(.color(u.jersey)), cap: context.resolve(.color(u.cap)), rimColor: rim)
-        }
-        let batting = inks(teams.batting), fielding = inks(teams.fielding)
-        // Far to near: a figure in front covers the one behind.
-        let order = script.actors.indices
+    /// A figure posed and placed at t.
+    private struct Posed {
+        let index: Int
+        let figure: RigFigure
+        let opacity: Double
+    }
+
+    /// Everyone on the field at t, far to near: a figure in front covers the one behind.
+    private func posed(_ f: FieldProjection) -> [Posed] {
+        script.actors.indices
             .map { (index: $0, at: script.actors[$0].position(at: t)) }
             .sorted { $0.at.y > $1.at.y }
-        // Small figures lose their inner rim: it would only blur them.
-        let rimmed = height >= 15
-        let halo = max(height * 0.045, 0.8)
-        for (index, at) in order {
-            let actor = script.actors[index]
-            let o = actor.opacity(at: t)
-            guard o > 0.01 else { continue }
-            let figure = Figure(pose(actor, index), at: f.point(at), height: height)
-            let ink = actor.team == .batting ? batting : fielding
-            let near = figure.nearLimbs, far = figure.farLimbs, body = figure.body
-            let limbs = StrokeStyle(lineWidth: figure.limb, lineCap: .round, lineJoin: .round)
-            var layer = context
-            if o < 1 { layer.opacity = o }
-            // The rim first, so lines and figures behind stop short of this one.
-            var silhouette = far
-            silhouette.addPath(near)
-            layer.stroke(silhouette, with: ink.rim, style: StrokeStyle(lineWidth: figure.limb + 2 * halo, lineCap: .round, lineJoin: .round))
-            layer.stroke(body, with: ink.rim, style: StrokeStyle(lineWidth: figure.torso + 2 * halo, lineCap: .round))
-            layer.fill(Path(ellipseIn: figure.headRect.insetBy(dx: -halo, dy: -halo)), with: ink.rim)
+            .compactMap { index, at in
+                let actor = script.actors[index]
+                let o = actor.opacity(at: t)
+                guard o > 0.01 else { return nil }
+                let lens = RigLens(f, at: at)
+                let (body, heading) = pose(actor, index, at: at, unit: lens.unit)
+                return Posed(index: index, figure: RigFigure(body, heading: heading, lens: lens), opacity: o)
+            }
+    }
+
+    private func drawFigures(_ context: inout GraphicsContext, _ f: FieldProjection, _ figures: [Posed]) {
+        let batting = FigureInks(teams.batting, ink: ink, in: context), fielding = FigureInks(teams.fielding, ink: ink, in: context)
+        for p in figures {
+            let actor = script.actors[p.index]
             if let bats = actor.bats, actor.dropsBat.map({ t >= $0 }) ?? false {
                 drawDroppedBat(&context, at: f.point(Ballpark.box(bats)), bats: bats, fade: 1 - min(max((t - script.settle) / 0.4, 0), 1), f: f)
             }
-            layer.stroke(far, with: ink.far, style: limbs)
-            layer.stroke(body, with: ink.jersey, style: StrokeStyle(lineWidth: figure.torso, lineCap: .round))
-            if rimmed {
-                layer.stroke(near, with: ink.inner, style: StrokeStyle(lineWidth: figure.limb + 1.2, lineCap: .round, lineJoin: .round))
-            }
-            layer.stroke(near, with: ink.jersey, style: limbs)
-            layer.fill(Path(ellipseIn: figure.headRect), with: ink.cap)
+            TheaterDraw.figure(p.figure, inks: actor.team == .batting ? batting : fielding, height: f.figure, opacity: p.opacity, in: context)
             if let bats = actor.bats, actor.dropsBat.map({ t < $0 }) ?? true {
-                drawBat(&layer, bats: bats, hands: figure.near.hand, swing: actor.swing, length: height * 0.62, halo: ink.rimColor)
+                var layer = context
+                if p.opacity < 1 { layer.opacity = p.opacity }
+                drawBat(&layer, bats: bats, hands: p.figure.grip, swing: actor.swing, length: f.figure * 0.62,
+                        halo: teams.uniform(actor.team).piping ?? ink.halo)
             }
         }
     }
 
-    /// The pose at t: what he's doing (the delivery, a swing, a catch, a
-    /// throw), else how he's moving (running, walking, sliding), else how he
-    /// stands for his position.
-    private func pose(_ actor: PlayScript.Actor, _ index: Int) -> Pose {
-        let here = actor.position(at: t)
-        func facing(toward p: CGPoint) -> Double { p.x - here.x >= 0 ? 1 : -1 }
+    /// The body at t, and its heading: how he stands for his position, how
+    /// he's moving (striding to his planted feet), and over that what he's
+    /// doing (the delivery, a swing, a slide, a catch, a throw). `unit`:
+    /// body units to the foot where he stands. (tested)
+    func pose(_ actor: PlayScript.Actor, _ index: Int, at here: CGPoint, unit: Double) -> (RigPose, Double) {
+        let track = index < script.rig.count ? script.rig[index] : RigTrack(at: here)
+        let m = track.motion(at: t)
         func envelope(_ x: Double, attack: Double, release: Double) -> Double {
             x < 0 ? max(1 + x / attack, 0) : max(1 - x / release, 0)
         }
-        func smooth(_ u: Double) -> Double { let c = min(max(u, 0), 1); return c * c * (3 - 2 * c) }
 
-        // How he moves, else how he stands.
-        var base: Pose
+        // How he stands, and how he moves.
+        let still: RigPose = switch actor.role {
+        case .fielder(1): script.release.map { t > $0 } == true ? .fielding : .ready
+        case .fielder(2): actor.crouch ? .squat : .stand
+        case .fielder(let n) where n <= 6: .ready
+        case .fielder, .batter: .stand
+        // Leading off a base, low, watching the pitcher.
+        case .runner: Ballpark.distance(here) > 5 ? .lead : .stand
+        }
+        let feet = track.feet(at: t, anchor: here, heading: m.heading, unit: unit, speed: m.speed, stand: (still.left, still.right))
+        var body = still.mix(.gait(m, feet: feet), m.weight)
         if let slide = actor.slide, t >= slide {
-            let heading = actor.motion(at: slide + 0.05)?.heading ?? CGPoint(x: 1, y: 0)
-            let down = actor.motion(at: t) == nil ? 1 : smooth((t - slide) / 0.12)
-            base = Pose.run(2 * .pi * 3.6 * slide + Double(index)).facing(heading.x >= 0 ? 1 : -1)
-                .mix(Pose.slide.facing(heading.x >= 0 ? 1 : -1), down)
-        } else if let motion = actor.motion(at: t), motion.speed > 3 {
-            let f = motion.heading.x >= 0 ? 1.0 : -1.0
-            base = motion.speed > 40 ? Pose.run(2 * .pi * 3.6 * t + Double(index)).facing(f)
-                : Pose.walk(2 * .pi * 2.2 * t + Double(index)).facing(f)
-        } else {
-            switch actor.role {
-            case .fielder(2): base = actor.crouch ? .squat : .stand
-            case .fielder(let n) where n <= 6: base = .ready
-            case .fielder: base = .stand
-            case .batter: base = .stand
-            // Leading off, toward the next base: second and third are to the left, home to the right.
-            case .runner: base = Ballpark.distance(here) > 5 ? Pose.lead.facing(here.x < -20 ? 1 : -1) : .stand
-            }
+            body = body.mix(.slide, actor.motion(at: t) == nil ? 1 : Rig.smooth((t - slide) / 0.12))
         }
 
         // The batter in the box: the stance, the swing.
         if actor.role == .batter, let bats = actor.bats, actor.dropsBat.map({ t < $0 }) ?? true, actor.motion(at: t) == nil {
-            let f: Double = bats == .left ? -1 : 1
-            var p = Pose.stance
+            var p = RigPose.stance
             if let swing = actor.swing {
                 let u = (t - (swing - 0.09)) / 0.24
-                p = u <= 0 ? .stance : u < 0.4 ? Pose.stance.mix(.contact, smooth(u / 0.4)) : Pose.contact.mix(.finish, smooth((u - 0.4) / 0.6))
+                p = RigPose.keyed([(0, .stance), (0.4, .contact), (1, .finish)], at: u) ?? (u <= 0 ? .stance : .finish)
             }
-            base = p.facing(f)
+            body = bats == .left ? p.mirrored : p
         }
 
-        // The pitcher's delivery, facing the third-base side (a right-hander's set).
-        if case .fielder(1) = actor.role, let r = script.release, t > r - 0.55, t < r + 0.7, actor.motion(at: t) == nil {
-            let keys: [(Double, Pose)] = [(-0.55, .ready), (-0.42, .set), (-0.24, .kick), (-0.08, .stride), (0, .deliver),
-                                          (0.16, .follow), (0.7, .ready)]
-            let x = t - r
-            if let i = keys.lastIndex(where: { $0.0 <= x }), i + 1 < keys.count {
-                let (a, pa) = keys[i], (b, pb) = keys[i + 1]
-                let mirrored = { (p: Pose) in p == .ready ? p : p.facing(-1) }
-                base = mirrored(pa).mix(mirrored(pb), smooth((x - a) / (b - a)))
-            }
+        // The pitcher's delivery; then he's ready where he landed.
+        if case .fielder(1) = actor.role, let r = script.release, actor.motion(at: t) == nil,
+           let p = RigPose.keyed([(-0.55, .ready), (-0.42, .set), (-0.24, .kick), (-0.08, .stride), (0, .deliver), (0.16, .follow),
+                                  (0.45, .fielding), (0.7, .fielding)], at: t - r) {
+            body = p
         }
 
-        // Hands on the ball: a catch, a scoop, a glove, a throw.
+        // Hands on the ball: a catch, a scoop, a glove, a throw. On the move, the legs keep running.
         for action in actor.actions {
             let x = t - action.at
-            let f = facing(toward: action.toward)
             switch action.kind {
             case .catchHigh:
-                base = base.mix(Pose.catchHigh.facing(f), envelope(x, attack: 0.28, release: 0.35))
+                body = body.over(.catchHigh, envelope(x, attack: 0.28, release: 0.35), moving: m.weight)
             case .scoop:
-                base = base.mix(Pose.scoop.facing(f), envelope(x, attack: 0.22, release: 0.2))
+                body = body.over(.scoop, envelope(x, attack: 0.22, release: 0.2), moving: m.weight * 0.5)
             case .glove:
-                base = base.mix(Pose.glove.facing(f), envelope(x, attack: 0.2, release: 0.22))
+                body = body.over(.glove, envelope(x, attack: 0.2, release: 0.22), moving: m.weight)
             case .throwBall:
-                guard x > -0.24, x < 0.4 else { continue }
-                let throwing = x < -0.04 ? Pose.cock : Pose.cock.mix(.release, smooth((x + 0.04) / 0.14))
-                base = base.mix(throwing.facing(f), envelope(x, attack: 0.2, release: 0.36) > 0 ? min(envelope(x, attack: 0.2, release: 0.36) * 1.6, 1) : 0)
+                guard x > -0.24, x < 0.4, let throwing = RigPose.keyed([(-0.3, .cock), (-0.04, .cock), (0.1, .release), (0.4, .release)], at: x)
+                else { continue }
+                body = body.over(throwing, min(envelope(x, attack: 0.2, release: 0.36) * 1.6, 1), moving: m.weight)
             }
         }
-        return base
+        return (body, m.heading)
     }
 
     /// The bat: on the shoulder, then round through the zone, level at
@@ -1166,7 +1031,7 @@ private struct PlayStage: View {
     @State private var rested: String?
 
     /// How long a replay's end stays up when the next at-bat hasn't begun.
-    static let hold: Duration = .seconds(8)
+    static let hold = TheaterKit.hold
 
     /// The play on screen: a replay's own until it's over; then how the
     /// latest ended, until the next pitch or the hold; then none, and the

@@ -261,8 +261,10 @@ extension ScorelineTests {
         }
         check(script(groundOut).map { !$0.puffs.isEmpty } == true && script(flyOut).map { $0.puffs.isEmpty } == true,
               "a grounder kicks up dust where it hops; a fly doesn't")
-        let poses = [Pose.run(0), .run(1), .slide, .stride, .deliver, .stance, .finish, .catchHigh, .scoop]
-        check(poses.allSatisfy { p in let f = Figure(p, at: CGPoint(x: 50, y: 80), height: 20); return [f.near.foot.y, f.far.foot.y].min()! <= 80.01 && f.head.y < 80 },
+        let striding = [0.0, 0.3, 0.6].map { RigPose.gait(RigMotion(heading: 0, phase: $0, speed: 6, push: 0, weight: 1),
+                                                         feet: (RigVector(0.1, 0.06, 0), RigVector(-0.15, -0.06, 0.2))) }
+        let poses = striding + [RigPose.slide, .stride, .deliver, .stance, .finish, .catchHigh, .scoop, .squat, .lead, .set, .kick]
+        check(poses.allSatisfy { p in let k = RigSkeleton(p); return min(k.feet.0.z, k.feet.1.z) <= 0.01 && k.head.z > k.hip.z },
               "every pose stands on the ground, head up")
     }
 }

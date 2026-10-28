@@ -8,6 +8,15 @@ import SwiftUI
 // (PlayCamera.swift and PlayTheater.swift) with the same constants; these
 // are the general form, drawn through any projection.
 
+// MARK: - Hold
+
+enum TheaterKit {
+    /// How long a replay's end stays up when nothing new has come: then the
+    /// theater returns to the game as it stands (the next batter up, both
+    /// teams set at the line, the quiet pitch).
+    static let hold: Duration = .seconds(8)
+}
+
 // MARK: - Camera
 
 /// The broadcast camera's follow, for any theater: framings every 1/60 s on
@@ -201,43 +210,95 @@ extension TheaterInk {
 // MARK: - Figures and ball
 
 /// A team's inks for one frame, resolved once: resolving a team color was
-/// most of a stroke's cost.
+/// most of a stroke's cost. A limb behind the body is the jersey shaded by
+/// how far behind it is (a few steps, from the jersey to its deepest), each
+/// shade resolved the first time a figure needs it: most frames need only
+/// the deepest.
 struct FigureInks {
-    let rim, inner, far, jersey, cap: GraphicsContext.Shading
+    let rim, inner, jersey, cap: GraphicsContext.Shading
+    private let color: Color
+    private let deepest: Double
+    private let shades = Shades()
+
+    private final class Shades {
+        var resolved = [GraphicsContext.Shading?](repeating: nil, count: RigFigure.shades)
+    }
 
     init(_ uniform: Uniform, ink: TheaterInk, in context: GraphicsContext) {
         let rim = uniform.piping ?? ink.halo
         self.rim = context.resolve(.color(rim))
         inner = context.resolve(.color(rim.opacity(0.7)))
-        far = context.resolve(.color(uniform.jersey.mix(with: .black, by: ink.dark ? 0.32 : 0.22)))
         jersey = context.resolve(.color(uniform.jersey))
         cap = context.resolve(.color(uniform.cap))
+        color = uniform.jersey
+        deepest = ink.dark ? 0.32 : 0.22
+    }
+
+    /// The jersey `k` steps behind the body (0: the jersey itself).
+    func shade(_ k: Int, in context: GraphicsContext) -> GraphicsContext.Shading {
+        let k = min(max(k, 0), RigFigure.shades - 1)
+        guard k > 0 else { return jersey }
+        if let shading = shades.resolved[k] { return shading }
+        let shading = context.resolve(.color(color.mix(with: .black, by: deepest * Double(k) / Double(RigFigure.shades - 1))))
+        shades.resolved[k] = shading
+        return shading
     }
 }
 
 enum TheaterDraw {
     /// A pictogram: its rim first (so the lines and figures behind stop short
-    /// of it), the far limbs in a shade of the jersey, the body, an inner rim
-    /// on the near limbs when it's big enough to carry one, the near limbs,
-    /// the head in the team's own color.
-    static func figure(_ figure: Figure, inks: FigureInks, height: CGFloat, opacity: Double, in context: GraphicsContext) {
+    /// of it), the limbs behind the body (shaded by how far behind), the
+    /// body, the limbs in front over an inner rim when it's big enough to
+    /// carry one (each over its own where they cross, so crossing limbs read
+    /// as layered), the head in the team's own color. Limbs that don't need
+    /// their own stroke share one: the cost of a figure is its strokes.
+    static func figure(_ figure: RigFigure, inks: FigureInks, height: CGFloat, opacity: Double, in context: GraphicsContext) {
         var layer = context
         if opacity < 1 { layer.opacity = opacity }
         let halo = max(height * 0.045, 0.8)
-        let near = figure.nearLimbs, far = figure.farLimbs, body = figure.body
-        let limbs = StrokeStyle(lineWidth: figure.limb, lineCap: .round, lineJoin: .round)
-        var silhouette = far
-        silhouette.addPath(near)
+        let style = StrokeStyle(lineWidth: figure.limb, lineCap: .round, lineJoin: .round)
+        let inner = StrokeStyle(lineWidth: figure.limb + 1.2, lineCap: .round, lineJoin: .round)
+        let limbs = figure.limbs, body = figure.body
+        var silhouette = Path()
+        for l in limbs { silhouette.addLines([l.root, l.joint, l.end]) }
         layer.stroke(silhouette, with: inks.rim, style: StrokeStyle(lineWidth: figure.limb + 2 * halo, lineCap: .round, lineJoin: .round))
         layer.stroke(body, with: inks.rim, style: StrokeStyle(lineWidth: figure.torso + 2 * halo, lineCap: .round))
         layer.fill(Path(ellipseIn: figure.headRect.insetBy(dx: -halo, dy: -halo)), with: inks.rim)
-        layer.stroke(far, with: inks.far, style: limbs)
-        layer.stroke(body, with: inks.jersey, style: StrokeStyle(lineWidth: figure.torso, lineCap: .round))
-        // Small figures lose their inner rim: it would only blur them.
-        if height >= 15 {
-            layer.stroke(near, with: inks.inner, style: StrokeStyle(lineWidth: figure.limb + 1.2, lineCap: .round, lineJoin: .round))
+        // Behind the body, far to near: a run of the same shade in one stroke.
+        var i = 0
+        while i < limbs.count, !limbs[i].front {
+            let shade = limbs[i].shade
+            var run = Path()
+            while i < limbs.count, !limbs[i].front, limbs[i].shade == shade {
+                run.addLines([limbs[i].root, limbs[i].joint, limbs[i].end])
+                i += 1
+            }
+            layer.stroke(run, with: inks.shade(shade, in: context), style: style)
         }
-        layer.stroke(near, with: inks.jersey, style: limbs)
+        layer.stroke(body, with: inks.jersey, style: StrokeStyle(lineWidth: figure.torso, lineCap: .round))
+        // In front: together, unless two cross on screen; then far to near, each over its own inner rim.
+        let front = limbs[i...]
+        // Small figures lose their inner rim: it would only blur them.
+        let rimmed = height >= 15
+        func box(_ l: RigFigure.Limb) -> CGRect {
+            CGRect(x: min(l.root.x, l.joint.x, l.end.x), y: min(l.root.y, l.joint.y, l.end.y),
+                   width: max(l.root.x, l.joint.x, l.end.x) - min(l.root.x, l.joint.x, l.end.x),
+                   height: max(l.root.y, l.joint.y, l.end.y) - min(l.root.y, l.joint.y, l.end.y)).insetBy(dx: -figure.limb, dy: -figure.limb)
+        }
+        let crossing = rimmed && front.indices.contains { a in front.indices.contains { b in b > a && box(front[a]).intersects(box(front[b])) } }
+        if crossing {
+            for l in front {
+                var p = Path()
+                p.addLines([l.root, l.joint, l.end])
+                layer.stroke(p, with: inks.inner, style: inner)
+                layer.stroke(p, with: inks.jersey, style: style)
+            }
+        } else if !front.isEmpty {
+            var p = Path()
+            for l in front { p.addLines([l.root, l.joint, l.end]) }
+            if rimmed { layer.stroke(p, with: inks.inner, style: inner) }
+            layer.stroke(p, with: inks.jersey, style: style)
+        }
         layer.fill(Path(ellipseIn: figure.headRect), with: inks.cap)
     }
 

@@ -249,6 +249,16 @@ extension ScorelineTests {
         }
         check(finite, "every play's players and ball stay finite, the ball never under the grass")
         let lengths = all.map(\.duration)
+        // Every player, every frame, every snap: the stances, the poses and every blend between them.
+        let broken = zip(scenes, all).compactMap { scene, s -> String? in
+            let teams = FootballTeams(offense: Uniform(.blue), defense: Uniform(.orange))
+            return jointsBreak(s.duration, s.players.count) { i, t in
+                FootballFrame(scene: scene, script: s, t: t, teams: teams, ink: TheaterInk(.dark), size: CGSize(width: 312, height: 156))
+                    .pose(s.players[i], i, at: s.players[i].position(at: t), unit: 1.1 / 8.5).0
+            }.map { "\(scene.text.prefix(30)): \($0)" }
+        }
+        check(broken.isEmpty, "in every snap of the game, knees and elbows bend only their own way, never past folded",
+              broken.prefix(3).joined(separator: " | "))
         check(lengths.allSatisfy { $0 > 3 && $0 < 10 }, "every replay runs 3–10 s, settle included (a return with a flag's walk the longest)",
               String(format: "%.2f–%.2f", lengths.min() ?? 0, lengths.max() ?? 0))
         check(all.allSatisfy { $0.stamp.isFinite && $0.stamp < $0.settle }, "every play's stamp lands before the field settles")
@@ -523,6 +533,27 @@ extension ScorelineTests {
               "hold \(hold.crowded) of \(hold.frames), to rest \(toRest.crowded) of \(toRest.frames), at rest \(atRest)")
         let median = lengths.sorted()[lengths.count / 2]
         check(median < 4.6, "the replays are brisk: half of them done in under 4.6 s", String(format: "median %.2f s", median))
+
+        // MARK: Between plays
+
+        if let play = scene("9274"), let td = scene("3048"), let attempt = td.conversion {
+            let fresh = FootballTheaterState(play: play, news: true), old = FootballTheaterState(play: play, news: false)
+            check(FootballTheater.shown(old, replaying: nil, rested: nil) == nil && FootballTheater.shown(fresh, replaying: nil, rested: nil) == play,
+                  "opening the page on an old snap shows the game as it stands; a fresh one replays")
+            check(FootballTheater.shown(fresh, replaying: play.id, rested: nil) == play && FootballTheater.shown(fresh, replaying: play.id, rested: play.id) == nil,
+                  "a replay's end holds (the stamp, the ball, the players where it ended), then gives way to the live scene")
+            let scored = FootballTheaterState(play: td, news: true)
+            check(FootballTheater.shown(scored, replaying: attempt.id, rested: td.id) == attempt
+                  && FootballTheater.shown(scored, replaying: attempt.id, rested: attempt.id) == nil,
+                  "a touchdown's try plays its own beat after the touchdown, and holds the same")
+            let next = FootballTheaterState(play: scene("2186"), news: true)
+            check(FootballTheater.shown(next, replaying: play.id, rested: nil) == next.play, "the next snap cuts in, whatever is holding")
+        }
+        let live = FootballScript(rest: FootballScript.Rest(yard: 40, gain: 50))
+        check(live.lines.scrimmage == Gridiron.y(40) && live.lines.gain == Gridiron.y(50) && live.stamp == .infinity && live.flights.isEmpty
+              && live.players.count == 22 && live.players.filter { $0.role == .line }.allSatisfy { $0.inStance(at: .infinity) },
+              "…the game as it stands: both teams at the line, the linemen down in their stances, the blue and yellow lines, no stamp, no flight")
+        check(TheaterKit.hold == .seconds(8), "one hold for every theater: a replay's end stays 8 s")
 
         // MARK: Drawn
 

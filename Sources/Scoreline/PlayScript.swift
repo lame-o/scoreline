@@ -425,6 +425,9 @@ struct PlayScript: Equatable {
     /// The broadcast camera, shot by shot, and where it looks at each frame.
     var shots: [Shot] = []
     var camera = CameraTrack()
+    /// Each figure's motion through the replay (its heading, stride and
+    /// footfalls), measured once: by actor.
+    var rig: [RigTrack] = []
 
     /// Between plays: who's where.
     struct Rest: Equatable {
@@ -460,6 +463,7 @@ extension PlayScript {
         for n in 1...9 { actors.append(Actor(team: .fielding, at: Ballpark.position(n), role: .fielder(n), crouch: n == 2)) }
         if let bats = rest.bats { actors.append(Actor(team: .batting, at: Ballpark.box(bats), role: .batter, bats: bats)) }
         for base in 1...3 where rest.bases[base - 1] { actors.append(Actor(team: .batting, at: Ballpark.lead(base))) }
+        measureBodies()
     }
 
     init(_ scene: PlayScene, rest: Rest) {
@@ -480,6 +484,31 @@ extension PlayScript {
         b.measureStamp()
         b.shoot()
         self = b.script
+        measureBodies()
+    }
+
+    /// Each figure's motion, measured once (`RigTrack`, an 8.5 ft figure),
+    /// and what each faces when he isn't running somewhere: a fielder the
+    /// batter until the ball's in play, then the ball until the play is
+    /// over; the catcher his pitcher; the batter the plate; a runner the
+    /// mound; anyone with the ball coming to him or leaving his hand, it.
+    mutating func measureBodies() {
+        let contact = batted.map { flights[$0].start }, settle = settle, script = self
+        rig = actors.map { actor in
+            RigTrack(from: 0, through: duration, height: 8.5, position: actor.position(at:)) { t in
+                if let a = actor.actions.first(where: { t > $0.at - ($0.kind == .throwBall ? 0.5 : 0.45) && t < $0.at + 0.2 }) {
+                    return RigFacing(point: a.toward)
+                }
+                switch actor.role {
+                case .fielder(2): return RigFacing(point: Ballpark.rubber)
+                case .fielder:
+                    if let contact, t > contact + 0.05, t < settle, let ball = script.ball(at: t) { return RigFacing(point: ball.ground) }
+                    return RigFacing(point: .zero)
+                case .batter: return RigFacing(point: .zero)
+                case .runner: return RigFacing(point: Ballpark.rubber)
+                }
+            }
+        }
     }
 
     /// Assembles a script beat by beat.
