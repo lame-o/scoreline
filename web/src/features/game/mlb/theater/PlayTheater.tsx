@@ -47,6 +47,7 @@ import { useChartMoment } from "../../core/moments";
 import { TheaterRenderer } from "./renderer";
 import { theaterInk } from "./theaterInk";
 import { useStatcastLine } from "./useStatcast";
+import { useSlidePlate } from "./slidePlate";
 import styles from "./PlayTheater.module.css";
 
 export type { TeamKit, TheaterKits } from "../../../../data/mlb/theaterTeams";
@@ -120,6 +121,8 @@ export function PlayTheater({ state, bases, batting, kits, event, names, frozen 
   );
   const ink = useMemo(() => theaterInk(scheme), [scheme]);
   const statcast = useStatcastLine(event, play, names);
+  // The scoring slide lands with this replay's climax.
+  useSlidePlate(state, play, script, event, names);
 
   useEffect(() => {
     if (!canvas.current) return;
