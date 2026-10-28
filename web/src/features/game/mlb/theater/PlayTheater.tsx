@@ -5,7 +5,9 @@
  * delivery and the pitch (its type and speed), follows the ball off the bat
  * with the fielder going for it, frames each throw end to end, then settles
  * on the runners' last bases as the scorer's mark lands (with Statcast's
- * batted-ball line under it when MLB has the at-bat). Where MLB's feed has
+ * batted-ball line under it when MLB has the at-bat). A play Statcast
+ * measured flies for real (playScript.ts), its pitch label adds the spin.
+ * Where MLB's feed has
  * the play (useStatcast.ts), it's told from MLB's official account: the ball
  * to the man credited with fielding it, the throws along the credited chain,
  * every runner where MLB says, each run crossing in turn with the camera on
@@ -48,6 +50,7 @@ import { theaterTeams, type TheaterKits } from "../../../../data/mlb/theaterTeam
 import type { TeamPalette } from "../../../../data/teamColors";
 import { useSettings } from "../../../../state/settings";
 import { useColorScheme } from "../../../../state/theme";
+import type { LiveMoment } from "../../../../data/moments";
 import { useChartMoment } from "../../core/moments";
 import { TheaterRenderer } from "./renderer";
 import { theaterInk } from "./theaterInk";
@@ -88,7 +91,7 @@ export function PlayTheater({ state: lane, bases, batting, kits, event, frozen =
   const scheme = useColorScheme();
   const level = useSettings((s) => s.celebrationLevel);
   const reduceMotion = usePrefersReducedMotion();
-  const moment = useChartMoment("plate");
+  const current = useChartMoment("plate");
   // The replay that has run its course, and the one whose end has had its time on screen.
   const [ended, setEnded] = useState<string | null>(null);
   const [rested, setRested] = useState<string | null>(null);
@@ -103,6 +106,11 @@ export function PlayTheater({ state: lane, bases, batting, kits, event, frozen =
   const replaying = latest != null && frozen == null && !reduceMotion && state.news && ended !== latest.id;
   if (replaying && began.current?.id !== latest.id) began.current = latest;
   const play = replaying ? began.current : latest;
+  // This play's moment, kept once seen: its replay can begin after the page's moment slot has moved on
+  // (a play held for MLB's account).
+  const held = useRef<LiveMoment | null>(null);
+  if (current != null && current.id === play?.id) held.current = current;
+  const moment = current?.id === play?.id || !replaying ? current : held.current?.id === play?.id ? held.current : current;
   useEffect(() => {
     if (ended == null) return;
     // Done: its end holds a while, then the field returns to the game.
