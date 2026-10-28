@@ -13,6 +13,7 @@ export { LiveStatus } from "./LiveStatus";
 export { TeamLogo } from "./TeamLogo";
 export { ScoreDigits } from "./ScoreDigits";
 export { EmptyState, ErrorCopy, ErrorState, Skeleton, StaleNote } from "./States";
+export { DetailSection, type DetailSectionProps } from "./DetailSection";
 export { FormSection, GroupBox, Row, Toggle, ToggleRow, formStyles } from "./Form";
 export { Icon, SPORT_ICON, type IconName } from "../icons";
 export { ContextMenu, type ContextMenuPoint } from "./ContextMenu";

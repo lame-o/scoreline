@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { Link } from "react-router";
-import { BackButton, Icon, LiveStatus, PageHeader, SectionTitle, Skeleton, TeamLogo, type SectionTitleProps } from "../../design/components";
+import { BackButton, DetailSection as SharedDetailSection, Icon, LiveStatus, PageHeader, Skeleton, TeamLogo, type DetailSectionProps } from "../../design/components";
 import { scoreLine, spokenEventStatus, spokenScore } from "../../data/format";
 import type { ScoreEvent } from "../../data/models";
 import { orderLogoColors } from "../../data/logoColors";
@@ -246,28 +246,9 @@ function Entrance({ children }: { readonly children: ReactNode }) {
 
 // MARK: - Sections
 
-export interface DetailSectionProps {
-  readonly title: string;
-  readonly caption?: string | null;
-  readonly accessory?: SectionTitleProps["accessory"];
-  readonly trailing?: ReactNode;
-  readonly children: ReactNode;
-  readonly className?: string;
-}
-
-/** A section: its small-caps title, a one- or two-line caption, then the content. */
-export function DetailSection({ title, caption, accessory, trailing, children, className }: DetailSectionProps) {
-  return (
-    <section className={[styles.section, className].filter(Boolean).join(" ")} aria-label={title}>
-      <div className={styles.sectionHead}>
-        <SectionTitle accessory={accessory} trailing={trailing}>
-          {title}
-        </SectionTitle>
-        {caption ? <p className={styles.caption}>{caption}</p> : null}
-      </div>
-      {children}
-    </section>
-  );
+/** A section: the shared titled block (design/components/DetailSection.tsx), its content spacing itself. */
+export function DetailSection(props: Omit<DetailSectionProps, "layout">) {
+  return <SharedDetailSection {...props} layout="flow" />;
 }
 
 export interface ColumnLabel {
