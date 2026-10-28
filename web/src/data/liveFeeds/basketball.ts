@@ -51,6 +51,7 @@ import type { Fetcher } from "../http";
 import { arr, at, bool, str, type JSONValue } from "../json";
 import type { GameClock, Side } from "../models";
 import { liveMoment, Tier, type Accent, type LiveMoment } from "../moments";
+import { nbaFacts } from "../scoringFacts";
 import { liveScore, playIDFromRef, teamIDFromRef, type LiveScore } from "./baseball";
 
 /** Who's playing, for reading the plays (BasketballFeed.Teams). */
@@ -366,7 +367,8 @@ export class BasketballFeed {
         if (previous.has(str(at(p, "id")) ?? "")) lastSeen = i;
       });
       for (let index = lastSeen + 1; index < this.window.length; index++) {
-        const m = momentAt(index, this.window, teams, fromTipOff);
+        const found = momentAt(index, this.window, teams, fromTipOff);
+        const m = found ? { ...found, facts: nbaFacts(this.window[index], teams.topIsHome) } : null;
         if (m) {
           this.moments.push(m);
           this.announced.set(m.id, m);

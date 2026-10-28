@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BaseballFeed, baseballMoment, baseballSituation, normalized, playIDFromRef, theaterAfter, walkOff, type TheaterLike } from "../../src/data/liveFeeds/baseball";
+import type { Baseball } from "../../src/data/gameDetail";
+import { BaseballFeed, baseballMoment, baseballSituation, normalized, playIDFromRef, settledSituation, theaterAfter, walkOff, type TheaterLike } from "../../src/data/liveFeeds/baseball";
 import { Tier } from "../../src/data/moments";
 import { fixture } from "./fixtures";
 
@@ -139,3 +140,100 @@ describe("pieces", () => {
     expect(baseballSituation({ lastPlay: {} }, {}, null)).toBeNull();
   });
 });
+
+/**
+ * At the Plate after the third out (the live check, Game 4: 0 outs with the old
+ * batter for about 25 s, and once no batter at all), on Game 4's own entries:
+ * Turang grounds out to end the top of the 1st; then "Middle of the 1st", the
+ * bottom's start, and "Dustin May pitches to Yandy Diaz".
+ */
+describe("At the Plate between halves", () => {
+  const g4 = fixture("ws-g4-plays.json") as { items: unknown[]; names: Record<string, string> };
+  const third = g4.items.findIndex((p) => (p as { id?: string }).id === "4019080450005990057");
+  const upTo = (n: number) => g4.items.slice(0, third + 1 + n);
+  const espn = (over: Partial<Baseball>): Baseball => ({
+    balls: 0,
+    strikes: 0,
+    outs: 0,
+    onFirst: false,
+    onSecond: false,
+    onThird: false,
+    batter: "B. Turang",
+    pitcher: "G. Jax",
+    lastPlay: "Turang grounded out to shortstop.",
+    runners: [null, null, null],
+    batterID: "41179",
+    pitcherID: "42604",
+    ...over,
+  });
+
+  it("the half as it ended until the next half's batter: 3 outs, the count and bases cleared, the last matchup", () => {
+    // ESPN's situation: outs reset to 0, still naming Turang (runners left on first and third).
+    for (const n of [0, 1, 2, 3]) {
+      const s = settledSituation(espn({ onFirst: true, onThird: true, balls: 1 }), upTo(n), g4.names)!;
+      expect(s).toMatchObject({ outs: 3, balls: 0, strikes: 0, onFirst: false, onThird: false, batter: "B. Turang", pitcher: "G. Jax" });
+    }
+    // …and when it names nobody, the batter's row stays.
+    expect(settledSituation(espn({ batter: null, batterID: null, pitcher: null, pitcherID: null }), upTo(2), g4.names)).toMatchObject({ outs: 3, batter: "B. Turang", batterID: "41179", pitcher: "G. Jax" });
+  });
+  it("the break as ESPN has it once it names the next half's batter", () => {
+    const next = espn({ batter: "Y. Diaz", batterID: "33481", pitcher: "D. May", pitcherID: "40937" });
+    expect(settledSituation(next, upTo(2), g4.names)).toBe(next);
+  });
+  it("a situation still naming the batter the plays have retired takes the at-bat under way; a name the box score lacks comes from its words", () => {
+    // Bottom of the 1st under way in the plays; ESPN's situation still on Turang.
+    const s = settledSituation(espn({}), upTo(4), g4.names)!;
+    expect(s).toMatchObject({ outs: 0, batter: "Y. Diaz", batterID: "33481", pitcher: "D. May", pitcherID: "40937" });
+    const unnamed = { ...g4.names };
+    delete unnamed["33481"];
+    expect(settledSituation(espn({}), upTo(4), unnamed)).toMatchObject({ batter: "Yandy Diaz", batterID: "33481" });
+    expect(settledSituation(espn({ batter: null, batterID: "33481", pitcher: "D. May", pitcherID: "40937" }), upTo(4), unnamed)?.batter).toBe("Yandy Diaz");
+    // An at-bat the situation already has: unchanged.
+    const current = espn({ batter: "Y. Diaz", batterID: "33481", pitcher: "D. May", pitcherID: "40937" });
+    expect(settledSituation(current, upTo(4), g4.names)).toBe(current);
+  });
+});
+
+/** ESPN's rewrites on the lane itself (the live check: a challenged pitch replaced under a new ID stayed in This At-Bat). */
+describe("the lane reads ESPN's rewrites again", () => {
+  const pitch = (id: string, type: string, n: number) => ({
+    id,
+    type: { type },
+    atBatId: "4019080450605",
+    summaryType: "P",
+    text: `Pitch ${n} : ${type}`,
+    pitchCoordinate: { x: 110 + n, y: 170 },
+    period: { type: "Top", number: 6 },
+    team: { $ref: "http://x/teams/30?lang=en" },
+    participants: [{ type: "batter", athlete: { $ref: "/athletes/1" } }],
+  });
+  const start = { id: "s", type: { type: "start-batterpitcher" }, atBatId: "4019080450605", text: "A pitches to B", period: { type: "Top", number: 6 } };
+  function feed(pages: () => unknown[]) {
+    let last = "";
+    const fetcher = async (url: string) => {
+      const items = pages();
+      if (url.endsWith("/situation")) return { lastPlay: { $ref: `http://x/plays/${last}` }, balls: 1, strikes: 1, outs: 1 };
+      if (url.endsWith("/status")) return { type: { state: "in", shortDetail: "Top 6th" } };
+      if (url.includes("plays?limit=1")) return { count: items.length };
+      last = (items.at(-1) as { id: string }).id;
+      return { items, pageCount: 1 };
+    };
+    return fetcher;
+  }
+
+  it("a pitch replaced by a new ID leaves This At-Bat; a result rewritten is taken back", async () => {
+    let items: unknown[] = [start, pitch("4019080450605030090", "ball---confirmed", 1)];
+    let now = 0;
+    const lane = new BaseballFeed(null, () => now);
+    const fetcher = feed(() => items);
+    await lane.update(fetcher, { path: "baseball/mlb", eventID: "1", names: {}, side });
+    expect(lane.atBat.map((p) => p.id)).toEqual(["4019080450605030090"]);
+    // ESPN replaces it, ball confirmed → strike overturned, under a new ID; a quiet look 20 s on reads the at-bat again.
+    items = [start, pitch("4019080450605030091", "strike-looking---overturned", 1)];
+    now = 21_000;
+    await lane.update(fetcher, { path: "baseball/mlb", eventID: "1", names: {}, side });
+    expect(lane.atBat.map((p) => p.id)).toEqual(["4019080450605030091"]);
+    expect(lane.takeRetractions()).toEqual(["4019080450605030090"]);
+  });
+});
+

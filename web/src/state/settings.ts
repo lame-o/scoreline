@@ -59,6 +59,8 @@ export interface Settings {
   readonly celebrationLevel: CelebrationLevel;
   /** A soft sound when the open game scores (`celebrationSounds`). */
   readonly celebrationSounds: boolean;
+  /** The broadcast banner across the open game when a team scores (`scoringSlides`). */
+  readonly scoringSlides: boolean;
   /** Alerts for followed teams (`notifyFollowed`): web notifications, once the browser allows them. */
   readonly notifyFollowed: boolean;
   /** The tab's title and favicon carry a followed team's live score (`scoreInMenuBar`; a pinned game shows regardless). */
@@ -85,6 +87,7 @@ export const DEFAULTS: Settings = {
   differentiateWithoutColor: false,
   celebrationLevel: "full",
   celebrationSounds: false,
+  scoringSlides: true,
   notifyFollowed: true,
   scoreInTitle: true,
   showCoStream: true,
@@ -139,6 +142,7 @@ export function sanitize(raw: unknown): Settings {
     differentiateWithoutColor: flag(s.differentiateWithoutColor, DEFAULTS.differentiateWithoutColor),
     celebrationLevel: pick(s.celebrationLevel, ["full", "subtle", "off"], DEFAULTS.celebrationLevel),
     celebrationSounds: flag(s.celebrationSounds, DEFAULTS.celebrationSounds),
+    scoringSlides: flag(s.scoringSlides, DEFAULTS.scoringSlides),
     notifyFollowed: flag(s.notifyFollowed, DEFAULTS.notifyFollowed),
     scoreInTitle: flag(s.scoreInTitle, DEFAULTS.scoreInTitle),
     showCoStream: flag(s.showCoStream, DEFAULTS.showCoStream),

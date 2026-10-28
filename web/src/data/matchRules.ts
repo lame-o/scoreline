@@ -98,10 +98,10 @@ function pop(b: HeroBeats, side: Side): HeroBeats {
   return { ...b, pops: { ...b.pops, [side]: b.pops[side] + 1 }, rose: { ...b.rose, [side]: null } };
 }
 
-/** A score-tier moment on this page. */
-export function beatScore(b: HeroBeats, side: Side | null, isDecisive: boolean, now: number): HeroBeats {
+/** A score-tier moment on this page. `glint: false` when the scoring slide carries it (its sheen is the decisive glint). */
+export function beatScore(b: HeroBeats, side: Side | null, isDecisive: boolean, now: number, glint = true): HeroBeats {
   let next: HeroBeats = { ...b, washSide: side, washPulses: b.washPulses + 1 };
-  if (isDecisive) next = { ...next, glints: next.glints + 1, lastDecisive: now };
+  if (isDecisive) next = { ...next, glints: next.glints + (glint ? 1 : 0), lastDecisive: now };
   if (!side) return next;
   const rose = next.rose[side];
   if (rose != null && now - rose < BEAT_RECENT_MS) return pop(next, side);

@@ -22,6 +22,7 @@ import type { Fetcher } from "../http";
 import { at, bool, num, str, arr, type JSONValue } from "../json";
 import type { GameClock, Side } from "../models";
 import { liveMoment, Tier, type Accent, type LiveMoment, type MomentKind } from "../moments";
+import { footballFacts } from "../scoringFacts";
 import { liveScore, playIDFromRef, teamIDFromRef, type LiveScore } from "./baseball";
 
 // MARK: - Geometry (FootballGeometry: shared with the tiles, so the two never disagree)
@@ -160,7 +161,8 @@ export function footballMoment(play: DrivePlay, before: LiveScore | null = null,
   const accents: Accent[] = [];
   if ((m.kind === "passComplete" || m.kind === "rush") && bigPlay(play)) accents.push("bigPlay");
   if (m.tier === Tier.score && side && decides(play, before, (side === "top") === topIsHome)) accents.push("decisive");
-  return liveMoment({ id: play.id, chart: "field", tier: m.tier, kind: m.kind, lead: m.lead, detail: play.text, side, accents });
+  const facts = m.tier === Tier.score ? { facts: footballFacts(play, before, topIsHome) } : {};
+  return liveMoment({ id: play.id, chart: "field", tier: m.tier, kind: m.kind, lead: m.lead, detail: play.text, side, accents, ...facts });
 }
 
 /** The score going into a play: the nearest earlier play (in play order) that carries one. */

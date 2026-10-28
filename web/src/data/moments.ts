@@ -12,6 +12,7 @@
  * charts that read it.
  */
 import type { Side } from "./models";
+import type { ScoringFacts } from "./scoringFacts";
 
 /** How much it matters: scores hold longest and are announced; routine plays only animate their mark. */
 export const Tier = { routine: 1, swing: 2, score: 3 } as const;
@@ -111,6 +112,8 @@ export interface LiveMoment {
   readonly span?: readonly [number, number];
   /** Set by MomentCenter: a particle burst may play (none on this page in the last 10 s). */
   readonly burst: boolean;
+  /** A score's facts beyond its caption (the score after it, its full account), for the scoring slide. Set by the lanes on scores. */
+  readonly facts?: ScoringFacts;
 }
 
 const NO_ACCENTS: ReadonlySet<Accent> = new Set();
@@ -191,6 +194,18 @@ export class MomentCenter {
     if (current && (candidate.tier < current.tier || (candidate.tier === current.tier && decisive(current) && !decisive(candidate)))) return null;
     // A catch-up is old news by the time it lands: it may show, but it never bursts.
     return this.show(candidate, !catchUp);
+  }
+
+  /**
+   * A burst the page plays outside its charts (the scoring slide's confetti
+   * for a moment no chart bursts for): it counts against the same one every
+   * 10 s. Whether it may play.
+   */
+  claimBurst(): boolean {
+    const time = this.now();
+    if (this.lastBurst !== null && time - this.lastBurst < BURST_COOLDOWN_MS) return false;
+    this.lastBurst = time;
+    return true;
   }
 
   /** A score taken back (overturned on review): if it's showing, it goes. Returns whether it went. */

@@ -29,6 +29,8 @@ import { usePageGeometry, useRemeasure, useSurface } from "./core/geometry";
 import { Hero, HeroSkeleton, HeroWash } from "./core/Hero";
 import { LinkedFocusProvider, LinkedFocusStore } from "./core/linked";
 import { MomentProvider, useCurrentMoment, useMomentSlot } from "./core/moments";
+import { useHeaderLedger, useHeaderSync } from "./core/headerSync";
+import { ScoringSlideHost, SlidesProvider, useBindSlides, useScoringSlides, useScoringSlidesContext } from "./core/scoringSlides";
 import { LinkedPeekHost } from "./core/peek";
 import { listenForUnlock } from "./core/sound";
 import { soundsEnabled } from "../../data/celebrationSound";
@@ -109,6 +111,8 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   const scheme = useColorScheme();
   const viaKeyboard = (useLocation().state as NavState | null)?.viaKeyboard === true;
   const moments = useMomentSlot();
+  // The broadcast bar when a team scores: its line and the one on screen.
+  const slides = useScoringSlides(moments);
   const linked = useMemo(() => new LinkedFocusStore(), []);
   useEffect(() => () => linked.dispose(), [linked]);
   const inner = useRef<HTMLDivElement>(null);
@@ -173,7 +177,9 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
           </div>
           <div className={styles.inner} ref={inner} data-columns={columns}>
             {/* The hero shows at once; the sections assemble when the detail arrives. */}
-            <Loaded game={game} event={event} palette={palette} columns={columns} geometry={geometry} moments={moments} beats={beats} setBeats={setBeats} setFieldWash={setFieldWash} />
+            <SlidesProvider slides={slides}>
+              <Loaded game={game} event={event} palette={palette} columns={columns} geometry={geometry} moments={moments} beats={beats} setBeats={setBeats} setFieldWash={setFieldWash} />
+            </SlidesProvider>
           </div>
         </MomentProvider>
       </LinkedFocusProvider>
@@ -197,6 +203,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
   const live = event.state === "live";
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
+  const header = useHeaderLedger();
   const context: GameContext = {
     event,
     detail,
@@ -209,6 +216,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
     geometry,
     leagueID: game.leagueID,
     refresh: game.refresh,
+    header,
   };
   // A page's kind never changes while it's mounted (the body is keyed by event and kind), so this is always the same hook.
   const useSportPage = use(sportPage(pageKind(event.ref)));
@@ -216,7 +224,11 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
 
   // The hero's numbers (the lane's while it's ahead).
   const scores = { top: sport.laneScores?.top ?? top?.score ?? null, bottom: sport.laneScores?.bottom ?? bottom?.score ?? null };
+  // The summary-driven sections and the scores list kept no older than these numbers.
+  useHeaderSync(header, event, scores, sport);
   useBeatTriggers(event, scores, setBeats, sport.trophy != null);
+  // The scoring slides: who's who, and how each score meets this page.
+  useBindSlides(event, game.detail, geometry);
   const washTop = sport.wash?.top ?? null;
   const washBottom = sport.wash?.bottom ?? null;
   useEffect(() => {
@@ -263,6 +275,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
           tuckRef={(el) => {
             geometry.tuck = el;
           }}
+          overlay={<ScoringSlideHost surface="hero" geometry={geometry} />}
         />
       </div>
       <DockedScorebar
@@ -282,6 +295,8 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
         chip={sport.chip ?? null}
         slot={sport.dockSlot}
       />
+      {/* A score's slide, once the docked bar is the scoreboard: just under it. Out of the tree between scores. */}
+      <ScoringSlideHost surface="bar" geometry={geometry} />
       {loading ? (
         game.detailFailed ? <p className={styles.note}>{ErrorCopy.inline("match details")}</p> : null
       ) : (
@@ -299,6 +314,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
  */
 function useBeatTriggers(event: ScoreEvent, scores: { top: string | null; bottom: string | null }, setBeats: React.Dispatch<React.SetStateAction<HeroBeats>>, trophy: boolean): void {
   const moment = useCurrentMoment();
+  const slides = useScoringSlidesContext();
   const seenMoment = useRef<string | null>(null);
   const lastScores = useRef(scores);
   const lastState = useRef(event.state);
@@ -307,7 +323,8 @@ function useBeatTriggers(event: ScoreEvent, scores: { top: string | null; bottom
     if (!moment || moment.tier !== Tier.score || seenMoment.current === moment.id) return;
     seenMoment.current = moment.id;
     setBeats((b) => {
-      const next = beatScore(b, scorer(moment), decisive(moment), Date.now());
+      // A slide's sheen is the decisive glint: the hero's would sweep under it.
+      const next = beatScore(b, scorer(moment), decisive(moment), Date.now(), !slides?.carries(moment.id));
       // A climbing final decided: the trophy arrives with the gold.
       return decisive(moment) && moment.chart === "ascent" ? { ...next, trophies: next.trophies + 1 } : next;
     });

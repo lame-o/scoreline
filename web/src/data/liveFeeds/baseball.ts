@@ -3,7 +3,12 @@
  * `BaseballFeed`): count, outs, runners, batter and pitcher every few seconds
  * (two requests of a few hundred bytes: the core API's `situation` and
  * `status`), and only the newest plays when something happens, so each pitch
- * lands in the zone as it's thrown.
+ * lands in the zone as it's thrown. ESPN rewrites entries behind the tail (a
+ * scorer's ruling posted minutes later, a steal that review made a caught
+ * stealing) and replaces a challenged pitch with a new ID: entries are known
+ * by ID, and each look (and a quiet look every 20 s) reads again from the
+ * previous at-bat (`rereadStart`, `reread`); a result rewritten into
+ * something else is taken back (`takeRetractions`), a bigger one offered.
  *
  * Plain TypeScript with no React: the page's fast lane calls `update` on its
  * cadence and re-renders what changed (`subscribe`; every field is replaced
@@ -11,12 +16,14 @@
  *
  *     const feed = new BaseballFeed(theater);
  *     await feed.update(getJSON, { path, eventID, names, side });
+ *     moments.retract(feed.takeRetractions());
  *     moments.offer(feed.takeMoments());
  */
 import { battedBalls as readBattedBalls, currentAtBat, intOf, runners, type Baseball, type BattedBall, type Pitch, type SideOf } from "../gameDetail";
 import type { Fetcher } from "../http";
 import { arr, at, bool, has, num, str, type JSONValue } from "../json";
 import { liveMoment, Tier, type Accent, type LiveMoment, type MomentKind } from "../moments";
+import { baseballFacts } from "../scoringFacts";
 
 /** The score as of the newest play the fast lane has seen. */
 export interface LiveScore {
@@ -49,6 +56,8 @@ export interface BaseballUpdate {
 
 const PAGE_SIZE = 25;
 const WINDOW_SIZE = 80;
+/** A quiet game's plays are read again this often, for ESPN's rewrites. */
+export const REREAD_MS = 20_000;
 /** A play this fresh when the page opens still replays (ESPN publishes plays 15–45 s after they happen). */
 export const RECENT_MS = 60_000;
 
@@ -66,8 +75,13 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
   /** The play theater's last play and who's up now. Assigned only when they change, so a pitch doesn't redraw the theater. */
   theater: T | null = null;
 
-  /** The most recent plays, enough to hold the current at-bat. */
+  /** The most recent plays, enough to hold the current at-bat, and where the first sits in the feed. */
   private window: JSONValue[] = [];
+  private windowStart = 0;
+  /** When the plays were last read again from the previous at-bat (epoch ms). */
+  private rereadAt: number | null = null;
+  /** Results rewritten into something they no longer are (or replaced) since the last call, for the page to take back. */
+  private retracted: string[] = [];
   /** At-bat results that arrived since the page opened. */
   private moments: LiveMoment[] = [];
   private primed = false;
@@ -129,7 +143,7 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
         return;
       }
       const lastRef = str(at(s, "lastPlay", "$ref")) ?? null;
-      if (lastRef !== this.lastPlayRef || !this.loaded) {
+      if (lastRef !== this.lastPlayRef || !this.loaded || (this.rereadAt != null && this.now() - this.rereadAt > REREAD_MS)) {
         if (await this.loadPlays(fetcher, base, names, side, signal)) changed = true;
         const lastID = lastRef ? playIDFromRef(lastRef) : null;
         if (!signal?.aborted && (lastID == null || lastID === this.newestID)) this.lastPlayRef = lastRef;
@@ -139,7 +153,7 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
         return;
       }
       const last = findLast(this.window, (p) => str(at(p, "type", "type")) === "play-result");
-      const next = baseballSituation(s, names, str(at(last, "text")) ?? null);
+      const next = settledSituation(baseballSituation(s, names, str(at(last, "text")) ?? null), this.window, names);
       if (!sameSituation(next, this.situation)) {
         this.situation = next;
         changed = true;
@@ -155,24 +169,36 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
     return out;
   }
 
+  /** Results ESPN has since rewritten into something else (or replaced), for the page to take back. */
+  takeRetractions(): string[] {
+    const out = this.retracted;
+    this.retracted = [];
+    return out;
+  }
+
   private async loadPlays(fetcher: Fetcher, base: string, names: Readonly<Record<string, string>>, side: SideOf, signal?: AbortSignal): Promise<boolean> {
     // First look: start a couple of pages from the end, not at the first pitch.
     if (this.fetched == null) {
       const head = await fetcher(`${base}/plays?limit=1`, { signal }).catch(() => null);
       if (head == null) return false;
       this.fetched = Math.max((intOf(at(head, "count")) ?? 0) - 2 * PAGE_SIZE, 0);
+      this.windowStart = this.fetched;
     }
-    let start = this.fetched;
-    let page = Math.floor(start / PAGE_SIZE) + 1;
+    const end = this.fetched;
+    // From where the previous at-bat begins: what's there now replaces what was read.
+    const again = rereadStart(this.window);
+    const from = again != null ? this.windowStart + again : end;
+    let page = Math.floor(from / PAGE_SIZE) + 1;
     const fresh: JSONValue[] = [];
     let complete = false;
+    let read = from;
     let scoreChanged = false;
     while (!signal?.aborted) {
       const json = await fetcher(`${base}/plays?limit=${PAGE_SIZE}&page=${page}`, { signal }).catch(() => null);
       if (json == null) break;
       const items = arr(at(json, "items"));
       items.forEach((item, offset) => {
-        if ((page - 1) * PAGE_SIZE + offset < start) return;
+        if ((page - 1) * PAGE_SIZE + offset < from) return;
         fresh.push(normalized(item));
         this.newestID = str(at(item, "id")) ?? this.newestID;
         const latest = liveScore(item);
@@ -181,34 +207,128 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
           scoreChanged = true;
         }
       });
-      start = Math.max(start, (page - 1) * PAGE_SIZE + items.length);
+      read = Math.max(read, (page - 1) * PAGE_SIZE + items.length);
       if (page >= (intOf(at(json, "pageCount")) ?? page) || items.length === 0) {
         complete = true;
         break;
       }
       page += 1;
     }
-    // An abandoned look keeps nothing, so the next one reads the same plays again.
-    if (signal?.aborted) return scoreChanged;
-    this.fetched = start;
+    // An abandoned look keeps nothing, so the next one reads the same plays again; a look cut
+    // short says nothing about what's gone: the next one reads it again.
+    if (signal?.aborted || !(complete || from === end)) return scoreChanged;
+    this.rereadAt = this.now();
+    this.fetched = read;
+    const look = reread(this.window, from - this.windowStart, fresh);
+    this.window = look.window;
+    if (this.window.length > WINDOW_SIZE) {
+      this.windowStart += this.window.length - WINDOW_SIZE;
+      this.window = this.window.slice(-WINDOW_SIZE);
+    }
     // Until a complete look it's history; after, at-bat results are news.
     const news = this.primed;
-    if (this.primed) this.moments.push(...fresh.flatMap((item) => baseballMoment(item, side) ?? []));
+    if (this.primed) this.moments.push(...look.new.flatMap((item) => baseballMoment(item, side) ?? []));
+    // A result rewritten: its moment again (a bigger one is news again), and taken back if it no
+    // longer applies; it's measured again as what it is now (a new scene). One replaced is taken back too.
+    const changed = new Set([...look.revised.flatMap((r) => str(at(r.new, "id")) ?? []), ...look.gone]);
+    for (const { old, new: now } of look.revised) {
+      const id = str(at(now, "id"));
+      if (id == null) continue;
+      const rewrite = rewritten(old, now, side);
+      if (rewrite.retract) this.retracted.push(id);
+      if (this.primed && rewrite.offer) this.moments.push(rewrite.offer);
+    }
+    this.retracted.push(...look.gone);
     if (complete) this.primed = true;
     const wasLoaded = this.loaded;
     this.loaded = true;
-    if (fresh.length === 0) return scoreChanged || !wasLoaded;
-    this.window = [...this.window, ...fresh].slice(-WINDOW_SIZE);
+    if (look.new.length === 0 && changed.size === 0) return scoreChanged || !wasLoaded;
     this.atBat = currentAtBat(this.window);
     if (this.theaterOf) {
       const next = theaterAfter(this.window, this.theater, news, this.now(), names, side, this.theaterOf);
       if (!sameTheater(next, this.theater)) this.theater = next;
     }
-    const byID = new Map(this.battedBalls.map((b) => [b.id, b]));
+    const byID = new Map(this.battedBalls.filter((b) => !changed.has(b.id)).map((b) => [b.id, b]));
     for (const ball of readBattedBalls(this.window, side)) byID.set(ball.id, ball);
     this.battedBalls = [...byID.values()];
     return true;
   }
+}
+
+/**
+ * A result ESPN rewrote: its moment now (a bigger one is news again; the
+ * moment slot knows), and whether the one it was is taken back (gone, or now
+ * something else, or less). (pure; tested)
+ */
+export function rewritten(old: JSONValue, now: JSONValue, side: SideOf): { offer: LiveMoment | null; retract: boolean } {
+  const was = baseballMoment(old, side);
+  const is = baseballMoment(now, side);
+  if (!was) return { offer: is, retract: false };
+  return { offer: is, retract: is ? is.kind !== was.kind || is.tier < was.tier : true };
+}
+
+/** Where a look reads again from: the previous at-bat's first entry in the window (the current one's, if it's the only one). (pure; tested) */
+export function rereadStart(window: readonly JSONValue[]): number | null {
+  const atBats: string[] = [];
+  for (const entry of window) {
+    const id = str(at(entry, "atBatId"));
+    if (id != null && atBats[atBats.length - 1] !== id) atBats.push(id);
+  }
+  const previous = atBats.length >= 2 ? atBats[atBats.length - 2] : atBats[atBats.length - 1];
+  if (previous == null) return null;
+  const i = window.findIndex((e) => str(at(e, "atBatId")) === previous);
+  return i >= 0 ? i : null;
+}
+
+/** What a rewrite can change about an entry: its kind, result, words, runs, outs and who's where. */
+function reads(e: JSONValue): string {
+  const roles = arr(at(e, "participants")).map((p) => participantID(e, str(at(p, "type")) ?? "") ?? "");
+  return JSON.stringify([str(at(e, "type", "type")), str(at(e, "alternativeType", "type")), str(at(e, "text")), intOf(at(e, "scoreValue")), intOf(at(e, "outs")), roles.filter((r) => r !== "").join(",")]);
+}
+
+/**
+ * A look at the feed from `index` in the window on: the window with what's
+ * there now in place of what was, and what changed: entries new to it,
+ * entries read again that read differently (rewritten), and IDs no longer
+ * there (a challenged pitch replaced by a new ID). (pure; tested)
+ */
+export function reread(
+  window: readonly JSONValue[],
+  index: number,
+  fresh: readonly JSONValue[],
+): { window: JSONValue[]; new: JSONValue[]; revised: { old: JSONValue; new: JSONValue }[]; gone: string[] } {
+  const keep = Math.min(Math.max(index, 0), window.length);
+  const known = new Map<string, JSONValue>();
+  for (const entry of window) {
+    const id = str(at(entry, "id"));
+    if (id != null) known.set(id, entry);
+  }
+  const added: JSONValue[] = [];
+  const revised: { old: JSONValue; new: JSONValue }[] = [];
+  for (const entry of fresh) {
+    const id = str(at(entry, "id"));
+    if (id == null) continue;
+    const was = known.get(id);
+    if (was === undefined) added.push(entry);
+    else if (reads(was) !== reads(entry)) revised.push({ old: was, new: entry });
+  }
+  const now = new Set(fresh.flatMap((e) => str(at(e, "id")) ?? []));
+  const gone = window.slice(keep).flatMap((e) => {
+    const id = str(at(e, "id"));
+    return id != null && !now.has(id) ? [id] : [];
+  });
+  return { window: [...window.slice(0, keep), ...fresh], new: added, revised, gone };
+}
+
+/** A participant's athlete ID by role (PlayScene.participant): the summary's `athlete.id`, or the core feed's link. */
+function participantID(entry: JSONValue, role: string): string | null {
+  const p = arr(at(entry, "participants")).find((q) => str(at(q, "type")) === role);
+  if (p === undefined) return null;
+  const id = at(p, "athlete", "id");
+  if (typeof id === "string" || typeof id === "number") return String(id);
+  const ref = str(at(p, "athlete", "$ref"));
+  const m = ref != null ? /\/athletes\/(\d+)/.exec(ref) : null;
+  return m?.[1] ?? null;
 }
 
 /** "…/plays/4019080430005990057?lang=en" → "4019080430005990057". */
@@ -289,6 +409,70 @@ export function baseballSituation(s: JSONValue, names: Readonly<Record<string, s
   };
 }
 
+/**
+ * At the Plate as the plays have it (web; the live check, Game 4): after the
+ * third out ESPN's situation resets the outs to 0 at once but goes on naming
+ * the batter who made it for half a minute or so (and once named nobody), so
+ * the diamond said 0 outs with the old batter, then lost its batter row.
+ * Until the situation names the next half's batter, the half is shown as it
+ * ended: 3 outs, the count and bases cleared, the last matchup. And a
+ * situation still naming the batter whose at-bat the plays have closed (or
+ * nobody, or someone the box score hasn't named yet, a pinch hitter) takes
+ * the matchup from the at-bat under way ("Dustin May pitches to Yandy
+ * Diaz"). (pure; tested)
+ */
+export function settledSituation(s: Baseball | null, window: readonly JSONValue[], names: Readonly<Record<string, string>>): Baseball | null {
+  if (!s) return s;
+  const typeOf = (e: JSONValue) => str(at(e, "type", "type"));
+  const half = (e: JSONValue) => `${str(at(e, "period", "type")) ?? ""}${intOf(at(e, "period", "number")) ?? 0}`;
+  const startsAtBat = (e: JSONValue) => typeOf(e) === "start-batterpitcher" || str(at(e, "summaryType")) === "P";
+  const nameOf = (id: string | null) => (id != null ? (names[id] ?? null) : null);
+  const lastIndex = (test: (e: JSONValue) => boolean) => {
+    for (let i = window.length - 1; i >= 0; i--) if (test(window[i]!)) return i;
+    return -1;
+  };
+  // The third out, and nothing of the next half's at-bats after it: the half as it ended.
+  const third = lastIndex((e) => typeOf(e) === "play-result" && (intOf(at(e, "outs")) ?? 0) >= 3);
+  const ended = window[third];
+  if (ended !== undefined && !window.slice(third + 1).some((e) => startsAtBat(e) && half(e) !== half(ended))) {
+    const batterID = participantID(ended, "batter");
+    const pitcherID = participantID(ended, "pitcher");
+    if (s.batterID == null || s.batterID === batterID) {
+      return {
+        ...s,
+        balls: 0,
+        strikes: 0,
+        outs: 3,
+        onFirst: false,
+        onSecond: false,
+        onThird: false,
+        runners: [null, null, null],
+        batter: nameOf(batterID) ?? s.batter,
+        batterID: batterID ?? s.batterID,
+        pitcher: nameOf(pitcherID) ?? s.pitcher,
+        pitcherID: pitcherID ?? s.pitcherID,
+      };
+    }
+  }
+  // The at-bat under way: the first entry after the last at-bat's result names both, by ID and in words.
+  const closed = lastIndex((e) => typeOf(e) === "play-result" && participantID(e, "batter") != null);
+  const start = window.slice(closed + 1).find(startsAtBat);
+  if (start === undefined) return s;
+  const batterID = participantID(start, "batter");
+  const pitcherID = participantID(start, "pitcher");
+  const previous = window[closed] !== undefined ? participantID(window[closed]!, "batter") : null;
+  const stale = s.batterID == null || (s.batterID === previous && batterID != null && batterID !== previous);
+  const words = /^(.+?) pitches to (.+?)\.?$/.exec(str(at(start, "text")) ?? "");
+  const next: Baseball = stale
+    ? { ...s, batterID, batter: nameOf(batterID) ?? words?.[2] ?? s.batter, pitcherID: pitcherID ?? s.pitcherID, pitcher: nameOf(pitcherID) ?? words?.[1] ?? s.pitcher }
+    : {
+        ...s,
+        batter: s.batter ?? (s.batterID === batterID ? (words?.[2] ?? null) : null),
+        pitcher: s.pitcher ?? (s.pitcherID === pitcherID ? (words?.[1] ?? null) : null),
+      };
+  return next.batter === s.batter && next.batterID === s.batterID && next.pitcher === s.pitcher && next.pitcherID === s.pitcherID ? s : next;
+}
+
 function sameSituation(a: Baseball | null, b: Baseball | null): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -316,7 +500,7 @@ export function baseballMoment(item: JSONValue, side: SideOf): LiveMoment | null
   const text = str(at(item, "text")) ?? "";
   const batting = side(str(at(item, "team", "id")));
   const moment = (kind: MomentKind, tier: Tier, lead: string, accents: Accent[] = []) =>
-    liveMoment({ id, chart: "plate", tier, kind, lead, detail: text, side: batting, accents });
+    liveMoment({ id, chart: "plate", tier, kind, lead, detail: text, side: batting, accents, ...(tier === Tier.score ? { facts: baseballFacts(item, batting) } : {}) });
   const runs = intOf(at(item, "scoreValue")) ?? 1;
   const off = walkOff(item);
   // The play theater's banner brings confetti for a triple, scored or not.

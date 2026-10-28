@@ -42,6 +42,7 @@ import {
   type Section,
 } from "../data/scoreboard";
 import { useNow } from "./clock";
+import { laneScoresVersion, subscribeLaneScores, withLaneScores } from "./laneScores";
 import { useLogoColorsVersion, wearColors } from "./logoColors";
 import { useNextGames } from "./nextGames";
 import { pin, usePinnedID } from "./pin";
@@ -176,6 +177,8 @@ export function useScoreboard({ poll = true, background = false }: ScoreboardOpt
   // changed, or the minute turned (time windows move): ScoreStore's `version`.
   const minute = Math.floor(useNow(60_000) / 60_000);
   const colors = useLogoColorsVersion();
+  // A game page's lane score ahead of the scoreboard's, on its row and tile (not in `results`: alerts keep to the polls).
+  const lanes = useSyncExternalStore(subscribeLaneScores, laneScoresVersion, laneScoresVersion);
   const version = queries.reduce((v, q) => v + q.dataUpdatedAt + q.errorUpdatedAt + q.failureCount, 0);
   const fetching = queries.some((q) => q.isFetching);
 
@@ -198,7 +201,8 @@ export function useScoreboard({ poll = true, background = false }: ScoreboardOpt
         if (!byID.has(e.id)) byID.set(e.id, e);
       }
     });
-    const sections = computeSections(results, settings, now, nextGames);
+    const shown = Object.fromEntries(Object.entries(results).map(([id, r]) => [id, { ...r, events: withLaneScores(r.events, now) }]));
+    const sections = computeSections(shown, settings, now, nextGames);
     // A followed team's next game from its schedule isn't in any result: its league comes from the schedule.
     for (const [, games] of nextGames) for (const g of games) if (!owner.has(g.event.id)) owner.set(g.event.id, g.league);
     const leagueOf = (id: string) => owner.get(id);
@@ -220,7 +224,7 @@ export function useScoreboard({ poll = true, background = false }: ScoreboardOpt
     };
     // `version` stands for the queries' data; `leagues` and `countries` follow `settings`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, settings, minute, colors, pinnedID, nextGames, hidden]);
+  }, [version, settings, minute, colors, pinnedID, nextGames, hidden, lanes]);
 
   useEffect(() => {
     interval.current = derived.cadence;

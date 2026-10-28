@@ -29,6 +29,7 @@ import { useWidth } from "../../../design/useWidth";
 import { useSectionVisibility, type PageGeometry } from "./geometry";
 import { BeatScore } from "./Hero";
 import { useCurrentMoment } from "./moments";
+import { useScoringSlidesContext } from "./scoringSlides";
 import { PossessionFlight, PossessionSlot, usePossessionToss } from "./possession";
 import styles from "./DockedScorebar.module.css";
 
@@ -80,8 +81,10 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
   const box = useRef<HTMLButtonElement>(null);
   const width = useWidth(box, 360);
   const moment = useCurrentMoment();
+  const slides = useScoringSlidesContext();
   const chartVisibility = useSectionVisibility(geometry, moment ? sectionForChart(moment.chart) : null);
-  const news = moment && newsLineShows(captioned(moment), chartVisibility) ? moment : null;
+  // A score the slide under the bar tells is told once, there.
+  const news = moment && !slides?.carries(moment.id) && newsLineShows(captioned(moment), chartVisibility) ? moment : null;
   const digits = (s: string | null) => (s ?? "").replace(/\D/g, "").length;
   const tier = (() => {
     const w = width - 24;

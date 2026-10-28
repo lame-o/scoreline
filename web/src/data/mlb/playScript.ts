@@ -17,11 +17,29 @@
  * a slide), when the headline lands, and where the broadcast camera looks
  * (playCamera.ts).
  *
+ * When Statcast measured the play, the ball flies for real: the pitch along
+ * its tracked path from the hand to where it crossed the plate, and the ball
+ * off the bat from its exit velocity and launch angle, under gravity, drag
+ * and lift, coming down where MLB measured it (`BattedFlight`). Its flight
+ * keeps one pace from contact to glove (real speeds, a little quicker: near
+ * real time for a grounder, about 2.5× for a high fly), and the fielders,
+ * throws and runners key off when it really gets there. Without Statcast the
+ * flight is drawn from ESPN's trajectory class, as before.
+ *
+ * Where MLB's official account has been found for the play (`PlayScene.official`,
+ * `handling`), it's told from that: the ball to the man credited with
+ * fielding it (on through the infield to an outfielder), the throws along the
+ * credited chain to each putout in order, errors and deflections as credited,
+ * every runner on his real path; then, once the ball's been handled, each run
+ * crossing in turn and the batter taking his base. Without it, ESPN's text
+ * and inference, as before.
+ *
  *     const script = PlayScript.play(scene, { bases: scene.basesAfter, bats: "R", swapped: scene.endsInning });
  *     script.ball(1.2); script.camera.frame(1.2);
  */
-import { CameraFrame, CameraTrack, shoot, type Shot } from "./playCamera";
-import { coverer, isOut, type Hand, type PlayScene } from "./playScene";
+import { CameraFrame, CameraTrack, shoot, TROT_CUT, type Shot } from "./playCamera";
+import { coverer, isOut, type Effort, type Hand, type Handling, type PlayScene, type Runner } from "./playScene";
+import { pitchPosition, plateTime, type StatcastPitch } from "./statcast";
 import { Ballpark, distanceBetween, easeValue, fieldPoint, ground, ORIGIN, samePoint, type Ease, type FieldPoint, type Point } from "./theaterField";
 import { ballMemo, RigTrack, type RigFacing } from "../theater/rig";
 
@@ -100,6 +118,12 @@ export class Actor {
   actions: Action[] = [];
   /** Feet first into a base, from this moment until he's gone or settled. */
   slide: number | null = null;
+  /**
+   * At full stretch for the ball (a diving or leaping catch): from `start` his
+   * glove goes to `target`, reaching it at `reach`; a dive ends on the grass at
+   * `landing`. (The figures don't draw it yet: a lunge stands in.)
+   */
+  dive: { readonly start: number; readonly reach: number; readonly target: FieldPoint; readonly landing: Point } | null = null;
 
   constructor(team: Team, at: Point, role: Role = { kind: "runner" }, options: { crouch?: boolean; bats?: Hand | null; appear?: number } = {}) {
     this.team = team;
@@ -173,7 +197,11 @@ export type Arc =
   /** Bouncing along the ground, this many hops. */
   | { readonly kind: "bounce"; readonly hops: number }
   /** Up to `peak` feet over the line between its ends. */
-  | { readonly kind: "arc"; readonly peak: number };
+  | { readonly kind: "arc"; readonly peak: number }
+  /** A tracked pitch: Statcast's path between two of its moments (seconds from its release), in real time. */
+  | { readonly kind: "pitch"; readonly pitch: StatcastPitch; readonly from: number; readonly to: number }
+  /** A measured batted ball: its flight sampled evenly in time. */
+  | { readonly kind: "samples"; readonly points: readonly FieldPoint[] };
 
 export class Flight {
   constructor(
@@ -183,10 +211,22 @@ export class Flight {
     readonly to: FieldPoint,
     readonly arc: Arc,
     readonly ease: Ease = "linear",
+    /** A measured flight's touchdowns, as fractions of it: the dust puffs. */
+    readonly hops: readonly number[] = [],
   ) {}
 
   point(t: number): FieldPoint {
     const raw = this.end > this.start ? Math.min(Math.max((t - this.start) / (this.end - this.start), 0), 1) : 1;
+    if (this.arc.kind === "pitch") return pitchPoint(this.arc.pitch, this.arc.from + (this.arc.to - this.arc.from) * raw);
+    if (this.arc.kind === "samples" && this.arc.points.length > 1) {
+      const points = this.arc.points;
+      const i = raw * (points.length - 1);
+      const lower = Math.min(Math.trunc(i), points.length - 2);
+      const f = i - lower;
+      const p = points[lower]!;
+      const q = points[lower + 1]!;
+      return { x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, z: p.z + (q.z - p.z) * f };
+    }
     const u = easeValue(this.ease, raw);
     const { from, to } = this;
     const x = from.x + (to.x - from.x) * u;
@@ -208,12 +248,15 @@ export class Flight {
       case "arc":
         z += 4 * this.arc.peak * raw * (1 - raw);
         break;
+      case "samples":
+        break;
     }
     return { x, y, z };
   }
 
   /** When a bouncing ball touches down between hops, and where: the dust puffs. (Found once, by sampling: the ease has no inverse.) */
   get bounces(): { at: number; point: Point }[] {
+    if (this.arc.kind === "samples") return this.hops.map((u) => ({ at: this.start + u * (this.end - this.start), point: ground(this.point(this.start + u * (this.end - this.start))) }));
     if (this.arc.kind !== "bounce" || this.arc.hops <= 1 || !(this.end > this.start)) return [];
     const hops = this.arc.hops;
     const out: { at: number; point: Point }[] = [];
@@ -267,6 +310,8 @@ export interface Landing {
   readonly point: Point;
   readonly mark: Mark;
   readonly at: number;
+  /** Above the field: a home run in the seats. */
+  readonly z?: number;
 }
 
 export interface Fence {
@@ -420,15 +465,36 @@ export class Builder {
   readonly pitchStart = 0.5;
   /** When the pitch reaches the plate. */
   readonly contact: number;
+  /** The pitch as Statcast tracked it: its path, and when (seconds from its fit's start) it left the hand and crossed the front of the plate. */
+  readonly tracked: { readonly pitch: StatcastPitch; readonly release: number; readonly plate: number } | null;
   /** An extra-base hit's batter reaches his base no sooner than this. */
   gathered: number | null = null;
+  /** Who handled the ball, as MLB's official scorer credited it (null: infer it). */
+  readonly handling: Handling | null;
+  /** Each run as it crosses the plate: the runner, and when. */
+  crossings: { readonly actor: number; readonly at: number }[] = [];
+  /** When a throw got away (a runner waiting on it goes on). */
+  loose: number | null = null;
 
-  constructor(scene: PlayScene) {
+  constructor(played: PlayScene) {
+    // MLB's official account of the runners, where it has one.
+    const scene = played.official;
     this.scene = scene;
+    this.handling = scene.handling;
     this.hand = scene.bats ?? "R";
-    // A 92 mph fastball reaches the plate in 0.42 s; slower pitches take longer.
-    const mph = scene.pitch?.mph ?? 91;
-    this.contact = this.pitchStart + Math.min(Math.max((0.42 * 92) / mph, 0.34), 0.62);
+    const p = scene.measured?.pitch;
+    const plate = p ? plateTime(p) : null;
+    const release = p ? pitchTimeAt(p, Ballpark.release) : null;
+    if (p && plate != null && release != null && release < plate && p.plate[1] >= 0.3) {
+      // Real time from the hand (a stride off the rubber) to the plate.
+      this.tracked = { pitch: p, release, plate };
+      this.contact = this.pitchStart + plate - release;
+    } else {
+      this.tracked = null;
+      // A 92 mph fastball reaches the plate in 0.42 s; slower pitches take longer.
+      const mph = scene.pitch?.mph ?? 91;
+      this.contact = this.pitchStart + Math.min(Math.max((0.42 * 92) / mph, 0.34), 0.62);
+    }
     for (let n = 1; n <= 9; n++) this.script.actors.push(new Actor("fielding", Ballpark.position(n), { kind: "fielder", n }, { crouch: n === 2 }));
     // On a runner's play the batter is still in the box.
     this.batter = this.script.actors.length;
@@ -453,46 +519,71 @@ export class Builder {
 
   // MARK: Pitch
 
-  /** Where the pitch crosses the plate: ESPN's pitch coordinates (zone x 91…141, y 148…192), spread out so a ball off the plate reads. */
+  /**
+   * Where the pitch crosses the plate: Statcast's measurement, else ESPN's
+   * pitch coordinates (zone x 91…141, y 148…192), spread out so a ball off
+   * the plate reads.
+   */
   get plate(): FieldPoint {
+    if (this.tracked) return pitchPoint(this.tracked.pitch, this.tracked.plate);
     const x = ((this.scene.pitch?.x ?? 116) - 116) * 0.085;
     const z = 3.4 - ((this.scene.pitch?.y ?? 170) - 148) * 0.045;
     return { x: Math.min(Math.max(x, -6), 6), y: 0.5, z: Math.min(Math.max(z, 0.4), 5.5) };
   }
 
+  /** When a tracked pitch reaches the catcher's mitt, on past the plate (or where he picks it out of the dirt). */
+  get mittTime(): number | null {
+    const tracked = this.tracked;
+    const at = tracked ? pitchTimeAt(tracked.pitch, -6.5) : null;
+    if (!tracked || at == null) return null;
+    return Math.min(at, pitchTimeAtHeight(tracked.pitch, 0.3, tracked.plate) ?? at);
+  }
+
   /** The catcher's mitt, where the pitch was. */
   get mitt(): FieldPoint {
+    const at = this.mittTime;
+    if (this.tracked && at != null) return pitchPoint(this.tracked.pitch, at);
     const plate = this.plate;
     return { x: plate.x * 0.7, y: -6.5, z: Math.max(plate.z * 0.8, 1) };
   }
 
-  /** Where the bat meets the ball, in front of the plate. */
+  /** Where the bat meets the ball: where the pitch crossed the plate when it's tracked, else in front of the plate. */
   get contactPoint(): FieldPoint {
-    return { x: this.hand === "L" ? 1.5 : -1.5, y: 2, z: 3 };
+    return this.tracked == null ? { x: this.hand === "L" ? 1.5 : -1.5, y: 2, z: 3 } : this.plate;
   }
 
   pitch(end: FieldPoint, time: number): void {
     this.script.release = this.pitchStart;
-    this.script.flights.push(new Flight(this.pitchStart, time, { x: 0, y: 54, z: 6 }, end, { kind: "arc", peak: 0.6 }));
+    this.script.flights.push(new Flight(this.pitchStart, time, { x: 0, y: Ballpark.release, z: 6 }, end, { kind: "arc", peak: 0.6 }));
+  }
+
+  /** The tracked pitch, from the hand to the plate (and on into the catcher's mitt when he catches it): Statcast's path in real time. */
+  trackedPitch(intoMitt: boolean): void {
+    const tracked = this.tracked;
+    if (!tracked) return;
+    const end = intoMitt ? (this.mittTime ?? tracked.plate) : tracked.plate;
+    this.script.release = this.pitchStart;
+    this.script.flights.push(
+      new Flight(this.pitchStart, this.contact + end - tracked.plate, pitchPoint(tracked.pitch, tracked.release), pitchPoint(tracked.pitch, end), {
+        kind: "pitch",
+        pitch: tracked.pitch,
+        from: tracked.release,
+        to: end,
+      }),
+    );
   }
 
   // MARK: Ball in play
 
   ballInPlay(): void {
-    const { scene, script, contact } = this;
+    const { scene, script, contact, handling } = this;
     const trajectory = scene.flight;
     let target = scene.spot ? Ballpark.feet(scene.spot) : this.guessSpot();
-    const bearing = Ballpark.bearing(target);
-    const degrees = (bearing * 180) / Math.PI;
-    const fence = Ballpark.fence(bearing);
-    const homeRun = scene.kind.type === "homeRun";
-    if (homeRun) {
-      // Over the fence, into the first rows.
-      target = Ballpark.polar(Math.min(Math.max(scene.distance ?? 0, Ballpark.distance(target), fence + 24), fence + 60), degrees);
-    } else if (Ballpark.distance(target) > fence - 7) {
-      target = Ballpark.polar(fence - 7, degrees);
-    }
-    const distance = Ballpark.distance(target);
+    // Marked at the plate, though a fielder out in the field took it (an upstream glitch): where he plays.
+    if (this.atThePlate(target)) target = this.guessSpot();
+    // A ground ball an outfielder fielded, marked where it got through the infield: on to him.
+    const through = this.through(target);
+    if (through) target = through;
     let caught: boolean;
     switch (scene.kind.type) {
       case "flyOut":
@@ -509,46 +600,83 @@ export class Builder {
       default:
         caught = false;
     }
+    // Measured: the real flight, ending where it's caught, fielded or lands in the seats.
+    const real = this.battedFlight(target, caught);
+    const realEnd = real?.points[real.points.length - 1];
+    if (realEnd) target = ground(realEnd);
+    const bearing = Ballpark.bearing(target);
+    const degrees = (bearing * 180) / Math.PI;
+    const fence = Ballpark.fence(bearing);
+    const homeRun = scene.kind.type === "homeRun";
+    if (real == null && homeRun) {
+      // Over the fence, into the first rows.
+      target = Ballpark.polar(Math.min(Math.max(scene.distance ?? 0, Ballpark.distance(target), fence + 24), fence + 60), degrees);
+    } else if (real == null && Ballpark.distance(target) > fence - 7) {
+      target = Ballpark.polar(fence - 7, degrees);
+    }
+    const distance = Ballpark.distance(target);
 
     const contactPoint = this.contactPoint;
-    this.pitch(contactPoint, contact);
+    if (this.tracked) this.trackedPitch(false);
+    else this.pitch(contactPoint, contact);
     this.actor(this.batter).swing = contact;
     this.actor(this.batter).dropsBat = contact + 0.16;
     script.flashes.push({ beat: "contact", at: contact, point: contactPoint });
 
-    // The flight, by ESPN's trajectory: a grounder hops and slows, a liner is
-    // fast and flat, a fly hangs, a pop-up climbs.
-    let time: number;
-    let arc: Arc;
-    let ease: Ease;
-    switch (trajectory) {
-      case "ground":
-        time = Math.min(Math.max(distance / 125, 0.42), 1.25);
-        arc = { kind: "bounce", hops: distance > 150 ? 4 : 3 };
-        ease = "out";
-        break;
-      case "line":
-        time = Math.min(Math.max(0.28 + distance / 260, 0.38), 1.05);
-        arc = { kind: "arc", peak: 5 + distance * 0.045 };
-        ease = "linear";
-        break;
-      case "fly":
-        time = homeRun ? 1.75 : Math.min(Math.max(0.85 + distance / 300, 1.05), 1.85);
-        arc = { kind: "arc", peak: homeRun ? 25 + distance * 0.13 : 22 + distance * 0.21 };
-        ease = "linear";
-        break;
-      case "popUp":
-        time = Math.min(Math.max(1.15 + distance / 600, 1.2), 1.5);
-        arc = { kind: "arc", peak: 95 + distance * 0.1 };
-        ease = "linear";
-        break;
-    }
-    const land = contact + time;
-    const to = fieldPoint(target, caught ? 4.5 : 0);
+    // `land`: in the glove (caught or fielded on the ground), into the seats,
+    // or a hit's first bounce; `reached`: a measured hit getting to its
+    // fielder; `over`: a home run clearing the fence.
+    let land: number;
+    let to: FieldPoint;
+    let reached: number | null = null;
+    let over: number | null = null;
     script.batted = script.flights.length;
-    script.flights.push(new Flight(contact, land, contactPoint, to, arc, ease));
+    if (real) {
+      // One pace from contact to glove: its speeds and slowing real, a little quicker.
+      const end = contact + real.duration * Builder.pace(real.duration);
+      const replay = (seconds: number) => contact + (seconds / Math.max(real.duration, 0.01)) * (end - contact);
+      to = realEnd ?? fieldPoint(target);
+      script.flights.push(
+        new Flight(contact, end, real.points[0] ?? contactPoint, to, { kind: "samples", points: real.points }, "linear", real.hops.map((h) => h / Math.max(real.duration, 0.01))),
+      );
+      land = caught || homeRun || (trajectory === "ground" && distance < 165) ? end : replay(real.touchdown);
+      reached = end;
+      over = real.over != null ? replay(real.over) : null;
+    } else {
+      // The flight, by ESPN's trajectory: a grounder hops and slows, a liner is
+      // fast and flat, a fly hangs, a pop-up climbs.
+      let time: number;
+      let arc: Arc;
+      let ease: Ease;
+      switch (trajectory) {
+        case "ground":
+          time = Math.min(Math.max(distance / 125, 0.42), 1.25);
+          arc = { kind: "bounce", hops: distance > 150 ? 4 : 3 };
+          ease = "out";
+          break;
+        case "line":
+          time = Math.min(Math.max(0.28 + distance / 260, 0.38), 1.05);
+          arc = { kind: "arc", peak: 5 + distance * 0.045 };
+          ease = "linear";
+          break;
+        case "fly":
+          time = homeRun ? 1.75 : Math.min(Math.max(0.85 + distance / 300, 1.05), 1.85);
+          arc = { kind: "arc", peak: homeRun ? 25 + distance * 0.13 : 22 + distance * 0.21 };
+          ease = "linear";
+          break;
+        case "popUp":
+          time = Math.min(Math.max(1.15 + distance / 600, 1.2), 1.5);
+          arc = { kind: "arc", peak: 95 + distance * 0.1 };
+          ease = "linear";
+          break;
+      }
+      land = contact + time;
+      to = fieldPoint(target, caught ? (scene.effort === "diving" ? 1.2 : 4.5) : 0);
+      script.flights.push(new Flight(contact, land, contactPoint, to, arc, ease));
+      if (homeRun) over = contact + time * Math.min(Math.max((fence - 2) / Math.max(distance, 1), 0), 1);
+    }
 
-    const first = scene.fielders[0] ?? scene.error ?? Ballpark.nearest(target);
+    const first = handling?.fielder ?? scene.fielders[0] ?? scene.error ?? Ballpark.nearest(target);
     // Everyone else leans toward the ball.
     for (let n = 1; n <= 9; n++) {
       if (n === first || n === 2) continue;
@@ -560,19 +688,21 @@ export class Builder {
       const step = Math.min(d * 0.08, 9);
       this.actor(this.fielder(n)).move([{ x: home.x + (dx / d) * step, y: home.y + (dy / d) * step }], contact + 0.1, contact + 0.75, "out");
     }
+    if (through || handling?.deflection != null) this.reachForIt(first);
 
     if (homeRun) {
       // The outfielder runs back to the track and watches it go.
       const track = Ballpark.polar(fence - 9, degrees);
       this.actor(this.fielder(Ballpark.nearest(track))).move([track], contact + 0.1, land - 0.3, "out");
-      const over = contact + time * Math.min(Math.max((fence - 2) / Math.max(distance, 1), 0), 1);
-      const p = script.flights[script.flights.length - 1]!.point(over);
-      script.fence = { at: over, point: { x: p.x, y: p.y, z: Math.max(p.z, Ballpark.wallHeight + 4) } };
-      script.landing = { point: target, mark: "homeRun", at: land };
+      const cleared = over ?? land;
+      const p = script.flights[script.flights.length - 1]!.point(cleared);
+      script.fence = { at: cleared, point: { x: p.x, y: p.y, z: Math.max(p.z, Ballpark.wallHeight + 4) } };
+      script.landing = { point: target, mark: "homeRun", at: land, z: to.z };
       script.ballGone = land + 0.15;
-      script.stamp = over + 0.05;
+      script.stamp = cleared + 0.05;
       // The trot: quicker than the game's, so the replay ends with him crossing the plate.
       this.runners(contact + 0.3, 140, new Map());
+      this.sequenceTrot(cleared + TROT_CUT, 140);
       return;
     }
 
@@ -590,15 +720,18 @@ export class Builder {
       this.actor(f1).act("scoop", land, ORIGIN);
       script.landing = { point: target, mark: scene.runners.some(isOut) ? "out" : "hit", at: land };
     } else {
-      // A hit falls in; the fielder gets to it a beat later.
-      held = land + 0.3;
+      // A hit falls in; the fielder gets to it a beat later (a measured one where it hops to him,
+      // one through the infield as it gets to him).
+      held = reached ?? land + (through == null ? 0.3 : 0);
       this.actor(f1).move([target], contact + 0.1, held, "out");
       this.actor(f1).act("scoop", held, ORIGIN);
-      script.landing = { point: target, mark: "hit", at: land };
+      script.landing = { point: target, mark: "hit", at: reached ?? land };
     }
+    if (scene.effort) this.stretch(f1, scene.effort, to, caught ? land : held);
 
     const throwing = scene.text.includes("throwing error");
-    if (scene.error != null && !throwing && scene.fielders.length <= 1) {
+    // MLB's credits say who booted it, and every throw (one that got away too); else ESPN's text.
+    if (handling?.fumble != null || (handling == null && scene.error != null && !throwing && scene.fielders.length <= 1)) {
       // A fielding error: the ball gets away from him.
       const d = Math.max(Ballpark.distance(target), 1);
       const loose = { x: target.x + (target.x / d) * 18, y: target.y + (target.y / d) * 18 };
@@ -606,7 +739,7 @@ export class Builder {
       this.actor(f1).move([loose], held + 0.05, held + 0.65, "out");
       holder = loose;
       held += 0.65;
-    } else if (throwing && scene.fielders.length <= 1) {
+    } else if (handling == null && throwing && scene.fielders.length <= 1) {
       // A throwing error: wide of first, and on into foul ground.
       this.actor(this.fielder(3)).move([Ballpark.bag(1)], contact + 0.1, held);
       this.throwBall(holder, Ballpark.bag(1), held + 0.16, { overshoot: true, by: first });
@@ -617,10 +750,11 @@ export class Builder {
     holder = chain.holder;
     held = chain.at;
 
-    if (scene.runners.every((r) => !isOut(r)) && scene.error == null) {
+    if (scene.runners.every((r) => !isOut(r)) && scene.error == null && (handling == null || handling.chain.length === 0)) {
       if (distance >= 165) {
         // A hit to the outfield: the ball comes back in to the cutoff.
-        const relay = target.x < 0 ? 6 : 4;
+        // (Not the man who went out for it.)
+        const relay = first === 6 ? 4 : first === 4 ? 6 : target.x < 0 ? 6 : 4;
         const cutoff = Ballpark.polar(150, degrees * 0.8);
         this.actor(this.fielder(relay)).move([cutoff], contact + 0.2, held);
         this.throwBall(holder, cutoff, held + 0.25, { by: first, catcher: relay });
@@ -643,11 +777,52 @@ export class Builder {
       this.actor(this.batter).move([{ x: 22, y: 22 }], contact + 0.15, land + 0.2, "linear");
       this.actor(this.batter).vanish = land + 0.25;
     }
+    // The rest of the story in order: the runs once the ball's been handled, then the batter's base.
+    const outTimes = [...chain.outs.values()];
+    const lastOut = outTimes.length > 0 ? Math.max(...outTimes) : null;
+    this.sequenceRuns(Math.max(chain.at, lastOut ?? 0), 95, scene.outsAfter >= 3 ? lastOut : null);
+  }
+
+  /**
+   * Replay seconds a second of a measured flight takes: one pace for the
+   * whole flight, near real time for a grounder, quicker the longer it hangs
+   * (a 5 s fly plays in about 2).
+   */
+  static pace(seconds: number): number {
+    return Math.min(0.82 * Math.max(seconds, 0.05) ** -0.42, 1);
+  }
+
+  /**
+   * The batted ball's real flight, when Statcast measured its launch: toward
+   * its spot, coming down at its measured distance (within this park's
+   * walls: a home run clears them, anything else stays in).
+   */
+  battedFlight(espnSpot: Point, caught: boolean): BattedFlight | null {
+    const batted = this.scene.measured?.batted;
+    const speed = batted?.launchSpeed;
+    const angle = batted?.launchAngle;
+    if (!batted || speed == null || angle == null) return null;
+    let spot = batted.spot ? Ballpark.feet({ x: batted.spot[0], y: batted.spot[1] }) : espnSpot;
+    if (this.atThePlate(spot)) spot = espnSpot;
+    spot = this.through(spot) ?? spot;
+    const degrees = (Ballpark.bearing(spot) * 180) / Math.PI;
+    const fence = Ballpark.fence(Ballpark.bearing(spot));
+    const measured = batted.distance != null ? Ballpark.polar(batted.distance, degrees) : null;
+    if (this.scene.kind.type === "homeRun") {
+      const landing = Ballpark.polar(Math.max(batted.distance ?? this.scene.distance ?? 0, fence + 18), degrees);
+      return new BattedFlight(speed, angle, this.contactPoint, landing, { kind: "homeRun" });
+    }
+    if (caught) {
+      const at = Ballpark.polar(Math.min(batted.distance ?? Ballpark.distance(spot), fence - 7), degrees);
+      return new BattedFlight(speed, angle, this.contactPoint, at, { kind: "caught", height: 4.5 });
+    }
+    if (Ballpark.distance(spot) > fence - 7) spot = Ballpark.polar(fence - 7, degrees);
+    return new BattedFlight(speed, angle, this.contactPoint, measured, { kind: "fielded", spot });
   }
 
   /** A spot for a ball in play ESPN didn't place: where the fielder named stands. */
   guessSpot(): Point {
-    const n = this.scene.fielders[0] ?? this.scene.error;
+    const n = this.handling?.fielder ?? this.scene.fielders[0] ?? this.scene.error;
     if (n != null) return n === 2 ? { x: 0, y: 12 } : n === 1 ? { x: 0, y: 45 } : Ballpark.position(n);
     switch (this.scene.kind.type) {
       case "homeRun":
@@ -692,21 +867,24 @@ export class Builder {
       .flatMap((r) => (r.end.kind === "out" && r.end.at != null && (r.end.at !== 0 || r.from > 0) ? [r.end.at] : []))
       .sort((a, b) => (b === 0 ? 4 : b) - (a === 0 ? 4 : a));
     const receivers = inferred ? [] : scene.fielders.slice(1);
-    let steps: { receiver: number | null; base: number | null }[];
+    let steps: { receiver: number | null; base: number | null; wild: boolean }[];
     if (receivers.length >= outBases.length) {
       const relays = receivers.length - outBases.length;
       const tail = suffix(receivers, outBases.length);
-      steps = [...receivers.slice(0, relays).map((r) => ({ receiver: r, base: null })), ...tail.map((r, i) => ({ receiver: r, base: outBases[i]! }))];
+      steps = [...receivers.slice(0, relays).map((r) => ({ receiver: r, base: null, wild: false })), ...tail.map((r, i) => ({ receiver: r, base: outBases[i]!, wild: false }))];
     } else {
       const missing = outBases.length - receivers.length;
       const tail = suffix(outBases, receivers.length);
-      steps = [...outBases.slice(0, missing).map((b) => ({ receiver: null, base: b })), ...receivers.map((r, i) => ({ receiver: r, base: tail[i]! }))];
+      steps = [...outBases.slice(0, missing).map((b) => ({ receiver: null, base: b, wild: false })), ...receivers.map((r, i) => ({ receiver: r, base: tail[i]!, wild: false }))];
     }
+    const lastStep = steps[steps.length - 1];
+    if (scene.error != null && !inferred && scene.text.includes("throwing error") && lastStep) lastStep.wild = true;
+    // MLB's credits name every throw: to whom, where, in the order of the outs, and the one that got away.
+    if (this.handling) steps = this.handling.chain.map((t) => ({ receiver: t.to, base: t.base, wild: t.wild }));
     let holder = start;
     let number = first;
     let held = time + 0.16;
     const outs = new Map<number, number>();
-    let wild = scene.error != null && !inferred && scene.text.includes("throwing error");
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i]!;
       const base = step.base;
@@ -716,7 +894,15 @@ export class Builder {
         if (r == null) continue;
         const next = steps.slice(i + 1).find((s) => s.base != null)?.base ?? 2;
         const bag = Ballpark.bag(next);
-        const cutoff = { x: holder.x + (bag.x - holder.x) * 0.45, y: holder.y + (bag.y - holder.y) * 0.45 };
+        let cutoff = { x: holder.x + (bag.x - holder.x) * 0.45, y: holder.y + (bag.y - holder.y) * 0.45 };
+        // A runner caught between bases (no ball in play): each man in the rundown takes it at his own
+        // bag, or chasing him off it toward the last one.
+        const own = RUNDOWN_BAGS[r];
+        if (!scene.inPlay && own != null) {
+          const a = Ballpark.bag(own);
+          const b = Ballpark.bag(own === next ? own - 1 : own);
+          cutoff = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        }
         this.actor(this.fielder(r)).move([cutoff], contact + 0.15, held);
         const arrive = this.throwBall(holder, cutoff, held, { by: number, catcher: r });
         holder = cutoff;
@@ -727,12 +913,12 @@ export class Builder {
       const bag = Ballpark.bag(base);
       const near = Math.hypot(bag.x - holder.x, bag.y - holder.y) < 32;
       const receiver = step.receiver ?? (near ? null : coverer(base, number));
-      const last = i === steps.length - 1;
       if (receiver != null && receiver !== number) {
         this.actor(this.fielder(receiver)).move([bag], contact + 0.1, Math.max(contact + 0.7, held - 0.05));
-        const arrive = this.throwBall(holder, bag, held, { overshoot: wild && last, by: number, catcher: receiver });
-        if (wild && last) {
-          wild = false;
+        const arrive = this.throwBall(holder, bag, held, { overshoot: step.wild, by: number, catcher: receiver });
+        if (step.wild) {
+          // Past him: whoever was waiting on it goes on.
+          this.loose = arrive - 0.1;
           continue;
         }
         outs.set(base, arrive);
@@ -772,12 +958,14 @@ export class Builder {
       const leave = r.from === 0 ? start + 0.04 : start;
       const end = r.end;
       if (end.kind === "base") {
-        if (!(end.base > r.from)) continue;
-        const b = end.base;
-        const arrive = Math.max(leave + ((b - r.from) * Ballpark.baseline) / pace, r.from === 0 ? (this.gathered ?? 0) : 0);
-        actor.move(this.basePath(r.from, b), leave, arrive);
-        // A steal, and a triple's last few strides: feet first.
-        if (scene.kind.type === "stolenBase" || (r.from === 0 && b === 3)) actor.slide = arrive - 0.26;
+        // (One who stays put has nowhere to go, unless a throw gets past.)
+        if (end.base > r.from) {
+          const b = end.base;
+          const arrive = Math.max(leave + ((b - r.from) * Ballpark.baseline) / pace, r.from === 0 ? (this.gathered ?? 0) : 0);
+          actor.move(this.basePath(r.from, b), leave, arrive);
+          // A steal, and a triple's last few strides: feet first.
+          if (scene.kind.type === "stolenBase" || (r.from === 0 && b === 3)) actor.slide = arrive - 0.26;
+        }
       } else if (end.kind === "scored") {
         const home = leave + ((4 - r.from) * Ballpark.baseline) / pace;
         actor.move(this.basePath(r.from, 4), leave, home);
@@ -803,26 +991,40 @@ export class Builder {
           if (target >= 2) actor.slide = Math.max(arrive - 0.26, leave + 0.1);
         }
       }
+      if (r.waits != null && this.loose != null) this.onTheThrow(r, index, r.waits, this.loose, leave, pace);
     }
   }
 
   // MARK: Strikeout, walk, runners
 
+  /** When the pitch pops the catcher's mitt. */
+  get pop(): number {
+    const tracked = this.tracked;
+    return tracked ? this.contact + (this.mittTime ?? tracked.plate) - tracked.plate : this.contact + 0.05;
+  }
+
+  /** The pitch, all the way into the catcher's mitt. */
+  pitchToMitt(): void {
+    if (this.tracked) this.trackedPitch(true);
+    else this.pitch(this.mitt, this.pop);
+  }
+
   strikeout(): void {
-    const { script, contact } = this;
+    const { script, contact, pop } = this;
     const mitt = this.mitt;
-    this.pitch(mitt, contact + 0.05);
-    this.actor(this.fielder(2)).act("glove", contact + 0.05, Ballpark.rubber);
+    this.pitchToMitt();
+    this.actor(this.fielder(2)).act("glove", pop, Ballpark.rubber);
     const k = this.scene.kind;
     if (k.type === "strikeout" && !k.looking) this.actor(this.batter).swing = contact - 0.03;
     // Strike three pops the mitt.
-    script.flashes.push({ beat: "catchBall", at: contact + 0.05, point: mitt });
-    script.flashes.push({ beat: "out", at: contact + 0.08, point: fieldPoint(Ballpark.box(this.hand)) });
-    script.stamp = contact + 0.14;
+    script.flashes.push({ beat: "catchBall", at: pop, point: mitt });
+    script.flashes.push({ beat: "out", at: pop + 0.03, point: fieldPoint(Ballpark.box(this.hand)) });
+    script.stamp = pop + 0.09;
     this.actor(this.batter).vanish = contact + 0.75;
     // A runner going on the pitch: strike him out, throw him out.
-    const chain = this.throwChain(ground(mitt), 2, contact + 0.05, true);
+    const chain = this.throwChain(ground(mitt), 2, pop, true);
     this.runners(this.pitchStart - 0.1, 80, chain.outs);
+    this.droppedThirdStrike(chain.outs);
   }
 
   walk(): void {
@@ -833,8 +1035,8 @@ export class Builder {
       script.flights.push(new Flight(contact - 0.02, contact + 0.35, at, { x: at.x * 0.4, y: 9, z: 0 }, { kind: "bounce", hops: 2 }, "out"));
       script.flashes.push({ beat: "hitBatter", at: contact - 0.02, point: at });
     } else {
-      this.pitch(this.mitt, contact + 0.05);
-      this.actor(this.fielder(2)).act("glove", contact + 0.05, Ballpark.rubber);
+      this.pitchToMitt();
+      this.actor(this.fielder(2)).act("glove", this.pop, Ballpark.rubber);
     }
     this.actor(this.batter).dropsBat = contact + 0.22;
     script.stamp = contact + 0.3;
@@ -846,7 +1048,8 @@ export class Builder {
   runnersPlay(): void {
     const { scene, script, contact } = this;
     const type = scene.kind.type;
-    const pitched = type !== "pickoff" && type !== "balk";
+    // (A runner caught stealing on a pickoff: the pitcher's throw, as MLB credits it or the text says.)
+    const pitched = type !== "pickoff" && type !== "balk" && this.handling?.fielder !== 1 && !scene.text.includes("picked off");
     let holder = ground(this.mitt);
     let holding = 2;
     let held = contact + 0.05;
@@ -877,12 +1080,17 @@ export class Builder {
     if (type === "stolenBase") {
       const r = scene.runners.find((x) => x.from > 0);
       if (r && r.end.kind === "base" && r.end.base > r.from) {
-        // The throw, a beat behind him.
+        // The throw, a beat behind him; one that got away (the text's throwing error) went to the
+        // base he stole, and he goes on from there as it's past.
         const b = r.end.base;
-        const bag = Ballpark.bag(b);
-        this.actor(this.fielder(coverer(b, 2))).move([bag], contact, contact + 0.6);
-        const safe = leave + ((b - r.from) * Ballpark.baseline) / 85 + 0.12;
-        this.throwBall(holder, bag, Math.max(safe - this.throwTime(holder, bag), held + 0.1), { by: holding, catcher: coverer(b, 2) });
+        const wild = b > r.from + 1 && scene.text.includes("throwing error");
+        const stolen = wild ? r.from + 1 : b;
+        const bag = Ballpark.bag(stolen);
+        this.actor(this.fielder(coverer(stolen, 2))).move([bag], contact, contact + 0.6);
+        const safe = leave + ((stolen - r.from) * Ballpark.baseline) / 85 + 0.12;
+        const past = this.throwBall(holder, bag, Math.max(safe - this.throwTime(holder, bag), held + 0.1), { overshoot: wild, by: holding, catcher: coverer(stolen, 2) });
+        const index = this.runner.get(r.from);
+        if (wild && index != null) this.onTheThrow(r, index, stolen, past - 0.1, leave, 85);
       }
     }
   }
@@ -899,6 +1107,9 @@ export class Builder {
     const reached = batterMoves.length > 0 ? batterMoves[batterMoves.length - 1]!.end : null;
     if (!Number.isFinite(script.stamp)) {
       script.stamp = lastOut ?? Math.max(reached ?? 0, script.landing?.at ?? this.contact + 0.3);
+      // The runs on the mark land as the last one crosses.
+      const run = this.crossings[this.crossings.length - 1]?.at;
+      if (run != null) script.stamp = Math.max(script.stamp, run);
     }
     const flightEnd = script.flights.length > 0 ? Math.max(...script.flights.map((f) => f.end)) : 0;
     const flashEnd = script.flashes.length > 0 ? Math.max(...script.flashes.map((f) => f.at)) : 0;
@@ -978,10 +1189,12 @@ export class Builder {
       code += width * (bold ? 1 : 0.5) + 0.25;
     }
     if (scene.runs > 0) code += 1.15;
-    // The title is at most about a third of the view (it steps down when longer).
-    const title = Math.min((scene.title.length + (scene.kind.type === "homeRun" && scene.distance != null ? 9 : 0)) * 0.72 * 0.28, 3.4);
-    const width = 0.055 + Math.max(code, title) * 0.2;
-    script.corner = { width: width / CameraFrame.aspect + 0.03, height: 0.3 };
+    // The title is at most about a third of the view (it steps down when longer); Statcast's line under it, about as wide.
+    const readout = scene.readout;
+    const title = Math.min((scene.title.length + (scene.kind.type === "homeRun" && scene.distance != null && readout == null ? 9 : 0)) * 0.72 * 0.28, 3.4);
+    const numbers = readout != null ? Math.min(readout.length * 0.6 * 0.26, 4.4) : 0;
+    const width = 0.055 + Math.max(code, title, numbers) * 0.2;
+    script.corner = { width: width / CameraFrame.aspect + 0.03, height: readout == null ? 0.3 : 0.36 };
   }
 
   /**
@@ -1031,7 +1244,597 @@ export class Builder {
     }
     script.duration = back + Actor.fade;
   }
+
+  // MARK: The official account, told in order
+
+  /**
+   * A ground ball an outfielder fielded (MLB's credit, else ESPN's text),
+   * marked short of the outfield grass: that's where it got through the
+   * infield, not where he picked it up. On along its line to where he meets
+   * it, charging in from where he plays. Null for anything else.
+   */
+  through(spot: Point): Point | null {
+    const n = this.handling?.fielder ?? this.scene.fielders[0];
+    if (this.scene.flight !== "ground" || n == null || n < 7 || n > 9) return null;
+    if (!(Math.hypot(spot.x - Ballpark.rubber.x, spot.y - Ballpark.rubber.y) < Ballpark.skin + 5)) return null;
+    const d = Math.max(Ballpark.distance(spot), 1);
+    const u = { x: spot.x / d, y: spot.y / d };
+    const home = Ballpark.position(n);
+    // Level with him on its line, less the ground he makes up charging it.
+    const meet = Math.max(home.x * u.x + home.y * u.y - 50, d + 40);
+    return { x: u.x * meet, y: u.y * meet };
+  }
+
+  /** A spot at the plate for a ball someone out in the field took (not the pitcher or the catcher): a glitch upstream (ESPN's and MLB's alike). */
+  atThePlate(spot: Point): boolean {
+    const n = this.handling?.fielder ?? this.scene.fielders[0];
+    return n != null && Ballpark.distance(spot) < 12 && n > 2;
+  }
+
+  /**
+   * A ground ball through the infield: the infielders it gets between reach
+   * for it as it goes by, and miss; the one MLB credits with a deflection gets
+   * a glove on it. (How far each goes is inferred: MLB says only who fielded
+   * it, and who it glanced off.)
+   */
+  reachForIt(first: number): void {
+    const index = this.script.batted;
+    if (index == null) return;
+    const flight = this.script.flights[index]!;
+    for (const n of [1, 3, 4, 5, 6]) {
+      if (n === first) continue;
+      const home = Ballpark.position(n);
+      // Where and when it passes nearest him, low enough to reach.
+      let near = { at: flight.end, d: Infinity, p: ORIGIN };
+      for (let k = 0; k <= 80; k++) {
+        const t = flight.start + ((flight.end - flight.start) * k) / 80;
+        const p = flight.point(t);
+        const d = Math.hypot(p.x - home.x, p.y - home.y);
+        if (p.z < 6 && d < near.d) near = { at: t, d, p: ground(p) };
+      }
+      // As far as he can get before it's by (about 28 ft a second), and near enough to try.
+      const glances = n === this.handling?.deflection;
+      const steps = Math.max(near.at - this.contact - 0.1, 0) * 28;
+      if (!(glances || (near.d < 32 && near.d - steps < 10))) continue;
+      // A few quick steps (all the way, for the man it glances off), the glove down as it goes by.
+      const reach = glances ? 1 : Math.min(Math.max(1 - 6 / Math.max(near.d, 1), 0), 0.8, steps / Math.max(near.d, 1));
+      const spot = { x: home.x + (near.p.x - home.x) * reach, y: home.y + (near.p.y - home.y) * reach };
+      this.actor(this.fielder(n)).move([spot], this.contact + 0.06, near.at, "out");
+      this.actor(this.fielder(n)).act("scoop", near.at, near.p);
+    }
+  }
+
+  /**
+   * A catch the scorer's text calls diving or leaping: his last strides at
+   * full stretch, the glove to the ball low on the grass or up over his head
+   * (`Actor.dive`, for the figures to draw; until they do, a lunge stands in
+   * for a dive).
+   */
+  stretch(index: number, effort: Effort, ball: FieldPoint, time: number): void {
+    const actor = this.actor(index);
+    const from = actor.position(time - 0.3);
+    const d = Math.hypot(ball.x - from.x, ball.y - from.y);
+    const diving = effort === "diving";
+    const landing = diving && d > 1 ? { x: ball.x + ((ball.x - from.x) / d) * 4, y: ball.y + ((ball.y - from.y) / d) * 4 } : ground(ball);
+    const glove = fieldPoint(ground(ball), diving ? Math.min(ball.z, 1.5) : Math.max(ball.z, 8.5));
+    actor.dive = { start: time - 0.3, reach: time, target: glove, landing };
+    if (!diving) return;
+    actor.actions = actor.actions.filter((a) => !(Math.abs(a.at - time) < 0.01));
+    actor.act("scoop", time, ground(ball));
+    actor.move([landing], time, time + 0.3, "out");
+  }
+
+  /**
+   * The rest of the play in the order a replay tells it: once the ball's been
+   * handled (fielded, thrown, the outs made), each run crosses the plate, the
+   * lead runner first, a beat apart; then the batter takes his extra base.
+   * Runners leave as the play has them; one who'd be home sooner (off screen,
+   * while the camera's on the ball) is held at third first. A run beats a
+   * third out, though: after one it wouldn't count.
+   */
+  sequenceRuns(told: number, pace: number, third: number | null): void {
+    const { scene } = this;
+    let last = -Infinity;
+    let clear = -Infinity;
+    for (const r of scene.runners.filter((x) => x.end.kind === "scored").sort((a, b) => b.from - a.from)) {
+      const index = this.runner.get(r.from);
+      const moves = index != null ? this.actor(index).moves : [];
+      const leave = moves[0]?.start;
+      const natural = moves[moves.length - 1]?.end;
+      if (index == null || leave == null || natural == null) continue;
+      const cross = third == null ? Math.max(natural, told + 0.55, last + 0.6) : natural;
+      if (cross > natural + 0.01) {
+        // Held at third, unless the man ahead is still there when he'd get to it.
+        const atThird = leave + ((3 - Math.min(r.from, 3)) * Ballpark.baseline) / pace;
+        this.holdThenRun(index, r.from, atThird > clear + 0.1 ? 3 : 2, cross, natural, pace);
+      }
+      this.crossings.push({ actor: index, at: cross });
+      last = cross;
+      clear = cross - Ballpark.baseline / pace;
+    }
+    // The batter into second or third once they're in, while he's still running it.
+    const end = scene.batter?.end;
+    const lastRun = this.crossings[this.crossings.length - 1]?.at;
+    const moves = this.actor(this.batter).moves;
+    const move = moves[moves.length - 1];
+    const finish = move?.path[move.path.length - 1];
+    if (lastRun == null || end?.kind !== "base" || end.base < 2 || scene.batter?.waits != null || !move || !finish) return;
+    if (!samePoint(finish, Ballpark.base(end.base)) || !(move.end < lastRun + 0.45)) return;
+    const arrive = lastRun + 0.45;
+    if (!((end.base * Ballpark.baseline) / (arrive - move.start) >= 50)) return;
+    const batter = this.actor(this.batter);
+    batter.move(this.basePath(0, end.base), move.start, arrive);
+    if (batter.slide != null) batter.slide = arrive - 0.26;
+  }
+
+  /**
+   * A home run's trot as the replay tells it: the runners watch it go, then
+   * come in ahead of the batter, a beat apart, once the camera has cut to the
+   * trot (so it sees every run cross); the batter last.
+   */
+  sequenceTrot(cut: number, pace: number): void {
+    let last = -Infinity;
+    const order = this.scene.runners
+      .filter((r) => r.end.kind === "scored")
+      .sort((a, b) => (a.from === 0 ? (b.from === 0 ? 0 : 1) : b.from === 0 ? -1 : b.from - a.from));
+    order.forEach((r, k) => {
+      const index = this.runner.get(r.from);
+      const moves = index != null ? this.actor(index).moves : [];
+      const move = moves[moves.length - 1];
+      if (index == null || !move) return;
+      const natural = move.end;
+      const cross = Math.max(natural, cut + 0.1 + 0.4 * k, last + 0.4);
+      if (cross > natural + 0.01) {
+        if (r.from === 0) {
+          // The batter: the same trot, a little slower.
+          this.actor(index).move(this.basePath(0, 4), move.start, cross);
+          this.retime(index, natural, cross);
+        } else {
+          this.holdThenRun(index, r.from, null, cross, natural, pace);
+        }
+      }
+      this.crossings.push({ actor: index, at: cross });
+      last = cross;
+    });
+  }
+
+  /**
+   * A runner who scores later than his pace would have him. On a ball in
+   * play he runs on as far as `hold` (third, or second while the man ahead is
+   * still on third) and is held there until he must go (from his own base, a
+   * couple of shuffles off it first); on a home run (`hold` null) he watches
+   * it from his base, then trots. Either way he crosses at `arrive`, and the
+   * plate's pop moves with him.
+   */
+  holdThenRun(index: number, base: number, hold: number | null, arrive: number, natural: number, pace: number): void {
+    const actor = this.actor(index);
+    const leave = actor.moves[0]?.start;
+    if (leave == null) return;
+    const at = actor.at;
+    const stop = Math.max(hold ?? base, base);
+    const reach = leave + ((stop - base) * Ballpark.baseline) / pace;
+    const go = Math.max(arrive - ((4 - stop) * Ballpark.baseline) / pace, reach);
+    actor.moves = [];
+    if (stop > base) {
+      actor.move(this.basePath(base, stop), leave, reach);
+    } else if (hold != null && go > leave + 0.3) {
+      const next = Ballpark.base(base + 1);
+      const d = Math.hypot(next.x - at.x, next.y - at.y);
+      if (d > 12) actor.move([{ x: at.x + ((next.x - at.x) / d) * 8, y: at.y + ((next.y - at.y) / d) * 8 }], leave, Math.min(leave + 0.5, go), "out");
+    }
+    actor.move(this.basePath(stop, 4), go, arrive);
+    this.retime(index, natural, arrive);
+  }
+
+  /**
+   * Strike three that got away from the catcher (MLB credits his throw to
+   * first): the batter drops the bat and runs for it once the pitch is by,
+   * out a step behind the throw (or safe at first, when he beat it).
+   */
+  droppedThirdStrike(outs: ReadonlyMap<number, number>): void {
+    const r = this.scene.batter;
+    if (!r) return;
+    let base: number;
+    if (r.end.kind === "out" && r.end.at != null && r.end.at > 0) base = r.end.at;
+    else if (r.end.kind === "base" && r.end.base > 0) base = r.end.base;
+    else return;
+    const { pop } = this;
+    const arrive = Math.max((outs.get(base) ?? pop + 1.0) + 0.1, pop + 0.7);
+    const batter = this.actor(this.batter);
+    batter.moves = [];
+    batter.move(this.basePath(0, base), pop + 0.12, arrive);
+    batter.dropsBat = pop + 0.12;
+    batter.vanish = isOut(r) ? arrive + 0.25 : Infinity;
+    // Not out at the plate after all.
+    const box = Ballpark.box(this.hand);
+    this.script.flashes = this.script.flashes.filter((f) => !(f.beat === "out" && samePoint(ground(f.point), box)));
+  }
+
+  /** A run's moment moved: the plate's pop, and when he's gone. */
+  retime(index: number, natural: number, cross: number): void {
+    const flashes = this.script.flashes;
+    const i = flashes.findIndex((f) => f.beat === "run" && Math.abs(f.at - natural) < 0.001);
+    if (i >= 0) flashes[i] = { ...flashes[i]!, at: cross };
+    this.actor(index).vanish = cross + 0.15;
+  }
+
+  /**
+   * MLB's account of a runner who took his last base on a throw that got
+   * away (or went elsewhere): he gets to the base before it, waits, and goes
+   * on as the ball gets past.
+   */
+  onTheThrow(r: Runner, index: number, waits: number, loose: number, leave: number, pace: number): void {
+    let end: number;
+    if (r.end.kind === "base") end = r.end.base;
+    else if (r.end.kind === "scored") end = 4;
+    else return;
+    if (!((waits > r.from || r.from === 0) && waits < end)) return;
+    const reach = leave + ((waits - r.from) * Ballpark.baseline) / pace;
+    const go = Math.max(loose, reach + 0.1);
+    const arrive = go + ((end - waits) * Ballpark.baseline) / pace;
+    const actor = this.actor(index);
+    const natural = actor.moves[actor.moves.length - 1]?.end ?? arrive;
+    actor.moves = [];
+    actor.move(this.basePath(r.from, waits), leave, reach);
+    actor.move(this.basePath(waits, end), go, arrive);
+    if (end === 4) this.retime(index, natural, arrive);
+    if (actor.slide != null) actor.slide = arrive - 0.26;
+  }
 }
+
+/** In a rundown, the bag each infielder takes it at (0: home). */
+const RUNDOWN_BAGS: Readonly<Record<number, number>> = { 2: 0, 3: 1, 4: 2, 5: 3, 6: 2 };
 
 /** Marks drawn bold in the stamp even without a number. */
 export const STAMP_MARKS: ReadonlySet<string> = new Set(["HR", "BB", "HBP", "IBB", "SB", "WP", "PB", "BK", "DI", "K"]);
+
+// MARK: - Measured flights
+
+/** Where a tracked pitch is in the field's frame, which is Statcast's own: feet from the plate's point, x toward first base (the catcher's right), y out toward the mound, z up. */
+export function pitchPoint(p: StatcastPitch, t: number): FieldPoint {
+  const [x, y, z] = pitchPosition(p, t);
+  return { x, y, z };
+}
+
+/** When it's `y` feet from the plate's point on its way in: before its fit's start for the hand (Statcast starts it at 50 ft), past the plate for the mitt. */
+export function pitchTimeAt(p: StatcastPitch, y: number): number | null {
+  const a = p.acceleration[1] / 2;
+  const b = p.velocity[1];
+  const c = p.release[1] - y;
+  if (a === 0) return b === 0 ? null : -c / b;
+  const d = b * b - 4 * a * c;
+  if (d < 0) return null;
+  return [(-b - Math.sqrt(d)) / (2 * a), (-b + Math.sqrt(d)) / (2 * a)].find((t) => p.velocity[1] + p.acceleration[1] * t < 0) ?? null;
+}
+
+/** When it first drops to `height` feet after `t` (a pitch in the dirt), if it does. */
+export function pitchTimeAtHeight(p: StatcastPitch, height: number, after: number): number | null {
+  const a = p.acceleration[2] / 2;
+  const b = p.velocity[2];
+  const c = p.release[2] - height;
+  const d = b * b - 4 * a * c;
+  if (a === 0 || d < 0) return null;
+  const roots = [(-b - Math.sqrt(d)) / (2 * a), (-b + Math.sqrt(d)) / (2 * a)].filter((t) => t > after);
+  return roots.length > 0 ? Math.min(...roots) : null;
+}
+
+/** How a measured flight ends: in a glove this high (feet) where it comes down; on along the ground after it lands, to where it was fielded; over the fence and into the seats. */
+export type BattedEnd = { readonly kind: "caught"; readonly height: number } | { readonly kind: "fielded"; readonly spot: Point } | { readonly kind: "homeRun" };
+
+/** A moment of the flight in its own upright plane: feet along the ground and up, and their speeds (feet a second). */
+interface FlightState {
+  s: number;
+  z: number;
+  vs: number;
+  vz: number;
+}
+
+/**
+ * A batted ball's real flight, from Statcast's launch: off the bat at its
+ * exit velocity and launch angle, toward its spot, under gravity, air drag
+ * and the lift of its backspin. Each ball's drag is calibrated (by false
+ * position, once, when the script is built) so it comes down where MLB
+ * measured it: caught where it was caught; a hit, or a grounder's first hop,
+ * landing at its distance and hopping on to its fielder; a drive off the
+ * wall back to him; a home run into the seats. The lift is fixed (about a fly
+ * ball's), so hang times come out real: a 105 mph fly at 28° carries 400 ft
+ * in about 5 s, a liner is on its fielder in under 2, a pop-up hangs for 5.
+ * Sampled every 1/120 s of the game's time; drawing reads the samples.
+ */
+export class BattedFlight {
+  /** The game's seconds between samples. */
+  static readonly step = 1 / 120;
+  static readonly gravity = 32.174;
+  /**
+   * Drag, as k in a deceleration of k·v² (per foot): a baseball's is about
+   * 0.0022 (what it meets once it's down). The calibration stays in this
+   * range and stretches the path for whatever's left (nothing, for a real ball).
+   */
+  static readonly drag = { lower: 0.0004, upper: 0.006 };
+  static readonly airDrag = 0.0022;
+  /** Lift, as k·v² square to the flight: a fly ball's backspin (a lift coefficient near 0.16), fading out for a ball driven into the ground. */
+  static lift(degrees: number): number {
+    return 0.0009 * Math.min(Math.max(degrees / 15, 0), 1);
+  }
+  /**
+   * Off the ground: how much of its vertical speed a hop keeps; the grip of a
+   * bounce (pace lost in proportion to the vertical speed it turns round: a
+   * chopper slows, a skipping liner hardly); a roll's friction (ft/s²).
+   */
+  static readonly restitution = 0.45;
+  static readonly scuff = 0.35;
+  static readonly friction = 3.0;
+
+  /** The ball every `step` from contact. */
+  readonly points: readonly FieldPoint[];
+  /** Seconds from contact: when it first touches the grass (or is caught, or lands in the seats), and every touchdown, that one included. */
+  readonly touchdown: number;
+  readonly hops: readonly number[];
+  /** A home run's moment over the fence. */
+  readonly over: number | null;
+
+  get duration(): number {
+    return Math.max(this.points.length - 1, 0) * BattedFlight.step;
+  }
+
+  /**
+   * `speed` (mph) and `angle` (degrees) off the bat at `contact`, coming down
+   * at `landing` (caught there, a home run's spot on the field's level, a
+   * hit's first bounce; null: wherever an average ball's drag brings it,
+   * toward its spot).
+   */
+  constructor(speed: number, angle: number, contact: FieldPoint, landing: Point | null, end: BattedEnd) {
+    const B = BattedFlight;
+    const spot = end.kind === "fielded" ? end.spot : null;
+    const aim = landing ?? spot ?? { x: 0, y: 200 };
+    const reach = Math.max(Math.hypot(aim.x - contact.x, aim.y - contact.y), 1);
+    const u = { x: (aim.x - contact.x) / reach, y: (aim.y - contact.y) / reach };
+    const v0 = (speed * 5280) / 3600;
+    const a = (Math.min(angle, 88) * Math.PI) / 180;
+    const lift = B.lift(angle);
+    const start: FlightState = { s: 0, z: Math.max(contact.z, 0.3), vs: v0 * Math.cos(a), vz: v0 * Math.sin(a) };
+    const field = (s: number, z: number): FieldPoint => ({ x: contact.x + u.x * s, y: contact.y + u.y * s, z: Math.max(z, 0) });
+    // This park's fence, in feet along the flight.
+    const fence = Ballpark.fence(Ballpark.bearing(aim)) - (contact.x * u.x + contact.y * u.y);
+    let floor = 0;
+    if (end.kind === "caught") {
+      // A liner caught at his shoetops comes down only that far.
+      floor = Math.min(end.height, Math.max(start.z + Math.max(start.vz, 0) ** 2 / (2 * B.gravity) - 0.75, 0.3));
+    }
+    // Where it comes down: a home run far enough out to clear this park's
+    // fence; a drive that would land past it hits the wall instead.
+    let goal: number | null = landing == null ? null : reach;
+    let offWall = false;
+    if (end.kind === "homeRun") goal = Math.max(goal ?? 0, fence + 18);
+    else if (end.kind === "fielded" && goal != null && goal > fence - 3) {
+      offWall = true;
+      goal = Math.min(goal, fence + 6);
+    }
+    let drag = B.airDrag;
+    let stretch = 1;
+    if (goal != null) {
+      [drag, stretch] = B.calibrate(start, lift, floor, goal);
+      // Over the wall's top, not through it.
+      let clear = goal;
+      while (end.kind === "homeRun" && clear < fence + 80 && B.height(start, drag, lift, fence / stretch) < Ballpark.wallHeight + 3) {
+        clear += 8;
+        [drag, stretch] = B.calibrate(start, lift, floor, clear);
+      }
+    }
+    // Fielded before it came down: it ends at the glove.
+    const spotAlong = spot ? Math.hypot(spot.x - contact.x, spot.y - contact.y) : null;
+    const fieldedAt = spotAlong != null && !offWall && spotAlong < (goal ?? Infinity) - 2 ? spotAlong : null;
+    const air = B.fly(start, drag, lift, floor, (offWall ? fence - 1 : (fieldedAt ?? Infinity)) / stretch, true);
+    let points = air.path.map((p) => field(p.s * stretch, p.z));
+    const hops: number[] = [];
+    let over: number | null = null;
+
+    if (end.kind === "homeRun") {
+      // Over the fence, then down into the seats.
+      const beyond = (p: FieldPoint) => Ballpark.distance(ground(p)) - Ballpark.fence(Ballpark.bearing(ground(p)));
+      const cut = points.findIndex((p) => beyond(p) > 0 && p.z <= B.seats(beyond(p)));
+      if (cut >= 0) {
+        points = points.slice(0, cut + 1);
+        points[cut] = { ...points[cut]!, z: B.seats(beyond(points[cut]!)) };
+      }
+      const i = points.findIndex((p) => beyond(p) >= 0);
+      over = i >= 0 ? i * B.step : null;
+    } else if (end.kind === "fielded" && (air.landed || offWall)) {
+      let down = { ...air.end, s: air.end.s * stretch };
+      if (!air.landed) {
+        // Off the wall: back off it, and down.
+        const carom = B.fly({ s: down.s, z: down.z, vs: -0.45 * down.vs, vz: 0.6 * down.vz }, drag, 0, 0, Infinity, true);
+        points = [...points, ...carom.path.slice(1).map((p) => field(p.s, p.z))];
+        down = carom.end;
+      }
+      hops.push((points.length - 1) * B.step);
+      // On along the ground to the fielder.
+      const at = ground(field(down.s, 0));
+      const length = Math.hypot(end.spot.x - at.x, end.spot.y - at.y);
+      if (length > 1) {
+        const w = { x: (end.spot.x - at.x) / length, y: (end.spot.y - at.y) / length };
+        const along = B.along(Math.abs(down.vs), Math.min(down.vz, 0), length);
+        const first = points.length - 1;
+        points = [...points, ...along.path.slice(1).map((p) => ({ x: at.x + w.x * p.s, y: at.y + w.y * p.s, z: p.z }))];
+        hops.push(...along.hops.map((h) => (first + h) * B.step));
+      }
+    }
+    this.points = points;
+    this.touchdown = hops[0] ?? (points.length - 1) * B.step;
+    this.hops = hops;
+    this.over = over;
+  }
+
+  point(seconds: number): FieldPoint {
+    const points = this.points;
+    if (points.length <= 1) return points[0] ?? { x: 0, y: 0, z: 0 };
+    const i = Math.min(Math.max(seconds / BattedFlight.step, 0), points.length - 1);
+    const lower = Math.min(Math.trunc(i), points.length - 2);
+    const f = i - lower;
+    const p = points[lower]!;
+    const q = points[lower + 1]!;
+    return { x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, z: p.z + (q.z - p.z) * f };
+  }
+
+  /** The seats' height this far past the fence (the stands the field draws). */
+  static seats(beyond: number): number {
+    return beyond < 6 ? Ballpark.wallHeight + beyond / 3 : Math.min(Ballpark.wallHeight + 2 + (beyond - 6) / 2, 44);
+  }
+
+  // MARK: Simulation
+
+  /** One step (1/120 s), midpoint: gravity, drag against the flight, lift square to it. */
+  static advance(p: FlightState, k: number, l: number): FlightState {
+    const dt = BattedFlight.step;
+    const g = BattedFlight.gravity;
+    let v = Math.sqrt(p.vs * p.vs + p.vz * p.vz);
+    const ms = p.vs + ((-k * v * p.vs - l * v * p.vz) * dt) / 2;
+    const mz = p.vz + ((-g - k * v * p.vz + l * v * p.vs) * dt) / 2;
+    v = Math.sqrt(ms * ms + mz * mz);
+    return { s: p.s + ms * dt, z: p.z + mz * dt, vs: p.vs + (-k * v * ms - l * v * mz) * dt, vz: p.vz + (-g - k * v * mz + l * v * ms) * dt };
+  }
+
+  /** Part of the way from one moment to the next. */
+  static between(p: FlightState, q: FlightState, f: number): FlightState {
+    return { s: p.s + (q.s - p.s) * f, z: p.z + (q.z - p.z) * f, vs: p.vs + (q.vs - p.vs) * f, vz: p.vz + (q.vz - p.vz) * f };
+  }
+
+  /**
+   * Through the air until it comes down through `floor`, reaches `limit`
+   * feet along, or 12 s pass: every step on the way when `record`ed, where
+   * it ended, and whether that was coming down.
+   */
+  static fly(start: FlightState, k: number, l: number, floor: number, limit = Infinity, record = false): { path: FlightState[]; end: FlightState; landed: boolean } {
+    let p = start;
+    const path: FlightState[] = record ? [start] : [];
+    for (let n = 0; n < 12 * 120; n++) {
+      const q = BattedFlight.advance(p, k, l);
+      if (q.vz < 0 && q.z <= floor && p.z > floor) {
+        const end = BattedFlight.between(p, q, (p.z - floor) / (p.z - q.z));
+        if (record) path.push(end);
+        return { path, end, landed: true };
+      }
+      if (q.s >= limit) {
+        const end = BattedFlight.between(p, q, (limit - p.s) / Math.max(q.s - p.s, 1e-9));
+        if (record) path.push(end);
+        return { path, end, landed: false };
+      }
+      p = q;
+      if (record) path.push(p);
+    }
+    return { path, end: p, landed: false };
+  }
+
+  /** Its height `s` feet along. */
+  static height(start: FlightState, k: number, l: number, s: number): number {
+    return BattedFlight.fly(start, k, l, -Infinity, s, false).end.z;
+  }
+
+  /** The drag that brings it down `goal` feet along (false position, a few flights), and the stretch that makes up the last inches, or whatever the drag's range can't. */
+  static calibrate(start: FlightState, l: number, floor: number, goal: number): [number, number] {
+    const reach = (k: number) => Math.max(BattedFlight.fly(start, k, l, floor, Infinity, false).end.s, 0.1);
+    let low = BattedFlight.drag.lower;
+    let high = BattedFlight.drag.upper;
+    let far = reach(low);
+    let near = reach(high);
+    if (goal >= far) return [low, goal / far];
+    if (goal <= near) return [high, goal / near];
+    let k = BattedFlight.airDrag;
+    let r = reach(k);
+    let side = 0;
+    for (let i = 0; i < 8 && Math.abs(r - goal) > 0.1; i++) {
+      if (r > goal) {
+        low = k;
+        far = r;
+      } else {
+        high = k;
+        near = r;
+      }
+      // Illinois: an end kept twice running counts half, so neither stalls.
+      const lean = r > goal ? 1 : -1;
+      if (side === lean) {
+        if (lean > 0) near = goal + (near - goal) / 2;
+        else far = goal + (far - goal) / 2;
+      }
+      side = lean;
+      k = low + ((far - goal) / (far - near)) * (high - low);
+      r = reach(k);
+    }
+    return [k, goal / r];
+  }
+
+  /**
+   * Along the ground from where it came down, `length` feet to its fielder:
+   * hops, each lower and a little slower, then a roll. A ball that would stop
+   * short (a dribbler the fielder charged) rolls on with less friction, as
+   * far as it must. Every step, and the hops' steps.
+   */
+  static along(speed: number, sink: number, length: number): { path: { s: number; z: number }[]; hops: number[] } {
+    if (BattedFlight.run(speed, sink, 1, length, false).reached) {
+      const r = BattedFlight.run(speed, sink, 1, length, true);
+      return { path: r.path, hops: r.hops };
+    }
+    // It would stop short: less friction, so it would roll a little past him.
+    let low = 0;
+    let high = 1;
+    for (let i = 0; i < 12; i++) {
+      const grip = (low + high) / 2;
+      if (BattedFlight.run(speed, sink, grip, Infinity, false).s > length * 1.15) low = grip;
+      else high = grip;
+    }
+    const r = BattedFlight.run(speed, sink, low, length, true);
+    const last = r.path[r.path.length - 1];
+    if (r.reached || !last || !(last.s > 0)) return { path: r.path, hops: r.hops };
+    // Not even then (a very soft ball, a long way): the same roll, drawn out to him.
+    return { path: r.path.map((p) => ({ s: (p.s * length) / last.s, z: p.z })), hops: r.hops };
+  }
+
+  /** The ground's part of a flight with friction scaled by `grip`, to `end` feet on or until it stops (10 s at most). */
+  static run(speed: number, sink: number, grip: number, end: number, record: boolean): { path: { s: number; z: number }[]; hops: number[]; reached: boolean; s: number } {
+    const B = BattedFlight;
+    const dt = B.step;
+    const k = B.airDrag;
+    let s = 0;
+    let z = 0;
+    let v = speed;
+    let vz = 0;
+    let rolling = false;
+    let landing = sink;
+    const path: { s: number; z: number }[] = record ? [{ s: 0, z: 0 }] : [];
+    const hops: number[] = [];
+    for (let n = 1; n <= 10 * 120; n++) {
+      if (landing < 0) {
+        // A bounce: up again at a fraction of its sink, its pace scuffed in proportion.
+        const up = -landing * B.restitution;
+        v = Math.max(v - grip * B.scuff * (up - landing), v * 0.5);
+        if (up < 2.5) {
+          rolling = true;
+          vz = 0;
+        } else {
+          vz = up;
+        }
+        if (n > 1 && !rolling) hops.push(n - 1);
+        landing = 0;
+      }
+      if (rolling) {
+        v = Math.max(v - (B.friction * grip + k * v * v) * dt, 0);
+      } else {
+        v = Math.max(v - k * v * v * dt, 0);
+        z += vz * dt - (B.gravity * dt * dt) / 2;
+        vz -= B.gravity * dt;
+        if (z <= 0) {
+          z = 0;
+          landing = vz;
+        }
+      }
+      if (s + v * dt >= end) {
+        if (record) path.push({ s: end, z });
+        return { path, hops, reached: true, s: end };
+      }
+      s += v * dt;
+      if (record) path.push({ s, z });
+      if (rolling && v < 0.5) break;
+    }
+    return { path, hops, reached: false, s };
+  }
+}
