@@ -477,6 +477,21 @@ export interface RigFeet {
 }
 
 const F32 = (n: number) => new Float32Array(n);
+
+/**
+ * A script's ball, looked up once per instant while its figures are
+ * measured (a web addition): every track samples the same 1/60 s grid, so
+ * each figure that watches the ball asks for it at the same times.
+ */
+export function ballMemo<B>(script: { ball(t: number): B }): (t: number) => B {
+  const seen = new Map<number, B>();
+  return (t) => {
+    if (seen.has(t)) return seen.get(t) as B;
+    const b = script.ball(t);
+    seen.set(t, b);
+    return b;
+  };
+}
 const STILL_WEIGHT = Math.fround(0.04);
 
 /**

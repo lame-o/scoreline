@@ -23,7 +23,7 @@
 import { CameraFrame, CameraTrack, shoot, type Shot } from "./playCamera";
 import { coverer, isOut, type Hand, type PlayScene } from "./playScene";
 import { Ballpark, distanceBetween, easeValue, fieldPoint, ground, ORIGIN, samePoint, type Ease, type FieldPoint, type Point } from "./theaterField";
-import { RigTrack, type RigFacing } from "../theater/rig";
+import { ballMemo, RigTrack, type RigFacing } from "../theater/rig";
 
 export type Team = "fielding" | "batting";
 
@@ -367,6 +367,7 @@ export class PlayScript {
   measureBodies(): void {
     const contact = this.batted != null ? (this.flights[this.batted]?.start ?? null) : null;
     const settle = this.settle;
+    const ball = ballMemo(this);
     this.rig = this.actors.map((actor) =>
       RigTrack.measure(0, this.duration, 8.5, (t) => actor.position(t), (t): RigFacing => {
         const a = actor.actions.find((a) => t > a.at - (a.kind === "throwBall" ? 0.5 : 0.45) && t < a.at + 0.2);
@@ -375,8 +376,8 @@ export class PlayScript {
         switch (role.kind) {
           case "fielder": {
             if (role.n === 2) return { point: Ballpark.rubber };
-            const ball = contact != null && t > contact + 0.05 && t < settle ? this.ball(t) : null;
-            return { point: ball ? ground(ball) : ORIGIN };
+            const b = contact != null && t > contact + 0.05 && t < settle ? ball(t) : null;
+            return { point: b ? ground(b) : ORIGIN };
           }
           case "batter":
             return { point: ORIGIN };

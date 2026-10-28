@@ -26,7 +26,7 @@ import { CameraFrame } from "../mlb/playCamera";
 import { Move } from "../mlb/playScript";
 import { easeValue, fieldPoint, ground, type Ease, type FieldPoint, type Point } from "../mlb/theaterField";
 import { attacksRight, characters, crossbar, goalOf, Pitch, scored, stampDetail, surname, type SoccerScene, type Touch } from "./soccerScene";
-import { RigTrack, type RigFacing } from "./rig";
+import { ballMemo, RigTrack, type RigFacing } from "./rig";
 import { CameraFollow } from "./theaterKit";
 import { BIG_CHANCE_XG } from "../liveFeeds/soccer";
 
@@ -250,14 +250,15 @@ export class SoccerScript {
    * celebrating toward or the goal he turned it into; else the ball.
    */
   measureBodies(): void {
+    const ball = ballMemo(this);
     this.rig = this.actors.map((actor) =>
       RigTrack.measure(0, this.duration, 2.5, (t) => actor.position(t), (t): RigFacing | null => {
         for (let i = actor.actions.length - 1; i >= 0; i--) {
           const a = actor.actions[i]!;
           if (t > a.at - 0.45 && (t < a.at + 0.2 || HELD.has(a.kind))) return { point: a.toward };
         }
-        const ball = this.ball(t);
-        return ball ? { point: ground(ball) } : null;
+        const b = ball(t);
+        return b ? { point: ground(b) } : null;
       }),
     );
   }
