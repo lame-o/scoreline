@@ -11,8 +11,8 @@
  *   docs/screenshots/web/<name>-<theme>.webp         1600×1000, the README's
  *   docs/screenshots/web/2400/<name>-<theme>.webp    2400×1500, for press and posts
  *   docs/screenshots/web/pages/<name>-<theme>.webp   every page, framed, for the galleries
- *   docs/screenshots/mac/<name>-<theme>.webp         the Mac pipeline's framed images (macImports), or a
- *                                                    placeholder until they exist; mac/pages/ for its panels
+ *   docs/screenshots/mac/<name>-<theme>.webp         the Mac pipeline's framed images (macImports), once they
+ *                                                    exist (never a placeholder); mac/pages/ for its panels
  *   docs/social-preview.png                          1280×640, GitHub's social preview
  *
  * Needs cwebp and ImageMagick (`brew install webp imagemagick`).
@@ -134,7 +134,8 @@ try {
       if (c.kind === "phones") spec.phones = c.phones.map((p) => { const image = raw(p.source, theme); return { image, ...(image ? topEdge(image) : {}) }; });
       if (c.kind === "mac") Object.assign(spec, { panels: c.panels.map((p) => ({ image: macRaw(p.source, theme), label: p.label })), icon: pathToFileURL(join(repo, "web/public/icon-512.png")).href });
       if (c.kind === "grid") Object.assign(spec, { kind: "grid", cards: c.cards.map((card) => ({ ...card, image: raw(card.source, theme) })) });
-      const missing = (spec.image === null) || spec.phones?.some((p) => !p.image) || spec.cards?.some((x) => !x.image);
+      // Nothing is drawn without its pixels: a Mac frame waits for the Mac renders rather than ship a placeholder.
+      const missing = (spec.image === null) || spec.phones?.some((p) => !p.image) || spec.cards?.some((x) => !x.image) || spec.panels?.some((p) => !p.image);
       if (missing) {
         console.warn(`· ${c.name} ${theme}: missing raw capture, skipped`);
         continue;

@@ -60,7 +60,7 @@ export const captures = [
     },
   },
 
-  // Each sport's live page, its theater mid-play (frames timed from the page opening; pick one in compositions).
+  // Each sport's live page, its isometric view mid-play (frames timed from the page opening; pick one in compositions).
   { name: "mlb", path: MLB, frames: [6000, 6800, 7600, 9000, 9600, 10400], prepare: async (page, h) => { await h.scores(); } },
   {
     name: "nfl",
@@ -82,7 +82,7 @@ export const captures = [
   { name: "cs2-final", path: "/game/cs-132237?demo", prepare: settled(3000) },
   { name: "climbing", path: CLIMB, prepare: settled(7000) },
 
-  // The theaters on their own (the render harness, frozen at an instant), for the feature grid.
+  // The isometric views on their own (the dev render harness, /dev/theater, frozen at an instant), for the feature grid.
   { name: "theater-mlb", path: "/dev/theater?only=Home&t=2.6", element: "canvas", scale: 4, prepare: settled(2500) },
   { name: "theater-nfl", path: "/dev/theater/football?only=Touchdown&t=2.6", element: "canvas", scale: 4, prepare: settled(2500) },
   { name: "theater-soccer", path: "/dev/theater/soccer?only=Gabriel&t=6.4", element: "canvas", scale: 4, prepare: settled(2500) },
@@ -120,7 +120,7 @@ export const compositions = [
   {
     name: "isometric",
     kind: "grid",
-    caption: { title: "Every play, *replayed*.", subtitle: "Baseball, football and soccer in 3D, the moment they happen." },
+    caption: { title: "Every play, *replayed*.", subtitle: "In isometric 3D, the moment it happens." },
     cards: [
       { source: "theater-mlb", title: "Baseball", detail: "Statcast-accurate flights" },
       { source: "theater-nfl", title: "Football", detail: "Every snap of the drive" },
@@ -206,6 +206,6 @@ export const macGallery = [];
 /** GitHub's social preview. */
 export const social = {
   source: "mlb@9600",
-  tagline: "Live scores in your Mac's menu bar.\nEvery home run, touchdown and goal,\nreplayed in 3D.",
+  tagline: "Live scores in your Mac's menu bar.\nEvery home run, basket, touchdown\nand goal, replayed in 3D.",
   tags: "MLB · NFL · NBA · Soccer · CS2 · Climbing",
 };

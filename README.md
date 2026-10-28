@@ -4,8 +4,8 @@
 
 <p align="center">
   <b>Watch the whole game from your menu bar.</b><br>
-  Live scores for baseball, football, basketball, soccer, CS2 and climbing,<br>
-  with every home run, touchdown and goal replayed in 3D.
+  Live scores for baseball, basketball, football, soccer, CS2 and climbing,<br>
+  with every home run, basket, touchdown and goal replayed in 3D.
 </p>
 
 <p align="center">
@@ -22,12 +22,11 @@
   <a href="https://scoreline-web.lame-o.workers.dev"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/buttons/try-web-dark.png"><img src="docs/buttons/try-web-light.png" height="52" alt="Try it on the web"></picture></a>
 </p>
 
+<!-- hero:start -->
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/hero-dark.webp">
-    <img src="docs/screenshots/mac/hero-light.webp" width="100%" alt="Scoreline's panel open under the Mac menu bar, showing today's games and a live baseball game">
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/scores-dark.webp"><img src="docs/screenshots/web/scores-light.webp" width="100%" alt="Scoreline: every live game in the sidebar, beside a live NBA game's shot chart and box score"></picture>
 </p>
+<!-- hero:end -->
 
 <!-- Animated preview: drop the loop in as docs/screenshots/readme-loop.webp and uncomment.
 <p align="center"><img src="docs/screenshots/readme-loop.webp" width="100%" alt="Scoreline in motion: a live game, its play replayed, the score changing"></p>
@@ -39,14 +38,14 @@ Scoreline is a free, native menu bar app for macOS. Pick your leagues and teams 
 
 <br>
 
-## Play theaters
+## Isometric views
 
-Baseball, football and soccer plays come back to life in a small isometric theater the moment they happen: the swing and the throw, the snap and the run, the cross and the header. Batted balls fly on Statcast's own launch angle, exit velocity and distance, so a 411-foot home run lands where it really did. Basketball is next.
+Every play comes back to life in a small isometric view the moment it happens: the swing and the throw in baseball, every made basket in basketball, the snap and the run in football, the cross and the header in soccer. Batted balls fly on Statcast's own launch angle, exit velocity and distance, so a 411-foot home run lands where it really did, and the big moments get their call: HOME RUN, TOUCHDOWN, GOAL, BUZZER-BEATER, POSTERIZED, REJECTED.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/isometric-dark.webp">
-    <img src="docs/screenshots/web/isometric-light.webp" width="100%" alt="Play theaters: a home run on its Statcast flight, a touchdown, and a header into the net">
+    <img src="docs/screenshots/web/isometric-light.webp" width="100%" alt="Isometric views: a home run on its Statcast flight, a touchdown, and a header into the net">
   </picture>
 </p>
 
@@ -62,7 +61,7 @@ Each game page is built for its sport, and it's live: charts redraw as plays lan
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/web/game-mlb-dark.webp">
-    <img src="docs/screenshots/web/game-mlb-light.webp" width="100%" alt="A live World Series game: at the plate, the play theater, the strike zone, the line score and win probability">
+    <img src="docs/screenshots/web/game-mlb-light.webp" width="100%" alt="A live World Series game: at the plate, the isometric view of a double, the line score and win probability">
   </picture>
 </p>
 
@@ -180,13 +179,7 @@ The same live pages run in any browser at **[scoreline-web.lame-o.workers.dev](h
 Every screen, in your current appearance (light or dark). Full-size 2400×1500 versions of the feature images are in [`docs/screenshots/web/2400`](docs/screenshots/web/2400).
 
 <!-- gallery:mac:start -->
-<details>
-<summary><b>The Mac app</b></summary>
-<br>
 
-Screenshots of the Mac app are on their way.
-
-</details>
 <!-- gallery:mac:end -->
 
 <!-- gallery:web:start -->

@@ -1,8 +1,11 @@
 /**
- * Marketing screenshots, step 3: the README's "Every page" galleries, written
- * between the `<!-- gallery:web:start -->` / `<!-- gallery:mac:start -->`
- * markers from shots.config.mjs and the images compose.mjs made. Only images
- * that exist are listed, so it's safe to run at any point.
+ * Marketing screenshots, step 3: the README's hero and its "Every page"
+ * galleries, written between the `<!-- hero:start -->`,
+ * `<!-- gallery:mac:start -->` and `<!-- gallery:web:start -->` markers from
+ * shots.config.mjs and the images compose.mjs made. Only images that exist
+ * are listed, so the README never shows a broken image: the hero is the Mac
+ * one once docs/screenshots/mac/hero-*.webp exist (the web scores until
+ * then), and the Mac gallery appears once it has a screen.
  *
  *     node scripts/marketing/readme-gallery.mjs
  */
@@ -38,7 +41,13 @@ const phones = grid(gallery.filter((g) => g.device === "phone"), "docs/screensho
 const web = section("The web app", [desktop.html, phones.html].filter(Boolean).join("\n\n"), desktop.count + phones.count);
 
 const mac = grid(macGallery, "docs/screenshots/mac/pages", 3);
-const macBlock = section("The Mac app", mac.count ? mac.html : "Screenshots of the Mac app are on their way.", mac.count);
+const macBlock = mac.count ? section("The Mac app", mac.html, mac.count) : "";
+
+const both = (dir, name) => ["light", "dark"].every((t) => existsSync(join(repo, dir, `${name}-${t}.webp`)));
+const hero = both("docs/screenshots/mac", "hero")
+  ? { dir: "docs/screenshots/mac", name: "hero", alt: "Scoreline's panel open under the Mac menu bar, with a live game's isometric view" }
+  : { dir: "docs/screenshots/web", name: "scores", alt: "Scoreline: every live game in the sidebar, beside a live NBA game's shot chart and box score" };
+const heroBlock = `<p align="center">\n  ${picture(hero.dir, hero.name, hero.alt, "100%")}\n</p>`;
 
 let readme = readFileSync(readmePath, "utf8");
 const replace = (key, block) => {
@@ -48,5 +57,10 @@ const replace = (key, block) => {
 };
 replace("mac", macBlock);
 replace("web", web);
+{
+  const re = /<!-- hero:start -->[\s\S]*?<!-- hero:end -->/;
+  if (!re.test(readme)) throw new Error("README has no hero markers");
+  readme = readme.replace(re, `<!-- hero:start -->\n${heroBlock}\n<!-- hero:end -->`);
+}
 writeFileSync(readmePath, readme);
-console.log(`README galleries: web ${desktop.count + phones.count}, Mac ${mac.count}`);
+console.log(`README hero: ${hero.dir}/${hero.name}; galleries: web ${desktop.count + phones.count}, Mac ${mac.count}`);
