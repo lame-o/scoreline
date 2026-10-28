@@ -86,6 +86,9 @@ struct LiveMoment: Equatable, Identifiable {
     /// Set by MomentCenter: a particle burst (confetti, fireworks) may play,
     /// because none has on this page in the last 10 seconds.
     var burst = false
+    /// A score's facts beyond its caption (the score after it, its full
+    /// account), for the scoring slide. Set by the feeds on scores.
+    var facts: ScoringFacts? = nil
 
     /// Routine moments animate without a caption.
     var captioned: Bool { tier >= .swing }
@@ -112,8 +115,9 @@ final class MomentCenter {
     /// New events from one update. The most important wins the slot (the
     /// newest breaks ties); a catch-up burst plays only its newest score, or
     /// nothing; a lesser event never interrupts a greater one. Nothing queues:
-    /// a late moment would lie about "now".
-    func offer(_ batch: [LiveMoment]) {
+    /// a late moment would lie about "now". `quiet`: scores the scoring
+    /// slides announce themselves.
+    func offer(_ batch: [LiveMoment], quiet: Set<String> = []) {
         let fresh = batch.filter { moment in seen[moment.id].map { moment.tier > $0 } ?? true }
         for moment in fresh { seen[moment.id] = moment.tier }
         guard !fresh.isEmpty else { return }
@@ -130,7 +134,17 @@ final class MomentCenter {
         if let current, candidate.tier < current.tier
             || (candidate.tier == current.tier && current.decisive && !candidate.decisive) { return }
         // A catch-up is old news by the time it lands: it may show, but it never bursts.
-        show(candidate, mayBurst: !catchUp)
+        show(candidate, mayBurst: !catchUp, announced: !quiet.contains(candidate.id))
+    }
+
+    /// A burst the page plays outside its charts (the scoring slide's
+    /// confetti for a moment no chart bursts for): it counts against the
+    /// same one every 10 s. Whether it may play.
+    func claimBurst() -> Bool {
+        let time = now()
+        guard lastBurst.map({ time - $0 >= Celebrate.cooldown }) ?? true else { return false }
+        lastBurst = time
+        return true
     }
 
     /// A score taken back (overturned on review): if it's showing, it goes.
@@ -152,7 +166,7 @@ final class MomentCenter {
         current = nil
     }
 
-    private func show(_ offered: LiveMoment, mayBurst: Bool = true) {
+    private func show(_ offered: LiveMoment, mayBurst: Bool = true, announced: Bool = true) {
         hold?.cancel()
         // At most one particle burst every 10 s per page; a second score inside
         // the window gets the calmer substitute (sparks).
@@ -165,7 +179,7 @@ final class MomentCenter {
         withAnimation(Motion.reveal) { current = moment }
         // Same call as the visual, so sound and picture start together (opt-in, off by default).
         CelebrationSound.play(for: moment)
-        if moment.tier == .score {
+        if moment.tier == .score, announced {
             Announcer.announce("\(moment.lead). \(moment.detail)")
         }
         let duration = moment.tier == .score ? Self.scoreHold : Self.hold

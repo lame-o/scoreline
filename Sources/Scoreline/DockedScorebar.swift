@@ -694,6 +694,8 @@ struct DockedScorebarHost: View {
     /// "Show in Menu Bar", as in the header.
     var pinEvent: Event? = nil
     var pinned = false
+    /// The page's scoring slides: a moment one of them tells skips the news line.
+    var slides: ScoringSlides? = nil
     @Environment(\.pageGeometry) private var geometry
     @Environment(\.scoreboardSurface) private var surfaceState
     #if DEBUG
@@ -720,8 +722,8 @@ struct DockedScorebarHost: View {
         let surface = DockRules.surface(p: p)
         ZStack(alignment: .top) {
             if p > 0 {
-                DockedBarContent(bar: bar, beats: beats, moments: moments, surface: surface, flight: flight, landings: landings,
-                                 passPops: passPops,
+                DockedBarContent(bar: bar, beats: beats, moments: moments, slides: slides, surface: surface, flight: flight,
+                                 landings: landings, passPops: passPops,
                                  tier: DockRules.accessoryTier(widthClass: widthClass, topDigits: bar.digits.top,
                                                                bottomDigits: bar.digits.bottom),
                                  pinEvent: pinEvent, pinned: pinned, ticking: DockRules.barOpacity(p) > 0, quiet: resizing)
@@ -782,6 +784,7 @@ private struct DockedBarContent: View {
     let bar: DockBar
     let beats: HeroBeats
     let moments: MomentCenter
+    let slides: ScoringSlides?
     let surface: DockRules.Surface
     let flight: PossessionToss.Flight?
     let landings: Int
@@ -796,7 +799,11 @@ private struct DockedBarContent: View {
 
     var body: some View {
         let m = moments.current
-        let news = quiet ? nil : m.flatMap { DockRules.newsLine(moment: $0, chartVisibility: geometry?.visibility[sectionID(DockRules.section(for: $0.chart))]) }
+        // A score the slide under the bar tells is told once, there.
+        let news = quiet ? nil : m.flatMap { m in
+            slides?.carries(m.id) == true ? nil
+                : DockRules.newsLine(moment: m, chartVisibility: geometry?.visibility[sectionID(DockRules.section(for: m.chart))])
+        }
         let pass = DockRules.passBeat(moment: m, ascentVisibility: geometry?.visibility[sectionID(.ascent)])
         DockedScorebar(bar: bar, surface: surface, beats: beats, news: news, passDelta: pass, passPops: passPops,
                        flight: flight, landings: landings, tier: tier, pinEvent: pinEvent, pinned: pinned, ticking: ticking)
@@ -807,7 +814,8 @@ private struct DockedBarContent: View {
 /// Isolated to the main actor, like the view (no `assumeIsolated` hop).
 extension DockedBarContent: @MainActor Equatable {
     static func == (a: Self, b: Self) -> Bool {
-        a.bar == b.bar && a.beats == b.beats && a.moments === b.moments && a.surface == b.surface && a.flight == b.flight
+        a.bar == b.bar && a.beats == b.beats && a.moments === b.moments && a.slides === b.slides && a.surface == b.surface
+            && a.flight == b.flight
             && a.landings == b.landings && a.passPops == b.passPops && a.tier == b.tier && a.pinEvent?.id == b.pinEvent?.id
             && a.pinned == b.pinned && a.ticking == b.ticking && a.quiet == b.quiet
     }
