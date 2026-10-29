@@ -117,7 +117,7 @@ extension ScorelineTests {
 
         // MARK: Choreography
 
-        let scripts = replayed.map { $0.map(BasketballScript.init) }
+        let scripts = replayed.map { $0.map { BasketballScript($0) } }
         let pairs = zip(replayed.joined(), scripts.joined()).map { ($0, $1) }
         let finite = pairs.allSatisfy { _, s in
             stride(from: 0.0, through: s.duration, by: 0.1).allSatisfy { t in
@@ -228,21 +228,21 @@ extension ScorelineTests {
 
         // MARK: News and the court between plays
 
-        var state = BasketballTheaterState(scene: brown, news: true)
-        check(BasketballTheater.shown(state, replaying: nil, rested: nil)?.id == brown?.id
-              && BasketballTheater.shown(state, replaying: brown?.id, rested: brown?.id) == nil, "news shows, then rests after its hold")
-        state.news = false
-        check(BasketballTheater.shown(state, replaying: nil, rested: nil) == nil, "history isn't shown: the court is the live one")
-        let kept = BasketballFeed.theater(brown!, after: BasketballTheaterState(scene: brown, news: true), fresh: false, now: .now)
-        check(kept.news, "a play already showing keeps being news through its edits")
+        // The lane's first look is history (nothing to tell: the court as it stands); what comes after is news, told in order.
         let feed = BasketballFeed()
         let g0 = games[0]
         feed.ingest(Array(g0.items[0...40]), start: 0, teams: g0.teams)
         let first = feed.theater
         let next = g0.items.indices.first { $0 > 40 && BasketballScene.parse(g0.items, at: $0, teams: g0.teams)?.replays == true } ?? 41
         feed.ingest(Array(g0.items[0...next]), start: 0, teams: g0.teams)
-        check(first.scene != nil && !first.news && feed.theater.news && feed.theater.scene?.id == g0.items[next]["id"].string,
-              "the lane's first look is history; the next basket it sees is news")
+        let fresh = Set(g0.items[41...next].compactMap { $0["id"].string })
+        let told = BasketballQueue.next(after: nil, told: [], in: feed.theater)
+        check(!first.plays.isEmpty && first.news.isEmpty && BasketballQueue.next(after: nil, told: [], in: first) == nil
+              && feed.theater.news == fresh.intersection(feed.theater.plays.map(\.id)) && told.map { fresh.contains($0.scene.id) } == true
+              && feed.theater.marquee?.id == g0.items[next]["id"].string,
+              "the lane's first look is history; the plays after it are news, told from the first of them")
+        let kept = BasketballFeed.theater(feed.theater.plays, after: feed.theater, looks: 1, firstSeen: [:], now: .now)
+        check(kept.news == feed.theater.news, "a play that was news stays news through its edits")
         let rest = BasketballScript(rest: .init(offense: .bottom)), tipOff = BasketballScript(rest: .init(offense: nil))
         check(rest.players.count == 10 && rest.carrier(at: 0)?.player == 0 && rest.yaw == Hoops.yaw(.bottom)
               && tipOff.ball(at: 0).map { abs($0.x - Hoops.length / 2) < 0.1 } == true,

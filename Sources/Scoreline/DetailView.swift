@@ -1413,15 +1413,18 @@ struct DetailView: View {
                     BroadcasterList(broadcasters: d.broadcasters)
                 }
             case .court:
+                // The chart keeps one end per team all game; the theater above takes the broadcast's (swapped at halftime).
                 DetailSection(title: "Shot Chart",
-                              caption: "\(courtLead(live: live)) \(names.top) shoots →, \(names.bottom) ←.",
+                              caption: "\(courtLead(live: live)) \(names.top) shoots →, \(names.bottom) ←\(live ? " (above: the ends as on TV)" : "").",
                               accessory: live ? .live : .final,
-                              spokenCaption: "\(courtLead(live: live)) \(full.top) at the right basket, \(full.bottom) at the left.") {
+                              spokenCaption: "\(courtLead(live: live)) \(full.top) at the right basket, \(full.bottom) at the left"
+                                  + (live ? "; the replay above takes the broadcast's ends." : ".")) {
                     if live {
                         // Reads the live lane's newest play itself, so a basket redraws only the theater.
                         BasketballTheater(feed: basketballFeed, palette: palette,
                                           kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last),
-                                          topIsHome: d.topIsHome ?? false, topName: names.top, bottomName: names.bottom)
+                                          topIsHome: d.topIsHome ?? false, topName: names.top, bottomName: names.bottom,
+                                          topTeam: full.top, bottomTeam: full.bottom, eventID: event.id)
                     }
                     chart(.court, d)
                 }
@@ -2016,6 +2019,8 @@ struct DetailView: View {
             if event.state == .live {
                 plan.theater = .basketball(basketballFeed)
                 plan.follow = plan.ownerVisible && !reduceMotion
+                // It tells every play in order: a basket may wait its turn (never longer than the queue's budget).
+                if plan.ownerVisible { plan.patience = BasketballQueue.budget }
             }
         case .ascent, .rounds:
             plan.ownerVisible = seen(DockRules.section(for: m.chart))

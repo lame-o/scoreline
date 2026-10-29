@@ -914,10 +914,11 @@ extension SlideTheater {
                      climax: { feed.theater.scene.flatMap { ScoringSlide.climax(SoccerScript($0, lineups: feed.theater.lineups)) } })
     }
 
-    /// The NBA: the basket the court's theater replays (published with its moment).
+    /// The NBA: the basket the court's theater replays, as its replay starts
+    /// (it tells every play in order, so a basket can wait its turn behind a beat or two).
     @MainActor static func basketball(_ feed: BasketballFeed) -> SlideTheater {
-        SlideTheater(playing: { feed.theater.news ? feed.theater.scene?.id : nil },
-                     climax: { feed.theater.scene.flatMap { ScoringSlide.climax(BasketballScript($0)) } })
+        SlideTheater(playing: { feed.replaying },
+                     climax: { feed.replaying.flatMap { id in feed.theater.plays.first { $0.id == id } }.flatMap { ScoringSlide.climax(BasketballScript($0)) } })
     }
 }
 
