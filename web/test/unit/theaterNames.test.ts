@@ -64,7 +64,7 @@ describe("where a tag goes", () => {
   const well = { width: 312, height: 156 };
   const tag = { width: 70, height: 14.4 };
   const furniture = TheaterTagLayout.furniture(well, { width: 110, height: 16 }, true, "trailing");
-  const ask = (x: number, top: number, feet: number, pointer: boolean): TagAsk => ({ ...tag, head: { x, y: top }, feet, pointer });
+  const ask = (x: number, top: number, feet: number, pointer: boolean): TagAsk => ({ size: tag, head: { x, y: top }, feet, pointer });
   const clearOf = (r: { x: number; y: number; width: number; height: number } | null | undefined) =>
     r != null && !furniture.some((f) => f.x < r.x + r.width && r.x < f.x + f.width && f.y < r.y + r.height && r.y < f.y + f.height);
 

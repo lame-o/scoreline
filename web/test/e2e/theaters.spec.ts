@@ -40,7 +40,10 @@ const inked = (page: Page, selector: string) =>
     return n / (data.length / (4 * 16));
   });
 
-type Probe = { __theaterFrames?: number[]; __theaterTags?: { kind: string; text: string; rect: { x: number; y: number; width: number; height: number } }[] };
+type Probe = {
+  __theaterFrames?: number[];
+  __theaterTags?: { kind: string; text: string; rect: { x: number; y: number; width: number; height: number }; stem?: { from: { x: number; y: number }; to: { x: number; y: number } } }[];
+};
 
 /** Frames the stages have drawn from their loops so far (TheaterStage pushes each one's draw time). */
 const frames = (page: Page) => page.evaluate(() => (window as unknown as Probe).__theaterFrames?.length ?? 0);
@@ -286,6 +289,32 @@ test.describe("names on the isometric views", () => {
     await page.mouse.move(box.x - 40, box.y - 40);
     await expect.poll(async () => (await tags(page)).some((t) => t.kind === "pointer"), { timeout: 2000 }).toBe(false);
     expect(await tags(page)).toContainEqual({ kind: "key", text: "Wembanyama" });
+    expect(errors).toEqual([]);
+  });
+
+  test("a tag in a crowd rises clear of it on a stem down to just over its man; one round him has none", async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.addInitScript(() => {
+      (window as unknown as Probe).__theaterTags = [];
+    });
+    // At the line (KC at SEA), the pointer on the center: every spot round him crowded (the callouts sheet's case).
+    await page.goto("/dev/theater/names?set=callouts&only=football-light-1.53-h12");
+    await expect(page.locator("[data-shot] canvas").first()).toBeVisible({ timeout: 20_000 });
+    const drawn = () => page.evaluate(() => (window as unknown as Probe).__theaterTags ?? []);
+    await expect.poll(async () => (await drawn()).length, { timeout: 10_000 }).toBe(2);
+    const [key, pointer] = [(await drawn()).find((t) => t.kind === "key")!, (await drawn()).find((t) => t.kind === "pointer")!];
+    expect(pointer.text).toBe("Chiefs · C");
+    // Raised: a stem from under the slab's bottom edge, straight down to 2.5 pt over his head, at least 4 pt long.
+    const stem = pointer.stem!;
+    expect(stem).toBeDefined();
+    expect(Math.abs(stem.from.y - (pointer.rect.y + pointer.rect.height - 0.5))).toBeLessThan(0.01);
+    expect(stem.to.y - stem.from.y).toBeGreaterThanOrEqual(4);
+    expect(stem.from.x).toBeGreaterThan(pointer.rect.x);
+    expect(stem.from.x).toBeLessThan(pointer.rect.x + pointer.rect.width);
+    // Mahomes, behind the line, under his feet: plainly his, no stem.
+    expect(key.text).toBe("Mahomes");
+    expect(key.stem).toBeUndefined();
+    await page.locator("[data-shot]").first().screenshot({ path: join(OUT, "theater-names-callout-1440-light.png") });
     expect(errors).toEqual([]);
   });
 });

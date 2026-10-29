@@ -388,7 +388,7 @@ export function footballCast(script: FootballScript, scene: FootballScene | null
   switch (scene?.kind.type) {
     case "fieldGoal":
     case "extraPoint":
-      return TheaterCast.of(members, kicker());
+      return TheaterCast.of(members, kicker(), scope);
     case "kickoff": {
       const k = kicker();
       if (k != null) keys.push({ from: -Infinity, figure: k });
@@ -403,7 +403,7 @@ export function footballCast(script: FootballScript, scene: FootballScene | null
     if (!script.credits.has(p) || !members.has(p) || keys.at(-1)?.figure === p) continue;
     keys.push({ from: keys.length === 0 ? -Infinity : leg.from, figure: p });
   }
-  return new TheaterCast(members, keys);
+  return new TheaterCast(members, keys, scope);
 }
 
 const sameCredit = (a: Participant, b: Participant) => a.role === b.role && a.id === b.id && (a.name ?? null) === (b.name ?? null) && (a.jersey ?? null) === (b.jersey ?? null);

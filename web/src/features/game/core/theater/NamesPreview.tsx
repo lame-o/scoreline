@@ -10,8 +10,10 @@
  * `[data-shot]` panel, its pointer's point in the theater's `data-pointer`.
  * Fixtures load lazily from test/fixtures, so nothing here ships.
  *
- *     /dev/theater/names            every cell in this appearance
- *     /dev/theater/names?only=b4    the cells whose name starts so
+ *     /dev/theater/names                 every cell in this appearance
+ *     /dev/theater/names?only=b4         the cells whose name starts so
+ *     /dev/theater/names?set=callouts    the callouts sheet's frames (wave 24's callouts harness, gen.py): crowds,
+ *                                        callouts riding, the key tag's glide, stems, the wide well; each its own name
  */
 import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
@@ -60,6 +62,8 @@ interface Cell {
   readonly appear?: number;
   readonly wide?: boolean;
   readonly crop?: boolean;
+  /** Reduce Motion (the shooter emulates it for these). */
+  readonly reduce?: boolean;
 }
 
 const CELLS: readonly Cell[] = [
@@ -93,6 +97,75 @@ const CELLS: readonly Cell[] = [
   { name: "b6-2-stamp", sport: "soccer", t: 7.0, scheme: "light" },
   { name: "b6-3-fade12", sport: "football", t: 2.3, x: 104, y: 50, appear: 0.1, scheme: "dark" },
   { name: "b6-4-fade42", sport: "football", t: 2.3, x: 104, y: 50, appear: 0.35, scheme: "dark" },
+];
+
+/** The callouts sheet's frames (Tags under the play, Callouts): each cell's name is its own, scheme and all. */
+const CALLOUTS: readonly Cell[] = [
+  { name: "football-dark-0.75-h17", sport: "football", t: 0.75, hover: 17, scheme: "dark" },
+  { name: "football-dark-2.53-h14", sport: "football", t: 2.53, hover: 14, scheme: "dark" },
+  { name: "soccer-dark-4.75-h13", sport: "soccer", t: 4.75, hover: 13, scheme: "dark" },
+  { name: "basketball-dark-1.20-h5", sport: "basketball", t: 1.2, hover: 5, scheme: "dark" },
+  { name: "football-dark-1.53-h12", sport: "football", t: 1.53, hover: 12, scheme: "dark" },
+  { name: "football-dark-2.13", sport: "football", t: 2.13, scheme: "dark" },
+  { name: "basketball-dark-3.40-h8", sport: "basketball", t: 3.4, hover: 8, scheme: "dark" },
+  { name: "basketball-dark-2.00", sport: "basketball", t: 2.0, scheme: "dark" },
+  { name: "soccer-dark-2.27", sport: "soccer", t: 2.27, scheme: "dark" },
+  { name: "soccer-dark-2.27-h20", sport: "soccer", t: 2.27, hover: 20, scheme: "dark" },
+  { name: "baseball-dark-0.80", sport: "baseball", t: 0.8, scheme: "dark" },
+  { name: "baseball-dark-3.40-h1", sport: "baseball", t: 3.4, hover: 1, scheme: "dark" },
+  { name: "football-light-0.75-h17", sport: "football", t: 0.75, hover: 17, scheme: "light" },
+  { name: "football-light-2.53-h14", sport: "football", t: 2.53, hover: 14, scheme: "light" },
+  { name: "soccer-light-4.75-h13", sport: "soccer", t: 4.75, hover: 13, scheme: "light" },
+  { name: "basketball-light-1.20-h5", sport: "basketball", t: 1.2, hover: 5, scheme: "light" },
+  { name: "football-light-1.53-h12", sport: "football", t: 1.53, hover: 12, scheme: "light" },
+  { name: "football-light-2.13", sport: "football", t: 2.13, scheme: "light" },
+  { name: "basketball-light-3.40-h8", sport: "basketball", t: 3.4, hover: 8, scheme: "light" },
+  { name: "basketball-light-2.00", sport: "basketball", t: 2.0, scheme: "light" },
+  { name: "soccer-light-2.27", sport: "soccer", t: 2.27, scheme: "light" },
+  { name: "soccer-light-2.27-h20", sport: "soccer", t: 2.27, hover: 20, scheme: "light" },
+  { name: "baseball-light-0.80", sport: "baseball", t: 0.8, scheme: "light" },
+  { name: "baseball-light-3.40-h1", sport: "baseball", t: 3.4, hover: 1, scheme: "light" },
+  { name: "football-dark-0.30-h0", sport: "football", t: 0.3, hover: 0, scheme: "dark" },
+  { name: "football-dark-0.90-h0", sport: "football", t: 0.9, hover: 0, scheme: "dark" },
+  { name: "football-dark-1.50-h0", sport: "football", t: 1.5, hover: 0, scheme: "dark" },
+  { name: "football-dark-2.10-h0", sport: "football", t: 2.1, hover: 0, scheme: "dark" },
+  { name: "soccer-dark-1.50-h20", sport: "soccer", t: 1.5, hover: 20, scheme: "dark" },
+  { name: "soccer-dark-2.50-h20", sport: "soccer", t: 2.5, hover: 20, scheme: "dark" },
+  { name: "soccer-dark-3.50-h20", sport: "soccer", t: 3.5, hover: 20, scheme: "dark" },
+  { name: "soccer-dark-4.50-h20", sport: "soccer", t: 4.5, hover: 20, scheme: "dark" },
+  { name: "basketball-dark-0.80-h8", sport: "basketball", t: 0.8, hover: 8, scheme: "dark" },
+  { name: "basketball-dark-1.60-h8", sport: "basketball", t: 1.6, hover: 8, scheme: "dark" },
+  { name: "basketball-dark-2.40-h8", sport: "basketball", t: 2.4, hover: 8, scheme: "dark" },
+  { name: "basketball-dark-3.20-h8", sport: "basketball", t: 3.2, hover: 8, scheme: "dark" },
+  { name: "basketball-light-0.80-h8", sport: "basketball", t: 0.8, hover: 8, scheme: "light" },
+  { name: "basketball-light-1.60-h8", sport: "basketball", t: 1.6, hover: 8, scheme: "light" },
+  { name: "basketball-light-2.40-h8", sport: "basketball", t: 2.4, hover: 8, scheme: "light" },
+  { name: "basketball-light-3.20-h8", sport: "basketball", t: 3.2, hover: 8, scheme: "light" },
+  { name: "football-dark-1.97-h2", sport: "football", t: 1.97, hover: 2, scheme: "dark" },
+  { name: "football-dark-2.03-h2", sport: "football", t: 2.03, hover: 2, scheme: "dark" },
+  { name: "football-dark-2.07-h2", sport: "football", t: 2.07, hover: 2, scheme: "dark" },
+  { name: "football-dark-2.10-h2", sport: "football", t: 2.1, hover: 2, scheme: "dark" },
+  { name: "football-dark-2.20-h2", sport: "football", t: 2.2, hover: 2, scheme: "dark" },
+  { name: "football-dark-2.07-h2-reduce", sport: "football", t: 2.07, hover: 2, scheme: "dark", reduce: true },
+  { name: "football-light-2.07-h2", sport: "football", t: 2.07, hover: 2, scheme: "light" },
+  { name: "football-light-2.20-h2", sport: "football", t: 2.2, hover: 2, scheme: "light" },
+  { name: "football-light-0.90-h0", sport: "football", t: 0.9, hover: 0, scheme: "light" },
+  { name: "football-dark-1.00-h1", sport: "football", t: 1.0, hover: 1, scheme: "dark" },
+  { name: "football-light-1.00-h1", sport: "football", t: 1.0, hover: 1, scheme: "light" },
+  { name: "soccer-dark-3.00-h20", sport: "soccer", t: 3.0, hover: 20, scheme: "dark" },
+  { name: "soccer-light-3.00-h20", sport: "soccer", t: 3.0, hover: 20, scheme: "light" },
+  { name: "basketball-dark-1.50-h4", sport: "basketball", t: 1.5, hover: 4, scheme: "dark" },
+  { name: "basketball-light-1.50-h4", sport: "basketball", t: 1.5, hover: 4, scheme: "light" },
+  { name: "basketball-dark-1.50-h2", sport: "basketball", t: 1.5, hover: 2, scheme: "dark" },
+  { name: "basketball-light-1.50-h2", sport: "basketball", t: 1.5, hover: 2, scheme: "light" },
+  { name: "soccer-dark-3.00-h14", sport: "soccer", t: 3.0, hover: 14, scheme: "dark" },
+  { name: "football-dark-1.00-h6", sport: "football", t: 1.0, hover: 6, scheme: "dark" },
+  { name: "soccer-light-0.75-h8", sport: "soccer", t: 0.75, hover: 8, scheme: "light" },
+  { name: "football-dark-1.00-h2", sport: "football", t: 1.0, hover: 2, scheme: "dark" },
+  { name: "football-dark-0.90-h0-wide", sport: "football", t: 0.9, hover: 0, scheme: "dark", wide: true },
+  { name: "soccer-light-3.00-h20-wide", sport: "soccer", t: 3.0, hover: 20, scheme: "light", wide: true },
+  { name: "basketball-dark-1.50-h4-wide", sport: "basketball", t: 1.5, hover: 4, scheme: "dark", wide: true },
+  { name: "football-light-1.53-h12-wide", sport: "football", t: 1.53, hover: 12, scheme: "light", wide: true },
 ];
 
 /** The Mac harness's wells: the compact panel's, and a 560 pt panel's. */
@@ -158,6 +231,7 @@ async function loadAll(): Promise<Data> {
 export function NamesPreview() {
   const [params] = useSearchParams();
   const only = params.get("only") ?? "";
+  const callouts = params.get("set") === "callouts";
   const scheme = useColorScheme();
   const [data, setData] = useState<Data | null>(null);
   useEffect(() => {
@@ -174,21 +248,23 @@ export function NamesPreview() {
     <div style={{ display: "flex", flexWrap: "wrap", gap: 16, padding: 16, alignItems: "flex-start" }}>
       {/* The turn control shows while the pointer's over the theater (held here, as the Mac harness draws it). */}
       <style>{`[data-hovered] button[aria-label^="Turn the"] { opacity: 1 !important; transition: none !important; } [data-shot] [data-theater] ~ p { display: none; }`}</style>
-      {CELLS.filter((c) => c.scheme === scheme && c.name.startsWith(only)).map((c) => (
-        <Panel key={c.name} cell={c} data={data} />
-      ))}
+      {(callouts ? CALLOUTS : CELLS)
+        .filter((c) => c.scheme === scheme && c.name.startsWith(only))
+        .map((c) => (
+          <Panel key={c.name} cell={c} data={data} named={callouts} />
+        ))}
     </div>
   );
 }
 
 /** A cell as the Mac's PanelCell frames it: the well, 14 pt in, on the panel. */
-function Panel({ cell, data }: { cell: Cell; data: Data }) {
+function Panel({ cell, data, named = false }: { cell: Cell; data: Data; named?: boolean }) {
   const slot = useMomentSlot();
   const posed = cell.hover != null || cell.x != null;
   const pointer: NamesPose | null = posed ? { index: cell.hover, x: cell.x, y: cell.y, appear: cell.appear } : null;
   return (
     <div
-      data-shot={`${cell.name}-${cell.scheme}`}
+      data-shot={named ? cell.name : `${cell.name}-${cell.scheme}`}
       data-hovered={posed ? "" : undefined}
       style={{ padding: 14, borderRadius: 18, background: cell.scheme === "dark" ? "rgb(65 69 78)" : "rgb(236 236 238)" }}
     >

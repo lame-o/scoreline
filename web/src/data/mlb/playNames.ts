@@ -142,5 +142,5 @@ export function playCast(
   } else if (now.batter != null) {
     for (const [i, m] of members) if (actors[i]!.role.kind === "batter" && m.id === `a:${now.batter}`) key = i;
   }
-  return TheaterCast.of(members, key);
+  return TheaterCast.of(members, key, scope);
 }

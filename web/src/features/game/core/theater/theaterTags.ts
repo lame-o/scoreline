@@ -5,25 +5,48 @@
  * 12° lean, in the color the man wears. Under the pointer his number leads
  * on the team's other color and his position follows; at rest the key man's
  * surname alone; a man the data can't name says what's known on a fainter
- * slab. Placed with TheaterTagLayout (data/theater/theaterNames.ts) over
- * each man's head as he's drawn, so a tag follows its man through a replay.
+ * slab. Placed with TheaterTagLayout at the spot TheaterTagPlan chose for his
+ * stretch of the replay (data/theater/theaterNames.ts): round him, or raised
+ * clear of a crowd as a callout on a stem, riding with him.
  *
  * A tag never blocks the play: it's drawn on the surface, over the shadows
- * and under every figure, the ball and its flight (the furniture stays on
- * top). Where a man or the ball crosses a tag he gets a thin ring, only over
- * the tag, so his color never touches the slab's; a tag nothing crosses
- * looks as it would alone.
+ * and under all that plays (the furniture stays on top); a callout's stem is
+ * drawn by the theater just before its man, far to near (`drawStems`). Where
+ * a man or the ball crosses a tag, a ring round him over the tag alone, so
+ * his color never touches the slab's: white in the light, the slab cut away
+ * to the surface in the dark (clips, never a blend). A tag nothing crosses
+ * looks as it would alone. When the key man changes, his tag glides over.
  *
  * Called from each theater's frame, with its posed figures: a tag's type is
- * measured once per man, side and size (a few `measureText`s), then each
- * frame only fills two slabs and a few runs, and rings only the figures
- * whose box meets a tag.
+ * measured once per man, side and size (a few `measureText`s), its spots
+ * ranked once per stretch, then each frame only fills two slabs and a few
+ * runs, and rings only the figures whose box meets a tag.
  */
 import { lightInk, luminanceOf, SLIDE_LEAN, type SlidePaint } from "../../../../data/scoringSlide";
 import type { Rect } from "../../../../data/mlb/playCamera";
 import { toHex, type OKLab } from "../../../../data/teamColors";
 import type { Point } from "../../../../data/mlb/theaterField";
-import { shownTags, tagType, TheaterPointer, TheaterTagLayout, type TagAsk, type TagFrame, type TagLabel, type TheaterWho } from "../../../../data/theater/theaterNames";
+import {
+  ringWidth,
+  shownTags,
+  stemWidth,
+  tagEntering,
+  tagHandoff,
+  tagSpot,
+  tagType,
+  TheaterPointer,
+  TheaterTagLayout,
+  TheaterTagPlan,
+  WHOLE,
+  type CastMember,
+  type Stretch,
+  type TagAsk,
+  type TagFrame,
+  type TagLabel,
+  type TheaterReplay,
+  type TheaterWho,
+} from "../../../../data/theater/theaterNames";
+import { intersects } from "../../../../data/theater/theaterKit";
 import { figureOutline, type RigFigure } from "./rigFigure";
 import { statusTagSize } from "./TheaterStatus";
 
@@ -120,14 +143,29 @@ function fillRun(ctx: Ctx, r: Run, x: number, top: number, h: number, box: numbe
   fillTracked(ctx, r.text, x, baseline, r.tracking);
 }
 
-/** The slab cut on the lean (LeanShape): its top edge shifted forward, its bottom back. */
+/**
+ * A tag's own shape (LeanShape): the slab cut on the lean, its top edge
+ * shifted forward, its bottom back (the full tag's number and name meet on
+ * it, so it's one shape either way). The ring's clip. (pure; tested)
+ */
+export function tagShape(r: Rect): [Point, Point, Point, Point] {
+  const d = r.height * SLIDE_LEAN;
+  return [
+    { x: r.x + d, y: r.y },
+    { x: r.x + r.width, y: r.y },
+    { x: r.x + r.width - d, y: r.y + r.height },
+    { x: r.x, y: r.y + r.height },
+  ];
+}
+
+/** The slab cut on the lean, as the current path. */
 function lean(ctx: Ctx, x: number, y: number, w: number, h: number): void {
-  const d = h * SLIDE_LEAN;
+  const [a, b, c, d] = tagShape({ x, y, width: w, height: h });
   ctx.beginPath();
-  ctx.moveTo(x + d, y);
-  ctx.lineTo(x + w, y);
-  ctx.lineTo(x + w - d, y + h);
-  ctx.lineTo(x, y + h);
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.lineTo(c.x, c.y);
+  ctx.lineTo(d.x, d.y);
   ctx.closePath();
 }
 
@@ -236,7 +274,7 @@ export function statusRoom(ctx: Ctx, tag: string, wellHeight: number): Size {
 
 // MARK: - A frame's tags
 
-/** A figure as drawn: what a tag stands over. */
+/** A figure as drawn: what a tag stands over, or crosses. */
 export interface TagFigure {
   readonly index: number;
   readonly figure: RigFigure;
@@ -244,6 +282,68 @@ export interface TagFigure {
   readonly height: number;
   /** As he fades in or out (coming on, going off): his tag with him. */
   readonly opacity: number;
+  /** As he's drawn, when that's fainter still (a man fading under the stamp): his ring with him. */
+  readonly drawn?: number | null;
+  /** What he holds out past his silhouette (the batter's bat): its line, and its width, outline and all. */
+  readonly held?: { readonly from: Point; readonly to: Point; readonly width: number } | null;
+}
+
+/**
+ * The ball as drawn: its shape (the disc and its edge, a football's oval:
+ * an ellipse `rx` by `ry` turned `angle` round its middle), the height of a
+ * man where it is (its ring's as wide as his), how faint.
+ */
+export interface TagBall {
+  readonly x: number;
+  readonly y: number;
+  readonly rx: number;
+  readonly ry: number;
+  readonly angle?: number;
+  readonly height: number;
+  readonly opacity?: number;
+}
+
+/** What parts a figure (or the ball) from a tag he crosses: a ring in a paint, or the slab cut away round him so the surface under it shows. */
+export type TagRing = { readonly kind: "paint"; readonly color: string } | { readonly kind: "cutout" };
+
+/** The ring white in the light (the owner asked); in the dark the tag cut away round him, the surface showing (white rang every man like a sticker). */
+export const tagRing = (dark: boolean): TagRing => (dark ? { kind: "cutout" } : { kind: "paint", color: "#ffffff" });
+
+/**
+ * A raised tag's stem, as the theater draws it just before the man it
+ * reaches: over the men behind him (so none of them seems to be the one it
+ * names), under the men in front, who pass over it as they pass over his
+ * tag; in the slab's color, at the tag's opacity.
+ */
+export interface Stem {
+  readonly from: Point;
+  readonly to: Point;
+  readonly color: string;
+  readonly width: number;
+  readonly opacity: number;
+}
+
+/** The raised tags' stems by the man each reaches. */
+export type Stems = ReadonlyMap<number, readonly Stem[]>;
+
+const NO_STEMS: Stems = new Map();
+
+/** The stems of man `index`'s raised tags: drawn just before him, far to near. */
+export function drawStems(ctx: Ctx, stems: Stems, index: number): void {
+  const list = stems.get(index);
+  if (!list) return;
+  for (const s of list) {
+    ctx.save();
+    ctx.globalAlpha *= s.opacity;
+    ctx.beginPath();
+    ctx.moveTo(s.from.x, s.from.y);
+    ctx.lineTo(s.to.x, s.to.y);
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.width;
+    ctx.lineCap = "round";
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 /** The top of a figure: his head, or a hand raised over it. */
@@ -251,6 +351,71 @@ export function figureTop(f: RigFigure): number {
   let y = f.head.y - f.headRadius;
   for (const l of f.limbs) if (l.arm) y = Math.min(y, l.end.y - f.limb / 2, l.joint.y - f.limb / 2);
   return y;
+}
+
+/** Where a tag under a figure's feet starts from. */
+export const figureFeet = (f: TagFigure) => f.figure.ground.y + Math.max(f.height * 0.1, 2);
+
+/** The outline's width round a figure `height` tall (TheaterDraw.halo). */
+const halo = (height: number) => Math.max(height * 0.045, 0.8);
+
+/**
+ * The room a figure's ring takes: every part grown by its own width, his
+ * outline and the ring (or, not `ringed`, the figure as drawn). (pure; tested)
+ */
+export function figureBox(f: TagFigure, ringed = true): Rect {
+  const margin = ringed ? ringWidth(f.height) : 0;
+  const grown = halo(f.height) + margin;
+  const g = f.figure;
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  const add = (p: Point, r: number) => {
+    x0 = Math.min(x0, p.x - r);
+    y0 = Math.min(y0, p.y - r);
+    x1 = Math.max(x1, p.x + r);
+    y1 = Math.max(y1, p.y + r);
+  };
+  for (const l of g.limbs) for (const p of [l.root, l.joint, l.end]) add(p, g.limb / 2 + grown);
+  add(g.hip, g.torso / 2 + grown);
+  add(g.neck, g.torso / 2 + grown);
+  add(g.head, g.headRadius + grown);
+  const held = f.held;
+  if (held) {
+    const r = held.width / 2 + margin;
+    for (const p of [held.from, held.to]) add(p, r);
+  }
+  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+}
+
+/** The ball's box: its shape's, turned. */
+function ballBox(b: TagBall): Rect {
+  const a = b.angle ?? 0;
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  const w = Math.hypot(b.rx * c, b.ry * s);
+  const h = Math.hypot(b.rx * s, b.ry * c);
+  return { x: b.x - w, y: b.y - h, width: 2 * w, height: 2 * h };
+}
+
+const grownBy = (r: Rect, d: number): Rect => ({ x: r.x - d, y: r.y - d, width: r.width + 2 * d, height: r.height + 2 * d });
+
+/**
+ * Who crosses a tag at `rect`: the figures (by their place in `figures`)
+ * whose box meets it, and whether the ball does; only they are ringed, and a
+ * tag nobody crosses draws as it always has. The tag's `own` man stands
+ * clear of it by placement, closer than his ring in a big figure: only what
+ * of him reaches into it counts (his bat), never the ring's margin, or it
+ * would bite the tag over his head. (pure; tested)
+ */
+export function tagCrossing(figures: readonly TagFigure[], ball: TagBall | null, r: Rect, own: number | null = null): { figures: number[]; ball: boolean } {
+  const hit: number[] = [];
+  figures.forEach((f, i) => {
+    if (f.opacity > 0.01 && (f.drawn ?? 1) > 0.01 && intersects(figureBox(f, f.index !== own), r)) hit.push(i);
+  });
+  const crossed = ball != null && (ball.opacity ?? 1) > 0.01 && intersects(grownBy(ballBox(ball), ringWidth(ball.height)), r);
+  return { figures: hit, ball: crossed };
 }
 
 /** Laid-out tags, kept per canvas: a man's tag is measured once per side, size and say. */
@@ -283,36 +448,127 @@ function statusRoomOf(ctx: Ctx, tag: string, wellHeight: number): Size {
 /** Development and tests: the tags the last frame drew, read from `window.__theaterTags` when it's set. */
 declare global {
   interface Window {
-    __theaterTags?: { kind: "pointer" | "leaving" | "key"; text: string; rect: Rect }[];
+    __theaterTags?: { kind: "pointer" | "leaving" | "key"; text: string; rect: Rect; stem?: { from: Point; to: Point } }[];
   }
 }
 
-/** The ring round a figure or the ball where it crosses a tag: white in the light. */
-const LIGHT_RING = "#ffffff";
-/** In the dark: white, or the well's own dark surface; still being decided with the Mac (one line). */
-const DARK_RING = "#ffffff";
+type Kind = "pointer" | "leaving" | "key" | "handoff";
 
-/** A tag as placed in a frame: where (its shape the lean across `rect`), how strongly, and what it draws. */
-export interface PlacedTag {
-  readonly kind: "pointer" | "leaving" | "key";
-  readonly rect: Rect;
-  readonly opacity: number;
+/** A tag being drawn: which, its man, and what it asked of placement (where round him its stretch put it). */
+interface Tag {
+  readonly kind: Kind;
   readonly block: Block;
+  readonly man: TagFigure;
+  readonly member: CastMember;
+  readonly ask: TagAsk;
 }
 
-/** A frame's tags, placed and drawn under its figures, and the ring that keeps a figure crossing one off its slab. */
-export interface PlacedTags {
-  readonly tags: readonly PlacedTag[];
-  readonly ring: string;
-}
+/** A scratch canvas for a tag drawn as one layer (fading, it never shows its slab through its type). */
+let scratch: HTMLCanvasElement | null = null;
 
 /**
- * Draws a frame's tags at t, on the surface under everything that plays
- * (the figures, the ball and its flight are drawn after, over them; the
- * furniture stays on top): placed over their men (the pointer's first),
- * faded and risen as they come and go. `clear`: the frame's own type to keep
- * clear of (its stamp, its headline, the pitch's label). Returns them placed,
- * for `ringFigure` and `ringBall`, or null when there are none.
+ * A tag's block at `r`, at `opacity`, as one layer (SwiftUI draws a resolved
+ * symbol so): whole, it's drawn straight; fading, into a scratch canvas on
+ * the device's pixels, then over at its opacity. The context's clip holds.
+ */
+function drawBlock(ctx: Ctx, block: Block, r: Rect, opacity: number): void {
+  if (opacity >= 0.995 || typeof document === "undefined") {
+    ctx.save();
+    ctx.globalAlpha *= opacity;
+    ctx.translate(r.x, r.y);
+    block.draw(ctx);
+    ctx.restore();
+    return;
+  }
+  const m = ctx.getTransform();
+  const xs = [r.x - 1, r.x + r.width + 1];
+  const ys = [r.y - 1, r.y + r.height + 1];
+  let left = Infinity;
+  let top = Infinity;
+  let right = -Infinity;
+  let bottom = -Infinity;
+  for (const x of xs) {
+    for (const y of ys) {
+      left = Math.min(left, m.a * x + m.c * y + m.e);
+      top = Math.min(top, m.b * x + m.d * y + m.f);
+      right = Math.max(right, m.a * x + m.c * y + m.e);
+      bottom = Math.max(bottom, m.b * x + m.d * y + m.f);
+    }
+  }
+  left = Math.floor(left);
+  top = Math.floor(top);
+  const width = Math.ceil(right) - left;
+  const tall = Math.ceil(bottom) - top;
+  scratch ??= document.createElement("canvas");
+  if (scratch.width < width || scratch.height < tall) {
+    scratch.width = Math.max(scratch.width, width);
+    scratch.height = Math.max(scratch.height, tall);
+  }
+  const s = scratch.getContext("2d");
+  if (!s || !(width > 0 && tall > 0 && width < 4096 && tall < 4096)) return;
+  s.setTransform(1, 0, 0, 1, 0, 0);
+  s.clearRect(0, 0, width, tall);
+  s.globalAlpha = 1;
+  s.setTransform(m.a, m.b, m.c, m.d, m.e - left, m.f - top);
+  s.translate(r.x, r.y);
+  block.draw(s);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha *= opacity;
+  ctx.drawImage(scratch, 0, 0, width, tall, left, top, width, tall);
+  ctx.restore();
+}
+
+/** A figure's room as capsules (each a segment and how far round it): his silhouette grown by his outline and the ring, what he holds too. */
+function rooms(f: TagFigure): [Point, Point, number][] {
+  const g = f.figure;
+  const margin = ringWidth(f.height);
+  const grown = halo(f.height) + margin;
+  const w = g.limb / 2;
+  const out: [Point, Point, number][] = [];
+  for (const l of g.limbs) out.push([l.root, l.joint, w + grown], [l.joint, l.end, w + grown]);
+  out.push([g.hip, g.neck, g.torso / 2 + grown], [g.head, g.head, g.headRadius + grown]);
+  if (f.held) out.push([f.held.from, f.held.to, f.held.width / 2 + margin]);
+  return out;
+}
+
+/** The ball's room: its shape grown by the ring, as a polygon (the oval's offset curve). */
+function ballRoom(ctx: Ctx, b: TagBall): void {
+  const grow = ringWidth(b.height);
+  const a = b.angle ?? 0;
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  const n = 40;
+  for (let k = 0; k < n; k++) {
+    const u = (k / n) * 2 * Math.PI;
+    // A point on the ellipse and its outward normal, pushed out by the ring.
+    const ex = b.rx * Math.cos(u);
+    const ey = b.ry * Math.sin(u);
+    const nx = b.ry * Math.cos(u);
+    const ny = b.rx * Math.sin(u);
+    const l = Math.hypot(nx, ny) || 1;
+    const x = ex + (nx / l) * grow;
+    const y = ey + (ny / l) * grow;
+    const px = b.x + x * c - y * s;
+    const py = b.y + x * s + y * c;
+    if (k === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+const ellipsePath = (ctx: Ctx, b: TagBall) => ctx.ellipse(b.x, b.y, b.rx, b.ry, b.angle ?? 0, 0, 2 * Math.PI);
+
+/**
+ * Draws a frame's tags at t, under the play, round their men: placed (the
+ * pointer's first, each where its stretch of the `replay` covers it least,
+ * raised clear of a crowd where it must be), faded and risen as they come
+ * and go, the key man's gliding over to the next, ringed where a figure or
+ * the ball crosses one. Drawn after the surface and its shadows, before
+ * everything that plays. `clear`: the frame's own type to keep clear of (its
+ * stamp, its headline, the pitch's label). Returns the raised tags' stems by
+ * the man each reaches, for the theater to draw just before him
+ * (`drawStems`).
  */
 export function drawTags(
   ctx: Ctx,
@@ -320,123 +576,216 @@ export function drawTags(
   figures: readonly TagFigure[],
   t: number,
   size: Size,
-  clear: readonly Rect[] = [],
-  dark = false,
-): PlacedTags | null {
+  options: { readonly clear?: readonly Rect[]; readonly ring: TagRing; readonly replay?: TheaterReplay | null; readonly ball?: TagBall | null },
+): Stems {
   const probe = typeof window !== "undefined" ? window.__theaterTags : undefined;
   if (probe) probe.length = 0;
-  if (!frame) return null;
-  const shown = shownTags(frame, t);
-  if (shown.pointer == null && shown.leaving == null && shown.key == null) return null;
+  if (!frame) return NO_STEMS;
+  const { pointer, leaving, key } = shownTags(frame, t);
+  const glide = tagHandoff(frame, t);
+  if (pointer == null && leaving == null && key == null && glide?.from == null) return NO_STEMS;
   const type = tagType(size.height);
-  const status = frame.status ? statusRoomOf(ctx, frame.status, size.height) : null;
-  const furniture = [...TheaterTagLayout.furniture(size, status, frame.flip, frame.heartbeat), ...clear];
-  const asks: { kind: "pointer" | "leaving" | "key"; index: number; block: Block; ask: TagAsk; opacity: number }[] = [];
-  for (const [kind, index] of [
-    ["pointer", shown.pointer],
-    ["leaving", shown.leaving],
-    ["key", shown.key],
-  ] as const) {
-    if (index == null) continue;
-    const f = figures.find((g) => g.index === index);
-    const m = frame.cast.members.get(index);
-    if (!f || !m) continue;
-    const label = frame.labels[m.side];
-    const full = kind !== "key";
-    const block = cached(ctx, `${m.id}|${m.side}|${full}|${type}|${toHex(label.paint.slab)}|${label.team}|${JSON.stringify(m.who)}`, () => nameTag(ctx, m.who, label, full, type));
-    asks.push({
+  const status = frame.status && (pointer != null || leaving != null || key != null) ? statusRoomOf(ctx, frame.status, size.height) : null;
+  const furniture = [...TheaterTagLayout.furniture(size, status, frame.flip, frame.heartbeat), ...(options.clear ?? [])];
+  const replay = options.replay ?? null;
+  // Each tag's ask, its spots its stretch's (the key man's while he's key; the pointer's man's the whole replay).
+  const ask = (kind: Kind, index: number | null): Tag | null => {
+    if (index == null) return null;
+    const man = figures.find((g) => g.index === index);
+    const member = frame.cast.members.get(index);
+    if (!man || !member) return null;
+    const label = frame.labels[member.side];
+    const full = kind === "pointer" || kind === "leaving";
+    const block = cached(ctx, `${member.id}|${member.side}|${full}|${type}|${toHex(label.paint.slab)}|${label.team}|${JSON.stringify(member.who)}`, () => nameTag(ctx, member.who, label, full, type));
+    const stretch: Stretch = kind === "key" ? frame.cast.stretch(t) : kind === "handoff" ? (glide?.stretch ?? frame.cast.stretch(t)) : WHOLE;
+    const tag = { width: block.width, height: block.height };
+    const ranked = replay ? TheaterTagPlan.ranked(index, tag, full, stretch, size, frame.heartbeat, replay, frame.cast.scope) : [];
+    return {
       kind,
-      index,
       block,
-      opacity: f.opacity,
-      ask: { width: block.width, height: block.height, head: { x: f.figure.head.x, y: figureTop(f.figure) }, feet: f.figure.ground.y + Math.max(f.height * 0.1, 2), pointer: full },
-    });
-  }
+      man,
+      member,
+      ask: { size: tag, head: { x: man.figure.head.x, y: figureTop(man.figure) }, feet: figureFeet(man), pointer: full, spot: ranked[0] ?? tagSpot(), then: ranked.slice(1), ground: man.figure.ground, height: man.height },
+    };
+  };
+  const tags = [ask("pointer", pointer), ask("leaving", leaving), ask("key", key)].filter((a): a is Tag => a != null);
   const spots = TheaterTagLayout.place(
-    asks.map((a) => a.ask),
+    tags.map((a) => a.ask),
     size,
     furniture,
   );
-  const placed: PlacedTag[] = [];
+  // The last key man's tag where it was before the change (placed as if the new one weren't there yet).
+  let from: { tag: Tag; rect: Rect } | null = null;
+  if (glide) {
+    const last = ask("handoff", glide.from);
+    if (last) {
+      const before = [...tags.filter((a) => a.kind !== "key"), last];
+      const was = TheaterTagLayout.place(
+        before.map((a) => a.ask),
+        size,
+        furniture,
+      ).at(-1);
+      if (was) from = { tag: last, rect: was };
+    }
+  }
+  const stems = new Map<number, Stem[]>();
+  const ball = options.ball ?? null;
+  const show = (tag: Tag, r: Rect, opacity: number, stem: number) => {
+    const drawn = put(ctx, tag, r, opacity, stem, frame, figures, ball, options.ring, size);
+    const s = drawn?.stem;
+    if (s) stems.set(tag.man.index, [...(stems.get(tag.man.index) ?? []), s]);
+    if (probe && drawn && tag.kind !== "handoff") {
+      const m = tag.member;
+      const text = m.who.kind === "known" ? m.who.person.last : m.who.kind === "assumed" ? `${frame.labels[m.side].team} · ${m.who.position}` : frame.labels[m.side].team;
+      probe.push({ kind: tag.kind, text, rect: r, ...(s ? { stem: { from: s.from, to: s.to } } : {}) });
+    }
+  };
   // The key man's first, the leaving tag over it, the pointer's on top.
-  for (let k = asks.length - 1; k >= 0; k--) {
-    const spot = spots[k];
-    const a = asks[k]!;
-    if (!spot) continue;
-    let opacity = a.opacity;
+  for (let k = tags.length - 1; k >= 0; k--) {
+    const tag = tags[k]!;
+    let opacity = tag.man.opacity;
     let lift = 0;
-    if (a.kind === "pointer") {
+    if (tag.kind === "pointer") {
       opacity *= frame.appear;
       if (frame.rise) lift = TheaterPointer.rise * (1 - frame.appear);
-    } else if (a.kind === "leaving") {
+    } else if (tag.kind === "leaving") {
       opacity *= frame.remaining;
     }
-    if (!(opacity > 0.005)) continue;
-    const rect = { ...spot, y: spot.y + lift };
-    ctx.save();
-    ctx.globalAlpha *= opacity;
-    ctx.translate(rect.x, rect.y);
-    a.block.draw(ctx);
-    ctx.restore();
-    placed.push({ kind: a.kind, rect, opacity, block: a.block });
-    const m = frame.cast.members.get(a.index);
-    if (probe && m) probe.push({ kind: a.kind, text: m.who.kind === "known" ? m.who.person.last : m.who.kind === "assumed" ? `${frame.labels[m.side].team} · ${m.who.position}` : frame.labels[m.side].team, rect });
+    const spot = spots[k];
+    if (!spot) continue;
+    const r = { ...spot, y: spot.y + lift };
+    if (tag.kind !== "key" || !glide) {
+      show(tag, r, opacity, 1);
+      continue;
+    }
+    // Coming over from the last key man: gliding from his tag's place to this one's, the names crossfading (with Reduce
+    // Motion, a crossfade where each stands), the old stem going first and the new one coming last; or fading in.
+    const u = glide.u;
+    if (from) {
+      const was = from.rect;
+      const at = (q: Rect): Rect => {
+        if (!frame.rise) return q;
+        const x = was.x + was.width / 2 + (r.x + r.width / 2 - (was.x + was.width / 2)) * u;
+        const y = was.y + was.height / 2 + (r.y + r.height / 2 - (was.y + was.height / 2)) * u;
+        return { x: x - q.width / 2, y: y - q.height / 2, width: q.width, height: q.height };
+      };
+      show(from.tag, at(was), from.tag.man.opacity * (1 - u), Math.max(1 - u / 0.4, 0));
+      show(tag, at(r), opacity * u, Math.max((u - 0.6) / 0.4, 0));
+    } else {
+      show(tag, r, opacity * u, u);
+    }
   }
-  return placed.length > 0 ? { tags: placed, ring: dark ? DARK_RING : LIGHT_RING } : null;
-}
-
-/** How wide the ring is round a figure: about 1.5 pt at the compact panel, with his line weight. */
-const ringWidth = (f: RigFigure) => Math.max(f.limb * 0.9, 1);
-
-const overlaps = (r: Rect, x0: number, y0: number, x1: number, y1: number) => r.x < x1 && x0 < r.x + r.width && r.y < y1 && y0 < r.y + r.height;
-
-/** Each tag it crosses, clipped to the tag's own shape, filled with `fill` (the ring) at the tag's opacity. */
-function ringOver(ctx: Ctx, placed: PlacedTags, x0: number, y0: number, x1: number, y1: number, opacity: number, fill: (c: Ctx) => void): void {
-  for (const tag of placed.tags) {
-    if (!overlaps(tag.rect, x0, y0, x1, y1)) continue;
-    ctx.save();
-    ctx.globalAlpha *= tag.opacity * opacity;
-    lean(ctx, tag.rect.x, tag.rect.y, tag.rect.width, tag.rect.height);
-    ctx.clip();
-    ctx.fillStyle = placed.ring;
-    fill(ctx);
-    ctx.restore();
-  }
+  // The last key man's going with nobody after him: it fades where it stands.
+  if (key == null && glide && from) show(from.tag, from.rect, from.tag.man.opacity * (1 - glide.u), 1);
+  return stems;
 }
 
 /**
- * Where a figure crosses a tag, a thin ring round his silhouette, only over
- * the tag, so his color never touches the slab's (the dataviz surface ring
- * on overlapping marks); drawn just before him. Elsewhere nothing changes,
- * and a figure that crosses no tag costs a box test. `height`: the
- * projection's figure height, as `drawFigure` takes it.
+ * One tag at `r`, and the room round whoever crosses it; its stem to him
+ * when it's raised clear of him (`stem`: how much of it), for the theater to
+ * draw with him.
  */
-export function ringFigure(ctx: Ctx, placed: PlacedTags | null, f: RigFigure, height: number, opacity = 1): void {
-  if (!placed) return;
-  const grow = ringWidth(f) + Math.max(height * 0.045, 0.8) + Math.max(f.torso, f.limb, f.headRadius * 2);
-  let x0 = f.head.x;
-  let y0 = f.head.y;
-  let x1 = f.head.x;
-  let y1 = f.head.y;
-  for (const p of [f.hip, f.neck, ...f.limbs.flatMap((l) => [l.root, l.joint, l.end])]) {
-    x0 = Math.min(x0, p.x);
-    y0 = Math.min(y0, p.y);
-    x1 = Math.max(x1, p.x);
-    y1 = Math.max(y1, p.y);
+function put(ctx: Ctx, tag: Tag, r: Rect, faded: number, stem: number, frame: TagFrame, figures: readonly TagFigure[], ball: TagBall | null, ring: TagRing, size: Size): { stem: Stem | null } | null {
+  const opacity = faded * tagEntering(tag.ask, size);
+  if (!(opacity > 0.005)) return null;
+  const paint = frame.labels[tag.member.side].paint;
+  const known = tag.member.who.kind === "known";
+  const line = stem < 0.01 ? null : TheaterTagLayout.stem(r, tag.ask, size);
+  const out: Stem | null = line ? { ...line, color: known ? toHex(paint.slab) : rgbaOf(paint.slab, 0.7), width: stemWidth(tag.man.height), opacity: opacity * stem } : null;
+  // Who crosses the tag itself.
+  const crossing = tagCrossing(figures, ball, r, tag.man.index);
+  if (crossing.figures.length === 0 && !crossing.ball) {
+    drawBlock(ctx, tag.block, r, opacity);
+    return { stem: out };
   }
-  ringOver(ctx, placed, x0 - grow, y0 - grow, x1 + grow, y1 + grow, opacity, (c) => {
-    figureOutline(c, f, height, ringWidth(f));
-    c.fill();
-  });
+  if (ring.kind === "paint") {
+    // A ring in a paint: round each man over the tag, faded with it (and with him).
+    drawBlock(ctx, tag.block, r, opacity);
+    ctx.save();
+    lean(ctx, r.x, r.y, r.width, r.height);
+    ctx.clip();
+    ctx.fillStyle = ring.color;
+    ctx.strokeStyle = ring.color;
+    const base = ctx.globalAlpha * opacity;
+    for (const i of crossing.figures) {
+      const f = figures[i]!;
+      const w = ringWidth(f.height);
+      ctx.globalAlpha = base * (f.drawn ?? f.opacity);
+      figureOutline(ctx, f.figure, f.height, w);
+      ctx.fill();
+      if (f.held) {
+        ctx.beginPath();
+        ctx.moveTo(f.held.from.x, f.held.from.y);
+        ctx.lineTo(f.held.to.x, f.held.to.y);
+        ctx.lineWidth = f.held.width + 2 * w;
+        ctx.lineCap = "round";
+        ctx.stroke();
+      }
+    }
+    if (crossing.ball && ball) {
+      ctx.globalAlpha = base * (ball.opacity ?? 1);
+      ctx.beginPath();
+      ellipsePath(ctx, ball);
+      ctx.fill();
+      ctx.lineWidth = 2 * ringWidth(ball.height);
+      ctx.lineJoin = "round";
+      ctx.stroke();
+    }
+    ctx.restore();
+    return { stem: out };
+  }
+  // The tag with each man's room cut out of it, so the surface shows round him: a clip, as the charts leave room round
+  // their marks (never a blend). Canvas has no path subtraction: the tag's rect less each capsule of each room, one clip
+  // at a time (the rect and the capsule together, even-odd: the rect outside it), so their union is cut. One fading in or
+  // out takes his room with him: the tag there at what's left.
+  const box = { x: r.x - 1, y: r.y - 1, width: r.width + 2, height: r.height + 2 };
+  const parts: { room: (c: Ctx) => void; capsules: [Point, Point, number][]; seen: number }[] = [];
+  for (const i of crossing.figures) {
+    const f = figures[i]!;
+    const capsules = rooms(f);
+    parts.push({ room: (c) => capsules.forEach(([a, b, w]) => capsule(c, a, b, w)), capsules, seen: f.drawn ?? f.opacity });
+  }
+  if (crossing.ball && ball) parts.push({ room: (c) => ballRoom(c, ball), capsules: [], seen: ball.opacity ?? 1 });
+  ctx.save();
+  for (const part of parts) {
+    const cuts = part.capsules.length > 0 ? part.capsules.map((cap) => (c: Ctx) => capsule(c, ...cap)) : [part.room];
+    for (const cut of cuts) {
+      ctx.beginPath();
+      ctx.rect(box.x, box.y, box.width, box.height);
+      cut(ctx);
+      ctx.clip("evenodd");
+    }
+  }
+  drawBlock(ctx, tag.block, r, opacity);
+  ctx.restore();
+  for (const part of parts) {
+    if (!(part.seen < 0.99)) continue;
+    ctx.save();
+    ctx.beginPath();
+    part.room(ctx);
+    ctx.clip();
+    drawBlock(ctx, tag.block, r, opacity * (1 - part.seen));
+    ctx.restore();
+  }
+  return { stem: out };
 }
 
-/** Where the ball (a disc of radius `r` at `p`) crosses a tag: the same ring round it, only over the tag. */
-export function ringBall(ctx: Ctx, placed: PlacedTags | null, p: Point, r: number, opacity = 1): void {
-  if (!placed) return;
-  const outer = r + 0.6 + Math.max(r * 0.6, 1.2);
-  ringOver(ctx, placed, p.x - outer, p.y - outer, p.x + outer, p.y + outer, opacity, (c) => {
-    c.beginPath();
-    c.ellipse(p.x, p.y, outer, outer, 0, 0, 2 * Math.PI);
-    c.fill();
-  });
+/** A capsule round a segment, wound as rigFigure's are (so any number of them fill as their union). */
+function capsule(ctx: Ctx, a: Point, b: Point, r: number): void {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const angle = dx * dx + dy * dy > 1e-12 ? Math.atan2(dy, dx) : 0;
+  const nx = -Math.sin(angle) * r;
+  const ny = Math.cos(angle) * r;
+  ctx.moveTo(b.x + nx, b.y + ny);
+  ctx.arc(b.x, b.y, r, angle + Math.PI / 2, angle - Math.PI / 2, true);
+  ctx.arc(a.x, a.y, r, angle - Math.PI / 2, angle - (3 * Math.PI) / 2, true);
+  ctx.closePath();
+}
+
+/** A color in its OKLab at an alpha, as CSS. */
+function rgbaOf(c: OKLab, alpha: number): string {
+  const hex = toHex(c);
+  const v = Number.parseInt(hex.slice(1, 7), 16);
+  return `rgb(${(v >> 16) & 0xff} ${(v >> 8) & 0xff} ${v & 0xff} / ${alpha})`;
 }

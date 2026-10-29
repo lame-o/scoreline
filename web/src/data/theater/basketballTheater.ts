@@ -166,7 +166,7 @@ export function basketballCast(script: BasketballScript, scene: BasketballScene 
       }
     }
   }
-  return TheaterCast.of(members, key);
+  return TheaterCast.of(members, key, scope);
 }
 
 /**

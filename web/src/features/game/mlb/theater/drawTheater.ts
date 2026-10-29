@@ -22,8 +22,8 @@ import { umpire, type TheaterTeams, type Uniform } from "../../../../data/mlb/th
 import { keyed, mirrored, mix, over, Rig, RigPoses, RigTrack, gait, type RigPose } from "../../../../data/theater/rig";
 import { luminance } from "../../../../data/teamColors";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
-import { drawTags, ringBall, ringFigure, type PlacedTags } from "../../core/theater/theaterTags";
-import { TheaterTagLayout, type TagFrame } from "../../../../data/theater/theaterNames";
+import { drawStems, drawTags, tagRing, type Stems } from "../../core/theater/theaterTags";
+import { TheaterTagLayout, type HitFigure, type TagFrame, type TheaterSpots } from "../../../../data/theater/theaterNames";
 import type { Rect } from "../../../../data/mlb/playCamera";
 import { rgba, type TheaterInk } from "./theaterInk";
 
@@ -537,28 +537,62 @@ export interface FrameInputs {
 /**
  * One frame: the tarp and the shadows on the field, the names (under
  * everything that plays), then the ball's trace and its dust, the figures far
- * to near, the zone, the ball, the beats and the type.
+ * to near (each with the stem of his raised name just before him), the zone,
+ * the ball, the beats and the type.
  */
 export function drawFrame(ctx: Ctx, f: FieldProjection, input: FrameInputs): void {
   drawTarp(ctx, f, input);
   const figures = posed(f, input);
   drawShadows(ctx, f, input, figures);
-  const tags = drawTags(
-    ctx,
-    input.tags,
-    figures.map((p) => ({ index: p.index, figure: p.figure, height: f.figure, opacity: p.opacity })),
-    input.t,
-    f.size,
-    tagRooms(f, input),
-    input.ink.dark,
-  );
+  // The names on the field, under all that plays: the ball's path and its dust too.
+  const stems = drawNames(ctx, f, input, figures);
   drawTrace(ctx, f, input);
   drawPuffs(ctx, f, input);
-  drawFigures(ctx, f, input, figures, tags);
+  drawFigures(ctx, f, input, figures, stems);
   drawZone(ctx, f, input);
-  drawBall(ctx, f, input, tags);
+  drawBall(ctx, f, input);
   drawFlashes(ctx, f, input);
   drawLabels(ctx, f, input);
+}
+
+/** Each figure's spot on screen at t, through the camera, no posing: what the pointer hits. */
+export function playFigures(f: FieldProjection, script: PlayScript, t: number): HitFigure[] {
+  return script.actors.flatMap((actor, index) => {
+    if (!(actor.opacity(t) > 0.01)) return [];
+    const lens = RigLens.field(f, actor.position(t));
+    return [{ index, ground: lens.origin, height: lens.height }];
+  });
+}
+
+/** Each figure's spot on screen at t and the ball's, through the camera, no posing (PlayFrame.spots): what a tag keeps clear of. */
+export function playSpots(script: PlayScript, t: number, size: Size): TheaterSpots {
+  const f = new FieldProjection(size, script.camera.frame(t));
+  const ball = script.ballOpacity(t) > 0.01 ? script.ball(t) : null;
+  return { figures: playFigures(f, script, t), ball: ball ? f.at(ball) : null };
+}
+
+/** The names round the figures, drawn under them and the ball, clear of the pitch's label, the headline and the mark while they're up; the raised ones' stems, to draw with their men. */
+function drawNames(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: readonly Posed[]): Stems {
+  const { script, t, ink } = input;
+  const spot = ballSpot(f, input);
+  const r = spot ? spot.radius + 0.6 : 0;
+  const size = f.size;
+  return drawTags(
+    ctx,
+    input.tags,
+    figures.map((p) => {
+      const bat = heldBat(p, f, input);
+      return { index: p.index, figure: p.figure, height: f.figure, opacity: p.opacity, held: bat ? { from: bat.from, to: bat.to, width: bat.width + 1.4 } : null };
+    }),
+    t,
+    size,
+    {
+      clear: tagRooms(f, input),
+      ring: tagRing(ink.dark),
+      ball: spot ? { x: spot.point.x, y: spot.point.y, rx: r, ry: r, height: f.figure, opacity: spot.opacity } : null,
+      replay: { length: script.duration, at: (s) => playSpots(script, s, size) },
+    },
+  );
 }
 
 /** What the names keep clear of besides the furniture: the pitch's label, the headline and the mark while they're up. */
@@ -808,7 +842,8 @@ function posed(f: FieldProjection, input: FrameInputs): Posed[] {
   return out;
 }
 
-function drawFigures(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: readonly Posed[], tags: PlacedTags | null): void {
+/** Far to near, each with the stem of his raised name just before him. */
+function drawFigures(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: readonly Posed[], stems: Stems): void {
   const { script, t, teams, ink } = input;
   const batting = figureInks(teams.batting, ink);
   const fielding = figureInks(teams.fielding, ink);
@@ -820,11 +855,12 @@ function drawFigures(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: 
       drawDroppedBat(ctx, f.point(Ballpark.box(actor.bats)), actor.bats, 1 - Math.min(Math.max((t - script.settle) / 0.4, 0), 1), f, ink);
     }
     const inks = actor.team === "batting" ? batting : actor.team === "official" ? officials : fielding;
-    ringFigure(ctx, tags, p.figure, f.figure, p.opacity);
+    drawStems(ctx, stems, p.index);
     drawFigure(ctx, p.figure, inks, f.figure, p.opacity);
-    if (actor.bats && (actor.dropsBat == null || t < actor.dropsBat)) {
+    const bat = heldBat(p, f, input);
+    if (bat) {
       ctx.globalAlpha = p.opacity;
-      drawBat(ctx, t, actor, actor.bats, grip(p.figure), f.figure * 0.62, inks.rim, ink);
+      drawBat(ctx, bat, inks.rim, ink);
       ctx.globalAlpha = 1;
     }
   }
@@ -1002,12 +1038,32 @@ export function pose(script: PlayScript, t: number, actor: Actor, index: number,
   return [body, m.heading];
 }
 
+/** The bat in his hands at t, while he has it: its line (from his hands to its tip) and how thick. */
+function heldBat(p: Posed, f: FieldProjection, { script, t }: FrameInputs): { from: Point; to: Point; width: number } | null {
+  const actor = script.actors[p.index]!;
+  if (!actor.bats || (actor.dropsBat != null && t >= actor.dropsBat)) return null;
+  return bat(t, actor, actor.bats, grip(p.figure), f.figure * 0.62);
+}
+
+function drawBat(ctx: Ctx, bat: { from: Point; to: Point; width: number }, halo: string, ink: TheaterInk): void {
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(bat.from.x, bat.from.y);
+  ctx.lineTo(bat.to.x, bat.to.y);
+  ctx.strokeStyle = halo;
+  ctx.lineWidth = bat.width + 1.4;
+  ctx.stroke();
+  ctx.strokeStyle = ink.bat;
+  ctx.lineWidth = bat.width;
+  ctx.stroke();
+}
+
 /**
  * The bat: on the shoulder, then round through the zone, level at contact,
  * and on into the follow-through (back to the shoulder after a miss); held
  * level out in front to bunt.
  */
-function drawBat(ctx: Ctx, t: number, actor: Actor, bats: Hand, hands: Point, length: number, halo: string, ink: TheaterInk): void {
+function bat(t: number, actor: Actor, bats: Hand, hands: Point, length: number): { from: Point; to: Point; width: number } {
   // Azimuth on the ground (0: toward first base's side, 90: out to center), and lift.
   let azimuth = -105;
   let lift = 0.85;
@@ -1029,17 +1085,7 @@ function drawBat(ctx: Ctx, t: number, actor: Actor, bats: Hand, hands: Point, le
   const a = (azimuth * Math.PI) / 180;
   const flat = length * Math.sqrt(Math.max(1 - lift * lift, 0));
   const tip = { x: hands.x + Math.cos(a) * flat, y: hands.y - Math.sin(a) * flat * 0.5 - lift * length * 0.82 };
-  const width = Math.max(length * 0.09, 1.1);
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(hands.x, hands.y);
-  ctx.lineTo(tip.x, tip.y);
-  ctx.strokeStyle = halo;
-  ctx.lineWidth = width + 1.4;
-  ctx.stroke();
-  ctx.strokeStyle = ink.bat;
-  ctx.lineWidth = width;
-  ctx.stroke();
+  return { from: hands, to: tip, width: Math.max(length * 0.09, 1.1) };
 }
 
 /** Left lying by the plate when he runs, until the field settles. */
@@ -1059,14 +1105,21 @@ function drawDroppedBat(ctx: Ctx, p: Point, bats: Hand, fade: number, f: FieldPr
   ctx.restore();
 }
 
-/** A bright core in a soft glow, a short comet tail while it's fast, and its shadow on the grass (drawn with the shadows). */
-function drawBall(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs, tags: PlacedTags | null): void {
+/** Where the ball is drawn at t, how big (a touch larger than life) and how faint. */
+function ballSpot(f: FieldProjection, { script, t }: FrameInputs): { point: Point; radius: number; opacity: number } | null {
   const ball = script.ball(t);
-  if (!ball) return;
+  if (!ball) return null;
   const o = script.ballOpacity(t);
-  if (!(o > 0.01)) return;
-  const p = f.at(ball);
-  const r = Math.min(Math.max(0.42 * f.scale, 1.7), Math.max(f.figure * 0.12, 1.7));
+  if (!(o > 0.01)) return null;
+  return { point: f.at(ball), radius: Math.min(Math.max(0.42 * f.scale, 1.7), Math.max(f.figure * 0.12, 1.7)), opacity: o };
+}
+
+/** A bright core in a soft glow, a short comet tail while it's fast, and its shadow on the grass (drawn with the shadows). */
+function drawBall(ctx: Ctx, f: FieldProjection, input: FrameInputs): void {
+  const { script, t, ink } = input;
+  const spot = ballSpot(f, input);
+  if (!spot) return;
+  const { point: p, radius: r, opacity: o } = spot;
   ctx.save();
   ctx.globalAlpha = o;
   // The tail: where it was over the last few hundredths, fading back.
@@ -1105,7 +1158,6 @@ function drawBall(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs,
     ctx.fillStyle = rgba(ink.glow, ink.glowAlpha * strength);
     ctx.fill();
   }
-  ringBall(ctx, tags, p, r);
   ellipse(ctx, p.x, p.y, r + 0.6, r + 0.6);
   ctx.fillStyle = ink.ballEdge;
   ctx.fill();

@@ -375,7 +375,7 @@ export function soccerCast(script: SoccerScript, attacking: Side, lineups: Lineu
     members.set(i, TheaterCast.member(who, side, athlete, i, scope));
   });
   const figure = key == null ? null : script.actors.findIndex((a, i) => a.athlete === key && members.has(i));
-  return TheaterCast.of(members, figure != null && figure >= 0 ? figure : null);
+  return TheaterCast.of(members, figure != null && figure >= 0 ? figure : null, scope);
 }
 
 /**

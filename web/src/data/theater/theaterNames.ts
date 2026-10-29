@@ -19,18 +19,28 @@
  * from his ground point and height; no posing). The tag itself, drawn into
  * each frame, is features/game/core/theater/theaterTags.ts.
  *
+ * A tag and the play never block each other. A tag sits where the other
+ * men and the ball cover it least through its stretch of the replay (over
+ * his head, nudged aside, or under his feet), chosen once for the stretch
+ * from the script alone (`TheaterTagPlan`), so it rides with him and never
+ * wanders. Where every spot round him stays crowded, it's raised clear of the
+ * crowd as a broadcast callout, by as little as clears it, on a stem down to
+ * just over his head.
+ *
  * Motion, Emil's and Apple's way: a tag fades in over 120 ms with a 2 pt
  * rise, ease-out, and leaves faster (100 ms); moving straight from one man
  * to the next swaps at once, as tooltips do after the first; with Reduce
  * Motion it fades without the rise. A tag never moves on its own while the
  * pointer is still: the stage keeps only who the pointer is over, changed
- * when it crosses to another man.
+ * when it crosses to another man. The key man's tag, when the moment passes
+ * to the next man, glides over to him in 200 ms on a strong ease-in-out, the
+ * names crossfading (a crossfade alone with Reduce Motion), a function of t.
  */
 import type { Rect } from "../mlb/playCamera";
-import { houseCurve, type Point } from "../mlb/theaterField";
+import { cubicBezier, houseCurve, type Point } from "../mlb/theaterField";
 import { dress, type TheaterKits } from "../mlb/theaterTeams";
 import type { Side } from "../models";
-import { teamPaint, type SlidePaint } from "../scoringSlide";
+import { SLIDE_LEAN, teamPaint, type SlidePaint } from "../scoringSlide";
 import type { Scheme } from "../teamColors";
 import { intersects, maxX, maxY } from "./theaterKit";
 import type { TheaterPerson } from "./theaterPeople";
@@ -71,6 +81,18 @@ export interface CastKey {
   readonly figure: number | null;
 }
 
+/** A stretch of a script's time: from `from` up to (not including) `to`. */
+export interface Stretch {
+  readonly from: number;
+  readonly to: number;
+}
+
+/** The whole replay: the pointer's man's stretch. */
+export const WHOLE: Stretch = { from: -Infinity, to: Infinity };
+
+/** The key tag's glide at a handoff (Celebrate.sweepCurve): a strong ease-in-out. */
+const sweep = cubicBezier(0.77, 0, 0.175, 1);
+
 /**
  * Who each figure of a script is, for his side, and who the moment is
  * about: what a sport's theater says about its figures, built once per
@@ -81,11 +103,13 @@ export class TheaterCast {
     /** By figure (the script's index). */
     readonly members: ReadonlyMap<number, CastMember> = new Map(),
     readonly keys: readonly CastKey[] = [],
+    /** The script's own (the stage's key for it): where its tags sit is chosen once for it. */
+    readonly scope = "",
   ) {}
 
   /** One key man for the whole moment. */
-  static of(members: ReadonlyMap<number, CastMember>, key: number | null): TheaterCast {
-    return new TheaterCast(members, key == null ? [] : [{ from: -Infinity, figure: key }]);
+  static of(members: ReadonlyMap<number, CastMember>, key: number | null, scope = ""): TheaterCast {
+    return new TheaterCast(members, key == null ? [] : [{ from: -Infinity, figure: key }], scope);
   }
 
   /** A named man's member, or one the data knows less about (`scope`: the script's own, so an unnamed figure is never mistaken for another's). */
@@ -99,6 +123,33 @@ export class TheaterCast {
     const figure = this.keys.findLast((k) => t >= k.from)?.figure ?? null;
     if (figure == null || personOf(this.members.get(figure)?.who) == null) return null;
     return figure;
+  }
+
+  /** The stretch of the script the key man at t is key through: until the next one. */
+  stretch(t: number): Stretch {
+    const i = this.keys.findLastIndex((k) => t >= k.from);
+    if (i < 0) return { from: -Infinity, to: this.keys[0]?.from ?? Infinity };
+    return { from: this.keys[i]!.from, to: i + 1 < this.keys.length ? this.keys[i + 1]!.from : Infinity };
+  }
+
+  /** How long the key man's tag takes to go over to the next one (or to come, or to go), in seconds. */
+  static readonly handoff = 0.2;
+
+  /**
+   * Just after the key man changes, the tag on its way from the last one:
+   * who had it (null: nobody named) and through what stretch, and how far
+   * it's come (0…1, eased in and out, as a move across the well is). Null
+   * once it's there. (pure; tested)
+   */
+  handoff(t: number): { from: number | null; stretch: Stretch; u: number } | null {
+    const i = this.keys.findLastIndex((k) => t >= k.from);
+    if (i <= 0) return null;
+    const at = this.keys[i]!.from;
+    if (!Number.isFinite(at) || !(t - at < TheaterCast.handoff)) return null;
+    const last = this.keys[i - 1]!.figure;
+    const from = last != null && personOf(this.members.get(last)?.who) != null ? last : null;
+    if (from == null && this.key(t) == null) return null;
+    return { from, stretch: { from: this.keys[i - 1]!.from, to: at }, u: sweep((t - at) / TheaterCast.handoff) };
   }
 
   /** The figure a member's id is, in this script. */
@@ -264,28 +315,81 @@ export function shownTags(frame: TagFrame, t: number): { pointer: number | null;
   return { pointer, leaving, key: keyFigure === pointer ? null : keyFigure };
 }
 
+/** The key man's tag on its way over from the last one at t (not the pointer's man's). (pure; tested) */
+export function tagHandoff(frame: TagFrame, t: number): { from: number | null; stretch: Stretch; u: number } | null {
+  const h = frame.cast.handoff(t);
+  if (!h) return null;
+  return { ...h, from: h.from != null && h.from === frame.cast.figure(frame.over) ? null : h.from };
+}
+
 /** The tag's type size, from the well's height: a step under the status tag's. */
 export const tagType = (height: number) => Math.min(Math.max(height * 0.046, 9), 11.5);
 
+/**
+ * How far into the picture a man coming up over the well's bottom edge is:
+ * his tag comes in with the first few points of him. (pure; tested)
+ */
+export const tagEntering = (ask: TagAsk, size: Size) => Math.min(Math.max((size.height - 1 - ask.head.y) / 6, 0), 1);
+
+/** A stem's width, his `height` tall: a hairline in the compact panel's small figures, a point in its usual ones, no more in a wide well's. */
+export const stemWidth = (height: number) => Math.min(Math.max(height * 0.04, 0.75), 1);
+
+/** The ring's width past a man's own outline, `height` tall: about 1.5 pt at the compact panel, with his line weight. */
+export const ringWidth = (height: number) => Math.max(height * 0.06, 1.1);
+
 // MARK: - Placement
 
-/** What a tag asks for: its size, the top of its man's head (and his middle), where under his feet it could go, and whether it's the pointer's. */
-export interface TagAsk {
-  readonly width: number;
-  readonly height: number;
-  readonly head: Point;
-  readonly feet: number;
-  readonly pointer: boolean;
+/**
+ * Where round its man a tag goes first: over his head (its middle nudged
+ * across by a share of its width), or under his feet; or raised clear of
+ * the crowd round him (`lift`: how far, in his own heights), a callout on a
+ * stem down to him.
+ */
+export interface TheaterTagSpot {
+  readonly nudge: number;
+  readonly under: boolean;
+  readonly lift: number;
 }
+
+export const tagSpot = (nudge = 0, under = false, lift = 0): TheaterTagSpot => ({ nudge, under, lift });
+const OVER = tagSpot();
 
 interface Size {
   readonly width: number;
   readonly height: number;
 }
 
+/**
+ * What a tag asks for: its size, the top of its man's head (and his
+ * middle), where under his feet it could go, and whether it's the
+ * pointer's; where round him it goes first (its stretch's choice) and where
+ * next when that's taken (its stretch's next best, in order); and where he
+ * stands and how tall, which a raised tag rides from (so it holds its height
+ * over him, never bobbing with his arms).
+ */
+export interface TagAsk {
+  readonly size: Size;
+  readonly head: Point;
+  readonly feet: number;
+  readonly pointer: boolean;
+  readonly spot?: TheaterTagSpot;
+  readonly then?: readonly TheaterTagSpot[];
+  readonly ground?: Point | null;
+  /** His height, in points. */
+  readonly height?: number;
+}
+
+/** A stem's line: from the slab's bottom edge down to just over his head. */
+export interface StemLine {
+  readonly from: Point;
+  readonly to: Point;
+}
+
 const rect = (x: number, y: number, width: number, height: number): Rect => ({ x, y, width, height });
 const inset = (r: Rect, dx: number, dy: number): Rect => rect(r.x + dx, r.y + dy, r.width - 2 * dx, r.height - 2 * dy);
 const contains = (r: Rect, p: Point) => p.x >= r.x && p.x < maxX(r) && p.y >= r.y && p.y < maxY(r);
+/** How much two rects share (0 when they don't meet). */
+const overlap = (a: Rect, b: Rect) => Math.max(Math.min(maxX(a), maxX(b)) - Math.max(a.x, b.x), 0) * Math.max(Math.min(maxY(a), maxY(b)) - Math.max(a.y, b.y), 0);
 
 /** Where tags go. (pure; tested) */
 export const TheaterTagLayout = {
@@ -293,49 +397,126 @@ export const TheaterTagLayout = {
   margin: 4,
   /** Between a tag and his head (or his feet), and round another tag. */
   gap: 3,
+  /** How far short of him a stem stops: just over his head. */
+  reach: 2.5,
+  /**
+   * The shortest stem worth drawing. A tag nearer him than this (over his
+   * head, nudged, under his feet) is plainly his without one; a stem shorter
+   * than this is a tick lost against him.
+   */
+  shortest: 4,
 
   /**
-   * Each tag's place, in order (the pointer's first: it wins). Over his
-   * head, inside the well and clear of the furniture; else under his feet
-   * (first, when he's too near the top for a tag over him); else slid along
-   * off what's in the way. The pointer's always shows; any other only where
-   * it's clear of the furniture and the tags already placed, else not at all
-   * (it waits for the room). A man out of the well gets none.
+   * Each tag's place, in order (the pointer's first: it wins). Where its
+   * spot puts it (over his head, or nudged aside, or under his feet; or
+   * raised clear of a crowd, sunk under or slid along off what's over it),
+   * inside the well and clear of the furniture; else on his other side
+   * (under his feet first when he's too near the top for a tag over him);
+   * else slid along off what's in the way. The pointer's always shows; any
+   * other only where it and its stem are clear of the furniture and the tags
+   * (and stems) already placed, else not at all (it waits for the room). A
+   * man out of the well gets none.
    */
   place(asks: readonly TagAsk[], size: Size, furniture: readonly Rect[]): (Rect | null)[] {
-    const { margin, gap } = TheaterTagLayout;
+    const L = TheaterTagLayout;
     const placed: Rect[] = [];
+    const stems: Rect[] = [];
     const out: (Rect | null)[] = [];
-    const well = rect(0, 0, size.width, size.height);
     for (const ask of asks) {
-      if (!contains(inset(well, -2, -ask.height), ask.head) && !contains(well, { x: ask.head.x, y: ask.feet })) {
+      if (!L.inWell(ask, size)) {
         out.push(null);
         continue;
       }
-      const free = (r: Rect) => !furniture.some((f) => intersects(f, r)) && !placed.some((p) => intersects(inset(p, -gap, -gap + 1), r));
-      const above = rect(ask.head.x - ask.width / 2, ask.head.y - gap - ask.height, ask.width, ask.height);
-      const below = rect(above.x, ask.feet + gap, ask.width, ask.height);
-      const over = TheaterTagLayout.clamp(above, size);
-      const under = TheaterTagLayout.clamp(below, size);
+      const free = (r: Rect) => {
+        if (furniture.some((f) => intersects(f, r)) || placed.some((p) => intersects(inset(p, -L.gap, -L.gap + 1), r)) || stems.some((s) => intersects(s, r))) return false;
+        const s = L.stem(r, ask, size);
+        return s ? !placed.some((p) => intersects(p, L.stemBox(s))) : true;
+      };
+      const take = (r: Rect) => {
+        placed.push(r);
+        const s = L.stem(r, ask, size);
+        if (s) stems.push(L.stemBox(s));
+        out.push(r);
+      };
+      const [above, below] = L.sides(ask);
+      const over = L.clamp(above, size);
+      const under = L.clamp(below, size);
       // Kept inside the well by more than a hair, a tag would sit on his own head (or feet): only a side with room
       // (the pointer's goes anywhere as a last resort).
-      const sides = [...(above.y >= margin - 1 ? [over] : []), ...(maxY(below) <= size.height - margin + 1 ? [under] : [])];
-      const candidates = [...sides, ...sides.map((r) => TheaterTagLayout.slid(r, furniture, size))];
-      if (ask.pointer) candidates.push(over, under, TheaterTagLayout.slid(over, furniture, size), TheaterTagLayout.slid(under, furniture, size));
+      const up = above.y >= L.margin - 1 ? [over] : [];
+      const down = maxY(below) <= size.height - L.margin + 1 ? [under] : [];
+      const first = (ask.spot ?? OVER).under ? [...down, ...up] : [...up, ...down];
+      // Its spot first, then its stretch's next best (so a tag the pointer's has pushed off its place goes where the
+      // crowd covers it least, not into it), then its other side, slid along.
+      const candidates = [...[ask.spot ?? OVER, ...(ask.then ?? [])].flatMap((spot) => L.at(spot, ask, size, furniture)), ...first, ...first.map((r) => L.slid(r, furniture, size))];
+      if (ask.pointer) candidates.push(over, under, L.slid(over, furniture, size), L.slid(under, furniture, size));
       const spot = candidates.find(free);
-      if (spot) {
-        placed.push(spot);
-        out.push(spot);
-      } else if (ask.pointer) {
-        // The pointer's tag always shows: off the furniture if it can be, over the others.
-        const clear = candidates.find((r) => !furniture.some((f) => intersects(f, r))) ?? over;
-        placed.push(clear);
-        out.push(clear);
-      } else {
-        out.push(null);
-      }
+      if (spot) take(spot);
+      // The pointer's tag always shows: off the furniture if it can be, over the others.
+      else if (ask.pointer) take(candidates.find((r) => !furniture.some((f) => intersects(f, r))) ?? over);
+      else out.push(null);
     }
     return out;
+  },
+
+  /**
+   * Whether a tag's man is in the well (one out of it gets none; nor one
+   * under its bottom edge, his head and all, whose tag held at the edge would
+   * name nobody in the picture).
+   */
+  inWell(ask: TagAsk, size: Size): boolean {
+    const well = rect(0, 0, size.width, size.height);
+    return ask.head.y < size.height - 1 && (contains(inset(well, -2, -ask.size.height), ask.head) || contains(well, { x: ask.head.x, y: ask.feet }));
+  },
+
+  /** A tag's two sides of its man, as its spot nudges them: over his head and under his feet. */
+  sides(ask: TagAsk): [over: Rect, under: Rect] {
+    const { width, height } = ask.size;
+    const x = ask.head.x + (ask.spot ?? OVER).nudge * width - width / 2;
+    return [rect(x, ask.head.y - TheaterTagLayout.gap - height, width, height), rect(x, ask.feet + TheaterTagLayout.gap, width, height)];
+  },
+
+  /**
+   * Where a spot puts a tag round him, if there's room on that side: over
+   * his head, nudged, under his feet; or raised clear of a crowd, then sunk
+   * under what's over it, or slid along off it.
+   */
+  at(spot: TheaterTagSpot, ask: TagAsk, size: Size, furniture: readonly Rect[]): Rect[] {
+    const L = TheaterTagLayout;
+    const asked: TagAsk = { ...ask, spot };
+    if (spot.lift > 0) {
+      const r = L.raised(asked, size);
+      return r ? [r, L.sunk(r, furniture, asked), L.slid(r, furniture, size)] : [];
+    }
+    const [above, below] = L.sides(asked);
+    if (spot.under) return maxY(below) <= size.height - L.margin + 1 ? [L.clamp(below, size)] : [];
+    return above.y >= L.margin - 1 ? [L.clamp(above, size)] : [];
+  },
+
+  /**
+   * A tag raised clear of a crowd: `lift` of his heights over the spot over
+   * his head, a fixed offset from where he stands. Near the well's top it
+   * sinks back toward him rather than leave it, never nearer than over his
+   * head; null when it isn't raised, or there's no room over him at all.
+   * (pure; tested)
+   */
+  raised(ask: TagAsk, size: Size): Rect | null {
+    const L = TheaterTagLayout;
+    const [above] = L.sides(ask);
+    const spot = ask.spot ?? OVER;
+    const ground = ask.ground;
+    const height = ask.height ?? 0;
+    if (!(spot.lift > 0) || !ground || !(height > 0) || !(above.y >= L.margin - 1)) return null;
+    const { width, height: tall } = ask.size;
+    const y = ground.y - height - L.gap - tall - spot.lift * height;
+    return L.clamp(rect(ground.x + spot.nudge * width - width / 2, Math.min(Math.max(y, L.margin), above.y), width, tall), size);
+  },
+
+  /** A raised tag dropped just under the furniture it meets (the headline over the play, the status tag in its corner), still over his head. */
+  sunk(r: Rect, furniture: readonly Rect[], ask: TagAsk): Rect {
+    let moved = r;
+    for (const f of furniture) if (intersects(f, moved)) moved = { ...moved, y: Math.max(moved.y, maxY(f) + 2) };
+    return maxY(moved) <= ask.head.y - TheaterTagLayout.gap + 0.01 ? moved : r;
   },
 
   /** Slid along off whatever furniture it meets, toward the middle, and kept in the well. */
@@ -358,6 +539,27 @@ export const TheaterTagLayout = {
       width: r.width,
       height: r.height,
     };
+  },
+
+  /**
+   * A tag's stem to its man where it's raised clear of him (or pushed up off
+   * what's in the way), as a broadcast callout's: straight down from its
+   * bottom edge over his head (or its nearest end, inside the slab's cut
+   * corner), tucked under the slab, to just over his head. None where it
+   * would be shorter than `shortest` (a tag round him), or he's under the
+   * well's edge (his tag held at it). (pure; tested)
+   */
+  stem(r: Rect, ask: TagAsk, size: Size): StemLine | null {
+    const L = TheaterTagLayout;
+    if (!(maxY(r) <= ask.head.y - L.reach - L.shortest) || !(ask.head.y - L.reach <= size.height - L.margin)) return null;
+    // Its bottom edge runs from the leading corner to the trailing cut.
+    const x = Math.min(Math.max(ask.head.x, r.x + 2), maxX(r) - r.height * SLIDE_LEAN - 2);
+    return { from: { x, y: maxY(r) - 0.5 }, to: { x: ask.head.x, y: ask.head.y - L.reach } };
+  },
+
+  /** The room a stem takes, for placement: its line, a little wide. */
+  stemBox(s: StemLine): Rect {
+    return inset(rect(Math.min(s.from.x, s.to.x), Math.min(s.from.y, s.to.y), Math.abs(s.to.x - s.from.x), Math.abs(s.to.y - s.from.y)), -1, 0);
   },
 
   /**
@@ -384,6 +586,240 @@ export const TheaterTagLayout = {
   banner(block: Size, size: Size): Rect {
     const top = Math.max(size.height * 0.055, 9) * 0.7;
     return rect((size.width - block.width) / 2, top, block.width, block.height);
+  },
+};
+
+// MARK: - Where round him
+
+/**
+ * A moment of a replay as the tags see it: each figure's spot on screen (his
+ * ground point, his height there) and the ball's, from the script at t
+ * through the camera, no posing; and what else stands over the surface and
+ * plays over a tag (a basket's glass, rim and net), kept clear of as a man is.
+ */
+export interface TheaterSpots {
+  readonly figures: readonly HitFigure[];
+  readonly ball: Point | null;
+  readonly fixtures?: readonly Rect[];
+}
+
+/** A replay as the tags see it: how long it runs, and each moment of it. */
+export interface TheaterReplay {
+  readonly length: number;
+  readonly at: (t: number) => TheaterSpots;
+}
+
+/**
+ * `start + i·step` as Swift's floating-point stride takes it: a fused
+ * multiply-add (one rounding), so the samples land where the Mac's do, the
+ * stretch's last one included or not alike.
+ */
+function strideAt(start: number, i: number, step: number): number {
+  const p = i * step;
+  // The product's rounding error, exactly (Dekker's split).
+  const split = (a: number) => {
+    const c = 134217729 * a;
+    const hi = c - (c - a);
+    return [hi, a - hi] as const;
+  };
+  const [ah, al] = split(i);
+  const [bh, bl] = split(step);
+  const e = ah * bh - p + ah * bl + al * bh + al * bl;
+  const s = start + p;
+  const z = s - start;
+  const f = start - (s - z) + (p - z);
+  return s + (f + e);
+}
+
+const LIFTS = [0.5, 0.75, 1, 1.25, 1.5] as const;
+const RAISE = 0.06;
+const PER_HEIGHT = 0.06;
+
+/** Each stretch's ranking, kept: by the replay's scope, the man, his stretch, the well and the tag (NSCache's count limit). */
+const chosen = new Map<string, readonly TheaterTagSpot[]>();
+
+/**
+ * Where each tag sits round its man, so the play and the names never block
+ * each other: of the spots round him, the one the other men and the ball
+ * cover least through his stretch of the replay (while he's the key man; the
+ * whole replay under the pointer), sampled ten times a second from the script
+ * alone. Chosen once per stretch, so a tag never wanders mid-play; a man
+ * passing through (a brief crossing) never moves it, since each spot past the
+ * first costs a little (the ring takes those); a crowd he stands behind does.
+ * Where every spot round him stays crowded, it's raised over the crowd on a
+ * stem, by as little as clears it. (pure; tested)
+ */
+export const TheaterTagPlan = {
+  /**
+   * The spots, most wanted first, and what each costs over the first (as a
+   * share of the tag covered through the stretch): over his head; nudged a
+   * quarter or nearly half its width (his head still under it); under his
+   * feet, the same; then raised over him as a callout, each height with the
+   * same nudges (a little more for each).
+   */
+  spots: [
+    [tagSpot(), 0],
+    [tagSpot(-0.25), 0.06],
+    [tagSpot(0.25), 0.06],
+    [tagSpot(0, true), 0.09],
+    [tagSpot(-0.45), 0.12],
+    [tagSpot(0.45), 0.12],
+    [tagSpot(-0.25, true), 0.14],
+    [tagSpot(0.25, true), 0.14],
+    [tagSpot(-0.45, true), 0.2],
+    [tagSpot(0.45, true), 0.2],
+    ...LIFTS.flatMap((lift) =>
+      (
+        [
+          [0, 0],
+          [-0.25, 0.02],
+          [0.25, 0.02],
+          [-0.45, 0.04],
+          [0.45, 0.04],
+        ] as const
+      ).map(([nudge, more]) => [tagSpot(nudge, false, lift), RAISE + PER_HEIGHT * lift + more] as const),
+    ),
+  ] as readonly (readonly [TheaterTagSpot, number])[],
+
+  /**
+   * How high a callout goes over his head, in his heights: half of one up to
+   * one and a half, in steps, so it stops at the first that clears the crowd
+   * (any higher and its stem outgrows the men it names).
+   */
+  lifts: LIFTS,
+  /**
+   * A tag rises only where the best spot round him stays covered more than
+   * this through the stretch: a crowd he's in, not a man passing (the ring
+   * takes those).
+   */
+  crowded: 0.12,
+  /** What a callout costs over a tag round him, and each of his heights it rises, so it goes no higher than clears the crowd. */
+  raise: RAISE,
+  perHeight: PER_HEIGHT,
+  /** Samples a second. */
+  rate: 10,
+  /** The ball covers more than its size: it's what the eye follows. */
+  ballWeight: 3,
+
+  /** A man on screen from his ground point and height: what a tag over him would cover. */
+  body(ground: Point, height: number): Rect {
+    return rect(ground.x - height * 0.3, ground.y - height * 1.04, height * 0.6, height * 1.1);
+  },
+
+  /**
+   * How much of a tag at `r` the ball covers at a moment: its box there
+   * (`g` round it), or the path it flew since the last moment (as wide as
+   * its box), whichever's more, so a ball in flight is counted all along its
+   * way, never only where the samples land. (pure; tested)
+   */
+  ball(r: Rect, p: Point, q: Point | null, g: number): number {
+    const area = overlap(r, rect(p.x - g, p.y - g, 2 * g, 2 * g));
+    if (!q) return area;
+    // The flight's length inside the tag grown by the ball's reach (Liang–Barsky).
+    const grown = inset(r, -g, -g);
+    const dx = p.x - q.x;
+    const dy = p.y - q.y;
+    let t0 = 0;
+    let t1 = 1;
+    for (const [n, e] of [
+      [-dx, q.x - grown.x],
+      [dx, maxX(grown) - q.x],
+      [-dy, q.y - grown.y],
+      [dy, maxY(grown) - q.y],
+    ] as const) {
+      if (Math.abs(n) < 1e-9) {
+        if (e < 0) return area;
+      } else if (n < 0) t0 = Math.max(t0, e / n);
+      else t1 = Math.min(t1, e / n);
+    }
+    if (!(t1 > t0)) return area;
+    return Math.max(area, (t1 - t0) * Math.hypot(dx, dy) * 2 * g);
+  },
+
+  /** What a tag asks of placement round a man at a moment (his ground point and height there; no posing), at `spot`. */
+  ask(spot: TheaterTagSpot, tag: Size, ground: Point, height: number, pointer: boolean): TagAsk {
+    return { size: tag, head: { x: ground.x, y: ground.y - height }, feet: ground.y + Math.max(height * 0.1, 2), pointer, spot, ground, height };
+  },
+
+  /** The spot for man `man`'s tag, `tag` big, through `stretch` of a replay in a well `size`, kept clear of the corners that never move (`furniture`). (pure; tested) */
+  choose(man: number, tag: Size, pointer: boolean, stretch: Stretch, size: Size, furniture: readonly Rect[], replay: TheaterReplay): TheaterTagSpot {
+    return TheaterTagPlan.rank(man, tag, pointer, stretch, size, furniture, replay)[0]!;
+  },
+
+  /**
+   * Every spot for man `man`'s tag through `stretch`, most wanted first: at
+   * each moment, where placement would put it at each spot and how much of
+   * it the other men and the ball would cover (all of it when it wouldn't
+   * show; nothing counted while he's out of the well); the least covered once
+   * its cost is counted first (the first of equals). Raised only where every
+   * spot round him stays crowded. (pure; tested)
+   */
+  rank(man: number, tag: Size, pointer: boolean, stretch: Stretch, size: Size, furniture: readonly Rect[], replay: TheaterReplay): TheaterTagSpot[] {
+    const P = TheaterTagPlan;
+    const from = Math.min(Math.max(stretch.from, 0), replay.length);
+    const to = Math.max(Math.min(stretch.to, replay.length), from);
+    // Each moment once: where he is, what the others (and a basket) cover, where the ball is and was the moment before.
+    const moments: { ground: Point; height: number; others: Rect[]; ball: { at: Point; from: Point | null } | null }[] = [];
+    let flown: Point | null = null;
+    for (let i = 0; ; i++) {
+      const t = strideAt(from, i, 1 / P.rate);
+      if (t > to) break;
+      const moment = replay.at(t);
+      const him = moment.figures.find((f) => f.index === man);
+      if (him) {
+        const others: Rect[] = [];
+        for (const f of moment.figures) if (f.index !== man) others.push(P.body(f.ground, f.height));
+        if (moment.fixtures) others.push(...moment.fixtures);
+        moments.push({ ground: him.ground, height: him.height, others, ball: moment.ball ? { at: moment.ball, from: flown } : null });
+      }
+      flown = moment.ball;
+    }
+    const scored: { spot: TheaterTagSpot; covered: number; score: number; k: number }[] = [];
+    P.spots.forEach(([spot, cost], k) => {
+      let covered = 0;
+      let seen = 0;
+      for (const m of moments) {
+        const ask = P.ask(spot, tag, m.ground, m.height, pointer);
+        if (!TheaterTagLayout.inWell(ask, size)) continue;
+        seen += 1;
+        const r = TheaterTagLayout.place([ask], size, furniture)[0];
+        if (!r) {
+          covered += 1;
+          continue;
+        }
+        let area = 0;
+        for (const other of m.others) area += overlap(r, other);
+        if (m.ball) area += P.ball(r, m.ball.at, m.ball.from, Math.max(m.height * 0.15, 2.5)) * P.ballWeight;
+        covered += Math.min(area / Math.max(r.width * r.height, 1), 1);
+      }
+      const share = seen > 0 ? covered / seen : 0;
+      scored.push({ spot, covered: share, score: share + cost, k });
+    });
+    // (To a millionth, so equals stay in the order they're wanted.)
+    const ranked = scored.sort((a, b) => Math.round(a.score * 1e6) - Math.round(b.score * 1e6) || a.k - b.k);
+    // Raised only where every spot round him stays crowded: else the best of those first (the callouts still next, for
+    // when the pointer's tag has it).
+    const near = ranked.findIndex((s) => s.spot.lift === 0);
+    if (near >= 0 && ranked[near]!.covered < P.crowded) ranked.unshift(...ranked.splice(near, 1));
+    return ranked.map((s) => s.spot);
+  },
+
+  /**
+   * `rank`, each stretch's once: by the replay (its cast's scope), the man,
+   * his stretch, the well and the tag. Kept clear of the corners that stay
+   * put through a replay (the turn control's, whether it's up or not, and
+   * the heartbeat's): the status tag's words change and the stamp and the
+   * headline come and go, so placement keeps clear of those as they do.
+   */
+  ranked(man: number, tag: Size, pointer: boolean, stretch: Stretch, size: Size, heartbeat: HeartbeatEdge, replay: TheaterReplay, scope: string): readonly TheaterTagSpot[] {
+    const corner = heartbeat == null ? "-" : heartbeat === "leading" ? "L" : "T";
+    const key = `${scope}|${man}|${pointer}|${stretch.from}|${Math.trunc(size.width)}×${Math.trunc(size.height)}|${Math.trunc(tag.width * 2)}×${Math.trunc(tag.height * 2)}|${corner}`;
+    const kept = chosen.get(key);
+    if (kept) return kept;
+    const ranked = TheaterTagPlan.rank(man, tag, pointer, stretch, size, TheaterTagLayout.furniture(size, null, true, heartbeat), replay);
+    if (chosen.size >= 200) chosen.delete(chosen.keys().next().value!);
+    chosen.set(key, ranked);
+    return ranked;
   },
 };
 

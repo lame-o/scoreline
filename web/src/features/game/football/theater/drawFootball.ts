@@ -15,10 +15,10 @@ import type { Side } from "../../../../data/models";
 import type { FootballScene } from "../../../../data/theater/footballScene";
 import { FootballScript, footballStamp, Gridiron, type Flag, type Player } from "../../../../data/theater/footballScript";
 import { gait, keyed, mix, over, Rig, rigArm, rigPose, RigPoses, RigTrack, vec, withPose, type RigPose } from "../../../../data/theater/rig";
-import { TheaterTagLayout, type HitFigure, type TagFrame } from "../../../../data/theater/theaterNames";
+import { TheaterTagLayout, type HitFigure, type TagFrame, type TheaterSpots } from "../../../../data/theater/theaterNames";
 import { FieldProjection } from "../../core/theater/fieldProjection";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
-import { drawTags, ringBall, ringFigure, type PlacedTags } from "../../core/theater/theaterTags";
+import { drawStems, drawTags, tagRing, type Stems, type TagBall } from "../../core/theater/theaterTags";
 import { hsb, rgba, type TheaterInk } from "../../mlb/theater/theaterInk";
 import {
   accentOf,
@@ -286,11 +286,15 @@ export function drawGridiron(ctx: Ctx, f: GridProjection, ink: TheaterInk, near:
   ctx.lineWidth = line * 1.8;
   ctx.lineJoin = "miter";
   ctx.stroke();
+}
 
-  // The goalposts on the end lines: the post, the crossbar, the uprights.
+/** The goalposts on the end lines (GridironLayer.posts): the post, the crossbar, the uprights; standing up off the field, with the play, over the names on it. */
+export function drawPosts(ctx: Ctx, f: GridProjection, ink: TheaterInk): void {
+  const [lo, hi] = visible(f);
+  const line = Math.min(Math.max(0.75, f.scale * 0.3), 1.6);
   ctx.beginPath();
   for (const y of [-Gridiron.endZone, Gridiron.backLine]) {
-    if (!shown(y)) continue;
+    if (!(y >= lo - 12 && y <= hi + 40)) continue;
     const base = f.point({ x: 0, y }, 0);
     const bar = f.point({ x: 0, y }, Gridiron.crossbar);
     ctx.moveTo(base.x, base.y);
@@ -730,20 +734,23 @@ export interface FrameInputs {
 
 /**
  * One frame of a play through the camera (FootballFrame): the lines, the
- * flag, the shadows, the names over the players (on the grass, under
- * everything that plays), the players far to near, the ball, the beats, the
- * headline and the stamp.
+ * shadows, the names (on the grass, under everything that plays), the
+ * goalposts, the flag, the players far to near (each with the stem of his
+ * raised name just before him), the ball, the beats, the headline and the
+ * stamp.
  */
 export function drawFootballFrame(ctx: Ctx, f: GridProjection, input: FrameInputs): void {
   drawLines(ctx, f, input);
-  drawFlags(ctx, f, input);
   const figures = posed(f, input);
-  drawShadows(ctx, f, input, figures);
-  const placed = drawNames(ctx, f, input, figures);
-  drawPlayers(ctx, f, input, figures, placed);
   let held: Point | null = null;
   for (const p of figures) if (p.ball) held ??= p.ball;
-  drawFootball(ctx, f, input, held, placed);
+  drawShadows(ctx, f, input, figures);
+  // The names on the field, under all that plays: the posts and a flag in the air too.
+  const stems = drawNames(ctx, f, input, figures, held);
+  drawPosts(ctx, f, input.ink);
+  drawFlags(ctx, f, input);
+  drawPlayers(ctx, f, input, figures, stems);
+  drawFootball(ctx, f, input, held);
   drawFlashes(ctx, f, input);
   drawLabels(ctx, f, input);
 }
@@ -757,20 +764,30 @@ export function hitFigures(f: GridProjection, script: FootballScript, t: number)
   });
 }
 
-/** The names over the players, clear of the headline and the stamp while they're up. */
-function drawNames(ctx: Ctx, f: GridProjection, { script, t, ink, labels, tags }: FrameInputs, figures: readonly Posed[]): PlacedTags | null {
+/** Each player's spot on screen at t and the ball's, through the camera, no posing (FootballFrame.spots): what a tag keeps clear of. */
+export function footballSpots(script: FootballScript, t: number, size: Size): TheaterSpots {
+  const f = new GridProjection(size, script.camera.frame(t), script.yawAt(t));
+  const ball = script.ball(t);
+  return { figures: hitFigures(f, script, t), ball: ball ? f.at(ball) : null };
+}
+
+/** The names round the players, drawn under them and the ball, clear of the headline and the stamp while they're up; the raised ones' stems, to draw with their men. */
+function drawNames(ctx: Ctx, f: GridProjection, input: FrameInputs, figures: readonly Posed[], held: Point | null): Stems {
+  const { script, t, ink, labels, tags } = input;
   const clear: Rect[] = [];
   const banner = script.banner;
   if (banner && labels.banner && t >= banner.at && t < banner.until + 0.3) clear.push(TheaterTagLayout.banner(labels.banner, f.size));
   if (labels.stamp && t >= script.stamp) clear.push(TheaterTagLayout.stamp(labels.stamp, f.size, TheaterType.inset(f.size)));
+  const spot = ballSpot(f, input, held);
+  const ball: TagBall | null = spot ? { x: spot.point.x, y: spot.point.y, rx: spot.radius * 1.45 + 0.6, ry: spot.radius * 0.92 + 0.6, angle: spot.angle, height: f.figure } : null;
+  const size = f.size;
   return drawTags(
     ctx,
     tags,
     figures.map((p) => ({ index: p.index, figure: p.figure, height: f.figure, opacity: p.opacity })),
     t,
-    f.size,
-    clear,
-    ink.dark,
+    size,
+    { clear, ring: tagRing(ink.dark), ball, replay: { length: script.duration, at: (s) => footballSpots(script, s, size) } },
   );
 }
 
@@ -930,7 +947,8 @@ function posed(f: GridProjection, { script, t }: FrameInputs): Posed[] {
   return out;
 }
 
-function drawPlayers(ctx: Ctx, f: GridProjection, { script, teams, ink }: FrameInputs, figures: readonly Posed[], placed: PlacedTags | null): void {
+/** Far to near, each with the stem of his raised name just before him. */
+function drawPlayers(ctx: Ctx, f: GridProjection, { script, teams, ink }: FrameInputs, figures: readonly Posed[], stems: Stems): void {
   const offense = figureInks(teams.offense, ink);
   const defense = figureInks(teams.defense, ink);
   // An official, only when one throws a flag (or between snaps): the zebra shirt. A trainer in the staff's slate.
@@ -938,32 +956,42 @@ function drawPlayers(ctx: Ctx, f: GridProjection, { script, teams, ink }: FrameI
   const staff = script.players.some((p) => p.team === "staff") ? figureInks(STAFF, ink) : offense;
   for (const p of figures) {
     const team = script.players[p.index]!.team;
-    ringFigure(ctx, placed, p.figure, f.figure, p.opacity);
+    drawStems(ctx, stems, p.index);
     drawFigure(ctx, p.figure, team === "offense" ? offense : team === "defense" ? defense : team === "staff" ? staff : official, f.figure, p.opacity);
   }
 }
 
-/** A football: a brown oval along its flight in a soft glow, a comet tail while it's in the air, in his hands while he has it, its shadow on the grass (with the shadows). */
-function drawFootball(ctx: Ctx, f: GridProjection, { script, t, ink }: FrameInputs, held: Point | null, placed: PlacedTags | null): void {
+/**
+ * Where the ball is drawn at t: in his hands or along its flight, how big (a
+ * touch larger than life, as the baseball is: it's what the eye follows),
+ * the way it points (along its flight) and its tail while it flies.
+ */
+function ballSpot(f: GridProjection, { script, t }: FrameInputs, held: Point | null): { point: Point; radius: number; angle: number; trail: Point[] | null } | null {
   const ball = script.ball(t);
-  if (!ball) return;
+  if (!ball) return null;
   const p = held ?? f.at(ball);
-  // A touch larger than life, as the baseball is: it's what the eye follows.
   const r = Math.min(Math.max(0.55 * f.scale, 2.2), Math.max(f.figure * 0.13, 2.2));
   const flight = script.flight(t);
-  let angle = 0;
-  if (flight) {
-    const trail: Point[] = [];
-    for (let i = 1; i <= 6; i++) trail.push(f.at(flight.point(Math.max(t - i * 0.014, flight.start))));
+  if (!flight) return { point: p, radius: r, angle: 0, trail: null };
+  const trail: Point[] = [];
+  for (let i = 1; i <= 6; i++) trail.push(f.at(flight.point(Math.max(t - i * 0.014, flight.start))));
+  const last = trail[0]!;
+  const angle = Math.hypot(last.x - p.x, last.y - p.y) > 0.3 ? Math.atan2(p.y - last.y, p.x - last.x) : 0;
+  return { point: p, radius: r, angle, trail };
+}
+
+/** A football: a brown oval along its flight in a soft glow, a comet tail while it's in the air, in his hands while he has it, its shadow on the grass (with the shadows). */
+function drawFootball(ctx: Ctx, f: GridProjection, input: FrameInputs, held: Point | null): void {
+  const { script, t, ink } = input;
+  const spot = ballSpot(f, input, held);
+  if (!spot) return;
+  const { point: p, radius: r, angle, trail } = spot;
+  if (trail) {
     drawTrail(ctx, trail, p, r * 0.8, ink.ball);
-    const last = trail[0]!;
-    if (Math.hypot(last.x - p.x, last.y - p.y) > 0.3) angle = Math.atan2(p.y - last.y, p.x - last.x);
     drawGlow(ctx, p, r, ink);
   } else if (t < script.settle) {
     drawGlow(ctx, p, r * 0.8, ink, 0.7);
   }
-  // Where it crosses a name, a ring round it (the oval's mean radius), over the name only.
-  ringBall(ctx, placed, p, r * 1.2);
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(angle);

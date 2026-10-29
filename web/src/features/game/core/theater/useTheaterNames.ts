@@ -17,7 +17,7 @@
  *     const names = useTheaterNames(well, stage);
  *     // In the stage's paint, for the frame it draws (its script's cast, its figures at t for the hit test):
  *     const tags = names.frame(cast, labels, { status, flip: true, heartbeat: "trailing" }, () => hitFigures);
- *     drawFrame(ctx, f, { …, tags });   // drawTags after the shadows, ringFigure/ringBall before each figure and the ball
+ *     drawFrame(ctx, f, { …, tags });   // drawTags after the shadows (rings and all), drawStems just before each figure
  */
 import { useEffect, useState, type RefObject } from "react";
 import { hitFigure, NO_CAST, tagFrame, TheaterPointer, type HeartbeatEdge, type HitFigure, type TagFrame, type TheaterCast, type TheaterLabels } from "../../../../data/theater/theaterNames";

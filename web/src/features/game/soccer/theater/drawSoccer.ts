@@ -14,11 +14,11 @@ import { gait, keyed, mirrored, mix, over, Rig, rigArm, rigPose, RigPoses, RigTr
 import { referee, type Uniform } from "../../../../data/mlb/theaterTeams";
 import { Pitch, stampDetail, surname, type SoccerScene } from "../../../../data/theater/soccerScene";
 import type { Actor, SoccerProp, SoccerScript } from "../../../../data/theater/soccerScript";
-import type { PitchProjection } from "../../../../data/theater/soccerTheater";
+import { PitchProjection } from "../../../../data/theater/soccerTheater";
 import type { Rect } from "../../../../data/mlb/playCamera";
-import { TheaterTagLayout, type TagFrame } from "../../../../data/theater/theaterNames";
+import { TheaterTagLayout, type HitFigure, type TagFrame, type TheaterSpots } from "../../../../data/theater/theaterNames";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, shift, type RigFigure } from "../../core/theater/rigFigure";
-import { drawTags, ringBall, ringFigure, type PlacedTags, type TagFigure } from "../../core/theater/theaterTags";
+import { drawStems, drawTags, tagRing, type Stems, type TagFigure } from "../../core/theater/theaterTags";
 import { hexRGB, rgba, type RGB, type TheaterInk } from "../../mlb/theater/theaterInk";
 import {
   accentOf,
@@ -662,31 +662,61 @@ export interface FrameInputs {
 }
 
 /**
- * One frame of a moment through the camera (SoccerFrame): the passes' lines
- * on the grass and the shadows, the names on the pitch under everything that
- * plays (the shot's flight, the players and the goals, the ball), then the
- * type.
+ * One frame of a moment through the camera (SoccerFrame): the shadows, the
+ * names on the pitch under everything that plays (the move's trail and the
+ * shot's path, the goals and the players far to near, each with the stem of
+ * his raised name just before him, the ball), then the type.
  */
 export function drawSoccerFrame(ctx: Ctx, f: PitchProjection, input: FrameInputs): void {
-  drawTrails(ctx, f, input, "ground");
   const figures = posed(f, input);
+  const hands = held(input, figures);
   drawShadows(ctx, f, input, figures);
-  const named = drawNames(ctx, f, input, figures);
+  // The names on the pitch, under all that plays: the move's trail and the goals too.
+  const stems = drawNames(ctx, f, input, figures, hands);
+  drawTrails(ctx, f, input, "ground");
   drawTrails(ctx, f, input, "air");
-  const hands = drawStage(ctx, f, input, figures, named);
-  drawTheBall(ctx, f, input, hands, named);
+  drawStage(ctx, f, input, figures, stems);
+  drawTheBall(ctx, f, input, hands);
   drawImpacts(ctx, f, input);
   drawLabels(ctx, f, input);
 }
 
+/** Where the keeper holding the ball has his hands. */
+function held({ script, t }: FrameInputs, figures: readonly Posed[]): Point | null {
+  const i = script.heldBy;
+  if (i == null || !(t >= script.heldFrom) || i >= figures.length || !(script.actors[i]!.opacity(t) > 0.01)) return null;
+  return figures[i]!.hands;
+}
+
+/** Each player's spot on screen at t and the ball's, through the camera, no posing (SoccerFrame.spots): what a tag keeps clear of. */
+export function soccerSpots(script: SoccerScript, t: number, size: { readonly width: number; readonly height: number }): TheaterSpots {
+  const f = new PitchProjection(size, script.frame(t));
+  const figures: HitFigure[] = script.actors.flatMap((actor, index) => {
+    if (!(actor.opacity(t) > 0.01)) return [];
+    const lens = RigLens.pitch(f, actor.position(t));
+    return [{ index, ground: lens.origin, height: lens.height }];
+  });
+  const ball = script.ballOpacity(t) > 0.01 ? script.ball(t) : null;
+  return { figures, ball: ball ? f.point(ball) : null };
+}
+
+/** Where the ball is drawn at t (in the keeper's hands, or where it is), how big, how faint, and a man's height there. */
+function ballSpot(f: PitchProjection, { script, t }: FrameInputs, hands: Point | null): { point: Point; radius: number; opacity: number; height: number } | null {
+  const ball = script.ball(t);
+  if (!ball) return null;
+  const height = f.figure(ball);
+  return { point: hands ?? f.point(ball), radius: Math.min(Math.max(0.3 * f.scale(ball), 1.7), Math.max(height * 0.11, 1.7)), opacity: script.ballOpacity(t), height };
+}
+
 /**
- * The names over the players (SoccerFrame.drawTags), on the pitch under
+ * The names round the players (SoccerFrame.drawTags), on the pitch under
  * everything that plays, clear of the headline and the stamp while they're
- * up; each over his man as he's drawn (his own height in the perspective),
- * fading with him as he comes on or goes off.
+ * up; each round his man as he's drawn (his own height in the perspective),
+ * fading with him as he comes on or goes off. The raised ones' stems, to
+ * draw with their men.
  */
-function drawNames(ctx: Ctx, f: PitchProjection, { script, t, labels, tags, ink }: FrameInputs, figures: readonly Posed[]): PlacedTags | null {
-  if (!tags) return null;
+function drawNames(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: readonly Posed[], hands: Point | null): Stems {
+  const { script, t, labels, tags, ink } = input;
   const clear: Rect[] = [];
   script.banners.forEach((banner, i) => {
     const block = labels.banners[i];
@@ -695,10 +725,19 @@ function drawNames(ctx: Ctx, f: PitchProjection, { script, t, labels, tags, ink 
   if (labels.stamp && t >= script.stamp) clear.push(TheaterTagLayout.stamp(labels.stamp, f.size, TheaterType.inset(f.size), script.cornerRight));
   const shown: TagFigure[] = [];
   figures.forEach((p, index) => {
-    const opacity = script.actors[index]!.opacity(t);
-    if (opacity > 0.01) shown.push({ index, figure: p.figure, height: p.height, opacity });
+    const actor = script.actors[index]!;
+    const seen = actor.opacity(t);
+    if (seen > 0.01) shown.push({ index, figure: p.figure, height: p.height, opacity: seen, drawn: actor.shaped ? seen * receding(script, t, p.figure.ground, f.size) : null });
   });
-  return drawTags(ctx, tags, shown, t, f.size, clear, ink.dark);
+  const spot = ballSpot(f, input, hands);
+  const r = spot ? spot.radius + 0.6 : 0;
+  const size = f.size;
+  return drawTags(ctx, tags, shown, t, size, {
+    clear,
+    ring: tagRing(ink.dark),
+    ball: spot ? { x: spot.point.x, y: spot.point.y, rx: r, ry: r, height: spot.height, opacity: spot.opacity } : null,
+    replay: { length: script.duration, at: (s) => soccerSpots(script, s, size) },
+  });
 }
 
 /**
@@ -804,10 +843,9 @@ type GoalPart = "net" | "frame" | "nearPost";
 
 /**
  * The goals and the players, far to near (a man in front of the post covers
- * it); a man crossing a name gets its ring over it. Returns where the keeper
- * holding the ball has his hands.
+ * it), each with the stem of his raised name just before him.
  */
-function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: readonly Posed[], named: PlacedTags | null): Point | null {
+function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: readonly Posed[], stems: Stems): void {
   const { script, t, teams, ink } = input;
   const attacking = figureInks(teams.attacking, ink);
   const defending = figureInks(teams.defending, ink);
@@ -832,18 +870,17 @@ function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: re
   }
   // Stable, as Swift's sort keeps equal depths in order.
   const order = items.map((item, i) => ({ item, i })).sort((a, b) => b.item.depth - a.item.depth || a.i - b.i);
-  let hands: Point | null = null;
   for (const { item } of order) {
     if (item.kind === "actor") {
       const actor = script.actors[item.index]!;
       const placed = figures[item.index]!;
       const shown = actor.opacity(t);
       if (!(shown > 0.01)) continue;
+      // The stem of his raised name just before him: over the men behind him, under the men in front.
+      drawStems(ctx, stems, item.index);
       const inks = actor.team === "attacking" ? attacking : actor.team === "defending" ? defending : actor.team === "official" ? officials : staff;
       const opacity = shown * (actor.shaped ? receding(script, t, placed.figure.ground, f.size) : 1);
-      ringFigure(ctx, named, placed.figure, placed.height, opacity);
       drawFigure(ctx, placed.figure, inks, placed.height, opacity);
-      if (script.heldBy === item.index && t >= script.heldFrom) hands = placed.hands;
       for (const prop of script.props) {
         if (prop.actor === item.index && t >= prop.from && t < prop.until) drawProp(ctx, prop, placed.figure, placed.height, shown * Math.min((t - prop.from) / 0.2, 1));
       }
@@ -856,7 +893,6 @@ function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: re
       drawGoal(ctx, f, input, item.right, item.right === f.behind ? ["nearPost", "frame", "net"] : ["net", "frame", "nearPost"]);
     }
   }
-  return hands;
 }
 
 /** A team's physios (FootballFrame.staff): slate, a pale cap. */
@@ -1037,13 +1073,11 @@ function drawNet(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs, 
   ctx.stroke();
 }
 
-function drawTheBall(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs, hands: Point | null, named: PlacedTags | null): void {
-  const ball = script.ball(t);
-  if (!ball) return;
-  const o = script.ballOpacity(t);
-  const p = hands ?? f.point(ball);
-  const ppm = f.scale(ball);
-  const r = Math.min(Math.max(0.3 * ppm, 1.7), Math.max(f.figure(ball) * 0.11, 1.7));
+function drawTheBall(ctx: Ctx, f: PitchProjection, input: FrameInputs, hands: Point | null): void {
+  const { script, t, ink } = input;
+  const spot = ballSpot(f, input, hands);
+  if (!spot) return;
+  const { point: p, radius: r, opacity: o } = spot;
   const trail: Point[] = [];
   if (hands == null) {
     let flight = null;
@@ -1056,7 +1090,6 @@ function drawTheBall(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInpu
     }
     if (flight && flight.kind !== "carry") for (let i = 1; i <= 6; i++) trail.push(f.point(flight.point(Math.max(t - i * 0.014, flight.start))));
   }
-  ringBall(ctx, named, p, r, o);
   drawBall(ctx, p, r, trail, ink, o);
 }
 
