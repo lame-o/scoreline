@@ -232,6 +232,8 @@ enum Statcast {
         "description", "call", "count", "balls", "strikes", "outs", "pitchNumber", "eventType", "isBall", "isStrike",
         "fromCatcher", "player", "replacedPlayer", "abbreviation", "reviewDetails", "isOverturned", "inProgress", "reviewType",
         "challengeTeamId", "pitcher", "pitchHand", "batSide", "startTime",
+        // Each man's number in the game (the box score's): the pitchers' that ESPN's summary leaves out.
+        "boxscore", "teams", "away", "home", "players", "person", "jerseyNumber",
     ].joined(separator: ",")
 
     /// The live poll's: the at-bat under way, the inning's state and the game's status. A few kilobytes.
@@ -280,6 +282,25 @@ enum Statcast {
     static func atBats(_ feed: JSON) -> [AtBat] {
         feed["liveData"]["plays"]["allPlays"].array.compactMap(atBat)
     }
+
+    /// Every man's number in the game, by his name (accents, case and
+    /// periods aside): the box score's `jerseyNumber`, keyed by MLB's own
+    /// IDs, so it's matched to ESPN's men by name. (pure; tested)
+    static func numbers(_ feed: JSON) -> [String: String] {
+        var out: [String: String] = [:]
+        for side in ["away", "home"] {
+            guard let players = feed["liveData"]["boxscore"]["teams"][side]["players"].raw as? NSDictionary else { continue }
+            for case let (_, value) in players {
+                let p = JSON(value)
+                guard let name = p["person"]["fullName"].string, let number = p["jerseyNumber"].string, !number.isEmpty else { continue }
+                out[folded(name)] = number
+            }
+        }
+        return out
+    }
+
+    /// A full name as `numbers` keys it.
+    static func folded(_ name: String) -> String { fold(name) }
 
     /// The at-bat under way, where the inning stands and the game's status, from the live poll.
     static func live(_ feed: JSON) -> Live {
@@ -450,6 +471,8 @@ final class StatcastStore {
 
     private var games: [String: Int] = [:]
     private var feeds: [Int: (atBats: [Statcast.AtBat], fetched: Date)] = [:]
+    /// Each game's numbers by name, from the same fetch (`Statcast.numbers`).
+    private var numbers: [Int: [String: String]] = [:]
     private var inFlight: [Int: Task<[Statcast.AtBat]?, Never>] = [:]
     private var finding: [String: Task<Int?, Never>] = [:]
     /// ESPN games MLB's schedule didn't have (or couldn't say): not asked again for a minute.
@@ -465,7 +488,12 @@ final class StatcastStore {
         let missing = through.map { index in !(cached?.atBats.contains { $0.index == index && $0.over } ?? false) } ?? (cached == nil)
         let due = cached.map { Date().timeIntervalSince($0.fetched) > Self.minimumInterval } ?? true
         guard missing, due, let url = Statcast.feedURL(game: game) else { return cached?.atBats ?? [] }
-        let fetch = Task { (try? await JSON.fetch(url)).map(Statcast.atBats) }
+        let fetch = Task { () -> [Statcast.AtBat]? in
+            guard let json = try? await JSON.fetch(url) else { return nil }
+            let numbers = Statcast.numbers(json)
+            if !numbers.isEmpty { self.numbers[game] = numbers }
+            return Statcast.atBats(json)
+        }
         inFlight[game] = fetch
         let atBats = await fetch.value
         inFlight[game] = nil
@@ -477,6 +505,11 @@ final class StatcastStore {
     /// What's cached of the game's at-bats, without asking MLB again.
     func cached(espnEvent: String) -> [Statcast.AtBat] {
         games[espnEvent].flatMap { feeds[$0]?.atBats } ?? []
+    }
+
+    /// The game's numbers by name, as last fetched (empty until then).
+    func numbers(espnEvent: String) -> [String: String] {
+        games[espnEvent].flatMap { numbers[$0] } ?? [:]
     }
 
     private var lives: [Int: (live: Statcast.Live, fetched: Date)] = [:]

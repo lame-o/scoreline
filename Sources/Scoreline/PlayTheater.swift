@@ -554,10 +554,12 @@ struct PlayFrame: View, Equatable {
     let size: CGSize
     /// Room kept at the bottom trailing corner (the heartbeat's): the pitch's label sits above it.
     var footer: CGFloat = 0
+    /// The names over the figures: the pointer's, the batter's.
+    var tags = TheaterTags()
 
     /// The time first: mid-replay it's all that differs.
     static func == (a: PlayFrame, b: PlayFrame) -> Bool {
-        a.t == b.t && a.size == b.size && a.footer == b.footer && a.teams == b.teams && a.ink == b.ink && a.scene == b.scene
+        a.t == b.t && a.size == b.size && a.footer == b.footer && a.teams == b.teams && a.ink == b.ink && a.tags == b.tags && a.scene == b.scene
             && a.script == b.script
     }
 
@@ -580,11 +582,31 @@ struct PlayFrame: View, Equatable {
             drawBall(&context, f)
             drawFlashes(&context, f)
             drawLabels(&context, f)
+            drawTags(context, f, figures)
         } symbols: {
             pitchLabel.tag(Symbol.pitch)
             stamp.tag(Symbol.stamp)
             banner.tag(Symbol.banner)
+            tags.symbols(at: t, size: size)
         }
+    }
+
+    /// The names over the figures, clear of the pitch's label, the headline and the mark while they're up.
+    private func drawTags(_ context: GraphicsContext, _ f: FieldProjection, _ figures: [Posed]) {
+        let inset = max(f.size.height * 0.055, 9)
+        var clear: [CGRect] = []
+        if let label = script.label, t > label.lowerBound - 0.1, t < label.upperBound + 0.3, let symbol = context.resolveSymbol(id: Symbol.pitch) {
+            let s = symbol.size
+            clear.append(CGRect(x: f.size.width - inset - s.width, y: f.size.height - inset * 0.8 - footer - s.height, width: s.width, height: s.height))
+        }
+        if let banner = script.banner, t >= banner.at, t < banner.until + 0.3, let symbol = context.resolveSymbol(id: Symbol.banner) {
+            clear.append(TheaterTagLayout.banner(symbol.size, in: f.size))
+        }
+        if t >= script.stamp, let symbol = context.resolveSymbol(id: Symbol.stamp) {
+            clear.append(TheaterTagLayout.stamp(symbol.size, in: f.size, inset: inset))
+        }
+        tags.draw(figures.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: f.figure, opacity: $0.opacity) }, t: t, size: f.size,
+                  clear: clear, in: context)
     }
 
     // MARK: The zone
@@ -1248,12 +1270,27 @@ struct PlayTheater: View {
     /// The teams' own and second colors, so the figures always contrast
     /// (without them, the palette's colors as they are).
     var kits: TheaterKits? = nil
+    /// The teams' names, for a man the tags can't name ("BREWERS").
+    var topTeam = ""
+    var bottomTeam = ""
+    /// The summary's players (by athlete ID) and who's in the field: the names over the figures.
+    var people: [String: TheaterPerson] = [:]
+    var fielders = BaseballFielders()
 
     var body: some View {
         let live = feed?.loaded == true ? feed?.theater : nil
         let state = live.flatMap { $0.play == nil && $0.timeline.isEmpty ? nil : $0 } ?? preloaded ?? live ?? TheaterState()
         PlayStage(state: state, bases: bases, batting: batting, situation: situation, inning: inning, palette: palette, kits: kits,
-                  live: live != nil)
+                  live: live != nil,
+                  names: Names(teams: (topTeam, bottomTeam), people: people, fielders: fielders, numbers: feed?.numbers ?? [:]))
+    }
+
+    /// Who's who, for the tags.
+    struct Names {
+        var teams: (top: String, bottom: String)
+        var people: [String: TheaterPerson]
+        var fielders: BaseballFielders
+        var numbers: [String: String]
     }
 }
 
@@ -1271,10 +1308,12 @@ struct DiamondFrame: View {
     let status: TheaterStatus
     /// The heartbeat is up: the pitch's label sits above it.
     var heartbeat = false
+    /// The names over the figures.
+    var tags = TheaterTags()
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            PlayFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: size, footer: heartbeat ? 16 : 0)
+            PlayFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: size, footer: heartbeat ? 16 : 0, tags: tags)
                 .equatable()
             TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
         }
@@ -1298,6 +1337,7 @@ private struct PlayStage: View {
     let kits: TheaterKits?
     /// The live lane has spoken: the heartbeat shows.
     let live: Bool
+    let names: PlayTheater.Names
     @Environment(\.celebrationClock) private var clock
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
@@ -1319,6 +1359,9 @@ private struct PlayStage: View {
     /// Where the last beat left the camera (a pitch with another to follow: on the battery).
     @State private var camera = CameraFrame.rest
     @State private var opened = false
+    /// Who the pointer's over (the name over him), and while his tag fades in or out.
+    @State private var pointer = TheaterPointer()
+    @State private var fading = false
 
     struct Replay: Equatable {
         let id: String
@@ -1562,22 +1605,26 @@ private struct PlayStage: View {
         let ink = TheaterInk(scheme)
         let teams = teams(side(display))
         let animating = moving(display)
+        let cast = cast(display, scene: scene, script: script)
+        let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: names.teams)
         GeometryReader { geo in
             let wide = geo.size.width >= 440
             ZStack(alignment: .topLeading) {
                 Group {
-                    if animating {
+                    if animating || fading {
                         // An idle move at half the frame rate: it's small and slow.
-                        TimelineView(.animation(minimumInterval: idling(display) ? 1.0 / 30 : nil)) { context in
+                        TimelineView(.animation(minimumInterval: idling(display) && !fading ? 1.0 / 30 : nil)) { context in
                             let t = time(display, at: context.date)
-                            DiamondFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: geo.size,
-                                         status: status(display, at: t, script: script, wide: wide), heartbeat: live)
+                            let status = status(display, at: t, script: script, wide: wide)
+                            DiamondFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: geo.size, status: status, heartbeat: live,
+                                         tags: tags(cast, labels, status, at: context.date))
                         }
                         .transition(.identity)
                     } else {
                         let t = time(display, at: .now)
-                        DiamondFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: geo.size,
-                                     status: status(display, at: t, script: script, wide: wide), heartbeat: live)
+                        let status = status(display, at: t, script: script, wide: wide)
+                        DiamondFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: geo.size, status: status, heartbeat: live,
+                                     tags: tags(cast, labels, status, at: .now))
                             .transition(.identity)
                     }
                 }
@@ -1593,11 +1640,13 @@ private struct PlayStage: View {
             .overlay(alignment: .bottomTrailing) {
                 if live { TheaterHeartbeat(updated: state.updated, source: "ESPN").padding(6) }
             }
+            .theaterPointer($pointer, cast: cast) { figure(at: $0, script, t: time(display, at: .now), size: geo.size) }
         }
         // The well spans the column, so its edges line up with the diamond and the caption.
         .modifier(HalfHeight(cap: Self.maxHeight))
         .vizWell(padding: 0)
         .accessibilityHidden(true)
+        .theaterFading(pointer, $fading)
         .onAppear(perform: open)
         .onChange(of: state.timeline.map(\.id)) { _, line in
             // Opened before the feed had spoken: what it first brings is history, standing as it is.
@@ -1614,6 +1663,32 @@ private struct PlayStage: View {
         }
         .task(id: Pace(replay: replay, beat: beat, next: pending.first?.id, rested: rested, opened: opened)) { await pace() }
         .task(id: idleKey) { await idle() }
+    }
+
+    // MARK: Names
+
+    /// Who each figure is on screen: the play's own men, or the game as it stands now.
+    private func cast(_ display: Display, scene: PlayScene?, script: PlayScript) -> TheaterCast {
+        let beat: PlayBeat? = if case let .beat(b) = display { b.beat } else { nil }
+        let now = BaseballNow(side: batting, batter: situation?.batterID, pitcher: situation?.pitcherID,
+                              runners: situation?.runnerIDs ?? [nil, nil, nil])
+        return script.cast(scene, beat: beat, batting: side(display), fielders: names.fielders, people: names.people, numbers: names.numbers,
+                           now: now, scope: beat?.id ?? identity(display))
+    }
+
+    private func tags(_ cast: TheaterCast, _ labels: TheaterLabels, _ status: TheaterStatus, at date: Date) -> TheaterTags {
+        TheaterTags(cast: cast, labels: labels, pointer: pointer, at: date, reduceMotion: reduceMotion, status: status.tag, flip: false,
+                    heartbeat: live ? .trailing : nil)
+    }
+
+    /// The figure under the pointer in the frame on screen: each figure's
+    /// spot at t through the camera, no posing.
+    private func figure(at point: CGPoint, _ script: PlayScript, t: Double, size: CGSize) -> Int? {
+        let f = FieldProjection(size: size, camera: script.camera.frame(at: t))
+        return TheaterTags.hit(script.actors.indices.filter { script.actors[$0].opacity(at: t) > 0.01 }.map { i in
+            let lens = RigLens(f, at: script.actors[i].position(at: t))
+            return (i, lens.origin, lens.height)
+        }, at: point)
     }
 
     /// A play's frames keep its ID (a new one cuts in); beats and the field between share one.
@@ -1815,6 +1890,180 @@ private struct HalfHeightLayout: Layout {
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         for subview in subviews { subview.place(at: bounds.origin, proposal: ProposedViewSize(bounds.size)) }
+    }
+}
+
+// MARK: - Names
+
+/// Who's in the field for each team now, as the summary has it: each
+/// place's man from ESPN's lineups (the man active at his spot in the order
+/// and the position he plays now, so a defensive change, or a pinch hitter
+/// who stayed in, stands where he went), the pitchers in the order they came
+/// in (the box score's, the one in now marked active), and each side's men,
+/// to find a man a beat names by his surname. (pure; tested)
+struct BaseballFielders: Equatable {
+    /// By scorer's number (2 the catcher … 9 right field), by ESPN athlete ID.
+    var positions: [GameDetail.Side: [Int: String]] = [:]
+    var pitchers: [GameDetail.Side: [String]] = [:]
+    /// The pitcher in now.
+    var pitching: [GameDetail.Side: String] = [:]
+    var men: [GameDetail.Side: [String]] = [:]
+
+    static let places = ["P": 1, "C": 2, "1B": 3, "2B": 4, "3B": 5, "SS": 6, "LF": 7, "CF": 8, "RF": 9]
+    static let abbreviations = [1: "P", 2: "C", 3: "1B", 4: "2B", 5: "3B", 6: "SS", 7: "LF", 8: "CF", 9: "RF"]
+
+    init() {}
+
+    init(_ summary: JSON, side: (String?) -> GameDetail.Side?) {
+        for roster in summary["rosters"].array {
+            guard let s = side(roster["team"]["id"].string) else { continue }
+            var at: [Int: (id: String, starter: Bool)] = [:]
+            for entry in roster["roster"].array {
+                guard let id = entry["athlete"]["id"].string else { continue }
+                men[s, default: []].append(id)
+                guard entry["active"].bool == true, let n = Self.places[entry["position"]["abbreviation"].string ?? ""] else { continue }
+                // Two at one place while the lineups catch up with a change: the man who came in.
+                let starter = entry["starter"].bool ?? false
+                if let held = at[n], !held.starter, starter { continue }
+                at[n] = (id, starter)
+            }
+            positions[s] = at.mapValues(\.id)
+        }
+        for team in summary["boxscore"]["players"].array {
+            guard let s = side(team["team"]["id"].string) else { continue }
+            for group in team["statistics"].array where group["type"].string == "pitching" {
+                let list = group["athletes"].array
+                let ids = list.compactMap { $0["athlete"]["id"].string }
+                pitchers[s] = ids
+                pitching[s] = list.last { $0["active"].bool == true }?["athlete"]["id"].string ?? ids.last
+                men[s, default: []].append(contentsOf: ids)
+            }
+        }
+    }
+}
+
+/// The game as the live situation has it now: the side at bat, the
+/// batter, the pitcher, the runner on each base (ESPN athlete IDs).
+struct BaseballNow: Equatable {
+    var side: GameDetail.Side?
+    var batter: String?
+    var pitcher: String?
+    var runners: [String?] = [nil, nil, nil]
+}
+
+extension PlayScript {
+    /// Who each figure is, for the names over the field: every man the
+    /// data names. The fielders by their places in the lineups now (the
+    /// pitcher a play's own, else the one in now); the batter and the
+    /// runners a play names, by ID; between plays (and the next batter and
+    /// the runners a play leaves on), the live situation's. A change on
+    /// the field: the man coming in by the name the beat gives, the man
+    /// going off the one he replaces. Umpires, coaches and trainers:
+    /// nobody. The key man is the batter; on a runner's play, the runner
+    /// its text leads with ("Chourio stole second"). (pure; tested)
+    func cast(_ scene: PlayScene?, beat: PlayBeat?, batting: GameDetail.Side, fielders: BaseballFielders, people: [String: TheaterPerson],
+              numbers: [String: String], now: BaseballNow, scope: String) -> TheaterCast {
+        let fielding: GameDetail.Side = batting == .top ? .bottom : .top
+        func person(_ id: String?) -> TheaterPerson? {
+            guard let id, var p = people[id] else { return nil }
+            if p.number == nil { p.number = numbers[Statcast.folded(p.name)] }
+            return p
+        }
+        func fold(_ s: String) -> String { Statcast.folded(s) }
+        /// The man of a side a beat names by his surname ("Mesa Jr.").
+        func named(_ surname: String?, _ side: GameDetail.Side) -> String? {
+            guard let surname, !surname.isEmpty else { return nil }
+            let key = fold(surname)
+            return fielders.men[side]?.first { id in people[id].map { fold($0.last) == key } ?? false }
+        }
+        // A change on the field: who comes in, and where.
+        var incoming: (id: String?, name: String?, role: Actor.Role)?
+        switch beat?.kind {
+        case let .pitchingChange(reliever)?:
+            incoming = (named(reliever, fielding) ?? (now.side == batting ? now.pitcher : nil), reliever, .fielder(1))
+        case let .substitution(change)?:
+            switch change.role {
+            case .pinchRunner: incoming = (named(change.name, batting), change.name, .runner)
+            case .defensive, .moves: incoming = change.position.map { (named(change.name, fielding), change.name, .fielder($0)) }
+            case .pinchHitter: break
+            }
+        default:
+            break
+        }
+        func base(_ a: Actor) -> Int? { (1...3).first { b in hypot(a.at.x - Ballpark.lead(b).x, a.at.y - Ballpark.lead(b).y) < 6 } }
+        /// A man the play names on a figure of its own already (the batter now on first): never twice.
+        func placed(_ id: String?) -> Bool { id.map { id in actors.contains { $0.athlete == id } } ?? false }
+
+        var members: [Int: TheaterCast.Member] = [:]
+        for (i, a) in actors.enumerated() {
+            let side: GameDetail.Side
+            switch a.team {
+            case .official: continue
+            case .batting: side = batting
+            case .fielding: side = fielding
+            }
+            var id = a.athlete
+            var who: TheaterWho = .team
+            // In a change, the man who comes on during it (the reliever, the substitute) is the one coming in.
+            let comingIn = a.appear.isFinite && a.appear > 0 && incoming.map { $0.role == a.role } == true
+            switch a.role {
+            case .umpire, .coach:
+                continue
+            case let .fielder(n):
+                let abbreviation = BaseballFielders.abbreviations[n] ?? ""
+                who = .assumed(abbreviation)
+                if comingIn, let incoming {
+                    id = incoming.id
+                    if id == nil, let name = incoming.name { who = .known(TheaterPerson(name: name, last: name, position: abbreviation)) }
+                } else if n == 1 {
+                    if let scene, a.team == .fielding, scene.pitcher != nil {
+                        id = scene.pitcher
+                    } else if beat.map({ if case .pitchingChange = $0.kind { return true }; return false }) == true {
+                        // Going off: the pitcher before the reliever, or the one in until now.
+                        let order = fielders.pitchers[side] ?? []
+                        if let new = incoming?.id, let k = order.firstIndex(of: new) { id = k > 0 ? order[k - 1] : nil }
+                        else { id = fielders.pitching[side] }
+                        if id == incoming?.id { id = nil }
+                    } else {
+                        id = side == fielding && now.side == batting ? now.pitcher ?? fielders.pitching[side] : fielders.pitching[side]
+                    }
+                } else {
+                    id = fielders.positions[side]?[n]
+                    if incoming.map({ $0.role == a.role }) == true, id == incoming?.id { id = nil }
+                }
+                if var p = person(id) {
+                    p.position = abbreviation
+                    who = .known(p)
+                }
+            case .batter:
+                if id == nil, side == now.side, !placed(now.batter) { id = now.batter }
+                if let p = person(id) { who = .known(p) }
+            case .runner:
+                if comingIn, let incoming {
+                    id = incoming.id
+                    if id == nil, let name = incoming.name { who = .known(TheaterPerson(name: name, last: name)) }
+                } else if id == nil, side == now.side, let b = base(a), now.runners.indices.contains(b - 1), !placed(now.runners[b - 1]) {
+                    id = now.runners[b - 1]
+                    if incoming.map({ $0.role == .runner }) == true, id == incoming?.id { id = nil }
+                }
+                if let p = person(id) { who = .known(p) }
+            }
+            members[i] = TheaterCast.member(who, side: side, athlete: id, figure: i, scope: scope)
+        }
+        // Who it's about: the batter; on a runner's play, the runner its text leads with.
+        var key: Int?
+        if let scene {
+            if let batter = scene.batter?.id {
+                key = actors.indices.first { actors[$0].role == .batter && actors[$0].athlete == batter }
+            } else if let lead = PlayScene.leadingName(scene.text).map(fold) {
+                key = actors.indices.first { i in
+                    actors[i].role == .runner && actors[i].athlete.flatMap { people[$0] }.map { fold($0.last) == lead } == true
+                }
+            }
+        } else if let batter = now.batter {
+            key = members.first { actors[$0.key].role == .batter && $0.value.id == "a:\(batter)" }?.key
+        }
+        return TheaterCast(members: members, key: key)
     }
 }
 

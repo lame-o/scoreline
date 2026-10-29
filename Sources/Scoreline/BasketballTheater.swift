@@ -413,10 +413,13 @@ struct BasketballFrame: View, Equatable {
     /// Where it's drawn: the type is sized from it.
     let size: CGSize
     var paint = HoopsCourtLayer.Paint()
+    /// The names over the players: the pointer's, the key man's.
+    var tags = TheaterTags()
 
     /// The time first: mid-replay it's all that differs.
     static func == (a: BasketballFrame, b: BasketballFrame) -> Bool {
-        a.t == b.t && a.size == b.size && a.teams == b.teams && a.ink == b.ink && a.paint == b.paint && a.scene == b.scene && a.script == b.script
+        a.t == b.t && a.size == b.size && a.teams == b.teams && a.ink == b.ink && a.paint == b.paint && a.tags == b.tags && a.scene == b.scene
+            && a.script == b.script
     }
 
     private enum Symbol: Hashable { case stamp, banner }
@@ -437,11 +440,26 @@ struct BasketballFrame: View, Equatable {
             if let ball, !ball.inHoop { drawBall(&context, h, at: ball.point) }
             drawFlashes(&context, h)
             drawLabels(&context, h)
+            drawTags(context, h, figures)
         } symbols: {
             HoopsCourtLayer.symbols(ink: ink, paint: paint)
             stamp.tag(Symbol.stamp)
             banner.tag(Symbol.banner)
+            tags.symbols(at: t, size: size)
         }
+    }
+
+    /// The names over the players, clear of the headline and the stamp while they're up.
+    private func drawTags(_ context: GraphicsContext, _ h: HoopProjection, _ figures: [Posed]) {
+        var clear: [CGRect] = []
+        if let banner = script.banner, t >= banner.at, t < banner.until + 0.3, let symbol = context.resolveSymbol(id: Symbol.banner) {
+            clear.append(TheaterTagLayout.banner(symbol.size, in: h.size))
+        }
+        if t >= script.stamp, let symbol = context.resolveSymbol(id: Symbol.stamp) {
+            clear.append(TheaterTagLayout.stamp(symbol.size, in: h.size, inset: TheaterType.inset(h.size)))
+        }
+        tags.draw(figures.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: h.figure, opacity: script.players[$0.index].opacity(at: t)) },
+                  t: t, size: h.size, clear: clear, in: context)
     }
 
     // MARK: Players
@@ -823,13 +841,15 @@ struct BasketballTheater: View {
     var eventID = ""
     /// The period without a lane (the ends swap at halftime).
     var period: Int? = nil
+    /// The box score's players, by athlete ID: the names over the credited men.
+    var people: [String: TheaterPerson] = [:]
 
     var body: some View {
         BasketballStage(state: feed?.theater ?? preloaded ?? BasketballTheaterState(), possession: feed?.possession ?? restOffense,
                         period: feed?.period ?? period, live: feed?.playing ?? false, palette: palette, kits: kits, topIsHome: topIsHome,
                         homeName: topIsHome ? topName : bottomName,
                         names: (topTeam.isEmpty ? topName : topTeam, bottomTeam.isEmpty ? bottomName : bottomTeam), eventID: eventID,
-                        onReplay: { feed?.replay($0) })
+                        people: people, onReplay: { feed?.replay($0) })
     }
 }
 
@@ -849,6 +869,7 @@ private struct BasketballStage: View {
     let homeName: String
     let names: (top: String, bottom: String)
     let eventID: String
+    let people: [String: TheaterPerson]
     /// A replay starts (its play), or something else does (nil).
     let onReplay: (String?) -> Void
     @AppStorage private var flipped: Bool
@@ -864,11 +885,15 @@ private struct BasketballStage: View {
     /// One of the court's sparse beats is moving.
     @State private var animating = false
     @State private var hovering = false
+    /// Who the pointer's over (the name over him), and while his tag fades in or out.
+    @State private var pointer = TheaterPointer()
+    @State private var fading = false
     /// The scripts on screen, built once (a body run for anything else reuses them).
     @State private var built = BasketballScripts()
 
     init(state: BasketballTheaterState, possession: GameDetail.Side?, period: Int?, live: Bool, palette: TeamPalette, kits: TheaterKits?,
-         topIsHome: Bool, homeName: String, names: (top: String, bottom: String), eventID: String, onReplay: @escaping (String?) -> Void) {
+         topIsHome: Bool, homeName: String, names: (top: String, bottom: String), eventID: String, people: [String: TheaterPerson],
+         onReplay: @escaping (String?) -> Void) {
         self.state = state
         self.possession = possession
         self.period = period
@@ -879,6 +904,7 @@ private struct BasketballStage: View {
         self.homeName = homeName
         self.names = names
         self.eventID = eventID
+        self.people = people
         self.onReplay = onReplay
         _flipped = AppStorage(wrappedValue: false, TheaterOrientation.key(eventID))
     }
@@ -1009,15 +1035,17 @@ private struct BasketballStage: View {
         let now = current(.now)
         let ink = TheaterInk(scheme)
         let teams = teams(now.script.side ?? .top), paint = paint
+        let cast = now.script.cast(now.scene, people: people, scope: now.key)
+        let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: names)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 Group {
-                    if now.moving {
+                    if now.moving || fading {
                         TimelineView(.animation) { context in
-                            picture(now, t: time(now, at: context.date), teams: teams, ink: ink, size: geo.size, paint: paint)
+                            picture(now, at: context.date, cast: cast, labels: labels, teams: teams, ink: ink, size: geo.size, paint: paint)
                         }
                     } else {
-                        picture(now, t: time(now, at: .now), teams: teams, ink: ink, size: geo.size, paint: paint)
+                        picture(now, at: .now, cast: cast, labels: labels, teams: teams, ink: ink, size: geo.size, paint: paint)
                     }
                 }
                 // A replay cuts in; anything else crossfades (the same floor from the same side: no change at all).
@@ -1041,25 +1069,43 @@ private struct BasketballStage: View {
                     .opacity(hovering ? 1 : 0)
                     .animation(Motion.fade, value: hovering)
             }
+            .theaterPointer($pointer, cast: cast) { figure(at: $0, now, size: geo.size) }
         }
         // The well spans the column, so its edges line up with the court under it.
         .modifier(HoopsWellHeight(cap: Self.maxHeight))
         .vizWell(padding: 0)
         .onHover { hovering = $0 }
+        .theaterFading(pointer, $fading)
         .onAppear { advance() }
         .onChange(of: state) { _, _ in if showing == nil { advance() } }
         .task(id: showing) { await finish() }
         .task(id: resting) { await breathe() }
     }
 
-    /// One frame and its tag.
-    private func picture(_ now: Now, t: Double, teams: BasketballTeams, ink: TheaterInk, size: CGSize, paint: HoopsCourtLayer.Paint) -> some View {
-        ZStack(alignment: .topLeading) {
-            BasketballFrame(scene: now.scene, script: now.script, t: t, teams: teams, ink: ink, size: size, paint: paint)
+    /// One frame, its tag and the names over its players.
+    private func picture(_ now: Now, at date: Date, cast: TheaterCast, labels: TheaterLabels, teams: BasketballTeams, ink: TheaterInk, size: CGSize,
+                         paint: HoopsCourtLayer.Paint) -> some View {
+        let t = time(now, at: date)
+        let status = status(now, t: t)
+        let tags = TheaterTags(cast: cast, labels: labels, pointer: pointer, at: date, reduceMotion: reduceMotion, status: status.tag,
+                               flip: hovering, heartbeat: live || clock != .live ? .trailing : nil)
+        return ZStack(alignment: .topLeading) {
+            BasketballFrame(scene: now.scene, script: now.script, t: t, teams: teams, ink: ink, size: size, paint: paint, tags: tags)
                 .equatable()
-            TheaterStatusTag(status: status(now, t: t), height: size.height)
+            TheaterStatusTag(status: status, height: size.height)
                 .padding(.top, 8)
         }
+    }
+
+    /// The figure under the pointer in the frame on screen: each player's
+    /// spot at t through the camera, no posing.
+    private func figure(at point: CGPoint, _ now: Now, size: CGSize) -> Int? {
+        let t = time(now, at: .now), script = now.script
+        let h = HoopProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw)
+        return TheaterTags.hit(script.players.indices.filter { script.players[$0].opacity(at: t) > 0.01 }.map { i in
+            let lens = RigLens(h, at: script.players[i].position(at: t))
+            return (i, lens.origin, lens.height)
+        }, at: point)
     }
 
     // MARK: The running order
@@ -1202,6 +1248,55 @@ private struct HoopsWellHeight: ViewModifier {
 
     func body(content: Content) -> some View {
         TheaterWell(cap: cap) { content }
+    }
+}
+
+// MARK: - Names
+
+extension BasketballScript {
+    /// Who each figure is, for the names over the court: the men ESPN
+    /// credits on the play (`credits`: the shooter, the passer, the blocker,
+    /// the rebounder, the man who fouled or lost it, the man coming in), by
+    /// the box score's number and position (their names alone until it has
+    /// them); every other man on the floor his team's, which of them unknown
+    /// (the data says who's on the floor, not which figure is which); the
+    /// referee nobody. `scope`: the script's own key. (pure; tested)
+    func cast(_ scene: BasketballScene?, people: [String: TheaterPerson], scope: String) -> TheaterCast {
+        let offense = side ?? scene?.offense ?? .top
+        var members: [Int: TheaterCast.Member] = [:]
+        for (i, player) in players.enumerated() {
+            let side: GameDetail.Side
+            switch player.team {
+            case .offense: side = offense
+            case .defense: side = offense.opponent
+            case .official: continue
+            }
+            let credit = credits[i]
+            let who: TheaterWho = credit.flatMap { c in
+                c.id.flatMap { people[$0] }.map { .known($0) } ?? (c.name.isEmpty ? nil : .known(TheaterPerson(name: c.name, last: c.name)))
+            } ?? .team
+            members[i] = TheaterCast.member(who, side: side, athlete: credit?.id ?? credit?.name, figure: i, scope: scope)
+        }
+        let key = Self.key(scene).flatMap { person in
+            credits.first { $0.value.id != nil ? $0.value.id == person.id : $0.value.name == person.name }?.key
+        }
+        return TheaterCast(members: members, key: key)
+    }
+
+    /// Who a play is about: the man its text leads with (the shooter, a
+    /// free throw's too; the man who lost it; the rebounder; the man
+    /// whistled), the blocker on a block, the man coming in on a
+    /// substitution, whoever came up with a jump ball. A timeout, the end of
+    /// a period, a review, the court between plays: nobody. (pure; tested)
+    static func key(_ scene: BasketballScene?) -> BasketballScene.Person? {
+        guard let scene else { return nil }
+        switch scene.kind {
+        case .block: return scene.blocker
+        case .substitution: return scene.subIn
+        case .jumpBall: return scene.winner
+        case .timeout, .periodEnd, .challenge: return nil
+        default: return scene.shooter
+        }
     }
 }
 

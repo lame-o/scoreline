@@ -770,12 +770,46 @@ struct SoccerLineup: Equatable {
         var subbedOut = false
     }
 
+    /// A substitute who came on: who, for whom, and when (seconds of the
+    /// match clock, from the minute ESPN gives it: "66'", "90'+3'").
+    struct Sub: Equatable {
+        var athlete: String
+        var name: String?
+        var jersey: String?
+        var replaces: String
+        var at: Double?
+    }
+
     /// The team's ID.
     var team: String
     /// "4-2-3-1", "3-4-2-1", "5-4-1".
     var formation: String?
     /// The starting eleven, by formation place.
     var players: [Player]
+    /// Who came on, in the order they did.
+    var subs: [Sub] = []
+
+    /// The eleven on the pitch at `clock` (seconds; nil: now, every change
+    /// made): each substitute in the place of the man he came on for, a
+    /// change of a change too. (pure; tested)
+    func on(at clock: Double?) -> SoccerLineup {
+        var out = self
+        for sub in subs where clock == nil || (sub.at ?? 0) <= clock! {
+            guard let k = out.players.firstIndex(where: { $0.athlete == sub.replaces }) else { continue }
+            out.players[k].athlete = sub.athlete
+            out.players[k].name = sub.name
+            out.players[k].jersey = sub.jersey
+            out.players[k].subbedOut = false
+        }
+        return out
+    }
+
+    /// "66'" → 66 minutes, "90'+3'" → 93, in seconds.
+    static func clock(_ minute: String?) -> Double? {
+        guard let minute else { return nil }
+        let parts = minute.split(separator: "+").compactMap { Double($0.filter(\.isNumber)) }
+        return parts.isEmpty ? nil : parts.reduce(0, +) * 60
+    }
 
     /// A player's nominal spot on the pitch, in metres (home attacks right, as the scene draws it).
     func spot(of athlete: String, attacksRight: Bool) -> CGPoint? {
@@ -797,6 +831,13 @@ struct SoccerLineup: Equatable {
         self.team = team
         formation = roster["formation"].string
         self.players = Self.shaped(players.sorted { $0.place < $1.place }, formation: formation)
+        subs = roster["roster"].array.compactMap { r -> Sub? in
+            guard r["subbedIn"].bool == true, let athlete = r["athlete"]["id"].string, let replaces = r["subbedInFor"]["athlete"]["id"].string
+            else { return nil }
+            let minute = r["plays"].array.first { $0["substitution"].bool == true }?["clock"]["displayValue"].string
+            return Sub(athlete: athlete, name: r["athlete"]["displayName"].string, jersey: r["jersey"].string, replaces: replaces, at: Self.clock(minute))
+        }
+        .sorted { ($0.at ?? 0) < ($1.at ?? 0) }
     }
 
     /// Both teams' lineups from a summary's `rosters`, by side.

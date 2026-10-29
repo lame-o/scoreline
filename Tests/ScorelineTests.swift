@@ -68,6 +68,7 @@ struct ScorelineTests {
         soccerIdle()
         basketballTheater()
         basketballBeats()
+        theaterNames()
         theaterRig()
         statcast()
         playStatcast()

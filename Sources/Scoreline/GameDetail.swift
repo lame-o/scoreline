@@ -65,10 +65,16 @@ struct GameDetail {
         /// ESPN athlete IDs for the matchup (their names open their pages).
         var batterID: String? = nil
         var pitcherID: String? = nil
+        /// Who's on first, second and third, by ESPN athlete ID: the tags over the runners.
+        var runnerIDs: [String?] = [nil, nil, nil]
 
         /// ESPN situations name each runner by `playerId` (the box score has the names).
         static func runners(_ s: JSON, names: [String: String]) -> [String?] {
-            ["onFirst", "onSecond", "onThird"].map { s[$0]["playerId"].int.map(String.init).flatMap { names[$0] } }
+            runnerIDs(s).map { $0.flatMap { names[$0] } }
+        }
+
+        static func runnerIDs(_ s: JSON) -> [String?] {
+            ["onFirst", "onSecond", "onThird"].map { s[$0]["playerId"].int.map(String.init) }
         }
     }
 
@@ -296,6 +302,11 @@ struct GameDetail {
     var athleteNames: [String: String] = [:]
     /// Soccer: both starting elevens in their formation, for the theater.
     var lineups: [Side: SoccerLineup] = [:]
+    /// Every player the summary names (box score, rosters), by ESPN athlete
+    /// ID, with his number and position: who the isometric views' tags name.
+    var people: [String: TheaterPerson] = [:]
+    /// Baseball: who's in the field for each team now (the play theater's tags).
+    var fielders = BaseballFielders()
     /// The added time the fourth official last announced (from the commentary), for the soccer theater's tag.
     var soccerAdded: SoccerAddedTime?
     /// Climbing order for a round with no results yet (rank = start position):
@@ -571,6 +582,7 @@ enum ESPNDetail {
         case .soccer:
             detail.moments = summary["keyEvents"].array.compactMap { soccerMoment($0, side: side) }
             detail.lineups = SoccerLineup.lineups(summary["rosters"], side: side)
+            detail.people = TheaterPeople.rosters(summary)
             detail.soccerAdded = SoccerAddedTime.latest(summary["commentary"])
             detail.recentPlays = summary["commentary"].array.suffix(4).reversed().compactMap { c in
                 guard let text = c["text"].string else { return nil }
@@ -601,6 +613,9 @@ enum ESPNDetail {
                     }
                 }
             }
+            // The lineups' numbers and places over the box score's (where the pitchers are).
+            detail.people = TheaterPeople.boxscore(summary).merging(TheaterPeople.rosters(summary)) { _, roster in roster }
+            detail.fielders = BaseballFielders(summary, side: side)
             if event.state == .live {
                 var theater = PlayScene.theater(plays, side: side, names: detail.athleteNames)
                 // What Statcast measured of the last play, if it answers promptly (the live lane asks again).
@@ -610,6 +625,7 @@ enum ESPNDetail {
         case .basketball where path == NBADetail.path:
             let topIsHome = topComp?["homeAway"].string == "home"
             detail.basketball = NBADetail.parse(summary, side: side, topIsHome: topIsHome)
+            detail.people = TheaterPeople.boxscore(summary)
             detail.moments = NBADetail.keyMoments(summary, side: side, topIsHome: topIsHome)
             // Game order is array order (sequence numbers aren't).
             detail.recentPlays = NBADetail.recentPlays(summary["plays"].array)
@@ -629,6 +645,7 @@ enum ESPNDetail {
                     period: p["period"]["number"].int)
             }
             detail.recentPlays = summary["plays"].array.suffix(4).reversed().compactMap { $0["text"].string }
+            if sport == .football { detail.people = TheaterPeople.boxscore(summary) }
         }
 
         if let situation = board?["events"].array.first(where: { $0["id"].string == id })?["competitions"][0]["situation"],
@@ -638,6 +655,7 @@ enum ESPNDetail {
                 detail.baseball = baseball(situation)
                 // The scoreboard only says a base is taken; the summary says by whom.
                 detail.baseball?.runners = GameDetail.Baseball.runners(summary["situation"], names: detail.athleteNames)
+                detail.baseball?.runnerIDs = GameDetail.Baseball.runnerIDs(summary["situation"])
             }
             if detail.recentPlays.isEmpty, let last = situation["lastPlay"]["text"].string { detail.recentPlays = [last] }
         }
