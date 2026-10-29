@@ -1,10 +1,10 @@
 /**
- * The basketball theater's pure rules (BasketballTheater.swift
- * `BasketballTheater.shown`, `BasketballCelebration`; BasketballFeed.swift
- * `theater`, `updateTheater`): which play the theater shows and whether
- * it's news, the lane's theater kept beside the lane, and the one
- * celebration per moment the theater owns when the page shows it. The
- * drawing is features/game/nba/theater/.
+ * The basketball theater's pure rules (BasketballFeed.swift `theater`,
+ * `updateTheater`; BasketballTheater.swift `BasketballCelebration`): the
+ * newest plays the theater tells and which are news, the lane's theater kept
+ * beside the lane, and the one celebration per moment the theater owns when
+ * the page shows it. The running order is basketballFlow.ts; the drawing is
+ * features/game/nba/theater/.
  */
 import { cueFor, presetFor, sparks, type CelebrationCue, type CelebrationLevel, type Effect } from "../celebrations";
 import type { JSONValue } from "../json";
@@ -13,61 +13,63 @@ import { RECENT_MS } from "../liveFeeds/baseball";
 import type { TheaterBurst } from "../mlb/theaterCelebration";
 import type { Side } from "../models";
 import { decisive, type LiveMoment } from "../moments";
-import { basketballNewest, made, sameScene, type BasketballScene, type BasketballTheaterState } from "./basketballScene";
+import { basketballRecent, made, sameScene, type BasketballScene, type BasketballTheaterState } from "./basketballScene";
 import { Hoops, type BasketballScript } from "./basketballScript";
 import { TheaterBurst as Burst } from "./theaterKit";
 
-// MARK: - What the theater shows
+// MARK: - What the theater tells
+
+export const NO_PLAYS: BasketballTheaterState = { plays: [], news: new Set(), heard: null };
 
 /**
- * What the stage shows (BasketballTheater.shown): a play replaying, then its
- * end until it has held (`rested`); a new play not yet begun; otherwise
- * null, the game as it stands (the team with the ball set in its half).
- * History that isn't news is never shown: on opening the page, the court is
- * the live one. (pure; tested)
+ * The theater after a look at the plays (BasketballFeed.theater): the
+ * newest plays, every kind. A play is news if it first appeared after the
+ * first complete look (`seenIn`: the look it was first seen in), or if it
+ * only just happened; a play that was news stays news, edits and all.
+ * `heard` moves when a new play comes. (pure; tested)
  */
-export function basketballShown(state: BasketballTheaterState, replaying: string | null, rested: string | null): BasketballScene | null {
-  const scene = state.scene;
-  if (!scene) return null;
-  if (replaying === scene.id) return rested === scene.id ? null : scene;
-  return state.news ? scene : null;
+export function basketballTheaterState(
+  plays: readonly BasketballScene[],
+  previous: BasketballTheaterState,
+  looks: number,
+  seenIn: (id: string) => number | null,
+  now: number,
+): BasketballTheaterState {
+  const ids = new Set(plays.map((p) => p.id));
+  const news = new Set([...previous.news].filter((id) => ids.has(id)));
+  for (const scene of plays) {
+    if (news.has(scene.id)) continue;
+    const seen = seenIn(scene.id) ?? looks;
+    if (seen > 1 || (scene.wallclock != null && now - scene.wallclock < RECENT_MS)) news.add(scene.id);
+  }
+  const before = new Set(previous.plays.map((p) => p.id));
+  const heard = previous.heard == null || [...ids].some((id) => !before.has(id)) ? now : previous.heard;
+  return { plays, news, heard };
 }
 
-/**
- * The theater after a look at the plays. A play already showing keeps what
- * it was (news or not), edits and all. (BasketballFeed.theater; pure)
- */
-export function basketballTheaterState(scene: BasketballScene, previous: BasketballTheaterState, fresh: boolean, now: number): BasketballTheaterState {
-  return {
-    ...previous,
-    news: scene.id === previous.scene?.id ? previous.news : fresh || (scene.wallclock != null && now - scene.wallclock < RECENT_MS),
-    scene,
-  };
+/** Swift's `BasketballTheaterState ==`. */
+export function sameTheaterState(a: BasketballTheaterState, b: BasketballTheaterState): boolean {
+  if (a === b) return true;
+  if (a.heard !== b.heard || a.plays.length !== b.plays.length || a.news.size !== b.news.size) return false;
+  for (const id of a.news) if (!b.news.has(id)) return false;
+  return a.plays.every((p, i) => sameScene(p, b.plays[i]!));
 }
 
 /**
  * The lane's theater, kept beside the lane (BasketballFeed's `theater` and
- * `updateTheater`): after each change to the lane's plays, the newest worth
- * replaying among the newest plays (only those are read). It's news if it
- * arrived after the first complete look and is still recent (a block or an
- * assist ESPN adds a few looks late still counts), or if it only just
- * happened. Assigned only when it changes.
+ * `updateTheater`): after each change to the lane's plays, the newest plays
+ * (only those are read) and which are news. Assigned only when it changes.
  */
 export class BasketballTheaterWatch {
-  state: BasketballTheaterState = { scene: null, news: false };
+  state: BasketballTheaterState = NO_PLAYS;
   private items: readonly JSONValue[] | null = null;
 
   /** `looks`: the lane's complete looks so far; `seenIn`: the look a play was first seen in. True when the state changed. */
   update(items: readonly JSONValue[], teams: Teams, looks: number, seenIn: (id: string) => number | null, now: number = Date.now()): boolean {
     if (items === this.items) return false;
     this.items = items;
-    const scene = basketballNewest(items, teams);
-    if (!scene) return false;
-    // The first look is history: a play is news only from a later look it first appeared in.
-    const seen = seenIn(scene.id) ?? looks;
-    const fresh = seen > 1 && looks - seen <= 3;
-    const next = basketballTheaterState(scene, this.state, fresh, now);
-    if (next.news === this.state.news && sameScene(next.scene, this.state.scene)) return false;
+    const next = basketballTheaterState(basketballRecent(items, teams), this.state, looks, seenIn, now);
+    if (sameTheaterState(next, this.state)) return false;
     this.state = next;
     return true;
   }

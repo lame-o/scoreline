@@ -11,9 +11,11 @@
  * The court is seen from a high sideline, turned a third of the way round
  * so the half court reads in depth: x along the court (0 to 94), y across it
  * from the near sideline, z up. Every play is laid out in its own frame, the
- * offense attacking the basket at x = 88.75; the bottom team's plays are
- * drawn turned half a turn (`Hoops.yaw`), so the theater shows each team at
- * the basket the shot chart under it does (the top team →, the bottom ←).
+ * offense attacking the basket at x = 88.75; a play at the left basket is
+ * drawn turned half a turn (`Hoops.yaw`), so each team attacks the basket it
+ * attacks on TV (`HoopsEnds`: the visitors at the right in the first half by
+ * default, the ends swapped at halftime, the viewer's turn on top), the
+ * basket in play always the one up the court.
  * Figures are true to the rim (7 ft against its 10), so a dunk is a real
  * leap; an honest parabola carries every shot, timed by gravity.
  *
@@ -34,7 +36,8 @@ import type { Side } from "../models";
 import { CameraFrame, type Rect } from "../mlb/playCamera";
 import { Move } from "../mlb/playScript";
 import { easeValue, fieldPoint, ground, type Ease, type FieldPoint, type Point } from "../mlb/theaterField";
-import { defense, made, posterized, type BasketballKind, type BasketballScene, type Miss, type Rebound } from "./basketballScene";
+import type { Formation, HoopsEnds, Lineup } from "./basketballBeats";
+import { defense, made, posterized, typeCallWords, type BasketballKind, type BasketballScene, type Miss, type Rebound } from "./basketballScene";
 import { ballMemo, Rig, RigTrack, type RigFacing } from "./rig";
 import { seed64, SplitMix64 } from "./splitMix64";
 import { CameraPath, CameraRig, clearing, fitting, intersects, midX, unionAll } from "./theaterKit";
@@ -75,9 +78,19 @@ export const Hoops = {
   /** The closest the camera comes (feet top to bottom): a shooter and the rim. */
   tightest: 24,
 
-  /** The view's turn for the team on offense: the top team's basket up and to the right; the bottom team's, half a turn round, up and to the left (the same court from the same sideline). */
+  /**
+   * The view's turn for the team on offense: the top team's basket up and to
+   * the right; the bottom team's, half a turn round, up and to the left (the
+   * same court from the same sideline). The whole-game convention (the shot
+   * chart's); a live play takes its end from `yawRight`.
+   */
   yaw(offense: Side | null): number {
-    return offense === "bottom" ? TURN + Math.PI : -TURN;
+    return Hoops.yawRight(offense !== "bottom");
+  },
+
+  /** The view's turn for a play at the right basket (up and to the right), or at the left (half a turn round, up and to the left). */
+  yawRight(right: boolean): number {
+    return right ? -TURN : TURN + Math.PI;
   },
 
   /** ESPN's half-court feet toward the offense's basket, in the play's frame. */
@@ -113,8 +126,8 @@ export function view(p: Point, yaw: number): Point {
 /** How the ball goes: a gentle line, an arc `peak` feet over the line between its ends, or a measured path sampled evenly in time. */
 export type HoopArc = { readonly kind: "straight" } | { readonly kind: "arc"; readonly peak: number } | { readonly kind: "samples"; readonly points: readonly FieldPoint[] };
 
-const STRAIGHT: HoopArc = { kind: "straight" };
-const arc = (peak: number): HoopArc => ({ kind: "arc", peak });
+export const STRAIGHT: HoopArc = { kind: "straight" };
+export const arc = (peak: number): HoopArc => ({ kind: "arc", peak });
 
 /** A flight of the ball (PlayScript.Flight, with its `.samples` arc), linear in time. */
 export class HoopFlight {
@@ -148,9 +161,34 @@ export class HoopFlight {
 
 // MARK: - Script
 
-export type Team = "offense" | "defense";
+/** The two fives, and the referee who comes in to make a call. */
+export type Team = "offense" | "defense" | "official";
 
-export type ActionKind = "catchBall" | "pass" | "lob" | "shoot" | "layup" | "dunk" | "hook" | "tip" | "contest" | "block" | "steal" | "rebound" | "boxOut";
+/**
+ * What he does with the ball (or reaching for it); and the lighter beats': a
+ * hand on a man (a foul), knocked down (a charge), a referee's signals, a
+ * jump ball's toss, waiting.
+ */
+export type ActionKind =
+  | "catchBall"
+  | "pass"
+  | "lob"
+  | "shoot"
+  | "layup"
+  | "dunk"
+  | "hook"
+  | "tip"
+  | "contest"
+  | "block"
+  | "steal"
+  | "rebound"
+  | "boxOut"
+  | "reach"
+  | "fall"
+  | "signal"
+  | "point"
+  | "toss"
+  | "hips";
 
 /** A moment of the play in his hands (or reaching for it); `toward`: what he turns to face (the rim, the man he passes to). */
 export interface Action {
@@ -189,11 +227,18 @@ export class Player {
   moves: Move[] = [];
   actions: Action[] = [];
   jumps: Jump[] = [];
+  /** On the floor from `enters` until `leaves` (a substitution, the referee, a walk off at the half), fading over a third of a second. */
+  enters = -Infinity;
+  leaves = Infinity;
 
   constructor(
     readonly team: Team,
     public at: Point,
   ) {}
+
+  opacity(t: number): number {
+    return Math.min(Math.max((t - this.enters) / 0.3, 0), 1) * Math.min(Math.max((this.leaves - t) / 0.3, 0), 1);
+  }
 
   /** The newest move that has begun wins: a later move starts from wherever the one before had got to. */
   position(t: number): Point {
@@ -249,7 +294,7 @@ export interface Leg {
     | { readonly kind: "spot"; readonly point: FieldPoint };
 }
 
-export type Beat = "catchBall" | "block" | "steal" | "rim";
+export type Beat = "catchBall" | "block" | "steal" | "rim" | "whistle" | "horn";
 
 export interface Flash {
   readonly beat: Beat;
@@ -278,9 +323,17 @@ export interface Banner {
   readonly confetti: boolean;
 }
 
-/** Between plays with nothing replayed: the team with the ball set in its half court (null: both teams round the center circle). */
-export interface Rest {
-  readonly offense: Side | null;
+/** A broadcast tag over the play: its words, whose color, and from when. */
+export interface Tag {
+  readonly text: string;
+  readonly side: Side | null;
+  readonly at: number;
+}
+
+/** What everyone standing about watches from a moment on (the referee at the table, the shooter at the line). */
+export interface Look {
+  readonly point: Point;
+  readonly from: number;
 }
 
 export class BasketballScript {
@@ -309,9 +362,33 @@ export class BasketballScript {
   yaw = Hoops.yaw("top");
   /** Each player's motion through the replay (heading, stride, footfalls), measured once: by player. */
   rig: RigTrack[] = [];
+  /** The team at the basket in front (players 0–4): who the frame is for. */
+  side: Side | null = null;
+  /** What it says at the top while it plays (SHOOTING FOUL · HAYES), from when. */
+  tag: Tag | null = null;
+  /** When something moves, between plays: the court is still in between (nothing redraws). */
+  active: (readonly [number, number])[] = [];
+  /** The shape the floor is in: play, the lane for free throws, the benches, an empty court. */
+  formation: Formation = "play";
+  look: Look | null = null;
+  /** A substitute who came on for a man who went off: the next beat finds him in his place. */
+  stand = new Map<number, number>();
 
   room(p: FieldPoint, figure: boolean): Rect {
     return Hoops.room(p, figure, this.yaw);
+  }
+
+  /** Where everyone is at t, and the ball: what the next beat (or the court between plays) starts from. */
+  lineup(t: number): Lineup {
+    let holder = this.carrier(t)?.player ?? null;
+    if (holder != null) {
+      for (const [off, on] of this.stand) if (on === holder) holder = off;
+    }
+    if (holder != null && holder >= 10) holder = null;
+    const at: Point[] = [];
+    for (let i = 0; i < Math.min(this.players.length, 10); i++) at.push(this.players[this.stand.get(i) ?? i]!.position(t));
+    const ball = holder == null ? this.ball(t) : null;
+    return { offense: this.side, at, holder, ball: ball ? ground(ball) : null, formation: this.formation, camera: this.camera.frame(t), yaw: this.yaw };
   }
 
   /** The ball at t: in the air, in hand (at his chest, roughly: the frame puts it in his hands), bouncing at his side, on the floor. */
@@ -394,16 +471,9 @@ export class BasketballScript {
 
   // MARK: - Building
 
-  /** Between plays with nothing replayed: the team with the ball set in its half court (null: both teams round the center circle). */
-  static rest(rest: Rest): BasketballScript {
-    const b = new Builder(null, rest.offense);
-    b.restSet();
-    b.script.measureBodies();
-    return b.script;
-  }
-
-  static play(scene: BasketballScene): BasketballScript {
-    const b = new Builder(scene, scene.offense);
+  /** A play replayed in full (the marquee). `right`: it's at the right basket (null: the whole-game convention, the top team's at the right). */
+  static play(scene: BasketballScene, right: boolean | null = null): BasketballScript {
+    const b = new Builder(scene, scene.offense, right ?? scene.offense !== "bottom");
     b.build();
     b.script.measureBodies();
     return b.script;
@@ -418,6 +488,7 @@ export class BasketballScript {
   measureBodies(): void {
     const ball = ballMemo(this);
     const settle = this.settle;
+    const look = this.look;
     this.rig = this.players.map((player) =>
       RigTrack.measure(0, this.duration, Hoops.ground, (t) => player.position(t), (t): RigFacing => {
         let near: Action | null = null;
@@ -437,6 +508,8 @@ export class BasketballScript {
         if (box && t < settle) return { point: box.toward, always: true };
         const b = ball(t);
         const point = b ? ground(b) : Hoops.rim;
+        if (player.team === "official") return { point, always: player.speed(t) < 6 };
+        if (look && t >= look.from && player.speed(t) < 4) return { point: look.point, always: true };
         if (player.team === "defense" && player.speed(t) < 13) return { point, always: true };
         return { point };
       }),
@@ -446,31 +519,31 @@ export class BasketballScript {
 
 // MARK: - Building
 
-const G = 32.2;
-const RIM = Hoops.rim;
-const RIM_POINT: FieldPoint = { x: Hoops.rim.x, y: Hoops.rim.y, z: Hoops.rimHeight };
+export const G = 32.2;
+export const RIM = Hoops.rim;
+export const RIM_POINT: FieldPoint = { x: Hoops.rim.x, y: Hoops.rim.y, z: Hoops.rimHeight };
 
 /** Kept on the floor (and off the baseline's padding). */
-function inbounds(p: Point): Point {
+export function inbounds(p: Point): Point {
   return { x: Math.min(Math.max(p.x, 1), 92.5), y: Math.min(Math.max(p.y, 1.2), 48.8) };
 }
 
-function unit(v: Point): Point {
+export function unit(v: Point): Point {
   const d = Math.hypot(v.x, v.y);
   return d > 1e-6 ? { x: v.x / d, y: v.y / d } : { x: -1, y: 0 };
 }
 
-const along = (p: Point, dir: Point, d: number): Point => ({ x: p.x + dir.x * d, y: p.y + dir.y * d });
+export const along = (p: Point, dir: Point, d: number): Point => ({ x: p.x + dir.x * d, y: p.y + dir.y * d });
 
-function rotate(v: Point, a: number): Point {
+export function rotate(v: Point, a: number): Point {
   return { x: v.x * Math.cos(a) - v.y * Math.sin(a), y: v.x * Math.sin(a) + v.y * Math.cos(a) };
 }
 
-const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
-const negated = (p: Point): Point => ({ x: -p.x, y: -p.y });
-const toward = (from: Point, to: Point): Point => unit({ x: to.x - from.x, y: to.y - from.y });
+export const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
+export const negated = (p: Point): Point => ({ x: -p.x, y: -p.y });
+export const toward = (from: Point, to: Point): Point => unit({ x: to.x - from.x, y: to.y - from.y });
 
-type PassStyle = "chest" | "bounce" | "lob" | "outlet";
+export type PassStyle = "chest" | "bounce" | "lob" | "outlet";
 
 const JUMPS: ReadonlySet<BasketballKind> = new Set(["jumper", "three"]);
 
@@ -487,12 +560,17 @@ export class Builder {
   arrive = 0;
   /** Who has the ball (between plays, null: nobody yet). */
   readonly offense: Side | null;
+  /** Which basket each team attacks, and where the benches are. */
+  ends: HoopsEnds = { topRight: true, topOpensRight: true };
+  /** Where the last beat left everyone, in this frame (null: set up fresh). */
+  start: Lineup | null = null;
 
-  constructor(scene: BasketballScene | null, offense: Side | null) {
+  constructor(scene: BasketballScene | null, offense: Side | null, right: boolean, seed: string | null = null) {
     this.scene = scene;
     this.offense = offense;
-    this.random = new SplitMix64(seed64(scene?.id ?? "rest"));
-    this.script.yaw = Hoops.yaw(offense);
+    this.random = new SplitMix64(seed64(seed ?? scene?.id ?? "rest"));
+    this.script.yaw = Hoops.yawRight(right);
+    this.script.side = offense;
   }
 
   /** The legs in time order, ties kept in the order they were laid down (a hold that ends as a pass leaves comes before the pass). */
@@ -539,12 +617,12 @@ export class Builder {
     this.script.legs.push({ from, until, hand: { kind: "dribble", player: i } });
   }
 
-  private lastLegUntil(value: number): void {
+  lastLegUntil(value: number): void {
     const last = this.script.legs[this.script.legs.length - 1];
     if (last) last.until = value;
   }
 
-  private lastHeld(player: number): number {
+  lastHeld(player: number): number {
     for (let i = this.script.legs.length - 1; i >= 0; i--) {
       const h = this.script.legs[i]!.hand;
       if (h.kind === "held" && h.player === player) return i;
@@ -804,37 +882,6 @@ export class Builder {
     this.measureStamp();
     this.settleDown();
     this.shootCamera();
-  }
-
-  /** Between plays: the team with the ball set in its half court, the ball at the top with the point guard; nobody's: both teams round the center circle. */
-  restSet(): void {
-    if (this.scene) return;
-    let items: Rect[];
-    if (this.offense != null) {
-      this.lineUp([{ x: 62, y: 25 }], 0);
-      this.hold(0, 0, Infinity);
-      items = [this.script.room(RIM_POINT, false)];
-    } else {
-      // Round the center circle, each team on its own half of it, the ball at center court.
-      const center = { x: Hoops.length / 2, y: Hoops.width / 2 };
-      const ours = [
-        { x: -1.6, y: 0 },
-        { x: -7, y: 6 },
-        { x: -7, y: -6 },
-        { x: -14, y: 10 },
-        { x: -14, y: -10 },
-      ];
-      this.script.players = [
-        ...ours.map((p) => new Player("offense", { x: center.x + p.x, y: center.y + p.y })),
-        ...ours.map((p) => new Player("defense", { x: center.x - p.x, y: center.y - p.y * 0.9 })),
-      ];
-      this.script.legs = [{ from: 0, until: Infinity, hand: { kind: "spot", point: fieldPoint(center, 0.4) } }];
-      items = [];
-    }
-    this.script.duration = 0;
-    items.push(...this.script.players.map((p) => this.script.room(fieldPoint(p.at), true)));
-    const region = unionAll(items)!;
-    this.script.camera = new CameraPath(fitting(region, CameraFrame.headroom, 38, Hoops.tightest));
   }
 
   // MARK: The half court
@@ -1496,7 +1543,7 @@ export class Builder {
     }
   }
 
-  private lastFlightLeg(index: number): number {
+  lastFlightLeg(index: number): number {
     for (let k = this.script.legs.length - 1; k >= 0; k--) {
       const h = this.script.legs[k]!.hand;
       if (h.kind === "flight" && h.index === index) return k;
@@ -1873,7 +1920,8 @@ export interface StampPart {
  * own words: the points heavy in the scoring team's color ("+3"), "BLK" in
  * the blocker's, "MISS"; the shot under it as the play-by-play names it
  * ("BROWN JR. · 23 FT JUMP SHOT"), then the assist, the steal, the rebound
- * ("AST ELLIS", "STL DEMIN", "REB HAUSER"). Tones: `score` the shooting
+ * ("AST ELLIS", "STL DEMIN", "REB HAUSER"). Between the shots, a rebound's
+ * "REB", a steal's "STL", a turnover's "TO". Tones: `score` the shooting
  * team's color (a basket), `block` the blocking team's. (pure; tested)
  */
 export interface BasketballStamp {
@@ -1885,11 +1933,38 @@ export interface BasketballStamp {
 
 export function basketballStamp(scene: BasketballScene): BasketballStamp {
   const shooter = scene.shooter?.name.toUpperCase() ?? "";
+  const line = (...words: (string | null | undefined)[]) => words.filter((w): w is string => w != null && w !== "").join(" · ");
+  // The ball plays between the shots: a rebound, a steal, a turnover in the open floor. A whistle has its tag, not a stamp.
+  switch (scene.kind) {
+    case "offensiveRebound":
+    case "defensiveRebound":
+      return {
+        parts: [{ text: "REB", heavy: true }],
+        lines: [line(shooter === "" ? "TEAM" : shooter, scene.kind === "offensiveRebound" ? "OFFENSIVE REBOUND" : "DEFENSIVE REBOUND")].filter((l) => l !== ""),
+        tone: "score",
+      };
+    case "steal":
+    case "turnover": {
+      const what = typeCallWords(scene.typeText);
+      const stealer = scene.steal?.stealer?.name;
+      if (stealer && scene.kind === "steal") return { parts: [{ text: "STL", heavy: true }], lines: [stealer.toUpperCase(), line(shooter, what)].filter((l) => l !== ""), tone: "block" };
+      return { parts: [{ text: "TO", heavy: true }], lines: [line(shooter, what)].filter((l) => l !== ""), tone: "neutral" };
+    }
+    case "foul":
+    case "violation":
+    case "jumpBall":
+    case "substitution":
+    case "timeout":
+    case "periodEnd":
+    case "challenge":
+      return { parts: [], lines: [], tone: "neutral" };
+    default:
+      break;
+  }
   // The shot as ESPN's play-by-play names it, with its distance from 4 ft out.
-  const name = scene.typeText.toUpperCase();
+  const name = scene.typeText.toUpperCase().replaceAll(" - ", " ");
   const feet = scene.distance != null && scene.distance >= 4 && scene.kind !== "freeThrow" ? `${Math.trunc(scene.distance)} FT` : null;
   const shotName = [feet, name === "" ? null : name].filter((x): x is string => x != null).join(" ");
-  const line = (...words: (string | null | undefined)[]) => words.filter((w): w is string => w != null && w !== "").join(" · ");
   const credits: string[] = [];
   const assist = scene.assister?.name;
   if (assist) credits.push(`AST ${assist.toUpperCase()}`);

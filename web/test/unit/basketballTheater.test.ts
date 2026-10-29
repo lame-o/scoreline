@@ -17,9 +17,11 @@ import { BasketballFeed, type Teams } from "../../src/data/liveFeeds/basketball"
 import { CameraFrame } from "../../src/data/mlb/playCamera";
 import { fieldPoint, type FieldPoint } from "../../src/data/mlb/theaterField";
 import { liveMoment, Tier, type LiveMoment } from "../../src/data/moments";
-import { made, parseScene, replays, surname, type BasketballScene } from "../../src/data/theater/basketballScene";
+import { restOf, restScript } from "../../src/data/theater/basketballBeats";
+import { basketballNext } from "../../src/data/theater/basketballFlow";
+import { made, marqueeOf, parseScene, replays, surname, type BasketballScene } from "../../src/data/theater/basketballScene";
 import { BasketballScript, basketballStamp, Hoops, view } from "../../src/data/theater/basketballScript";
-import { BasketballCelebration, basketballShown, basketballTheaterState, BasketballTheaterWatch } from "../../src/data/theater/basketballTheater";
+import { BasketballCelebration, basketballTheaterState, BasketballTheaterWatch } from "../../src/data/theater/basketballTheater";
 import { HoopProjection, playerPose } from "../../src/features/game/nba/theater/drawBasketball";
 import { fixture } from "./fixtures";
 import { jointsBreak } from "./rigJoints";
@@ -374,18 +376,7 @@ describe("banners", () => {
 });
 
 describe("news and the court between plays", () => {
-  it("news shows, then rests after its hold; history isn't shown: the court is the live one", () => {
-    const state = { scene: brown, news: true };
-    expect(basketballShown(state, null, null)?.id).toBe(brown?.id);
-    expect(basketballShown(state, brown!.id, brown!.id)).toBeNull();
-    expect(basketballShown({ ...state, news: false }, null, null)).toBeNull();
-  });
-
-  it("a play already showing keeps being news through its edits", () => {
-    expect(basketballTheaterState(brown!, { scene: brown, news: true }, false, Date.now()).news).toBe(true);
-  });
-
-  it("the lane's first look is history; the next basket it sees is news", () => {
+  it("the lane's first look is history (nothing to tell: the court as it stands); the plays after it are news, told from the first of them", () => {
     const g0 = games[0]!;
     const feed = new BasketballFeed();
     const watch = new BasketballTheaterWatch();
@@ -403,15 +394,26 @@ describe("news and the court between plays", () => {
     }
     feed.ingest(g0.items.slice(0, next + 1), 0, g0.teams);
     look();
-    expect(first.scene).not.toBeNull();
-    expect(first.news).toBe(false);
-    expect(watch.state.news).toBe(true);
-    expect(watch.state.scene?.id).toBe(g0.items[next]!.id);
+    const fresh = new Set(g0.items.slice(41, next + 1).map((p) => p.id as string));
+    const told = basketballNext(null, new Set(), watch.state);
+    expect(first.plays.length).toBeGreaterThan(0);
+    expect(first.news.size).toBe(0);
+    expect(basketballNext(null, new Set(), first)).toBeNull();
+    expect([...watch.state.news].sort()).toEqual(watch.state.plays.map((p) => p.id).filter((id) => fresh.has(id)).sort());
+    expect(told != null && fresh.has(told.scene.id)).toBe(true);
+    expect(marqueeOf(watch.state)?.id).toBe(g0.items[next]!.id);
+  });
+
+  it("a play that was news stays news through its edits", () => {
+    const g0 = games[0]!;
+    const plays = scenesOf(g0).slice(0, 10);
+    const state = { plays, news: new Set(plays.slice(5).map((p) => p.id)), heard: 1 };
+    expect([...basketballTheaterState(plays, state, 1, () => null, Date.now()).news].sort()).toEqual([...state.news].sort());
   });
 
   it("between plays the team with the ball sets up in its half, the point guard with it; nobody's: round the center circle", () => {
-    const rest = BasketballScript.rest({ offense: "bottom" });
-    const tipOff = BasketballScript.rest({ offense: null });
+    const rest = restScript(restOf({ offense: "bottom" }));
+    const tipOff = restScript(restOf({ offense: null }));
     expect(rest.players.length).toBe(10);
     expect(rest.carrier(0)?.player).toBe(0);
     expect(rest.yaw).toBe(Hoops.yaw("bottom"));

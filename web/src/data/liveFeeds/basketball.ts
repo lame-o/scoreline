@@ -695,7 +695,7 @@ function lastLeader(index: number, plays: readonly JSONValue[], teams: Teams): n
 /**
  * Core plays name teams and players by link; the summary parsers expect
  * `team.id` and `participants[].athlete.id` (shooter first). Each keeps its
- * part ("shooter", "assister", "blocker"): the theater reads it.
+ * part ("shooter", "assister", "blocker") and position: the theater reads them.
  */
 export function normalized(item: JSONValue): JSONValue {
   if (item == null || typeof item !== "object" || Array.isArray(item)) return item;
@@ -716,7 +716,13 @@ export function normalized(item: JSONValue): JSONValue {
       id = digits[0];
     }
     const part = str(at(p, "type"));
-    return [part ? { athlete: { id }, type: part } : { athlete: { id } }];
+    const person: Record<string, unknown> = part ? { athlete: { id }, type: part } : { athlete: { id } };
+    // His position on the play (a guard, a forward, a center): where the theater stands him.
+    const ref = str(at(p, "position", "$ref"));
+    const from = ref?.indexOf("/positions/") ?? -1;
+    const position = ref && from >= 0 ? /^\d+/.exec(ref.slice(from + "/positions/".length))?.[0] : str(at(p, "position", "id"));
+    if (position) person.position = { id: position };
+    return [person];
   });
   return raw;
 }

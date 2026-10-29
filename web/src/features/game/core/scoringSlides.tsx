@@ -101,9 +101,11 @@ const NO_PLAN: SlidePlan = { ownerVisible: false, theater: null, follow: false, 
  * How long a theater may take to pick up a play it hasn't yet. The Mac's
  * baseball theater waits up to 3 s for Statcast (3.6). Web addition: a
  * theater takes its lane's new play on the render after the lane's tick, so
- * the others get a moment too.
+ * the others get a moment too. The court's tells every play in order, so a
+ * basket may wait its turn behind a beat or two: up to its queue's budget
+ * (basketballFlow.ts `QUEUE_BUDGET`, 12 s), as the Mac's.
  */
-const PATIENCE = { plate: 3.6, render: 1.2 } as const;
+const PATIENCE = { plate: 3.6, render: 1.2, court: 12 } as const;
 
 /** What the page tells its slides, read once per score, never observed. */
 export interface SlidePage {
@@ -445,8 +447,9 @@ export function slidePlan(m: LiveMoment, slides: ScoringSlides, geometry: PageGe
     case "pitch":
       return timed(live ? slides.theater("pitch") : null, seen("pitch"), PATIENCE.render);
     case "court":
-      // The court's theater (once the web has it) replays every basket and owns its celebration while it's shown.
-      return timed(live ? slides.theater("court") : null, seen("court"), PATIENCE.render);
+      // The court's theater replays every basket and owns its celebration while it's shown. It tells every play in
+      // order: a basket may wait its turn (never longer than the queue's budget).
+      return timed(live ? slides.theater("court") : null, seen("court"), seen("court") ? PATIENCE.court : PATIENCE.render);
     case "ascent":
     case "rounds":
       return { ...NO_PLAN, ownerVisible: seen(sectionForChart(m.chart)) };

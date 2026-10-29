@@ -24,10 +24,12 @@ export interface CourtTheaterProps {
   readonly palette: TeamPalette;
   /** The teams' short names: the home team's is painted at center court. */
   readonly names: { readonly top: string; readonly bottom: string };
+  /** The teams as the tag names them ("SPURS BALL"). */
+  readonly spoken?: { readonly top: string; readonly bottom: string };
   readonly topIsHome: boolean;
 }
 
-export function CourtTheater({ feed, teams, event, palette, names, topIsHome }: CourtTheaterProps) {
+export function CourtTheater({ feed, teams, event, palette, names, spoken, topIsHome }: CourtTheaterProps) {
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
   const kits = {
@@ -37,7 +39,18 @@ export function CourtTheater({ feed, teams, event, palette, names, topIsHome }: 
   return (
     <div className={styles.slot}>
       <Suspense fallback={<TheaterWell />}>
-        <BasketballTheater feed={feed} teams={teams} kits={kits} palette={palette} topIsHome={topIsHome} topName={names.top} bottomName={names.bottom} />
+        <BasketballTheater
+          feed={feed}
+          teams={teams}
+          kits={kits}
+          palette={palette}
+          topIsHome={topIsHome}
+          topName={names.top}
+          bottomName={names.bottom}
+          topTeam={top?.name ?? spoken?.top ?? ""}
+          bottomTeam={bottom?.name ?? spoken?.bottom ?? ""}
+          eventId={event.id}
+        />
       </Suspense>
     </div>
   );

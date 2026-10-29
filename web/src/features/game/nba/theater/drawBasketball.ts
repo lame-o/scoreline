@@ -11,7 +11,7 @@
  */
 import type { CameraFrame } from "../../../../data/mlb/playCamera";
 import { houseCurve, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
-import type { Uniform } from "../../../../data/mlb/theaterTeams";
+import { zebra, type Uniform } from "../../../../data/mlb/theaterTeams";
 import type { Side } from "../../../../data/models";
 import { defense, type BasketballScene } from "../../../../data/theater/basketballScene";
 import { BasketballScript, basketballStamp, Hoops, view, type Player } from "../../../../data/theater/basketballScript";
@@ -689,6 +689,37 @@ export const HoopPose = {
   }),
   /** The tip: one hand straight up at it. */
   tip: rigPose({ hip: vec(0, 0, 0.49), leftArm: rigArm({ swing: 2.6, spread: 0.2, bend: 0.3 }), rightArm: rigArm({ swing: 3.05, spread: 0.08, bend: 0.06 }) }),
+  /** A hand on him: the reach that draws a whistle, the arm out at his chest. */
+  reach: rigPose({
+    hip: vec(0.03, 0, 0.42),
+    lean: 0.4,
+    left: vec(0.16, 0.1, 0),
+    right: vec(-0.14, -0.12, 0),
+    knees: 0.25,
+    leftArm: rigArm({ swing: 0.6, spread: 0.5, turn: -0.2, bend: 0.5 }),
+    rightArm: rigArm({ swing: 1.45, spread: 0.12, turn: -0.2, bend: 0.15 }),
+  }),
+  /** Knocked down by the charge: on his back, arms flung out. */
+  fallen: rigPose({
+    hip: vec(-0.1, 0, 0.12),
+    pitch: -1.45,
+    nod: 0.35,
+    left: vec(0.02, 0.1, -0.36),
+    right: vec(0.06, -0.1, -0.3),
+    knees: 0.3,
+    leftArm: rigArm({ swing: 2.5, spread: 0.55, bend: 0.4 }),
+    rightArm: rigArm({ swing: 2.3, spread: 0.6, bend: 0.5 }),
+  }),
+  /** A referee's call: a fist straight up (a foul, a timeout), the other arm at his side. */
+  signal: rigPose({ leftArm: rigArm({ swing: 0.25, spread: 0.2, turn: -0.2, bend: 0.3 }), rightArm: rigArm({ swing: 3.05, spread: 0.05, turn: 0.2, bend: 0.12 }) }),
+  /** Pointing the way the ball goes now: the arm out level. */
+  point: rigPose({ turn: 0.35, leftArm: rigArm({ swing: 0.2, spread: 0.2, bend: 0.3 }), rightArm: rigArm({ swing: 1.55, spread: 0.45, turn: 0.35, bend: 0.05 }) }),
+  /** Hands on his hips, waiting on a free throw. */
+  hips: rigPose({
+    hip: vec(0, 0, 0.49),
+    leftArm: rigArm({ swing: 0.3, spread: 0.75, turn: -0.9, bend: 1.9 }),
+    rightArm: rigArm({ swing: 0.3, spread: 0.75, turn: -0.9, bend: 1.9 }),
+  }),
   /** The steal: lunging, a hand out low at the ball. */
   steal: rigPose({
     hip: vec(0.04, 0, 0.38),
@@ -727,7 +758,7 @@ export function playerPose(script: BasketballScript, player: Player, index: numb
   const m = track.motion(t);
   // How he stands: ready, or down in his stance on defense; at ease a beat after the ball's through.
   const ease = script.score != null ? smooth((t - script.score - 0.7) / 0.5) : 0;
-  const stance = player.team === "defense" ? HoopPose.guarding : HoopPose.ready;
+  const stance = player.team === "defense" ? HoopPose.guarding : player.team === "official" ? RigPoses.stand : HoopPose.ready;
   const still = mix(stance, RigPoses.stand, ease);
   const feet = track.feet(t, here, m.heading, unit, m.speed, { left: still.left, right: still.right });
   let body = mix(still, gait(m, feet), m.weight);
@@ -859,8 +890,28 @@ export function playerPose(script: BasketballScript, player: Player, index: numb
         body = over(body, RigPoses.catchHigh, envelope(x, 0.25, 0.35), m.weight);
         break;
       case "boxOut":
-        if (!(x > -0.2 && t < script.settle)) break;
+        if (!(x > -0.2 && (t < script.settle || script.formation === "lane"))) break;
         body = over(body, HoopPose.boxOut, smooth((x + 0.2) / 0.25) * (1 - ease), m.weight * 0.6);
+        break;
+      case "reach":
+        body = over(body, HoopPose.reach, envelope(x, 0.22, 0.55), m.weight * 0.6);
+        break;
+      case "fall":
+        // Down, and stays down while the call's made.
+        if (!(x > -0.02)) break;
+        body = over(body, HoopPose.fallen, smooth(x / 0.35), 0);
+        break;
+      case "signal":
+      case "point":
+        body = over(body, action.kind === "signal" ? HoopPose.signal : HoopPose.point, envelope(x, 0.15, 1.3), m.weight);
+        break;
+      case "toss":
+        body = over(body, HoopPose.wall, envelope(x, 0.3, 0.45), m.weight);
+        break;
+      case "hips":
+        // Until he moves again.
+        if (!(x > -0.3)) break;
+        body = over(body, HoopPose.hips, smooth((x + 0.3) / 0.3) * (1 - Math.min(m.weight * 2, 1)), m.weight);
         break;
     }
   }
@@ -903,10 +954,10 @@ export interface Labels {
   readonly banner: Block | null;
 }
 
-/** The team whose type it is: the offense's or the defense's accent, else the page's ink. */
-function sideColor(side: Side | null, scene: BasketballScene | null, teams: BasketballTeams, ink: TheaterInk): string {
-  if (!side || !scene?.offense) return primary(ink);
-  return side === scene.offense ? accentOf(teams.offense, ink) : accentOf(teams.defense, ink);
+/** The team whose type it is: the frame's offense's or defense's accent, else the page's ink. */
+function sideColor(side: Side | null, offense: Side | null, teams: BasketballTeams, ink: TheaterInk): string {
+  if (!side || !offense) return primary(ink);
+  return side === offense ? accentOf(teams.offense, ink) : accentOf(teams.defense, ink);
 }
 
 /**
@@ -920,10 +971,11 @@ export function layoutLabels(ctx: Ctx, scene: BasketballScene | null, script: Ba
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
   let stamp: Block | null = null;
-  if (scene) {
-    const s = basketballStamp(scene);
+  const frameSide = script.side ?? scene?.offense ?? null;
+  const s = scene && Number.isFinite(script.stamp) ? basketballStamp(scene) : null;
+  if (scene && s && s.parts.length > 0) {
     const fs = TheaterType.stamp(size, pt);
-    const tone = s.tone === "score" ? sideColor(scene.offense, scene, teams, ink) : s.tone === "block" ? sideColor(defense(scene), scene, teams, ink) : primary(ink);
+    const tone = s.tone === "score" ? sideColor(scene.offense, frameSide, teams, ink) : s.tone === "block" ? sideColor(defense(scene), frameSide, teams, ink) : primary(ink);
     const runs = s.parts.map((part) => (part.heavy ? run(ctx, part.text, `800 ${fs}px ${FONT}`, fs, tone, -0.5 * pt) : run(ctx, part.text, `700 ${fs * 0.42}px ${FONT}`, fs * 0.42, ink.secondary, 0.6 * pt)));
     const spacing = fs * 0.16;
     const longest = Math.max(s.lines.reduce((m, l) => Math.max(m, [...l].length), 0), 1);
@@ -953,7 +1005,7 @@ export function layoutLabels(ctx: Ctx, scene: BasketballScene | null, script: Ba
   let banner: Block | null = null;
   const b = script.banner;
   if (b) {
-    const color = b.tone.kind === "side" ? sideColor(b.tone.side, scene, teams, ink) : ink.gold;
+    const color = b.tone.kind === "side" ? sideColor(b.tone.side, frameSide, teams, ink) : ink.gold;
     banner = bannerBlock(ctx, b.text, color, TheaterType.bannerFitting(size, pt, b.text));
   }
   ctx.restore();
@@ -1000,9 +1052,10 @@ export function drawBasketballFrame(ctx: Ctx, h: HoopProjection, input: FrameInp
 /** Everyone at t, far to near: a player in front covers the one behind. */
 function posed(h: HoopProjection, { script, t }: FrameInputs): Posed[] {
   const carrier = script.carrier(t);
-  const order = script.players.map((player, index) => {
+  const order = script.players.flatMap((player, index) => {
+    if (!(player.opacity(t) > 0.01)) return [];
     const at = player.position(t);
-    return { player, index, at, depth: h.depth(at) };
+    return [{ player, index, at, depth: h.depth(at) }];
   });
   order.sort((a, b) => b.depth - a.depth);
   return order.map(({ player, index, at }) => {
@@ -1044,7 +1097,8 @@ function drawShadows(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInput
   const w = h.figure * 0.26;
   for (const p of figures) {
     const air = Math.min(p.figure.air / 0.35, 1);
-    drawShadow(ctx, p.figure.ground, w * (1 - 0.35 * air), shadow(ink, 1 - 0.5 * air));
+    const seen = script.players[p.index]!.opacity(t);
+    drawShadow(ctx, p.figure.ground, w * (1 - 0.35 * air), shadow(ink, (1 - 0.5 * air) * seen));
   }
   // The ball's: larger and softer the higher it flies.
   const ball = script.ball(t);
@@ -1058,10 +1112,16 @@ function drawShadows(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInput
   }
 }
 
-function drawPlayers(ctx: Ctx, h: HoopProjection, { script, teams, ink }: FrameInputs, figures: readonly Posed[]): void {
+function drawPlayers(ctx: Ctx, h: HoopProjection, { script, t, teams, ink }: FrameInputs, figures: readonly Posed[]): void {
   const offense = figureInks(teams.offense, ink);
   const defenseInks = figureInks(teams.defense, ink);
-  for (const p of figures) drawFigure(ctx, p.figure, script.players[p.index]!.team === "offense" ? offense : defenseInks, h.figure, 1);
+  // The referee, only when one comes in to make a call: the zebra shirt.
+  const official = script.players.some((p) => p.team === "official") ? figureInks(zebra(ink.dark ? "dark" : "light"), ink) : offense;
+  for (const p of figures) {
+    const player = script.players[p.index]!;
+    const inks = player.team === "offense" ? offense : player.team === "defense" ? defenseInks : official;
+    drawFigure(ctx, p.figure, inks, h.figure, player.opacity(t));
+  }
 }
 
 /** Where the ball is drawn: in his hands, or along its flight; and whether it's inside the hoop (then the rim's front and the net go over it). */
@@ -1149,6 +1209,40 @@ function drawFlashes(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInput
         ctx.strokeStyle = rgba(ink.trace, 0.75 * (1 - u));
         ctx.lineWidth = 1.2;
         ctx.stroke();
+        break;
+      }
+      case "whistle": {
+        // The whistle: short ticks off the referee's head.
+        if (!(age >= 0 && age < 0.4)) continue;
+        const u = age / 0.4;
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+          const a = -Math.PI / 2 + (i - 2) * 0.42;
+          ctx.moveTo(c.x + Math.cos(a) * (1.2 + 1.4 * u) * unit, c.y + Math.sin(a) * (1.2 + 1.4 * u) * unit);
+          ctx.lineTo(c.x + Math.cos(a) * (2.2 + 2.4 * u) * unit, c.y + Math.sin(a) * (2.2 + 2.4 * u) * unit);
+        }
+        ctx.strokeStyle = rgba(ink.trace, 0.85 * (1 - u));
+        ctx.lineWidth = Math.max(unit * 0.2, 0.9);
+        ctx.lineCap = "round";
+        ctx.stroke();
+        break;
+      }
+      case "horn": {
+        // The horn: the backboards' red edge lit, as the arena's are.
+        if (!(age >= 0 && age < 1.6)) continue;
+        const glow = (age < 0.2 ? age / 0.2 : 1) * (1 - Rig.smooth((age - 1.1) / 0.5));
+        for (const end of [-1, 1]) {
+          const board = end > 0 ? Hoops.board : Hoops.length - Hoops.board;
+          const y = Hoops.width / 2;
+          const corners = [h.point({ x: board, y: y - 3 }, Hoops.boardBottom), h.point({ x: board, y: y + 3 }, Hoops.boardBottom), h.point({ x: board, y: y + 3 }, Hoops.boardTop), h.point({ x: board, y: y - 3 }, Hoops.boardTop)];
+          ctx.beginPath();
+          ctx.moveTo(corners[0]!.x, corners[0]!.y);
+          for (const p of corners.slice(1)) ctx.lineTo(p.x, p.y);
+          ctx.closePath();
+          ctx.strokeStyle = `rgb(255 59 48 / ${0.85 * glow})`;
+          ctx.lineWidth = Math.max(h.scale * 0.35, 1.6);
+          ctx.stroke();
+        }
         break;
       }
       case "rim": {
