@@ -560,7 +560,7 @@ let condenses: boolean | null = null;
  * slide's type takes a condensed face that it does have (Helvetica Neue's,
  * Arial Narrow, Roboto Condensed). Measured once per page.
  */
-function systemCondenses(): boolean {
+export function systemCondenses(): boolean {
   if (condenses != null) return condenses;
   if (typeof document === "undefined") return true;
   const width = (stretch: string) => {
