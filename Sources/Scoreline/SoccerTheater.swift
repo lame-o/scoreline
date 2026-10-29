@@ -361,11 +361,13 @@ struct SoccerFrame: View, Equatable {
     // MARK: Shadows
 
     private func drawShadows(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed]) {
-        // Under the hips; smaller and fainter as he leaves the ground.
-        for p in figures {
+        // Under the hips; smaller and fainter as he leaves the ground, and gone with him when he leaves the pitch.
+        for (i, p) in figures.enumerated() {
+            let shown = script.actors[i].opacity(at: t)
+            guard shown > 0 else { continue }
             let air = min(p.figure.air / 0.4, 1), w = p.height * 0.3 * (1 - 0.35 * air), g = p.figure.ground
             context.fill(Path(ellipseIn: CGRect(x: g.x - w, y: g.y - w * 0.3, width: 2 * w, height: w * 0.6)),
-                         with: .color(ink.shadow.opacity(1 - 0.45 * air)))
+                         with: .color(ink.shadow.opacity((1 - 0.45 * air) * shown)))
         }
         // The ball's: under it on the grass, larger and softer the higher it flies, a hairline up to it once it's well up.
         if script.heldBy == nil || t < script.heldFrom, let ball = script.ball(at: t), ball.z > 0.25 {
