@@ -401,9 +401,9 @@ enum HoopPose {
 }
 
 /// One frame of a play through the camera: the court, the shadows, the
-/// baskets' backs, the players far to near, the ball, the nets and the
-/// rims' fronts, the beats, the headline and the stamp. Equatable: at rest
-/// (t = ∞) an update elsewhere on the page doesn't redraw it.
+/// names, the baskets' backs, the players far to near, the ball, the nets
+/// and the rims' fronts, the beats, the headline and the stamp. Equatable:
+/// at rest (t = ∞) an update elsewhere on the page doesn't redraw it.
 struct BasketballFrame: View, Equatable {
     let scene: BasketballScene?
     let script: BasketballScript
@@ -429,18 +429,18 @@ struct BasketballFrame: View, Equatable {
             let h = HoopProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw)
             context.clip(to: h.bounds)
             HoopsCourtLayer.draw(&context, h, ink: ink, paint: paint)
-            let figures = posed(h)
+            let figures = posed(h), ball = ballPoint(h, figures)
             drawShadows(&context, h, figures)
+            // The names on the court, under all that plays: the baskets too.
+            drawTags(context, h, figures, ball: ball?.point)
             let motion = HoopsCourtLayer.Motion(net: script.net, rimHit: script.rimHit, rimStrength: script.rimStrength, t: t)
             for end in [-1.0, 1.0] { HoopsCourtLayer.basket(context, h, ink: ink, end: end, front: false, motion: motion) }
             drawPlayers(&context, h, figures)
-            let ball = ballPoint(h, figures)
             if let ball, ball.inHoop { drawBall(&context, h, at: ball.point) }
             for end in [-1.0, 1.0] { HoopsCourtLayer.basket(context, h, ink: ink, end: end, front: true, motion: motion) }
             if let ball, !ball.inHoop { drawBall(&context, h, at: ball.point) }
             drawFlashes(&context, h)
             drawLabels(&context, h)
-            drawTags(context, h, figures)
         } symbols: {
             HoopsCourtLayer.symbols(ink: ink, paint: paint)
             stamp.tag(Symbol.stamp)
@@ -449,8 +449,8 @@ struct BasketballFrame: View, Equatable {
         }
     }
 
-    /// The names over the players, clear of the headline and the stamp while they're up.
-    private func drawTags(_ context: GraphicsContext, _ h: HoopProjection, _ figures: [Posed]) {
+    /// The names round the players, drawn under them and the ball, clear of the headline and the stamp while they're up.
+    private func drawTags(_ context: GraphicsContext, _ h: HoopProjection, _ figures: [Posed], ball: CGPoint?) {
         var clear: [CGRect] = []
         if let banner = script.banner, t >= banner.at, t < banner.until + 0.3, let symbol = context.resolveSymbol(id: Symbol.banner) {
             clear.append(TheaterTagLayout.banner(symbol.size, in: h.size))
@@ -458,8 +458,23 @@ struct BasketballFrame: View, Equatable {
         if t >= script.stamp, let symbol = context.resolveSymbol(id: Symbol.stamp) {
             clear.append(TheaterTagLayout.stamp(symbol.size, in: h.size, inset: TheaterType.inset(h.size)))
         }
+        let disc = ball.map { p in
+            let r = ballRadius(h) + 0.6
+            return TheaterTags.Ball(shape: Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), height: h.figure)
+        }
+        let well = h.size
         tags.draw(figures.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: h.figure, opacity: script.players[$0.index].opacity(at: t)) },
-                  t: t, size: h.size, clear: clear, in: context)
+                  ball: disc, t: t, size: h.size, clear: clear, ring: ink.tagRing,
+                  replay: TheaterReplay(length: script.duration) { Self.spots(script, at: $0, size: well) }, in: context)
+    }
+
+    /// Each player's spot on screen at t and the ball's, through the camera, no posing.
+    static func spots(_ script: BasketballScript, at t: Double, size: CGSize) -> TheaterSpots {
+        let h = HoopProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw)
+        return TheaterSpots(figures: script.players.indices.filter { script.players[$0].opacity(at: t) > 0.01 }.map { i in
+            let lens = RigLens(h, at: script.players[i].position(at: t))
+            return (i, lens.origin, lens.height)
+        }, ball: script.ball(at: t).map { h.point($0) })
     }
 
     // MARK: Players
@@ -667,10 +682,12 @@ struct BasketballFrame: View, Equatable {
         return (h.point(ball), inHoop)
     }
 
+    /// The ball's size: a touch larger than life, it's what the eye follows.
+    private func ballRadius(_ h: HoopProjection) -> CGFloat { min(max(0.5 * h.scale, 2.1), max(h.figure * 0.09, 2.1)) }
+
     /// The basketball: a glowing core with its comet tail while it flies.
     private func drawBall(_ context: inout GraphicsContext, _ h: HoopProjection, at p: CGPoint) {
-        // A touch larger than life: it's what the eye follows.
-        let r = min(max(0.5 * h.scale, 2.1), max(h.figure * 0.09, 2.1))
+        let r = ballRadius(h)
         if let flight = script.flight(at: t) {
             let trail = (1...6).map { h.point(flight.point(at: max(t - Double($0) * 0.014, flight.start))) }
             TheaterDraw.trail(trail, from: p, radius: r * 0.8, color: ink.leather, in: context)
@@ -1100,12 +1117,7 @@ private struct BasketballStage: View {
     /// The figure under the pointer in the frame on screen: each player's
     /// spot at t through the camera, no posing.
     private func figure(at point: CGPoint, _ now: Now, size: CGSize) -> Int? {
-        let t = time(now, at: .now), script = now.script
-        let h = HoopProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw)
-        return TheaterTags.hit(script.players.indices.filter { script.players[$0].opacity(at: t) > 0.01 }.map { i in
-            let lens = RigLens(h, at: script.players[i].position(at: t))
-            return (i, lens.origin, lens.height)
-        }, at: point)
+        TheaterTags.hit(BasketballFrame.spots(now.script, at: time(now, at: .now), size: size).figures, at: point)
     }
 
     // MARK: The running order
@@ -1280,7 +1292,7 @@ extension BasketballScript {
         let key = Self.key(scene).flatMap { person in
             credits.first { $0.value.id != nil ? $0.value.id == person.id : $0.value.name == person.name }?.key
         }
-        return TheaterCast(members: members, key: key)
+        return TheaterCast(members: members, key: key, scope: scope)
     }
 
     /// Who a play is about: the man its text leads with (the shooter, a

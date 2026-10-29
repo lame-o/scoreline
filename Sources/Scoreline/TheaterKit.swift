@@ -299,17 +299,28 @@ enum TheaterDraw {
     /// The smallest figure that carries those lines.
     static let lined: CGFloat = 15
 
-    private static func draw(_ figure: RigFigure, inks: FigureInks, height: CGFloat, in context: GraphicsContext) {
-        let halo = max(height * 0.045, 0.8), w = figure.limb / 2, limbs = figure.limbs
-        // The outline: every part's, grown by the halo, filled as one shape.
+    /// The outline's width round a figure `height` tall.
+    static func halo(_ height: CGFloat) -> CGFloat { max(height * 0.045, 0.8) }
+
+    /// A figure's silhouette, every part grown by `grown`, as one shape (its
+    /// capsules wound alike, so they fill as their union): his outline at
+    /// the halo; a name tag's ring round him a little wider.
+    static func outline(_ figure: RigFigure, grown: CGFloat) -> Path {
+        let w = figure.limb / 2
         var outline = Path()
-        for l in limbs {
-            capsule(l.root, l.joint, w + halo, into: &outline)
-            capsule(l.joint, l.end, w + halo, into: &outline)
+        for l in figure.limbs {
+            capsule(l.root, l.joint, w + grown, into: &outline)
+            capsule(l.joint, l.end, w + grown, into: &outline)
         }
-        capsule(figure.hip, figure.neck, figure.torso / 2 + halo, into: &outline)
-        capsule(figure.head, figure.head, figure.headRadius + halo, into: &outline)
-        context.fill(outline, with: inks.rim)
+        capsule(figure.hip, figure.neck, figure.torso / 2 + grown, into: &outline)
+        capsule(figure.head, figure.head, figure.headRadius + grown, into: &outline)
+        return outline
+    }
+
+    private static func draw(_ figure: RigFigure, inks: FigureInks, height: CGFloat, in context: GraphicsContext) {
+        let w = figure.limb / 2, limbs = figure.limbs
+        // The outline: every part's, grown by the halo, filled as one shape.
+        context.fill(outline(figure, grown: halo(height)), with: inks.rim)
         let style = StrokeStyle(lineWidth: figure.limb, lineCap: .round, lineJoin: .round)
         // An official's stripes: as many as read at this size (four across the body at a theater's), the sleeves' as wide.
         let bands = inks.stripes == nil ? 0 : min(max(Int((figure.torso / 0.5 - 1) / 2), 1), 4) * 2 + 1
