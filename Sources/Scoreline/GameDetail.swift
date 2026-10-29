@@ -293,6 +293,8 @@ struct GameDetail {
     var athleteNames: [String: String] = [:]
     /// Soccer: both starting elevens in their formation, for the theater.
     var lineups: [Side: SoccerLineup] = [:]
+    /// The added time the fourth official last announced (from the commentary), for the soccer theater's tag.
+    var soccerAdded: SoccerAddedTime?
     /// Climbing order for a round with no results yet (rank = start position):
     /// the current round before anyone finishes, or the next round.
     var startlist: [Athlete] = []
@@ -561,6 +563,7 @@ enum ESPNDetail {
         case .soccer:
             detail.moments = summary["keyEvents"].array.compactMap { soccerMoment($0, side: side) }
             detail.lineups = SoccerLineup.lineups(summary["rosters"], side: side)
+            detail.soccerAdded = SoccerAddedTime.latest(summary["commentary"])
             detail.recentPlays = summary["commentary"].array.suffix(4).reversed().compactMap { c in
                 guard let text = c["text"].string else { return nil }
                 let time = c["time"]["displayValue"].string ?? ""

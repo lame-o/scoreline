@@ -24,7 +24,31 @@ import SwiftUI
 // the headline lands, and where the broadcast camera looks.
 
 struct SoccerScript: Equatable {
-    enum Team { case attacking, defending }
+    /// The team on the ball and the other; between moments, the officials
+    /// and the physios too (SoccerIdle.swift).
+    enum Team { case attacking, defending, official, staff }
+
+    /// A pose held for a while between moments: a man down, a physio on a
+    /// knee, the referee's card or the assistant's flag up, a hand to the
+    /// ear for VAR, the sign for the screen, the board held up.
+    struct Hold: Equatable {
+        enum Kind: Equatable { case down, kneel, cardUp, ear, screen, boardUp }
+        var kind: Kind
+        var from: Double
+        var until = Double.infinity
+    }
+
+    /// Where a man looks from a moment on when he's standing.
+    struct Look: Equatable {
+        var from: Double
+        var point: CGPoint
+    }
+
+    /// The loop the pitch's beats settle into between moments.
+    struct Loop: Equatable {
+        var start: Double
+        var period: Double
+    }
 
     struct Actor: Equatable {
         enum Role: Equatable { case outfield, keeper }
@@ -83,6 +107,21 @@ struct SoccerScript: Equatable {
         var moves: [PlayScript.Move] = []
         var actions: [Action] = []
         var dive: Dive?
+        var holds: [Hold] = []
+        var looks: [Look] = []
+        /// On the pitch from, and off it from (a substitution, a red card, the half).
+        var appear = -Double.infinity
+        var vanish = Double.infinity
+
+        static let fade = 0.3
+
+        func opacity(at t: Double) -> Double {
+            let fadeIn = appear.isFinite ? min(max((t - appear) / Self.fade, 0), 1) : 1
+            let fadeOut = vanish.isFinite ? 1 - min(max((t - vanish) / Self.fade, 0), 1) : 1
+            return fadeIn * fadeOut
+        }
+
+        func hold(at t: Double) -> Hold? { holds.last { t >= $0.from && t < $0.until } }
 
         /// The newest move that has begun wins: a later move starts from
         /// wherever the one before had got to.
@@ -206,6 +245,11 @@ struct SoccerScript: Equatable {
     /// Each player's motion through the replay (his heading, stride and
     /// footfalls), measured once: by actor.
     var rig: [RigTrack] = []
+    /// Between moments: the loop the beats come round in, when anything
+    /// moves, and the props in men's hands (cards, a flag, the board).
+    var loop: Loop?
+    var beats: [ClosedRange<Double>] = []
+    var props: [SoccerProp] = []
 
     /// From just after the strike until the finish has been seen, the
     /// replay cuts to a camera behind the net the shot is going at, held
@@ -276,6 +320,7 @@ extension SoccerScript {
                 if let a = actor.actions.last(where: { t > $0.at - 0.45 && (t < $0.at + 0.2 || held.contains($0.kind)) }) {
                     return RigFacing(point: a.toward)
                 }
+                if let look = actor.looks.last(where: { t >= $0.from }) { return RigFacing(point: look.point) }
                 return script.ball(at: t).map { RigFacing(point: $0.ground) }
             }
         }

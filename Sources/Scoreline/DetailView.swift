@@ -1220,7 +1220,9 @@ struct DetailView: View {
                             let rest = FootballTheater.rest(football)
                             FootballTheater(feed: footballFeed, rest: rest?.rest, restOffense: rest?.offense, palette: palette,
                                             kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last),
-                                            topName: names.top, bottomName: names.bottom)
+                                            topName: names.top, bottomName: names.bottom, eventID: event.id,
+                                            situation: football.downDistance, timeouts: (football.topTimeouts, football.bottomTimeouts),
+                                            topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "")
                             FootballField(situation: football, topLabel: names.top, bottomLabel: names.bottom, palette: palette,
                                           drive: fieldDrive, possession: footballFeed.possession ?? football.possession,
                                           twoMinuteDrill: twoMinuteDrill,
@@ -1254,7 +1256,9 @@ struct DetailView: View {
                     if live {
                         // Reads the live lane's latest moment itself, so a moment redraws only the theater.
                         SoccerTheater(feed: soccerFeed, palette: palette,
-                                      kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last))
+                                      kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last), eventID: event.id,
+                                      topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
+                                      added: d.soccerAdded)
                     }
                     chart(.pitch, d)
                 }

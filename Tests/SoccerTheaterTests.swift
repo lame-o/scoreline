@@ -56,8 +56,9 @@ extension ScorelineTests {
         check(Double(built.count) / Double(max(scenes.count, 1)) >= 0.6, "most moments get a build-up: three touches or a set piece",
               "\(built.count) of \(scenes.count)")
         check(scenes.allSatisfy { $0.buildUp.count <= SoccerScene.touchLimit }, "a build-up is the last eight touches at most")
-        let types = ["pass", "goal-kick", "save", "shot-off-target", "corner-awarded"].map { JSON(["type": ["type": $0], "expectedGoals": 0.05] as [String: Any]) }
-        check(types.allSatisfy { !SoccerScene.isMoment($0) }, "a pass, a goal kick, a save entry, a speculative miss aren't moments")
+        let types = ["pass", "goal-kick", "save", "corner-awarded"].map { JSON(["type": ["type": $0], "expectedGoals": 0.05] as [String: Any]) }
+        check(types.allSatisfy { !SoccerScene.isMoment($0) } && SoccerScene.isMoment(JSON(["type": ["type": "shot-off-target"], "expectedGoals": 0.05] as [String: Any])),
+              "a pass, a goal kick, a save entry, a corner awarded aren't moments; every shot is, a speculative miss too")
         check(SoccerScene.isMoment(JSON(["type": ["type": "shot-off-target"], "expectedGoals": 0.61] as [String: Any]))
               && SoccerScene.isMoment(JSON(["type": ["type": "goal---volley"]] as [String: Any]))
               && SoccerScene.isMoment(JSON(["type": ["type": "penalty---saved"]] as [String: Any])),

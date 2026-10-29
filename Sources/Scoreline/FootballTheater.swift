@@ -273,14 +273,29 @@ struct FootballFrame: View, Equatable {
 
     /// An official's stripes, as near as a pictogram gets: white, a black cap.
     static let official = Uniform(jersey: Color(white: 0.93), cap: Color(white: 0.1), accent: .white)
+    /// A team's trainers: slate, a pale cap.
+    static let staff = Uniform(jersey: Color(red: 0.42, green: 0.47, blue: 0.53), cap: Color(white: 0.8), accent: Color(white: 0.5))
+
+    /// The officials against two teams: white with a black cap, or, when a
+    /// team is in whites, black with a white cap, so they never pass for its men.
+    static func officials(against teams: FootballTeams) -> Uniform {
+        func pale(_ c: Color) -> Bool {
+            guard let ns = NSColor(c).usingColorSpace(.sRGB) else { return false }
+            return ns.brightnessComponent > 0.78 && ns.saturationComponent < 0.25
+        }
+        return pale(teams.offense.jersey) || pale(teams.defense.jersey)
+            ? Uniform(jersey: Color(white: 0.14), cap: Color(white: 0.92), accent: .white) : official
+    }
 
     /// The broadcast's lines: the line of scrimmage blue, the line to gain yellow.
     static let scrimmageBlue = Color(red: 0.25, green: 0.52, blue: 1)
     static let gainYellow = Color(red: 1, green: 0.84, blue: 0.1)
+    /// A coach's challenge flag.
+    static let challengeRed = Color(red: 0.9, green: 0.12, blue: 0.1)
 
     var body: some View {
         Canvas { context, size in
-            let f = GridProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw)
+            let f = GridProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw(at: t))
             context.clip(to: f.bounds)
             GridironLayer.draw(&context, f, ink: ink, zones: zones)
             drawLines(&context, f)
@@ -354,7 +369,7 @@ struct FootballFrame: View, Equatable {
         layer.translateBy(x: p.x, y: p.y)
         layer.rotate(by: .radians(u < 1 ? u * 9 : 0.4))
         let rect = CGRect(x: -s, y: -s * (u < 1 ? 0.7 : 0.35), width: 2 * s, height: s * (u < 1 ? 1.4 : 0.7))
-        layer.fill(Path(roundedRect: rect, cornerRadius: s * 0.2), with: .color(Self.gainYellow))
+        layer.fill(Path(roundedRect: rect, cornerRadius: s * 0.2), with: .color(flag.red ? Self.challengeRed : Self.gainYellow))
         layer.stroke(Path(roundedRect: rect, cornerRadius: s * 0.2), with: .color(.black.opacity(0.3)), lineWidth: 0.5)
         let declared = max(flag.lands, script.stamp - 0.2)
         if flag.declined, t >= declared, let label = context.resolveSymbol(id: Symbol.declined) {
@@ -405,7 +420,7 @@ struct FootballFrame: View, Equatable {
     private func posed(_ f: GridProjection) -> [Posed] {
         script.players.indices
             .map { (index: $0, at: script.players[$0].position(at: t)) }
-            .sorted { Gridiron.view($0.at, yaw: script.yaw).y > Gridiron.view($1.at, yaw: script.yaw).y }
+            .sorted { Gridiron.view($0.at, yaw: script.yaw(at: t)).y > Gridiron.view($1.at, yaw: script.yaw(at: t)).y }
             .compactMap { index, at in
                 let player = script.players[index]
                 let o = player.opacity(at: t)
@@ -443,13 +458,15 @@ struct FootballFrame: View, Equatable {
 
     private func drawPlayers(_ context: inout GraphicsContext, _ f: GridProjection, _ figures: [Posed]) {
         let offense = FigureInks(teams.offense, ink: ink, in: context), defense = FigureInks(teams.defense, ink: ink, in: context)
-        // An official, only when one throws a flag: white, a black cap.
-        let official = script.players.contains { $0.team == .official } ? FigureInks(Self.official, ink: ink, in: context) : offense
+        // An official, only when one throws a flag (or between snaps): white, a black cap. A trainer in the staff's charcoal.
+        let official = script.players.contains { $0.team == .official } ? FigureInks(Self.officials(against: teams), ink: ink, in: context) : offense
+        let staff = script.players.contains { $0.team == .staff } ? FigureInks(Self.staff, ink: ink, in: context) : offense
         for p in figures {
             let inks = switch script.players[p.index].team {
             case .offense: offense
             case .defense: defense
             case .official: official
+            case .staff: staff
             }
             TheaterDraw.figure(p.figure, inks: inks, height: f.figure, opacity: p.opacity, in: context)
         }
@@ -719,22 +736,37 @@ struct FootballTheater: View {
     var kits: TheaterKits? = nil
     var topName = ""
     var bottomName = ""
+    /// The game: the viewer's turn of the field is remembered for it.
+    var eventID: String? = nil
+    /// The live down and distance ("2nd & 7 at MIN 38", "Kickoff") and each team's timeouts left, for the tag.
+    var situation: String? = nil
+    var timeouts: (top: Int?, bottom: Int?) = (nil, nil)
+    /// The teams' names for the tag ("Eagles"); their abbreviations if not given.
+    var topTeam = ""
+    var bottomTeam = ""
 
     var body: some View {
-        FootballStage(state: feed?.theater ?? preloaded ?? FootballTheaterState(), rest: rest, restOffense: restOffense, palette: palette, kits: kits,
-                      topName: topName, bottomName: bottomName)
+        let names = FootballStatus.Names(top: topTeam.isEmpty ? topName : topTeam, bottom: bottomTeam.isEmpty ? bottomName : bottomTeam,
+                                         topColor: kits?.top.color, bottomColor: kits?.bottom.color)
+        FootballStage(state: feed?.theater ?? preloaded ?? FootballTheaterState(), rest: rest, restOffense: restOffense, situation: situation,
+                      timeouts: timeouts, palette: palette, kits: kits, topName: topName, bottomName: bottomName, names: names,
+                      eventID: eventID ?? "football")
     }
 
-    /// What the stage shows: a play replaying, then its end until it has
-    /// held (`rested`); a touchdown's try in a beat of its own, the same; a
-    /// new play not yet begun; otherwise nil, the game as it stands (both
-    /// teams set at the line). History that isn't news is never shown: on
-    /// opening the page, the field is the live one. (pure; tested)
-    static func shown(_ state: FootballTheaterState, replaying: String?, rested: String?) -> FootballScene? {
+    /// What the stage shows: a play replaying (or one of the snaps queued
+    /// before it, oldest first), then its end until it has held (`rested`);
+    /// a touchdown's try in a beat of its own, the same; a new play not yet
+    /// begun; otherwise nil, the field between snaps (FootballIdle). History
+    /// that isn't news is never shown: on opening the page, the field is the
+    /// live one. `played`: the snaps already replayed. (pure; tested)
+    static func shown(_ state: FootballTheaterState, replaying: String?, rested: String?, played: Set<String> = []) -> FootballScene? {
         guard let play = state.play else { return nil }
-        if let attempt = play.conversion, replaying == attempt.id { return rested == attempt.id ? nil : attempt }
-        if replaying == play.id { return rested == play.id ? nil : play }
-        return state.news ? play : nil
+        for scene in state.queue.filter({ $0.id != play.id }) + [play] {
+            if let attempt = scene.conversion, replaying == attempt.id { return rested == attempt.id ? nil : attempt }
+            if replaying == scene.id { return rested == scene.id ? nil : scene }
+        }
+        guard state.news else { return nil }
+        return state.queue.first { $0.id != play.id && !played.contains($0.id) } ?? play
     }
 
     /// The live situation as the field between plays: the spot and line to
@@ -744,18 +776,30 @@ struct FootballTheater: View {
         func yard(_ x: Double) -> Double { side == .top ? x : 100 - x }
         return (FootballScript.Rest(yard: yard(situation.ballX), gain: situation.lineToGainX.map(yard)), side)
     }
+
+    /// "3rd & 7 at PHI 35" → 3rd & 7; "1st & Goal" → its distance unknown (10). (pure; tested)
+    static func down(_ text: String?) -> FootballScene.Down? {
+        guard let text, let m = text.firstMatch(of: #/^(\d)(?:st|nd|rd|th) & (\d+|Goal)/#), let down = Int(m.1) else { return nil }
+        return FootballScene.Down(down: down, distance: Int(m.2) ?? 10)
+    }
 }
 
 /// The theater's stage: the field and one frame of the play through the
-/// camera (a TimelineView only while it replays), and its celebration.
+/// camera (a TimelineView only while it replays, or while a beat of the
+/// field between snaps moves), its celebration, the tag and the heartbeat,
+/// and the control that turns the field round.
 private struct FootballStage: View {
     let state: FootballTheaterState
     let rest: FootballScript.Rest?
     let restOffense: GameDetail.Side?
+    let situation: String?
+    let timeouts: (top: Int?, bottom: Int?)
     let palette: TeamPalette
     let kits: TheaterKits?
     let topName: String
     let bottomName: String
+    let names: FootballStatus.Names
+    let eventID: String
     @Environment(\.celebrationClock) private var clock
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
@@ -763,6 +807,34 @@ private struct FootballStage: View {
     @State private var replay: Replay?
     /// The play's script, built once (a body run for anything else reuses it).
     @State private var built = FootballScripts()
+    /// A replayed play's end that has had its time on screen.
+    @State private var rested: String?
+    /// The snaps replayed on this page.
+    @State private var played: Set<String> = []
+    /// When the field went idle, and which idle it was.
+    @State private var idleClock: IdleClock?
+    /// Wakes the field between snaps for its next beat.
+    @State private var tick = 0
+    @State private var hovering = false
+    @State private var onScreen = false
+    /// The viewer's turn of the field, for this game.
+    @AppStorage private var flipped: Bool
+
+    init(state: FootballTheaterState, rest: FootballScript.Rest?, restOffense: GameDetail.Side?, situation: String?, timeouts: (top: Int?, bottom: Int?),
+         palette: TeamPalette, kits: TheaterKits?, topName: String, bottomName: String, names: FootballStatus.Names, eventID: String) {
+        self.state = state
+        self.rest = rest
+        self.restOffense = restOffense
+        self.situation = situation
+        self.timeouts = timeouts
+        self.palette = palette
+        self.kits = kits
+        self.topName = topName
+        self.bottomName = bottomName
+        self.names = names
+        self.eventID = eventID
+        _flipped = AppStorage(wrappedValue: false, TheaterOrientation.key(eventID))
+    }
 
     struct Replay: Equatable {
         let id: String
@@ -770,18 +842,36 @@ private struct FootballStage: View {
         var done = false
     }
 
-    /// A replayed play's end that has had its time on screen.
-    @State private var rested: String?
+    struct IdleClock: Equatable {
+        let key: String
+        let since: Date
+    }
+
+    private struct Wake: Equatable {
+        let key: String?
+        let tick: Int
+        let onScreen: Bool
+    }
 
     /// Half as tall as wide, up to this.
     static let maxHeight: CGFloat = 320
 
-    /// The play on screen (see `FootballTheater.shown`); nil, the game as it stands.
-    private var shown: FootballScene? { FootballTheater.shown(state, replaying: replay?.id, rested: rested) }
+    /// The play on screen (see `FootballTheater.shown`); nil, the field between snaps.
+    private var shown: FootballScene? { FootballTheater.shown(state, replaying: replay?.id, rested: rested, played: played) }
 
-    private var offense: GameDetail.Side { shown?.offense ?? restOffense ?? .top }
+    /// The field between snaps, from what the feed says now.
+    private var idle: FootballIdle {
+        FootballIdle.make(play: state.play, stoppage: state.stoppage, rest: rest ?? FootballScript.Rest(yard: 25, gain: 35),
+                          offense: restOffense ?? state.play?.offense ?? .top, down: FootballTheater.down(situation),
+                          kickoff: situation == "Kickoff", flipped: flipped)
+    }
 
-    private var teams: FootballTeams {
+    /// Which idle it is: a new stoppage, snap, spot or turn of the field starts it again.
+    private var idleKey: String {
+        "\(state.stoppage?.id ?? "-")|\(state.play?.id ?? "-")|\(rest.map { "\($0.yard)" } ?? "-")|\(restOffense == .bottom)|\(flipped)|\(situation ?? "")"
+    }
+
+    private func teams(_ offense: GameDetail.Side) -> FootballTeams {
         let dressed: (top: Uniform, bottom: Uniform)
         if let kits {
             let d = TheaterTeams.dress(kits, scheme: scheme)
@@ -794,7 +884,7 @@ private struct FootballStage: View {
     }
 
     /// The end zones: the offense's own nearest the camera, the one it attacks at the far end.
-    private var zones: GridironLayer.Zones {
+    private func zones(_ offense: GameDetail.Side) -> GridironLayer.Zones {
         let top = GridironLayer.EndZone(color: TheaterTeams.solid(palette.top, scheme), name: topName.uppercased())
         let bottom = GridironLayer.EndZone(color: TheaterTeams.solid(palette.bottom, scheme), name: bottomName.uppercased())
         return offense == .top ? GridironLayer.Zones(near: top, far: bottom) : GridironLayer.Zones(near: bottom, far: top)
@@ -815,28 +905,60 @@ private struct FootballStage: View {
         return state.news && !reduceMotion
     }
 
+    /// Seconds into the field between snaps (its script's time): from when it
+    /// went idle, round the loop; with Reduce Motion, one still moment that
+    /// says what's happening.
+    private func idleTime(_ script: FootballScript, _ idle: FootballIdle, at date: Date) -> Double {
+        if case let .frozen(t) = clock { return script.idleTime(t) }
+        if reduceMotion { return Self.still(idle, script) }
+        guard let idleClock, idleClock.key == idleKey else { return 0 }
+        return script.idleTime(date.timeIntervalSince(idleClock.since))
+    }
+
+    /// The moment Reduce Motion shows: lined up for the snap; through a stoppage, its own (the benches, the man down, the monitor).
+    static func still(_ idle: FootballIdle, _ script: FootballScript) -> Double {
+        switch idle.phase {
+        case .between, .kickoff: script.loop?.start ?? script.duration
+        case .quarter: 5.5
+        case .off: script.duration
+        default: 12
+        }
+    }
+
     var body: some View {
         let play = shown
-        let script = play.map(built.script(for:)) ?? FootballScript(rest: rest ?? FootballScript.Rest(yard: 25, gain: 35))
+        let idle = self.idle
+        let script = play.map { built.script(for: $0, yaw: FieldFacing.yaw($0.offense, period: $0.period, flipped: flipped)) } ?? built.idle(idle)
         let ink = TheaterInk(scheme)
-        let teams = teams, zones = zones
+        let offense = play?.offense ?? idle.offense
+        let teams = teams(offense), zones = zones(offense)
+        let idleNow = play == nil ? idleTime(script, idle, at: .now) : 0
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 Group {
-                    if playing {
+                    if let play {
+                        if playing {
+                            TimelineView(.animation) { context in
+                                layer(play, script, time(at: context.date), teams, ink, geo.size, zones)
+                            }
+                            .transition(.identity)
+                        } else {
+                            layer(play, script, time(at: .now), teams, ink, geo.size, zones)
+                                .transition(.identity)
+                        }
+                    } else if clock == .live, !reduceMotion, onScreen, script.moving(at: idleNow) {
+                        // A beat: animated until it's over, then still again.
                         TimelineView(.animation) { context in
-                            FootballFrame(scene: play, script: script, t: time(at: context.date), teams: teams, ink: ink, size: geo.size, zones: zones)
-                                .equatable()
+                            idleLayer(idle, script, idleTime(script, idle, at: context.date), teams, ink, geo.size, zones)
                         }
                         .transition(.identity)
                     } else {
-                        FootballFrame(scene: play, script: script, t: time(at: .now), teams: teams, ink: ink, size: geo.size, zones: zones)
-                            .equatable()
+                        idleLayer(idle, script, idleNow, teams, ink, geo.size, zones)
                             .transition(.identity)
                     }
                 }
-                .id(play?.id)
-                // A replay cuts in; a play that isn't replayed crossfades to how it ended.
+                .id(play?.id ?? "idle|" + idleKey)
+                // A replay cuts in; a play that isn't replayed crossfades to how it ended, as does a new stoppage.
                 .transition(playing ? .identity : .opacity.animation(.easeInOut(duration: 0.35)))
                 if let play {
                     FootballCelebrationStage(play: play, script: script, size: geo.size, colors: (teams.offense.accent, teams.defense.accent),
@@ -844,16 +966,34 @@ private struct FootballStage: View {
                         .id(play.id)
                 }
             }
+            .accessibilityHidden(true)
+            .overlay(alignment: .bottomTrailing) {
+                TheaterHeartbeat(updated: state.heard, source: "ESPN").padding(6)
+            }
+            .overlay(alignment: .topTrailing) {
+                TheaterFlipButton(eventID: eventID, surface: "field")
+                    .padding(6)
+                    .opacity(hovering ? 1 : 0)
+                    .animation(Motion.fade, value: hovering)
+            }
         }
         // The well spans the column, so its edges line up with the drive chart under it.
         .modifier(WellHeight(cap: Self.maxHeight))
         .vizWell(padding: 0)
-        .accessibilityHidden(true)
-        .onAppear(perform: begin)
+        .onHover { hovering = $0 }
+        .onAppear {
+            onScreen = true
+            begin()
+            startIdle()
+        }
+        .onDisappear { onScreen = false }
         .onChange(of: state.play?.id) { _, _ in begin() }
+        .onChange(of: state.queue.map(\.id)) { _, _ in begin() }
         // A touchdown's try follows it once the touchdown's replay is done and the try is in.
         .onChange(of: replay) { _, _ in follow() }
         .onChange(of: state.play?.conversion?.id) { _, _ in follow() }
+        .onChange(of: play?.id) { _, now in if now == nil { startIdle() } }
+        .onChange(of: idleKey) { _, _ in if shown == nil { startIdle() } }
         .task(id: replay) {
             guard let replay else { return }
             if !replay.done {
@@ -862,42 +1002,134 @@ private struct FootballStage: View {
                 self.replay?.done = true
                 return
             }
-            // Done: its end holds a while (unless the next play comes), then the field returns to the game.
+            // Done: the next snap waiting replays at once; else its end holds a while, then the field returns to the game.
+            if let next = nextQueued(after: replay.id) {
+                try? await Task.sleep(for: .seconds(0.7))
+                guard !Task.isCancelled, self.replay?.id == replay.id else { return }
+                start(next)
+                return
+            }
             try? await Task.sleep(for: TheaterKit.hold)
             guard !Task.isCancelled, self.replay?.id == replay.id else { return }
             rested = replay.id
         }
+        // Between snaps: wake for the next beat (or the tag's next change), sleep through the still.
+        .task(id: Wake(key: play == nil ? idleKey : nil, tick: tick, onScreen: onScreen)) {
+            guard play == nil, clock == .live, !reduceMotion, onScreen else { return }
+            let t = idleTime(script, idle, at: .now)
+            let wake: Double?
+            if let beat = script.beats.first(where: { t >= $0.lowerBound && t < $0.upperBound }) {
+                wake = beat.upperBound
+            } else {
+                let tags = FootballStatus.changes(idle, script: script).filter { $0 > t }
+                wake = ([script.nextBeat(after: t)] + tags.map(Optional.some)).compactMap { $0 }.min()
+            }
+            guard let wake else { return }
+            try? await Task.sleep(for: .seconds(max(wake - t, 0.05) + 0.02))
+            guard !Task.isCancelled else { return }
+            tick &+= 1
+        }
     }
 
-    /// A new play replays from its snap; with Reduce Motion it's over at
-    /// once (its end crossfades in, and holds). History doesn't.
+    /// A replay's frame and its tag.
+    private func layer(_ play: FootballScene, _ script: FootballScript, _ t: Double, _ teams: FootballTeams, _ ink: TheaterInk, _ size: CGSize,
+                       _ zones: GridironLayer.Zones) -> some View {
+        let banner = script.banner.map { t >= $0.at - 0.3 && t < $0.until + 0.3 } ?? false
+        let status = banner ? TheaterStatus(updated: state.heard) : FootballStatus.replay(play, script: script, t: t, names: names)
+        return ZStack(alignment: .topLeading) {
+            FootballFrame(scene: play, script: script, t: t, teams: teams, ink: ink, size: size, zones: zones)
+                .equatable()
+            TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
+        }
+    }
+
+    /// The field between snaps at t, and its tag.
+    private func idleLayer(_ idle: FootballIdle, _ script: FootballScript, _ t: Double, _ teams: FootballTeams, _ ink: TheaterInk, _ size: CGSize,
+                           _ zones: GridironLayer.Zones) -> some View {
+        let status = FootballStatus.idle(idle, stoppage: state.stoppage, script: script, t: t, names: names, situation: situation,
+                                         timeoutsLeft: timeouts)
+        return ZStack(alignment: .topLeading) {
+            FootballFrame(scene: nil, script: script, t: t, teams: teams, ink: ink, size: size, zones: zones)
+                .equatable()
+            TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
+        }
+    }
+
+    /// The field goes idle (again): its beats count from now.
+    private func startIdle() {
+        guard shown == nil, idleClock?.key != idleKey || idleClock == nil else { return }
+        idleClock = IdleClock(key: idleKey, since: .now)
+    }
+
+    /// A new snap replays from its snap, after any queued before it that
+    /// haven't (one already replaying carries on to them); with Reduce
+    /// Motion each is over at once (its end crossfades in, and holds).
+    /// History doesn't.
     private func begin() {
-        guard clock == .live, state.news, let play = state.play, replay?.id != play.id else { return }
-        replay = Replay(id: play.id, start: .now, done: reduceMotion)
+        guard clock == .live, state.news, let play = state.play else { return }
+        if reduceMotion {
+            guard replay?.id != play.id else { return }
+            played.formUnion(state.queue.map(\.id) + [play.id])
+            replay = Replay(id: play.id, start: .now, done: true)
+            return
+        }
+        if let replay, !replay.done { return }
+        if let replay, replay.done, nextQueued(after: replay.id) != nil { return }
+        let waiting = state.queue.first { !played.contains($0.id) } ?? (played.contains(play.id) ? nil : play)
+        if let waiting { start(waiting) }
+    }
+
+    private func start(_ scene: FootballScene) {
+        played.insert(scene.id)
+        rested = nil
+        replay = Replay(id: scene.id, start: .now)
+    }
+
+    /// The next queued snap after this one (or after the try of it) that hasn't replayed.
+    private func nextQueued(after id: String) -> FootballScene? {
+        let base = id.hasSuffix("-try") ? String(id.dropLast(4)) : id
+        guard let i = state.queue.firstIndex(where: { $0.id == base }) else { return nil }
+        if !id.hasSuffix("-try"), let attempt = state.queue[i].conversion, !played.contains(attempt.id) { return nil }
+        return state.queue[(i + 1)...].first { !played.contains($0.id) }
     }
 
     /// A touchdown replayed here is followed by its try, as a short beat of
     /// its own: a cut to the try's formation, a breath, the snap.
     private func follow() {
-        guard clock == .live, !reduceMotion, let play = state.play, let attempt = play.conversion, let replay, replay.id == play.id,
-              replay.done else { return }
+        guard clock == .live, !reduceMotion, let replay, replay.done,
+              let scene = (state.queue + [state.play].compactMap { $0 }).first(where: { $0.id == replay.id }),
+              let attempt = scene.conversion, !played.contains(attempt.id) else { return }
+        played.insert(attempt.id)
         self.replay = Replay(id: attempt.id, start: .now + 0.3)
     }
 }
 
-/// The last play's script. A reference, so keeping it isn't a change
-/// anything observes: building one (its camera track) takes a millisecond
-/// or so, and a body run that isn't about a new play shouldn't.
+/// The last play's script, and the field's between snaps. A reference, so
+/// keeping them isn't a change anything observes: building one (its camera
+/// track, its motion) takes a millisecond or a few, and a body run that
+/// isn't about a new play shouldn't.
 private final class FootballScripts {
     private var scene: FootballScene?
+    private var yaw = Gridiron.yaw
     private var script: FootballScript?
+    private var idle: FootballIdle?
+    private var idleScript: FootballScript?
 
-    func script(for scene: FootballScene) -> FootballScript {
-        if scene != self.scene || script == nil {
+    func script(for scene: FootballScene, yaw: Double) -> FootballScript {
+        if scene != self.scene || yaw != self.yaw || script == nil {
             self.scene = scene
-            script = FootballScript(scene)
+            self.yaw = yaw
+            script = FootballScript(scene, yaw: yaw)
         }
         return script!
+    }
+
+    func idle(_ idle: FootballIdle) -> FootballScript {
+        if idle != self.idle || idleScript == nil {
+            self.idle = idle
+            idleScript = FootballScript(idle: idle)
+        }
+        return idleScript!
     }
 }
 
@@ -1053,7 +1285,7 @@ private struct FootballCelebrationStage: View {
 
     private func surface(_ bursts: [FootballCelebration.Burst], at t: Double) -> some View {
         Canvas { context, size in
-            let f = GridProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw)
+            let f = GridProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw(at: t))
             context.clip(to: f.bounds)
             for burst in bursts where t >= burst.at && t <= burst.end {
                 let origin = switch burst.anchor {
