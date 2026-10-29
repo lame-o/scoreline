@@ -31,6 +31,10 @@ export interface Uniform {
   readonly piping: string | null;
   /** Type in the team's color: a hit's stamp, the banner, the runs pill. Null: the primary ink. */
   readonly accent: string | null;
+  /** An official's shirt: stripes of this color down the jersey (the body and the sleeves), inside the figure (none: a plain jersey). */
+  readonly stripes?: string | null;
+  /** An official's shorts or slacks: the legs in this color (none: the jersey's). */
+  readonly legs?: string | null;
 }
 
 export interface TheaterTeams {
