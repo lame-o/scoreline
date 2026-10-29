@@ -340,6 +340,8 @@ const LINED = 15;
  */
 const bones = new Float64Array(5 * 10);
 let boneCount = 0;
+/** Which bone is the body itself (hip to neck). */
+let bodyBone = -1;
 
 function addBone(a: Point, b: Point, r: number): void {
   const k = 5 * boneCount++;
@@ -377,10 +379,19 @@ function near(i: number, p: Point, q: Point, r: number): boolean {
   return g < r + bones[k + 4]!;
 }
 
-/** Which of the bones drawn so far a limb crosses (a bit each; none: 0), its line `r` either side of it. */
+/**
+ * Which of the bones drawn so far a limb crosses (a bit each; none: 0), its
+ * line `r` either side of it. A leg's top always overlaps the body's round
+ * bottom: it crosses the body only with its knee across it (a knee drive, a
+ * high step).
+ */
 function crossed(l: RigLimb, r: number): number {
   let hits = 0;
-  for (let i = 0; i < boneCount; i++) if (near(i, l.root, l.joint, r) || near(i, l.joint, l.end, r)) hits |= 1 << i;
+  for (let i = 0; i < boneCount; i++) {
+    if (!near(i, l.root, l.joint, r) && !near(i, l.joint, l.end, r)) continue;
+    if (!l.arm && i === bodyBone && !near(i, l.joint, l.joint, r)) continue;
+    hits |= 1 << i;
+  }
   return hits;
 }
 
@@ -476,6 +487,7 @@ function draw(ctx: Ctx, f: RigFigure, inks: FigureInks, height: number): void {
   ctx.lineWidth = f.torso;
   ctx.stroke();
   if (inks.stripes !== null) stripes(ctx, [f.hip, f.neck], f.torso / 2, bands, inks.stripes);
+  bodyBone = boneCount;
   addBone(f.hip, f.neck, f.torso / 2);
   ctx.lineWidth = f.limb;
   const first = i;
