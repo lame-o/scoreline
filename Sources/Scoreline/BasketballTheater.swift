@@ -1074,7 +1074,7 @@ private struct BasketballStage: View {
         let now = current(.now)
         let ink = TheaterInk(scheme)
         let teams = teams(now.script.side ?? .top), paint = paint
-        let cast = now.script.cast(now.scene, people: people, scope: now.key)
+        let cast = now.script.cast(now.scene, people: people, scope: "\(now.key)|\(flipped)")
         let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: names)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {

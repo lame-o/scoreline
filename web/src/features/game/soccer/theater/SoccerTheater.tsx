@@ -249,12 +249,12 @@ export default function SoccerTheater({
   const cast = useMemo(
     () =>
       scene
-        ? soccerCast(script, scene.side, lineupsOn(lineups ?? {}, scene.clock), people, scene.shooterCredit?.athlete ?? null, key ?? scene.id)
+        ? soccerCast(script, scene.side, lineupsOn(lineups ?? {}, scene.clock), people, scene.shooterCredit?.athlete ?? null, `${key ?? scene.id}|${flipped}`)
         : idle
           ? soccerCast(script, idle.possession, idle.lineups, people, idleKeyMan(idle), `idle|${idleKey}`)
           : NO_CAST,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [script, scene, key, lineups, people, idleKey, idle?.possession, idle?.lineups, idle?.event],
+    [script, scene, key, flipped, lineups, people, idleKey, idle?.possession, idle?.lineups, idle?.event],
   );
   const labels = useMemo(
     () => theaterLabels(kits, scheme, { top: topTeam, bottom: bottomTeam }),

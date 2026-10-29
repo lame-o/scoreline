@@ -317,7 +317,7 @@ export default function FootballTheater({
   }, [palette.top, palette.bottom, scheme, topName, bottomName, offense]);
   const ink = useMemo(() => theaterInk(scheme), [scheme]);
   // Who each figure is (the credited men by name, everyone else by team and place), and each side's tags in the color it wears.
-  const cast = useMemo(() => footballCast(script, play, offense, people, play?.id ?? `idle|${idleKey}`), [script, play, offense, people, idleKey]);
+  const cast = useMemo(() => footballCast(script, play, offense, people, play ? `${play.id}|${flipped}` : `idle|${idleKey}`), [script, play, offense, people, idleKey, flipped]);
   const tagLabels = useMemo(
     () => theaterLabels(kits, scheme, { top: topTeam || topName, bottom: bottomTeam || bottomName }),
     // eslint-disable-next-line react-hooks/exhaustive-deps

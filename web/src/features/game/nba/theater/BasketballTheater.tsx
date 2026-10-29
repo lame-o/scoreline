@@ -426,7 +426,7 @@ export default function BasketballTheater({
   );
   const ink = useMemo(() => theaterInk(scheme), [scheme]);
   // Who each figure on screen is (the names over the court), once per script; each side's tags in the color it wears.
-  const castScope = unit ? unit.scene.id : `rest-${shown.serial}`;
+  const castScope = `${unit ? unit.scene.id : `rest-${shown.serial}`}|${flipped}`;
   const cast = useMemo(() => basketballCast(script, play, people, castScope), [script, play, people, castScope]);
   const tagLabels = useMemo(
     () => theaterLabels(kits, scheme, names),

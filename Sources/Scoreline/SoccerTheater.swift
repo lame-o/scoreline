@@ -1148,7 +1148,7 @@ private struct SoccerStage: View {
         let idleNow = scene == nil ? idleTime(script, at: .now) : 0
         let cast = scene.map { scene in
             script.cast(attacking: scene.side, lineups: state.lineups.mapValues { $0.on(at: scene.clock) }, people: people,
-                        key: scene.shooterCredit?.athlete, scope: shownKey ?? scene.id)
+                        key: scene.shooterCredit?.athlete, scope: "\(shownKey ?? scene.id)|\(flipped)")
         } ?? script.cast(attacking: idle.possession, lineups: idle.lineups, people: people, key: SoccerScript.key(idle), scope: "idle|" + idleKey)
         let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: (names.top, names.bottom))
         let heartbeat: HorizontalEdge = scene != nil && script.cornerRight ? .leading : .trailing

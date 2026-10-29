@@ -981,7 +981,7 @@ private struct FootballStage: View {
         let offense = play?.offense ?? idle.offense
         let teams = teams(offense), zones = zones(offense)
         let idleNow = play == nil ? idleTime(script, idle, at: .now) : 0
-        let cast = script.cast(play, offense: offense, people: people, scope: play?.id ?? "idle|" + idleKey)
+        let cast = script.cast(play, offense: offense, people: people, scope: play.map { "\($0.id)|\(flipped)" } ?? "idle|" + idleKey)
         let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: (names.top, names.bottom))
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
