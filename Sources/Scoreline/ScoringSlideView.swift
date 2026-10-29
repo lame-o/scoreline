@@ -788,17 +788,20 @@ extension OKLab {
     func lifted(_ by: Double) -> OKLab { OKLab(l: min(max(l + by, 0), 1), a: a, b: b) }
 }
 
-private extension View {
+extension View {
     /// Slanted to SF Pro Italic's 12° about its middle: SF has no condensed
     /// italic (its italic has no width axis, so `.italic()` on a condensed
-    /// font draws upright), and the lean matches every edge and reveal in the bar.
+    /// font draws upright), and the lean matches every edge and reveal in the
+    /// bar (and the theaters' status tags).
     func oblique() -> some View {
         visualEffect { content, proxy in
             content.transformEffect(CGAffineTransform(a: 1, b: 0, c: -SlideMetrics.lean, d: 1,
                                                       tx: SlideMetrics.lean * proxy.size.height / 2, ty: 0))
         }
     }
+}
 
+private extension View {
     /// Moved off toward an edge by `fraction` of its own width (plus a little room).
     func across(_ fraction: Double, _ direction: CGFloat) -> some View {
         visualEffect { content, proxy in

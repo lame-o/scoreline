@@ -470,6 +470,9 @@ extension ScorelineTests {
         check(SlideMotion.cover(at: 0, hold: hold) == 1 && SlideMotion.cover(at: 0.3, hold: hold) == 0 && SlideMotion.cover(at: length - 0.01, hold: hold) == 0
               && SlideMotion.cover(at: length + 0.1, hold: hold) > 0 && SlideMotion.cover(at: length + 0.3, hold: hold) == 1,
               "the scoreboard steps aside as the bar comes in, stays gone until the bar has left, then comes back")
+        check(TheaterHeartbeat.label(seconds: 4, source: "ESPN") == "Live · 4s" && TheaterHeartbeat.label(seconds: 59, source: "ESPN") == "Live · 59s"
+              && TheaterHeartbeat.label(seconds: 130, source: "ESPN") == "Waiting for ESPN · 2m",
+              "the theaters' heartbeat: Live · 4s, then past a minute of silence, Waiting for ESPN · 2m")
         let brewersPaint = SlidePaint.team("12284b", alternate: "ffc52f")
         check(SlidePaint.contrast(brewersPaint.slab, brewersPaint.stripe) >= 4.5,
               "the Brewers' kicker and chip: navy type on the gold (the slab's own color, where it reads)")
