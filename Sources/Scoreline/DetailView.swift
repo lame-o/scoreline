@@ -1250,7 +1250,8 @@ struct DetailView: View {
                                             kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last),
                                             topName: names.top, bottomName: names.bottom, eventID: event.id,
                                             situation: football.downDistance, timeouts: (football.topTimeouts, football.bottomTimeouts),
-                                            topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "")
+                                            topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
+                                            people: d.people)
                             FootballField(situation: football, topLabel: names.top, bottomLabel: names.bottom, palette: palette,
                                           drive: fieldDrive, possession: footballFeed.possession ?? football.possession,
                                           twoMinuteDrill: twoMinuteDrill,
@@ -1266,7 +1267,9 @@ struct DetailView: View {
                             PlayTheater(feed: baseballFeed, preloaded: d.theater,
                                         bases: [baseball.onFirst, baseball.onSecond, baseball.onThird], batting: battingSide,
                                         situation: baseball, inning: baseballFeed.inning ?? event.detail,
-                                        palette: palette, kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last))
+                                        palette: palette, kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last),
+                                        topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
+                                        people: d.people, fielders: d.fielders)
                         }
                     }
                 }
@@ -1287,7 +1290,7 @@ struct DetailView: View {
                         SoccerTheater(feed: soccerFeed, palette: palette,
                                       kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last), eventID: event.id,
                                       topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
-                                      added: d.soccerAdded)
+                                      added: d.soccerAdded, people: d.people)
                     }
                     chart(.pitch, d)
                 }
@@ -1457,7 +1460,7 @@ struct DetailView: View {
                         BasketballTheater(feed: basketballFeed, palette: palette,
                                           kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last),
                                           topIsHome: d.topIsHome ?? false, topName: names.top, bottomName: names.bottom,
-                                          topTeam: full.top, bottomTeam: full.bottom, eventID: event.id)
+                                          topTeam: full.top, bottomTeam: full.bottom, eventID: event.id, people: d.people)
                     }
                     chart(.court, d)
                 }
@@ -1785,7 +1788,7 @@ struct DetailView: View {
                                    lastPlay: s.lastPlay ?? d.baseball?.lastPlay, runners: s.runners,
                                    // An ID goes with the name shown: the fast lane's, or the full load's it fell back to.
                                    batterID: s.batter == nil ? d.baseball?.batterID : s.batterID,
-                                   pitcherID: s.pitcher == nil ? d.baseball?.pitcherID : s.pitcherID)
+                                   pitcherID: s.pitcher == nil ? d.baseball?.pitcherID : s.pitcherID, runnerIDs: s.runnerIDs)
     }
 
     /// Every ball in play: the full load's, plus any the fast lane has seen since.

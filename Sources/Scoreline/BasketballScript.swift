@@ -290,6 +290,10 @@ struct BasketballScript: Equatable {
     var look: Look?
     /// A substitute who came on for a man who went off: the next beat finds him in his place.
     var stand: [Int: Int] = [:]
+    /// Who ESPN credits (the shooter, the passer, the blocker, the rebounder,
+    /// the man who fouled or lost it, the man coming in), on the figure the
+    /// play gives him: the tags over the court name him, and nobody else.
+    var credits: [Int: BasketballScene.Person] = [:]
 
     struct Look: Equatable {
         var point: CGPoint
@@ -429,6 +433,8 @@ extension BasketballScript {
         var ends = HoopsEnds(topRight: true, topOpensRight: true)
         /// Where the last beat left everyone, in this frame (nil: set up fresh).
         var start: Lineup?
+        /// Who passed to whom, the last time: the assist is the pass to the shooter.
+        var passers: [Int: Int] = [:]
 
         init(scene: BasketballScene?, offense: GameDetail.Side?, right: Bool, seed: String? = nil) {
             self.scene = scene
@@ -616,6 +622,7 @@ extension BasketballScript {
             fly(from: start, to: end, start: t, time: time, arc: arc)
             act(i, style == .lob ? .lob : .pass, at: t, toward: point)
             act(j, .catchBall, at: t + time, toward: from)
+            passers[j] = i
             if style != .lob { script.flashes.append(Flash(beat: .catchBall, at: t + time, point: end)) }
             return t + time
         }
@@ -703,6 +710,12 @@ extension BasketballScript {
             return d <= most ? p : Self.along(here, Self.unit(CGPoint(x: p.x - here.x, y: p.y - here.y)), most)
         }
 
+        /// Who ESPN credits, on the figure the play gives him (`credits`).
+        mutating func credit(_ i: Int?, _ person: BasketballScene.Person?) {
+            guard let i, let person, i < script.players.count, person.id != nil || !person.name.isEmpty else { return }
+            script.credits[i] = person
+        }
+
         /// He goes up and has it as it gets to him.
         mutating func takeRebound(_ r: Int, at point: CGPoint, arrives t: Double, from start: Double) {
             move(r, to: [Self.along(point, out(point), 0.5)], from: start, to: max(t - 0.05, start + 0.2), ease: .out)
@@ -726,6 +739,10 @@ extension BasketballScript {
             } else {
                 halfCourt()
             }
+            // The shooter, and the man who passed it to him for the assist; a block's blocker.
+            credit(script.shooter, scene.shooter)
+            if scene.assister != nil { credit(script.shooter.flatMap { passers[$0] }, scene.assister) }
+            if scene.blocker != nil { credit((5..<script.players.count).first { k in script.players[k].actions.contains { $0.kind == .block } }, scene.blocker) }
             aftermath()
             finish()
             headline()
@@ -1076,6 +1093,7 @@ extension BasketballScript {
             lineUp(own ? [missSpot] : [weak, missSpot], ball: own ? 0 : 1)
             script.shooter = 0
             let shooter = own ? 0 : 1
+            if !own { credit(1, miss.shooter) }
             var t = open
             hold(shooter, from: 0, until: t)
             // The first shot.
@@ -1164,6 +1182,8 @@ extension BasketballScript {
             script.players = offense.map { Player(team: .offense, at: $0) } + defense.map { Player(team: .defense, at: $0) }
             script.shooter = 0
             let loser = 5
+            credit(stealer, steal.stealer)
+            credit(loser, steal.loser)
             // He has it, going their way; ours jumps the lane and takes it.
             hold(loser, from: 0, until: open)
             bounce(loser, from: open, until: open + 0.45)
@@ -1299,6 +1319,7 @@ extension BasketballScript {
 
         /// The and-one: the help takes the contact, knocked back a step.
         mutating func foulContact(_ d: Int, at t: Double) {
+            credit(d, scene?.fouler)
             let here = position(d, t)
             move(d, to: [Self.along(here, out(here), 2.2)], from: t + 0.15, to: t + 0.6, ease: .out)
         }
@@ -1345,6 +1366,7 @@ extension BasketballScript {
             let away = Self.rotate(shooterSide, random.in(-0.7...0.7))
             let nominal = Self.inbounds(Self.along(at.ground, away, random.in(11...16)))
             if let r = rebounder(for: scene.rebound, near: nominal, at: t, exclude: [0]) {
+                credit(r, scene.rebound?.person)
                 let land = reach(r, toward: nominal, from: t + 0.06, by: t + 0.5)
                 let time = min(max(Self.distance(at.ground, land) / 30, 0.3), 0.55)
                 fly(from: at, to: FieldPoint(land, z: 6), start: t, time: time, arc: .arc(1.2))
@@ -1363,6 +1385,7 @@ extension BasketballScript {
             let nominal = Self.inbounds(Self.along(rim, Self.rotate(o, random.in(-1.2...1.2)), long ? random.in(10...15) : random.in(6...9)))
             let after = script.release ?? t - 1
             if let r = rebounder(for: scene.rebound, near: nominal, at: t, exclude: exclude) {
+                credit(r, scene.rebound?.person)
                 let land = reach(r, toward: nominal, from: after, by: t + 0.75)
                 let caught = rimOut(at: t, from: shooter, back: false, catchAt: land, height: 8)
                 takeRebound(r, at: land, arrives: caught, from: after)

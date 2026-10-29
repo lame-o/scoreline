@@ -289,10 +289,12 @@ struct SoccerFrame: View, Equatable {
     let ink: TheaterInk
     /// Where it's drawn: the type is sized from it.
     let size: CGSize
+    /// The names over the players: the pointer's, the key man's.
+    var tags = TheaterTags()
 
     /// The time first: mid-replay it's all that differs.
     static func == (a: SoccerFrame, b: SoccerFrame) -> Bool {
-        a.t == b.t && a.size == b.size && a.teams == b.teams && a.ink == b.ink && a.scene == b.scene && a.script == b.script
+        a.t == b.t && a.size == b.size && a.teams == b.teams && a.ink == b.ink && a.tags == b.tags && a.scene == b.scene && a.script == b.script
     }
 
     /// The type, laid out once as views and drawn into each frame.
@@ -313,12 +315,28 @@ struct SoccerFrame: View, Equatable {
             drawBall(&context, f, hands: hands)
             drawImpacts(&context, f)
             drawLabels(&context, f)
+            drawTags(context, f, figures)
         } symbols: {
             stamp.tag(Symbol.stamp)
             ForEach(script.banners.indices, id: \.self) { i in
                 TheaterHeadline(text: script.banners[i].text, color: color(script.banners[i].tone), height: size.height).tag(Symbol.banner(i))
             }
+            tags.symbols(at: t, size: size)
         }
+    }
+
+    /// The names over the players, clear of the headline and the stamp while they're up.
+    private func drawTags(_ context: GraphicsContext, _ f: PitchProjection, _ figures: [Posed]) {
+        var clear: [CGRect] = []
+        for (i, banner) in script.banners.enumerated() where t >= banner.at && t < banner.until + 0.3 {
+            if let symbol = context.resolveSymbol(id: Symbol.banner(i)) { clear.append(TheaterTagLayout.banner(symbol.size, in: f.size)) }
+        }
+        if t >= script.stamp, let symbol = context.resolveSymbol(id: Symbol.stamp) {
+            clear.append(TheaterTagLayout.stamp(symbol.size, in: f.size, inset: max(f.size.height * 0.055, 9), trailing: script.cornerRight))
+        }
+        let shown = figures.indices.filter { script.actors[$0].opacity(at: t) > 0.01 }
+        tags.draw(shown.map { TheaterTags.Figure(index: $0, figure: figures[$0].figure, height: figures[$0].height, opacity: script.actors[$0].opacity(at: t)) },
+                  t: t, size: f.size, clear: clear, in: context)
     }
 
     // MARK: The move's trail
@@ -886,13 +904,15 @@ struct SoccerTheater: View {
     var bottomTeam = ""
     /// The added time last announced (the commentary's), for its tag.
     var added: SoccerAddedTime? = nil
+    /// The squads (the summary's rosters), by athlete ID: the names over the players.
+    var people: [String: TheaterPerson] = [:]
 
     var body: some View {
         let live = feed?.loaded == true ? feed?.theater : nil
         let state = live.flatMap { $0.scene == nil && $0.touch == nil ? nil : $0 } ?? preloaded ?? live ?? SoccerTheaterState()
         let names = SoccerStatus.Names(top: topTeam, bottom: bottomTeam, topColor: kits?.top.color, bottomColor: kits?.bottom.color)
         VStack(alignment: .leading, spacing: 6) {
-            SoccerStage(state: state, palette: palette, kits: kits, names: names, added: added, eventID: eventID ?? "soccer")
+            SoccerStage(state: state, palette: palette, kits: kits, names: names, added: added, eventID: eventID ?? "soccer", people: people)
             caption(state)
         }
     }
@@ -965,6 +985,7 @@ private struct SoccerStage: View {
     let names: SoccerStatus.Names
     let added: SoccerAddedTime?
     let eventID: String
+    let people: [String: TheaterPerson]
     @Environment(\.celebrationClock) private var clock
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
@@ -981,16 +1002,21 @@ private struct SoccerStage: View {
     @State private var tick = 0
     @State private var hovering = false
     @State private var onScreen = false
+    /// Who the pointer's over (the name over him), and while his tag fades in or out.
+    @State private var pointer = TheaterPointer()
+    @State private var fading = false
     /// The viewer's turn of the pitch, for this match.
     @AppStorage private var flipped: Bool
 
-    init(state: SoccerTheaterState, palette: TeamPalette, kits: TheaterKits?, names: SoccerStatus.Names, added: SoccerAddedTime?, eventID: String) {
+    init(state: SoccerTheaterState, palette: TeamPalette, kits: TheaterKits?, names: SoccerStatus.Names, added: SoccerAddedTime?, eventID: String,
+         people: [String: TheaterPerson]) {
         self.state = state
         self.palette = palette
         self.kits = kits
         self.names = names
         self.added = added
         self.eventID = eventID
+        self.people = people
         _flipped = AppStorage(wrappedValue: false, TheaterOrientation.key(eventID))
     }
 
@@ -1090,26 +1116,32 @@ private struct SoccerStage: View {
         let ink = TheaterInk(scheme)
         let teams = teams(scene?.side ?? idle.possession)
         let idleNow = scene == nil ? idleTime(script, at: .now) : 0
+        let cast = scene.map { scene in
+            script.cast(attacking: scene.side, lineups: state.lineups.mapValues { $0.on(at: scene.clock) }, people: people,
+                        key: scene.shooterCredit?.athlete, scope: shownKey ?? scene.id)
+        } ?? script.cast(attacking: idle.possession, lineups: idle.lineups, people: people, key: SoccerScript.key(idle), scope: "idle|" + idleKey)
+        let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: (names.top, names.bottom))
+        let heartbeat: HorizontalEdge = scene != nil && script.cornerRight ? .leading : .trailing
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 Group {
                     if let scene {
-                        if playing {
+                        if playing || fading {
                             TimelineView(.animation) { context in
-                                layer(scene, script, time(at: context.date), teams, ink, geo.size)
+                                layer(scene, script, at: context.date, cast, labels, heartbeat, teams, ink, geo.size)
                             }
                             .transition(.identity)
                         } else {
-                            layer(scene, script, time(at: .now), teams, ink, geo.size)
+                            layer(scene, script, at: .now, cast, labels, heartbeat, teams, ink, geo.size)
                                 .transition(.identity)
                         }
-                    } else if clock == .live, !reduceMotion, onScreen, script.moving(at: idleNow) {
+                    } else if (clock == .live && !reduceMotion && onScreen && script.moving(at: idleNow)) || fading {
                         TimelineView(.animation) { context in
-                            idleLayer(idle, script, idleTime(script, at: context.date), teams, ink, geo.size)
+                            idleLayer(idle, script, idleTime(script, at: context.date), at: context.date, cast, labels, teams, ink, geo.size)
                         }
                         .transition(.identity)
                     } else {
-                        idleLayer(idle, script, idleNow, teams, ink, geo.size)
+                        idleLayer(idle, script, idleNow, at: .now, cast, labels, teams, ink, geo.size)
                             .transition(.identity)
                     }
                 }
@@ -1132,10 +1164,14 @@ private struct SoccerStage: View {
                     .opacity(hovering ? 1 : 0)
                     .animation(Motion.fade, value: hovering)
             }
+            .theaterPointer($pointer, cast: cast) { point in
+                figure(at: point, script, t: scene == nil ? idleTime(script, at: .now) : time(at: .now), size: geo.size)
+            }
         }
         .modifier(HalfHeight(cap: Self.maxHeight))
         .vizWell(padding: 0)
         .onHover { hovering = $0 }
+        .theaterFading(pointer, $fading)
         .onAppear {
             onScreen = true
             begin()
@@ -1191,25 +1227,41 @@ private struct SoccerStage: View {
         }
     }
 
-    /// A moment's frame and its tag.
-    private func layer(_ scene: SoccerScene, _ script: SoccerScript, _ t: Double, _ teams: SoccerTeams, _ ink: TheaterInk, _ size: CGSize) -> some View {
+    /// A moment's frame, its tag and the names over its players.
+    private func layer(_ scene: SoccerScene, _ script: SoccerScript, at date: Date, _ cast: TheaterCast, _ labels: TheaterLabels,
+                       _ heartbeat: HorizontalEdge, _ teams: SoccerTeams, _ ink: TheaterInk, _ size: CGSize) -> some View {
+        let t = time(at: date)
         let banner = script.banners.contains { t >= $0.at - 0.3 && t < $0.until + 0.3 }
         let status = banner || t >= script.stamp ? TheaterStatus() : SoccerStatus.replay(scene, names: names)
+        let tags = TheaterTags(cast: cast, labels: labels, pointer: pointer, at: date, reduceMotion: reduceMotion, status: status.tag, flip: hovering,
+                               heartbeat: heartbeat)
         return ZStack(alignment: .topLeading) {
-            SoccerFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: size)
+            SoccerFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: size, tags: tags)
                 .equatable()
             TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
         }
     }
 
-    /// The pitch between moments at t, and its tag.
-    private func idleLayer(_ idle: SoccerIdle, _ script: SoccerScript, _ t: Double, _ teams: SoccerTeams, _ ink: TheaterInk, _ size: CGSize) -> some View {
+    /// The pitch between moments at t, its tag and the names over its players.
+    private func idleLayer(_ idle: SoccerIdle, _ script: SoccerScript, _ t: Double, at date: Date, _ cast: TheaterCast, _ labels: TheaterLabels,
+                           _ teams: SoccerTeams, _ ink: TheaterInk, _ size: CGSize) -> some View {
         let status = SoccerStatus.idle(idle, t: t, names: names, added: addedNow)
+        let tags = TheaterTags(cast: cast, labels: labels, pointer: pointer, at: date, reduceMotion: reduceMotion, status: status.tag, flip: hovering)
         return ZStack(alignment: .topLeading) {
-            SoccerFrame(scene: nil, script: script, t: t, teams: teams, ink: ink, size: size)
+            SoccerFrame(scene: nil, script: script, t: t, teams: teams, ink: ink, size: size, tags: tags)
                 .equatable()
             TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
         }
+    }
+
+    /// The figure under the pointer in the frame on screen: each player's
+    /// spot at t through the camera, no posing.
+    private func figure(at point: CGPoint, _ script: SoccerScript, t: Double, size: CGSize) -> Int? {
+        let f = PitchProjection(size: size, camera: script.frame(at: t))
+        return TheaterTags.hit(script.actors.indices.filter { script.actors[$0].opacity(at: t) > 0.01 }.map { i in
+            let lens = RigLens(f, at: script.actors[i].position(at: t))
+            return (i, lens.origin, lens.height)
+        }, at: point)
     }
 
     /// The pitch goes idle (again), or its event changes: its beats count from now.
@@ -1281,6 +1333,72 @@ private struct HalfHeightLayout: Layout {
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         for subview in subviews { subview.place(at: bounds.origin, proposal: ProposedViewSize(bounds.size)) }
+    }
+}
+
+// MARK: - Names
+
+extension SoccerScript {
+    /// Who each figure is, for the names over the pitch: all twenty-two, by
+    /// athlete (the men in the move as ESPN credits them, everyone else from
+    /// the lineups at his formation's nominal spot, each change made by
+    /// then), with the squad's number and the place he plays in the shape
+    /// (a substitute takes the place of the man he came on for); the
+    /// officials and the staff nobody. A man only the idle's plain 4-4-2
+    /// knows (no lineups yet) is his team's. `lineups`: as they were then.
+    /// `key`: the athlete the moment is about. (pure; tested)
+    func cast(attacking: GameDetail.Side, lineups: [GameDetail.Side: SoccerLineup], people: [String: TheaterPerson], key: String?,
+              scope: String) -> TheaterCast {
+        var members: [Int: TheaterCast.Member] = [:]
+        for (i, actor) in actors.enumerated() {
+            let side: GameDetail.Side
+            switch actor.team {
+            case .attacking: side = attacking
+            case .defending: side = attacking == .top ? .bottom : .top
+            case .official, .staff: continue
+            }
+            var who = TheaterWho.team
+            if let athlete = actor.athlete {
+                let slot = lineups[side]?.players.first { $0.athlete == athlete }
+                var person = people[athlete] ?? (actor.name.isEmpty || actor.name == athlete ? nil : TheaterPerson(name: actor.name))
+                if let place = slot.flatMap({ SoccerLineup.tagPosition($0.position) }) ?? person?.position.flatMap(SoccerLineup.tagPosition) {
+                    person?.position = place
+                } else {
+                    person?.position = nil
+                }
+                if person?.number == nil { person?.number = slot?.jersey }
+                if let person { who = .known(person) }
+            }
+            members[i] = TheaterCast.member(who, side: side, athlete: actor.athlete, figure: i, scope: scope)
+        }
+        let figure = key.flatMap { k in actors.indices.first { actors[$0].athlete == k && members[$0] != nil } }
+        return TheaterCast(members: members, key: figure)
+    }
+
+    /// Who the pitch between moments is about: the man in the event on the
+    /// stage (booked, whistled, offside, coming on, down); nobody while the
+    /// ball just goes round.
+    static func key(_ idle: SoccerIdle) -> String? {
+        guard case let .event(e) = idle.phase else { return nil }
+        switch e.kind {
+        case .card, .foul, .handball, .offside, .substitution, .injury: return e.athlete
+        default: return nil
+        }
+    }
+}
+
+extension SoccerLineup {
+    /// A lineup place as a tag says it: ESPN's "G", "CD-L", "AM-R", "F" as GK, CB, AM, ST. Nil for a substitute's "SUB".
+    static func tagPosition(_ espn: String) -> String? {
+        let p = espn.uppercased()
+        if p == "G" || p == "GK" { return "GK" }
+        if p.hasPrefix("CD") || p == "CB" { return "CB" }
+        if p.hasPrefix("CM") { return "CM" }
+        if p.hasPrefix("AM") { return "AM" }
+        if p.hasPrefix("DM") { return "DM" }
+        if ["F", "CF", "FW", "ST"].contains(p) || p.hasPrefix("CF-") { return "ST" }
+        if ["LB", "RB", "LWB", "RWB", "LM", "RM", "LW", "RW", "SW"].contains(p) { return p }
+        return nil
     }
 }
 

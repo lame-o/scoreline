@@ -290,7 +290,9 @@ struct SoccerIdle: Equatable {
             if let at = event.at { ball = drawn(at) }
         }
         let seed = Celebration.seed(event?.id ?? "play-\(touch?.order ?? 0)-\(scene?.id ?? "")")
-        return SoccerIdle(phase: event.map { .event($0) } ?? .play, possession: possession, ball: ball, homeRight: homeRight, lineups: lineups,
+        // The elevens as they stand: each change made by the event's minute (or the ball's).
+        let on = lineups.mapValues { $0.on(at: event?.clock ?? touch?.clock) }
+        return SoccerIdle(phase: event.map { .event($0) } ?? .play, possession: possession, ball: ball, homeRight: homeRight, lineups: on,
                           seed: seed)
     }
 

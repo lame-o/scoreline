@@ -478,6 +478,7 @@ extension BasketballScript.Builder {
             setUp([Self.inbounds(from)])
         }
         script.shooter = 0
+        credit(0, scene.shooter)
         var t = 0.2
         if let p = passer {
             // Off the catch: the pass reaches him as he gets to his spot.
@@ -582,6 +583,7 @@ extension BasketballScript.Builder {
         if let rebound, rebound.person != nil {
             let own = rebound.offensive && rebound.person?.id != nil && rebound.person?.id == scene.shooter?.id
             r = own ? 0 : rebounder(rebound.offensive ? [1, 2, 3, 4] : [5, 6, 7, 8, 9], toward: c.spot, role: rebound.person?.role, at: release)
+            credit(r, rebound.person)
         }
         let caught = comeOff(c, at: t, to: r, from: release + 0.15)
         if let rebound, rebound.person == nil {
@@ -671,6 +673,7 @@ extension BasketballScript.Builder {
         if let i = script.legs.lastIndex(where: { $0.hand == .held(0) }) { script.legs[i].until = releaseAt }
         script.release = releaseAt
         script.shooter = 0
+        credit(0, scene.shooter)
         let hand = release(line, lift: 0.2)
         tag("FREE THROW \(scene.attempt ?? 1) OF \(scene.attempts ?? 1)", scene.offense, at: 0)
         let lane = Array(1..<10)
@@ -703,6 +706,7 @@ extension BasketballScript.Builder {
                 var r: Int?
                 if let rebound = scene.rebound, rebound.person != nil {
                     r = rebounder(rebound.offensive ? [1, 2, 3, 4] : [5, 6, 7, 8, 9], toward: c.spot, role: rebound.person?.role, at: releaseAt)
+                    credit(r, rebound.person)
                 }
                 comeOff(c, at: f.end, to: r, from: releaseAt + 0.05)
             } else {
@@ -761,6 +765,7 @@ extension BasketballScript.Builder {
         script.formation = .play
         let pool = shooterSide ? [0, 1, 2, 3, 4] : [5, 6, 7, 8, 9]
         let r = scene.shooter == nil ? nil : rebounder(pool, toward: c.spot, role: scene.shooter?.role, at: 0)
+        credit(r, scene.shooter)
         if let lying = start?.ball, start?.holder == nil, let r, Self.distance(position(r, 0), lying) < 24 {
             // Where it came down: he gets to it and takes it up.
             script.legs = [BasketballScript.Leg(from: 0, until: .infinity, hand: .spot(FieldPoint(lying, z: 0.4)))]
@@ -798,6 +803,8 @@ extension BasketballScript.Builder {
             trade(5, nearest(Array(5..<10), to: spot))
             stealer = 5
         }
+        credit(0, scene.shooter)
+        credit(stealer, scene.steal?.stealer)
         let name = Self.called(scene.shooter)
         switch call {
         case .badPass where stealer != nil:
@@ -916,6 +923,8 @@ extension BasketballScript.Builder {
     mutating func chargeBeat(spot: CGPoint, charge: Bool, tagged name: String?, side: GameDetail.Side?) {
         let d = nearest(Array(5..<10), to: spot)
         trade(5, d)
+        credit(0, scene?.shooter)
+        credit(5, scene?.drew)
         hold(0, from: 0, until: 0.2)
         bounce(0, from: 0.2, until: .infinity)
         let way = Self.unit(CGPoint(x: spot.x - position(0, 0).x + 0.01, y: spot.y - position(0, 0).y))
@@ -976,6 +985,8 @@ extension BasketballScript.Builder {
         trade(0, fouled)
         let fouler = nearest(Array(5..<10), to: spot, at: 0.6)
         trade(5, fouler)
+        credit(0, scene.drew)
+        credit(5, scene.shooter)
         let carrying = start?.holder == 0
         let contact = max(0.75, min(Self.distance(position(0, 0), spot) / 15 + 0.35, 1.3))
         if carrying {
@@ -1098,6 +1109,7 @@ extension BasketballScript.Builder {
         fly(from: FieldPoint(c, z: 12.4), to: FieldPoint(catchAt, z: 4.6), start: tip, time: 0.55, arc: .arc(1.2))
         move(gainer, to: [catchAt], from: tip, to: tip + 0.5, ease: .out)
         act(gainer, .catchBall, at: tip + 0.55, toward: c)
+        credit(gainer, scene.winner)
         hold(gainer, from: tip + 0.55, until: .infinity)
         script.flashes.append(Flash(beat: .catchBall, at: tip + 0.55, point: FieldPoint(catchAt, z: 4.6)))
         script.look = BasketballScript.Look(point: c, from: 0)
@@ -1148,6 +1160,8 @@ extension BasketballScript.Builder {
                 on.move(to: [at], from: 0.55 + lag, to: 1.55 + lag, ease: .out)
                 script.players.append(on)
                 script.stand[off] = script.players.count - 1
+                credit(off, sub.subOut)
+                credit(script.players.count - 1, sub.subIn)
             }
         }
         let names = group.compactMap { Self.called($0.subIn) }

@@ -1026,6 +1026,9 @@ final class BaseballFeed {
     /// only when they change, so a pitch doesn't redraw the theater. A new
     /// plate appearance waits briefly for what Statcast measured of it.
     private(set) var theater = TheaterState()
+    /// MLB's numbers for the game's men by name (`Statcast.numbers`): the
+    /// pitchers' that ESPN's summary leaves out, for the tags. Assigned only when they change.
+    private(set) var numbers: [String: String] = [:]
     /// The most recent plays, enough to hold the current at-bat, and where the first sits in the feed.
     @ObservationIgnored private var window: [JSON] = []
     @ObservationIgnored private var windowStart = 0
@@ -1133,6 +1136,10 @@ final class BaseballFeed {
     /// had keeps what it was; the newest play is news as the theater's is.
     private func rebuildTimeline(news: Bool) {
         var mlb = lookup.map { StatcastStore.shared.cached(espnEvent: $0.espnEvent) } ?? []
+        if let lookup {
+            let known = StatcastStore.shared.numbers(espnEvent: lookup.espnEvent)
+            if !known.isEmpty, known != numbers { numbers = known }
+        }
         if let current = mlbLive?.atBat {
             if let i = mlb.firstIndex(where: { $0.index == current.index }) { mlb[i] = current } else { mlb.append(current) }
         }
@@ -1418,7 +1425,8 @@ final class BaseballFeed {
             onFirst: s["onFirst"].exists, onSecond: s["onSecond"].exists, onThird: s["onThird"].exists,
             batter: name("batter"), pitcher: name("pitcher"), lastPlay: lastPlay,
             runners: GameDetail.Baseball.runners(s, names: names),
-            batterID: s["batter"]["playerId"].int.map(String.init), pitcherID: s["pitcher"]["playerId"].int.map(String.init))
+            batterID: s["batter"]["playerId"].int.map(String.init), pitcherID: s["pitcher"]["playerId"].int.map(String.init),
+            runnerIDs: GameDetail.Baseball.runnerIDs(s))
     }
 
     /// At the Plate as the plays have it (the live check, Game 4): after the
@@ -1459,7 +1467,8 @@ final class BaseballFeed {
         let pitcher = stale ? name(pitcherID) ?? words?.pitcher ?? s.pitcher : s.pitcher ?? (s.pitcherID == pitcherID ? words?.pitcher : nil)
         return GameDetail.Baseball(balls: s.balls, strikes: s.strikes, outs: s.outs, onFirst: s.onFirst, onSecond: s.onSecond,
                                    onThird: s.onThird, batter: batter, pitcher: pitcher, lastPlay: s.lastPlay, runners: s.runners,
-                                   batterID: stale ? batterID : s.batterID, pitcherID: stale ? pitcherID ?? s.pitcherID : s.pitcherID)
+                                   batterID: stale ? batterID : s.batterID, pitcherID: stale ? pitcherID ?? s.pitcherID : s.pitcherID,
+                                   runnerIDs: s.runnerIDs)
     }
 
     /// "Dustin May pitches to Yandy Diaz" → the pitcher and the batter, as ESPN wrote them.

@@ -366,13 +366,15 @@ extension SoccerScript {
 
         init(scene: SoccerScene, lineups: [GameDetail.Side: SoccerLineup] = [:]) {
             self.scene = scene
-            self.lineups = lineups
+            // The elevens as they were when it happened: each change made by then.
+            let on = lineups.mapValues { $0.on(at: scene.clock) }
+            self.lineups = on
             right = scene.attacksRight
             goal = scene.goal
             // The keeper first: always there, on his line.
             let start = scene.touches.first?.at ?? scene.shot.from
             keeper = actor(.defending, scene.keeper.name ?? "keeper", at: keeperSpot(for: FieldPoint(start), distance: nil), role: .keeper,
-                           athlete: scene.keeper.credit?.athlete ?? lineups[scene.side == .top ? .bottom : .top]?.players.first { $0.place == 1 }?.athlete)
+                           athlete: scene.keeper.credit?.athlete ?? on[scene.side == .top ? .bottom : .top]?.players.first { $0.place == 1 }?.athlete)
         }
 
         /// The actor for a player, made the first time he's needed: by

@@ -275,6 +275,9 @@ struct PlayScript: Equatable {
         var practice: Double?
         /// An umpire's calls, each from its moment.
         var signals: [Signal] = []
+        /// ESPN's athlete ID when the play names him (the batter, each
+        /// runner): who the tag over him says he is.
+        var athlete: String? = nil
 
         /// An umpire's call, as he makes it: a called strike's punch (a
         /// strikeout looking's punch-out, side-on), a swinging strike's point,
@@ -743,11 +746,11 @@ extension PlayScript {
             }
             // On a runner's play the batter is still in the box.
             batter = script.actors.count
-            script.actors.append(Actor(team: .batting, at: Ballpark.box(hand), role: .batter, bats: hand))
+            script.actors.append(Actor(team: .batting, at: Ballpark.box(hand), role: .batter, bats: hand, athlete: scene.batter?.id))
             runner[0] = batter
             for r in scene.runners where r.from > 0 {
                 runner[r.from] = script.actors.count
-                script.actors.append(Actor(team: .batting, at: Ballpark.lead(r.from)))
+                script.actors.append(Actor(team: .batting, at: Ballpark.lead(r.from), athlete: r.id))
             }
             umpire = script.actors.count
             script.actors.append(Actor(team: .official, at: Ballpark.umpire(hand), role: .umpire))

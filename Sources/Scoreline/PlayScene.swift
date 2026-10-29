@@ -139,6 +139,8 @@ struct PlayScene: Equatable, Identifiable {
     /// What Statcast measured, once it's been found.
     var measured: Measured?
     var batting: GameDetail.Side?
+    /// The pitcher who threw it (ESPN's athlete ID): the tag on the mound.
+    var pitcher: String?
     /// "Turang grounded out to shortstop."
     var text = ""
     var wallclock: Date?
@@ -366,6 +368,7 @@ extension PlayScene {
             scene.pitch = Pitch(code: code, name: p["pitchType"]["text"].string ?? code.flatMap { GameDetail.Pitch.names[$0] },
                                 mph: p["pitchVelocity"].int, x: p["pitchCoordinate"]["x"].double, y: p["pitchCoordinate"]["y"].double)
         }
+        scene.pitcher = participant(result, "pitcher") ?? pitchEntry.flatMap { participant($0, "pitcher") }
         scene.appearance = appearance(plays, at: index, text: scene.text, names: names)
         if scene.appearance == nil { scene.during = during(plays, at: index, earlier: earlier, names: names) }
         scene.wallclock = result["wallclock"].string.flatMap(parseDate)
