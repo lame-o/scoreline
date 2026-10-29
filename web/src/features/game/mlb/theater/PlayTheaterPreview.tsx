@@ -6,8 +6,10 @@
  * button and, with `frozen`, drawn at a fixed instant for screenshots.
  * As the football and soccer previews do, `?t=1.6` draws every tile at that
  * instant, frozen (`?t=end`: as it ended), and `?only=6-3` keeps the tiles
- * whose title starts so. Fixtures load lazily from test/fixtures, so nothing
- * here ships.
+ * whose title starts so; `?shots` draws the beats between plays frame by
+ * frame instead, `?live=120` plays Game 5 live from its 120th item
+ * (PlayBeatPreview.tsx). Fixtures load lazily from
+ * test/fixtures, so nothing here ships.
  *
  *     <PlayTheaterPreview />                 // replays on mount (or as `?t=` says)
  *     <PlayTheaterPreview frozen={1.6} />    // every tile at t = 1.6 s
@@ -20,6 +22,7 @@ import { parse, theater, type PlayScene, type SideOf, type TheaterState } from "
 import { teamPalette } from "../../../../data/teamColors";
 import { useColorScheme } from "../../../../state/theme";
 import { MomentProvider, useMomentSlot } from "../../core/moments";
+import { PlayBeatPreview, PlayLivePreview } from "./PlayBeatPreview";
 import { PlayTheater } from "./PlayTheater";
 
 const files = import.meta.glob<{ default: unknown }>("../../../../../test/fixtures/mlb-ws-g*-*.json");
@@ -100,6 +103,8 @@ export function PlayTheaterPreview({ frozen: fixed = null }: { frozen?: number |
       live = false;
     };
   }, []);
+  if (params.has("shots")) return <PlayBeatPreview only={params.get("shots") ?? ""} />;
+  if (params.has("live")) return <PlayLivePreview from={Number(params.get("live")) || 0} every={Number(params.get("every")) || 4000} />;
   if (!list) return null;
   return (
     <div style={{ display: "grid", gap: "calc(16 * var(--pt))", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, calc(320 * var(--pt))), 1fr))", padding: "var(--gutter)" }}>

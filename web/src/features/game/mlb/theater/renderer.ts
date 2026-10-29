@@ -13,7 +13,7 @@
  * - With Reduce Motion a home run blooms softly at the plate instead of its fireworks.
  * - Between plays, a beat (a pitch, a visit, a change; playBeatScript.ts) or an idle move is drawn on its own
  *   clock from when the stage began it, the loop running only until it's over (at half the frame rate for an
- *   idle move: it's small and slow); with Reduce Motion it's drawn as it ends.
+ *   idle move: it's small and slow); with Reduce Motion, off screen or in a hidden tab it's drawn as it ends.
  */
 import { cueDuration, cueFor, presetFor, type CelebrationLevel, type CelebrationPalette } from "../../../../data/celebrations";
 import { restCamera } from "../../../../data/mlb/playCamera";
@@ -43,9 +43,13 @@ export interface StageInputs {
   readonly beat?: { readonly key: string; readonly script: PlayScript; readonly start: number; readonly idle: boolean } | null;
   /** Room kept at the bottom trailing corner for the heartbeat. */
   readonly footer?: number;
+  /** Off screen or in a hidden tab: a beat or idle move is drawn as it ends (nothing animates unseen). */
+  readonly paused?: boolean;
 }
 
 const CROSSFADE_MS = 350;
+/** An idle move's frames, about 30 a second (the next waits on a vsync after this). */
+const IDLE_FRAME_MS = 1000 / 30 - 6;
 
 export class TheaterRenderer {
   private readonly canvas: HTMLCanvasElement;
@@ -62,7 +66,7 @@ export class TheaterRenderer {
   private fade: { snapshot: HTMLCanvasElement; start: number } | null = null;
   private shownID: string | null | undefined = undefined;
   private frame = 0;
-  private lastDraw = 0;
+  private wait: ReturnType<typeof setTimeout> | undefined;
   private readonly observer: ResizeObserver;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -81,6 +85,8 @@ export class TheaterRenderer {
     this.observer.disconnect();
     cancelAnimationFrame(this.frame);
     this.frame = 0;
+    clearTimeout(this.wait);
+    this.wait = undefined;
   }
 
   /** New inputs from React: decides whether a replay begins, a crossfade runs, or a still is redrawn. */
@@ -180,7 +186,7 @@ export class TheaterRenderer {
     if (i.frozen != null) return i.frozen;
     const beat = this.beatShown(now);
     if (beat) {
-      if (i.reduceMotion) return Infinity;
+      if (i.reduceMotion || i.paused) return Infinity;
       const t = (now - beat.start) / 1000;
       return t > beat.script.duration ? Infinity : Math.max(t, 0);
     }
@@ -209,7 +215,7 @@ export class TheaterRenderer {
     if (Number.isFinite(t) && this.inputs?.frozen == null) return true;
     // A beat that hasn't begun yet (its start a moment ahead) still waits on the loop.
     const beat = this.beatShown(now);
-    if (beat && !this.inputs?.reduceMotion && this.inputs?.frozen == null && now < beat.start) return true;
+    if (beat && !this.inputs?.reduceMotion && !this.inputs?.paused && this.inputs?.frozen == null && now < beat.start) return true;
     if (this.fade && now - this.fade.start < CROSSFADE_MS) return true;
     if (this.bloom?.cue && (now - this.bloom.start) / 1000 < cueDuration(this.bloom.cue)) return true;
     return false;
@@ -219,22 +225,24 @@ export class TheaterRenderer {
     if (immediate) {
       cancelAnimationFrame(this.frame);
       this.frame = 0;
+      clearTimeout(this.wait);
+      this.wait = undefined;
       this.draw(performance.now());
     }
-    if (this.frame) return;
+    if (this.frame || this.wait !== undefined) return;
     this.frame = requestAnimationFrame((now) => {
       this.frame = 0;
-      // An idle move at half the frame rate: it's small and slow.
-      const beat = this.beatShown(now);
-      if (beat?.idle && Number.isFinite(this.time(now)) && now - this.lastDraw < 30 && !immediate) {
-        this.schedule();
-        return;
-      }
-      this.lastDraw = now;
       this.draw(now);
       this.noteEnd(now);
-      if (this.moving(now)) this.schedule();
-      else {
+      if (this.moving(now)) {
+        // An idle move at half the frame rate (it's small and slow): the next frame waits, rather than waking each vsync.
+        if (this.beatShown(now)?.idle && Number.isFinite(this.time(now))) {
+          this.wait = setTimeout(() => {
+            this.wait = undefined;
+            this.schedule();
+          }, IDLE_FRAME_MS);
+        } else this.schedule();
+      } else {
         this.fade = null;
         this.bloom = null;
         // The last frame of a replay is the static scene.

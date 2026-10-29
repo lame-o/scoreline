@@ -562,7 +562,8 @@ function drawTarp(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs)
   ctx.save();
   polyline(ctx, [{ x: edge, y: -20 }, { x: 120, y: -20 }, { x: 120, y: 170 }, { x: edge, y: 170 }].map((q) => f.point(q)), true);
   ctx.clip();
-  const cloth = ink.dark ? "hsl(216 30% 62%)" : "hsl(216 35% 58%)";
+  // PlayTheater.swift's Color(hue: 0.6, saturation: 0.3 / 0.35, brightness: 0.62 / 0.58): HSB, not HSL.
+  const cloth = ink.dark ? "rgb(111 130 158)" : "rgb(96 117 148)";
   skin();
   ctx.globalAlpha = ink.dark ? 0.75 : 0.82;
   ctx.fillStyle = cloth;

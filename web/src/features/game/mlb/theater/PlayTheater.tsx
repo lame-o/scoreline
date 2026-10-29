@@ -28,14 +28,15 @@
  * plays its last few pitches. While nothing comes, the field has its idle
  * life: a move every few seconds, briefly, still in between, only while the
  * theater's on screen and the tab visible, never with Reduce Motion (the tags
- * still say what happened).
+ * still say what happened). Off screen, a beat is drawn as it ends rather
+ * than animated unseen; the queue keeps time, so it's current on return.
  *
  * Drawn on one canvas through the camera (renderer.ts, drawTheater.ts), so
  * lines stay crisp at any zoom. A rAF loop runs only while a replay, a beat
- * or an idle move plays; between them the scene is a still on the infield. Plays already on the
- * page when it opened show as they ended; a new one mid-replay cuts to
- * itself; with Reduce Motion each play crossfades to how it ended and the
- * camera never moves. A play's end (its trace, the stamp, the Statcast line)
+ * or an idle move plays; between them the scene is a still on the infield.
+ * Plays already on the page when it opened show as they ended; a new one
+ * mid-replay cuts to itself; with Reduce Motion each play crossfades to how
+ * it ended and the camera never moves. A play's end (its trace, the stamp, the Statcast line)
  * stays until the next at-bat's first pitch, or `HOLD_MS` after its replay,
  * whichever comes first; then the field crossfades to the game as it is (the
  * live bases and batter). The field and the figures are one canvas pass,
@@ -105,8 +106,8 @@ export interface PlayTheaterProps {
   readonly inning?: string | null;
   /** The lane has spoken: the heartbeat shows, MLB's live poll runs. */
   readonly live?: boolean;
-  /** Development: draw this beat (or idle move) at `frozen`, in place of the play. */
-  readonly frozenBeat?: { readonly script: PlayScript; readonly beat: PlayBeat | null } | null;
+  /** Development: draw this beat (or idle move) at `frozen`, in place of the play, with this tag (absent: its caption at `frozen`). */
+  readonly frozenBeat?: { readonly script: PlayScript; readonly beat: PlayBeat | null; readonly tag?: string | null } | null;
 }
 
 const reduceQuery = typeof window !== "undefined" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
@@ -430,11 +431,11 @@ export function PlayTheater({
   const wide = width >= 440;
   let tag: string | null = null;
   let about: PlayBeat | null = null;
-  if (frozenBeat?.beat) {
+  if (frozenBeat) {
     const fb = frozenBeat.beat;
     const c = frozenBeat.script.captions.findLast((x) => x.at <= (frozen ?? Infinity));
     about = fb;
-    tag = c ? captionText(fb, c.line, wide) : null;
+    tag = frozenBeat.tag !== undefined ? frozenBeat.tag : fb && c ? captionText(fb, c.line, wide) : null;
   } else if (replaying) {
     tag = null;
   } else if (beat) {
@@ -451,7 +452,7 @@ export function PlayTheater({
     tag = about ? standing(about) : null;
   } else {
     about = last;
-    tag = last ? standing(last) : fallbackTag(inning, situation);
+    tag = (last ? standing(last) : null) ?? fallbackTag(inning, situation);
   }
   if (held && held.kind !== "over") {
     tag = delayTag(held);
@@ -478,9 +479,9 @@ export function PlayTheater({
         : null;
   const footer = live ? 16 : 0;
   useEffect(() => {
-    renderer.current?.update({ scene: play, news: state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen, onEnd: setEnded, beat: shownBeat, footer });
+    renderer.current?.update({ scene: play, news: state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen, onEnd: setEnded, beat: shownBeat, footer, paused: !onScreen });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [play, state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen, shownBeat?.key, shownBeat?.script, footer]);
+  }, [play, state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen, shownBeat?.key, shownBeat?.script, footer, onScreen]);
 
   return (
     <div ref={well} className={styles.well} aria-hidden="true">
