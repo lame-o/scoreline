@@ -141,6 +141,24 @@ export const UPSTREAMS: readonly Upstream[] = [
     fallback: SCHEDULE,
   },
   {
+    // Polymarket's Gamma API: the day's games per league (without their markets) and a game's moneyline
+    // (data/odds/polymarket.ts). Direct: it serves browsers with CORS `*`, and the game page asks only while
+    // its Win Probability section is on screen (state/odds.ts keeps the listing 10 minutes, a match for the session).
+    host: "gamma-api.polymarket.com",
+    prefixes: ["/events", "/markets/slug/"],
+    direct: true,
+    rules: [],
+    fallback: SHORT,
+  },
+  {
+    // Polymarket's order book: a token's price history and its midpoint (the fallback when the socket can't connect).
+    host: "clob.polymarket.com",
+    prefixes: ["/prices-history", "/midpoint"],
+    direct: true,
+    rules: [[/^\/(prices-history|midpoint)$/, LIVE]],
+    fallback: LIVE,
+  },
+  {
     // MLB Stats API: Statcast pitch and batted-ball data (Statcast.swift).
     host: "statsapi.mlb.com",
     prefixes: ["/api/"],
@@ -151,6 +169,12 @@ export const UPSTREAMS: readonly Upstream[] = [
     fallback: SHORT,
   },
 ];
+
+/**
+ * WebSockets the browser opens itself (the CSP's `connect-src` lists them with the direct hosts):
+ * Polymarket's market channel, live odds on the open game's page (state/odds.ts).
+ */
+export const SOCKETS: readonly string[] = ["wss://ws-subscriptions-clob.polymarket.com"];
 
 export interface ResolvedUpstream {
   readonly upstream: Upstream;

@@ -61,6 +61,8 @@ export interface Settings {
   readonly celebrationSounds: boolean;
   /** The broadcast banner across the open game when a team scores (`scoringSlides`). */
   readonly scoringSlides: boolean;
+  /** Game pages' Win Probability: Polymarket's live market and DraftKings' line (`showOdds`). Off: ESPN's bar, and no Polymarket requests. */
+  readonly odds: boolean;
   /** Alerts for followed teams (`notifyFollowed`): web notifications, once the browser allows them. */
   readonly notifyFollowed: boolean;
   /** The tab's title and favicon carry a followed team's live score (`scoreInMenuBar`; a pinned game shows regardless). */
@@ -88,6 +90,7 @@ export const DEFAULTS: Settings = {
   celebrationLevel: "full",
   celebrationSounds: false,
   scoringSlides: true,
+  odds: true,
   notifyFollowed: true,
   scoreInTitle: true,
   showCoStream: true,
@@ -143,6 +146,7 @@ export function sanitize(raw: unknown): Settings {
     celebrationLevel: pick(s.celebrationLevel, ["full", "subtle", "off"], DEFAULTS.celebrationLevel),
     celebrationSounds: flag(s.celebrationSounds, DEFAULTS.celebrationSounds),
     scoringSlides: flag(s.scoringSlides, DEFAULTS.scoringSlides),
+    odds: flag(s.odds, DEFAULTS.odds),
     notifyFollowed: flag(s.notifyFollowed, DEFAULTS.notifyFollowed),
     scoreInTitle: flag(s.scoreInTitle, DEFAULTS.scoreInTitle),
     showCoStream: flag(s.showCoStream, DEFAULTS.showCoStream),

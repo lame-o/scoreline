@@ -102,6 +102,7 @@ export function SettingsPage() {
             </div>
             <ToggleRow title="Scoring slides" subtitle="A broadcast banner across the game when a team scores" checked={s.scoringSlides} onChange={(v) => settings.set("scoringSlides", v)} />
             <SoundsRow />
+            <ToggleRow title="Odds" subtitle="Polymarket's live market and DraftKings' line on game pages" checked={s.odds} onChange={(v) => settings.set("odds", v)} />
           </GroupBox>
         </FormSection>
 

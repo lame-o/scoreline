@@ -1,0 +1,16 @@
+{
+ "_source": "wss://ws-subscriptions-clob.polymarket.com/ws/market",
+ "_recorded": "2026-10-29T06:50:00Z",
+ "_note": "Captured from the CLOB market channel: subscribed to nba-cle-atl-2026-10-29 (Cavaliers token first) and, for a trade, a busy political market. Each book cut to its best three levels by hand; otherwise as sent, raw strings in arrival order.",
+ "tokens": {
+  "top": "58969701902967634160572556308711400957395746439148514066891391663292549876888",
+  "bottom": "11234332954131189575658873103086066857368405563296373560568776922697137810841"
+ },
+ "messages": [
+  "[{\"market\":\"0x1d06cb74c42d371dd4ce3c26f239df4eaf534c6e252dc5459723f41774158223\",\"asset_id\":\"58969701902967634160572556308711400957395746439148514066891391663292549876888\",\"timestamp\":\"1793256238356\",\"hash\":\"8f629ed8f7ed606677cc83168977be34f73b62fd\",\"bids\":[{\"price\":\"0.47\",\"size\":\"21135.09\"},{\"price\":\"0.48\",\"size\":\"14116.08\"},{\"price\":\"0.49\",\"size\":\"1965.76\"}],\"asks\":[{\"price\":\"0.52\",\"size\":\"22065.24\"},{\"price\":\"0.51\",\"size\":\"25931.73\"},{\"price\":\"0.5\",\"size\":\"7603.8\"}],\"tick_size\":\"0.01\",\"event_type\":\"book\",\"last_trade_price\":\"0.500\"}]",
+  "{\"market\":\"0x1d06cb74c42d371dd4ce3c26f239df4eaf534c6e252dc5459723f41774158223\", \"price_changes\":[{\"asset_id\":\"11234332954131189575658873103086066857368405563296373560568776922697137810841\", \"price\":\"0.49\", \"size\":\"24931.73\", \"side\":\"BUY\", \"hash\":\"8879761611926535ef6f629fccb1b066da1d847a\", \"best_bid\":\"0.5\", \"best_ask\":\"0.51\"}, {\"asset_id\":\"58969701902967634160572556308711400957395746439148514066891391663292549876888\", \"price\":\"0.51\", \"size\":\"24931.73\", \"side\":\"SELL\", \"hash\":\"d87c9db0fb7ecf481344f26ce35f2e09da97fb62\", \"best_bid\":\"0.49\", \"best_ask\":\"0.5\"}], \"timestamp\":\"1793256242373\", \"event_type\":\"price_change\"}",
+  "{\"market\":\"0x1d06cb74c42d371dd4ce3c26f239df4eaf534c6e252dc5459723f41774158223\", \"price_changes\":[{\"asset_id\":\"11234332954131189575658873103086066857368405563296373560568776922697137810841\", \"price\":\"0.37\", \"size\":\"70\", \"side\":\"BUY\", \"hash\":\"e91d8d3dc8d8a38b5ca75385ffe86b1c030f3e84\", \"best_bid\":\"0.5\", \"best_ask\":\"0.51\"}, {\"asset_id\":\"58969701902967634160572556308711400957395746439148514066891391663292549876888\", \"price\":\"0.63\", \"size\":\"70\", \"side\":\"SELL\", \"hash\":\"ae617f253545d6850368c81a90ffe346445455ce\", \"best_bid\":\"0.49\", \"best_ask\":\"0.5\"}], \"timestamp\":\"1793256243344\", \"event_type\":\"price_change\"}",
+  "{\"market\":\"0x7586a96520578acaaaa4ea84a2582f197f84255da1f3392a7aa300386c187b37\", \"asset_id\":\"20006732765674855733524007935991362439352594042415161039767275461950712817548\", \"price\":\"0.45\", \"size\":\"11.111112\", \"fee_rate_bps\":\"0\", \"side\":\"BUY\", \"timestamp\":\"1793256366800\", \"event_type\":\"last_trade_price\", \"transaction_hash\":\"0xbdba64fe7bb198a2e473a8b1ba81646f41c707412cfcf46388db40277abe5033\"}",
+  "PONG"
+ ]
+}

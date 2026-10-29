@@ -122,8 +122,9 @@ describe("the football section plan", () => {
 
   it("puts the field first while live, with the play theater's slot under it", () => {
     expect(sectionOrder(ref, "live").slice(0, 3)).toEqual(["field", "theater", "winProbability"]);
-    expect(sectionOrder(ref, "final")).toEqual(["linescore", "moments", "stats", "table", "plays"]);
-    expect(sectionOrder(ref, "scheduled")).toEqual(["table", "whereToWatch"]);
+    // Final: how the odds moved; before the game: the market's last day.
+    expect(sectionOrder(ref, "final")).toEqual(["linescore", "winProbability", "moments", "stats", "table", "plays"]);
+    expect(sectionOrder(ref, "scheduled")).toEqual(["winProbability", "table", "whereToWatch"]);
   });
 
   it("from 680pt, the drive on the left; the quarters beside the scoring plays they light", () => {

@@ -21,6 +21,7 @@ import { makeEvent } from "./providers/espn";
 import { EMPTY_ROSTER, loadCSDetail, type CSRound, type Roster } from "./cs2";
 import { loadClimbingDetail, type BoulderCard, type UpNext, type WallRoute } from "./climbing";
 import { soccerTie, type SoccerTie } from "./soccer";
+import { EMPTY_BASIS, parseOddsBasis, type OddsBasis } from "./odds/espn";
 import { homeWinProbability, keyMoments as basketballMoments, NBA_STATS, parseBasketball, predictor, quarterLength, recentPlays as basketballPlays, WNBA_PATH, type Basketball } from "./basketball";
 
 // MARK: - Model
@@ -219,6 +220,12 @@ export interface GameDetail {
   readonly topWinProbability: number | null;
   /** Chance of a draw (soccer), so it isn't folded into either side. */
   readonly drawProbability: number | null;
+  /**
+   * The odds chart's ESPN half (data/odds/espn.ts): ESPN's model on the wall
+   * clock, the plays and periods the chart names, DraftKings' pregame line
+   * without the vig, and each team's names for matching Polymarket's.
+   */
+  readonly odds: OddsBasis;
   readonly football: Football | null;
   readonly baseball: Baseball | null;
   readonly atBat: readonly Pitch[];
@@ -290,6 +297,7 @@ export const EMPTY_DETAIL: GameDetail = {
   recentPlays: [],
   topWinProbability: null,
   drawProbability: null,
+  odds: EMPTY_BASIS,
   football: null,
   baseball: null,
   atBat: [],
@@ -627,6 +635,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     linescore: sport !== "soccer" && topComp && bottomComp ? linescore(topComp, bottomComp, sport) : null,
     topWinProbability,
     drawProbability,
+    odds: parseOddsBasis(summary, sport, topIsHome === true),
     moments,
     recentPlays,
     atBat,

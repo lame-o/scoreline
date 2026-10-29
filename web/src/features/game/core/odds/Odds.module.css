@@ -1,0 +1,504 @@
+/* Win Probability with Polymarket's odds (WinProbabilitySection.tsx, OddsChart.tsx). */
+
+/* While the market is being found: a place the observer can see, taking no room. */
+.place {
+  height: 0;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+}
+
+/* The window in the title row: Game | 10 min (live only), a size down so the title row keeps its height. */
+.window {
+  flex: none;
+  margin: calc(-3 * var(--pt)) 0;
+}
+
+.window button {
+  height: calc(20 * var(--pt));
+  padding: 0 calc(8 * var(--pt));
+  font-size: var(--text-caption);
+}
+
+/* MARK: The header row */
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+}
+
+.teams {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: calc(10 * var(--pt));
+}
+
+.team {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(5 * var(--pt));
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.teamDot {
+  flex: none;
+  align-self: center;
+  width: calc(7 * var(--pt));
+  height: calc(7 * var(--pt));
+  border-radius: 50%;
+}
+
+/* Names wear text ink; the dot beside them carries the team. A long one gives way before the number. */
+.teamName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: calc(12 * var(--pt));
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+/* The chance: 17pt semibold, proportional figures (a standalone number, not a column). */
+.teamValue {
+  font-size: calc(17 * var(--pt));
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: proportional-nums;
+  color: var(--label);
+}
+
+.team[data-draw] .teamValue {
+  font-size: calc(15 * var(--pt));
+}
+
+/* One line, never wrapping: the section picks the longest wording that fits (WinProbabilitySection.tsx); the last resort is cut. */
+.reference {
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* MARK: The plot */
+
+.chart {
+  width: 100%;
+}
+
+.plot {
+  position: relative;
+  width: 100%;
+  border-radius: calc(4 * var(--pt));
+  /* Vertical swipes scroll the page; a horizontal drag scrubs. */
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  outline: none;
+}
+
+/* Focus shows as the crosshair at the newest minute (the scrub's own mark), not a ring. */
+.plot:focus-visible {
+  outline: none;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* The teams' abbreviations in the 30pt gutter, at 100% and at 0%: 10pt, muted, never the team color. */
+.edge {
+  position: absolute;
+  left: 0;
+  width: calc(28 * var(--pt));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(10 * var(--pt));
+  font-weight: 600;
+  line-height: 1;
+  color: var(--label-secondary);
+  pointer-events: none;
+}
+
+.edge[data-edge="bottom"] {
+  translate: 0 -100%;
+}
+
+/* MARK: The live end (moved by the chart during a glide: transform only) */
+
+.end {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The dot: 8pt in the leader's color; the canvas cuts its 2pt ring. */
+.dot {
+  position: absolute;
+  left: calc(-4 * var(--pt));
+  top: calc(-4 * var(--pt));
+  width: calc(8 * var(--pt));
+  height: calc(8 * var(--pt));
+  border-radius: 50%;
+  background: var(--lead);
+}
+
+/*
+ * The pulse, where the dot is going (hidden while it glides there): a 1.5pt ring in its color from 8pt to
+ * 22pt, 0.7 → 0 over 1.1 s, every 1.6 s, only while live and on screen. The compositor runs it; the wrapper
+ * is placed, the ring animates.
+ */
+.pulse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.pulse::after {
+  content: "";
+  position: absolute;
+  left: calc(-11 * var(--pt));
+  top: calc(-11 * var(--pt));
+  width: calc(22 * var(--pt));
+  height: calc(22 * var(--pt));
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: calc(1.5 * var(--pt)) solid var(--lead);
+  opacity: 0;
+  transform: scale(0.364);
+}
+
+.plot[data-live="true"][data-onscreen="true"] .pulse::after {
+  animation: odds-pulse 1.6s infinite;
+}
+
+.plot[data-gliding="true"] .pulse {
+  visibility: hidden;
+}
+
+@keyframes odds-pulse {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.364);
+    animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  68.75% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+/* The momentum chevron, 11pt from the dot's center: above for the top team (or the draw) gaining, below for the bottom team; the gainer's color. */
+.chevron {
+  position: absolute;
+  left: calc(-4 * var(--pt));
+  top: calc(-13.5 * var(--pt));
+  width: calc(8 * var(--pt));
+  height: calc(5 * var(--pt));
+  display: grid;
+  opacity: 0;
+  transition: opacity 300ms var(--ease-out);
+}
+
+.chevron svg {
+  width: 100%;
+  height: 100%;
+}
+
+.chevron[data-dir="down"] {
+  top: calc(8.5 * var(--pt));
+  rotate: 180deg;
+}
+
+.chevron[data-show="true"] {
+  opacity: 1;
+}
+
+/* While a minute is read, the live end steps back. */
+.plot[data-scrubbing="true"] .end,
+.plot[data-scrubbing="true"] .badge,
+.plot[data-scrubbing="true"] .pulse {
+  opacity: 0.25 !important;
+}
+
+/* Liveline's badge: a pill with a tail, in the leader's color, white or near-black type by contrast. */
+.badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: calc(18 * var(--pt));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.badgeShape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.badgeText {
+  position: relative;
+  display: block;
+  padding: 0 calc(7 * var(--pt)) 0 calc(11 * var(--pt));
+  font-family: var(--font-rounded);
+  font-size: calc(10.5 * var(--pt));
+  font-weight: 600;
+  line-height: calc(18 * var(--pt));
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* MARK: The scrub */
+
+.rule {
+  position: absolute;
+  top: 0;
+  left: calc(-0.5 * var(--pt));
+  width: calc(1 * var(--pt));
+  height: 100%;
+  background: var(--viz-reference);
+  pointer-events: none;
+}
+
+.mark {
+  position: absolute;
+  top: calc(-3.5 * var(--pt));
+  left: calc(-3.5 * var(--pt));
+  width: calc(7 * var(--pt));
+  height: calc(7 * var(--pt));
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 calc(2 * var(--pt)) light-dark(#e7e7ea, #0a0a0b);
+  pointer-events: none;
+}
+
+.mark[data-kind="espn"] {
+  top: calc(-3 * var(--pt));
+  left: calc(-3 * var(--pt));
+  width: calc(6 * var(--pt));
+  height: calc(6 * var(--pt));
+  color: var(--label-secondary);
+}
+
+/* One tooltip, every series at that minute: a solid card at most 140pt wide, values lead, sources follow. */
+.tooltip {
+  position: absolute;
+  top: calc(2 * var(--pt));
+  left: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+  max-width: calc(140 * var(--pt));
+  padding: calc(6 * var(--pt)) calc(8 * var(--pt));
+  border-radius: calc(8 * var(--pt));
+  background: light-dark(rgb(255 255 255 / 0.97), rgb(44 44 47 / 0.97));
+  box-shadow:
+    0 calc(2 * var(--pt)) calc(8 * var(--pt)) light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.4)),
+    inset 0 0 0 calc(0.5 * var(--pt)) var(--stroke-hairline);
+  pointer-events: none;
+}
+
+.tooltip[data-edge="bottom"] {
+  top: auto;
+  bottom: calc(2 * var(--pt));
+}
+
+.tipWhen {
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 500;
+  color: var(--label-secondary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tipRows {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  column-gap: calc(5 * var(--pt));
+  row-gap: calc(1 * var(--pt));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tipRows li {
+  display: contents;
+}
+
+.tipRows strong {
+  font-size: calc(11 * var(--pt));
+  font-weight: 600;
+  color: var(--label);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tipRows span:not(.key) {
+  font-size: calc(10 * var(--pt));
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+/* Line keys, not boxes. */
+.key {
+  width: calc(10 * var(--pt));
+  height: calc(2 * var(--pt));
+  border-radius: 1px;
+  background: var(--c);
+}
+
+.key[data-kind="espn"] {
+  opacity: 0.3;
+}
+
+.tipPlay {
+  font-size: calc(10 * var(--pt));
+  color: var(--label-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+/* MARK: Under the plot */
+
+.periods {
+  position: relative;
+  height: calc(15 * var(--pt));
+}
+
+.periods span {
+  position: absolute;
+  top: calc(3 * var(--pt));
+  translate: -50% 0;
+  font-size: calc(9 * var(--pt));
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
+/* The legend, then the source line: freshness and money at the leading edge, "Polymarket ↗" at the trailing. */
+.footer {
+  display: flex;
+  flex-direction: column;
+}
+
+.source {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: calc(10 * var(--pt));
+  padding-top: calc(4 * var(--pt));
+  font-size: calc(10 * var(--pt));
+  color: var(--label-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(2 * var(--pt));
+  color: var(--label-secondary);
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .link:hover {
+    color: var(--label);
+    text-decoration: underline;
+  }
+}
+
+.freshness {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(4 * var(--pt));
+}
+
+.fresh {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+}
+
+.liveDot {
+  width: calc(5 * var(--pt));
+  height: calc(5 * var(--pt));
+  border-radius: 50%;
+  background: var(--live);
+}
+
+/* Legend keys, mirroring the marks. */
+.swatchSplit {
+  width: calc(12 * var(--pt));
+  height: calc(2 * var(--pt));
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--a) 50%, var(--b) 50%);
+}
+
+.swatchLine {
+  width: calc(12 * var(--pt));
+  height: calc(2 * var(--pt));
+  border-radius: 1px;
+  background: light-dark(rgb(0 0 0 / 0.28), rgb(255 255 255 / 0.32));
+}
+
+/* A 7pt diamond: a 5pt square turned. */
+.swatchDiamond {
+  width: calc(5 * var(--pt));
+  height: calc(5 * var(--pt));
+  border-radius: 0.5px;
+  background: var(--viz-neutral);
+  rotate: 45deg;
+}
+
+.swatchBand {
+  width: calc(10 * var(--pt));
+  height: calc(8 * var(--pt));
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--c) 45%, transparent);
+}
+
+/* Reduce Motion: no pulse, and the chevron appears and goes without a fade. */
+@media (prefers-reduced-motion: reduce) {
+  .plot .pulse::after,
+  .plot[data-live="true"][data-onscreen="true"] .pulse::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  .chevron {
+    transition: none;
+  }
+}
