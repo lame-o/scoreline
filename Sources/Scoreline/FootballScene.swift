@@ -177,6 +177,31 @@ struct FootballScene: Equatable, Identifiable {
         var noPlay: Bool
     }
 
+    /// A second look at the play: a coach's challenge (the red flag) or the
+    /// replay official's review (college's automatic one), what was looked
+    /// at, and how it came out. ESPN edits the entry once it's decided: the
+    /// play as it stands, then "Atlanta challenged the runner was out of
+    /// bounds ruling, and the play was Upheld.", "The Replay Official
+    /// reviewed the pass completion ruling, and the play was REVERSED.",
+    /// college's "The previous play is under automatic review -
+    /// "Targeting". CALL UPHELD".
+    struct Review: Equatable {
+        enum Kind: Equatable { case challenge, booth }
+        var kind: Kind
+        /// Who threw the red flag (a challenge).
+        var side: GameDetail.Side?
+        /// The ruling looked at, in the text's words ("runner was out of bounds", "Targeting").
+        var ruling: String
+        var reversed: Bool
+    }
+
+    /// A man hurt on the play ("PHI-Q.Mitchell was injured during the play."): the injury timeout after it.
+    struct Injury: Equatable {
+        var side: GameDetail.Side?
+        /// "Q.Mitchell".
+        var name: String
+    }
+
     let id: String
     var kind: Kind
     /// The team that snapped or kicked.
@@ -242,6 +267,13 @@ struct FootballScene: Equatable, Identifiable {
     var names: [String: String] = [:]
     var text = ""
     var wallclock: Date?
+    /// The quarter (5 on: overtime) and the clock at the snap ("13:55"): which
+    /// way the field faces, and the two-minute drill.
+    var period: Int?
+    var clock: String?
+    /// The challenge or review it had, and anyone hurt on it.
+    var review: Review?
+    var injuries: [Injury] = []
 
     /// The line to gain before the snap; nil on goal to go.
     var gainBefore: Double? {
@@ -311,6 +343,8 @@ struct FootballScene: Equatable, Identifiable {
         scene.pointAfter = attempt.kind
         scene.text = attempt.text
         scene.wallclock = wallclock
+        scene.period = period
+        scene.clock = clock
         scene.scoring = attempt.good && !kick ? .touchdown : nil
         scene.yards = attempt.good && !kick ? 2 : 0
         scene.shotgun = attempt.kind == .pass
@@ -367,6 +401,14 @@ struct FootballTheaterState: Equatable {
     var news = false
     /// Both teams' depth charts (NFL), once fetched: who starts where.
     var charts: [GameDetail.Side: FootballDepthChart] = [:]
+    /// The snaps that came in while the page was open, oldest first, the
+    /// last of them `play`: several can arrive in one look, and each replays.
+    var queue: [FootballScene] = []
+    /// What ESPN posted after the last snap, if it stopped play: a timeout,
+    /// a TV timeout, the two-minute warning, the end of a quarter.
+    var stoppage: FootballStoppage?
+    /// When the feed last brought anything: the heartbeat counts from it.
+    var heard: Date?
 }
 
 /// A team's NFL depth chart (ESPN core `seasons/{year}/teams/{id}/depthcharts`):
@@ -539,6 +581,11 @@ extension FootballScene {
             scene.penalty = Penalty(name: nil, yards: abs(scene.yards), noPlay: text.range(of: "no play", options: .caseInsensitive) != nil)
         }
         scene.names = college ? collegeNames(play) : names(play)
+        scene.period = item["period"]["number"].int
+        scene.clock = item["clock"]["displayValue"].string
+        scene.review = review(text, teams: teams)
+        scene.injuries = text.matches(of: #/\b([A-Z]{2,4})-([A-Z][A-Za-z]{0,2}\.\s?[A-Z][A-Za-z'\-]+(?: (?:Jr\.|Sr\.|III|II|IV))?) was injured during the play/#)
+            .map { Injury(side: team($0.1), name: String($0.2)) }
 
         // What only the text says.
         let lower = play.lowercased()
@@ -890,6 +937,24 @@ extension FootballScene {
         return between || late.contains { key.contains($0) } ? .afterPlay : .duringPlay
     }
 
+    /// The challenge or review in a play's text, once ESPN has written its
+    /// outcome in: the NFL's coach's challenge (the team by its city, "Los
+    /// Angeles Rams challenged the pass completion ruling, and the play was
+    /// REVERSED.") and the replay official's review; college's automatic
+    /// review ("… under automatic review - "Targeting". CALL UPHELD"). (pure; tested)
+    static func review(_ text: String, teams: FootballFeed.Teams) -> Review? {
+        if let m = text.firstMatch(of: #/([A-Z][A-Za-z.&' ]+?) challenged the (.+?) ruling, and the play was (?i:(upheld|reversed))/#) {
+            return Review(kind: .challenge, side: teams.side(named: String(m.1)), ruling: String(m.2), reversed: m.3.lowercased() == "reversed")
+        }
+        if let m = text.firstMatch(of: #/Replay Official reviewed the (.+?) ruling, and the play was (?i:(upheld|reversed))/#) {
+            return Review(kind: .booth, ruling: String(m.1), reversed: m.2.lowercased() == "reversed")
+        }
+        if let m = text.firstMatch(of: #/under (?:automatic )?review - "([^"]+)"\.? ?CALL (UPHELD|OVERTURNED|CONFIRMED|STANDS|REVERSED)/#) {
+            return Review(kind: .booth, ruling: String(m.1), reversed: m.2 == "OVERTURNED" || m.2 == "REVERSED")
+        }
+        return nil
+    }
+
     // MARK: Text
 
     /// Which end each spot's letters in the text name, home (true) or away:
@@ -1059,6 +1124,28 @@ extension FootballFeed.Teams {
         let home = Self.keys(homeAbbreviation, homeName).contains(key), away = Self.keys(awayAbbreviation, awayName).contains(key)
         return home == away ? nil : home
     }
+
+    /// The team a name in the text means: an NFL challenge names its team by
+    /// its city ("Atlanta", "Los Angeles Rams"), college's timeout by its
+    /// name ("Timeout Texas A&M"); else its letters. (pure; tested)
+    func side(named name: String) -> GameDetail.Side? {
+        let key = Self.key(name)
+        guard !key.isEmpty else { return nil }
+        func home(_ abbreviation: String, _ full: String) -> Bool {
+            Self.key(full) == key || Self.key(abbreviation) == key || Self.locations[abbreviation].map { Self.key($0) == key } == true
+        }
+        let isHome = home(homeAbbreviation, homeName), isAway = home(awayAbbreviation, awayName)
+        let found = isHome != isAway ? isHome : self.isHome(name)
+        return found.map { $0 == topIsHome ? .top : .bottom }
+    }
+
+    /// Where each NFL team is from, as a challenge names it.
+    static let locations = ["ARI": "Arizona", "ATL": "Atlanta", "BAL": "Baltimore", "BUF": "Buffalo", "CAR": "Carolina", "CHI": "Chicago",
+                            "CIN": "Cincinnati", "CLE": "Cleveland", "DAL": "Dallas", "DEN": "Denver", "DET": "Detroit", "GB": "Green Bay",
+                            "HOU": "Houston", "IND": "Indianapolis", "JAX": "Jacksonville", "KC": "Kansas City", "LV": "Las Vegas",
+                            "LAC": "Los Angeles Chargers", "LAR": "Los Angeles Rams", "MIA": "Miami", "MIN": "Minnesota", "NE": "New England",
+                            "NO": "New Orleans", "NYG": "New York Giants", "NYJ": "New York Jets", "PHI": "Philadelphia", "PIT": "Pittsburgh",
+                            "SF": "San Francisco", "SEA": "Seattle", "TB": "Tampa Bay", "TEN": "Tennessee", "WSH": "Washington"]
 
     /// The gamebook's codes where they aren't ESPN's abbreviations.
     static let gamebook = ["ARI": "ARZ", "BAL": "BLT", "CLE": "CLV", "HOU": "HST", "LAR": "LA", "WSH": "WAS"]

@@ -221,10 +221,11 @@ extension ScorelineTests {
             check(s.batted == nil && s.actors[9].position(at: .infinity) == Ballpark.lead(1), "a walk: no ball in play; the batter ends at first, leading off")
         }
         check(script(looking)?.actors[9].swing == nil && script(swinging)?.actors[9].swing != nil, "looking, he doesn't swing; swinging, he does")
-        // At rest: fielders home, the ball put away, runners leading off the bases the play left.
-        if let s = script(single) {
-            check((0..<9).allSatisfy { s.actors[$0].position(at: .infinity) == Ballpark.position($0 + 1) } && s.ball(at: .infinity) == nil,
-                  "after a play the fielders walk back and the ball is put away")
+        // At rest: fielders home (the first baseman holding the runner on), the ball put away, runners leading off the bases the play left.
+        if let s = script(single), let after = single?.basesAfter {
+            check((0..<9).allSatisfy { s.actors[$0].position(at: .infinity) == PlayScript.Rest(bases: after).spot($0 + 1) } && s.ball(at: .infinity) == nil
+                  && s.actors[2].position(at: .infinity) == (after[0] ? Ballpark.holding : Ballpark.position(3)),
+                  "after a play the fielders walk back (the first baseman to hold a runner on) and the ball is put away")
             let box = Ballpark.box(.right)
             let runners = s.actors.filter { $0.team == .batting && $0.opacity(at: .infinity) > 0.99 }.map { $0.position(at: .infinity) }
             check(Set(runners.map { "\($0)" }) == Set([Ballpark.lead(1), Ballpark.lead(2), box].map { "\($0)" }),

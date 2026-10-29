@@ -1,25 +1,40 @@
 import SwiftUI
 
-// The basketball theater: in the Shot Chart section, above the court, the
-// newest basket replayed on an isometric court as it arrives from the live
-// lane, shot like a broadcast. The camera opens on the half court with both
-// fives set, follows the ball to the man it goes to, frames the shooter and
-// the rim as the shot goes up, and settles on the rim as the stamp lands
-// ("+3 3PT", "BROWN JR. · 23 FT JUMP SHOT", "AST ELLIS"). Marquee plays get a
-// headline across the top (DUNK, AND-ONE, POSTERIZED, BUZZER-BEATER,
-// REJECTED); a buzzer-beater's confetti comes off it. The shot chart under it,
-// and its shot story, is its caption.
+// The basketball theater: in the Shot Chart section, above the court, every
+// play of a live game told on an isometric court as it arrives from the live
+// lane, in order, shot like a broadcast. A basket (a block, a buzzer-beater)
+// replays in full: the camera opens on the half court with both fives set,
+// follows the ball to the man it goes to, frames the shooter and the rim as
+// the shot goes up, and settles on the rim as the stamp lands ("+3 3PT",
+// "BROWN JR. · 23 FT JUMP SHOT", "AST ELLIS"); marquee plays get a headline
+// across the top (DUNK, AND-ONE, POSTERIZED, BUZZER-BEATER, REJECTED), a
+// buzzer-beater's confetti off it. Everything else is a lighter beat that
+// carries on from where the court stood (BasketballBeats.swift): each miss
+// and its rebound, each free throw, each whistle and turnover, the jump
+// balls, substitutions, timeouts, reviews and the ends of periods; between
+// plays the court rests possession-aware, a small beat every few seconds.
+// The running order and what the tag says are BasketballFlow.swift's.
+//
+// Over the court: the broadcast tag (SPURS BALL, SHOOTING FOUL · HAYES,
+// TIMEOUT · JAZZ, END OF 3RD), the heartbeat ("Live · 4s"), and on hover the
+// control that turns the court round to match the viewer's TV (remembered
+// per game). The theater takes the broadcast's ends (`HoopsEnds`: swapped at
+// halftime); the shot chart under it keeps its whole-game convention (the
+// top team at the right basket all game, as its caption says), because it
+// lays every shot of both halves on one court and a team's shots split
+// across both ends would read as two teams. It's the theater's caption, not
+// its mirror.
 //
 // Built from the other theaters' parts: the projection and camera framing,
 // the rig's figures, the ball and its comet tail, the type (TheaterKit.swift,
 // TheaterRig.swift). Drawn in one Canvas, the court and the players together
 // through the camera, so lines stay crisp at any zoom and the two never
-// disagree on it. A TimelineView exists only while a replay runs; between
-// plays the court is static, the team with the ball set in its half. Plays
-// already on the page when it opened show as nothing (the live court); a new
-// one mid-replay cuts to itself; with Reduce Motion each play crossfades to
-// how it ended and the camera never moves. Decorative for VoiceOver: the shot
-// chart carries the play.
+// disagree on it. A TimelineView exists only while something moves; between
+// the court's sparse beats it's a still frame. Plays already on the page
+// when it opened aren't told (the live court); with Reduce Motion each play
+// crossfades to how it ended, the camera never moves, nothing idles, and the
+// tags still say what's happening. Decorative for VoiceOver (the shot chart
+// carries the play), all but the turn control.
 
 // MARK: - Court
 
@@ -366,6 +381,20 @@ enum HoopPose {
                               rightArm: RigArm(swing: 2.95, spread: 0.85, turn: 0.3, bend: 0.15))
     /// The tip: one hand straight up at it.
     static let tip = RigPose(hip: RigVector(0, 0, 0.49), leftArm: RigArm(swing: 2.6, spread: 0.2, bend: 0.3), rightArm: RigArm(swing: 3.05, spread: 0.08, bend: 0.06))
+    /// A hand on him: the reach that draws a whistle, the arm out at his chest.
+    static let reach = RigPose(hip: RigVector(0.03, 0, 0.42), lean: 0.4, left: RigVector(0.16, 0.1, 0), right: RigVector(-0.14, -0.12, 0), knees: 0.25,
+                               leftArm: RigArm(swing: 0.6, spread: 0.5, turn: -0.2, bend: 0.5), rightArm: RigArm(swing: 1.45, spread: 0.12, turn: -0.2, bend: 0.15))
+    /// Knocked down by the charge: on his back, arms flung out.
+    static let fallen = RigPose(hip: RigVector(-0.1, 0, 0.12), pitch: -1.45, nod: 0.35, left: RigVector(0.02, 0.1, -0.36),
+                                right: RigVector(0.06, -0.1, -0.3), knees: 0.3, leftArm: RigArm(swing: 2.5, spread: 0.55, bend: 0.4),
+                                rightArm: RigArm(swing: 2.3, spread: 0.6, bend: 0.5))
+    /// A referee's call: a fist straight up (a foul, a timeout), the other arm at his side.
+    static let signal = RigPose(leftArm: RigArm(swing: 0.25, spread: 0.2, turn: -0.2, bend: 0.3), rightArm: RigArm(swing: 3.05, spread: 0.05, turn: 0.2, bend: 0.12))
+    /// Pointing the way the ball goes now: the arm out level.
+    static let point = RigPose(turn: 0.35, leftArm: RigArm(swing: 0.2, spread: 0.2, bend: 0.3), rightArm: RigArm(swing: 1.55, spread: 0.45, turn: 0.35, bend: 0.05))
+    /// Hands on his hips, waiting on a free throw.
+    static let hips = RigPose(hip: RigVector(0, 0, 0.49), leftArm: RigArm(swing: 0.3, spread: 0.75, turn: -0.9, bend: 1.9),
+                              rightArm: RigArm(swing: 0.3, spread: 0.75, turn: -0.9, bend: 1.9))
     /// The steal: lunging, a hand out low at the ball.
     static let steal = RigPose(hip: RigVector(0.04, 0, 0.38), lean: 0.65, left: RigVector(0.24, 0.1, 0), right: RigVector(-0.22, -0.12, 0), knees: 0.3,
                                leftArm: RigArm(swing: 0.4, spread: 0.6, bend: 0.4), rightArm: RigArm(swing: 1.35, spread: 0.18, turn: -0.2, bend: 0.1))
@@ -428,6 +457,7 @@ struct BasketballFrame: View, Equatable {
     private func posed(_ h: HoopProjection) -> [Posed] {
         let carrier = script.carrier(at: t)
         return script.players.indices
+            .filter { script.players[$0].opacity(at: t) > 0.01 }
             .map { (index: $0, at: script.players[$0].position(at: t)) }
             .sorted { h.depth($0.at) > h.depth($1.at) }
             .map { index, at in
@@ -467,7 +497,8 @@ struct BasketballFrame: View, Equatable {
         let w = h.figure * 0.26
         for p in figures {
             let air = min(p.figure.air / 0.35, 1)
-            TheaterDraw.shadow(at: p.figure.ground, radius: w * (1 - 0.35 * air), color: ink.shadow.opacity(1 - 0.5 * air), in: context)
+            let seen = script.players[p.index].opacity(at: t)
+            TheaterDraw.shadow(at: p.figure.ground, radius: w * (1 - 0.35 * air), color: ink.shadow.opacity((1 - 0.5 * air) * seen), in: context)
         }
         // The ball's: larger and softer the higher it flies.
         if let ball = script.ball(at: t), ball.z > 0.6, script.flight(at: t) != nil {
@@ -481,8 +512,16 @@ struct BasketballFrame: View, Equatable {
 
     private func drawPlayers(_ context: inout GraphicsContext, _ h: HoopProjection, _ figures: [Posed]) {
         let offense = FigureInks(teams.offense, ink: ink, in: context), defense = FigureInks(teams.defense, ink: ink, in: context)
+        // The referee, only when one comes in to make a call: the zebra shirt.
+        let official = script.players.contains { $0.team == .official } ? FigureInks(.zebra(dark: ink.dark), ink: ink, in: context) : offense
         for p in figures {
-            TheaterDraw.figure(p.figure, inks: script.players[p.index].team == .offense ? offense : defense, height: h.figure, opacity: 1, in: context)
+            let player = script.players[p.index]
+            let inks = switch player.team {
+            case .offense: offense
+            case .defense: defense
+            case .official: official
+            }
+            TheaterDraw.figure(p.figure, inks: inks, height: h.figure, opacity: player.opacity(at: t), in: context)
         }
     }
 
@@ -500,7 +539,7 @@ struct BasketballFrame: View, Equatable {
         func smooth(_ u: Double) -> Double { Rig.smooth(u) }
         // How he stands: ready, or down in his stance on defense; at ease a beat after the ball's through.
         let ease = script.score.map { smooth((t - $0 - 0.7) / 0.5) } ?? 0
-        let stance = player.team == .defense ? HoopPose.guarding : HoopPose.ready
+        let stance = player.team == .defense ? HoopPose.guarding : player.team == .official ? .stand : HoopPose.ready
         let still = stance.mix(.stand, ease)
         let feet = track.feet(at: t, anchor: here, heading: m.heading, unit: unit, speed: m.speed, stand: (still.left, still.right))
         var body = still.mix(.gait(m, feet: feet), m.weight)
@@ -560,8 +599,22 @@ struct BasketballFrame: View, Equatable {
             case .rebound:
                 body = body.over(.catchHigh, envelope(x, attack: 0.25, release: 0.35), moving: m.weight)
             case .boxOut:
-                guard x > -0.2, t < script.settle else { continue }
+                guard x > -0.2, t < script.settle || script.formation == .lane else { continue }
                 body = body.over(HoopPose.boxOut, smooth((x + 0.2) / 0.25) * (1 - ease), moving: m.weight * 0.6)
+            case .reach:
+                body = body.over(HoopPose.reach, envelope(x, attack: 0.22, release: 0.55), moving: m.weight * 0.6)
+            case .fall:
+                // Down, and stays down while the call's made.
+                guard x > -0.02 else { continue }
+                body = body.over(HoopPose.fallen, smooth(x / 0.35), moving: 0)
+            case .signal, .point:
+                body = body.over(action.kind == .signal ? HoopPose.signal : HoopPose.point, envelope(x, attack: 0.15, release: 1.3), moving: m.weight)
+            case .toss:
+                body = body.over(HoopPose.wall, envelope(x, attack: 0.3, release: 0.45), moving: m.weight)
+            case .hips:
+                // Until he moves again.
+                guard x > -0.3 else { continue }
+                body = body.over(HoopPose.hips, smooth((x + 0.3) / 0.3) * (1 - min(m.weight * 2, 1)), moving: m.weight)
             }
         }
 
@@ -652,6 +705,29 @@ struct BasketballFrame: View, Equatable {
                 let r = (2 + 7 * Motion.curve.value(at: u)) * unit
                 context.stroke(Path(ellipseIn: CGRect(x: g.x - r, y: g.y - r / 2, width: 2 * r, height: r)),
                                with: .color(ink.trace.opacity(0.75 * (1 - u))), lineWidth: 1.2)
+            case .whistle:
+                // The whistle: short ticks off the referee's head.
+                guard age >= 0, age < 0.4 else { continue }
+                let u = age / 0.4
+                var ticks = Path()
+                for i in 0..<5 {
+                    let a = -.pi / 2 + (Double(i) - 2) * 0.42
+                    ticks.move(to: CGPoint(x: c.x + cos(a) * (1.2 + 1.4 * u) * unit, y: c.y + sin(a) * (1.2 + 1.4 * u) * unit))
+                    ticks.addLine(to: CGPoint(x: c.x + cos(a) * (2.2 + 2.4 * u) * unit, y: c.y + sin(a) * (2.2 + 2.4 * u) * unit))
+                }
+                context.stroke(ticks, with: .color(ink.trace.opacity(0.85 * (1 - u))), style: StrokeStyle(lineWidth: max(unit * 0.2, 0.9), lineCap: .round))
+            case .horn:
+                // The horn: the backboards' red edge lit, as the arena's are.
+                guard age >= 0, age < 1.6 else { continue }
+                let glow = (age < 0.2 ? age / 0.2 : 1) * (1 - Rig.smooth((age - 1.1) / 0.5))
+                for end in [-1.0, 1.0] {
+                    let board = end > 0 ? Hoops.board : Hoops.length - Hoops.board, y = Hoops.width / 2
+                    var pane = Path()
+                    pane.addLines([h.point(CGPoint(x: board, y: y - 3), z: Hoops.boardBottom), h.point(CGPoint(x: board, y: y + 3), z: Hoops.boardBottom),
+                                   h.point(CGPoint(x: board, y: y + 3), z: Hoops.boardTop), h.point(CGPoint(x: board, y: y - 3), z: Hoops.boardTop)])
+                    pane.closeSubpath()
+                    context.stroke(pane, with: .color(Color.red.opacity(0.85 * glow)), lineWidth: max(h.scale * 0.35, 1.6))
+                }
             case .rim:
                 guard age >= 0, age < 0.25 else { continue }
                 let u = age / 0.25
@@ -674,7 +750,7 @@ struct BasketballFrame: View, Equatable {
     }
 
     private func color(_ side: GameDetail.Side?) -> Color {
-        guard let side, let offense = scene?.offense else { return .primary }
+        guard let side, let offense = script.side ?? scene?.offense else { return .primary }
         return side == offense ? teams.offense.accent : teams.defense.accent
     }
 
@@ -683,7 +759,7 @@ struct BasketballFrame: View, Equatable {
     /// small capitals under it.
     @ViewBuilder
     private var stamp: some View {
-        if let scene {
+        if let scene, script.stamp.isFinite, !BasketballStamp(scene).parts.isEmpty {
             let stamp = BasketballStamp(scene)
             let size = TheaterType.stamp(self.size)
             let tone: Color = switch stamp.tone {
@@ -740,52 +816,123 @@ struct BasketballTheater: View {
     var topIsHome = false
     var topName = ""
     var bottomName = ""
+    /// The teams as a tag names them ("SPURS BALL"), when not their codes.
+    var topTeam = ""
+    var bottomTeam = ""
+    /// The game: the court's turn is remembered for it.
+    var eventID = ""
+    /// The period without a lane (the ends swap at halftime).
+    var period: Int? = nil
 
     var body: some View {
         BasketballStage(state: feed?.theater ?? preloaded ?? BasketballTheaterState(), possession: feed?.possession ?? restOffense,
-                        palette: palette, kits: kits, topIsHome: topIsHome, homeName: topIsHome ? topName : bottomName)
-    }
-
-    /// What the stage shows: a play replaying, then its end until it has held
-    /// (`rested`); a new play not yet begun; otherwise nil, the game as it
-    /// stands (the team with the ball set in its half). History that isn't
-    /// news is never shown: on opening the page, the court is the live one. (pure; tested)
-    static func shown(_ state: BasketballTheaterState, replaying: String?, rested: String?) -> BasketballScene? {
-        guard let scene = state.scene else { return nil }
-        if replaying == scene.id { return rested == scene.id ? nil : scene }
-        return state.news ? scene : nil
+                        period: feed?.period ?? period, live: feed?.playing ?? false, palette: palette, kits: kits, topIsHome: topIsHome,
+                        homeName: topIsHome ? topName : bottomName,
+                        names: (topTeam.isEmpty ? topName : topTeam, bottomTeam.isEmpty ? bottomName : bottomTeam), eventID: eventID,
+                        onReplay: { feed?.replay($0) })
     }
 }
 
-/// The theater's stage: the court and one frame of the play through the
-/// camera (a TimelineView only while it replays), and its celebration.
+/// The theater's stage: whatever is being told (a replay, a beat), or the
+/// court between plays, through the camera; a TimelineView only while
+/// something moves (a replay, a beat, the opening and the sparse beats of
+/// the court between plays), the frame still in between. The broadcast tag
+/// at the top, the heartbeat at the bottom, the court's turn on hover.
 private struct BasketballStage: View {
     let state: BasketballTheaterState
     let possession: GameDetail.Side?
+    let period: Int?
+    let live: Bool
     let palette: TeamPalette
     let kits: TheaterKits?
     let topIsHome: Bool
     let homeName: String
+    let names: (top: String, bottom: String)
+    let eventID: String
+    /// A replay starts (its play), or something else does (nil).
+    let onReplay: (String?) -> Void
+    @AppStorage private var flipped: Bool
     @Environment(\.celebrationClock) private var clock
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
-    /// The replay on screen: which play, when it began, and whether it's over.
-    @State private var replay: Replay?
-    /// The play's script, built once (a body run for anything else reuses it).
+    /// What's being told, from when.
+    @State private var showing: Showing?
+    /// The court between plays, from when.
+    @State private var resting: Resting?
+    /// What's been told (or passed over), the last of it, and the stoppage it left.
+    @State private var told = Told()
+    /// One of the court's sparse beats is moving.
+    @State private var animating = false
+    @State private var hovering = false
+    /// The scripts on screen, built once (a body run for anything else reuses them).
     @State private var built = BasketballScripts()
-    /// A replayed play's end that has had its time on screen.
-    @State private var rested: String?
 
-    struct Replay: Equatable {
-        let id: String
+    init(state: BasketballTheaterState, possession: GameDetail.Side?, period: Int?, live: Bool, palette: TeamPalette, kits: TheaterKits?,
+         topIsHome: Bool, homeName: String, names: (top: String, bottom: String), eventID: String, onReplay: @escaping (String?) -> Void) {
+        self.state = state
+        self.possession = possession
+        self.period = period
+        self.live = live
+        self.palette = palette
+        self.kits = kits
+        self.topIsHome = topIsHome
+        self.homeName = homeName
+        self.names = names
+        self.eventID = eventID
+        self.onReplay = onReplay
+        _flipped = AppStorage(wrappedValue: false, TheaterOrientation.key(eventID))
+    }
+
+    struct Showing: Equatable {
+        let unit: BasketballQueue.Unit
+        /// Where the court stood as it began (nil: a replay's own set).
+        let from: Lineup?
+        let fallback: GameDetail.Side?
         let start: Date
         var done = false
+    }
+
+    struct Resting: Equatable {
+        let rest: BasketballScript.Rest
+        let start: Date
+    }
+
+    struct Told: Equatable {
+        var cursor: String?
+        var ids = Set<String>()
+        /// The last play told that wasn't a substitution: the stoppage the tag keeps saying.
+        var context: BasketballScene?
+        /// The court before the last thing told.
+        var rest: BasketballScript.Rest?
     }
 
     /// Half as tall as wide, up to this.
     static let maxHeight: CGFloat = 320
 
-    private var shown: BasketballScene? { BasketballTheater.shown(state, replaying: replay?.id, rested: rested) }
+    // MARK: What's on screen
+
+    /// The ends for a period (the turn included).
+    private func ends(_ period: Int?) -> HoopsEnds { HoopsEnds(period: period ?? self.period, topIsHome: topIsHome, flipped: flipped) }
+
+    /// On the harness's frozen clock: the first news there is, else the court the plays left.
+    private var frozenUnit: BasketballQueue.Unit? { BasketballQueue.next(after: nil, told: [], in: state) }
+
+    private var historyRest: BasketballScript.Rest {
+        BasketballFlow.rest(after: state.plays.last { $0.kind != .substitution }, previous: nil, from: nil,
+                            ends: ends(state.plays.last?.period), possession: possession)
+    }
+
+    private func script(_ showing: Showing) -> BasketballScript {
+        built.unit(showing.unit, from: showing.from, ends: ends(showing.unit.scene.period), fallback: showing.fallback)
+    }
+
+    private func script(_ resting: Resting) -> BasketballScript {
+        var rest = resting.rest
+        rest.ends = ends(restPeriod)
+        return built.rest(rest)
+    }
+
+    private var restPeriod: Int? { told.context?.period ?? state.plays.last?.period ?? period }
 
     private func teams(_ offense: GameDetail.Side) -> BasketballTeams {
         let dressed: (top: Uniform, bottom: Uniform)
@@ -804,95 +951,241 @@ private struct BasketballStage: View {
         HoopsCourtLayer.Paint(color: TheaterTeams.solid(topIsHome ? palette.top : palette.bottom, scheme), name: homeName.uppercased())
     }
 
-    /// Seconds into the play on screen; infinity once it has ended (or was never replayed).
-    private func time(at date: Date) -> Double {
-        if case let .frozen(t) = clock { return t }
-        guard let play = shown else { return .infinity }
-        if let replay, replay.id == play.id { return replay.done ? .infinity : date.timeIntervalSince(replay.start) }
-        return state.news && !reduceMotion ? 0 : .infinity
+    private func tint(_ side: GameDetail.Side?) -> String? {
+        guard let side else { return nil }
+        return side == .top ? kits?.top.color : kits?.bottom.color
     }
 
-    private var playing: Bool {
-        guard clock == .live, let play = shown else { return false }
-        if let replay, replay.id == play.id { return !replay.done }
-        return state.news && !reduceMotion
+    private struct Now {
+        var script: BasketballScript
+        var scene: BasketballScene?
+        var unit: BasketballQueue.Unit?
+        var start: Date?
+        var moving: Bool
+        var key: String
+    }
+
+    private func current(_ date: Date) -> Now {
+        if case .frozen = clock {
+            if let unit = frozenUnit {
+                let s = built.unit(unit, from: nil, ends: ends(unit.scene.period), fallback: possession)
+                return Now(script: s, scene: unit.scene, unit: unit, start: nil, moving: false, key: unit.scene.id)
+            }
+            var rest = historyRest
+            rest.ends = ends(state.plays.last?.period)
+            return Now(script: built.rest(rest), scene: nil, unit: nil, start: nil, moving: false, key: "rest")
+        }
+        if let showing {
+            let s = script(showing)
+            return Now(script: s, scene: showing.unit.scene, unit: showing.unit, start: showing.start, moving: !showing.done && !reduceMotion,
+                       key: showing.unit.scene.id)
+        }
+        let resting = resting ?? Resting(rest: historyRest, start: date)
+        return Now(script: script(resting), scene: nil, unit: nil, start: resting.start, moving: animating && !reduceMotion,
+                   key: "rest-\(resting.rest.seed)-\(resting.rest.round)")
+    }
+
+    /// Seconds into what's on screen.
+    private func time(_ now: Now, at date: Date) -> Double {
+        if case let .frozen(t) = clock { return t }
+        guard let start = now.start else { return now.unit == nil ? 0 : .infinity }
+        if let showing, showing.done { return .infinity }
+        if now.unit == nil, reduceMotion { return now.script.active.first?.upperBound ?? 0 }
+        return max(date.timeIntervalSince(start), 0)
+    }
+
+    private func status(_ now: Now, t: Double) -> TheaterStatus {
+        let said: (text: String, side: GameDetail.Side?)?
+        if let unit = now.unit {
+            said = BasketballStatus.during(unit: unit, script: now.script, t: t, names: names)
+        } else {
+            let context = told.context ?? state.plays.last { $0.kind != .substitution }
+            said = BasketballStatus.between(context: context, rest: resting?.rest ?? historyRest, names: names)
+        }
+        return TheaterStatus(tag: said?.text, tint: tint(said?.side), updated: state.heard)
     }
 
     var body: some View {
-        let play = shown
-        let script = play.map(built.script(for:)) ?? built.rest(BasketballScript.Rest(offense: possession))
+        let now = current(.now)
         let ink = TheaterInk(scheme)
-        let teams = teams(play?.offense ?? possession ?? .top), paint = paint
+        let teams = teams(now.script.side ?? .top), paint = paint
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 Group {
-                    if playing {
+                    if now.moving {
                         TimelineView(.animation) { context in
-                            BasketballFrame(scene: play, script: script, t: time(at: context.date), teams: teams, ink: ink, size: geo.size, paint: paint)
-                                .equatable()
+                            picture(now, t: time(now, at: context.date), teams: teams, ink: ink, size: geo.size, paint: paint)
                         }
-                        .transition(.identity)
                     } else {
-                        BasketballFrame(scene: play, script: script, t: time(at: .now), teams: teams, ink: ink, size: geo.size, paint: paint)
-                            .equatable()
-                            .transition(.identity)
+                        picture(now, t: time(now, at: .now), teams: teams, ink: ink, size: geo.size, paint: paint)
                     }
                 }
-                // A replay cuts in; a play that isn't replayed (or the court changing ends) crossfades.
-                .id(play?.id ?? "rest-\(possession.map { "\($0)" } ?? "none")")
-                .transition(playing ? .identity : .opacity.animation(.easeInOut(duration: 0.35)))
-                if let play {
-                    BasketballCelebrationStage(play: play, script: script, size: geo.size, colors: (teams.offense.accent, teams.defense.accent),
-                                               start: replay?.id == play.id ? replay?.start : nil)
-                        .id(play.id)
+                // A replay cuts in; anything else crossfades (the same floor from the same side: no change at all).
+                .id(now.key)
+                .transition(now.unit?.marquee == true ? .identity : .opacity.animation(.easeInOut(duration: 0.28)))
+                .accessibilityHidden(true)
+                if let unit = now.unit, unit.marquee {
+                    BasketballCelebrationStage(play: unit.scene, script: now.script, size: geo.size, colors: (teams.offense.accent, teams.defense.accent),
+                                               start: now.start)
+                        .id(unit.scene.id)
+                        .accessibilityHidden(true)
                 }
+                if live || clock != .live {
+                    TheaterHeartbeat(updated: state.heard, source: "ESPN")
+                        .padding(7)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                }
+                TheaterFlipButton(eventID: eventID, surface: "court")
+                    .padding(7)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .opacity(hovering ? 1 : 0)
+                    .animation(Motion.fade, value: hovering)
             }
         }
         // The well spans the column, so its edges line up with the court under it.
         .modifier(HoopsWellHeight(cap: Self.maxHeight))
         .vizWell(padding: 0)
-        .accessibilityHidden(true)
-        .onAppear(perform: begin)
-        .onChange(of: state.scene?.id) { _, _ in begin() }
-        .task(id: replay) {
-            guard let replay else { return }
-            if !replay.done {
-                try? await Task.sleep(for: .seconds(max(script.duration - Date.now.timeIntervalSince(replay.start), 0) + 0.05))
-                guard !Task.isCancelled, self.replay?.id == replay.id else { return }
-                self.replay?.done = true
-                return
-            }
-            // Done: its end holds a while (unless the next play comes), then the court returns to the game.
-            try? await Task.sleep(for: TheaterKit.hold)
-            guard !Task.isCancelled, self.replay?.id == replay.id else { return }
-            rested = replay.id
+        .onHover { hovering = $0 }
+        .onAppear { advance() }
+        .onChange(of: state) { _, _ in if showing == nil { advance() } }
+        .task(id: showing) { await finish() }
+        .task(id: resting) { await breathe() }
+    }
+
+    /// One frame and its tag.
+    private func picture(_ now: Now, t: Double, teams: BasketballTeams, ink: TheaterInk, size: CGSize, paint: HoopsCourtLayer.Paint) -> some View {
+        ZStack(alignment: .topLeading) {
+            BasketballFrame(scene: now.scene, script: now.script, t: t, teams: teams, ink: ink, size: size, paint: paint)
+                .equatable()
+            TheaterStatusTag(status: status(now, t: t), height: size.height)
+                .padding(.top, 8)
         }
     }
 
-    /// A new play replays from the start; with Reduce Motion it's over at
-    /// once (its end crossfades in, and holds). History doesn't.
-    private func begin() {
-        guard clock == .live, state.news, let play = state.scene, replay?.id != play.id else { return }
-        replay = Replay(id: play.id, start: .now, done: reduceMotion)
+    // MARK: The running order
+
+    /// Where everyone is now on screen: what the next beat starts from.
+    private func lineup(at date: Date) -> Lineup? {
+        if let showing {
+            let s = script(showing)
+            return s.lineup(at: min(date.timeIntervalSince(showing.start), s.duration))
+        }
+        if let resting { return script(resting).lineup(at: date.timeIntervalSince(resting.start)) }
+        return nil
+    }
+
+    /// The next thing to tell, or the court the last one left.
+    private func advance(at date: Date = .now) {
+        guard clock == .live else { return }
+        let from = lineup(at: date)
+        animating = false
+        if let unit = BasketballQueue.next(after: told.cursor, told: told.ids, in: state) {
+            told.cursor = unit.scene.id
+            told.ids.formUnion([unit.scene.id] + unit.covers)
+            if told.ids.count > 400 { told.ids = Set(state.plays.map(\.id)).intersection(told.ids) }
+            if unit.scene.kind != .substitution { told.context = unit.scene }
+            if let resting { told.rest = resting.rest }
+            let fallback = resting?.rest.offense ?? showing.map { script($0).side } ?? possession
+            showing = Showing(unit: unit, from: unit.marquee ? nil : from, fallback: fallback, start: date, done: reduceMotion)
+            resting = nil
+            onReplay(unit.marquee ? unit.scene.id : nil)
+            return
+        }
+        guard showing != nil || resting == nil else { return }
+        let last = showing?.unit.scene ?? state.plays.last { $0.kind != .substitution }
+        let previous = told.rest
+        resting = Resting(rest: BasketballFlow.rest(after: last, previous: previous, from: from, ends: ends(last?.period), possession: possession),
+                          start: date)
+        showing = nil
+    }
+
+    /// While something's told: wait out its length (and a beat to read its
+    /// stamp), then the next.
+    private func finish() async {
+        guard let showing, clock == .live else { return }
+        let s = script(showing)
+        // The court it leaves, built off the main thread while it plays (its rig
+        // and camera take longer than a frame); taken as is if nothing comes next.
+        var next = BasketballFlow.rest(after: showing.unit.scene, previous: told.rest, from: s.lineup(at: s.duration),
+                                       ends: ends(showing.unit.scene.period), possession: possession)
+        next.ends = ends(restPeriod)
+        if !built.has(next) {
+            let key = next
+            let prebuilt = await Task.detached(priority: .utility) { BasketballScript(rest: key) }.value
+            guard !Task.isCancelled, self.showing == showing else { return }
+            built.keep(key, prebuilt)
+        }
+        let pending = BasketballQueue.next(after: told.cursor, told: told.ids, in: state) != nil
+        let read = showing.unit.marquee ? (pending ? 0.9 : 1.6) : (pending ? 0.2 : 0.45)
+        let length = reduceMotion ? min(s.duration, 2.4) : s.duration
+        let wait = length + read - Date.now.timeIntervalSince(showing.start)
+        if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+        guard !Task.isCancelled, self.showing == showing else { return }
+        advance()
+    }
+
+    /// The court between plays: each of its sparse beats runs (a
+    /// TimelineView only while one does), still in between; when it runs
+    /// out, it goes on as a new one from where it stands.
+    private func breathe() async {
+        guard let resting, clock == .live, !reduceMotion else { return }
+        let s = script(resting)
+        for window in s.active {
+            let begin = resting.start.addingTimeInterval(window.lowerBound).timeIntervalSinceNow
+            if begin > 0 { try? await Task.sleep(for: .seconds(begin)) }
+            guard !Task.isCancelled, self.resting == resting else { return }
+            let end = resting.start.addingTimeInterval(window.upperBound).timeIntervalSinceNow
+            guard end > 0 else { continue }
+            animating = true
+            try? await Task.sleep(for: .seconds(end))
+            guard !Task.isCancelled, self.resting == resting else { return }
+            animating = false
+        }
+        guard s.duration >= BasketballScript.Builder.restLength else { return }
+        let over = resting.start.addingTimeInterval(s.duration).timeIntervalSinceNow
+        if over > 0 { try? await Task.sleep(for: .seconds(over)) }
+        guard !Task.isCancelled, self.resting == resting else { return }
+        var next = resting.rest
+        next.from = s.lineup(at: s.duration)
+        next.round += 1
+        if case .inbound = next.phase { next.phase = .live }
+        self.resting = Resting(rest: next, start: .now)
     }
 }
 
-/// The last play's script, and the court between plays. A reference, so
+/// The scripts on screen, and the court between plays. A reference, so
 /// keeping them isn't a change anything observes: building one (its rig
-/// tracks and camera) takes a millisecond or so, and a body run that isn't
-/// about a new play shouldn't.
+/// tracks and camera) takes a millisecond or a few, and a body run that
+/// isn't about a new play shouldn't.
 private final class BasketballScripts {
-    private var scene: BasketballScene?
-    private var script: BasketballScript?
+    private struct UnitKey: Equatable {
+        let unit: BasketballQueue.Unit
+        let from: Lineup?
+        let ends: HoopsEnds
+        let fallback: GameDetail.Side?
+    }
+
+    private var unitKey: UnitKey?
+    private var unitScript: BasketballScript?
     private var restKey: BasketballScript.Rest?
     private var restScript: BasketballScript?
 
-    func script(for scene: BasketballScene) -> BasketballScript {
-        if scene != self.scene || script == nil {
-            self.scene = scene
-            script = BasketballScript(scene)
+    func unit(_ unit: BasketballQueue.Unit, from: Lineup?, ends: HoopsEnds, fallback: GameDetail.Side?) -> BasketballScript {
+        let key = UnitKey(unit: unit, from: from, ends: ends, fallback: fallback)
+        if key != unitKey || unitScript == nil {
+            unitKey = key
+            unitScript = unit.marquee ? BasketballScript(unit.scene, right: ends.right(unit.scene.offense))
+                : BasketballScript(beat: unit.scene, group: unit.group, ends: ends, from: from, fallback: fallback)
         }
-        return script!
+        return unitScript!
+    }
+
+    func has(_ rest: BasketballScript.Rest) -> Bool { rest == restKey && restScript != nil }
+
+    /// A court between plays built ahead (off the main thread).
+    func keep(_ rest: BasketballScript.Rest, _ script: BasketballScript) {
+        restKey = rest
+        restScript = script
     }
 
     func rest(_ rest: BasketballScript.Rest) -> BasketballScript {

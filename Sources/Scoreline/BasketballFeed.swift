@@ -49,10 +49,17 @@ final class BasketballFeed {
     /// flow's band. Empty between runs and in finished games (the summary
     /// carries no runs).
     private(set) var runs: [Run] = []
-    /// The basketball theater's newest play worth replaying, and whether it's
+    /// The basketball theater's plays (the newest, every kind) and which are
     /// news. Assigned only when it changes, so a clock reading doesn't redraw
     /// the theater (and the page never reads it: the theater does).
     private(set) var theater = BasketballTheaterState()
+    /// The play the theater is replaying in full now, from when its replay
+    /// starts (the theater says): the scoring slide times its wipe to it.
+    private(set) var replaying: String?
+
+    func replay(_ id: String?) {
+        if replaying != id { replaying = id }
+    }
     /// The newest plays, in ESPN's order (game order).
     @ObservationIgnored private var window: [JSON] = []
     /// Index in ESPN's full play list of `window[0]`.
@@ -308,26 +315,29 @@ final class BasketballFeed {
         updateTheater(teams: teams)
     }
 
-    /// The theater's play: the newest worth replaying among the newest plays
-    /// (only those are read). It's news if it arrived after the first
-    /// complete look and is still recent (a block or an assist ESPN adds a
-    /// few looks late still counts), or if it only just happened.
+    /// The theater's plays: the newest, every kind (only those are read).
+    /// A play is news if it first appeared after the first complete look,
+    /// or if it only just happened; the theater tells news, in order.
     private func updateTheater(teams: Teams) {
-        guard let scene = BasketballScene.newest(in: window, teams: teams) else { return }
-        // The first look is history: a play is news only from a later look it first appeared in.
-        let seen = firstSeen[scene.id] ?? looks
-        let fresh = seen > 1 && looks - seen <= 3
-        let next = Self.theater(scene, after: theater, fresh: fresh, now: .now)
+        let plays = BasketballScene.recent(in: window, teams: teams)
+        let next = Self.theater(plays, after: theater, looks: looks, firstSeen: firstSeen, now: .now)
         if next != theater { theater = next }
     }
 
-    /// The theater after a look at the plays. A play already showing keeps
-    /// what it was (news or not), edits and all. (pure; tested)
-    static func theater(_ scene: BasketballScene, after previous: BasketballTheaterState, fresh: Bool, now: Date) -> BasketballTheaterState {
+    /// The theater after a look at the plays. A play that was news stays
+    /// news, edits and all; the first look is history. `heard` moves when a
+    /// new play comes. (pure; tested)
+    static func theater(_ plays: [BasketballScene], after previous: BasketballTheaterState, looks: Int, firstSeen: [String: Int],
+                        now: Date) -> BasketballTheaterState {
         var next = previous
-        next.news = scene.id == previous.scene?.id ? previous.news
-            : fresh || scene.wallclock.map { now.timeIntervalSince($0) < BaseballFeed.recent } == true
-        next.scene = scene
+        next.plays = plays
+        let ids = Set(plays.map(\.id))
+        next.news = previous.news.intersection(ids)
+        for scene in plays where !next.news.contains(scene.id) {
+            let seen = firstSeen[scene.id] ?? looks
+            if seen > 1 || scene.wallclock.map({ now.timeIntervalSince($0) < BaseballFeed.recent }) == true { next.news.insert(scene.id) }
+        }
+        if previous.heard == nil || !ids.isSubset(of: Set(previous.plays.map(\.id))) { next.heard = now }
         return next
     }
 
@@ -608,7 +618,7 @@ final class BasketballFeed {
 
     /// Core plays name teams and players by link; the summary parsers expect
     /// `team.id` and `participants[].athlete.id` (shooter first). Each keeps
-    /// its part ("shooter", "assister", "blocker"): the theater reads it.
+    /// its part ("shooter", "assister", "blocker") and position: the theater reads them.
     static func normalized(_ item: JSON) -> JSON {
         guard var raw = item.raw as? [String: Any] else { return item }
         if let id = FootballFeed.teamID(item["team"]["$ref"].string) { raw["team"] = ["id": id] }
@@ -623,6 +633,12 @@ final class BasketballFeed {
                 person = ["athlete": ["id": String(ref[range.upperBound...].prefix { $0.isNumber })]]
             }
             if let part = entry.element["type"].string { person["type"] = part }
+            // His position on the play (a guard, a forward, a center): where the theater stands him.
+            if let ref = entry.element["position"]["$ref"].string, let range = ref.range(of: "/positions/") {
+                person["position"] = ["id": String(ref[range.upperBound...].prefix { $0.isNumber })]
+            } else if let id = entry.element["position"]["id"].string {
+                person["position"] = ["id": id]
+            }
             return person
         }
         return JSON(raw)

@@ -258,6 +258,9 @@ struct GameDetail {
     var topWinProbability: Double?
     /// Chance of a draw (soccer), so it isn't folded into either side.
     var drawProbability: Double?
+    /// ESPN's side of the odds chart (its model on the wall clock, DraftKings'
+    /// line, the plays and periods), for leagues Polymarket lists.
+    var odds: OddsBaseline?
     var football: Football?
     var baseball: Baseball?
     /// NBA: shot chart, game flow, leaders, box score, injuries.
@@ -293,6 +296,8 @@ struct GameDetail {
     var athleteNames: [String: String] = [:]
     /// Soccer: both starting elevens in their formation, for the theater.
     var lineups: [Side: SoccerLineup] = [:]
+    /// The added time the fourth official last announced (from the commentary), for the soccer theater's tag.
+    var soccerAdded: SoccerAddedTime?
     /// Climbing order for a round with no results yet (rank = start position):
     /// the current round before anyone finishes, or the next round.
     var startlist: [Athlete] = []
@@ -557,10 +562,16 @@ enum ESPNDetail {
             detail.drawProbability = tie > 0 ? tie : nil
         }
 
+        // The odds chart's ESPN side: from this summary, no extra request.
+        if OddsLeague.series[path] != nil {
+            detail.odds = OddsBaseline.parse(summary, sport: sport, topID: ids.first ?? nil, bottomID: ids.last ?? nil)
+        }
+
         switch sport {
         case .soccer:
             detail.moments = summary["keyEvents"].array.compactMap { soccerMoment($0, side: side) }
             detail.lineups = SoccerLineup.lineups(summary["rosters"], side: side)
+            detail.soccerAdded = SoccerAddedTime.latest(summary["commentary"])
             detail.recentPlays = summary["commentary"].array.suffix(4).reversed().compactMap { c in
                 guard let text = c["text"].string else { return nil }
                 let time = c["time"]["displayValue"].string ?? ""

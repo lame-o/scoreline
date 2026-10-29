@@ -219,15 +219,22 @@ extension TheaterInk {
 // MARK: - Figures and ball
 
 /// A team's inks for one frame, resolved once: resolving a team color was
-/// most of a stroke's cost. A limb behind the body is the jersey shaded by
-/// how far behind it is (a few steps, from the jersey to its deepest), each
-/// shade resolved the first time a figure needs it: most frames need only
-/// the deepest.
+/// most of a stroke's cost. A limb behind the body is the jersey (or an
+/// official's slacks) shaded by how far behind it is (a few steps, from the
+/// jersey to its deepest), each shade resolved the first time a figure needs
+/// it: most frames need only the deepest.
 struct FigureInks {
     let rim, inner, jersey, cap: GraphicsContext.Shading
+    /// The legs: the jersey's, or an official's shorts or slacks.
+    let legs: GraphicsContext.Shading
+    /// An official's stripes, if the uniform has them.
+    let stripes: GraphicsContext.Shading?
+    /// Whether anything differs from a plain jersey (stripes, other legs): then each limb is drawn on its own.
+    let dressed: Bool
     private let color: Color
+    private let legColor: Color
     private let deepest: Double
-    private let shades = Shades()
+    private let shades = Shades(), legShades = Shades()
 
     private final class Shades {
         var resolved = [GraphicsContext.Shading?](repeating: nil, count: RigFigure.shades)
@@ -239,76 +246,222 @@ struct FigureInks {
         inner = context.resolve(.color(rim.opacity(0.7)))
         jersey = context.resolve(.color(uniform.jersey))
         cap = context.resolve(.color(uniform.cap))
+        legs = uniform.legs.map { context.resolve(.color($0)) } ?? jersey
+        stripes = uniform.stripes.map { context.resolve(.color($0)) }
+        dressed = uniform.stripes != nil || uniform.legs != nil
         color = uniform.jersey
+        legColor = uniform.legs ?? uniform.jersey
         deepest = ink.dark ? 0.32 : 0.22
     }
 
     /// The jersey `k` steps behind the body (0: the jersey itself).
     func shade(_ k: Int, in context: GraphicsContext) -> GraphicsContext.Shading {
+        shade(k, of: color, base: jersey, cache: shades, in: context)
+    }
+
+    /// A limb `k` steps behind the body: an arm in the jersey, a leg in the legs' color.
+    func shade(_ k: Int, of limb: RigFigure.Limb, in context: GraphicsContext) -> GraphicsContext.Shading {
+        limb.arm ? shade(k, in: context) : shade(k, of: legColor, base: legs, cache: legShades, in: context)
+    }
+
+    private func shade(_ k: Int, of color: Color, base: GraphicsContext.Shading, cache: Shades, in context: GraphicsContext) -> GraphicsContext.Shading {
         let k = min(max(k, 0), RigFigure.shades - 1)
-        guard k > 0 else { return jersey }
-        if let shading = shades.resolved[k] { return shading }
+        guard k > 0 else { return base }
+        if let shading = cache.resolved[k] { return shading }
         let shading = context.resolve(.color(color.mix(with: .black, by: deepest * Double(k) / Double(RigFigure.shades - 1))))
-        shades.resolved[k] = shading
+        cache.resolved[k] = shading
         return shading
     }
 }
 
 enum TheaterDraw {
-    /// A pictogram: its rim first (so the lines and figures behind stop short
-    /// of it), the limbs behind the body (shaded by how far behind), the
-    /// body, the limbs in front over an inner rim when it's big enough to
-    /// carry one (each over its own where they cross, so crossing limbs read
-    /// as layered), the head in the team's own color. Limbs that don't need
-    /// their own stroke share one: the cost of a figure is its strokes.
+    /// A pictogram, as one solid figure. Its outline first, round all of it
+    /// at once (so the lines and figures behind stop short of it, and where
+    /// its parts meet it never doubles up); the limbs behind the body (shaded
+    /// by how far behind) and the body; then the head and the limbs in front,
+    /// far to near, the head over a limb it's in front of and under one
+    /// across its face. A limb in front crosses what's drawn already with one
+    /// fine line in the outline's ink, only there: never over the outline,
+    /// never round its own root (it grows out of the body), fading in as it
+    /// comes round in front. The head takes the same line where it covers a
+    /// limb. Small figures keep the outline alone: the lines would only blur
+    /// them. Fading in or out, it's drawn as one layer, so it never shows
+    /// through itself.
     static func figure(_ figure: RigFigure, inks: FigureInks, height: CGFloat, opacity: Double, in context: GraphicsContext) {
-        var layer = context
-        if opacity < 1 { layer.opacity = opacity }
-        let halo = max(height * 0.045, 0.8)
+        guard opacity < 1 else { return draw(figure, inks: inks, height: height, in: context) }
+        var faded = context
+        faded.opacity = opacity
+        faded.drawLayer { draw(figure, inks: inks, height: height, in: $0) }
+    }
+
+    /// The line where a limb in front crosses: this far out either side of it.
+    static let line: CGFloat = 0.6
+    /// The smallest figure that carries those lines.
+    static let lined: CGFloat = 15
+
+    private static func draw(_ figure: RigFigure, inks: FigureInks, height: CGFloat, in context: GraphicsContext) {
+        let halo = max(height * 0.045, 0.8), w = figure.limb / 2, limbs = figure.limbs
+        // The outline: every part's, grown by the halo, filled as one shape.
+        var outline = Path()
+        for l in limbs {
+            capsule(l.root, l.joint, w + halo, into: &outline)
+            capsule(l.joint, l.end, w + halo, into: &outline)
+        }
+        capsule(figure.hip, figure.neck, figure.torso / 2 + halo, into: &outline)
+        capsule(figure.head, figure.head, figure.headRadius + halo, into: &outline)
+        context.fill(outline, with: inks.rim)
         let style = StrokeStyle(lineWidth: figure.limb, lineCap: .round, lineJoin: .round)
-        let inner = StrokeStyle(lineWidth: figure.limb + 1.2, lineCap: .round, lineJoin: .round)
-        let limbs = figure.limbs, body = figure.body
-        var silhouette = Path()
-        for l in limbs { silhouette.addLines([l.root, l.joint, l.end]) }
-        layer.stroke(silhouette, with: inks.rim, style: StrokeStyle(lineWidth: figure.limb + 2 * halo, lineCap: .round, lineJoin: .round))
-        layer.stroke(body, with: inks.rim, style: StrokeStyle(lineWidth: figure.torso + 2 * halo, lineCap: .round))
-        layer.fill(Path(ellipseIn: figure.headRect.insetBy(dx: -halo, dy: -halo)), with: inks.rim)
-        // Behind the body, far to near: a run of the same shade in one stroke.
+        // An official's stripes: as many as read at this size (four across the body at a theater's), the sleeves' as wide.
+        let bands = inks.stripes == nil ? 0 : min(max(Int((figure.torso / 0.5 - 1) / 2), 1), 4) * 2 + 1
+        func paint(_ l: RigFigure.Limb, _ shade: Int) {
+            var p = Path()
+            p.addLines([l.root, l.joint, l.end])
+            context.stroke(p, with: inks.shade(shade, of: l, in: context), style: style)
+            if l.arm, let ink = inks.stripes {
+                let wide = figure.torso / CGFloat(bands), across = max(Int((figure.limb / wide - 1) / 2), 1) * 2 + 1
+                if figure.limb / CGFloat(across) >= 0.4 { stripes([l.root, l.joint, l.end], w, bands: across, ink: ink, in: context) }
+            }
+        }
+        // Behind the body, far to near: a run of the same shade in one stroke (one at a time in an official's kit).
+        var drawn: [Bone] = []
         var i = 0
         while i < limbs.count, !limbs[i].front {
             let shade = limbs[i].shade
+            if inks.dressed {
+                paint(limbs[i], shade)
+                drawn += Bone.of(limbs[i], w)
+                i += 1
+                continue
+            }
             var run = Path()
             while i < limbs.count, !limbs[i].front, limbs[i].shade == shade {
                 run.addLines([limbs[i].root, limbs[i].joint, limbs[i].end])
+                drawn += Bone.of(limbs[i], w)
                 i += 1
             }
-            layer.stroke(run, with: inks.shade(shade, in: context), style: style)
+            context.stroke(run, with: inks.shade(shade, in: context), style: style)
         }
-        layer.stroke(body, with: inks.jersey, style: StrokeStyle(lineWidth: figure.torso, lineCap: .round))
-        // In front: together, unless two cross on screen; then far to near, each over its own inner rim.
-        let front = limbs[i...]
-        // Small figures lose their inner rim: it would only blur them.
-        let rimmed = height >= 15
-        func box(_ l: RigFigure.Limb) -> CGRect {
-            CGRect(x: min(l.root.x, l.joint.x, l.end.x), y: min(l.root.y, l.joint.y, l.end.y),
-                   width: max(l.root.x, l.joint.x, l.end.x) - min(l.root.x, l.joint.x, l.end.x),
-                   height: max(l.root.y, l.joint.y, l.end.y) - min(l.root.y, l.joint.y, l.end.y)).insetBy(dx: -figure.limb, dy: -figure.limb)
-        }
-        let crossing = rimmed && front.indices.contains { a in front.indices.contains { b in b > a && box(front[a]).intersects(box(front[b])) } }
-        if crossing {
-            for l in front {
+        context.stroke(figure.body, with: inks.jersey, style: StrokeStyle(lineWidth: figure.torso, lineCap: .round))
+        if let ink = inks.stripes { stripes([figure.hip, figure.neck], figure.torso / 2, bands: bands, ink: ink, in: context) }
+        drawn.append(Bone(a: figure.hip, b: figure.neck, r: figure.torso / 2, body: true))
+        let head = Path(ellipseIn: figure.headRect)
+        let under = limbs[i...].filter(\.underHead), over = limbs[i...].filter { !$0.underHead }
+        // Small: the limbs in front in a stroke either side of the head.
+        guard height >= lined else {
+            func stroke(_ group: [RigFigure.Limb]) {
+                guard !group.isEmpty else { return }
+                guard !inks.dressed else { return group.forEach { paint($0, 0) } }
                 var p = Path()
-                p.addLines([l.root, l.joint, l.end])
-                layer.stroke(p, with: inks.inner, style: inner)
-                layer.stroke(p, with: inks.jersey, style: style)
+                for l in group { p.addLines([l.root, l.joint, l.end]) }
+                context.stroke(p, with: inks.jersey, style: style)
             }
-        } else if !front.isEmpty {
-            var p = Path()
-            for l in front { p.addLines([l.root, l.joint, l.end]) }
-            if rimmed { layer.stroke(p, with: inks.inner, style: inner) }
-            layer.stroke(p, with: inks.jersey, style: style)
+            stroke(under)
+            context.fill(head, with: inks.cap)
+            stroke(over)
+            return
         }
-        layer.fill(Path(ellipseIn: figure.headRect), with: inks.cap)
+        func cross(_ l: RigFigure.Limb) {
+            let r = w + line, fade = Rig.smooth(-l.depth / 0.015)
+            // A leg's top always overlaps the body's round bottom: it crosses the body only with its knee across it (a knee drive, a high step).
+            let crossed = fade > 0.01 ? drawn.filter { b in
+                (b.near(l.root, l.joint, r) || b.near(l.joint, l.end, r)) && (l.arm || !b.body || b.near(l.joint, l.joint, r))
+            } : []
+            if !crossed.isEmpty {
+                // Its line: square at the root, round at the joint and the end; kept to what it crosses.
+                var ring = Path()
+                capsule(l.root, l.joint, r, flat: true, into: &ring)
+                capsule(l.joint, l.end, r, into: &ring)
+                var over = Path()
+                for b in crossed { capsule(b.a, b.b, b.r, into: &over) }
+                var c = context
+                c.clip(to: over)
+                c.opacity *= fade
+                c.fill(ring, with: inks.inner)
+            }
+            paint(l, 0)
+            drawn += Bone.of(l, w)
+        }
+        under.forEach(cross)
+        if !under.isEmpty {
+            var covered = Path()
+            for l in under { for b in Bone.of(l, w) { capsule(b.a, b.b, b.r, into: &covered) } }
+            var c = context
+            c.clip(to: covered)
+            c.fill(Path(ellipseIn: figure.headRect.insetBy(dx: -line, dy: -line)), with: inks.inner)
+        }
+        context.fill(head, with: inks.cap)
+        drawn.append(Bone(a: figure.head, b: figure.head, r: figure.headRadius))
+        over.forEach(cross)
+    }
+
+    /// Stripes along a part (the body, a sleeve) `r` either side of its
+    /// line: `bands` across it, light and dark by turns, light at its edges;
+    /// kept to the part, so they never leave the figure.
+    private static func stripes(_ line: [CGPoint], _ r: CGFloat, bands: Int, ink: GraphicsContext.Shading, in context: GraphicsContext) {
+        // Each segment's way; a segment with no length takes its neighbour's.
+        let ways = zip(line, line.dropFirst()).map { a, b -> CGVector in
+            let d = hypot(b.x - a.x, b.y - a.y)
+            return d > 1e-6 ? CGVector(dx: (b.x - a.x) / d, dy: (b.y - a.y) / d) : .zero
+        }
+        guard let way = ways.first(where: { $0 != .zero }) else { return }
+        let dirs = ways.map { $0 == .zero ? way : $0 }
+        let band = 2 * r / CGFloat(bands)
+        var p = Path()
+        for k in stride(from: 1, to: bands, by: 2) {
+            let off = -r + (CGFloat(k) + 0.5) * band
+            for (j, d) in dirs.enumerated() {
+                let n = CGVector(dx: -d.dy * off, dy: d.dx * off)
+                // Run past the ends: the part's round ends trim them.
+                var a = line[j], b = line[j + 1]
+                if j == 0 { a = CGPoint(x: a.x - d.dx * r, y: a.y - d.dy * r) }
+                if j == dirs.count - 1 { b = CGPoint(x: b.x + d.dx * r, y: b.y + d.dy * r) }
+                let from = CGPoint(x: a.x + n.dx, y: a.y + n.dy), to = CGPoint(x: b.x + n.dx, y: b.y + n.dy)
+                if j == 0 { p.move(to: from) } else { p.addLine(to: from) }
+                p.addLine(to: to)
+            }
+        }
+        var part = Path()
+        for (a, b) in zip(line, line.dropFirst()) { capsule(a, b, r, into: &part) }
+        var c = context
+        c.clip(to: part)
+        c.stroke(p, with: ink, style: StrokeStyle(lineWidth: band, lineCap: .butt, lineJoin: .round))
+    }
+
+    /// A drawn part of a figure: a segment and how far round it.
+    private struct Bone {
+        var a: CGPoint
+        var b: CGPoint
+        var r: CGFloat
+        /// The body itself (hip to neck).
+        var body = false
+
+        static func of(_ l: RigFigure.Limb, _ r: CGFloat) -> [Bone] { [Bone(a: l.root, b: l.joint, r: r), Bone(a: l.joint, b: l.end, r: r)] }
+
+        /// Within `r` of the segment from `p` to `q`, beyond its own reach.
+        func near(_ p: CGPoint, _ q: CGPoint, _ r: CGFloat) -> Bool {
+            func side(_ o: CGPoint, _ u: CGPoint, _ v: CGPoint) -> Bool { (u.x - o.x) * (v.y - o.y) - (u.y - o.y) * (v.x - o.x) > 0 }
+            if side(a, b, p) != side(a, b, q), side(p, q, a) != side(p, q, b) { return true }
+            let gap = min(RigFigure.nearest(p, a, b).gap, RigFigure.nearest(q, a, b).gap, RigFigure.nearest(a, p, q).gap, RigFigure.nearest(b, p, q).gap)
+            return gap < r + self.r
+        }
+    }
+
+    /// A capsule round a segment (a disc where its ends meet; square at `a`
+    /// if `flat`), always wound the same way, so any number of them fill as
+    /// their union.
+    private static func capsule(_ a: CGPoint, _ b: CGPoint, _ r: CGFloat, flat: Bool = false, into p: inout Path) {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let angle = dx * dx + dy * dy > 1e-12 ? atan2(dy, dx) : 0
+        let n = CGVector(dx: -sin(angle) * r, dy: cos(angle) * r)
+        p.move(to: CGPoint(x: b.x + n.dx, y: b.y + n.dy))
+        p.addArc(center: b, radius: r, startAngle: .radians(angle + .pi / 2), endAngle: .radians(angle - .pi / 2), clockwise: true)
+        if flat {
+            p.addLine(to: CGPoint(x: a.x - n.dx, y: a.y - n.dy))
+            p.addLine(to: CGPoint(x: a.x + n.dx, y: a.y + n.dy))
+        } else {
+            p.addArc(center: a, radius: r, startAngle: .radians(angle - .pi / 2), endAngle: .radians(angle - 3 * .pi / 2), clockwise: true)
+        }
+        p.closeSubpath()
     }
 
     /// A soft oval under a figure or the ball.

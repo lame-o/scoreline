@@ -12,9 +12,11 @@ import SwiftUI
 // The court is seen from a high sideline, turned a third of the way round so
 // the half court reads in depth: x along the court (0 to 94), y across it
 // from the near sideline, z up. Every play is laid out in its own frame, the
-// offense attacking the basket at x = 88.75; the bottom team's plays are drawn
-// turned half a turn (`Hoops.yaw`), so the theater shows each team at the
-// basket the shot chart under it does (the top team →, the bottom ←).
+// offense attacking the basket at x = 88.75; a play at the left basket is
+// drawn turned half a turn (`Hoops.yaw`), so each team attacks the basket it
+// attacks on TV (`HoopsDirection`: the visitors at the right in the first
+// half by default, the ends swapped at halftime, the viewer's turn on top),
+// the basket in play always the one up the court.
 // Figures are true to the rim (7 ft against its 10), so a dunk is a real
 // leap; an honest parabola carries every shot, timed by gravity.
 //
@@ -57,8 +59,13 @@ enum Hoops {
 
     /// The view's turn for the team on offense: the top team's basket up and
     /// to the right; the bottom team's, half a turn round, up and to the left
-    /// (the same court from the same sideline).
-    static func yaw(_ offense: GameDetail.Side?) -> Double { offense == .bottom ? turn + .pi : -turn }
+    /// (the same court from the same sideline). The whole-game convention
+    /// (the shot chart's); a live play takes its end from `yaw(right:)`.
+    static func yaw(_ offense: GameDetail.Side?) -> Double { yaw(right: offense != .bottom) }
+
+    /// The view's turn for a play at the right basket (up and to the right),
+    /// or at the left (half a turn round, up and to the left).
+    static func yaw(right: Bool) -> Double { right ? -turn : turn + .pi }
 
     /// ESPN's half-court feet toward the offense's basket, in the play's frame.
     static func court(_ p: CGPoint) -> CGPoint { CGPoint(x: board - p.y, y: width - p.x) }
@@ -119,12 +126,16 @@ extension RigLens {
 // MARK: - Script
 
 struct BasketballScript: Equatable {
-    enum Team { case offense, defense }
+    /// The two fives, and the referee who comes in to make a call.
+    enum Team { case offense, defense, official }
 
     /// A moment of the play in his hands (or reaching for it).
     struct Action: Equatable {
         enum Kind: Equatable {
             case catchBall, pass, lob, shoot, layup, dunk, hook, tip, contest, block, steal, rebound, boxOut
+            /// The lighter beats: a hand on a man (a foul), knocked down (a
+            /// charge), a referee's signals, a jump ball's toss, waiting.
+            case reach, fall, signal, point, toss, hips
         }
         var kind: Kind
         var at: Double
@@ -158,6 +169,14 @@ struct BasketballScript: Equatable {
         var moves: [PlayScript.Move] = []
         var actions: [Action] = []
         var jumps: [Jump] = []
+        /// On the floor from `enters` until `leaves` (a substitution, the
+        /// referee, a walk off at the half), fading over a third of a second.
+        var enters = -Double.infinity
+        var leaves = Double.infinity
+
+        func opacity(at t: Double) -> Double {
+            min(max((t - enters) / 0.3, 0), 1) * min(max((leaves - t) / 0.3, 0), 1)
+        }
 
         /// The newest move that has begun wins: a later move starts from
         /// wherever the one before had got to.
@@ -202,7 +221,7 @@ struct BasketballScript: Equatable {
         var hand: Hand
     }
 
-    enum Beat { case catchBall, block, steal, rim }
+    enum Beat { case catchBall, block, steal, rim, whistle, horn }
 
     struct Flash: Equatable {
         var beat: Beat
@@ -259,10 +278,45 @@ struct BasketballScript: Equatable {
     var shots: [Shot] = []
     var camera = CameraPath(rest: CameraFrame(x: 60, y: 10, span: 48))
     var yaw = Hoops.yaw(.top)
+    /// The team at the basket in front (players 0–4): who the frame is for.
+    var side: GameDetail.Side?
+    /// What it says at the top while it plays (SHOOTING FOUL · HAYES), from when.
+    var tag: Tag?
+    /// When something moves, between plays: the court is still in between (nothing redraws).
+    var active: [ClosedRange<Double>] = []
+    /// The shape the floor is in: play, the lane for free throws, the benches, an empty court.
+    var formation = Lineup.Formation.play
+    /// What everyone standing about watches from a moment on (the referee at the table, the shooter at the line).
+    var look: Look?
+    /// A substitute who came on for a man who went off: the next beat finds him in his place.
+    var stand: [Int: Int] = [:]
+
+    struct Look: Equatable {
+        var point: CGPoint
+        var from: Double
+    }
     /// Each player's motion through the replay (heading, stride, footfalls), measured once: by player.
     var rig: [RigTrack] = []
 
     func room(_ p: FieldPoint, figure: Bool) -> CGRect { Hoops.room(p, figure: figure, yaw: yaw) }
+
+    /// A broadcast tag over the play: its words, whose color, and from when.
+    struct Tag: Equatable {
+        var text: String
+        var side: GameDetail.Side?
+        var at: Double
+    }
+
+    /// Where everyone is at t, and the ball: what the next beat (or the
+    /// court between plays) starts from.
+    func lineup(at t: Double) -> Lineup {
+        var holder = carrier(at: t)?.player
+        if let h = holder, let off = stand.first(where: { $0.value == h })?.key { holder = off }
+        if let h = holder, h >= 10 { holder = nil }
+        let at = players.indices.prefix(10).map { i in players[stand[i] ?? i].position(at: t) }
+        return Lineup(offense: side, at: at, holder: holder, ball: holder == nil ? ball(at: t)?.ground : nil, formation: formation,
+                      camera: camera.frame(at: t), yaw: yaw)
+    }
 
     /// The ball at t: in the air, in hand (at his chest, roughly: the frame
     /// puts it in his hands), bouncing at his side, on the floor.
@@ -320,21 +374,11 @@ struct BasketballScript: Equatable {
 // MARK: - Building
 
 extension BasketballScript {
-    /// Between plays with nothing replayed: the team with the ball set in its
-    /// half court (nil: both teams round the center circle).
-    struct Rest: Equatable {
-        var offense: GameDetail.Side?
-    }
 
-    init(rest: Rest) {
-        var b = Builder(scene: nil, offense: rest.offense)
-        b.restSet()
-        self = b.script
-        measureBodies()
-    }
-
-    init(_ scene: BasketballScene) {
-        var b = Builder(scene: scene, offense: scene.offense)
+    /// A play replayed in full (the marquee). `right`: it's at the right
+    /// basket (nil: the whole-game convention, the top team's at the right).
+    init(_ scene: BasketballScene, right: Bool? = nil) {
+        var b = Builder(scene: scene, offense: scene.offense, right: right ?? (scene.offense != .bottom))
         b.build()
         self = b.script
         measureBodies()
@@ -355,6 +399,8 @@ extension BasketballScript {
                     return RigFacing(point: box.toward, always: true)
                 }
                 let ball = script.ball(at: t)?.ground ?? Hoops.rim
+                if player.team == .official { return RigFacing(point: ball, always: player.speed(at: t) < 6) }
+                if let look = script.look, t >= look.from, player.speed(at: t) < 4 { return RigFacing(point: look.point, always: true) }
                 if player.team == .defense, player.speed(at: t) < 13 { return RigFacing(point: ball, always: true) }
                 return RigFacing(point: ball)
             }
@@ -379,12 +425,17 @@ extension BasketballScript {
 
         /// Who has the ball (between plays, nil: nobody yet).
         let offense: GameDetail.Side?
+        /// Which basket each team attacks, and where the benches are.
+        var ends = HoopsEnds(topRight: true, topOpensRight: true)
+        /// Where the last beat left everyone, in this frame (nil: set up fresh).
+        var start: Lineup?
 
-        init(scene: BasketballScene?, offense: GameDetail.Side?) {
+        init(scene: BasketballScene?, offense: GameDetail.Side?, right: Bool, seed: String? = nil) {
             self.scene = scene
             self.offense = offense
-            random = SplitMix64(seed: Celebration.seed(scene?.id ?? "rest"))
-            script.yaw = Hoops.yaw(offense)
+            random = SplitMix64(seed: Celebration.seed(seed ?? scene?.id ?? "rest"))
+            script.yaw = Hoops.yaw(right: right)
+            script.side = offense
         }
 
         /// The legs in time order, ties kept in the order they were laid down
@@ -681,31 +732,6 @@ extension BasketballScript {
             measureStamp()
             settle()
             shoot()
-        }
-
-        /// Between plays: the team with the ball set in its half court, the
-        /// ball at the top with the point guard; nobody's: both teams round
-        /// the center circle.
-        mutating func restSet() {
-            guard scene == nil else { return }
-            var items: [CGRect]
-            if offense != nil {
-                lineUp([CGPoint(x: 62, y: 25)], ball: 0)
-                hold(0, from: 0, until: .infinity)
-                items = [script.room(Self.rimPoint, figure: false)]
-            } else {
-                // Round the center circle, each team on its own half of it, the ball at center court.
-                let center = CGPoint(x: Hoops.length / 2, y: Hoops.width / 2)
-                let ours = [CGPoint(x: -1.6, y: 0), CGPoint(x: -7, y: 6), CGPoint(x: -7, y: -6), CGPoint(x: -14, y: 10), CGPoint(x: -14, y: -10)]
-                script.players = ours.map { Player(team: .offense, at: CGPoint(x: center.x + $0.x, y: center.y + $0.y)) }
-                    + ours.map { Player(team: .defense, at: CGPoint(x: center.x - $0.x, y: center.y - $0.y * 0.9)) }
-                script.legs = [Leg(from: 0, until: .infinity, hand: .spot(FieldPoint(center, z: 0.4)))]
-                items = []
-            }
-            script.duration = 0
-            items += script.players.map { script.room(FieldPoint($0.at), figure: true) }
-            let region = items.dropFirst().reduce(items[0]) { $0.union($1) }
-            script.camera = CameraPath(rest: CameraFrame.fitting(region, headroom: CameraFrame.headroom, closest: 38, tightest: Hoops.tightest))
         }
 
         // MARK: The half court
@@ -1599,7 +1625,8 @@ extension BasketballScript {
 /// own words: the points heavy in the scoring team's color ("+3"), "BLK" in
 /// the blocker's, "MISS"; the shot under it as the play-by-play names it
 /// ("BROWN JR. · 23 FT JUMP SHOT"), then the assist, the steal, the
-/// rebound ("AST ELLIS", "STL DEMIN", "REB HAUSER"). (pure; tested)
+/// rebound ("AST ELLIS", "STL DEMIN", "REB HAUSER"). Between the shots, a
+/// rebound's "REB", a steal's "STL", a turnover's "TO". (pure; tested)
 struct BasketballStamp: Equatable {
     struct Part: Equatable {
         var text: String
@@ -1621,11 +1648,35 @@ struct BasketballStamp: Equatable {
 
     init(_ scene: BasketballScene) {
         let shooter = scene.shooter?.name.uppercased() ?? ""
+        func line(_ words: String?...) -> String { words.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ") }
+        // The ball plays between the shots: a rebound, a steal, a turnover in
+        // the open floor. A whistle has its tag, not a stamp.
+        switch scene.kind {
+        case .offensiveRebound, .defensiveRebound:
+            parts = [Part(text: "REB", heavy: true)]
+            tone = .score
+            lines = [line(shooter.isEmpty ? "TEAM" : shooter, scene.kind == .offensiveRebound ? "OFFENSIVE REBOUND" : "DEFENSIVE REBOUND")]
+            return
+        case .steal, .turnover:
+            let what = BasketballScene.callWords(scene.typeText)
+            if let stealer = scene.steal?.stealer?.name, !stealer.isEmpty, scene.kind == .steal {
+                parts = [Part(text: "STL", heavy: true)]
+                tone = .block
+                lines = [stealer.uppercased(), line(shooter, what)]
+            } else {
+                parts = [Part(text: "TO", heavy: true)]
+                lines = [line(shooter, what)]
+            }
+            return
+        case .foul, .violation, .jumpBall, .substitution, .timeout, .periodEnd, .challenge:
+            return
+        default:
+            break
+        }
         // The shot as ESPN's play-by-play names it, with its distance from 4 ft out.
-        let name = scene.typeText.uppercased()
+        let name = scene.typeText.uppercased().replacingOccurrences(of: " - ", with: " ")
         let feet = scene.distance.flatMap { $0 >= 4 && scene.kind != .freeThrow ? "\(Int($0)) FT" : nil }
         let shot = [feet, name.isEmpty ? nil : name].compactMap { $0 }.joined(separator: " ")
-        func line(_ words: String?...) -> String { words.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ") }
         var credits: [String] = []
         if let a = scene.assister?.name, !a.isEmpty { credits.append("AST \(a.uppercased())") }
         if let s = scene.steal?.stealer?.name, !s.isEmpty, scene.made { credits.append("STL \(s.uppercased())") }

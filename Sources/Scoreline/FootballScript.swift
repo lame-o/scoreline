@@ -97,8 +97,8 @@ struct GridProjection {
 // MARK: - Script
 
 struct FootballScript: Equatable {
-    /// The two teams, and the official who throws a flag.
-    enum Team { case offense, defense, official }
+    /// The two teams, the official who throws a flag, and the trainers who come out to a man hurt.
+    enum Team { case offense, defense, official, staff }
 
     /// Who he is on the play: his stance and pose follow from it.
     enum Role: Equatable {
@@ -137,6 +137,13 @@ struct FootballScript: Equatable {
         var until = Double.infinity
     }
 
+    /// Where a man looks from a moment on when he's standing (in a huddle,
+    /// its middle; lined up, across the line): between snaps, not in them.
+    struct Look: Equatable {
+        var from: Double
+        var point: CGPoint
+    }
+
     struct Player: Equatable {
         var team: Team
         var at: CGPoint
@@ -147,6 +154,7 @@ struct FootballScript: Equatable {
         var moves: [PlayScript.Move] = []
         var actions: [Action] = []
         var holds: [Hold] = []
+        var looks: [Look] = []
         /// In his stance until the snap, and again once he's set at the new line.
         var set: Double?
         var resets: Double?
@@ -230,6 +238,8 @@ struct FootballScript: Equatable {
         var from: FieldPoint
         var to: CGPoint
         var declined = false
+        /// A coach's red challenge flag, thrown in from his bench.
+        var red = false
     }
 
     /// A flag's yards walked off: the spot moves from one line to another.
@@ -292,6 +302,11 @@ struct FootballScript: Equatable {
     /// Each player's motion through the replay (his heading, stride and
     /// footfalls), measured once: by player.
     var rig: [RigTrack] = []
+    /// Between snaps (FootballIdle.swift): the loop its beats come round in,
+    /// the field turning as the teams change ends, and when anything moves.
+    var loop: Loop?
+    var turn: Turn?
+    var beats: [ClosedRange<Double>] = []
 
     /// The room the camera keeps round a spot, at this script's yaw.
     func room(_ p: FieldPoint, figure: Bool) -> CGRect { Gridiron.room(p, figure: figure, yaw: yaw) }
@@ -358,8 +373,9 @@ extension FootballScript {
         var gain: Double?
     }
 
-    init(rest: Rest) {
+    init(rest: Rest, yaw: Double = Gridiron.yaw) {
         var b = Builder(scene: nil, line: Gridiron.y(rest.yard), shotgun: true)
+        b.script.yaw = yaw
         b.scrimmage()
         for i in b.script.players.indices where b.script.players[i].set != nil { b.script.players[i].resets = 0 }
         b.script.lines = Lines(scrimmage: Gridiron.y(rest.yard), gain: rest.gain.map(Gridiron.y))
@@ -370,8 +386,13 @@ extension FootballScript {
         measureBodies()
     }
 
-    init(_ scene: FootballScene) {
+    init(_ scene: FootballScene) { self.init(scene, yaw: Gridiron.yaw) }
+
+    /// A snap's replay, the field facing as `yaw` turns it (FieldFacing: up
+    /// and to the right when the offense attacks the screen's right).
+    init(_ scene: FootballScene, yaw: Double) {
         var b = Builder(scene: Self.played(scene) ?? scene, ruling: scene, line: Gridiron.y(scene.from), shotgun: scene.shotgun)
+        b.script.yaw = yaw
         b.build()
         self = b.script
         measureBodies()
@@ -421,6 +442,7 @@ extension FootballScript {
                 if let a = player.actions.first(where: { t > $0.at - 0.45 && t < $0.at + 0.2 }) {
                     return RigFacing(point: a.kind == .spike || a.kind == .kick ? ahead : a.toward)
                 }
+                if let look = player.looks.last(where: { t >= $0.from }) { return RigFacing(point: look.point) }
                 if t > snap, t < snap + 1.6 {
                     let a = player.position(at: t - 0.05), b = player.position(at: t + 0.05)
                     if (b.y - a.y) * way < -0.5 * hypot(b.x - a.x, b.y - a.y) { return RigFacing(point: ahead, always: true) }

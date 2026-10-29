@@ -14,12 +14,15 @@ import Foundation
 // names a stamp shows ("Mikel Brown Jr. makes 23-foot three point jumper
 // (Keon Ellis assists)": Brown Jr., Ellis) and ESPN's own distance.
 //
-// What replays: every made field goal, every block, and a shot to tie or take
-// the lead in the last 30 seconds of the fourth or overtime that missed (or
-// a free throw that tied it or won the lead). A steal is the lead-in to the
-// basket it led to, an offensive rebound the lead-in to its putback: neither
-// replays alone. Free throws otherwise don't: a basket every 20–30 seconds is
-// enough to watch.
+// What replays in full (the marquee): every made field goal, every block,
+// and a shot to tie or take the lead in the last 30 seconds of the fourth or
+// overtime that missed (or a free throw that tied it or won the lead).
+// Everything else ESPN logs is a lighter beat between them (BasketballBeats.swift):
+// each miss and its rebound, each free throw, each whistle (its call and who),
+// each turnover by its kind, the jump balls, substitutions, timeouts, reviews
+// and the ends of periods. A steal is the lead-in to the basket it led to, an
+// offensive rebound the lead-in to its putback: a replay that shows them
+// says so (`leadIn`), as a miss says which rebound it ends in (`follows`).
 
 struct BasketballScene: Equatable, Identifiable {
     enum Kind: Equatable {
@@ -28,8 +31,56 @@ struct BasketballScene: Equatable, Identifiable {
         case block
         /// The ball taken by a defender; lost without one.
         case steal, turnover
-        case offensiveRebound
+        case offensiveRebound, defensiveRebound
+        /// A whistle that isn't a turnover: a foul (offensive ones too), a
+        /// technical; a violation the ball stays with the offense on (a kicked
+        /// ball, goaltending, a delay). `call` says which.
+        case foul, violation
+        case jumpBall, substitution, timeout, periodEnd
+        /// A coach's challenge or a referee's review, and how it came out.
+        case challenge
     }
+
+    /// What a whistle (or a turnover) was for, as the play-by-play names it.
+    enum Call: Equatable {
+        case shooting, personal, looseBall, take, flagrant, technical, offensive, charge
+        case badPass, lostBall, outOfBounds, traveling, shotClock, offensiveGoaltending
+        case kickedBall, goaltending, delay
+        /// Anything else ESPN calls (a double dribble, three seconds, a
+        /// backcourt), in its words ("DOUBLE DRIBBLE").
+        case other(String)
+
+        /// The call as a broadcast tag says it.
+        var words: String {
+            switch self {
+            case .shooting: "SHOOTING FOUL"
+            case .personal: "FOUL"
+            case .looseBall: "LOOSE BALL FOUL"
+            case .take: "TAKE FOUL"
+            case .flagrant: "FLAGRANT FOUL"
+            case .technical: "TECHNICAL"
+            case .offensive: "OFFENSIVE FOUL"
+            case .charge: "CHARGE"
+            case .badPass: "BAD PASS"
+            case .lostBall: "LOST BALL"
+            case .outOfBounds: "OUT OF BOUNDS"
+            case .traveling: "TRAVELING"
+            case .shotClock: "SHOT CLOCK"
+            case .offensiveGoaltending: "OFFENSIVE GOALTENDING"
+            case .kickedBall: "KICKED BALL"
+            case .goaltending: "GOALTENDING"
+            case .delay: "DELAY OF GAME"
+            case let .other(words): words
+            }
+        }
+
+        /// A foul by the team without the ball: the other team keeps it (and may shoot).
+        var defensive: Bool { [.shooting, .personal, .looseBall, .take, .flagrant, .kickedBall, .goaltending].contains(self) }
+    }
+
+    /// How a player plays, from ESPN's position: who stands on the arc, who
+    /// on the block (a guard rebounds long, a big under the rim).
+    enum Role: Equatable { case guardRole, wing, big }
 
     /// How the shooter got the shot off, from ESPN's type: off a pass, off
     /// the dribble, going away from the defender, with his back to the
@@ -46,19 +97,29 @@ struct BasketballScene: Equatable, Identifiable {
 
     enum Result: Equatable { case make, miss, blocked }
 
-    /// Someone in on it: ESPN's athlete ID and the name the stamp gives him ("Brown Jr.").
+    /// Someone in on it: ESPN's athlete ID and the name the stamp gives him
+    /// ("Brown Jr."), and how he plays (ESPN's position for him on the play).
     struct Person: Equatable {
         var id: String?
         var name: String
+        var role: Role? = nil
     }
 
-    /// The missed shot a putback came off: where, by whom, for how many.
+    /// The missed shot a putback (or a rebound) came off: where, by whom, for how many.
     struct Miss: Equatable {
         var spot: CGPoint
         var shooter: Person?
         var value: Int
         /// It was a layup or a dunk (it goes up from the rim, not the arc).
         var close: Bool
+        /// The miss and the offensive rebound after it, by ID (a putback's replay shows both).
+        var id: String? = nil
+        var board: String? = nil
+        /// Swatted (it falls by the shooter), or a free throw (off the front of the rim).
+        var blocked = false
+        var freeThrow = false
+        /// ESPN's distance in feet.
+        var distance: Double? = nil
     }
 
     /// The steal a fast break came from, at its spot (in ESPN's feet toward
@@ -67,6 +128,7 @@ struct BasketballScene: Equatable, Identifiable {
         var spot: CGPoint?
         var loser: Person?
         var stealer: Person?
+        var id: String? = nil
     }
 
     /// Who got the ball after a miss or a block, from the next play: nil
@@ -74,6 +136,8 @@ struct BasketballScene: Equatable, Identifiable {
     struct Rebound: Equatable {
         var person: Person?
         var offensive: Bool
+        /// The rebound's own play.
+        var id: String? = nil
     }
 
     let id: String
@@ -125,6 +189,36 @@ struct BasketballScene: Equatable, Identifiable {
     var text = ""
     var wallclock: Date?
 
+    // The lighter beats' facts.
+    /// What the whistle (or the turnover) was for.
+    var call: Call?
+    /// A free throw's place in its trip ("1 of 2"): nil when ESPN doesn't say.
+    var attempt: Int?
+    var attempts: Int?
+    /// Who drew a foul: the shooter of the free throws it gave, when they're in.
+    var drew: Person?
+    /// How many free throws a foul gave (nil: none, or not in yet).
+    var trip: Int?
+    /// Who came in, who went out.
+    var subIn: Person?
+    var subOut: Person?
+    /// The two men in a jump ball, and who came up with it.
+    var jumpers: [Person] = []
+    var winner: Person?
+    /// The game's last play ("End of Game").
+    var final = false
+    /// A challenge's outcome: overturned, or the call stands (nil: under way).
+    var overturned: Bool?
+    /// A review the referees started (no coach's challenge).
+    var review = false
+    /// "Official timeout", or a media one, as ESPN's text calls it.
+    var stoppage: String?
+    /// Plays its choreography also shows: earlier ones (the steal before a
+    /// break, the miss and the board before a putback), later ones (the
+    /// rebound a miss ends in, an and-one's foul, an offensive foul's turnover).
+    var leadIn: [String] = []
+    var follows: [String] = []
+
     /// A dunk through the defender who fouled him: the data credits him.
     var posterized: Bool { dunk && andOne && fouler != nil && result == .make }
 
@@ -132,6 +226,52 @@ struct BasketballScene: Equatable, Identifiable {
 
     /// The team without the ball.
     var defense: GameDetail.Side? { offense?.opponent }
+
+    /// A field goal attempt or a free throw.
+    var isShot: Bool { shot != nil }
+
+    /// The team the play happens to with the ball (its frame: the basket it
+    /// attacks is the one in front): the shooter's, the team that lost it,
+    /// the team a foul was on; a defensive rebound's comes off the other
+    /// team's miss. Nil when the play doesn't say (a substitution, a timeout).
+    var ball: GameDetail.Side? {
+        switch kind {
+        case .defensiveRebound:
+            return offense?.opponent
+        case .foul, .violation:
+            guard let call, call != .technical, call != .delay else { return nil }
+            return call.defensive ? offense?.opponent : offense
+        case .substitution, .timeout, .periodEnd, .challenge:
+            return nil
+        default:
+            return offense
+        }
+    }
+
+    /// Who has the ball once it's over (nil: nobody can say, or a stoppage
+    /// keeps whatever was): a make or a defensive board turns it over, an
+    /// offensive board keeps it, a whistle gives it to the team it was for.
+    var after: GameDetail.Side? {
+        switch kind {
+        case .jumper, .three, .layup, .dunk, .alleyOop, .putback, .block:
+            if made { return andOne ? offense : offense?.opponent }
+            return rebound.flatMap { $0.offensive ? offense : offense?.opponent }
+        case .freeThrow:
+            let last = (attempt ?? 1) >= (attempts ?? 1)
+            if made { return last ? offense?.opponent : offense }
+            return last ? rebound.flatMap { $0.offensive ? offense : offense?.opponent } : offense
+        case .steal, .turnover:
+            return offense?.opponent
+        case .offensiveRebound, .defensiveRebound, .jumpBall:
+            return offense
+        case .foul, .violation:
+            guard let call, call != .technical, call != .delay else { return nil }
+            // Goaltending's basket counts: the team that committed it takes it out.
+            return call == .goaltending ? offense : offense?.opponent
+        case .substitution, .timeout, .periodEnd, .challenge:
+            return nil
+        }
+    }
 
     /// Whether the theater replays it (see the file's note). (pure; tested)
     var replays: Bool {
@@ -142,18 +282,24 @@ struct BasketballScene: Equatable, Identifiable {
             return spot != nil
         case .freeThrow:
             return made && lastShot
-        case .steal, .turnover, .offensiveRebound:
+        case .steal, .turnover, .offensiveRebound, .defensiveRebound, .foul, .violation, .jumpBall, .substitution, .timeout,
+             .periodEnd, .challenge:
             return false
         }
     }
 }
 
-/// What the basketball theater shows: the newest play worth replaying, and
-/// whether to replay it.
+/// What the basketball theater tells: the newest plays, every kind, in game
+/// order, and which of them are news (arrived while the page was open, or
+/// only just happened); history is never told, only the court it left.
 struct BasketballTheaterState: Equatable {
-    var scene: BasketballScene?
-    /// Arrived while the page was open, or only just happened: replay it.
-    var news = false
+    var plays: [BasketballScene] = []
+    var news: Set<String> = []
+    /// When the lane last brought a new play: the heartbeat counts from here.
+    var heard: Date?
+
+    /// The newest play worth a full replay (the marquee), news or not.
+    var marquee: BasketballScene? { plays.last { $0.replays } }
 }
 
 // MARK: - Parsing
@@ -177,20 +323,28 @@ extension BasketballScene {
         return nil
     }
 
-    /// The play at `index` of `plays` (in ESPN's order) as a scene; nil for a
-    /// play that moves nothing on the court (a foul, a substitution, a
-    /// defensive rebound, a period's end).
+    /// The newest `count` plays of `plays` as scenes, every kind the theater
+    /// tells, in ESPN's order.
+    static func recent(in plays: [JSON], teams: BasketballFeed.Teams, count: Int = 40) -> [BasketballScene] {
+        plays.indices.suffix(count).compactMap { parse(plays, at: $0, teams: teams) }
+    }
+
+    /// The play at `index` of `plays` (in ESPN's order) as a scene; nil for
+    /// one the theater has nothing to tell of (a placeholder, a type it
+    /// doesn't know).
     static func parse(_ plays: [JSON], at index: Int, teams: BasketballFeed.Teams) -> BasketballScene? {
         guard plays.indices.contains(index) else { return nil }
         let play = plays[index]
         guard let id = play["id"].string else { return nil }
         let type = play["type"]["id"].int
+        let typeText = (play["type"]["text"].string ?? "").replacingOccurrences(of: "\n", with: " ")
         let text = NBADetail.plain(play["text"].string ?? "").replacingOccurrences(of: " 's ", with: "'s ")
         let raw = play["text"].string ?? ""
         let roles = Self.roles(play)
         let kind: Kind, move: Move
         var shot: Kind?
         var result = Result.miss
+        var call: Call?
         if play["shootingPlay"].bool == true {
             let made = play["scoringPlay"].bool == true && (play["scoreValue"].int ?? 1) > 0
             let blocked = !made && roles.contains { $0.role == "blocker" }
@@ -205,10 +359,27 @@ extension BasketballScene {
                 (kind, move) = (blocked ? .block : form.kind, form.move)
                 shot = form.kind
             }
-        } else if type == 156 {
-            (kind, move) = (.offensiveRebound, .tip)
-        } else if let type, NBADetail.turnoverTypes.contains(type) {
+        } else if type == 156 || type == 155 {
+            (kind, move) = (type == 156 ? .offensiveRebound : .defensiveRebound, .tip)
+        } else if let type, NBADetail.turnoverTypes.contains(type), type != 61 {
             (kind, move) = (roles.contains { $0.role == "defender" } || NBADetail.participants(play).count > 1 ? .steal : .turnover, .drive)
+            call = Self.loss(type: type, words: typeText)
+        } else if let foul = Self.foul(type: type, words: typeText) {
+            (kind, move) = (.foul, .drive)
+            call = foul
+        } else if let violation = Self.violation(type: type, words: typeText) {
+            (kind, move) = (.violation, .drive)
+            call = violation
+        } else if type == 615 {
+            (kind, move) = (.jumpBall, .set)
+        } else if type == 584 {
+            (kind, move) = (.substitution, .set)
+        } else if NBADetail.periodEnd(play) != nil {
+            (kind, move) = (.periodEnd, .set)
+        } else if Self.isReview(type: type, text: raw) {
+            (kind, move) = (.challenge, .set)
+        } else if [16, 17, 10, 18].contains(type ?? 0) || typeText.lowercased().contains("timeout") {
+            (kind, move) = (.timeout, .set)
         } else {
             return nil
         }
@@ -216,7 +387,8 @@ extension BasketballScene {
         var scene = BasketballScene(id: id, kind: kind, shot: shot, move: move, result: result)
         scene.offense = teams.side(play["team"]["id"].string)
         scene.typeID = type
-        scene.typeText = (play["type"]["text"].string ?? "").replacingOccurrences(of: "\n", with: " ")
+        scene.typeText = typeText
+        scene.call = call
         scene.text = text
         scene.period = play["period"]["number"].int
         scene.clock = play["clock"]["displayValue"].string ?? ""
@@ -244,23 +416,66 @@ extension BasketballScene {
 
         // Who: the credited parts, named from the text.
         func person(_ role: String, _ fallback: Int?, named: String?) -> Person? {
-            let id = roles.first { $0.role == role }?.id ?? fallback.flatMap { i in i < roles.count && roles[i].role == nil ? roles[i].id : nil }
-            guard id != nil || named != nil else { return nil }
-            return Person(id: id, name: named.map(surname) ?? "")
+            let entry = roles.first { $0.role == role } ?? fallback.flatMap { i in i < roles.count && roles[i].role == nil ? roles[i] : nil }
+            guard entry?.id != nil || named != nil else { return nil }
+            return Person(id: entry?.id, name: named.map(surname) ?? "", role: entry?.position.flatMap(Self.role))
         }
         let names = Self.names(raw)
         switch kind {
         case .steal, .turnover:
-            scene.shooter = person("offense", 0, named: names.loser)
-            scene.steal = Steal(spot: scene.spot, loser: scene.shooter, stealer: kind == .steal ? person("defender", 1, named: names.stealer) : nil)
-        case .offensiveRebound:
+            scene.shooter = person("offense", 0, named: names.loser ?? leadingName(raw))
+            scene.steal = Steal(spot: scene.spot, loser: scene.shooter, stealer: kind == .steal ? person("defender", 1, named: names.stealer) : nil, id: id)
+        case .offensiveRebound, .defensiveRebound:
             scene.shooter = person("rebounder", 0, named: names.rebounder)
+            scene.miss = Self.shotBefore(index, in: plays)
+        case .foul, .violation:
+            scene.shooter = person("fouler", 0, named: leadingName(raw))
+            // Who drew it, and how many shots it gave: the free throws at its clock, by the other team.
+            let trip = Self.freeThrows(after: index, in: plays)
+            scene.trip = trip.attempts ?? (trip.shooter != nil ? 1 : nil)
+            scene.drew = trip.shooter
+            if call == .offensive || call == .charge {
+                // ESPN logs the turnover again, at the same clock.
+                scene.follows = Self.sameClock(after: index, in: plays, limit: 3) { $0["type"]["id"].int == 84 }.map { [$0] } ?? []
+            }
+        case .jumpBall:
+            // "A vs. B (C gains possession)": both jumpers, then who came up with it.
+            let m = raw.firstMatch(of: #/^(.+?) vs\. (.+?) \((.+?) gains possession\)/#)
+            let named = [m.map { String($0.1) }, m.map { String($0.2) }, m.map { String($0.3) }]
+            let people = (0..<3).map { i -> Person? in
+                let entry = i < roles.count ? roles[i] : nil
+                guard entry?.id != nil || named[i] != nil else { return nil }
+                return Person(id: entry?.id, name: named[i].map(surname) ?? "", role: entry?.position.flatMap(Self.role))
+            }
+            scene.jumpers = people.prefix(2).compactMap { $0 }
+            scene.winner = people[2]
+        case .substitution:
+            let m = raw.firstMatch(of: #/^(.+?) enters the game for (.+)$/#)
+            scene.subIn = person("subin", 0, named: m.map { String($0.1) })
+            scene.subOut = person("subout", 1, named: m.map { String($0.2).trimmingCharacters(in: .whitespaces) })
+        case .periodEnd:
+            scene.final = NBADetail.periodEnd(play)?.final ?? false
+        case .challenge:
+            let words = raw.uppercased()
+            scene.review = words.contains("REF-INITIATED") || (278...281).contains(type ?? 0)
+            scene.overturned = words.contains("OVERTURNED") || type == 215 ? true
+                : words.contains("STANDS") || words.contains("SUPPORTS") || words.contains("CONFIRMED") || type == 214 || type == 216 ? false : nil
+            if scene.offense == nil, let team = raw.firstMatch(of: #/\[(.+?)\]/#) {
+                scene.offense = [GameDetail.Side.top, .bottom].first { teams.name($0).caseInsensitiveCompare(String(team.1)) == .orderedSame }
+            }
+        case .timeout:
+            let words = raw.lowercased()
+            scene.stoppage = words.contains("media") || words.contains("tv timeout") ? "MEDIA TIMEOUT"
+                : words.contains("official") ? "OFFICIAL TIMEOUT" : nil
         default:
             scene.shooter = person("shooter", 0, named: names.shooter)
             scene.assister = scene.made ? person("assister", 1, named: names.assister) : nil
             scene.blocker = result == .blocked ? person("blocker", 1, named: names.blocker) : nil
         }
         guard shot != nil else { return scene }
+        if kind == .freeThrow {
+            (scene.attempt, scene.attempts) = Self.trip(type: type, text: raw)
+        }
 
         // The moment around it: the margin before and after, the clock.
         let before = index > 0 ? (plays[..<index].last(where: { LiveScore($0) != nil }).flatMap(LiveScore.init)) : LiveScore(home: 0, away: 0)
@@ -295,8 +510,22 @@ extension BasketballScene {
                 scene.miss = nil
             }
             scene.steal = Self.stealBefore(index, in: plays, teams: teams)
+            // What its replay shows besides: the steal before a break, the miss and the board before a putback, the and-one's foul.
+            scene.leadIn = [scene.steal?.id, scene.miss?.id, scene.miss?.board].compactMap { $0 }
+            if scene.andOne {
+                scene.follows = Self.sameClock(after: index, in: plays, limit: 8) { $0["type"]["id"].int == 44 }.map { [$0] } ?? []
+            }
         }
-        if !scene.made, kind != .freeThrow { scene.rebound = Self.reboundAfter(index, in: plays, teams: teams) }
+        if !scene.made {
+            // A miss ends in its rebound (a free throw's only when it's live: a trip's earlier misses are dead, the bookkeeping rebound after them too).
+            let last = (scene.attempt ?? 1) >= (scene.attempts ?? 1)
+            if kind != .freeThrow || last {
+                scene.rebound = Self.reboundAfter(index, in: plays, teams: teams)
+            } else if let dead = Self.sameClock(after: index, in: plays, limit: 2, where: { $0["type"]["id"].int == 155 || $0["type"]["id"].int == 156 }) {
+                scene.follows = [dead]
+            }
+            if let id = scene.rebound?.id { scene.follows = [id] }
+        }
         return scene
     }
 
@@ -340,8 +569,20 @@ extension BasketballScene {
 
     /// Each participant's part ("shooter", "assister", "blocker", "defender",
     /// "rebounder", "fouler"), in ESPN's order.
-    static func roles(_ play: JSON) -> [(id: String?, role: String?)] {
-        play["participants"].array.map { ($0["athlete"]["id"].string, $0["type"].string) }
+    static func roles(_ play: JSON) -> [(id: String?, role: String?, position: String?)] {
+        play["participants"].array.map { ($0["athlete"]["id"].string, $0["type"].string, $0["position"]["id"].string) }
+    }
+
+    /// ESPN's position (by its ID) as how he plays: point guard, shooting
+    /// guard and guard on the arc; the forwards on the wing; the power
+    /// forward, the forward-center and the center inside.
+    static func role(_ position: String) -> Role? {
+        switch position {
+        case "1", "2", "3": .guardRole
+        case "4", "5", "7": .wing
+        case "6", "8", "9": .big
+        default: nil
+        }
     }
 
     /// ESPN's distance ("23-foot") as feet; a dunk or a tip at the rim is 1.
@@ -414,7 +655,8 @@ extension BasketballScene {
         let who = roles(missed).first { $0.role == "shooter" }?.id ?? roles(missed).first?.id
         return Miss(spot: CGPoint(x: x, y: y),
                     shooter: Person(id: who, name: names(missed["text"].string ?? "").shooter.map(surname) ?? ""),
-                    value: NBADetail.shotValue(missed, x: x, y: y), close: [.layup, .dunk, .alleyOop, .putback].contains(form.kind))
+                    value: NBADetail.shotValue(missed, x: x, y: y), close: [.layup, .dunk, .alleyOop, .putback].contains(form.kind),
+                    id: missed["id"].string, board: board["id"].string, distance: distance(missed))
     }
 
     /// The steal a basket came from: the play right before it, a turnover the
@@ -453,9 +695,10 @@ extension BasketballScene {
             switch next["type"]["id"].int {
             case 155?, 156?:
                 let name = names(next["text"].string ?? "").rebounder
-                let id = roles(next).first?.id
-                return Rebound(person: id == nil && name == nil ? nil : Person(id: id, name: name.map(surname) ?? ""),
-                               offensive: next["type"]["id"].int == 156)
+                let entry = roles(next).first
+                return Rebound(person: entry?.id == nil && name == nil ? nil
+                                   : Person(id: entry?.id, name: name.map(surname) ?? "", role: entry?.position.flatMap(role)),
+                               offensive: next["type"]["id"].int == 156, id: next["id"].string)
             case let t? where NBADetail.turnoverTypes.contains(t) || NBADetail.offensiveFoulTypes.contains(t):
                 return nil
             default:
@@ -464,6 +707,155 @@ extension BasketballScene {
             }
         }
         return nil
+    }
+
+    // MARK: The lighter beats
+
+    /// A turnover's kind, from ESPN's type (its words for the rest).
+    static func loss(type: Int, words: String) -> Call {
+        switch type {
+        case 62: .badPass
+        case 63: .lostBall
+        case 87, 90: .outOfBounds
+        case 64: .traveling
+        case 70: .shotClock
+        case 73: .offensiveGoaltending
+        case 84: .offensive
+        default: .other(callWords(words))
+        }
+    }
+
+    /// A foul's kind, from its type (its words for one it doesn't list);
+    /// nil for a play that isn't a foul.
+    static func foul(type: Int?, words: String) -> Call? {
+        switch type {
+        case 44?: return .shooting
+        case 45?, 40?: return .personal
+        case 43?: return .looseBall
+        case 22?: return .take
+        case 31?, 32?: return .flagrant
+        // Technicals: a defensive three seconds, a double, a flop.
+        case 35?, 29?, 30?, 48?: return .technical
+        case 42?: return .offensive
+        case 24?: return .charge
+        default:
+            let w = words.lowercased()
+            guard w.contains("foul"), !w.contains("turnover") else { return nil }
+            return w.contains("offensive") ? .offensive : w.contains("shooting") ? .shooting : w.contains("technical") ? .technical
+                : w.contains("flagrant") ? .flagrant : w.contains("loose") ? .looseBall : .personal
+        }
+    }
+
+    /// A violation the ball stays with the offense on (a kicked ball,
+    /// goaltending, a delay); nil for a play that isn't one.
+    static func violation(type: Int?, words: String) -> Call? {
+        switch type {
+        case 12?: return .kickedBall
+        case 9?: return .goaltending
+        case 8?: return .delay
+        default:
+            let w = words.lowercased()
+            guard w.contains("violation") else { return nil }
+            return w.contains("kicked") ? .kickedBall : w.contains("goaltending") ? .goaltending : w.contains("delay") ? .delay
+                : .other(callWords(words))
+        }
+    }
+
+    /// ESPN's type in a tag's words: "Double Dribble Turnover" → "DOUBLE DRIBBLE".
+    static func callWords(_ typeText: String) -> String {
+        var w = typeText.uppercased().replacingOccurrences(of: "\n", with: " ")
+        for tail in [" TURNOVER", " VIOLATION"] where w.hasSuffix(tail) { w.removeLast(tail.count) }
+        return w.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// A coach's challenge or a referees' review: types 213–216 and
+    /// 277–281, the words for any other.
+    static func isReview(type: Int?, text: String) -> Bool {
+        if let type, (213...216).contains(type) || (277...281).contains(type) { return true }
+        let w = text.uppercased()
+        return w.contains("CHALLENGE") || w.contains("REVIEW")
+    }
+
+    /// The name a play's text leads with: its words up to the first in lower
+    /// case ("De'Aaron Fox traveling turnover" → "De'Aaron Fox"); nil when it
+    /// leads with none ("shot clock turnover").
+    static func leadingName(_ text: String) -> String? {
+        var words: [Substring] = []
+        for word in text.replacingOccurrences(of: "\n", with: " ").split(separator: " ") {
+            guard word.first?.isUppercase == true else { break }
+            words.append(word)
+        }
+        guard let first = words.first, first != "Double" else { return nil }
+        return words.joined(separator: " ")
+    }
+
+    /// The shot a rebound came off: the newest attempt before it (a field
+    /// goal or a free throw; a foul between them aside), where ESPN put it.
+    static func shotBefore(_ index: Int, in plays: [JSON]) -> Miss? {
+        for j in courtIndices(before: index, in: plays, limit: 3) {
+            let shot = plays[j]
+            guard shot["shootingPlay"].bool == true else {
+                if NBADetail.defensiveFoulTypes.contains(shot["type"]["id"].int ?? 0) { continue }
+                return nil
+            }
+            guard shot["scoringPlay"].bool != true || (shot["scoreValue"].int ?? 1) == 0 else { return nil }
+            let free = NBADetail.isFreeThrow(shot)
+            let x = shot["coordinate"]["x"].double ?? -1e9, y = shot["coordinate"]["y"].double ?? -1e9
+            let spot = free || x < -1000 || y < -1000 ? CGPoint(x: 25, y: 15) : CGPoint(x: x, y: y)
+            let close = !free && [.layup, .dunk, .alleyOop, .putback].contains(form(type: shot["type"]["id"].int, typeText: shot["type"]["text"].string ?? "",
+                                                                                  assisted: false, distance: distance(shot)).kind)
+            let r = roles(shot)
+            let who = r.first { $0.role == "shooter" } ?? r.first
+            return Miss(spot: spot, shooter: Person(id: who?.id, name: names(shot["text"].string ?? "").shooter.map(surname) ?? "",
+                                                    role: who?.position.flatMap(role)),
+                        value: free ? 1 : NBADetail.shotValue(shot, x: spot.x, y: spot.y), close: close, id: shot["id"].string,
+                        blocked: r.contains { $0.role == "blocker" }, freeThrow: free,
+                        distance: free ? 14 : distance(shot) ?? Double(hypot(spot.x - 25, spot.y - 1.25)).rounded())
+        }
+        return nil
+    }
+
+    /// The free throws a whistle gave, at its clock, by the other team: who
+    /// shot them, and how many the trip is.
+    static func freeThrows(after index: Int, in plays: [JSON]) -> (shooter: Person?, attempts: Int?) {
+        let play = plays[index]
+        for next in plays[(index + 1)...].prefix(12) {
+            guard next["period"]["number"].int == play["period"]["number"].int,
+                  next["clock"]["displayValue"].string == play["clock"]["displayValue"].string else { break }
+            guard next["shootingPlay"].bool == true, NBADetail.isFreeThrow(next),
+                  next["team"]["id"].string != play["team"]["id"].string else { continue }
+            let r = roles(next).first
+            let person = Person(id: r?.id, name: names(next["text"].string ?? "").shooter.map(surname) ?? "", role: r?.position.flatMap(role))
+            return (person, trip(type: next["type"]["id"].int, text: next["text"].string ?? "").1)
+        }
+        return (nil, nil)
+    }
+
+    /// The first play after `index` at its period and clock (within `limit`) that `match`es: its ID.
+    static func sameClock(after index: Int, in plays: [JSON], limit: Int, where match: (JSON) -> Bool) -> String? {
+        let play = plays[index]
+        for next in plays[(index + 1)...].prefix(limit) {
+            guard next["period"]["number"].int == play["period"]["number"].int,
+                  next["clock"]["displayValue"].string == play["clock"]["displayValue"].string else { break }
+            if match(next) { return next["id"].string }
+        }
+        return nil
+    }
+
+    /// A free throw's place in its trip: by its type (98 is 1 of 2), else its
+    /// words ("flagrant 1 of 2"); a technical stands alone.
+    static func trip(type: Int?, text: String) -> (Int?, Int?) {
+        switch type {
+        case 97?: return (1, 1)
+        case 98?: return (1, 2)
+        case 99?: return (2, 2)
+        case 100?: return (1, 3)
+        case 101?: return (2, 3)
+        case 102?: return (3, 3)
+        default:
+            if let m = text.firstMatch(of: #/(\d) of (\d)/#) { return (Int(m.1), Int(m.2)) }
+            return type == 103 || text.lowercased().contains("technical") ? (1, 1) : (nil, nil)
+        }
     }
 
     /// The trip's last free throw ("2 of 2"), not a technical.

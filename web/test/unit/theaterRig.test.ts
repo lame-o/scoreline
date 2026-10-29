@@ -12,9 +12,11 @@ import type { Ease, Point } from "../../src/data/mlb/theaterField";
 import { Gridiron } from "../../src/data/theater/footballScript";
 import { PitchFrame } from "../../src/data/theater/soccerScript";
 import { PitchProjection } from "../../src/data/theater/soccerTheater";
-import { gait, mix, remainder, Rig, RigGait, RigPoses, RigTrack, skeleton, vec, type RigMotion, type RigVector } from "../../src/data/theater/rig";
+import { gait, mix, remainder, Rig, rigArm, RigGait, rigPose, RigPoses, RigTrack, skeleton, vec, type RigMotion, type RigPose, type RigVector } from "../../src/data/theater/rig";
 import { FieldProjection } from "../../src/features/game/core/theater/fieldProjection";
-import { RigLens, rigFigure } from "../../src/features/game/core/theater/rigFigure";
+import { drawFigure, figureInks, nearest, RigLens, rigFigure } from "../../src/features/game/core/theater/rigFigure";
+import { theaterInk } from "../../src/features/game/mlb/theater/theaterInk";
+import type { Uniform } from "../../src/data/mlb/theaterTeams";
 import { GridProjection } from "../../src/features/game/football/theater/drawFootball";
 
 const height = 8.5;
@@ -234,5 +236,132 @@ describe("the rig: projections", () => {
     expect(perspective).toBeLessThan(0.03);
     expect(reverse).toBeLessThan(0.03);
     expect(RigLens.pitch(pitch, near).height).toBe(pitch.figure(near));
+  });
+});
+
+describe("drawn", () => {
+  const f = new FieldProjection({ width: 640, height: 320 }, { x: 0, y: 30, span: 60 });
+  const lens = RigLens.field(f, { x: 0, y: 30 });
+  const facing = -Math.PI / 2;
+  const overHead = (pose: RigPose) => {
+    const k = skeleton(pose);
+    const figure = rigFigure(k, facing, lens);
+    const hands = [k.hands[0], k.hands[1]].map((p) => lens.point(Rig.yaw(p, facing)));
+    return figure.limbs.map((l) => ({
+      arm: hands.some((h) => h.x === l.end.x && h.y === l.end.y),
+      crosses: Math.min(nearest(figure.head, l.root, l.joint)[0], nearest(figure.head, l.joint, l.end)[0]) < figure.headRadius + figure.limb / 2,
+      under: l.underHead,
+    }));
+  };
+
+  it("facing the camera, the head goes over hands cocked behind it and arms raised beside it, under an arm across its face; clear of it, neither", () => {
+    const cocked = overHead(rigPose({ lean: -0.18, leftArm: rigArm({ swing: 3.0, spread: 0.18, turn: -0.2, bend: 0.8 }), rightArm: rigArm({ swing: 3.0, spread: 0.18, turn: -0.2, bend: 0.8 }) }));
+    const raised = overHead(rigPose({ leftArm: rigArm({ swing: 3.05, spread: 0.1, turn: -0.1, bend: 0.06 }), rightArm: rigArm({ swing: 3.05, spread: 0.1, turn: -0.1, bend: 0.06 }) }));
+    const across = overHead(rigPose({ lean: -0.06, rightArm: rigArm({ swing: 2.85, spread: 0.08, turn: -0.1, bend: 0.1 }) }));
+    const standing = overHead(RigPoses.stand);
+    expect(cocked.filter((l) => l.arm).every((l) => l.crosses && l.under)).toBe(true);
+    expect(raised.filter((l) => l.arm).every((l) => l.crosses && l.under)).toBe(true);
+    expect(across.some((l) => l.arm && l.crosses && !l.under)).toBe(true);
+    expect(standing.every((l) => !l.crosses && !l.under)).toBe(true);
+    expect([...cocked, ...raised, ...across, ...standing].every((l) => l.crosses || !l.under)).toBe(true);
+  });
+
+  /** The calls a figure's drawing makes: what's filled and stroked in which ink, and whether it's clipped. */
+  const plain: Uniform = { jersey: "#ffffff", cap: "#ff0000", piping: null, accent: null };
+  function record(pose: RigPose, heading: number, height: number, opacity: number, uniform: Uniform = plain) {
+    const k = height / lens.height;
+    const big = new RigLens({ x: 60, y: 108 }, { x: lens.x.x * k, y: lens.x.y * k }, { x: lens.y.x * k, y: lens.y.y * k }, { x: lens.z.x * k, y: lens.z.y * k }, lens.unit, lens.view, height);
+    const calls: { op: "fill" | "stroke"; ink: string; clipped: boolean; alpha: number }[] = [];
+    let depth = 0;
+    const clips: number[] = [];
+    const ctx = {
+      fillStyle: "",
+      strokeStyle: "",
+      lineWidth: 1,
+      lineCap: "butt",
+      lineJoin: "miter",
+      globalAlpha: 1,
+      beginPath() {},
+      moveTo() {},
+      lineTo() {},
+      arc() {},
+      ellipse() {},
+      closePath() {},
+      save() {
+        depth++;
+      },
+      restore() {
+        depth--;
+        while (clips.length && clips[clips.length - 1]! > depth) clips.pop();
+      },
+      clip() {
+        clips.push(depth);
+      },
+      fill() {
+        calls.push({ op: "fill", ink: this.fillStyle, clipped: clips.length > 0, alpha: this.globalAlpha });
+      },
+      stroke() {
+        calls.push({ op: "stroke", ink: this.strokeStyle, clipped: clips.length > 0, alpha: this.globalAlpha });
+      },
+    };
+    const inks = figureInks(uniform, theaterInk("dark"));
+    drawFigure(ctx as unknown as CanvasRenderingContext2D, rigFigure(pose, heading, big), inks, height, opacity);
+    return { calls, inks, alpha: ctx.globalAlpha, depth };
+  }
+
+  const striding = gait({ heading: 0, phase: 0.1, speed: 5, push: 0, weight: 1 }, { left: vec(0.12, 0.06, 0), right: vec(-0.16, -0.06, 0.18) });
+  const poses: [RigPose, number][] = [
+    [RigPoses.stand, facing],
+    [striding, 0],
+    [striding, Math.PI * 0.75],
+    [RigPoses.catchHigh, facing],
+    [RigPoses.release, -0.6],
+  ];
+
+  it("the outline is one shape: filled once, never stroked part by part, so it's never darker where the parts meet", () => {
+    for (const [pose, heading] of poses) {
+      for (const height of [60, 12]) {
+        const { calls, inks } = record(pose, heading, height, 1);
+        expect(calls.filter((c) => c.ink === inks.rim).map((c) => c.op)).toEqual(["fill"]);
+        expect(calls[0]).toMatchObject({ op: "fill", ink: inks.rim });
+      }
+    }
+  });
+
+  it("a limb in front crosses what's drawn already with one fine line, kept to it (never over the outline), and only on a figure big enough to carry it", () => {
+    let lines = 0;
+    for (const [pose, heading] of poses) {
+      const big = record(pose, heading, 60, 1);
+      const inner = big.calls.filter((c) => c.ink === big.inks.inner);
+      expect(inner.every((c) => c.op === "fill" && c.clipped)).toBe(true);
+      lines += inner.length;
+      expect(big.alpha).toBe(1);
+      expect(big.depth).toBe(0);
+      const small = record(pose, heading, 12, 1);
+      expect(small.calls.some((c) => c.ink === small.inks.inner)).toBe(false);
+    }
+    expect(lines).toBeGreaterThan(0);
+  });
+
+  it("an official's kit: stripes down the body and the sleeves, slacks of their own, all inside the outline; a plain uniform as it was", () => {
+    const zebra: Uniform = { ...plain, stripes: "#000000" };
+    const slacks: Uniform = { ...plain, legs: "#000000" };
+    for (const [pose, heading] of poses) {
+      for (const height of [60, 12]) {
+        const p = record(pose, heading, height, 1);
+        const z = record(pose, heading, height, 1, zebra);
+        const t = record(pose, heading, height, 1, slacks);
+        // The stripes: strokes in their ink, every one kept to its part; none on a plain jersey.
+        expect(z.calls.some((c) => c.op === "stroke" && c.ink === "#000000")).toBe(true);
+        expect(z.calls.filter((c) => c.ink === "#000000").every((c) => c.op === "stroke" && c.clipped)).toBe(true);
+        expect(p.calls.some((c) => c.ink === "#000000")).toBe(false);
+        // The slacks: the legs stroked in their own color.
+        expect(t.calls.some((c) => c.op === "stroke" && c.ink === "#000000" && !c.clipped)).toBe(true);
+        // The outline the same shape, filled once, first, either way.
+        for (const r of [z, t]) expect(r.calls.filter((c) => c.ink === r.inks.rim)).toEqual([p.calls[0]]);
+        // No kit at all draws exactly as before.
+        expect(record(pose, heading, height, 1, { ...plain, stripes: null, legs: null }).calls).toEqual(p.calls);
+      }
+    }
   });
 });

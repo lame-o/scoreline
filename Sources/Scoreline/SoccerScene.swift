@@ -226,7 +226,14 @@ struct SoccerScene: Equatable, Identifiable {
     var decisive = false
     var wallclock: Date?
 
-    var attacksRight: Bool { side == .top }
+    /// The quarter-hour's half (1, 2; 3 and 4 in extra time): which end each team attacks.
+    var period: Int?
+    /// Drawn with the ends changed (`turned()`): the second half, or the viewer's turn of the pitch.
+    var turnedRound = false
+
+    /// Whether its team attacks the right-hand goal as drawn: home does in
+    /// the data (as the Live Pitch draws it), unless the scene was turned round.
+    var attacksRight: Bool { (side == .top) != turnedRound }
     var goal: CGPoint { Pitch.goal(right: attacksRight) }
     var scored: Bool { outcome == .goal || outcome == .ownGoal }
     /// The touches that led to the shot by the team that took it.
@@ -269,6 +276,19 @@ struct SoccerTheaterState: Equatable {
     var overturned: SoccerScene?
     /// Both starting elevens and their nominal spots, from the match summary.
     var lineups: [GameDetail.Side: SoccerLineup] = [:]
+    /// The events since (a corner, a foul, a booking, a substitution, a
+    /// stoppage, the halves), oldest first: each gets its beat between moments.
+    var events: [SoccerEvent] = []
+    /// From this order on, events are news (they arrived with the page open) and play their beats.
+    var newsFrom: Int?
+    /// The moment's order in the feed: the events after it are the ones that follow it.
+    var sceneOrder: Int?
+    /// The ball's whereabouts now: the team on it and where.
+    var touch: SoccerTouch?
+    /// The half being played: the ends change at half time.
+    var period: Int?
+    /// When the feed last brought anything: the heartbeat counts from it.
+    var heard: Date?
 }
 
 // MARK: - Parsing
@@ -280,11 +300,8 @@ extension SoccerScene {
         let type = item["type"]["type"].string ?? ""
         if item["scoringPlay"].bool == true || type == "goal" || type.hasPrefix("goal---") || type == "own-goal" { return true }
         if item["penaltyKick"].bool == true || type.hasPrefix("penalty---") { return true }
-        switch type {
-        case "shot-on-target", "shot-blocked", "shot-hit-woodwork": return true
-        case "shot-off-target": return (item["expectedGoals"].double ?? 0) >= PitchAction.bigChanceXG
-        default: return false
-        }
+        // Every shot: a speculative one from distance is its own short beat.
+        return type.hasPrefix("shot-")
     }
 
     /// A goal, as the entry stands (VAR may retype it later).
@@ -316,12 +333,15 @@ extension SoccerScene {
     /// The moment at `index`, with what led to it. Nil for anything that isn't one.
     static func parse(_ plays: [JSON], at index: Int, homeTeamID: String?, keepers: [String: Person] = [:]) -> SoccerScene? {
         let item = plays[index]
-        guard isMoment(item), let id = playID(item), let team = teamID(item),
-              let from = place(item, "fieldPositionX", "fieldPositionY", home: homeTeamID) else { return nil }
-        let type = item["type"]["type"].string ?? ""
         let text = item["text"].string ?? ""
-        let lower = text.lowercased()
+        guard isMoment(item), let id = playID(item), let team = teamID(item) else { return nil }
         let side: GameDetail.Side = team == homeTeamID ? .top : .bottom
+        // Where it was struck from: where ESPN placed it, else where its words say.
+        func ours(_ p: (x: Double, y: Double)) -> CGPoint { Pitch.metres(x: side == .top ? p.x : 100 - p.x, y: side == .top ? p.y : 100 - p.y) }
+        guard let from = place(item, "fieldPositionX", "fieldPositionY", home: homeTeamID)
+                ?? spot(words: text, seed: Celebration.seed(id)).map(ours) else { return nil }
+        let type = item["type"]["type"].string ?? ""
+        let lower = text.lowercased()
 
         let outcome: Outcome
         if item["ownGoal"].bool == true || type == "own-goal" {
@@ -346,9 +366,10 @@ extension SoccerScene {
         shot.technique = header ? .header : type == "goal---volley" || lower.contains("volley") ? .volley : .foot
         shot.xg = item["expectedGoals"].double
         shot.xgot = item["expectedGoalsOnTarget"].double
-        if let gy = item["goalPositionY"].double {
+        // Where it was going: ESPN's point in the goal mouth, else its words ("the bottom left corner").
+        if let aim = item["goalPositionY"].double.map({ (y: $0, z: item["goalPositionZ"].double ?? 0) }) ?? Self.aim(words: text) {
             // In the shooter's frame like everything else: the away team's mouth turns round.
-            shot.mouth = Mouth(y: Pitch.across(side == .top ? gy : 100 - gy), z: Pitch.height(item["goalPositionZ"].double ?? 0))
+            shot.mouth = Mouth(y: Pitch.across(side == .top ? aim.y : 100 - aim.y), z: Pitch.height(aim.z))
         }
         if outcome == .saved || outcome == .blocked {
             shot.stopped = place(item, "fieldPosition2X", "fieldPosition2Y", home: homeTeamID)
@@ -371,6 +392,7 @@ extension SoccerScene {
         scene.topScore = item["homeScore"].int
         scene.bottomScore = item["awayScore"].int
         scene.wallclock = item["wallclock"].string.flatMap(parseDate)
+        scene.period = item["period"]["number"].int
         scene.decisive = scene.scored && decides(scene)
         if shot.penalty { scene.start = .penalty }
 
@@ -443,6 +465,49 @@ extension SoccerScene {
             scene.keeperActions = before.compactMap { keeperAction($0, home: homeTeamID) } + scene.keeperActions
         }
         return scene
+    }
+
+    /// Where a shot was struck from by its words, when ESPN didn't place it
+    /// (in its team's frame, on Opta's 0…100): "from very close range",
+    /// "from the left side of the six yard box", "from the centre of the
+    /// box", "from outside the box", "from long range", "from a difficult
+    /// angle on the right". Across the box or outside it, where the words
+    /// don't say, seeded. (pure; tested)
+    static func spot(words text: String, seed: UInt64) -> (x: Double, y: Double)? {
+        let lower = text.lowercased()
+        var random = SplitMix64(seed: seed)
+        func side(_ centre: Double, _ spread: Double) -> Double {
+            lower.contains("on the left") || lower.contains("left side") ? centre + spread
+                : lower.contains("on the right") || lower.contains("right side") ? centre - spread : centre
+        }
+        if lower.contains("difficult angle") { return (lower.contains("long range") ? 84 : 93, side(50, 31)) }
+        if lower.contains("very close range") { return (95, 50 + random.in(-3...3)) }
+        if lower.contains("six yard box") { return (95.5, side(50, 7)) }
+        if lower.contains("more than 35 yards") { return (64, 50 + random.in(-12...12)) }
+        if lower.contains("long range") { return (72, 50 + random.in(-12...12)) }
+        if lower.contains("outside the box") { return (79, 50 + random.in(-14...14)) }
+        if lower.contains("side of the box") || lower.contains("centre of the box") { return (88, side(50 + random.in(-3...3), 14)) }
+        if lower.contains("penalty") { return (88.5, 50) }
+        return nil
+    }
+
+    /// Where a shot was going by its words, on the goal-line scale (the
+    /// posts at 45.2 and 54.8, the bar at 38; the shooter's left is up the
+    /// scale): "the bottom left corner", "the top right corner", "the centre
+    /// of the goal", "high and wide to the left", "too high", "misses to the
+    /// right", "close, but misses to the left". Nil when they don't say. (pure; tested)
+    static func aim(words text: String) -> (y: Double, z: Double)? {
+        let lower = text.lowercased()
+        let left = lower.contains("left corner") || lower.contains("to the left") || lower.contains("left post")
+        let right = lower.contains("right corner") || lower.contains("to the right") || lower.contains("right post")
+        let wide = lower.contains("wide") || lower.contains("misses")
+        let high = lower.contains("high") || lower.contains("over the bar") || lower.contains("crossbar")
+        let top = lower.contains("top ") || lower.contains("top centre")
+        guard left || right || high || lower.contains("centre of the goal") || lower.contains("bottom") || top else { return nil }
+        let close = lower.contains("close")
+        let y: Double = left ? (wide ? (close ? 56.5 : 60) : 53.3) : right ? (wide ? (close ? 43.5 : 40) : 46.7) : 50
+        let z: Double = high ? (lower.contains("too high") || lower.contains("over") ? 52 : 46) : top ? 31 : lower.contains("bottom") ? 4 : wide ? 8 : 15
+        return (y, z)
     }
 
     /// A keeper's entry as an action: a save, a punch (and where it landed),

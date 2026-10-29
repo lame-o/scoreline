@@ -182,6 +182,11 @@ final class SoccerFeed {
         var newItems: [JSON] = []
         var revised: [JSON] = []
         var complete = false
+        // What the theater shows between moments: each event, the ball's whereabouts, the half.
+        var newEvents: [SoccerEvent] = []
+        var touch: SoccerTouch?
+        var period: Int?
+        var momentOrder: Int?
         while true {
             guard !Task.isCancelled, let url = URL(string: "\(base)?limit=\(size)&page=\(page)"),
                   let json = try? await JSON.fetch(url) else { break }
@@ -197,6 +202,11 @@ final class SoccerFeed {
                 newItems.append(item)
                 let index = serial
                 serial += 1
+                let context = window + newItems
+                if let event = SoccerEvent.parse(context, at: context.count - 1, homeTeamID: homeTeamID, order: index) { newEvents.append(event) }
+                if let at = SoccerTouch.parse(item, homeTeamID: homeTeamID, order: index) { touch = at }
+                if SoccerScene.isMoment(item) { momentOrder = index }
+                period = item["period"]["number"].int ?? period
                 if loaded || DateParser.parse(item["wallclock"].string).map({ Date.now.timeIntervalSince($0) < Self.reviewTime }) == true,
                    SoccerScene.isGoal(item) {
                     reviews.append(Review(id: id, team: SoccerScene.teamID(item), scorer: SoccerScene.credit(item)?.athlete,
@@ -239,7 +249,18 @@ final class SoccerFeed {
             newItems.removeAll { struck.contains(Self.playID($0)) && SoccerScene.isGoal($0) }
             newActions.removeAll { struck.contains($0.playID) }
         }
+        let shownBefore = theater.scene?.id
         updateTheater(newItems, revised: edited, homeTeamID: homeTeamID, news: primed)
+        if !newItems.isEmpty {
+            var next = theater
+            if theater.scene?.id != shownBefore, let momentOrder { next.sceneOrder = momentOrder }
+            next.events = Array((next.events + newEvents).suffix(10))
+            if primed, next.newsFrom == nil, let first = newEvents.first { next.newsFrom = first.order }
+            next.touch = touch ?? next.touch
+            next.period = period ?? next.period
+            next.heard = primed ? .now : newItems.last.flatMap { DateParser.parse($0["wallclock"].string) } ?? next.heard
+            if next != theater { theater = next }
+        }
         // Until this page has had a complete load it's history; after, goals,
         // shots and cards are news.
         if primed {
@@ -356,6 +377,8 @@ final class SoccerFeed {
     func beginPage() {
         primed = false
         moments = []
+        // Events from before are history: no beats for them.
+        if theater.newsFrom != nil { theater.newsFrom = nil }
         // The theater's moment was on screen before: it shows as it ended, unless it only just happened.
         if theater.news, let scene = theater.scene {
             var shown = theater
@@ -574,6 +597,9 @@ final class FootballFeed {
     private(set) var theater = FootballTheaterState()
     /// The sequence number of the theater's snap: an older entry never replaces it.
     @ObservationIgnored private var theaterSequence: Double = -1
+    /// When the feed last brought a new entry, and the newest one's sequence: the theater's heartbeat.
+    @ObservationIgnored private var heard: Date?
+    @ObservationIgnored private var heardSequence: Double = -1
     @ObservationIgnored private var primed = false
     @ObservationIgnored private var updating = false
     /// Both teams' depth charts (NFL), once fetched; when they were last asked for.
@@ -675,6 +701,10 @@ final class FootballFeed {
                 }
                 if let play = Self.play(item, teams: teams) { new.append(play) }
                 if sequence >= theaterSequence { newer.append((item, sequence)) }
+                if sequence > heardSequence {
+                    heardSequence = sequence
+                    heard = primed ? .now : item["wallclock"].string.flatMap(FootballScene.date) ?? heard
+                }
             }
             fetched = max(fetched, (page - 1) * Self.pageSize + items.count)
             if page >= (json["pageCount"].int ?? page) || items.isEmpty {
@@ -711,22 +741,30 @@ final class FootballFeed {
         let recent = Array(newer.sorted { $0.sequence > $1.sequence }.lazy
             .compactMap { entry in FootballScene.parse(entry.item, teams: teams).map { (scene: $0.slotted(by: charts), sequence: entry.sequence) } }
             .prefix(5).reversed())
+        // What stopped play after the newest snap (a timeout, a TV timeout, the quarter's end), if anything has.
+        let after = recent.last?.sequence ?? theaterSequence
+        let stoppage = newer.filter { $0.sequence > after }.max { $0.sequence < $1.sequence }
+            .flatMap { FootballStoppage.parse($0.item, teams: teams) }
         if let snap = recent.last, !Task.isCancelled {
             theaterSequence = snap.sequence
             let snaps = recent.map(\.scene)
             // The snap showing keeps the hash its own plays put it on (an edit doesn't move it).
-            let spotted: FootballScene?
+            let spotted: [FootballScene]
             if let shown = theater.play, let i = snaps.firstIndex(where: { $0.id == shown.id }) {
                 var kept = snaps[i]
                 kept.hash = shown.hash
-                spotted = Self.spot(Array(snaps[(i + 1)...]), after: kept).last ?? kept
+                spotted = [kept] + Self.spot(Array(snaps[(i + 1)...]), after: kept)
             } else {
-                spotted = Self.spot(snaps, after: theater.play).last
+                spotted = Self.spot(snaps, after: theater.play)
             }
-            if let spotted {
-                let next = Self.theater(spotted, after: theater, primed: primed, now: .now)
-                if next != theater { theater = next }
-            }
+            var next = Self.theater(spotted, stoppage: stoppage, after: theater, primed: primed, now: .now)
+            next.heard = heard
+            if next != theater { theater = next }
+        } else if !Task.isCancelled, theater.heard != heard || (stoppage != nil && stoppage != theater.stoppage) {
+            var next = theater
+            next.heard = heard
+            if let stoppage { next.stoppage = stoppage }
+            theater = next
         }
         // Only a complete first load counts as history; after it, new plays
         // (and plays edited into a score) are news. A play older than one
@@ -783,6 +821,35 @@ final class FootballFeed {
         return next
     }
 
+    /// The theater after a look that brought `snaps` (oldest first, the
+    /// one showing among them if it was read again): the newest is its play.
+    /// While the page is open each new snap joins the queue in order, so a
+    /// look that brings two (the feed caught up, a score and its kickoff)
+    /// replays both; an edited snap replaces its earlier version there too.
+    /// `stoppage` is whatever stopped play after the newest. (pure; tested)
+    static func theater(_ snaps: [FootballScene], stoppage: FootballStoppage?, after previous: FootballTheaterState, primed: Bool,
+                        now: Date) -> FootballTheaterState {
+        guard let last = snaps.last else {
+            var next = previous
+            next.stoppage = stoppage ?? previous.stoppage
+            return next
+        }
+        var next = theater(last, after: previous, primed: primed, now: now)
+        next.stoppage = stoppage
+        let edited = { (scene: FootballScene) in snaps.first { $0.id == scene.id } ?? scene }
+        if next.news, primed {
+            let shown = previous.play.flatMap { p in snaps.firstIndex { $0.id == p.id } }
+            let fresh = shown.map { Array(snaps[($0 + 1)...]) } ?? (previous.play == nil ? [last] : snaps)
+            var queue = (previous.news ? previous.queue : previous.play.map { [$0] } ?? []).map(edited)
+            for snap in fresh where !queue.contains(where: { $0.id == snap.id }) { queue.append(snap) }
+            if !queue.contains(where: { $0.id == last.id }) { queue.append(last) }
+            next.queue = Array(queue.suffix(5))
+        } else {
+            next.queue = [last]
+        }
+        return next
+    }
+
     /// Both teams' depth charts, from the day's cache or fetched together
     /// (official ESPN core, about 20 KB each); the snap showing is then
     /// placed on them.
@@ -797,6 +864,7 @@ final class FootballFeed {
         var next = theater
         next.charts = found
         next.play = next.play?.slotted(by: found)
+        next.queue = next.queue.map { $0.slotted(by: found) }
         if next != theater { theater = next }
     }
 
@@ -981,6 +1049,16 @@ final class BaseballFeed {
     @ObservationIgnored private var lastPlayRef: String?
     @ObservationIgnored private var newestID: String?
     @ObservationIgnored private var updating = false
+    /// MLB's at-bat under way and the game's status there (its live poll).
+    @ObservationIgnored private var mlbLive: Statcast.Live?
+    /// ESPN's status, held up ("Rain Delay").
+    @ObservationIgnored private var espnDelay: PlayBeat.Delay?
+    /// The theater's timeline as built from the plays (and MLB's events), and every entry ID it has had.
+    @ObservationIgnored private var timeline: [PlayBeat] = []
+    @ObservationIgnored private var seenBeats: Set<String> = []
+    @ObservationIgnored private var names: [String: String] = [:]
+    /// When anything last came (a play, a pitch, the count, MLB's events): the theater's heartbeat.
+    @ObservationIgnored private var heard: Date?
 
     private static let pageSize = 25
     private static let windowSize = 80
@@ -993,6 +1071,7 @@ final class BaseballFeed {
         updating = true
         defer { updating = false }
         lookup = statcast
+        self.names = names
         let league = path.split(separator: "/").last.map(String.init) ?? path
         let base = "https://sports.core.api.espn.com/v2/sports/baseball/leagues/\(league)/events/\(eventID)/competitions/\(eventID)"
         guard let situationURL = URL(string: "\(base)/situation"), let statusURL = URL(string: "\(base)/status") else { return }
@@ -1001,6 +1080,22 @@ final class BaseballFeed {
         let (s, status) = await (situationCall, statusCall)
         if let status, status["type"]["state"].string == "in" {
             inning = status["type"]["shortDetail"].string
+        }
+        let held = Self.delay(status)
+        var refresh = held != espnDelay
+        espnDelay = held
+        // MLB's at-bat under way: what came between pitches as it comes (a few kilobytes, its own pace).
+        if let statcast {
+            let live = await StatcastStore.shared.live(espnEvent: statcast.espnEvent, start: statcast.start, teams: statcast.teams)
+            if let live, live != mlbLive {
+                if live.atBat != mlbLive?.atBat { heard = .now }
+                mlbLive = live
+                refresh = true
+            }
+        }
+        if refresh, loaded {
+            rebuildTimeline(news: primed)
+            publish()
         }
         guard let s else { return }
         let lastRef = s["lastPlay"]["$ref"].string
@@ -1011,7 +1106,44 @@ final class BaseballFeed {
         }
         let lastPlay = window.last { $0["type"]["type"].string == "play-result" }?["text"].string
         let next = Self.settledSituation(Self.situation(s, names: names, lastPlay: lastPlay), window: window, names: names)
-        if next != situation { situation = next }
+        if next != situation {
+            situation = next
+            heard = .now
+            publish()
+        }
+    }
+
+    /// A delay as ESPN's status has it ("STATUS_RAIN_DELAY", "STATUS_DELAYED": "Rain Delay"). (pure; tested)
+    static func delay(_ status: JSON?) -> PlayBeat.Delay? {
+        guard let type = status?["type"], let name = type["name"].string, name.contains("DELAY") else { return nil }
+        let detail = type["detail"].string ?? type["shortDetail"].string ?? ""
+        return .weather(name.contains("RAIN") || detail.lowercased().contains("rain") ? "Rain" : detail)
+    }
+
+    /// A delay as MLB's live status has it ("Delayed: Rain"): before ESPN's, it's the game's own.
+    static func delay(mlb status: String?) -> PlayBeat.Delay? {
+        guard let status, status.hasPrefix("Delayed") else { return nil }
+        let why = status.split(separator: ":", maxSplits: 1).last.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+        return why.hasPrefix("About to Resume") ? .resuming : .weather(why)
+    }
+
+    /// The theater's timeline again from the plays and MLB's at-bats (the
+    /// full feed's, cached as plays are measured, and the one under way): an
+    /// entry is news if it's new since the first complete look; one already
+    /// had keeps what it was; the newest play is news as the theater's is.
+    private func rebuildTimeline(news: Bool) {
+        var mlb = lookup.map { StatcastStore.shared.cached(espnEvent: $0.espnEvent) } ?? []
+        if let current = mlbLive?.atBat {
+            if let i = mlb.firstIndex(where: { $0.index == current.index }) { mlb[i] = current } else { mlb.append(current) }
+        }
+        let before = Dictionary(timeline.map { ($0.id, $0.news) }, uniquingKeysWith: { a, _ in a })
+        var line = PlayBeat.timeline(window, mlb: mlb, names: names)
+        for i in line.indices {
+            let id = line[i].id
+            line[i].news = line[i].isPlay && id == espnTheater.play?.id ? espnTheater.news : before[id] ?? (news && !seenBeats.contains(id))
+        }
+        seenBeats.formUnion(line.map(\.id))
+        timeline = line
     }
 
     private func loadPlays(base: String, names: [String: String], side: (String?) -> GameDetail.Side?) async {
@@ -1071,6 +1203,7 @@ final class BaseballFeed {
         if complete { primed = true }
         loaded = true
         guard !look.new.isEmpty || !changed.isEmpty else { return }
+        heard = .now
         atBat = ESPNDetail.currentAtBat(window)
         updateTheater(news: news, names: names, side: side)
         let balls = ESPNDetail.battedBalls(window, side: side)
@@ -1131,6 +1264,7 @@ final class BaseballFeed {
             lookedUp.insert(play.id)
             measure(play, lookup)
         }
+        rebuildTimeline(news: news)
         publish()
     }
 
@@ -1142,6 +1276,9 @@ final class BaseballFeed {
             if id == holding, id != theater.play?.id { return }
             next.play?.measured = measured[id]
         }
+        next.timeline = timeline
+        next.updated = heard
+        next.delay = Self.delay(mlb: mlbLive?.status) ?? espnDelay
         if next != theater { theater = next }
     }
 
@@ -1167,6 +1304,8 @@ final class BaseballFeed {
                 if let found = await play.measure(lookup), let self {
                     self.measured[id] = found
                     if self.holding == id { self.holding = nil }
+                    // MLB's full account is cached now: the pitches and what came between them.
+                    self.rebuildTimeline(news: self.primed)
                     self.publish()
                     return
                 }

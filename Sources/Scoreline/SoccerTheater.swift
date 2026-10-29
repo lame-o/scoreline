@@ -339,7 +339,9 @@ struct SoccerFrame: View, Equatable {
                 var path = Path()
                 path.move(to: f.point(flight.from.ground))
                 path.addLine(to: f.point(flight.point(at: end).ground))
-                let strength = 0.24 + 0.36 * fade
+                // Between moments a pass's line goes as the ball arrives; in a replay a faint record of the move stays.
+                let strength = script.loop != nil ? 0.45 * fade : 0.24 + 0.36 * fade
+                guard strength > 0.005 else { continue }
                 context.stroke(path, with: .color(accent.opacity(strength)),
                                style: StrokeStyle(lineWidth: width, lineCap: .round, dash: flight.kind == .carry ? [width * 0.1, width * 2.6] : []))
             case .shot where i == script.shot:
@@ -389,6 +391,8 @@ struct SoccerFrame: View, Equatable {
     private func drawStage(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed]) -> CGPoint? {
         let attacking = FigureInks(teams.attacking, ink: ink, in: context)
         let defending = FigureInks(teams.defending, ink: ink, in: context)
+        let officials = script.actors.contains { $0.team == .official } ? FigureInks(.referee(against: [teams.attacking.jersey, teams.defending.jersey], dark: ink.dark), ink: ink, in: context) : defending
+        let staff = script.actors.contains { $0.team == .staff } ? FigureInks(FootballFrame.staff, ink: ink, in: context) : defending
         enum Item {
             case actor(Int)
             case goalBack(right: Bool)
@@ -421,12 +425,53 @@ struct SoccerFrame: View, Equatable {
                 drawGoal(&context, f, right: right, parts: right == f.behind ? [.nearPost, .frame, .net] : [.net, .frame, .nearPost])
             case let .actor(i):
                 let actor = script.actors[i], figure = figures[i]
-                TheaterDraw.figure(figure.figure, inks: actor.team == .attacking ? attacking : defending, height: figure.height,
-                                   opacity: actor.shaped ? receding(figure.figure.ground, size: f.size) : 1, in: context)
+                let shown = actor.opacity(at: t)
+                guard shown > 0.01 else { continue }
+                let inks = switch actor.team {
+                case .attacking: attacking
+                case .defending: defending
+                case .official: officials
+                case .staff: staff
+                }
+                TheaterDraw.figure(figure.figure, inks: inks, height: figure.height,
+                                   opacity: shown * (actor.shaped ? receding(figure.figure.ground, size: f.size) : 1), in: context)
                 if script.heldBy == i, t >= script.heldFrom { hands = figure.hands }
+                for prop in script.props where prop.actor == i && t >= prop.from && t < prop.until {
+                    drawProp(prop, figure.figure, height: figure.height, opacity: shown * min((t - prop.from) / 0.2, 1), in: &context)
+                }
             }
         }
         return hands
+    }
+
+    /// What a man holds up: the referee's card, the assistant's flag, the
+    /// fourth official's board; in his raised hand (the board in both).
+    private func drawProp(_ prop: SoccerProp, _ figure: RigFigure, height: CGFloat, opacity: Double, in context: inout GraphicsContext) {
+        let hand = figure.hands.0.y < figure.hands.1.y ? figure.hands.0 : figure.hands.1
+        let u = height / 10
+        var layer = context
+        layer.opacity = opacity
+        switch prop.kind {
+        case .yellowCard, .redCard:
+            let card = CGRect(x: hand.x - u * 0.8, y: hand.y - u * 2.3, width: u * 1.6, height: u * 2.2)
+            layer.fill(Path(roundedRect: card, cornerRadius: u * 0.15), with: .color(prop.kind == .redCard ? Color(red: 0.86, green: 0.12, blue: 0.1) : Color(red: 1, green: 0.84, blue: 0.1)))
+            layer.stroke(Path(roundedRect: card, cornerRadius: u * 0.15), with: .color(.black.opacity(0.35)), lineWidth: 0.5)
+        case .flag:
+            var staff = Path()
+            staff.move(to: hand)
+            staff.addLine(to: CGPoint(x: hand.x, y: hand.y - u * 2.2))
+            layer.stroke(staff, with: .color(.black.opacity(0.7)), lineWidth: max(u * 0.12, 0.7))
+            let cloth = CGRect(x: hand.x, y: hand.y - u * 2.2, width: u * 1.4, height: u * 1.0)
+            layer.fill(Path(cloth), with: .color(Color(red: 1, green: 0.84, blue: 0.1)))
+            layer.fill(Path(CGRect(x: cloth.minX, y: cloth.minY, width: cloth.width / 2, height: cloth.height / 2)), with: .color(Color(red: 0.86, green: 0.12, blue: 0.1)))
+        case .board:
+            let mid = CGPoint(x: (figure.hands.0.x + figure.hands.1.x) / 2, y: min(figure.hands.0.y, figure.hands.1.y))
+            let board = CGRect(x: mid.x - u * 1.6, y: mid.y - u * 1.9, width: u * 3.2, height: u * 1.9)
+            layer.fill(Path(roundedRect: board, cornerRadius: u * 0.2), with: .color(Color(white: 0.08)))
+            // The numbers lit: one red, one green.
+            layer.fill(Path(CGRect(x: board.minX + u * 0.35, y: board.minY + u * 0.45, width: u * 1.0, height: u * 1.0)), with: .color(Color(red: 0.95, green: 0.25, blue: 0.2)))
+            layer.fill(Path(CGRect(x: board.maxX - u * 1.35, y: board.minY + u * 0.45, width: u * 1.0, height: u * 1.0)), with: .color(Color(red: 0.3, green: 0.9, blue: 0.35)))
+        }
     }
 
     /// A man off the ball standing where the stamp lands steps back for it:
@@ -588,6 +633,18 @@ struct SoccerFrame: View, Equatable {
         let still: RigPose = actor.role == .keeper ? .ready : .stand
         let feet = track.feet(at: t, anchor: here, heading: m.heading, unit: unit, speed: m.speed, stand: (still.left, still.right))
         var base = still.mix(.gait(m, feet: feet), m.weight)
+        // Between moments: a man down, a physio on a knee, an arm (or two) up.
+        if let hold = actor.hold(at: t) {
+            let into = smooth((t - hold.from) / 0.3)
+            switch hold.kind {
+            case .down: return (base.mix(.down(1), into), m.heading)
+            case .kneel: return (base.mix(GridPose.kneel, into), m.heading)
+            case .cardUp: base = base.over(.cardUp, into, moving: m.weight)
+            case .ear: base = base.over(.ear, into, moving: m.weight)
+            case .screen: base = base.over(.screen, into, moving: m.weight)
+            case .boardUp: base = base.over(.boardUp, into, moving: m.weight)
+            }
+        }
         for action in actor.actions {
             let x = t - action.at
             switch action.kind {
@@ -812,7 +869,7 @@ extension TheaterInk {
 
 /// The soccer theater at the top of the Live Pitch. It reads the live lane
 /// itself (and nothing above it does), so a new moment redraws the theater
-/// alone; its caption is the moment in ESPN's words.
+/// alone; its caption is the moment (or the event) in ESPN's words.
 struct SoccerTheater: View {
     let feed: SoccerFeed?
     /// A moment to show before (or without) the live lane: previews, the harness.
@@ -820,22 +877,30 @@ struct SoccerTheater: View {
     let palette: TeamPalette
     /// The teams' own and second colors, so the figures always contrast.
     var kits: TheaterKits? = nil
+    /// The match: the viewer's turn of the pitch is remembered for it.
+    var eventID: String? = nil
+    /// The teams' names for the tag ("Arsenal").
+    var topTeam = ""
+    var bottomTeam = ""
+    /// The added time last announced (the commentary's), for its tag.
+    var added: SoccerAddedTime? = nil
 
     var body: some View {
         let live = feed?.loaded == true ? feed?.theater : nil
-        let state = live.flatMap { $0.scene == nil ? nil : $0 } ?? preloaded ?? live ?? SoccerTheaterState()
+        let state = live.flatMap { $0.scene == nil && $0.touch == nil ? nil : $0 } ?? preloaded ?? live ?? SoccerTheaterState()
+        let names = SoccerStatus.Names(top: topTeam, bottom: bottomTeam, topColor: kits?.top.color, bottomColor: kits?.bottom.color)
         VStack(alignment: .leading, spacing: 6) {
-            SoccerStage(state: state, palette: palette, kits: kits)
-            caption(state.scene)
+            SoccerStage(state: state, palette: palette, kits: kits, names: names, added: added, eventID: eventID ?? "soccer")
+            caption(state)
         }
     }
 
     /// What the stage shows: a moment replaying, then its end (the scorer
     /// wheeling away, the stamp) until it has held (`rested`); a new moment
-    /// not yet begun; otherwise nil, the quiet pitch. History that isn't
-    /// news is never shown: moments can be twenty minutes apart, and on
-    /// opening the page the pitch is quiet. A goal VAR has just struck off
-    /// replays once more, as a NO GOAL beat. (pure; tested)
+    /// not yet begun; otherwise nil, the pitch between moments (SoccerIdle).
+    /// History that isn't news is never replayed: on opening the page the
+    /// pitch is the live one. A goal VAR has just struck off replays once
+    /// more, as a NO GOAL beat. (pure; tested)
     static func shown(_ state: SoccerTheaterState, replaying: String?, rested: String?, now: Date = .now) -> SoccerScene? {
         if let struck = state.overturned, let at = struck.wallclock, now.timeIntervalSince(at) < SoccerFeed.reviewTime + 120,
            rested != key(struck) {
@@ -844,6 +909,17 @@ struct SoccerTheater: View {
         guard let scene = state.scene else { return nil }
         if replaying == key(scene) { return rested == key(scene) ? nil : scene }
         return state.news ? scene : nil
+    }
+
+    /// The events since the last moment, and which of them still to play
+    /// (news not yet played, oldest first) or holds play up now (the newest,
+    /// when nothing on the ball came after it: a corner not yet taken, a man
+    /// down, the break). (pure; tested)
+    static func events(_ state: SoccerTheaterState, played: Set<String>) -> (pending: [SoccerEvent], standing: SoccerEvent?) {
+        let since = state.events.filter { $0.order > (state.sceneOrder ?? -1) }
+        let pending = since.filter { e in state.newsFrom.map { e.order >= $0 } == true && !played.contains(e.id) && e.kind != .resume }
+        let standing = since.last.flatMap { e in SoccerIdle.holds(e.kind) && e.order > (state.touch?.order ?? -1) ? e : nil }
+        return (pending, standing)
     }
 
     /// A moment's replay, by its play; a goal struck off by VAR replays as a beat of its own.
@@ -855,30 +931,38 @@ struct SoccerTheater: View {
         text.replacing(#/\.(?=\p{Lu})/#, with: ". ")
     }
 
-    private func caption(_ scene: SoccerScene?) -> some View {
-        Group {
-            if let scene {
-                (Text(scene.minute).fontWeight(.semibold).foregroundStyle(.primary)
-                    + Text("  " + Self.sentences(scene.text)).foregroundStyle(.secondary))
+    private func caption(_ state: SoccerTheaterState) -> some View {
+        let event = state.events.last { $0.order > (state.sceneOrder ?? -1) && !$0.text.isEmpty }
+        let line: (minute: String, text: String, id: String)? = event.map { ($0.minute, $0.text, $0.id) }
+            ?? state.scene.map { ($0.minute, $0.text, $0.id) }
+        return Group {
+            if let line {
+                (Text(line.minute).fontWeight(.semibold).foregroundStyle(.primary)
+                    + Text("  " + Self.sentences(line.text)).foregroundStyle(.secondary))
             } else {
-                Text("Goals, saves and big chances replay here as they happen.").foregroundStyle(.secondary)
+                Text("Every shot, corner, card and stoppage plays here as it happens.").foregroundStyle(.secondary)
             }
         }
         .font(Viz.note.monospacedDigit())
         .lineLimit(3)
         .frame(maxWidth: .infinity, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
-        .id(scene?.id)
+        .id(line?.id)
         .transition(.opacity.animation(Motion.fade))
     }
 }
 
 /// The theater's stage: the pitch and one frame of the moment through the
-/// camera (a TimelineView only while it replays), and its celebration.
+/// camera (a TimelineView only while it replays, or while a beat between
+/// moments moves), its celebration, the tag, the heartbeat and the control
+/// that turns the pitch round.
 private struct SoccerStage: View {
     let state: SoccerTheaterState
     let palette: TeamPalette
     let kits: TheaterKits?
+    let names: SoccerStatus.Names
+    let added: SoccerAddedTime?
+    let eventID: String
     @Environment(\.celebrationClock) private var clock
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
@@ -886,6 +970,27 @@ private struct SoccerStage: View {
     @State private var replay: Replay?
     /// The moment's script, built once (a body run for anything else reuses it).
     @State private var built = ScriptCache()
+    /// A replayed moment's end that has had its time on screen.
+    @State private var rested: String?
+    /// The events whose beats have played.
+    @State private var played: Set<String> = []
+    /// When the pitch went idle, and which idle it was.
+    @State private var idleClock: IdleClock?
+    @State private var tick = 0
+    @State private var hovering = false
+    @State private var onScreen = false
+    /// The viewer's turn of the pitch, for this match.
+    @AppStorage private var flipped: Bool
+
+    init(state: SoccerTheaterState, palette: TeamPalette, kits: TheaterKits?, names: SoccerStatus.Names, added: SoccerAddedTime?, eventID: String) {
+        self.state = state
+        self.palette = palette
+        self.kits = kits
+        self.names = names
+        self.added = added
+        self.eventID = eventID
+        _flipped = AppStorage(wrappedValue: false, TheaterOrientation.key(eventID))
+    }
 
     struct Replay: Equatable {
         let id: String
@@ -893,19 +998,54 @@ private struct SoccerStage: View {
         var done = false
     }
 
-    /// A replayed moment's end that has had its time on screen.
-    @State private var rested: String?
+    struct IdleClock: Equatable {
+        let key: String
+        let since: Date
+    }
 
-    /// The moment on screen (see `SoccerTheater.shown`); nil, the quiet pitch.
+    private struct Wake: Equatable {
+        let key: String?
+        let tick: Int
+        let onScreen: Bool
+    }
+
+    /// The moment on screen (see `SoccerTheater.shown`); nil, the pitch between moments.
     private var shown: SoccerScene? { SoccerTheater.shown(state, replaying: replay?.id, rested: rested) }
 
     /// The replay key of the moment on screen.
     private var shownKey: String? { shown.map(SoccerTheater.key) }
 
+    /// The moment as drawn: turned round for the second half, or the viewer's turn.
+    private func drawn(_ scene: SoccerScene) -> SoccerScene {
+        PitchFacing.homeAttacksRight(period: scene.period ?? state.period, flipped: flipped) ? scene : scene.turned()
+    }
+
+    /// The event the pitch shows between moments (its beat, or what holds play up), and the idle.
+    private var current: SoccerEvent? {
+        let (pending, standing) = SoccerTheater.events(state, played: played)
+        return pending.first ?? standing
+    }
+
+    private var idle: SoccerIdle {
+        SoccerIdle.make(event: current, touch: state.touch, scene: state.scene, period: state.period, lineups: state.lineups, flipped: flipped)
+    }
+
+    /// Which idle it is: an event's beat; else the ball going round for a
+    /// team from about where it is (a new spot or the ball changing hands
+    /// starts it again, not every touch).
+    private var idleKey: String {
+        if let current { return "\(current.id)|\(flipped)|\(state.lineups.count)" }
+        let at = state.touch.map { "\(Int($0.at.x / 15)),\(Int($0.at.y / 17))" } ?? "-"
+        return "play|\(state.touch?.side == .bottom)|\(at)|\(flipped)|\(state.lineups.count)|\(state.period ?? 1)"
+    }
+
+    /// The added minutes, while they're being played.
+    private var addedNow: Int? { added?.showing(period: state.period, clock: state.touch?.clock ?? 0) }
+
     /// Half as tall as wide, up to this; wider than that, the pitch centers in the well.
     static let maxHeight: CGFloat = 320
 
-    private var teams: SoccerTeams {
+    private func teams(_ side: GameDetail.Side) -> SoccerTeams {
         let dressed: (top: Uniform, bottom: Uniform)
         if let kits {
             let d = TheaterTeams.dress(kits, scheme: scheme)
@@ -913,8 +1053,6 @@ private struct SoccerStage: View {
         } else {
             dressed = (Uniform(TheaterTeams.solid(palette.top, scheme)), Uniform(TheaterTeams.solid(palette.bottom, scheme)))
         }
-        // The moment's attacking team (home is the top team).
-        let side = shown?.side ?? .top
         return side == .top ? SoccerTeams(attacking: dressed.top, defending: dressed.bottom)
             : SoccerTeams(attacking: dressed.bottom, defending: dressed.top)
     }
@@ -934,28 +1072,47 @@ private struct SoccerStage: View {
         return state.news && !reduceMotion
     }
 
+    /// Seconds into the pitch between moments (its script's time), round the
+    /// loop; with Reduce Motion, one still moment once the beat has set up.
+    private func idleTime(_ script: SoccerScript, at date: Date) -> Double {
+        if case let .frozen(t) = clock { return script.idleTime(t) }
+        if reduceMotion { return script.loop?.start ?? script.duration }
+        guard let idleClock, idleClock.key == idleKey else { return 0 }
+        return script.idleTime(date.timeIntervalSince(idleClock.since))
+    }
+
     var body: some View {
-        let scene = shown
-        let script = built.script(for: scene, lineups: state.lineups)
+        let scene = shown.map(drawn)
+        let idle = self.idle
+        let script = scene.map { built.script(for: $0, lineups: state.lineups) } ?? built.idle(idle)
         let ink = TheaterInk(scheme)
-        let teams = teams
+        let teams = teams(scene?.side ?? idle.possession)
+        let idleNow = scene == nil ? idleTime(script, at: .now) : 0
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 Group {
-                    if playing {
+                    if let scene {
+                        if playing {
+                            TimelineView(.animation) { context in
+                                layer(scene, script, time(at: context.date), teams, ink, geo.size)
+                            }
+                            .transition(.identity)
+                        } else {
+                            layer(scene, script, time(at: .now), teams, ink, geo.size)
+                                .transition(.identity)
+                        }
+                    } else if clock == .live, !reduceMotion, onScreen, script.moving(at: idleNow) {
                         TimelineView(.animation) { context in
-                            SoccerFrame(scene: scene, script: script, t: time(at: context.date), teams: teams, ink: ink, size: geo.size)
-                                .equatable()
+                            idleLayer(idle, script, idleTime(script, at: context.date), teams, ink, geo.size)
                         }
                         .transition(.identity)
                     } else {
-                        SoccerFrame(scene: scene, script: script, t: time(at: .now), teams: teams, ink: ink, size: geo.size)
-                            .equatable()
+                        idleLayer(idle, script, idleNow, teams, ink, geo.size)
                             .transition(.identity)
                     }
                 }
-                .id(shownKey)
-                // A replay cuts in; a moment that isn't replayed crossfades to how it ended.
+                .id(shownKey ?? "idle|" + idleKey)
+                // A replay cuts in; a moment that isn't replayed crossfades to how it ended, as does each event.
                 .transition(playing ? .identity : .opacity.animation(.easeInOut(duration: 0.35)))
                 if let scene {
                     SoccerCelebration(scene: scene, script: script, size: geo.size, color: teams.attacking.accent,
@@ -963,13 +1120,30 @@ private struct SoccerStage: View {
                         .id(shownKey)
                 }
             }
+            .accessibilityHidden(true)
+            .overlay(alignment: scene != nil && script.cornerRight ? .bottomLeading : .bottomTrailing) {
+                TheaterHeartbeat(updated: state.heard, source: "ESPN").padding(6)
+            }
+            .overlay(alignment: .topTrailing) {
+                TheaterFlipButton(eventID: eventID, surface: "pitch")
+                    .padding(6)
+                    .opacity(hovering ? 1 : 0)
+                    .animation(Motion.fade, value: hovering)
+            }
         }
         .modifier(HalfHeight(cap: Self.maxHeight))
         .vizWell(padding: 0)
-        .accessibilityHidden(true)
-        .onAppear(perform: begin)
+        .onHover { hovering = $0 }
+        .onAppear {
+            onScreen = true
+            begin()
+            startIdle()
+        }
+        .onDisappear { onScreen = false }
         .onChange(of: state.scene?.id) { _, _ in begin() }
         .onChange(of: state.overturned?.id) { _, _ in begin() }
+        .onChange(of: shownKey) { _, now in if now == nil { startIdle() } }
+        .onChange(of: idleKey) { _, _ in if shown == nil { startIdle() } }
         .task(id: replay) {
             guard let replay else { return }
             if !replay.done {
@@ -978,11 +1152,68 @@ private struct SoccerStage: View {
                 self.replay?.done = true
                 return
             }
-            // Done: its end holds a while (unless the next moment comes), then the pitch goes quiet.
+            // Done: its end holds a while (unless the next moment comes), then the pitch goes on.
             try? await Task.sleep(for: TheaterKit.hold)
             guard !Task.isCancelled, self.replay?.id == replay.id else { return }
             rested = replay.id
         }
+        // Between moments: each event's beat for its time, then the next; a wake for each beat, asleep between them.
+        .task(id: Wake(key: scene == nil ? idleKey : nil, tick: tick, onScreen: onScreen)) {
+            guard scene == nil, clock == .live, onScreen else { return }
+            let t = idleTime(script, at: .now)
+            var wake: Double?
+            if let event = current, SoccerTheater.events(state, played: played).pending.first?.id == event.id {
+                // The beat's time on the stage, then the next event's (or the pitch going on).
+                let since = idleClock.map { Date.now.timeIntervalSince($0.since) } ?? 0
+                let left = SoccerIdle.beat(event.kind) - since
+                if left <= 0 {
+                    played.insert(event.id)
+                    return
+                }
+                wake = left
+            }
+            if !reduceMotion {
+                let next: Double?
+                if let beat = script.beats.first(where: { t >= $0.lowerBound && t < $0.upperBound }) {
+                    next = beat.upperBound
+                } else {
+                    let tags = SoccerStatus.changes(idle, added: addedNow).filter { $0 > t }
+                    next = ([script.nextBeat(after: t)] + tags.map(Optional.some)).compactMap { $0 }.min()
+                }
+                if let next { wake = min(wake ?? .infinity, next - t) }
+            }
+            guard let wake else { return }
+            try? await Task.sleep(for: .seconds(max(wake, 0.05) + 0.02))
+            guard !Task.isCancelled else { return }
+            tick &+= 1
+        }
+    }
+
+    /// A moment's frame and its tag.
+    private func layer(_ scene: SoccerScene, _ script: SoccerScript, _ t: Double, _ teams: SoccerTeams, _ ink: TheaterInk, _ size: CGSize) -> some View {
+        let banner = script.banners.contains { t >= $0.at - 0.3 && t < $0.until + 0.3 }
+        let status = banner || t >= script.stamp ? TheaterStatus() : SoccerStatus.replay(scene, names: names)
+        return ZStack(alignment: .topLeading) {
+            SoccerFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: size)
+                .equatable()
+            TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
+        }
+    }
+
+    /// The pitch between moments at t, and its tag.
+    private func idleLayer(_ idle: SoccerIdle, _ script: SoccerScript, _ t: Double, _ teams: SoccerTeams, _ ink: TheaterInk, _ size: CGSize) -> some View {
+        let status = SoccerStatus.idle(idle, t: t, names: names, added: addedNow)
+        return ZStack(alignment: .topLeading) {
+            SoccerFrame(scene: nil, script: script, t: t, teams: teams, ink: ink, size: size)
+                .equatable()
+            TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
+        }
+    }
+
+    /// The pitch goes idle (again), or its event changes: its beats count from now.
+    private func startIdle() {
+        guard shown == nil, idleClock?.key != idleKey else { return }
+        idleClock = IdleClock(key: idleKey, since: .now)
     }
 
     /// A new moment replays from its first touch; with Reduce Motion it's
@@ -999,13 +1230,16 @@ private struct SoccerStage: View {
     }
 }
 
-/// The last moment's script. A reference, so keeping it isn't a change
-/// anything observes: building one (its camera track) is a couple of
-/// milliseconds, and a body run that isn't about a new moment shouldn't.
+/// The last moment's script, and the pitch's between moments. A reference,
+/// so keeping them isn't a change anything observes: building one (its
+/// camera track) is a couple of milliseconds, and a body run that isn't
+/// about a new moment shouldn't.
 private final class ScriptCache {
     private var scene: SoccerScene?
     private var lineups: [GameDetail.Side: SoccerLineup] = [:]
     private var script = SoccerScript()
+    private var idle: SoccerIdle?
+    private var idleScript: SoccerScript?
 
     func script(for scene: SoccerScene?, lineups: [GameDetail.Side: SoccerLineup]) -> SoccerScript {
         guard let scene else { return SoccerScript() }
@@ -1015,6 +1249,14 @@ private final class ScriptCache {
             script = SoccerScript(scene, lineups: lineups)
         }
         return script
+    }
+
+    func idle(_ idle: SoccerIdle) -> SoccerScript {
+        if idle != self.idle || idleScript == nil {
+            self.idle = idle
+            idleScript = SoccerScript(idle: idle)
+        }
+        return idleScript!
     }
 }
 
