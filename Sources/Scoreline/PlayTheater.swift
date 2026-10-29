@@ -80,11 +80,18 @@ struct TheaterInk: Equatable {
     /// Gold type (a home run's mark, a grand slam's banner): the system
     /// yellow in the dark, a deep amber that reads on a light panel.
     let gold: Color
+    /// Round a figure or the ball where he crosses a name tag, over the tag
+    /// alone: the surface he stands on, as a chart's ring is (in the dark the
+    /// tag cut away round him; white rang every man like a sticker and lost
+    /// itself on the lighter slabs); in the light white, as the owner asked
+    /// (the pale surface's own, near enough, and crisper).
+    var tagRing: TheaterTags.Ring
     let dark: Bool
 
     init(_ scheme: ColorScheme) {
         let dark = scheme == .dark
         self.dark = dark
+        tagRing = dark ? .cutout : .paint(.white)
         grass = Color(hue: 0.36, saturation: dark ? 0.42 : 0.38, brightness: dark ? 0.62 : 0.6).opacity(dark ? 0.2 : 0.2)
         infield = Color(hue: 0.36, saturation: dark ? 0.42 : 0.38, brightness: dark ? 0.66 : 0.62).opacity(dark ? 0.26 : 0.26)
         dirt = Color(hue: 0.075, saturation: dark ? 0.38 : 0.42, brightness: dark ? 0.82 : 0.78).opacity(dark ? 0.22 : 0.3)
@@ -540,10 +547,10 @@ extension RigPose {
 
 // MARK: - Figures and ball
 
-/// One frame of a play through the camera: the field, the ball's trace and
-/// shadow, the figures far to near, the ball, the beats, the pitch's label, the
-/// headline and the scorer's mark. Equatable: at rest (t = ∞) an update
-/// elsewhere on the page doesn't redraw it.
+/// One frame of a play through the camera: the field and the shadows on it,
+/// the names, the ball's trace, the figures far to near, the ball, the beats,
+/// the pitch's label, the headline and the scorer's mark. Equatable: at rest
+/// (t = ∞) an update elsewhere on the page doesn't redraw it.
 struct PlayFrame: View, Equatable {
     let scene: PlayScene?
     let script: PlayScript
@@ -573,16 +580,17 @@ struct PlayFrame: View, Equatable {
             context.clip(to: f.bounds)
             BallparkLayer.draw(&context, f, ink: ink)
             drawTarp(&context, f)
-            drawTrace(&context, f)
-            drawPuffs(&context, f)
             let figures = posed(f)
             drawShadows(&context, f, figures)
+            // The names on the field, under all that plays: the ball's path and its dust too.
+            drawTags(context, f, figures)
+            drawTrace(&context, f)
+            drawPuffs(&context, f)
             drawFigures(&context, f, figures)
             drawZone(&context, f)
             drawBall(&context, f)
             drawFlashes(&context, f)
             drawLabels(&context, f)
-            drawTags(context, f, figures)
         } symbols: {
             pitchLabel.tag(Symbol.pitch)
             stamp.tag(Symbol.stamp)
@@ -591,7 +599,7 @@ struct PlayFrame: View, Equatable {
         }
     }
 
-    /// The names over the figures, clear of the pitch's label, the headline and the mark while they're up.
+    /// The names round the figures, drawn under them and the ball, clear of the pitch's label, the headline and the mark while they're up.
     private func drawTags(_ context: GraphicsContext, _ f: FieldProjection, _ figures: [Posed]) {
         let inset = max(f.size.height * 0.055, 9)
         var clear: [CGRect] = []
@@ -605,8 +613,24 @@ struct PlayFrame: View, Equatable {
         if t >= script.stamp, let symbol = context.resolveSymbol(id: Symbol.stamp) {
             clear.append(TheaterTagLayout.stamp(symbol.size, in: f.size, inset: inset))
         }
-        tags.draw(figures.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: f.figure, opacity: $0.opacity) }, t: t, size: f.size,
-                  clear: clear, in: context)
+        let ball = ballSpot(f).map { b in
+            TheaterTags.Ball(shape: Path(ellipseIn: CGRect(x: b.point.x - b.radius, y: b.point.y - b.radius, width: 2 * b.radius, height: 2 * b.radius)
+                                    .insetBy(dx: -0.6, dy: -0.6)), height: f.figure, opacity: b.opacity)
+        }
+        let well = f.size
+        tags.draw(figures.map { p in
+            TheaterTags.Figure(index: p.index, figure: p.figure, height: f.figure, opacity: p.opacity, held: heldBat(p, f).map { ($0.line, $0.width + 1.4) })
+        }, ball: ball, t: t, size: f.size, clear: clear, ring: ink.tagRing,
+           replay: TheaterReplay(length: script.duration) { Self.spots(script, at: $0, size: well) }, in: context)
+    }
+
+    /// Each figure's spot on screen at t and the ball's, through the camera, no posing.
+    static func spots(_ script: PlayScript, at t: Double, size: CGSize) -> TheaterSpots {
+        let f = FieldProjection(size: size, camera: script.camera.frame(at: t))
+        return TheaterSpots(figures: script.actors.indices.filter { script.actors[$0].opacity(at: t) > 0.01 }.map { i in
+            let lens = RigLens(f, at: script.actors[i].position(at: t))
+            return (i, lens.origin, lens.height)
+        }, ball: script.ballOpacity(at: t) > 0.01 ? script.ball(at: t).map { f.point($0) } : nil)
     }
 
     // MARK: The zone
@@ -796,11 +820,10 @@ struct PlayFrame: View, Equatable {
             case .official: officials
             }
             TheaterDraw.figure(p.figure, inks: inks, height: f.figure, opacity: p.opacity, in: context)
-            if let bats = actor.bats, actor.dropsBat.map({ t < $0 }) ?? true {
+            if let bat = heldBat(p, f) {
                 var layer = context
                 if p.opacity < 1 { layer.opacity = p.opacity }
-                drawBat(&layer, actor: actor, bats: bats, hands: p.figure.grip, length: f.figure * 0.62,
-                        halo: teams.uniform(actor.team).piping ?? ink.halo)
+                drawBat(&layer, bat, halo: teams.uniform(actor.team).piping ?? ink.halo)
             }
         }
     }
@@ -934,11 +957,22 @@ struct PlayFrame: View, Equatable {
         windows.map { w in Rig.smooth((t - w.lowerBound) / ramp) * (1 - Rig.smooth((t - w.upperBound) / ramp)) }.max() ?? 0
     }
 
+    /// The bat in his hands at t, while he has it: its line and how thick.
+    private func heldBat(_ p: Posed, _ f: FieldProjection) -> (line: Path, width: CGFloat)? {
+        let actor = script.actors[p.index]
+        guard let bats = actor.bats, actor.dropsBat.map({ t < $0 }) ?? true else { return nil }
+        return bat(actor, bats: bats, hands: p.figure.grip, length: f.figure * 0.62)
+    }
+
+    private func drawBat(_ context: inout GraphicsContext, _ bat: (line: Path, width: CGFloat), halo: Color) {
+        context.stroke(bat.line, with: .color(halo), style: StrokeStyle(lineWidth: bat.width + 1.4, lineCap: .round))
+        context.stroke(bat.line, with: .color(Color(hue: 0.09, saturation: 0.35, brightness: 0.85)), style: StrokeStyle(lineWidth: bat.width, lineCap: .round))
+    }
+
     /// The bat: on the shoulder, then round through the zone, level at
     /// contact, and on into the follow-through (back to the shoulder after
     /// a miss); held level out in front to bunt.
-    private func drawBat(_ context: inout GraphicsContext, actor: PlayScript.Actor, bats: PlayScene.Hand, hands: CGPoint, length: CGFloat,
-                         halo: Color) {
+    private func bat(_ actor: PlayScript.Actor, bats: PlayScene.Hand, hands: CGPoint, length: CGFloat) -> (line: Path, width: CGFloat) {
         // Azimuth on the ground (0: toward first base's side, 90: out to center), and lift.
         var azimuth = -105.0, lift = 0.85
         if let u = Self.swingPhase(actor, at: t) {
@@ -961,9 +995,7 @@ struct PlayFrame: View, Equatable {
         var bat = Path()
         bat.move(to: hands)
         bat.addLine(to: tip)
-        let width = max(length * 0.09, 1.1)
-        context.stroke(bat, with: .color(halo), style: StrokeStyle(lineWidth: width + 1.4, lineCap: .round))
-        context.stroke(bat, with: .color(Color(hue: 0.09, saturation: 0.35, brightness: 0.85)), style: StrokeStyle(lineWidth: width, lineCap: .round))
+        return (bat, max(length * 0.09, 1.1))
     }
 
     /// Left lying by the plate when he runs, until the field settles.
@@ -984,11 +1016,8 @@ struct PlayFrame: View, Equatable {
     /// A bright core in a soft glow, a short comet tail while it's fast, and
     /// its shadow on the grass (drawn with the shadows).
     private func drawBall(_ context: inout GraphicsContext, _ f: FieldProjection) {
-        guard let ball = script.ball(at: t) else { return }
-        let o = script.ballOpacity(at: t)
-        guard o > 0.01 else { return }
-        let p = f.point(ball)
-        let r = min(max(0.42 * f.scale, 1.7), max(f.figure * 0.12, 1.7))
+        guard let spot = ballSpot(f) else { return }
+        let (p, r, o) = spot
         var layer = context
         layer.opacity = o
         // The tail: where it was over the last few hundredths, fading back.
@@ -1014,6 +1043,14 @@ struct PlayFrame: View, Equatable {
         let rect = CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)
         layer.fill(Path(ellipseIn: rect.insetBy(dx: -0.6, dy: -0.6)), with: .color(ink.ballEdge))
         layer.fill(Path(ellipseIn: rect), with: .color(ink.ball))
+    }
+
+    /// Where the ball is drawn at t, how big (a touch larger than life) and how faint.
+    private func ballSpot(_ f: FieldProjection) -> (point: CGPoint, radius: CGFloat, opacity: Double)? {
+        guard let ball = script.ball(at: t) else { return nil }
+        let o = script.ballOpacity(at: t)
+        guard o > 0.01 else { return nil }
+        return (f.point(ball), min(max(0.42 * f.scale, 1.7), max(f.figure * 0.12, 1.7)), o)
     }
 
     // MARK: Beats
@@ -1684,11 +1721,7 @@ private struct PlayStage: View {
     /// The figure under the pointer in the frame on screen: each figure's
     /// spot at t through the camera, no posing.
     private func figure(at point: CGPoint, _ script: PlayScript, t: Double, size: CGSize) -> Int? {
-        let f = FieldProjection(size: size, camera: script.camera.frame(at: t))
-        return TheaterTags.hit(script.actors.indices.filter { script.actors[$0].opacity(at: t) > 0.01 }.map { i in
-            let lens = RigLens(f, at: script.actors[i].position(at: t))
-            return (i, lens.origin, lens.height)
-        }, at: point)
+        TheaterTags.hit(PlayFrame.spots(script, at: t, size: size).figures, at: point)
     }
 
     /// A play's frames keep its ID (a new one cuts in); beats and the field between share one.
@@ -2063,7 +2096,7 @@ extension PlayScript {
         } else if let batter = now.batter {
             key = members.first { actors[$0.key].role == .batter && $0.value.id == "a:\(batter)" }?.key
         }
-        return TheaterCast(members: members, key: key)
+        return TheaterCast(members: members, key: key, scope: scope)
     }
 }
 

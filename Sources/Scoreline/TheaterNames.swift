@@ -19,12 +19,28 @@ import SwiftUI
 // room, or waits); hit-tested from the script at t alone (each figure's
 // spot, the lens there, a box from his ground point and height), no posing.
 //
+// A tag and the play never block each other. A tag sits where the other
+// men and the ball cover it least through its stretch of the replay (over
+// his head, nudged aside, or under his feet, with a hairline to him once
+// it's off his head), chosen once for the stretch from the script alone,
+// so it rides with him and never wanders; and it lies on the surface, over
+// the field and its shadows and under everything that plays (every figure,
+// the ball and its path, a goal or a hoop). Where a figure or the ball
+// still crosses one (a runner passing through), a thin ring round him over
+// the tag alone (his own silhouette grown a little), in the surface's
+// color as a chart's ring is (the slab cut away round him; white in the
+// light, as the owner asked), keeps his colors off the slab's. A tag
+// nothing crosses, over a man nothing crowds, draws as it always has.
+//
 // Motion, Emil's and Apple's way: a tag fades in over 120 ms with a 2 pt
 // rise, ease-out, and leaves faster (100 ms); moving straight from one man
 // to the next swaps at once, as tooltips do after the first; with Reduce
 // Motion it fades without the rise. A tag never moves on its own while the
 // pointer is still: the stage keeps only who the pointer is over, changed
-// when it crosses to another man.
+// when it crosses to another man. The key man's tag, when the moment
+// passes to the next man, glides over to him in 200 ms on a strong
+// ease-in-out, the names crossfading (a crossfade alone with Reduce
+// Motion), a function of t like everything else in the frame.
 
 // MARK: - Who
 
@@ -149,15 +165,18 @@ struct TheaterCast: Equatable {
     /// By figure (the script's index).
     var members: [Int: Member] = [:]
     var keys: [Key] = []
+    /// The script's own (the stage's key for it): where its tags sit is chosen once for it.
+    var scope = ""
 
-    init(members: [Int: Member] = [:], keys: [Key] = []) {
+    init(members: [Int: Member] = [:], keys: [Key] = [], scope: String = "") {
         self.members = members
         self.keys = keys
+        self.scope = scope
     }
 
     /// One key man for the whole moment.
-    init(members: [Int: Member], key: Int?) {
-        self.init(members: members, keys: key.map { [Key(from: -.infinity, figure: $0)] } ?? [])
+    init(members: [Int: Member], key: Int?, scope: String = "") {
+        self.init(members: members, keys: key.map { [Key(from: -.infinity, figure: $0)] } ?? [], scope: scope)
     }
 
     /// A named man's member, or one the data knows less about (`scope`: the
@@ -171,6 +190,26 @@ struct TheaterCast: Equatable {
     func key(at t: Double) -> Int? {
         guard let figure = keys.last(where: { t >= $0.from })?.figure, members[figure]?.who.person != nil else { return nil }
         return figure
+    }
+
+    /// The stretch of the script the key man at t is key through: until the next one.
+    func stretch(at t: Double) -> Range<Double> {
+        guard let i = keys.lastIndex(where: { t >= $0.from }) else { return -.infinity..<(keys.first?.from ?? .infinity) }
+        return keys[i].from..<(i + 1 < keys.count ? keys[i + 1].from : .infinity)
+    }
+
+    /// How long the key man's tag takes to go over to the next one (or to come, or to go).
+    static let handoff = 0.2
+
+    /// Just after the key man changes, the tag on its way from the last one:
+    /// who had it (nil: nobody named) and through what stretch, and how far
+    /// it's come (0…1, eased in and out, as a move across the well is). Nil
+    /// once it's there.
+    func handoff(at t: Double) -> (from: Int?, stretch: Range<Double>, u: Double)? {
+        guard let i = keys.lastIndex(where: { t >= $0.from }), i > 0, keys[i].from.isFinite, t - keys[i].from < Self.handoff else { return nil }
+        let from = keys[i - 1].figure.flatMap { members[$0]?.who.person != nil ? $0 : nil }
+        guard from != nil || key(at: t) != nil else { return nil }
+        return (from, keys[i - 1].from..<keys[i].from, Celebrate.sweepCurve.value(at: (t - keys[i].from) / Self.handoff))
     }
 
     /// The figure a member's id is, in this script.
@@ -280,7 +319,7 @@ struct TheaterPointer: Equatable {
 
 // MARK: - What a frame draws
 
-/// The tags a frame draws over its figures: the pointer's (the full tag),
+/// The tags a frame draws under its figures: the pointer's (the full tag),
 /// one leaving, and the key man's (his surname). Built by the stage for each
 /// frame; compared with it, so a hover change redraws one still frame.
 struct TheaterTags: Equatable {
@@ -315,9 +354,9 @@ struct TheaterTags: Equatable {
         self.heartbeat = heartbeat
     }
 
-    enum Symbol: Hashable { case pointer, leaving, key, status }
+    enum Symbol: Hashable { case pointer, leaving, key, handoff, status }
 
-    /// A figure as drawn: what a tag stands over.
+    /// A figure as drawn: what a tag stands over, or crosses.
     struct Figure {
         var index: Int
         var figure: RigFigure
@@ -325,6 +364,26 @@ struct TheaterTags: Equatable {
         var height: CGFloat
         /// As he fades in or out (coming on, going off): his tag with him.
         var opacity = 1.0
+        /// As he's drawn, when that's fainter still (a man fading under the stamp): his ring with him.
+        var drawn: Double?
+        /// What he holds out past his silhouette (the batter's bat): its line, and its width outline and all.
+        var held: (line: Path, width: CGFloat)?
+    }
+
+    /// The ball as drawn: its shape (the disc and its edge, a football's
+    /// oval), the height of a man where it is (its ring's as wide as his),
+    /// how faint.
+    struct Ball {
+        var shape: Path
+        var height: CGFloat
+        var opacity = 1.0
+    }
+
+    /// What parts a figure (or the ball) from a tag he crosses: a ring in
+    /// a paint, or the slab cut away round him so the surface under it shows.
+    enum Ring: Equatable {
+        case paint(Color)
+        case cutout
     }
 
     /// The tag's type size, from the well's height: a step under the status tag's.
@@ -338,6 +397,12 @@ struct TheaterTags: Equatable {
         return (pointer, leaving, key)
     }
 
+    /// The key man's tag on its way over from the last one at t (not the pointer's man's).
+    func handoff(at t: Double) -> (from: Int?, stretch: Range<Double>, u: Double)? {
+        guard let h = cast.handoff(at: t) else { return nil }
+        return (h.from.flatMap { $0 == cast.figure(over) ? nil : $0 }, h.stretch, h.u)
+    }
+
     /// The tags' views, laid out once per frame and drawn where they go.
     @ViewBuilder
     func symbols(at t: Double, size: CGSize) -> some View {
@@ -347,49 +412,239 @@ struct TheaterTags: Equatable {
             if let i = pointer, let m = cast.members[i] { TheaterNameTag(who: m.who, label: labels[m.side], full: true, size: type).tag(Symbol.pointer) }
             if let i = leaving, let m = cast.members[i] { TheaterNameTag(who: m.who, label: labels[m.side], full: true, size: type).tag(Symbol.leaving) }
             if let i = key, let m = cast.members[i] { TheaterNameTag(who: m.who, label: labels[m.side], full: false, size: type).tag(Symbol.key) }
+            if let i = handoff(at: t)?.from, i != key, let m = cast.members[i] {
+                TheaterNameTag(who: m.who, label: labels[m.side], full: false, size: type).tag(Symbol.handoff)
+            }
             if pointer != nil || leaving != nil || key != nil, let status, !status.isEmpty {
                 TheaterStatusTag.measure(status, height: size.height).tag(Symbol.status)
             }
         }
     }
 
-    /// Draws the tags over their men: placed (the pointer's first), faded
-    /// and risen as they come and go. `clear`: the frame's own type to keep
-    /// clear of (its stamp, its headline).
-    func draw(_ figures: [Figure], t: Double, size: CGSize, clear: [CGRect] = [], in context: GraphicsContext) {
-        guard labels != nil else { return }
-        let (pointer, leaving, key) = shown(at: t)
-        guard pointer != nil || leaving != nil || key != nil else { return }
+    /// Draws the tags under the play, round their men: placed (the
+    /// pointer's first, each where its stretch of the `replay` covers it
+    /// least, a hairline to him when that's off his head), faded and risen as
+    /// they come and go, the key man's gliding over to the next, ringed where
+    /// a figure or the ball crosses one. Drawn after the surface and its
+    /// shadows, before everything that plays. `clear`: the frame's own type to
+    /// keep clear of (its stamp, its headline).
+    func draw(_ figures: [Figure], ball: Ball? = nil, t: Double, size: CGSize, clear: [CGRect] = [], ring: Ring, replay: TheaterReplay? = nil,
+              in context: GraphicsContext) {
+        guard let labels else { return }
+        let (pointer, leaving, key) = shown(at: t), glide = handoff(at: t)
+        guard pointer != nil || leaving != nil || key != nil || glide?.from != nil else { return }
         let status = context.resolveSymbol(id: Symbol.status)?.size
         let furniture = TheaterTagLayout.furniture(size, status: status, flip: flip, heartbeat: heartbeat) + clear
-        var asks: [(Symbol, GraphicsContext.ResolvedSymbol, TheaterTagLayout.Ask)] = []
-        var seen: [Symbol: Double] = [:]
-        for (id, index) in [(Symbol.pointer, pointer), (.leaving, leaving), (.key, key)] {
-            guard let index, let f = figures.first(where: { $0.index == index }), let symbol = context.resolveSymbol(id: id) else { continue }
-            seen[id] = f.opacity
-            asks.append((id, symbol, TheaterTagLayout.Ask(size: symbol.size, head: CGPoint(x: f.figure.head.x, y: Self.top(f.figure)),
-                                                           feet: f.figure.ground.y + max(f.height * 0.1, 2), pointer: id != .key)))
+        // Each tag's ask, its spot its stretch's (the key man's while he's key; the pointer's man's the whole replay).
+        func ask(_ id: Symbol, _ index: Int?) -> Tag? {
+            let symbolID = id == .handoff && index == key ? Symbol.key : id
+            guard let index, let f = figures.first(where: { $0.index == index }), let member = cast.members[index],
+                  let symbol = context.resolveSymbol(id: symbolID) else { return nil }
+            let stretch = switch id {
+            case .key: cast.stretch(at: t)
+            case .handoff: glide?.stretch ?? cast.stretch(at: t)
+            default: -Double.infinity..<Double.infinity
+            }
+            let spot = replay.map {
+                TheaterTagPlan.spot(index, tag: symbol.size, pointer: id != .key && id != .handoff, over: stretch, in: size, heartbeat: heartbeat,
+                                    replay: $0, scope: cast.scope)
+            } ?? TheaterTagSpot()
+            return Tag(id: id, symbol: symbol, man: f, member: member, spot: spot,
+                       ask: TheaterTagLayout.Ask(size: symbol.size, head: CGPoint(x: f.figure.head.x, y: Self.top(f.figure)), feet: Self.feet(f),
+                                                 pointer: id != .key && id != .handoff, spot: spot))
         }
-        let spots = TheaterTagLayout.place(asks.map(\.2), in: size, clear: furniture)
+        let tags = [ask(.pointer, pointer), ask(.leaving, leaving), ask(.key, key)].compactMap { $0 }
+        let spots = TheaterTagLayout.place(tags.map(\.ask), in: size, clear: furniture)
+        // The last key man's tag where it was before the change (placed as if the new one weren't there yet).
+        var from: (tag: Tag, rect: CGRect)?
+        if let glide, let last = ask(.handoff, glide.from) {
+            let before = tags.filter { $0.id != .key } + [last]
+            from = TheaterTagLayout.place(before.map(\.ask), in: size, clear: furniture).last.flatMap { $0 }.map { (last, $0) }
+        }
         // The key man's first, the leaving tag over it, the pointer's on top.
-        for k in asks.indices.reversed() {
-            guard let rect = spots[k] else { continue }
-            var layer = context
-            layer.opacity = seen[asks[k].0] ?? 1
+        for k in tags.indices.reversed() {
+            let tag = tags[k]
+            var opacity = tag.man.opacity
             var lift: CGFloat = 0
-            switch asks[k].0 {
+            switch tag.id {
             case .pointer:
-                layer.opacity *= appear
+                opacity *= appear
                 if rise { lift = TheaterPointer.rise * CGFloat(1 - appear) }
             case .leaving:
-                layer.opacity *= remaining
+                opacity *= remaining
             default:
                 break
             }
-            guard layer.opacity > 0.005 else { continue }
-            layer.draw(asks[k].1, in: rect.offsetBy(dx: 0, dy: lift))
+            guard var rect = spots[k] else { continue }
+            rect = rect.offsetBy(dx: 0, dy: lift)
+            guard tag.id == .key, let glide else {
+                put(tag, at: rect, opacity: opacity, leader: 1, labels: labels, figures: figures, ball: ball, ring: ring, in: context)
+                continue
+            }
+            // Coming over from the last key man: gliding from his tag's place to this one's, the names crossfading (with
+            // Reduce Motion, a crossfade where each stands); or fading in.
+            let u = glide.u
+            if case let (last, was)? = from {
+                func at(_ r: CGRect) -> CGRect {
+                    guard rise else { return r }
+                    let x = was.midX + (rect.midX - was.midX) * u, y = was.midY + (rect.midY - was.midY) * u
+                    return CGRect(x: x - r.width / 2, y: y - r.height / 2, width: r.width, height: r.height)
+                }
+                put(last, at: at(was), opacity: last.man.opacity * (1 - u), leader: max(1 - u / 0.4, 0), labels: labels, figures: figures, ball: ball,
+                    ring: ring, in: context)
+                put(tag, at: at(rect), opacity: opacity * u, leader: max((u - 0.6) / 0.4, 0), labels: labels, figures: figures, ball: ball, ring: ring,
+                    in: context)
+            } else {
+                put(tag, at: rect, opacity: opacity * u, leader: u, labels: labels, figures: figures, ball: ball, ring: ring, in: context)
+            }
+        }
+        // The last key man's going with nobody after him: it fades where it stands.
+        if key == nil, let glide, case let (last, was)? = from {
+            put(last, at: was, opacity: last.man.opacity * (1 - glide.u), leader: 1, labels: labels, figures: figures, ball: ball, ring: ring, in: context)
         }
     }
+
+    /// A tag being drawn: which, its man, where round him its stretch put it, and what it asked of placement.
+    private struct Tag {
+        var id: Symbol
+        var symbol: GraphicsContext.ResolvedSymbol
+        var man: Figure
+        var member: TheaterCast.Member
+        var spot: TheaterTagSpot
+        var ask: TheaterTagLayout.Ask
+    }
+
+    /// One tag at `rect`: its hairline to him when its spot's off his head
+    /// (`leader`: how much of it), and the room round whoever crosses it.
+    private func put(_ tag: Tag, at rect: CGRect, opacity: Double, leader: Double, labels: TheaterLabels, figures: [Figure], ball: Ball?, ring: Ring,
+                     in context: GraphicsContext) {
+        guard opacity > 0.005 else { return }
+        var layer = context
+        layer.opacity = opacity
+        let line = tag.spot == TheaterTagSpot() || leader < 0.01 ? nil : Self.leader(from: rect, to: tag.ask, ground: tag.man.figure.ground.y)
+        let slab = labels[tag.member.side].paint.slabColor.opacity(tag.member.who.person == nil ? 0.7 : 1)
+        func drawn(_ c: GraphicsContext) {
+            if let line {
+                var hairline = c
+                hairline.opacity *= leader
+                hairline.stroke(line, with: .color(slab), style: StrokeStyle(lineWidth: Self.hairline, lineCap: .round))
+            }
+            c.draw(tag.symbol, in: rect)
+        }
+        // Who crosses the tag itself (its hairline runs under them, into him).
+        let crossing = Self.crossing(figures, ball: ball, tag: rect, own: tag.man.index)
+        guard !crossing.figures.isEmpty || crossing.ball else { return drawn(layer) }
+        switch ring {
+        case let .paint(color):
+            // A ring in a paint: round each man over the tag, faded with it (and with him).
+            drawn(layer)
+            var over = layer
+            over.clip(to: Self.shape(rect))
+            for i in crossing.figures {
+                let f = figures[i]
+                var c = over
+                c.opacity *= f.drawn ?? f.opacity
+                c.fill(TheaterDraw.outline(f.figure, grown: TheaterDraw.halo(f.height) + Self.ring(f.height)), with: .color(color))
+                if let held = f.held {
+                    c.stroke(held.line, with: .color(color), style: StrokeStyle(lineWidth: held.width + 2 * Self.ring(f.height), lineCap: .round))
+                }
+            }
+            if crossing.ball, let ball {
+                var c = over
+                c.opacity *= ball.opacity
+                c.fill(ball.shape, with: .color(color))
+                c.stroke(ball.shape, with: .color(color), style: StrokeStyle(lineWidth: 2 * Self.ring(ball.height), lineJoin: .round))
+            }
+        case .cutout:
+            // The tag with each man's room cut out of it, so the surface shows round him: a clip, as the charts leave
+            // room round their marks (never a blend, which would punch through the glass). One fading in or out
+            // takes his room with him: the tag there at what's left.
+            let rooms = crossing.figures.map { (Self.room(figures[$0]), figures[$0].drawn ?? figures[$0].opacity) }
+                + (crossing.ball ? ball.map { [(Self.room($0), $0.opacity)] } ?? [] : [])
+            let all = rooms.dropFirst().reduce(rooms.first?.0 ?? Path()) { $0.union($1.0) }
+            var cut = layer
+            cut.clip(to: Path((line.map { rect.union($0.boundingRect) } ?? rect).insetBy(dx: -1, dy: -1)).subtracting(all))
+            drawn(cut)
+            for (room, seen) in rooms where seen < 0.99 {
+                var faint = layer
+                faint.clip(to: room)
+                faint.opacity *= 1 - seen
+                drawn(faint)
+            }
+        }
+    }
+
+    /// A leader's width: a hairline.
+    static let hairline: CGFloat = 0.75
+
+    /// A tag's hairline to its man when its spot's off his head: from the
+    /// tag's edge nearest him (under his head, or over his feet), straight to
+    /// him, a little into him (he's drawn over it). (pure; tested)
+    static func leader(from rect: CGRect, to ask: TheaterTagLayout.Ask, ground: CGFloat) -> Path {
+        let lean = rect.height * SlideMetrics.lean, under = rect.minY >= ask.feet - 0.5
+        // Along the edge it leaves from, inside the slab's cut corners.
+        let x = under ? min(max(ask.head.x, rect.minX + lean + 1), rect.maxX - 1) : min(max(ask.head.x, rect.minX + 1), rect.maxX - lean - 1)
+        var path = Path()
+        path.move(to: CGPoint(x: x, y: under ? rect.minY : rect.maxY))
+        path.addLine(to: CGPoint(x: ask.head.x, y: under ? ground : ask.head.y + 1))
+        return path
+    }
+
+    // MARK: Crossing
+
+    /// The ring's width past a man's own outline, `height` tall: about
+    /// 1.5 pt at the compact panel, with his line weight.
+    static func ring(_ height: CGFloat) -> CGFloat { max(height * 0.06, 1.1) }
+
+    /// The room round a man a tag leaves him: his silhouette grown by his
+    /// outline and the ring (what he holds too, a bat).
+    static func room(_ f: Figure) -> Path {
+        let margin = ring(f.height), outline = TheaterDraw.outline(f.figure, grown: TheaterDraw.halo(f.height) + margin)
+        guard let held = f.held else { return outline }
+        return outline.union(held.line.strokedPath(StrokeStyle(lineWidth: held.width + 2 * margin, lineCap: .round)))
+    }
+
+    /// The room round the ball: its shape grown by the ring.
+    static func room(_ ball: Ball) -> Path {
+        ball.shape.union(ball.shape.strokedPath(StrokeStyle(lineWidth: 2 * ring(ball.height), lineJoin: .round)))
+    }
+
+    /// A tag's own shape: the slab cut on the lean (the full tag's number
+    /// and name meet on it, so it's one shape either way). (pure; tested)
+    static func shape(_ rect: CGRect) -> Path { LeanShape().path(in: rect) }
+
+    /// The room a figure's ring takes: every part grown by its own width,
+    /// his outline and the ring (or, not `ringed`, the figure as drawn). (pure; tested)
+    static func box(_ f: Figure, ringed: Bool = true) -> CGRect {
+        let margin = ringed ? ring(f.height) : 0, grown = TheaterDraw.halo(f.height) + margin, g = f.figure
+        var box = CGRect.null
+        func add(_ p: CGPoint, _ r: CGFloat) { box = box.union(CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)) }
+        for l in g.limbs { for p in [l.root, l.joint, l.end] { add(p, g.limb / 2 + grown) } }
+        add(g.hip, g.torso / 2 + grown)
+        add(g.neck, g.torso / 2 + grown)
+        add(g.head, g.headRadius + grown)
+        if let held = f.held { box = box.union(held.line.boundingRect.insetBy(dx: -held.width / 2 - margin, dy: -held.width / 2 - margin)) }
+        return box
+    }
+
+    /// Who crosses a tag at `rect`: the figures (by their place in
+    /// `figures`) whose box meets it, and whether the ball does; only they
+    /// are ringed, and a tag nobody crosses draws as it always has. The
+    /// tag's `own` man stands clear of it by placement, closer than his
+    /// ring in a big figure: only what of him reaches into it counts (his
+    /// bat), never the ring's margin, or it would bite the tag over his head.
+    /// (pure; tested)
+    static func crossing(_ figures: [Figure], ball: Ball?, tag rect: CGRect, own: Int? = nil) -> (figures: [Int], ball: Bool) {
+        let hit = figures.indices.filter { i in
+            let f = figures[i]
+            return f.opacity > 0.01 && (f.drawn ?? 1) > 0.01 && box(f, ringed: f.index != own).intersects(rect)
+        }
+        let ballHit = ball.map { $0.opacity > 0.01 && $0.shape.boundingRect.insetBy(dx: -ring($0.height), dy: -ring($0.height)).intersects(rect) } ?? false
+        return (hit, ballHit)
+    }
+
+    /// Where a tag under a figure's feet starts from.
+    static func feet(_ f: Figure) -> CGFloat { f.figure.ground.y + max(f.height * 0.1, 2) }
 
     /// The top of a figure: his head, or a hand raised over it.
     static func top(_ f: RigFigure) -> CGFloat {
@@ -410,6 +665,8 @@ enum TheaterTagLayout {
         var head: CGPoint
         var feet: CGFloat
         var pointer: Bool
+        /// Where round him it goes first (its stretch's choice).
+        var spot = TheaterTagSpot()
     }
 
     /// From the well's edges.
@@ -417,32 +674,32 @@ enum TheaterTagLayout {
     /// Between a tag and his head (or his feet), and round another tag.
     static let gap: CGFloat = 3
 
-    /// Each tag's place, in order (the pointer's first: it wins). Over his
-    /// head, inside the well and clear of the furniture; else under his feet
-    /// (first, when he's too near the top for a tag over him); else slid
-    /// along off what's in the way. The pointer's always shows;
+    /// Each tag's place, in order (the pointer's first: it wins). Where its
+    /// spot puts it (over his head, or nudged aside, or under his feet),
+    /// inside the well and clear of the furniture; else on his other side
+    /// (under his feet first when he's too near the top for a tag over him);
+    /// else slid along off what's in the way. The pointer's always shows;
     /// any other only where it's clear of the furniture and the tags already
     /// placed, else not at all (it waits for the room). A man out of the
     /// well gets none.
     static func place(_ asks: [Ask], in size: CGSize, clear furniture: [CGRect]) -> [CGRect?] {
         var placed: [CGRect] = []
         var out: [CGRect?] = []
-        let well = CGRect(origin: .zero, size: size)
         for ask in asks {
-            guard well.insetBy(dx: -2, dy: -ask.size.height).contains(ask.head) || well.contains(CGPoint(x: ask.head.x, y: ask.feet)) else {
+            guard inWell(ask, size) else {
                 out.append(nil)
                 continue
             }
             func free(_ r: CGRect) -> Bool {
                 !furniture.contains { $0.intersects(r) } && !placed.contains { $0.insetBy(dx: -gap, dy: -gap + 1).intersects(r) }
             }
-            let above = CGRect(x: ask.head.x - ask.size.width / 2, y: ask.head.y - gap - ask.size.height, width: ask.size.width, height: ask.size.height)
-            let below = CGRect(x: above.minX, y: ask.feet + gap, width: ask.size.width, height: ask.size.height)
+            let (above, below) = sides(ask)
             let over = clamp(above, in: size), under = clamp(below, in: size)
             // Kept inside the well by more than a hair, a tag would sit on his own head (or feet): only a side with room
             // (the pointer's goes anywhere as a last resort).
-            let sides = (above.minY >= margin - 1 ? [over] : []) + (below.maxY <= size.height - margin + 1 ? [under] : [])
-            var candidates = sides + sides.map { slid($0, off: furniture, in: size) }
+            let up = above.minY >= margin - 1 ? [over] : [], down = below.maxY <= size.height - margin + 1 ? [under] : []
+            let first = ask.spot.under ? down + up : up + down
+            var candidates = first + first.map { slid($0, off: furniture, in: size) }
             if ask.pointer { candidates += [over, under, slid(over, off: furniture, in: size), slid(under, off: furniture, in: size)] }
             if let spot = candidates.first(where: free) {
                 placed.append(spot)
@@ -457,6 +714,19 @@ enum TheaterTagLayout {
             }
         }
         return out
+    }
+
+    /// Whether a tag's man is in the well (one out of it gets none).
+    static func inWell(_ ask: Ask, _ size: CGSize) -> Bool {
+        let well = CGRect(origin: .zero, size: size)
+        return well.insetBy(dx: -2, dy: -ask.size.height).contains(ask.head) || well.contains(CGPoint(x: ask.head.x, y: ask.feet))
+    }
+
+    /// A tag's two sides of its man, as its spot nudges them: over his head and under his feet.
+    static func sides(_ ask: Ask) -> (over: CGRect, under: CGRect) {
+        let x = ask.head.x + ask.spot.nudge * ask.size.width - ask.size.width / 2
+        return (CGRect(x: x, y: ask.head.y - gap - ask.size.height, width: ask.size.width, height: ask.size.height),
+                CGRect(x: x, y: ask.feet + gap, width: ask.size.width, height: ask.size.height))
     }
 
     /// Slid along off whatever furniture it meets, toward the middle, and kept in the well.
@@ -503,6 +773,139 @@ enum TheaterTagLayout {
         let inset = TheaterType.inset(size)
         return CGRect(x: (size.width - symbol.width) / 2, y: inset * 0.7, width: symbol.width, height: symbol.height)
     }
+}
+
+// MARK: - Where round him
+
+/// Where round its man a tag goes first: over his head (its middle nudged
+/// across by a share of its width), or under his feet.
+struct TheaterTagSpot: Hashable {
+    var nudge: CGFloat = 0
+    var under = false
+}
+
+/// A moment of a replay as the tags see it: each figure's spot on screen
+/// (his ground point, his height there) and the ball's, from the script at
+/// t through the camera, no posing. What the pointer hits; what a tag keeps
+/// clear of.
+struct TheaterSpots {
+    var figures: [(index: Int, ground: CGPoint, height: CGFloat)]
+    var ball: CGPoint?
+}
+
+/// A replay as the tags see it: how long it runs, and each moment of it.
+struct TheaterReplay {
+    var length: Double
+    var at: (Double) -> TheaterSpots
+}
+
+/// Where each tag sits round its man, so the play and the names never block
+/// each other: of the spots round him, the one the other men and the ball
+/// cover least through his stretch of the replay (while he's the key man; the
+/// whole replay under the pointer), sampled ten times a second from the
+/// script alone. Chosen once per stretch, so a tag never wanders mid-play; a
+/// man passing through (a brief crossing) never moves it, since each spot
+/// past the first costs a little (the ring takes those); a crowd he stands
+/// behind does. (pure; tested)
+enum TheaterTagPlan {
+    /// The spots, most wanted first, and what each costs over the first (as
+    /// a share of the tag covered through the stretch): over his head; nudged
+    /// a quarter or nearly half its width (his head still under it); under
+    /// his feet, the same.
+    static let spots: [(spot: TheaterTagSpot, cost: Double)] = [
+        (TheaterTagSpot(), 0),
+        (TheaterTagSpot(nudge: -0.25), 0.06), (TheaterTagSpot(nudge: 0.25), 0.06),
+        (TheaterTagSpot(under: true), 0.09),
+        (TheaterTagSpot(nudge: -0.45), 0.12), (TheaterTagSpot(nudge: 0.45), 0.12),
+        (TheaterTagSpot(nudge: -0.25, under: true), 0.14), (TheaterTagSpot(nudge: 0.25, under: true), 0.14),
+        (TheaterTagSpot(nudge: -0.45, under: true), 0.2), (TheaterTagSpot(nudge: 0.45, under: true), 0.2),
+    ]
+
+    /// Samples a second.
+    static let rate = 10.0
+    /// The ball covers more than its size: it's what the eye follows.
+    static let ballWeight = 3.0
+
+    /// A man on screen from his ground point and height: what a tag over him would cover.
+    static func body(_ ground: CGPoint, _ height: CGFloat) -> CGRect {
+        CGRect(x: ground.x - height * 0.3, y: ground.y - height * 1.04, width: height * 0.6, height: height * 1.1)
+    }
+
+    /// What a tag asks of placement round a man at a moment (his ground point
+    /// and height there; no posing), at `spot`.
+    static func ask(_ spot: TheaterTagSpot, tag: CGSize, ground: CGPoint, height: CGFloat, pointer: Bool) -> TheaterTagLayout.Ask {
+        TheaterTagLayout.Ask(size: tag, head: CGPoint(x: ground.x, y: ground.y - height), feet: ground.y + max(height * 0.1, 2), pointer: pointer, spot: spot)
+    }
+
+    /// The spot for man `man`'s tag, `tag` big, through `stretch` of a
+    /// replay in a well `size`, kept clear of the corners that never move
+    /// (`furniture`): at each moment, where placement would put it at each
+    /// spot and how much of it the other men and the ball would cover (all
+    /// of it when it wouldn't show; nothing counted while he's out of the
+    /// well); the least covered once its cost is counted (the first of
+    /// equals). (pure; tested)
+    static func choose(_ man: Int, tag: CGSize, pointer: Bool, over stretch: Range<Double>, in size: CGSize, clear furniture: [CGRect],
+                       replay: TheaterReplay) -> TheaterTagSpot {
+        let from = min(max(stretch.lowerBound, 0), replay.length), to = max(min(stretch.upperBound, replay.length), from)
+        let moments = stride(from: from, through: to, by: 1 / rate).map(replay.at)
+        var best = (spot: TheaterTagSpot(), score: Double.infinity)
+        for (spot, cost) in spots {
+            var covered = 0.0, seen = 0
+            for moment in moments {
+                guard let him = moment.figures.first(where: { $0.index == man }) else { continue }
+                let ask = ask(spot, tag: tag, ground: him.ground, height: him.height, pointer: pointer)
+                guard TheaterTagLayout.inWell(ask, size) else { continue }
+                seen += 1
+                guard let r = TheaterTagLayout.place([ask], in: size, clear: furniture)[0] else {
+                    covered += 1
+                    continue
+                }
+                var area = 0.0
+                for other in moment.figures where other.index != man {
+                    let overlap = r.intersection(body(other.ground, other.height))
+                    if !overlap.isNull { area += overlap.width * overlap.height }
+                }
+                if let ball = moment.ball {
+                    let g = max(him.height * 0.15, 2.5)
+                    let overlap = r.intersection(CGRect(x: ball.x - g, y: ball.y - g, width: 2 * g, height: 2 * g))
+                    if !overlap.isNull { area += overlap.width * overlap.height * ballWeight }
+                }
+                covered += min(area / max(r.width * r.height, 1), 1)
+            }
+            let score = (seen > 0 ? covered / Double(seen) : 0) + cost
+            if score < best.score - 1e-9 { best = (spot, score) }
+        }
+        return best.spot
+    }
+
+    /// `choose`, each stretch's once: by the replay (its cast's scope), the
+    /// man, his stretch, the well and the tag. Kept clear of the corners that
+    /// stay put through a replay (the turn control's, whether it's up or not,
+    /// and the heartbeat's): the status tag's words change and the stamp and
+    /// the headline come and go, so placement keeps clear of those as they do.
+    static func spot(_ man: Int, tag: CGSize, pointer: Bool, over stretch: Range<Double>, in size: CGSize, heartbeat: HorizontalEdge?,
+                     replay: TheaterReplay, scope: String) -> TheaterTagSpot {
+        let corner = heartbeat.map { $0 == .leading ? "L" : "T" } ?? "-"
+        let key = "\(scope)|\(man)|\(pointer)|\(stretch.lowerBound)|\(Int(size.width))×\(Int(size.height))|\(Int(tag.width * 2))×\(Int(tag.height * 2))|\(corner)"
+            as NSString
+        if let spot = chosen.object(forKey: key) { return spot.spot }
+        let spot = choose(man, tag: tag, pointer: pointer, over: stretch, in: size,
+                          clear: TheaterTagLayout.furniture(size, status: nil, flip: true, heartbeat: heartbeat), replay: replay)
+        chosen.setObject(Chosen(spot), forKey: key)
+        return spot
+    }
+
+    private final class Chosen {
+        let spot: TheaterTagSpot
+        init(_ spot: TheaterTagSpot) { self.spot = spot }
+    }
+
+    /// NSCache is thread-safe: any frame reads it.
+    nonisolated(unsafe) private static let chosen: NSCache<NSString, Chosen> = {
+        let cache = NSCache<NSString, Chosen>()
+        cache.countLimit = 200
+        return cache
+    }()
 }
 
 // MARK: - Hit test

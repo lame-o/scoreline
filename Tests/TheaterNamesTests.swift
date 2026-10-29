@@ -7,7 +7,8 @@ import SwiftUI
 // SA at UTAH's box score, KC at SEA's, Aston Villa v Man City's rosters with
 // their changes, MLB's numbers for World Series Game 2); and the pure parts
 // every theater shares: the hit test, where a tag goes against the well and
-// its furniture, and how the pointer's tag comes and goes.
+// its furniture, how the pointer's tag comes and goes, and who crosses a tag
+// lying under the play (ringed over it alone).
 
 extension ScorelineTests {
     static func theaterNames() {
@@ -279,8 +280,59 @@ extension ScorelineTests {
         check(crowd[1] == nil, "…and waits when there's no room under him either")
         let off = TheaterTagLayout.place([ask(400, 60, feet: 90, pointer: false)], in: well, clear: [])
         check(off[0] == nil, "a man out of the well gets no tag")
+        var nudged = ask(160, 80, feet: 104, pointer: false), below = nudged
+        nudged.spot = TheaterTagSpot(nudge: 0.25)
+        below.spot = TheaterTagSpot(under: true)
+        let spotted = TheaterTagLayout.place([nudged], in: well, clear: furniture)[0], under = TheaterTagLayout.place([below], in: well, clear: furniture)[0]
+        check(spotted == CGRect(x: 142.5, y: 80 - 3 - 14.4, width: 70, height: 14.4) && under == CGRect(x: 125, y: 107, width: 70, height: 14.4),
+              "a tag goes where its stretch's spot puts it: nudged a quarter of its width, or under his feet",
+              "\(String(describing: spotted)) \(String(describing: under))")
         let stamp = TheaterTagLayout.stamp(CGSize(width: 90, height: 40), in: well, inset: 9)
         check(stamp == CGRect(x: 9, y: 156 - 7.2 - 40, width: 90, height: 40), "the stamp's room, low at the left as it's drawn")
+
+        // MARK: Where round him, through the replay
+
+        // He stands at (160, 100), 24 pt tall; his tag over him spans x 125–195, y 58.6–73.
+        func replay(_ others: @escaping (Double) -> [(index: Int, ground: CGPoint, height: CGFloat)]) -> TheaterReplay {
+            TheaterReplay(length: 5) { t in TheaterSpots(figures: [(0, CGPoint(x: 160, y: 100), 24)] + others(t), ball: nil) }
+        }
+        let huddle = replay { _ in [(1, CGPoint(x: 140, y: 88), 24), (2, CGPoint(x: 160, y: 87), 24), (3, CGPoint(x: 180, y: 88), 24)] }
+        let alone = replay { _ in [(1, CGPoint(x: 40, y: 120), 24)] }
+        let passing = replay { t in [(1, CGPoint(x: t >= 1 && t <= 1.3 ? 160 : 20, y: 88), 24)] }
+        let early = replay { t in t < 2 ? [(1, CGPoint(x: 140, y: 88), 24), (2, CGPoint(x: 160, y: 87), 24), (3, CGPoint(x: 180, y: 88), 24)] : [] }
+        let all = -Double.infinity..<Double.infinity
+        check(TheaterTagPlan.choose(0, tag: tag, pointer: false, over: all, in: well, clear: [], replay: alone) == TheaterTagSpot(),
+              "nobody near him: his tag over his head as it always was")
+        check(TheaterTagPlan.choose(0, tag: tag, pointer: false, over: all, in: well, clear: [], replay: huddle) == TheaterTagSpot(under: true),
+              "a crowd standing over him the whole replay: his tag goes under his feet, where nobody is")
+        check(TheaterTagPlan.choose(0, tag: tag, pointer: false, over: all, in: well, clear: [], replay: passing) == TheaterTagSpot(),
+              "a man passing through for a moment doesn't move it (the ring takes him)")
+        check(TheaterTagPlan.choose(0, tag: tag, pointer: false, over: 2..<5, in: well, clear: [], replay: early) == TheaterTagSpot()
+              && TheaterTagPlan.choose(0, tag: tag, pointer: false, over: 0..<2, in: well, clear: [], replay: early) == TheaterTagSpot(under: true),
+              "only his own stretch counts: the crowd gone by the time he's key leaves it over his head")
+        let corner = replay { _ in [(1, CGPoint(x: 118, y: 88), 24), (2, CGPoint(x: 133, y: 87), 24)] }
+        let side = TheaterTagPlan.choose(0, tag: tag, pointer: false, over: all, in: well, clear: [], replay: corner)
+        check(side == TheaterTagSpot(nudge: 0.25), "two men at its left end: nudged right a quarter of its width, still over his head", "\(side)")
+        check(TheaterTagPlan.spot(0, tag: tag, pointer: false, over: all, in: well, heartbeat: nil, replay: corner, scope: "test|corner") == side
+              && TheaterTagPlan.spot(0, tag: tag, pointer: false, over: all, in: well, heartbeat: nil, replay: huddle, scope: "test|corner") == side,
+              "chosen once per stretch and kept: asked again for the same replay, the same spot without looking")
+        // Off his head, a hairline to him from the tag's nearest edge: down to his head, or up to his feet.
+        let him0 = ask(160, 76, feet: 102.4, pointer: false)
+        let up = TheaterTags.leader(from: CGRect(x: 142.5, y: 58.6, width: 70, height: 14.4), to: him0, ground: 100).boundingRect
+        let down = TheaterTags.leader(from: CGRect(x: 125, y: 105.4, width: 70, height: 14.4), to: him0, ground: 100).boundingRect
+        check(abs(up.minX - 160) < 0.01 && up.width < 0.01 && abs(up.minY - 73) < 0.01 && abs(up.maxY - 77) < 0.01
+              && abs(down.minX - 160) < 0.01 && abs(down.minY - 100) < 0.01 && abs(down.maxY - 105.4) < 0.01,
+              "a tag moved off his head keeps a hairline to him: from its edge to his head, or to his feet", "\(up) \(down)")
+        func named(_ i: Int) -> TheaterCast.Member { TheaterCast.Member(who: .known(TheaterPerson(name: "Man \(i)")), side: .top, id: "a:\(i)") }
+        let switched = TheaterCast(members: [3: named(3), 7: named(7)], keys: [TheaterCast.Key(from: -.infinity, figure: 3), TheaterCast.Key(from: 2.4, figure: 7)])
+        check(switched.stretch(at: 1) == -.infinity..<2.4 && switched.stretch(at: 3) == 2.4..<Double.infinity,
+              "a key man's stretch runs until the next one's (the passer's until the catch, then the receiver's)")
+        let glides = stride(from: 2.4, to: 2.6, by: 0.02).compactMap { switched.handoff(at: $0)?.u }
+        check(switched.handoff(at: 2.39) == nil && switched.handoff(at: 2.5)?.from == 3 && switched.handoff(at: 2.5)?.stretch == -.infinity..<2.4
+              && switched.handoff(at: 2.61) == nil && glides.count == 10 && glides.first == 0 && zip(glides, glides.dropFirst()).allSatisfy { $0 < $1 }
+              && (switched.handoff(at: 2.45)?.u ?? 1) < 0.2 && (switched.handoff(at: 2.55)?.u ?? 0) > 0.8,
+              "at the change the key tag glides over from the last man in 200 ms, a strong ease-in-out (a function of t alone): never a jump",
+              glides.map { String(format: "%.2f", $0) }.joined(separator: " "))
 
         // MARK: The pointer's tag, coming and going
 
@@ -303,6 +355,76 @@ extension ScorelineTests {
                                reduceMotion: true, status: nil, flip: false)
         tags.over = "s#4"
         check(!tags.rise && tags.shown(at: 0).pointer == 4, "Reduce Motion: a fade, no rise")
+
+        // MARK: Under the play
+
+        // A man standing in a compact panel's well, his tag over his head as placement puts it.
+        let field = FieldProjection(size: well, camera: CameraFrame(x: 0, y: 60, span: 60))
+        let lens = RigLens(field, at: CGPoint(x: 0, y: 60))
+        let him = RigFigure(.stand, heading: 0, lens: lens)
+        let spot = TheaterTagLayout.place([ask(him.head.x, TheaterTags.top(him), feet: him.ground.y + 3, pointer: true)], in: well, clear: [])[0] ?? .zero
+        func man(_ index: Int, _ dx: CGFloat, _ dy: CGFloat, opacity: Double = 1) -> TheaterTags.Figure {
+            var figure = him
+            figure.shift(by: CGVector(dx: dx, dy: dy))
+            return TheaterTags.Figure(index: index, figure: figure, height: lens.height, opacity: opacity)
+        }
+        // Another man walking across it (his chest on it), one faded out there, one far off.
+        let men = [man(0, 0, 0), man(1, 24, spot.midY - him.neck.y), man(2, 24, spot.midY - him.neck.y, opacity: 0), man(3, 140, 0)]
+        func ball(_ x: CGFloat, opacity: Double = 1) -> TheaterTags.Ball {
+            TheaterTags.Ball(shape: Path(ellipseIn: CGRect(x: x - 2.5, y: spot.midY - 2.5, width: 5, height: 5)), height: lens.height, opacity: opacity)
+        }
+        let crossed = TheaterTags.crossing(men, ball: ball(spot.maxX + 3.5), tag: spot, own: 0)
+        check(lens.height > 14 && lens.height < 40 && crossed.figures == [1] && crossed.ball,
+              "a man crossing a tag is ringed, not its own man under it, one faded out or one far off; the ball within its ring's width of it too",
+              "\(lens.height) pt, \(crossed)")
+        // A wide well's big figure (56 pt): his ring's margin reaches past the 3 pt over his head, but his own tag isn't bitten by it.
+        let tall = [TheaterTags.Figure(index: 5, figure: him, height: 56)]
+        check(TheaterTags.crossing(tall, ball: nil, tag: spot).figures == [0] && TheaterTags.crossing(tall, ball: nil, tag: spot, own: 5).figures.isEmpty,
+              "a big man's ring would reach his own tag (3 pt over his head): it counts for anyone else, never for him",
+              "\(spot) \(TheaterTags.box(tall[0]))")
+        check(!TheaterTags.crossing(men, ball: ball(spot.maxX + 8), tag: spot).ball && !TheaterTags.crossing([], ball: ball(spot.midX, opacity: 0), tag: spot).ball,
+              "…not the ball clear of it, nor one faded out")
+        var batter = men[0]
+        var bat = Path()
+        bat.move(to: him.grip)
+        bat.addLine(to: CGPoint(x: him.grip.x + 6, y: spot.maxY - 1))
+        batter.held = (bat, 2.5)
+        check(TheaterTags.crossing([batter], ball: nil, tag: spot).figures == [0], "the batter's bat reaching into his own tag rings him (bat and all)")
+        let ringed = TheaterDraw.outline(men[1].figure, grown: TheaterDraw.halo(lens.height) + TheaterTags.ring(lens.height)).boundingRect
+        check(TheaterTags.box(men[1]).insetBy(dx: -0.01, dy: -0.01).contains(ringed), "a man's box holds his whole ring",
+              "\(TheaterTags.box(men[1])) \(ringed)")
+        check((19...31).allSatisfy { (1.1...1.9).contains(TheaterTags.ring(CGFloat($0))) } && TheaterTags.ring(60) > TheaterTags.ring(30),
+              "the ring about 1.5 pt round the compact panel's figures (19–31 pt tall), wider with them in a wider well")
+        let slab = TheaterTags.shape(spot), lean = spot.height * SlideMetrics.lean
+        check(slab.contains(CGPoint(x: spot.midX, y: spot.midY)) && slab.contains(CGPoint(x: spot.minX + 0.5, y: spot.maxY - 0.5))
+              && slab.contains(CGPoint(x: spot.maxX - 0.5, y: spot.minY + 0.5)) && !slab.contains(CGPoint(x: spot.minX + lean / 2, y: spot.minY + 0.5))
+              && !slab.contains(CGPoint(x: spot.maxX - lean / 2, y: spot.maxY - 0.5)),
+              "the ring's clip: the tag's slab, cut on the lean at its top leading and bottom trailing corners")
+        // The full tag, drawn: its number's stripe and its name's slab meet on the lean, one shape, the clip's.
+        let black = TheaterLabels.make(kits: TheaterKits(top: TeamKit(color: "000000", alternate: "c4ced4"), bottom: TeamKit(color: "4e008e", alternate: "79a3dc")),
+                                       scheme: .dark, teams: ("Spurs", "Jazz")).top
+        let renderer = ImageRenderer(content: TheaterNameTag(who: .known(TheaterPerson(name: "Victor Wembanyama", number: "1", position: "F")), label: black,
+                                                            full: true, size: 9))
+        renderer.scale = 2
+        if let image = renderer.cgImage {
+            let w = image.width, h = image.height
+            var bytes = [UInt8](repeating: 0, count: w * h * 4)
+            bytes.withUnsafeMutableBytes { buffer in
+                CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)?.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+            }
+            func alpha(_ x: CGFloat, _ y: CGFloat) -> Double { Double(bytes[(min(Int(y * 2), h - 1) * w + min(Int(x * 2), w - 1)) * 4 + 3]) / 255 }
+            let W = CGFloat(w) / 2, H = CGFloat(h) / 2, d = H * SlideMetrics.lean
+            // (Where the stripe meets the slab their edges' smoothing leaves a hairline a touch lighter, never a gap.)
+            let across = stride(from: d / 2 + 1, through: W - d / 2 - 1, by: 0.5).allSatisfy { alpha($0, H / 2) > 0.6 }
+            // (Its width rounds up to the pixel: the corners' tests stand a little in.)
+            check(across && alpha(0.5, 0.5) < 0.05 && alpha(W - 0.5, H - 0.5) < 0.05 && alpha(W - 2, 1) > 0.95 && alpha(1, H - 1) > 0.95,
+                  "the full tag drawn is solid across, number to name, cut on the lean at its corners: the clip's shape",
+                  String(format: "%.1f×%.1f pt: %@ %.2f %.2f %.2f %.2f", W, H, across ? "solid" : "gap", alpha(0.5, 0.5), alpha(W - 0.5, H - 0.5),
+                         alpha(W - 2, 1), alpha(1, H - 1)))
+        } else { check(false, "the full tag renders") }
+        check(TheaterInk(.light).tagRing == .paint(.white) && TheaterInk(.dark).tagRing == .cutout,
+              "the ring white in the light; in the dark the slab cut away round him, the surface showing")
 
         // MARK: Paint
 

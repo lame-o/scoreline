@@ -29,6 +29,7 @@ import SwiftUI
 /// and numbers, the sidelines, and the goalposts. Drawn first in the frame's
 /// own pass, through the same projection as the players, so the two can
 /// never disagree on the camera; its type is laid out once with the frame's.
+/// The goalposts stand up off it, with the play: over the names on the field.
 enum GridironLayer {
     struct EndZone: Equatable {
         var color = Color.gray
@@ -135,9 +136,12 @@ enum GridironLayer {
         }
         // The sidelines and end lines.
         context.stroke(border, with: .color(ink.chalk), lineWidth: line * 1.8)
+    }
 
-        // The goalposts on the end lines: the post, the crossbar, the uprights.
-        for y in [-Gridiron.endZone, Gridiron.backLine] where shown(y) {
+    /// The goalposts on the end lines: the post, the crossbar, the uprights.
+    static func posts(_ context: GraphicsContext, _ f: GridProjection, ink: TheaterInk) {
+        let seen = Self.visible(f), line = min(max(0.75, f.scale * 0.3), 1.6)
+        for y in [-Gridiron.endZone, Gridiron.backLine] where y >= seen.lowerBound - 12 && y <= seen.upperBound + 40 {
             var post = Path()
             post.move(to: f.point(CGPoint(x: 0, y: y), z: 0))
             post.addLine(to: f.point(CGPoint(x: 0, y: y), z: Gridiron.crossbar))
@@ -250,9 +254,9 @@ enum GridPose {
 }
 
 /// One frame of a play through the camera: the field, the lines on it, the
-/// flag, the shadows, the players far to near, the ball, the beats, the
-/// headline and the stamp. Equatable: at rest (t = ∞) an update elsewhere on
-/// the page doesn't redraw it.
+/// shadows, the names, the goalposts, the flag, the players far to near, the
+/// ball, the beats, the headline and the stamp. Equatable: at rest (t = ∞)
+/// an update elsewhere on the page doesn't redraw it.
 struct FootballFrame: View, Equatable {
     let scene: FootballScene?
     let script: FootballScript
@@ -289,14 +293,16 @@ struct FootballFrame: View, Equatable {
             context.clip(to: f.bounds)
             GridironLayer.draw(&context, f, ink: ink, zones: zones)
             drawLines(&context, f)
-            drawFlag(&context, f)
-            let figures = posed(f)
+            let figures = posed(f), held = figures.lazy.compactMap(\.ball).first
             drawShadows(&context, f, figures)
+            // The names on the field, under all that plays: the posts and a flag in the air too.
+            drawTags(context, f, figures, held: held)
+            GridironLayer.posts(context, f, ink: ink)
+            drawFlag(&context, f)
             drawPlayers(&context, f, figures)
-            drawBall(&context, f, held: figures.lazy.compactMap(\.ball).first)
+            drawBall(&context, f, held: held)
             drawFlashes(&context, f)
             drawLabels(&context, f)
-            drawTags(context, f, figures)
         } symbols: {
             GridironLayer.symbols(ink: ink, zones: zones)
             stamp.tag(Symbol.stamp)
@@ -555,24 +561,18 @@ struct FootballFrame: View, Equatable {
     /// while it's in the air, in his hands while he has it, its shadow on
     /// the grass (with the shadows).
     private func drawBall(_ context: inout GraphicsContext, _ f: GridProjection, held: CGPoint?) {
-        guard let ball = script.ball(at: t) else { return }
-        let p = held ?? f.point(ball)
-        // A touch larger than life, as the baseball is: it's what the eye follows.
-        let r = min(max(0.55 * f.scale, 2.2), max(f.figure * 0.13, 2.2))
-        let flight = script.flight(at: t)
-        var angle = 0.0
-        if let flight {
-            let trail = (1...6).map { f.point(flight.point(at: max(t - Double($0) * 0.014, flight.start))) }
+        guard let ball = ballSpot(f, held: held) else { return }
+        let p = ball.point, r = ball.radius
+        if let trail = ball.trail {
             TheaterDraw.trail(trail, from: p, radius: r * 0.8, color: ink.ball, in: context)
-            if let last = trail.first, hypot(last.x - p.x, last.y - p.y) > 0.3 { angle = atan2(p.y - last.y, p.x - last.x) }
             TheaterDraw.glow(at: p, radius: r, color: ink.glow, in: context)
         } else if t < script.settle {
             TheaterDraw.glow(at: p, radius: r * 0.8, color: ink.glow.opacity(0.7), in: context)
         }
         var layer = context
         layer.translateBy(x: p.x, y: p.y)
-        layer.rotate(by: .radians(angle))
-        let oval = CGRect(x: -r * 1.45, y: -r * 0.92, width: r * 2.9, height: r * 1.84)
+        layer.rotate(by: .radians(ball.angle))
+        let oval = Self.oval(r)
         layer.fill(Path(ellipseIn: oval.insetBy(dx: -0.6, dy: -0.6)), with: .color(ink.ballEdge))
         layer.fill(Path(ellipseIn: oval), with: .color(Color(hue: 0.06, saturation: 0.62, brightness: ink.dark ? 0.72 : 0.55)))
         if r > 2.6 {
@@ -582,6 +582,22 @@ struct FootballFrame: View, Equatable {
             layer.stroke(laces, with: .color(.white.opacity(0.85)), lineWidth: max(r * 0.18, 0.6))
         }
     }
+
+    /// Where the ball is drawn at t: in his hands or along its flight, how
+    /// big (a touch larger than life, as the baseball is: it's what the eye
+    /// follows), the way it points (along its flight) and its tail while it flies.
+    private func ballSpot(_ f: GridProjection, held: CGPoint?) -> (point: CGPoint, radius: CGFloat, angle: Double, trail: [CGPoint]?)? {
+        guard let ball = script.ball(at: t) else { return nil }
+        let p = held ?? f.point(ball)
+        let r = min(max(0.55 * f.scale, 2.2), max(f.figure * 0.13, 2.2))
+        guard let flight = script.flight(at: t) else { return (p, r, 0, nil) }
+        let trail = (1...6).map { f.point(flight.point(at: max(t - Double($0) * 0.014, flight.start))) }
+        let angle = trail.first.map { hypot($0.x - p.x, $0.y - p.y) > 0.3 ? atan2(p.y - $0.y, p.x - $0.x) : 0 } ?? 0
+        return (p, r, angle, trail)
+    }
+
+    /// The ball's oval round its middle, `r` its size, along its way.
+    static func oval(_ r: CGFloat) -> CGRect { CGRect(x: -r * 1.45, y: -r * 0.92, width: r * 2.9, height: r * 1.84) }
 
     // MARK: Beats
 
@@ -656,8 +672,8 @@ struct FootballFrame: View, Equatable {
         }
     }
 
-    /// The names over the players, clear of the headline and the stamp while they're up.
-    private func drawTags(_ context: GraphicsContext, _ f: GridProjection, _ figures: [Posed]) {
+    /// The names round the players, drawn under them and the ball, clear of the headline and the stamp while they're up.
+    private func drawTags(_ context: GraphicsContext, _ f: GridProjection, _ figures: [Posed], held: CGPoint?) {
         var clear: [CGRect] = []
         if let banner = script.banner, t >= banner.at, t < banner.until + 0.3, let symbol = context.resolveSymbol(id: Symbol.banner) {
             clear.append(TheaterTagLayout.banner(symbol.size, in: f.size))
@@ -665,8 +681,24 @@ struct FootballFrame: View, Equatable {
         if t >= script.stamp, let symbol = context.resolveSymbol(id: Symbol.stamp) {
             clear.append(TheaterTagLayout.stamp(symbol.size, in: f.size, inset: TheaterType.inset(f.size)))
         }
-        tags.draw(figures.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: f.f.figure, opacity: $0.opacity) }, t: t, size: f.size,
-                  clear: clear, in: context)
+        let ball = ballSpot(f, held: held).map { b in
+            TheaterTags.Ball(shape: Path(ellipseIn: Self.oval(b.radius).insetBy(dx: -0.6, dy: -0.6))
+                                .applying(CGAffineTransform(rotationAngle: b.angle).concatenating(CGAffineTransform(translationX: b.point.x, y: b.point.y))),
+                             height: f.f.figure)
+        }
+        let well = f.size
+        tags.draw(figures.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: f.f.figure, opacity: $0.opacity) }, ball: ball, t: t,
+                  size: f.size, clear: clear, ring: ink.tagRing, replay: TheaterReplay(length: script.duration) { Self.spots(script, at: $0, size: well) },
+                  in: context)
+    }
+
+    /// Each player's spot on screen at t and the ball's, through the camera, no posing.
+    static func spots(_ script: FootballScript, at t: Double, size: CGSize) -> TheaterSpots {
+        let f = GridProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw(at: t))
+        return TheaterSpots(figures: script.players.indices.filter { script.players[$0].opacity(at: t) > 0.01 }.map { i in
+            let lens = RigLens(f, at: script.players[i].position(at: t))
+            return (i, lens.origin, lens.height)
+        }, ball: script.ball(at: t).map { f.point($0) })
     }
 
     private func color(_ side: GameDetail.Side?) -> Color {
@@ -1080,11 +1112,7 @@ private struct FootballStage: View {
     /// The figure under the pointer in the frame on screen: each player's
     /// spot at t through the camera, no posing.
     private func figure(at point: CGPoint, _ script: FootballScript, t: Double, size: CGSize) -> Int? {
-        let f = GridProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw(at: t))
-        return TheaterTags.hit(script.players.indices.filter { script.players[$0].opacity(at: t) > 0.01 }.map { i in
-            let lens = RigLens(f, at: script.players[i].position(at: t))
-            return (i, lens.origin, lens.height)
-        }, at: point)
+        TheaterTags.hit(FootballFrame.spots(script, at: t, size: size).figures, at: point)
     }
 
     /// The field goes idle (again): its beats count from now.
@@ -1212,7 +1240,7 @@ extension FootballScript {
         func kicker() -> Int? { credits.first { $0.value.role == "kicker" }?.key }
         switch scene?.kind {
         case .fieldGoal?, .extraPoint?:
-            return TheaterCast(members: members, key: kicker())
+            return TheaterCast(members: members, key: kicker(), scope: scope)
         case .kickoff?:
             if let k = kicker() { keys.append(TheaterCast.Key(from: -.infinity, figure: k)) }
         default:
@@ -1222,7 +1250,7 @@ extension FootballScript {
             guard case let .carry(p) = leg.hand, credits[p] != nil, members[p] != nil, keys.last?.figure != p else { continue }
             keys.append(TheaterCast.Key(from: keys.isEmpty ? -.infinity : leg.from, figure: p))
         }
-        return TheaterCast(members: members, keys: keys)
+        return TheaterCast(members: members, keys: keys, scope: scope)
     }
 
     /// A credited man's name where only the text gives it (college's

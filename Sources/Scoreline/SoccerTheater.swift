@@ -277,10 +277,11 @@ extension RigPose {
 
 // MARK: - Players and ball
 
-/// One frame of a moment through the camera: the pitch, the move's trail on
-/// the grass and the shot's path, the shadows, the goals and the players far to near,
-/// the ball, what it hits, the headline and the stamp. Equatable: at rest
-/// (t = ∞) an update elsewhere on the page doesn't redraw it.
+/// One frame of a moment through the camera: the pitch, the shadows, the
+/// names, the move's trail on the grass and the shot's path, the goals and
+/// the players far to near, the ball, what it hits, the headline and the
+/// stamp. Equatable: at rest (t = ∞) an update elsewhere on the page doesn't
+/// redraw it.
 struct SoccerFrame: View, Equatable {
     let scene: SoccerScene?
     let script: SoccerScript
@@ -308,14 +309,15 @@ struct SoccerFrame: View, Equatable {
             let f = PitchProjection(size: size, camera: script.frame(at: t))
             context.clip(to: f.bounds)
             PitchLayer.draw(&context, f, ink: ink)
-            drawTrails(&context, f)
-            let figures = posed(f)
+            let figures = posed(f), hands = held(figures)
             drawShadows(&context, f, figures)
-            let hands = drawStage(&context, f, figures)
+            // The names on the pitch, under all that plays: the move's trail and the goals too.
+            drawTags(context, f, figures, hands: hands)
+            drawTrails(&context, f)
+            drawStage(&context, f, figures)
             drawBall(&context, f, hands: hands)
             drawImpacts(&context, f)
             drawLabels(&context, f)
-            drawTags(context, f, figures)
         } symbols: {
             stamp.tag(Symbol.stamp)
             ForEach(script.banners.indices, id: \.self) { i in
@@ -325,8 +327,8 @@ struct SoccerFrame: View, Equatable {
         }
     }
 
-    /// The names over the players, clear of the headline and the stamp while they're up.
-    private func drawTags(_ context: GraphicsContext, _ f: PitchProjection, _ figures: [Posed]) {
+    /// The names round the players, drawn under them and the ball, clear of the headline and the stamp while they're up.
+    private func drawTags(_ context: GraphicsContext, _ f: PitchProjection, _ figures: [Posed], hands: CGPoint?) {
         var clear: [CGRect] = []
         for (i, banner) in script.banners.enumerated() where t >= banner.at && t < banner.until + 0.3 {
             if let symbol = context.resolveSymbol(id: Symbol.banner(i)) { clear.append(TheaterTagLayout.banner(symbol.size, in: f.size)) }
@@ -334,9 +336,27 @@ struct SoccerFrame: View, Equatable {
         if t >= script.stamp, let symbol = context.resolveSymbol(id: Symbol.stamp) {
             clear.append(TheaterTagLayout.stamp(symbol.size, in: f.size, inset: max(f.size.height * 0.055, 9), trailing: script.cornerRight))
         }
-        let shown = figures.indices.filter { script.actors[$0].opacity(at: t) > 0.01 }
-        tags.draw(shown.map { TheaterTags.Figure(index: $0, figure: figures[$0].figure, height: figures[$0].height, opacity: script.actors[$0].opacity(at: t)) },
-                  t: t, size: f.size, clear: clear, in: context)
+        let shown = figures.indices.filter { script.actors[$0].opacity(at: t) > 0.01 }, well = f.size
+        let ball = ballSpot(f, hands: hands).map { b in
+            let r = b.radius + 0.6
+            return TheaterTags.Ball(shape: Path(ellipseIn: CGRect(x: b.point.x - r, y: b.point.y - r, width: 2 * r, height: 2 * r)), height: b.height,
+                                    opacity: b.opacity)
+        }
+        tags.draw(shown.map { i in
+            let seen = script.actors[i].opacity(at: t)
+            return TheaterTags.Figure(index: i, figure: figures[i].figure, height: figures[i].height, opacity: seen,
+                                      drawn: script.actors[i].shaped ? seen * receding(figures[i].figure.ground, size: f.size) : nil)
+        }, ball: ball, t: t, size: f.size, clear: clear, ring: ink.tagRing,
+           replay: TheaterReplay(length: script.duration) { Self.spots(script, at: $0, size: well) }, in: context)
+    }
+
+    /// Each player's spot on screen at t and the ball's, through the camera, no posing.
+    static func spots(_ script: SoccerScript, at t: Double, size: CGSize) -> TheaterSpots {
+        let f = PitchProjection(size: size, camera: script.frame(at: t))
+        return TheaterSpots(figures: script.actors.indices.filter { script.actors[$0].opacity(at: t) > 0.01 }.map { i in
+            let lens = RigLens(f, at: script.actors[i].position(at: t))
+            return (i, lens.origin, lens.height)
+        }, ball: script.ballOpacity(at: t) > 0.01 ? script.ball(at: t).map { f.point($0) } : nil)
     }
 
     // MARK: The move's trail
@@ -406,9 +426,14 @@ struct SoccerFrame: View, Equatable {
 
     // MARK: Goals and players
 
-    /// The goals and the players, far to near (a man in front of the post
-    /// covers it). Returns where the keeper holding the ball has his hands.
-    private func drawStage(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed]) -> CGPoint? {
+    /// Where the keeper holding the ball has his hands.
+    private func held(_ figures: [Posed]) -> CGPoint? {
+        guard let i = script.heldBy, t >= script.heldFrom, i < figures.count, script.actors[i].opacity(at: t) > 0.01 else { return nil }
+        return figures[i].hands
+    }
+
+    /// The goals and the players, far to near (a man in front of the post covers it).
+    private func drawStage(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed]) {
         let attacking = FigureInks(teams.attacking, ink: ink, in: context)
         let defending = FigureInks(teams.defending, ink: ink, in: context)
         let officials = script.actors.contains { $0.team == .official } ? FigureInks(.referee(against: [teams.attacking.jersey, teams.defending.jersey], dark: ink.dark), ink: ink, in: context) : defending
@@ -435,7 +460,6 @@ struct SoccerFrame: View, Equatable {
                 items.append((Pitch.posts.near - 0.01, .nearPost(right: right)))
             }
         }
-        var hands: CGPoint?
         for (_, item) in items.sorted(by: { $0.depth > $1.depth }) {
             switch item {
             case let .goalBack(right): drawGoal(&context, f, right: right, parts: [.net, .frame])
@@ -455,13 +479,11 @@ struct SoccerFrame: View, Equatable {
                 }
                 TheaterDraw.figure(figure.figure, inks: inks, height: figure.height,
                                    opacity: shown * (actor.shaped ? receding(figure.figure.ground, size: f.size) : 1), in: context)
-                if script.heldBy == i, t >= script.heldFrom { hands = figure.hands }
                 for prop in script.props where prop.actor == i && t >= prop.from && t < prop.until {
                     drawProp(prop, figure.figure, height: figure.height, opacity: shown * min((t - prop.from) / 0.2, 1), in: &context)
                 }
             }
         }
-        return hands
     }
 
     /// What a man holds up: the referee's card, the assistant's flag, the
@@ -702,12 +724,16 @@ struct SoccerFrame: View, Equatable {
 
     // MARK: Ball
 
+    /// Where the ball is drawn at t (in the keeper's hands, or where it is), how big, how faint, and a man's height there.
+    private func ballSpot(_ f: PitchProjection, hands: CGPoint?) -> (point: CGPoint, radius: CGFloat, opacity: Double, height: CGFloat)? {
+        guard let ball = script.ball(at: t) else { return nil }
+        let height = f.figure(at: ball.ground)
+        return (hands ?? f.point(ball), min(max(0.3 * f.scale(at: ball), 1.7), max(height * 0.11, 1.7)), script.ballOpacity(at: t), height)
+    }
+
     private func drawBall(_ context: inout GraphicsContext, _ f: PitchProjection, hands: CGPoint?) {
-        guard let ball = script.ball(at: t) else { return }
-        let o = script.ballOpacity(at: t)
-        let p = hands ?? f.point(ball)
-        let ppm = f.scale(at: ball)
-        let r = min(max(0.3 * ppm, 1.7), max(f.figure(at: ball.ground) * 0.11, 1.7))
+        guard let spot = ballSpot(f, hands: hands) else { return }
+        let p = spot.point, r = spot.radius, o = spot.opacity
         var trail: [CGPoint] = []
         if hands == nil, let flight = script.flights.last(where: { $0.start < t && t <= $0.end }), flight.kind != .carry {
             trail = (1...6).map { f.point(flight.point(at: max(t - Double($0) * 0.014, flight.start))) }
@@ -1257,11 +1283,7 @@ private struct SoccerStage: View {
     /// The figure under the pointer in the frame on screen: each player's
     /// spot at t through the camera, no posing.
     private func figure(at point: CGPoint, _ script: SoccerScript, t: Double, size: CGSize) -> Int? {
-        let f = PitchProjection(size: size, camera: script.frame(at: t))
-        return TheaterTags.hit(script.actors.indices.filter { script.actors[$0].opacity(at: t) > 0.01 }.map { i in
-            let lens = RigLens(f, at: script.actors[i].position(at: t))
-            return (i, lens.origin, lens.height)
-        }, at: point)
+        TheaterTags.hit(SoccerFrame.spots(script, at: t, size: size).figures, at: point)
     }
 
     /// The pitch goes idle (again), or its event changes: its beats count from now.
@@ -1372,7 +1394,7 @@ extension SoccerScript {
             members[i] = TheaterCast.member(who, side: side, athlete: actor.athlete, figure: i, scope: scope)
         }
         let figure = key.flatMap { k in actors.indices.first { actors[$0].athlete == k && members[$0] != nil } }
-        return TheaterCast(members: members, key: figure)
+        return TheaterCast(members: members, key: figure, scope: scope)
     }
 
     /// Who the pitch between moments is about: the man in the event on the
