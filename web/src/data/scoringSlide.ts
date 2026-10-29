@@ -1135,8 +1135,8 @@ export const SLIDE_OUT: Readonly<Partial<Record<SlideLayer, SlideBeat>>> = {
 };
 
 export const SlideMotion = {
-  /** The slab has landed: the hold counts from here. */
-  land: 0.44,
+  /** Everything has landed (the chip's pop is the last): the hold counts from here, as on the Mac. */
+  land: 0.7,
   /** The exit, start to gone (the kicker leaves last, by 0.36 s). */
   exitLength: 0.38,
   /** The spark and the confetti fly at the logo as it pops. */
