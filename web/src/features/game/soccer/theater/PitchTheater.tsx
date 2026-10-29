@@ -5,11 +5,12 @@
  * so nothing below it moves. While it's shown, the pitch bursts only for
  * moments the theater doesn't own (`GoalCelebration.pitchBursts`).
  *
- *     <PitchTheater feed={feed} homeTeamID={homeID} event={event} />
+ *     <PitchTheater feed={feed} homeTeamID={homeID} event={event} added={detail.soccerAdded} />
  */
 import { lazy, Suspense } from "react";
 import type { SoccerFeed } from "../../../../data/liveFeeds/soccer";
 import type { ScoreEvent } from "../../../../data/models";
+import type { SoccerAddedTime } from "../../../../data/soccer";
 import { TheaterWell } from "../../core/theater/TheaterWell";
 import styles from "./PitchTheater.module.css";
 
@@ -20,9 +21,11 @@ export interface PitchTheaterProps {
   /** The home (top) team's ESPN ID: the plays' frames turn on it. */
   readonly homeTeamID: string | null;
   readonly event: ScoreEvent;
+  /** The added time last announced (the summary's commentary), for the theater's tag. */
+  readonly added?: SoccerAddedTime | null;
 }
 
-export function PitchTheater({ feed, homeTeamID, event }: PitchTheaterProps) {
+export function PitchTheater({ feed, homeTeamID, event, added = null }: PitchTheaterProps) {
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
   const kits = {
@@ -32,7 +35,7 @@ export function PitchTheater({ feed, homeTeamID, event }: PitchTheaterProps) {
   return (
     <div className={styles.slot}>
       <Suspense fallback={<TheaterWell />}>
-        <SoccerTheater feed={feed} homeTeamID={homeTeamID} kits={kits} />
+        <SoccerTheater feed={feed} homeTeamID={homeTeamID} kits={kits} eventId={event.id} topTeam={top?.name ?? ""} bottomTeam={bottom?.name ?? ""} added={added} />
       </Suspense>
     </div>
   );

@@ -33,3 +33,16 @@
     opacity: 0;
   }
 }
+
+/* The heartbeat's corner: the stage's own (bottom trailing), or bottom leading while the stamp holds that corner (SoccerStage's overlay). */
+.heartbeat,
+.heartbeatLeading {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.heartbeatLeading > span {
+  right: auto;
+  left: 7px;
+}

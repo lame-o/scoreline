@@ -10,7 +10,7 @@
  */
 import type { CameraFrame } from "../../../../data/mlb/playCamera";
 import { easeValue, houseCurve, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
-import type { Uniform } from "../../../../data/mlb/theaterTeams";
+import { zebra, type Uniform } from "../../../../data/mlb/theaterTeams";
 import type { Side } from "../../../../data/models";
 import type { FootballScene } from "../../../../data/theater/footballScene";
 import { FootballScript, footballStamp, Gridiron, type Flag, type Player } from "../../../../data/theater/footballScript";
@@ -471,8 +471,11 @@ export const GridPose = {
   }),
 };
 
-/** An official's stripes, as near as a pictogram gets: white, a black cap. */
-export const OFFICIAL: Uniform = { jersey: "#ededed", cap: "#1a1a1a", piping: null, accent: "#ffffff" };
+/** A team's trainers: slate, a pale cap (FootballFrame.staff). */
+export const STAFF: Uniform = { jersey: "#6b7887", cap: "#cccccc", piping: null, accent: "#808080" };
+
+/** A coach's challenge flag (FootballFrame.challengeRed). */
+const CHALLENGE_RED = [230, 31, 26] as const;
 
 /**
  * How far the ball has gone from both hands into the throwing hand (his
@@ -796,7 +799,7 @@ function drawFlag(ctx: Ctx, f: GridProjection, flag: Flag, { script, t, labels }
   const h = s * (u < 1 ? 1.4 : 0.7);
   ctx.beginPath();
   ctx.roundRect(-s, -h / 2, 2 * s, h, s * 0.2);
-  ctx.fillStyle = rgba(GAIN_YELLOW, 1);
+  ctx.fillStyle = rgba(flag.red ? CHALLENGE_RED : GAIN_YELLOW, 1);
   ctx.fill();
   ctx.strokeStyle = "rgb(0 0 0 / 0.3)";
   ctx.lineWidth = 0.5;
@@ -852,8 +855,9 @@ interface Posed {
 
 /** Everyone on the field at t, far to near: a player in front covers the one behind. */
 function posed(f: GridProjection, { script, t }: FrameInputs): Posed[] {
-  const c = Math.cos(script.yaw);
-  const s = Math.sin(script.yaw);
+  const yaw = script.yawAt(t);
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
   const order = script.players.map((player, index) => {
     const at = player.position(t);
     return { player, index, at, depth: -at.x * s + at.y * c };
@@ -893,11 +897,12 @@ function posed(f: GridProjection, { script, t }: FrameInputs): Posed[] {
 function drawPlayers(ctx: Ctx, f: GridProjection, { script, teams, ink }: FrameInputs, figures: readonly Posed[]): void {
   const offense = figureInks(teams.offense, ink);
   const defense = figureInks(teams.defense, ink);
-  // An official, only when one throws a flag: white, a black cap.
-  const official = script.players.some((p) => p.team === "official") ? figureInks(OFFICIAL, ink) : offense;
+  // An official, only when one throws a flag (or between snaps): the zebra shirt. A trainer in the staff's slate.
+  const official = script.players.some((p) => p.team === "official") ? figureInks(zebra(ink.dark ? "dark" : "light"), ink) : offense;
+  const staff = script.players.some((p) => p.team === "staff") ? figureInks(STAFF, ink) : offense;
   for (const p of figures) {
     const team = script.players[p.index]!.team;
-    drawFigure(ctx, p.figure, team === "offense" ? offense : team === "defense" ? defense : official, f.figure, p.opacity);
+    drawFigure(ctx, p.figure, team === "offense" ? offense : team === "defense" ? defense : team === "staff" ? staff : official, f.figure, p.opacity);
   }
 }
 

@@ -106,8 +106,9 @@ describe("soccer theater: every moment", () => {
     expect(scenes.every((s) => buildUpOf(s).length <= touchLimit)).toBe(true);
   });
 
-  it("a pass, a goal kick, a save entry, a speculative miss aren't moments; a big chance missed, a volley in, a penalty saved are", () => {
-    for (const type of ["pass", "goal-kick", "save", "shot-off-target", "corner-awarded"]) expect(isMoment({ type: { type }, expectedGoals: 0.05 })).toBe(false);
+  it("a pass, a goal kick, a save entry, a corner awarded aren't moments; every shot is, a speculative miss too; a big chance missed, a volley in, a penalty saved are", () => {
+    for (const type of ["pass", "goal-kick", "save", "corner-awarded"]) expect(isMoment({ type: { type }, expectedGoals: 0.05 })).toBe(false);
+    expect(isMoment({ type: { type: "shot-off-target" }, expectedGoals: 0.05 })).toBe(true);
     expect(isMoment({ type: { type: "shot-off-target" }, expectedGoals: 0.61 })).toBe(true);
     expect(isMoment({ type: { type: "goal---volley" } })).toBe(true);
     expect(isMoment({ type: { type: "penalty---saved" } })).toBe(true);

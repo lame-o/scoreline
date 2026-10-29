@@ -20,7 +20,7 @@ import type { Competitor, CSLive, ScoreEvent, Side, Sport } from "./models";
 import { makeEvent } from "./providers/espn";
 import { EMPTY_ROSTER, loadCSDetail, type CSRound, type Roster } from "./cs2";
 import { loadClimbingDetail, type BoulderCard, type UpNext, type WallRoute } from "./climbing";
-import { soccerTie, type SoccerTie } from "./soccer";
+import { latestAddedTime, soccerTie, type SoccerAddedTime, type SoccerTie } from "./soccer";
 import { EMPTY_BASIS, parseOddsBasis, type OddsBasis } from "./odds/espn";
 import { homeWinProbability, keyMoments as basketballMoments, NBA_STATS, parseBasketball, predictor, quarterLength, recentPlays as basketballPlays, WNBA_PATH, type Basketball } from "./basketball";
 
@@ -241,6 +241,8 @@ export interface GameDetail {
    * so this layer never loads its parser).
    */
   readonly soccerRosters: Readonly<Partial<Record<Side, JSONValue>>>;
+  /** Soccer: the added time the fourth official last announced (the commentary's), for the theater's tag. */
+  readonly soccerAdded: SoccerAddedTime | null;
   /**
    * Baseball, live: the summary's plays, for the play theater until the live
    * lane has spoken (`theater()` in data/mlb/playScene.ts reads them).
@@ -305,6 +307,7 @@ export const EMPTY_DETAIL: GameDetail = {
   basketball: null,
   soccerTie: null,
   soccerRosters: {},
+  soccerAdded: null,
   plays: [],
   topIsHome: null,
   athleteNames: {},
@@ -504,6 +507,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
   const athleteNames: Record<string, string> = {};
   let basketball: Basketball | null = null;
   const soccerRosters: { top?: JSONValue; bottom?: JSONValue } = {};
+  let soccerAdded: SoccerAddedTime | null = null;
 
   // The NBA and WNBA have their own page (data/basketball.ts); other basketball reads like the rest.
   switch (sport === "basketball" && (path === NBA_PATH_ || path === WNBA_PATH) ? "nba" : sport) {
@@ -513,6 +517,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
         const s = side(str(at(roster, "team", "id")));
         if (s) soccerRosters[s] = roster;
       }
+      soccerAdded = latestAddedTime(arr(at(summary, "commentary")));
       recentPlays = arr(at(summary, "commentary"))
         .slice(-4)
         .reverse()
@@ -643,6 +648,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     basketball,
     soccerTie: sport === "soccer" ? soccerTie(competition, topComp, bottomComp) : null,
     soccerRosters,
+    soccerAdded,
     plays,
     athleteNames,
     playerNames,

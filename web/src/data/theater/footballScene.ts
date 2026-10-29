@@ -26,6 +26,7 @@
 import { arr, at, bool, int, num, str, type JSONValue } from "../json";
 import { teamSide, type FootballTeams } from "../liveFeeds/football";
 import type { Side } from "../models";
+import type { FootballStoppage } from "./footballIdle";
 
 export type Kind =
   | { readonly type: "pass" | "incomplete" | "rush" | "sack" | "kneel" | "spike" }
@@ -190,6 +191,31 @@ export interface Down {
   readonly distance: number;
 }
 
+/**
+ * A second look at the play (FootballScene.Review): a coach's challenge (the
+ * red flag) or the replay official's review (college's automatic one), what
+ * was looked at, and how it came out. ESPN edits the entry once it's
+ * decided: the play as it stands, then "Atlanta challenged the runner was out
+ * of bounds ruling, and the play was Upheld.", "The Replay Official reviewed
+ * the pass completion ruling, and the play was REVERSED.", college's "The
+ * previous play is under automatic review - "Targeting". CALL UPHELD".
+ */
+export interface Review {
+  readonly kind: "challenge" | "booth";
+  /** Who threw the red flag (a challenge). */
+  readonly side: Side | null;
+  /** The ruling looked at, in the text's words ("runner was out of bounds", "Targeting"). */
+  readonly ruling: string;
+  readonly reversed: boolean;
+}
+
+/** A man hurt on the play ("PHI-Q.Mitchell was injured during the play."): the injury timeout after it. */
+export interface Injury {
+  readonly side: Side | null;
+  /** "Q.Mitchell". */
+  readonly name: string;
+}
+
 export interface Penalty {
   /** "Offensive Holding". */
   readonly name: string | null;
@@ -270,6 +296,12 @@ export class FootballScene {
   text = "";
   /** Epoch milliseconds. */
   wallclock: number | null = null;
+  /** The quarter (5 on: overtime) and the clock at the snap ("13:55"): which way the field faces, and the two-minute drill. */
+  period: number | null = null;
+  clock: string | null = null;
+  /** The challenge or review it had, and anyone hurt on it. */
+  review: Review | null = null;
+  injuries: Injury[] = [];
 
   constructor(id: string, kind: Kind, offense: Side | null, from: number, to: number) {
     this.id = id;
@@ -287,6 +319,7 @@ export class FootballScene {
     copy.flags = this.flags.map((f) => ({ ...f }));
     copy.sackers = [...this.sackers];
     copy.names = { ...this.names };
+    copy.injuries = [...this.injuries];
     return copy;
   }
 
@@ -394,6 +427,8 @@ export class FootballScene {
     scene.pointAfter = attempt.kind;
     scene.text = attempt.text;
     scene.wallclock = this.wallclock;
+    scene.period = this.period;
+    scene.clock = this.clock;
     scene.scoring = attempt.good && !kick ? "touchdown" : null;
     scene.yards = attempt.good && !kick ? 2 : 0;
     scene.shotgun = attempt.kind === "pass";
@@ -474,6 +509,12 @@ export interface FootballTheaterState {
   readonly news: boolean;
   /** Both teams' depth charts (NFL), once fetched: who starts where. */
   readonly charts?: DepthCharts;
+  /** The snaps that came in while the page was open, oldest first, the last of them `play`: several can arrive in one look, and each replays. */
+  readonly queue?: readonly FootballScene[];
+  /** What ESPN posted after the last snap, if it stopped play: a timeout, a TV timeout, the two-minute warning, the end of a quarter (footballIdle.ts). */
+  readonly stoppage?: FootballStoppage | null;
+  /** When the feed last brought anything (epoch ms): the heartbeat counts from it. */
+  readonly heard?: number | null;
 }
 
 export const EMPTY_FOOTBALL_THEATER: FootballTheaterState = { play: null, news: false };
@@ -689,6 +730,10 @@ export function parse(item: JSONValue, teams: FootballTeams): FootballScene | nu
     scene.penalty = { name: null, yards: Math.abs(scene.yards), noPlay: /no play/i.test(text) };
   }
   scene.names = college ? collegeNames(play) : names(play);
+  scene.period = int(at(item, "period", "number")) ?? null;
+  scene.clock = str(at(item, "clock", "displayValue")) ?? null;
+  scene.review = review(text, teams);
+  scene.injuries = [...text.matchAll(INJURED)].map((m) => ({ side: team(m[1]!), name: m[2]! }));
 
   // What only the text says.
   const lower = play.toLowerCase();
@@ -721,6 +766,30 @@ export function parse(item: JSONValue, teams: FootballTeams): FootballScene | nu
 }
 
 type Spot = (token: string | null | undefined) => number | null;
+
+const INJURED = /\b([A-Z]{2,4})-([A-Z][A-Za-z]{0,2}\.\s?[A-Z][A-Za-z'\-]+(?: (?:Jr\.|Sr\.|III|II|IV))?) was injured during the play/g;
+const CHALLENGED = /([A-Z][A-Za-z.&' ]+?) challenged the (.+?) ruling, and the play was ([Uu]pheld|UPHELD|[Rr]eversed|REVERSED)/;
+const BOOTH = /Replay Official reviewed the (.+?) ruling, and the play was ([Uu]pheld|UPHELD|[Rr]eversed|REVERSED)/;
+const AUTOMATIC = /under (?:automatic )?review - "([^"]+)"\.? ?CALL (UPHELD|OVERTURNED|CONFIRMED|STANDS|REVERSED)/;
+
+/**
+ * The challenge or review in a play's text, once ESPN has written its
+ * outcome in (FootballScene.review): the NFL's coach's challenge (the team
+ * by its city, "Los Angeles Rams challenged the pass completion ruling, and
+ * the play was REVERSED.") and the replay official's review; college's
+ * automatic review ("… under automatic review - "Targeting". CALL
+ * UPHELD"). (pure; tested)
+ */
+export function review(text: string, teams: FootballTeams): Review | null {
+  // (Swift's (?i:…) covers the outcome only; the team's city is matched as written.)
+  const challenged = CHALLENGED.exec(text);
+  if (challenged) return { kind: "challenge", side: sideNamed(teams, challenged[1]!), ruling: challenged[2]!, reversed: challenged[3]!.toLowerCase() === "reversed" };
+  const booth = BOOTH.exec(text);
+  if (booth) return { kind: "booth", side: null, ruling: booth[1]!, reversed: booth[2]!.toLowerCase() === "reversed" };
+  const automatic = AUTOMATIC.exec(text);
+  if (automatic) return { kind: "booth", side: null, ruling: automatic[1]!, reversed: automatic[2] === "OVERTURNED" || automatic[2] === "REVERSED" };
+  return null;
+}
 
 /**
  * What the NFL's gamebook text says: the depth and side, the hole, where he
@@ -1361,6 +1430,30 @@ function teamKeys(abbreviation: string, name: string): Set<string> {
   if (first && [...first].length >= 3) keys.add(teamKey(first));
   keys.delete("");
   return keys;
+}
+
+/** Where each NFL team is from, as a challenge names it. */
+export const LOCATIONS: Readonly<Record<string, string>> = {
+  ARI: "Arizona", ATL: "Atlanta", BAL: "Baltimore", BUF: "Buffalo", CAR: "Carolina", CHI: "Chicago", CIN: "Cincinnati", CLE: "Cleveland", DAL: "Dallas",
+  DEN: "Denver", DET: "Detroit", GB: "Green Bay", HOU: "Houston", IND: "Indianapolis", JAX: "Jacksonville", KC: "Kansas City", LV: "Las Vegas",
+  LAC: "Los Angeles Chargers", LAR: "Los Angeles Rams", MIA: "Miami", MIN: "Minnesota", NE: "New England", NO: "New Orleans", NYG: "New York Giants",
+  NYJ: "New York Jets", PHI: "Philadelphia", PIT: "Pittsburgh", SF: "San Francisco", SEA: "Seattle", TB: "Tampa Bay", TEN: "Tennessee", WSH: "Washington",
+};
+
+/**
+ * The team a name in the text means (FootballFeed.Teams.side(named:)): an
+ * NFL challenge names its team by its city ("Atlanta", "Los Angeles Rams"),
+ * college's timeout by its name ("Timeout Texas A&M"); else its letters. (pure; tested)
+ */
+export function sideNamed(teams: FootballTeams, name: string): Side | null {
+  const key = teamKey(name);
+  if (key === "") return null;
+  const named = (abbreviation: string, full: string) =>
+    teamKey(full) === key || teamKey(abbreviation) === key || (LOCATIONS[abbreviation] != null && teamKey(LOCATIONS[abbreviation]!) === key);
+  const home = named(teams.homeAbbreviation, teams.homeName ?? "");
+  const away = named(teams.awayAbbreviation, teams.awayName ?? "");
+  const found = home !== away ? home : isHome(teams, name);
+  return found == null ? null : found === teams.topIsHome ? "top" : "bottom";
 }
 
 /**

@@ -92,3 +92,30 @@ export function tieLine(tie: SoccerTie | null): string | null {
   const line = parts.filter(Boolean).join(" · ");
   return line || null;
 }
+
+/**
+ * The added time the fourth official announced, and for which half
+ * (SoccerIdle.swift `SoccerAddedTime`): the commentary has it ("Fourth
+ * official has announced 4 minutes of added time."); the core plays don't.
+ * The soccer theater tags it while it's being played.
+ */
+export interface SoccerAddedTime {
+  readonly minutes: number;
+  /** 1 or 2 (extra time's 3 and 4). */
+  readonly half: number;
+}
+
+/** The latest announcement in a summary's commentary. (SoccerAddedTime.latest; pure; tested) */
+export function latestAddedTime(commentary: readonly unknown[]): SoccerAddedTime | null {
+  for (let i = commentary.length - 1; i >= 0; i--) {
+    const c = commentary[i] as { text?: unknown; time?: { displayValue?: unknown } } | null;
+    const text = typeof c?.text === "string" ? c.text : null;
+    const m = text ? /announced (\d+) minutes? of added time/.exec(text) : null;
+    if (!m) continue;
+    const display = typeof c?.time?.displayValue === "string" ? c.time.displayValue : "";
+    const digits = /^\d+/.exec(display)?.[0];
+    const minute = digits ? Number(digits) : 90;
+    return { minutes: Number(m[1]), half: minute <= 45 ? 1 : minute <= 90 ? 2 : minute <= 105 ? 3 : 4 };
+  }
+  return null;
+}

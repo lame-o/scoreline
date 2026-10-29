@@ -237,19 +237,26 @@ describe("what's news", () => {
     expect(footballTheaterState(deep, { play: short, news: false }, true, Number.MAX_SAFE_INTEGER).news).toBe(true);
     expect(footballTheaterState(deep, { play: deep, news: false }, true, Number.MAX_SAFE_INTEGER).news).toBe(false);
   });
-  it("beside the lane: the newest snap, history on the first look, news after; a timeout after it changes nothing", () => {
+  it("beside the lane: the newest snap, history on the first look, news after; a timeout after it stops play, the snap unchanged", () => {
     const watch = new FootballTheaterWatch();
     const upTo = (suffix: string) => items.slice(0, items.findIndex((i) => String(i.id).endsWith(suffix)) + 1);
     expect(watch.update(upTo("2186"), teams, false, Number.MAX_SAFE_INTEGER)).toBe(true);
     expect([watch.state.play?.id, watch.state.news]).toEqual([deep.id, false]);
     const next = items.findIndex((i) => String(i.id).endsWith("2186")) + 1;
     const after = items.slice(0, next + 1);
-    expect(watch.update(after, teams, true, Number.MAX_SAFE_INTEGER)).toBe(parse(items[next]!, teams) != null);
+    const was = watch.state.play;
+    // Anything new is heard (the heartbeat counts from it); only a snap is a new play.
+    expect(watch.update(after, teams, true, Number.MAX_SAFE_INTEGER)).toBe(true);
+    expect(watch.state.heard).toBe(Number.MAX_SAFE_INTEGER);
     if (parse(items[next]!, teams)) expect(watch.state.news).toBe(true);
+    else expect(watch.state.play).toBe(was);
     // The same entries again (a new list, the same objects): nothing changes.
     expect(watch.update([...after], teams, true)).toBe(false);
     const timeout = { id: "t", sequenceNumber: "99999999", type: { text: "Timeout" }, start: { yardLine: 40 }, end: { yardLine: 40 } };
-    expect(watch.update([...after, timeout], teams, true)).toBe(false);
+    const play = watch.state.play;
+    expect(watch.update([...after, timeout], teams, true)).toBe(true);
+    expect(watch.state.play).toBe(play);
+    expect(watch.state.stoppage?.kind).toBe("timeout");
   });
 });
 

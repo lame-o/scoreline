@@ -35,7 +35,39 @@ import { ballMemo, Rig, RigTrack, type RigFacing } from "./rig";
 import { CameraFollow } from "./theaterKit";
 import { BIG_CHANCE_XG } from "../liveFeeds/soccer";
 
-export type Team = "attacking" | "defending";
+/** The team on the ball and the other; between moments, the officials and the physios too (soccerIdle.ts). */
+export type Team = "attacking" | "defending" | "official" | "staff";
+
+/**
+ * A pose held for a while between moments: a man down, a physio on a knee,
+ * the referee's card or the assistant's flag up, a hand to the ear for VAR,
+ * the sign for the screen, the board held up.
+ */
+export interface Hold {
+  readonly kind: "down" | "kneel" | "cardUp" | "ear" | "screen" | "boardUp";
+  readonly from: number;
+  readonly until: number;
+}
+
+/** Where a man looks from a moment on when he's standing. */
+export interface Look {
+  readonly from: number;
+  readonly point: Point;
+}
+
+/** The loop the pitch's beats settle into between moments. */
+export interface Loop {
+  readonly start: number;
+  readonly period: number;
+}
+
+/** A prop in a man's raised hand: the referee's card, the assistant's flag, the fourth official's board. */
+export interface SoccerProp {
+  readonly kind: "yellowCard" | "redCard" | "flag" | "board";
+  readonly actor: number;
+  readonly from: number;
+  readonly until: number;
+}
 
 export type Role = "outfield" | "keeper";
 
@@ -93,12 +125,29 @@ export class Actor {
   moves: Move[] = [];
   actions: Action[] = [];
   dive: Dive | null = null;
+  holds: Hold[] = [];
+  looks: Look[] = [];
+  /** On the pitch from, and off it from (a substitution, a red card, the half). */
+  appear = -Infinity;
+  vanish = Infinity;
+
+  static readonly fade = 0.3;
 
   constructor(team: Team, role: Role, name: string, at: Point) {
     this.team = team;
     this.role = role;
     this.name = name;
     this.at = at;
+  }
+
+  opacity(t: number): number {
+    const fadeIn = Number.isFinite(this.appear) ? Math.min(Math.max((t - this.appear) / Actor.fade, 0), 1) : 1;
+    const fadeOut = Number.isFinite(this.vanish) ? 1 - Math.min(Math.max((t - this.vanish) / Actor.fade, 0), 1) : 1;
+    return fadeIn * fadeOut;
+  }
+
+  hold(t: number): Hold | null {
+    return this.holds.findLast((h) => t >= h.from && t < h.until) ?? null;
   }
 
   /** The newest move that has begun wins: a later move starts from wherever the one before had got to. */
@@ -245,6 +294,29 @@ export class SoccerScript {
   reverse: Reverse | null = null;
   /** Each player's motion through the replay (his heading, stride and footfalls), measured once: by actor. */
   rig: RigTrack[] = [];
+  /** Between moments: the loop the beats come round in, when anything moves, and the props in men's hands (cards, a flag, the board). */
+  loop: Loop | null = null;
+  beats: readonly (readonly [number, number])[] = [];
+  props: SoccerProp[] = [];
+
+  /** The script's time for `elapsed` seconds of idle: straight through, then round the loop. (pure; tested) */
+  idleTime(elapsed: number): number {
+    const loop = this.loop;
+    if (!loop || !(loop.period > 0) || !(elapsed > loop.start + loop.period)) return Math.min(Math.max(elapsed, 0), Math.max(this.duration, 0));
+    return loop.start + ((elapsed - loop.start) % loop.period);
+  }
+
+  moving(t: number): boolean {
+    return this.beats.some(([a, b]) => t >= a && t < b);
+  }
+
+  nextBeat(t: number): number | null {
+    const next = this.beats.find(([a]) => a > t);
+    if (next) return next[0];
+    const loop = this.loop;
+    const first = loop ? this.beats.find(([a]) => a >= loop.start) : undefined;
+    return loop && first ? first[0] + loop.period : null;
+  }
 
   /**
    * The moment's replay, with everyone in both starting elevens when the
@@ -281,6 +353,8 @@ export class SoccerScript {
           const a = actor.actions[i]!;
           if (t > a.at - 0.45 && (t < a.at + 0.2 || HELD.has(a.kind))) return { point: a.toward };
         }
+        const look = actor.looks.findLast((l) => t >= l.from);
+        if (look) return { point: look.point };
         const b = ball(t);
         return b ? { point: ground(b) } : null;
       }),

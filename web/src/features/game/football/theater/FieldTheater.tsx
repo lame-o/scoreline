@@ -37,7 +37,18 @@ export function FieldTheater({ feed, teams, situation, event, palette, names }: 
   return (
     <div className={styles.slot}>
       <Suspense fallback={<TheaterWell />}>
-        <FootballTheater feed={feed} teams={teams} situation={situation} kits={kits} palette={palette} topName={names.top} bottomName={names.bottom} />
+        <FootballTheater
+          feed={feed}
+          teams={teams}
+          situation={situation}
+          kits={kits}
+          palette={palette}
+          topName={names.top}
+          bottomName={names.bottom}
+          eventId={event.id}
+          topTeam={top?.name ?? ""}
+          bottomTeam={bottom?.name ?? ""}
+        />
       </Suspense>
     </div>
   );

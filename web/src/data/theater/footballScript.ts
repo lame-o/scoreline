@@ -93,8 +93,8 @@ export const Gridiron = {
 
 // MARK: - Script
 
-/** The two teams, and the official who throws a flag. */
-export type Team = "offense" | "defense" | "official";
+/** The two teams, the official who throws a flag, and the trainers who come out to a man hurt. */
+export type Team = "offense" | "defense" | "official" | "staff";
 
 /** Who he is on the play: his stance and pose follow from it. */
 export type Role = "line" | "quarterback" | "back" | "receiver" | "tightEnd" | "front" | "backer" | "corner" | "safety" | "kicker" | "holder" | "punter" | "returner" | "cover" | "official";
@@ -120,6 +120,12 @@ export interface Hold {
   readonly until: number;
 }
 
+/** Where a man looks from a moment on when he's standing (in a huddle, its middle; lined up, across the line): between snaps, not in them. */
+export interface Look {
+  readonly from: number;
+  readonly point: Point;
+}
+
 export class Player {
   static readonly fade = 0.3;
 
@@ -131,6 +137,7 @@ export class Player {
   moves: Move[] = [];
   actions: Action[] = [];
   holds: Hold[] = [];
+  looks: Look[] = [];
   /** In his stance until the snap, and again once he's set at the new line. */
   set: number | null;
   resets: number | null = null;
@@ -236,6 +243,8 @@ export interface Flag {
   readonly from: FieldPoint;
   readonly to: Point;
   readonly declined: boolean;
+  /** A coach's red challenge flag, thrown in from his bench. */
+  readonly red?: boolean;
 }
 
 /** A flag's yards walked off: the spot moves from one line to another. */
@@ -299,6 +308,39 @@ export class FootballScript {
   ballGone = Infinity;
   /** Each player's motion through the replay (his heading, stride and footfalls), measured once: by player. */
   rig: RigTrack[] = [];
+  /** Between snaps (footballIdle.ts): the loop its beats come round in, the field turning as the teams change ends, and when anything moves. */
+  loop: { readonly start: number; readonly period: number } | null = null;
+  turn: { readonly from: number; readonly to: number; readonly start: number; readonly end: number } | null = null;
+  beats: readonly (readonly [number, number])[] = [];
+
+  /** The camera's yaw at t: the script's own, or partway through a turn. */
+  yawAt(t: number): number {
+    const turn = this.turn;
+    if (!turn) return this.yaw;
+    const u = easeValue("inOut", (t - turn.start) / Math.max(turn.end - turn.start, 0.01));
+    return turn.from + (turn.to - turn.from) * u;
+  }
+
+  /** The script's time for `elapsed` seconds of idle: straight through, then round the loop. (pure; tested) */
+  idleTime(elapsed: number): number {
+    const loop = this.loop;
+    if (!loop || !(loop.period > 0) || !(elapsed > loop.start + loop.period)) return Math.min(Math.max(elapsed, 0), Math.max(this.duration, 0));
+    return loop.start + ((elapsed - loop.start) % loop.period);
+  }
+
+  /** Whether anything moves at t (a beat). */
+  moving(t: number): boolean {
+    return this.beats.some(([a, b]) => t >= a && t < b);
+  }
+
+  /** When the next beat begins after t (script time, past the loop's end coming round again). */
+  nextBeat(t: number): number | null {
+    const next = this.beats.find(([a]) => a > t);
+    if (next) return next[0];
+    const loop = this.loop;
+    const first = loop ? this.beats.find(([a]) => a >= loop.start) : undefined;
+    return loop && first ? first[0] + loop.period : null;
+  }
 
   /** The room the camera keeps round a spot, at this script's yaw. */
   room(p: FieldPoint, figure: boolean): Rect {
@@ -379,8 +421,9 @@ export class FootballScript {
   // MARK: - Building
 
   /** Between plays with nothing replayed: the offense set at its line. */
-  static rest(rest: Rest): FootballScript {
+  static rest(rest: Rest, yaw: number = Gridiron.yaw): FootballScript {
     const b = new Builder(null, Gridiron.y(rest.yard), true);
+    b.script.yaw = yaw;
     b.scrimmage();
     for (const p of b.script.players) if (p.set != null) p.resets = 0;
     b.script.lines = { scrimmage: Gridiron.y(rest.yard), gain: rest.gain != null ? Gridiron.y(rest.gain) : null };
@@ -391,8 +434,10 @@ export class FootballScript {
     return b.script;
   }
 
-  static play(scene: FootballScene): FootballScript {
+  /** A snap's replay, the field facing as `yaw` turns it (FieldFacing: up and to the right when the offense attacks the screen's right). */
+  static play(scene: FootballScene, yaw: number = Gridiron.yaw): FootballScript {
     const b = new Builder(FootballScript.played(scene) ?? scene, Gridiron.y(scene.from), scene.shotgun, scene);
+    b.script.yaw = yaw;
     b.build();
     b.script.measureBodies();
     return b.script;
@@ -450,6 +495,8 @@ export class FootballScript {
         const ahead = { x: here.x, y: here.y + 60 * way };
         const a = player.actions.find((a) => t > a.at - 0.45 && t < a.at + 0.2);
         if (a) return { point: a.kind === "spike" || a.kind === "kick" ? ahead : a.toward };
+        const look = player.looks.findLast((l) => t >= l.from);
+        if (look) return { point: look.point };
         if (t > snap && t < snap + 1.6) {
           const p = player.position(t - 0.05);
           const q = player.position(t + 0.05);

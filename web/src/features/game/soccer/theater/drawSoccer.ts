@@ -11,9 +11,9 @@
  */
 import { fieldPoint, houseCurve, smooth, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
 import { gait, keyed, mirrored, mix, over, Rig, rigArm, rigPose, RigPoses, RigTrack, vec, withPose, type RigArm, type RigPose, type RigVector } from "../../../../data/theater/rig";
-import type { Uniform } from "../../../../data/mlb/theaterTeams";
+import { referee, type Uniform } from "../../../../data/mlb/theaterTeams";
 import { Pitch, stampDetail, surname, type SoccerScene } from "../../../../data/theater/soccerScene";
-import type { Actor, SoccerScript } from "../../../../data/theater/soccerScript";
+import type { Actor, SoccerProp, SoccerScript } from "../../../../data/theater/soccerScript";
 import type { PitchProjection } from "../../../../data/theater/soccerTheater";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, shift, type RigFigure } from "../../core/theater/rigFigure";
 import { hexRGB, rgba, type RGB, type TheaterInk } from "../../mlb/theater/theaterInk";
@@ -377,6 +377,24 @@ export const PitchPose = {
   },
 
   /** Down on the grass after it, on his side. */
+  /** On a knee (football's `GridPose.kneel`): a physio at a man down. */
+  kneel: rigPose({
+    hip: vec(-0.02, 0, 0.26),
+    lean: 0.08,
+    left: vec(0.22, 0.08, 0),
+    right: vec(-0.26, -0.07, 0.01),
+    knees: 0.05,
+    leftArm: rigArm({ swing: 0.55, spread: 0.15, turn: -0.2, bend: 0.9 }),
+    rightArm: rigArm({ swing: 0.2, spread: 0.2, bend: 0.4 }),
+  }),
+  /** The referee's card (or the assistant's flag, a kicker's signal): one arm straight up. */
+  cardUp: rigPose({ lean: -0.05, rightArm: rigArm({ swing: 3.0, spread: 0.12, turn: 0.3, bend: 0.05 }) }),
+  /** A hand to his ear: the referee listening to VAR. */
+  ear: rigPose({ nod: 0.1, rightArm: rigArm({ swing: 2.5, spread: 0.45, turn: 1.0, bend: 2.2 }) }),
+  /** The sign for the screen: both hands up and out, drawing it. */
+  screen: rigPose({ leftArm: rigArm({ swing: 2.0, spread: 0.6, turn: 0.4, bend: 0.5 }), rightArm: rigArm({ swing: 2.0, spread: 0.6, turn: 0.4, bend: 0.5 }) }),
+  /** The board held up in both hands. */
+  boardUp: rigPose({ lean: -0.08, leftArm: rigArm({ swing: 2.8, spread: 0.1, turn: 0.3, bend: 0.25 }), rightArm: rigArm({ swing: 2.8, spread: 0.1, turn: 0.3, bend: 0.25 }) }),
   down(side: number): RigPose {
     return rigPose({
       hip: vec(0, 0, 0.1),
@@ -419,6 +437,29 @@ export function actorPose(script: SoccerScript, actor: Actor, index: number, t: 
   const still = actor.role === "keeper" ? RigPoses.ready : RigPoses.stand;
   const feet = track.feet(t, here, m.heading, unit, m.speed, { left: still.left, right: still.right });
   let base = mix(still, gait(m, feet), m.weight);
+  // Between moments: a man down, a physio on a knee, an arm (or two) up.
+  const hold = actor.hold(t);
+  if (hold) {
+    const into = smooth((t - hold.from) / 0.3);
+    switch (hold.kind) {
+      case "down":
+        return [mix(base, PitchPose.down(1), into), m.heading];
+      case "kneel":
+        return [mix(base, PitchPose.kneel, into), m.heading];
+      case "cardUp":
+        base = over(base, PitchPose.cardUp, into, m.weight);
+        break;
+      case "ear":
+        base = over(base, PitchPose.ear, into, m.weight);
+        break;
+      case "screen":
+        base = over(base, PitchPose.screen, into, m.weight);
+        break;
+      case "boardUp":
+        base = over(base, PitchPose.boardUp, into, m.weight);
+        break;
+    }
+  }
   for (const action of actor.actions) {
     const x = t - action.at;
     switch (action.kind) {
@@ -647,7 +688,10 @@ function drawTrails(ctx: Ctx, f: PitchProjection, { script, t, teams, ink }: Fra
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
-      ctx.strokeStyle = teamAlpha(teams.attacking, ink, 0.24 + 0.36 * fade);
+      // Between moments a pass's line goes as the ball arrives; in a replay a faint record of the move stays.
+      const strength = script.loop != null ? 0.45 * fade : 0.24 + 0.36 * fade;
+      if (!(strength > 0.005)) return;
+      ctx.strokeStyle = teamAlpha(teams.attacking, ink, strength);
       ctx.lineWidth = width;
       ctx.setLineDash(flight.kind === "carry" ? [width * 0.1, width * 2.6] : []);
       ctx.stroke();
@@ -668,15 +712,17 @@ function drawTrails(ctx: Ctx, f: PitchProjection, { script, t, teams, ink }: Fra
 }
 
 function drawShadows(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs, figures: readonly Posed[]): void {
-  // Under the hips; smaller and fainter as he leaves the ground.
-  for (const p of figures) {
+  // Under the hips; smaller and fainter as he leaves the ground (and gone with him, when he's off).
+  figures.forEach((p, i) => {
+    const shown = script.actors[i]!.opacity(t);
+    if (!(shown > 0.01)) return;
     const air = Math.min(p.figure.air / 0.4, 1);
     const w = p.height * 0.3 * (1 - 0.35 * air);
     const g = p.figure.ground;
     ellipse(ctx, g.x, g.y, w, w * 0.3);
-    ctx.fillStyle = shadow(ink, 1 - 0.45 * air);
+    ctx.fillStyle = shadow(ink, (1 - 0.45 * air) * shown);
     ctx.fill();
-  }
+  });
   // The ball's: under it on the grass, larger and softer the higher it flies, a hairline up to it once it's well up.
   const ball = script.heldBy == null || t < script.heldFrom ? script.ball(t) : null;
   if (ball && ball.z > 0.25) {
@@ -725,6 +771,9 @@ function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: re
   const { script, t, teams, ink } = input;
   const attacking = figureInks(teams.attacking, ink);
   const defending = figureInks(teams.defending, ink);
+  // Between moments, the officials in the referee's kit (FIFA yellow, else the first that reads apart from both teams) and the physios in the staff's slate.
+  const officials = script.actors.some((a) => a.team === "official") ? figureInks(referee([teams.attacking.jersey, teams.defending.jersey], ink.dark ? "dark" : "light"), ink) : defending;
+  const staff = script.actors.some((a) => a.team === "staff") ? figureInks(STAFF, ink) : defending;
   let items: Item[];
   const behind = f.behind;
   if (behind != null) {
@@ -748,8 +797,14 @@ function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: re
     if (item.kind === "actor") {
       const actor = script.actors[item.index]!;
       const placed = figures[item.index]!;
-      drawFigure(ctx, placed.figure, actor.team === "attacking" ? attacking : defending, placed.height, actor.shaped ? receding(script, t, placed.figure.ground, f.size) : 1);
+      const shown = actor.opacity(t);
+      if (!(shown > 0.01)) continue;
+      const inks = actor.team === "attacking" ? attacking : actor.team === "defending" ? defending : actor.team === "official" ? officials : staff;
+      drawFigure(ctx, placed.figure, inks, placed.height, shown * (actor.shaped ? receding(script, t, placed.figure.ground, f.size) : 1));
       if (script.heldBy === item.index && t >= script.heldFrom) hands = placed.hands;
+      for (const prop of script.props) {
+        if (prop.actor === item.index && t >= prop.from && t < prop.until) drawProp(ctx, prop, placed.figure, placed.height, shown * Math.min((t - prop.from) / 0.2, 1));
+      }
     } else if (item.kind === "goalBack") {
       drawGoal(ctx, f, input, item.right, ["net", "frame"]);
     } else if (item.kind === "nearPost") {
@@ -760,6 +815,61 @@ function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: re
     }
   }
   return hands;
+}
+
+/** A team's physios (FootballFrame.staff): slate, a pale cap. */
+const STAFF: Uniform = { jersey: "#6b7887", cap: "#cccccc", piping: null, accent: "#808080" };
+
+/** What a man holds up (SoccerFrame.drawProp): the referee's card, the assistant's flag, the fourth official's board; in his raised hand (the board in both). */
+function drawProp(ctx: Ctx, prop: SoccerProp, figure: RigFigure, height: number, opacity: number): void {
+  const [a, b] = figure.hands;
+  const hand = a.y < b.y ? a : b;
+  const u = height / 10;
+  ctx.save();
+  ctx.globalAlpha *= opacity;
+  switch (prop.kind) {
+    case "yellowCard":
+    case "redCard":
+      ctx.beginPath();
+      ctx.roundRect(hand.x - u * 0.8, hand.y - u * 2.3, u * 1.6, u * 2.2, u * 0.15);
+      ctx.fillStyle = prop.kind === "redCard" ? "rgb(219 31 26)" : "rgb(255 214 26)";
+      ctx.fill();
+      ctx.strokeStyle = "rgb(0 0 0 / 0.35)";
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      break;
+    case "flag": {
+      ctx.beginPath();
+      ctx.moveTo(hand.x, hand.y);
+      ctx.lineTo(hand.x, hand.y - u * 2.2);
+      ctx.strokeStyle = "rgb(0 0 0 / 0.7)";
+      ctx.lineWidth = Math.max(u * 0.12, 0.7);
+      ctx.stroke();
+      const x = hand.x;
+      const y = hand.y - u * 2.2;
+      ctx.fillStyle = "rgb(255 214 26)";
+      ctx.fillRect(x, y, u * 1.4, u * 1.0);
+      ctx.fillStyle = "rgb(219 31 26)";
+      ctx.fillRect(x, y, u * 0.7, u * 0.5);
+      break;
+    }
+    case "board": {
+      const mid = { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) };
+      const x = mid.x - u * 1.6;
+      const y = mid.y - u * 1.9;
+      ctx.beginPath();
+      ctx.roundRect(x, y, u * 3.2, u * 1.9, u * 0.2);
+      ctx.fillStyle = "rgb(20 20 20)";
+      ctx.fill();
+      // The numbers lit: one red, one green.
+      ctx.fillStyle = "rgb(242 64 51)";
+      ctx.fillRect(x + u * 0.35, y + u * 0.45, u * 1.0, u * 1.0);
+      ctx.fillStyle = "rgb(77 230 89)";
+      ctx.fillRect(x + u * 3.2 - u * 1.35, y + u * 0.45, u * 1.0, u * 1.0);
+      break;
+    }
+  }
+  ctx.restore();
 }
 
 /**

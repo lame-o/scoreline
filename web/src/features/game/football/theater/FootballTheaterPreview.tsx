@@ -12,20 +12,35 @@
  * run, a false start, offsetting flags and a blocked field goal. Each with a
  * Replay button. `?t=2.4` draws every tile at that instant, frozen, for
  * screenshots; `?only=Touchdown` keeps the tiles whose title starts so.
+ *
+ * `?sheet=fb-timeout` draws the field between snaps as the Mac's review
+ * harness does, a sheet of frozen frames from the real entries
+ * (FootballIdle.swift's moments: fb-between, fb-timeout, fb-commercial,
+ * fb-twominute, fb-quarter, fb-halftime, fb-injury, fb-review, fb-reversed,
+ * fb-kickoff, fb-flip, fb-flag), each frame 440 wide and captioned with its
+ * time, for comparing the two side by side; `?sheet=` alone lists them all,
+ * and `&live` runs each one on its own clock instead (its beats, the power
+ * they take).
  * Fixtures load lazily from test/fixtures, so nothing here ships.
  */
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
+import { ordinal } from "../../../../data/format";
+import type { Football } from "../../../../data/gameDetail";
 import type { FootballTeams } from "../../../../data/liveFeeds/football";
+import type { Side } from "../../../../data/models";
 import { liveMoment, Tier, type Accent, type LiveMoment, type MomentKind } from "../../../../data/moments";
 import { teamPalette } from "../../../../data/teamColors";
+import { parseStoppage, type FootballStoppage } from "../../../../data/theater/footballIdle";
 import { FootballDepthChart, parse, type FootballScene, type FootballTheaterState } from "../../../../data/theater/footballScene";
+import { FootballScript } from "../../../../data/theater/footballScript";
 import { spot } from "../../../../data/theater/footballTheater";
 import { useColorScheme } from "../../../../state/theme";
 import { MomentProvider, useMomentSlot } from "../../core/moments";
+import { theaterFlipKey } from "../../core/theater/TheaterStatus";
 import FootballTheater from "./FootballTheater";
 
-const files = import.meta.glob<{ default: unknown }>("../../../../../test/fixtures/{mnf-dal-phi-plays,nfl-turnovers-plays,nfl-depthcharts}.json");
+const files = import.meta.glob<{ default: unknown }>("../../../../../test/fixtures/{mnf-dal-phi-plays,nfl-turnovers-plays,nfl-depthcharts,nfl-stoppages-plays}.json");
 const fixturePath = (name: string) => `../../../../../test/fixtures/${name}.json`;
 
 interface Team {
@@ -137,6 +152,12 @@ function tiles(fixture: Fixture, turnovers: Turnovers | null, charts: Record<str
 
 export function FootballTheaterPreview() {
   const [params] = useSearchParams();
+  if (params.get("sheet") != null) return <IdleSheets only={params.get("sheet") || null} live={params.get("live") != null} />;
+  return <Tiles />;
+}
+
+function Tiles() {
+  const [params] = useSearchParams();
   const t = params.get("t");
   const frozen = t != null && t !== "" ? (t === "end" ? Infinity : Number(t)) : null;
   const only = params.get("only");
@@ -196,5 +217,193 @@ function PreviewStage({ tile, frozen }: { tile: Tile; frozen: number | null }) {
     <MomentProvider slot={slot}>
       <FootballTheater feed={null} teams={null} situation={null} kits={kits} palette={palette} topName={away.abbreviation} bottomName={home.abbreviation} preloaded={tile.state} frozen={frozen} />
     </MomentProvider>
+  );
+}
+
+// MARK: - The Mac harness's sheets (the field between snaps)
+
+/** A team as the sheets dress it: its letters, its name for the tag, its colors. */
+type SheetTeam = readonly [abbreviation: string, name: string, color: string, alternate: string];
+
+interface SheetCase {
+  readonly state: FootballTheaterState;
+  readonly situation: Football;
+  readonly times: readonly number[];
+  readonly eventId: string;
+  readonly flipped: boolean;
+  readonly top: SheetTeam;
+  readonly bottom: SheetTeam;
+}
+
+interface Stoppages {
+  readonly games: readonly { readonly home: { id: string; abbreviation: string; name: string }; readonly away: { id: string; abbreviation: string; name: string }; readonly items: readonly Record<string, unknown>[] }[];
+}
+
+const DAL: SheetTeam = ["DAL", "Cowboys", "002a5c", "b0b7bc"];
+const PHI: SheetTeam = ["PHI", "Eagles", "06424d", "000000"];
+const SHEETS = ["fb-between", "fb-timeout", "fb-commercial", "fb-twominute", "fb-quarter", "fb-halftime", "fb-injury", "fb-review", "fb-reversed", "fb-kickoff", "fb-flip", "fb-flag"];
+
+/** The live situation the harness gives after a snap: the spot it left, ten to go, and each side's timeouts (2 and 1). */
+function situationAfter(offense: Side, yard: number, gain: number | null, downDistance: string | null): Football {
+  const x = (y: number) => (offense === "top" ? y : 100 - y);
+  return { downDistance, ballX: x(yard), lineToGainX: gain != null ? x(gain) : null, possession: offense, redZone: false, topTimeouts: 2, bottomTimeouts: 1, lastPlay: null };
+}
+
+/** The harness's cases (field-harness/main.swift `footballCase`), from the same entries. */
+function sheetCase(key: string, mnf: Fixture, stops: Stoppages | null): SheetCase | null {
+  const item = (suffix: string) => mnf.items.find((i) => String(i.id).endsWith(suffix)) ?? null;
+  const scene = (suffix: string) => {
+    const i = item(suffix);
+    return i ? parse(i, TEAMS) : null;
+  };
+  const snapBefore = (items: readonly Record<string, unknown>[], id: string, teams: FootballTeams) => {
+    const i = items.findIndex((x) => String(x.id) === id);
+    for (let k = i - 1; k >= 0; k--) {
+      const s = parse(items[k], teams);
+      if (s) return s;
+    }
+    return null;
+  };
+  const idle = (play: FootballScene | null, stoppage: FootballStoppage | null, times: number[], situation: string | null = null): SheetCase | null => {
+    if (!play) return null;
+    const offense: Side = play.flips ? (play.offense === "top" ? "bottom" : "top") : (play.offense ?? "top");
+    const yard = play.flips ? 100 - play.to : play.to;
+    const gain = Math.min(yard + 10, 100) < 100 ? yard + 10 : null;
+    const text = situation ?? (play.after ? `${ordinal(play.after.down)} & ${play.after.distance} at X` : null);
+    return { state: { play, news: false, stoppage, heard: Date.now() - 4000 }, situation: situationAfter(offense, yard, gain, text), times, eventId: `sheet-${key}`, flipped: false, top: DAL, bottom: PHI };
+  };
+  const stop = (suffix: string) => {
+    const i = item(suffix);
+    return i ? parseStoppage(i, TEAMS) : null;
+  };
+  const before = (suffix: string) => {
+    const i = item(suffix);
+    return i ? snapBefore(mnf.items, String(i.id), TEAMS) : null;
+  };
+  const stopped = (g: Stoppages["games"][number], clue: string, home: string, away: string) => {
+    const teams: FootballTeams = { topIsHome: false, topID: g.away.id, bottomID: g.home.id, homeAbbreviation: home, awayAbbreviation: away, homeName: g.home.name, awayName: g.away.name };
+    const i = g.items.find((x) => String(x.text ?? "").includes(clue));
+    return i ? parse(i, teams) : null;
+  };
+  switch (key) {
+    case "fb-between":
+      return idle(scene("9274"), null, [0.2, 1.4, 5, 8.0, 9.4, 13, 16.4, 23.4, 28.4, 30.0]);
+    case "fb-timeout":
+      return idle(before("1100"), stop("1100"), [0.5, 2.5, 6, 20, 34, 39, 44]);
+    case "fb-commercial":
+      return idle(before("1824"), stop("1824"), [1, 4, 12, 30]);
+    case "fb-twominute":
+      return idle(before("1850"), stop("1850"), [2, 10]);
+    case "fb-quarter":
+      return idle(before("1042"), stop("1042"), [0.4, 1.6, 2.6, 3.4, 4.4, 8, 11, 14]);
+    case "fb-halftime":
+      return idle(before("2292"), stop("2292"), [0.5, 2, 3.5, 6]);
+    case "fb-injury": {
+      const hurt = mnf.items.find((x) => String(x.text ?? "").includes("Q.Mitchell was injured"));
+      return idle(hurt ? parse(hurt, TEAMS) : null, null, [0.4, 2, 4, 8, 20, 27, 31, 40]);
+    }
+    case "fb-review": {
+      const g = stops?.games[0];
+      const c = g ? idle(stopped(g, "Atlanta challenged", "ATL", "SF"), null, [0.4, 1.1, 1.6, 4, 9, 17, 22]) : null;
+      return c && { ...c, top: ["SF", "49ers", "aa0000", "b3995d"], bottom: ["ATL", "Falcons", "a71930", "000000"] };
+    }
+    case "fb-reversed": {
+      const g = stops?.games[1];
+      const c = g ? idle(stopped(g, "Rams challenged", "LV", "LAR"), null, [1.6, 9, 17]) : null;
+      return c && { ...c, top: ["LAR", "Rams", "003594", "ffd100"], bottom: ["LV", "Raiders", "000000", "a5acaf"] };
+    }
+    case "fb-kickoff":
+      return idle(scene("1152"), null, [0.3, 1.5, 3.2, 12, 19], "Kickoff");
+    case "fb-flip": {
+      const c = idle(scene("9274"), null, [12]);
+      return c && { ...c, flipped: true };
+    }
+    case "fb-flag": {
+      const play = scene("3169");
+      if (!play) return null;
+      const spotted = play.clone();
+      spotted.hash = "left";
+      const script = FootballScript.play(spotted);
+      const lands = script.flags[0]?.lands ?? 1;
+      const offense = play.offense ?? "top";
+      return { state: { play: spotted, news: true, queue: [spotted] }, situation: { ...situationAfter(offense, 25, 35, null), possession: offense }, times: [0.3, lands - 0.2, lands + 0.4, script.settle + 0.5], eventId: "sheet-fb-flag", flipped: false, top: DAL, bottom: PHI };
+    }
+    default:
+      return null;
+  }
+}
+
+/** The sheets, each a column pair of frozen frames captioned with their times (the harness's 440 by 220, at 1x). */
+function IdleSheets({ only, live }: { only: string | null; live: boolean }) {
+  const [data, setData] = useState<{ mnf: Fixture; stops: Stoppages | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    const load = (name: string) => files[fixturePath(name)]?.().then((m) => m.default) ?? Promise.resolve(null);
+    void Promise.all([load("mnf-dal-phi-plays"), load("nfl-stoppages-plays")]).then(([mnf, stops]) => {
+      if (live && mnf) setData({ mnf: mnf as Fixture, stops: stops as Stoppages | null });
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (!data) return null;
+  const keys = only ? only.split(",") : SHEETS;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, padding: 12 }}>
+      {keys.map((key) => {
+        const c = sheetCase(key, data.mnf, data.stops);
+        if (!c) return null;
+        // The flip sheet: as the field faces by default, and turned round by the viewer.
+        const variants = key === "fb-flip" ? [{ ...c, flipped: false, eventId: `${c.eventId}-default` }, c] : [c];
+        return (
+          <section key={key} data-sheet={key} style={{ display: "grid", gridTemplateColumns: "repeat(2, 440px)", gap: 10, padding: 12, width: "max-content", background: "var(--background)" }}>
+            {variants.flatMap((v) =>
+              (live ? v.times.slice(0, 1) : v.times).map((t) => (
+                <div key={`${v.eventId}-${t}`} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "var(--label-secondary)" }}>
+                    {key === "fb-flip" ? (v.flipped ? "field, turned" : "field, as default (Q1: DAL attacks right)") : `t = ${t.toFixed(1)}`}
+                  </span>
+                  <SheetFrame c={v} t={live ? null : t} />
+                </div>
+              )),
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function SheetFrame({ c, t }: { c: SheetCase; t: number | null }) {
+  const scheme = useColorScheme();
+  // The viewer's turn of the field, as the harness sets it, before the theater reads it.
+  useState(() => {
+    try {
+      if (c.flipped) window.localStorage.setItem(theaterFlipKey(c.eventId), "1");
+      else window.localStorage.removeItem(theaterFlipKey(c.eventId));
+    } catch {
+      // No storage: as it faces by default.
+    }
+    return null;
+  });
+  const palette = teamPalette(c.top[2], c.bottom[2], scheme);
+  const kits = { top: { color: c.top[2], alternate: c.top[3] }, bottom: { color: c.bottom[2], alternate: c.bottom[3] } };
+  return (
+    <div style={{ width: 440 }} data-flip={c.eventId === "sheet-fb-flip" ? "shown" : undefined}>
+      <FootballTheater
+        feed={null}
+        teams={null}
+        situation={c.situation}
+        kits={kits}
+        palette={palette}
+        topName={c.top[0]}
+        bottomName={c.bottom[0]}
+        eventId={c.eventId}
+        topTeam={c.top[1]}
+        bottomTeam={c.bottom[1]}
+        preloaded={c.state}
+        frozen={t}
+      />
+    </div>
   );
 }
