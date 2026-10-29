@@ -357,12 +357,6 @@ export function headerFigures(
   return { top: { value: a, text: top }, draw: null, bottom: { value: 1 - a, text: bottom } };
 }
 
-/** TheaterStatus.swift `TheaterHeartbeat.label`: "Live · 4s", then "Waiting for Polymarket · 2m". */
-export function heartbeat(seconds: number, source = "Polymarket"): string {
-  const s = Math.max(Math.floor(seconds), 0);
-  return s < 60 ? `Live · ${s}s` : `Waiting for ${source} · ${Math.floor(s / 60)}m`;
-}
-
 /** Soccer's three outcomes as shares of 100% (the Yes prices needn't sum to 1). */
 export function shares(top: number, draw: number, bottom: number): { top: number; draw: number; bottom: number } {
   const sum = top + draw + bottom;

@@ -9,7 +9,7 @@
  * `pnpm fixtures odds`.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { badgeRect, gameDomain, glideProgress, headerFigures, heartbeat, percent, percentPair, plotIn, scrubTime, shares, splitAtMid, traded, visible, windowDomain, yOf } from "../../src/data/odds/chart";
+import { badgeRect, gameDomain, glideProgress, headerFigures, percent, percentPair, plotIn, scrubTime, shares, splitAtMid, traded, visible, windowDomain, yOf } from "../../src/data/odds/chart";
 import { clockAt, devig, draftKings, impliedChance, nearestPlay, parseOddsBasis } from "../../src/data/odds/espn";
 import {
   applyUpdate,
@@ -311,10 +311,9 @@ describe("the chart's geometry", () => {
     expect(headerFigures({ top: gsw }, { top: 0.618 }, false, false).top).toEqual({ value: 0.618, text: "62%" });
   });
 
-  it("writes chances and freshness as Polymarket and the theaters do", () => {
+  it("writes chances as Polymarket does, but never 0 or 100 until it's over", () => {
     // Never 0 or 100 while undecided: 100% is for the final whistle.
     expect([percent(0.9995), percent(0.004), percent(0.415), percent(0.9995, true)]).toEqual(["99%", "1%", "42%", "100%"]);
-    expect([heartbeat(4), heartbeat(130)]).toEqual(["Live · 4s", "Waiting for Polymarket · 2m"]);
   });
 });
 

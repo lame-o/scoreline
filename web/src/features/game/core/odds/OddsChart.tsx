@@ -33,7 +33,6 @@ import {
   dollars,
   gameDomain,
   glideProgress,
-  heartbeat,
   hourTicks,
   momentum,
   percent,
@@ -61,6 +60,7 @@ import { useNow } from "../../../../state/clock";
 import type { OddsFeed, OddsSnapshot } from "../../../../state/odds";
 import { useColorScheme } from "../../../../state/theme";
 import { colorResolver, fitCanvas } from "../canvasColors";
+import { heartbeatLabel } from "../theater/TheaterStatus";
 import { Legend, LegendItem, VizWell } from "../DetailSection";
 import { pointSize, useReducedMotion } from "../useMedia";
 import { drawOdds, type Frame, type OddsInk } from "./drawOdds";
@@ -716,14 +716,14 @@ export const OddsChart = memo(function OddsChart({ snapshot, feed, basis, state,
   );
 });
 
-/** "Live · 4s ·": how long since the market last said anything (TheaterHeartbeat's words). One second's tick, this text alone, only while connected. */
+/** "Live · 4s ·": how long since the market last said anything (the theaters' shared heartbeat words). One second's tick, this text alone, only while connected. */
 function Freshness({ feed }: { feed: OddsFeed }) {
   const now = useNow(1000);
   if (feed.heard == null) return null;
   return (
     <span className={styles.fresh}>
       <span className={styles.liveDot} aria-hidden="true" />
-      {`${heartbeat((now - feed.heard) / 1000)} ·`}
+      {`${heartbeatLabel(Math.max(Math.floor((now - feed.heard) / 1000), 0), "Polymarket")} ·`}
     </span>
   );
 }
