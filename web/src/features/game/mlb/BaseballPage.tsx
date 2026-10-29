@@ -39,7 +39,7 @@ export function useBaseballPage(game: GameContext): SportPage {
   const feed = feedRef.current;
   const version = useSyncExternalStore(
     feed.subscribe,
-    () => `${feed.situation ? JSON.stringify(feed.situation) : ""}|${feed.inning}|${feed.atBat.length}|${feed.atBat.at(-1)?.id}|${feed.battedBalls.length}|${feed.theater?.play?.id}|${feed.theater?.news}|${feed.score?.home}-${feed.score?.away}|${feed.loaded}`,
+    () => `${feed.situation ? JSON.stringify(feed.situation) : ""}|${feed.inning}|${feed.atBat.length}|${feed.atBat.at(-1)?.id}|${feed.battedBalls.length}|${feed.theater?.play?.id}|${feed.theater?.news}|${feed.score?.home}-${feed.score?.away}|${feed.loaded}|${feed.playsVersion}|${feed.heard}|${feed.delay?.kind}`,
     () => "",
   );
   void version;
@@ -129,6 +129,14 @@ export function useBaseballPage(game: GameContext): SportPage {
               palette={palette}
               kits={kits}
               event={event}
+              plays={feed.plays}
+              playsVersion={feed.playsVersion}
+              names={detail.athleteNames}
+              heard={feed.heard}
+              delay={feed.delay}
+              situation={situation}
+              inning={inning}
+              live={feed.loaded}
             />
           </Suspense>
         </BaseballDiamond>

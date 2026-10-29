@@ -145,6 +145,94 @@ export interface StatcastAtBat {
   readonly closing: number | null;
   /** Its last pitch was put in play. */
   readonly inPlay: boolean;
+  /** Who pitched to him (the last pitcher, after a change mid-at-bat), and each one's side; their MLB IDs. */
+  readonly pitcher?: string | null;
+  readonly pitcherID?: number | null;
+  readonly batterID?: number | null;
+  readonly pitchHand?: "L" | "R" | null;
+  readonly batSide?: "L" | "R" | null;
+  /** Everything in it, in order: each pitch with its call, and what came between (a mound visit, a throw over, a change, a delay). */
+  readonly events?: readonly PlayEvent[];
+  /** A challenge of its result (a manager's, at the end of the play). */
+  readonly review?: Review | null;
+}
+
+/**
+ * One entry in an at-bat's `playEvents` (Statcast.swift `PlayEvent`): a
+ * pitch (or an automatic ball or strike, no pitch thrown), a throw over or a
+ * step off, or an action between pitches (a mound visit, a substitution, a
+ * delay, a steal).
+ */
+export type PlayEventKind =
+  /** The call's code ("B", "C", "S", "F", "T", "W", "*B", "L", "M", "H"; "X", "D", "E" in play). */
+  | { readonly kind: "pitch"; readonly code: string }
+  /** A pitch-clock violation's ball or strike. */
+  | { readonly kind: "automatic"; readonly ball: boolean }
+  /** A throw over to a base (1…3), the pitcher's or the catcher's. */
+  | { readonly kind: "pickoff"; readonly base: number | null; readonly catcher: boolean }
+  | { readonly kind: "stepOff" }
+  /** MLB's `eventType` ("mound_visit", "pitching_substitution", "game_advisory", "stolen_base_2b"…). */
+  | { readonly kind: "action"; readonly type: string };
+
+export interface PlayEvent {
+  readonly index: number;
+  readonly kind: PlayEventKind;
+  /** "Called Strike", "Mound Visit.", "Pitching Change: JoJo Romero replaces Dustin May." (names are read from it, nothing else). */
+  readonly description: string | null;
+  /** The count after it. */
+  readonly balls: number | null;
+  readonly strikes: number | null;
+  readonly outs: number | null;
+  readonly pitchNumber: number | null;
+  /** A pitch's flight, type ("SI") and speed. */
+  readonly flight: StatcastPitch | null;
+  readonly type: string | null;
+  readonly mph: number | null;
+  /** Who it was about (a substitute, the injured man) and whom he replaced, by MLB's ID; and the position he takes. */
+  readonly player: number | null;
+  readonly replaced: number | null;
+  readonly position: string | null;
+  readonly review: Review | null;
+  /** The game's own clock: when it happened (epoch ms). */
+  readonly start: number | null;
+}
+
+export const isPitchEvent = (e: PlayEvent): boolean => e.kind.kind === "pitch" || e.kind.kind === "automatic";
+export const isAction = (e: PlayEvent, type: string): boolean => e.kind.kind === "action" && e.kind.type === type;
+
+/** A challenge: a pitch's call under the automated zone (ABS, "MJ"), or a play under replay review; whether it's under way, how it came out. */
+export interface Review {
+  readonly overturned: boolean;
+  readonly inProgress: boolean;
+  /** MLB's code ("MJ": a ball or strike; "MA"…"MP": the kinds of play). */
+  readonly type: string | null;
+  /** Who challenged (an ABS challenge names him). */
+  readonly challenger: string | null;
+  readonly team: number | null;
+}
+
+export const isPitchReview = (r: Review): boolean => r.type === "MJ";
+
+export function review(j: unknown): Review | null {
+  const overturned = bool(at(j, "isOverturned"));
+  if (overturned == null) return null;
+  const team = num(at(j, "challengeTeamId"));
+  return {
+    overturned,
+    inProgress: bool(at(j, "inProgress")) ?? false,
+    type: str(at(j, "reviewType")) ?? null,
+    challenger: str(at(j, "player", "fullName")) ?? null,
+    team: team != null ? Math.trunc(team) : null,
+  };
+}
+
+/** MLB's live feed at a glance, polled on the live lane: the at-bat under way, where the inning stands ("Middle", "End") and the game's status ("Delayed: Rain"). */
+export interface StatcastLive {
+  readonly atBat: StatcastAtBat | null;
+  readonly inning: number | null;
+  readonly top: boolean | null;
+  readonly inningState: string | null;
+  readonly status: string | null;
 }
 
 /** The legs on the play that ended the at-bat (AtBat.result). */
@@ -161,7 +249,40 @@ export const STATCAST_FIELDS = [
   "spinRate", "hitData", "launchSpeed", "launchAngle", "totalDistance", "trajectory", "coordX", "coordY", "location",
   "index", "runners", "movement", "start", "end", "isOut", "outBase", "outNumber", "movementReason", "runner", "id",
   "playIndex", "credits", "credit", "position", "isComplete",
+  // The theater's pitch-by-pitch: each event's call, count and kind, who was in it, and its challenge.
+  "description", "call", "count", "balls", "strikes", "outs", "pitchNumber", "eventType", "isBall", "isStrike",
+  "fromCatcher", "player", "replacedPlayer", "abbreviation", "reviewDetails", "isOverturned", "inProgress", "reviewType",
+  "challengeTeamId", "pitcher", "pitchHand", "batSide", "startTime",
 ].join(",");
+
+/** The live poll's: the at-bat under way, the inning's state and the game's status. A few kilobytes. */
+export const STATCAST_LIVE_FIELDS = [
+  "gameData", "status", "detailedState", "liveData", "plays", "currentPlay", "linescore", "currentInning", "isTopInning",
+  "inningState", "about", "atBatIndex", "inning", "isComplete", "matchup", "batter", "pitcher", "fullName", "pitchHand",
+  "batSide", "code", "result", "event", "playEvents", "isPitch", "details", "type", "description", "call", "count", "balls",
+  "strikes", "outs", "pitchNumber", "eventType", "isBall", "isStrike", "pitchData", "startSpeed", "strikeZoneTop",
+  "strikeZoneBottom", "coordinates", "x0", "y0", "z0", "vX0", "vY0", "vZ0", "aX", "aY", "aZ", "pX", "pZ", "breaks", "spinRate",
+  "hitData", "launchSpeed", "launchAngle", "totalDistance", "trajectory", "coordX", "coordY", "location", "index",
+  "fromCatcher", "player", "replacedPlayer", "id", "position", "abbreviation", "reviewDetails", "isOverturned", "inProgress",
+  "reviewType", "challengeTeamId", "startTime",
+].join(",");
+
+export function liveURL(game: number): string {
+  return `https://statsapi.mlb.com/api/v1.1/game/${game}/feed/live?fields=${STATCAST_LIVE_FIELDS}`;
+}
+
+/** The at-bat under way, where the inning stands and the game's status, from the live poll. */
+export function statcastLive(feed: unknown): StatcastLive {
+  const line = at(feed, "liveData", "linescore");
+  const inning = num(at(line, "currentInning"));
+  return {
+    atBat: atBatOf(at(feed, "liveData", "plays", "currentPlay")),
+    inning: inning != null ? Math.trunc(inning) : null,
+    top: bool(at(line, "isTopInning")) ?? null,
+    inningState: str(at(line, "inningState")) ?? null,
+    status: str(at(feed, "gameData", "status", "detailedState")) ?? null,
+  };
+}
 
 export function feedURL(game: number): string {
   return `https://statsapi.mlb.com/api/v1.1/game/${game}/feed/live?fields=${STATCAST_FIELDS}`;
@@ -193,12 +314,17 @@ export function statcastGame(schedule: unknown, teams: readonly string[]): numbe
 }
 
 export function statcastAtBats(feed: unknown): StatcastAtBat[] {
-  const out: StatcastAtBat[] = [];
-  for (const play of arr(at(feed, "liveData", "plays", "allPlays"))) {
+  return arr(at(feed, "liveData", "plays", "allPlays")).flatMap((play) => atBatOf(play) ?? []);
+}
+
+/** One of MLB's plays (an at-bat, everything in it). */
+export function atBatOf(play: unknown): StatcastAtBat | null {
+  {
     const about = at(play, "about");
     const index = num(at(about, "atBatIndex"));
     const inning = num(at(about, "inning"));
-    if (index == null || inning == null) continue;
+    if (index == null || inning == null) return null;
+    const timeline: PlayEvent[] = [];
     const pitches: StatcastPitch[] = [];
     let batted: StatcastBatted | null = null;
     let closing: number | null = null;
@@ -214,6 +340,7 @@ export function statcastAtBats(feed: unknown): StatcastAtBat[] {
       const c = at(data, "coordinates");
       const v = (k: string) => num(at(c, k));
       const [x0, y0, z0, vx, vy, vz, ax, ay, az, px, pz] = ["x0", "y0", "z0", "vX0", "vY0", "vZ0", "aX", "aY", "aZ", "pX", "pZ"].map(v);
+      let flight: StatcastPitch | null = null;
       if (
         bool(at(event, "isPitch")) === true &&
         x0 != null && y0 != null && z0 != null && vx != null && vy != null && vz != null &&
@@ -222,7 +349,7 @@ export function statcastAtBats(feed: unknown): StatcastAtBat[] {
         const top = num(at(data, "strikeZoneTop"));
         const bottom = num(at(data, "strikeZoneBottom"));
         const spin = num(at(data, "breaks", "spinRate"));
-        pitches.push({
+        flight = {
           release: [x0, y0, z0],
           velocity: [vx, vy, vz],
           acceleration: [ax, ay, az],
@@ -231,8 +358,11 @@ export function statcastAtBats(feed: unknown): StatcastAtBat[] {
           mph: num(at(data, "startSpeed")) ?? null,
           spin: spin != null ? Math.trunc(spin) : null,
           type: str(at(event, "details", "type", "code")) ?? null,
-        });
+        };
+        pitches.push(flight);
       }
+      const parsed = playEvent(event, i, flight);
+      if (parsed) timeline.push(parsed);
       // A ball in play's (a foul can carry hitData too).
       const hit = at(event, "hitData");
       if (hit != null && typeof hit === "object" && (code == null || IN_PLAY.has(code))) {
@@ -256,7 +386,11 @@ export function statcastAtBats(feed: unknown): StatcastAtBat[] {
     const events = runners.flatMap((m) => (m.event != null ? [m.event] : []));
     const last = events.length > 0 ? Math.max(...events) : null;
     const ended = closing == null ? last : last == null ? closing : Math.max(closing, last);
-    out.push({
+    const matchup = at(play, "matchup");
+    const hand = (v: string | undefined) => (v === "L" || v === "R" ? v : null);
+    const pitcherID = num(at(matchup, "pitcher", "id"));
+    const batterID = num(at(matchup, "batter", "id"));
+    return {
       index: Math.trunc(index),
       inning: Math.trunc(inning),
       top: bool(at(about, "isTopInning")) ?? true,
@@ -268,10 +402,79 @@ export function statcastAtBats(feed: unknown): StatcastAtBat[] {
       runners,
       closing: ended,
       inPlay,
-    });
+      pitcher: str(at(matchup, "pitcher", "fullName")) ?? null,
+      pitcherID: pitcherID != null ? Math.trunc(pitcherID) : null,
+      batterID: batterID != null ? Math.trunc(batterID) : null,
+      pitchHand: hand(str(at(matchup, "pitchHand", "code"))),
+      batSide: hand(str(at(matchup, "batSide", "code"))),
+      events: timeline,
+      review: review(at(play, "reviewDetails")),
+    };
   }
-  return out;
 }
+
+/** One `playEvents` entry: by its structured type and code, the description kept only for names. */
+export function playEvent(e: unknown, i: number, flight: StatcastPitch | null): PlayEvent | null {
+  const details = at(e, "details");
+  const count = at(e, "count");
+  let kind: PlayEventKind;
+  switch (str(at(e, "type"))) {
+    case "pitch": {
+      const code = str(at(details, "call", "code")) ?? str(at(details, "code"));
+      if (code == null) return null;
+      kind = { kind: "pitch", code };
+      break;
+    }
+    case "no_pitch": {
+      // An automatic ball (the pitcher's violation) or strike (the batter's): nothing thrown.
+      const ball = bool(at(details, "isBall")) === true;
+      if (!ball && bool(at(details, "isStrike")) !== true) return null;
+      kind = { kind: "automatic", ball };
+      break;
+    }
+    case "pickoff": {
+      const b = Number(str(at(details, "code")));
+      kind = { kind: "pickoff", base: b >= 1 && b <= 3 ? b : null, catcher: bool(at(details, "fromCatcher")) ?? false };
+      break;
+    }
+    case "stepoff":
+      kind = { kind: "stepOff" };
+      break;
+    case "action": {
+      const type = str(at(details, "eventType"));
+      if (type == null) return null;
+      kind = { kind: "action", type };
+      break;
+    }
+    default:
+      return null;
+  }
+  const int = (v: unknown) => {
+    const n = num(v);
+    return n != null ? Math.trunc(n) : null;
+  };
+  const time = str(at(e, "startTime"));
+  const start = time != null ? Date.parse(time) : NaN;
+  return {
+    index: int(at(e, "index")) ?? i,
+    kind,
+    description: str(at(details, "description")) ?? null,
+    balls: int(at(count, "balls")),
+    strikes: int(at(count, "strikes")),
+    outs: int(at(count, "outs")),
+    pitchNumber: int(at(e, "pitchNumber")),
+    flight,
+    type: str(at(details, "type", "code")) ?? null,
+    mph: num(at(e, "pitchData", "startSpeed")) ?? null,
+    player: int(at(e, "player", "id")),
+    replaced: int(at(e, "replacedPlayer", "id")),
+    position: str(at(e, "position", "abbreviation")) ?? null,
+    review: review(at(e, "reviewDetails")),
+    start: Number.isFinite(start) ? start : null,
+  };
+}
+
+
 
 /** A pitch's call that put the ball in play: in play, out(s); in play, no out; in play, run(s). */
 const IN_PLAY: ReadonlySet<string> = new Set(["X", "D", "E"]);

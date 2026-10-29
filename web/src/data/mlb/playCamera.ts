@@ -245,14 +245,27 @@ export class CameraTrack {
   settle = 0;
   /** When it reaches the rest framing. */
   back = 0;
+  /** Where it rests (null: the infield; a pitch with another to follow stays on the battery). */
+  rest: CameraFrame | null = null;
 
   frame(t: number): CameraFrame {
-    if (this.samples.length === 0 || !(t < this.back)) return restCamera();
+    const rest = this.rest ?? restCamera();
+    if (this.samples.length === 0 || !(t < this.back)) return rest;
     if (t >= this.settle) {
       const u = (t - this.settle) / Math.max(this.back - this.settle, 0.01);
-      return CameraFrame.mix(this.sample(this.settle), restCamera(), smooth(u));
+      return CameraFrame.mix(this.sample(this.settle), rest, smooth(u));
     }
     return this.sample(t);
+  }
+
+  /** A track already followed (a beat's: CameraFollow over its framings), resting where it ends. */
+  static fromSamples(samples: CameraFrame[], rest: CameraFrame): CameraTrack {
+    const track = new CameraTrack();
+    track.samples = samples;
+    track.settle = Math.max(samples.length - 1, 0) / CameraTrack.rate;
+    track.back = track.settle + 0.001;
+    track.rest = rest;
+    return track;
   }
 
   private sample(t: number): CameraFrame {

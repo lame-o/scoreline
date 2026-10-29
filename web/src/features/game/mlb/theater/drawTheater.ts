@@ -14,11 +14,11 @@
  */
 import { drawParticles, particles, type CelebrationPalette } from "../../../../data/celebrations";
 import { PITCH_NAMES, type Hand, type PlayScene } from "../../../../data/mlb/playScene";
-import { STAMP_MARKS, type Actor, type PlayScript } from "../../../../data/mlb/playScript";
+import { STAMP_MARKS, tarpCover, ZONE_FRONT, ZONE_HALF, type Actor, type PlayScript, type Signal } from "../../../../data/mlb/playScript";
 import { burstEnd, type TheaterBurst } from "../../../../data/mlb/theaterCelebration";
 import { Ballpark, easeValue, houseCurve, criticalSpring, ORIGIN, type Point } from "../../../../data/mlb/theaterField";
-import { BaseballPoses } from "../../../../data/mlb/theaterPose";
-import type { TheaterTeams, Uniform } from "../../../../data/mlb/theaterTeams";
+import { BaseballPoses, deliverAt } from "../../../../data/mlb/theaterPose";
+import { umpire, type TheaterTeams, type Uniform } from "../../../../data/mlb/theaterTeams";
 import { keyed, mirrored, mix, over, Rig, RigPoses, RigTrack, gait, type RigPose } from "../../../../data/theater/rig";
 import { luminance } from "../../../../data/teamColors";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
@@ -525,17 +525,113 @@ export interface FrameInputs {
   readonly teams: TheaterTeams;
   readonly ink: TheaterInk;
   readonly labels: Labels;
+  /** Room kept at the bottom trailing corner (the heartbeat's): the pitch's label sits above it. */
+  readonly footer?: number;
 }
 
 export function drawFrame(ctx: Ctx, f: FieldProjection, input: FrameInputs): void {
+  drawTarp(ctx, f, input);
   drawTrace(ctx, f, input);
   drawPuffs(ctx, f, input);
   const figures = posed(f, input);
   drawShadows(ctx, f, input, figures);
   drawFigures(ctx, f, input, figures);
+  drawZone(ctx, f, input);
   drawBall(ctx, f, input);
   drawFlashes(ctx, f, input);
   drawLabels(ctx, f, input);
+}
+
+/** A rain delay's tarp over the infield dirt, rolled out from the first-base side to the third (or back in), its seams across it. */
+function drawTarp(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs): void {
+  const tarp = script.tarp;
+  if (!tarp) return;
+  const cover = tarpCover(tarp, t);
+  if (!(cover > 0.005)) return;
+  const skin = () => {
+    ctx.beginPath();
+    SKIN.forEach((q, i) => {
+      const p = f.point(q);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.closePath();
+  };
+  // Rolled out from the right as far as `cover` has it.
+  const edge = 100 - 200 * cover;
+  ctx.save();
+  polyline(ctx, [{ x: edge, y: -20 }, { x: 120, y: -20 }, { x: 120, y: 170 }, { x: edge, y: 170 }].map((q) => f.point(q)), true);
+  ctx.clip();
+  const cloth = ink.dark ? "hsl(216 30% 62%)" : "hsl(216 35% 58%)";
+  skin();
+  ctx.globalAlpha = ink.dark ? 0.75 : 0.82;
+  ctx.fillStyle = cloth;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  skin();
+  ctx.clip();
+  ctx.beginPath();
+  for (let x = -90; x <= 90; x += 18) {
+    const a = f.point({ x, y: -10 });
+    const b = f.point({ x, y: 160 });
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+  }
+  ctx.strokeStyle = ink.dark ? "rgb(255 255 255 / 0.12)" : "rgb(255 255 255 / 0.3)";
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
+  ctx.restore();
+  // The roll itself, at the edge, while it moves.
+  if (cover < 0.995) {
+    ctx.save();
+    skin();
+    ctx.clip();
+    const a = f.point({ x: edge, y: -5 });
+    const b = f.point({ x: edge, y: 150 });
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = cloth;
+    ctx.lineWidth = Math.max(f.scale * 2.2, 2.5);
+    ctx.lineCap = "round";
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/**
+ * A pitch's strike zone, as a broadcast draws it: a faint frame at the front
+ * of the plate while the ball's on its way, and once it's crossed a dot where
+ * it did, then gone.
+ */
+function drawZone(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs): void {
+  const zone = script.zone;
+  if (!zone || !(t > zone.from) || !(t < zone.until + 0.4)) return;
+  const fade = Math.min((t - zone.from) / 0.2, 1) * (1 - Math.min(Math.max((t - zone.until) / 0.4, 0), 1));
+  if (!(fade > 0.01)) return;
+  const y = ZONE_FRONT;
+  const w = ZONE_HALF;
+  ctx.save();
+  ctx.globalAlpha = fade;
+  polyline(ctx, [f.point({ x: -w, y }, zone.bottom), f.point({ x: w, y }, zone.bottom), f.point({ x: w, y }, zone.top), f.point({ x: -w, y }, zone.top)], true);
+  ctx.fillStyle = rgba([255, 255, 255], 0.07 * (ink.dark ? 0.55 : 0.95));
+  ctx.fill();
+  ctx.strokeStyle = ink.chalk;
+  ctx.globalAlpha = fade * 0.7;
+  ctx.lineWidth = Math.min(Math.max(f.scale * 0.1, 0.7), 1.3);
+  ctx.stroke();
+  if (t >= zone.at) {
+    ctx.globalAlpha = fade;
+    const c = f.point({ x: zone.crossing.x, y }, zone.crossing.y);
+    const r = Math.min(Math.max(f.scale * 0.2, 1.6), 3.2);
+    ellipse(ctx, c.x, c.y, r, r);
+    ctx.fillStyle = rgba(ink.ball, 1);
+    ctx.fill();
+    ctx.strokeStyle = ink.ballEdge;
+    ctx.lineWidth = 0.6;
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /** The ball's path: bright behind the ball, settling to a faint record of where it went; and where it came down. */
@@ -680,16 +776,18 @@ function drawFigures(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: 
   const { script, t, teams, ink } = input;
   const batting = figureInks(teams.batting, ink);
   const fielding = figureInks(teams.fielding, ink);
+  // The umpires in their own kit (`umpire` in theaterTeams.ts), never a team's.
+  const officials = figureInks(UMPIRES[ink.dark ? "dark" : "light"], ink);
   for (const p of figures) {
     const actor = script.actors[p.index]!;
     if (actor.bats && actor.dropsBat != null && t >= actor.dropsBat) {
       drawDroppedBat(ctx, f.point(Ballpark.box(actor.bats)), actor.bats, 1 - Math.min(Math.max((t - script.settle) / 0.4, 0), 1), f, ink);
     }
-    const inks = actor.team === "batting" ? batting : fielding;
+    const inks = actor.team === "batting" ? batting : actor.team === "official" ? officials : fielding;
     drawFigure(ctx, p.figure, inks, f.figure, p.opacity);
     if (actor.bats && (actor.dropsBat == null || t < actor.dropsBat)) {
       ctx.globalAlpha = p.opacity;
-      drawBat(ctx, t, actor.bats, grip(p.figure), actor.swing, f.figure * 0.62, inks.rim, ink);
+      drawBat(ctx, t, actor, actor.bats, grip(p.figure), f.figure * 0.62, inks.rim, ink);
       ctx.globalAlpha = 1;
     }
   }
@@ -697,21 +795,59 @@ function drawFigures(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: 
 
 const envelope = (x: number, attack: number, release: number) => (x < 0 ? Math.max(1 + x / attack, 0) : Math.max(1 - x / release, 0));
 
+/** The umpire's kit, one per scheme (figure inks are kept per uniform). */
+const UMPIRES = { light: umpire("light"), dark: umpire("dark") } as const;
+
+/**
+ * How far through a swing he is at t (0 the stance, 0.4 through the zone, 1
+ * the finish): a full swing; a check swing, started and held up short of the
+ * zone; a practice swing, easy, halfway and back. Null: none.
+ */
+export function swingPhase(a: Actor, t: number): number | null {
+  const bump = (start: number, rise: number, hold: number, fall: number) => Rig.smooth((t - start) / rise) * (1 - Rig.smooth((t - start - rise - hold) / fall));
+  if (a.swing != null) return Math.min(Math.max((t - (a.swing - 0.09)) / 0.24, 0), 1);
+  if (a.check != null && t > a.check - 0.1) return 0.3 * bump(a.check - 0.1, 0.11, 0.06, 0.35);
+  if (a.practice != null && t > a.practice) return 0.62 * bump(a.practice, 0.42, 0.12, 0.5);
+  return null;
+}
+
+/** Back into his stance after a swing he missed or fouled (one he ran on, he dropped the bat). */
+export function recovery(a: Actor, t: number): number {
+  if (a.swing == null || a.dropsBat != null) return 0;
+  return Rig.smooth((t - a.swing - 0.75) / 0.5);
+}
+
+/** In any of these windows at t, eased in and out over `ramp`. */
+export function within(windows: readonly { readonly lower: number; readonly upper: number }[], t: number, ramp: number): number {
+  let best = 0;
+  for (const w of windows) best = Math.max(best, Rig.smooth((t - w.lower) / ramp) * (1 - Rig.smooth((t - w.upper) / ramp)));
+  return best;
+}
+
+/** An umpire's call as a pose, and how long he holds it: the punch-out and safe longest. */
+export function callPose(kind: Signal["kind"]): [RigPose, number] {
+  switch (kind) {
+    case "strike":
+      return [BaseballPoses.strikeCall, 0.35];
+    case "punchOut":
+      return [BaseballPoses.punchOut, 0.75];
+    case "swinging":
+      return [BaseballPoses.swingingCall, 0.3];
+    case "foul":
+      return [BaseballPoses.foulCall, 0.45];
+    case "safe":
+      return [BaseballPoses.safeCall, 0.6];
+    case "out":
+      return [BaseballPoses.outCall, 0.6];
+    case "challenge":
+      return [BaseballPoses.capTap, 0.45];
+  }
+}
+
 const SWING_KEYS: readonly (readonly [number, RigPose])[] = [
   [0, BaseballPoses.stance],
   [0.4, BaseballPoses.contact],
   [1, BaseballPoses.finish],
-];
-
-const PITCHER_KEYS: readonly (readonly [number, RigPose])[] = [
-  [-0.55, RigPoses.ready],
-  [-0.42, BaseballPoses.set],
-  [-0.24, BaseballPoses.kick],
-  [-0.08, BaseballPoses.stride],
-  [0, BaseballPoses.deliver],
-  [0.16, BaseballPoses.follow],
-  [0.45, BaseballPoses.fielding],
-  [0.7, BaseballPoses.fielding],
 ];
 
 const THROW_KEYS: readonly (readonly [number, RigPose])[] = [
@@ -731,14 +867,20 @@ export function pose(script: PlayScript, t: number, actor: Actor, index: number,
   const track = script.rig[index] ?? RigTrack.standing(here);
   const m = track.motion(t);
 
-  // How he stands, and how he moves.
+  // How he stands, and how he moves. The catcher squats behind the plate (up out of it when he rises).
   const role = actor.role;
+  const home = Math.hypot(here.x - Ballpark.position(2).x, here.y - Ballpark.position(2).y) < 3;
+  const lefty = actor.arm === "L";
+  const hand = (p: RigPose) => (lefty ? mirrored(p) : p);
   let still: RigPose;
   if (role.kind === "fielder") {
-    if (role.n === 1) still = script.release != null && t > script.release ? BaseballPoses.fielding : RigPoses.ready;
-    else if (role.n === 2) still = actor.crouch ? BaseballPoses.squat : RigPoses.stand;
+    if (role.n === 1) {
+      // Ready to field off his follow-through (a lefty's mirrored), then back up as the ball's away from him.
+      const release = script.release;
+      still = hand(release != null && t > release ? mix(BaseballPoses.fielding, RigPoses.ready, Rig.smooth((t - release - 1.1) / 0.5)) : RigPoses.ready);
+    } else if (role.n === 2) still = actor.crouch && home ? mix(BaseballPoses.squat, RigPoses.stand, within(actor.rise, t, 0.22)) : RigPoses.stand;
     else still = role.n <= 6 ? RigPoses.ready : RigPoses.stand;
-  } else if (role.kind === "batter") still = RigPoses.stand;
+  } else if (role.kind === "batter" || role.kind === "coach" || role.kind === "umpire") still = RigPoses.stand;
   // Leading off a base, low, watching the pitcher.
   else still = Ballpark.distance(here) > 5 ? BaseballPoses.lead : RigPoses.stand;
   const feet = track.feet(t, here, m.heading, unit, m.speed, { left: still.left, right: still.right });
@@ -747,21 +889,55 @@ export function pose(script: PlayScript, t: number, actor: Actor, index: number,
   if (actor.slide != null && t >= actor.slide) {
     body = mix(body, BaseballPoses.slide, moving == null ? 1 : Rig.smooth((t - actor.slide) / 0.12));
   }
+  // Back into the bag head first, and up again when he moves off it.
+  if (actor.diveBack != null && t >= actor.diveBack) {
+    const dive = actor.diveBack;
+    const up = actor.moves.find((mv) => mv.start > dive + 0.1)?.start ?? dive + 1.2;
+    body = mix(body, BaseballPoses.diveBack, Rig.smooth((t - dive) / 0.12) * (1 - Rig.smooth((t - up + 0.3) / 0.3)));
+  }
 
-  // The batter in the box: the stance, the swing.
+  // The batter in the box: the stance, a swing (full, checked or practice), squared to bunt.
   if (role.kind === "batter" && actor.bats && (actor.dropsBat == null || t < actor.dropsBat) && moving == null) {
     let p = BaseballPoses.stance;
-    if (actor.swing != null) {
-      const u = (t - (actor.swing - 0.09)) / 0.24;
+    const u = swingPhase(actor, t);
+    if (u != null) {
       p = keyed(SWING_KEYS, u) ?? (u <= 0 ? BaseballPoses.stance : BaseballPoses.finish);
+      p = mix(p, BaseballPoses.stance, recovery(actor, t));
     }
+    if (actor.bunt != null) p = mix(p, BaseballPoses.bunt, Rig.smooth((t - actor.bunt) / 0.25) * (1 - Rig.smooth((t - actor.bunt - 1.7) / 0.4)));
     body = actor.bats === "L" ? mirrored(p) : p;
   }
 
-  // The pitcher's delivery; then he's ready where he landed.
-  if (role.kind === "fielder" && role.n === 1 && script.release != null && moving == null) {
-    const p = keyed(PITCHER_KEYS, t - script.release);
-    if (p) body = p;
+  // The plate umpire: down in his set as the pitch comes, his calls over it.
+  if (role.kind === "umpire") {
+    if (actor.sets.length > 0 && moving == null) body = mix(body, BaseballPoses.umpireSet, within(actor.sets, t, 0.2));
+    for (const signal of actor.signals) {
+      const [call, hold] = callPose(signal.kind);
+      const x = t - signal.at;
+      const w = x < 0 ? Math.max(1 + x / 0.14, 0) : x < hold ? 1 : Math.max(1 - (x - hold) / 0.3, 0);
+      if (w > 0) body = over(body, call, Rig.smooth(w), m.weight);
+    }
+  }
+
+  // The pitcher: in for the sign, set in the stretch, the delivery at his arm slot (a lefty's
+  // mirrored); then he's ready where he landed.
+  if (role.kind === "fielder" && role.n === 1 && moving == null) {
+    if (actor.sign) body = mix(body, hand(BaseballPoses.sign), within([actor.sign], t, 0.25));
+    if (actor.sets.length > 0) body = mix(body, hand(BaseballPoses.set), within(actor.sets, t, 0.18));
+    if (script.release != null) {
+      const keys: (readonly [number, RigPose])[] = [
+        [-0.55, actor.sets.length === 0 ? RigPoses.ready : hand(BaseballPoses.set)],
+        [-0.42, hand(BaseballPoses.set)],
+        [-0.24, hand(BaseballPoses.kick)],
+        [-0.08, hand(BaseballPoses.stride)],
+        [0, hand(deliverAt(actor.slot))],
+        [0.16, hand(BaseballPoses.follow)],
+        [0.45, hand(BaseballPoses.fielding)],
+        [0.7, hand(BaseballPoses.fielding)],
+      ];
+      const p = keyed(keys, t - script.release);
+      if (p) body = p;
+    }
   }
 
   // Hands on the ball: a catch, a scoop, a glove, a throw. On the move, the legs keep running.
@@ -789,16 +965,28 @@ export function pose(script: PlayScript, t: number, actor: Actor, index: number,
   return [body, m.heading];
 }
 
-/** The bat: on the shoulder, then round through the zone, level at contact, and on into the follow-through. */
-function drawBat(ctx: Ctx, t: number, bats: Hand, hands: Point, swing: number | null, length: number, halo: string, ink: TheaterInk): void {
+/**
+ * The bat: on the shoulder, then round through the zone, level at contact,
+ * and on into the follow-through (back to the shoulder after a miss); held
+ * level out in front to bunt.
+ */
+function drawBat(ctx: Ctx, t: number, actor: Actor, bats: Hand, hands: Point, length: number, halo: string, ink: TheaterInk): void {
   // Azimuth on the ground (0: toward first base's side, 90: out to center), and lift.
   let azimuth = -105;
   let lift = 0.85;
-  if (swing != null) {
-    const u = Math.min(Math.max((t - (swing - 0.09)) / 0.24, 0), 1);
+  const u = swingPhase(actor, t);
+  if (u != null) {
     const e = easeValue("inOut", u);
     azimuth = -105 + e * 255;
     lift = u <= 0 ? 0.85 : u < 0.4 ? 0.85 - (u / 0.4) * 0.7 : 0.15 + ((u - 0.4) / 0.6) * 0.5;
+    const back = recovery(actor, t);
+    azimuth += (-105 - azimuth) * back;
+    lift += (0.85 - lift) * back;
+  }
+  if (actor.bunt != null) {
+    const w = Rig.smooth((t - actor.bunt) / 0.25) * (1 - Rig.smooth((t - actor.bunt - 1.7) / 0.4));
+    azimuth += (12 - azimuth) * w;
+    lift += (0.08 - lift) * w;
   }
   if (bats === "L") azimuth = 180 - azimuth;
   const a = (azimuth * Math.PI) / 180;
@@ -997,7 +1185,7 @@ export function bannerAnchor(size: Size, pt: number): Point {
   return { x: size.width / 2, y: Math.max(size.height * 0.055, 9 * pt) * 0.7 + Math.min(Math.max(Math.max(size.height, 120) * 0.13, 17 * pt), 40 * pt) * 0.6 };
 }
 
-function drawLabels(ctx: Ctx, f: FieldProjection, { script, t, labels }: FrameInputs): void {
+function drawLabels(ctx: Ctx, f: FieldProjection, { script, t, labels, footer = 0 }: FrameInputs): void {
   const { size } = f;
   const inset = Math.max(size.height * 0.055, 9);
   // The pitch: from the windup until the play is under way.
@@ -1007,7 +1195,7 @@ function drawLabels(ctx: Ctx, f: FieldProjection, { script, t, labels }: FrameIn
     const fadeOut = 1 - Math.min(Math.max((t - label.upper) / 0.3, 0), 1);
     ctx.save();
     ctx.globalAlpha = fadeIn * fadeOut;
-    ctx.translate(size.width - inset, size.height - inset * 0.8);
+    ctx.translate(size.width - inset, size.height - inset * 0.8 - footer);
     labels.pitch.draw(ctx);
     ctx.restore();
   }

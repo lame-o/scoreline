@@ -24,6 +24,7 @@ import type { Fetcher } from "../http";
 import { arr, at, bool, has, num, str, type JSONValue } from "../json";
 import { liveMoment, Tier, type Accent, type LiveMoment, type MomentKind } from "../moments";
 import { baseballFacts } from "../scoringFacts";
+import { espnDelay, type Delay } from "../mlb/playBeat";
 
 /** The score as of the newest play the fast lane has seen. */
 export interface LiveScore {
@@ -74,6 +75,17 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
   loaded = false;
   /** The play theater's last play and who's up now. Assigned only when they change, so a pitch doesn't redraw the theater. */
   theater: T | null = null;
+  /** When anything last came (a play, a pitch, the count): the theater's heartbeat (epoch ms). */
+  heard: number | null = null;
+  /** The game held up, as ESPN's status has it ("Rain Delay"). */
+  delay: Delay | null = null;
+  /** Bumped each time the plays in the window change: the theater's timeline is built from them. */
+  playsVersion = 0;
+
+  /** The most recent plays (the theater's timeline, every pitch and what came between, is built from them). */
+  get plays(): readonly JSONValue[] {
+    return this.window;
+  }
 
   /** The most recent plays, enough to hold the current at-bat, and where the first sits in the feed. */
   private window: JSONValue[] = [];
@@ -131,6 +143,11 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
       ]);
       if (signal?.aborted) return;
       let changed = false;
+      const held = status != null ? espnDelay(status) : null;
+      if (JSON.stringify(held) !== JSON.stringify(this.delay)) {
+        this.delay = held;
+        changed = true;
+      }
       if (status != null && str(at(status, "type", "state")) === "in") {
         const inning = str(at(status, "type", "shortDetail")) ?? null;
         if (inning !== this.inning) {
@@ -156,6 +173,7 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
       const next = settledSituation(baseballSituation(s, names, str(at(last, "text")) ?? null), this.window, names);
       if (!sameSituation(next, this.situation)) {
         this.situation = next;
+        this.heard = this.now();
         changed = true;
       }
       if (changed) this.emit();
@@ -243,6 +261,8 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
     const wasLoaded = this.loaded;
     this.loaded = true;
     if (look.new.length === 0 && changed.size === 0) return scoreChanged || !wasLoaded;
+    this.heard = this.now();
+    this.playsVersion += 1;
     this.atBat = currentAtBat(this.window);
     if (this.theaterOf) {
       const next = theaterAfter(this.window, this.theater, news, this.now(), names, side, this.theaterOf);

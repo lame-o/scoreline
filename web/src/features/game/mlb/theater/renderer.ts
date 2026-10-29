@@ -11,6 +11,9 @@
  * - Its end is said (`onEnd`): the component holds it, then returns the field to the game.
  * - A play that isn't replayed (history, or Reduce Motion) crossfades to how it ended (0.35 s).
  * - With Reduce Motion a home run blooms softly at the plate instead of its fireworks.
+ * - Between plays, a beat (a pitch, a visit, a change; playBeatScript.ts) or an idle move is drawn on its own
+ *   clock from when the stage began it, the loop running only until it's over (at half the frame rate for an
+ *   idle move: it's small and slow); with Reduce Motion it's drawn as it ends.
  */
 import { cueDuration, cueFor, presetFor, type CelebrationLevel, type CelebrationPalette } from "../../../../data/celebrations";
 import { restCamera } from "../../../../data/mlb/playCamera";
@@ -36,6 +39,10 @@ export interface StageInputs {
   readonly frozen: number | null;
   /** Told once a replay has run its course (its end then holds; PlayStage's `replay.done`). */
   readonly onEnd?: (id: string) => void;
+  /** Between plays: a beat or an idle move, drawn from `start` (performance.now(), ms) in place of the still. */
+  readonly beat?: { readonly key: string; readonly script: PlayScript; readonly start: number; readonly idle: boolean } | null;
+  /** Room kept at the bottom trailing corner for the heartbeat. */
+  readonly footer?: number;
 }
 
 const CROSSFADE_MS = 350;
@@ -55,6 +62,7 @@ export class TheaterRenderer {
   private fade: { snapshot: HTMLCanvasElement; start: number } | null = null;
   private shownID: string | null | undefined = undefined;
   private frame = 0;
+  private lastDraw = 0;
   private readonly observer: ResizeObserver;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -150,11 +158,32 @@ export class TheaterRenderer {
     return copy;
   }
 
-  /** Seconds into the play on screen; Infinity once it has ended (or was never replayed). */
+  /** A beat or idle move on screen (not while a replay runs). */
+  private beatShown(now: number): StageInputs["beat"] {
+    const i = this.inputs;
+    if (!i?.beat) return null;
+    if (this.replay && i.scene && this.replay.id === i.scene.id && Number.isFinite(this.replayTime(now))) return null;
+    return i.beat;
+  }
+
+  private replayTime(now: number): number {
+    const i = this.inputs;
+    if (!i || !i.scene || !this.replay || this.replay.id !== i.scene.id) return Infinity;
+    const t = (now - this.replay.start) / 1000;
+    return t > this.replayEnd() ? Infinity : t;
+  }
+
+  /** Seconds into what's on screen (a beat's own clock while one is up); Infinity once it has ended (or was never replayed). */
   private time(now: number): number {
     const i = this.inputs;
     if (!i) return Infinity;
     if (i.frozen != null) return i.frozen;
+    const beat = this.beatShown(now);
+    if (beat) {
+      if (i.reduceMotion) return Infinity;
+      const t = (now - beat.start) / 1000;
+      return t > beat.script.duration ? Infinity : Math.max(t, 0);
+    }
     if (!i.scene || !this.replay || this.replay.id !== i.scene.id) return Infinity;
     const t = (now - this.replay.start) / 1000;
     return t > this.replayEnd() ? Infinity : t;
@@ -178,6 +207,9 @@ export class TheaterRenderer {
   private moving(now: number): boolean {
     const t = this.time(now);
     if (Number.isFinite(t) && this.inputs?.frozen == null) return true;
+    // A beat that hasn't begun yet (its start a moment ahead) still waits on the loop.
+    const beat = this.beatShown(now);
+    if (beat && !this.inputs?.reduceMotion && this.inputs?.frozen == null && now < beat.start) return true;
     if (this.fade && now - this.fade.start < CROSSFADE_MS) return true;
     if (this.bloom?.cue && (now - this.bloom.start) / 1000 < cueDuration(this.bloom.cue)) return true;
     return false;
@@ -192,6 +224,13 @@ export class TheaterRenderer {
     if (this.frame) return;
     this.frame = requestAnimationFrame((now) => {
       this.frame = 0;
+      // An idle move at half the frame rate: it's small and slow.
+      const beat = this.beatShown(now);
+      if (beat?.idle && Number.isFinite(this.time(now)) && now - this.lastDraw < 30 && !immediate) {
+        this.schedule();
+        return;
+      }
+      this.lastDraw = now;
       this.draw(now);
       this.noteEnd(now);
       if (this.moving(now)) this.schedule();
@@ -223,11 +262,13 @@ export class TheaterRenderer {
     if (!i || size.width === 0 || size.height === 0) return;
     this.layout();
     const t = this.time(now);
+    const beat = this.beatShown(now);
+    const script = beat?.script ?? i.script;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, size.width, size.height);
-    const f = new FieldProjection(size, i.script.camera.frame(t));
+    const f = new FieldProjection(size, script.camera.frame(t));
     drawField(ctx, f, i.ink);
-    drawFrame(ctx, f, { scene: i.scene, script: i.script, t, teams: i.teams, ink: i.ink, labels: this.labels! });
+    drawFrame(ctx, f, { scene: beat ? null : i.scene, script, t, teams: i.teams, ink: i.ink, labels: this.labels!, footer: i.footer ?? 0 });
     if (Number.isFinite(t) && this.bursts.length > 0) drawBursts(ctx, f, this.bursts, t, this.palette(), this.pt);
     if (this.bloom?.cue) {
       // At the plate, through the rest framing (Reduce Motion never moves the camera).

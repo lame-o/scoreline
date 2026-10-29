@@ -25,7 +25,7 @@ import { useEffect, useMemo, useReducer, useRef } from "react";
 import { getJSON } from "../../../../data/http";
 import type { ScoreEvent } from "../../../../data/models";
 import type { Measured, TheaterState } from "../../../../data/mlb/playScene";
-import { feedURL, scheduleURL, statcastAtBats, statcastGame } from "../../../../data/mlb/statcast";
+import { feedURL, liveURL, scheduleURL, statcastAtBats, statcastGame, statcastLive, type StatcastAtBat } from "../../../../data/mlb/statcast";
 
 /** Statcast.swift `StatcastStore.minimumInterval`: the feed is asked again no sooner than this. */
 const MINIMUM_INTERVAL_MS = 2_000;
@@ -102,4 +102,60 @@ export function useMeasuredTheater(event: ScoreEvent, state: TheaterState): Thea
   if (holding) return shown.current ?? { ...state, play: null };
   shown.current = next;
   return next;
+}
+
+/** Statcast.swift `StatcastStore.liveInterval`: MLB's at-bat under way, no more often than this. */
+export const LIVE_POLL_MS = 4_500;
+
+/**
+ * MLB's at-bats for the theater's timeline (LiveFeeds.swift `BaseballFeed`'s
+ * live poll and `rebuildTimeline`): the game's full feed as it's cached when
+ * plays are measured, and the at-bat under way, polled on its own pace (a few
+ * kilobytes) while the game is live and the page is visible. Its status says
+ * a delay before ESPN's does ("Delayed: Rain").
+ */
+export function useMLBTimeline(event: ScoreEvent, live: boolean): { readonly atBats: readonly StatcastAtBat[]; readonly status: string | null } {
+  const teams = event.content.kind === "match" ? [event.content.top.name, event.content.bottom.name] : [];
+  const enabled = isMLB(event) && teams.length === 2 && live;
+  const game = useQuery({
+    queryKey: ["statcast", "game", event.id],
+    queryFn: async ({ signal }) => statcastGame(await getJSON(scheduleURL(event.start), { signal }), teams),
+    enabled,
+    staleTime: Infinity,
+    gcTime: 60 * 60_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+  const gamePk = game.data ?? null;
+  const feed = useQuery({
+    queryKey: ["statcast", "feed", gamePk],
+    queryFn: async ({ signal }) => statcastAtBats(await getJSON(feedURL(gamePk!), { signal })),
+    enabled: enabled && gamePk != null,
+    staleTime: 60_000,
+    gcTime: 15 * 60_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+  const current = useQuery({
+    queryKey: ["statcast", "live", gamePk],
+    queryFn: async ({ signal }) => statcastLive(await getJSON(liveURL(gamePk!), { signal })),
+    enabled: enabled && gamePk != null,
+    staleTime: LIVE_POLL_MS,
+    refetchInterval: LIVE_POLL_MS,
+    refetchIntervalInBackground: false,
+    gcTime: 60_000,
+    retry: 0,
+    refetchOnWindowFocus: false,
+  });
+  const atBats = useMemo(() => {
+    const all = [...(feed.data ?? [])];
+    const now = current.data?.atBat;
+    if (now) {
+      const i = all.findIndex((a) => a.index === now.index);
+      if (i >= 0) all[i] = now;
+      else all.push(now);
+    }
+    return all;
+  }, [feed.data, current.data]);
+  return { atBats, status: current.data?.status ?? null };
 }

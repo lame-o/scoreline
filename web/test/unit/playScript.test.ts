@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { liveMoment, Tier } from "../../src/data/moments";
 import { parse, type PlayScene, type SideOf } from "../../src/data/mlb/playScene";
-import { PlayScript, type Rest } from "../../src/data/mlb/playScript";
+import { PlayScript, restSpot, type Rest } from "../../src/data/mlb/playScript";
 import { plateCelebration, sprayChartBursts } from "../../src/data/mlb/theaterCelebration";
 import { Ballpark, samePoint, type Point } from "../../src/data/mlb/theaterField";
 import { BaseballPoses } from "../../src/data/mlb/theaterPose";
@@ -100,20 +100,23 @@ describe("choreography", () => {
     expect(script(looking).actors[9]!.swing).toBeNull();
     expect(script(swinging).actors[9]!.swing).not.toBeNull();
   });
-  it("after a play the fielders walk back, the ball is put away, runners lead off, the next batter steps in", () => {
+  it("after a play the fielders walk back (the first baseman to hold a runner on), the ball is put away, runners lead off, the next batter steps in", () => {
     const s = script(single);
-    for (let i = 0; i < 9; i++) expect(samePoint(s.actors[i]!.position(Infinity), Ballpark.position(i + 1))).toBe(true);
+    const after = single!.basesAfter;
+    for (let i = 0; i < 9; i++) expect(samePoint(s.actors[i]!.position(Infinity), restSpot({ bases: after }, i + 1))).toBe(true);
+    expect(samePoint(s.actors[2]!.position(Infinity), after[0] ? Ballpark.holding : Ballpark.position(3))).toBe(true);
     expect(s.ball(Infinity)).toBeNull();
     const runners = s.actors.filter((a) => a.team === "batting" && a.opacity(Infinity) > 0.99).map((a) => a.position(Infinity));
     const want: Point[] = [Ballpark.lead(1), Ballpark.lead(2), Ballpark.box("R")];
     expect(runners.length).toBe(want.length);
     for (const p of want) expect(runners.some((r) => samePoint(r, p))).toBe(true);
   });
-  it("after the third out the team that batted takes the field", () => {
+  it("after the third out the team that batted takes the field (the umpire stays)", () => {
     const s = script(groundOut);
-    const fielders = s.actors.filter((a) => a.opacity(Infinity) > 0.99 && a.bats == null);
+    const fielders = s.actors.filter((a) => a.opacity(Infinity) > 0.99 && a.bats == null && a.team !== "official");
     expect(fielders.length).toBe(9);
     expect(fielders.every((a) => a.team === "batting")).toBe(true);
+    expect(s.actors.some((a) => a.role.kind === "umpire" && a.vanish === Infinity)).toBe(true);
   });
   it("every play's figures and ball stay finite, the ball never under the grass; every replay runs 1.2–4.4 s (one with runs, told in order, up to 5.6)", { timeout: 30_000 }, () => {
     const scenes = plays.flatMap((p, i) => (typeOf(p) === "play-result" ? (parse(plays, i, side, names) ?? []) : []));
