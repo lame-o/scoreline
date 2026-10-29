@@ -7,7 +7,7 @@
  * the lane). The drawing is features/game/soccer/theater.
  */
 import { cueFor, presetFor, sparks, cueDuration, type CelebrationCue, type CelebrationLevel, type Effect } from "../celebrations";
-import type { JSONValue } from "../json";
+import { at, num, type JSONValue } from "../json";
 import type { Side } from "../models";
 import { pitchScale, REVIEW_MS, type PitchScale } from "../liveFeeds/soccer";
 import { decisive, type LiveMoment } from "../moments";
@@ -15,6 +15,8 @@ import { CameraFrame } from "../mlb/playCamera";
 import type { FieldPoint, Point } from "../mlb/theaterField";
 import { attacksRight, goalOf, isMoment, keepers, latest, parse, Pitch, playID, readLineups, scored, type Person, type SoccerScene, type SoccerTheaterState } from "./soccerScene";
 import { pitchBursts, theaterOwns } from "./goalCelebrationRules";
+import { string } from "./soccerEntries";
+import { parseEvent, parseTouch, type SoccerEvent, type SoccerTouch } from "./soccerIdle";
 import { PitchCamera, PitchFrame, type Basis, type SoccerScript } from "./soccerScript";
 import { TheaterBurst } from "./theaterKit";
 
@@ -280,26 +282,70 @@ export class SoccerTheaterWatch {
     const fresh = window.slice(first);
     const shown = this.state.scene?.id ?? null;
     if (fresh.length === 0 && !(shown != null && revised.has(shown))) return changed;
-    Object.assign(this.keepers, keepers(fresh));
-    const index = window.findLastIndex((p) => isMoment(p));
-    if (index < 0) return changed;
-    const id = playID(window[index]);
-    if (!(index >= first || (id === shown && (index >= first - 6 || (id != null && revised.has(id)))))) return changed;
-    const scene = parse(window, index, homeTeamID, this.keepers, this.scale ?? "percent");
-    if (!scene) return changed;
-    const next = soccerTheaterState(scene, this.state, primed, now);
+    const scale = this.scale ?? "percent";
+    // The events, the ball's whereabouts and the half, from each new entry in turn (SoccerFeed's reads as it takes them).
+    const events: SoccerEvent[] = [];
+    let touch: SoccerTouch | null = null;
+    let momentOrder: number | null = null;
+    let period: number | null = null;
+    for (let i = first; i < window.length; i++) {
+      const order = this.serial++;
+      const event = parseEvent(window, i, homeTeamID, order, scale);
+      if (event) events.push(event);
+      touch = parseTouch(window[i], homeTeamID, order, scale) ?? touch;
+      if (isMoment(window[i])) momentOrder = order;
+      const half = num(at(window[i], "period", "number"));
+      if (half != null) period = half;
+    }
+    const before = this.state;
+    let next = this.moment(window, first, revised, homeTeamID, primed, now, scale) ?? before;
+    if (fresh.length > 0) {
+      const wallclock = Date.parse(string(at(fresh[fresh.length - 1], "wallclock")) ?? "");
+      next = {
+        ...next,
+        sceneOrder: next.scene?.id !== before.scene?.id && momentOrder != null ? momentOrder : (next.sceneOrder ?? null),
+        events: [...(next.events ?? []), ...events].slice(-10),
+        // Events that arrive with the page open are news, and play their beats.
+        newsFrom: primed && next.newsFrom == null && events[0] ? events[0].order : (next.newsFrom ?? null),
+        touch: touch ?? next.touch ?? null,
+        period: period ?? next.period ?? null,
+        heard: primed ? now : Number.isFinite(wallclock) ? wallclock : (next.heard ?? null),
+      };
+    }
     if (sameState(next, this.state)) return changed;
     this.state = next;
     return true;
   }
+
+  /** The order of the next entry taken: later is newer (SoccerFeed's `serial`). */
+  private serial = 0;
+
+  /** The newest moment, when one has arrived (or the one showing has been followed by its save or block, or edited), with the plays before it; null when nothing changed. */
+  private moment(window: readonly JSONValue[], first: number, revised: ReadonlySet<string>, homeTeamID: string | null, primed: boolean, now: number, scale: PitchScale): SoccerTheaterState | null {
+    Object.assign(this.keepers, keepers(window.slice(first)));
+    const shown = this.state.scene?.id ?? null;
+    const index = window.findLastIndex((p) => isMoment(p));
+    if (index < 0) return null;
+    const id = playID(window[index]);
+    if (!(index >= first || (id === shown && (index >= first - 6 || (id != null && revised.has(id)))))) return null;
+    const scene = parse(window, index, homeTeamID, this.keepers, scale);
+    if (!scene) return null;
+    return soccerTheaterState(scene, this.state, primed, now);
+  }
 }
 
-/** `SoccerTheaterState ==`: the same moment, as parsed, the same news, the same goal struck off and the same lineups. */
+/** `SoccerTheaterState ==`: the same moment, as parsed, the same news, the same goal struck off and the same lineups; the same events, ball and half, heard at the same time. */
 function sameState(a: SoccerTheaterState, b: SoccerTheaterState): boolean {
   return (
     a.news === b.news &&
     JSON.stringify(a.scene) === JSON.stringify(b.scene) &&
     JSON.stringify(a.overturned ?? null) === JSON.stringify(b.overturned ?? null) &&
-    JSON.stringify(a.lineups ?? {}) === JSON.stringify(b.lineups ?? {})
+    JSON.stringify(a.lineups ?? {}) === JSON.stringify(b.lineups ?? {}) &&
+    JSON.stringify(a.events ?? []) === JSON.stringify(b.events ?? []) &&
+    (a.newsFrom ?? null) === (b.newsFrom ?? null) &&
+    (a.sceneOrder ?? null) === (b.sceneOrder ?? null) &&
+    JSON.stringify(a.touch ?? null) === JSON.stringify(b.touch ?? null) &&
+    (a.period ?? null) === (b.period ?? null) &&
+    (a.heard ?? null) === (b.heard ?? null)
   );
 }

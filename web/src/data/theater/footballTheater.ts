@@ -13,7 +13,8 @@ import type { TheaterBurst } from "../mlb/theaterCelebration";
 import { TheaterBurst as Burst } from "./theaterKit";
 import type { Side } from "../models";
 import { decisive, type LiveMoment } from "../moments";
-import { FootballDepthChart, parse, type DepthCharts, type FootballScene, type FootballTheaterState } from "./footballScene";
+import { parseStoppage, type FootballStoppage } from "./footballIdle";
+import { FootballDepthChart, parse, type DepthCharts, type Down, type FootballScene, type FootballTheaterState } from "./footballScene";
 import type { FootballScript, Rest } from "./footballScript";
 
 // MARK: - The field between plays
@@ -31,19 +32,43 @@ export const DEFAULT_REST: Rest = { yard: 25, gain: 35 };
 
 /**
  * What the stage shows (FootballTheater.swift `FootballTheater.shown`): a
- * play replaying, then its end until it has held (`rested`); a touchdown's
- * try in a beat of its own, the same; a new play not yet begun; otherwise
- * null, the game as it stands (both teams set at the line). History that
- * isn't news is never shown: on opening the page, the field is the live one.
- * `replaying`: the replay begun on the stage, if any. (pure; tested)
+ * play replaying (or one of the snaps queued before it, oldest first), then
+ * its end until it has held (`rested`); a touchdown's try in a beat of its
+ * own, the same; a new play not yet begun; otherwise null, the field between
+ * snaps (footballIdle.ts). History that isn't news is never shown: on
+ * opening the page, the field is the live one. `replaying`: the replay begun
+ * on the stage, if any; `played`: the snaps already replayed. (pure; tested)
  */
-export function footballShown(state: FootballTheaterState, replaying: string | null, rested: string | null): FootballScene | null {
+export function footballShown(state: FootballTheaterState, replaying: string | null, rested: string | null, played: ReadonlySet<string> = new Set()): FootballScene | null {
   const play = state.play;
   if (!play) return null;
-  const attempt = play.conversion;
-  if (attempt && replaying === attempt.id) return rested === attempt.id ? null : attempt;
-  if (replaying === play.id) return rested === play.id ? null : play;
-  return state.news ? play : null;
+  const queue = state.queue ?? [];
+  for (const scene of [...queue.filter((q) => q.id !== play.id), play]) {
+    const attempt = scene.conversion;
+    if (attempt && replaying === attempt.id) return rested === attempt.id ? null : attempt;
+    if (replaying === scene.id) return rested === scene.id ? null : scene;
+  }
+  if (!state.news) return null;
+  return queue.find((q) => q.id !== play.id && !played.has(q.id)) ?? play;
+}
+
+/** The next queued snap after this one (or after the try of it) that hasn't replayed (FootballStage.nextQueued). (pure; tested) */
+export function nextQueued(state: FootballTheaterState, id: string, played: ReadonlySet<string>): FootballScene | null {
+  const queue = state.queue ?? [];
+  const base = id.endsWith("-try") ? id.slice(0, -4) : id;
+  const i = queue.findIndex((q) => q.id === base);
+  if (i < 0) return null;
+  const attempt = queue[i]!.conversion;
+  if (!id.endsWith("-try") && attempt && !played.has(attempt.id)) return null;
+  return queue.slice(i + 1).find((q) => !played.has(q.id)) ?? null;
+}
+
+/** "3rd & 7 at PHI 35" → 3rd & 7; "1st & Goal" → its distance unknown (10). (FootballTheater.down; pure; tested) */
+export function footballDown(text: string | null | undefined): Down | null {
+  const m = text ? /^(\d)(?:st|nd|rd|th) & (\d+|Goal)/.exec(text) : null;
+  if (!m) return null;
+  const distance = Number(m[2]);
+  return { down: Number(m[1]), distance: Number.isFinite(distance) ? distance : 10 };
 }
 
 // MARK: - What the theater shows
@@ -63,6 +88,30 @@ export function footballTheaterState(scene: FootballScene, previous: FootballThe
     play: scene,
     news: scene.id === previous.play?.id ? previous.news : primed || (scene.wallclock != null && now - scene.wallclock < RECENT_MS),
   };
+}
+
+/**
+ * The theater after a look that brought `snaps` (oldest first, the one
+ * showing among them if it was read again): the newest is its play. While
+ * the page is open each new snap joins the queue in order, so a look that
+ * brings two (the feed caught up, a score and its kickoff) replays both; an
+ * edited snap replaces its earlier version there too. `stoppage` is
+ * whatever stopped play after the newest. (FootballFeed.theater; pure; tested)
+ */
+export function footballTheaterQueued(snaps: readonly FootballScene[], stoppage: FootballStoppage | null, previous: FootballTheaterState, primed: boolean, now: number): FootballTheaterState {
+  const last = snaps.at(-1);
+  if (!last) return { ...previous, stoppage: stoppage ?? previous.stoppage ?? null };
+  const next = { ...footballTheaterState(last, previous, primed, now), stoppage };
+  const edited = (scene: FootballScene) => snaps.find((s) => s.id === scene.id) ?? scene;
+  if (next.news && primed) {
+    const shown = previous.play ? snaps.findIndex((s) => s.id === previous.play!.id) : -1;
+    const fresh = shown >= 0 ? snaps.slice(shown + 1) : previous.play == null ? [last] : [...snaps];
+    const queue = (previous.news ? (previous.queue ?? []) : previous.play ? [previous.play] : []).map(edited);
+    for (const snap of fresh) if (!queue.some((q) => q.id === snap.id)) queue.push(snap);
+    if (!queue.some((q) => q.id === last.id)) queue.push(last);
+    return { ...next, queue: queue.slice(-5) };
+  }
+  return { ...next, queue: [last] };
 }
 
 /** The lane's depth charts, as ESPN sent them, read (`FootballDepthChart.from`); a side whose chart doesn't read is left out. */
@@ -121,6 +170,9 @@ export class FootballTheaterWatch {
   state: FootballTheaterState = { play: null, news: false };
   /** The sequence number of the theater's snap: an older entry never replaces it. */
   private sequence = -1;
+  /** The newest entry heard, and when (the heartbeat): its wallclock on the first look, then the moment it arrived. */
+  private heardSequence = -1;
+  private heard: number | null = null;
   private item: JSONValue = undefined;
   private items: readonly JSONValue[] | null = null;
   private rawCharts: Readonly<Partial<Record<Side, JSONValue>>> = NO_CHARTS;
@@ -139,40 +191,69 @@ export class FootballTheaterWatch {
       if (Object.keys(found).length > 0) {
         // The snap showing, placed on them.
         this.charts = found;
-        this.state = { ...this.state, charts: found, play: this.state.play?.slotted(found) ?? null };
+        this.state = { ...this.state, charts: found, play: this.state.play?.slotted(found) ?? null, queue: this.state.queue?.map((q) => q.slotted(found)) };
         changed = true;
       }
     }
     if (items === this.items) return changed;
     this.items = items;
+    // The heartbeat: when the feed last brought anything new.
+    let newest: { sequence: number; item: JSONValue } | null = null;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const sequence = sequenceOf(items[i]);
+      if (sequence <= this.heardSequence) break;
+      if (!newest || sequence > newest.sequence) newest = { sequence, item: items[i] };
+    }
+    if (newest) {
+      this.heardSequence = newest.sequence;
+      const wallclock = Date.parse(str(at(newest.item, "wallclock")) ?? "");
+      this.heard = primed ? now : Number.isFinite(wallclock) ? wallclock : this.heard;
+    }
     // The newest few snaps, oldest first: each is spotted on its hash from the one before.
     const recent: { scene: FootballScene; sequence: number; item: JSONValue }[] = [];
+    let unchanged = false;
     for (let i = items.length - 1; i >= 0 && recent.length < 5; i--) {
       const item = items[i];
       const sequence = sequenceOf(item);
       if (sequence < this.sequence) break;
-      if (recent.length === 0 && item === this.item) return changed;
+      if (recent.length === 0 && item === this.item) {
+        unchanged = true;
+        break;
+      }
       const scene = parse(item, teams)?.slotted(this.charts);
       if (scene) recent.push({ scene, sequence, item });
     }
     recent.reverse();
-    const snap = recent.at(-1);
-    if (!snap) return changed;
+    // What stopped play after the newest snap (a timeout, a TV timeout, the quarter's end), if anything has: the newest entry after it.
+    const after = recent.at(-1)?.sequence ?? this.sequence;
+    let last: { sequence: number; item: JSONValue } | null = null;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const sequence = sequenceOf(items[i]);
+      if (sequence <= after) break;
+      if (!last || sequence > last.sequence) last = { sequence, item: items[i] };
+    }
+    const stoppage = last ? parseStoppage(last.item, teams) : null;
+    const snap = unchanged ? undefined : recent.at(-1);
+    if (!snap) {
+      if (this.state.heard === this.heard && (stoppage == null || stoppage.id === this.state.stoppage?.id)) return changed;
+      this.state = { ...this.state, heard: this.heard, stoppage: stoppage ?? this.state.stoppage ?? null };
+      return true;
+    }
     this.sequence = snap.sequence;
     this.item = snap.item;
     const snaps = recent.map((r) => r.scene);
     const shown = this.state.play;
     const i = shown ? snaps.findIndex((x) => x.id === shown.id) : -1;
-    let placed: FootballScene | null;
+    let placed: FootballScene[];
     if (shown && i >= 0) {
       const kept = snaps[i]!.clone();
       kept.hash = shown.hash;
-      placed = spot(snaps.slice(i + 1), kept).at(-1) ?? kept;
+      placed = [kept, ...spot(snaps.slice(i + 1), kept)];
     } else {
-      placed = spot(snaps, shown).at(-1) ?? null;
+      placed = spot(snaps, shown);
     }
-    if (!placed) return changed;
-    this.state = footballTheaterState(placed, this.state, primed, now);
+    if (placed.length === 0) return changed;
+    this.state = { ...footballTheaterQueued(placed, stoppage, this.state, primed, now), heard: this.heard };
     return true;
   }
 }

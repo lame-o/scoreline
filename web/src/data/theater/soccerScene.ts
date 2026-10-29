@@ -32,6 +32,8 @@ import { BIG_CHANCE_XG, LATE_SECONDS, type PitchScale } from "../liveFeeds/socce
 import type { Side } from "../models";
 import type { Point } from "../mlb/theaterField";
 import { credit, isGoal, playID, string, teamID, type Credit } from "./soccerEntries";
+import type { SoccerEvent, SoccerTouch } from "./soccerIdle";
+import { seed64, SplitMix64 } from "./splitMix64";
 
 export { credit, isGoal, playID, teamID, type Credit } from "./soccerEntries";
 
@@ -280,9 +282,14 @@ export interface SoccerScene {
   decisive: boolean;
   /** Epoch milliseconds. */
   wallclock: number | null;
+  /** The half (1, 2; 3 and 4 in extra time): which end each team attacks. */
+  period?: number | null;
+  /** Drawn with the ends changed (`turned`, soccerIdle.ts): the second half, or the viewer's turn of the pitch. */
+  turnedRound?: boolean;
 }
 
-export const attacksRight = (scene: SoccerScene): boolean => scene.side === "top";
+/** Whether its team attacks the right-hand goal as drawn: home does in the data (as the Live Pitch draws it), unless the scene was turned round. */
+export const attacksRight = (scene: SoccerScene): boolean => (scene.side === "top") !== (scene.turnedRound === true);
 export const goalOf = (scene: SoccerScene): Point => Pitch.goal(attacksRight(scene));
 export const scored = (scene: SoccerScene): boolean => scene.outcome === "goal" || scene.outcome === "ownGoal";
 /** The touches that led to the shot by the team that took it. */
@@ -323,6 +330,18 @@ export interface SoccerTheaterState {
   readonly overturned?: SoccerScene | null;
   /** Both starting elevens and their nominal spots, from the match summary. */
   readonly lineups?: Lineups;
+  /** The events since (a corner, a foul, a booking, a substitution, a stoppage, the halves), oldest first: each gets its beat between moments. */
+  readonly events?: readonly SoccerEvent[];
+  /** From this order on, events are news (they arrived with the page open) and play their beats. */
+  readonly newsFrom?: number | null;
+  /** The moment's order in the feed: the events after it are the ones that follow it. */
+  readonly sceneOrder?: number | null;
+  /** The ball's whereabouts now: the team on it and where. */
+  readonly touch?: SoccerTouch | null;
+  /** The half being played: the ends change at half time. */
+  readonly period?: number | null;
+  /** When the feed last brought anything (epoch ms): the heartbeat counts from it. */
+  readonly heard?: number | null;
 }
 
 /** Lineups by side (Swift's `[GameDetail.Side: SoccerLineup]`). */
@@ -332,21 +351,13 @@ export type Lineups = Readonly<Partial<Record<Side, SoccerLineup>>>;
 
 const typeOf = (item: JSONValue): string => string(at(item, "type", "type")) ?? "";
 
-/** The plays the theater replays: goals (own goals and penalties too), saves, shots off the woodwork, blocks, big chances, penalties. */
+/** The plays the theater replays: goals (own goals and penalties too), every shot (saved, blocked, off the woodwork, wide), penalties. */
 export function isMoment(item: JSONValue): boolean {
   const type = typeOf(item);
   if (bool(at(item, "scoringPlay")) === true || type === "goal" || type.startsWith("goal---") || type === "own-goal") return true;
   if (bool(at(item, "penaltyKick")) === true || type.startsWith("penalty---")) return true;
-  switch (type) {
-    case "shot-on-target":
-    case "shot-blocked":
-    case "shot-hit-woodwork":
-      return true;
-    case "shot-off-target":
-      return (double(at(item, "expectedGoals")) ?? 0) >= BIG_CHANCE_XG;
-    default:
-      return false;
-  }
+  // Every shot: a speculative one from distance is its own short beat.
+  return type.startsWith("shot-");
 }
 
 /** The newest moment in a run of plays, with its build-up. */
@@ -383,12 +394,15 @@ export function parse(
   if (item === undefined || !isMoment(item)) return null;
   const id = playID(item);
   const team = teamID(item);
-  const from = place(item, "fieldPositionX", "fieldPositionY", homeTeamID, scale);
-  if (id == null || team == null || from == null) return null;
-  const type = typeOf(item);
+  if (id == null || team == null) return null;
   const text = string(at(item, "text")) ?? "";
-  const lower = text.toLowerCase();
   const side: Side = team === homeTeamID ? "top" : "bottom";
+  // Where it was struck from: where ESPN placed it, else where its words say.
+  const words = spotFromWords(text, seed64(id));
+  const from = place(item, "fieldPositionX", "fieldPositionY", homeTeamID, scale) ?? (words ? Pitch.metres(side === "top" ? words.x : 100 - words.x, side === "top" ? words.y : 100 - words.y) : null);
+  if (from == null) return null;
+  const type = typeOf(item);
+  const lower = text.toLowerCase();
 
   let outcome: Outcome;
   if (bool(at(item, "ownGoal")) === true || type === "own-goal") {
@@ -413,10 +427,12 @@ export function parse(
   shot.technique = header ? "header" : type === "goal---volley" || lower.includes("volley") ? "volley" : "foot";
   shot.xg = double(at(item, "expectedGoals"));
   shot.xgot = double(at(item, "expectedGoalsOnTarget"));
+  // Where it was going: ESPN's point in the goal mouth, else its words ("the bottom left corner").
   const gy = scaled(double(at(item, "goalPositionY")), scale);
-  if (gy != null) {
+  const aim = gy != null ? { y: gy, z: double(at(item, "goalPositionZ")) ?? 0 } : aimFromWords(text);
+  if (aim) {
     // In the shooter's frame like everything else: the away team's mouth turns round.
-    shot.mouth = { y: Pitch.across(side === "top" ? gy : 100 - gy), z: Pitch.height(double(at(item, "goalPositionZ")) ?? 0) };
+    shot.mouth = { y: Pitch.across(side === "top" ? aim.y : 100 - aim.y), z: Pitch.height(aim.z) };
   }
   if (outcome === "saved" || outcome === "blocked") {
     shot.stopped = place(item, "fieldPosition2X", "fieldPosition2Y", homeTeamID, scale);
@@ -463,6 +479,7 @@ export function parse(
   scene.topScore = int(at(item, "homeScore"));
   scene.bottomScore = int(at(item, "awayScore"));
   scene.wallclock = parseDate(string(at(item, "wallclock")));
+  scene.period = int(at(item, "period", "number"));
   scene.decisive = scored(scene) && decides(scene);
   if (shot.penalty) scene.start = "penalty";
 
@@ -539,6 +556,51 @@ export function parse(
     scene.keeperActions = [...before.flatMap((p) => keeperAction(p, homeTeamID, scale) ?? []), ...scene.keeperActions];
   }
   return scene;
+}
+
+/**
+ * Where a shot was struck from by its words, when ESPN didn't place it (in
+ * its team's frame, on Opta's 0…100): "from very close range", "from the
+ * left side of the six yard box", "from the centre of the box", "from
+ * outside the box", "from long range", "from a difficult angle on the
+ * right". Across the box or outside it, where the words don't say, seeded
+ * (the Mac's own generator: the same spot as the Mac's). (SoccerScene.spot(words:seed:); pure; tested)
+ */
+export function spotFromWords(text: string, seed: bigint): Point | null {
+  const lower = text.toLowerCase();
+  const random = new SplitMix64(seed);
+  const side = (centre: number, spread: number) =>
+    lower.includes("on the left") || lower.includes("left side") ? centre + spread : lower.includes("on the right") || lower.includes("right side") ? centre - spread : centre;
+  if (lower.includes("difficult angle")) return { x: lower.includes("long range") ? 84 : 93, y: side(50, 31) };
+  if (lower.includes("very close range")) return { x: 95, y: 50 + random.in(-3, 3) };
+  if (lower.includes("six yard box")) return { x: 95.5, y: side(50, 7) };
+  if (lower.includes("more than 35 yards")) return { x: 64, y: 50 + random.in(-12, 12) };
+  if (lower.includes("long range")) return { x: 72, y: 50 + random.in(-12, 12) };
+  if (lower.includes("outside the box")) return { x: 79, y: 50 + random.in(-14, 14) };
+  if (lower.includes("side of the box") || lower.includes("centre of the box")) return { x: 88, y: side(50 + random.in(-3, 3), 14) };
+  if (lower.includes("penalty")) return { x: 88.5, y: 50 };
+  return null;
+}
+
+/**
+ * Where a shot was going by its words, on the goal-line scale (the posts at
+ * 45.2 and 54.8, the bar at 38; the shooter's left is up the scale): "the
+ * bottom left corner", "the top right corner", "the centre of the goal",
+ * "high and wide to the left", "too high", "misses to the right", "close,
+ * but misses to the left". Null when they don't say. (SoccerScene.aim(words:); pure; tested)
+ */
+export function aimFromWords(text: string): { readonly y: number; readonly z: number } | null {
+  const lower = text.toLowerCase();
+  const left = lower.includes("left corner") || lower.includes("to the left") || lower.includes("left post");
+  const right = lower.includes("right corner") || lower.includes("to the right") || lower.includes("right post");
+  const wide = lower.includes("wide") || lower.includes("misses");
+  const high = lower.includes("high") || lower.includes("over the bar") || lower.includes("crossbar");
+  const top = lower.includes("top ") || lower.includes("top centre");
+  if (!(left || right || high || lower.includes("centre of the goal") || lower.includes("bottom") || top)) return null;
+  const close = lower.includes("close");
+  const y = left ? (wide ? (close ? 56.5 : 60) : 53.3) : right ? (wide ? (close ? 43.5 : 40) : 46.7) : 50;
+  const z = high ? (lower.includes("too high") || lower.includes("over") ? 52 : 46) : top ? 31 : lower.includes("bottom") ? 4 : wide ? 8 : 15;
+  return { y, z };
 }
 
 /** A keeper's entry as an action: a save, a punch (and where it landed), a claim, a smother, a rush off his line, a spill. */
@@ -917,6 +979,8 @@ export const SoccerScene = {
   minute,
   decides,
   surname,
+  spot: spotFromWords,
+  aim: aimFromWords,
 };
 
 // MARK: - Lineups
@@ -967,6 +1031,11 @@ export class SoccerLineup {
     const p = this.players.find((x) => x.athlete === athlete);
     if (!p) return null;
     return Pitch.metres(attacksRight ? p.spot.x : 100 - p.spot.x, attacksRight ? p.spot.y : 100 - p.spot.y);
+  }
+
+  /** A lineup laid out already (`SoccerLineup(team:formation:players:)`: the idle's stand-in when the summary has none). */
+  static laid(team: string, formation: string | null, players: readonly LineupPlayer[]): SoccerLineup {
+    return new SoccerLineup(team, formation, players);
   }
 
   /** One roster from the summary; null without a starting eleven (Swift's failable init). */
