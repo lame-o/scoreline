@@ -133,6 +133,50 @@ export function dress(kits: TheaterKits, scheme: Scheme): { top: Uniform; bottom
   return { top: uniform(top, accent(own.top)), bottom: home, rule: { kind: "whites", side: "bottom" } };
 }
 
+/**
+ * The officials' kits (PlayTheater.swift `Uniform.zebra`, `.referee`,
+ * `.umpire`), one look per sport so they never pass for a team's men:
+ * football's and basketball's zebra shirt with black trousers, soccer's
+ * referee in FIFA yellow with black shorts, baseball's umpire in navy with
+ * gray slacks; a black cap on each. On a light panel a pale shirt takes a
+ * rim of its own, as home whites do, instead of the white halo.
+ */
+const OFFICIAL_CAP = white(0.12);
+const BLACK_KIT = white(0.12);
+
+/** Football's and basketball's officials: the zebra shirt, black trousers. */
+export function zebra(scheme: Scheme): Uniform {
+  return { jersey: white(0.96), cap: OFFICIAL_CAP, piping: scheme === "dark" ? null : white(0.3), accent: "#ffffff", stripes: white(0.1), legs: BLACK_KIT };
+}
+
+/** Baseball's umpire: a navy shirt, gray slacks. */
+export function umpire(scheme: Scheme): Uniform {
+  return { jersey: "#213152", cap: OFFICIAL_CAP, piping: null, accent: "#ffffff", legs: white(scheme === "dark" ? 0.62 : 0.55) };
+}
+
+/** The referee's shirts, in the order he reaches for them. */
+export const REFEREE_SHIRTS = ["#fad61a", "#db2933", "#009e99", BLACK_KIT] as const;
+
+/**
+ * Soccer's referee and his assistants: FIFA yellow with black shorts, or,
+ * when yellow reads too close to either team's shirt, the first of red,
+ * teal and black that reads apart from both.
+ */
+export function referee(shirts: readonly string[], scheme: Scheme): Uniform {
+  const teams = shirts.map(oklabFromHex).filter((lab): lab is OKLab => lab !== null);
+  const clearance = (hex: string) => {
+    const own = oklabFromHex(hex);
+    if (own === null) return 0;
+    return teams.length === 0 ? Infinity : Math.min(...teams.map((t) => labDistance(own, t)));
+  };
+  const shirt =
+    REFEREE_SHIRTS.find((hex) => clearance(hex) >= APART) ??
+    REFEREE_SHIRTS.reduce((best, hex) => (clearance(hex) > clearance(best) ? hex : best), REFEREE_SHIRTS[0]);
+  const lab = oklabFromHex(shirt);
+  const rim = lab !== null && scheme === "light" && lab.l > 0.7 ? toHex(fromLCH(0.42, chroma(lab), hue(lab))) : null;
+  return { jersey: shirt, cap: OFFICIAL_CAP, piping: rim, accent: shirt, legs: BLACK_KIT };
+}
+
 /** The pair as batting and fielding, for the play's batting side (else the live one; else the visitors, who bat first). */
 export function theaterTeams(kits: TheaterKits, scheme: Scheme, batting: Side | null): TheaterTeams {
   const dressed = dress(kits, scheme);
