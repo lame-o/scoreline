@@ -255,6 +255,18 @@ extension ScorelineTests {
         check(stripesAcross == 4 && outside == 0 && legsDiffer && plainSame,
               "an official's kit: four stripes down the body at a theater's size and slacks of their own, all inside the outline; a plain uniform as it was",
               "\(stripesAcross) stripes, \(outside) pixels outside")
+
+        // Each sport's officials in their own kit: soccer's referee in yellow unless a team wears it.
+        let kitNavy = Color(red: 0.1, green: 0.15, blue: 0.35), kitRed = Color(red: 0.8, green: 0.1, blue: 0.15)
+        let villarrealYellow = Color(red: 0.99, green: 0.86, blue: 0.1)
+        let usual = Uniform.referee(against: [kitNavy, kitRed], dark: true)
+        let clash = Uniform.referee(against: [villarrealYellow, kitNavy], dark: true)
+        let both = Uniform.referee(against: [villarrealYellow, Uniform.refereeShirts[1]], dark: false)
+        let zebraKit = Uniform.zebra(dark: false)
+        check(usual.jersey == Uniform.refereeShirts[0] && clash.jersey == Uniform.refereeShirts[1] && both.jersey == Uniform.refereeShirts[2]
+              && usual.legs != nil && usual.piping == nil && Uniform.referee(against: [kitNavy], dark: false).piping != nil
+              && zebraKit.stripes != nil && zebraKit.legs != nil && zebraKit.piping != nil && Uniform.zebra(dark: true).piping == nil,
+              "officials' kits: the referee in yellow with black shorts, red when a team wears yellow, teal when red's taken too; the zebra with black trousers; pale shirts rimmed on a light panel")
     }
 
     /// Every figure of a replay, 30 frames a second and at rest, posed as the

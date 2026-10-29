@@ -271,21 +271,8 @@ struct FootballFrame: View, Equatable {
     /// The type, laid out once as views and drawn into each frame.
     private enum Symbol: Hashable { case stamp, banner, declined }
 
-    /// An official's stripes, as near as a pictogram gets: white, a black cap.
-    static let official = Uniform(jersey: Color(white: 0.93), cap: Color(white: 0.1), accent: .white)
     /// A team's trainers: slate, a pale cap.
     static let staff = Uniform(jersey: Color(red: 0.42, green: 0.47, blue: 0.53), cap: Color(white: 0.8), accent: Color(white: 0.5))
-
-    /// The officials against two teams: white with a black cap, or, when a
-    /// team is in whites, black with a white cap, so they never pass for its men.
-    static func officials(against teams: FootballTeams) -> Uniform {
-        func pale(_ c: Color) -> Bool {
-            guard let ns = NSColor(c).usingColorSpace(.sRGB) else { return false }
-            return ns.brightnessComponent > 0.78 && ns.saturationComponent < 0.25
-        }
-        return pale(teams.offense.jersey) || pale(teams.defense.jersey)
-            ? Uniform(jersey: Color(white: 0.14), cap: Color(white: 0.92), accent: .white) : official
-    }
 
     /// The broadcast's lines: the line of scrimmage blue, the line to gain yellow.
     static let scrimmageBlue = Color(red: 0.25, green: 0.52, blue: 1)
@@ -458,8 +445,8 @@ struct FootballFrame: View, Equatable {
 
     private func drawPlayers(_ context: inout GraphicsContext, _ f: GridProjection, _ figures: [Posed]) {
         let offense = FigureInks(teams.offense, ink: ink, in: context), defense = FigureInks(teams.defense, ink: ink, in: context)
-        // An official, only when one throws a flag (or between snaps): white, a black cap. A trainer in the staff's charcoal.
-        let official = script.players.contains { $0.team == .official } ? FigureInks(Self.officials(against: teams), ink: ink, in: context) : offense
+        // An official, only when one throws a flag (or between snaps): the zebra shirt. A trainer in the staff's slate.
+        let official = script.players.contains { $0.team == .official } ? FigureInks(.zebra(dark: ink.dark), ink: ink, in: context) : offense
         let staff = script.players.contains { $0.team == .staff } ? FigureInks(Self.staff, ink: ink, in: context) : offense
         for p in figures {
             let inks = switch script.players[p.index].team {

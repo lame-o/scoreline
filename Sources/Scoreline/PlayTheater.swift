@@ -304,6 +304,48 @@ struct Uniform: Equatable {
     }
 }
 
+/// The officials' kits, one look per sport so they never pass for a team's
+/// men: football's and basketball's zebra shirt with black trousers, soccer's
+/// referee in FIFA yellow with black shorts, baseball's umpire in navy with
+/// gray slacks; a black cap on each. On a light panel a pale shirt takes a
+/// rim of its own, as home whites do, instead of the white halo.
+extension Uniform {
+    private static let officialCap = Color(white: 0.12)
+    private static let blackKit = Color(white: 0.12)
+
+    /// Football's and basketball's officials: the zebra shirt, black trousers.
+    static func zebra(dark: Bool) -> Uniform {
+        Uniform(jersey: Color(white: 0.96), cap: officialCap, piping: dark ? nil : Color(white: 0.3), accent: .white,
+                stripes: Color(white: 0.1), legs: blackKit)
+    }
+
+    /// Baseball's umpire: a navy shirt, gray slacks.
+    static func umpire(dark: Bool) -> Uniform {
+        Uniform(jersey: Color(red: 0.13, green: 0.19, blue: 0.32), cap: officialCap, accent: .white,
+                legs: Color(white: dark ? 0.62 : 0.55))
+    }
+
+    /// The referee's shirts, in the order he reaches for them.
+    static let refereeShirts = [Color(red: 0.98, green: 0.84, blue: 0.1), Color(red: 0.86, green: 0.16, blue: 0.2),
+                                Color(red: 0.0, green: 0.62, blue: 0.6), blackKit]
+
+    /// Soccer's referee and his assistants: FIFA yellow with black shorts, or,
+    /// when yellow reads too close to either team's shirt, the first of red,
+    /// teal and black that reads apart from both. (pure; tested)
+    static func referee(against shirts: [Color], dark: Bool) -> Uniform {
+        func lab(_ c: Color) -> OKLab? { NSColor(c).usingColorSpace(.sRGB).flatMap(OKLab.init) }
+        let teams = shirts.compactMap(lab)
+        func clearance(_ c: Color) -> Double {
+            guard let own = lab(c) else { return 0 }
+            return teams.map { own.distance(to: $0) }.min() ?? .infinity
+        }
+        let shirt = refereeShirts.first { clearance($0) >= TheaterTeams.apart }
+            ?? refereeShirts.max { clearance($0) < clearance($1) } ?? refereeShirts[0]
+        let rim = lab(shirt).flatMap { !dark && $0.l > 0.7 ? Color(nsColor: OKLab(l: 0.42, chroma: $0.chroma, hue: $0.hue).nsColor) : nil }
+        return Uniform(jersey: shirt, cap: officialCap, piping: rim, accent: shirt, legs: blackKit)
+    }
+}
+
 /// The two teams on the field, always told apart at a glance.
 struct TheaterTeams: Equatable {
     var batting: Uniform

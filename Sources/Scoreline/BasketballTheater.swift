@@ -300,12 +300,6 @@ extension TheaterInk {
 struct BasketballTeams: Equatable {
     var offense: Uniform
     var defense: Uniform
-
-    /// A referee, as near as a pictogram gets for now: a gray shirt, a black
-    /// cap. The one place the basketball officials' kit lives (every
-    /// referee the theater draws wears this), for when the figure painter
-    /// can stripe a shirt and color the legs (zebra stripes, black trousers).
-    static let official = Uniform(jersey: Color(white: 0.62), cap: Color(white: 0.1), accent: .white)
 }
 
 /// Basketball's poses, relative to his heading (where he faces). Arms swing
@@ -518,8 +512,8 @@ struct BasketballFrame: View, Equatable {
 
     private func drawPlayers(_ context: inout GraphicsContext, _ h: HoopProjection, _ figures: [Posed]) {
         let offense = FigureInks(teams.offense, ink: ink, in: context), defense = FigureInks(teams.defense, ink: ink, in: context)
-        // The referee, only when one comes in to make a call: gray, a black cap.
-        let official = script.players.contains { $0.team == .official } ? FigureInks(BasketballTeams.official, ink: ink, in: context) : offense
+        // The referee, only when one comes in to make a call: the zebra shirt.
+        let official = script.players.contains { $0.team == .official } ? FigureInks(.zebra(dark: ink.dark), ink: ink, in: context) : offense
         for p in figures {
             let player = script.players[p.index]
             let inks = switch player.team {

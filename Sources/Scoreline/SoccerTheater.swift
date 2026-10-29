@@ -391,7 +391,7 @@ struct SoccerFrame: View, Equatable {
     private func drawStage(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed]) -> CGPoint? {
         let attacking = FigureInks(teams.attacking, ink: ink, in: context)
         let defending = FigureInks(teams.defending, ink: ink, in: context)
-        let officials = script.actors.contains { $0.team == .official } ? FigureInks(Self.officials(against: teams), ink: ink, in: context) : defending
+        let officials = script.actors.contains { $0.team == .official } ? FigureInks(.referee(against: [teams.attacking.jersey, teams.defending.jersey], dark: ink.dark), ink: ink, in: context) : defending
         let staff = script.actors.contains { $0.team == .staff } ? FigureInks(FootballFrame.staff, ink: ink, in: context) : defending
         enum Item {
             case actor(Int)
@@ -442,18 +442,6 @@ struct SoccerFrame: View, Equatable {
             }
         }
         return hands
-    }
-
-    /// The officials against two teams: black, or, when a team is in a dark
-    /// kit, the referee's yellow, so they never pass for its men.
-    static func officials(against teams: SoccerTeams) -> Uniform {
-        func dark(_ c: Color) -> Bool {
-            guard let ns = NSColor(c).usingColorSpace(.sRGB) else { return false }
-            return ns.brightnessComponent < 0.3
-        }
-        return dark(teams.attacking.jersey) || dark(teams.defending.jersey)
-            ? Uniform(jersey: Color(red: 0.95, green: 0.86, blue: 0.18), cap: Color(white: 0.12), accent: .yellow)
-            : Uniform(jersey: Color(white: 0.1), cap: Color(white: 0.1), accent: .white)
     }
 
     /// What a man holds up: the referee's card, the assistant's flag, the
