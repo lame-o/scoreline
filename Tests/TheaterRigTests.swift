@@ -155,6 +155,106 @@ extension ScorelineTests {
         let ends = toward.limbs.filter { abs($0.root.y - toward.hip.y) < 2 }.map(\.end)
         check(ends.count == 2 && abs(ends[0].y - ends[1].y) > abs(ends[0].x - ends[1].x),
               "running at the camera his stride goes toward and away from the lens: the feet apart in depth")
+
+        // MARK: Drawn
+
+        // Facing the camera: the head goes over hands cocked behind it and arms raised beside it, under an arm across its face.
+        let facing = -Double.pi / 2
+        func overHead(_ pose: RigPose) -> [(arm: Bool, crosses: Bool, under: Bool)] {
+            let k = RigSkeleton(pose), figure = RigFigure(k, heading: facing, lens: lens)
+            let hands = [k.hands.0, k.hands.1].map { lens.point(Rig.yaw($0, facing)) }
+            return figure.limbs.map { l in
+                let gap = min(RigFigure.nearest(figure.head, l.root, l.joint).gap, RigFigure.nearest(figure.head, l.joint, l.end).gap)
+                return (hands.contains(l.end), gap < figure.headRadius + figure.limb / 2, l.underHead)
+            }
+        }
+        let cocked = overHead(RigPose(lean: -0.18, leftArm: RigArm(swing: 3.0, spread: 0.18, turn: -0.2, bend: 0.8),
+                                      rightArm: RigArm(swing: 3.0, spread: 0.18, turn: -0.2, bend: 0.8)))
+        let raised = overHead(RigPose(leftArm: RigArm(swing: 3.05, spread: 0.1, turn: -0.1, bend: 0.06),
+                                      rightArm: RigArm(swing: 3.05, spread: 0.1, turn: -0.1, bend: 0.06)))
+        let across = overHead(RigPose(lean: -0.06, rightArm: RigArm(swing: 2.85, spread: 0.08, turn: -0.1, bend: 0.1)))
+        let atEase = overHead(.stand)
+        check(cocked.filter(\.arm).allSatisfy { $0.crosses && $0.under } && raised.filter(\.arm).allSatisfy { $0.crosses && $0.under }
+              && across.contains { $0.arm && $0.crosses && !$0.under } && atEase.allSatisfy { !$0.crosses && !$0.under }
+              && [cocked, raised, across, atEase].joined().allSatisfy { $0.crosses || !$0.under },
+              "the head goes over hands cocked behind it and arms raised beside it, under an arm across its face; clear of it, neither")
+
+        // Drawn as one solid figure: the outline one shape, never darker where its parts meet or where a limb's
+        // line meets it; and fading, one layer: half the figure, not half of each part over the others.
+        let white = Uniform(jersey: .white, cap: .white, accent: .white)
+        func pixels(_ figure: RigFigure, opacity: Double, in uniform: Uniform = white) -> [UInt8] {
+            let side = 240
+            let view = Canvas { context, _ in
+                let inks = FigureInks(uniform, ink: TheaterInk(.dark), in: context)
+                TheaterDraw.figure(figure, inks: inks, height: 60, opacity: opacity, in: context)
+            }.frame(width: 120, height: 120)
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 2
+            guard let image = renderer.cgImage, let space = CGColorSpace(name: CGColorSpace.sRGB) else { return [] }
+            var bytes = [UInt8](repeating: 0, count: side * side * 4)
+            let drawn = bytes.withUnsafeMutableBytes { buffer -> Bool in
+                guard let c = CGContext(data: buffer.baseAddress, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side * 4,
+                                        space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+                c.draw(image, in: CGRect(x: 0, y: 0, width: side, height: side))
+                return true
+            }
+            return drawn ? bytes : []
+        }
+        // A big figure (60 pt) in the middle of the well.
+        var big = lens
+        func grown(_ v: CGVector) -> CGVector { CGVector(dx: v.dx * 60 / lens.height, dy: v.dy * 60 / lens.height) }
+        (big.origin, big.x, big.y, big.z, big.height) = (CGPoint(x: 60, y: 108), grown(lens.x), grown(lens.y), grown(lens.z), 60)
+        let poses: [(RigPose, Double)] = [(.stand, facing), (striding, 0), (striding, .pi * 0.75), (.catchHigh, facing), (.release, -0.6)]
+        var darkest = 0.0, apart = 0.0
+        for (pose, heading) in poses {
+            let figure = RigFigure(pose, heading: heading, lens: big)
+            let solid = pixels(figure, opacity: 1), faded = pixels(figure, opacity: 0.5)
+            guard solid.count == faded.count, !solid.isEmpty else { darkest = .infinity; break }
+            for i in stride(from: 0, to: solid.count, by: 4) {
+                // Outside the jersey (next to no white in it), the outline alone: never darker than the halo's half over what's left.
+                if solid[i] < 4 { darkest = max(darkest, (Double(solid[i + 3]) - Double(solid[i])) / (255 - Double(solid[i]))) }
+                apart = max(apart, (0..<4).map { abs(Double(faded[i + $0]) - Double(solid[i + $0]) / 2) }.max() ?? 0)
+            }
+        }
+        check(darkest <= 0.5 + 3.0 / 255, "the outline is one shape: never darker where the figure's parts meet",
+              String(format: "%.3f", darkest))
+        check(apart <= 2, "a fading figure fades as one: half the figure, never one part showing through another",
+              String(format: "%.0f/255 apart", apart))
+
+        // An official's kit: stripes down the body (four at a theater's size) and the sleeves, legs in their own color,
+        // all inside the figure (its outline untouched); a plain uniform exactly as it was.
+        var striped = white, slacks = white, own = white
+        striped.stripes = .black
+        slacks.legs = .black
+        own.legs = .white
+        var stripesAcross = 0, outside = 0, legsDiffer = false, plainSame = true
+        for (pose, heading) in poses {
+            let figure = RigFigure(pose, heading: heading, lens: big)
+            let plain = pixels(figure, opacity: 1), zebra = pixels(figure, opacity: 1, in: striped)
+            let trousers = pixels(figure, opacity: 1, in: slacks), same = pixels(figure, opacity: 1, in: own)
+            guard !plain.isEmpty, plain.count == zebra.count, plain.count == trousers.count, plain.count == same.count else { outside = .max; break }
+            // Outside the jersey the figure covers just what it did: the outline's shape and strength (an edge's color may differ).
+            for i in stride(from: 0, to: plain.count, by: 4) where plain[i] < 4 {
+                if abs(Int(zebra[i + 3]) - Int(plain[i + 3])) > 2 || abs(Int(trousers[i + 3]) - Int(plain[i + 3])) > 2 { outside += 1 }
+            }
+            legsDiffer = legsDiffer || plain != trousers
+            plainSame = plainSame && plain == same
+        }
+        // Across the middle of the body, square to the camera with his arms out of the way: the dark stripes counted.
+        let spread = RigFigure(RigPose(leftArm: RigArm(spread: 1.3), rightArm: RigArm(spread: 1.3)), heading: facing, lens: big)
+        let zebra = pixels(spread, opacity: 1, in: striped)
+        if !zebra.isEmpty {
+            let y = Int(spread.hip.y + spread.neck.y), x0 = Int((spread.hip.x - spread.torso * 0.45) * 2), x1 = Int((spread.hip.x + spread.torso * 0.45) * 2)
+            var dark = false
+            for x in x0...x1 {
+                let now = zebra[(y * 240 + x) * 4] < 96
+                if now, !dark { stripesAcross += 1 }
+                dark = now
+            }
+        }
+        check(stripesAcross == 4 && outside == 0 && legsDiffer && plainSame,
+              "an official's kit: four stripes down the body at a theater's size and slacks of their own, all inside the outline; a plain uniform as it was",
+              "\(stripesAcross) stripes, \(outside) pixels outside")
     }
 
     /// Every figure of a replay, 30 frames a second and at rest, posed as the

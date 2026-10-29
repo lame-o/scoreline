@@ -282,6 +282,11 @@ struct Uniform: Equatable {
     var piping: Color? = nil
     /// Type in the team's color: a hit's stamp, the banner, the runs pill.
     var accent: Color
+    /// An official's shirt: stripes of this color down the jersey (the
+    /// body and the sleeves), inside the figure (nil: a plain jersey).
+    var stripes: Color? = nil
+    /// An official's shorts or slacks: the legs in this color (nil: the jersey's).
+    var legs: Color? = nil
 
     init(_ color: Color) {
         jersey = color
@@ -289,11 +294,13 @@ struct Uniform: Equatable {
         accent = color
     }
 
-    init(jersey: Color, cap: Color, piping: Color? = nil, accent: Color) {
+    init(jersey: Color, cap: Color, piping: Color? = nil, accent: Color, stripes: Color? = nil, legs: Color? = nil) {
         self.jersey = jersey
         self.cap = cap
         self.piping = piping
         self.accent = accent
+        self.stripes = stripes
+        self.legs = legs
     }
 }
 

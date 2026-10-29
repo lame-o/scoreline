@@ -19,9 +19,10 @@ import SwiftUI
 // blended joint by joint: feet as IK targets, arms by their joints, knees
 // and elbows only ever bending their own way.
 //
-// Drawn as before, rim first; its limbs sorted by depth every frame, so the
-// ones behind the body are shaded and covered and the ones in front cross
-// it with a rim of their own, swapping as it turns.
+// Drawn as one solid figure, one outline round all of it; its limbs sorted
+// by depth every frame, so the ones behind the body are shaded and covered
+// and the ones in front cross it with a fine line of their own, swapping as
+// it turns, and the head goes over an arm behind it and under one across it.
 
 /// A point or direction in a figure's space, in body units: forward, left, up.
 typealias RigVector = SIMD3<Double>
@@ -730,9 +731,19 @@ struct RigFigure {
         var shade: Int
         var front: Bool
         var depth: Double
+        /// Where it crosses the head on screen, the head is in front of it
+        /// (hands cocked behind it, an arm raised past it): it's drawn before
+        /// the head. Clear of the head, or across its face, it's drawn after.
+        var underHead = false
+        /// An arm (the jersey's sleeve), not a leg.
+        var arm = false
     }
 
     static let shades = 5
+    /// How far in front of the head's middle a limb must pass to cross its
+    /// face, in body units (about half the head's radius): an arm raised
+    /// beside it stays behind it.
+    static let face = 0.06
 
     var hip: CGPoint
     var neck: CGPoint
@@ -773,15 +784,32 @@ struct RigFigure {
         // Each limb against the body: which side of the spine it's on, toward the camera or away.
         var spine = k.neck - k.hip
         spine /= max((spine * spine).sum().squareRoot(), 1e-9)
+        // And against the head: at the point of it nearest the head's middle on screen, the further from the lens.
+        let face = head, reach = headRadius + limb / 2, behind = depth(k.head) - Self.face
         func part(_ a: RigVector, _ b: RigVector, _ e: RigVector) -> Limb {
             let v = (a + 2 * b + e) / 4 - k.hip
             let d = depth(v - spine * (v * spine).sum())
             let shade = Int((min(max(d / 0.05, 0), 1) * Double(Self.shades - 1)).rounded())
-            return Limb(root: screen(a), joint: screen(b), end: screen(e), shade: shade, front: d < 0, depth: d)
+            var l = Limb(root: screen(a), joint: screen(b), end: screen(e), shade: shade, front: d < 0, depth: d)
+            var nearest = (gap: CGFloat.infinity, depth: 0.0)
+            for (p, q, dp, dq) in [(l.root, l.joint, depth(a), depth(b)), (l.joint, l.end, depth(b), depth(e))] {
+                let (gap, u) = Self.nearest(face, p, q)
+                if gap < nearest.gap { nearest = (gap, dp + (dq - dp) * Double(u)) }
+            }
+            l.underHead = nearest.gap < reach && nearest.depth > behind
+            return l
         }
-        limbs = [part(k.hips.0, k.knees.0, k.feet.0), part(k.hips.1, k.knees.1, k.feet.1),
-                 part(k.shoulders.0, k.elbows.0, k.hands.0), part(k.shoulders.1, k.elbows.1, k.hands.1)]
-            .sorted { $0.depth > $1.depth }
+        var arms = [part(k.shoulders.0, k.elbows.0, k.hands.0), part(k.shoulders.1, k.elbows.1, k.hands.1)]
+        arms[0].arm = true
+        arms[1].arm = true
+        limbs = ([part(k.hips.0, k.knees.0, k.feet.0), part(k.hips.1, k.knees.1, k.feet.1)] + arms).sorted { $0.depth > $1.depth }
+    }
+
+    /// How far a point is from a segment, and how far along it the nearest point is (0 at `a`, 1 at `b`).
+    static func nearest(_ p: CGPoint, _ a: CGPoint, _ b: CGPoint) -> (gap: CGFloat, along: CGFloat) {
+        let dx = b.x - a.x, dy = b.y - a.y, length = dx * dx + dy * dy
+        let u = length > 1e-12 ? min(max(((p.x - a.x) * dx + (p.y - a.y) * dy) / length, 0), 1) : 0
+        return (hypot(p.x - a.x - dx * u, p.y - a.y - dy * u), u)
     }
 
     /// Moved on screen (a keeper's hands taken to the ball).
