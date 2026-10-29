@@ -583,10 +583,10 @@ struct PlayFrame: View, Equatable {
             let figures = posed(f)
             drawShadows(&context, f, figures)
             // The names on the field, under all that plays: the ball's path and its dust too.
-            drawTags(context, f, figures)
+            let stems = drawTags(context, f, figures)
             drawTrace(&context, f)
             drawPuffs(&context, f)
-            drawFigures(&context, f, figures)
+            drawFigures(&context, f, figures, stems: stems)
             drawZone(&context, f)
             drawBall(&context, f)
             drawFlashes(&context, f)
@@ -599,8 +599,9 @@ struct PlayFrame: View, Equatable {
         }
     }
 
-    /// The names round the figures, drawn under them and the ball, clear of the pitch's label, the headline and the mark while they're up.
-    private func drawTags(_ context: GraphicsContext, _ f: FieldProjection, _ figures: [Posed]) {
+    /// The names round the figures, drawn under them and the ball, clear of the pitch's label, the headline and the mark while they're up;
+    /// the raised ones' stems, to draw with their men.
+    private func drawTags(_ context: GraphicsContext, _ f: FieldProjection, _ figures: [Posed]) -> [Int: [TheaterTags.Stem]] {
         let inset = max(f.size.height * 0.055, 9)
         var clear: [CGRect] = []
         if let label = script.label, t > label.lowerBound - 0.1, t < label.upperBound + 0.3, let symbol = context.resolveSymbol(id: Symbol.pitch) {
@@ -618,7 +619,7 @@ struct PlayFrame: View, Equatable {
                                     .insetBy(dx: -0.6, dy: -0.6)), height: f.figure, opacity: b.opacity)
         }
         let well = f.size
-        tags.draw(figures.map { p in
+        return tags.draw(figures.map { p in
             TheaterTags.Figure(index: p.index, figure: p.figure, height: f.figure, opacity: p.opacity, held: heldBat(p, f).map { ($0.line, $0.width + 1.4) })
         }, ball: ball, t: t, size: f.size, clear: clear, ring: ink.tagRing,
            replay: TheaterReplay(length: script.duration) { Self.spots(script, at: $0, size: well) }, in: context)
@@ -805,7 +806,8 @@ struct PlayFrame: View, Equatable {
             }
     }
 
-    private func drawFigures(_ context: inout GraphicsContext, _ f: FieldProjection, _ figures: [Posed]) {
+    /// Far to near, each with the stem of his raised name just before him.
+    private func drawFigures(_ context: inout GraphicsContext, _ f: FieldProjection, _ figures: [Posed], stems: [Int: [TheaterTags.Stem]]) {
         let batting = FigureInks(teams.batting, ink: ink, in: context), fielding = FigureInks(teams.fielding, ink: ink, in: context)
         // The umpires in their own kit (Uniform.umpire), never a team's.
         let officials = script.actors.contains { $0.team == .official } ? FigureInks(.umpire(dark: ink.dark), ink: ink, in: context) : fielding
@@ -819,6 +821,7 @@ struct PlayFrame: View, Equatable {
             case .fielding: fielding
             case .official: officials
             }
+            stems[p.index]?.forEach { $0.draw(in: context) }
             TheaterDraw.figure(p.figure, inks: inks, height: f.figure, opacity: p.opacity, in: context)
             if let bat = heldBat(p, f) {
                 var layer = context

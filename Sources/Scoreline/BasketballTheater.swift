@@ -175,6 +175,24 @@ enum HoopsCourtLayer {
         var t = Double.infinity
     }
 
+    /// A basket's room on screen (`end` as `basket`'s): its glass, its rim
+    /// and its net, what a name raised over the paint keeps clear of.
+    static func room(_ h: HoopProjection, end: Double) -> CGRect {
+        let L = Hoops.length, W = Hoops.width
+        let rim = end > 0 ? Hoops.rim : CGPoint(x: L - Hoops.rim.x, y: W / 2)
+        let board = end > 0 ? Hoops.board : L - Hoops.board
+        var points: [CGPoint] = []
+        for y in [W / 2 - 3, W / 2 + 3] {
+            for z in [Hoops.boardBottom, Hoops.boardTop] { points.append(h.point(CGPoint(x: board, y: y), z: z)) }
+        }
+        for a in stride(from: 0.0, to: 2 * .pi, by: .pi / 4) {
+            points.append(h.point(CGPoint(x: rim.x + Hoops.rimRadius * cos(a), y: rim.y + Hoops.rimRadius * sin(a)), z: Hoops.rimHeight))
+        }
+        points.append(h.point(rim, z: Hoops.rimHeight - 1.55))
+        let xs = points.map(\.x), ys = points.map(\.y)
+        return CGRect(x: xs.min()!, y: ys.min()!, width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!)
+    }
+
     /// One basket in the play's frame (`end` 1: the one the offense attacks):
     /// its back (the stanchion, the backboard, the far half of the rim) or
     /// its front (the near half of the rim and the net).
@@ -432,10 +450,10 @@ struct BasketballFrame: View, Equatable {
             let figures = posed(h), ball = ballPoint(h, figures)
             drawShadows(&context, h, figures)
             // The names on the court, under all that plays: the baskets too.
-            drawTags(context, h, figures, ball: ball?.point)
+            let stems = drawTags(context, h, figures, ball: ball?.point)
             let motion = HoopsCourtLayer.Motion(net: script.net, rimHit: script.rimHit, rimStrength: script.rimStrength, t: t)
             for end in [-1.0, 1.0] { HoopsCourtLayer.basket(context, h, ink: ink, end: end, front: false, motion: motion) }
-            drawPlayers(&context, h, figures)
+            drawPlayers(&context, h, figures, stems: stems)
             if let ball, ball.inHoop { drawBall(&context, h, at: ball.point) }
             for end in [-1.0, 1.0] { HoopsCourtLayer.basket(context, h, ink: ink, end: end, front: true, motion: motion) }
             if let ball, !ball.inHoop { drawBall(&context, h, at: ball.point) }
@@ -449,8 +467,9 @@ struct BasketballFrame: View, Equatable {
         }
     }
 
-    /// The names round the players, drawn under them and the ball, clear of the headline and the stamp while they're up.
-    private func drawTags(_ context: GraphicsContext, _ h: HoopProjection, _ figures: [Posed], ball: CGPoint?) {
+    /// The names round the players, drawn under them and the ball, clear of the headline and the stamp while they're up;
+    /// the raised ones' stems, to draw with their men.
+    private func drawTags(_ context: GraphicsContext, _ h: HoopProjection, _ figures: [Posed], ball: CGPoint?) -> [Int: [TheaterTags.Stem]] {
         var clear: [CGRect] = []
         if let banner = script.banner, t >= banner.at, t < banner.until + 0.3, let symbol = context.resolveSymbol(id: Symbol.banner) {
             clear.append(TheaterTagLayout.banner(symbol.size, in: h.size))
@@ -463,18 +482,19 @@ struct BasketballFrame: View, Equatable {
             return TheaterTags.Ball(shape: Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), height: h.figure)
         }
         let well = h.size
-        tags.draw(figures.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: h.figure, opacity: script.players[$0.index].opacity(at: t)) },
+        return tags.draw(figures.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: h.figure,
+                                                          opacity: script.players[$0.index].opacity(at: t)) },
                   ball: disc, t: t, size: h.size, clear: clear, ring: ink.tagRing,
                   replay: TheaterReplay(length: script.duration) { Self.spots(script, at: $0, size: well) }, in: context)
     }
 
-    /// Each player's spot on screen at t and the ball's, through the camera, no posing.
+    /// Each player's spot on screen at t and the ball's, through the camera, no posing; and the baskets'.
     static func spots(_ script: BasketballScript, at t: Double, size: CGSize) -> TheaterSpots {
         let h = HoopProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw)
         return TheaterSpots(figures: script.players.indices.filter { script.players[$0].opacity(at: t) > 0.01 }.map { i in
             let lens = RigLens(h, at: script.players[i].position(at: t))
             return (i, lens.origin, lens.height)
-        }, ball: script.ball(at: t).map { h.point($0) })
+        }, ball: script.ball(at: t).map { h.point($0) }, fixtures: [-1.0, 1.0].map { HoopsCourtLayer.room(h, end: $0) })
     }
 
     // MARK: Players
@@ -543,7 +563,8 @@ struct BasketballFrame: View, Equatable {
         }
     }
 
-    private func drawPlayers(_ context: inout GraphicsContext, _ h: HoopProjection, _ figures: [Posed]) {
+    /// Far to near, each with the stem of his raised name just before him.
+    private func drawPlayers(_ context: inout GraphicsContext, _ h: HoopProjection, _ figures: [Posed], stems: [Int: [TheaterTags.Stem]]) {
         let offense = FigureInks(teams.offense, ink: ink, in: context), defense = FigureInks(teams.defense, ink: ink, in: context)
         // The referee, only when one comes in to make a call: the zebra shirt.
         let official = script.players.contains { $0.team == .official } ? FigureInks(.zebra(dark: ink.dark), ink: ink, in: context) : offense
@@ -554,6 +575,7 @@ struct BasketballFrame: View, Equatable {
             case .defense: defense
             case .official: official
             }
+            stems[p.index]?.forEach { $0.draw(in: context) }
             TheaterDraw.figure(p.figure, inks: inks, height: h.figure, opacity: player.opacity(at: t), in: context)
         }
     }

@@ -280,6 +280,11 @@ extension ScorelineTests {
         check(crowd[1] == nil, "…and waits when there's no room under him either")
         let off = TheaterTagLayout.place([ask(400, 60, feet: 90, pointer: false)], in: well, clear: [])
         check(off[0] == nil, "a man out of the well gets no tag")
+        let beneath = TheaterTagLayout.place([ask(160, 157, feet: 184, pointer: true)], in: well, clear: [])
+        check(beneath[0] == nil && TheaterTags.entering(ask(160, 155, feet: 182, pointer: true), well) == 0
+              && abs(TheaterTags.entering(ask(160, 152, feet: 179, pointer: true), well) - 0.5) < 0.01
+              && TheaterTags.entering(ask(160, 140, feet: 167, pointer: true), well) == 1,
+              "nor one under its bottom edge (a tag held there would name nobody in the picture); coming up over it, his tag comes in with him")
         var nudged = ask(160, 80, feet: 104, pointer: false), below = nudged
         nudged.spot = TheaterTagSpot(nudge: 0.25)
         below.spot = TheaterTagSpot(under: true)
@@ -313,16 +318,114 @@ extension ScorelineTests {
         let corner = replay { _ in [(1, CGPoint(x: 118, y: 88), 24), (2, CGPoint(x: 133, y: 87), 24)] }
         let side = TheaterTagPlan.choose(0, tag: tag, pointer: false, over: all, in: well, clear: [], replay: corner)
         check(side == TheaterTagSpot(nudge: 0.25), "two men at its left end: nudged right a quarter of its width, still over his head", "\(side)")
-        check(TheaterTagPlan.spot(0, tag: tag, pointer: false, over: all, in: well, heartbeat: nil, replay: corner, scope: "test|corner") == side
-              && TheaterTagPlan.spot(0, tag: tag, pointer: false, over: all, in: well, heartbeat: nil, replay: huddle, scope: "test|corner") == side,
+        check(TheaterTagPlan.ranked(0, tag: tag, pointer: false, over: all, in: well, heartbeat: nil, replay: corner, scope: "test|corner").first == side
+              && TheaterTagPlan.ranked(0, tag: tag, pointer: false, over: all, in: well, heartbeat: nil, replay: huddle, scope: "test|corner").first == side,
               "chosen once per stretch and kept: asked again for the same replay, the same spot without looking")
-        // Off his head, a hairline to him from the tag's nearest edge: down to his head, or up to his feet.
-        let him0 = ask(160, 76, feet: 102.4, pointer: false)
-        let up = TheaterTags.leader(from: CGRect(x: 142.5, y: 58.6, width: 70, height: 14.4), to: him0, ground: 100).boundingRect
-        let down = TheaterTags.leader(from: CGRect(x: 125, y: 105.4, width: 70, height: 14.4), to: him0, ground: 100).boundingRect
-        check(abs(up.minX - 160) < 0.01 && up.width < 0.01 && abs(up.minY - 73) < 0.01 && abs(up.maxY - 77) < 0.01
-              && abs(down.minX - 160) < 0.01 && abs(down.minY - 100) < 0.01 && abs(down.maxY - 105.4) < 0.01,
-              "a tag moved off his head keeps a hairline to him: from its edge to his head, or to his feet", "\(up) \(down)")
+        // Where every spot round him stays crowded (men behind him over his head, men in front under his feet, either side),
+        // raised over the crowd as a callout, by the least that clears it.
+        let row: [(index: Int, ground: CGPoint, height: CGFloat)] = [(1, CGPoint(x: 140, y: 88), 24), (2, CGPoint(x: 160, y: 87), 24),
+                                                                     (3, CGPoint(x: 180, y: 88), 24)]
+        let front: [(index: Int, ground: CGPoint, height: CGFloat)] = [(4, CGPoint(x: 135, y: 124), 24), (5, CGPoint(x: 160, y: 125), 24),
+                                                                       (6, CGPoint(x: 185, y: 124), 24)]
+        let packed = replay { _ in row + front }
+        let lifted = TheaterTagPlan.choose(0, tag: tag, pointer: false, over: all, in: well, clear: [], replay: packed)
+        check(lifted == TheaterTagSpot(lift: 0.5), "crowded over his head, either side and under his feet: raised clear of them, half his height up",
+              "\(lifted)")
+        let deeper = replay { _ in row.map { ($0.index, CGPoint(x: $0.ground.x, y: $0.ground.y - 12), $0.height) } + front }
+        let higher = TheaterTagPlan.choose(0, tag: tag, pointer: false, over: all, in: well, clear: [], replay: deeper)
+        check(higher == TheaterTagSpot(lift: 1), "the men behind him standing further up: it rises further, to the first height that clears them",
+              "\(higher)")
+        let briefly = replay { t in t >= 1 && t < 1.6 ? row + front : [] }
+        check(TheaterTagPlan.choose(0, tag: tag, pointer: false, over: all, in: well, clear: [], replay: briefly) == TheaterTagSpot(),
+              "a crowd round him for a moment doesn't raise it (the rings take them)")
+        let roof = replay { _ in row + front + [(7, CGPoint(x: 172, y: 62), 24), (8, CGPoint(x: 172, y: 40), 24)] }
+        let other = TheaterTagPlan.choose(0, tag: tag, pointer: false, over: all, in: well, clear: [], replay: roof)
+        check(other == TheaterTagSpot(nudge: -0.45, lift: 0.5), "men further up behind him, in the callout's way: it rises over him nudged clear of them",
+              "\(other)")
+        let basket = TheaterReplay(length: 5) { _ in TheaterSpots(figures: [(0, CGPoint(x: 160, y: 100), 24)] + row + front, ball: nil,
+                                                                fixtures: [CGRect(x: 170, y: 40, width: 30, height: 22)]) }
+        let beside = TheaterTagPlan.choose(0, tag: tag, pointer: false, over: all, in: well, clear: [], replay: basket)
+        check(beside == TheaterTagSpot(nudge: -0.45, lift: 0.5), "a basket where his callout would go: it rises beside it, kept clear of it as of a man",
+              "\(beside)")
+        let court = HoopProjection(size: well, camera: CameraFrame(x: Hoops.length - 20, y: Hoops.width / 2, span: 60), yaw: 0)
+        let hoop = HoopsCourtLayer.room(court, end: 1), rim = court.point(Hoops.rim, z: Hoops.rimHeight)
+        check(hoop.insetBy(dx: -0.01, dy: -0.01).contains(rim) && hoop.maxY < court.point(Hoops.rim).y && hoop.minY < rim.y - 4 && hoop.width > 4,
+              "a basket's room: its glass, rim and net, over the floor under it", "\(hoop) rim \(rim)")
+        // The ball's path, not only where the samples land: a ball flown across his tag between two moments covers it.
+        let pass = TheaterTagPlan.ball(CGRect(x: 0, y: 0, width: 70, height: 14.4), at: CGPoint(x: 90, y: 7), from: CGPoint(x: -20, y: 7), reach: 3)
+        let still = TheaterTagPlan.ball(CGRect(x: 0, y: 0, width: 70, height: 14.4), at: CGPoint(x: 35, y: 7), from: nil, reach: 3)
+        let clear = TheaterTagPlan.ball(CGRect(x: 0, y: 0, width: 70, height: 14.4), at: CGPoint(x: 90, y: 40), from: CGPoint(x: -20, y: 30), reach: 3)
+        check(abs(pass - 76 * 6) < 0.01 && abs(still - 36) < 0.01 && clear == 0,
+              "the ball covers its box where it is, or all the way it flew across a tag since the last moment", "\(pass) \(still) \(clear)")
+        let passes = TheaterReplay(length: 5) { t in
+            TheaterSpots(figures: [(0, CGPoint(x: 160, y: 100), 24)], ball: CGPoint(x: Int((t * 10).rounded()) % 2 == 0 ? 100 : 220, y: 66))
+        }
+        check(TheaterTagPlan.choose(0, tag: tag, pointer: false, over: all, in: well, clear: [], replay: passes) == TheaterTagSpot(under: true),
+              "the ball passed back and forth over his head (never there when sampled): his tag goes under his feet")
+
+        // The callout, where it goes: a fixed offset over where he stands, kept in the well by sinking back toward him.
+        func stands(_ y: CGFloat, _ spot: TheaterTagSpot) -> TheaterTagLayout.Ask {
+            TheaterTagPlan.ask(spot, tag: tag, ground: CGPoint(x: 160, y: y), height: 24, pointer: false)
+        }
+        let up = TheaterTagLayout.raised(stands(100, TheaterTagSpot(lift: 1)), in: well)
+        let nudgedUp = TheaterTagLayout.raised(stands(100, TheaterTagSpot(nudge: -0.25, lift: 0.5)), in: well)
+        check(up == CGRect(x: 125, y: 100 - 24 - 3 - 14.4 - 24, width: 70, height: 14.4)
+              && nudgedUp == CGRect(x: 107.5, y: 100 - 24 - 3 - 14.4 - 12, width: 70, height: 14.4),
+              "a callout raised his height over the spot over his head (or half of it, nudged a quarter across)",
+              "\(String(describing: up)) \(String(describing: nudgedUp))")
+        let high = TheaterTagLayout.raised(stands(52, TheaterTagSpot(lift: 1)), in: well)
+        check(high == CGRect(x: 125, y: 4, width: 70, height: 14.4) && TheaterTagLayout.raised(stands(38, TheaterTagSpot(lift: 1)), in: well) == nil
+              && TheaterTagLayout.raised(stands(100, TheaterTagSpot()), in: well) == nil,
+              "near the top it sinks to the well's margin, still over his head; with no room over him, or not raised, none",
+              "\(String(describing: high))")
+        let statusRoom = CGRect(x: 0, y: 8, width: 150, height: 18)
+        let placedUp = TheaterTagLayout.place([stands(100, TheaterTagSpot(lift: 1.5))], in: well, clear: [statusRoom])[0]
+        check(placedUp.map { abs($0.minY - 28) < 0.01 && $0.minX == 125 } == true,
+              "a callout meeting the status tag sinks just under it, still over him", "\(String(describing: placedUp))")
+        // Under his feet only lightly crossed (a man in front there for a while): it stays round him, the callout next in
+        // line (where the pointer's tag takes his place).
+        let light = replay { t in row + (t < 2 ? [(5, CGPoint(x: 160, y: 125), 24)] : []) }
+        let order = TheaterTagPlan.rank(0, tag: tag, pointer: false, over: all, in: well, clear: [], replay: light)
+        check(order.first == TheaterTagSpot(under: true) && order.dropFirst().first == TheaterTagSpot(lift: 0.5),
+              "the best spot round him only lightly covered: it stays there (a callout only where he's in a crowd), the callout next",
+              order.prefix(3).map { "\($0)" }.joined(separator: ", "))
+        let pushed = TheaterTagLayout.place([TheaterTagPlan.ask(TheaterTagSpot(), tag: tag, ground: CGPoint(x: 160, y: 140), height: 24, pointer: true),
+                                             { var a = stands(100, order[0]); a.then = Array(order.dropFirst()); return a }()], in: well, clear: [])
+        check(pushed[1] == TheaterTagLayout.raised(stands(100, TheaterTagSpot(lift: 0.5)), in: well),
+              "the pointer's tag on the man in front, where his would go: his rises over the crowd, its next best, not into it",
+              "\(pushed.map { String(describing: $0) })")
+
+        // Its stem, from the tag's edge nearest him to just over his head; none where it'd be a tick against him.
+        func stem(_ r: CGRect?, _ ask: TheaterTagLayout.Ask) -> String {
+            guard let r, let s = TheaterTagLayout.stem(r, to: ask, in: well) else { return "none" }
+            return String(format: "(%.1f, %.1f)→(%.1f, %.1f)", s.from.x, s.from.y, s.to.x, s.to.y)
+        }
+        let him0 = stands(100, TheaterTagSpot(lift: 1)), cut = 14.4 * SlideMetrics.lean
+        let over0 = CGRect(x: 125, y: 58.6, width: 70, height: 14.4)
+        check(stem(up, him0) == "(160.0, 48.5)→(160.0, 73.5)",
+              "a callout's stem: straight down from the middle of its bottom edge (tucked under the slab) to 2.5 pt over his head", stem(up, him0))
+        let aside = CGRect(x: 200, y: 30, width: 70, height: 14.4)
+        check(stem(aside, him0) == String(format: "(202.0, 43.9)→(160.0, 73.5)"),
+              "pushed off to one side: from the near end of its bottom edge, inside the slab's corner", stem(aside, him0))
+        let wide = CGRect(x: 60, y: 30, width: 70, height: 14.4)
+        check(stem(wide, him0) == String(format: "(%.1f, 43.9)→(160.0, 73.5)", 130 - cut - 2), "…at the trailing end, inside its cut", stem(wide, him0))
+        check(stem(over0, him0) == "none" && stem(over0.offsetBy(dx: 17.5, dy: 0), him0) == "none"
+              && stem(CGRect(x: 125, y: 105.4, width: 70, height: 14.4), him0) == "none",
+              "a tag over his head, nudged, or under his feet has none: it's plainly his, and a stem there would be a tick lost against him")
+        check(stem(CGRect(x: 125, y: 137.6, width: 70, height: 14.4), stands(185, TheaterTagSpot())) == "none",
+              "nor one held at the well's bottom edge over a man under it: a stem there would point at nobody")
+        check(TheaterTags.stem(10) == 0.75 && abs(TheaterTags.stem(24) - 0.96) < 0.01 && TheaterTags.stem(56) == 1,
+              "the stem a hairline in small figures, a point in the compact panel's usual ones, never more")
+        // The pointer's tag wins: a callout that would sit on it, or run its stem through it, steps aside.
+        let pointerTag = TheaterTagLayout.place([TheaterTagPlan.ask(TheaterTagSpot(), tag: tag, ground: CGPoint(x: 160, y: 100), height: 24, pointer: true)],
+                                                in: well, clear: [])[0]
+        let behind = TheaterTagPlan.ask(TheaterTagSpot(lift: 1.25), tag: tag, ground: CGPoint(x: 160, y: 112), height: 24, pointer: false)
+        let pair2 = TheaterTagLayout.place([TheaterTagPlan.ask(TheaterTagSpot(), tag: tag, ground: CGPoint(x: 160, y: 100), height: 24, pointer: true), behind],
+                                           in: well, clear: [])
+        check(pair2[0] == pointerTag && TheaterTagLayout.raised(behind, in: well).map { !$0.intersects(pointerTag ?? .null) } == true
+              && pair2[1].map { $0.minY >= behind.feet } == true,
+              "the key man's callout clear of the pointer's tag but its stem through it: he steps under his feet instead",
+              "\(pair2.map { String(describing: $0) })")
         func named(_ i: Int) -> TheaterCast.Member { TheaterCast.Member(who: .known(TheaterPerson(name: "Man \(i)")), side: .top, id: "a:\(i)") }
         let switched = TheaterCast(members: [3: named(3), 7: named(7)], keys: [TheaterCast.Key(from: -.infinity, figure: 3), TheaterCast.Key(from: 2.4, figure: 7)])
         check(switched.stretch(at: 1) == -.infinity..<2.4 && switched.stretch(at: 3) == 2.4..<Double.infinity,
