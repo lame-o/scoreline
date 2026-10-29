@@ -296,10 +296,10 @@ struct FootballFrame: View, Equatable {
             let figures = posed(f), held = figures.lazy.compactMap(\.ball).first
             drawShadows(&context, f, figures)
             // The names on the field, under all that plays: the posts and a flag in the air too.
-            drawTags(context, f, figures, held: held)
+            let stems = drawTags(context, f, figures, held: held)
             GridironLayer.posts(context, f, ink: ink)
             drawFlag(&context, f)
-            drawPlayers(&context, f, figures)
+            drawPlayers(&context, f, figures, stems: stems)
             drawBall(&context, f, held: held)
             drawFlashes(&context, f)
             drawLabels(&context, f)
@@ -454,7 +454,8 @@ struct FootballFrame: View, Equatable {
         return Rig.smooth((t - pass.at + 0.34) / 0.14)
     }
 
-    private func drawPlayers(_ context: inout GraphicsContext, _ f: GridProjection, _ figures: [Posed]) {
+    /// Far to near, each with the stem of his raised name just before him.
+    private func drawPlayers(_ context: inout GraphicsContext, _ f: GridProjection, _ figures: [Posed], stems: [Int: [TheaterTags.Stem]]) {
         let offense = FigureInks(teams.offense, ink: ink, in: context), defense = FigureInks(teams.defense, ink: ink, in: context)
         // An official, only when one throws a flag (or between snaps): the zebra shirt. A trainer in the staff's slate.
         let official = script.players.contains { $0.team == .official } ? FigureInks(.zebra(dark: ink.dark), ink: ink, in: context) : offense
@@ -466,6 +467,7 @@ struct FootballFrame: View, Equatable {
             case .official: official
             case .staff: staff
             }
+            stems[p.index]?.forEach { $0.draw(in: context) }
             TheaterDraw.figure(p.figure, inks: inks, height: f.figure, opacity: p.opacity, in: context)
         }
     }
@@ -672,8 +674,9 @@ struct FootballFrame: View, Equatable {
         }
     }
 
-    /// The names round the players, drawn under them and the ball, clear of the headline and the stamp while they're up.
-    private func drawTags(_ context: GraphicsContext, _ f: GridProjection, _ figures: [Posed], held: CGPoint?) {
+    /// The names round the players, drawn under them and the ball, clear of the headline and the stamp while they're up;
+    /// the raised ones' stems, to draw with their men.
+    private func drawTags(_ context: GraphicsContext, _ f: GridProjection, _ figures: [Posed], held: CGPoint?) -> [Int: [TheaterTags.Stem]] {
         var clear: [CGRect] = []
         if let banner = script.banner, t >= banner.at, t < banner.until + 0.3, let symbol = context.resolveSymbol(id: Symbol.banner) {
             clear.append(TheaterTagLayout.banner(symbol.size, in: f.size))
@@ -687,7 +690,7 @@ struct FootballFrame: View, Equatable {
                              height: f.f.figure)
         }
         let well = f.size
-        tags.draw(figures.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: f.f.figure, opacity: $0.opacity) }, ball: ball, t: t,
+        return tags.draw(figures.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: f.f.figure, opacity: $0.opacity) }, ball: ball, t: t,
                   size: f.size, clear: clear, ring: ink.tagRing, replay: TheaterReplay(length: script.duration) { Self.spots(script, at: $0, size: well) },
                   in: context)
     }

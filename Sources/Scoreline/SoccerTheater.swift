@@ -312,9 +312,9 @@ struct SoccerFrame: View, Equatable {
             let figures = posed(f), hands = held(figures)
             drawShadows(&context, f, figures)
             // The names on the pitch, under all that plays: the move's trail and the goals too.
-            drawTags(context, f, figures, hands: hands)
+            let stems = drawTags(context, f, figures, hands: hands)
             drawTrails(&context, f)
-            drawStage(&context, f, figures)
+            drawStage(&context, f, figures, stems: stems)
             drawBall(&context, f, hands: hands)
             drawImpacts(&context, f)
             drawLabels(&context, f)
@@ -327,8 +327,9 @@ struct SoccerFrame: View, Equatable {
         }
     }
 
-    /// The names round the players, drawn under them and the ball, clear of the headline and the stamp while they're up.
-    private func drawTags(_ context: GraphicsContext, _ f: PitchProjection, _ figures: [Posed], hands: CGPoint?) {
+    /// The names round the players, drawn under them and the ball, clear of the headline and the stamp while they're up;
+    /// the raised ones' stems, to draw with their men.
+    private func drawTags(_ context: GraphicsContext, _ f: PitchProjection, _ figures: [Posed], hands: CGPoint?) -> [Int: [TheaterTags.Stem]] {
         var clear: [CGRect] = []
         for (i, banner) in script.banners.enumerated() where t >= banner.at && t < banner.until + 0.3 {
             if let symbol = context.resolveSymbol(id: Symbol.banner(i)) { clear.append(TheaterTagLayout.banner(symbol.size, in: f.size)) }
@@ -342,7 +343,7 @@ struct SoccerFrame: View, Equatable {
             return TheaterTags.Ball(shape: Path(ellipseIn: CGRect(x: b.point.x - r, y: b.point.y - r, width: 2 * r, height: 2 * r)), height: b.height,
                                     opacity: b.opacity)
         }
-        tags.draw(shown.map { i in
+        return tags.draw(shown.map { i in
             let seen = script.actors[i].opacity(at: t)
             return TheaterTags.Figure(index: i, figure: figures[i].figure, height: figures[i].height, opacity: seen,
                                       drawn: script.actors[i].shaped ? seen * receding(figures[i].figure.ground, size: f.size) : nil)
@@ -432,8 +433,9 @@ struct SoccerFrame: View, Equatable {
         return figures[i].hands
     }
 
-    /// The goals and the players, far to near (a man in front of the post covers it).
-    private func drawStage(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed]) {
+    /// The goals and the players, far to near (a man in front of the post
+    /// covers it), each with the stem of his raised name just before him.
+    private func drawStage(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed], stems: [Int: [TheaterTags.Stem]]) {
         let attacking = FigureInks(teams.attacking, ink: ink, in: context)
         let defending = FigureInks(teams.defending, ink: ink, in: context)
         let officials = script.actors.contains { $0.team == .official } ? FigureInks(.referee(against: [teams.attacking.jersey, teams.defending.jersey], dark: ink.dark), ink: ink, in: context) : defending
@@ -471,6 +473,8 @@ struct SoccerFrame: View, Equatable {
                 let actor = script.actors[i], figure = figures[i]
                 let shown = actor.opacity(at: t)
                 guard shown > 0.01 else { continue }
+                // The stem of his raised name just before him: over the men behind him, under the men in front.
+                stems[i]?.forEach { $0.draw(in: context) }
                 let inks = switch actor.team {
                 case .attacking: attacking
                 case .defending: defending
