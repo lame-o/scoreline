@@ -65,7 +65,7 @@ export interface Frame {
   readonly domain: Domain;
   readonly dividers: readonly number[];
   readonly body: TwoWayFrame | ThreeWayFrame;
-  /** Cut the end's ring (live and before the game; a final ends quietly). The dot itself is a DOM layer. */
+  /** Cut the end's ring (live, before the game, and a two-way final; soccer's final ends on its bands). The dot itself is a DOM layer. */
   readonly endDot: boolean;
   /** DraftKings' marks (not in the 10-minute window, where the left edge is ten minutes ago, not the start). */
   readonly pregame: boolean;

@@ -244,6 +244,7 @@ export const OddsChart = memo(function OddsChart({ snapshot, feed, basis, state,
   const view: View = useMemo(() => ({ from: domain.from, to: domain.to, value: target.value, shares: target.shares }), [domain, target]);
 
   // The badge's widest text ("MIN 100%"), measured once, so the plot reserves room for it and it never clips.
+  // A final has no badge (the header says the result): its room goes to the game, the curve the full width.
   const showBadge = !final;
   const pillWidth = useMemo(() => {
     if (typeof document === "undefined") return 60;
@@ -303,7 +304,8 @@ export const OddsChart = memo(function OddsChart({ snapshot, feed, basis, state,
         plot: L.plot,
         domain: d,
         dividers: periodGuides(L.basis.periods, d, L.plot, (s) => measure(s, LABEL_FONT)).dividers,
-        endDot: L.state !== "final",
+        // A final keeps its end dot (two-way; no badge, no pulse); soccer's final ends on its bands alone.
+        endDot: L.state !== "final" || !L.threeWay,
         pregame: L.span !== "10m" || L.state !== "live",
         reveal: reveal.current.value,
         body: L.threeWay
@@ -316,7 +318,7 @@ export const OddsChart = memo(function OddsChart({ snapshot, feed, basis, state,
       // The DOM layers follow the end.
       const end = endLayer.current;
       const tag = badge.current;
-      const visible = drawn.dot != null && drawn.leader != null && L.state !== "final" && reveal.current.value > 0;
+      const visible = drawn.dot != null && drawn.leader != null && (L.state !== "final" || !L.threeWay) && reveal.current.value > 0;
       if (end) end.style.opacity = visible ? String(reveal.current.value) : "0";
       if (tag) tag.style.opacity = visible ? String(reveal.current.value) : "0";
       if (!visible || !drawn.dot || !drawn.leader) return;
@@ -459,7 +461,11 @@ export const OddsChart = memo(function OddsChart({ snapshot, feed, basis, state,
     const before = previous.current;
     previous.current = current;
     const el = chevron.current;
-    if (!el || final) return;
+    if (!el) return;
+    if (final) {
+      el.dataset.show = "false";
+      return;
+    }
     let gainer: Outcome | null = null;
     if (threeWay) {
       const moves = (["top", "draw", "bottom"] as const).map((o) => ({ o, d: (current[o] ?? 0) - (before[o] ?? current[o] ?? 0) }));
@@ -628,7 +634,7 @@ export const OddsChart = memo(function OddsChart({ snapshot, feed, basis, state,
             {names.bottom}
           </span>
           {live ? <span ref={pulse} className={styles.pulse} aria-hidden="true" /> : null}
-          <div ref={endLayer} className={styles.end} aria-hidden="true">
+          <div ref={endLayer} className={styles.end} data-part="end" aria-hidden="true">
             <span className={styles.dot} />
             <span ref={chevron} className={styles.chevron} data-show="false">
               <svg viewBox="0 0 8 5" width="8" height="5">
@@ -641,7 +647,7 @@ export const OddsChart = memo(function OddsChart({ snapshot, feed, basis, state,
               <svg className={styles.badgeShape} preserveAspectRatio="none">
                 <path ref={badgeShape} />
               </svg>
-              <span ref={badgeText} className={styles.badgeText} />
+              <span ref={badgeText} className={styles.badgeText} data-part="badge" />
             </div>
           ) : null}
           {readout && scrubX != null ? (
@@ -649,7 +655,7 @@ export const OddsChart = memo(function OddsChart({ snapshot, feed, basis, state,
               <span className={styles.rule} style={{ transform: `translateX(${scrubX * pt}px)` }} aria-hidden="true" />
               {readout.mark?.espn != null ? <span className={styles.mark} data-kind="espn" style={{ transform: `translate(${scrubX * pt}px, ${y(readout.mark.espn) * pt}px)` }} aria-hidden="true" /> : null}
               {readout.mark?.pm != null ? <span className={styles.mark} style={{ transform: `translate(${scrubX * pt}px, ${y(readout.mark.pm) * pt}px)`, color: css(readout.mark.pm >= 0.5 ? palette.top : palette.bottom) }} aria-hidden="true" /> : null}
-              <div ref={tooltip} className={styles.tooltip} aria-hidden="true">
+              <div ref={tooltip} className={styles.tooltip} data-part="tooltip" aria-hidden="true">
                 <p className={styles.tipWhen}>{readout.when}</p>
                 <ul className={styles.tipRows}>
                   {readout.rows.map((r) => (
