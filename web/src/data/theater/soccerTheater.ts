@@ -4,7 +4,8 @@
  * framing, the stamp's second line, the caption's sentences, who
  * celebrates what (`GoalCelebration`), and what the theater shows from the
  * live lane (`SoccerTheaterWatch`, the lane's `updateTheater` kept outside
- * the lane). The drawing is features/game/soccer/theater.
+ * the lane), and who's who for the names over the pitch (`soccerCast`). The
+ * drawing is features/game/soccer/theater.
  */
 import { cueFor, presetFor, sparks, cueDuration, type CelebrationCue, type CelebrationLevel, type Effect } from "../celebrations";
 import { at, num, type JSONValue } from "../json";
@@ -13,12 +14,13 @@ import { pitchScale, REVIEW_MS, type PitchScale } from "../liveFeeds/soccer";
 import { decisive, type LiveMoment } from "../moments";
 import { CameraFrame } from "../mlb/playCamera";
 import type { FieldPoint, Point } from "../mlb/theaterField";
-import { attacksRight, goalOf, isMoment, keepers, latest, parse, Pitch, playID, readLineups, scored, type Person, type SoccerScene, type SoccerTheaterState } from "./soccerScene";
+import { attacksRight, goalOf, isMoment, keepers, latest, parse, Pitch, playID, readLineups, scored, type Lineups, type Person, type SoccerScene, type SoccerTheaterState } from "./soccerScene";
 import { pitchBursts, theaterOwns } from "./goalCelebrationRules";
 import { string } from "./soccerEntries";
-import { parseEvent, parseTouch, type SoccerEvent, type SoccerTouch } from "./soccerIdle";
+import { parseEvent, parseTouch, type SoccerEvent, type SoccerIdle, type SoccerTouch } from "./soccerIdle";
 import { PitchCamera, PitchFrame, type Basis, type SoccerScript } from "./soccerScript";
 import { TheaterBurst } from "./theaterKit";
+import { known, TEAM_ONLY, TheaterCast, theaterPerson, type CastMember, type TheaterPerson, type TheaterWho } from "./theaterNames";
 
 export { stampDetail } from "./soccerScene";
 
@@ -332,6 +334,82 @@ export class SoccerTheaterWatch {
     if (!scene) return null;
     return soccerTheaterState(scene, this.state, primed, now);
   }
+}
+
+// MARK: - Names
+
+/**
+ * Who each figure is, for the names over the pitch (SoccerTheater.swift
+ * § Names): all twenty-two, by athlete (the men in the move as ESPN credits
+ * them, everyone else from the lineups at his formation's nominal spot, each
+ * change made by then), with the squad's number and the place he plays in
+ * the shape (a substitute takes the place of the man he came on for); the
+ * officials and the staff nobody. A man only the idle's plain 4-4-2 knows
+ * (no lineups yet) is his team's. `lineups`: as they were then. `key`: the
+ * athlete the moment is about. (pure; tested)
+ */
+export function soccerCast(script: SoccerScript, attacking: Side, lineups: Lineups, people: Readonly<Record<string, TheaterPerson>>, key: string | null, scope: string): TheaterCast {
+  const members = new Map<number, CastMember>();
+  script.actors.forEach((actor, i) => {
+    let side: Side;
+    switch (actor.team) {
+      case "attacking":
+        side = attacking;
+        break;
+      case "defending":
+        side = attacking === "top" ? "bottom" : "top";
+        break;
+      default:
+        return;
+    }
+    let who: TheaterWho = TEAM_ONLY;
+    const athlete = actor.athlete;
+    if (athlete != null) {
+      const slot = lineups[side]?.players.find((p) => p.athlete === athlete) ?? null;
+      const person = people[athlete] ?? (actor.name === "" || actor.name === athlete ? null : theaterPerson(actor.name));
+      if (person) {
+        const place = (slot ? tagPosition(slot.position) : null) ?? (person.position != null ? tagPosition(person.position) : null);
+        who = known({ ...person, position: place, number: person.number ?? slot?.jersey ?? null });
+      }
+    }
+    members.set(i, TheaterCast.member(who, side, athlete, i, scope));
+  });
+  const figure = key == null ? null : script.actors.findIndex((a, i) => a.athlete === key && members.has(i));
+  return TheaterCast.of(members, figure != null && figure >= 0 ? figure : null);
+}
+
+/**
+ * Who the pitch between moments is about: the man in the event on the
+ * stage (booked, whistled, offside, coming on, down); nobody while the ball
+ * just goes round. (pure; tested)
+ */
+export function idleKeyMan(idle: SoccerIdle): string | null {
+  const e = idle.event;
+  if (!e) return null;
+  switch (e.kind.type) {
+    case "card":
+    case "foul":
+    case "handball":
+    case "offside":
+    case "substitution":
+    case "injury":
+      return e.athlete;
+    default:
+      return null;
+  }
+}
+
+/** A lineup place as a tag says it: ESPN's "G", "CD-L", "AM-R", "F" as GK, CB, AM, ST. Null for a substitute's "SUB". (pure; tested) */
+export function tagPosition(espn: string): string | null {
+  const p = espn.toUpperCase();
+  if (p === "G" || p === "GK") return "GK";
+  if (p.startsWith("CD") || p === "CB") return "CB";
+  if (p.startsWith("CM")) return "CM";
+  if (p.startsWith("AM")) return "AM";
+  if (p.startsWith("DM")) return "DM";
+  if (["F", "CF", "FW", "ST"].includes(p) || p.startsWith("CF-")) return "ST";
+  if (["LB", "RB", "LWB", "RWB", "LM", "RM", "LW", "RW", "SW"].includes(p)) return p;
+  return null;
 }
 
 /** `SoccerTheaterState ==`: the same moment, as parsed, the same news, the same goal struck off and the same lineups; the same events, ball and half, heard at the same time. */

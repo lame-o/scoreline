@@ -137,6 +137,10 @@ export function useBaseballPage(game: GameContext): SportPage {
               situation={situation}
               inning={inning}
               live={feed.loaded}
+              topTeam={event.content.kind === "match" ? event.content.top.name : ""}
+              bottomTeam={event.content.kind === "match" ? event.content.bottom.name : ""}
+              people={detail.people}
+              fielders={detail.fielders}
             />
           </Suspense>
         </BaseballDiamond>

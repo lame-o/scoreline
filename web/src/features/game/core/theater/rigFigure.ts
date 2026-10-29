@@ -425,6 +425,23 @@ export function drawFigure(ctx: Ctx, f: RigFigure, inks: FigureInks, height: num
   ctx.globalAlpha = 1;
 }
 
+/**
+ * The figure's silhouette as the current path: its outline (every part
+ * grown by the halo, as `draw` fills it) grown `by` further, wound so it
+ * fills as one shape. The ring round a man crossing a name tag.
+ */
+export function figureOutline(ctx: Ctx, f: RigFigure, height: number, by: number): void {
+  const halo = Math.max(height * 0.045, 0.8) + by;
+  const w = f.limb / 2;
+  ctx.beginPath();
+  for (const l of f.limbs) {
+    capsule(ctx, l.root, l.joint, w + halo);
+    capsule(ctx, l.joint, l.end, w + halo);
+  }
+  capsule(ctx, f.hip, f.neck, f.torso / 2 + halo);
+  capsule(ctx, f.head, f.head, f.headRadius + halo);
+}
+
 function draw(ctx: Ctx, f: RigFigure, inks: FigureInks, height: number): void {
   const halo = Math.max(height * 0.045, 0.8);
   const w = f.limb / 2;

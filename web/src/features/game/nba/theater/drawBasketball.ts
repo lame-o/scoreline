@@ -3,22 +3,25 @@
  * `HoopPose`, `BasketballFrame`; BasketballScript.swift `HoopProjection` and
  * the court's `RigLens`): the court from a high sideline through the
  * broadcast camera, turned a third of the way round, then one frame of the
- * play: the shadows, the baskets' backs, the players far to near, the ball,
- * the nets and the rims' fronts, the beats, the headline and the stamp.
+ * play: the shadows, the names over the players (under everything that
+ * plays), the baskets' backs, the players far to near, the ball, the nets
+ * and the rims' fronts, the beats, the headline and the stamp.
  * Everything is projected through the camera, so lines stay crisp at any
  * zoom; nothing is a scaled bitmap. Type is laid out once per play and size
  * (`layoutLabels`).
  */
-import type { CameraFrame } from "../../../../data/mlb/playCamera";
+import type { CameraFrame, Rect } from "../../../../data/mlb/playCamera";
 import { houseCurve, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
 import { zebra, type Uniform } from "../../../../data/mlb/theaterTeams";
 import type { Side } from "../../../../data/models";
 import { defense, type BasketballScene } from "../../../../data/theater/basketballScene";
+import { TheaterTagLayout, type TagFrame } from "../../../../data/theater/theaterNames";
 import { BasketballScript, basketballStamp, Hoops, view, type Player } from "../../../../data/theater/basketballScript";
 import { gait, keyed, mix, over, Rig, rigArm, rigPose, RigPoses, RigTrack, skeleton, vec, type RigPose, type RigVector } from "../../../../data/theater/rig";
 import { FieldProjection } from "../../core/theater/fieldProjection";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
 import { hsb, rgba, type RGB, type TheaterInk } from "../../mlb/theater/theaterInk";
+import { drawTags, ringBall, ringFigure, type PlacedTags } from "../../core/theater/theaterTags";
 import {
   accentOf,
   ASCENT,
@@ -1020,6 +1023,8 @@ export interface FrameInputs {
   readonly teams: BasketballTeams;
   readonly ink: TheaterInk;
   readonly labels: Labels;
+  /** The names over the players: the pointer's, the key man's. */
+  readonly tags?: TagFrame | null;
 }
 
 /** A player posed and placed at t; with the ball, where it is in his hands. */
@@ -1031,20 +1036,22 @@ interface Posed {
 
 /**
  * One frame of a play through the camera, after the court (BasketballFrame):
- * the shadows, the baskets' backs, the players far to near, the ball, the
+ * the shadows, the names over the players (on the floor, under everything
+ * that plays), the baskets' backs, the players far to near, the ball, the
  * nets and the rims' fronts, the beats, the headline and the stamp.
  */
 export function drawBasketballFrame(ctx: Ctx, h: HoopProjection, input: FrameInputs): void {
   const { script, t, ink } = input;
   const figures = posed(h, input);
   drawShadows(ctx, h, input, figures);
+  const placed = drawNames(ctx, h, input, figures);
   const motion: BasketMotion = { net: script.net, rimHit: script.rimHit, rimStrength: script.rimStrength, t };
   for (const end of [-1, 1]) drawBasket(ctx, h, ink, end, false, motion);
-  drawPlayers(ctx, h, input, figures);
+  drawPlayers(ctx, h, input, figures, placed);
   const ball = ballPoint(h, input, figures);
-  if (ball?.inHoop) drawBall(ctx, h, input, ball.point);
+  if (ball?.inHoop) drawBall(ctx, h, input, ball.point, placed);
   for (const end of [-1, 1]) drawBasket(ctx, h, ink, end, true, motion);
-  if (ball && !ball.inHoop) drawBall(ctx, h, input, ball.point);
+  if (ball && !ball.inHoop) drawBall(ctx, h, input, ball.point, placed);
   drawFlashes(ctx, h, input);
   drawLabels(ctx, h, input);
 }
@@ -1112,7 +1119,22 @@ function drawShadows(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInput
   }
 }
 
-function drawPlayers(ctx: Ctx, h: HoopProjection, { script, t, teams, ink }: FrameInputs, figures: readonly Posed[]): void {
+/**
+ * The names over the players, clear of the headline and the stamp while
+ * they're up: drawn on the floor, before the baskets and the players, so
+ * nothing that plays is ever under one.
+ */
+function drawNames(ctx: Ctx, h: HoopProjection, { script, t, ink, labels, tags }: FrameInputs, figures: readonly Posed[]): PlacedTags | null {
+  if (!tags) return null;
+  const clear: Rect[] = [];
+  const banner = script.banner;
+  if (banner && labels.banner && t >= banner.at && t < banner.until + 0.3) clear.push(TheaterTagLayout.banner(labels.banner, h.size));
+  if (labels.stamp && t >= script.stamp) clear.push(TheaterTagLayout.stamp(labels.stamp, h.size, TheaterType.inset(h.size)));
+  const people = figures.map((p) => ({ index: p.index, figure: p.figure, height: h.figure, opacity: script.players[p.index]!.opacity(t) }));
+  return drawTags(ctx, tags, people, t, h.size, clear, ink.dark);
+}
+
+function drawPlayers(ctx: Ctx, h: HoopProjection, { script, t, teams, ink }: FrameInputs, figures: readonly Posed[], placed: PlacedTags | null): void {
   const offense = figureInks(teams.offense, ink);
   const defenseInks = figureInks(teams.defense, ink);
   // The referee, only when one comes in to make a call: the zebra shirt.
@@ -1120,6 +1142,7 @@ function drawPlayers(ctx: Ctx, h: HoopProjection, { script, t, teams, ink }: Fra
   for (const p of figures) {
     const player = script.players[p.index]!;
     const inks = player.team === "offense" ? offense : player.team === "defense" ? defenseInks : official;
+    ringFigure(ctx, placed, p.figure, h.figure, player.opacity(t));
     drawFigure(ctx, p.figure, inks, h.figure, player.opacity(t));
   }
 }
@@ -1134,7 +1157,7 @@ function ballPoint(h: HoopProjection, { script, t }: FrameInputs, figures: reado
 }
 
 /** The basketball: a glowing core with its comet tail while it flies. */
-function drawBall(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInputs, p: Point): void {
+function drawBall(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInputs, p: Point, placed: PlacedTags | null): void {
   const leather = hoopsInk(ink).leather;
   // A touch larger than life: it's what the eye follows.
   const r = Math.min(Math.max(0.5 * h.scale, 2.1), Math.max(h.figure * 0.09, 2.1));
@@ -1147,6 +1170,7 @@ function drawBall(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInputs, 
   } else if (t < script.settle) {
     drawGlow(ctx, p, r * 0.8, ink, 0.6);
   }
+  ringBall(ctx, placed, p, r);
   ellipse(ctx, p.x, p.y, r + 0.6, r + 0.6);
   ctx.fillStyle = ink.ballEdge;
   ctx.fill();

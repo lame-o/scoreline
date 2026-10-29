@@ -8,15 +8,17 @@
  * projected through the camera, so lines stay crisp at any zoom; nothing is
  * a scaled bitmap. Type is laid out once per play and size (`layoutLabels`).
  */
-import type { CameraFrame } from "../../../../data/mlb/playCamera";
+import type { CameraFrame, Rect } from "../../../../data/mlb/playCamera";
 import { easeValue, houseCurve, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
 import { zebra, type Uniform } from "../../../../data/mlb/theaterTeams";
 import type { Side } from "../../../../data/models";
 import type { FootballScene } from "../../../../data/theater/footballScene";
 import { FootballScript, footballStamp, Gridiron, type Flag, type Player } from "../../../../data/theater/footballScript";
 import { gait, keyed, mix, over, Rig, rigArm, rigPose, RigPoses, RigTrack, vec, withPose, type RigPose } from "../../../../data/theater/rig";
+import { TheaterTagLayout, type HitFigure, type TagFrame } from "../../../../data/theater/theaterNames";
 import { FieldProjection } from "../../core/theater/fieldProjection";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
+import { drawTags, ringBall, ringFigure, type PlacedTags } from "../../core/theater/theaterTags";
 import { hsb, rgba, type TheaterInk } from "../../mlb/theater/theaterInk";
 import {
   accentOf,
@@ -722,20 +724,54 @@ export interface FrameInputs {
   readonly teams: FootballTeams;
   readonly ink: TheaterInk;
   readonly labels: Labels;
+  /** The names over the players: the pointer's, the key man's. */
+  readonly tags?: TagFrame | null;
 }
 
-/** One frame of a play through the camera (FootballFrame): the lines, the flag, the shadows, the players far to near, the ball, the beats, the headline and the stamp. */
+/**
+ * One frame of a play through the camera (FootballFrame): the lines, the
+ * flag, the shadows, the names over the players (on the grass, under
+ * everything that plays), the players far to near, the ball, the beats, the
+ * headline and the stamp.
+ */
 export function drawFootballFrame(ctx: Ctx, f: GridProjection, input: FrameInputs): void {
   drawLines(ctx, f, input);
   drawFlags(ctx, f, input);
   const figures = posed(f, input);
   drawShadows(ctx, f, input, figures);
-  drawPlayers(ctx, f, input, figures);
+  const placed = drawNames(ctx, f, input, figures);
+  drawPlayers(ctx, f, input, figures, placed);
   let held: Point | null = null;
   for (const p of figures) if (p.ball) held ??= p.ball;
-  drawFootball(ctx, f, input, held);
+  drawFootball(ctx, f, input, held, placed);
   drawFlashes(ctx, f, input);
   drawLabels(ctx, f, input);
+}
+
+/** Each player on the field at t as the hit test sees him (no posing): his spot through the camera, and his height there. */
+export function hitFigures(f: GridProjection, script: FootballScript, t: number): HitFigure[] {
+  return script.players.flatMap((player, index) => {
+    if (!(player.opacity(t) > 0.01)) return [];
+    const lens = RigLens.grid(f, player.position(t));
+    return [{ index, ground: lens.origin, height: lens.height }];
+  });
+}
+
+/** The names over the players, clear of the headline and the stamp while they're up. */
+function drawNames(ctx: Ctx, f: GridProjection, { script, t, ink, labels, tags }: FrameInputs, figures: readonly Posed[]): PlacedTags | null {
+  const clear: Rect[] = [];
+  const banner = script.banner;
+  if (banner && labels.banner && t >= banner.at && t < banner.until + 0.3) clear.push(TheaterTagLayout.banner(labels.banner, f.size));
+  if (labels.stamp && t >= script.stamp) clear.push(TheaterTagLayout.stamp(labels.stamp, f.size, TheaterType.inset(f.size)));
+  return drawTags(
+    ctx,
+    tags,
+    figures.map((p) => ({ index: p.index, figure: p.figure, height: f.figure, opacity: p.opacity })),
+    t,
+    f.size,
+    clear,
+    ink.dark,
+  );
 }
 
 function band(ctx: Ctx, f: GridProjection, y0: number, y1: number): void {
@@ -894,7 +930,7 @@ function posed(f: GridProjection, { script, t }: FrameInputs): Posed[] {
   return out;
 }
 
-function drawPlayers(ctx: Ctx, f: GridProjection, { script, teams, ink }: FrameInputs, figures: readonly Posed[]): void {
+function drawPlayers(ctx: Ctx, f: GridProjection, { script, teams, ink }: FrameInputs, figures: readonly Posed[], placed: PlacedTags | null): void {
   const offense = figureInks(teams.offense, ink);
   const defense = figureInks(teams.defense, ink);
   // An official, only when one throws a flag (or between snaps): the zebra shirt. A trainer in the staff's slate.
@@ -902,12 +938,13 @@ function drawPlayers(ctx: Ctx, f: GridProjection, { script, teams, ink }: FrameI
   const staff = script.players.some((p) => p.team === "staff") ? figureInks(STAFF, ink) : offense;
   for (const p of figures) {
     const team = script.players[p.index]!.team;
+    ringFigure(ctx, placed, p.figure, f.figure, p.opacity);
     drawFigure(ctx, p.figure, team === "offense" ? offense : team === "defense" ? defense : team === "staff" ? staff : official, f.figure, p.opacity);
   }
 }
 
 /** A football: a brown oval along its flight in a soft glow, a comet tail while it's in the air, in his hands while he has it, its shadow on the grass (with the shadows). */
-function drawFootball(ctx: Ctx, f: GridProjection, { script, t, ink }: FrameInputs, held: Point | null): void {
+function drawFootball(ctx: Ctx, f: GridProjection, { script, t, ink }: FrameInputs, held: Point | null, placed: PlacedTags | null): void {
   const ball = script.ball(t);
   if (!ball) return;
   const p = held ?? f.at(ball);
@@ -925,6 +962,8 @@ function drawFootball(ctx: Ctx, f: GridProjection, { script, t, ink }: FrameInpu
   } else if (t < script.settle) {
     drawGlow(ctx, p, r * 0.8, ink, 0.7);
   }
+  // Where it crosses a name, a ring round it (the oval's mean radius), over the name only.
+  ringBall(ctx, placed, p, r * 1.2);
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(angle);

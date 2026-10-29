@@ -29,7 +29,7 @@ import { CameraFrame } from "../mlb/playCamera";
 import { fieldPoint, type Point } from "../mlb/theaterField";
 import type { Side } from "../models";
 import type { PitchScale } from "../liveFeeds/soccer";
-import { credit, minute, name, place, Pitch, playID, SoccerLineup, surname, teamID, type LineupPlayer, type Lineups, type SoccerScene, type SoccerTheaterState } from "./soccerScene";
+import { credit, lineupsOn, minute, name, place, Pitch, playID, SoccerLineup, surname, teamID, type LineupPlayer, type Lineups, type SoccerScene, type SoccerTheaterState } from "./soccerScene";
 import { string } from "./soccerEntries";
 import { Actor, Flight, PitchCamera, room, SoccerScript, type Role, type Team } from "./soccerScript";
 import { CameraFollow } from "./theaterKit";
@@ -371,7 +371,8 @@ export function soccerIdle({ event, touch, scene, period: given, lineups, flippe
     if (event.at) ball = drawn(event.at);
   }
   const seed = seed64(event?.id ?? `play-${touch?.order ?? 0}-${scene?.id ?? ""}`);
-  return { event, possession, ball, homeRight, lineups, seed };
+  // The elevens as they stand: each change made by the event's minute (or the ball's).
+  return { event, possession, ball, homeRight, lineups: lineupsOn(lineups, event?.clock ?? touch?.clock ?? null), seed };
 }
 
 /** How long an event holds the stage before the next one waiting takes it, in seconds (SoccerIdle.beat). */

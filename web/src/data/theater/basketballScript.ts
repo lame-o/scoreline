@@ -37,7 +37,7 @@ import { CameraFrame, type Rect } from "../mlb/playCamera";
 import { Move } from "../mlb/playScript";
 import { easeValue, fieldPoint, ground, type Ease, type FieldPoint, type Point } from "../mlb/theaterField";
 import type { Formation, HoopsEnds, Lineup } from "./basketballBeats";
-import { defense, made, posterized, typeCallWords, type BasketballKind, type BasketballScene, type Miss, type Rebound } from "./basketballScene";
+import { defense, made, posterized, typeCallWords, type BasketballKind, type BasketballScene, type Miss, type Person, type Rebound } from "./basketballScene";
 import { ballMemo, Rig, RigTrack, type RigFacing } from "./rig";
 import { seed64, SplitMix64 } from "./splitMix64";
 import { CameraPath, CameraRig, clearing, fitting, intersects, midX, unionAll } from "./theaterKit";
@@ -373,6 +373,12 @@ export class BasketballScript {
   look: Look | null = null;
   /** A substitute who came on for a man who went off: the next beat finds him in his place. */
   stand = new Map<number, number>();
+  /**
+   * Who ESPN credits (the shooter, the passer, the blocker, the rebounder,
+   * the man who fouled or lost it, the man coming in), on the figure the
+   * play gives him: the tags over the court name him, and nobody else.
+   */
+  credits = new Map<number, Person>();
 
   room(p: FieldPoint, figure: boolean): Rect {
     return Hoops.room(p, figure, this.yaw);
@@ -564,6 +570,8 @@ export class Builder {
   ends: HoopsEnds = { topRight: true, topOpensRight: true };
   /** Where the last beat left everyone, in this frame (null: set up fresh). */
   start: Lineup | null = null;
+  /** Who passed to whom, the last time: the assist is the pass to the shooter. */
+  passers = new Map<number, number>();
 
   constructor(scene: BasketballScene | null, offense: Side | null, right: boolean, seed: string | null = null) {
     this.scene = scene;
@@ -769,6 +777,7 @@ export class Builder {
     this.fly(start, end, t, time, how);
     this.act(i, style === "lob" ? "lob" : "pass", t, point);
     this.act(j, "catchBall", t + time, from);
+    this.passers.set(j, i);
     if (style !== "lob") this.script.flashes.push({ beat: "catchBall", at: t + time, point: end });
     return t + time;
   }
@@ -857,6 +866,12 @@ export class Builder {
     return d <= most ? p : along(here, toward(here, p), most);
   }
 
+  /** Who ESPN credits, on the figure the play gives him (`credits`). */
+  credit(i: number | null | undefined, person: Person | null | undefined): void {
+    if (i == null || !person || i >= this.script.players.length || (person.id == null && person.name.length === 0)) return;
+    this.script.credits.set(i, person);
+  }
+
   /** He goes up and has it as it gets to him. */
   takeRebound(r: number, point: Point, t: number, start: number): void {
     this.move(r, [along(point, this.out(point), 0.5)], start, Math.max(t - 0.05, start + 0.2), "out");
@@ -876,6 +891,15 @@ export class Builder {
     else if (scene.steal != null && made(scene)) this.transition();
     else if (scene.kind === "putback") this.putback();
     else this.halfCourt();
+    // The shooter, and the man who passed it to him for the assist; a block's blocker.
+    const shooter = this.script.shooter;
+    this.credit(shooter, scene.shooter);
+    if (scene.assister != null) this.credit(shooter != null ? this.passers.get(shooter) : null, scene.assister);
+    if (scene.blocker != null) {
+      let blocker: number | null = null;
+      for (let k = 5; k < this.script.players.length && blocker == null; k++) if (this.script.players[k]!.actions.some((a) => a.kind === "block")) blocker = k;
+      this.credit(blocker, scene.blocker);
+    }
     this.aftermath();
     this.finish();
     this.headline();
@@ -1264,6 +1288,7 @@ export class Builder {
     this.lineUp(own ? [missSpot] : [weak, missSpot], own ? 0 : 1);
     this.script.shooter = 0;
     const shooter = own ? 0 : 1;
+    if (!own) this.credit(1, miss.shooter);
     const t = this.open;
     this.hold(shooter, 0, t);
     // The first shot.
@@ -1352,6 +1377,8 @@ export class Builder {
     this.script.players = [...ours.map((p) => new Player("offense", p)), ...theirs.map((p) => new Player("defense", p))];
     this.script.shooter = 0;
     const loser = 5;
+    this.credit(stealer, steal.stealer);
+    this.credit(loser, steal.loser);
     const open = this.open;
     // He has it, going their way; ours jumps the lane and takes it.
     this.hold(loser, 0, open);
@@ -1510,6 +1537,7 @@ export class Builder {
 
   /** The and-one: the help takes the contact, knocked back a step. */
   foulContact(d: number, t: number): void {
+    this.credit(d, this.scene?.fouler);
     const here = this.position(d, t);
     this.move(d, [along(here, this.out(here), 2.2)], t + 0.15, t + 0.6, "out");
   }
@@ -1578,6 +1606,7 @@ export class Builder {
     const nominal = inbounds(along(ground(at), away, this.random.in(11, 16)));
     const r = this.rebounder(scene.rebound, nominal, t, new Set([0]));
     if (r != null) {
+      this.credit(r, scene.rebound?.person);
       const land = this.reach(r, nominal, t + 0.06, t + 0.5);
       const time = Math.min(Math.max(distance(ground(at), land) / 30, 0.3), 0.55);
       this.fly(at, fieldPoint(land, 6), t, time, arc(1.2));
@@ -1600,6 +1629,7 @@ export class Builder {
     const after = this.script.release ?? t - 1;
     const r = this.rebounder(scene.rebound, nominal, t, exclude);
     if (r != null) {
+      this.credit(r, scene.rebound?.person);
       const land = this.reach(r, nominal, after, t + 0.75);
       const caught = this.rimOut(t, shooter, false, land, 8);
       this.takeRebound(r, land, caught, after);

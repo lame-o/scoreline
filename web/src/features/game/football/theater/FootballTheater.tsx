@@ -33,6 +33,11 @@
  * UNDER REVIEW), the heartbeat at the bottom how long since ESPN spoke, and
  * the control at the top trailing corner turns the field round to match
  * the viewer's TV (remembered for the game; the quarters still turn it).
+ * Over the players, their names in the tag's own type (theaterNames.ts):
+ * the man with the ball keeps his surname; the pointer names whoever it's
+ * over (a tap does on a phone), the credited men by name and number, the
+ * rest by team and place (SEAHAWKS · DE), drawn into the frame on the grass
+ * under everything that plays.
  * History isn't replayed: on opening the page the field is the live one
  * (`footballShown`). The canvas is decorative for screen readers: the drive
  * chart carries the play. Lazy: the page loads this module only when it
@@ -50,7 +55,9 @@ import { NEUTRAL, type Scheme, type TeamPalette } from "../../../../data/teamCol
 import { FieldFacing, footballIdle, FootballStatus, idleScript, sameIdle, type FootballIdle, type StatusNames, type StatusTag } from "../../../../data/theater/footballIdle";
 import type { FootballScene, FootballTheaterState } from "../../../../data/theater/footballScene";
 import { FootballScript } from "../../../../data/theater/footballScript";
-import { DEFAULT_REST, FootballCelebration, footballDown, footballShown, FootballTheaterWatch, footballRest, nextQueued, type FootballBurst } from "../../../../data/theater/footballTheater";
+import { DEFAULT_REST, FootballCelebration, footballCast, footballDown, footballShown, FootballTheaterWatch, footballRest, nextQueued, type FootballBurst } from "../../../../data/theater/footballTheater";
+import { theaterLabels } from "../../../../data/theater/theaterNames";
+import type { TheaterPerson } from "../../../../data/theater/theaterPeople";
 import { HOLD_MS } from "../../../../data/theater/theaterKit";
 import { useSettings } from "../../../../state/settings";
 import { useColorScheme } from "../../../../state/theme";
@@ -62,7 +69,8 @@ import { accentOf, drawBursts, TheaterType, teamPalette, type Size, type StageBu
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
 import styles from "../../core/theater/TheaterWell.module.css";
-import { drawFootballFrame, drawGridiron, GridProjection, layoutLabels, type EndZone, type FootballTeams, type Labels } from "./drawFootball";
+import { useTheaterNames, type NamesPose } from "../../core/theater/useTheaterNames";
+import { drawFootballFrame, drawGridiron, GridProjection, hitFigures, layoutLabels, type EndZone, type FootballTeams, type Labels } from "./drawFootball";
 import { useSlideField } from "./slideField";
 
 export interface FootballTheaterProps {
@@ -87,9 +95,14 @@ export interface FootballTheaterProps {
   readonly preloaded?: FootballTheaterState | null;
   /** Development: draw this instant, frozen (seconds from the start of the replay, or into the field between snaps). */
   readonly frozen?: number | null;
+  /** The box score's players, by athlete ID: the names over the credited men. */
+  readonly people?: Readonly<Record<string, TheaterPerson>>;
+  /** Development (the render harness): the pointer held over a figure or a point. */
+  readonly pointer?: NamesPose | null;
 }
 
 const EMPTY: FootballTheaterState = { play: null, news: false };
+const NO_PEOPLE: Readonly<Record<string, TheaterPerson>> = {};
 const NO_STATUS: StatusTag = { tag: null, tint: null };
 
 /** The lane's theater, kept beside it: each change to the lane's entries, read as it happens (FootballFeed's `theater`). */
@@ -163,10 +176,30 @@ function useIdleScript(idle: FootballIdle | null): FootballScript | null {
   return cache.current.script;
 }
 
-export default function FootballTheater({ feed, teams: laneTeams, situation, kits, palette, topName, bottomName, eventId = "football", topTeam = "", bottomTeam = "", preloaded = null, frozen = null }: FootballTheaterProps) {
+export default function FootballTheater({
+  feed,
+  teams: laneTeams,
+  situation,
+  kits,
+  palette,
+  topName,
+  bottomName,
+  eventId = "football",
+  topTeam = "",
+  bottomTeam = "",
+  preloaded = null,
+  frozen = null,
+  people = NO_PEOPLE,
+  pointer,
+}: FootballTheaterProps) {
   const well = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const stage = useRef<TheaterStage | null>(null);
+  // Who the pointer's over (the name over him), read by each frame as it's drawn.
+  const tagged = useTheaterNames(well, stage);
+  useEffect(() => {
+    if (pointer !== undefined) tagged.pose(pointer);
+  }, [tagged, pointer]);
   const beats = useRef<BeatClock | null>(null);
   const live = useTheaterState(feed, laneTeams);
   const state = live.play || live.stoppage ? live : (preloaded ?? live);
@@ -283,6 +316,13 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
     return offense === "top" ? { near: top, far: bottom } : { near: bottom, far: top };
   }, [palette.top, palette.bottom, scheme, topName, bottomName, offense]);
   const ink = useMemo(() => theaterInk(scheme), [scheme]);
+  // Who each figure is (the credited men by name, everyone else by team and place), and each side's tags in the color it wears.
+  const cast = useMemo(() => footballCast(script, play, offense, people, play?.id ?? `idle|${idleKey}`), [script, play, offense, people, idleKey]);
+  const tagLabels = useMemo(
+    () => theaterLabels(kits, scheme, { top: topTeam || topName, bottom: bottomTeam || bottomName }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, topTeam, topName, bottomTeam, bottomName],
+  );
   const names: StatusNames = useMemo(
     () => ({ top: topTeam || topName, bottom: bottomTeam || bottomName, topColor: tagColor(kits.top.color), bottomColor: tagColor(kits.bottom.color) }),
     [topTeam, topName, bottomTeam, bottomName, kits.top.color, kits.bottom.color],
@@ -360,12 +400,14 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
           : null,
       paint: (ctx, size, pt, t, bursts: readonly StageBurst[]) => {
         const f = new GridProjection(size, script.camera.frame(t), script.yawAt(t));
+        const status = statusAt(t);
+        const tags = tagged.frame(cast, tagLabels, { status: status.tag, flip: true, heartbeat: "trailing" }, () => hitFigures(f, script, t));
         drawGridiron(ctx, f, ink, zones.near, zones.far);
-        drawFootballFrame(ctx, f, { script, t, teams, ink, labels: labelsFor(ctx, size, pt) });
+        drawFootballFrame(ctx, f, { script, t, teams, ink, labels: labelsFor(ctx, size, pt), tags });
         if (bursts.length > 0) {
           drawBursts(ctx, bursts, t, (p) => f.at(p), TheaterType.bannerOrigin(size, pt), (b) => teamPalette(color((b as FootballBurst).side ?? null), ink), size);
         }
-        say(statusAt(t));
+        say(status);
       },
     };
     if (play || !idle) {
@@ -383,7 +425,7 @@ export default function FootballTheater({ feed, teams: laneTeams, situation, kit
       draw: (t) => stage.current?.update({ ...inputs, frozen: t }),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [play, news, following, script, teams, zones, ink, moment, level, reduceMotion, frozen, idleKey, names, downDistance, situation?.topTimeouts, situation?.bottomTimeouts, state.stoppage]);
+  }, [play, news, following, script, teams, zones, ink, moment, level, reduceMotion, frozen, idleKey, names, downDistance, situation?.topTimeouts, situation?.bottomTimeouts, state.stoppage, cast, tagLabels, tagged]);
 
   return (
     <div ref={well} className={styles.well} data-theater="football">

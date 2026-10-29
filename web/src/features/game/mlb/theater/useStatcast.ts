@@ -25,7 +25,7 @@ import { useEffect, useMemo, useReducer, useRef } from "react";
 import { getJSON } from "../../../../data/http";
 import type { ScoreEvent } from "../../../../data/models";
 import type { Measured, TheaterState } from "../../../../data/mlb/playScene";
-import { feedURL, liveURL, scheduleURL, statcastAtBats, statcastGame, statcastLive, type StatcastAtBat } from "../../../../data/mlb/statcast";
+import { feedURL, liveURL, scheduleURL, statcastFeed, statcastGame, statcastLive, type StatcastAtBat } from "../../../../data/mlb/statcast";
 
 /** Statcast.swift `StatcastStore.minimumInterval`: the feed is asked again no sooner than this. */
 const MINIMUM_INTERVAL_MS = 2_000;
@@ -56,7 +56,7 @@ export function useMeasuredTheater(event: ScoreEvent, state: TheaterState): Thea
   const gamePk = game.data ?? null;
   const feed = useQuery({
     queryKey: ["statcast", "feed", gamePk],
-    queryFn: async ({ signal }) => statcastAtBats(await getJSON(feedURL(gamePk!), { signal })),
+    queryFn: async ({ signal }) => statcastFeed(await getJSON(feedURL(gamePk!), { signal })),
     enabled: enabled && gamePk != null,
     staleTime: event.state === "final" ? Infinity : MINIMUM_INTERVAL_MS,
     gcTime: 15 * 60_000,
@@ -65,7 +65,7 @@ export function useMeasuredTheater(event: ScoreEvent, state: TheaterState): Thea
   });
 
   // The play's own at-bat, once it's over; one object per play and reading, so the script is built once.
-  const found = useMemo(() => (play && feed.data ? (play.measurement(feed.data) ?? play.runnerMeasurement(feed.data)) : null), [play, feed.data]);
+  const found = useMemo(() => (play && feed.data ? (play.measurement(feed.data.atBats) ?? play.runnerMeasurement(feed.data.atBats)) : null), [play, feed.data]);
   const kept = useRef<{ key: string; measured: Measured } | null>(null);
   const key = play && found ? `${play.id}|${JSON.stringify(found)}` : null;
   if (key != null && found && kept.current?.key !== key) kept.current = { key, measured: found };
@@ -104,6 +104,8 @@ export function useMeasuredTheater(event: ScoreEvent, state: TheaterState): Thea
   return next;
 }
 
+const NO_NUMBERS: Readonly<Record<string, string>> = {};
+
 /** Statcast.swift `StatcastStore.liveInterval`: MLB's at-bat under way, no more often than this. */
 export const LIVE_POLL_MS = 4_500;
 
@@ -112,9 +114,14 @@ export const LIVE_POLL_MS = 4_500;
  * live poll and `rebuildTimeline`): the game's full feed as it's cached when
  * plays are measured, and the at-bat under way, polled on its own pace (a few
  * kilobytes) while the game is live and the page is visible. Its status says
- * a delay before ESPN's does ("Delayed: Rain").
+ * a delay before ESPN's does ("Delayed: Rain"). And the men's numbers in it
+ * (the pitchers' that ESPN's summary leaves out), for the names over the
+ * figures: from the same fetch, never a request of its own.
  */
-export function useMLBTimeline(event: ScoreEvent, live: boolean): { readonly atBats: readonly StatcastAtBat[]; readonly status: string | null } {
+export function useMLBTimeline(
+  event: ScoreEvent,
+  live: boolean,
+): { readonly atBats: readonly StatcastAtBat[]; readonly status: string | null; readonly numbers: Readonly<Record<string, string>> } {
   const teams = event.content.kind === "match" ? [event.content.top.name, event.content.bottom.name] : [];
   const enabled = isMLB(event) && teams.length === 2 && live;
   const game = useQuery({
@@ -129,7 +136,7 @@ export function useMLBTimeline(event: ScoreEvent, live: boolean): { readonly atB
   const gamePk = game.data ?? null;
   const feed = useQuery({
     queryKey: ["statcast", "feed", gamePk],
-    queryFn: async ({ signal }) => statcastAtBats(await getJSON(feedURL(gamePk!), { signal })),
+    queryFn: async ({ signal }) => statcastFeed(await getJSON(feedURL(gamePk!), { signal })),
     enabled: enabled && gamePk != null,
     staleTime: 60_000,
     gcTime: 15 * 60_000,
@@ -148,7 +155,7 @@ export function useMLBTimeline(event: ScoreEvent, live: boolean): { readonly atB
     refetchOnWindowFocus: false,
   });
   const atBats = useMemo(() => {
-    const all = [...(feed.data ?? [])];
+    const all = [...(feed.data?.atBats ?? [])];
     const now = current.data?.atBat;
     if (now) {
       const i = all.findIndex((a) => a.index === now.index);
@@ -157,5 +164,5 @@ export function useMLBTimeline(event: ScoreEvent, live: boolean): { readonly atB
     }
     return all;
   }, [feed.data, current.data]);
-  return { atBats, status: current.data?.status ?? null };
+  return { atBats, status: current.data?.status ?? null, numbers: feed.data?.numbers ?? NO_NUMBERS };
 }

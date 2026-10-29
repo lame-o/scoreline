@@ -7,7 +7,9 @@
  * section above the drive chart, soccer at the top of the Live Pitch with its
  * caption, basketball in the Shot Chart above the court; each draws, replays
  * a play that arrives, stops its frame loop off screen and holds still
- * between plays. Saves screenshots to SCORELINE_SCREENSHOTS.
+ * between plays; and the names over the figures: the key man's at rest, a
+ * man's full tag under the pointer from its first entry, gone as it leaves.
+ * Saves screenshots to SCORELINE_SCREENSHOTS.
  */
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
@@ -38,7 +40,7 @@ const inked = (page: Page, selector: string) =>
     return n / (data.length / (4 * 16));
   });
 
-type Probe = { __theaterFrames?: number[] };
+type Probe = { __theaterFrames?: number[]; __theaterTags?: { kind: string; text: string; rect: { x: number; y: number; width: number; height: number } }[] };
 
 /** Frames the stages have drawn from their loops so far (TheaterStage pushes each one's draw time). */
 const frames = (page: Page) => page.evaluate(() => (window as unknown as Probe).__theaterFrames?.length ?? 0);
@@ -243,5 +245,47 @@ test.describe("theaters on the live pages", () => {
     // Something happens, briefly; most of the time the stage doesn't draw at all.
     expect(moving).toBeGreaterThan(0);
     expect(still).toBeGreaterThan(moving);
+  });
+});
+
+test.describe("names on the isometric views", () => {
+  test.use({ viewport: { width: 1440, height: 900 }, colorScheme: "light", deviceScaleFactor: 2 });
+
+  /** The tags the theater's last frame drew. */
+  const tags = (page: Page) => page.evaluate(() => (window as unknown as Probe).__theaterTags?.map((t) => ({ kind: t.kind, text: t.text })) ?? []);
+
+  test("the key man keeps his surname; hovering a man shows his full tag, from the first entry, and leaving takes it away", async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.addInitScript(() => {
+      (window as unknown as Probe).__theaterTags = [];
+    });
+    // Wembanyama's three (SA at UTAH), frozen as the ball leaves his hands: the Mac contact sheet's light cell.
+    await page.goto("/dev/theater/names?only=b2-3");
+    const canvas = page.locator("[data-shot] canvas").first();
+    await expect(canvas).toBeVisible({ timeout: 20_000 });
+    await expect.poll(() => tags(page), { timeout: 10_000 }).toEqual([{ kind: "key", text: "Wembanyama" }]);
+    // Find a man: the pointer across the court until one is under it.
+    const box = (await canvas.boundingBox())!;
+    let found: { x: number; y: number } | null = null;
+    for (let y = 0.25; y < 0.95 && !found; y += 0.05) {
+      for (let x = 0.05; x < 0.95 && !found; x += 0.025) {
+        await page.mouse.move(box.x + box.width * x, box.y + box.height * y);
+        if ((await tags(page)).some((t) => t.kind === "pointer")) found = { x: box.x + box.width * x, y: box.y + box.height * y };
+      }
+    }
+    expect(found).not.toBeNull();
+    // Off the well, then straight onto him in one move: the tag shows without a wiggle.
+    await page.mouse.move(box.x - 40, box.y - 40);
+    await expect.poll(async () => (await tags(page)).some((t) => t.kind === "pointer"), { timeout: 2000 }).toBe(false);
+    await page.mouse.move(found!.x, found!.y);
+    await expect.poll(async () => (await tags(page)).filter((t) => t.kind === "pointer").length, { timeout: 2000 }).toBe(1);
+    const named = (await tags(page)).find((t) => t.kind === "pointer")!;
+    expect(named.text.length).toBeGreaterThan(0);
+    await page.locator("[data-shot]").first().screenshot({ path: join(OUT, "theater-names-hover-1440-light.png") });
+    // Off him: his tag goes (the key man's stays).
+    await page.mouse.move(box.x - 40, box.y - 40);
+    await expect.poll(async () => (await tags(page)).some((t) => t.kind === "pointer"), { timeout: 2000 }).toBe(false);
+    expect(await tags(page)).toContainEqual({ kind: "key", text: "Wembanyama" });
+    expect(errors).toEqual([]);
   });
 });

@@ -159,14 +159,17 @@ export class Actor {
   practice: number | null = null;
   /** An umpire's calls, each from its moment. */
   signals: Signal[] = [];
+  /** ESPN's athlete ID when the play names him (the batter, each runner): who the tag over him says he is. */
+  athlete: string | null = null;
 
-  constructor(team: Team, at: Point, role: Role = { kind: "runner" }, options: { crouch?: boolean; bats?: Hand | null; appear?: number } = {}) {
+  constructor(team: Team, at: Point, role: Role = { kind: "runner" }, options: { crouch?: boolean; bats?: Hand | null; appear?: number; athlete?: string | null } = {}) {
     this.team = team;
     this.at = at;
     this.role = role;
     this.crouch = options.crouch ?? false;
     this.bats = options.bats ?? null;
     if (options.appear != null) this.appear = options.appear;
+    this.athlete = options.athlete ?? null;
   }
 
   /** The newest move that has begun wins: a later move starts from wherever the one before had got to. */
@@ -628,12 +631,12 @@ export class Builder {
     for (let n = 1; n <= 9; n++) this.script.actors.push(new Actor("fielding", restSpot(waiting, n), { kind: "fielder", n }, { crouch: n === 2 }));
     // On a runner's play the batter is still in the box.
     this.batter = this.script.actors.length;
-    this.script.actors.push(new Actor("batting", Ballpark.box(this.hand), { kind: "batter" }, { bats: this.hand }));
+    this.script.actors.push(new Actor("batting", Ballpark.box(this.hand), { kind: "batter" }, { bats: this.hand, athlete: scene.batter?.id }));
     this.runner.set(0, this.batter);
     for (const r of scene.runners) {
       if (r.from <= 0) continue;
       this.runner.set(r.from, this.script.actors.length);
-      this.script.actors.push(new Actor("batting", Ballpark.lead(r.from)));
+      this.script.actors.push(new Actor("batting", Ballpark.lead(r.from), { kind: "runner" }, { athlete: r.id }));
     }
     this.umpire = this.script.actors.length;
     this.script.actors.push(new Actor("official", Ballpark.umpire(this.hand), { kind: "umpire" }));

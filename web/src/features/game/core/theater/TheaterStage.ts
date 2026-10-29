@@ -74,6 +74,8 @@ export class TheaterStage {
   private fade: { snapshot: HTMLCanvasElement; start: number } | null = null;
   private shownID: string | null | undefined = undefined;
   private frame = 0;
+  /** A name tag fading in or out: frames until then (performance.now(), ms). */
+  private tagsUntil = 0;
   private onScreen = true;
   private readonly resize: ResizeObserver;
   private readonly intersection: IntersectionObserver | null;
@@ -146,6 +148,12 @@ export class TheaterStage {
       const bloom = this.size.height > 0 ? next.bloom(this.size) : null;
       this.bloom = bloom ? { value: bloom, start: now } : null;
     }
+    this.schedule(true);
+  }
+
+  /** Draws the frame on screen again now, and keeps drawing until `until` (a name tag fading in or out over a still). */
+  animate(until: number): void {
+    this.tagsUntil = Math.max(this.tagsUntil, until);
     this.schedule(true);
   }
 
@@ -226,7 +234,7 @@ export class TheaterStage {
     if (Number.isFinite(t) && this.inputs?.frozen == null) return true;
     if (this.fade && now - this.fade.start < CROSSFADE_MS) return true;
     if (this.bloom && (now - this.bloom.start) / 1000 < cueDuration(this.bloom.value.cue)) return true;
-    return false;
+    return now < this.tagsUntil;
   }
 
   /**

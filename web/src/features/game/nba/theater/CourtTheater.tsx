@@ -6,12 +6,13 @@
  * bursts nothing while it's shown (`BasketballCelebration.courtBursts`);
  * its shot stories play either way.
  *
- *     <CourtTheater feed={feed} teams={teams} event={event} palette={palette} names={names} topIsHome />
+ *     <CourtTheater feed={feed} teams={teams} event={event} palette={palette} names={names} topIsHome people={detail.people} />
  */
 import { lazy, Suspense } from "react";
 import type { BasketballFeed, Teams } from "../../../../data/liveFeeds/basketball";
 import type { ScoreEvent } from "../../../../data/models";
 import type { TeamPalette } from "../../../../data/teamColors";
+import type { TheaterPerson } from "../../../../data/theater/theaterPeople";
 import { TheaterWell } from "../../core/theater/TheaterWell";
 import styles from "./CourtTheater.module.css";
 
@@ -27,9 +28,11 @@ export interface CourtTheaterProps {
   /** The teams as the tag names them ("SPURS BALL"). */
   readonly spoken?: { readonly top: string; readonly bottom: string };
   readonly topIsHome: boolean;
+  /** The box score's players, by athlete ID: the names over the credited men. */
+  readonly people?: Readonly<Record<string, TheaterPerson>>;
 }
 
-export function CourtTheater({ feed, teams, event, palette, names, spoken, topIsHome }: CourtTheaterProps) {
+export function CourtTheater({ feed, teams, event, palette, names, spoken, topIsHome, people }: CourtTheaterProps) {
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
   const kits = {
@@ -50,6 +53,7 @@ export function CourtTheater({ feed, teams, event, palette, names, spoken, topIs
           topTeam={top?.name ?? spoken?.top ?? ""}
           bottomTeam={bottom?.name ?? spoken?.bottom ?? ""}
           eventId={event.id}
+          people={people}
         />
       </Suspense>
     </div>

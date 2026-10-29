@@ -596,6 +596,7 @@ export class BeatBuilder extends Builder {
       this.setUp([inbounds(from)]);
     }
     script.shooter = 0;
+    this.credit(0, scene.shooter);
     let t = 0.2;
     if (passer != null) {
       // Off the catch: the pass reaches him as he gets to his spot.
@@ -706,6 +707,7 @@ export class BeatBuilder extends Builder {
     if (rebound && rebound.person != null) {
       const own = rebound.offensive && rebound.person.id != null && rebound.person.id === scene.shooter?.id;
       r = own ? 0 : this.rebounderOf(rebound.offensive ? [1, 2, 3, 4] : [5, 6, 7, 8, 9], c.spot, rebound.person.role, release);
+      this.credit(r, rebound.person);
     }
     const caught = this.comeOff(c, t, r, release + 0.15);
     if (rebound && rebound.person == null) {
@@ -798,6 +800,7 @@ export class BeatBuilder extends Builder {
     if (held >= 0) script.legs[held]!.until = releaseAt;
     script.release = releaseAt;
     script.shooter = 0;
+    this.credit(0, scene.shooter);
     const hand = this.release(line, 0.2);
     this.tagAt(`FREE THROW ${scene.attempt ?? 1} OF ${scene.attempts ?? 1}`, scene.offense, 0);
     if (made(scene)) {
@@ -828,7 +831,10 @@ export class BeatBuilder extends Builder {
       if (last) {
         let r: number | null = null;
         const rebound = scene.rebound;
-        if (rebound && rebound.person != null) r = this.rebounderOf(rebound.offensive ? [1, 2, 3, 4] : [5, 6, 7, 8, 9], c.spot, rebound.person.role, releaseAt);
+        if (rebound && rebound.person != null) {
+          r = this.rebounderOf(rebound.offensive ? [1, 2, 3, 4] : [5, 6, 7, 8, 9], c.spot, rebound.person.role, releaseAt);
+          this.credit(r, rebound.person);
+        }
         this.comeOff(c, f.end, r, releaseAt + 0.05);
       } else {
         this.comeOff(c, f.end, null, releaseAt);
@@ -889,6 +895,7 @@ export class BeatBuilder extends Builder {
     script.formation = "play";
     const pool = shooterSide ? [0, 1, 2, 3, 4] : [5, 6, 7, 8, 9];
     const r = scene.shooter == null ? null : this.rebounderOf(pool, c.spot, scene.shooter.role, 0);
+    this.credit(r, scene.shooter);
     const lying = this.start?.ball ?? null;
     if (lying && this.start?.holder == null && r != null && distance(this.position(r, 0), lying) < 24) {
       // Where it came down: he gets to it and takes it up.
@@ -928,6 +935,8 @@ export class BeatBuilder extends Builder {
       this.trade(5, this.nearest([5, 6, 7, 8, 9], spot));
       stealer = 5;
     }
+    this.credit(0, scene.shooter);
+    this.credit(stealer, scene.steal?.stealer);
     const name = called(scene.shooter);
     if (theCall.kind === "badPass" && stealer != null) {
       // A pass into the lane he jumps: picked off where ESPN put it.
@@ -1046,6 +1055,8 @@ export class BeatBuilder extends Builder {
   chargeBeat(spot: Point, charge: boolean, name: string | null, side: Side | null): void {
     const d = this.nearest([5, 6, 7, 8, 9], spot);
     this.trade(5, d);
+    this.credit(0, this.scene?.shooter);
+    this.credit(5, this.scene?.drew);
     this.hold(0, 0, 0.2);
     this.bounce(0, 0.2, Infinity);
     const way = unit({ x: spot.x - this.position(0, 0).x + 0.01, y: spot.y - this.position(0, 0).y });
@@ -1112,6 +1123,8 @@ export class BeatBuilder extends Builder {
     this.trade(0, fouled);
     const fouler = this.nearest([5, 6, 7, 8, 9], spot, 0.6);
     this.trade(5, fouler);
+    this.credit(0, scene.drew);
+    this.credit(5, scene.shooter);
     const carrying = this.start?.holder === 0;
     const contact = Math.max(0.75, Math.min(distance(this.position(0, 0), spot) / 15 + 0.35, 1.3));
     if (carrying) {
@@ -1254,6 +1267,7 @@ export class BeatBuilder extends Builder {
     this.fly(fieldPoint(c, 12.4), fieldPoint(catchAt, 4.6), tip, 0.55, arc(1.2));
     this.move(gainer, [catchAt], tip, tip + 0.5, "out");
     this.act(gainer, "catchBall", tip + 0.55, c);
+    this.credit(gainer, scene.winner);
     this.hold(gainer, tip + 0.55, Infinity);
     script.flashes.push({ beat: "catchBall", at: tip + 0.55, point: fieldPoint(catchAt, 4.6) });
     script.look = { point: c, from: 0 };
@@ -1307,6 +1321,8 @@ export class BeatBuilder extends Builder {
         on.move([at], 0.55 + lag, 1.55 + lag, "out");
         script.players.push(on);
         script.stand.set(off, script.players.length - 1);
+        this.credit(off, sub.subOut);
+        this.credit(script.players.length - 1, sub.subIn);
       });
     }
     const names = group.map((g) => called(g.subIn)).filter((n): n is string => n != null);

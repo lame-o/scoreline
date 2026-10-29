@@ -16,6 +16,8 @@ import { broadcaster, type Broadcaster } from "./broadcasters";
 import { enDash, periodLabel } from "./format";
 import type { Fetcher } from "./http";
 import { arr, at, bool, has, num, str, type JSONValue } from "./json";
+import { baseballFielders, NO_FIELDERS, type BaseballFielders } from "./mlb/fielders";
+import { TheaterPeople, type TheaterPerson } from "./theater/theaterPeople";
 import type { Competitor, CSLive, ScoreEvent, Side, Sport } from "./models";
 import { makeEvent } from "./providers/espn";
 import { EMPTY_ROSTER, loadCSDetail, type CSRound, type Roster } from "./cs2";
@@ -87,6 +89,8 @@ export interface Baseball {
   /** ESPN athlete IDs for the matchup (their names open their pages). */
   readonly batterID: string | null;
   readonly pitcherID: string | null;
+  /** Who's on first, second and third, by ESPN athlete ID: the names over the play theater's runners. */
+  readonly runnerIDs: readonly [string | null, string | null, string | null];
 }
 
 export type PitchResult = "ball" | "strike" | "inPlay";
@@ -257,6 +261,14 @@ export interface GameDetail {
    * play texts name players in full, so the page can link the names in them.
    */
   readonly playerNames: Readonly<Record<string, string>>;
+  /**
+   * Every player the summary names (its box score; baseball's lineups and
+   * soccer's squads over it), by ESPN athlete ID, with his number and
+   * position: who the isometric views' tags name (data/theater/theaterPeople.ts).
+   */
+  readonly people: Readonly<Record<string, TheaterPerson>>;
+  /** Baseball: who's in the field for each team now (the play theater's tags). */
+  readonly fielders: BaseballFielders;
   readonly venue: string | null;
   /** ESPN's `header.season.current`: false for a game from a past season. Null when unknown. */
   readonly seasonIsCurrent: boolean | null;
@@ -312,6 +324,8 @@ export const EMPTY_DETAIL: GameDetail = {
   topIsHome: null,
   athleteNames: {},
   playerNames: {},
+  people: {},
+  fielders: NO_FIELDERS,
   venue: null,
   seasonIsCurrent: null,
   broadcast: null,
@@ -508,6 +522,8 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
   let basketball: Basketball | null = null;
   const soccerRosters: { top?: JSONValue; bottom?: JSONValue } = {};
   let soccerAdded: SoccerAddedTime | null = null;
+  let people: Readonly<Record<string, TheaterPerson>> = {};
+  let fielders: BaseballFielders = NO_FIELDERS;
 
   // The NBA and WNBA have their own page (data/basketball.ts); other basketball reads like the rest.
   switch (sport === "basketball" && (path === NBA_PATH_ || path === WNBA_PATH) ? "nba" : sport) {
@@ -518,6 +534,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
         if (s) soccerRosters[s] = roster;
       }
       soccerAdded = latestAddedTime(arr(at(summary, "commentary")));
+      people = TheaterPeople.rosters(summary);
       recentPlays = arr(at(summary, "commentary"))
         .slice(-4)
         .reverse()
@@ -559,6 +576,9 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
           }
         }
       }
+      // The lineups' numbers and places over the box score's (where the pitchers are).
+      people = { ...TheaterPeople.boxscore(summary), ...TheaterPeople.rosters(summary) };
+      fielders = baseballFielders(summary, side);
       // Only a live game's theater replays; the window is the last 80 plays (BaseballFeed.windowSize).
       if (event.state !== "live") plays = [];
       else plays = plays.slice(-80);
@@ -567,6 +587,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     case "nba": {
       // The NBA page (the WNBA reads the same feed, with 10-minute quarters).
       basketball = parseBasketball(summary, side, topIsHome === true, quarterLength(path));
+      people = TheaterPeople.boxscore(summary);
       moments = basketballMoments(summary, side, topIsHome === true);
       // Game order is array order (sequence numbers aren't).
       recentPlays = basketballPlays(arr(at(summary, "plays")));
@@ -603,6 +624,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
 
   const playerNames: Record<string, string> = {};
   if (sport === "football") {
+    people = TheaterPeople.boxscore(summary);
     for (const team of arr(at(summary, "boxscore", "players"))) {
       for (const group of arr(at(team, "statistics"))) {
         for (const entry of arr(at(group, "athletes"))) {
@@ -623,7 +645,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     if (sport === "baseball") {
       const b = baseballFromBoard(s);
       // The scoreboard only says a base is taken; the summary says by whom.
-      baseball = b ? { ...b, runners: runners(at(summary, "situation"), athleteNames) } : null;
+      baseball = b ? { ...b, runners: runners(at(summary, "situation"), athleteNames), runnerIDs: runnerIDs(at(summary, "situation")) } : null;
     }
     const last = str(at(s, "lastPlay", "text"));
     if (recentPlays.length === 0 && last) recentPlays = [last];
@@ -652,6 +674,8 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     plays,
     athleteNames,
     playerNames,
+    people,
+    fielders,
     football,
     baseball,
   };
@@ -666,6 +690,15 @@ export function runners(s: JSONValue, names: Readonly<Record<string, string>>): 
     return pid != null ? (names[String(pid)] ?? null) : null;
   };
   return [name("onFirst"), name("onSecond"), name("onThird")];
+}
+
+/** Who's on each base, by ESPN athlete ID. */
+export function runnerIDs(s: JSONValue): readonly [string | null, string | null, string | null] {
+  const id = (base: string) => {
+    const pid = num(at(s, base, "playerId"));
+    return pid != null ? String(pid) : null;
+  };
+  return [id("onFirst"), id("onSecond"), id("onThird")];
 }
 
 /** Pitches of the at-bat in progress, or the last completed one between batters. */
@@ -781,6 +814,7 @@ export function baseballFromBoard(s: JSONValue): Baseball | null {
     runners: [null, null, null],
     batterID: pid("batter"),
     pitcherID: pid("pitcher"),
+    runnerIDs: [null, null, null],
   };
 }
 

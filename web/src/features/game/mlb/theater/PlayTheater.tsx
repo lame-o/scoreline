@@ -40,8 +40,12 @@
  * stays until the next at-bat's first pitch, or `HOLD_MS` after its replay,
  * whichever comes first; then the field crossfades to the game as it is (the
  * live bases and batter). The field and the figures are one canvas pass,
- * through the same camera at the same moment. Decorative for screen readers:
- * the caption carries the play.
+ * through the same camera at the same moment. Names over the figures
+ * (TheaterNames.swift, data/mlb/playNames.ts): every man the data names, the
+ * batter (a runner's play's runner) keeping his surname, the pointer (a tap
+ * on a phone) naming whoever it's over with his number and position; the
+ * pitchers' numbers from MLB's feed. Decorative for screen readers: the
+ * caption carries the play.
  *
  *     <PlayTheater state={theater} bases={[on1, on2, on3]} batting="top" palette={palette} kits={kits} event={event} />
  *
@@ -73,6 +77,12 @@ import { useColorScheme } from "../../../../state/theme";
 import type { LiveMoment } from "../../../../data/moments";
 import { useChartMoment } from "../../core/moments";
 import { TheaterHeartbeat, TheaterStatusTag } from "../../core/theater/TheaterStatus";
+import type { FieldProjection } from "../../core/theater/fieldProjection";
+import { RigLens } from "../../core/theater/rigFigure";
+import { useTheaterNames, type NamesPose } from "../../core/theater/useTheaterNames";
+import { NO_FIELDERS, type BaseballFielders, type BaseballNow } from "../../../../data/mlb/fielders";
+import { playCast } from "../../../../data/mlb/playNames";
+import { theaterLabels, type TheaterCast, type TheaterPerson } from "../../../../data/theater/theaterNames";
 import { TheaterRenderer } from "./renderer";
 import { theaterInk } from "./theaterInk";
 import { useMeasuredTheater, useMLBTimeline } from "./useStatcast";
@@ -108,7 +118,19 @@ export interface PlayTheaterProps {
   readonly live?: boolean;
   /** Development: draw this beat (or idle move) at `frozen`, in place of the play, with this tag (absent: its caption at `frozen`). */
   readonly frozenBeat?: { readonly script: PlayScript; readonly beat: PlayBeat | null; readonly tag?: string | null } | null;
+  /** The teams' names, for a man the tags can't name ("BREWERS"). */
+  readonly topTeam?: string;
+  readonly bottomTeam?: string;
+  /** The summary's players (by athlete ID) and who's in the field: the names over the figures. */
+  readonly people?: Readonly<Record<string, TheaterPerson>>;
+  readonly fielders?: BaseballFielders;
+  /** MLB's numbers by name, when given (the render harness); else the ones MLB's feed brings. */
+  readonly numbers?: Readonly<Record<string, string>> | null;
+  /** Development (the render harness): the pointer held over a figure or a point. */
+  readonly pointer?: NamesPose | null;
 }
+
+const NO_PEOPLE: Readonly<Record<string, TheaterPerson>> = {};
 
 const reduceQuery = typeof window !== "undefined" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
 const subscribeReduce = (listener: () => void) => {
@@ -135,6 +157,8 @@ interface IdleShow {
   readonly start: number;
   readonly script: PlayScript;
 }
+
+const NO_RUNNERS: readonly [string | null, string | null, string | null] = [null, null, null];
 
 /** A play's end stays up this long when the next thing is waiting. */
 const BRIEF_HOLD_MS = 1_400;
@@ -216,10 +240,18 @@ export function PlayTheater({
   inning = null,
   live = false,
   frozenBeat = null,
+  topTeam = "",
+  bottomTeam = "",
+  people = NO_PEOPLE,
+  fielders = NO_FIELDERS,
+  numbers: givenNumbers = null,
+  pointer,
 }: PlayTheaterProps) {
   const well = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<TheaterRenderer | null>(null);
+  // Who the pointer's over (the name over him): held outside React, its tag drawn into the frames.
+  const named = useTheaterNames(well, renderer);
   const scheme = useColorScheme();
   const level = useSettings((s) => s.celebrationLevel);
   const reduceMotion = usePrefersReducedMotion();
@@ -233,6 +265,7 @@ export function PlayTheater({
   const mlb = useMLBTimeline(event, live && frozen == null);
   const held = mlbDelay(mlb.status) ?? delay;
   const line = useTimeline(plays, playsVersion, mlb.atBats, names, state);
+  const numbers = givenNumbers ?? mlb.numbers;
 
   // The last entry shown (or passed over): what's after it, and news, is still to come. "": before everything.
   const [shown, setShown] = useState<string | null>(null);
@@ -460,6 +493,22 @@ export function PlayTheater({
   }
   const tint = tintOf(about, batting, kits);
 
+  // The names over the figures: who each one is in the script drawn (the play's own men, a beat's, the game as it stands now).
+  const labels = useMemo(
+    () => theaterLabels(kits, scheme, { top: topTeam, bottom: bottomTeam }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, topTeam, bottomTeam],
+  );
+  const runnerIDs = situation?.runnerIDs ?? NO_RUNNERS;
+  const now: BaseballNow = useMemo(
+    () => ({ side: batting, batter: situation?.batterID ?? null, pitcher: situation?.pitcherID ?? null, runners: runnerIDs }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [batting, situation?.batterID, situation?.pitcherID, runnerIDs[0], runnerIDs[1], runnerIDs[2]],
+  );
+  useEffect(() => {
+    if (pointer !== undefined) named.pose(pointer);
+  }, [named, pointer]);
+
   useEffect(() => {
     if (!canvas.current) return;
     const r = new TheaterRenderer(canvas.current);
@@ -478,10 +527,32 @@ export function PlayTheater({
         ? { key: `idle.${move.start}`, script: move.script, start: move.start, idle: true }
         : null;
   const footer = live ? 16 : 0;
+  // The beat on screen, for its cast: a pitching change's men, a substitution's.
+  const shownPlayBeat = frozenBeat ? frozenBeat.beat : beat ? beat.beat : null;
   useEffect(() => {
-    renderer.current?.update({ scene: play, news: state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen, onEnd: setEnded, beat: shownBeat, footer, paused: !onScreen });
+    // Each script's cast, built once (the play's or the field's, and the beat's or idle move's while one's up).
+    const casts = new WeakMap<PlayScript, TheaterCast>();
+    const castOf = (s: PlayScript): TheaterCast => {
+      let cast = casts.get(s);
+      if (!cast) {
+        const own = s === script;
+        const scope = own ? (play?.id ?? `field|${fieldKey}`) : (shownBeat?.key ?? "beat");
+        cast = playCast(s, own ? play : null, own ? null : shownPlayBeat, side, fielders, people, numbers, now, scope);
+        casts.set(s, cast);
+      }
+      return cast;
+    };
+    const tags = (s: PlayScript, t: number, f: FieldProjection) =>
+      named.frame(castOf(s), labels, { status: tag, flip: false, heartbeat: live ? "trailing" : null }, () =>
+        s.actors.flatMap((a, index) => {
+          if (!(a.opacity(t) > 0.01)) return [];
+          const lens = RigLens.field(f, a.position(t));
+          return [{ index, ground: lens.origin, height: lens.height }];
+        }),
+      );
+    renderer.current?.update({ scene: play, news: state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen, onEnd: setEnded, beat: shownBeat, footer, paused: !onScreen, tags });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [play, state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen, shownBeat?.key, shownBeat?.script, footer, onScreen]);
+  }, [play, state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen, shownBeat?.key, shownBeat?.script, footer, onScreen, labels, tag, live, side, people, fielders, numbers, now, shownPlayBeat]);
 
   return (
     <div ref={well} className={styles.well} aria-hidden="true">

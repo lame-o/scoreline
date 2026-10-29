@@ -22,6 +22,9 @@ import { umpire, type TheaterTeams, type Uniform } from "../../../../data/mlb/th
 import { keyed, mirrored, mix, over, Rig, RigPoses, RigTrack, gait, type RigPose } from "../../../../data/theater/rig";
 import { luminance } from "../../../../data/teamColors";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
+import { drawTags, ringBall, ringFigure, type PlacedTags } from "../../core/theater/theaterTags";
+import { TheaterTagLayout, type TagFrame } from "../../../../data/theater/theaterNames";
+import type { Rect } from "../../../../data/mlb/playCamera";
 import { rgba, type TheaterInk } from "./theaterInk";
 
 // The projection lives on its own so the football theater can share it without this drawing module.
@@ -527,19 +530,51 @@ export interface FrameInputs {
   readonly labels: Labels;
   /** Room kept at the bottom trailing corner (the heartbeat's): the pitch's label sits above it. */
   readonly footer?: number;
+  /** The names over the figures: the pointer's, the batter's. */
+  readonly tags?: TagFrame | null;
 }
 
+/**
+ * One frame: the tarp and the shadows on the field, the names (under
+ * everything that plays), then the ball's trace and its dust, the figures far
+ * to near, the zone, the ball, the beats and the type.
+ */
 export function drawFrame(ctx: Ctx, f: FieldProjection, input: FrameInputs): void {
   drawTarp(ctx, f, input);
-  drawTrace(ctx, f, input);
-  drawPuffs(ctx, f, input);
   const figures = posed(f, input);
   drawShadows(ctx, f, input, figures);
-  drawFigures(ctx, f, input, figures);
+  const tags = drawTags(
+    ctx,
+    input.tags,
+    figures.map((p) => ({ index: p.index, figure: p.figure, height: f.figure, opacity: p.opacity })),
+    input.t,
+    f.size,
+    tagRooms(f, input),
+    input.ink.dark,
+  );
+  drawTrace(ctx, f, input);
+  drawPuffs(ctx, f, input);
+  drawFigures(ctx, f, input, figures, tags);
   drawZone(ctx, f, input);
-  drawBall(ctx, f, input);
+  drawBall(ctx, f, input, tags);
   drawFlashes(ctx, f, input);
   drawLabels(ctx, f, input);
+}
+
+/** What the names keep clear of besides the furniture: the pitch's label, the headline and the mark while they're up. */
+function tagRooms(f: FieldProjection, { script, t, labels, footer = 0 }: FrameInputs): Rect[] {
+  const { size } = f;
+  const inset = Math.max(size.height * 0.055, 9);
+  const out: Rect[] = [];
+  const label = script.label;
+  if (labels.pitch && label && t > label.lower - 0.1 && t < label.upper + 0.3) {
+    const s = labels.pitch;
+    out.push({ x: size.width - inset - s.width, y: size.height - inset * 0.8 - footer - s.height, width: s.width, height: s.height });
+  }
+  const banner = script.banner;
+  if (labels.banner && banner && t >= banner.at && t < banner.until + 0.3) out.push(TheaterTagLayout.banner(labels.banner, size));
+  if (labels.stamp && t >= script.stamp) out.push(TheaterTagLayout.stamp(labels.stamp, size, inset));
+  return out;
 }
 
 /** A rain delay's tarp over the infield dirt, rolled out from the first-base side to the third (or back in), its seams across it. */
@@ -773,7 +808,7 @@ function posed(f: FieldProjection, input: FrameInputs): Posed[] {
   return out;
 }
 
-function drawFigures(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: readonly Posed[]): void {
+function drawFigures(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: readonly Posed[], tags: PlacedTags | null): void {
   const { script, t, teams, ink } = input;
   const batting = figureInks(teams.batting, ink);
   const fielding = figureInks(teams.fielding, ink);
@@ -785,6 +820,7 @@ function drawFigures(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: 
       drawDroppedBat(ctx, f.point(Ballpark.box(actor.bats)), actor.bats, 1 - Math.min(Math.max((t - script.settle) / 0.4, 0), 1), f, ink);
     }
     const inks = actor.team === "batting" ? batting : actor.team === "official" ? officials : fielding;
+    ringFigure(ctx, tags, p.figure, f.figure, p.opacity);
     drawFigure(ctx, p.figure, inks, f.figure, p.opacity);
     if (actor.bats && (actor.dropsBat == null || t < actor.dropsBat)) {
       ctx.globalAlpha = p.opacity;
@@ -1024,7 +1060,7 @@ function drawDroppedBat(ctx: Ctx, p: Point, bats: Hand, fade: number, f: FieldPr
 }
 
 /** A bright core in a soft glow, a short comet tail while it's fast, and its shadow on the grass (drawn with the shadows). */
-function drawBall(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs): void {
+function drawBall(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs, tags: PlacedTags | null): void {
   const ball = script.ball(t);
   if (!ball) return;
   const o = script.ballOpacity(t);
@@ -1069,6 +1105,7 @@ function drawBall(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs)
     ctx.fillStyle = rgba(ink.glow, ink.glowAlpha * strength);
     ctx.fill();
   }
+  ringBall(ctx, tags, p, r);
   ellipse(ctx, p.x, p.y, r + 0.6, r + 0.6);
   ctx.fillStyle = ink.ballEdge;
   ctx.fill();

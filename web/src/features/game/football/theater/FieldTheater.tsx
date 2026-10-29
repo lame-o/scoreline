@@ -5,13 +5,14 @@
  * size standing in so nothing below it moves. The drive chart under it
  * bursts nothing while it's shown (`FootballCelebration.driveChartBursts`).
  *
- *     <FieldTheater feed={feed} teams={teams} situation={situation} event={event} palette={palette} names={names} />
+ *     <FieldTheater feed={feed} teams={teams} situation={situation} event={event} palette={palette} names={names} people={detail.people} />
  */
 import { lazy, Suspense } from "react";
 import type { Football } from "../../../../data/gameDetail";
 import type { FootballFeed, FootballTeams } from "../../../../data/liveFeeds/football";
 import type { ScoreEvent } from "../../../../data/models";
 import type { TeamPalette } from "../../../../data/teamColors";
+import type { TheaterPerson } from "../../../../data/theater/theaterPeople";
 import { TheaterWell } from "../../core/theater/TheaterWell";
 import styles from "./FieldTheater.module.css";
 
@@ -25,9 +26,11 @@ export interface FieldTheaterProps {
   readonly palette: TeamPalette;
   /** The teams' short names: the end zones carry them. */
   readonly names: { readonly top: string; readonly bottom: string };
+  /** The box score's players, by athlete ID: the names over the credited men. */
+  readonly people: Readonly<Record<string, TheaterPerson>>;
 }
 
-export function FieldTheater({ feed, teams, situation, event, palette, names }: FieldTheaterProps) {
+export function FieldTheater({ feed, teams, situation, event, palette, names, people }: FieldTheaterProps) {
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
   const kits = {
@@ -48,6 +51,7 @@ export function FieldTheater({ feed, teams, situation, event, palette, names }: 
           eventId={event.id}
           topTeam={top?.name ?? ""}
           bottomTeam={bottom?.name ?? ""}
+          people={people}
         />
       </Suspense>
     </div>

@@ -15,7 +15,10 @@ import { referee, type Uniform } from "../../../../data/mlb/theaterTeams";
 import { Pitch, stampDetail, surname, type SoccerScene } from "../../../../data/theater/soccerScene";
 import type { Actor, SoccerProp, SoccerScript } from "../../../../data/theater/soccerScript";
 import type { PitchProjection } from "../../../../data/theater/soccerTheater";
+import type { Rect } from "../../../../data/mlb/playCamera";
+import { TheaterTagLayout, type TagFrame } from "../../../../data/theater/theaterNames";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, shift, type RigFigure } from "../../core/theater/rigFigure";
+import { drawTags, ringBall, ringFigure, type PlacedTags, type TagFigure } from "../../core/theater/theaterTags";
 import { hexRGB, rgba, type RGB, type TheaterInk } from "../../mlb/theater/theaterInk";
 import {
   accentOf,
@@ -654,25 +657,57 @@ export interface FrameInputs {
   readonly teams: SoccerTeams;
   readonly ink: TheaterInk;
   readonly labels: Labels;
+  /** The names over the players: the pointer's, the key man's. */
+  readonly tags?: TagFrame | null;
 }
 
-/** One frame of a moment through the camera (SoccerFrame). */
+/**
+ * One frame of a moment through the camera (SoccerFrame): the passes' lines
+ * on the grass and the shadows, the names on the pitch under everything that
+ * plays (the shot's flight, the players and the goals, the ball), then the
+ * type.
+ */
 export function drawSoccerFrame(ctx: Ctx, f: PitchProjection, input: FrameInputs): void {
-  drawTrails(ctx, f, input);
+  drawTrails(ctx, f, input, "ground");
   const figures = posed(f, input);
   drawShadows(ctx, f, input, figures);
-  const hands = drawStage(ctx, f, input, figures);
-  drawTheBall(ctx, f, input, hands);
+  const named = drawNames(ctx, f, input, figures);
+  drawTrails(ctx, f, input, "air");
+  const hands = drawStage(ctx, f, input, figures, named);
+  drawTheBall(ctx, f, input, hands, named);
   drawImpacts(ctx, f, input);
   drawLabels(ctx, f, input);
 }
 
 /**
- * Each pass draws its line on the grass as the ball travels it, a run with
- * the ball a dotted one, then settles to a faint record of the move; the
- * shot's path, in the air, brighter.
+ * The names over the players (SoccerFrame.drawTags), on the pitch under
+ * everything that plays, clear of the headline and the stamp while they're
+ * up; each over his man as he's drawn (his own height in the perspective),
+ * fading with him as he comes on or goes off.
  */
-function drawTrails(ctx: Ctx, f: PitchProjection, { script, t, teams, ink }: FrameInputs): void {
+function drawNames(ctx: Ctx, f: PitchProjection, { script, t, labels, tags, ink }: FrameInputs, figures: readonly Posed[]): PlacedTags | null {
+  if (!tags) return null;
+  const clear: Rect[] = [];
+  script.banners.forEach((banner, i) => {
+    const block = labels.banners[i];
+    if (block && t >= banner.at && t < banner.until + 0.3) clear.push(TheaterTagLayout.banner(block, f.size));
+  });
+  if (labels.stamp && t >= script.stamp) clear.push(TheaterTagLayout.stamp(labels.stamp, f.size, TheaterType.inset(f.size), script.cornerRight));
+  const shown: TagFigure[] = [];
+  figures.forEach((p, index) => {
+    const opacity = script.actors[index]!.opacity(t);
+    if (opacity > 0.01) shown.push({ index, figure: p.figure, height: p.height, opacity });
+  });
+  return drawTags(ctx, tags, shown, t, f.size, clear, ink.dark);
+}
+
+/**
+ * Each pass draws its line on the grass as the ball travels it, a run with
+ * the ball a dotted one, then settles to a faint record of the move
+ * (`ground`); the shot's path, in the air, brighter (`air`: it plays over
+ * the names, as the ball does).
+ */
+function drawTrails(ctx: Ctx, f: PitchProjection, { script, t, teams, ink }: FrameInputs, layer: "ground" | "air"): void {
   const width = Math.min(Math.max(f.size.height * 0.0065, 0.9), 1.8);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -682,6 +717,7 @@ function drawTrails(ctx: Ctx, f: PitchProjection, { script, t, teams, ink }: Fra
     const after = t - flight.end;
     const fade = after <= 0 ? 1 : Math.max(1 - after / 0.6, 0);
     if (flight.kind === "pass" || flight.kind === "carry") {
+      if (layer !== "ground") return;
       if (flight.from.x === flight.to.x && flight.from.y === flight.to.y) return;
       const a = f.pointGround(flight.from);
       const b = f.pointGround(flight.point(end));
@@ -696,7 +732,7 @@ function drawTrails(ctx: Ctx, f: PitchProjection, { script, t, teams, ink }: Fra
       ctx.setLineDash(flight.kind === "carry" ? [width * 0.1, width * 2.6] : []);
       ctx.stroke();
       ctx.setLineDash([]);
-    } else if (flight.kind === "shot" && i === script.shot) {
+    } else if (flight.kind === "shot" && i === script.shot && layer === "air") {
       const samples = 24;
       ctx.beginPath();
       for (let k = 0; k <= samples; k++) {
@@ -766,8 +802,12 @@ function receding(script: SoccerScript, t: number, foot: Point, size: { readonly
 /** A goal's parts, drawn in the order the camera needs them. */
 type GoalPart = "net" | "frame" | "nearPost";
 
-/** The goals and the players, far to near (a man in front of the post covers it). Returns where the keeper holding the ball has his hands. */
-function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: readonly Posed[]): Point | null {
+/**
+ * The goals and the players, far to near (a man in front of the post covers
+ * it); a man crossing a name gets its ring over it. Returns where the keeper
+ * holding the ball has his hands.
+ */
+function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: readonly Posed[], named: PlacedTags | null): Point | null {
   const { script, t, teams, ink } = input;
   const attacking = figureInks(teams.attacking, ink);
   const defending = figureInks(teams.defending, ink);
@@ -800,7 +840,9 @@ function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: re
       const shown = actor.opacity(t);
       if (!(shown > 0.01)) continue;
       const inks = actor.team === "attacking" ? attacking : actor.team === "defending" ? defending : actor.team === "official" ? officials : staff;
-      drawFigure(ctx, placed.figure, inks, placed.height, shown * (actor.shaped ? receding(script, t, placed.figure.ground, f.size) : 1));
+      const opacity = shown * (actor.shaped ? receding(script, t, placed.figure.ground, f.size) : 1);
+      ringFigure(ctx, named, placed.figure, placed.height, opacity);
+      drawFigure(ctx, placed.figure, inks, placed.height, opacity);
       if (script.heldBy === item.index && t >= script.heldFrom) hands = placed.hands;
       for (const prop of script.props) {
         if (prop.actor === item.index && t >= prop.from && t < prop.until) drawProp(ctx, prop, placed.figure, placed.height, shown * Math.min((t - prop.from) / 0.2, 1));
@@ -995,7 +1037,7 @@ function drawNet(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs, 
   ctx.stroke();
 }
 
-function drawTheBall(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs, hands: Point | null): void {
+function drawTheBall(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs, hands: Point | null, named: PlacedTags | null): void {
   const ball = script.ball(t);
   if (!ball) return;
   const o = script.ballOpacity(t);
@@ -1014,6 +1056,7 @@ function drawTheBall(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInpu
     }
     if (flight && flight.kind !== "carry") for (let i = 1; i <= 6; i++) trail.push(f.point(flight.point(Math.max(t - i * 0.014, flight.start))));
   }
+  ringBall(ctx, named, p, r, o);
   drawBall(ctx, p, r, trail, ink, o);
 }
 

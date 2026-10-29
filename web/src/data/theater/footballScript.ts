@@ -312,6 +312,13 @@ export class FootballScript {
   loop: { readonly start: number; readonly period: number } | null = null;
   turn: { readonly from: number; readonly to: number; readonly start: number; readonly end: number } | null = null;
   beats: readonly (readonly [number, number])[] = [];
+  /**
+   * Who ESPN credits (the passer, the receiver, the rusher, the tacklers,
+   * the man who picked it off, sacked him, forced or recovered the fumble,
+   * kicked, returned, blocked it, was flagged), on the figure the play gives
+   * him: the tags over the field name him, and nobody else.
+   */
+  credits = new Map<number, Participant>();
 
   /** The camera's yaw at t: the script's own, or partway through a turn. */
   yawAt(t: number): number {
@@ -868,6 +875,17 @@ export class Builder {
     safeties.forEach((i, k) => key(i, k === 0 && safeties.length > 1 ? "ss" : "fs"));
   }
 
+  /** Who ESPN credits, on the figure the play gives him (`credits`). */
+  credit(i: number | null | undefined, p: Participant | null | undefined): void {
+    if (i == null || !p || i >= this.script.players.length || (p.id == null && p.name == null)) return;
+    this.script.credits.set(i, p);
+  }
+
+  /** The first man credited in one of these parts. */
+  credited(...roles: string[]): Participant | null {
+    return this.scene?.participants.find((p) => roles.includes(p.role)) ?? null;
+  }
+
   /**
    * The man ESPN credits, on his team: the one in his depth-chart slot (the
    * strong safety himself), else one of his slot's kind on its side of the
@@ -1137,6 +1155,7 @@ export class Builder {
       if (i != null) {
         taken.add(i);
         tacklers.push(i);
+        this.credit(i, credit);
       }
     }
     this.stop = { at: time, point: spot };
@@ -1298,6 +1317,8 @@ export class Builder {
     const deep = scene.depth === "deep" || (scene.air ?? 0) >= 18;
     const lane = scene.lane ?? "middle";
     const receiver = this.target(scene.position("receiver"), lane) ?? this.at(S.tightEnd) ?? this.at(S.back) ?? qb;
+    this.credit(qb, this.credited("passer"));
+    if (receiver !== qb && !picked) this.credit(receiver, this.credited("receiver"));
     const inHand = this.snapBall(qb);
     // The drop: seven yards deep from under center, a step or two in the gun.
     const pocket = { x: this.ballX, y: line - 21 };
@@ -1337,6 +1358,7 @@ export class Builder {
     const coverRoles: Role[] = deep ? ["corner", "safety"] : ["corner", "backer", "safety"];
     const breakup = scene.participants.find((p) => p.role === "passDefender") ?? null;
     const defender = (breakup ? this.man(breakup, "defense", catchPoint, snap, taken, coverRoles) : null) ?? this.nearest("defense", catchPoint, snap, coverRoles, taken);
+    if (breakup) this.credit(defender, breakup);
     if (!caught) {
       // Broken up, or just out of reach: it comes down on the grass.
       if (defender != null) this.move(defender, [{ x: catchPoint.x + 3, y: catchPoint.y + 2 }], snap + 0.1, arrive - 0.02);
@@ -1414,6 +1436,7 @@ export class Builder {
       const i = this.man(credit, "defense", pocket, 0, new Set(by), ["front", "backer"]);
       if (i == null) return;
       by.push(i);
+      this.credit(i, credit);
       const start = this.position(i, 0);
       const side = start.x >= ballX ? 1 : -1;
       const reach = pressure.hit ? 2.2 : 5.5;
@@ -1451,6 +1474,7 @@ export class Builder {
     }
     const taker = this.man(credit, "defense", point, snap, taken, ["corner", "safety", "backer"]);
     if (taker == null) return;
+    this.credit(taker, credit);
     // He jumps the route: in front of the receiver as the ball arrives.
     const jump = { x: point.x - (point.x > this.ballX ? 2 : -2), y: point.y - 3 };
     this.move(taker, [jump], snap + 0.15, arrive, "inOut");
@@ -1494,6 +1518,7 @@ export class Builder {
       const from = Math.max(time - 0.3, this.snap);
       const stripper = this.man(credit, opponents, at, from, stripped);
       if (stripper != null) {
+        this.credit(stripper, credit);
         const here = this.position(stripper, from);
         const d = Math.max(hypotP(here, at), 1);
         this.move(stripper, [{ x: at.x + ((here.x - at.x) / d) * 2.5, y: at.y + ((here.y - at.y) / d) * 2.5 }], from, arrive, "inOut");
@@ -1571,6 +1596,7 @@ export class Builder {
     const others = new Set(taken);
     others.delete(carrier);
     const taker = this.man(credit, team, recovery, time, others) ?? carrier;
+    this.credit(taker, credit);
     busy.add(taker);
     const returns = lost && (scene.scoring === "touchdown" || Math.abs(Gridiron.y(scene.to) - recovery.y) > 4);
     const advances = !lost && Math.abs(Gridiron.y(scene.to) - recovery.y) > 4;
@@ -1641,6 +1667,7 @@ export class Builder {
       default:
         runner = back;
     }
+    this.credit(runner, this.credited("rusher", "fumbler"));
     const inHand = this.snapBall(qb);
     if (scene.text.includes("(Aborted)")) {
       // The snap never made it: on the ground at his feet, and the scramble for it.
@@ -1708,6 +1735,7 @@ export class Builder {
   kneel(): void {
     const qb = this.at(S.quarterback);
     if (qb == null) return;
+    this.credit(qb, this.credited("rusher", "passer"));
     const { snap, line, script } = this;
     const inHand = this.snapBall(qb);
     this.carry(qb, inHand, Infinity);
@@ -1722,6 +1750,7 @@ export class Builder {
   spike(): void {
     const qb = this.at(S.quarterback);
     if (qb == null) return;
+    this.credit(qb, this.credited("passer", "rusher"));
     const { line, script } = this;
     const inHand = this.snapBall(qb);
     const throwAt = inHand + 0.18;
@@ -1745,6 +1774,7 @@ export class Builder {
     const scene = this.scene;
     const qb = this.at(S.quarterback);
     if (!scene || qb == null) return;
+    this.credit(qb, this.credited("passer", "rusher", "fumbler"));
     const { snap, line, shotgun, script } = this;
     const inHand = this.snapBall(qb);
     const pocket = { x: this.ballX, y: line - 21 };
@@ -1760,7 +1790,10 @@ export class Builder {
     const credits: (Participant | null)[] = scene.sackers.length === 0 ? [null] : scene.sackers.slice(0, 2);
     for (const credit of credits) {
       const i = this.man(credit, "defense", { x: this.ballX + 15, y: line }, 0, new Set(sackers), ["front"]);
-      if (i != null) sackers.push(i);
+      if (i != null) {
+        sackers.push(i);
+        this.credit(i, credit);
+      }
     }
     sackers.forEach((sacker, k) => {
       const start = this.position(sacker, 0);
@@ -1779,6 +1812,7 @@ export class Builder {
       const busy = new Set<number>([...sackers, qb]);
       const stripper = this.man(scene.stripper, "defense", down, 0, new Set([qb]));
       if (stripper != null) {
+        this.credit(stripper, scene.stripper);
         if (!sackers.includes(stripper)) this.move(stripper, [{ x: down.x - 3, y: down.y + 3 }], snap + 0.04, hit, "inOut");
         script.players[stripper]!.actions = script.players[stripper]!.actions.filter((a) => a.kind !== "tackle");
         script.players[stripper]!.act("strip", hit, down);
@@ -1806,6 +1840,8 @@ export class Builder {
     const punter = this.at(S.punter);
     const returner = this.at(S.returner);
     if (punter == null || returner == null) return;
+    this.credit(punter, this.credited("punter"));
+    this.credit(returner, this.credited("returner"));
     const inHand = this.snapBall(punter, 3.2);
     const kickAt = inHand + 0.55;
     this.carry(punter, inHand, kickAt);
@@ -1832,6 +1868,8 @@ export class Builder {
     const kicker = this.at(S.kicker);
     const returner = this.at(S.returner);
     if (kicker == null || returner == null) return;
+    this.credit(kicker, this.credited("kicker"));
+    this.credit(returner, this.credited("returner"));
     const tee = { x: 0, y: line };
     const kickAt = snap + 0.2;
     this.move(kicker, [{ x: -1.5, y: line - 2 }], 0.1, kickAt, "inOut");
@@ -1952,6 +1990,8 @@ export class Builder {
     const holder = this.at(S.holder);
     const kicker = this.at(S.kicker);
     if (holder == null || kicker == null) return;
+    this.credit(kicker, this.credited("kicker"));
+    this.credit(holder, this.credited("holder"));
     const { snap, line, script } = this;
     const inHand = this.snapBall(holder, 1.2);
     script.players[holder]!.holds.push({ kind: "kneel", from: 0, until: Infinity });
@@ -2038,6 +2078,7 @@ export class Builder {
       if (blocker == null || hypotP(this.position(i, 0), aim) < hypotP(this.position(blocker, 0), aim)) blocker = i;
     }
     if (blocker == null) return;
+    this.credit(blocker, scene.blocker);
     const from = this.position(blocker, 0);
     const through = { x: ballX + clamp(from.x - ballX, -7, 7), y: line - 2 };
     const hands: FieldPoint = { x: through.x, y: through.y - 1, z: 8.5 };
@@ -2081,6 +2122,7 @@ export class Builder {
       let at = { x: ballX + (team === "defense" ? 9 : -9), y: line + (team === "defense" ? 4 : -4) };
       const fouler = this.man(flag?.player, team, ground(this.spot), 0);
       if (fouler != null && flag?.player != null) {
+        this.credit(fouler, flag.player);
         // Out of his stance a beat early, a lurch, and back.
         const here = this.position(fouler, 0);
         const way = team === "offense" ? 1 : -1;
@@ -2113,6 +2155,7 @@ export class Builder {
       const foul = this.moment(flag);
       const team: Team = flag.side === ruling.offense ? "offense" : "defense";
       const fouler = flag.player ? this.man(flag.player, team, foul.near, foul.at) : null;
+      if (fouler != null && !script.credits.has(fouler)) this.credit(fouler, flag.player);
       let place = fouler != null ? this.position(fouler, foul.at) : foul.near;
       if (foul.fixed) {
         // Where it happened (the catch point, the passer, the tackle), and the man flagged in on it.

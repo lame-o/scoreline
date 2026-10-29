@@ -19,7 +19,7 @@
  *     moments.retract(feed.takeRetractions());
  *     moments.offer(feed.takeMoments());
  */
-import { battedBalls as readBattedBalls, currentAtBat, intOf, runners, type Baseball, type BattedBall, type Pitch, type SideOf } from "../gameDetail";
+import { battedBalls as readBattedBalls, currentAtBat, intOf, runnerIDs, runners, type Baseball, type BattedBall, type Pitch, type SideOf } from "../gameDetail";
 import type { Fetcher } from "../http";
 import { arr, at, bool, has, num, str, type JSONValue } from "../json";
 import { liveMoment, Tier, type Accent, type LiveMoment, type MomentKind } from "../moments";
@@ -426,6 +426,7 @@ export function baseballSituation(s: JSONValue, names: Readonly<Record<string, s
     runners: runners(s, names),
     batterID: pid("batter"),
     pitcherID: pid("pitcher"),
+    runnerIDs: runnerIDs(s),
   };
 }
 
@@ -467,6 +468,7 @@ export function settledSituation(s: Baseball | null, window: readonly JSONValue[
         onSecond: false,
         onThird: false,
         runners: [null, null, null],
+        runnerIDs: [null, null, null],
         batter: nameOf(batterID) ?? s.batter,
         batterID: batterID ?? s.batterID,
         pitcher: nameOf(pitcherID) ?? s.pitcher,

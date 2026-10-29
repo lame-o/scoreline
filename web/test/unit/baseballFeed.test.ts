@@ -164,6 +164,7 @@ describe("At the Plate between halves", () => {
     runners: [null, null, null],
     batterID: "41179",
     pitcherID: "42604",
+    runnerIDs: [null, null, null],
     ...over,
   });
 
