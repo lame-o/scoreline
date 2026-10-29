@@ -201,7 +201,6 @@ test.describe("theaters on the live pages", () => {
   for (const [sport, only] of [
     ["football", "Field goal"],
     ["soccer", "Save"],
-    ["basketball", "Steal and dunk"],
   ] as const) {
     test(`${sport}: a replay runs its course, then the stage holds still`, async ({ page }) => {
       await page.goto(`/dev/theater/${sport}?only=${encodeURIComponent(only)}`);
@@ -214,4 +213,35 @@ test.describe("theaters on the live pages", () => {
       expect(await frames(page)).toBe(settled);
     });
   }
+
+  test("basketball: a replay runs its course, the court after it brings the ball up, then the stage holds still", async ({ page }) => {
+    await page.goto(`/dev/theater/basketball?only=${encodeURIComponent("Steal and dunk")}`);
+    await expect(page.locator("[data-tile] canvas")).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => frames(page), { timeout: 10_000 }).toBeGreaterThan(60);
+    // The replay and its bursts (about 6 s), a breath to read it, then the other team takes it out and brings it up (about 8 s).
+    await page.waitForTimeout(17_000);
+    const settled = await frames(page);
+    await page.waitForTimeout(1500);
+    expect(await frames(page)).toBe(settled);
+  });
+
+  test("basketball: between plays the court's sparse beats draw, and nothing in between", async ({ page }) => {
+    await page.goto(`/dev/theater/basketball?only=${encodeURIComponent("Steal and dunk")}&idle`);
+    await expect(page.locator("[data-tile] canvas")).toBeVisible({ timeout: 15_000 });
+    // Past the replay and the bring-up: the court set, a small beat every few seconds.
+    await page.waitForTimeout(17_000);
+    let still = 0;
+    let moving = 0;
+    let last = await frames(page);
+    for (let i = 0; i < 48; i++) {
+      await page.waitForTimeout(250);
+      const now = await frames(page);
+      if (now > last) moving++;
+      else still++;
+      last = now;
+    }
+    // Something happens, briefly; most of the time the stage doesn't draw at all.
+    expect(moving).toBeGreaterThan(0);
+    expect(still).toBeGreaterThan(moving);
+  });
 });

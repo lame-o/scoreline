@@ -9,8 +9,12 @@
  * late miss, and the court between plays, each with a Replay button. Each
  * play's moment is the live lane's own (`momentAt`). `?t=2.4` draws every
  * tile at that instant, frozen, for screenshots (`?t=end`: as it ended);
- * `?only=Posterized` keeps the tiles whose title starts so. Fixtures load
- * lazily from test/fixtures, so nothing here ships.
+ * `?only=Posterized` keeps the tiles whose title starts so; `?idle` lets the
+ * court between plays carry on with its sparse beats after each replay, as
+ * a live game's does (without it the stage holds still once a replay's
+ * run). `?sheet=01` … `?sheet=10`: the review sheets instead, the Mac render
+ * harness's twins (BasketballTheaterSheets.tsx). Fixtures load lazily from
+ * test/fixtures, so nothing here ships.
  */
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
@@ -22,6 +26,7 @@ import { parseScene, replays, type BasketballMove, type BasketballScene, type Ba
 import { useColorScheme } from "../../../../state/theme";
 import { MomentProvider, useMomentSlot } from "../../core/moments";
 import BasketballTheater from "./BasketballTheater";
+import { BasketballTheaterSheets } from "./BasketballTheaterSheets";
 
 const files = import.meta.glob<{ default: unknown }>("../../../../../test/fixtures/nba-theater-plays.json");
 
@@ -60,7 +65,7 @@ function tiles(games: readonly Game[]): Tile[] {
       if (!s || !replays(s) || !find(s)) continue;
       // The lane's own moment for it, from the plays around it (a celebration needs one).
       const m = momentAt(i, g.items, teams, false, 0);
-      out.push({ title, game: g, state: { scene: s, news: true }, moment: m ? { ...m, burst: true } : null });
+      out.push({ title, game: g, state: { plays: [s], news: new Set([s.id]), heard: null }, moment: m ? { ...m, burst: true } : null });
       return;
     }
   };
@@ -81,7 +86,7 @@ function tiles(games: readonly Game[]): Tile[] {
   add("Driving layup", 1, (s) => s.kind === "layup" && s.move === "drive" && s.result === "make");
   add("Late miss", 0, id("401909877683"));
   const g = games[0];
-  if (g) out.push({ title: "Between plays", game: g, state: { scene: null, news: false }, moment: null, rest: "top" });
+  if (g) out.push({ title: "Between plays", game: g, state: { plays: [], news: new Set(), heard: null }, moment: null, rest: "top" });
   return out;
 }
 
@@ -90,6 +95,8 @@ export function BasketballTheaterPreview() {
   const t = params.get("t");
   const frozen = t != null && t !== "" ? (t === "end" ? Infinity : Number(t)) : null;
   const only = params.get("only");
+  const sheet = params.get("sheet");
+  const idle = params.has("idle");
   const [data, setData] = useState<readonly Game[] | null>(null);
   useEffect(() => {
     let live = true;
@@ -100,18 +107,19 @@ export function BasketballTheaterPreview() {
       live = false;
     };
   }, []);
+  if (sheet) return <BasketballTheaterSheets sheet={sheet} />;
   if (!data) return null;
   const list = tiles(data).filter((tile) => !only || tile.title.toLowerCase().startsWith(only.toLowerCase()));
   return (
     <div style={{ display: "grid", gap: "calc(16 * var(--pt))", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, calc(320 * var(--pt))), 1fr))", padding: "var(--gutter)" }}>
       {list.map((tile) => (
-        <PreviewTile key={tile.title} tile={tile} frozen={frozen} />
+        <PreviewTile key={tile.title} tile={tile} frozen={frozen} idle={idle} />
       ))}
     </div>
   );
 }
 
-function PreviewTile({ tile, frozen }: { tile: Tile; frozen: number | null }) {
+function PreviewTile({ tile, frozen, idle }: { tile: Tile; frozen: number | null; idle: boolean }) {
   const [run, setRun] = useState(0);
   return (
     <section data-tile={tile.title} style={{ display: "flex", flexDirection: "column", gap: "calc(6 * var(--pt))" }}>
@@ -121,14 +129,14 @@ function PreviewTile({ tile, frozen }: { tile: Tile; frozen: number | null }) {
           Replay
         </button>
       </div>
-      <PreviewStage key={run} tile={tile} frozen={frozen} />
-      <p style={{ fontSize: "var(--text-caption)", color: "var(--label-secondary)" }}>{tile.state.scene?.text ?? `${tile.game.away.abbreviation} with the ball, set in its half`}</p>
+      <PreviewStage key={run} tile={tile} frozen={frozen} idle={idle} />
+      <p style={{ fontSize: "var(--text-caption)", color: "var(--label-secondary)" }}>{tile.state.plays[0]?.text ?? `${tile.game.away.abbreviation} with the ball, set in its half`}</p>
     </section>
   );
 }
 
 /** One replay: its own moment slot, offered the play's moment once the theater is up (each replay is news again). */
-function PreviewStage({ tile, frozen }: { tile: Tile; frozen: number | null }) {
+function PreviewStage({ tile, frozen, idle }: { tile: Tile; frozen: number | null; idle: boolean }) {
   const scheme = useColorScheme();
   const slot = useMomentSlot();
   const { home, away } = tile.game;
@@ -154,6 +162,7 @@ function PreviewStage({ tile, frozen }: { tile: Tile; frozen: number | null }) {
         preloaded={tile.state}
         restOffense={tile.rest ?? null}
         frozen={frozen}
+        idle={idle}
       />
     </MomentProvider>
   );

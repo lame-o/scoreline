@@ -741,7 +741,7 @@ export const TURNOVER_TYPES: ReadonlySet<number> = new Set([61, 62, 63, 64, 65, 
 /** Offensive foul, charge. */
 export const OFFENSIVE_FOUL_TYPES: ReadonlySet<number> = new Set([42, 24]);
 /** Shooting, personal, take, loose ball, flagrant 1 and 2, away from the play. */
-const DEFENSIVE_FOUL_TYPES: ReadonlySet<number> = new Set([44, 45, 22, 43, 32, 31, 40]);
+export const DEFENSIVE_FOUL_TYPES: ReadonlySet<number> = new Set([44, 45, 22, 43, 32, 31, 40]);
 
 /** The plays the court and the replay use, in ESPN's order (game order). The bookkeeping team rebound between two free throws is left out. */
 export function courtPlays(plays: readonly JSONValue[], side: SideOf, topIsHome: boolean, quarter: number = QUARTER.nba): CourtPlay[] {
