@@ -123,6 +123,36 @@ export const Ballpark = {
     return { x: b.x + (toMound.x / d) * 3, y: b.y + (toMound.y / d) * 3 };
   },
 
+  /** The first baseman holding a runner on: at the bag, a step toward second. */
+  get holding(): Point {
+    const b = this.base(1);
+    return { x: b.x - 3, y: b.y + 1 };
+  },
+
+  /**
+   * A team's dugout, in foul ground off the line: the home team's on the
+   * first-base side, the visitors' on the third (parks differ; this is the
+   * theater's one assumption, the same every game).
+   */
+  dugout(home: boolean): Point {
+    return { x: home ? 84 : -84, y: 26 };
+  },
+
+  /** A team's bullpen gate, in the wall on its dugout's side, in the gap. */
+  bullpen(home: boolean): Point {
+    const degrees = home ? 36 : -36;
+    return this.polar(this.fence((degrees * Math.PI) / 180) - 6, degrees);
+  },
+
+  /**
+   * The plate umpire's spot: behind the catcher, in the slot on the batter's
+   * side of him, a little wider and deeper than life so the two figures,
+   * drawn larger than life, both read.
+   */
+  umpire(bats: "L" | "R" | null): Point {
+    return { x: bats === "L" ? 3.2 : -3.2, y: -13 };
+  },
+
   /** The fielder nearest a spot (outfielders only for a ball beyond the infield). */
   nearest(p: Point): number {
     const pool = this.distance(p) > 175 ? [7, 8, 9] : [1, 3, 4, 5, 6];

@@ -39,11 +39,13 @@
  */
 import { CameraFrame, CameraTrack, shoot, TROT_CUT, type Shot } from "./playCamera";
 import { coverer, isOut, type Effort, type Hand, type Handling, type PlayScene, type Runner } from "./playScene";
+import { seedOf, type Hurt } from "./playBeat";
 import { pitchPosition, plateTime, type StatcastPitch } from "./statcast";
 import { Ballpark, distanceBetween, easeValue, fieldPoint, ground, ORIGIN, samePoint, type Ease, type FieldPoint, type Point } from "./theaterField";
 import { ballMemo, RigTrack, type RigFacing } from "../theater/rig";
 
-export type Team = "fielding" | "batting";
+/** The teams, and the umpires (who wear neither). */
+export type Team = "fielding" | "batting" | "official";
 
 /** A walk or run along a path, from `start` to `end`. */
 export class Move {
@@ -89,7 +91,23 @@ export type Role =
   /** By scorer's number (1: the pitcher, 2: the catcher). */
   | { readonly kind: "fielder"; readonly n: number }
   | { readonly kind: "batter" }
-  | { readonly kind: "runner" };
+  | { readonly kind: "runner" }
+  /** A manager, a coach or a trainer, out of the dugout. */
+  | { readonly kind: "coach" }
+  /** The plate umpire. */
+  | { readonly kind: "umpire" };
+
+/**
+ * An umpire's call, as he makes it: a called strike's punch (a strikeout
+ * looking's punch-out, side-on), a swinging strike's point, both arms up for
+ * a foul, safe and out at the plate, a tap on the cap for a challenge.
+ */
+export interface Signal {
+  readonly kind: "strike" | "punchOut" | "swinging" | "foul" | "safe" | "out" | "challenge";
+  readonly at: number;
+  /** Where he's looking as he makes it (the plate for a play there; else the pitcher). */
+  readonly toward: Point;
+}
 
 /** A moment of the play in his hands. */
 export interface Action {
@@ -124,6 +142,23 @@ export class Actor {
    * `landing`. (The figures don't draw it yet: a lunge stands in.)
    */
   dive: { readonly start: number; readonly reach: number; readonly target: FieldPoint; readonly landing: Point } | null = null;
+  /** The pitcher's throwing hand (a lefty's delivery is mirrored), and his arm slot: 0 sidearm, 1 over the top. */
+  arm: Hand | null = null;
+  slot = 0.7;
+  /** A check swing (the bat starts through and holds up), and a bunt squared from here on. */
+  check: number | null = null;
+  bunt: number | null = null;
+  /** In his set: the pitcher in the stretch, the umpire in his crouch behind the catcher. */
+  sets: { readonly lower: number; readonly upper: number }[] = [];
+  /** The pitcher leaning in for the sign; the catcher up out of his crouch. */
+  sign: { readonly lower: number; readonly upper: number } | null = null;
+  rise: { readonly lower: number; readonly upper: number }[] = [];
+  /** Head first back into a base (a throw over), from this moment. */
+  diveBack: number | null = null;
+  /** A practice swing, half speed, from this moment. */
+  practice: number | null = null;
+  /** An umpire's calls, each from its moment. */
+  signals: Signal[] = [];
 
   constructor(team: Team, at: Point, role: Role = { kind: "runner" }, options: { crouch?: boolean; bats?: Hand | null; appear?: number } = {}) {
     this.team = team;
@@ -214,6 +249,9 @@ export class Flight {
     /** A measured flight's touchdowns, as fractions of it: the dust puffs. */
     readonly hops: readonly number[] = [],
   ) {}
+
+  /** Another ball (a warm-up throw after the last one came in): unseen until it's thrown. */
+  fresh = false;
 
   point(t: number): FieldPoint {
     const raw = this.end > this.start ? Math.min(Math.max((t - this.start) / (this.end - this.start), 0), 1) : 1;
@@ -326,14 +364,72 @@ export interface Rest {
   readonly bats: Hand | null;
   /** The half-inning ended: the batting team takes the field. */
   readonly swapped: boolean;
+  /** The fielding team is the home team (its dugout and bullpen are on the first-base side; the visitors' on the third). Absent: true. */
+  readonly fieldingHome?: boolean;
+  /** What still stands on the field between pitches: the trainer out to an injured man, the tarp in a rain delay. */
+  readonly standing?: Standing | null;
 }
 
+export type Standing = { readonly kind: "injury"; readonly hurt: Hurt } | { readonly kind: "tarp" };
+
 export const EMPTY_REST: Rest = { bases: [false, false, false], bats: null, swapped: false };
+
+/** Where fielder `n` waits for the pitch: his position, the first baseman holding a runner on at the bag. */
+export function restSpot(rest: Pick<Rest, "bases">, n: number): Point {
+  if (n === 3 && rest.bases[0]) return Ballpark.holding;
+  return Ballpark.position(n);
+}
+
+/** Where an injured man is down: by the plate, on the mound, or (MLB says only who) on the infield grass. */
+export function hurtSpot(hurt: Hurt): Point {
+  return hurt === "batter" ? { x: -5, y: 4 } : hurt === "pitcher" ? { x: 0, y: 55 } : { x: 18, y: 70 };
+}
+
+/** What the status tag says as a beat plays: each from its moment (a pitch's call as it pops the mitt, a challenge and how it came out). */
+export interface Caption {
+  readonly at: number;
+  readonly line: import("./playBeat").CaptionLine;
+}
+
+/** The infield tarp: rolled out (or in) from `at` over `TARP_ROLL`. */
+export interface Tarp {
+  readonly at: number;
+  readonly out: boolean;
+}
+
+export const TARP_ROLL = 2.4;
+
+/** How much of the infield the tarp covers at t (0…1). */
+export function tarpCover(tarp: Tarp, t: number): number {
+  const u = easeValue("inOut", (t - tarp.at) / TARP_ROLL);
+  return tarp.out ? u : 1 - u;
+}
+
+/** The strike zone at the front of the plate while a pitch is on its way (this batter's, as MLB measured it), and where the ball crossed it. */
+export interface Zone {
+  readonly bottom: number;
+  readonly top: number;
+  /** When it crosses the plate, and where: feet across, and height. */
+  readonly at: number;
+  readonly crossing: Point;
+  /** Shown from, and fading from. */
+  readonly from: number;
+  readonly until: number;
+}
+
+/** Half the plate's width, and its front (feet from its point). */
+export const ZONE_HALF = 17 / 24;
+export const ZONE_FRONT = 17 / 12;
 
 export class PlayScript {
   actors: Actor[] = [];
   flights: Flight[] = [];
   flashes: Flash[] = [];
+  captions: Caption[] = [];
+  zone: Zone | null = null;
+  /** A flight the fielders turn to watch (a foul ball) when nothing was put in play. */
+  watch: number | null = null;
+  tarp: Tarp | null = null;
   /** The batted ball's flight (traced), and where it came down. */
   batted: number | null = null;
   landing: Landing | null = null;
@@ -363,11 +459,31 @@ export class PlayScript {
   /** The field with nobody moving: no play yet. */
   static rest(rest: Rest): PlayScript {
     const script = new PlayScript();
-    for (let n = 1; n <= 9; n++) script.actors.push(new Actor("fielding", Ballpark.position(n), { kind: "fielder", n }, { crouch: n === 2 }));
+    if (rest.standing?.kind === "tarp") {
+      // A rain delay: the field's empty under the tarp.
+      script.tarp = { at: -TARP_ROLL, out: true };
+      return script;
+    }
+    for (let n = 1; n <= 9; n++) script.actors.push(new Actor("fielding", restSpot(rest, n), { kind: "fielder", n }, { crouch: n === 2 }));
     if (rest.bats) script.actors.push(new Actor("batting", Ballpark.box(rest.bats), { kind: "batter" }, { bats: rest.bats }));
     for (let base = 1; base <= 3; base++) if (rest.bases[base - 1]) script.actors.push(new Actor("batting", Ballpark.lead(base)));
+    if (rest.standing?.kind === "injury") {
+      // The trainer and the manager, out with him.
+      const spot = hurtSpot(rest.standing.hurt);
+      const team: Team = rest.standing.hurt === "batter" ? "batting" : "fielding";
+      script.actors.push(new Actor(team, { x: spot.x + 4, y: spot.y - 2 }, { kind: "coach" }));
+      script.actors.push(new Actor(team, { x: spot.x - 4, y: spot.y + 1 }, { kind: "coach" }));
+    }
+    // The plate umpire, last: every other figure keeps its place.
+    script.actors.push(new Actor("official", Ballpark.umpire(rest.bats), { kind: "umpire" }));
     script.measureBodies();
     return script;
+  }
+
+  /** The plate umpire's index (the last of the figures there at the start). */
+  get umpire(): number | null {
+    for (let i = this.actors.length - 1; i >= 0; i--) if (this.actors[i]!.role.kind === "umpire") return i;
+    return null;
   }
 
   static play(scene: PlayScene, rest: Rest): PlayScript {
@@ -393,6 +509,7 @@ export class PlayScript {
         if (scene.inPlay) b.ballInPlay();
         else b.runnersPlay();
     }
+    b.umpireCalls();
     b.finish();
     b.settleField(rest);
     b.headline();
@@ -410,7 +527,8 @@ export class PlayScript {
    * with the ball coming to him or leaving his hand, it.
    */
   measureBodies(): void {
-    const contact = this.batted != null ? (this.flights[this.batted]?.start ?? null) : null;
+    const traced = this.batted ?? this.watch;
+    const contact = traced != null ? (this.flights[traced]?.start ?? null) : null;
     const settle = this.settle;
     const ball = ballMemo(this);
     this.rig = this.actors.map((actor) =>
@@ -427,7 +545,15 @@ export class PlayScript {
           case "batter":
             return { point: ORIGIN };
           case "runner":
+          case "coach":
             return { point: Ballpark.rubber };
+          case "umpire": {
+            // His call to where it's made; the ball while it's in play; else the pitcher.
+            const call = actor.signals.find((c) => t > c.at - 0.45 && t < c.at + 1.0);
+            if (call) return { point: call.toward };
+            const b = contact != null && t > contact + 0.05 && t < settle ? ball(t) : null;
+            return { point: b ? ground(b) : Ballpark.rubber };
+          }
         }
       }),
     );
@@ -438,8 +564,8 @@ export class PlayScript {
     const first = this.flights[0];
     if (!first || !(t >= this.ballFrom) || !(t < this.ballGone + Actor.fade)) return null;
     let held = first.from;
-    for (const flight of this.flights) {
-      if (t < flight.start) return held;
+    for (const [i, flight] of this.flights.entries()) {
+      if (t < flight.start) return flight.fresh && i > 0 ? null : held;
       if (t <= flight.end) return flight.point(t);
       held = flight.to;
     }
@@ -460,6 +586,8 @@ export class Builder {
   /** Actor index by the base a runner started from (0: the batter). */
   readonly runner = new Map<number, number>();
   readonly batter: number;
+  /** The plate umpire. */
+  readonly umpire: number;
   readonly hand: Hand;
   /** The pitch leaves his hand after a 0.4 s delivery from the set, so the replay opens on the battery before anything flies. */
   readonly pitchStart = 0.5;
@@ -495,7 +623,9 @@ export class Builder {
       const mph = scene.pitch?.mph ?? 91;
       this.contact = this.pitchStart + Math.min(Math.max((0.42 * 92) / mph, 0.34), 0.62);
     }
-    for (let n = 1; n <= 9; n++) this.script.actors.push(new Actor("fielding", Ballpark.position(n), { kind: "fielder", n }, { crouch: n === 2 }));
+    // Where they waited for the pitch (the first baseman holding a runner on).
+    const waiting = { bases: scene.basesBefore };
+    for (let n = 1; n <= 9; n++) this.script.actors.push(new Actor("fielding", restSpot(waiting, n), { kind: "fielder", n }, { crouch: n === 2 }));
     // On a runner's play the batter is still in the box.
     this.batter = this.script.actors.length;
     this.script.actors.push(new Actor("batting", Ballpark.box(this.hand), { kind: "batter" }, { bats: this.hand }));
@@ -505,6 +635,8 @@ export class Builder {
       this.runner.set(r.from, this.script.actors.length);
       this.script.actors.push(new Actor("batting", Ballpark.lead(r.from)));
     }
+    this.umpire = this.script.actors.length;
+    this.script.actors.push(new Actor("official", Ballpark.umpire(this.hand), { kind: "umpire" }));
     // The pitch's type and speed, until the ball's in play: after that it's in the way.
     if (scene.pitch?.mph != null || scene.pitch?.code != null) this.script.label = { lower: this.pitchStart, upper: this.contact + 0.45 };
   }
@@ -1078,7 +1210,8 @@ export class Builder {
     const leave = !pitched ? 0.5 : type === "stolenBase" || type === "caughtStealing" ? this.pitchStart - 0.05 : contact + 0.1;
     this.runners(leave, 85, chain.outs);
     if (type === "stolenBase") {
-      const r = scene.runners.find((x) => x.from > 0);
+      // (The runner who stole: with first and third on, the man on third may stay put.)
+      const r = scene.runners.find((x) => x.from > 0 && x.end.kind === "base" && x.end.base > x.from);
       if (r && r.end.kind === "base" && r.end.base > r.from) {
         // The throw, a beat behind him; one that got away (the text's throwing error) went to the
         // base he stole, and he goes on from there as it's past.
@@ -1093,6 +1226,32 @@ export class Builder {
         if (wild && index != null) this.onTheThrow(r, index, stolen, past - 0.1, leave, 85);
       }
     }
+  }
+
+  // MARK: The umpire
+
+  /**
+   * The plate umpire through the play: in his set behind the catcher as the
+   * pitch comes; strike three's call (the punch-out, looking); out from
+   * behind the plate on a ball in play, watching it; and at the plate for a
+   * play there, safe or out. A home run's trot and a run walked in aren't
+   * plays at the plate.
+   */
+  umpireCalls(): void {
+    const { scene, script } = this;
+    const u = this.actor(this.umpire);
+    if (script.release != null) u.sets.push({ lower: this.pitchStart - 0.45, upper: (scene.inPlay ? this.contact : this.pop) + 0.25 });
+    if (scene.kind.type === "strikeout") u.signals.push({ kind: scene.kind.looking ? "punchOut" : "swinging", at: this.pop + (scene.kind.looking ? 0.08 : 0.1), toward: Ballpark.rubber });
+    // Out from behind the catcher, up the third-base side, to watch it.
+    if (scene.inPlay) u.move([{ x: -4.5, y: -5 }], this.contact + 0.2, this.contact + 0.75, "out");
+    const type = scene.kind.type;
+    if (type === "homeRun" || type === "walk" || type === "hitByPitch") return;
+    const calls = script.flashes.filter((f) => (f.beat === "run" || f.beat === "out") && Math.hypot(f.point.x, f.point.y) < 3);
+    if (calls.length === 0) return;
+    const first = Math.min(...calls.map((c) => c.at));
+    // Up the line to see it: the plate between him and the runner's path in.
+    u.move([{ x: -7, y: -4 }], Math.max(first - 1.0, scene.inPlay ? this.contact + 0.3 : 0.2), first - 0.12, "out");
+    for (const call of calls) u.signals.push({ kind: call.beat === "run" ? "safe" : "out", at: call.at + 0.05, toward: ORIGIN });
   }
 
   // MARK: End and settle
@@ -1205,19 +1364,49 @@ export class Builder {
   settleField(rest: Rest): void {
     const { scene, script } = this;
     const s = script.settle;
-    const back = s + 0.8;
+    let back = s + 0.8;
     if (rest.swapped) {
-      for (const actor of script.actors) actor.vanish = Math.min(actor.vanish, s);
-      // The team that batted takes the field.
+      // The side that fielded jogs off to its dugout, the batters to theirs; the side that batted
+      // comes out of its dugout and takes the field. A long way out (an outfielder's) is seen in
+      // part: he's gone part way there, or comes into view part way out, at a jog.
+      const home = rest.fieldingHome ?? true;
+      const leaving = Ballpark.dugout(!home);
+      const coming = Ballpark.dugout(home);
+      const pace = 38;
+      const stagger = (i: number) => Number(seedOf(`${scene.id}.${i}`) % 40n) / 100;
+      script.actors.forEach((actor, i) => {
+        if (!(actor.vanish > s) || actor.team === "official") return;
+        const from = actor.position(s);
+        const to = actor.team === "fielding" ? leaving : coming;
+        const d = Math.max(Math.hypot(to.x - from.x, to.y - from.y), 1);
+        const jog = Math.min(d / pace, 1.9);
+        const start = s + stagger(i);
+        const f = Math.min((jog * pace) / d, 1);
+        actor.move([{ x: from.x + (to.x - from.x) * f, y: from.y + (to.y - from.y) * f }], start, start + jog, "linear");
+        actor.vanish = Math.min(actor.vanish, start + jog - Actor.fade);
+      });
+      let arrived = s;
       for (let n = 1; n <= 9; n++) {
-        script.actors.push(new Actor("batting", Ballpark.position(n), { kind: "fielder", n }, { appear: s + 0.15, crouch: n === 2 }));
+        const spot = restSpot(rest, n);
+        const d = Math.max(Math.hypot(spot.x - coming.x, spot.y - coming.y), 1);
+        const jog = Math.min(d / pace, 2.1);
+        const f = Math.max(1 - (jog * pace) / d, 0);
+        const start = s + 0.6 + stagger(n + 20);
+        const a = new Actor("batting", { x: coming.x + (spot.x - coming.x) * f, y: coming.y + (spot.y - coming.y) * f }, { kind: "fielder", n }, { appear: start - 0.1, crouch: n === 2 });
+        a.move([spot], start, start + jog, "out");
+        script.actors.push(a);
+        arrived = Math.max(arrived, start + jog);
       }
       for (let base = 1; base <= 3; base++) {
-        if (rest.bases[base - 1]) script.actors.push(new Actor("fielding", Ballpark.lead(base), { kind: "runner" }, { appear: s + 0.4 }));
+        if (rest.bases[base - 1]) script.actors.push(new Actor("fielding", Ballpark.lead(base), { kind: "runner" }, { appear: arrived }));
       }
-      if (rest.bats) script.actors.push(new Actor("fielding", Ballpark.box(rest.bats), { kind: "batter" }, { appear: s + 0.4, bats: rest.bats }));
+      if (rest.bats) script.actors.push(new Actor("fielding", Ballpark.box(rest.bats), { kind: "batter" }, { appear: arrived, bats: rest.bats }));
+      back = arrived + 0.2;
+      // The umpire stays: back behind the plate.
+      this.actor(this.umpire).move([Ballpark.umpire(rest.bats)], s, s + 1.2);
     } else {
-      for (let n = 1; n <= 9; n++) this.actor(this.fielder(n)).move([Ballpark.position(n)], s, back);
+      for (let n = 1; n <= 9; n++) this.actor(this.fielder(n)).move([restSpot(rest, n)], s, back);
+      this.actor(this.umpire).move([Ballpark.umpire(rest.bats)], s, back);
       // A runner stays where the live bases have one; anyone else leaves.
       const covered = new Set<number>();
       for (const r of scene.runners) {
