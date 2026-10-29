@@ -258,6 +258,9 @@ struct GameDetail {
     var topWinProbability: Double?
     /// Chance of a draw (soccer), so it isn't folded into either side.
     var drawProbability: Double?
+    /// ESPN's side of the odds chart (its model on the wall clock, DraftKings'
+    /// line, the plays and periods), for leagues Polymarket lists.
+    var odds: OddsBaseline?
     var football: Football?
     var baseball: Baseball?
     /// NBA: shot chart, game flow, leaders, box score, injuries.
@@ -557,6 +560,11 @@ enum ESPNDetail {
             let homeIsTop = topComp?["homeAway"].string == "home"
             detail.topWinProbability = homeIsTop ? home : max(1 - home - tie, 0)
             detail.drawProbability = tie > 0 ? tie : nil
+        }
+
+        // The odds chart's ESPN side: from this summary, no extra request.
+        if OddsLeague.series[path] != nil {
+            detail.odds = OddsBaseline.parse(summary, sport: sport, topID: ids.first ?? nil, bottomID: ids.last ?? nil)
         }
 
         switch sport {

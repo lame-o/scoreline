@@ -104,6 +104,11 @@ final class ScoreStore {
     var scoringSlides: Bool {
         didSet { defaults.set(scoringSlides, forKey: Keys.scoringSlides) }
     }
+    /// Polymarket's live market and DraftKings' line on game pages. On by
+    /// default; off, the page shows ESPN's bar and asks Polymarket nothing.
+    var showOdds: Bool {
+        didSet { defaults.set(showOdds, forKey: Keys.showOdds) }
+    }
     private(set) var collapsed: Set<String> {
         didSet { defaults.set(Array(collapsed), forKey: Keys.collapsed) }
     }
@@ -191,12 +196,14 @@ final class ScoreStore {
         static let celebrationLevel = CelebrationLevel.defaultsKey
         static let celebrationSounds = CelebrationSound.defaultsKey
         static let scoringSlides = "scoringSlides"
+        static let showOdds = "showOdds"
     }
 
     init() {
         defaults.register(defaults: [
             Keys.finished: true, Keys.liveCount: true, Keys.scoreInMenuBar: true,
             Keys.notify: true, Keys.coStream: true, Keys.coStreamer: "ohnepixel", Keys.scoringSlides: true,
+            Keys.showOdds: true,
         ])
         let saved = defaults.stringArray(forKey: Keys.leagues) ?? League.defaultIDs
         enabledIDs = saved.filter { League.with(id: $0) != nil }
@@ -209,6 +216,7 @@ final class ScoreStore {
         celebrationLevel = defaults.string(forKey: Keys.celebrationLevel).flatMap(CelebrationLevel.init(rawValue:)) ?? .full
         celebrationSounds = defaults.bool(forKey: Keys.celebrationSounds)
         scoringSlides = defaults.bool(forKey: Keys.scoringSlides)
+        showOdds = defaults.bool(forKey: Keys.showOdds)
         showCoStream = defaults.bool(forKey: Keys.coStream)
         coStreamer = defaults.string(forKey: Keys.coStreamer) ?? "ohnepixel"
         // Teams from sports that are no longer offered (hockey) drop out.

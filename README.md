@@ -62,6 +62,7 @@ Each game page is built for its sport, and it's live: charts redraw as plays lan
 - **Baseball**: the count and runners, the at-bat pitch by pitch in the strike zone with MLB's pitch names, a spray chart of every ball in play, and the line score.
 - **Football**: the drive on the field, down and distance, the red zone and the two-minute drill, scoring plays and win probability.
 - **Basketball**: the shot chart, the game's flow and scoring runs, leaders, and the full box score.
+- **Odds**: Polymarket's market as a live line beside ESPN's model and DraftKings' opening line, gliding as prices move, live, before the game and as the story of a final. Settings › Odds turns it off.
 - **Soccer**: the live pitch, the shot map, the match timeline, lineups and VAR decisions.
 
 <!-- slot:games:start -->
@@ -347,7 +348,7 @@ xcode-select --install   # if you don't have the Command Line Tools
 
 ## Data and disclaimer
 
-Scores and stats come from public feeds by ESPN, MLB (Statcast, via statsapi.mlb.com), bo3.gg and World Climbing (IFSC), among others. Scoreline is an independent project, not affiliated with or endorsed by any league, team, broadcaster or data provider. Team names and logos belong to their owners, and appear in the screenshots only as the app shows them. Those feeds aren't official APIs and can change without notice; if something breaks, please [open an issue](https://github.com/lame-o/scoreline/issues).
+Scores and stats come from public feeds by ESPN, MLB (Statcast, via statsapi.mlb.com), bo3.gg and World Climbing (IFSC), among others; odds from Polymarket's public market data and DraftKings' line as ESPN lists it. Odds are shown as information, not betting advice. Scoreline is an independent project, not affiliated with or endorsed by any league, team, broadcaster or data provider. Team names and logos belong to their owners, and appear in the screenshots only as the app shows them. Those feeds aren't official APIs and can change without notice; if something breaks, please [open an issue](https://github.com/lame-o/scoreline/issues).
 
 ## License
 

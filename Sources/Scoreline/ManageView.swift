@@ -48,6 +48,8 @@ struct ManageView: View {
                         ToggleRow(title: "Sounds", subtitle: "When the game you're watching scores",
                                   isOn: $store.celebrationSounds)
                             .disabled(store.celebrationLevel == .off)
+                        ToggleRow(title: "Odds", subtitle: "Polymarket's live market and DraftKings' line on game pages",
+                                  isOn: $store.showOdds)
                     }
                     caption("With Reduce Motion on, movement becomes gentle fades.")
 
@@ -83,7 +85,7 @@ struct ManageView: View {
                                   isOn: $updater.checksAutomatically)
                     }
 
-                    caption("Data from ESPN, bo3.gg and IFSC. Streams from YouTube and Twitch. Win probability by ESPN.")
+                    caption("Data from ESPN, bo3.gg and IFSC. Streams from YouTube and Twitch. Win probability by ESPN. Odds from Polymarket and DraftKings.")
                         .padding(.top, 8)
                 }
                 // One centred column however wide the panel: forms read top to

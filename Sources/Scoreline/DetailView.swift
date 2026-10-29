@@ -60,6 +60,16 @@ struct DetailView: View {
     @State private var baseballFeed = BaseballFeed()
     /// The NBA's real-time lane: clock, score and each shot as it's taken.
     @State private var basketballFeed = BasketballFeed()
+    /// Polymarket's market for this game: found as the page loads, followed
+    /// live only while its chart is on screen.
+    @State private var ownOdds = OddsFeed()
+    #if DEBUG
+    /// The render harness hands the page a prepared market.
+    @Environment(\.oddsPreview) private var oddsPreview
+    private var oddsFeed: OddsFeed { oddsPreview ?? ownOdds }
+    #else
+    private var oddsFeed: OddsFeed { ownOdds }
+    #endif
     /// NBA: the court's replay and the player picked in the box score or leaders, shared by every NBA view.
     @State private var nbaStage = NBAStage()
     /// What the hero has said, period by period: the line score (and its peek) is kept no older than it.
@@ -203,6 +213,10 @@ struct DetailView: View {
         .onDisappear {
             moments.clear()
             slides.clear()
+            oddsFeed.stop()
+        }
+        .onChange(of: store.showOdds) { _, on in
+            if on, let detail { Task { await discoverOdds(event, detail) } } else { oddsFeed.reset() }
         }
         .onChange(of: snapshot.id) { nbaStage.reset() }
         #if DEBUG
@@ -865,28 +879,28 @@ struct DetailView: View {
         case .espn(_, _, .soccer)?:
             switch state {
             case .live: return [.pitch, .timeline, .winProbability, .stats, .table, .moments, .plays, .whereToWatch]
-            case .final: return [.timeline, .pitch, .moments, .stats, .table, .plays]
-            case .scheduled: return [.table, .whereToWatch]
+            case .final: return [.timeline, .winProbability, .pitch, .moments, .stats, .table, .plays]
+            case .scheduled: return [.winProbability, .table, .whereToWatch]
             }
         case .espn(_, _, .baseball)?:
             switch state {
             case .live: return [.atPlate, .atBat, .linescore, .winProbability, .bracket, .moments, .battedBalls, .plays, .whereToWatch]
-            case .final: return [.linescore, .bracket, .moments, .battedBalls, .plays]
-            case .scheduled: return [.bracket, .whereToWatch]
+            case .final: return [.linescore, .winProbability, .bracket, .moments, .battedBalls, .plays]
+            case .scheduled: return [.winProbability, .bracket, .whereToWatch]
             }
         case let .espn(path, _, .basketball)? where path == NBADetail.path:
             switch state {
             case .live: return [.court, .flow, .linescore, .leaders, .moments, .box, .stats, .winProbability, .plays, .table,
                                 .injuries, .whereToWatch]
-            case .final: return [.flow, .court, .linescore, .leaders, .box, .moments, .stats, .table]
+            case .final: return [.flow, .court, .winProbability, .linescore, .leaders, .box, .moments, .stats, .table]
             // Before tip-off: who's out, ESPN's matchup predictor, season leaders.
             case .scheduled: return [.injuries, .winProbability, .leaders, .table, .whereToWatch]
             }
         case .espn?:
             switch state {
             case .live: return [.field, .winProbability, .linescore, .moments, .stats, .table, .plays, .whereToWatch]
-            case .final: return [.linescore, .moments, .stats, .table, .plays]
-            case .scheduled: return [.table, .whereToWatch]
+            case .final: return [.linescore, .winProbability, .moments, .stats, .table, .plays]
+            case .scheduled: return [.winProbability, .table, .whereToWatch]
             }
         case .counterStrike?:
             switch state {
@@ -936,15 +950,15 @@ struct DetailView: View {
         case .espn(_, _, .soccer)?:
             switch state {
             case .live: [.columns(left: [.pitch, .stats, .plays], right: [.timeline, .moments, .winProbability, .table, .whereToWatch])]
-            case .final: [.columns(left: [.pitch, .stats], right: [.timeline, .moments, .table, .plays])]
-            case .scheduled: [.columns(left: [.table], right: [.whereToWatch])]
+            case .final: [.columns(left: [.pitch, .stats], right: [.timeline, .winProbability, .moments, .table, .plays])]
+            case .scheduled: [.columns(left: [.table], right: [.winProbability, .whereToWatch])]
             }
         case .espn(_, _, .baseball)?:
             switch state {
             case .live: [.columns(left: [.atPlate, .atBat, .battedBalls],
                                   right: [.linescore, .winProbability, .moments, .bracket, .plays, .whereToWatch])]
-            case .final: [.columns(left: [.linescore, .battedBalls], right: [.moments, .bracket, .plays])]
-            case .scheduled: [.columns(left: [.bracket], right: [.whereToWatch])]
+            case .final: [.columns(left: [.linescore, .battedBalls], right: [.winProbability, .moments, .bracket, .plays])]
+            case .scheduled: [.columns(left: [.bracket], right: [.winProbability, .whereToWatch])]
             }
         case let .espn(path, _, .basketball)? where path == NBADetail.path:
             // The game's story on the left, its numbers on the right. The box
@@ -954,15 +968,15 @@ struct DetailView: View {
             switch state {
             case .live: [.columns(left: [.court, .flow, .winProbability, .linescore, .moments, .plays, .table],
                                   right: [.box, .leaders, .stats, .injuries, .whereToWatch])]
-            case .final: [.columns(left: [.flow, .court, .linescore, .moments, .table], right: [.box, .leaders, .stats, .injuries])]
+            case .final: [.columns(left: [.flow, .court, .winProbability, .linescore, .moments, .table], right: [.box, .leaders, .stats, .injuries])]
             // Before tip-off: who's out and how it shapes up, beside the standings.
             case .scheduled: [.columns(left: [.injuries, .winProbability, .leaders], right: [.table, .whereToWatch])]
             }
         case .espn?:
             switch state {
             case .live: [.columns(left: [.field, .stats, .plays], right: [.winProbability, .linescore, .moments, .table, .whereToWatch])]
-            case .final: [.columns(left: [.linescore, .stats], right: [.moments, .table, .plays])]
-            case .scheduled: [.columns(left: [.table], right: [.whereToWatch])]
+            case .final: [.columns(left: [.linescore, .stats], right: [.winProbability, .moments, .table, .plays])]
+            case .scheduled: [.columns(left: [.table], right: [.winProbability, .whereToWatch])]
             }
         case .counterStrike?:
             switch state {
@@ -1102,7 +1116,8 @@ struct DetailView: View {
         case .maps: !d.maps.isEmpty
         case .rounds: !d.rounds.isEmpty
         case .rosters: !d.topRoster.isEmpty || !d.bottomRoster.isEmpty
-        case .winProbability: d.topWinProbability != nil && event.state != .final
+        // Polymarket's chart whenever the game has a market (live, final, before it); else ESPN's bar, live.
+        case .winProbability: oddsShown(d) || (d.topWinProbability != nil && event.state != .final)
         case .linescore: d.linescore != nil
         case .moments: !d.moments.isEmpty
         case .stats: !d.stats.isEmpty
@@ -1132,6 +1147,19 @@ struct DetailView: View {
         // ESPN's report is today's, even on an old game's page: not after the final.
         case .injuries: !(d.basketball?.injuries.isEmpty ?? true) && event.state != .final
         }
+    }
+
+    /// Polymarket's chart replaces ESPN's bar: Odds on, a market found, ESPN's side parsed.
+    private func oddsShown(_ d: GameDetail) -> Bool {
+        store.showOdds && oddsFeed.market != nil && d.odds != nil
+    }
+
+    /// Polymarket's market for this game (cached app-wide), found as the page
+    /// loads so the chart arrives with it. Nothing is followed until it's on screen.
+    private func discoverOdds(_ current: Event, _ loaded: GameDetail) async {
+        let found = await oddsFeed.find(current, baseline: loaded.odds, enabled: store.showOdds)
+        guard !Task.isCancelled, found != oddsFeed.market else { return }
+        withAnimation(reduceMotion ? Motion.fade : Motion.standard) { oddsFeed.adopt(found) }
     }
 
     /// Each side's full name, for what VoiceOver says about the charts.
@@ -1321,7 +1349,12 @@ struct DetailView: View {
                                   topTeam: event.competitors.first, bottomTeam: event.competitors.last)
                 }
             case .winProbability:
-                if let p = d.topWinProbability {
+                if oddsShown(d), let baseline = d.odds {
+                    // Two sides that must read apart in every sport: a clash steps to an alternate color.
+                    OddsSection(feed: oddsFeed, baseline: baseline, event: event, names: names, spoken: full,
+                                palette: .nba(top: event.competitors.first, bottom: event.competitors.last, scheme: colorScheme),
+                                espnNow: d.topWinProbability)
+                } else if let p = d.topWinProbability {
                     DetailSection(title: "Win Probability",
                                   caption: event.state == .scheduled ? "ESPN's matchup predictor, before tip-off."
                                                                      : "ESPN's estimate of each team's chance to win, updated live.") {
@@ -2191,6 +2224,7 @@ struct DetailView: View {
         var firstLoad = true
         while !Task.isCancelled {
             let current = event
+            if store.showOdds { OddsDirectory.shared.prefetch(current) }
             do {
                 let task = Task {
                     await loadSoccerExtras(current)
@@ -2223,6 +2257,7 @@ struct DetailView: View {
                     await finish(task)
                     apply(loaded)
                 }
+                await discoverOdds(current, loaded)
                 failed = false
                 lastLoaded = .now
                 if detailFailures != 0 { withAnimation(Motion.fade) { detailFailures = 0 } }
