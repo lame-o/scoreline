@@ -1,6 +1,7 @@
 /**
  * The shared sections, with the Mac's titles and captions per sport
- * (DetailView.swift `section(_:_:)`): line score, win probability, team
+ * (DetailView.swift `section(_:_:)`): line score, win probability (with
+ * Polymarket's odds: core/odds/), team
  * stats, scoring plays or key events, latest plays, where to watch, and the series. A
  * sport's page calls this and adds its own; `overrides` replaces any of
  * them (the NBA's live line score, soccer's key events).
@@ -12,7 +13,9 @@ import { bracketPath } from "../../../data/schedule";
 import type { PeekInputs } from "../../../data/peek";
 import { pageKind, type Section } from "../../../data/sections";
 import { reconcileLinescore } from "../../../data/headerSync";
-import { LatestPlays, MomentList, SeriesLink, StatBars, WhereToWatch, WinProbability } from "./CommonSections";
+import { useSettings } from "../../../state/settings";
+import { LatestPlays, MomentList, SeriesLink, StatBars, WhereToWatch } from "./CommonSections";
+import { hasWinProbability, WinProbabilitySection } from "./odds/WinProbabilitySection";
 import { SyncedLinescore } from "./headerSync";
 import { DetailSection } from "./DetailSection";
 import type { GameContext } from "./sport";
@@ -46,6 +49,7 @@ export function linescorePeek(game: GameContext): PeekInputs["linescore"] {
 
 export function useCommonSections(game: GameContext, options: CommonOptions = {}): Partial<Record<Section, ReactNode>> {
   const { event, detail, palette, names, spoken, live } = game;
+  const oddsOn = useSettings((s) => s.odds);
   const kind = pageKind(event.ref);
   const baseball = kind === "baseball";
   const soccer = kind === "soccer";
@@ -63,17 +67,8 @@ export function useCommonSections(game: GameContext, options: CommonOptions = {}
     );
   }
 
-  if (detail.topWinProbability != null && event.state !== "final") {
-    sections.winProbability = (
-      <DetailSection
-        id="winProbability"
-        title="Win Probability"
-        caption={event.state === "scheduled" ? "ESPN's matchup predictor, before tip-off." : "ESPN's estimate of each team's chance to win, updated live."}
-      >
-        <WinProbability topShare={detail.topWinProbability} draw={detail.drawProbability} topName={names.top} bottomName={names.bottom} palette={palette} spokenTop={spoken.top} spokenBottom={spoken.bottom} />
-      </DetailSection>
-    );
-  }
+  // Polymarket's market against ESPN's model and DraftKings' line where there's a market; ESPN's bar where not (core/odds/).
+  if (hasWinProbability(game, oddsOn)) sections.winProbability = <WinProbabilitySection game={game} />;
 
   const moments = options.moments ?? detail.moments;
   if (moments.length > 0) {

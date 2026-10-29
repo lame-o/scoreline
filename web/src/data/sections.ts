@@ -89,19 +89,19 @@ export function sectionOrder(ref: EventRef | null, state: EventState): readonly 
       return state === "live"
         ? ["pitch", "theater", "timeline", "winProbability", "stats", "table", "moments", "plays", "whereToWatch"]
         : state === "final"
-          ? ["timeline", "pitch", "theater", "moments", "stats", "table", "plays"]
-          : ["table", "whereToWatch"];
+          ? ["timeline", "winProbability", "pitch", "theater", "moments", "stats", "table", "plays"]
+          : ["winProbability", "table", "whereToWatch"];
     case "baseball":
       return state === "live"
         ? ["atPlate", "atBat", "linescore", "winProbability", "bracket", "moments", "battedBalls", "plays", "whereToWatch"]
         : state === "final"
-          ? ["linescore", "bracket", "moments", "battedBalls", "plays"]
-          : ["bracket", "whereToWatch"];
+          ? ["linescore", "winProbability", "bracket", "moments", "battedBalls", "plays"]
+          : ["winProbability", "bracket", "whereToWatch"];
     case "nba":
       return state === "live"
         ? ["court", "flow", "linescore", "leaders", "moments", "box", "stats", "winProbability", "plays", "table", "injuries", "whereToWatch"]
         : state === "final"
-          ? ["flow", "court", "linescore", "leaders", "box", "moments", "stats", "table"]
+          ? ["flow", "court", "winProbability", "linescore", "leaders", "box", "moments", "stats", "table"]
           : // Before tip-off: who's out, ESPN's matchup predictor, season leaders.
             ["injuries", "winProbability", "leaders", "table", "whereToWatch"];
     case "football":
@@ -109,14 +109,14 @@ export function sectionOrder(ref: EventRef | null, state: EventState): readonly 
       return state === "live"
         ? ["field", "theater", "winProbability", "linescore", "moments", "stats", "table", "plays", "whereToWatch"]
         : state === "final"
-          ? ["linescore", "moments", "stats", "table", "plays"]
-          : ["table", "whereToWatch"];
+          ? ["linescore", "winProbability", "moments", "stats", "table", "plays"]
+          : ["winProbability", "table", "whereToWatch"];
     case "espn":
       return state === "live"
         ? ["field", "winProbability", "linescore", "moments", "stats", "table", "plays", "whereToWatch"]
         : state === "final"
-          ? ["linescore", "moments", "stats", "table", "plays"]
-          : ["table", "whereToWatch"];
+          ? ["linescore", "winProbability", "moments", "stats", "table", "plays"]
+          : ["winProbability", "table", "whereToWatch"];
     case "counterStrike":
       return state === "live"
         ? ["maps", "rounds", "streams", "bracket", "rosters"]
@@ -155,35 +155,35 @@ export function widePlan(ref: EventRef | null, state: EventState): readonly Wide
       return state === "live"
         ? [columns(["pitch", "theater", "stats", "plays"], ["timeline", "moments", "winProbability", "table", "whereToWatch"])]
         : state === "final"
-          ? [columns(["pitch", "theater", "stats"], ["timeline", "moments", "table", "plays"])]
-          : [columns(["table"], ["whereToWatch"])];
+          ? [columns(["pitch", "theater", "stats"], ["timeline", "winProbability", "moments", "table", "plays"])]
+          : [columns(["table"], ["winProbability", "whereToWatch"])];
     case "baseball":
       return state === "live"
         ? [columns(["atPlate", "atBat", "battedBalls"], ["linescore", "winProbability", "moments", "bracket", "plays", "whereToWatch"])]
         : state === "final"
-          ? [columns(["linescore", "battedBalls"], ["moments", "bracket", "plays"])]
-          : [columns(["bracket"], ["whereToWatch"])];
+          ? [columns(["linescore", "battedBalls"], ["winProbability", "moments", "bracket", "plays"])]
+          : [columns(["bracket"], ["winProbability", "whereToWatch"])];
     case "nba":
       // The game's story on the left, its numbers on the right. The box score
       // opens the right column, beside the court.
       return state === "live"
         ? [columns(["court", "flow", "winProbability", "linescore", "moments", "plays", "table"], ["box", "leaders", "stats", "injuries", "whereToWatch"])]
         : state === "final"
-          ? [columns(["flow", "court", "linescore", "moments", "table"], ["box", "leaders", "stats", "injuries"])]
+          ? [columns(["flow", "court", "winProbability", "linescore", "moments", "table"], ["box", "leaders", "stats", "injuries"])]
           : [columns(["injuries", "winProbability", "leaders"], ["table", "whereToWatch"])];
     case "football":
       // The drive and its numbers on the left; the score's story on the right, the quarters beside the scoring plays they light.
       return state === "live"
         ? [columns(["field", "theater", "stats", "plays"], ["winProbability", "linescore", "moments", "table", "whereToWatch"])]
         : state === "final"
-          ? [columns(["linescore", "stats"], ["moments", "table", "plays"])]
-          : [columns(["table"], ["whereToWatch"])];
+          ? [columns(["linescore", "stats"], ["winProbability", "moments", "table", "plays"])]
+          : [columns(["table"], ["winProbability", "whereToWatch"])];
     case "espn":
       return state === "live"
         ? [columns(["field", "stats", "plays"], ["winProbability", "linescore", "moments", "table", "whereToWatch"])]
         : state === "final"
-          ? [columns(["linescore", "stats"], ["moments", "table", "plays"])]
-          : [columns(["table"], ["whereToWatch"])];
+          ? [columns(["linescore", "stats"], ["winProbability", "moments", "table", "plays"])]
+          : [columns(["table"], ["winProbability", "whereToWatch"])];
     case "counterStrike":
       return state === "live"
         ? [columns(["maps", "rounds"], ["streams", "bracket", "rosters"])]

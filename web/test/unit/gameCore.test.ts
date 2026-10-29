@@ -26,7 +26,8 @@ const soccer: EventRef = { kind: "espn", path: "soccer/eng.1", id: "1", sport: "
 describe("the section plan", () => {
   it("orders baseball's sections like the Mac, live and final", () => {
     expect(sectionOrder(mlb, "live")).toEqual(["atPlate", "atBat", "linescore", "winProbability", "bracket", "moments", "battedBalls", "plays", "whereToWatch"]);
-    expect(sectionOrder(mlb, "final")).toEqual(["linescore", "bracket", "moments", "battedBalls", "plays"]);
+    // Final: how the odds moved (Polymarket's market through the game) under the score by inning.
+    expect(sectionOrder(mlb, "final")).toEqual(["linescore", "winProbability", "bracket", "moments", "battedBalls", "plays"]);
   });
 
   it("puts linked partners side by side from 680pt", () => {

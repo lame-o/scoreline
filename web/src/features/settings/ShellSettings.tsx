@@ -124,7 +124,7 @@ export function KeyboardSection() {
 export function Credits() {
   return (
     <p className={`${formStyles.caption} ${styles.credits}`}>
-      Data from ESPN, bo3.gg and IFSC. Win probability by ESPN. Scoreline is{" "}
+      Data from ESPN, bo3.gg and IFSC. Win probability by ESPN. Odds from Polymarket and DraftKings. Scoreline is{" "}
       <a href="https://github.com/lame-o/scoreline" target="_blank" rel="noopener noreferrer">
         open source
       </a>{" "}
