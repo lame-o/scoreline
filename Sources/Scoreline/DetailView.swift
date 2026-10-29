@@ -1237,6 +1237,7 @@ struct DetailView: View {
                             // Reads the live lane's last play itself, so a play redraws only the theater.
                             PlayTheater(feed: baseballFeed, preloaded: d.theater,
                                         bases: [baseball.onFirst, baseball.onSecond, baseball.onThird], batting: battingSide,
+                                        situation: baseball, inning: baseballFeed.inning ?? event.detail,
                                         palette: palette, kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last))
                         }
                     }

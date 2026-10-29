@@ -176,14 +176,24 @@ struct CameraTrack: Equatable {
     var settle = 0.0
     /// When it reaches the rest framing.
     var back = 0.0
+    /// Where it rests: the infield (a pitch with another to follow stays on the battery).
+    var rest = CameraFrame.rest
 
     func frame(at t: Double) -> CameraFrame {
-        guard !samples.isEmpty, t < back else { return .rest }
+        guard !samples.isEmpty, t < back else { return rest }
         if t >= settle {
             let u = (t - settle) / max(back - settle, 0.01)
-            return sample(settle).mix(.rest, u * u * (3 - 2 * u))
+            return sample(settle).mix(rest, u * u * (3 - 2 * u))
         }
         return sample(t)
+    }
+
+    /// A track already followed (a beat's: CameraFollow over its framings), resting where it ends.
+    init(samples: [CameraFrame], rest: CameraFrame) {
+        self.samples = samples
+        settle = Double(max(samples.count - 1, 0)) / Self.rate
+        back = settle + 0.001
+        self.rest = rest
     }
 
     private func sample(_ t: Double) -> CameraFrame {

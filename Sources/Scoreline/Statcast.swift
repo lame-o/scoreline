@@ -124,6 +124,100 @@ enum Statcast {
 
         /// Over, with all of it posted: complete and named, a ball put in play with its hitData.
         var over: Bool { complete && event != nil && (!inPlay || batted != nil) }
+
+        /// Who pitched to him (the last pitcher, after a change mid-at-bat), and each one's side.
+        var pitcher: String? = nil
+        var pitcherID: Int? = nil
+        var batterID: Int? = nil
+        var pitchHand: PlayScene.Hand? = nil
+        var batSide: PlayScene.Hand? = nil
+        /// Everything in it, in order: each pitch with its call, and what came between (a mound
+        /// visit, a throw over, a change, a delay).
+        var events: [PlayEvent] = []
+        /// A challenge of its result (a manager's, at the end of the play).
+        var review: Review? = nil
+    }
+
+    /// One entry in an at-bat's `playEvents`: a pitch (or an automatic ball
+    /// or strike, no pitch thrown), a throw over or a step off, or an action
+    /// between pitches (a mound visit, a substitution, a delay, a steal).
+    struct PlayEvent: Equatable, Sendable {
+        enum Kind: Equatable, Sendable {
+            /// The call's code ("B", "C", "S", "F", "T", "W", "*B", "L", "M", "H"; "X", "D", "E" in play).
+            case pitch(String)
+            /// A pitch-clock violation's ball or strike.
+            case automatic(ball: Bool)
+            /// A throw over to a base (1…3), the pitcher's or the catcher's.
+            case pickoff(base: Int?, catcher: Bool)
+            case stepOff
+            /// MLB's `eventType` ("mound_visit", "pitching_substitution", "game_advisory", "stolen_base_2b"…).
+            case action(String)
+        }
+        let index: Int
+        let kind: Kind
+        /// "Called Strike", "Swinging Strike (Blocked)", "Mound Visit.", "Injury Delay.",
+        /// "Pitching Change: JoJo Romero replaces Dustin May." (names are read from it, nothing else).
+        var description: String? = nil
+        /// The count after it.
+        var balls: Int? = nil
+        var strikes: Int? = nil
+        var outs: Int? = nil
+        var pitchNumber: Int? = nil
+        /// A pitch's flight, type ("SI") and speed.
+        var flight: Pitch? = nil
+        var type: String? = nil
+        var mph: Double? = nil
+        /// Who it was about (a substitute, the injured man) and whom he replaced, by MLB's ID; and the position he takes.
+        var player: Int? = nil
+        var replaced: Int? = nil
+        var position: String? = nil
+        var review: Review? = nil
+        /// The game's own clock: when it happened.
+        var start: Date? = nil
+
+        var isPitch: Bool { if case .pitch = kind { return true }; if case .automatic = kind { return true }; return false }
+    }
+
+    /// A challenge: a pitch's call under the automated strike zone (ABS, "MJ"),
+    /// or a play under replay review; whether it's still under way, and how it came out.
+    struct Review: Equatable, Sendable {
+        var overturned: Bool
+        var inProgress = false
+        /// MLB's code ("MJ": a ball or strike; "MA"…"MP": the kinds of play).
+        var type: String? = nil
+        /// Who challenged (an ABS challenge names him: the catcher, the batter, the pitcher).
+        var challenger: String? = nil
+        var team: Int? = nil
+
+        init(overturned: Bool, inProgress: Bool = false, type: String? = nil, challenger: String? = nil, team: Int? = nil) {
+            self.overturned = overturned
+            self.inProgress = inProgress
+            self.type = type
+            self.challenger = challenger
+            self.team = team
+        }
+
+        init?(_ j: JSON) {
+            guard j.exists, let overturned = j["isOverturned"].bool else { return nil }
+            self.init(overturned: overturned, inProgress: j["inProgress"].bool ?? false, type: j["reviewType"].string,
+                      challenger: j["player"]["fullName"].string, team: j["challengeTeamId"].int)
+        }
+
+        /// A pitch's call (the automated zone), not a play.
+        var pitch: Bool { type == "MJ" }
+    }
+
+    /// MLB's live feed at a glance, polled on the live lane: the at-bat under
+    /// way (every pitch and action in it so far), where the inning stands
+    /// ("Middle", "End" between halves) and the game's status ("Delayed: Rain").
+    struct Live: Equatable, Sendable {
+        var atBat: AtBat?
+        var inning: Int?
+        var top: Bool?
+        /// "Top", "Middle", "Bottom", "End".
+        var inningState: String?
+        /// "In Progress", "Delayed: Rain", "Warmup", "Final".
+        var status: String?
     }
 
     /// Only what the theater reads: about a third of the feed.
@@ -134,7 +228,27 @@ enum Statcast {
         "spinRate", "hitData", "launchSpeed", "launchAngle", "totalDistance", "trajectory", "coordX", "coordY", "location",
         "index", "runners", "movement", "start", "end", "isOut", "outBase", "outNumber", "movementReason", "runner", "id",
         "playIndex", "credits", "credit", "position", "isComplete",
+        // The theater's pitch-by-pitch: each event's call, count and kind, who was in it, and its challenge.
+        "description", "call", "count", "balls", "strikes", "outs", "pitchNumber", "eventType", "isBall", "isStrike",
+        "fromCatcher", "player", "replacedPlayer", "abbreviation", "reviewDetails", "isOverturned", "inProgress", "reviewType",
+        "challengeTeamId", "pitcher", "pitchHand", "batSide", "startTime",
     ].joined(separator: ",")
+
+    /// The live poll's: the at-bat under way, the inning's state and the game's status. A few kilobytes.
+    static let liveFields = [
+        "gameData", "status", "detailedState", "liveData", "plays", "currentPlay", "linescore", "currentInning", "isTopInning",
+        "inningState", "about", "atBatIndex", "inning", "isComplete", "matchup", "batter", "pitcher", "fullName", "pitchHand",
+        "batSide", "code", "result", "event", "playEvents", "isPitch", "details", "type", "description", "call", "count", "balls",
+        "strikes", "outs", "pitchNumber", "eventType", "isBall", "isStrike", "pitchData", "startSpeed", "strikeZoneTop",
+        "strikeZoneBottom", "coordinates", "x0", "y0", "z0", "vX0", "vY0", "vZ0", "aX", "aY", "aZ", "pX", "pZ", "breaks", "spinRate",
+        "hitData", "launchSpeed", "launchAngle", "totalDistance", "trajectory", "coordX", "coordY", "location", "index",
+        "fromCatcher", "player", "replacedPlayer", "id", "position", "abbreviation", "reviewDetails", "isOverturned", "inProgress",
+        "reviewType", "challengeTeamId", "startTime",
+    ].joined(separator: ",")
+
+    static func liveURL(game: Int) -> URL? {
+        URL(string: "https://statsapi.mlb.com/api/v1.1/game/\(game)/feed/live?fields=\(liveFields)")
+    }
 
     static func feedURL(game: Int) -> URL? {
         URL(string: "https://statsapi.mlb.com/api/v1.1/game/\(game)/feed/live?fields=\(fields)")
@@ -164,47 +278,109 @@ enum Statcast {
     }
 
     static func atBats(_ feed: JSON) -> [AtBat] {
-        feed["liveData"]["plays"]["allPlays"].array.compactMap { play in
-            let about = play["about"]
-            guard let index = about["atBatIndex"].int, let inning = about["inning"].int else { return nil }
-            var pitches: [Pitch] = []
-            var batted: Batted?
-            var closing: Int?, inPlay = false
-            for (i, event) in play["playEvents"].array.enumerated() {
-                if event["isPitch"].bool == true {
-                    closing = event["index"].int ?? i
-                    inPlay = ["X", "D", "E"].contains(event["details"]["code"].string ?? "")
-                }
-                let data = event["pitchData"], c = data["coordinates"]
-                if event["isPitch"].bool == true,
-                   let x0 = c["x0"].double, let y0 = c["y0"].double, let z0 = c["z0"].double,
-                   let vx = c["vX0"].double, let vy = c["vY0"].double, let vz = c["vZ0"].double,
-                   let ax = c["aX"].double, let ay = c["aY"].double, let az = c["aZ"].double,
-                   let px = c["pX"].double, let pz = c["pZ"].double {
-                    let top = data["strikeZoneTop"].double, bottom = data["strikeZoneBottom"].double
-                    pitches.append(Pitch(release: [x0, y0, z0], velocity: [vx, vy, vz], acceleration: [ax, ay, az], plate: [px, pz],
-                                         zone: top.flatMap { t in bottom.flatMap { $0 < t ? $0...t : nil } },
-                                         mph: data["startSpeed"].double, spin: data["breaks"]["spinRate"].int,
-                                         type: event["details"]["type"]["code"].string))
-                }
-                // A ball in play's (a foul can carry hitData too).
-                let hit = event["hitData"], code = event["details"]["code"].string
-                if hit.exists, code.map(["X", "D", "E"].contains) ?? true {
-                    let spot = hit["coordinates"]["coordX"].double.flatMap { x in hit["coordinates"]["coordY"].double.map { SIMD2(x, $0) } }
-                    batted = Batted(launchSpeed: hit["launchSpeed"].double, launchAngle: hit["launchAngle"].double,
-                                    distance: hit["totalDistance"].double, trajectory: hit["trajectory"].string, spot: spot,
-                                    // ("89": between two of them, no one's.)
-                                    fielder: hit["location"].string.flatMap { Int($0) }.flatMap { (1...9).contains($0) ? $0 : nil })
-                }
-            }
-            let runners = play["runners"].array.compactMap(movement)
-            return AtBat(index: index, inning: inning, top: about["isTopInning"].bool ?? true,
-                         batter: play["matchup"]["batter"]["fullName"].string ?? "", event: play["result"]["event"].string,
-                         pitches: pitches, batted: batted, complete: about["isComplete"].bool ?? true, runners: runners,
-                         // Its last pitch, or a pickoff after it that ended it.
-                         closing: [closing, runners.compactMap(\.event).max()].compactMap { $0 }.max(), inPlay: inPlay)
-        }
+        feed["liveData"]["plays"]["allPlays"].array.compactMap(atBat)
     }
+
+    /// The at-bat under way, where the inning stands and the game's status, from the live poll.
+    static func live(_ feed: JSON) -> Live {
+        let line = feed["liveData"]["linescore"]
+        return Live(atBat: atBat(feed["liveData"]["plays"]["currentPlay"]), inning: line["currentInning"].int,
+                    top: line["isTopInning"].bool, inningState: line["inningState"].string,
+                    status: feed["gameData"]["status"]["detailedState"].string)
+    }
+
+    /// One of MLB's plays (an at-bat, everything in it).
+    static func atBat(_ play: JSON) -> AtBat? {
+        let about = play["about"]
+        guard let index = about["atBatIndex"].int, let inning = about["inning"].int else { return nil }
+        var pitches: [Pitch] = []
+        var batted: Batted?
+        var closing: Int?, inPlay = false
+        var events: [PlayEvent] = []
+        for (i, event) in play["playEvents"].array.enumerated() {
+            if event["isPitch"].bool == true {
+                closing = event["index"].int ?? i
+                inPlay = ["X", "D", "E"].contains(event["details"]["code"].string ?? "")
+            }
+            let data = event["pitchData"], c = data["coordinates"]
+            var flight: Pitch?
+            if event["isPitch"].bool == true,
+               let x0 = c["x0"].double, let y0 = c["y0"].double, let z0 = c["z0"].double,
+               let vx = c["vX0"].double, let vy = c["vY0"].double, let vz = c["vZ0"].double,
+               let ax = c["aX"].double, let ay = c["aY"].double, let az = c["aZ"].double,
+               let px = c["pX"].double, let pz = c["pZ"].double {
+                let top = data["strikeZoneTop"].double, bottom = data["strikeZoneBottom"].double
+                flight = Pitch(release: [x0, y0, z0], velocity: [vx, vy, vz], acceleration: [ax, ay, az], plate: [px, pz],
+                               zone: top.flatMap { t in bottom.flatMap { $0 < t ? $0...t : nil } },
+                               mph: data["startSpeed"].double, spin: data["breaks"]["spinRate"].int,
+                               type: event["details"]["type"]["code"].string)
+            }
+            if let flight { pitches.append(flight) }
+            // A ball in play's (a foul can carry hitData too).
+            let hit = event["hitData"], code = event["details"]["code"].string
+            if hit.exists, code.map(["X", "D", "E"].contains) ?? true {
+                let spot = hit["coordinates"]["coordX"].double.flatMap { x in hit["coordinates"]["coordY"].double.map { SIMD2(x, $0) } }
+                batted = Batted(launchSpeed: hit["launchSpeed"].double, launchAngle: hit["launchAngle"].double,
+                                distance: hit["totalDistance"].double, trajectory: hit["trajectory"].string, spot: spot,
+                                // ("89": between two of them, no one's.)
+                                fielder: hit["location"].string.flatMap { Int($0) }.flatMap { (1...9).contains($0) ? $0 : nil })
+            }
+            if let parsed = Self.event(event, at: i, flight: flight) { events.append(parsed) }
+        }
+        let runners = play["runners"].array.compactMap(movement)
+        let matchup = play["matchup"]
+        return AtBat(index: index, inning: inning, top: about["isTopInning"].bool ?? true,
+                     batter: matchup["batter"]["fullName"].string ?? "", event: play["result"]["event"].string,
+                     pitches: pitches, batted: batted, complete: about["isComplete"].bool ?? true, runners: runners,
+                     // Its last pitch, or a pickoff after it that ended it.
+                     closing: [closing, runners.compactMap(\.event).max()].compactMap { $0 }.max(), inPlay: inPlay,
+                     pitcher: matchup["pitcher"]["fullName"].string, pitcherID: matchup["pitcher"]["id"].int,
+                     batterID: matchup["batter"]["id"].int,
+                     pitchHand: matchup["pitchHand"]["code"].string.flatMap(PlayScene.Hand.init(rawValue:)),
+                     batSide: matchup["batSide"]["code"].string.flatMap(PlayScene.Hand.init(rawValue:)),
+                     events: events, review: Review(play["reviewDetails"]))
+    }
+
+    /// One `playEvents` entry: by its structured type and code, the description kept only for names.
+    static func event(_ e: JSON, at i: Int, flight: Pitch?) -> PlayEvent? {
+        let details = e["details"], count = e["count"]
+        let kind: PlayEvent.Kind
+        switch e["type"].string {
+        case "pitch":
+            guard let code = details["call"]["code"].string ?? details["code"].string else { return nil }
+            kind = .pitch(code)
+        case "no_pitch":
+            // An automatic ball (the pitcher's violation) or strike (the batter's): nothing thrown.
+            guard details["isBall"].bool == true || details["isStrike"].bool == true else { return nil }
+            kind = .automatic(ball: details["isBall"].bool == true)
+        case "pickoff":
+            kind = .pickoff(base: details["code"].string.flatMap { Int($0) }.flatMap { (1...3).contains($0) ? $0 : nil },
+                            catcher: details["fromCatcher"].bool ?? false)
+        case "stepoff":
+            kind = .stepOff
+        case "action":
+            guard let type = details["eventType"].string else { return nil }
+            kind = .action(type)
+        default:
+            return nil
+        }
+        let speed = e["pitchData"]["startSpeed"].double
+        return PlayEvent(index: e["index"].int ?? i, kind: kind, description: details["description"].string,
+                     balls: count["balls"].int, strikes: count["strikes"].int, outs: count["outs"].int,
+                     pitchNumber: e["pitchNumber"].int, flight: flight, type: details["type"]["code"].string, mph: speed,
+                     player: e["player"]["id"].int, replaced: e["replacedPlayer"]["id"].int,
+                     position: e["position"]["abbreviation"].string, review: Review(e["reviewDetails"]),
+                     start: e["startTime"].string.flatMap(Self.time))
+    }
+
+    /// "2026-10-28T00:13:02.920Z".
+    static func time(_ s: String) -> Date? { clock.date(from: s) ?? plainClock.date(from: s) }
+    nonisolated(unsafe) private static let clock: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    nonisolated(unsafe) private static let plainClock = ISO8601DateFormatter()
 
     /// A runner's leg from MLB's `runners`: "1B"…"3B" are bases, "4B" and
     /// "score" home, and the batter starts from nowhere (the plate).
@@ -296,6 +472,32 @@ final class StatcastStore {
         guard let atBats else { return cached?.atBats ?? [] }
         feeds[game] = (atBats, Date())
         return atBats
+    }
+
+    /// What's cached of the game's at-bats, without asking MLB again.
+    func cached(espnEvent: String) -> [Statcast.AtBat] {
+        games[espnEvent].flatMap { feeds[$0]?.atBats } ?? []
+    }
+
+    private var lives: [Int: (live: Statcast.Live, fetched: Date)] = [:]
+    private var liveInFlight: Set<Int> = []
+    /// The live poll's pace: MLB's at-bat under way, no more often than this.
+    static let liveInterval: TimeInterval = 4.5
+
+    /// MLB's at-bat under way and the inning's state (a few kilobytes), on the
+    /// live lane's clock, never more often than `liveInterval`. Nil for a game
+    /// MLB's feed doesn't have.
+    func live(espnEvent: String, start: Date, teams: [String]) async -> Statcast.Live? {
+        guard let game = await game(espnEvent: espnEvent, start: start, teams: teams) else { return nil }
+        let cached = lives[game]
+        let due = cached.map { Date().timeIntervalSince($0.fetched) > Self.liveInterval } ?? true
+        guard due, !liveInFlight.contains(game), let url = Statcast.liveURL(game: game) else { return cached?.live }
+        liveInFlight.insert(game)
+        defer { liveInFlight.remove(game) }
+        guard let json = try? await JSON.fetch(url) else { return cached?.live }
+        let live = Statcast.live(json)
+        lives[game] = (live, Date())
+        return live
     }
 
     private func game(espnEvent: String, start: Date, teams: [String]) async -> Int? {

@@ -72,6 +72,7 @@ struct ScorelineTests {
         playStatcast()
         playCredits()
         playLive()
+        playBeats()
         headerSync()
         await scoringSlides()
 

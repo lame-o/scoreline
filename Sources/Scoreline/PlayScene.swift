@@ -271,6 +271,24 @@ struct TheaterState: Equatable {
     /// A pitch since the play: the next at-bat is under way, so the field
     /// shows the live scene, not how the play ended.
     var cleared = false
+    /// The game in order, the newest last: every pitch, the plays (by ID),
+    /// what happened between (PlayBeat.swift). Empty until the live lane has spoken.
+    var timeline: [PlayBeat] = []
+    /// When the feeds last brought anything: the heartbeat counts from here.
+    var updated: Date?
+    /// The game is held up as the feeds have it now (MLB's status, ESPN's): a rain delay's tarp.
+    var delay: PlayBeat.Delay?
+
+    init(play: PlayScene? = nil, news: Bool = false, bats: PlayScene.Hand? = nil, cleared: Bool = false, timeline: [PlayBeat] = [],
+         updated: Date? = nil, delay: PlayBeat.Delay? = nil) {
+        self.play = play
+        self.news = news
+        self.bats = bats
+        self.cleared = cleared
+        self.timeline = timeline
+        self.updated = updated
+        self.delay = delay
+    }
 }
 
 // MARK: - Parsing

@@ -1049,6 +1049,16 @@ final class BaseballFeed {
     @ObservationIgnored private var lastPlayRef: String?
     @ObservationIgnored private var newestID: String?
     @ObservationIgnored private var updating = false
+    /// MLB's at-bat under way and the game's status there (its live poll).
+    @ObservationIgnored private var mlbLive: Statcast.Live?
+    /// ESPN's status, held up ("Rain Delay").
+    @ObservationIgnored private var espnDelay: PlayBeat.Delay?
+    /// The theater's timeline as built from the plays (and MLB's events), and every entry ID it has had.
+    @ObservationIgnored private var timeline: [PlayBeat] = []
+    @ObservationIgnored private var seenBeats: Set<String> = []
+    @ObservationIgnored private var names: [String: String] = [:]
+    /// When anything last came (a play, a pitch, the count, MLB's events): the theater's heartbeat.
+    @ObservationIgnored private var heard: Date?
 
     private static let pageSize = 25
     private static let windowSize = 80
@@ -1061,6 +1071,7 @@ final class BaseballFeed {
         updating = true
         defer { updating = false }
         lookup = statcast
+        self.names = names
         let league = path.split(separator: "/").last.map(String.init) ?? path
         let base = "https://sports.core.api.espn.com/v2/sports/baseball/leagues/\(league)/events/\(eventID)/competitions/\(eventID)"
         guard let situationURL = URL(string: "\(base)/situation"), let statusURL = URL(string: "\(base)/status") else { return }
@@ -1069,6 +1080,22 @@ final class BaseballFeed {
         let (s, status) = await (situationCall, statusCall)
         if let status, status["type"]["state"].string == "in" {
             inning = status["type"]["shortDetail"].string
+        }
+        let held = Self.delay(status)
+        var refresh = held != espnDelay
+        espnDelay = held
+        // MLB's at-bat under way: what came between pitches as it comes (a few kilobytes, its own pace).
+        if let statcast {
+            let live = await StatcastStore.shared.live(espnEvent: statcast.espnEvent, start: statcast.start, teams: statcast.teams)
+            if let live, live != mlbLive {
+                if live.atBat != mlbLive?.atBat { heard = .now }
+                mlbLive = live
+                refresh = true
+            }
+        }
+        if refresh, loaded {
+            rebuildTimeline(news: primed)
+            publish()
         }
         guard let s else { return }
         let lastRef = s["lastPlay"]["$ref"].string
@@ -1079,7 +1106,44 @@ final class BaseballFeed {
         }
         let lastPlay = window.last { $0["type"]["type"].string == "play-result" }?["text"].string
         let next = Self.settledSituation(Self.situation(s, names: names, lastPlay: lastPlay), window: window, names: names)
-        if next != situation { situation = next }
+        if next != situation {
+            situation = next
+            heard = .now
+            publish()
+        }
+    }
+
+    /// A delay as ESPN's status has it ("STATUS_RAIN_DELAY", "STATUS_DELAYED": "Rain Delay"). (pure; tested)
+    static func delay(_ status: JSON?) -> PlayBeat.Delay? {
+        guard let type = status?["type"], let name = type["name"].string, name.contains("DELAY") else { return nil }
+        let detail = type["detail"].string ?? type["shortDetail"].string ?? ""
+        return .weather(name.contains("RAIN") || detail.lowercased().contains("rain") ? "Rain" : detail)
+    }
+
+    /// A delay as MLB's live status has it ("Delayed: Rain"): before ESPN's, it's the game's own.
+    static func delay(mlb status: String?) -> PlayBeat.Delay? {
+        guard let status, status.hasPrefix("Delayed") else { return nil }
+        let why = status.split(separator: ":", maxSplits: 1).last.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+        return why.hasPrefix("About to Resume") ? .resuming : .weather(why)
+    }
+
+    /// The theater's timeline again from the plays and MLB's at-bats (the
+    /// full feed's, cached as plays are measured, and the one under way): an
+    /// entry is news if it's new since the first complete look; one already
+    /// had keeps what it was; the newest play is news as the theater's is.
+    private func rebuildTimeline(news: Bool) {
+        var mlb = lookup.map { StatcastStore.shared.cached(espnEvent: $0.espnEvent) } ?? []
+        if let current = mlbLive?.atBat {
+            if let i = mlb.firstIndex(where: { $0.index == current.index }) { mlb[i] = current } else { mlb.append(current) }
+        }
+        let before = Dictionary(timeline.map { ($0.id, $0.news) }, uniquingKeysWith: { a, _ in a })
+        var line = PlayBeat.timeline(window, mlb: mlb, names: names)
+        for i in line.indices {
+            let id = line[i].id
+            line[i].news = line[i].isPlay && id == espnTheater.play?.id ? espnTheater.news : before[id] ?? (news && !seenBeats.contains(id))
+        }
+        seenBeats.formUnion(line.map(\.id))
+        timeline = line
     }
 
     private func loadPlays(base: String, names: [String: String], side: (String?) -> GameDetail.Side?) async {
@@ -1139,6 +1203,7 @@ final class BaseballFeed {
         if complete { primed = true }
         loaded = true
         guard !look.new.isEmpty || !changed.isEmpty else { return }
+        heard = .now
         atBat = ESPNDetail.currentAtBat(window)
         updateTheater(news: news, names: names, side: side)
         let balls = ESPNDetail.battedBalls(window, side: side)
@@ -1199,6 +1264,7 @@ final class BaseballFeed {
             lookedUp.insert(play.id)
             measure(play, lookup)
         }
+        rebuildTimeline(news: news)
         publish()
     }
 
@@ -1210,6 +1276,9 @@ final class BaseballFeed {
             if id == holding, id != theater.play?.id { return }
             next.play?.measured = measured[id]
         }
+        next.timeline = timeline
+        next.updated = heard
+        next.delay = Self.delay(mlb: mlbLive?.status) ?? espnDelay
         if next != theater { theater = next }
     }
 
@@ -1235,6 +1304,8 @@ final class BaseballFeed {
                 if let found = await play.measure(lookup), let self {
                     self.measured[id] = found
                     if self.holding == id { self.holding = nil }
+                    // MLB's full account is cached now: the pitches and what came between them.
+                    self.rebuildTimeline(news: self.primed)
                     self.publish()
                     return
                 }

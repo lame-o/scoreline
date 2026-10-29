@@ -112,6 +112,19 @@ struct TheaterInk: Equatable {
 /// (PlayFrame), through the same camera at the same moment: drawn as a layer
 /// of its own, it could hold another framing than the figures over it.
 enum BallparkLayer {
+    /// The infield's clay: from the plate out to 95 ft round the rubber, between the lines (feet).
+    static let skin: [CGPoint] = {
+        let c = Ballpark.rubber, r = Ballpark.skin
+        let along = c.y / 2.squareRoot()
+        let t = along + (along * along - (c.y * c.y - r * r)).squareRoot()
+        let corner = t / 2.squareRoot()
+        let from = atan2(corner - c.y, corner), to = Double.pi - from
+        return [.zero] + (0...32).map { i -> CGPoint in
+            let a = from + Double(i) / 32 * (to - from)
+            return CGPoint(x: c.x + r * cos(a), y: c.y + r * sin(a))
+        }
+    }()
+
     static func draw(_ context: inout GraphicsContext, _ f: FieldProjection, ink: TheaterInk) {
         func polygon(_ points: [CGPoint]) -> Path {
             var path = Path()
@@ -131,17 +144,7 @@ enum BallparkLayer {
         // Chalk thickens a little as the camera closes in.
         let line = min(max(0.75, f.scale * 0.3), 1.6)
 
-        // The infield's clay reaches 95 ft round the rubber, between the lines.
-        let c = Ballpark.rubber, r = Ballpark.skin
-        let along = c.y / 2.squareRoot()
-        let t = along + (along * along - (c.y * c.y - r * r)).squareRoot()
-        let corner = t / 2.squareRoot()
-        let from = atan2(corner - c.y, corner), to = Double.pi - from
-        let arc = (0...32).map { i -> CGPoint in
-            let a = from + Double(i) / 32 * (to - from)
-            return CGPoint(x: c.x + r * cos(a), y: c.y + r * sin(a))
-        }
-        let skin = polygon([.zero] + arc)
+        let skin = polygon(Self.skin)
 
         // The first rows behind the wall, rising: where a home run lands.
         let fence = fenceLine(inset: 0)
@@ -420,6 +423,25 @@ extension RigPose {
     static let fielding = RigPose(hip: RigVector(0.44, -0.24, 0.41), lean: 0.55, left: RigVector(0.52, -0.1, 0), right: RigVector(0.42, -0.4, 0),
                                   knees: 0.4, leftArm: RigArm(swing: 0.4, spread: 0.3, turn: -0.35, bend: 0.65),
                                   rightArm: RigArm(swing: 0.4, spread: 0.3, turn: -0.35, bend: 0.65))
+    /// The release from a low slot: the arm comes round from the side, not over the top.
+    static let sidearm = RigPose(turn: -0.85, hip: RigVector(0.36, -0.05, 0.35), lean: 0.38, twist: 0.55, left: RigVector(0.52, -0.1, 0),
+                                 right: RigVector(0.0, -0.04, 0.12), knees: 0.2, leftArm: RigArm(swing: 0.4, spread: 0.35, turn: -0.4, bend: 1.7),
+                                 rightArm: RigArm(swing: 1.55, spread: 1.2, turn: -0.3, bend: 0.4))
+    /// The release at his arm slot: over the top (1) to sidearm (0).
+    static func deliver(slot: Double) -> RigPose { sidearm.mix(deliver, min(max(slot, 0), 1)) }
+    /// On the rubber, bent in for the catcher's sign: the glove at his side, the ball behind his back.
+    static let sign = RigPose(hip: RigVector(-0.02, 0, 0.47), lean: 0.45, nod: 0.2, left: RigVector(0.05, 0.12, 0), right: RigVector(-0.03, -0.1, 0),
+                              knees: 0.15, leftArm: RigArm(swing: 0.3, spread: 0.18, turn: 0, bend: 0.5),
+                              rightArm: RigArm(swing: -0.35, spread: 0.12, turn: 0, bend: 1.4))
+
+    /// Squared round to bunt: chest to the pitcher, the bat level out in front, knees bent.
+    static let bunt = RigPose(turn: 1.15, hip: RigVector(0, 0, 0.4), lean: 0.32, left: RigVector(0.1, 0.12, 0), right: RigVector(-0.08, -0.13, 0),
+                              knees: 0.4, leftArm: RigArm(swing: 1.2, spread: 0.05, turn: -0.2, bend: 0.75),
+                              rightArm: RigArm(swing: 1.25, spread: 0.0, turn: -0.4, bend: 0.5))
+    /// Back into a base head first: flat out along the dirt, both arms reaching for the bag.
+    static let diveBack = RigPose(hip: RigVector(-0.2, 0, 0.12), lean: 1.42, nod: -0.3, left: RigVector(-0.48, 0.07, 0.02),
+                                  right: RigVector(-0.46, -0.08, 0.02), knees: 0.05, leftArm: RigArm(swing: 2.85, spread: 0.12, bend: 0.1),
+                                  rightArm: RigArm(swing: 2.75, spread: 0.2, bend: 0.15))
 
     // The batter, facing the plate (a right-hander's front shoulder, his
     // left, to the pitcher): the stance, wide and coiled, the hands by his
@@ -451,10 +473,13 @@ struct PlayFrame: View, Equatable {
     let ink: TheaterInk
     /// Where it's drawn: the type is sized from it.
     let size: CGSize
+    /// Room kept at the bottom trailing corner (the heartbeat's): the pitch's label sits above it.
+    var footer: CGFloat = 0
 
     /// The time first: mid-replay it's all that differs.
     static func == (a: PlayFrame, b: PlayFrame) -> Bool {
-        a.t == b.t && a.size == b.size && a.teams == b.teams && a.ink == b.ink && a.scene == b.scene && a.script == b.script
+        a.t == b.t && a.size == b.size && a.footer == b.footer && a.teams == b.teams && a.ink == b.ink && a.scene == b.scene
+            && a.script == b.script
     }
 
     /// The type, laid out once as views and drawn into each frame: resolving
@@ -466,11 +491,13 @@ struct PlayFrame: View, Equatable {
             let f = FieldProjection(size: size, camera: script.camera.frame(at: t))
             context.clip(to: f.bounds)
             BallparkLayer.draw(&context, f, ink: ink)
+            drawTarp(&context, f)
             drawTrace(&context, f)
             drawPuffs(&context, f)
             let figures = posed(f)
             drawShadows(&context, f, figures)
             drawFigures(&context, f, figures)
+            drawZone(&context, f)
             drawBall(&context, f)
             drawFlashes(&context, f)
             drawLabels(&context, f)
@@ -478,6 +505,69 @@ struct PlayFrame: View, Equatable {
             pitchLabel.tag(Symbol.pitch)
             stamp.tag(Symbol.stamp)
             banner.tag(Symbol.banner)
+        }
+    }
+
+    // MARK: The zone
+
+    /// A pitch's strike zone, as a broadcast draws it: a faint frame at the
+    /// front of the plate while the ball's on its way, and once it's crossed
+    /// a dot where it did, then gone.
+    private func drawZone(_ context: inout GraphicsContext, _ f: FieldProjection) {
+        guard let zone = script.zone, t > zone.from, t < zone.until + 0.4 else { return }
+        let fade = min((t - zone.from) / 0.2, 1) * (1 - min(max((t - zone.until) / 0.4, 0), 1))
+        guard fade > 0.01 else { return }
+        let y = PlayScript.Zone.front, w = PlayScript.Zone.half
+        var frame = Path()
+        frame.addLines([f.point(CGPoint(x: -w, y: y), z: zone.bottom), f.point(CGPoint(x: w, y: y), z: zone.bottom),
+                        f.point(CGPoint(x: w, y: y), z: zone.top), f.point(CGPoint(x: -w, y: y), z: zone.top)])
+        frame.closeSubpath()
+        var layer = context
+        layer.opacity = fade
+        layer.fill(frame, with: .color(ink.chalk.opacity(0.07)))
+        layer.stroke(frame, with: .color(ink.chalk.opacity(0.7)), lineWidth: min(max(f.scale * 0.1, 0.7), 1.3))
+        guard t >= zone.at else { return }
+        let c = f.point(CGPoint(x: zone.crossing.x, y: y), z: zone.crossing.y), r = min(max(f.scale * 0.2, 1.6), 3.2)
+        layer.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: .color(ink.ball))
+        layer.stroke(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)), with: .color(ink.ballEdge), lineWidth: 0.6)
+    }
+
+    // MARK: The tarp
+
+    /// A rain delay's tarp over the infield dirt, rolled out from the
+    /// first-base side to the third (or back in), its seams across it.
+    private func drawTarp(_ context: inout GraphicsContext, _ f: FieldProjection) {
+        guard let tarp = script.tarp else { return }
+        let cover = tarp.cover(at: t)
+        guard cover > 0.005 else { return }
+        var skin = Path()
+        skin.addLines(BallparkLayer.skin.map { f.point($0) })
+        skin.closeSubpath()
+        // Rolled out from the right as far as `cover` has it.
+        let edge = 100 - 200 * cover
+        var layer = context
+        var shown = Path()
+        shown.addLines([CGPoint(x: edge, y: -20), CGPoint(x: 120, y: -20), CGPoint(x: 120, y: 170), CGPoint(x: edge, y: 170)].map { f.point($0) })
+        shown.closeSubpath()
+        layer.clip(to: shown)
+        let cloth = Color(hue: 0.6, saturation: ink.dark ? 0.3 : 0.35, brightness: ink.dark ? 0.62 : 0.58)
+        layer.fill(skin, with: .color(cloth.opacity(ink.dark ? 0.75 : 0.82)))
+        var seams = Path()
+        for x in stride(from: -90.0, through: 90, by: 18) {
+            seams.move(to: f.point(CGPoint(x: x, y: -10)))
+            seams.addLine(to: f.point(CGPoint(x: x, y: 160)))
+        }
+        var sewn = layer
+        sewn.clip(to: skin)
+        sewn.stroke(seams, with: .color(Color.white.opacity(ink.dark ? 0.12 : 0.3)), lineWidth: 0.6)
+        // The roll itself, at the edge, while it moves.
+        if cover < 0.995 {
+            var roll = Path()
+            roll.move(to: f.point(CGPoint(x: edge, y: -5)))
+            roll.addLine(to: f.point(CGPoint(x: edge, y: 150)))
+            var rolled = context
+            rolled.clip(to: skin)
+            rolled.stroke(roll, with: .color(cloth), style: StrokeStyle(lineWidth: max(f.scale * 2.2, 2.5), lineCap: .round))
         }
     }
 
@@ -601,7 +691,7 @@ struct PlayFrame: View, Equatable {
             if let bats = actor.bats, actor.dropsBat.map({ t < $0 }) ?? true {
                 var layer = context
                 if p.opacity < 1 { layer.opacity = p.opacity }
-                drawBat(&layer, bats: bats, hands: p.figure.grip, swing: actor.swing, length: f.figure * 0.62,
+                drawBat(&layer, actor: actor, bats: bats, hands: p.figure.grip, length: f.figure * 0.62,
                         halo: teams.uniform(actor.team).piping ?? ink.halo)
             }
         }
@@ -618,12 +708,16 @@ struct PlayFrame: View, Equatable {
             x < 0 ? max(1 + x / attack, 0) : max(1 - x / release, 0)
         }
 
-        // How he stands, and how he moves.
+        // How he stands, and how he moves. The catcher squats behind the plate (up out of it when he rises).
+        let home = hypot(here.x - Ballpark.position(2).x, here.y - Ballpark.position(2).y) < 3
+        // The pitcher ready to field off his follow-through (a lefty's mirrored), then back up as the ball's away from him.
+        let pitching = script.release.map { t > $0 } == true ? RigPose.fielding.mix(.ready, Rig.smooth((t - (script.release ?? 0) - 1.1) / 0.5))
+            : RigPose.ready
         let still: RigPose = switch actor.role {
-        case .fielder(1): script.release.map { t > $0 } == true ? .fielding : .ready
-        case .fielder(2): actor.crouch ? .squat : .stand
+        case .fielder(1): actor.arm == .left ? pitching.mirrored : pitching
+        case .fielder(2): actor.crouch && home ? RigPose.squat.mix(.stand, Self.within(actor.rise, at: t, ramp: 0.22)) : .stand
         case .fielder(let n) where n <= 6: .ready
-        case .fielder, .batter: .stand
+        case .fielder, .batter, .coach: .stand
         // Leading off a base, low, watching the pitcher.
         case .runner: Ballpark.distance(here) > 5 ? .lead : .stand
         }
@@ -632,22 +726,36 @@ struct PlayFrame: View, Equatable {
         if let slide = actor.slide, t >= slide {
             body = body.mix(.slide, actor.motion(at: t) == nil ? 1 : Rig.smooth((t - slide) / 0.12))
         }
+        // Back into the bag head first, and up again when he moves off it.
+        if let dive = actor.diveBack, t >= dive {
+            let up = actor.moves.first { $0.start > dive + 0.1 }?.start ?? dive + 1.2
+            body = body.mix(.diveBack, Rig.smooth((t - dive) / 0.12) * (1 - Rig.smooth((t - up + 0.3) / 0.3)))
+        }
 
-        // The batter in the box: the stance, the swing.
+        // The batter in the box: the stance, a swing (full, checked or practice), squared to bunt.
         if actor.role == .batter, let bats = actor.bats, actor.dropsBat.map({ t < $0 }) ?? true, actor.motion(at: t) == nil {
             var p = RigPose.stance
-            if let swing = actor.swing {
-                let u = (t - (swing - 0.09)) / 0.24
+            if let u = Self.swingPhase(actor, at: t) {
                 p = RigPose.keyed([(0, .stance), (0.4, .contact), (1, .finish)], at: u) ?? (u <= 0 ? .stance : .finish)
+                p = p.mix(.stance, Self.recovery(actor, at: t))
             }
+            if let bunt = actor.bunt { p = p.mix(.bunt, Rig.smooth((t - bunt) / 0.25) * (1 - Rig.smooth((t - bunt - 1.7) / 0.4))) }
             body = bats == .left ? p.mirrored : p
         }
 
-        // The pitcher's delivery; then he's ready where he landed.
-        if case .fielder(1) = actor.role, let r = script.release, actor.motion(at: t) == nil,
-           let p = RigPose.keyed([(-0.55, .ready), (-0.42, .set), (-0.24, .kick), (-0.08, .stride), (0, .deliver), (0.16, .follow),
-                                  (0.45, .fielding), (0.7, .fielding)], at: t - r) {
-            body = p
+        // The pitcher: in for the sign, set in the stretch, the delivery at his arm slot (a lefty's
+        // mirrored); then he's ready where he landed.
+        if case .fielder(1) = actor.role, actor.motion(at: t) == nil {
+            let lefty = actor.arm == .left
+            func hand(_ p: RigPose) -> RigPose { lefty ? p.mirrored : p }
+            if let sign = actor.sign { body = body.mix(hand(.sign), Self.within([sign], at: t, ramp: 0.25)) }
+            if !actor.sets.isEmpty { body = body.mix(hand(.set), Self.within(actor.sets, at: t, ramp: 0.18)) }
+            if let r = script.release,
+               let p = RigPose.keyed([(-0.55, actor.sets.isEmpty ? .ready : hand(.set)), (-0.42, hand(.set)), (-0.24, hand(.kick)),
+                                      (-0.08, hand(.stride)), (0, hand(.deliver(slot: actor.slot))), (0.16, hand(.follow)),
+                                      (0.45, hand(.fielding)), (0.7, hand(.fielding))], at: t - r) {
+                body = p
+            }
         }
 
         // Hands on the ball: a catch, a scoop, a glove, a throw. On the move, the legs keep running.
@@ -669,17 +777,49 @@ struct PlayFrame: View, Equatable {
         return (body, m.heading)
     }
 
+    /// How far through a swing he is at t (0 the stance, 0.4 through the
+    /// zone, 1 the finish): a full swing; a check swing, started and held up
+    /// short of the zone; a practice swing, easy, halfway and back. Nil: none.
+    static func swingPhase(_ a: PlayScript.Actor, at t: Double) -> Double? {
+        func bump(_ start: Double, rise: Double, hold: Double, fall: Double) -> Double {
+            Rig.smooth((t - start) / rise) * (1 - Rig.smooth((t - start - rise - hold) / fall))
+        }
+        if let s = a.swing { return min(max((t - (s - 0.09)) / 0.24, 0), 1) }
+        if let c = a.check, t > c - 0.1 { return 0.3 * bump(c - 0.1, rise: 0.11, hold: 0.06, fall: 0.35) }
+        if let p = a.practice, t > p { return 0.62 * bump(p, rise: 0.42, hold: 0.12, fall: 0.5) }
+        return nil
+    }
+
+    /// Back into his stance after a swing he missed or fouled (one he ran on, he dropped the bat).
+    static func recovery(_ a: PlayScript.Actor, at t: Double) -> Double {
+        guard let s = a.swing, a.dropsBat == nil else { return 0 }
+        return Rig.smooth((t - s - 0.75) / 0.5)
+    }
+
+    /// In any of these windows at t, eased in and out over `ramp`.
+    static func within(_ windows: [ClosedRange<Double>], at t: Double, ramp: Double) -> Double {
+        windows.map { w in Rig.smooth((t - w.lowerBound) / ramp) * (1 - Rig.smooth((t - w.upperBound) / ramp)) }.max() ?? 0
+    }
+
     /// The bat: on the shoulder, then round through the zone, level at
-    /// contact, and on into the follow-through.
-    private func drawBat(_ context: inout GraphicsContext, bats: PlayScene.Hand, hands: CGPoint, swing: Double?, length: CGFloat,
+    /// contact, and on into the follow-through (back to the shoulder after
+    /// a miss); held level out in front to bunt.
+    private func drawBat(_ context: inout GraphicsContext, actor: PlayScript.Actor, bats: PlayScene.Hand, hands: CGPoint, length: CGFloat,
                          halo: Color) {
         // Azimuth on the ground (0: toward first base's side, 90: out to center), and lift.
         var azimuth = -105.0, lift = 0.85
-        if let swing {
-            let u = min(max((t - (swing - 0.09)) / 0.24, 0), 1)
+        if let u = Self.swingPhase(actor, at: t) {
             let e = PlayScript.Ease.inOut.value(u)
             azimuth = -105 + e * 255
             lift = u <= 0 ? 0.85 : u < 0.4 ? 0.85 - (u / 0.4) * 0.7 : 0.15 + (u - 0.4) / 0.6 * 0.5
+            let back = Self.recovery(actor, at: t)
+            azimuth += (-105 - azimuth) * back
+            lift += (0.85 - lift) * back
+        }
+        if let bunt = actor.bunt {
+            let w = Rig.smooth((t - bunt) / 0.25) * (1 - Rig.smooth((t - bunt - 1.7) / 0.4))
+            azimuth += (12 - azimuth) * w
+            lift += (0.08 - lift) * w
         }
         if bats == .left { azimuth = 180 - azimuth }
         let a = azimuth * .pi / 180
@@ -824,7 +964,7 @@ struct PlayFrame: View, Equatable {
             let fadeOut = 1 - min(max((t - label.upperBound) / 0.3, 0), 1)
             var layer = context
             layer.opacity = fadeIn * fadeOut
-            layer.draw(symbol, at: CGPoint(x: f.size.width - inset, y: f.size.height - inset * 0.8), anchor: .bottomTrailing)
+            layer.draw(symbol, at: CGPoint(x: f.size.width - inset, y: f.size.height - inset * 0.8 - footer), anchor: .bottomTrailing)
         }
         // The headline across the top: wiped open from the middle as it
         // drops in, held, then lifted away as the field settles.
@@ -990,6 +1130,9 @@ struct PlayTheater: View {
     /// The live bases and the team at bat (the diamond's), for the field between plays.
     var bases: [Bool]? = nil
     var batting: GameDetail.Side? = nil
+    /// The live count and outs, and the inning ("Top 7th"): the tag until the timeline says more.
+    var situation: GameDetail.Baseball? = nil
+    var inning: String? = nil
     let palette: TeamPalette
     /// The teams' own and second colors, so the figures always contrast
     /// (without them, the palette's colors as they are).
@@ -997,27 +1140,74 @@ struct PlayTheater: View {
 
     var body: some View {
         let live = feed?.loaded == true ? feed?.theater : nil
-        let state = live.flatMap { $0.play == nil ? nil : $0 } ?? preloaded ?? live ?? TheaterState()
-        PlayStage(state: state, bases: bases, batting: batting, palette: palette, kits: kits)
+        let state = live.flatMap { $0.play == nil && $0.timeline.isEmpty ? nil : $0 } ?? preloaded ?? live ?? TheaterState()
+        PlayStage(state: state, bases: bases, batting: batting, situation: situation, inning: inning, palette: palette, kits: kits,
+                  live: live != nil)
     }
 }
 
-/// The theater's stage: the field and one frame of the play through the
-/// camera (a TimelineView only while it replays), and its celebration.
+/// One frame of the theater and what it says: the field and its figures
+/// (PlayFrame), the status tag at the top leading corner, room kept for the
+/// heartbeat at the bottom trailing one. The stage draws it; so does the
+/// render harness, at any t.
+struct DiamondFrame: View {
+    let scene: PlayScene?
+    let script: PlayScript
+    let t: Double
+    let teams: TheaterTeams
+    let ink: TheaterInk
+    let size: CGSize
+    let status: TheaterStatus
+    /// The heartbeat is up: the pitch's label sits above it.
+    var heartbeat = false
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            PlayFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: size, footer: heartbeat ? 16 : 0)
+                .equatable()
+            TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
+        }
+    }
+}
+
+/// The theater's stage: the game's timeline played in order (each play's
+/// replay, each beat between them: every pitch, a throw over, a visit, a
+/// change, the teams changing sides), the field's idle life while nothing
+/// comes, what the tag says and the heartbeat. A TimelineView only while
+/// something moves (an idle move at half the frame rate); still between.
+/// A backlog (the feed was slow) plays only its last few pitches. With
+/// Reduce Motion nothing moves: each beat's tag still says what happened.
 private struct PlayStage: View {
     let state: TheaterState
     let bases: [Bool]?
     let batting: GameDetail.Side?
+    let situation: GameDetail.Baseball?
+    let inning: String?
     let palette: TeamPalette
     let kits: TheaterKits?
+    /// The live lane has spoken: the heartbeat shows.
+    let live: Bool
     @Environment(\.celebrationClock) private var clock
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.pageLive) private var pageLive
+    @Environment(\.pageGeometry) private var geometry
     /// The replay on screen: which play, when it began, and whether it's over.
     @State private var replay: Replay?
     /// The script last built: a body that runs again for the same play and
     /// field (a replay beginning or ending) doesn't build it again.
     @State private var scripts = ScriptMemo()
+    /// A replayed play's end that has had its time on screen.
+    @State private var rested: String?
+    /// The last entry of the timeline shown (or passed over): what's after it, and news, is still to come.
+    @State private var shown: String?
+    /// The beat on screen.
+    @State private var beat: BeatShow?
+    /// The idle move on screen.
+    @State private var move: IdleShow?
+    /// Where the last beat left the camera (a pitch with another to follow: on the battery).
+    @State private var camera = CameraFrame.rest
+    @State private var opened = false
 
     struct Replay: Equatable {
         let id: String
@@ -1025,36 +1215,123 @@ private struct PlayStage: View {
         /// The play as it began: kept to the end, whatever lands meanwhile.
         let play: PlayScene
         var done = false
+        var ended: Date?
     }
 
-    /// A replayed play's end that has had its time on screen.
-    @State private var rested: String?
+    struct BeatShow: Equatable {
+        let beat: PlayBeat
+        let start: Date
+        let from: CameraFrame
+        let to: CameraFrame
+    }
 
-    /// How long a replay's end stays up when the next at-bat hasn't begun.
+    struct IdleShow: Equatable {
+        let kind: IdleBeat
+        let seed: UInt64
+        let start: Date
+    }
+
+    /// How long a replay's end stays up when nothing new has come.
     static let hold = TheaterKit.hold
-
-    /// The play on screen: a replay's own until it's over; then how the
-    /// latest ended, until the next pitch or the hold; then none, and the
-    /// field shows the live bases and batter.
-    private var play: PlayScene? {
-        if let replay, !replay.done, replay.id == state.play?.id { return replay.play }
-        guard let latest = state.play, !state.cleared, latest.id != rested else { return nil }
-        return latest
-    }
+    /// …and when the next thing is waiting.
+    static let briefHold: Duration = .seconds(1.4)
 
     /// Half as tall as wide, up to this; wider than that, the field centers in the well.
     static let maxHeight: CGFloat = 320
 
-    /// The field between plays: the live bases and batter, or how the play left them.
-    private var rest: PlayScript.Rest {
-        guard let play else {
-            return PlayScript.Rest(bases: bases ?? [false, false, false], bats: state.bats)
-        }
-        let swapped = play.endsInning
-        return PlayScript.Rest(bases: swapped ? [false, false, false] : bases ?? play.basesAfter, bats: state.bats, swapped: swapped)
+    // MARK: The timeline
+
+    /// What's still to come: the timeline after the last thing shown, news
+    /// only (history isn't replayed), a play no longer the newest left out
+    /// (its scene has gone).
+    private var pending: [PlayBeat] {
+        guard let shown else { return [] }
+        let line = state.timeline
+        let from = line.firstIndex { $0.id == shown }.map { $0 + 1 } ?? 0
+        return line[from...].filter { $0.news && (!$0.isPlay || $0.id == state.play?.id) }
     }
 
-    private var teams: TheaterTeams {
+    /// The last thing shown: the field and the tag stand as it left them.
+    private var last: PlayBeat? { shown.flatMap { id in state.timeline.last { $0.id == id } } }
+
+    private enum Display {
+        case replay(Replay)
+        /// A play as it ended: held after its replay, or history as the page opened on it.
+        case ended(PlayScene)
+        case beat(BeatShow)
+        case rest
+    }
+
+    private var display: Display {
+        if let replay, !replay.done, replay.id == state.play?.id { return .replay(replay) }
+        if let beat { return .beat(beat) }
+        if let play = state.play, play.id != rested, state.timeline.isEmpty ? !state.cleared : shown == play.id { return .ended(play) }
+        return .rest
+    }
+
+    /// The team at bat for a beat: between halves, the one about to; after a third out, the other.
+    private func battingSide(_ b: PlayBeat) -> GameDetail.Side {
+        switch b.kind {
+        case let .inningBreak(middle, _): return middle ? .bottom : .top
+        case .play where b.outs >= 3: return b.top == false ? .top : .bottom
+        default: return b.batting ?? batting ?? .top
+        }
+    }
+
+    /// Between halves: the warm-ups, no batter.
+    private var between: Bool {
+        if let last {
+            if case .inningBreak = last.kind { return true }
+            if last.isPlay, last.outs >= 3 { return true }
+            return false
+        }
+        return ["mid", "end"].contains(inning?.lowercased().split(separator: " ").first.map(String.init) ?? "")
+    }
+
+    /// What still stands on the field: a rain delay's tarp, the trainer out to an injured man.
+    private var standing: PlayScript.Rest.Standing? {
+        switch state.delay {
+        case .weather?, .resuming?: return .tarp
+        default: break
+        }
+        guard let last, case let .delay(d) = last.kind else { return nil }
+        switch d {
+        case let .injury(hurt): return .injury(hurt)
+        case .weather, .resuming: return .tarp
+        default: return nil
+        }
+    }
+
+    /// The field for a beat (and as it leaves it): its bases and batter, the team in the field's side.
+    private func rest(for b: PlayBeat?) -> PlayScript.Rest {
+        guard let b else {
+            return PlayScript.Rest(bases: bases ?? [false, false, false], bats: between ? nil : state.bats,
+                                   fieldingHome: (batting ?? .top) == .top, standing: standing)
+        }
+        let side = battingSide(b)
+        let noBatter = between || { if case .inningBreak = b.kind { return true }; return false }()
+        return PlayScript.Rest(bases: noBatter ? [false, false, false] : b.bases ?? bases ?? [false, false, false],
+                               bats: noBatter ? nil : b.bats ?? state.bats, fieldingHome: side == .top, standing: standing)
+    }
+
+    /// The field a play leaves: its runners (or the live bases), the next batter; after a third out, the sides changed.
+    private func rest(for play: PlayScene) -> PlayScript.Rest {
+        let swapped = play.endsInning
+        let side: GameDetail.Side = swapped ? (play.batting == .bottom ? .top : .bottom) : play.batting ?? batting ?? .top
+        return PlayScript.Rest(bases: swapped ? [false, false, false] : bases ?? play.basesAfter, bats: state.bats, swapped: swapped,
+                               fieldingHome: side == .top)
+    }
+
+    private func side(_ display: Display) -> GameDetail.Side {
+        switch display {
+        case let .replay(r): return r.play.batting ?? batting ?? .top
+        case let .ended(p): return p.batting ?? batting ?? .top
+        case let .beat(b): return battingSide(b.beat)
+        case .rest: return last.map(battingSide) ?? batting ?? .top
+        }
+    }
+
+    private func teams(_ side: GameDetail.Side) -> TheaterTeams {
         let dressed: (top: Uniform, bottom: Uniform)
         if let kits {
             let d = TheaterTeams.dress(kits, scheme: scheme)
@@ -1064,97 +1341,346 @@ private struct PlayStage: View {
             // Without kits the palette may have grayed a near-twin: gray against a color still reads apart.
             dressed = (Uniform(top), Uniform(bottom))
         }
-        // The play's batting team; else the live one; else the top team (the visitors bat first).
-        let side = play?.batting ?? batting ?? .top
         return side == .top ? TheaterTeams(batting: dressed.top, fielding: dressed.bottom)
             : TheaterTeams(batting: dressed.bottom, fielding: dressed.top)
     }
 
-    /// Seconds into the play on screen; infinity once it has ended (or was never replayed).
-    private func time(at date: Date) -> Double {
-        if case let .frozen(t) = clock { return t }
-        guard let play = state.play else { return .infinity }
-        if let replay, replay.id == play.id { return replay.done ? .infinity : date.timeIntervalSince(replay.start) }
-        // News not yet begun: its first frame (onChange begins it).
-        return state.news && !reduceMotion ? 0 : .infinity
+    private func script(_ display: Display) -> (scene: PlayScene?, script: PlayScript) {
+        switch display {
+        case let .replay(r): return (r.play, scripts.script(r.play, rest: rest(for: r.play)))
+        case let .ended(p): return (p, scripts.script(p, rest: rest(for: p)))
+        case let .beat(b): return (nil, scripts.beat(b.beat, rest: rest(for: b.beat), from: b.from, to: b.to))
+        case .rest:
+            let field = rest(for: last)
+            if let move { return (nil, scripts.idle(move.kind, seed: move.seed, rest: field, arm: last?.arm)) }
+            return (nil, scripts.script(nil, rest: field))
+        }
     }
 
-    private var playing: Bool {
-        guard clock == .live, let play = state.play else { return false }
-        if let replay, replay.id == play.id { return !replay.done }
-        return state.news && !reduceMotion
+    /// Seconds into what's on screen; infinity at rest (or Reduce Motion's beats, shown as they end).
+    private func time(_ display: Display, at date: Date) -> Double {
+        if case let .frozen(t) = clock { return t }
+        switch display {
+        case let .replay(r): return date.timeIntervalSince(r.start)
+        case .ended: return .infinity
+        case let .beat(b): return reduceMotion ? .infinity : date.timeIntervalSince(b.start)
+        case .rest: return move.map { date.timeIntervalSince($0.start) } ?? .infinity
+        }
     }
+
+    private func idling(_ display: Display) -> Bool { if case .rest = display { return move != nil }; return false }
+
+    private func moving(_ display: Display) -> Bool {
+        guard clock == .live, !reduceMotion else { return false }
+        switch display {
+        case .replay, .beat: return true
+        case .ended: return false
+        case .rest: return move != nil
+        }
+    }
+
+    // MARK: What it says
+
+    /// The tag at t: nothing while a play replays (its headline and mark
+    /// tell it); a beat's captions as they come (a pitch's call as it pops
+    /// the mitt); between, the game as the last thing left it ("TOP 7TH ·
+    /// 1-2 · 2 OUTS", a stoppage while it stands); a delay over all of it.
+    private func status(_ display: Display, at t: Double, script: PlayScript, wide: Bool) -> TheaterStatus {
+        var tag: String?, about: PlayBeat?
+        switch display {
+        case .replay:
+            break
+        case let .ended(p):
+            about = state.timeline.last { $0.id == p.id }
+            tag = about?.standing
+        case let .beat(b):
+            about = b.beat
+            if let caption = script.captions.last(where: { $0.at <= t }) {
+                tag = b.beat.caption(caption.line, wide: wide)
+            } else {
+                about = last
+                tag = last?.standing
+            }
+        case .rest:
+            about = last
+            tag = last?.standing ?? fallback
+        }
+        if let delay = state.delay, delay != .over, let words = PlayBeat(id: "", kind: .delay(delay)).tag(wide: wide) {
+            tag = words
+            about = nil
+        }
+        return TheaterStatus(tag: tag, tint: tint(about), updated: state.updated)
+    }
+
+    /// Before the timeline says anything: the live count and outs, the half.
+    private var fallback: String? {
+        guard let inning else { return nil }
+        let words = inning.uppercased().split(separator: " ").map(String.init)
+        guard let first = words.first, words.count >= 2 else { return nil }
+        if first == "MID" || first == "MIDDLE" || first == "END" { return "\(first == "END" ? "END" : "MIDDLE") \(words[1])" }
+        let half = "\(first.hasPrefix("BOT") ? "BOT" : first) \(words[1])"
+        guard let s = situation else { return half }
+        return "\(half) · \(s.balls)-\(s.strikes) · \(s.outs) OUT\(s.outs == 1 ? "" : "S")"
+    }
+
+    /// A tag in a team's color: the team at bat's for the count, a pitch, a
+    /// pinch hitter or runner; the team in the field's for a visit, a change,
+    /// a throw over; the game's own (none) for the end of a half, a review, a delay.
+    private func tint(_ b: PlayBeat?) -> String? {
+        let side: GameDetail.Side?
+        if let b {
+            let at = battingSide(b), field: GameDetail.Side = at == .top ? .bottom : .top
+            switch b.kind {
+            case .play where b.outs >= 3: side = nil
+            case .pitch, .batterUp, .play, .timeout: side = at
+            case let .substitution(c): side = c.role == .pinchRunner || c.role == .pinchHitter ? at : field
+            case .moundVisit, .pitchingChange, .pickoff, .stepOff: side = field
+            case .inningBreak, .review, .delay: side = nil
+            }
+        } else {
+            side = batting
+        }
+        return side.flatMap { $0 == .top ? kits?.top.color : kits?.bottom.color }
+    }
+
+    // MARK: Body
 
     var body: some View {
-        let play = play
-        let script = scripts.script(play, rest: rest)
+        let display = display
+        let (scene, script) = script(display)
         let ink = TheaterInk(scheme)
-        let teams = teams
+        let teams = teams(side(display))
+        let animating = moving(display)
         GeometryReader { geo in
+            let wide = geo.size.width >= 440
             ZStack(alignment: .topLeading) {
                 Group {
-                    if playing {
-                        TimelineView(.animation) { context in
-                            PlayFrame(scene: play, script: script, t: time(at: context.date), teams: teams, ink: ink, size: geo.size)
-                                .equatable()
+                    if animating {
+                        // An idle move at half the frame rate: it's small and slow.
+                        TimelineView(.animation(minimumInterval: idling(display) ? 1.0 / 30 : nil)) { context in
+                            let t = time(display, at: context.date)
+                            DiamondFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: geo.size,
+                                         status: status(display, at: t, script: script, wide: wide), heartbeat: live)
                         }
                         .transition(.identity)
                     } else {
-                        PlayFrame(scene: play, script: script, t: time(at: .now), teams: teams, ink: ink, size: geo.size)
-                            .equatable()
+                        let t = time(display, at: .now)
+                        DiamondFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: geo.size,
+                                     status: status(display, at: t, script: script, wide: wide), heartbeat: live)
                             .transition(.identity)
                     }
                 }
-                .id(play?.id)
+                .id(identity(display))
                 // A replay cuts in; a play that isn't replayed crossfades to how it ended.
-                .transition(playing ? .identity : .opacity.animation(.easeInOut(duration: 0.35)))
-                if let play {
+                .transition(animating ? .identity : .opacity.animation(.easeInOut(duration: 0.35)))
+                if let play = scene {
                     TheaterCelebration(play: play, script: script, size: geo.size, color: teams.batting.accent,
                                        start: replay?.id == play.id ? replay?.start : nil)
                         .id(play.id)
                 }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if live { TheaterHeartbeat(updated: state.updated, source: "ESPN").padding(6) }
             }
         }
         // The well spans the column, so its edges line up with the diamond and the caption.
         .modifier(HalfHeight(cap: Self.maxHeight))
         .vizWell(padding: 0)
         .accessibilityHidden(true)
-        .onAppear(perform: begin)
-        .onChange(of: state.play?.id) { _, _ in begin() }
-        .task(id: replay) {
-            guard let replay else { return }
-            if !replay.done {
-                try? await Task.sleep(for: .seconds(max(script.duration - Date.now.timeIntervalSince(replay.start), 0) + 0.05))
-                guard !Task.isCancelled, self.replay?.id == replay.id else { return }
-                self.replay?.done = true
-                return
+        .onAppear(perform: open)
+        .onChange(of: state.timeline.map(\.id)) { _, line in
+            // Opened before the feed had spoken: what it first brings is history, standing as it is.
+            if shown == "", !line.isEmpty { shown = state.timeline.last { !$0.news }?.id ?? "" }
+            advance()
+        }
+        .onChange(of: state.play?.id) { _, _ in
+            // A new play cuts in, as a replay cuts in on another (a scoring slide keeps time with it).
+            if beat != nil, let play = state.play, pending.contains(where: { $0.id == play.id }) {
+                camera = .rest
+                beat = nil
             }
-            // Done: its end holds a while, then the field returns to the game.
-            try? await Task.sleep(for: Self.hold)
-            guard !Task.isCancelled, self.replay?.id == replay.id else { return }
-            rested = replay.id
+            advance()
+        }
+        .task(id: Pace(replay: replay, beat: beat, next: pending.first?.id, rested: rested, opened: opened)) { await pace() }
+        .task(id: idleKey) { await idle() }
+    }
+
+    /// A play's frames keep its ID (a new one cuts in); beats and the field between share one.
+    private func identity(_ display: Display) -> String {
+        switch display {
+        case let .replay(r): return r.id
+        case let .ended(p): return p.id
+        case .beat, .rest: return "field"
         }
     }
 
-    /// A new play replays from its pitch; history and Reduce Motion don't.
-    private func begin() {
-        guard clock == .live, !reduceMotion, state.news, let play = state.play, replay?.id != play.id else { return }
-        replay = Replay(id: play.id, start: .now, play: play)
+    // MARK: Pace
+
+    private struct Pace: Equatable {
+        var replay: Replay?
+        var beat: BeatShow?
+        var next: String?
+        var rested: String?
+        var opened: Bool
+    }
+
+    /// Opened on the game: history stands as it is (a news play, the newest
+    /// thing, still replays).
+    private func open() {
+        guard !opened else { return }
+        let line = state.timeline
+        if let newest = line.last, !newest.news {
+            // History: the field as it stands (a play as it ended).
+            shown = newest.id
+        } else {
+            shown = line.count >= 2 ? line[line.count - 2].id : ""
+        }
+        opened = true
+        advance()
+    }
+
+    /// The next thing in the timeline, when nothing's on screen: a play's
+    /// replay, or a beat (a pitch to follow another keeps the camera on the battery).
+    private func advance() {
+        guard opened, clock == .live, beat == nil else { return }
+        // Replaying, or its end held for a moment.
+        if let replay, replay.id == state.play?.id, !replay.done || rested != replay.id { return }
+        // Without a timeline (the full load's play), as before: a news play replays.
+        if state.timeline.isEmpty {
+            guard !reduceMotion, state.news, let play = state.play, replay?.id != play.id else { return }
+            replay = Replay(id: play.id, start: .now, play: play)
+            return
+        }
+        let queue = PlayBeat.catchUp(pending)
+        guard let next = queue.first else { return }
+        move = nil
+        if next.isPlay, let play = state.play {
+            camera = .rest
+            if reduceMotion {
+                // It crossfades to how it ended.
+                shown = play.id
+                return
+            }
+            replay = Replay(id: play.id, start: .now, play: play)
+            return
+        }
+        func isPitch(_ b: PlayBeat?) -> Bool { if case .pitch = b?.kind { return true }; return false }
+        let field = rest(for: next)
+        let to = !reduceMotion && isPitch(next) && isPitch(queue.dropFirst().first) ? PlayScript.battery(field) : .rest
+        beat = BeatShow(beat: next, start: .now, from: reduceMotion ? .rest : camera, to: to)
+    }
+
+    /// Each step in its time: a beat to its end, then the next; a replay to
+    /// its end, its end held (briefly when the next thing's waiting), then the next.
+    private func pace() async {
+        guard clock == .live, opened else { return }
+        if let beat {
+            let length = scripts.beat(beat.beat, rest: rest(for: beat.beat), from: beat.from, to: beat.to).duration
+            await Self.sleep(until: beat.start.addingTimeInterval(reduceMotion ? min(length, 2.4) : length))
+            guard !Task.isCancelled, self.beat == beat else { return }
+            shown = beat.beat.id
+            camera = beat.to
+            self.beat = nil
+            advance()
+            return
+        }
+        if let replay, replay.id == state.play?.id {
+            if !replay.done {
+                let length = scripts.script(replay.play, rest: rest(for: replay.play)).duration
+                await Self.sleep(until: replay.start.addingTimeInterval(length + 0.05))
+                guard !Task.isCancelled, self.replay?.id == replay.id else { return }
+                self.replay?.done = true
+                self.replay?.ended = .now
+                if state.timeline.contains(where: { $0.id == replay.id }) { shown = replay.id }
+                return
+            }
+            if rested != replay.id {
+                let wait = pending.isEmpty ? Self.hold : Self.briefHold
+                await Self.sleep(until: (replay.ended ?? .now).addingTimeInterval(Double(wait.components.seconds)
+                    + Double(wait.components.attoseconds) / 1e18))
+                guard !Task.isCancelled, self.replay?.id == replay.id else { return }
+                rested = replay.id
+                advance()
+                return
+            }
+        }
+        advance()
+    }
+
+    private static func sleep(until date: Date) async {
+        let wait = date.timeIntervalSinceNow
+        if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+    }
+
+    // MARK: Idle
+
+    private struct IdleKey: Equatable {
+        var on: Bool
+        var rest: PlayScript.Rest
+        var between: Bool
+        var seed: UInt64
+    }
+
+    /// The field at rest, on screen (the page live, the section scrolled into
+    /// view), with motion allowed: idle moves run.
+    private var idleKey: IdleKey {
+        let resting: Bool = { if case .rest = display { return true }; return false }()
+        let seen = geometry?.visibility[sectionID(.atPlate)].map { !$0.isHidden } ?? true
+        return IdleKey(on: resting && pageLive && seen && !reduceMotion && clock == .live && opened, rest: rest(for: last), between: between,
+                       seed: PlayBeat.seed(shown ?? "rest"))
+    }
+
+    /// A move every few seconds, a second or two long, still in between.
+    private func idle() async {
+        let key = idleKey
+        if move != nil { move = nil }
+        guard key.on else { return }
+        var n = 0
+        while !Task.isCancelled, let next = IdleBeat.next(n, rest: key.rest, between: key.between, seed: key.seed) {
+            try? await Task.sleep(for: .seconds(next.wait))
+            guard !Task.isCancelled else { return }
+            let show = IdleShow(kind: next.beat, seed: key.seed &+ UInt64(n), start: .now)
+            move = show
+            let length = scripts.idle(show.kind, seed: show.seed, rest: key.rest, arm: last?.arm).duration
+            try? await Task.sleep(for: .seconds(length + 0.05))
+            guard !Task.isCancelled else { return }
+            move = nil
+            n += 1
+        }
     }
 }
 
-/// One script, kept until its play or field changes (a reference: keeping
-/// it redraws nothing). A measured play's flight is calibrated as it's built.
+/// The scripts last built, each kept until what it's built from changes
+/// (a reference: keeping one redraws nothing): the play's (a measured
+/// play's flight is calibrated as it's built), the beat's, the idle move's.
 @MainActor
 private final class ScriptMemo {
     private var play: PlayScene?
     private var rest: PlayScript.Rest?
     private var built: PlayScript?
+    private var beatKey: (PlayBeat, PlayScript.Rest, CameraFrame, CameraFrame)?
+    private var beatBuilt: PlayScript?
+    private var idleKey: (IdleBeat, UInt64, PlayScript.Rest, PlayScene.Hand?)?
+    private var idleBuilt: PlayScript?
 
     func script(_ play: PlayScene?, rest: PlayScript.Rest) -> PlayScript {
         if let built, self.play == play, self.rest == rest { return built }
         let script = play.map { PlayScript($0, rest: rest) } ?? PlayScript(rest: rest)
         (self.play, self.rest, built) = (play, rest, script)
+        return script
+    }
+
+    func beat(_ beat: PlayBeat, rest: PlayScript.Rest, from: CameraFrame, to: CameraFrame) -> PlayScript {
+        if let beatBuilt, let k = beatKey, k.0 == beat, k.1 == rest, k.2 == from, k.3 == to { return beatBuilt }
+        let script = PlayScript(beat: beat, rest: rest, from: from, to: to)
+        (beatKey, beatBuilt) = ((beat, rest, from, to), script)
+        return script
+    }
+
+    func idle(_ kind: IdleBeat, seed: UInt64, rest: PlayScript.Rest, arm: PlayScene.Hand?) -> PlayScript {
+        if let idleBuilt, let k = idleKey, k.0 == kind, k.1 == seed, k.2 == rest, k.3 == arm { return idleBuilt }
+        let script = PlayScript(idle: kind, rest: rest, seed: seed, arm: arm)
+        (idleKey, idleBuilt) = ((kind, seed, rest, arm), script)
         return script
     }
 }
