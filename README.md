@@ -49,6 +49,7 @@ Every play comes back to life in a small isometric view the moment it happens: t
 When a team scores, a broadcast lower third wipes in from its side of the page, in its colors: who and when (BREWERS · TOP 6TH), its logo, a headline you can read from across the room (HOME RUN, GRAND SLAM, TOUCHDOWN, GOAL, BUZZER-BEATER, MAP WON), the new score, and who and how, straight from the feeds: "Pratt · 396 ft · EV 99.1 mph". The scoreboard steps aside while it's up. It lands at the isometric view's climax, as the ball clears the fence or crosses the line, for runs, touchdowns, goals, the NBA's decisive baskets, CS2 maps and climbing tops.
 
 <!-- slot:scoring-slide:start -->
+<p align="center"><img src="docs/screenshots/scoring-slide-loop.webp" width="100%" alt="The scoring slide in motion: a Brewers home run wiping in from the left, a Packers touchdown from the right and an Arsenal goal from the left, each in its team's colors with the new score, then leaving the way it came while the scoreboard comes back"></p>
 <p align="center">
   <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mac/scoring-slide-dark.webp"><img src="docs/screenshots/mac/scoring-slide-light.webp" width="100%" alt="The scoring slide: a home run's broadcast lower third wiping in from the scoring team's side, in its colors, with who, when, how far and the new score"></picture>
 </p>
