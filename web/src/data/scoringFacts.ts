@@ -25,6 +25,8 @@ export interface ScoringFacts {
   readonly clock?: string | null;
   /** The inning, quarter or half. */
   readonly period?: number | null;
+  /** Baseball: the half of the inning, as ESPN names it ("Top", "Bottom"). */
+  readonly half?: string | null;
 }
 
 /** Swift's `json.int`: a number, or a numeric string. */
@@ -54,6 +56,7 @@ export function baseballFacts(item: JSONValue, batting: Side | null): ScoringFac
     text: str(at(item, "text")) ?? null,
     type: str(at(item, "alternativeType", "type")) ?? null,
     period: intOf(at(item, "period", "number")),
+    half: str(at(item, "period", "type")) ?? null,
   };
 }
 

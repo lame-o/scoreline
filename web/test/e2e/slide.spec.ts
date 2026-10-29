@@ -2,9 +2,10 @@
  * The scoring slide (ScoringSlideView.swift), live under `?demo`: the MLB
  * replay (World Series Game 3, the bottom of the 9th; src/data/demo.ts)
  * starts one entry before Yandy Díaz's RBI double reaches the lane, so the
- * run arrives as news. The Rays' bar slides in from their side of the hero,
- * says it once, is moved under the docked bar when the page scrolls, and
- * leaves; axe stays at zero with it on screen.
+ * run arrives as news. The Rays' lower third slides in from their side of
+ * the hero while the scoreboard steps aside, says it once, is moved under
+ * the docked bar when the page scrolls, and leaves; axe stays at zero with
+ * it on screen.
  */
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
@@ -34,10 +35,15 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(slide).toContainText("RBI DOUBLE");
       await expect(slide).toContainText("+1");
       await expect(slide).toContainText("Díaz doubles to center · Mullins scores");
-      await expect(slide).toContainText("TB 1–10");
+      // The kicker (who and when) and the tally, the scorer's row first.
+      await expect(slide).toContainText("Rays · Bot 9th");
+      await expect(slide.locator("[data-row='mine']")).toHaveText("TB 1");
+      await expect(slide.locator("[data-row='theirs']")).toHaveText("MIL 10");
       // Over the hero card, never in the page's flow, and hidden from screen readers (its one announcement says it).
       const card = page.locator("[data-scoring-slide]").locator("xpath=ancestor::*[@aria-hidden='true'][1]");
       await expect(card).toHaveCount(1);
+      // The scoreboard steps aside entirely while it's up (its glass and everything in it).
+      await expect(card.locator("xpath=..").locator(":scope > :not([data-slide-host])").first()).toHaveCSS("opacity", "0");
       await expect(page.locator("[aria-live='polite']").filter({ hasText: "Rays RBI double, Díaz, 1 run, Brewers lead 10 to 1" })).toHaveCount(1, { timeout: 5_000 });
       await page.waitForTimeout(1100);
       await page.screenshot({ path: join(OUT, `1440-${scheme}-slide-hero.png`) });

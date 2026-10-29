@@ -1,14 +1,16 @@
 /**
  * The scoring slide on screen (ScoringSlideView.swift; its rules and words:
- * data/scoringSlide.ts). The page's `ScoringSlides` keeps the line and plays
- * one slide at a time; its hosts put it over the hero card (taking the
- * scoreboard over while it holds) or just under the docked bar, and are out
- * of the tree between slides. The wipe is the Mac's keyframes, sampled from
- * the pure poses into WAAPI keyframes on transform and opacity only: the
- * slab lands in about 0.35 s, its sheen done by 1 s, and nothing animates or
- * ticks during the hold; out to the same side in 0.3 s. Reduce Motion
- * crossfades it. Nothing runs between scores: a timer exists only while a
- * slide waits, shows or leaves.
+ * data/scoringSlide.ts): a broadcast lower third. The page's
+ * `ScoringSlides` keeps the line and plays one slide at a time; its hosts put
+ * it over the hero card (centered on it, while the card's scoreboard steps
+ * aside entirely) or just under the docked bar, and are out of the tree
+ * between slides. Its motion is the pure timeline (`SLIDE_IN`, `SLIDE_OUT`)
+ * as WAAPI on transform, opacity and the reveals' clip: the kicker, the slab
+ * and the detail strip in from the scorer's side, everything landed by
+ * 0.7 s, its sheen done by 1.05 s, nothing animating or ticking during the
+ * hold; out the way they came in 0.38 s. Reduce Motion crossfades it.
+ * Nothing runs between scores: a timer exists only while a slide waits,
+ * shows or leaves.
  *
  *     const slides = useScoringSlides(moments);           // GamePage, one per page
  *     <SlidesProvider slides={slides}> … </SlidesProvider>
@@ -25,14 +27,17 @@ import type { StatcastBatted } from "../../../data/mlb/statcast";
 import { darkLogo, type Competitor, type ScoreEvent } from "../../../data/models";
 import { captioned, type LiveMoment, type MomentChart } from "../../../data/moments";
 import {
-  cutInset,
+  kickerInk,
   lifted,
   LOGO_BASE,
   makeSlide,
   playsConfetti,
-  poseValue,
+  SLAB_MAX,
+  SLIDE_CURVES,
+  SLIDE_IN,
+  SLIDE_LEAN,
+  SLIDE_OUT,
   slideEdge,
-  slideFrames,
   slideHold,
   SlideLine,
   slideLead,
@@ -40,14 +45,13 @@ import {
   SlideMotion,
   slidePaint,
   SlideTier,
-  SLIDE_METRICS,
   smallInk,
-  framesLength,
   type ScoringSlide,
+  type SlideBeat,
   type SlideContext,
+  type SlideLayer,
   type SlideMetrics,
   type SlidePaint,
-  type SlidePose,
   type SlideTeam,
 } from "../../../data/scoringSlide";
 import { sectionForChart } from "../../../data/sections";
@@ -488,9 +492,9 @@ export function useSlideTheater(chart: MomentChart, playing: string | null, clim
 // MARK: - Hosts
 
 /**
- * Where the slide shows: over the hero card, filling it (the bar takes the
- * scoreboard over while it holds), or just under the docked bar once that's
- * the scoreboard on screen. A host on each; the one whose surface is on
+ * Where the slide shows: over the hero card, centered on it (the card's
+ * scoreboard steps aside while it's up), or just under the docked bar once
+ * that's the scoreboard on screen (the bar stays). A host on each; the one whose surface is on
  * screen draws, so a slide is only ever in one place. Out of the tree
  * between slides, and it reads which scoreboard shows only while a slide
  * does, so the page around it never re-renders for it. Information, never
@@ -510,10 +514,11 @@ const idle = () => IDLE;
 function Surfaced({ slides, state, slide, surface, geometry }: { slides: ScoringSlides; state: SlideState; slide: ScoringSlide; surface: Surface; geometry: PageGeometry }) {
   const on = useSurface(geometry);
   if (on !== surface) return null;
-  const bar = <SlideBar key={slide.id} slide={slide} leaving={state.leaving} settled={slides.settled()} />;
+  const bar = <SlideBar key={slide.id} slide={slide} leaving={state.leaving} settled={slides.settled()} hero={surface === "hero"} />;
   if (surface === "hero") {
+    // `data-slide-host`: the card's scoreboard steps aside while it's here (Hero.module.css).
     return (
-      <div className={styles.heroHost} aria-hidden="true">
+      <div className={styles.heroHost} data-slide-host="" aria-hidden="true">
         {bar}
       </div>
     );
@@ -527,160 +532,241 @@ function Surfaced({ slides, state, slide, surface, geometry }: { slides: Scoring
   );
 }
 
-// MARK: - Bar
+// MARK: - Lower third
 
 const css = (paint: SlidePaint) => ({
   slab: toHex(paint.slab),
-  top: toHex(lifted(paint.slab, 0.045)),
-  bottom: toHex(lifted(paint.slab, -0.05)),
+  top: toHex(lifted(paint.slab, 0.07)),
   stripe: toHex(paint.stripe),
   ink: paint.lightInk ? "#ffffff" : "#141414",
+  kicker: toHex(kickerInk(paint)),
 });
 
-type Layer = "stripe" | "slab" | "content" | "logo" | "chip" | "root" | "sheen";
+type Layer = SlideLayer | "root";
 
 /**
- * One slide: the stripe and the slab wiping in from its edge, the logo
- * large, the headline, the subline, the chip and the score.
+ * Over the hero the graphic bleeds into the page's gutter on its entering
+ * side (the card's 10pt); its far end stops 16pt short of the card's far
+ * edge (or the docked bar's). pt.
  */
-function SlideBar({ slide, leaving, settled }: { slide: ScoringSlide; leaving: boolean; settled: boolean }) {
-  const reduceMotion = useReducedMotion();
-  const level = useSettings((s) => s.celebrationLevel);
+const BLEED = 10;
+const SHORT = 16;
+
+let condenses: boolean | null = null;
+
+/**
+ * Whether the system font draws its condensed width (SF Pro Condensed, as
+ * WebKit does). Chromium's system-ui ignores `font-stretch`, so there the
+ * slide's type takes a condensed face that it does have (Helvetica Neue's,
+ * Arial Narrow, Roboto Condensed). Measured once per page.
+ */
+function systemCondenses(): boolean {
+  if (condenses != null) return condenses;
+  if (typeof document === "undefined") return true;
+  const width = (stretch: string) => {
+    const probe = document.createElement("span");
+    probe.textContent = "HOME RUN";
+    probe.style.cssText = `position:absolute;visibility:hidden;white-space:nowrap;font:italic 900 40px system-ui;font-stretch:${stretch}`;
+    document.body.append(probe);
+    const w = probe.getBoundingClientRect().width;
+    probe.remove();
+    return w;
+  };
+  condenses = width("condensed") < width("normal") * 0.95;
+  return condenses;
+}
+
+/**
+ * One slide as a broadcast lower third (the approved "A · Lower third"):
+ * three hard-edged layers from the scorer's side, mirrored in place for the
+ * right but never in lean (every slanted edge leans with the italic type,
+ * 12°): the kicker tab in the second color, the slab in the team's color
+ * (the logo in a darker zone behind a slash, the headline, the tally) and
+ * the detail strip; the chip on the kicker row. Over the hero it's
+ * vertically centered on the card while the card steps aside. Its width is
+ * measured before the graphic mounts, so its entrance and its burst start
+ * at the right width class.
+ */
+function SlideBar({ slide, leaving, settled, hero }: { slide: ScoringSlide; leaving: boolean; settled: boolean; hero: boolean }) {
   const box = useRef<HTMLDivElement>(null);
-  const width = useWidth(box, 360);
-  // The page's width class from the bar's (it sits 10pt in from each side).
-  const m = slideMetrics(width + 20);
+  const width = useWidth(box, 0);
+  // The page's width class: over the hero the bar spans the card and its gutters; under the docked bar it sits 10pt in from each side.
+  const m = slideMetrics(hero ? width : width + 2 * BLEED);
   const paint = useMemo(() => slidePaint(slide), [slide]);
   const colors = useMemo(() => css(paint), [paint]);
-  // It had already landed when this bar appeared (it moved to the other scoreboard mid-hold): no second wipe.
+  // It had already landed when this bar appeared (it moved to the other scoreboard mid-hold): no second entrance.
   const [arrivedLanded] = useState(settled);
+  const [condensed] = useState(systemCondenses);
   const leading = slideEdge(slide) === "leading";
-  const layers = useRef<Partial<Record<Layer, HTMLElement | null>>>({});
-  const sheen = slide.tier >= SlideTier.big && level === "full" && !reduceMotion && !arrivedLanded;
-
-  // The wipe in, once, as it mounts; out when it leaves. Transform and opacity only.
-  useLayoutEffect(() => {
-    if (arrivedLanded && !leaving) return;
-    const el = box.current;
-    if (!el) return;
-    const animations = play(layers.current, leaving, reduceMotion, leading, el.clientWidth, m);
-    return () => animations.forEach((a) => a.cancel());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leaving]);
 
   const style = {
-    "--slide-h": m.height,
-    "--slide-logo": m.logo,
-    "--slide-headline": m.headline,
-    "--slide-subline": m.subline,
-    "--slide-chip": m.chip,
-    "--slide-score": m.score,
-    "--slide-slant": m.slant,
-    "--slide-cut": m.stripe,
-    "--slide-inset": cutInset(m),
+    "--k": m.kicker,
+    "--s": m.slab,
+    "--d": m.detail,
+    "--hl": m.headline,
+    "--sc": m.scale,
+    "--lean": SLIDE_LEAN,
+    "--far": (hero ? BLEED : 0) + SHORT,
+    "--slab-max": SLAB_MAX,
     "--slab": colors.slab,
     "--slab-top": colors.top,
-    "--slab-bottom": colors.bottom,
     "--stripe": colors.stripe,
     "--ink": colors.ink,
-    "--subline-ink": smallInk(paint, 0.86),
-    "--score-ink": smallInk(paint, 0.9),
+    "--kicker-ink": colors.kicker,
+    "--theirs": smallInk(paint, 0.55),
   } as CSSProperties;
 
-  const tally = (
-    <span className={styles.tally}>
-      {slide.chip ? (
-        <span className={styles.chip} ref={(el) => void (layers.current.chip = el)}>
-          {slide.chip}
-        </span>
-      ) : null}
-      {slide.score ? <span className={styles.score}>{slide.score}</span> : null}
-    </span>
-  );
-  const words = <Words slide={slide} compact={m === SLIDE_METRICS.compact} size={m.headline} />;
-  const mark = <Mark slide={slide} paint={paint} set={(el) => void (layers.current.logo = el)} />;
-
   return (
-    <div ref={box} className={styles.bar} data-scoring-slide={slide.id} data-edge={leading ? "leading" : "trailing"} data-tier={slide.tier} style={style}>
-      <div className={styles.root} ref={(el) => void (layers.current.root = el)}>
-        <div className={styles.stripeLayer} ref={(el) => void (layers.current.stripe = el)}>
-          <div className={styles.stripe} />
-        </div>
-        <div className={styles.slabLayer} ref={(el) => void (layers.current.slab = el)}>
-          <div className={styles.slab}>
-            {sheen ? <span className={styles.sheen} data-light={paint.lightInk} ref={(el) => void (layers.current.sheen = el)} /> : null}
-          </div>
-          <div className={styles.content} ref={(el) => void (layers.current.content = el)}>
-            {leading ? (
-              <>
-                {mark}
-                {words}
-                <span className={styles.spacer} />
-                {tally}
-              </>
-            ) : (
-              <>
-                {tally}
-                <span className={styles.spacer} />
-                {words}
-                {mark}
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-      {arrivedLanded ? null : <SlideBurst slide={slide} paint={paint} metrics={m} leading={leading} />}
+    <div
+      ref={box}
+      className={styles.bar}
+      data-scoring-slide={slide.id}
+      data-edge={leading ? "leading" : "trailing"}
+      data-tier={slide.tier}
+      data-type={condensed ? undefined : "fallback"}
+      data-ink={paint.lightInk ? "light" : "dark"}
+      style={style}
+    >
+      {width > 0 ? <Graphic slide={slide} leaving={leaving} arrivedLanded={arrivedLanded} metrics={m} paint={paint} leading={leading} /> : null}
     </div>
   );
 }
 
-/**
- * The headline (its short form when the full one doesn't fit, then down to
- * 72%) and the subline (down to 88%, then cut). Web additions, so a narrow
- * bar never reads "TOUCHDO…": at the compact width (a phone) the headline
- * may go down to 60% before it's cut, and a subline that doesn't fit at 88%
- * takes a second line (the bar's height holds two at every width).
- */
-function Words({ slide, compact, size }: { slide: ScoringSlide; compact: boolean; size: number }) {
-  const headline = useRef<HTMLSpanElement>(null);
-  const subline = useRef<HTMLSpanElement>(null);
-  // The size the short headline was chosen at (a wider bar asks again).
-  const [shortAt, setShortAt] = useState<number | null>(null);
-  const short = shortAt === size;
+function Graphic({ slide, leaving, arrivedLanded, metrics: m, paint, leading }: { slide: ScoringSlide; leaving: boolean; arrivedLanded: boolean; metrics: SlideMetrics; paint: SlidePaint; leading: boolean }) {
+  const reduceMotion = useReducedMotion();
+  const level = useSettings((s) => s.celebrationLevel);
+  const layers = useRef<Partial<Record<Layer, HTMLElement | null>>>({});
+  const set = (layer: Layer) => (el: HTMLElement | null) => void (layers.current[layer] = el);
+  const sheen = slide.tier >= SlideTier.big && level === "full" && !reduceMotion && !arrivedLanded;
+  const short = useFit(slide, m, layers);
+
+  // In, once, as it mounts; out when it leaves. Transform, opacity and the reveals' clip.
   useLayoutEffect(() => {
-    const fit = (el: HTMLElement | null, least: number) => {
-      if (!el) return 1;
-      el.style.setProperty("--fit", "1");
-      delete el.dataset.wrap;
-      // Measured to the subpixel (scrollWidth rounds, and a text a fraction too wide is cut).
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      const need = range.getBoundingClientRect().width + 1;
-      const room = el.getBoundingClientRect().width;
-      const ratio = need > room ? room / need : 1;
-      el.style.setProperty("--fit", String(Math.max(ratio, least)));
-      return ratio;
-    };
-    const full = fit(headline.current, compact && !slide.short ? 0.6 : 0.72);
-    if (full < 1 && slide.short && !short) {
-      setShortAt(size);
-      return;
-    }
-    if (fit(subline.current, 0.88) < 0.88 && subline.current) subline.current.dataset.wrap = "true";
-  }, [slide, short, compact, size]);
-  return (
-    <span className={styles.words}>
-      <span ref={headline} className={styles.headline}>
-        {short && slide.short ? slide.short : slide.headline}
+    if (arrivedLanded && !leaving) return;
+    const animations = play(layers.current, leaving, reduceMotion, leading);
+    return () => animations.forEach((a) => a.cancel());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leaving]);
+
+  const tally = slide.tally ? (
+    <span className={styles.tally} ref={set("tally")} data-tally="">
+      <span className={styles.row} data-row="mine">
+        <span>{slide.tally.mine.team}</span> <span>{slide.tally.mine.score}</span>
       </span>
-      <span ref={subline} className={styles.subline}>
-        {slide.subline}
+      <span className={`${styles.row} ${styles.theirs}`} data-row="theirs">
+        <span>{slide.tally.theirs.team}</span> <span>{slide.tally.theirs.score}</span>
       </span>
     </span>
+  ) : slide.score ? (
+    <span className={styles.tally} ref={set("tally")}>
+      <span className={styles.score}>{slide.score}</span>
+    </span>
+  ) : null;
+
+  return (
+    <>
+      <div className={styles.root} ref={set("root")}>
+        {slide.kicker ? (
+          <div className={styles.kicker} ref={set("kicker")}>
+            {slide.kicker}
+          </div>
+        ) : null}
+        <div className={styles.detail} ref={set("detail")}>
+          <span className={styles.words} ref={set("subline")}>
+            {slide.subline}
+          </span>
+        </div>
+        <div className={styles.slab} ref={set("slab")}>
+          <span className={styles.zone} />
+          <span className={styles.slash} />
+          {sheen ? <span className={styles.sheen} data-light={paint.lightInk} ref={set("sheen")} /> : null}
+          <Mark slide={slide} paint={paint} set={set("logo")} />
+          <span className={styles.headline} ref={set("headline")}>
+            {short && slide.short ? slide.short : slide.headline}
+          </span>
+          <span className={styles.spacer} />
+          {tally}
+        </div>
+        {slide.chip ? (
+          <span className={styles.chip} ref={set("chip")}>
+            {slide.chip}
+          </span>
+        ) : null}
+      </div>
+      {arrivedLanded ? null : <SlideBurst slide={slide} paint={paint} metrics={m} leading={leading} />}
+    </>
   );
 }
 
-/** The team's logo (its dark-background variant on a dark slab) or the climber's flag, seated on a soft glow of the type's color. */
+/**
+ * The type fits as ViewThatFits and minimumScaleFactor do, measured once per
+ * slide and width: the headline on one line (its short form when the full
+ * one doesn't fit, then down to 40%, the mockup's floor); the subline in its
+ * strip down to 90%, past that the strip takes the slab's whole length (a
+ * web addition, so a phone doesn't cut the play), then down to 82%, then cut.
+ * Each one's room is measured from its container, never from its own box
+ * (which shrinks with it). Returns whether the short headline is showing.
+ */
+function useFit(slide: ScoringSlide, m: SlideMetrics, layers: { current: Partial<Record<Layer, HTMLElement | null>> }): boolean {
+  // The size the short headline was chosen at (a wider bar asks again).
+  const [shortAt, setShortAt] = useState<number | null>(null);
+  const short = shortAt === m.headline;
+  useLayoutEffect(() => {
+    const { headline, subline, detail, slab, tally } = layers.current;
+    if (!headline || !subline || !detail || !slab) return;
+    const px = (v: string) => parseFloat(v) || 0;
+    const inner = (el: HTMLElement) => {
+      const box = getComputedStyle(el);
+      return el.getBoundingClientRect().width - px(box.paddingLeft) - px(box.paddingRight);
+    };
+    // The headline's room: the slab's, less the tally, the least gap before it, and the italic's overhang.
+    const headlineRoom = () => {
+      const spacer = headline.nextElementSibling;
+      const gap = spacer instanceof HTMLElement ? px(getComputedStyle(spacer).minWidth) : 0;
+      const box = getComputedStyle(headline);
+      return inner(slab) - (tally?.getBoundingClientRect().width ?? 0) - gap - px(box.paddingLeft) - px(box.paddingRight);
+    };
+    const full = fit(headline, headlineRoom, 0.4);
+    if (full < 1 && slide.short && !short) {
+      setShortAt(m.headline);
+      return;
+    }
+    // In its own strip down to 90%; past that, the slab's whole length, down to 82%.
+    delete detail.dataset.long;
+    if (fit(subline, () => inner(detail), 0.9) < 0.9) {
+      detail.dataset.long = "true";
+      fit(subline, () => inner(detail), 0.82);
+    }
+  }, [slide, short, m, layers]);
+  return short;
+}
+
+/**
+ * Scales a line's type (`--fit`) until it fits `room`, to no less than
+ * `least`; text doesn't scale exactly linearly, so it measures again after
+ * each step. Returns how much of it fit at full size.
+ */
+function fit(el: HTMLElement, room: () => number, least: number): number {
+  // Measured to the subpixel (scrollWidth rounds, and a text a fraction too wide is cut).
+  const need = () => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    return range.getBoundingClientRect().width + 0.5;
+  };
+  el.style.setProperty("--fit", "1");
+  const space = room();
+  const first = Math.min(space / need(), 1);
+  let scale = 1;
+  for (let i = 0; i < 4; i++) {
+    const ratio = space / need();
+    if (ratio >= 1 || scale <= least) break;
+    scale = Math.max(scale * ratio * 0.995, least);
+    el.style.setProperty("--fit", String(scale));
+  }
+  return first;
+}
+
+/** The team's logo (its dark-background variant on a dark slab) or the climber's flag, in the slab's logo zone. */
 function Mark({ slide, paint, set }: { slide: ScoringSlide; paint: SlidePaint; set: (el: HTMLElement | null) => void }) {
   const [failed, setFailed] = useState<string | null>(null);
   const logo = slide.team?.logo ?? null;
@@ -689,7 +775,6 @@ function Mark({ slide, paint, set }: { slide: ScoringSlide; paint: SlidePaint; s
   const src = dark && failed !== dark ? dark : regular;
   return (
     <span className={styles.logo} ref={set}>
-      <span className={styles.glow} />
       {slide.flag ? (
         <span className={styles.flag}>{slide.flag}</span>
       ) : src ? (
@@ -701,50 +786,71 @@ function Mark({ slide, paint, set }: { slide: ScoringSlide; paint: SlidePaint; s
 
 // MARK: - Motion
 
-/** The away direction's sign: off toward the edge it came from. */
-const away = (leading: boolean) => (leading ? -1 : 1);
+const easing = (beat: SlideBeat) => `cubic-bezier(${SLIDE_CURVES[beat.curve].join(", ")})`;
 
 /**
- * Starts the wipe on each layer: the pure poses (data/scoringSlide.ts
- * `slideFrames`) sampled at 60 per second into WAAPI keyframes on
- * transform and opacity. Returns the animations (cancelled if the bar goes).
+ * Starts each layer's move (data/scoringSlide.ts `SLIDE_IN`, `SLIDE_OUT`),
+ * every one timed from now so the whole graphic shares one clock: WAAPI on
+ * transform and opacity, and the reveals' clip. Returns the animations
+ * (cancelled if the bar goes).
  */
-function play(layers: Partial<Record<Layer, HTMLElement | null>>, leaving: boolean, reduceMotion: boolean, leading: boolean, width: number, m: SlideMetrics): Animation[] {
+function play(layers: Partial<Record<Layer, HTMLElement | null>>, leaving: boolean, reduceMotion: boolean, leading: boolean): Animation[] {
   const pt = pointSize();
-  const sign = away(leading);
-  const frames = slideFrames(leaving, reduceMotion);
+  // Off toward the edge it came from.
+  const sign = leading ? -1 : 1;
   const out: Animation[] = [];
-  const run = (el: HTMLElement | null | undefined, keys: readonly (keyof SlidePose)[], frame: (v: Record<string, number>) => Keyframe) => {
+  const run = (el: HTMLElement | null | undefined, beat: SlideBeat, keyframes: Keyframe[]) => {
     if (!el) return;
     el.getAnimations().forEach((a) => a.cancel());
-    const length = Math.max(...keys.map((k) => framesLength(frames[k])));
-    if (length <= 0) return;
-    const steps = Math.max(2, Math.ceil(length * 60));
-    const keyframes: Keyframe[] = [];
-    for (let i = 0; i <= steps; i++) {
-      const t = (i / steps) * length;
-      const values: Record<string, number> = {};
-      for (const k of keys) values[k] = poseValue(k, t, leaving, reduceMotion);
-      keyframes.push({ ...frame(values), offset: i / steps });
-    }
-    out.push(el.animate(keyframes, { duration: length * 1000, easing: "linear", fill: "both" }));
+    out.push(el.animate(keyframes, { delay: beat.at * 1000, duration: (beat.until - beat.at) * 1000, easing: easing(beat), fill: "both" }));
   };
-  // Moved off toward an edge by `fraction` of its own width, plus room for the shadow.
-  const across = (f: number) => `translateX(calc(${sign * f * 100}% + ${sign * f * 40 * pt}px))`;
-  run(layers.stripe, ["stripe"], (v) => ({ transform: across(v.stripe!) }));
-  run(layers.slab, ["slab"], (v) => ({ transform: across(v.slab!) }));
-  run(layers.content, ["lag"], (v) => ({ transform: `translateX(${sign * SlideMotion.lag * v.lag! * pt}px)`, opacity: 1 - v.lag! }));
-  run(layers.logo, ["logo"], (v) => ({ transform: `scale(${v.logo})` }));
-  run(layers.chip, ["chip"], (v) => ({ transform: `scale(${v.chip})` }));
-  run(layers.root, ["opacity"], (v) => ({ opacity: v.opacity }));
-  // One sheen across the slab as it lands: a soft band of light at 18°.
-  const band = Math.max(56, m.height * 0.9) * pt;
-  run(layers.sheen, ["sheen"], (v) => ({
-    // Its center from a band's width before the slab to one past it.
-    transform: `translateX(${-1.5 * band + (width + 2 * band) * v.sheen!}px) rotate(18deg)`,
-    opacity: v.sheen! > 0 && v.sheen! < 1 ? 1 : 0,
-  }));
+  if (reduceMotion) {
+    const fade = { at: 0, until: leaving ? SlideMotion.fadeOut : SlideMotion.fadeIn, curve: "out" } as const;
+    run(layers.root, fade, leaving ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 0 }, { opacity: 1 }]);
+    return out;
+  }
+  // Wholly off its entering edge, and a little more.
+  const off = { transform: `translateX(calc(${sign * 100}% + ${sign * 48 * pt}px))` };
+  const home = { transform: "translateX(0px)" };
+  const popped = { transform: "scale(1)", opacity: 1 };
+  if (leaving) {
+    for (const layer of ["detail", "slab", "kicker"] as const) run(layers[layer], SLIDE_OUT[layer]!, [home, off]);
+    run(layers.chip, SLIDE_OUT.chip!, [popped, { transform: "scale(0.85)", opacity: 0 }]);
+    return out;
+  }
+  for (const layer of ["kicker", "slab", "detail"] as const) run(layers[layer], SLIDE_IN[layer], [off, home]);
+  for (const layer of ["logo", "chip"] as const) run(layers[layer], SLIDE_IN[layer], [{ transform: "scale(0.45)", opacity: 0 }, popped]);
+  run(layers.tally, SLIDE_IN.tally, [{ opacity: 0, transform: `translateY(${5 * pt}px)` }, { opacity: 1, transform: "translateY(0px)" }]);
+  for (const layer of ["headline", "subline"] as const) {
+    const el = layers[layer];
+    if (el) run(el, SLIDE_IN[layer], reveal(el, leading, pt));
+  }
+  // One sheen across the slab, on the type's lean (its gradient's).
+  run(layers.sheen, SLIDE_IN.sheen, [{ transform: "translateX(-100%)" }, { transform: "translateX(100%)" }]);
   return out;
+}
+
+/**
+ * The type revealed behind a moving edge slanted on its own lean (top
+ * further right, as the italic leans), travelling away from the side it came
+ * in, as it settles the last few points behind it. The edge's foot runs from
+ * before the type to past it; the shape keeps a little room either side for
+ * the italic's overhang.
+ */
+function reveal(el: HTMLElement, leading: boolean, pt: number): Keyframe[] {
+  const d = el.offsetHeight * SLIDE_LEAN;
+  const pad = 12 * pt;
+  const shape = (foot: string) =>
+    leading
+      ? `polygon(${-pad}px 0px, calc(${foot} + ${d}px) 0px, ${foot} 100%, ${-pad}px 100%)`
+      : `polygon(calc(${foot} + ${d}px) 0px, calc(100% + ${pad}px) 0px, calc(100% + ${pad}px) 100%, ${foot} 100%)`;
+  const before = `calc(0% - ${d + pad}px)`;
+  const past = `calc(100% + ${pad}px)`;
+  const [from, to] = leading ? [before, past] : [past, before];
+  return [
+    { clipPath: shape(from), transform: `translateX(${(leading ? -10 : 10) * pt}px)` },
+    { clipPath: shape(to), transform: "translateX(0px)" },
+  ];
 }
 
 // MARK: - Burst
@@ -754,12 +860,12 @@ const MARGIN = 130;
 const SCALE = 1.7;
 
 /**
- * The slide's celebration at its logo, as the slab lands: a spark for a big
+ * The slide's celebration at its logo, as the logo pops: a spark for a big
  * score (in the type's color and the stripe's), and for the top tier the
  * confetti in the team's two colors, when the page's one burst is the
  * slide's. Through the page's rules (`cueFor`): the celebration level,
  * Reduce Motion (a soft bloom) and the cooldown. Drawn larger than a chart's
- * (the bar is the stage). requestAnimationFrame only while it plays.
+ * (the graphic is the stage). requestAnimationFrame only while it plays.
  */
 function SlideBurst({ slide, paint, metrics, leading }: { slide: ScoringSlide; paint: SlidePaint; metrics: SlideMetrics; leading: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -769,10 +875,12 @@ function SlideBurst({ slide, paint, metrics, leading }: { slide: ScoringSlide; p
     const el = canvas.current;
     if (!el) return;
     const toward = leading ? (-60 * Math.PI) / 180 : (-120 * Math.PI) / 180;
+    // The logo: 42pt at the medium width, its center 43pt in from the graphic's entering edge, on the slab's middle.
+    const logo = 42 * metrics.scale;
     let spark: CelebrationCue | null = null;
     if (slide.tier >= SlideTier.big) {
       // The rays start just clear of the logo and stop short of the headline.
-      const base = (metrics.logo / 2 + 2) / SCALE;
+      const base = (logo / 2 + 2) / SCALE;
       const cue = cueFor(slide.moment, { level, reduceMotion, preset: "medium", direction: toward, effects: [sparks(10, 8, base)] });
       spark = cue ? { ...cue, delay: 0 } : null;
     }
@@ -798,8 +906,9 @@ function SlideBurst({ slide, paint, metrics, leading }: { slide: ScoringSlide; p
     const teamPalette = resolvePalette(el, { primary: c.stripe, tint: toHex(lifted(paint.slab, Math.max(0.62 - paint.slab.l, 0.18))) });
     const w = rect.width / pt;
     const h = rect.height / pt;
-    const x = leading ? 14 + metrics.logo / 2 : w - 14 - metrics.logo / 2;
-    const y = MARGIN + (h - 2 * MARGIN) / 2;
+    const inset = (22 * metrics.scale) + logo / 2;
+    const x = leading ? inset : w - inset;
+    const y = MARGIN + metrics.kicker + metrics.slab / 2;
     let frame = 0;
     let start: number | null = null;
     const draw = (now: number) => {

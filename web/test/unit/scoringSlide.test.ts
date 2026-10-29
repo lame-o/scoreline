@@ -26,8 +26,10 @@ import { statcastAtBats, type StatcastBatted } from "../../src/data/mlb/statcast
 import type { CSLive, Side } from "../../src/data/models";
 import { liveMoment, MomentCenter, Tier, type LiveMoment } from "../../src/data/moments";
 import {
+  beatAt,
   footballAttempt,
   inkContrast,
+  kickerInk,
   labDistance,
   makeSlide,
   minuteMark,
@@ -37,6 +39,7 @@ import {
   basketballClimax,
   playsConfetti,
   POSE_HOME,
+  POSE_OFF,
   readBaseballPlay,
   scoredLine,
   slideEdge,
@@ -44,8 +47,13 @@ import {
   SlideLine,
   slideLength,
   SlideMotion,
+  SLIDE_IN,
+  SLIDE_OUT,
+  slideKicker,
   slidePaint,
+  slidePeriod,
   slidePose,
+  slideTally,
   SlideTier,
   smallInk,
   spokenMinute,
@@ -117,6 +125,9 @@ describe("baseball: World Series Game 3", () => {
     expect(yelich?.side).toBe("top");
     expect(yelich && slideEdge(yelich)).toBe("leading");
     expect(yelich?.tier).toBe(SlideTier.normal);
+    // The kicker and the tally: who and when, and both rows of the new score.
+    expect(yelich?.kicker).toBe("Brewers · Top 3rd");
+    expect(yelich?.tally).toEqual({ mine: { team: "MIL", score: 1 }, theirs: { team: "TB", score: 0 } });
   });
 
   it("two runs on an infield single: 2-RUN SINGLE, +2, both runners named; Pratt's 2-run double", () => {
@@ -136,6 +147,8 @@ describe("baseball: World Series Game 3", () => {
     expect(diaz && slideEdge(diaz)).toBe("trailing");
     expect(diaz?.score).toBe("TB 1–10");
     expect(diaz?.spoken.endsWith("Brewers lead 10 to 1")).toBe(true);
+    expect(diaz?.kicker).toBe("Rays · Bot 9th");
+    expect(diaz?.tally).toEqual({ mine: { team: "TB", score: 1 }, theirs: { team: "MIL", score: 10 } });
   });
 
   it("a run that isn't a hit: an error, and two on one play", () => {
@@ -244,6 +257,8 @@ describe("football: Monday Night Football", () => {
     expect(say(pierce)).toBe("TOUCHDOWN | +7 | D. Pierce 5-yd run · PAT good | PHI 14–10 | Eagles touchdown, D. Pierce 5-yard run, extra point good, Eagles lead 14 to 10");
     expect(pierce?.side).toBe("bottom");
     expect(pierce?.tier).toBe(SlideTier.big);
+    expect(pierce?.kicker).toBe("Eagles · 2nd Qtr");
+    expect(pierce?.tally).toEqual({ mine: { team: "PHI", score: 14 }, theirs: { team: "DAL", score: 10 } });
   });
 
   it("a passing touchdown names the passer; the two-point run makes it +8", () => {
@@ -323,11 +338,13 @@ describe("soccer: the theater's goals", () => {
     for (const id of goals.keys()) expect(goal(id), id).not.toBeNull();
   });
 
-  it("Haaland's header: scorer, how, the assist and the minute; the away side from the right; said with the minute and the score", () => {
+  it("Haaland's header: scorer, how and the assist (the minute in the kicker); the away side from the right; said with the minute and the score", () => {
     const haaland = goal("54149975");
     expect(haaland?.headline).toBe("GOAL");
     expect(haaland?.chip).toBe("+1");
-    expect(haaland?.subline).toBe("Erling Haaland · header · assisted by Iliman Ndiaye · 52'");
+    expect(haaland?.subline).toBe("Erling Haaland · header · assisted by Iliman Ndiaye");
+    expect(haaland?.kicker).toBe("Manchester City · 52'");
+    expect(haaland?.tally).toEqual({ mine: { team: "MNC", score: 1 }, theirs: { team: expect.any(String), score: 1 } });
     expect(haaland?.score).toBe("MNC 1–1");
     expect(haaland?.side).toBe("bottom");
     expect(haaland?.tier).toBe(SlideTier.big);
@@ -338,13 +355,14 @@ describe("soccer: the theater's goals", () => {
     const own = goal("54194895");
     expect(own?.headline).toBe("OWN GOAL");
     expect(own?.side).toBe("bottom");
-    expect(own?.subline).toBe("Mike Penders, Chelsea · 77'");
+    expect(own?.subline).toBe("Mike Penders, Chelsea");
+    expect(own?.kicker?.endsWith(" · 77'")).toBe(true);
     expect(own?.score).toBe("TOT 1–0");
     const pen = goal("54275717");
     expect(pen?.headline).toBe("PENALTY");
-    expect(pen?.subline).toBe("Oliver McBurnie · penalty · 24'");
+    expect(pen?.subline).toBe("Oliver McBurnie · penalty");
     expect(pen?.side).toBe("top");
-    expect(goal("54146134")?.subline).toBe("Nicolas Jackson · right foot · assisted by John McGinn · 6'");
+    expect(goal("54146134")?.subline).toBe("Nicolas Jackson · right foot · assisted by John McGinn");
   });
 
   it("minutes as soccer writes them: 37', 90+3' (said: the 93rd minute)", () => {
@@ -451,6 +469,9 @@ describe("CS2: G2 0–2 NAVI", () => {
     expect(won?.tier).toBe(SlideTier.top);
     expect(won && slideEdge(won)).toBe("trailing");
     expect(won && slidePaint(won).lightInk).toBe(false);
+    // No period to name, and no running score from the feed: the kicker is the team, the score line stands in for the tally.
+    expect(won?.kicker).toBe("Natus Vincere");
+    expect(won?.tally).toBeNull();
   });
 
   it("a map won; a round never slides", () => {
@@ -490,6 +511,8 @@ describe("climbing: a recorded route, in a final", () => {
     expect(lead?.side).toBeNull();
     expect(lead?.flag).toBe("🇺🇸");
     expect(lead && slideEdge(lead)).toBe("leading");
+    expect(lead?.kicker).toBeNull();
+    expect(lead?.tally).toBeNull();
   });
 
   it("a top in a final; nothing slides outside a final", () => {
@@ -498,6 +521,81 @@ describe("climbing: a recorded route, in a final", () => {
     expect(topped?.subline).toBe(`${climber.name} · new leader`);
     expect(topped?.tier).toBe(SlideTier.big);
     expect(climbingMoments(before, ahead).every((m) => makeSlide(m, { ...context, final: false }) == null)).toBe(true);
+  });
+});
+
+// MARK: The kicker and the tally
+
+describe("the kicker and the tally", () => {
+  const context: SlideContext = { top: brewers, bottom: rays };
+  const moment = (chart: LiveMoment["chart"], kind: LiveMoment["kind"], side: Side, facts: LiveMoment["facts"]) =>
+    ({ ...liveMoment({ id: `${chart}-${kind}`, chart, tier: Tier.score, kind, lead: "", detail: "Pratt homered to left (396 feet).", side }), facts }) as LiveMoment;
+  const homer = (half: string | null, period = 12) => makeSlide(moment("plate", "homeRun", "top", { top: 3, bottom: 2, value: 1, period, half }), context);
+
+  it("baseball: the half and the inning as an ordinal (Top 12th, Bot 9th); an unknown half: 12th Inn", () => {
+    expect(homer("Top")?.kicker).toBe("Brewers · Top 12th");
+    expect(makeSlide(moment("plate", "homeRun", "bottom", { top: 2, bottom: 3, value: 1, period: 9, half: "Bottom" }), context)?.kicker).toBe("Rays · Bot 9th");
+    expect(homer(null)?.kicker).toBe("Brewers · 12th Inn");
+    expect(homer("Middle", 1)?.kicker).toBe("Brewers · 1st Inn");
+  });
+
+  it("the tally: the scorer's row first, then the other team's, after the play", () => {
+    expect(homer("Top")?.tally).toEqual({ mine: { team: "MIL", score: 3 }, theirs: { team: "TB", score: 2 } });
+    expect(slideTally("bottom", { top: 3, bottom: 2 }, context)).toEqual({ mine: { team: "TB", score: 2 }, theirs: { team: "MIL", score: 3 } });
+  });
+
+  it("the half as the lane reads it from ESPN's play (period.type)", () => {
+    const item = { id: "h", type: { type: "play-result" }, text: "Pratt homered to left (396 feet).", scoringPlay: true, scoreValue: 1, team: { id: "8" }, period: { type: "Top", number: 12 }, homeScore: 2, awayScore: 3 };
+    const m = baseballMoment(item, (id) => (id === "8" ? "top" : "bottom"));
+    expect(m?.facts?.half).toBe("Top");
+    expect(m && makeSlide(m, context)?.kicker).toBe("Brewers · Top 12th");
+  });
+
+  it("football: 1st Qtr to 4th Qtr, then OT, 2OT", () => {
+    const fg = (period: number) => makeSlide(moment("field", "fieldGoal", "top", { top: 3, bottom: 0, value: 3, period }), context)?.kicker;
+    expect(fg(2)).toBe("Brewers · 2nd Qtr");
+    expect(fg(4)).toBe("Brewers · 4th Qtr");
+    expect(fg(5)).toBe("Brewers · OT");
+    expect(fg(6)).toBe("Brewers · 2OT");
+  });
+
+  it("basketball: the quarter, then OT", () => {
+    const buzzer = (period: number) =>
+      makeSlide({ ...liveMoment({ id: "b", chart: "court", tier: Tier.swing, kind: "made", lead: "", detail: "Jalen Brunson 26-ft three point jumper", side: "top", accents: ["buzzer"] }), facts: { top: 101, bottom: 99, value: 3, period } }, context);
+    expect(buzzer(3)?.kicker).toBe("Brewers · 3rd Qtr");
+    expect(buzzer(5)?.kicker).toBe("Brewers · OT");
+    expect(buzzer(5)?.tally).toEqual({ mine: { team: "MIL", score: 101 }, theirs: { team: "TB", score: 99 } });
+  });
+
+  it("soccer: the minute mark, stoppage time as soccer writes it (90+3')", () => {
+    const goal = (clock: string) => slidePeriod(moment("pitch", "goal", "top", { top: 1, bottom: 0, clock }));
+    expect(goal("67'")).toBe("67'");
+    expect(goal("90'+3'")).toBe("90+3'");
+  });
+
+  it("no team: the period alone; no period: the team alone; neither: no kicker", () => {
+    expect(makeSlide(moment("plate", "homeRun", "top", { top: 3, bottom: 2, value: 1, period: 12, half: "Top" }), {})?.kicker).toBe("Top 12th");
+    expect(slideKicker(brewers, null)).toBe("Brewers");
+    expect(slideKicker(null, null)).toBeNull();
+    expect(slideKicker({ name: "", abbreviation: "" }, "")).toBeNull();
+  });
+
+  it("no tally without both teams and the score after the play", () => {
+    expect(makeSlide(moment("plate", "homeRun", "top", { top: 3, bottom: 2, value: 1, period: 12, half: "Top" }), {})?.tally).toBeNull();
+    expect(makeSlide(moment("plate", "homeRun", "top", { value: 1, period: 12, half: "Top" }), context)?.tally).toBeNull();
+    expect(slideTally("top", { top: 3, bottom: 2 }, { top: brewers })).toBeNull();
+  });
+
+  it("the kicker's ink: the slab's own color where it reads on the second color (navy on gold), else near-black or white", () => {
+    const mil = teamPaint("12284b", "ffc52f");
+    expect(labDistance(kickerInk(mil), mil.slab)).toBe(0);
+    // The Rays' navy reads on their pale blue too; an orange slab's doesn't on gray (near-black does), nor red on navy (white does).
+    const tb = teamPaint("092c5c", "8fbce6");
+    expect(labDistance(kickerInk(tb), tb.slab)).toBe(0);
+    const orange = teamPaint("f28800", "b0b7bc");
+    expect(kickerInk(orange).l).toBeLessThan(0.3);
+    const navyOnRed = teamPaint("0b1426", "c8102e");
+    expect(kickerInk(navyOnRed).l).toBe(1);
   });
 });
 
@@ -589,30 +687,52 @@ describe("one celebration per moment", () => {
 
 // MARK: Motion
 
-describe("motion", () => {
+describe("motion: the lower third", () => {
   const hold = 4.5;
+  const out = SlideMotion.land + hold;
 
-  it("the wipe: off at its edge, home (exactly) once landed, the sheen crossing after it lands, off the same way at the end", () => {
-    const start = slidePose(0, hold, false);
-    const mid = slidePose(0.6, hold, false);
-    expect(start.slab).toBe(1);
-    expect(start.stripe).toBe(1);
+  it("off at the start; home (exactly) once everything has landed and the sheen has crossed; still through the hold", () => {
+    expect(slidePose(0, hold, false)).toEqual(POSE_OFF);
     expect(slidePose(1.05, hold, false)).toEqual(POSE_HOME);
+    expect(slidePose(out - 0.01, hold, false)).toEqual(POSE_HOME);
+    const mid = slidePose(0.6, hold, false);
     expect(mid.sheen).toBeGreaterThan(0);
     expect(mid.sheen).toBeLessThan(1);
-    expect(slidePose(slideLength(hold), hold, false).slab).toBe(1);
   });
 
-  it("the stripe leads the slab in", () => {
+  it("in: the kicker leads, the slab, then the detail strip; the type is revealed after the slab, the chip last", () => {
     const early = slidePose(0.15, hold, false);
-    expect(early.stripe).toBeLessThan(early.slab);
+    expect(early.kicker).toBeGreaterThan(early.slab);
+    expect(early.slab).toBeGreaterThan(early.detail);
+    expect(slidePose(0.2, hold, false).headline).toBe(0);
+    const order = (["kicker", "slab", "detail", "logo", "headline", "subline", "tally", "chip"] as const).map((l) => SLIDE_IN[l].until);
+    expect(Math.max(...order)).toBe(SLIDE_IN.chip.until);
+    expect(SLIDE_IN.chip.until).toBe(0.7);
+  });
+
+  it("the pop overshoots a little and settles; the ease-out never does", () => {
+    const pops = Array.from({ length: 31 }, (_, i) => beatAt(SLIDE_IN.logo, 0.22 + (i / 30) * 0.3));
+    expect(Math.max(...pops)).toBeGreaterThan(1);
+    expect(Math.max(...pops)).toBeLessThan(1.15);
+    const slab = Array.from({ length: 31 }, (_, i) => beatAt(SLIDE_IN.slab, 0.05 + (i / 30) * 0.39));
+    expect(Math.max(...slab)).toBeLessThanOrEqual(1);
+  });
+
+  it("out: the detail strip first, then the slab, then the kicker, back the way they came; all gone by the exit's end", () => {
+    const leaving = slidePose(out + 0.1, hold, false);
+    expect(leaving.detail).toBeLessThan(leaving.slab);
+    expect(leaving.slab).toBeLessThan(leaving.kicker);
+    expect(slidePose(out + 0.12, hold, false).chip).toBe(0);
+    const gone = slidePose(slideLength(hold), hold, false);
+    expect([gone.kicker, gone.slab, gone.detail, gone.chip]).toEqual([0, 0, 0, 0]);
+    expect(Math.max(...Object.values(SLIDE_OUT).map((b) => b.until))).toBeLessThanOrEqual(SlideMotion.exitLength);
   });
 
   it("Reduce Motion: a crossfade in place", () => {
     const fadeIn = slidePose(0, hold, true);
     const held = slidePose(2, hold, true);
-    const fadeOut = slidePose(SlideMotion.land + hold + 0.25, hold, true);
-    expect([fadeIn.opacity, fadeIn.slab, held.opacity, fadeOut.opacity, fadeOut.slab]).toEqual([0, 0, 1, 0, 0]);
+    const fadeOut = slidePose(out + 0.25, hold, true);
+    expect([fadeIn.opacity, fadeIn.slab, held.opacity, fadeOut.opacity, fadeOut.slab]).toEqual([0, 1, 1, 0, 1]);
   });
 });
 
@@ -628,6 +748,8 @@ describe("the line", () => {
     chip: null,
     subline: "",
     score: null,
+    kicker: null,
+    tally: null,
     spoken: "",
     team: null,
     flag: null,

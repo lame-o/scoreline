@@ -1,27 +1,29 @@
 /**
  * The scoring slide (ScoringSlide.swift): a team scores on the open game
- * page and a broadcast bar in its colors wipes in from its side of the hero
- * (the left team's from the left), says what happened in type that reads
+ * page and a broadcast lower third in its colors slides in from its side of
+ * the hero (the left team's from the left) while the scoreboard steps aside,
+ * says who and when (BREWERS · TOP 12TH), what happened in type that reads
  * across a room (HOME RUN, TOUCHDOWN, GOAL), what it was worth, who did it
- * and the new score, holds, and wipes back out the way it came. Information
+ * and the new score, holds, and slides back out the way it came. Information
  * first: only scores that arrive while the page is open (never history), one
  * at a time in the order they happened, timed to the play theater's climax
  * when the theater is on screen replaying the play, and one celebration per
  * moment (the confetti stays a single burst, played wherever it's seen).
  *
  * This file is the pure part (tested): which moments slide and their words
- * per sport, the side, the tier, the paint, the theater's timing, who
- * bursts, the line they wait in, and the wipe's poses.
+ * per sport, the kicker and the tally, the side, the tier, the paint, the
+ * theater's timing, who bursts, the line they wait in, and the motion's
+ * timeline.
  * features/game/core/scoringSlides.tsx plays them.
  *
  *     const slide = makeSlide(moment, context);   // null: not one of its sport's scores
  *     slidePaint(slide);                          // the slab, the stripe, white or black type
  */
 import { clockLabel } from "./basketball";
-import { houseCurve, bezier, sweepCurve } from "./celebrations";
+import { houseCurve, bezier } from "./celebrations";
 import { surname } from "./climbing";
 import { series } from "./cs2";
-import { ordinal, periodLabel } from "./format";
+import { ordinal, overtime, periodLabel } from "./format";
 import type { MapResult } from "./gameDetail";
 import type { StatcastBatted } from "./mlb/statcast";
 import type { Side } from "./models";
@@ -88,6 +90,10 @@ export interface ScoringSlide {
   readonly subline: string;
   /** The new score, the scorer's first: "MIL 5–2". */
   readonly score: string | null;
+  /** The tab over the bar: the team and when ("Brewers · Top 12th"); null with neither. */
+  readonly kicker: string | null;
+  /** The new score as two rows at the bar's far end, the scorer's first; null without both teams and the score. */
+  readonly tally: SlideTally | null;
   /** Its one announcement: "Brewers RBI single, Yelich, 1 run, Brewers lead 1 to 0". */
   readonly spoken: string;
   /** Whose colors and logo it wears. */
@@ -99,6 +105,18 @@ export interface ScoringSlide {
   readonly moment: LiveMoment;
   /** It plays the page's confetti for its moment (decided as it's queued). */
   readonly confetti: boolean;
+}
+
+/** A side's row in the tally: "MIL 3". */
+export interface SlideTallyRow {
+  readonly team: string;
+  readonly score: number;
+}
+
+/** The new score, the scorer's row first. */
+export interface SlideTally {
+  readonly mine: SlideTallyRow;
+  readonly theirs: SlideTallyRow;
 }
 
 /** Seconds on screen once the wipe has landed, before it leaves. */
@@ -124,6 +142,12 @@ export function slidePaint(s: Pick<ScoringSlide, "country" | "team">): SlidePain
  * measurement of a home run, once it's in. (pure; tested)
  */
 export function makeSlide(m: LiveMoment, context: SlideContext, batted: StatcastBatted | null = null): ScoringSlide | null {
+  const slide = sportSlide(m, context, batted);
+  if (!slide?.side) return slide;
+  return { ...slide, kicker: slideKicker(slide.team, slidePeriod(m)), tally: slideTally(slide.side, m.facts, context) };
+}
+
+function sportSlide(m: LiveMoment, context: SlideContext, batted: StatcastBatted | null): ScoringSlide | null {
   switch (m.chart) {
     case "plate":
       return baseball(m, context, batted);
@@ -137,6 +161,50 @@ export function makeSlide(m: LiveMoment, context: SlideContext, batted: Statcast
       return counterStrike(m, context);
     case "ascent":
       return climbing(m, context);
+    default:
+      return null;
+  }
+}
+
+/** "Brewers · Top 12th": who and when, either alone; null with neither. (pure; tested) */
+export function slideKicker(team: SlideTeam | null, when: string | null): string | null {
+  const parts = [team?.name, when].filter((p): p is string => p != null && p.length > 0);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/** Both rows of the new score, the scorer's first, once both teams and the score are known. (pure; tested) */
+export function slideTally(side: Side, facts: ScoringFacts | undefined, c: SlideContext): SlideTally | null {
+  const top = facts?.top;
+  const bottom = facts?.bottom;
+  const me = teamOf(c, side);
+  const them = teamOf(c, opposite(side));
+  if (top == null || bottom == null || !me || !them) return null;
+  const [mine, theirs] = side === "top" ? [top, bottom] : [bottom, top];
+  return { mine: { team: me.abbreviation, score: mine }, theirs: { team: them.abbreviation, score: theirs } };
+}
+
+/**
+ * When a score happened, as the kicker says it: "Top 12th", "Bot 9th" (an
+ * unknown half: "12th Inn"), "2nd Qtr", "OT", "2OT", "67'"; null where the
+ * sport has no period to name (CS2, climbing). (pure; tested)
+ */
+export function slidePeriod(m: LiveMoment): string | null {
+  const f = m.facts;
+  switch (m.chart) {
+    case "plate": {
+      const n = f?.period;
+      if (n == null) return null;
+      const half = f?.half?.toLowerCase();
+      return half === "top" ? `Top ${ordinal(n)}` : half === "bottom" ? `Bot ${ordinal(n)}` : `${ordinal(n)} Inn`;
+    }
+    case "field":
+    case "court": {
+      const n = f?.period;
+      if (n == null) return null;
+      return n > 4 ? overtime(n - 4) : `${ordinal(n)} Qtr`;
+    }
+    case "pitch":
+      return minuteMark(f?.clock ?? null);
     default:
       return null;
   }
@@ -168,8 +236,8 @@ const named = (team: SlideTeam | null, said: string) => [team?.name, said].filte
 
 const joined = (parts: readonly (string | null | undefined)[]) => parts.filter((p): p is string => p != null).join(" · ");
 
-function slide(fields: Omit<ScoringSlide, "short" | "chip" | "score" | "team" | "flag" | "country" | "confetti"> & Partial<ScoringSlide>): ScoringSlide {
-  return { short: null, chip: null, score: null, team: null, flag: null, country: null, confetti: false, ...fields };
+function slide(fields: Omit<ScoringSlide, "short" | "chip" | "score" | "kicker" | "tally" | "team" | "flag" | "country" | "confetti"> & Partial<ScoringSlide>): ScoringSlide {
+  return { short: null, chip: null, score: null, kicker: null, tally: null, team: null, flag: null, country: null, confetti: false, ...fields };
 }
 
 /** Swift's `.rounded()`: halves away from zero. */
@@ -298,7 +366,8 @@ function soccer(m: LiveMoment, c: SlideContext): ScoringSlide | null {
     headline,
     short,
     chip: "+1",
-    subline: joined([by, goal.how, assist, minute]),
+    // The minute is in the kicker.
+    subline: joined([by, goal.how, assist]),
     score: stands.line,
     spoken: spokenOf([named(team, said), by, goal.how, assist, spokenMinute(minute), stands.spoken]),
     team,
@@ -866,20 +935,39 @@ export function inkContrast(p: SlidePaint): number {
 }
 
 /**
- * How strongly the small type (the subline at 0.86, the score at 0.9) is
- * inked: the Mac's softer ink where it still clears 4.5:1 on the slab, else
- * full. A web addition: its small type is held to the page's text contrast.
+ * How strongly the small type (the tally's other row at 0.55) is inked: the
+ * softer ink asked for where it still clears 4.5:1 on the slab, else the
+ * next step up (0.7, 0.86) that does, else full. A web addition: its small
+ * type is held to the page's text contrast.
  */
 export function smallInk(p: SlidePaint, alpha: number): number {
   const slab = toRGB(p.slab);
   // The ink at `alpha` over the slab, composited as the page does (in sRGB): white, or #141414.
   const ink = p.lightInk ? 1 : 20 / 255;
-  const linear = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
-  const luminance = (rgb: readonly number[]) => 0.2126 * linear(rgb[0]!) + 0.7152 * linear(rgb[1]!) + 0.0722 * linear(rgb[2]!);
-  const back = luminance(slab);
-  const mixed = luminance(slab.map((c) => ink * alpha + c * (1 - alpha)));
-  const contrast = (Math.max(back, mixed) + 0.05) / (Math.min(back, mixed) + 0.05);
-  return contrast >= 4.5 ? alpha : 1;
+  const back = srgbLuminance(slab);
+  const clears = (a: number) => {
+    const mixed = srgbLuminance(slab.map((c) => ink * a + c * (1 - a)));
+    return (Math.max(back, mixed) + 0.05) / (Math.min(back, mixed) + 0.05) >= 4.5;
+  };
+  return [alpha, 0.7, 0.86].find((a) => a >= alpha && clears(a)) ?? 1;
+}
+
+const linearOf = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+const srgbLuminance = (rgb: readonly number[]) => 0.2126 * linearOf(rgb[0]!) + 0.7152 * linearOf(rgb[1]!) + 0.0722 * linearOf(rgb[2]!);
+const contrast = (x: number, y: number) => (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+
+/** The dark ink, #141414 (`Color(white: 0.08)`). */
+const NEAR_BLACK: OKLab = oklabFromHex("141414") ?? gray(0.19);
+
+/**
+ * The type on the second color (the kicker tab and the chip): the slab's own
+ * color where it reads there (4.5:1, the kicker being small type), else
+ * near-black or white, whichever reads better. (pure; tested)
+ */
+export function kickerInk(p: SlidePaint): OKLab {
+  const back = luminanceOf(p.stripe);
+  if (contrast(back, luminanceOf(p.slab)) >= 4.5) return p.slab;
+  return contrast(back, inkLuminance(false)) >= contrast(back, 1) ? NEAR_BLACK : gray(1);
 }
 
 /** The same color, lighter (or darker, negative), its hue and chroma kept. */
@@ -989,141 +1077,108 @@ export class SlideLine {
 
 // MARK: - Motion
 
-/** Where the bar's layers are at one instant of the wipe (ScoringSlideView.swift `SlidePose`). */
-export interface SlidePose {
-  /** The slab: 0 home, 1 off past its edge. */
-  readonly slab: number;
-  /** The stripe in the second color: it leads the slab in and trails it out. */
-  readonly stripe: number;
-  /** The type and logo, a few points behind the slab, settling as it lands (and fading in). */
-  readonly lag: number;
-  readonly logo: number;
-  readonly chip: number;
-  /** Reduce Motion's crossfade. */
-  readonly opacity: number;
-  /** The sheen's way across the slab, drawn between 0 and 1. */
-  readonly sheen: number;
+/**
+ * The lower third's motion, layer by layer (ScoringSlideView.swift): each
+ * move a window of seconds from the slide starting and its curve. In: the
+ * kicker, the slab and the detail strip from off their entering edge, one
+ * after another; the logo pops; the headline and the subline are revealed
+ * behind an edge on the type's own lean; the tally rises; the chip pops; one
+ * sheen crosses the slab. Nothing moves during the hold. Out: the detail
+ * strip first, then the slab, then the kicker, back the way they came, the
+ * chip fading as they go. Reduce Motion crossfades it. (pure; tested)
+ */
+export type SlideLayer = "kicker" | "slab" | "detail" | "logo" | "headline" | "subline" | "tally" | "chip" | "sheen";
+
+export type SlideCurve = "out" | "away" | "pop" | "sweep";
+
+/** One layer's move: from `at` to `until` seconds, on its curve. */
+export interface SlideBeat {
+  readonly at: number;
+  readonly until: number;
+  readonly curve: SlideCurve;
 }
 
-export const POSE_OFF: SlidePose = { slab: 1, stripe: 1, lag: 1, logo: 0.85, chip: 0.6, opacity: 1, sheen: 0 };
-export const POSE_HOME: SlidePose = { slab: 0, stripe: 0, lag: 0, logo: 1, chip: 1, opacity: 1, sheen: 1 };
+/** The curves' control points (CSS `cubic-bezier`): a crisp ease-out, leaving, a pop with a little overshoot, a band across. */
+export const SLIDE_CURVES: Readonly<Record<SlideCurve, readonly [number, number, number, number]>> = {
+  out: [0.23, 1, 0.32, 1],
+  away: [0.55, 0, 0.85, 0.36],
+  pop: [0.34, 1.5, 0.64, 1],
+  sweep: [0.42, 0, 0.58, 1],
+};
+
+const CURVES: Readonly<Record<SlideCurve, (x: number) => number>> = {
+  out: bezier(...SLIDE_CURVES.out),
+  away: bezier(...SLIDE_CURVES.away),
+  pop: bezier(...SLIDE_CURVES.pop),
+  sweep: bezier(...SLIDE_CURVES.sweep),
+};
+
+/** In, from the slide starting. */
+export const SLIDE_IN: Readonly<Record<SlideLayer, SlideBeat>> = {
+  kicker: { at: 0, until: 0.26, curve: "out" },
+  slab: { at: 0.05, until: 0.44, curve: "out" },
+  detail: { at: 0.12, until: 0.5, curve: "out" },
+  logo: { at: 0.22, until: 0.52, curve: "pop" },
+  headline: { at: 0.24, until: 0.56, curve: "out" },
+  subline: { at: 0.3, until: 0.64, curve: "out" },
+  tally: { at: 0.36, until: 0.6, curve: "out" },
+  chip: { at: 0.44, until: 0.7, curve: "pop" },
+  sheen: { at: 0.34, until: 1.05, curve: "sweep" },
+};
+
+/** Out, from the exit starting. The slab's logo, type, tally and sheen ride out with it, and the subline with its strip. */
+export const SLIDE_OUT: Readonly<Partial<Record<SlideLayer, SlideBeat>>> = {
+  detail: { at: 0, until: 0.28, curve: "away" },
+  slab: { at: 0.04, until: 0.32, curve: "away" },
+  kicker: { at: 0.08, until: 0.36, curve: "away" },
+  chip: { at: 0, until: 0.12, curve: "away" },
+};
 
 export const SlideMotion = {
-  /** The slab has landed (the spring's bulk; its last few points settle in the hold). */
-  land: 0.35,
-  exitLength: 0.3,
-  /** The spark and the confetti fly as it lands. */
-  burstAt: 0.26,
-  /** The type tucks in this far behind the slab (pt). */
-  lag: 26,
+  /** Everything has landed (the chip's pop is the last): the hold counts from here, as on the Mac. */
+  land: 0.7,
+  /** The exit, start to gone (the kicker leaves last, by 0.36 s). */
+  exitLength: 0.38,
+  /** The spark and the confetti fly at the logo as it pops. */
+  burstAt: 0.3,
+  /** Reduce Motion's crossfade, in and out. */
+  fadeIn: 0.25,
+  fadeOut: 0.2,
+  /** The hero's scoreboard steps aside as the slide comes in, and comes back once it has gone. */
+  heroOut: 0.18,
+  heroBack: 0.25,
 } as const;
 
-/** Leaving: accelerating off the way it came. */
-const exitCurve = bezier(0.5, 0, 0.9, 0.5);
+/** Where each layer is at one instant: 0 off (or not yet revealed), 1 home; `opacity` is Reduce Motion's crossfade. */
+export type SlidePose = Readonly<Record<SlideLayer | "opacity", number>>;
 
-/** SwiftUI's `Spring(duration:bounce:)` from rest: how far from `from` toward `to` it is after `t` seconds. */
-export function springAt(from: number, to: number, t: number, duration: number, bounce: number): number {
-  const omega = (2 * Math.PI) / duration;
-  const zeta = 1 - bounce;
-  let k: number;
-  if (zeta >= 1) {
-    k = Math.exp(-omega * t) * (1 + omega * t);
-  } else {
-    const wd = omega * Math.sqrt(1 - zeta * zeta);
-    k = Math.exp(-zeta * omega * t) * (Math.cos(wd * t) + ((zeta * omega) / wd) * Math.sin(wd * t));
-  }
-  return to + (from - to) * k;
+const LAYERS = Object.keys(SLIDE_IN) as SlideLayer[];
+const posed = (value: (layer: SlideLayer) => number, opacity: number): SlidePose =>
+  Object.fromEntries([...LAYERS.map((l) => [l, value(l)] as const), ["opacity", opacity] as const]) as SlidePose;
+
+export const POSE_OFF: SlidePose = posed(() => 0, 1);
+export const POSE_HOME: SlidePose = posed(() => 1, 1);
+
+/** How far along a beat is at t: 0 before it, 1 after, on its curve between. */
+export function beatAt(beat: SlideBeat, t: number): number {
+  if (t <= beat.at) return 0;
+  if (t >= beat.until) return 1;
+  return CURVES[beat.curve]((t - beat.at) / (beat.until - beat.at));
 }
 
-type Frame =
-  | { readonly move: number }
-  | { readonly to: number; readonly duration: number; readonly curve?: (x: number) => number }
-  | { readonly to: number; readonly duration: number; readonly spring: { readonly duration: number; readonly bounce: number } };
-
-/** One SwiftUI `KeyframeTrack` at t: moves set the value; linear and spring keyframes run from where the last one left it. */
-function track(frames: readonly Frame[], initial: number, t: number): number {
-  let value = initial;
-  let start = 0;
-  for (const f of frames) {
-    if ("move" in f) {
-      value = f.move;
-      continue;
-    }
-    const end = start + f.duration;
-    const spring = "spring" in f ? f.spring : null;
-    const curve = "curve" in f ? f.curve : undefined;
-    // (A hair of slack: a pose sampled at a sum of seconds, 4.85 + 0.3, lands where it should.)
-    if (t < end - 1e-9) {
-      const u = t - start;
-      return spring ? springAt(value, f.to, u, spring.duration, spring.bounce) : value + (f.to - value) * (curve ? curve(u / f.duration) : u / f.duration);
-    }
-    value = spring ? springAt(value, f.to, f.duration, spring.duration, spring.bounce) : f.to;
-    start = end;
-  }
-  return value;
-}
-
-/**
- * The wipe in, or out (`leaving`), track by track (SlideMotion.keyframes). In:
- * the stripe leads, the slab lands on a spring (0.35 s, a touch of bounce:
- * it's a celebration), the type settles behind it, the logo and chip pop,
- * and the sheen crosses once. Out: the slab first, the stripe after it,
- * 0.3 s. Reduce Motion: a crossfade.
- */
-export function slideFrames(leaving: boolean, reduceMotion: boolean): Record<keyof SlidePose, readonly Frame[]> {
-  const exitLength = SlideMotion.exitLength;
-  return {
-    slab: reduceMotion
-      ? [{ move: 0 }]
-      : leaving
-        ? [{ move: 0 }, { to: 1, duration: exitLength, curve: exitCurve }]
-        : // Land exactly (a spring keyframe stops wherever the spring is).
-          [{ move: 1 }, { to: 0, duration: 0.55, spring: { duration: 0.35, bounce: 0.12 } }, { to: 0, duration: 0.05 }],
-    stripe: reduceMotion
-      ? [{ move: 0 }]
-      : leaving
-        ? [{ move: 0 }, { to: 0, duration: 0.04 }, { to: 1, duration: exitLength - 0.04, curve: exitCurve }]
-        : [{ move: 1 }, { to: 0, duration: 0.5, spring: { duration: 0.3, bounce: 0.08 } }, { to: 0, duration: 0.05 }],
-    lag:
-      reduceMotion || leaving
-        ? [{ move: 0 }]
-        : [{ move: 1 }, { to: 1, duration: 0.06 }, { to: 0, duration: 0.5, spring: { duration: 0.4, bounce: 0 } }, { to: 0, duration: 0.04 }],
-    logo:
-      reduceMotion || leaving
-        ? [{ move: 1 }]
-        : [{ move: 0.85 }, { to: 0.85, duration: 0.18 }, { to: 1, duration: 0.45, spring: { duration: 0.4, bounce: 0.3 } }, { to: 1, duration: 0.04 }],
-    chip:
-      reduceMotion || leaving
-        ? [{ move: 1 }]
-        : [{ move: 0.6 }, { to: 0.6, duration: 0.24 }, { to: 1, duration: 0.42, spring: { duration: 0.4, bounce: 0.25 } }, { to: 1, duration: 0.04 }],
-    opacity:
-      reduceMotion && leaving
-        ? [{ move: 1 }, { to: 0, duration: 0.2, curve: houseCurve }]
-        : reduceMotion
-          ? [{ move: 0 }, { to: 1, duration: 0.25, curve: houseCurve }]
-          : [{ move: 1 }],
-    sheen: reduceMotion || leaving ? [{ move: 0 }] : [{ move: 0 }, { to: 0, duration: 0.3 }, { to: 1, duration: 0.7, curve: sweepCurve }],
-  };
-}
-
-/** How long a track runs (seconds). */
-export function framesLength(frames: readonly Frame[]): number {
-  return frames.reduce((sum, f) => sum + ("move" in f ? 0 : f.duration), 0);
-}
-
-/** One property of the wipe at t seconds into it (in or out). */
-export function poseValue(key: keyof SlidePose, t: number, leaving: boolean, reduceMotion: boolean): number {
-  return track(slideFrames(leaving, reduceMotion)[key], (leaving ? POSE_HOME : POSE_OFF)[key], Math.max(t, 0));
-}
-
-/** The pose `t` seconds after the slide began: in, the hold, then out. */
+/** The pose `t` seconds after the slide began: in, the hold (still), then out. */
 export function slidePose(t: number, hold: number, reduceMotion: boolean): SlidePose {
   const out = SlideMotion.land + hold;
   const leaving = t >= out;
-  const at = leaving ? t - out : t;
-  const pose = {} as Record<keyof SlidePose, number>;
-  for (const key of Object.keys(POSE_OFF) as (keyof SlidePose)[]) pose[key] = poseValue(key, at, leaving, reduceMotion);
-  return pose;
+  if (reduceMotion) {
+    const opacity = leaving ? 1 - houseCurve(Math.min((t - out) / SlideMotion.fadeOut, 1)) : houseCurve(Math.min(Math.max(t, 0) / SlideMotion.fadeIn, 1));
+    return posed(() => 1, opacity);
+  }
+  return posed((l) => {
+    if (!leaving) return beatAt(SLIDE_IN[l], t);
+    const away = SLIDE_OUT[l];
+    return away ? 1 - beatAt(away, t - out) : 1;
+  }, 1);
 }
 
 /** Seconds from a slide beginning to its exit being done. */
@@ -1131,24 +1186,27 @@ export const slideLength = (hold: number) => SlideMotion.land + hold + SlideMoti
 
 // MARK: - Metrics
 
-/** The slide's sizes by the page's width class (pt): the headline reads across a room. */
+/**
+ * The lower third's sizes by the page's width class (pt): the kicker tab's,
+ * the slab's and the detail strip's heights and the headline's size;
+ * everything else (the logo and its zone, the tally, the chip, the insets)
+ * scales with the slab from the medium width's, the mockup's 54.
+ */
 export interface SlideMetrics {
-  readonly height: number;
-  readonly logo: number;
+  readonly kicker: number;
+  readonly slab: number;
+  readonly detail: number;
   readonly headline: number;
-  readonly subline: number;
-  readonly chip: number;
-  readonly score: number;
-  /** The cut's run across the bar's height, and the stripe beyond the slab. */
-  readonly slant: number;
-  readonly stripe: number;
+  readonly scale: number;
 }
 
+const metrics = (kicker: number, slab: number, detail: number, headline: number): SlideMetrics => ({ kicker, slab, detail, headline, scale: slab / 54 });
+
 export const SLIDE_METRICS: Readonly<Record<"compact" | "medium" | "large" | "xlarge", SlideMetrics>> = {
-  compact: { height: 70, logo: 44, headline: 30, subline: 11.5, chip: 21, score: 12, slant: 18, stripe: 8 },
-  medium: { height: 74, logo: 48, headline: 32, subline: 12, chip: 22, score: 12.5, slant: 20, stripe: 9 },
-  large: { height: 80, logo: 54, headline: 36, subline: 12.5, chip: 24, score: 13, slant: 22, stripe: 10 },
-  xlarge: { height: 84, logo: 58, headline: 40, subline: 13.5, chip: 26, score: 14, slant: 24, stripe: 11 },
+  compact: metrics(18, 48, 19, 36),
+  medium: metrics(20, 54, 21, 42),
+  large: metrics(21, 58, 22, 46),
+  xlarge: metrics(22, 62, 23, 50),
 };
 
 /** The page's width class from its width in points (the Mac's thresholds: 380, 460, 560). */
@@ -1156,8 +1214,14 @@ export function slideMetrics(pageWidth: number): SlideMetrics {
   return pageWidth >= 560 ? SLIDE_METRICS.xlarge : pageWidth >= 460 ? SLIDE_METRICS.large : pageWidth >= 380 ? SLIDE_METRICS.medium : SLIDE_METRICS.compact;
 }
 
-/** The content's inset at the cut end: clear of the slant at mid-height. */
-export const cutInset = (m: SlideMetrics) => m.stripe + m.slant / 2 + 12;
+/** The graphic's height: the kicker, the slab and the detail strip stacked. */
+export const slideHeight = (m: SlideMetrics) => m.kicker + m.slab + m.detail;
+
+/** The italic's lean (SF Pro Italic: 12°): every slanted edge and every reveal runs this far across per point of height. */
+export const SLIDE_LEAN = Math.tan((12 * Math.PI) / 180);
+
+/** The slab reaches at most this far from its entering edge (pt): a lower third, not a banner. */
+export const SLAB_MAX = 560;
 
 /** Logos are drawn at one size and scaled, so one decode serves every width (pt). */
 export const LOGO_BASE = 58;

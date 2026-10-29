@@ -319,6 +319,21 @@
   isolation: isolate;
 }
 
+/*
+ * A scoring slide over the card (its host carries `data-slide-host`): the
+ * scoreboard steps aside entirely, its glass and everything in it, as the
+ * graphic comes in, and comes back only once the graphic has gone (the host
+ * leaves the tree then). Not dimmed: nothing of it shows around the graphic.
+ */
+.card > :not([data-slide-host]) {
+  transition: opacity 0.25s var(--ease-out);
+}
+
+.card:has(> [data-slide-host]) > :not([data-slide-host]) {
+  opacity: 0;
+  transition-duration: 0.18s;
+}
+
 /* The glint stays inside the card's corners; the glass keeps its shadow. */
 .glintClip {
   position: absolute;

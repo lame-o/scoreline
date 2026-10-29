@@ -1,28 +1,33 @@
 /*
- * The scoring slide (ScoringSlideView.swift): a broadcast bar in the
+ * The scoring slide (ScoringSlideView.swift): a broadcast lower third in the
  * scorer's colors. Its hosts overlay the page, so it never moves anything:
- * over the hero card (filling it), or in a zero-height sticky slot just under
- * the docked bar. Lengths are Mac points through the bar's own variables
- * (`--slide-*`, set per width class by scoringSlides.tsx). Only transform
- * and opacity move (WAAPI, from the pure poses).
+ * over the hero card (centered on it, while the card steps aside), or in a
+ * zero-height sticky slot just under the docked bar. Lengths are Mac points
+ * through the bar's own variables (set per width class by scoringSlides.tsx):
+ * `--k`, `--s` and `--d` the kicker's, the slab's and the detail strip's
+ * heights, `--hl` the headline's size, and `--u` a point scaled with the slab
+ * from the medium width's (the mockup's), for everything else. Hard edges,
+ * no rounded corners; every slanted edge leans with the italic type (12°,
+ * `--lean`), on both sides: the right-entering one mirrors in place, never in
+ * lean. A broadcast graphic: the same in light and dark. Only transform,
+ * opacity and the reveals' clip move (WAAPI).
  */
 
 /*
- * Over the hero card: the card's own frame. Each host clips across (never up
- * and down, where the burst flies): a bar wiping in past the page's side would
- * otherwise widen what the page scrolls.
+ * Over the hero card: the card's frame and its gutters (the page's 10pt
+ * either side, which the graphic bleeds into on its entering side). Clips
+ * across (never up and down, where the chip and the burst go): a layer
+ * coming in past the page's side would otherwise widen what the page scrolls.
  */
 .heroHost {
   position: absolute;
-  inset: 0;
+  inset: 0 calc(-10 * var(--pt));
   z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   pointer-events: none;
   overflow-x: clip;
-}
-
-.heroHost > .bar {
-  height: 100%;
-  min-height: calc(var(--slide-h) * var(--pt));
 }
 
 /* Under the docked bar: sticky with it, zero height, on its 10pt side inset and no wider than the bar. */
@@ -43,222 +48,288 @@
   overflow-x: clip;
 }
 
-.dockHost > .bar {
-  height: calc(var(--slide-h) * var(--pt));
-}
-
 .bar {
+  /* A point, scaled with the slab. */
+  --u: calc(var(--sc) * var(--pt));
+  /* The slab's length: to 16pt short of the far edge, at most 560pt. */
+  --slab-w: min(calc(100% - var(--far) * var(--pt)), calc(var(--slab-max) * var(--pt)));
   position: relative;
+  flex: none;
   width: 100%;
-  color: var(--ink);
+  height: calc((var(--k) + var(--s) + var(--d)) * var(--pt));
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.root,
-.stripeLayer,
-.slabLayer {
+.root {
   position: absolute;
   inset: 0;
 }
 
-.stripeLayer,
-.slabLayer {
-  will-change: transform;
-}
-
-/* The stripe: the whole bar in the second color, which the slab covers but for its cut; the bar's shadow. */
-.stripeLayer {
-  filter: drop-shadow(0 calc(4 * var(--pt)) calc(10 * var(--pt)) light-dark(rgb(0 0 0 / 0.2), rgb(0 0 0 / 0.45)));
-}
-
-/* Rounded at the edge it enters from, cut on a slant at the edge that leads its travel. */
-.stripe,
-.slab {
-  position: absolute;
-  inset: 0;
-  border-radius: calc(14 * var(--pt)) 0 0 calc(14 * var(--pt));
-}
-
-.stripe {
-  background: var(--stripe);
-  clip-path: polygon(0 0, 100% 0, calc(100% - var(--slide-slant) * var(--pt)) 100%, 0 100%);
-}
-
-.slab {
-  overflow: hidden;
-  background: linear-gradient(to bottom, var(--slab-top), var(--slab), var(--slab-bottom));
-  /* A hairline of light along the top edge. */
-  box-shadow: inset 0 calc(1 * var(--pt)) 0 rgb(255 255 255 / 0.28);
-  clip-path: polygon(
-    0 0,
-    calc(100% - var(--slide-cut) * var(--pt)) 0,
-    calc(100% - (var(--slide-cut) + var(--slide-slant)) * var(--pt)) 100%,
-    0 100%
-  );
-}
-
-.bar[data-edge="trailing"] .stripe,
-.bar[data-edge="trailing"] .slab {
-  border-radius: 0 calc(14 * var(--pt)) calc(14 * var(--pt)) 0;
-}
-
-.bar[data-edge="trailing"] .stripe {
-  clip-path: polygon(0 0, 100% 0, 100% 100%, calc(var(--slide-slant) * var(--pt)) 100%);
-}
-
-.bar[data-edge="trailing"] .slab {
-  clip-path: polygon(calc(var(--slide-cut) * var(--pt)) 0, 100% 0, 100% 100%, calc((var(--slide-cut) + var(--slide-slant)) * var(--pt)) 100%);
-}
-
-/* One sheen across the slab as it lands: a soft band of light at 18°, a gradient (never a blend or a blur). */
-.sheen {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: max(calc(56 * var(--pt)), calc(var(--slide-h) * 0.9 * var(--pt)));
-  height: calc(var(--slide-h) * 1.6 * var(--pt) + max(calc(56 * var(--pt)), calc(var(--slide-h) * 0.9 * var(--pt))));
-  translate: 0 -50%;
-  background: linear-gradient(to right, rgb(255 255 255 / 0), rgb(255 255 255 / 0.45), rgb(255 255 255 / 0));
-  opacity: 0;
-}
-
-.sheen[data-light="true"] {
-  background: linear-gradient(to right, rgb(255 255 255 / 0), rgb(255 255 255 / 0.3), rgb(255 255 255 / 0));
-}
-
-.content {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  gap: calc(12 * var(--pt));
-  padding: 0 calc(var(--slide-inset) * var(--pt)) 0 calc(14 * var(--pt));
-}
-
-.bar[data-edge="trailing"] .content {
-  padding: 0 calc(14 * var(--pt)) 0 calc(var(--slide-inset) * var(--pt));
-}
-
-.spacer {
-  flex: 1 1 calc(6 * var(--pt));
-  min-width: calc(6 * var(--pt));
-}
-
-.words {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.bar[data-edge="trailing"] .words {
-  align-items: flex-end;
-  text-align: right;
-}
-
-/* Heavy condensed caps, read across a room. */
+/* Broadcast type: SF Pro Condensed, Black, italic (SwiftUI: .system(weight: .black).width(.condensed).italic()). */
+.kicker,
 .headline,
-.subline {
-  display: block;
-  max-width: 100%;
+.chip,
+.tally {
+  font-family: system-ui, var(--font-ui);
+  font-stretch: condensed;
+  font-style: italic;
+  font-weight: 900;
+  text-transform: uppercase;
   white-space: nowrap;
+}
+
+/* Where the system font won't draw its condensed width (Chromium): a condensed face that will. */
+.bar[data-type="fallback"] :is(.kicker, .headline, .chip, .tally, .detail) {
+  font-family: "Helvetica Neue", "Arial Narrow", "Roboto Condensed", system-ui, var(--font-ui);
+}
+
+/* MARK: Kicker: a tab in the second color, sized to its words, at the near end of the top row */
+
+.kicker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: calc(var(--slab-w) - 90 * var(--u));
+  height: calc(var(--k) * var(--pt));
+  padding: 0 calc(22 * var(--u) + var(--k) * var(--lean) * var(--pt)) 0 calc(22 * var(--u));
   overflow: hidden;
   text-overflow: ellipsis;
+  background: var(--stripe);
+  color: var(--kicker-ink);
+  font-size: calc(var(--k) * 0.625 * var(--pt));
+  line-height: calc(var(--k) * var(--pt));
+  letter-spacing: 0.06em;
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--k) * var(--lean) * var(--pt)) 100%, 0 100%);
 }
 
-.headline {
-  font-family: var(--font-ui);
-  font-size: calc(var(--slide-headline) * var(--fit, 1) * var(--pt));
-  font-weight: 800;
-  font-stretch: condensed;
-  letter-spacing: 0.02em;
-  line-height: 1.08;
+.bar[data-edge="trailing"] .kicker {
+  left: auto;
+  right: 0;
+  padding: 0 calc(22 * var(--u)) 0 calc(22 * var(--u) + var(--k) * var(--lean) * var(--pt));
+  clip-path: polygon(calc(var(--k) * var(--lean) * var(--pt)) 0, 100% 0, 100% 100%, 0 100%);
 }
 
-.subline {
-  font-size: calc(var(--slide-subline) * var(--fit, 1) * var(--pt));
-  font-weight: 600;
-  line-height: 1.25;
-  opacity: var(--subline-ink);
-}
+/* MARK: Slab: the team's color, a shade lighter at the top, a hairline of light along it */
 
-/* A narrow bar: a second line before the subline is cut. */
-.subline[data-wrap="true"] {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  white-space: normal;
-}
-
-.tally {
+.slab {
+  position: absolute;
+  top: calc(var(--k) * var(--pt));
+  left: 0;
+  width: var(--slab-w);
+  height: calc(var(--s) * var(--pt));
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: calc(3 * var(--pt));
-  flex: none;
+  align-items: center;
+  padding: 0 calc(34 * var(--u)) 0 calc(96 * var(--u));
+  background: linear-gradient(to bottom, var(--slab-top), var(--slab));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22);
+  color: var(--ink);
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--s) * var(--lean) * var(--pt)) 100%, 0 100%);
 }
 
-.bar[data-edge="trailing"] .tally {
-  align-items: flex-start;
+.bar[data-edge="trailing"] .slab {
+  left: auto;
+  right: 0;
+  flex-direction: row-reverse;
+  padding: 0 calc(96 * var(--u)) 0 calc(34 * var(--u));
+  clip-path: polygon(calc(var(--s) * var(--lean) * var(--pt)) 0, 100% 0, 100% 100%, 0 100%);
 }
 
-.chip {
-  display: block;
-  padding: 0 calc(var(--slide-chip) * 0.36 * var(--pt));
-  border-radius: 999px;
-  background: var(--ink);
-  color: var(--slab);
-  font-family: var(--font-rounded);
-  font-size: calc(var(--slide-chip) * var(--pt));
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  white-space: nowrap;
+/* The logo's zone, a shade darker, its edge on the lean (86pt in at mid-height), and a slash in the second color beside it. */
+.zone,
+.slash,
+.sheen {
+  position: absolute;
+  top: 0;
+  bottom: 0;
 }
 
-.score {
-  font-size: calc(var(--slide-score) * var(--pt));
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  opacity: var(--score-ink);
+.zone {
+  left: 0;
+  width: calc(86 * var(--u) + var(--s) * var(--lean) * var(--pt) / 2);
+  background: rgb(0 0 0 / 0.26);
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--s) * var(--lean) * var(--pt)) 100%, 0 100%);
 }
 
-/* The logo or the flag, seated on a soft glow of the type's color. */
+.bar[data-edge="trailing"] .zone {
+  left: auto;
+  right: 0;
+  clip-path: polygon(calc(var(--s) * var(--lean) * var(--pt)) 0, 100% 0, 100% 100%, 0 100%);
+}
+
+.slash {
+  left: calc(86 * var(--u) - var(--s) * var(--lean) * var(--pt) / 2);
+  width: calc(5 * var(--u) + var(--s) * var(--lean) * var(--pt));
+  background: var(--stripe);
+  clip-path: polygon(calc(var(--s) * var(--lean) * var(--pt)) 0, 100% 0, calc(100% - var(--s) * var(--lean) * var(--pt)) 100%, 0 100%);
+}
+
+.bar[data-edge="trailing"] .slash {
+  left: auto;
+  right: calc(86 * var(--u) - var(--s) * var(--lean) * var(--pt) / 2);
+}
+
+/* One sheen across the slab as it lands: a band of light on the type's lean, a gradient (never a blend or a blur). */
+.sheen {
+  left: 0;
+  right: 0;
+  background: linear-gradient(102deg, rgb(255 255 255 / 0) 38%, rgb(255 255 255 / 0.26) 50%, rgb(255 255 255 / 0) 62%);
+  transform: translateX(100%);
+}
+
+.sheen[data-light="false"] {
+  background: linear-gradient(102deg, rgb(255 255 255 / 0) 38%, rgb(255 255 255 / 0.5) 50%, rgb(255 255 255 / 0) 62%);
+}
+
 .logo {
-  position: relative;
-  flex: none;
+  position: absolute;
+  top: calc(var(--s) * var(--pt) / 2 - 21 * var(--u));
+  left: calc(22 * var(--u));
   display: grid;
   place-items: center;
-  width: calc(var(--slide-logo) * var(--pt));
-  height: calc(var(--slide-logo) * var(--pt));
+  width: calc(42 * var(--u));
+  height: calc(42 * var(--u));
 }
 
-.glow {
-  position: absolute;
-  inset: -30%;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--ink) 24%, transparent), color-mix(in srgb, var(--ink) 10%, transparent) 50%, transparent);
+.bar[data-edge="trailing"] .logo {
+  left: auto;
+  right: calc(22 * var(--u));
 }
 
 .logoImage {
-  position: relative;
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
 
 .flag {
-  position: relative;
-  font-size: calc(var(--slide-logo) * 0.78 * var(--pt));
+  font-size: calc(42 * 0.78 * var(--u));
   line-height: 1;
 }
 
-/* The burst's room: above and below the bar (never past the page's sides, which would scroll it). */
+/* The headline, heavy condensed italic caps, read across a room; it shrinks to fit one line (--fit). */
+.headline {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-right: calc(6 * var(--u));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: calc(var(--hl) * var(--fit, 1) * var(--pt));
+  line-height: calc(var(--s) * var(--pt));
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
+}
+
+/* Dark type on a light slab: the hairline under it in light. */
+.bar[data-ink="dark"] .headline {
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.3);
+}
+
+.bar[data-edge="trailing"] .headline {
+  text-align: right;
+}
+
+.spacer {
+  flex: 1 1 calc(12 * var(--u));
+  min-width: calc(12 * var(--u));
+}
+
+/* The tally at the far end: the scorer's row in full ink, the other team's softer; tabular numbers. */
+.tally {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: calc(9 * var(--u));
+  padding-right: calc(2 * var(--u));
+  font-size: calc(16 * var(--u));
+  font-weight: 800;
+  line-height: calc(19 * var(--u));
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.row {
+  display: contents;
+}
+
+.theirs > * {
+  opacity: var(--theirs);
+}
+
+.score {
+  grid-column: 1 / -1;
+}
+
+/* MARK: Detail strip: near-black, a little shorter than the slab, the subline under the headline */
+
+.detail {
+  position: absolute;
+  top: calc((var(--k) + var(--s)) * var(--pt));
+  left: 0;
+  width: calc(var(--slab-w) - 52 * var(--u));
+  height: calc(var(--d) * var(--pt));
+  padding: 0 calc(10 * var(--u) + var(--d) * var(--lean) * var(--pt)) 0 calc(96 * var(--u));
+  background: rgb(11 12 15 / 0.95);
+  color: rgb(255 255 255 / 0.9);
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--d) * var(--lean) * var(--pt)) 100%, 0 100%);
+  font-family: system-ui, var(--font-ui);
+  font-stretch: condensed;
+  font-weight: 700;
+  font-size: calc(var(--d) * 0.55 * var(--pt));
+  line-height: calc(var(--d) * var(--pt));
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* A line too long for the strip: the strip runs the slab's whole length. */
+.detail[data-long="true"] {
+  width: var(--slab-w);
+}
+
+.bar[data-edge="trailing"] .detail {
+  left: auto;
+  right: 0;
+  padding: 0 calc(96 * var(--u)) 0 calc(10 * var(--u) + var(--d) * var(--lean) * var(--pt));
+  text-align: right;
+  clip-path: polygon(calc(var(--d) * var(--lean) * var(--pt)) 0, 100% 0, 100% 100%, 0 100%);
+}
+
+.words {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+  font-size: calc(var(--d) * 0.55 * var(--fit, 1) * var(--pt));
+}
+
+/* MARK: Chip: a hard parallelogram tag in the second color, on the kicker row over the tally, overhanging the slab by 2pt */
+
+.chip {
+  position: absolute;
+  top: calc(var(--k) * var(--pt) - 24 * var(--u));
+  left: calc(var(--slab-w) - 84 * var(--u));
+  min-width: calc(54 * var(--u));
+  height: calc(26 * var(--u));
+  padding: 0 calc(10 * var(--u));
+  background: var(--stripe);
+  color: var(--kicker-ink);
+  font-size: calc(20 * var(--u));
+  line-height: calc(26 * var(--u));
+  text-align: center;
+  clip-path: polygon(calc(26 * var(--u) * var(--lean)) 0, 100% 0, calc(100% - 26 * var(--u) * var(--lean)) 100%, 0 100%);
+}
+
+.bar[data-edge="trailing"] .chip {
+  left: auto;
+  right: calc(var(--slab-w) - 84 * var(--u));
+}
+
+/* The burst's room: above and below the graphic (never past the page's sides, which would scroll it). */
 .burst {
   position: absolute;
   left: 0;
