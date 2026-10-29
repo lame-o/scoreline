@@ -1,15 +1,15 @@
 import SwiftUI
 
-// The scoring slide on screen (its rules and words: ScoringSlide.swift). The
-// page's `ScoringSlides` keeps the line and plays one slide at a time; its
-// hosts put it over the hero card (taking the scoreboard over while it
-// holds) or just under the docked bar, and are out of the hierarchy between
-// slides. The bar is drawn from a
-// pose: live, a keyframe animator plays the wipe in (the slab lands in about
-// 0.35 s, its sheen done by 1 s) and out (0.3 s), and nothing animates or
-// ticks during the hold; on the harness's frozen clock the same keyframes
-// are sampled at t. Reduce Motion crossfades it. Nothing runs between
-// scores: a task exists only while a slide waits, shows or leaves.
+// The scoring slide on screen (its rules and words: ScoringSlide.swift): a
+// broadcast lower third. The page's `ScoringSlides` keeps the line and plays
+// one slide at a time; its hosts put it over the hero card (which steps
+// aside while it's up: `SlideCover`) or just under the docked bar, and are
+// out of the hierarchy between slides. The bar is drawn from a pose: live, a
+// keyframe animator plays the wipe in (its layers land by 0.7 s, the sheen
+// done by about 1 s) and out (0.38 s), and nothing animates or ticks during
+// the hold; on the harness's frozen clock the same keyframes are sampled at
+// t. Reduce Motion crossfades it. Nothing runs between scores: a task exists
+// only while a slide waits, shows or leaves.
 
 // MARK: - The line, played
 
@@ -229,128 +229,133 @@ final class ScoringSlides {
 
 // MARK: - Metrics
 
-/// The slide's sizes by the page's width: the headline reads across a room.
+/// The lower third's sizes by the page's width: the headline reads across a room.
 struct SlideMetrics: Equatable {
-    var height: CGFloat
-    var logo: CGFloat
+    /// The three layers' heights: the kicker tab, the slab, the detail strip.
+    var kicker: CGFloat
+    var slab: CGFloat
+    var detail: CGFloat
+    /// Type: the headline, the subline, the kicker, the chip and the tally's rows.
     var headline: CGFloat
     var subline: CGFloat
-    var chip: CGFloat
-    var score: CGFloat
-    /// The cut's run across the bar's height, and the stripe beyond the slab.
-    var slant: CGFloat
-    var stripe: CGFloat
+    var kickerType: CGFloat
+    var chipType: CGFloat
+    var tally: CGFloat
+    var logo: CGFloat
+    /// From the page's edge: the logo, the end of its zone (at mid-height), and where the headline starts.
+    var logoInset: CGFloat
+    var zone: CGFloat
+    var text: CGFloat
+    /// The chip's size.
+    var chip: CGSize
+    /// How far short of the card's far edge the slab stops.
+    var far: CGFloat
 
+    /// The page's inset beside the card: the bar comes in from the page's own edge.
+    static let bleed: CGFloat = 10
+    /// Every slanted edge leans with the type: SF Pro Italic's 12°.
+    static let lean = tan(12 * Double.pi / 180)
     /// Logos are drawn at one size and scaled, so one decode serves every width.
-    static let logoBase: CGFloat = 58
+    static let logoBase: CGFloat = 50
     static var logoPixels: Int { Int(logoBase * 2) }
 
     static func of(_ width: WidthClass) -> SlideMetrics {
         switch width {
-        case .compact: SlideMetrics(height: 70, logo: 44, headline: 30, subline: 11.5, chip: 21, score: 12, slant: 18, stripe: 8)
-        case .medium: SlideMetrics(height: 74, logo: 48, headline: 32, subline: 12, chip: 22, score: 12.5, slant: 20, stripe: 9)
-        case .large: SlideMetrics(height: 80, logo: 54, headline: 36, subline: 12.5, chip: 24, score: 13, slant: 22, stripe: 10)
-        case .xlarge: SlideMetrics(height: 84, logo: 58, headline: 40, subline: 13.5, chip: 26, score: 14, slant: 24, stripe: 11)
+        case .compact:
+            SlideMetrics(kicker: 18, slab: 48, detail: 19, headline: 36, subline: 10.5, kickerType: 11, chipType: 17, tally: 14, logo: 36,
+                         logoInset: 19, zone: 74, text: 84, chip: CGSize(width: 46, height: 22), far: 12)
+        case .medium:
+            SlideMetrics(kicker: 20, slab: 54, detail: 21, headline: 42, subline: 11.5, kickerType: 12.5, chipType: 20, tally: 16, logo: 42,
+                         logoInset: 22, zone: 86, text: 96, chip: CGSize(width: 54, height: 26), far: 16)
+        case .large:
+            SlideMetrics(kicker: 21, slab: 58, detail: 22, headline: 46, subline: 12, kickerType: 13, chipType: 22, tally: 17, logo: 46,
+                         logoInset: 23, zone: 92, text: 103, chip: CGSize(width: 58, height: 28), far: 18)
+        case .xlarge:
+            SlideMetrics(kicker: 22, slab: 62, detail: 23, headline: 50, subline: 12.5, kickerType: 13.5, chipType: 24, tally: 18, logo: 50,
+                         logoInset: 24, zone: 98, text: 110, chip: CGSize(width: 62, height: 30), far: 20)
         }
     }
 
-    /// The content's inset at the cut end: clear of the slant at mid-height.
-    var cutInset: CGFloat { stripe + slant / 2 + 12 }
+    /// The three layers stacked.
+    var height: CGFloat { kicker + slab + detail }
+    /// The detail strip stops this far short of the slab.
+    var detailShort: CGFloat { slab }
 }
 
 // MARK: - Motion
 
 /// Where the bar's layers are at one instant of the wipe.
 struct SlidePose: Equatable {
-    /// The slab: 0 home, 1 off past its edge.
+    /// The three layers: 0 home, 1 off past the edge they came in from.
+    var kicker = 1.0
     var slab = 1.0
-    /// The stripe in the second color: it leads the slab in and trails it out.
-    var stripe = 1.0
-    /// The type and logo, a few points behind the slab, settling as it lands (and fading in).
-    var lag = 1.0
-    var logo = 0.85
-    var chip = 0.6
+    var detail = 1.0
+    /// The logo's pop (its scale; its opacity follows).
+    var logo = 0.6
+    /// The headline's and the subline's reveal behind a leaning edge, 0 to 1.
+    var headline = 0.0
+    var subline = 0.0
+    /// The tally rising into place, 0 to 1.
+    var tally = 0.0
+    /// The chip's pop, 0 to 1 (and back to 0 as it leaves).
+    var chip = 0.0
     /// Reduce Motion's crossfade.
     var opacity = 1.0
     /// The sheen's way across the slab, drawn between 0 and 1.
     var sheen = 0.0
 
     static let off = SlidePose()
-    static let home = SlidePose(slab: 0, stripe: 0, lag: 0, logo: 1, chip: 1, opacity: 1, sheen: 1)
+    static let home = SlidePose(kicker: 0, slab: 0, detail: 0, logo: 1, headline: 1, subline: 1, tally: 1, chip: 1, opacity: 1, sheen: 1)
 }
 
 enum SlideMotion {
-    /// The slab has landed (the spring's bulk; its last few points settle in the hold).
-    static let land = 0.35
-    static let exitLength = 0.3
-    /// The spark and the confetti fly as it lands.
-    static let burstAt = 0.26
-    /// The type tucks in this far behind the slab.
-    static let lag: CGFloat = 26
+    /// Everything has landed (the chip's pop is the last; the sheen finishes in the hold).
+    static let land = 0.7
+    static let exitLength = 0.38
+    /// The spark and the confetti fly as the logo pops.
+    static let burstAt = 0.3
+    /// The page's scoreboard steps aside this fast, and comes back this fast once the bar has gone.
+    static let coverOut = 0.18
+    static let coverIn = 0.25
 
-    /// Leaving: accelerating off the way it came.
-    static let exitCurve = UnitCurve.bezier(startControlPoint: UnitPoint(x: 0.5, y: 0), endControlPoint: UnitPoint(x: 0.9, y: 0.5))
+    /// In: crisp, the broadcast curve. Out: accelerating off the way it came.
+    static let inCurve = UnitCurve.bezier(startControlPoint: UnitPoint(x: 0.23, y: 1), endControlPoint: UnitPoint(x: 0.32, y: 1))
+    static let exitCurve = UnitCurve.bezier(startControlPoint: UnitPoint(x: 0.55, y: 0), endControlPoint: UnitPoint(x: 0.85, y: 0.36))
 
-    /// The wipe in, or out (`leaving`). In: the stripe leads, the slab lands
-    /// on a spring (0.35 s, a touch of bounce: it's a celebration), the type
-    /// settles behind it, the logo and chip pop, and the sheen crosses once.
-    /// Out: the slab first, the stripe after it, 0.3 s. Reduce Motion: a
-    /// crossfade.
+    /// The wipe in, or out (`leaving`). In: the kicker tab, then the slab,
+    /// then the detail strip, each from off its edge; the logo pops, the
+    /// headline and the subline are revealed behind an edge on the type's
+    /// lean, the tally rises, the chip pops, and the sheen crosses once.
+    /// Out: the strip first, the slab, then the tab, 0.38 s. Reduce Motion:
+    /// a crossfade.
     @KeyframesBuilder<SlidePose>
     static func keyframes(leaving: Bool, reduceMotion: Bool) -> some Keyframes<SlidePose> {
-        KeyframeTrack(\.slab) {
-            if reduceMotion {
-                MoveKeyframe(0)
-            } else if leaving {
-                MoveKeyframe(0)
-                LinearKeyframe(1, duration: exitLength, timingCurve: exitCurve)
-            } else {
-                MoveKeyframe(1)
-                SpringKeyframe(0, duration: 0.55, spring: Spring(duration: 0.35, bounce: 0.12))
-                // Land exactly (a spring keyframe stops wherever the spring is).
-                LinearKeyframe(0, duration: 0.05)
-            }
-        }
-        KeyframeTrack(\.stripe) {
-            if reduceMotion {
-                MoveKeyframe(0)
-            } else if leaving {
-                MoveKeyframe(0)
-                LinearKeyframe(0, duration: 0.04)
-                LinearKeyframe(1, duration: exitLength - 0.04, timingCurve: exitCurve)
-            } else {
-                MoveKeyframe(1)
-                SpringKeyframe(0, duration: 0.5, spring: Spring(duration: 0.3, bounce: 0.08))
-                LinearKeyframe(0, duration: 0.05)
-            }
-        }
-        KeyframeTrack(\.lag) {
-            if reduceMotion || leaving {
-                MoveKeyframe(0)
-            } else {
-                MoveKeyframe(1)
-                LinearKeyframe(1, duration: 0.06)
-                SpringKeyframe(0, duration: 0.5, spring: Spring(duration: 0.4, bounce: 0))
-                LinearKeyframe(0, duration: 0.04)
-            }
-        }
+        KeyframeTrack(\.kicker) { layer(start: 0, length: 0.26, out: 0.08, leaving, reduceMotion) }
+        KeyframeTrack(\.slab) { layer(start: 0.05, length: 0.39, out: 0.04, leaving, reduceMotion) }
+        KeyframeTrack(\.detail) { layer(start: 0.12, length: 0.38, out: 0, leaving, reduceMotion) }
         KeyframeTrack(\.logo) {
             if reduceMotion || leaving {
                 MoveKeyframe(1)
             } else {
-                MoveKeyframe(0.85)
-                LinearKeyframe(0.85, duration: 0.18)
-                SpringKeyframe(1, duration: 0.45, spring: Spring(duration: 0.4, bounce: 0.3))
+                MoveKeyframe(0.6)
+                LinearKeyframe(0.6, duration: 0.22)
+                SpringKeyframe(1, duration: 0.34, spring: Spring(duration: 0.36, bounce: 0.3))
                 LinearKeyframe(1, duration: 0.04)
             }
         }
+        KeyframeTrack(\.headline) { reveal(start: 0.24, length: 0.32, leaving, reduceMotion) }
+        KeyframeTrack(\.subline) { reveal(start: 0.30, length: 0.34, leaving, reduceMotion) }
+        KeyframeTrack(\.tally) { reveal(start: 0.36, length: 0.24, leaving, reduceMotion) }
         KeyframeTrack(\.chip) {
-            if reduceMotion || leaving {
+            if reduceMotion {
                 MoveKeyframe(1)
+            } else if leaving {
+                MoveKeyframe(1)
+                LinearKeyframe(0, duration: 0.12, timingCurve: exitCurve)
             } else {
-                MoveKeyframe(0.6)
-                LinearKeyframe(0.6, duration: 0.24)
-                SpringKeyframe(1, duration: 0.42, spring: Spring(duration: 0.4, bounce: 0.25))
+                MoveKeyframe(0)
+                LinearKeyframe(0, duration: 0.44)
+                SpringKeyframe(1, duration: 0.24, spring: Spring(duration: 0.32, bounce: 0.35))
                 LinearKeyframe(1, duration: 0.04)
             }
         }
@@ -370,9 +375,37 @@ enum SlideMotion {
                 MoveKeyframe(0)
             } else {
                 MoveKeyframe(0)
-                LinearKeyframe(0, duration: 0.3)
-                LinearKeyframe(1, duration: 0.7, timingCurve: Celebrate.sweepCurve)
+                LinearKeyframe(0, duration: 0.34)
+                LinearKeyframe(1, duration: 0.71, timingCurve: Celebrate.sweepCurve)
             }
+        }
+    }
+
+    /// A layer: in from off its edge after `start`, or (leaving) out again after `out`.
+    @KeyframeTrackContentBuilder<Double>
+    private static func layer(start: Double, length: Double, out: Double, _ leaving: Bool, _ reduceMotion: Bool) -> some KeyframeTrackContent<Double> {
+        if reduceMotion {
+            MoveKeyframe(0)
+        } else if leaving {
+            MoveKeyframe(0)
+            LinearKeyframe(0, duration: out)
+            LinearKeyframe(1, duration: 0.28, timingCurve: exitCurve)
+        } else {
+            MoveKeyframe(1)
+            LinearKeyframe(1, duration: start)
+            LinearKeyframe(0, duration: length, timingCurve: inCurve)
+        }
+    }
+
+    /// A reveal: 0 to 1 after `start`; it stays revealed as it leaves.
+    @KeyframeTrackContentBuilder<Double>
+    private static func reveal(start: Double, length: Double, _ leaving: Bool, _ reduceMotion: Bool) -> some KeyframeTrackContent<Double> {
+        if reduceMotion || leaving {
+            MoveKeyframe(1)
+        } else {
+            MoveKeyframe(0)
+            LinearKeyframe(0, duration: start)
+            LinearKeyframe(1, duration: length, timingCurve: inCurve)
         }
     }
 
@@ -390,6 +423,16 @@ enum SlideMotion {
 
     /// Seconds from a slide beginning to its exit being done.
     static func length(hold: Double) -> Double { land + hold + exitLength }
+
+    /// The page's scoreboard `t` seconds after a slide on it began (the
+    /// harness's frozen clock): stepping aside as the bar comes in, gone
+    /// while it holds, back once it has left.
+    static func cover(at t: Double, hold: Double) -> Double {
+        let back = length(hold: hold)
+        if t < 0 || t >= back + coverIn { return 1 }
+        if t < coverOut { return 1 - t / coverOut }
+        return t < back ? 0 : (t - back) / coverIn
+    }
 }
 
 // MARK: - Host
@@ -468,10 +511,48 @@ private struct SlidePlacement: ViewModifier {
     }
 }
 
+// MARK: - Cover
+
+/// The page's scoreboard steps aside while its slide is up, and comes back
+/// once the slide has gone: the hero card (its glass and all) under the bar
+/// is never seen around it. Only for a slide on the hero; one under the
+/// docked bar leaves the bar be. Reads which scoreboard shows only while a
+/// slide does, as the host does.
+struct SlideCover: ViewModifier {
+    let slides: ScoringSlides
+    @Environment(\.scoreboardSurface) private var current
+    #if DEBUG
+    @Environment(\.dockProgressOverride) private var override
+    @Environment(\.slideOverride) private var harness
+    @Environment(\.celebrationClock) private var clock
+    #else
+    private let override: Double? = nil
+    #endif
+
+    func body(content: Content) -> some View {
+        let covered = slides.current != nil && onHero
+        content
+            .opacity(frozen ?? (covered ? 0 : 1))
+            .animation(frozen == nil ? .easeOut(duration: covered ? SlideMotion.coverOut : SlideMotion.coverIn) : nil, value: covered)
+    }
+
+    /// The harness's frozen clock: the cover at its instant.
+    private var frozen: Double? {
+        #if DEBUG
+        if let harness, case let .frozen(t) = clock, onHero { return SlideMotion.cover(at: t - harness.at, hold: harness.slide.hold) }
+        #endif
+        return nil
+    }
+
+    private var onHero: Bool { (override.map(DockRules.surface(p:)) ?? current?.current ?? .hero) == .hero }
+}
+
 // MARK: - Bar
 
-/// One slide: the stripe and the slab wiping in from its edge, the logo
-/// large, the headline, the subline, the chip and the score.
+/// One slide, a broadcast lower third: the kicker tab in the second color,
+/// the slab in the team's (the logo in its zone, the headline, the tally),
+/// the detail strip, and the chip, wiping in from the scorer's side. Hard
+/// edges; every slanted one leans with the italic type, from either side.
 struct ScoringSlideBar: View {
     let slide: ScoringSlide
     let leaving: Bool
@@ -483,7 +564,6 @@ struct ScoringSlideBar: View {
     @Environment(\.celebrationLevel) private var level
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.panelLayout) private var layout
-    @Environment(\.colorScheme) private var scheme
     /// Steps once on appear (the wipe in) and once to leave.
     @State private var phase = Phase.waiting
     /// It had already landed when this bar appeared (it moved to the other
@@ -519,6 +599,8 @@ struct ScoringSlideBar: View {
             }
         }
         .frame(minHeight: metrics.height, maxHeight: fills ? .infinity : metrics.height)
+        // In from the page's own edge, past the card's inset.
+        .padding(slide.edge == .leading ? .leading : .trailing, -SlideMetrics.bleed)
         .overlay { if !arrivedLanded { SlideBurst(slide: slide, metrics: metrics, start: start + SlideMotion.burstAt) } }
         .onAppear { if clock == .live, !arrivedLanded { phase = .entering } }
         .onChange(of: leaving) { _, now in if now { phase = .leaving } }
@@ -528,107 +610,169 @@ struct ScoringSlideBar: View {
         #if DEBUG
         Self.poses += 1
         #endif
-        let leading = slide.edge == .leading
+        let leading = slide.edge == .leading, far: Edge.Set = leading ? .trailing : .leading
         // Off toward the edge it came from.
         let away: CGFloat = leading ? -1 : 1
-        let shape = SlabShape(slant: m.slant, cut: m.stripe, enters: slide.edge)
-        return ZStack {
-            // The stripe: the whole bar in the second color, which the slab covers but for its cut.
-            SlabShape(slant: m.slant, cut: 0, enters: slide.edge)
-                .fill(paint.stripeColor)
-                .shadow(color: .black.opacity(scheme == .dark ? 0.45 : 0.2), radius: 10, y: 4)
-                .across(pose.stripe, away)
-            ZStack {
-                shape.fill(LinearGradient(colors: [Color(nsColor: paint.slab.lifted(0.045).nsColor), paint.slabColor,
-                                                   Color(nsColor: paint.slab.lifted(-0.05).nsColor)],
-                                          startPoint: .top, endPoint: .bottom))
-                // A hairline of light along the top edge.
-                shape.stroke(LinearGradient(colors: [.white.opacity(0.28), .white.opacity(0)], startPoint: .top, endPoint: .center),
-                             lineWidth: 1)
-                    .clipShape(shape)
-                if slide.tier >= .big, level == .full, !reduceMotion, pose.sheen > 0, pose.sheen < 1 {
-                    SlideSheen(progress: pose.sheen, alpha: paint.lightInk ? 0.30 : 0.45).clipShape(shape)
-                }
-                content(pose, m, paint)
-                    .offset(x: away * SlideMotion.lag * pose.lag)
-                    .opacity(1 - pose.lag)
+        return VStack(alignment: leading ? .leading : .trailing, spacing: 0) {
+            kickerRow(pose, m, paint, away: away)
+            slab(pose, m, paint)
+                .padding(far, m.far)
+                .across(pose.slab, away)
+            // Shorter than the slab, or its length when the words need it.
+            ViewThatFits(in: .horizontal) {
+                strip(pose, m, short: true)
+                strip(pose, m, short: false)
             }
-            .across(pose.slab, away)
+            .across(pose.detail, away)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .opacity(pose.opacity)
     }
 
-    private func content(_ pose: SlidePose, _ m: SlideMetrics, _ paint: SlidePaint) -> some View {
-        let leading = slide.edge == .leading
-        let mark = logo(m, paint).scaleEffect(pose.logo)
-        let words = VStack(alignment: leading ? .leading : .trailing, spacing: 0) {
-            ViewThatFits(in: .horizontal) {
-                headline(slide.headline, m, paint)
-                if let short = slide.short { headline(short, m, paint) }
-            }
-            Text(slide.subline)
-                .font(.system(size: m.subline, weight: .semibold))
-                .foregroundStyle(paint.ink.opacity(0.86))
-                .lineLimit(1)
-                .minimumScaleFactor(0.88)
-                .truncationMode(.tail)
-        }
-        .layoutPriority(1)
-        let tally = VStack(alignment: leading ? .trailing : .leading, spacing: 3) {
-            if let chip = slide.chip {
-                Text(chip)
-                    .font(.system(size: m.chip, weight: .heavy, design: .rounded).monospacedDigit())
-                    .foregroundStyle(paint.slabColor)
-                    .padding(.horizontal, m.chip * 0.36)
-                    .background(Capsule().fill(paint.ink))
-                    .fixedSize()
-                    .scaleEffect(pose.chip)
-            }
-            if let score = slide.score {
-                Text(score)
-                    .font(.system(size: m.score, weight: .bold).monospacedDigit())
-                    .foregroundStyle(paint.ink.opacity(0.9))
-                    .lineLimit(1)
-                    .fixedSize()
-            }
-        }
-        return HStack(spacing: 12) {
-            if leading {
-                mark
-                words
-                Spacer(minLength: 6)
-                tally
-            } else {
-                tally
-                Spacer(minLength: 6)
-                words
-                mark
-            }
-        }
-        .padding(.leading, leading ? 14 : m.cutInset)
-        .padding(.trailing, leading ? m.cutInset : 14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func headline(_ text: String, _ m: SlideMetrics, _ paint: SlidePaint) -> some View {
-        Text(text)
-            .font(.system(size: m.headline, weight: .heavy).width(.condensed))
-            .tracking(m.headline * 0.02)
-            .foregroundStyle(paint.ink)
+    /// The detail strip: the subline, revealed on the type's lean.
+    private func strip(_ pose: SlidePose, _ m: SlideMetrics, short: Bool) -> some View {
+        let leading = slide.edge == .leading, near: Edge.Set = leading ? .leading : .trailing, far: Edge.Set = leading ? .trailing : .leading
+        return Text(slide.subline)
+            .font(.system(size: m.subline, weight: .bold).width(.condensed))
+            .tracking(m.subline * 0.07)
+            .textCase(.uppercase)
+            .foregroundStyle(.white.opacity(0.9))
             .lineLimit(1)
-            .minimumScaleFactor(0.72)
+            .minimumScaleFactor(0.8)
+            .padding(.horizontal, 4)
+            .mask { RevealShape(progress: pose.subline, enters: slide.edge) }
+            .padding(near, m.text - 4)
+            .padding(far, m.detail * SlideMetrics.lean + 8)
+            .frame(maxWidth: .infinity, alignment: leading ? .leading : .trailing)
+            .frame(height: m.detail)
+            .background(CutShape(enters: slide.edge).fill(Color(red: 0.043, green: 0.047, blue: 0.059).opacity(0.95)))
+            .padding(far, m.far + (short ? m.detailShort : 0))
     }
 
-    /// The team's logo (its dark-background variant on a dark slab) or the
-    /// climber's flag, seated on a soft glow of the type's color.
+    /// The kicker tab at the near end and the chip over the tally at the far end.
+    private func kickerRow(_ pose: SlidePose, _ m: SlideMetrics, _ paint: SlidePaint, away: CGFloat) -> some View {
+        let leading = slide.edge == .leading
+        return Color.clear
+            .frame(height: m.kicker)
+            .overlay(alignment: leading ? .leading : .trailing) {
+                if let kicker = slide.kicker {
+                    Text(kicker)
+                        .font(.system(size: m.kickerType, weight: .black).width(.condensed))
+                        .tracking(m.kickerType * 0.06)
+                        .textCase(.uppercase)
+                        .foregroundStyle(paint.stripeInk)
+                        .lineLimit(1)
+                        .oblique()
+                        .padding(leading ? .leading : .trailing, SlideMetrics.bleed + m.logoInset - 10)
+                        .padding(leading ? .trailing : .leading, m.kicker * SlideMetrics.lean + 12)
+                        .frame(height: m.kicker)
+                        .background(CutShape(enters: slide.edge).fill(paint.stripeColor))
+                        .across(pose.kicker, away)
+                }
+            }
+            .overlay(alignment: leading ? .bottomTrailing : .bottomLeading) {
+                if let chip = slide.chip {
+                    Text(chip)
+                        .font(.system(size: m.chipType, weight: .black).width(.condensed).monospacedDigit())
+                        .foregroundStyle(paint.stripeInk)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .oblique()
+                        .frame(minWidth: m.chip.width, minHeight: m.chip.height)
+                        .background(LeanShape().fill(paint.stripeColor))
+                        .scaleEffect(0.45 + 0.55 * pose.chip)
+                        .opacity(min(max(pose.chip * 1.6, 0), 1))
+                        .offset(y: 2)
+                        .padding(leading ? .trailing : .leading, m.far + m.slab * SlideMetrics.lean + 14)
+                }
+            }
+            .zIndex(1)
+    }
+
+    /// The slab: the logo's zone and its slash, the logo, the headline, the
+    /// tally, the hairline of light and the sheen.
+    private func slab(_ pose: SlidePose, _ m: SlideMetrics, _ paint: SlidePaint) -> some View {
+        let leading = slide.edge == .leading, shape = CutShape(enters: slide.edge)
+        return ZStack(alignment: leading ? .leading : .trailing) {
+            shape.fill(LinearGradient(colors: [Color(nsColor: paint.slab.lifted(0.06).nsColor), paint.slabColor],
+                                      startPoint: .top, endPoint: .bottom))
+            ZoneShape(zone: m.zone, slash: 0, enters: slide.edge).fill(.black.opacity(0.26))
+            ZoneShape(zone: m.zone, slash: 5, enters: slide.edge).fill(paint.stripeColor)
+            // A hairline of light along the top edge.
+            Rectangle().fill(.white.opacity(0.22)).frame(height: 1).frame(maxHeight: .infinity, alignment: .top)
+            if slide.tier >= .big, level == .full, !reduceMotion, pose.sheen > 0, pose.sheen < 1 {
+                SlideSheen(progress: pose.sheen, alpha: paint.lightInk ? 0.26 : 0.4)
+            }
+            HStack(spacing: 10) {
+                if !leading { tally(pose, m, paint) }
+                ViewThatFits(in: .horizontal) {
+                    headline(slide.headline, m, paint, reveal: pose.headline)
+                    if let short = slide.short { headline(short, m, paint, reveal: pose.headline) }
+                    headline(slide.headline, m, paint, reveal: pose.headline).minimumScaleFactor(0.6)
+                }
+                .frame(maxWidth: .infinity, alignment: leading ? .leading : .trailing)
+                if leading { tally(pose, m, paint) }
+            }
+            .padding(leading ? .leading : .trailing, m.text - 6)
+            .padding(leading ? .trailing : .leading, m.slab * SlideMetrics.lean + 10)
+            logo(m, paint)
+                .scaleEffect(pose.logo)
+                .opacity(min(max((pose.logo - 0.6) / 0.25, 0), 1))
+                .padding(leading ? .leading : .trailing, m.logoInset)
+        }
+        .frame(height: m.slab)
+        .clipShape(shape)
+    }
+
+    private func headline(_ text: String, _ m: SlideMetrics, _ paint: SlidePaint, reveal: Double) -> some View {
+        Text(text)
+            .font(.system(size: m.headline, weight: .black).width(.condensed))
+            .foregroundStyle(paint.ink)
+            .shadow(color: .black.opacity(paint.lightInk ? 0.25 : 0), radius: 0, y: 1)
+            .lineLimit(1)
+            .oblique()
+            // Room for the italic's lean inside the reveal.
+            .padding(.horizontal, 6)
+            .mask { RevealShape(progress: reveal, enters: slide.edge) }
+    }
+
+    /// The new score at the far end: the scorer's row in full ink, the other's
+    /// quieter. Without both teams' scores, the slide's own score line.
+    @ViewBuilder
+    private func tally(_ pose: SlidePose, _ m: SlideMetrics, _ paint: SlidePaint) -> some View {
+        let font = Font.system(size: m.tally, weight: .heavy).width(.condensed).monospacedDigit()
+        Group {
+            if let tally = slide.tally {
+                Grid(alignment: .trailing, horizontalSpacing: m.tally * 0.55, verticalSpacing: 0) {
+                    GridRow {
+                        Text(tally.mine.team)
+                        Text("\(tally.mine.score)")
+                    }
+                    GridRow {
+                        Text(tally.theirs.team).opacity(0.55)
+                        Text("\(tally.theirs.score)").opacity(0.55)
+                    }
+                }
+            } else if let score = slide.score {
+                Text(score)
+            }
+        }
+        .font(font)
+        .tracking(m.tally * 0.03)
+        .foregroundStyle(paint.ink)
+        .lineLimit(1)
+        .fixedSize()
+        .oblique()
+        .padding(.trailing, 2)
+        .opacity(pose.tally)
+        .offset(y: (1 - pose.tally) * 5)
+    }
+
+    /// The team's logo (its dark-background variant on a dark slab) or the climber's flag.
     private func logo(_ m: SlideMetrics, _ paint: SlidePaint) -> some View {
-        ZStack {
-            Circle()
-                .fill(RadialGradient(colors: [paint.ink.opacity(0.24), paint.ink.opacity(0.10), paint.ink.opacity(0)],
-                                     center: .center, startRadius: 0, endRadius: m.logo * 0.8))
-                .frame(width: m.logo * 1.6, height: m.logo * 1.6)
+        Group {
             if let flag = slide.flag {
-                Text(flag).font(.system(size: m.logo * 0.78))
+                Text(flag).font(.system(size: m.logo * 0.8))
             } else if let team = slide.team {
                 LogoView(url: team.logo, darkURL: team.darkLogo, size: SlideMetrics.logoBase)
                     .scaleEffect(m.logo / SlideMetrics.logoBase)
@@ -645,41 +789,106 @@ extension OKLab {
 }
 
 private extension View {
-    /// Moved off toward an edge by `fraction` of its own width (plus room for the shadow).
+    /// Slanted to SF Pro Italic's 12° about its middle: SF has no condensed
+    /// italic (its italic has no width axis, so `.italic()` on a condensed
+    /// font draws upright), and the lean matches every edge and reveal in the bar.
+    func oblique() -> some View {
+        visualEffect { content, proxy in
+            content.transformEffect(CGAffineTransform(a: 1, b: 0, c: -SlideMetrics.lean, d: 1,
+                                                      tx: SlideMetrics.lean * proxy.size.height / 2, ty: 0))
+        }
+    }
+
+    /// Moved off toward an edge by `fraction` of its own width (plus a little room).
     func across(_ fraction: Double, _ direction: CGFloat) -> some View {
         visualEffect { content, proxy in
-            content.offset(x: direction * CGFloat(fraction) * (proxy.size.width + 40))
+            content.offset(x: direction * CGFloat(fraction) * (proxy.size.width + 24))
         }
     }
 }
 
-/// The bar's shape: rounded at the edge it enters from, cut on a slant at
-/// the edge that leads its travel. `cut` stops the shape short of the bar's
-/// end (the slab inside the stripe).
-struct SlabShape: Shape {
-    var slant: CGFloat
-    var cut: CGFloat
+/// A layer's shape: square at the edge it enters from, its far end cut on
+/// the type's lean (the top further right, from either side).
+struct CutShape: Shape {
     var enters: HorizontalEdge
-    var radius: CGFloat = 14
 
     func path(in rect: CGRect) -> Path {
-        let r = min(radius, rect.height / 2)
-        // Drawn entering from the left; mirrored for the right.
-        let top = rect.maxX - cut, bottom = rect.maxX - cut - slant
+        let d = rect.height * SlideMetrics.lean
         var p = Path()
-        p.move(to: CGPoint(x: rect.minX, y: rect.midY))
-        p.addArc(tangent1End: CGPoint(x: rect.minX, y: rect.minY), tangent2End: CGPoint(x: top, y: rect.minY), radius: r)
-        p.addLine(to: CGPoint(x: top, y: rect.minY))
-        p.addLine(to: CGPoint(x: bottom, y: rect.maxY))
-        p.addArc(tangent1End: CGPoint(x: rect.minX, y: rect.maxY), tangent2End: CGPoint(x: rect.minX, y: rect.minY), radius: r)
+        if enters == .leading {
+            p.addLines([CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
+                        CGPoint(x: rect.maxX - d, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)])
+        } else {
+            p.addLines([CGPoint(x: rect.minX + d, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
+                        CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)])
+        }
         p.closeSubpath()
-        guard enters == .trailing else { return p }
-        return p.applying(CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: rect.minX + rect.maxX, ty: 0))
+        return p
     }
 }
 
-/// One sheen across the slab as it lands: a soft band of light at 18°, a
-/// gradient (never a blend or a blur), as the Wallet pass glints.
+/// The chip's tag: a parallelogram on the type's lean.
+struct LeanShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let d = rect.height * SlideMetrics.lean
+        var p = Path()
+        p.addLines([CGPoint(x: rect.minX + d, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY),
+                    CGPoint(x: rect.maxX - d, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)])
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// The logo's zone at the slab's near end (`slash` 0), or its slash in the
+/// second color just past it (`slash`: its width), the edge on the type's
+/// lean. `zone` is the edge's distance from the near end at mid-height.
+struct ZoneShape: Shape {
+    var zone: CGFloat
+    var slash: CGFloat
+    var enters: HorizontalEdge
+
+    func path(in rect: CGRect) -> Path {
+        let d = rect.height * SlideMetrics.lean
+        // The edge at the bottom, and the band from it (the zone runs to the near end).
+        let leading = enters == .leading
+        let edge = leading ? rect.minX + zone - d / 2 : rect.maxX - zone - d / 2
+        let (a, b): (CGFloat, CGFloat) = slash == 0
+            ? (leading ? (rect.minX - d - 1, edge) : (edge, rect.maxX + 1))
+            : (leading ? (edge, edge + slash) : (edge - slash, edge))
+        var p = Path()
+        p.addLines([CGPoint(x: a + d, y: rect.minY), CGPoint(x: b + d, y: rect.minY),
+                    CGPoint(x: b, y: rect.maxY), CGPoint(x: a, y: rect.maxY)])
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// What's shown of type being revealed: everything behind an edge on the
+/// type's lean, travelling away from the edge the bar came in from.
+struct RevealShape: Shape {
+    var progress: Double
+    var enters: HorizontalEdge
+
+    func path(in rect: CGRect) -> Path {
+        let d = rect.height * SlideMetrics.lean, pad: CGFloat = 2
+        var p = Path()
+        if enters == .leading {
+            // The edge's foot runs from just before the type to just past it.
+            let x = rect.minX - d - pad + CGFloat(progress) * (rect.width + d + 2 * pad)
+            p.addLines([CGPoint(x: rect.minX - pad, y: rect.minY), CGPoint(x: x + d, y: rect.minY),
+                        CGPoint(x: x, y: rect.maxY), CGPoint(x: rect.minX - pad, y: rect.maxY)])
+        } else {
+            let x = rect.maxX + pad - CGFloat(progress) * (rect.width + d + 2 * pad)
+            p.addLines([CGPoint(x: x + d, y: rect.minY), CGPoint(x: rect.maxX + pad, y: rect.minY),
+                        CGPoint(x: rect.maxX + pad, y: rect.maxY), CGPoint(x: x, y: rect.maxY)])
+        }
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// One sheen across the slab as it lands: a soft band of light on the
+/// type's lean, a gradient (never a blend or a blur), as the Wallet pass glints.
 private struct SlideSheen: View {
     let progress: Double
     let alpha: Double
@@ -689,7 +898,7 @@ private struct SlideSheen: View {
             let width = max(56, size.height * 0.9)
             var g = context
             g.translateBy(x: -width + (size.width + 2 * width) * progress, y: size.height / 2)
-            g.rotate(by: .degrees(18))
+            g.rotate(by: .degrees(12))
             let reach = size.height * 1.6 + width
             g.fill(Path(CGRect(x: -width / 2, y: -reach / 2, width: width, height: reach)),
                    with: .linearGradient(Gradient(colors: [.white.opacity(0), .white.opacity(alpha), .white.opacity(0)]),
@@ -783,9 +992,10 @@ struct SlideBurst: View {
         let team = CelebrationPalette(primary: paint.stripeColor,
                                       tint: Color(nsColor: paint.slab.lifted(max(0.62 - paint.slab.l, 0.18)).nsColor))
         return Canvas { context, size in
-            let x = leading ? Self.margin + 14 + m.logo / 2 : size.width - Self.margin - 14 - m.logo / 2
+            // At the logo: in from the page's edge, on the slab (the layers centered as one).
+            let x = leading ? Self.margin + m.logoInset + m.logo / 2 : size.width - Self.margin - m.logoInset - m.logo / 2
             var layer = context
-            layer.translateBy(x: x, y: size.height / 2)
+            layer.translateBy(x: x, y: size.height / 2 + (m.kicker - m.detail) / 2)
             layer.scaleBy(x: Self.scale, y: Self.scale)
             if let confetti = cues.confetti {
                 Celebration.draw(Celebration.particles(confetti, origin: .zero, t: t), in: layer, palette: team)

@@ -304,6 +304,7 @@ struct DetailView: View {
               // while the hero (not the docked bar) is the scoreboard on screen.
               .scoreboardGlint(beats.glints, in: RoundedRectangle(cornerRadius: Metrics.heroRadius, style: .continuous), on: .hero)
               // A score's slide takes the card over while it holds (out of the hierarchy between scores).
+              .modifier(SlideCover(slides: slides))
               .overlay { ScoringSlideHost(slides: slides, surface: .hero) }
               coStreamBadge
               staleNote
@@ -345,6 +346,7 @@ struct DetailView: View {
             // One hero style everywhere: clear glass over the page's wash.
             .floatingGlass(in: RoundedRectangle(cornerRadius: Metrics.heroRadius, style: .continuous), clear: true, interactive: false)
             .scoreboardGlint(beats.glints, in: RoundedRectangle(cornerRadius: Metrics.heroRadius, style: .continuous), on: .hero)
+            .modifier(SlideCover(slides: slides))
             .overlay { ScoringSlideHost(slides: slides, surface: .hero) }
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(event.state == .live ? [.isHeader, .updatesFrequently] : .isHeader)

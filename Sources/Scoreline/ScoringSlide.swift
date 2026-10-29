@@ -33,9 +33,11 @@ struct ScoringFacts: Equatable {
     var clock: String?
     /// The inning, quarter or half.
     var period: Int?
+    /// Baseball: the half of the inning, as ESPN names it ("Top", "Bottom").
+    var half: String?
 
     init(top: Int? = nil, bottom: Int? = nil, value: Int? = nil, text: String? = nil, type: String? = nil,
-         clock: String? = nil, period: Int? = nil) {
+         clock: String? = nil, period: Int? = nil, half: String? = nil) {
         self.top = top
         self.bottom = bottom
         self.value = value
@@ -43,6 +45,7 @@ struct ScoringFacts: Equatable {
         self.type = type
         self.clock = clock
         self.period = period
+        self.half = half
     }
 
     /// A baseball play-result. ESPN's score fields are the score after it,
@@ -57,6 +60,7 @@ struct ScoringFacts: Equatable {
         text = item["text"].string
         type = item["alternativeType"]["type"].string
         period = item["period"]["number"].int
+        half = item["period"]["type"].string
     }
 
     /// A football scoring play: the score after it (its try included, once
@@ -172,6 +176,10 @@ struct ScoringSlide: Equatable, Identifiable {
     var subline: String
     /// The new score, the scorer's first: "MIL 5–2".
     var score: String? = nil
+    /// The tab over the bar: the team and when ("Brewers · Top 12th"); nil with neither.
+    var kicker: String? = nil
+    /// The new score as two rows at the bar's far end, the scorer's first; nil without both teams and the score.
+    var tally: Tally? = nil
     /// Its one VoiceOver announcement: "Brewers home run, Yelich, 2 runs, Brewers lead 5 to 2".
     var spoken: String
     /// Whose colors and logo it wears.
@@ -183,6 +191,16 @@ struct ScoringSlide: Equatable, Identifiable {
     var moment: LiveMoment
     /// It plays the page's confetti for its moment (decided as it's queued).
     var confetti = false
+
+    /// A side's row in the tally: "MIL 3".
+    struct Tally: Equatable {
+        struct Row: Equatable {
+            var team: String
+            var score: Int
+        }
+        var mine: Row
+        var theirs: Row
+    }
 
     /// Seconds on screen once the wipe has landed, before it leaves.
     var hold: Double { tier == .top ? 6 : 4.5 }
@@ -206,7 +224,7 @@ extension ScoringSlide {
     /// match won. Climbing, in a final: a top, a new leader, the final won.
     /// `batted` is Statcast's measurement of a home run, once it's in. (pure; tested)
     static func make(_ m: LiveMoment, context: SlideContext, batted: Statcast.Batted? = nil) -> ScoringSlide? {
-        switch m.chart {
+        let made: ScoringSlide? = switch m.chart {
         case .plate: baseball(m, context, batted: batted)
         case .field: football(m, context)
         case .pitch: soccer(m, context)
@@ -215,6 +233,27 @@ extension ScoringSlide {
         case .ascent: climbing(m, context)
         default: nil
         }
+        guard var slide = made else { return nil }
+        if let side = slide.side {
+            slide.kicker = kicker(team: slide.team, when: SlideWords.period(m))
+            slide.tally = tally(side, m.facts, context)
+        }
+        return slide
+    }
+
+    /// "Brewers · Top 12th": who and when, either alone, nil with neither.
+    static func kicker(team: SlideTeam?, when: String?) -> String? {
+        let parts = [team?.name, when].compactMap { $0 }.filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// Both rows of the new score, the scorer's first, once both teams and the score are known.
+    static func tally(_ side: GameDetail.Side, _ facts: ScoringFacts?, _ c: SlideContext) -> Tally? {
+        guard let top = facts?.top, let bottom = facts?.bottom, let me = c.team(side), let them = c.team(MatchRules.opposite(side)) else {
+            return nil
+        }
+        let (mine, theirs) = side == .top ? (top, bottom) : (bottom, top)
+        return Tally(mine: .init(team: me.abbreviation, score: mine), theirs: .init(team: them.abbreviation, score: theirs))
     }
 
     /// "MIL 5–2" (the scorer's number first) and how VoiceOver says where the
@@ -343,7 +382,8 @@ extension ScoringSlide {
         let scorer = goal.team.map { "\(goal.scorer), \($0)" } ?? goal.scorer
         return ScoringSlide(
             id: m.id, side: side, tier: m.decisive ? .top : .big, headline: headline, short: short, chip: "+1",
-            subline: [scorer, goal.how, goal.assist.map { "assisted by \($0)" }, minute].compactMap { $0 }.joined(separator: " · "),
+            // The minute is in the kicker.
+            subline: [scorer, goal.how, goal.assist.map { "assisted by \($0)" }].compactMap { $0 }.joined(separator: " · "),
             score: stands.line,
             spoken: spoken([[team?.name, said].compactMap { $0 }.joined(separator: " "), scorer, goal.how,
                             goal.assist.map { "assisted by \($0)" }, SlideWords.minute(minute), stands.spoken]),
@@ -724,6 +764,26 @@ enum SlideWords {
         return "\(first). " + words.dropFirst().joined(separator: " ")
     }
 
+    /// When a score happened, as the kicker says it: "Top 12th", "Bot 9th"
+    /// (an unknown half: "12th Inn"), "2nd Qtr", "OT", "2OT", "67'"; nil
+    /// where the sport has no period to name (CS2, climbing).
+    static func period(_ m: LiveMoment) -> String? {
+        let f = m.facts
+        switch m.chart {
+        case .plate:
+            guard let n = f?.period else { return nil }
+            let half = f?.half?.lowercased()
+            return half == "top" ? "Top \(Ordinal.string(n))" : half == "bottom" ? "Bot \(Ordinal.string(n))" : "\(Ordinal.string(n)) Inn"
+        case .field, .court:
+            guard let n = f?.period else { return nil }
+            return n > 4 ? Period.overtime(n - 4) : "\(Ordinal.string(n)) Qtr"
+        case .pitch:
+            return minuteMark(f?.clock)
+        default:
+            return nil
+        }
+    }
+
     /// The minute as soccer writes it: "37'", stoppage time "90+3'" (ESPN sends "90'+3'").
     static func minuteMark(_ clock: String?) -> String? {
         guard let clock, !clock.isEmpty else { return nil }
@@ -755,6 +815,24 @@ struct SlidePaint: Equatable {
     var slabColor: Color { Color(nsColor: slab.nsColor) }
     var stripeColor: Color { Color(nsColor: stripe.nsColor) }
     var ink: Color { lightInk ? .white : Color(white: 0.08) }
+    /// Type on the second color (the kicker, the chip): the slab's own color
+    /// where it reads there (navy on gold), else white or near-black.
+    var stripeInk: Color {
+        if Self.contrast(slab, stripe) >= 4.5 { return slabColor }
+        return Self.lightInk(on: stripe) ? .white : Color(white: 0.08)
+    }
+
+    /// The WCAG contrast ratio of two colors.
+    static func contrast(_ a: OKLab, _ b: OKLab) -> Double {
+        let (x, y) = (luminance(a), luminance(b))
+        return (max(x, y) + 0.05) / (min(x, y) + 0.05)
+    }
+
+    private static func luminance(_ lab: OKLab) -> Double {
+        let c = lab.rgb
+        func linear(_ v: Double) -> Double { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+        return 0.2126 * linear(c.r) + 0.7152 * linear(c.g) + 0.0722 * linear(c.b)
+    }
 
     /// Near black or near white, with no hue to speak of.
     private static func neutral(_ lab: OKLab) -> Bool { lab.chroma < 0.04 && (lab.l < 0.25 || lab.l > 0.93) }
@@ -798,9 +876,7 @@ struct SlidePaint: Equatable {
     /// WCAG contrast of white and of near-black type on the slab: white when
     /// it reaches 4:1 (the headline is large type) or beats black.
     static func lightInk(on slab: OKLab) -> Bool {
-        let c = slab.rgb
-        func linear(_ v: Double) -> Double { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
-        let luminance = 0.2126 * linear(c.r) + 0.7152 * linear(c.g) + 0.0722 * linear(c.b)
+        let luminance = luminance(slab)
         let white = 1.05 / (luminance + 0.05), black = (luminance + 0.05) / 0.05
         return white >= 4 || white > black
     }

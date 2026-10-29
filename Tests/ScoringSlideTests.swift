@@ -59,6 +59,14 @@ extension ScorelineTests {
         check(yelich?.headline == "RBI SINGLE" && yelich?.chip == "+1" && yelich?.subline == "Yelich singles to left · Chourio scores"
               && yelich?.score == "MIL 1–0" && yelich?.side == .top && yelich?.edge == .leading && yelich?.tier == .normal,
               "Yelich's RBI single: the Brewers' bar from the left, “Yelich singles to left · Chourio scores”, MIL 1–0", say(yelich))
+        check(yelich?.kicker?.hasPrefix("Brewers · Top ") == true
+              && yelich?.tally == .init(mine: .init(team: "MIL", score: 1), theirs: .init(team: "TB", score: 0)),
+              "its kicker (Brewers · Top …) and its tally, the Brewers' row first: MIL 1 over TB 0", "\(yelich?.kicker ?? "nil") \(String(describing: yelich?.tally))")
+        if var m = yelich?.moment {
+            m.facts?.half = nil
+            m.facts?.period = 12
+            check(SlideWords.period(m) == "12th Inn", "an inning whose half isn't known: 12th Inn", SlideWords.period(m) ?? "nil")
+        }
         check(yelich?.spoken == "Brewers RBI single, Yelich, 1 run, Brewers lead 1 to 0",
               "…said once: “Brewers RBI single, Yelich, 1 run, Brewers lead 1 to 0”", yelich?.spoken ?? "nil")
         let turang = g3Slides.first { $0.id == "4019080440806990057" }
@@ -72,6 +80,8 @@ extension ScorelineTests {
         check(diaz?.headline == "RBI DOUBLE" && diaz?.side == .bottom && diaz?.edge == .trailing && diaz?.score == "TB 1–10"
               && diaz?.spoken.hasSuffix("Brewers lead 10 to 1") == true,
               "a Rays run comes in from the right, their number first (TB 1–10), and says who leads", say(diaz))
+        check(diaz?.kicker?.hasPrefix("Rays · Bot ") == true && diaz?.tally?.mine == .init(team: "TB", score: 1) && diaz?.tally?.theirs.score == 10,
+              "the Rays' kicker in the bottom half (Rays · Bot …) and their row first in the tally", diaz?.kicker ?? "nil")
 
         // A run that isn't a hit: an error, and two on one play.
         let error = JSON(["id": "e1", "type": ["type": "play-result"], "alternativeType": ["type": "reached-on-error"],
@@ -155,6 +165,17 @@ extension ScorelineTests {
               && lamb?.side == .top,
               "a passing touchdown names the passer; the two-point run makes it +8", say(lamb))
         let aubrey = fb("9213")
+        if var m = aubrey?.moment {
+            m.facts?.period = 2
+            let q2 = SlideWords.period(m)
+            m.facts?.period = 5
+            let ot = SlideWords.period(m)
+            m.facts?.period = 6
+            check(q2 == "2nd Qtr" && ot == "OT" && SlideWords.period(m) == "2OT" && aubrey?.kicker?.hasPrefix("Cowboys · ") == true,
+                  "football's kicker: the team, then 2nd Qtr, OT, 2OT", "\(q2 ?? "nil") \(ot ?? "nil") \(aubrey?.kicker ?? "nil")")
+        }
+        check(ScoringSlide.kicker(team: nil, when: nil) == nil && ScoringSlide.kicker(team: nil, when: "OT") == "OT",
+              "a kicker with nothing to say is none; with only a time, the time")
         check(aubrey?.headline == "FIELD GOAL" && aubrey?.chip == "+3" && aubrey?.subline == "B. Aubrey from 55 yards" && aubrey?.tier == .normal,
               "a 55-yard field goal: a normal slide", say(aubrey))
         let pick = LiveMoment(id: "pick", chart: .field, tier: .score, kind: .touchdown, lead: "Touchdown",
@@ -206,21 +227,22 @@ extension ScorelineTests {
         check(goals.count == 15 && goals.values.allSatisfy { a, c, _, _ in a.moment.flatMap { ScoringSlide.make($0, context: c) } != nil },
               "every goal slides", "\(goals.count) goals")
         let haaland = goal("54149975")
-        check(haaland?.headline == "GOAL" && haaland?.chip == "+1" && haaland?.subline == "Erling Haaland · header · assisted by Iliman Ndiaye · 52'"
+        check(haaland?.headline == "GOAL" && haaland?.chip == "+1" && haaland?.subline == "Erling Haaland · header · assisted by Iliman Ndiaye"
+              && haaland?.kicker == "Manchester City · 52'"
               && haaland?.score == "MNC 1–1" && haaland?.side == .bottom && haaland?.tier == .big,
-              "Haaland's header: scorer, how, the assist and the minute; the away side from the right", say(haaland))
+              "Haaland's header: scorer, how and the assist, the minute in the kicker; the away side from the right", say(haaland))
         check(haaland?.spoken == "Manchester City goal, Erling Haaland, header, assisted by Iliman Ndiaye, 52nd minute, tied 1 to 1",
               "…said with the minute and the score", haaland?.spoken ?? "nil")
         let own = goal("54194895")
-        check(own?.headline == "OWN GOAL" && own?.side == .bottom && own?.subline == "Mike Penders, Chelsea · 77'" && own?.score == "TOT 1–0",
+        check(own?.headline == "OWN GOAL" && own?.side == .bottom && own?.subline == "Mike Penders, Chelsea" && own?.kicker?.hasSuffix(" · 77'") == true && own?.score == "TOT 1–0",
               "an own goal: Tottenham's, by Chelsea's Penders (the line says whose it is)", say(own))
         let pen = goal("54275717")
-        check(pen?.headline == "PENALTY" && pen?.subline == "Oliver McBurnie · penalty · 24'" && pen?.side == .top,
+        check(pen?.headline == "PENALTY" && pen?.subline == "Oliver McBurnie · penalty" && pen?.side == .top,
               "a penalty", say(pen))
         check(SlideWords.minuteMark("90'+3'") == "90+3'" && SlideWords.minuteMark("37'") == "37'" && SlideWords.minute("90'+3'") == "93rd minute",
               "minutes as soccer writes them: 37', 90+3' (said: the 93rd minute)")
         let jackson = goal("54146134")
-        check(jackson?.subline == "Nicolas Jackson · right foot · assisted by John McGinn · 6'", "the foot, when the line says", say(jackson))
+        check(jackson?.subline == "Nicolas Jackson · right foot · assisted by John McGinn", "the foot, when the line says", say(jackson))
         if let header = goals["54149975"] {
             var action = header.0
             action.clockSeconds = 88 * 60
@@ -428,18 +450,29 @@ extension ScorelineTests {
         // MARK: Motion
 
         let hold = 4.5
-        let start = SlideMotion.pose(at: 0, hold: hold, reduceMotion: false), landed = SlideMotion.pose(at: 1.05, hold: hold, reduceMotion: false)
-        let midSheen = SlideMotion.pose(at: 0.6, hold: hold, reduceMotion: false)
-        let gone = SlideMotion.pose(at: SlideMotion.length(hold: hold), hold: hold, reduceMotion: false)
-        check(start.slab == 1 && start.stripe == 1 && landed == SlidePose.home && midSheen.sheen > 0 && midSheen.sheen < 1 && gone.slab == 1,
-              "the wipe: off at its edge, home (exactly) once landed, the sheen crossing after it lands, off the same way at the end",
+        func pose(_ t: Double, reduce: Bool = false) -> SlidePose { SlideMotion.pose(at: t, hold: hold, reduceMotion: reduce) }
+        let start = pose(0), landed = pose(1.1), midSheen = pose(0.6), gone = pose(SlideMotion.length(hold: hold))
+        check(start.kicker == 1 && start.slab == 1 && start.detail == 1 && start.headline == 0 && start.chip == 0 && landed == SlidePose.home
+              && midSheen.sheen > 0 && midSheen.sheen < 1 && gone.kicker == 1 && gone.slab == 1 && gone.detail == 1 && gone.chip == 0,
+              "the lower third: off at its edge, home (exactly) once landed, the sheen crossing after it lands, off the same way at the end",
               "\(landed)")
-        let early = SlideMotion.pose(at: 0.15, hold: hold, reduceMotion: false)
-        check(early.stripe < early.slab, "the stripe leads the slab in")
-        let fadeIn = SlideMotion.pose(at: 0, hold: hold, reduceMotion: true), held = SlideMotion.pose(at: 2, hold: hold, reduceMotion: true)
-        let fadeOut = SlideMotion.pose(at: SlideMotion.land + hold + 0.25, hold: hold, reduceMotion: true)
-        check(fadeIn.opacity == 0 && fadeIn.slab == 0 && held.opacity == 1 && fadeOut.opacity == 0 && fadeOut.slab == 0,
+        let early = pose(0.15), reading = pose(0.4)
+        check(early.kicker < early.slab && early.slab < early.detail, "in: the kicker tab leads, then the slab, then the detail strip")
+        check(reading.headline > 0 && reading.headline < 1 && reading.subline < reading.headline,
+              "the headline is revealed first, the subline after it")
+        let leaving = pose(SlideMotion.land + hold + 0.1)
+        check(leaving.detail > leaving.slab && leaving.slab > leaving.kicker && leaving.headline == 1,
+              "out: the strip first, then the slab, then the tab, the type still revealed", "\(leaving)")
+        let fadeIn = pose(0, reduce: true), held = pose(2, reduce: true), fadeOut = pose(SlideMotion.land + hold + 0.25, reduce: true)
+        check(fadeIn.opacity == 0 && fadeIn.slab == 0 && fadeIn.headline == 1 && held.opacity == 1 && fadeOut.opacity == 0 && fadeOut.slab == 0,
               "Reduce Motion: a crossfade in place")
+        let length = SlideMotion.length(hold: hold)
+        check(SlideMotion.cover(at: 0, hold: hold) == 1 && SlideMotion.cover(at: 0.3, hold: hold) == 0 && SlideMotion.cover(at: length - 0.01, hold: hold) == 0
+              && SlideMotion.cover(at: length + 0.1, hold: hold) > 0 && SlideMotion.cover(at: length + 0.3, hold: hold) == 1,
+              "the scoreboard steps aside as the bar comes in, stays gone until the bar has left, then comes back")
+        let brewersPaint = SlidePaint.team("12284b", alternate: "ffc52f")
+        check(SlidePaint.contrast(brewersPaint.slab, brewersPaint.stripe) >= 4.5,
+              "the Brewers' kicker and chip: navy type on the gold (the slab's own color, where it reads)")
 
         // MARK: The line
 
