@@ -211,6 +211,7 @@ struct BeatBuilder {
         // The call as it pops (a foul as it's hit); a challenge, then how it came out.
         let called = fouled ? contact + 0.12 : pop + 0.02
         caption(.call(asCalled: p.review != nil), at: called)
+        umpire(p, release: release, done: fouled ? contact : pop, called: called)
         var end = max(script.flights.map(\.end).max() ?? 0, called + 1.3) + 0.35
         if p.review != nil {
             caption(.challenge, at: called + 1.2)
@@ -231,6 +232,29 @@ struct BeatBuilder {
             looks.append((contact - 0.1, CameraFrame.fitting(box.rect, headroom: CameraFrame.headroom)))
         }
         looks.append((script.duration - 0.75, .rest))
+    }
+
+    /// The plate umpire through a pitch: down in his set behind the catcher
+    /// as it comes, up as it's in; his call as he made it (a called strike's
+    /// punch, a swinging strike's point, both arms up for a foul; a ball
+    /// gets nothing); a challenge's tap on the cap, and the strike he signals
+    /// if the zone gave it.
+    mutating func umpire(_ p: PlayBeat.Pitch, release: Double, done: Double, called: Double) {
+        guard let u = script.umpire else { return }
+        script.actors[u].sets.append((release - 0.45)...(done + 0.3))
+        // The call he made: the other one, when the zone overturned it.
+        var made = p.call
+        if p.review?.overturned == true { made = p.call == .calledStrike ? .ball : p.call == .ball ? .calledStrike : p.call }
+        let call: Actor.Signal.Kind? = switch made {
+        case .calledStrike: .strike
+        case .swingingStrike, .swingingBlocked, .missedBunt, .foulTip: .swinging
+        case .foul, .foulBunt: .foul
+        default: nil
+        }
+        if let call { script.actors[u].signals.append(Actor.Signal(kind: call, at: call == .foul ? called + 0.1 : called + 0.04)) }
+        guard let review = p.review else { return }
+        script.actors[u].signals.append(Actor.Signal(kind: .challenge, at: called + 1.15))
+        if review.overturned, p.call == .calledStrike { script.actors[u].signals.append(Actor.Signal(kind: .strike, at: called + 2.45)) }
     }
 
     /// A pitch-clock violation: nothing thrown. The pitcher's (an automatic
@@ -683,7 +707,8 @@ struct BeatBuilder {
             // Everyone off, and the tarp out over the infield.
             for i in script.actors.indices {
                 let a = script.actors[i]
-                let dugout = a.team == .fielding ? fieldingDugout : battingDugout
+                // (The umpires off behind the plate.)
+                let dugout = a.team == .official ? CGPoint(x: 0, y: -70) : a.team == .fielding ? fieldingDugout : battingDugout
                 let from = a.position(at: 0), dd = max(hypot(dugout.x - from.x, dugout.y - from.y), 1), jog = min(dd / 38, 1.8)
                 let f = min(jog * 38 / dd, 1), start = 0.2 + random.between(0, 0.4)
                 script.actors[i].move(to: [CGPoint(x: from.x + (dugout.x - from.x) * f, y: from.y + (dugout.y - from.y) * f)], from: start,
@@ -720,6 +745,10 @@ struct BeatBuilder {
             for base in 1...3 where after.bases[base - 1] {
                 script.actors.append(Actor(team: .batting, at: Ballpark.lead(base), appear: arrived))
             }
+            // The plate umpire, back out from behind it.
+            var umpire = Actor(team: .official, at: CGPoint(x: 0, y: -40), role: .umpire, appear: PlayScript.Tarp.roll * 0.5)
+            umpire.move(to: [Ballpark.umpire(after.bats)], from: PlayScript.Tarp.roll * 0.5 + 0.1, to: PlayScript.Tarp.roll * 0.5 + 1.8)
+            script.actors.append(umpire)
             script.duration = arrived + 0.4
         }
     }
@@ -775,6 +804,8 @@ enum IdleBeat: Equatable, CaseIterable {
     case warmup, infield, outfield
     /// An injury delay: the trainer and the manager shift where they stand.
     case trainer
+    /// Between halves: the plate umpire round the catcher to dust off the plate, and back.
+    case brush
 
     /// The moves that fit the field as it stands.
     static func fitting(_ rest: PlayScript.Rest, between: Bool) -> [IdleBeat] {
@@ -783,7 +814,7 @@ enum IdleBeat: Equatable, CaseIterable {
         case .injury: return [.trainer, .weight]
         case nil: break
         }
-        if between { return [.warmup, .infield, .outfield, .weight] }
+        if between { return [.warmup, .infield, .outfield, .weight, .brush] }
         var out: [IdleBeat] = [.sign, .weight, .catcher]
         if rest.bats != nil { out.append(.practiceSwing) }
         if rest.bases.contains(true) { out.append(.lead) }
@@ -875,6 +906,14 @@ extension BeatBuilder {
             script.actors[fielder(7)].act(.glove, at: 2.35, toward: b)
             script.ballGone = 2.4
             script.duration = 2.6
+        case .brush:
+            guard let u = script.umpire else { return }
+            let spot = script.actors[u].at, side = spot.x < 0 ? -1.0 : 1.0
+            // Round the catcher on his own side, a bend over the plate, and back.
+            script.actors[u].move(to: [CGPoint(x: side * 3.6, y: -6), CGPoint(x: side * 1.2, y: 2.4)], from: 0.1, to: 1.0)
+            script.actors[u].act(.scoop, at: 1.25, toward: .zero)
+            script.actors[u].move(to: [CGPoint(x: side * 3.6, y: -6), spot], from: 1.75, to: 2.65)
+            script.duration = 2.8
         case .trainer:
             for (i, a) in script.actors.enumerated() where a.role == .coach {
                 let p = a.at

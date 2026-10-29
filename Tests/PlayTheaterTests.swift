@@ -232,8 +232,9 @@ extension ScorelineTests {
                   "…runners take their leads at first and second, the next batter steps in", "\(runners)")
         }
         if let s = script(groundOut) {
-            let fielders = s.actors.filter { $0.opacity(at: .infinity) > 0.99 && $0.bats == nil }
-            check(fielders.count == 9 && fielders.allSatisfy { $0.team == .batting }, "after the third out the team that batted takes the field")
+            let fielders = s.actors.filter { $0.opacity(at: .infinity) > 0.99 && $0.bats == nil && $0.team != .official }
+            check(fielders.count == 9 && fielders.allSatisfy { $0.team == .batting } && s.actors.contains { $0.role == .umpire && $0.vanish == .infinity },
+                  "after the third out the team that batted takes the field (the umpire stays)")
         }
         // Every play in the game: a sane, finite script.
         let all = scenes.compactMap { script($0) }

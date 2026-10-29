@@ -487,6 +487,36 @@ extension RigPose {
     static let bunt = RigPose(turn: 1.15, hip: RigVector(0, 0, 0.4), lean: 0.32, left: RigVector(0.1, 0.12, 0), right: RigVector(-0.08, -0.13, 0),
                               knees: 0.4, leftArm: RigArm(swing: 1.2, spread: 0.05, turn: -0.2, bend: 0.75),
                               rightArm: RigArm(swing: 1.25, spread: 0.0, turn: -0.4, bend: 0.5))
+    // The plate umpire, facing the pitcher: his set behind the catcher, and
+    // his calls (all with the right hand, as every umpire makes them).
+
+    /// Set behind the catcher: low, hands on his knees, looking in over the catcher's shoulder.
+    static let umpireSet = RigPose(hip: RigVector(-0.06, 0, 0.34), lean: 0.42, left: RigVector(0.05, 0.2, 0), right: RigVector(-0.04, -0.2, 0),
+                                   knees: 0.5, leftArm: RigArm(swing: 0.55, spread: 0.32, turn: -0.2, bend: 0.5),
+                                   rightArm: RigArm(swing: 0.55, spread: 0.32, turn: -0.2, bend: 0.5))
+    /// Strike: up out of the set, the right fist punched up and out to his side (the camera's behind him: it reads from there).
+    static let strikeCall = RigPose(hip: RigVector(0, 0, 0.47), lean: 0.06, roll: 0.08, left: RigVector(0.02, 0.12, 0), right: RigVector(0, -0.12, 0),
+                                    leftArm: RigArm(swing: 0.15, spread: 0.18, bend: 0.4), rightArm: RigArm(swing: 0.3, spread: 2.3, turn: 0, bend: 0.35))
+    /// Strike three, looking: the punch-out, side-on to first, a lunge and the fist thrown at it.
+    static let punchOut = RigPose(turn: -1.35, hip: RigVector(0.04, -0.04, 0.4), lean: 0.2, twist: -0.25, left: RigVector(0.16, 0.2, 0),
+                                  right: RigVector(-0.12, -0.22, 0), knees: 0.4, leftArm: RigArm(swing: 0.35, spread: 0.35, turn: 0, bend: 1.4),
+                                  rightArm: RigArm(swing: 1.55, spread: 0.1, turn: 0, bend: 0.12))
+    /// A swinging strike: the right arm pointed out, quick.
+    static let swingingCall = RigPose(hip: RigVector(0, 0, 0.47), lean: 0.05, leftArm: RigArm(swing: 0.15, spread: 0.18, bend: 0.4),
+                                      rightArm: RigArm(swing: 1.4, spread: 0.6, turn: 0, bend: 0.25))
+    /// Foul: both arms up over his head.
+    static let foulCall = RigPose(hip: RigVector(0, 0, 0.48), lean: -0.04, leftArm: RigArm(swing: 2.85, spread: 0.35, bend: 0.1),
+                                  rightArm: RigArm(swing: 2.85, spread: 0.35, bend: 0.1))
+    /// Safe: both arms swept out level to the sides, crouched over the plate.
+    static let safeCall = RigPose(hip: RigVector(0, 0, 0.42), lean: 0.32, left: RigVector(0.02, 0.21, 0), right: RigVector(0.02, -0.21, 0), knees: 0.35,
+                                  leftArm: RigArm(swing: 0.12, spread: 1.5, bend: 0.05), rightArm: RigArm(swing: 0.12, spread: 1.5, bend: 0.05))
+    /// Out: the hammer, the right fist up and out, leaning into it.
+    static let outCall = RigPose(hip: RigVector(0, 0, 0.44), lean: 0.2, roll: 0.1, left: RigVector(0.05, 0.15, 0), right: RigVector(-0.03, -0.15, 0),
+                                 knees: 0.25, leftArm: RigArm(swing: 0.2, spread: 0.2, bend: 0.5), rightArm: RigArm(swing: 0.45, spread: 2.2, turn: 0, bend: 1.0))
+    /// A challenge under the automated zone: a tap on the cap.
+    static let capTap = RigPose(hip: RigVector(0, 0, 0.48), leftArm: RigArm(swing: 0.1, spread: 0.15, bend: 0.3),
+                                rightArm: RigArm(swing: 1.95, spread: 0.65, turn: 0.2, bend: 2.35))
+
     /// Back into a base head first: flat out along the dirt, both arms reaching for the bag.
     static let diveBack = RigPose(hip: RigVector(-0.2, 0, 0.12), lean: 1.42, nod: -0.3, left: RigVector(-0.48, 0.07, 0.02),
                                   right: RigVector(-0.46, -0.08, 0.02), knees: 0.05, leftArm: RigArm(swing: 2.85, spread: 0.12, bend: 0.1),
@@ -731,12 +761,19 @@ struct PlayFrame: View, Equatable {
 
     private func drawFigures(_ context: inout GraphicsContext, _ f: FieldProjection, _ figures: [Posed]) {
         let batting = FigureInks(teams.batting, ink: ink, in: context), fielding = FigureInks(teams.fielding, ink: ink, in: context)
+        // The umpires in their own kit (Uniform.umpire), never a team's.
+        let officials = script.actors.contains { $0.team == .official } ? FigureInks(.umpire(dark: ink.dark), ink: ink, in: context) : fielding
         for p in figures {
             let actor = script.actors[p.index]
             if let bats = actor.bats, actor.dropsBat.map({ t >= $0 }) ?? false {
                 drawDroppedBat(&context, at: f.point(Ballpark.box(bats)), bats: bats, fade: 1 - min(max((t - script.settle) / 0.4, 0), 1), f: f)
             }
-            TheaterDraw.figure(p.figure, inks: actor.team == .batting ? batting : fielding, height: f.figure, opacity: p.opacity, in: context)
+            let inks = switch actor.team {
+            case .batting: batting
+            case .fielding: fielding
+            case .official: officials
+            }
+            TheaterDraw.figure(p.figure, inks: inks, height: f.figure, opacity: p.opacity, in: context)
             if let bats = actor.bats, actor.dropsBat.map({ t < $0 }) ?? true {
                 var layer = context
                 if p.opacity < 1 { layer.opacity = p.opacity }
@@ -764,6 +801,7 @@ struct PlayFrame: View, Equatable {
             : RigPose.ready
         let still: RigPose = switch actor.role {
         case .fielder(1): actor.arm == .left ? pitching.mirrored : pitching
+        case .umpire: .stand
         case .fielder(2): actor.crouch && home ? RigPose.squat.mix(.stand, Self.within(actor.rise, at: t, ramp: 0.22)) : .stand
         case .fielder(let n) where n <= 6: .ready
         case .fielder, .batter, .coach: .stand
@@ -790,6 +828,17 @@ struct PlayFrame: View, Equatable {
             }
             if let bunt = actor.bunt { p = p.mix(.bunt, Rig.smooth((t - bunt) / 0.25) * (1 - Rig.smooth((t - bunt - 1.7) / 0.4))) }
             body = bats == .left ? p.mirrored : p
+        }
+
+        // The plate umpire: down in his set as the pitch comes, his calls over it.
+        if actor.role == .umpire {
+            if !actor.sets.isEmpty, actor.motion(at: t) == nil { body = body.mix(.umpireSet, Self.within(actor.sets, at: t, ramp: 0.2)) }
+            for signal in actor.signals {
+                let (call, hold) = Self.call(signal.kind)
+                let x = t - signal.at
+                let w = x < 0 ? max(1 + x / 0.14, 0) : x < hold ? 1 : max(1 - (x - hold) / 0.3, 0)
+                if w > 0 { body = body.over(call, Rig.smooth(w), moving: m.weight) }
+            }
         }
 
         // The pitcher: in for the sign, set in the stretch, the delivery at his arm slot (a lefty's
@@ -843,6 +892,19 @@ struct PlayFrame: View, Equatable {
     static func recovery(_ a: PlayScript.Actor, at t: Double) -> Double {
         guard let s = a.swing, a.dropsBat == nil else { return 0 }
         return Rig.smooth((t - s - 0.75) / 0.5)
+    }
+
+    /// An umpire's call as a pose, and how long he holds it: the punch-out and safe longest.
+    static func call(_ kind: PlayScript.Actor.Signal.Kind) -> (RigPose, Double) {
+        switch kind {
+        case .strike: (.strikeCall, 0.35)
+        case .punchOut: (.punchOut, 0.75)
+        case .swinging: (.swingingCall, 0.3)
+        case .foul: (.foulCall, 0.45)
+        case .safe: (.safeCall, 0.6)
+        case .out: (.outCall, 0.6)
+        case .challenge: (.capTap, 0.45)
+        }
     }
 
     /// In any of these windows at t, eased in and out over `ramp`.

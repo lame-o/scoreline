@@ -305,7 +305,7 @@ extension ScorelineTests {
         }
         let middle = breaks[0]
         let warm = PlayScript(beat: middle, rest: PlayScript.Rest(bases: [false, false, false], bats: nil, fieldingHome: false))
-        check(warm.release != nil && warm.flights.contains { $0.fresh } && warm.actors.count == 9 && middle.tag(wide: true) == "MIDDLE 1ST",
+        check(warm.release != nil && warm.flights.contains { $0.fresh } && warm.actors.count == 10 && middle.tag(wide: true) == "MIDDLE 1ST",
               "the break: the team out there warms up (the pitcher's toss, a grounder round the infield), nobody batting")
         let rained = PlayScript(beat: rainBeats[0], rest: field)
         check(rained.tarp?.out == true && rained.actors.allSatisfy { $0.vanish < rained.duration }
@@ -320,7 +320,7 @@ extension ScorelineTests {
         check(picks.count == 40 && zip(picks, picks.dropFirst()).allSatisfy { $0.beat != $1.beat } && picks.allSatisfy { (4.5...8).contains($0.wait) }
               && Set(picks.map(\.beat)).count >= 4 && picks.map(\.beat) == (0..<40).compactMap { IdleBeat.next($0, rest: busy, between: false, seed: 7)?.beat },
               "idle moves: one every 4.5–8 s, never the same twice running, the same every time")
-        check(IdleBeat.fitting(between, between: true).allSatisfy { [.warmup, .infield, .outfield, .weight].contains($0) }
+        check(IdleBeat.fitting(between, between: true).allSatisfy { [.warmup, .infield, .outfield, .weight, .brush].contains($0) }
               && !IdleBeat.fitting(field, between: false).contains(.lead) && IdleBeat.fitting(busy, between: false).contains(.lead)
               && IdleBeat.next(0, rest: PlayScript.Rest(standing: .tarp), between: false, seed: 1) == nil,
               "only moves that fit: warm-ups between halves, a lead off with a runner on, nothing under the tarp")

@@ -125,6 +125,12 @@ enum Ballpark {
     /// The on-deck circle on the batting team's side.
     static func onDeck(home: Bool) -> CGPoint { CGPoint(x: home ? 34 : -34, y: -14) }
 
+    /// The plate umpire's spot: behind the catcher, in the slot on the
+    /// batter's side of him (looking in over the catcher's inside shoulder),
+    /// a little wider and deeper than life so the two figures, drawn larger
+    /// than life, both read.
+    static func umpire(_ bats: PlayScene.Hand?) -> CGPoint { CGPoint(x: bats == .left ? 3.2 : -3.2, y: -13) }
+
     /// The fielder nearest a spot (outfielders only for a ball beyond the infield).
     static func nearest(to p: CGPoint) -> Int {
         let pool = distance(p) > 175 ? [7, 8, 9] : [1, 3, 4, 5, 6]
@@ -154,7 +160,8 @@ struct FieldPoint: Equatable {
 // MARK: - Script
 
 struct PlayScript: Equatable {
-    enum Team { case fielding, batting }
+    /// The teams, and the umpires (who wear neither).
+    enum Team { case fielding, batting, official }
 
     enum Ease {
         case linear, out, inOut
@@ -213,6 +220,8 @@ struct PlayScript: Equatable {
             case runner
             /// A manager, a coach or a trainer, out of the dugout.
             case coach
+            /// The plate umpire.
+            case umpire
         }
 
         /// A moment of the play in his hands.
@@ -264,6 +273,20 @@ struct PlayScript: Equatable {
         var diveBack: Double?
         /// A practice swing, half speed, from this moment.
         var practice: Double?
+        /// An umpire's calls, each from its moment.
+        var signals: [Signal] = []
+
+        /// An umpire's call, as he makes it: a called strike's punch (a
+        /// strikeout looking's punch-out, side-on), a swinging strike's point,
+        /// both arms up for a foul, safe and out at the plate, a tap on the
+        /// cap for a challenge.
+        struct Signal: Equatable {
+            enum Kind: Equatable { case strike, punchOut, swinging, foul, safe, out, challenge }
+            var kind: Kind
+            var at: Double
+            /// Where he's looking as he makes it (the plate for a play there; else the pitcher).
+            var toward: CGPoint = Ballpark.rubber
+        }
 
         /// From `start` his glove goes to `target`, reaching it at `reach`;
         /// a dive ends on the grass at `landing`. (The figures don't draw it
@@ -599,8 +622,13 @@ extension PlayScript {
             actors.append(Actor(team: hurt == .batter ? .batting : .fielding, at: CGPoint(x: spot.x + 4, y: spot.y - 2), role: .coach))
             actors.append(Actor(team: hurt == .batter ? .batting : .fielding, at: CGPoint(x: spot.x - 4, y: spot.y + 1), role: .coach))
         }
+        // The plate umpire, last: every other figure keeps its place.
+        actors.append(Actor(team: .official, at: Ballpark.umpire(rest.bats), role: .umpire))
         measureBodies()
     }
+
+    /// The plate umpire's index (the last of the figures there at the start).
+    var umpire: Int? { actors.lastIndex { $0.role == .umpire } }
 
     /// Where an injured man is down: by the plate, on the mound, or (MLB
     /// says only who) on the infield grass.
@@ -624,6 +652,7 @@ extension PlayScript {
         default:
             if scene.inPlay { b.ballInPlay() } else { b.runnersPlay() }
         }
+        b.umpireCalls()
         b.finish()
         b.settle(rest)
         b.headline()
@@ -653,6 +682,11 @@ extension PlayScript {
                 case .batter: return RigFacing(point: .zero)
                 case .runner: return RigFacing(point: Ballpark.rubber)
                 case .coach: return RigFacing(point: Ballpark.rubber)
+                case .umpire:
+                    // His call to where it's made; the ball while it's in play; else the pitcher.
+                    if let call = actor.signals.first(where: { t > $0.at - 0.45 && t < $0.at + 1.0 }) { return RigFacing(point: call.toward) }
+                    if let contact, t > contact + 0.05, t < settle, let ball = script.ball(at: t) { return RigFacing(point: ball.ground) }
+                    return RigFacing(point: Ballpark.rubber)
                 }
             }
         }
@@ -665,6 +699,8 @@ extension PlayScript {
         /// Actor index by the base a runner started from (0: the batter).
         var runner: [Int: Int] = [:]
         let batter: Int
+        /// The plate umpire.
+        let umpire: Int
         let hand: PlayScene.Hand
         /// The pitch leaves his hand after a 0.4 s delivery from the set,
         /// so the replay opens on the battery before anything flies.
@@ -713,6 +749,8 @@ extension PlayScript {
                 runner[r.from] = script.actors.count
                 script.actors.append(Actor(team: .batting, at: Ballpark.lead(r.from)))
             }
+            umpire = script.actors.count
+            script.actors.append(Actor(team: .official, at: Ballpark.umpire(hand), role: .umpire))
             // The pitch's type and speed, until the ball's in play: after that it's in the way.
             if scene.pitch?.mph != nil || scene.pitch?.code != nil { script.label = pitchStart...(contact + 0.45) }
         }
@@ -1202,6 +1240,37 @@ extension PlayScript {
             }
         }
 
+        // MARK: The umpire
+
+        /// The plate umpire through the play: in his set behind the catcher
+        /// as the pitch comes; strike three's call (the punch-out, looking);
+        /// out from behind the plate on a ball in play, watching it; and at
+        /// the plate for a play there, safe or out. A home run's trot and a
+        /// run walked in aren't plays at the plate.
+        mutating func umpireCalls() {
+            let u = umpire
+            if script.release != nil { script.actors[u].sets.append((pitchStart - 0.45)...((scene.inPlay ? contact : pop) + 0.25)) }
+            switch scene.kind {
+            case .strikeout(looking: true): script.actors[u].signals.append(Actor.Signal(kind: .punchOut, at: pop + 0.08))
+            case .strikeout: script.actors[u].signals.append(Actor.Signal(kind: .swinging, at: pop + 0.1))
+            default: break
+            }
+            // Out from behind the catcher, up the third-base side, to watch it.
+            if scene.inPlay { script.actors[u].move(to: [CGPoint(x: -4.5, y: -5)], from: contact + 0.2, to: contact + 0.75, ease: .out) }
+            switch scene.kind {
+            case .homeRun, .walk, .hitByPitch: return
+            default: break
+            }
+            let calls = script.flashes.filter { ($0.beat == .run || $0.beat == .out) && hypot($0.point.x, $0.point.y) < 3 }
+            guard let first = calls.map(\.at).min() else { return }
+            // Up the line to see it: the plate between him and the runner's path in.
+            script.actors[u].move(to: [CGPoint(x: -7, y: -4)], from: max(first - 1.0, scene.inPlay ? contact + 0.3 : 0.2), to: first - 0.12,
+                                  ease: .out)
+            for call in calls {
+                script.actors[u].signals.append(Actor.Signal(kind: call.beat == .run ? .safe : .out, at: call.at + 0.05, toward: .zero))
+            }
+        }
+
         // MARK: End and settle
 
         /// The stamp lands as the play resolves (the last out, the batter
@@ -1284,7 +1353,7 @@ extension PlayScript {
                 let leaving = Ballpark.dugout(home: !rest.fieldingHome), coming = Ballpark.dugout(home: rest.fieldingHome)
                 let pace = 38.0, play = scene.id
                 func stagger(_ i: Int) -> Double { Double(PlayBeat.seed("\(play).\(i)") % 40) / 100 }
-                for i in script.actors.indices where script.actors[i].vanish > s {
+                for i in script.actors.indices where script.actors[i].vanish > s && script.actors[i].team != .official {
                     let from = script.actors[i].position(at: s)
                     let to = script.actors[i].team == .fielding ? leaving : coming
                     let d = max(hypot(to.x - from.x, to.y - from.y), 1), jog = min(d / pace, 1.9), start = s + stagger(i)
@@ -1311,8 +1380,11 @@ extension PlayScript {
                     script.actors.append(Actor(team: .fielding, at: Ballpark.box(bats), role: .batter, appear: arrived, bats: bats))
                 }
                 back = arrived + 0.2
+                // The umpire stays: back behind the plate.
+                script.actors[umpire].move(to: [Ballpark.umpire(rest.bats)], from: s, to: s + 1.2)
             } else {
                 for n in 1...9 { script.actors[fielder(n)].move(to: [rest.spot(n)], from: s, to: back) }
+                script.actors[umpire].move(to: [Ballpark.umpire(rest.bats)], from: s, to: back)
                 // A runner stays where the live bases have one; anyone else leaves.
                 var covered = Set<Int>()
                 for r in scene.runners {
