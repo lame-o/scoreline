@@ -30,7 +30,7 @@
 import { CameraFrame } from "../mlb/playCamera";
 import { Move } from "../mlb/playScript";
 import { easeValue, fieldPoint, ground, type Ease, type FieldPoint, type Point } from "../mlb/theaterField";
-import { attacksRight, characters, crossbar, goalOf, Pitch, scored, SoccerLineup, stampDetail, surname, type KeeperAction, type LineupPlayer, type Lineups, type SoccerScene, type Touch } from "./soccerScene";
+import { attacksRight, characters, crossbar, goalOf, lineupsOn, Pitch, scored, SoccerLineup, stampDetail, surname, type KeeperAction, type LineupPlayer, type Lineups, type SoccerScene, type Touch } from "./soccerScene";
 import { ballMemo, Rig, RigTrack, type RigFacing } from "./rig";
 import { CameraFollow } from "./theaterKit";
 import { BIG_CHANCE_XG } from "../liveFeeds/soccer";
@@ -457,12 +457,14 @@ export class Builder {
 
   constructor(scene: SoccerScene, lineups: Lineups = {}) {
     this.scene = scene;
-    this.lineups = lineups;
+    // The elevens as they were when it happened: each change made by then.
+    const on = lineupsOn(lineups, scene.clock);
+    this.lineups = on;
     this.right = attacksRight(scene);
     this.goal = goalOf(scene);
     // The keeper first: always there, on his line.
     const start = scene.touches[0]?.at ?? scene.shot.from;
-    const defending = lineups[scene.side === "top" ? "bottom" : "top"];
+    const defending = on[scene.side === "top" ? "bottom" : "top"];
     this.keeper = this.actor("defending", scene.keeper.name ?? "keeper", this.keeperSpot(fieldPoint(start), null), "keeper", false, scene.keeper.credit?.athlete ?? defending?.players.find((p) => p.place === 1)?.athlete ?? null);
   }
 

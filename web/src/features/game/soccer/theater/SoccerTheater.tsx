@@ -30,11 +30,16 @@
  * happening (ARSENAL BALL, CORNER · ARSENAL, YELLOW CARD · GUÉHI, VAR
  * CHECK, +4 ADDED), the heartbeat in the corner away from the stamp how long
  * since ESPN spoke. History isn't replayed: on opening the page the pitch is
- * the live one (`soccerShown`). The canvas is decorative for screen
+ * the live one (`soccerShown`). The names over the players: whoever the
+ * pointer's over (on a phone, the man tapped) gets his tag, his number,
+ * SURNAME and place in the shape, and the man the moment is about keeps his
+ * surname (the scorer; between moments the man booked, whistled or coming
+ * on), all twenty-two named from the squads with each change made by then
+ * (core/theater/theaterTags.ts). The canvas is decorative for screen
  * readers: the caption carries the moment, or the event, in ESPN's words.
  * Lazy: the page loads this module only when it shows a live pitch.
  *
- *     <SoccerTheater feed={feed} homeTeamID="362" kits={kits} eventId={event.id} topTeam="Aston Villa" bottomTeam="Man City" added={detail.soccerAdded} />
+ *     <SoccerTheater feed={feed} homeTeamID="362" kits={kits} eventId={event.id} topTeam="Aston Villa" bottomTeam="Man City" added={detail.soccerAdded} people={detail.people} />
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { cueFor, presetFor } from "../../../../data/celebrations";
@@ -42,18 +47,21 @@ import type { SoccerFeed } from "../../../../data/liveFeeds/soccer";
 import { dress, type TheaterKits } from "../../../../data/mlb/theaterTeams";
 import type { SoccerAddedTime } from "../../../../data/soccer";
 import { addedShowing, eventBeat, PitchFacing, sameSoccerIdle, soccerEvents, soccerIdle, soccerIdleScript, SoccerStatus, turnedScene, type SoccerIdle, type SoccerNames, type SoccerStatusTag } from "../../../../data/theater/soccerIdle";
-import { goalOf, scored, type SoccerScene, type SoccerTheaterState } from "../../../../data/theater/soccerScene";
+import { goalOf, lineupsOn, scored, type SoccerScene, type SoccerTheaterState } from "../../../../data/theater/soccerScene";
 import { SoccerScript } from "../../../../data/theater/soccerScript";
-import { GoalCelebration, PitchProjection, sentences, soccerKey, soccerShown, SoccerTheaterWatch } from "../../../../data/theater/soccerTheater";
+import { GoalCelebration, idleKeyMan, PitchProjection, sentences, soccerCast, soccerKey, soccerShown, SoccerTheaterWatch } from "../../../../data/theater/soccerTheater";
 import { HOLD_MS } from "../../../../data/theater/theaterKit";
+import { NO_CAST, theaterLabels, type HitFigure, type TheaterPerson } from "../../../../data/theater/theaterNames";
 import { useSettings } from "../../../../state/settings";
 import { useColorScheme } from "../../../../state/theme";
 import { useChartMoment } from "../../core/moments";
 import { BeatClock } from "../../core/theater/beatClock";
+import { RigLens } from "../../core/theater/rigFigure";
 import { TheaterStage, type StageInputs } from "../../core/theater/TheaterStage";
 import { TheaterFlipButton, TheaterHeartbeat, TheaterStatusTag, useTheaterFlip } from "../../core/theater/TheaterStatus";
 import { accentOf, drawBursts, TheaterType, teamPalette, type Size } from "../../core/theater/theaterKit";
 import wellStyles from "../../core/theater/TheaterWell.module.css";
+import { useTheaterNames, type NamesPose } from "../../core/theater/useTheaterNames";
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
 import { drawPitch, drawSoccerFrame, layoutLabels, type Labels, type SoccerTeams } from "./drawSoccer";
@@ -78,7 +86,13 @@ export interface SoccerTheaterProps {
   readonly preloaded?: SoccerTheaterState | null;
   /** Development: draw this instant, frozen (seconds from the moment's first touch, or into the pitch between moments). */
   readonly frozen?: number | null;
+  /** The squads (the summary's rosters), by athlete ID: the names over the players. */
+  readonly people?: Readonly<Record<string, TheaterPerson>>;
+  /** Development (the render harness): the pointer held over a player or a point. */
+  readonly pointer?: NamesPose | null;
 }
+
+const NO_PEOPLE: Readonly<Record<string, TheaterPerson>> = {};
 
 const EMPTY: SoccerTheaterState = { scene: null, news: false };
 const NO_STATUS: SoccerStatusTag = { tag: null, tint: null };
@@ -132,10 +146,24 @@ function useIdleScript(idle: SoccerIdle | null): SoccerScript | null {
   return cache.current.script;
 }
 
-export default function SoccerTheater({ feed, homeTeamID, kits, eventId = "soccer", topTeam = "", bottomTeam = "", added = null, preloaded = null, frozen = null }: SoccerTheaterProps) {
+export default function SoccerTheater({
+  feed,
+  homeTeamID,
+  kits,
+  eventId = "soccer",
+  topTeam = "",
+  bottomTeam = "",
+  added = null,
+  preloaded = null,
+  frozen = null,
+  people = NO_PEOPLE,
+  pointer,
+}: SoccerTheaterProps) {
   const well = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const stage = useRef<TheaterStage | null>(null);
+  // Who the pointer's over (the name over him): read by each frame, never React state.
+  const named = useTheaterNames(well, stage);
   const beats = useRef<BeatClock | null>(null);
   const live = useTheaterState(feed, homeTeamID);
   const state = live.scene || live.touch ? live : (preloaded ?? live);
@@ -217,6 +245,27 @@ export default function SoccerTheater({ feed, homeTeamID, kits, eventId = "socce
   const teams: SoccerTeams = useMemo(() => (side === "top" ? { attacking: dressed.top, defending: dressed.bottom } : { attacking: dressed.bottom, defending: dressed.top }), [dressed, side]);
   const ink = useMemo(() => theaterInk(scheme), [scheme]);
   const names: SoccerNames = useMemo(() => ({ top: topTeam, bottom: bottomTeam, topColor: tagColor(kits.top.color), bottomColor: tagColor(kits.bottom.color) }), [topTeam, bottomTeam, kits.top.color, kits.bottom.color]);
+  // Who each player on screen is, once per script: the moment's men as they stood (each change made by its minute), or the pitch's between moments.
+  const cast = useMemo(
+    () =>
+      scene
+        ? soccerCast(script, scene.side, lineupsOn(lineups ?? {}, scene.clock), people, scene.shooterCredit?.athlete ?? null, key ?? scene.id)
+        : idle
+          ? soccerCast(script, idle.possession, idle.lineups, people, idleKeyMan(idle), `idle|${idleKey}`)
+          : NO_CAST,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [script, scene, key, lineups, people, idleKey, idle?.possession, idle?.lineups, idle?.event],
+  );
+  const labels = useMemo(
+    () => theaterLabels(kits, scheme, { top: topTeam, bottom: bottomTeam }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, topTeam, bottomTeam],
+  );
+  useEffect(() => {
+    if (pointer !== undefined) named.pose(pointer);
+  }, [named, pointer]);
+  // The heartbeat in the corner away from the stamp.
+  const heartbeatLeading = scene != null && script.cornerRight;
 
   // The tag: what's happening at the instant drawn, set only when its words or color change.
   const [status, setStatus] = useState<SoccerStatusTag>(NO_STATUS);
@@ -247,12 +296,19 @@ export default function SoccerTheater({ feed, homeTeamID, kits, eventId = "socce
   }, []);
 
   useEffect(() => {
-    let labels: { key: string; value: Labels } | null = null;
+    let laidOut: { key: string; value: Labels } | null = null;
     const labelsFor = (ctx: CanvasRenderingContext2D, size: Size, pt: number): Labels => {
       const key = `${size.width}x${size.height}|${pt}`;
-      if (labels?.key !== key) labels = { key, value: layoutLabels(ctx, scene, script, teams, ink, size, pt) };
-      return labels.value;
+      if (laidOut?.key !== key) laidOut = { key, value: layoutLabels(ctx, scene, script, teams, ink, size, pt) };
+      return laidOut.value;
     };
+    /** Each player on screen at t through the camera, for the hit test: his spot and the lens there, no posing. */
+    const figuresAt = (f: PitchProjection, t: number): HitFigure[] =>
+      script.actors.flatMap((actor, index) => {
+        if (!(actor.opacity(t) > 0.01)) return [];
+        const lens = RigLens.pitch(f, actor.position(t));
+        return [{ index, ground: lens.origin, height: lens.height }];
+      });
     const color = accentOf(teams.attacking, ink);
     const statusAt = (t: number): SoccerStatusTag => {
       if (scene) {
@@ -286,13 +342,15 @@ export default function SoccerTheater({ feed, homeTeamID, kits, eventId = "socce
           : null,
       paint: (ctx, size, pt, t, bursts) => {
         const f = new PitchProjection(size, script.frame(t));
+        const status = statusAt(t);
+        const tags = named.frame(cast, labels, { status: status.tag, flip: true, heartbeat: heartbeatLeading ? "leading" : "trailing" }, () => figuresAt(f, t));
         drawPitch(ctx, f, ink);
-        drawSoccerFrame(ctx, f, { scene, script, t, teams, ink, labels: labelsFor(ctx, size, pt) });
+        drawSoccerFrame(ctx, f, { scene, script, t, teams, ink, labels: labelsFor(ctx, size, pt), tags });
         if (bursts.length > 0) {
           const palette = teamPalette(color, ink);
           drawBursts(ctx, bursts, t, (p) => f.point(p), TheaterType.bannerOrigin(size, pt), () => palette, size);
         }
-        say(statusAt(t));
+        say(status);
       },
     };
     if (scene || !idle) {
@@ -310,10 +368,8 @@ export default function SoccerTheater({ feed, homeTeamID, kits, eventId = "socce
       draw: (t) => stage.current?.update({ ...inputs, frozen: t }),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene, key, news, script, teams, ink, moment, level, reduceMotion, frozen, idleKey, names, addedNow]);
+  }, [scene, key, news, script, teams, ink, moment, level, reduceMotion, frozen, idleKey, names, addedNow, cast, labels]);
 
-  // The heartbeat in the corner away from the stamp.
-  const heartbeatLeading = scene != null && script.cornerRight;
   return (
     <div className={styles.theater}>
       <div ref={well} className={wellStyles.well} data-theater="soccer">

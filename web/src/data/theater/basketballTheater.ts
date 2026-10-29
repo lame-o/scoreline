@@ -1,9 +1,10 @@
 /**
  * The basketball theater's pure rules (BasketballFeed.swift `theater`,
- * `updateTheater`; BasketballTheater.swift `BasketballCelebration`): the
- * newest plays the theater tells and which are news, the lane's theater kept
- * beside the lane, and the one celebration per moment the theater owns when
- * the page shows it. The running order is basketballFlow.ts; the drawing is
+ * `updateTheater`; BasketballTheater.swift `BasketballCelebration` and
+ * § Names): the newest plays the theater tells and which are news, the
+ * lane's theater kept beside the lane, the one celebration per moment the
+ * theater owns when the page shows it, and who each figure is for the names
+ * over the court. The running order is basketballFlow.ts; the drawing is
  * features/game/nba/theater/.
  */
 import { cueFor, presetFor, sparks, type CelebrationCue, type CelebrationLevel, type Effect } from "../celebrations";
@@ -12,10 +13,11 @@ import type { Teams } from "../liveFeeds/basketball";
 import { RECENT_MS } from "../liveFeeds/baseball";
 import type { TheaterBurst } from "../mlb/theaterCelebration";
 import type { Side } from "../models";
-import { decisive, type LiveMoment } from "../moments";
-import { basketballRecent, made, sameScene, type BasketballScene, type BasketballTheaterState } from "./basketballScene";
+import { decisive, opposite, type LiveMoment } from "../moments";
+import { basketballRecent, made, sameScene, type BasketballScene, type BasketballTheaterState, type Person } from "./basketballScene";
 import { Hoops, type BasketballScript } from "./basketballScript";
 import { TheaterBurst as Burst } from "./theaterKit";
+import { known, TEAM_ONLY, TheaterCast, theaterPerson, type CastMember, type TheaterPerson } from "./theaterNames";
 
 // MARK: - What the theater tells
 
@@ -131,3 +133,63 @@ export const BasketballCelebration = {
     return bursts;
   },
 };
+
+// MARK: - Names
+
+/**
+ * Who each figure is, for the names over the court (BasketballTheater.swift
+ * § Names): the men ESPN credits on the play (`credits`: the shooter, the
+ * passer, the blocker, the rebounder, the man who fouled or lost it, the man
+ * coming in), by the box score's number and position (their names alone
+ * until it has them); every other man on the floor his team's, which of them
+ * unknown (the data says who's on the floor, not which figure is which); the
+ * referee nobody. `scope`: the script's own key. (pure; tested)
+ */
+export function basketballCast(script: BasketballScript, scene: BasketballScene | null, people: Readonly<Record<string, TheaterPerson>>, scope: string): TheaterCast {
+  const offense: Side = script.side ?? scene?.offense ?? "top";
+  const members = new Map<number, CastMember>();
+  script.players.forEach((player, i) => {
+    if (player.team === "official") return;
+    const side = player.team === "offense" ? offense : opposite(offense);
+    const credit = script.credits.get(i) ?? null;
+    const named = credit ? ((credit.id != null ? people[credit.id] : undefined) ?? (credit.name.length > 0 ? theaterPerson(credit.name, credit.name) : null)) : null;
+    members.set(i, TheaterCast.member(named ? known(named) : TEAM_ONLY, side, credit?.id ?? credit?.name, i, scope));
+  });
+  const person = basketballKey(scene);
+  let key: number | null = null;
+  if (person) {
+    // The figure credited as him, by ID (by name when ESPN gave none); the first, when he's credited twice.
+    for (const [i, c] of [...script.credits].sort((a, b) => a[0] - b[0])) {
+      if (c.id != null ? c.id === person.id : c.name === person.name) {
+        key = i;
+        break;
+      }
+    }
+  }
+  return TheaterCast.of(members, key, scope);
+}
+
+/**
+ * Who a play is about: the man its text leads with (the shooter, a free
+ * throw's too; the man who lost it; the rebounder; the man whistled), the
+ * blocker on a block, the man coming in on a substitution, whoever came up
+ * with a jump ball. A timeout, the end of a period, a review, the court
+ * between plays: nobody. (pure; tested)
+ */
+export function basketballKey(scene: BasketballScene | null): Person | null {
+  if (!scene) return null;
+  switch (scene.kind) {
+    case "block":
+      return scene.blocker;
+    case "substitution":
+      return scene.subIn;
+    case "jumpBall":
+      return scene.winner;
+    case "timeout":
+    case "periodEnd":
+    case "challenge":
+      return null;
+    default:
+      return scene.shooter;
+  }
+}

@@ -213,6 +213,8 @@ export class PlayScene {
   bats: Hand | null = null;
   pitch: ScenePitch | null = null;
   batting: Side | null = null;
+  /** The pitcher who threw it (ESPN's athlete ID): the tag on the mound. */
+  pitcher: string | null = null;
   /** "Turang grounded out to shortstop." */
   text = "";
   /** Epoch ms. */
@@ -835,6 +837,7 @@ export function parse(plays: readonly unknown[], index: number, side: SideOf, na
       y: dv(at(pitchEntry, "pitchCoordinate", "y")) ?? null,
     };
   }
+  scene.pitcher = participant(result, "pitcher") ?? (pitchEntry !== undefined ? participant(pitchEntry, "pitcher") : null);
   scene.appearance = appearance(plays, index, scene.text, names);
   if (scene.appearance == null) scene.during = during(plays, index, earlier, names);
   const wallclock = str(at(result, "wallclock"));

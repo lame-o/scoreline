@@ -2,8 +2,10 @@
  * The football theater's pure rules (FootballTheater.swift `FootballTheater.rest`,
  * `FootballCelebration`; LiveFeeds.swift `FootballFeed.theater`): the field
  * between plays from the live situation, which snap the theater shows and
- * whether it's news, and the one celebration per moment the theater owns
- * when the page shows it. The drawing is features/game/football/theater/.
+ * whether it's news, the one celebration per moment the theater owns when
+ * the page shows it, and who each figure is for the names over the field
+ * (FootballTheater.swift § Names). The drawing is
+ * features/game/football/theater/.
  */
 import { cueFor, presetFor, type CelebrationCue, type CelebrationLevel, type Effect } from "../celebrations";
 import type { Football } from "../gameDetail";
@@ -14,8 +16,9 @@ import { TheaterBurst as Burst } from "./theaterKit";
 import type { Side } from "../models";
 import { decisive, type LiveMoment } from "../moments";
 import { parseStoppage, type FootballStoppage } from "./footballIdle";
-import { FootballDepthChart, parse, type DepthCharts, type Down, type FootballScene, type FootballTheaterState } from "./footballScene";
-import type { FootballScript, Rest } from "./footballScript";
+import { FootballDepthChart, opponent, parse, shortName, type DepthCharts, type Down, type FootballScene, type FootballTheaterState, type KindName, type Participant, type Position } from "./footballScene";
+import type { FootballScript, Player, Rest } from "./footballScript";
+import { assumed, known, TheaterCast, theaterPerson, type CastKey, type CastMember, type TheaterPerson, type TheaterWho } from "./theaterNames";
 
 // MARK: - The field between plays
 
@@ -338,4 +341,185 @@ export const FootballCelebration = {
     }
     return bursts;
   },
+};
+
+// MARK: - Names
+
+/**
+ * Who each figure is, for the names over the field (FootballTheater.swift
+ * `FootballScript.cast`): the men ESPN credits on the play (`credits`), each
+ * on the very figure the replay puts him on (his depth-chart slot, college's
+ * by his role), named from the box score (else the text's "B.Murphy") with
+ * its number; everyone else only what the theater knows of him, his team and
+ * the place he lines up in (`SEAHAWKS · DE`), never the depth chart's
+ * probable name. Officials and trainers: nobody. The key man is the one with
+ * the ball: the first credited man to have it from the start (a pass's
+ * quarterback, a run's back), then from each carry on whoever has it last
+ * (the receiver from the catch, the man who picked it off); the kicker on a
+ * kickoff until it's caught; the kicker of a field goal or a try
+ * throughout. Between snaps, nobody. `scope`: the script's own key. (pure;
+ * tested)
+ */
+export function footballCast(script: FootballScript, scene: FootballScene | null, offense: Side, people: Readonly<Record<string, TheaterPerson>>, scope: string): TheaterCast {
+  const members = new Map<number, CastMember>();
+  script.players.forEach((player, i) => {
+    let side: Side;
+    if (player.team === "offense") side = offense;
+    else if (player.team === "defense") side = opponent(offense);
+    else return;
+    const credit = script.credits.get(i) ?? null;
+    const place = tagPosition(player, credit?.position ?? null, scene?.kind.type ?? null);
+    let who: TheaterWho = assumed(place);
+    if (credit) {
+      const name = credit.name ?? textName(credit, scene);
+      const found = (credit.id != null ? people[credit.id] : undefined) ?? (name != null ? theaterPerson(name, name) : null);
+      if (found) {
+        const number = found.number ?? credit.jersey ?? (name != null && scene ? numberOf(name, scene.text) : null) ?? null;
+        who = known({ ...found, position: place === "" ? null : place, number });
+      }
+    }
+    members.set(i, TheaterCast.member(who, side, credit?.id ?? credit?.name, i, scope));
+  });
+  const kicker = (): number | null => {
+    for (const [i, c] of script.credits) if (c.role === "kicker") return i;
+    return null;
+  };
+  const keys: CastKey[] = [];
+  switch (scene?.kind.type) {
+    case "fieldGoal":
+    case "extraPoint":
+      return TheaterCast.of(members, kicker(), scope);
+    case "kickoff": {
+      const k = kicker();
+      if (k != null) keys.push({ from: -Infinity, figure: k });
+      break;
+    }
+    default:
+      break;
+  }
+  for (const leg of script.legs) {
+    if (leg.hand.kind !== "carry") continue;
+    const p = leg.hand.player;
+    if (!script.credits.has(p) || !members.has(p) || keys.at(-1)?.figure === p) continue;
+    keys.push({ from: keys.length === 0 ? -Infinity : leg.from, figure: p });
+  }
+  return new TheaterCast(members, keys, scope);
+}
+
+const sameCredit = (a: Participant, b: Participant) => a.role === b.role && a.id === b.id && (a.name ?? null) === (b.name ?? null) && (a.jersey ?? null) === (b.jersey ?? null);
+
+/**
+ * A credited man's name where only the text gives it (college's credits, a
+ * man the box score hasn't listed): the passer or the runner the text leads
+ * with, the man it went to, the first man in on the stop, the man who picked
+ * it off or fell on it, the returner. (pure; tested)
+ */
+export function textName(credit: Participant, scene: FootballScene | null): string | null {
+  if (!scene) return null;
+  const names = scene.names;
+  switch (credit.role) {
+    case "passer":
+    case "rusher":
+    case "kicker":
+    case "punter":
+    case "fumbler":
+      return names.lead ?? null;
+    case "receiver":
+      return names.target ?? null;
+    case "tackler":
+      return names.stop ?? null;
+    case "assistedBy": {
+      const first = scene.participants.find((p) => p.role === "tackler" || p.role === "assistedBy");
+      return first && sameCredit(first, credit) ? (names.stop ?? null) : null;
+    }
+    case "interceptor":
+    case "recoverer":
+      return names.taker ?? null;
+    case "returner":
+      return names.returner ?? names.taker ?? null;
+    default:
+      return null;
+  }
+}
+
+/** His number where the text gives it (college's "#12 K.Russell"). (pure; tested) */
+export function numberOf(surname: string, text: string): string | null {
+  for (const m of text.matchAll(/#(\d+) ([A-Z][A-Za-z'\-]*\.\s?[A-Z][A-Za-z'\-]+(?: (?:Jr\.|Sr\.|III|II|IV))?)/g)) {
+    if (shortName(m[2]!) === surname) return m[1]!;
+  }
+  return null;
+}
+
+/**
+ * The place a man lines up in, as a tag says it: his depth-chart slot
+ * ("lde": DE, "rcb": CB), else his role's (OL, DL); a kick's men by their
+ * part (K, P, H, KR, PR); a man on the coverage only his team's. (pure; tested)
+ */
+export function tagPosition(player: Pick<Player, "key" | "role">, credit: Position | null, kick: KindName | null): string {
+  const slot = player.key != null ? SLOTS[player.key] : undefined;
+  if (slot) return slot;
+  switch (player.role) {
+    case "line":
+      return "OL";
+    case "quarterback":
+      return "QB";
+    case "back":
+      return credit === "fullback" ? "FB" : "RB";
+    case "receiver":
+      return "WR";
+    case "tightEnd":
+      return "TE";
+    case "front":
+      return "DL";
+    case "backer":
+      return "LB";
+    case "corner":
+      return credit === "safety" ? "S" : "CB";
+    case "safety":
+      return "S";
+    case "kicker":
+      return "K";
+    case "holder":
+      return "H";
+    case "punter":
+      return "P";
+    case "returner":
+      return kick === "punt" ? "PR" : "KR";
+    case "cover":
+    case "official":
+      return "";
+  }
+}
+
+/** ESPN's depth-chart slots, as a tag names them. */
+export const SLOTS: Readonly<Record<string, string>> = {
+  lt: "LT",
+  lg: "LG",
+  c: "C",
+  rg: "RG",
+  rt: "RT",
+  te: "TE",
+  wr: "WR",
+  qb: "QB",
+  rb: "RB",
+  fb: "FB",
+  lde: "DE",
+  rde: "DE",
+  ldt: "DT",
+  rdt: "DT",
+  nt: "NT",
+  lolb: "OLB",
+  rolb: "OLB",
+  mlb: "MLB",
+  lilb: "ILB",
+  rilb: "ILB",
+  wlb: "LB",
+  slb: "LB",
+  lcb: "CB",
+  rcb: "CB",
+  nb: "NB",
+  ss: "SS",
+  fs: "FS",
+  pk: "K",
+  p: "P",
 };

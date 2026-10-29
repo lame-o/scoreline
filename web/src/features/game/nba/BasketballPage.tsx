@@ -151,7 +151,7 @@ export function useBasketballPage(game: GameContext): SportPage {
         accessory={live ? "live" : event.state === "final" ? "final" : undefined}
       >
         {/* The play theater, above the court as on the Mac: it reads the live lane's newest plays itself, so a basket redraws only the theater. */}
-        {live ? <CourtTheater feed={feed} teams={teams} event={event} palette={palette} names={names} spoken={spoken} topIsHome={detail.topIsHome ?? false} /> : null}
+        {live ? <CourtTheater feed={feed} teams={teams} event={event} palette={palette} names={names} spoken={spoken} topIsHome={detail.topIsHome ?? false} people={detail.people} /> : null}
         {courtChart}
       </DetailSection>
     );

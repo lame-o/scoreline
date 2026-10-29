@@ -5,12 +5,13 @@
  * so nothing below it moves. While it's shown, the pitch bursts only for
  * moments the theater doesn't own (`GoalCelebration.pitchBursts`).
  *
- *     <PitchTheater feed={feed} homeTeamID={homeID} event={event} added={detail.soccerAdded} />
+ *     <PitchTheater feed={feed} homeTeamID={homeID} event={event} added={detail.soccerAdded} people={detail.people} />
  */
 import { lazy, Suspense } from "react";
 import type { SoccerFeed } from "../../../../data/liveFeeds/soccer";
 import type { ScoreEvent } from "../../../../data/models";
 import type { SoccerAddedTime } from "../../../../data/soccer";
+import type { TheaterPerson } from "../../../../data/theater/theaterPeople";
 import { TheaterWell } from "../../core/theater/TheaterWell";
 import styles from "./PitchTheater.module.css";
 
@@ -23,9 +24,11 @@ export interface PitchTheaterProps {
   readonly event: ScoreEvent;
   /** The added time last announced (the summary's commentary), for the theater's tag. */
   readonly added?: SoccerAddedTime | null;
+  /** The squads, by athlete ID (the summary's rosters): the names over the players. */
+  readonly people?: Readonly<Record<string, TheaterPerson>>;
 }
 
-export function PitchTheater({ feed, homeTeamID, event, added = null }: PitchTheaterProps) {
+export function PitchTheater({ feed, homeTeamID, event, added = null, people }: PitchTheaterProps) {
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
   const kits = {
@@ -35,7 +38,7 @@ export function PitchTheater({ feed, homeTeamID, event, added = null }: PitchThe
   return (
     <div className={styles.slot}>
       <Suspense fallback={<TheaterWell />}>
-        <SoccerTheater feed={feed} homeTeamID={homeTeamID} kits={kits} eventId={event.id} topTeam={top?.name ?? ""} bottomTeam={bottom?.name ?? ""} added={added} />
+        <SoccerTheater feed={feed} homeTeamID={homeTeamID} kits={kits} eventId={event.id} topTeam={top?.name ?? ""} bottomTeam={bottom?.name ?? ""} added={added} people={people} />
       </Suspense>
     </div>
   );

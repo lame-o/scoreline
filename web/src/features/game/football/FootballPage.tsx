@@ -116,7 +116,7 @@ export function useFootballPage(game: GameContext): SportPage {
         accessory="live"
       >
         {/* The play theater, above the drive chart as on the Mac; it owns the burst (FootballCelebration.driveChartBursts). */}
-        <FieldTheater feed={feed} teams={teams} situation={situation} event={event} palette={palette} names={names} />
+        <FieldTheater feed={feed} teams={teams} situation={situation} event={event} palette={palette} names={names} people={detail.people} />
         <FootballField situation={situation} plays={feed.plays} names={names} spoken={spoken} palette={palette} possession={possession} twoMinuteDrill={drill} linkText={linkText} celebrates={false} />
       </DetailSection>
     );

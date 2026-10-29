@@ -253,6 +253,8 @@ export const STATCAST_FIELDS = [
   "description", "call", "count", "balls", "strikes", "outs", "pitchNumber", "eventType", "isBall", "isStrike",
   "fromCatcher", "player", "replacedPlayer", "abbreviation", "reviewDetails", "isOverturned", "inProgress", "reviewType",
   "challengeTeamId", "pitcher", "pitchHand", "batSide", "startTime",
+  // Each man's number in the game (the box score's): the pitchers' that ESPN's summary leaves out.
+  "boxscore", "teams", "away", "home", "players", "person", "jerseyNumber",
 ].join(",");
 
 /** The live poll's: the at-bat under way, the inning's state and the game's status. A few kilobytes. */
@@ -312,6 +314,36 @@ export function statcastGame(schedule: unknown, teams: readonly string[]): numbe
   }
   return null;
 }
+
+/**
+ * Every man's number in the game, by his name (accents, case and periods
+ * aside): the box score's `jerseyNumber`, keyed by MLB's own IDs, so it's
+ * matched to ESPN's men by name (Statcast.swift `numbers`). (pure; tested)
+ */
+export function statcastNumbers(feed: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const side of ["away", "home"]) {
+    const players = at(feed, "liveData", "boxscore", "teams", side, "players");
+    if (players == null || typeof players !== "object" || Array.isArray(players)) continue;
+    for (const p of Object.values(players)) {
+      const name = str(at(p, "person", "fullName"));
+      const number = str(at(p, "jerseyNumber"));
+      if (name && number) out[folded(name)] = number;
+    }
+  }
+  return out;
+}
+
+/** A full name as `statcastNumbers` keys it. */
+export const folded = (name: string) => fold(name);
+
+/** The full feed as the theater reads it: the at-bats, and the men's numbers. */
+export interface StatcastFeed {
+  readonly atBats: StatcastAtBat[];
+  readonly numbers: Readonly<Record<string, string>>;
+}
+
+export const statcastFeed = (feed: unknown): StatcastFeed => ({ atBats: statcastAtBats(feed), numbers: statcastNumbers(feed) });
 
 export function statcastAtBats(feed: unknown): StatcastAtBat[] {
   return arr(at(feed, "liveData", "plays", "allPlays")).flatMap((play) => atBatOf(play) ?? []);

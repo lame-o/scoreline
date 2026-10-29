@@ -24,6 +24,7 @@ import type { TheaterTeams } from "../../../../data/mlb/theaterTeams";
 import type { LiveMoment } from "../../../../data/moments";
 import { drawBursts, drawField, drawFrame, FieldProjection, layoutLabels, type Labels, type Size } from "./drawTheater";
 import { mixHex, rgba, type TheaterInk } from "./theaterInk";
+import type { TagFrame } from "../../../../data/theater/theaterNames";
 
 export interface StageInputs {
   readonly scene: PlayScene | null;
@@ -45,6 +46,8 @@ export interface StageInputs {
   readonly footer?: number;
   /** Off screen or in a hidden tab: a beat or idle move is drawn as it ends (nothing animates unseen). */
   readonly paused?: boolean;
+  /** The names over the figures for the script drawn at t (the play's, or a beat's), through its projection. */
+  readonly tags?: ((script: PlayScript, t: number, f: FieldProjection) => TagFrame | null) | null;
 }
 
 const CROSSFADE_MS = 350;
@@ -66,6 +69,8 @@ export class TheaterRenderer {
   private fade: { snapshot: HTMLCanvasElement; start: number } | null = null;
   private shownID: string | null | undefined = undefined;
   private frame = 0;
+  /** A name tag fading in or out: frames until then (performance.now(), ms). */
+  private tagsUntil = 0;
   private wait: ReturnType<typeof setTimeout> | undefined;
   private readonly observer: ResizeObserver;
 
@@ -114,6 +119,12 @@ export class TheaterRenderer {
     }
     this.layout();
     this.schedule();
+  }
+
+  /** Draws the frame on screen again now, and keeps drawing until `until` (a name tag fading in or out over a still). */
+  animate(until: number): void {
+    this.tagsUntil = Math.max(this.tagsUntil, until);
+    this.schedule(true);
   }
 
   private resize(width: number, height: number): void {
@@ -218,7 +229,7 @@ export class TheaterRenderer {
     if (beat && !this.inputs?.reduceMotion && !this.inputs?.paused && this.inputs?.frozen == null && now < beat.start) return true;
     if (this.fade && now - this.fade.start < CROSSFADE_MS) return true;
     if (this.bloom?.cue && (now - this.bloom.start) / 1000 < cueDuration(this.bloom.cue)) return true;
-    return false;
+    return now < this.tagsUntil;
   }
 
   private schedule(immediate = false): void {
@@ -276,7 +287,7 @@ export class TheaterRenderer {
     ctx.clearRect(0, 0, size.width, size.height);
     const f = new FieldProjection(size, script.camera.frame(t));
     drawField(ctx, f, i.ink);
-    drawFrame(ctx, f, { scene: beat ? null : i.scene, script, t, teams: i.teams, ink: i.ink, labels: this.labels!, footer: i.footer ?? 0 });
+    drawFrame(ctx, f, { scene: beat ? null : i.scene, script, t, teams: i.teams, ink: i.ink, labels: this.labels!, footer: i.footer ?? 0, tags: i.tags?.(script, t, f) ?? null });
     if (Number.isFinite(t) && this.bursts.length > 0) drawBursts(ctx, f, this.bursts, t, this.palette(), this.pt);
     if (this.bloom?.cue) {
       // At the plate, through the rest framing (Reduce Motion never moves the camera).

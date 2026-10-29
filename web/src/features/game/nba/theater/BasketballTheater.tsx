@@ -18,11 +18,15 @@
  * Over the court: the broadcast tag (SPURS BALL, SHOOTING FOUL · HAYES,
  * TIMEOUT · JAZZ, END OF 3RD), the heartbeat ("Live · 4s"), and on hover the
  * control that turns the court round to match the viewer's TV (remembered
- * per game). The theater takes the broadcast's ends (`hoopsEnds`: swapped at
- * halftime); the shot chart under it keeps its whole-game convention (the
- * top team at the right basket all game, as its caption says), because it
- * lays every shot of both halves on one court and a team's shots split
- * across both ends would read as two teams.
+ * per game). Names over the players (TheaterNames.swift): the man the play
+ * is about keeps his surname; the pointer (a tap on a phone) names whoever
+ * it's over, the men ESPN credits by name and number, everyone else by team
+ * (`basketballCast`), drawn into the frame under everything that plays. The
+ * theater takes the broadcast's ends (`hoopsEnds`: swapped at halftime); the
+ * shot chart under it keeps its whole-game convention (the top team at the
+ * right basket all game, as its caption says), because it lays every shot of
+ * both halves on one court and a team's shots split across both ends would
+ * read as two teams.
  *
  * Drawn on one canvas through the camera (TheaterStage, drawBasketball.ts).
  * A requestAnimationFrame loop runs only while something moves: a replay,
@@ -48,13 +52,15 @@ import { beatScript, endsRight, hoopsEnds, restScript, REST_LENGTH, sameLineup, 
 import { basketballNext, isMarquee, restAfter, statusBetween, statusDuring, type BasketballUnit, type Said } from "../../../../data/theater/basketballFlow";
 import type { BasketballScene, BasketballTheaterState } from "../../../../data/theater/basketballScene";
 import { BasketballScript, Hoops } from "../../../../data/theater/basketballScript";
-import { BasketballCelebration, BasketballTheaterWatch, NO_PLAYS, type BasketballBurst } from "../../../../data/theater/basketballTheater";
+import { basketballCast, BasketballCelebration, BasketballTheaterWatch, NO_PLAYS, type BasketballBurst } from "../../../../data/theater/basketballTheater";
+import { theaterLabels, type HitFigure, type TheaterPerson } from "../../../../data/theater/theaterNames";
 import { useSettings } from "../../../../state/settings";
 import { useColorScheme } from "../../../../state/theme";
 import { useChartMoment } from "../../core/moments";
 import { TheaterStage, type StageInputs } from "../../core/theater/TheaterStage";
 import { TheaterFlipButton, TheaterHeartbeat, TheaterStatusTag, useTheaterFlip } from "../../core/theater/TheaterStatus";
 import { accentOf, drawBursts, TheaterType, teamPalette, type Size, type StageBurst } from "../../core/theater/theaterKit";
+import { useTheaterNames, type NamesPose } from "../../core/theater/useTheaterNames";
 import styles from "../../core/theater/TheaterWell.module.css";
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
@@ -88,6 +94,12 @@ export interface BasketballTheaterProps {
   readonly frozen?: number | null;
   /** The court's sparse beats between plays: while the game is on (the lane says), or as asked (previews). */
   readonly idle?: boolean | null;
+  /** The box score's players, by athlete ID: the names over the credited men. */
+  readonly people?: Readonly<Record<string, TheaterPerson>>;
+  /** Development (the render harness): the pointer held over a figure or a point. */
+  readonly pointer?: NamesPose | null;
+  /** Development (the render harness): the tag held as given, in place of what the play says. */
+  readonly said?: Said | null;
 }
 
 interface Live {
@@ -139,6 +151,7 @@ class TheaterFollow {
 }
 
 const none = () => () => {};
+const NO_PEOPLE: Readonly<Record<string, TheaterPerson>> = {};
 const NOTHING: Live = { state: NO_PLAYS, possession: null, period: null, playing: false };
 
 function useTheaterState(feed: BasketballFeed | null, teams: Teams | null): Live {
@@ -224,6 +237,9 @@ export default function BasketballTheater({
   restOffense = null,
   frozen = null,
   idle = null,
+  people = NO_PEOPLE,
+  pointer,
+  said: heldSaid,
 }: BasketballTheaterProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const well = useRef<HTMLDivElement>(null);
@@ -237,6 +253,10 @@ export default function BasketballTheater({
   const level = useSettings((s) => s.celebrationLevel);
   const reduceMotion = useReducedMotion();
   const moment = useChartMoment("court");
+  const nameTags = useTheaterNames(well, stage);
+  useEffect(() => {
+    if (pointer !== undefined) nameTags.pose(pointer);
+  }, [nameTags, pointer]);
   const [flipped, flip] = useTheaterFlip(eventId);
   const names = useMemo(() => ({ top: topTeam || topName, bottom: bottomTeam || bottomName }), [topTeam, topName, bottomTeam, bottomName]);
   const ends = useCallback((p: number | null | undefined) => hoopsEnds(p ?? gamePeriod, topIsHome, flipped), [gamePeriod, topIsHome, flipped]);
@@ -405,6 +425,15 @@ export default function BasketballTheater({
     [topIsHome, palette.top, palette.bottom, scheme, topName, bottomName],
   );
   const ink = useMemo(() => theaterInk(scheme), [scheme]);
+  // Who each figure on screen is (the names over the court), once per script; each side's tags in the color it wears.
+  const castScope = unit ? unit.scene.id : `rest-${shown.serial}`;
+  const cast = useMemo(() => basketballCast(script, play, people, castScope), [script, play, people, castScope]);
+  const tagLabels = useMemo(
+    () => theaterLabels(kits, scheme, names),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, names],
+  );
+  const heartbeat = (feed ? live.playing : true) && state.heard != null;
 
   useEffect(() => {
     if (!canvas.current) return;
@@ -447,8 +476,9 @@ export default function BasketballTheater({
       return Math.min(Math.max((performance.now() - rest.start) / 1000, 0), script.duration);
     };
     let lastSaid: string | null | undefined = undefined;
-    const report = (t: number) => {
-      const next = unit ? statusDuring(unit, script, t, names) : statusBetween(frozen == null ? (told.current.context ?? lastNonSub(state)) : lastNonSub(state), rest?.rest ?? null, names);
+    const statusAt = (t: number): Said | null =>
+      unit ? statusDuring(unit, script, t, names) : statusBetween(frozen == null ? (told.current.context ?? lastNonSub(state)) : lastNonSub(state), rest?.rest ?? null, names);
+    const report = (next: Said | null) => {
       const key = next ? `${next.text}|${next.side ?? ""}` : null;
       if (key === lastSaid) return;
       lastSaid = key;
@@ -479,17 +509,26 @@ export default function BasketballTheater({
       paint: (ctx, size, pt, t, bursts: readonly StageBurst[]) => {
         const at = timeOf(t);
         const h = new HoopProjection(size, script.camera.frame(at), script.yaw);
+        const saying = heldSaid !== undefined ? heldSaid : statusAt(at);
+        // The names: the pointer's man hit-tested on this frame's players (each one's spot at t through the camera, no posing).
+        const hits = (): HitFigure[] =>
+          script.players.flatMap((player, index) => {
+            if (!(player.opacity(at) > 0.01)) return [];
+            const lens = h.lens(player.position(at));
+            return [{ index, ground: lens.origin, height: lens.height }];
+          });
+        const tags = nameTags.frame(cast, tagLabels, { status: saying?.text ?? null, flip: eventId !== "", heartbeat: heartbeat ? "trailing" : null }, hits);
         drawCourt(ctx, h, ink, paint);
-        drawBasketballFrame(ctx, h, { script, t: at, teams, ink, labels: labelsFor(ctx, size, pt) });
+        drawBasketballFrame(ctx, h, { script, t: at, teams, ink, labels: labelsFor(ctx, size, pt), tags });
         if (bursts.length > 0) {
           drawBursts(ctx, bursts, t, (p) => h.at(p), TheaterType.bannerOrigin(size, pt), (b) => teamPalette(color((b as BasketballBurst).side ?? null), ink), size);
         }
-        report(at);
+        report(saying);
       },
     };
     stage.current?.update(inputs);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shown, spanAt, script, teams, paint, ink, moment, level, reduceMotion, frozen, names, flipped]);
+  }, [shown, spanAt, script, teams, paint, ink, moment, level, reduceMotion, frozen, names, flipped, cast, tagLabels, heartbeat, eventId, heldSaid]);
 
   return (
     <div ref={well} className={styles.well} data-theater="basketball">

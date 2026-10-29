@@ -3,22 +3,25 @@
  * `HoopPose`, `BasketballFrame`; BasketballScript.swift `HoopProjection` and
  * the court's `RigLens`): the court from a high sideline through the
  * broadcast camera, turned a third of the way round, then one frame of the
- * play: the shadows, the baskets' backs, the players far to near, the ball,
- * the nets and the rims' fronts, the beats, the headline and the stamp.
+ * play: the shadows, the names over the players (under everything that
+ * plays), the baskets' backs, the players far to near, the ball, the nets
+ * and the rims' fronts, the beats, the headline and the stamp.
  * Everything is projected through the camera, so lines stay crisp at any
  * zoom; nothing is a scaled bitmap. Type is laid out once per play and size
  * (`layoutLabels`).
  */
-import type { CameraFrame } from "../../../../data/mlb/playCamera";
+import type { CameraFrame, Rect } from "../../../../data/mlb/playCamera";
 import { houseCurve, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
 import { zebra, type Uniform } from "../../../../data/mlb/theaterTeams";
 import type { Side } from "../../../../data/models";
 import { defense, type BasketballScene } from "../../../../data/theater/basketballScene";
+import { TheaterTagLayout, type TagFrame, type TheaterSpots } from "../../../../data/theater/theaterNames";
 import { BasketballScript, basketballStamp, Hoops, view, type Player } from "../../../../data/theater/basketballScript";
 import { gait, keyed, mix, over, Rig, rigArm, rigPose, RigPoses, RigTrack, skeleton, vec, type RigPose, type RigVector } from "../../../../data/theater/rig";
 import { FieldProjection } from "../../core/theater/fieldProjection";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
 import { hsb, rgba, type RGB, type TheaterInk } from "../../mlb/theater/theaterInk";
+import { drawStems, drawTags, tagRing, type Stems } from "../../core/theater/theaterTags";
 import {
   accentOf,
   ASCENT,
@@ -357,6 +360,30 @@ export interface BasketMotion {
   readonly rimHit: number | null;
   readonly rimStrength: number;
   readonly t: number;
+}
+
+/**
+ * A basket's room on screen (`end` as `drawBasket`'s; HoopsCourtLayer.room):
+ * its glass, its rim and its net, what a name raised over the paint keeps
+ * clear of. (tested)
+ */
+export function basketRoom(h: HoopProjection, end: number): Rect {
+  const L = Hoops.length;
+  const W = Hoops.width;
+  const rim = end > 0 ? Hoops.rim : { x: L - Hoops.rim.x, y: W / 2 };
+  const board = end > 0 ? Hoops.board : L - Hoops.board;
+  const points: Point[] = [];
+  for (const y of [W / 2 - 3, W / 2 + 3]) for (const z of [Hoops.boardBottom, Hoops.boardTop]) points.push(h.point({ x: board, y }, z));
+  for (let k = 0; k < 8; k++) {
+    const a = (k * Math.PI) / 4;
+    points.push(h.point({ x: rim.x + Hoops.rimRadius * Math.cos(a), y: rim.y + Hoops.rimRadius * Math.sin(a) }, Hoops.rimHeight));
+  }
+  points.push(h.point(rim, Hoops.rimHeight - 1.55));
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const x0 = Math.min(...xs);
+  const y0 = Math.min(...ys);
+  return { x: x0, y: y0, width: Math.max(...xs) - x0, height: Math.max(...ys) - y0 };
 }
 
 /**
@@ -1020,6 +1047,8 @@ export interface FrameInputs {
   readonly teams: BasketballTeams;
   readonly ink: TheaterInk;
   readonly labels: Labels;
+  /** The names over the players: the pointer's, the key man's. */
+  readonly tags?: TagFrame | null;
 }
 
 /** A player posed and placed at t; with the ball, where it is in his hands. */
@@ -1031,22 +1060,38 @@ interface Posed {
 
 /**
  * One frame of a play through the camera, after the court (BasketballFrame):
- * the shadows, the baskets' backs, the players far to near, the ball, the
- * nets and the rims' fronts, the beats, the headline and the stamp.
+ * the shadows, the names (on the floor, under everything that plays), the
+ * baskets' backs, the players far to near (each with the stem of his raised
+ * name just before him), the ball, the nets and the rims' fronts, the beats,
+ * the headline and the stamp.
  */
 export function drawBasketballFrame(ctx: Ctx, h: HoopProjection, input: FrameInputs): void {
   const { script, t, ink } = input;
   const figures = posed(h, input);
+  const ball = ballPoint(h, input, figures);
   drawShadows(ctx, h, input, figures);
+  // The names on the court, under all that plays: the baskets too.
+  const stems = drawNames(ctx, h, input, figures, ball?.point ?? null);
   const motion: BasketMotion = { net: script.net, rimHit: script.rimHit, rimStrength: script.rimStrength, t };
   for (const end of [-1, 1]) drawBasket(ctx, h, ink, end, false, motion);
-  drawPlayers(ctx, h, input, figures);
-  const ball = ballPoint(h, input, figures);
+  drawPlayers(ctx, h, input, figures, stems);
   if (ball?.inHoop) drawBall(ctx, h, input, ball.point);
   for (const end of [-1, 1]) drawBasket(ctx, h, ink, end, true, motion);
   if (ball && !ball.inHoop) drawBall(ctx, h, input, ball.point);
   drawFlashes(ctx, h, input);
   drawLabels(ctx, h, input);
+}
+
+/** Each player's spot on screen at t and the ball's, through the camera, no posing; and the baskets' (BasketballFrame.spots): what a tag keeps clear of. */
+export function basketballSpots(script: BasketballScript, t: number, size: Size): TheaterSpots {
+  const h = new HoopProjection(size, script.camera.frame(t), script.yaw);
+  const figures = script.players.flatMap((player, index) => {
+    if (!(player.opacity(t) > 0.01)) return [];
+    const lens = h.lens(player.position(t));
+    return [{ index, ground: lens.origin, height: lens.height }];
+  });
+  const ball = script.ball(t);
+  return { figures, ball: ball ? h.at(ball) : null, fixtures: [basketRoom(h, -1), basketRoom(h, 1)] };
 }
 
 /** Everyone at t, far to near: a player in front covers the one behind. */
@@ -1112,7 +1157,29 @@ function drawShadows(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInput
   }
 }
 
-function drawPlayers(ctx: Ctx, h: HoopProjection, { script, t, teams, ink }: FrameInputs, figures: readonly Posed[]): void {
+/**
+ * The names round the players, drawn under them and the ball, clear of the
+ * headline and the stamp while they're up; the raised ones' stems, to draw
+ * with their men.
+ */
+function drawNames(ctx: Ctx, h: HoopProjection, { script, t, ink, labels, tags }: FrameInputs, figures: readonly Posed[], ball: Point | null): Stems {
+  const clear: Rect[] = [];
+  const banner = script.banner;
+  if (banner && labels.banner && t >= banner.at && t < banner.until + 0.3) clear.push(TheaterTagLayout.banner(labels.banner, h.size));
+  if (labels.stamp && t >= script.stamp) clear.push(TheaterTagLayout.stamp(labels.stamp, h.size, TheaterType.inset(h.size)));
+  const people = figures.map((p) => ({ index: p.index, figure: p.figure, height: h.figure, opacity: script.players[p.index]!.opacity(t) }));
+  const r = ballRadius(h) + 0.6;
+  const size = h.size;
+  return drawTags(ctx, tags, people, t, size, {
+    clear,
+    ring: tagRing(ink.dark),
+    ball: ball ? { x: ball.x, y: ball.y, rx: r, ry: r, height: h.figure } : null,
+    replay: { length: script.duration, at: (s) => basketballSpots(script, s, size) },
+  });
+}
+
+/** Far to near, each with the stem of his raised name just before him. */
+function drawPlayers(ctx: Ctx, h: HoopProjection, { script, t, teams, ink }: FrameInputs, figures: readonly Posed[], stems: Stems): void {
   const offense = figureInks(teams.offense, ink);
   const defenseInks = figureInks(teams.defense, ink);
   // The referee, only when one comes in to make a call: the zebra shirt.
@@ -1120,6 +1187,7 @@ function drawPlayers(ctx: Ctx, h: HoopProjection, { script, t, teams, ink }: Fra
   for (const p of figures) {
     const player = script.players[p.index]!;
     const inks = player.team === "offense" ? offense : player.team === "defense" ? defenseInks : official;
+    drawStems(ctx, stems, p.index);
     drawFigure(ctx, p.figure, inks, h.figure, player.opacity(t));
   }
 }
@@ -1133,11 +1201,13 @@ function ballPoint(h: HoopProjection, { script, t }: FrameInputs, figures: reado
   return { point: h.at(ball), inHoop };
 }
 
+/** The ball's size: a touch larger than life, it's what the eye follows. */
+const ballRadius = (h: HoopProjection) => Math.min(Math.max(0.5 * h.scale, 2.1), Math.max(h.figure * 0.09, 2.1));
+
 /** The basketball: a glowing core with its comet tail while it flies. */
 function drawBall(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInputs, p: Point): void {
   const leather = hoopsInk(ink).leather;
-  // A touch larger than life: it's what the eye follows.
-  const r = Math.min(Math.max(0.5 * h.scale, 2.1), Math.max(h.figure * 0.09, 2.1));
+  const r = ballRadius(h);
   const flight = script.flight(t);
   if (flight) {
     const trail: Point[] = [];

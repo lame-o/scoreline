@@ -1011,12 +1011,27 @@ export interface LineupPlayer {
 }
 
 /**
+ * A substitute who came on (SoccerLineup.Sub): who, for whom, and when
+ * (seconds of the match clock, from the minute ESPN gives it: "66'", "90'+3'").
+ */
+export interface LineupSub {
+  readonly athlete: string;
+  readonly name: string | null;
+  readonly jersey: string | null;
+  readonly replaces: string;
+  readonly at: number | null;
+}
+
+/**
  * A team's starting eleven as the match summary lists it (`rosters[]`, which
  * the page's summary load already fetches): the formation, and each
  * starter's place in it, so every player has a nominal spot on the pitch,
- * not only those who touch the ball.
+ * not only those who touch the ball; and who came on since, for whom.
  */
 export class SoccerLineup {
+  /** The eleven with so many of the changes made (`on`), kept: the same changes are the same lineup. */
+  private readonly made = new Map<number, SoccerLineup>();
+
   private constructor(
     /** The team's ID. */
     readonly team: string,
@@ -1024,7 +1039,42 @@ export class SoccerLineup {
     readonly formation: string | null,
     /** The starting eleven, by formation place. */
     readonly players: readonly LineupPlayer[],
+    /** Who came on, in the order they did. */
+    readonly subs: readonly LineupSub[] = [],
   ) {}
+
+  /**
+   * The eleven on the pitch at `clock` (seconds; null: now, every change
+   * made): each substitute in the place of the man he came on for, a change
+   * of a change too. (pure; tested)
+   */
+  on(clock: number | null): SoccerLineup {
+    const due = this.subs.filter((sub) => clock == null || (sub.at ?? 0) <= clock);
+    if (due.length === 0) return this;
+    // The changes come in time order: those made by a minute are the first so many.
+    const kept = this.made.get(due.length);
+    if (kept) return kept;
+    const players = [...this.players];
+    for (const sub of due) {
+      const k = players.findIndex((p) => p.athlete === sub.replaces);
+      if (k < 0) continue;
+      players[k] = { ...players[k]!, athlete: sub.athlete, name: sub.name, jersey: sub.jersey, subbedOut: false };
+    }
+    const out = new SoccerLineup(this.team, this.formation, players, this.subs);
+    this.made.set(due.length, out);
+    return out;
+  }
+
+  /** "66'" → 66 minutes, "90'+3'" → 93, in seconds. (pure; tested) */
+  static clock(minute: string | null): number | null {
+    if (minute == null) return null;
+    const parts = minute
+      .split("+")
+      .map((part) => part.replace(/\D/g, ""))
+      .filter((digits) => digits !== "")
+      .map(Number);
+    return parts.length === 0 ? null : parts.reduce((a, b) => a + b, 0) * 60;
+  }
 
   /** A player's nominal spot on the pitch, in metres (home attacks right, as the scene draws it). */
   spot(athlete: string, attacksRight: boolean): Point | null {
@@ -1062,7 +1112,16 @@ export class SoccerLineup {
       });
     if (players.length === 0) return null;
     const formation = string(at(roster, "formation"));
-    return new SoccerLineup(team, formation, SoccerLineup.shaped([...players].sort((a, b) => a.place - b.place), formation));
+    const subs = arr(at(roster, "roster"))
+      .flatMap((r): LineupSub[] => {
+        const athlete = string(at(r, "athlete", "id"));
+        const replaces = string(at(r, "subbedInFor", "athlete", "id"));
+        if (bool(at(r, "subbedIn")) !== true || athlete == null || replaces == null) return [];
+        const minute = string(at(arr(at(r, "plays")).find((p) => bool(at(p, "substitution")) === true), "clock", "displayValue"));
+        return [{ athlete, name: string(at(r, "athlete", "displayName")), jersey: string(at(r, "jersey")), replaces, at: SoccerLineup.clock(minute) }];
+      })
+      .sort((a, b) => (a.at ?? 0) - (b.at ?? 0));
+    return new SoccerLineup(team, formation, SoccerLineup.shaped([...players].sort((a, b) => a.place - b.place), formation), subs);
   }
 
   /** Both teams' lineups from a summary's `rosters`, by side. */
@@ -1152,6 +1211,28 @@ export class SoccerLineup {
     if (p.endsWith("-L")) return 1;
     return 0;
   }
+}
+
+const changed = new WeakMap<Lineups, { top: SoccerLineup | undefined; bottom: SoccerLineup | undefined; lineups: Lineups }[]>();
+
+/**
+ * Both elevens as they stood at `clock` (seconds; null: now): each change
+ * made by then (`SoccerLineup.on`). The same changes give back the same
+ * lineups, so a script built from them is built once.
+ */
+export function lineupsOn(lineups: Lineups, clock: number | null): Lineups {
+  const top = lineups.top?.on(clock);
+  const bottom = lineups.bottom?.on(clock);
+  if (top === lineups.top && bottom === lineups.bottom) return lineups;
+  let kept = changed.get(lineups);
+  if (!kept) changed.set(lineups, (kept = []));
+  const hit = kept.find((k) => k.top === top && k.bottom === bottom);
+  if (hit) return hit.lineups;
+  const out: { top?: SoccerLineup; bottom?: SoccerLineup } = {};
+  if (top) out.top = top;
+  if (bottom) out.bottom = bottom;
+  kept.push({ top, bottom, lineups: out });
+  return out;
 }
 
 /** Both lineups from each side's roster as the summary sent it (GameDetail's `soccerRosters`); a side without a starting eleven is left out. */
