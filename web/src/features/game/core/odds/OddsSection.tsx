@@ -7,7 +7,7 @@
  */
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { nbaPalette } from "../../../../data/basketball";
-import { percent, percentPair, spokenPercent, valueAt, type GameState, type OddsWindow } from "../../../../data/odds/chart";
+import { headerFigures, percent, percentPair, spokenPercent, valueAt, type GameState, type HeaderFigure, type OddsWindow } from "../../../../data/odds/chart";
 import type { Sport } from "../../../../data/models";
 import { NEUTRAL } from "../../../../data/teamColors";
 import { SegmentedControl } from "../../../../design/components";
@@ -51,36 +51,20 @@ export function OddsSection({ game, snapshot, feed, state }: { game: GameContext
     [event.content, scheme, game.palette],
   );
 
-  // The header: now (live, before the game), or the start of play (a final: the chart tells the rest).
-  const at = final ? (basis.start ?? event.start) : null;
-  const read = (outcome: "top" | "draw" | "bottom") => {
-    const series = snapshot.series[outcome] ?? [];
-    return at != null ? (valueAt(series, at)?.p ?? series[0]?.p ?? null) : (snapshot.current[outcome] ?? null);
-  };
-  const espnNow = at != null ? (valueAt(basis.win, at) ?? basis.win[0] ?? null) : (basis.win.at(-1) ?? null);
+  // The header: the newest price (live, before the game), or on a final the last one, its resolution
+  // ("GS 100% · 0% MIN"). The muted line keeps where a final began: at the start of play.
+  const figures = headerFigures(snapshot.series, snapshot.current, threeWay, final);
+  const start = basis.start ?? event.start;
+  const startPrice = final ? (valueAt(snapshot.series.top ?? [], start)?.p ?? snapshot.series.top?.[0]?.p ?? null) : null;
+  const espnNow = final ? (valueAt(basis.win, start) ?? basis.win[0] ?? null) : (basis.win.at(-1) ?? null);
   const espnTop = espnNow?.top ?? (state === "scheduled" ? detail.topWinProbability : null);
   const pregame = basis.pregame;
 
-  let left: { name: string; text: string; spoken: string; color: string };
-  let right: { name: string; text: string; spoken: string; color: string };
-  let draw: string | null = null;
-  let spokenDraw: string | null = null;
-  if (threeWay) {
-    const a = read("top");
-    const d = read("draw");
-    const b = read("bottom");
-    const sum = (a ?? 0) + (d ?? 0) + (b ?? 0) || 1;
-    left = { name: names.top, text: a != null ? percent(a / sum) : "–", spoken: a != null ? spokenPercent(a / sum) : "unknown", color: palette.top };
-    right = { name: names.bottom, text: b != null ? percent(b / sum) : "–", spoken: b != null ? spokenPercent(b / sum) : "unknown", color: palette.bottom };
-    draw = d != null ? percent(d / sum) : null;
-    spokenDraw = d != null ? spokenPercent(d / sum) : null;
-  } else {
-    // A two-way market's sides are complements: written so they add up to 100.
-    const a = read("top");
-    const pair = a != null ? percentPair(a) : null;
-    left = { name: names.top, text: pair?.[0] ?? "–", spoken: a != null ? spokenPercent(a) : "unknown", color: palette.top };
-    right = { name: names.bottom, text: pair?.[1] ?? "–", spoken: a != null ? spokenPercent(1 - a) : "unknown", color: palette.bottom };
-  }
+  const side = (name: string, figure: HeaderFigure | null, color: string) => ({ name, text: figure?.text ?? "–", spoken: figure ? spokenPercent(figure.value, final) : "unknown", color });
+  const left = side(names.top, figures.top, palette.top);
+  const right = side(names.bottom, figures.bottom, palette.bottom);
+  const draw = figures.draw?.text ?? null;
+  const spokenDraw = figures.draw ? spokenPercent(figures.draw.value, final) : null;
 
   // The muted line: the longest wording that fits on one line, shorter ones dropping trailing words.
   const when = beforeStart(sport);
@@ -91,7 +75,7 @@ export function OddsSection({ game, snapshot, feed, state }: { game: GameContext
       variants.push(`DraftKings ${when}: ${odds}`, `DraftKings: ${odds}`);
     }
   } else if (final) {
-    const pm = left.text !== "–" ? `Polymarket ${left.text}` : null;
+    const pm = startPrice != null ? `Polymarket ${percentPair(startPrice)[0]}` : null;
     const espn = espnTop != null ? `ESPN ${percent(espnTop)}` : null;
     const dk = pregame ? `DraftKings ${percent(pregame.top)}` : null;
     const lead = `${names.top} at ${startWord(sport)}: `;
@@ -123,7 +107,7 @@ export function OddsSection({ game, snapshot, feed, state }: { game: GameContext
         : [`Polymarket's market over the last day. ${sides}`, `Polymarket's market over the last day. ${spokenSides}`];
 
   const spokenHeader = [
-    `Polymarket${final ? ` at ${startWord(sport)}` : ""}: ${spoken.top} ${left.spoken}`,
+    `Polymarket${final ? ", final" : ""}: ${spoken.top} ${left.spoken}`,
     spokenDraw != null ? `draw ${spokenDraw}` : null,
     `${spoken.bottom} ${right.spoken}.`,
   ]

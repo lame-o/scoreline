@@ -9,7 +9,7 @@
  * `pnpm fixtures odds`.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { badgeRect, gameDomain, glideProgress, heartbeat, percent, plotIn, scrubTime, splitAtMid, traded, visible, windowDomain, yOf } from "../../src/data/odds/chart";
+import { badgeRect, gameDomain, glideProgress, headerFigures, heartbeat, percent, percentPair, plotIn, scrubTime, shares, splitAtMid, traded, visible, windowDomain, yOf } from "../../src/data/odds/chart";
 import { clockAt, devig, draftKings, impliedChance, nearestPlay, parseOddsBasis } from "../../src/data/odds/espn";
 import {
   applyUpdate,
@@ -285,6 +285,30 @@ describe("the chart's geometry", () => {
     expect(glideProgress(100)).toBeGreaterThan(0.4);
     expect(glideProgress(250)).toBeGreaterThan(0.75);
     for (let t = 0; t < 500; t += 25) expect(glideProgress(t + 25)).toBeGreaterThan(glideProgress(t));
+  });
+
+  it("heads a final with its last price, the resolution (GS 100% · 0% MIN; Villa 100%), and a live game with its newest", () => {
+    // As the feed keeps them: each history compacted.
+    const gsw = compact(parseHistory(nbaHistory.histories[WARRIORS]), TIP + 9e6);
+    const last = gsw.at(-1)!;
+    const final = headerFigures({ top: gsw }, { top: last.p }, false, true);
+    expect(final.top).toEqual({ value: last.p, text: percentPair(last.p, true)[0] });
+    expect([final.top!.text, final.bottom!.text]).toEqual(["100%", "0%"]);
+    // Not the tip-off price (43%) the header once showed.
+    expect(final.top!.text).not.toBe(percentPair(visible(gsw, { from: nbaBasis.start!, to: nbaBasis.end! }, null)[0]!.p)[0]);
+
+    const [ast, draw, mac] = marketFromEvent(eplEvent, astMac)!.tokens.map(({ token }) => compact(parseHistory(eplHistory.histories[token]), Date.parse("2026-10-24T14:00:00Z")));
+    const soccer = headerFigures({ top: ast, draw, bottom: mac }, {}, true, true);
+    const s = shares(ast!.at(-1)!.p, draw!.at(-1)!.p, mac!.at(-1)!.p);
+    expect(soccer.top).toEqual({ value: s.top, text: percent(s.top, true) });
+    expect(soccer.draw!.value).toBe(s.draw);
+    expect(soccer.bottom!.value).toBe(s.bottom);
+    expect([soccer.top!.text, soccer.draw!.text, soccer.bottom!.text]).toEqual(["100%", "0%", "0%"]);
+
+    // Live: the newest price, never written as decided.
+    const live = headerFigures({ top: gsw }, { top: 0.9995 }, false, false);
+    expect([live.top!.text, live.bottom!.text]).toEqual(["99%", "1%"]);
+    expect(headerFigures({ top: gsw }, { top: 0.618 }, false, false).top).toEqual({ value: 0.618, text: "62%" });
   });
 
   it("writes chances and freshness as Polymarket and the theaters do", () => {

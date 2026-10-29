@@ -322,6 +322,41 @@ export function hourTicks(d: Domain, plot: Plot, label: (t: number) => string): 
   return out;
 }
 
+export interface HeaderFigure {
+  /** The chance shown (soccer: its share of the three). */
+  readonly value: number;
+  readonly text: string;
+}
+
+/**
+ * The header row's figures: the newest price while live and before the game;
+ * on a final the last price, which for a resolved market is its resolution
+ * ("GSW 100% · 0% MIN", as the Mac writes it; 100% only once it's over). A
+ * two-way market's sides are complements that add up to 100; soccer's three
+ * are each one's share.
+ */
+export function headerFigures(
+  series: Readonly<Partial<Record<"top" | "draw" | "bottom", readonly PricePoint[]>>>,
+  current: Readonly<Partial<Record<"top" | "draw" | "bottom", number>>>,
+  threeWay: boolean,
+  final: boolean,
+): { top: HeaderFigure | null; draw: HeaderFigure | null; bottom: HeaderFigure | null } {
+  const read = (o: "top" | "draw" | "bottom") => (final ? (series[o]?.at(-1)?.p ?? current[o]) : (current[o] ?? series[o]?.at(-1)?.p)) ?? null;
+  if (threeWay) {
+    const a = read("top");
+    const d = read("draw");
+    const b = read("bottom");
+    if (a == null || d == null || b == null) return { top: null, draw: null, bottom: null };
+    const s = shares(a, d, b);
+    const figure = (v: number) => ({ value: v, text: percent(v, final) });
+    return { top: figure(s.top), draw: figure(s.draw), bottom: figure(s.bottom) };
+  }
+  const a = read("top");
+  if (a == null) return { top: null, draw: null, bottom: null };
+  const [top, bottom] = percentPair(a, final);
+  return { top: { value: a, text: top }, draw: null, bottom: { value: 1 - a, text: bottom } };
+}
+
 /** TheaterStatus.swift `TheaterHeartbeat.label`: "Live · 4s", then "Waiting for Polymarket · 2m". */
 export function heartbeat(seconds: number, source = "Polymarket"): string {
   const s = Math.max(Math.floor(seconds), 0);

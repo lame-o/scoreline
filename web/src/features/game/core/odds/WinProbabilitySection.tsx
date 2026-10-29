@@ -17,7 +17,8 @@
  * The header row: each team and its chance (the top team left, the bottom
  * right; soccer's draw between), and one muted line with ESPN's model and
  * DraftKings' line for the top team, the longest wording that fits on one
- * line. A final's header is where it began, at the start of play.
+ * line. A final's header is its result (the last price: "GS 100% · 0% MIN");
+ * its muted line, where it began ("GS at tip-off: Polymarket 43% · …").
  */
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { GameState } from "../../../../data/odds/chart";
