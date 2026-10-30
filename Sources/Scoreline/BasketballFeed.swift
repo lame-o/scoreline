@@ -80,6 +80,11 @@ final class BasketballFeed {
     /// in: ESPN adds blocks and refines dunks about 30 s late, and those only
     /// celebrate while the play is still news.
     @ObservationIgnored private var looks = 0
+    /// The last look that's history: the first, or the one that caught up
+    /// on coming back to the page (`FeedLooks`).
+    @ObservationIgnored private var history = 1
+    @ObservationIgnored private var following = FeedLooks()
+    @ObservationIgnored private var catchingUp = false
     @ObservationIgnored private var firstSeen: [String: Int] = [:]
     @ObservationIgnored private var teams: Teams?
     /// The status endpoint's word on whether the game is on (nil: no reading yet).
@@ -131,6 +136,7 @@ final class BasketballFeed {
         guard !updating else { return }
         updating = true
         defer { updating = false }
+        catchingUp = !following.follows(at: .now)
         self.teams = teams
         let base = "https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/events/\(eventID)/competitions/\(eventID)"
         guard let situationURL = URL(string: "\(base)/situation"), let statusURL = URL(string: "\(base)/status") else { return }
@@ -246,6 +252,7 @@ final class BasketballFeed {
             nextStart += drop
         }
         fetched = total
+        if catchingUp { history = looks + 1 }
         ingest(next, start: nextStart, teams: teams)
     }
 
@@ -320,22 +327,23 @@ final class BasketballFeed {
     /// or if it only just happened; the theater tells news, in order.
     private func updateTheater(teams: Teams) {
         let plays = BasketballScene.recent(in: window, teams: teams)
-        let next = Self.theater(plays, after: theater, looks: looks, firstSeen: firstSeen, now: .now)
+        let next = Self.theater(plays, after: theater, looks: looks, firstSeen: firstSeen, history: history, now: .now)
         if next != theater { theater = next }
     }
 
     /// The theater after a look at the plays. A play that was news stays
-    /// news, edits and all; the first look is history. `heard` moves when a
-    /// new play comes. (pure; tested)
+    /// news, edits and all; the first look is history, as is one catching up
+    /// on coming back to the page (`history`: the last such). `heard` moves
+    /// when a new play comes. (pure; tested)
     static func theater(_ plays: [BasketballScene], after previous: BasketballTheaterState, looks: Int, firstSeen: [String: Int],
-                        now: Date) -> BasketballTheaterState {
+                        history: Int = 1, now: Date) -> BasketballTheaterState {
         var next = previous
         next.plays = plays
         let ids = Set(plays.map(\.id))
         next.news = previous.news.intersection(ids)
         for scene in plays where !next.news.contains(scene.id) {
             let seen = firstSeen[scene.id] ?? looks
-            if seen > 1 || scene.wallclock.map({ now.timeIntervalSince($0) < BaseballFeed.recent }) == true { next.news.insert(scene.id) }
+            if seen > history || scene.wallclock.map({ now.timeIntervalSince($0) < BaseballFeed.recent }) == true { next.news.insert(scene.id) }
         }
         if previous.heard == nil || !ids.isSubset(of: Set(previous.plays.map(\.id))) { next.heard = now }
         return next

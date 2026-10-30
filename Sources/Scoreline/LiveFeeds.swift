@@ -124,6 +124,9 @@ final class SoccerFeed {
     /// Whether this page has had a complete load: before it, everything is
     /// history (the feed outlives the page, so it may be catching up).
     @ObservationIgnored private var primed = false
+    /// This look follows on from the last (the page didn't leave and come back).
+    @ObservationIgnored private var looks = FeedLooks()
+    @ObservationIgnored private var following = true
     /// The last few located actions, kept across pages and refreshes, so a
     /// card (which has no position) can be put at its foul.
     @ObservationIgnored private var recent: [PitchAction] = []
@@ -168,6 +171,7 @@ final class SoccerFeed {
         guard !updating else { return }
         updating = true
         defer { updating = false }
+        following = looks.follows(at: .now)
         if !lineups.isEmpty, lineups != theater.lineups { theater.lineups = lineups }
         let base = "https://sports.core.api.espn.com/v2/sports/soccer/leagues/\(league)/events/\(eventID)/competitions/\(eventID)/plays"
         let size = loaded ? Self.updatePageSize : Self.firstPageSize
@@ -250,12 +254,12 @@ final class SoccerFeed {
             newActions.removeAll { struck.contains($0.playID) }
         }
         let shownBefore = theater.scene?.id
-        updateTheater(newItems, revised: edited, homeTeamID: homeTeamID, news: primed)
+        updateTheater(newItems, revised: edited, homeTeamID: homeTeamID, news: primed && following)
         if !newItems.isEmpty {
             var next = theater
             if theater.scene?.id != shownBefore, let momentOrder { next.sceneOrder = momentOrder }
             next.events = Array((next.events + newEvents).suffix(10))
-            if primed, next.newsFrom == nil, let first = newEvents.first { next.newsFrom = first.order }
+            if primed, following, next.newsFrom == nil, let first = newEvents.first { next.newsFrom = first.order }
             next.touch = touch ?? next.touch
             next.period = period ?? next.period
             next.heard = primed ? .now : newItems.last.flatMap { DateParser.parse($0["wallclock"].string) } ?? next.heard
@@ -562,6 +566,23 @@ struct DrivePlay: Identifiable, Equatable {
     }
 }
 
+/// A live feed's looks while its page is open. The page stops looking while
+/// it's left for another (a team's, a player's) and starts again on coming
+/// back: the look that catches up on what was missed is history, as on
+/// opening the page, so the theater doesn't replay the plays it missed back
+/// to back. Only the newest replays, if it only just happened. (pure; tested)
+struct FeedLooks {
+    /// Longer than the wait between looks plus a slow look's round trips.
+    static let gap: TimeInterval = 30
+    private var last: Date?
+
+    /// Whether the look at `now` follows on from the last one; marks it.
+    mutating func follows(at now: Date) -> Bool {
+        defer { last = now }
+        return last.map { now.timeIntervalSince($0) <= Self.gap } ?? true
+    }
+}
+
 /// ESPN's real-time football lane while a match page is open: the down,
 /// distance, spot and clock (two requests of a few hundred bytes) every few
 /// seconds, and the play-by-play only when a new play has happened.
@@ -601,6 +622,9 @@ final class FootballFeed {
     @ObservationIgnored private var heard: Date?
     @ObservationIgnored private var heardSequence: Double = -1
     @ObservationIgnored private var primed = false
+    /// This look follows on from the last (the page didn't leave and come back).
+    @ObservationIgnored private var looks = FeedLooks()
+    @ObservationIgnored private var following = true
     @ObservationIgnored private var updating = false
     /// Both teams' depth charts (NFL), once fetched; when they were last asked for.
     @ObservationIgnored private var charts: [GameDetail.Side: FootballDepthChart] = [:]
@@ -636,6 +660,7 @@ final class FootballFeed {
         guard !updating else { return }
         updating = true
         defer { updating = false }
+        following = looks.follows(at: .now)
         let league = path.split(separator: "/").last.map(String.init) ?? path
         let base = "https://sports.core.api.espn.com/v2/sports/football/leagues/\(league)/events/\(eventID)/competitions/\(eventID)"
         guard let situationURL = URL(string: "\(base)/situation"), let statusURL = URL(string: "\(base)/status") else { return }
@@ -757,7 +782,7 @@ final class FootballFeed {
             } else {
                 spotted = Self.spot(snaps, after: theater.play)
             }
-            var next = Self.theater(spotted, stoppage: stoppage, after: theater, primed: primed, now: .now)
+            var next = Self.theater(spotted, stoppage: stoppage, after: theater, primed: primed && following, now: .now)
             next.heard = heard
             if next != theater { theater = next }
         } else if !Task.isCancelled, theater.heard != heard || (stoppage != nil && stoppage != theater.stoppage) {
@@ -1048,6 +1073,9 @@ final class BaseballFeed {
     /// At-bat results that arrived since the page opened.
     @ObservationIgnored private var moments: [LiveMoment] = []
     @ObservationIgnored private var primed = false
+    /// This look follows on from the last (the page didn't leave and come back).
+    @ObservationIgnored private var looks = FeedLooks()
+    @ObservationIgnored private var following = true
     @ObservationIgnored private var fetched: Int?
     @ObservationIgnored private var lastPlayRef: String?
     @ObservationIgnored private var newestID: String?
@@ -1073,6 +1101,7 @@ final class BaseballFeed {
         guard !updating else { return }
         updating = true
         defer { updating = false }
+        following = looks.follows(at: .now)
         lookup = statcast
         self.names = names
         let league = path.split(separator: "/").last.map(String.init) ?? path
@@ -1097,7 +1126,7 @@ final class BaseballFeed {
             }
         }
         if refresh, loaded {
-            rebuildTimeline(news: primed)
+            rebuildTimeline(news: primed && following)
             publish()
         }
         guard let s else { return }
@@ -1192,8 +1221,9 @@ final class BaseballFeed {
             windowStart += window.count - Self.windowSize
             window = Array(window.suffix(Self.windowSize))
         }
-        // Until a complete look it's history; after, at-bat results are news.
-        let news = primed
+        // Until a complete look it's history; after, at-bat results are news
+        // (not those a look coming back to the page catches up on).
+        let news = primed && following
         if primed { moments += look.new.compactMap { Self.moment($0, side: side) } }
         // A result rewritten: its moment again (a bigger one is news again), and taken back if it no
         // longer applies; it's measured again as what it is now. One replaced is taken back too.

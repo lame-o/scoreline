@@ -819,6 +819,27 @@ struct FootballTheater: View {
         return (FootballScript.Rest(yard: yard(situation.ballX), gain: situation.lineToGainX.map(yard)), side)
     }
 
+    /// What replays when a snap arrives and no replay is running (the last
+    /// one's end holding, or the field back between snaps): the next queued
+    /// after the last replay, else the oldest waiting, else the newest snap
+    /// if it hasn't replayed. A snap queued as a replay ends goes after its
+    /// breath (the replay's task); one arriving later replays at once. (pure; tested)
+    static func waiting(_ state: FootballTheaterState, after replay: String?, played: Set<String>) -> FootballScene? {
+        guard let play = state.play else { return nil }
+        return replay.flatMap { nextQueued(state, after: $0, played: played) } ?? state.queue.first { !played.contains($0.id) }
+            ?? (played.contains(play.id) ? nil : play)
+    }
+
+    /// The next queued snap after this one (or after the try of it) that
+    /// hasn't replayed; once it's gone from the queue (that keeps the newest
+    /// five), the oldest waiting. (pure; tested)
+    static func nextQueued(_ state: FootballTheaterState, after id: String, played: Set<String>) -> FootballScene? {
+        let base = id.hasSuffix("-try") ? String(id.dropLast(4)) : id
+        guard let i = state.queue.firstIndex(where: { $0.id == base }) else { return state.queue.first { !played.contains($0.id) } }
+        if !id.hasSuffix("-try"), let attempt = state.queue[i].conversion, !played.contains(attempt.id) { return nil }
+        return state.queue[(i + 1)...].first { !played.contains($0.id) }
+    }
+
     /// "3rd & 7 at PHI 35" → 3rd & 7; "1st & Goal" → its distance unknown (10). (pure; tested)
     static func down(_ text: String?) -> FootballScene.Down? {
         guard let text, let m = text.firstMatch(of: #/^(\d)(?:st|nd|rd|th) & (\d+|Goal)/#), let down = Int(m.1) else { return nil }
@@ -1137,9 +1158,7 @@ private struct FootballStage: View {
             return
         }
         if let replay, !replay.done { return }
-        if let replay, replay.done, nextQueued(after: replay.id) != nil { return }
-        let waiting = state.queue.first { !played.contains($0.id) } ?? (played.contains(play.id) ? nil : play)
-        if let waiting { start(waiting) }
+        if let waiting = FootballTheater.waiting(state, after: replay?.id, played: played) { start(waiting) }
     }
 
     private func start(_ scene: FootballScene) {
@@ -1148,13 +1167,7 @@ private struct FootballStage: View {
         replay = Replay(id: scene.id, start: .now)
     }
 
-    /// The next queued snap after this one (or after the try of it) that hasn't replayed.
-    private func nextQueued(after id: String) -> FootballScene? {
-        let base = id.hasSuffix("-try") ? String(id.dropLast(4)) : id
-        guard let i = state.queue.firstIndex(where: { $0.id == base }) else { return nil }
-        if !id.hasSuffix("-try"), let attempt = state.queue[i].conversion, !played.contains(attempt.id) { return nil }
-        return state.queue[(i + 1)...].first { !played.contains($0.id) }
-    }
+    private func nextQueued(after id: String) -> FootballScene? { FootballTheater.nextQueued(state, after: id, played: played) }
 
     /// A touchdown replayed here is followed by its try, as a short beat of
     /// its own: a cut to the try's formation, a breath, the snap.

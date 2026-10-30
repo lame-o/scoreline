@@ -19,7 +19,7 @@ import { fieldPoint, type FieldPoint } from "../../src/data/mlb/theaterField";
 import { liveMoment, Tier, type LiveMoment } from "../../src/data/moments";
 import { FootballScene, kindIs, parse } from "../../src/data/theater/footballScene";
 import { FootballScript, footballStamp, Gridiron, type Role, type Team } from "../../src/data/theater/footballScript";
-import { FootballCelebration, footballShown, FootballTheaterWatch, footballRest, footballTheaterState, spot, spotted } from "../../src/data/theater/footballTheater";
+import { FootballCelebration, footballShown, FootballTheaterWatch, footballRest, footballTheaterState, footballWaiting, nextQueued, spot, spotted } from "../../src/data/theater/footballTheater";
 import { HOLD_MS } from "../../src/data/theater/theaterKit";
 import { playerPose } from "../../src/features/game/football/theater/drawFootball";
 import { fixture } from "./fixtures";
@@ -850,6 +850,18 @@ describe("between plays", () => {
     expect(attempt).toBeTruthy();
     expect(footballShown({ play: td, news: true }, attempt.id, td.id)).toEqual(attempt);
     expect(footballShown({ play: td, news: true }, attempt.id, attempt.id)).toBeNull();
+  });
+  it("a snap arriving after the last replay has rested replays too (live: every snap, not only the first)", () => {
+    const next = scene("2186")!;
+    const third = scene("3403")!;
+    expect(footballShown({ play, news: true, queue: [play] }, play.id, play.id, new Set([play.id]))).toBeNull();
+    expect(footballWaiting({ play: next, news: true, queue: [play, next] }, play.id, new Set([play.id]))).toBe(next);
+    expect(footballWaiting({ play: third, news: true, queue: [play, next, third] }, next.id, new Set([play.id, next.id]))).toBe(third);
+    expect(footballWaiting({ play: third, news: true, queue: [play, next, third] }, third.id, new Set([play.id, next.id, third.id]))).toBeNull();
+  });
+  it("a replay gone from the queue (it keeps five): the oldest waiting goes next", () => {
+    const next = scene("2186")!;
+    expect(nextQueued({ play: next, news: true, queue: [play, next] }, "gone", new Set([play.id]))).toBe(next);
   });
   it("the next snap cuts in, whatever is holding", () => {
     const next = scene("2186")!;

@@ -243,6 +243,13 @@ extension ScorelineTests {
               "the lane's first look is history; the plays after it are news, told from the first of them")
         let kept = BasketballFeed.theater(feed.theater.plays, after: feed.theater, looks: 1, firstSeen: [:], now: .now)
         check(kept.news == feed.theater.news, "a play that was news stays news through its edits")
+        // Leaving the page for another and coming back: the look that catches up is history too.
+        let old = BasketballTheaterState(), plays = feed.theater.plays
+        let seen = Dictionary(uniqueKeysWithValues: plays.map { ($0.id, 6) })
+        let later = Date.now.addingTimeInterval(3600)
+        check(BasketballFeed.theater(plays, after: old, looks: 6, firstSeen: seen, history: 6, now: later).news.isEmpty
+              && BasketballFeed.theater(plays, after: old, looks: 6, firstSeen: seen, history: 5, now: later).news == Set(plays.map(\.id)),
+              "plays the look coming back to the page caught up on are history; those after it are news")
         let rest = BasketballScript(rest: .init(offense: .bottom)), tipOff = BasketballScript(rest: .init(offense: nil))
         check(rest.players.count == 10 && rest.carrier(at: 0)?.player == 0 && rest.yaw == Hoops.yaw(.bottom)
               && tipOff.ball(at: 0).map { abs($0.x - Hoops.length / 2) < 0.1 } == true,

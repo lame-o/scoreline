@@ -55,15 +55,26 @@ export function footballShown(state: FootballTheaterState, replaying: string | n
   return queue.find((q) => q.id !== play.id && !played.has(q.id)) ?? play;
 }
 
-/** The next queued snap after this one (or after the try of it) that hasn't replayed (FootballStage.nextQueued). (pure; tested) */
+/** The next queued snap after this one (or after the try of it) that hasn't replayed; once it's gone from the queue (that keeps the newest five), the oldest waiting (FootballTheater.nextQueued). (pure; tested) */
 export function nextQueued(state: FootballTheaterState, id: string, played: ReadonlySet<string>): FootballScene | null {
   const queue = state.queue ?? [];
   const base = id.endsWith("-try") ? id.slice(0, -4) : id;
   const i = queue.findIndex((q) => q.id === base);
-  if (i < 0) return null;
+  if (i < 0) return queue.find((q) => !played.has(q.id)) ?? null;
   const attempt = queue[i]!.conversion;
   if (!id.endsWith("-try") && attempt && !played.has(attempt.id)) return null;
   return queue.slice(i + 1).find((q) => !played.has(q.id)) ?? null;
+}
+
+/**
+ * What replays when a snap arrives and no replay is running (the last one's end holding, or the field back between snaps):
+ * the next queued after the last replay, else the oldest waiting, else the newest snap if it hasn't replayed. A snap queued
+ * as a replay ends goes after its breath; one arriving later replays at once (FootballTheater.waiting). (pure; tested)
+ */
+export function footballWaiting(state: FootballTheaterState, replay: string | null, played: ReadonlySet<string>): FootballScene | null {
+  const play = state.play;
+  if (!play) return null;
+  return (replay != null ? nextQueued(state, replay, played) : null) ?? (state.queue ?? []).find((q) => !played.has(q.id)) ?? (played.has(play.id) ? null : play);
 }
 
 /** "3rd & 7 at PHI 35" → 3rd & 7; "1st & Goal" → its distance unknown (10). (FootballTheater.down; pure; tested) */

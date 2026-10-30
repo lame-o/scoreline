@@ -281,6 +281,24 @@ extension ScorelineTests {
               && FootballTheater.shown(state, replaying: snaps[1].id, rested: nil, played: [snaps[0].id, snaps[1].id]) == snaps[1]
               && FootballTheater.shown(state, replaying: snaps[2].id, rested: snaps[2].id, played: Set(snaps.map(\.id))) == nil,
               "…each replays in turn, then the field between snaps")
+        // A snap that arrives after the last replay has wound down (its end
+        // held, the field back between snaps) replays too, not just the first.
+        var later = FootballFeed.theater([snaps[0]], stoppage: nil, after: FootballTheaterState(), primed: true, now: .now)
+        let rested = FootballTheater.shown(later, replaying: snaps[0].id, rested: snaps[0].id, played: [snaps[0].id])
+        later = FootballFeed.theater([snaps[0], snaps[1]], stoppage: nil, after: later, primed: true, now: .now)
+        check(rested == nil && FootballTheater.waiting(later, after: snaps[0].id, played: [snaps[0].id]) == snaps[1],
+              "a snap arriving after the last replay rested replays (live: every snap, not only the first)")
+        later = FootballFeed.theater([snaps[1], snaps[2]], stoppage: nil, after: later, primed: true, now: .now)
+        check(FootballTheater.waiting(later, after: snaps[1].id, played: [snaps[0].id, snaps[1].id]) == snaps[2]
+              && FootballTheater.waiting(later, after: snaps[2].id, played: Set(snaps.map(\.id))) == nil,
+              "…and the next, then nothing once all have replayed")
+        let five = FootballTheaterState(play: snaps[2], news: true, queue: [snaps[1], snaps[2]])
+        check(FootballTheater.nextQueued(five, after: "gone", played: [snaps[1].id]) == snaps[2],
+              "a replay gone from the queue (it keeps five): the oldest waiting goes next")
+        var gaps = FeedLooks(), t0 = Date.now
+        let looked = [gaps.follows(at: t0), gaps.follows(at: t0 + 6), gaps.follows(at: t0 + 126), gaps.follows(at: t0 + 132)]
+        check(looked == [true, true, false, true],
+              "the look after the page was left and come back to catches up (history, like opening it); the next follows on")
         let history = FootballFeed.theater(snaps, stoppage: nil, after: FootballTheaterState(), primed: false, now: .distantFuture)
         check(!history.news && history.queue.map(\.id) == [snaps[2].id], "history (the page just opened) queues nothing")
         if let stop = item("1100").flatMap({ FootballStoppage.parse($0, teams: teams) }) {

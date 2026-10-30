@@ -55,7 +55,7 @@ import { NEUTRAL, type Scheme, type TeamPalette } from "../../../../data/teamCol
 import { FieldFacing, footballIdle, FootballStatus, idleScript, sameIdle, type FootballIdle, type StatusNames, type StatusTag } from "../../../../data/theater/footballIdle";
 import type { FootballScene, FootballTheaterState } from "../../../../data/theater/footballScene";
 import { FootballScript } from "../../../../data/theater/footballScript";
-import { DEFAULT_REST, FootballCelebration, footballCast, footballDown, footballShown, FootballTheaterWatch, footballRest, nextQueued, type FootballBurst } from "../../../../data/theater/footballTheater";
+import { DEFAULT_REST, FootballCelebration, footballCast, footballDown, footballShown, FootballTheaterWatch, footballRest, footballWaiting, nextQueued, type FootballBurst } from "../../../../data/theater/footballTheater";
 import { theaterLabels } from "../../../../data/theater/theaterNames";
 import type { TheaterPerson } from "../../../../data/theater/theaterPeople";
 import { HOLD_MS } from "../../../../data/theater/theaterKit";
@@ -241,8 +241,7 @@ export default function FootballTheater({
       return;
     }
     if (r && !r.done) return;
-    if (r && r.done && nextQueued(state, r.id, played) != null) return;
-    const waiting = queue.find((q) => !played.has(q.id)) ?? (played.has(p.id) ? null : p);
+    const waiting = footballWaiting(state, r?.id ?? null, played);
     if (waiting) start(waiting);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.play?.id, queueKey]);
