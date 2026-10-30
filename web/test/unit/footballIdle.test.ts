@@ -288,7 +288,7 @@ describe("between snaps", () => {
     expect(flipped.phase).toEqual({ kind: "quarter", turnTo: -FieldFacing.yaw("bottom", 2, false) });
   });
 
-  it("halftime: both teams and the officials off, the field empty, HALFTIME", () => {
+  it("halftime: both teams off, the field empty, HALFTIME", () => {
     const stop = stoppage("2292")!;
     const idle = footballIdle({ play: null, stoppage: stop, rest, offense: "top", down: null, kickoff: false, flipped: false });
     const s = idleScript(idle);
@@ -314,7 +314,7 @@ describe("between snaps", () => {
     expect(FootballStatus.idle(idle, null, s, 10, names, null, noTimeouts)).toEqual({ tag: "Injury · Q.Mitchell", tint: "06424d" });
   });
 
-  it("Atlanta's red flag thrown in from its own bench; the referee at the replay monitor on the near sideline; CHALLENGE · FALCONS, UNDER REVIEW, RULING STANDS", () => {
+  it("Atlanta's red flag thrown in from its own bench; the teams waiting (no referee walking to the monitor); CHALLENGE · FALCONS, UNDER REVIEW, RULING STANDS", () => {
     const [play] = reviewed("Atlanta challenged")!;
     const idle = footballIdle({ play, stoppage: null, rest: { yard: 99, gain: null }, offense: "bottom", down: null, kickoff: false, flipped: false });
     const s = idleScript(idle);
@@ -322,9 +322,9 @@ describe("between snaps", () => {
     expect(red.from.x > 0).toBe(idle.bench > 0);
     expect(Math.abs(red.to.x)).toBeLessThan(Gridiron.half);
     expect(red.lands).toBeLessThan(2);
-    const ref = s.players.find((p) => p.team === "official")!;
-    expect(Math.abs(ref.position(10).x)).toBeGreaterThan(Gridiron.half);
-    expect(ref.position(10).x * FieldFacing.near(s.yaw)).toBeGreaterThan(0);
+    // The coach's throw is the only one off the field; no official stands about (nor walks to the monitor).
+    expect(s.players.some((p) => p.team === "official")).toBe(false);
+    expect(s.players.some((p) => p.team === "staff" && p.actions.some((a) => a.kind === "flagThrow"))).toBe(true);
     const atlNames: StatusNames = { top: "49ers", bottom: "Falcons", topColor: "aa0000", bottomColor: "a71930" };
     const tags = [2, 10, 18].map((t) => FootballStatus.idle(idle, null, s, t, atlNames, null, noTimeouts).tag);
     expect(tags).toEqual(["Challenge · Falcons", "Under review · runner was out of bounds", "Ruling stands"]);

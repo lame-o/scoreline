@@ -31,7 +31,7 @@ export interface Uniform {
   readonly piping: string | null;
   /** Type in the team's color: a hit's stamp, the banner, the runs pill. Null: the primary ink. */
   readonly accent: string | null;
-  /** An official's shirt: stripes of this color down the jersey (the body and the sleeves), inside the figure (none: a plain jersey). */
+  /** An official's shirt: a few bold stripes of this color down the body, inside the figure (none: a plain jersey). */
   readonly stripes?: string | null;
   /** An official's shorts or slacks: the legs in this color (none: the jersey's). */
   readonly legs?: string | null;
@@ -135,8 +135,9 @@ export function dress(kits: TheaterKits, scheme: Scheme): { top: Uniform; bottom
 
 /**
  * The officials' kits (PlayTheater.swift `Uniform.zebra`, `.referee`,
- * `.umpire`), one look per sport so they never pass for a team's men:
- * football's and basketball's zebra shirt with black trousers, soccer's
+ * `.umpire`), one look per sport so they never pass for a team's men (on
+ * the field only while the data has one doing something): football's and
+ * basketball's zebra shirt with black trousers, soccer's
  * referee in FIFA yellow with black shorts, baseball's umpire in navy with
  * gray slacks; a black cap on each. On a light panel a pale shirt takes a
  * rim of its own, as home whites do, instead of the white halo.
@@ -144,9 +145,9 @@ export function dress(kits: TheaterKits, scheme: Scheme): { top: Uniform; bottom
 const OFFICIAL_CAP = white(0.12);
 const BLACK_KIT = white(0.12);
 
-/** Football's and basketball's officials: the zebra shirt, black trousers. */
+/** Football's and basketball's officials: the zebra shirt (a few bold black stripes on white: rigFigure.ts `zebra`), black trousers. */
 export function zebra(scheme: Scheme): Uniform {
-  return { jersey: white(0.96), cap: OFFICIAL_CAP, piping: scheme === "dark" ? null : white(0.3), accent: "#ffffff", stripes: white(0.1), legs: BLACK_KIT };
+  return { jersey: white(0.96), cap: OFFICIAL_CAP, piping: scheme === "dark" ? null : white(0.3), accent: "#ffffff", stripes: white(0.08), legs: BLACK_KIT };
 }
 
 /** Baseball's umpire: a navy shirt, gray slacks. */

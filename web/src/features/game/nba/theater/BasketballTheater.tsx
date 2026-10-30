@@ -52,19 +52,23 @@ import { beatScript, endsRight, hoopsEnds, restScript, REST_LENGTH, sameLineup, 
 import { basketballNext, isMarquee, restAfter, statusBetween, statusDuring, type BasketballUnit, type Said } from "../../../../data/theater/basketballFlow";
 import type { BasketballScene, BasketballTheaterState } from "../../../../data/theater/basketballScene";
 import { BasketballScript, Hoops } from "../../../../data/theater/basketballScript";
-import { basketballCast, BasketballCelebration, BasketballTheaterWatch, NO_PLAYS, type BasketballBurst } from "../../../../data/theater/basketballTheater";
+import { basketballBridge, basketballCast, BasketballCelebration, BasketballTheaterWatch, NO_PLAYS, type BasketballBurst } from "../../../../data/theater/basketballTheater";
+import type { RigTrack } from "../../../../data/theater/rig";
+import { beatLeft, bridgeTracks, type BridgePlan } from "../../../../data/theater/theaterBridge";
+import { TheaterDelays } from "../../../../data/theater/theaterDelays";
 import { theaterLabels, type HitFigure, type TheaterPerson } from "../../../../data/theater/theaterNames";
 import { useSettings } from "../../../../state/settings";
 import { useColorScheme } from "../../../../state/theme";
 import { useChartMoment } from "../../core/moments";
 import { TheaterStage, type StageInputs } from "../../core/theater/TheaterStage";
 import { TheaterFlipButton, TheaterHeartbeat, TheaterStatusTag, useTheaterFlip } from "../../core/theater/TheaterStatus";
-import { accentOf, drawBursts, TheaterType, teamPalette, type Size, type StageBurst } from "../../core/theater/theaterKit";
+import { accentOf, drawBursts, TheaterType, teamPalette, type Ctx, type Size, type StageBurst } from "../../core/theater/theaterKit";
 import { useTheaterNames, type NamesPose } from "../../core/theater/useTheaterNames";
 import styles from "../../core/theater/TheaterWell.module.css";
+import { drawLayers } from "../../core/theater/layers";
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
-import { drawBasketballFrame, drawCourt, HoopProjection, layoutLabels, type BasketballTeams, type Labels, type Paint } from "./drawBasketball";
+import { basketballProjection, drawBasketballFrame, drawCourt, HoopProjection, layoutLabels, type BasketballBridge, type BasketballTeams, type Labels, type Paint } from "./drawBasketball";
 import { useSlideCourt } from "./slideCourt";
 
 export interface BasketballTheaterProps {
@@ -175,6 +179,21 @@ type Run =
   | { readonly kind: "unit"; readonly unit: BasketballUnit; readonly from: Lineup | null; readonly fallback: Side | null; readonly serial: number }
   | { readonly kind: "rest"; readonly rest: RestSpec; readonly start: number; readonly serial: number };
 
+/**
+ * The hand-off from the court between plays to the replay of `id`
+ * (BasketballStage.Bridge): when the play came in (performance.now(), ms),
+ * the plan, and the court as it was (its script plays on under the bridge,
+ * from `elapsed` seconds in), each traveller's stride.
+ */
+interface Handoff {
+  readonly id: string;
+  readonly came: number;
+  readonly plan: BridgePlan;
+  readonly script: BasketballScript;
+  readonly elapsed: number;
+  readonly tracks: ReadonlyMap<number, RigTrack>;
+}
+
 /** What's been told (or passed over), the last of it, and the stoppage it left (BasketballStage.Told). */
 interface Told {
   cursor: string | null;
@@ -269,6 +288,8 @@ export default function BasketballTheater({
   const [run, setRun] = useState<Run | null>(null);
   const runRef = useRef<Run | null>(null);
   runRef.current = run;
+  // The court between plays a replay is taking over from, while the hand-off runs.
+  const handoff = useRef<Handoff | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
   const serial = useRef(0);
@@ -313,6 +334,26 @@ export default function BasketballTheater({
       if (r?.kind === "rest") t.rest = r.rest;
       const fallback = r?.kind === "rest" ? r.rest.offense : r ? scriptOf(r).side : possession;
       const next: Run = { kind: "unit", unit, from: isMarquee(unit) ? null : from, fallback, serial: serial.current };
+      // A replay that comes in while the court rests takes over from it, from where everyone is (theaterBridge.ts).
+      handoff.current = null;
+      if (isMarquee(unit) && r?.kind === "rest" && !reduceMotion) {
+        const rest = scriptOf(r);
+        const came = performance.now();
+        const elapsed = (came - r.start) / 1000;
+        const replay = scriptOf(next);
+        const plan = basketballBridge(rest, elapsed, replay, reduceMotion, beatLeft(rest.active, elapsed));
+        const tracks = bridgeTracks(
+          plan,
+          Hoops.ground,
+          (j, s) => ({ at: rest.players[j]!.position(elapsed + s), heading: rest.rig[j]?.motion(elapsed + s).heading ?? 0 }),
+          (i, s) => {
+            const u = Math.max(plan.replayTime(s), 0);
+            return { at: replay.players[i]!.position(u), heading: replay.rig[i]?.motion(u).heading ?? 0 };
+          },
+        );
+        handoff.current = { id: unit.scene.id, came, plan, script: rest, elapsed, tracks };
+        TheaterDelays.note(unit.scene.id, plan.delay);
+      }
       runRef.current = next;
       setRun(next);
       return;
@@ -418,7 +459,9 @@ export default function BasketballTheater({
     [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme],
   );
   const offense: Side = script.side ?? possession ?? "top";
-  const teams: BasketballTeams = useMemo(() => (offense === "top" ? { offense: dressed.top, defense: dressed.bottom } : { offense: dressed.bottom, defense: dressed.top }), [dressed, offense]);
+  // Each side's look with the ball (the court a replay takes over from may have the other's).
+  const teamsBy = useMemo((): Record<Side, BasketballTeams> => ({ top: { offense: dressed.top, defense: dressed.bottom }, bottom: { offense: dressed.bottom, defense: dressed.top } }), [dressed]);
+  const teams = teamsBy[offense];
   // The paint in the home team's color, its name at center court.
   const paint: Paint = useMemo(
     () => ({ color: solid(topIsHome ? palette.top : palette.bottom, scheme), name: (topIsHome ? topName : bottomName).toUpperCase(), three: Hoops.three }),
@@ -484,11 +527,15 @@ export default function BasketballTheater({
       lastSaid = key;
       setSaid(next);
     };
+    // Taking over from the court between plays: the men travel (the frame blends), or the court fades out over the replay's set.
+    const hand = unit && handoff.current?.id === unit.scene.id ? handoff.current : null;
     const inputs: StageInputs = {
       // A told play is a replay of its own, by its ID (the moment's, for Reduce Motion's bloom); so is each of the court's beats (the same
       // floor: it carries on, never a crossfade). The court turned round between plays crossfades to its other side.
       id: unit ? unit.scene.id : `rest-${shown.serial}${flipped ? "-turned" : ""}-${windowIndex ?? "still"}`,
       news: unit != null ? frozen == null : windowIndex != null,
+      lead: hand?.plan.delay ?? 0,
+      came: hand?.came ?? null,
       onEnd: unit ? onEnd : undefined,
       duration: span ? span[1] - span[0] : script.duration,
       frozen: frozen != null ? frozen : null,
@@ -506,9 +553,13 @@ export default function BasketballTheater({
               return { cue, origin, palette: teamPalette(color(play.offense), ink) };
             }
           : null,
-      paint: (ctx, size, pt, t, bursts: readonly StageBurst[]) => {
+      paint: (ctx, size, pt, t, bursts: readonly StageBurst[], since) => {
         const at = timeOf(t);
-        const h = new HoopProjection(size, script.camera.frame(at), script.yaw);
+        const live = hand && since < hand.plan.end ? hand : null;
+        const w = live ? live.plan.weight(since) : 1;
+        const restT = live ? live.elapsed + since : 0;
+        const bridge: BasketballBridge | null = live && live.plan.mode === "bridge" ? { script: live.script, t: restT, w, s: since, pairs: live.plan.pairs, tracks: live.tracks } : null;
+        const h = basketballProjection(size, script, at, bridge);
         const saying = heldSaid !== undefined ? heldSaid : statusAt(at);
         // The names: the pointer's man hit-tested on this frame's players (each one's spot at t through the camera, no posing).
         const hits = (): HitFigure[] =>
@@ -518,17 +569,37 @@ export default function BasketballTheater({
             return [{ index, ground: lens.origin, height: lens.height }];
           });
         const tags = nameTags.frame(cast, tagLabels, { status: saying?.text ?? null, flip: eventId !== "", heartbeat: heartbeat ? "trailing" : null }, hits);
-        drawCourt(ctx, h, ink, paint);
-        drawBasketballFrame(ctx, h, { script, t: at, teams, ink, labels: labelsFor(ctx, size, pt), tags });
-        if (bursts.length > 0) {
-          drawBursts(ctx, bursts, t, (p) => h.at(p), TheaterType.bannerOrigin(size, pt), (b) => teamPalette(color((b as BasketballBurst).side ?? null), ink), size);
+        const frame = (c: Ctx) => {
+          drawCourt(c, h, ink, paint);
+          drawBasketballFrame(c, h, { script, t: at, teams, ink, labels: labelsFor(c, size, pt), tags, bridge });
+          if (bursts.length > 0) {
+            drawBursts(c, bursts, t, (p) => h.at(p), TheaterType.bannerOrigin(size, pt), (b) => teamPalette(color((b as BasketballBurst).side ?? null), ink), size);
+          }
+        };
+        if (live && live.plan.mode === "crossfade") {
+          // A crossfade: the two frames each partly there.
+          const court = live.script;
+          const g = new HoopProjection(size, court.camera.frame(restT), court.yaw);
+          const courtTeams = teamsBy[court.side ?? "top"];
+          drawLayers(ctx, [
+            [w, frame],
+            [
+              1 - w,
+              (c) => {
+                drawCourt(c, g, ink, paint);
+                drawBasketballFrame(c, g, { script: court, t: restT, teams: courtTeams, ink, labels: layoutLabels(c, null, court, courtTeams, ink, size, pt) });
+              },
+            ],
+          ]);
+        } else {
+          frame(ctx);
         }
         report(saying);
       },
     };
     stage.current?.update(inputs);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shown, spanAt, script, teams, paint, ink, moment, level, reduceMotion, frozen, names, flipped, cast, tagLabels, heartbeat, eventId, heldSaid]);
+  }, [shown, spanAt, script, teams, teamsBy, paint, ink, moment, level, reduceMotion, frozen, names, flipped, cast, tagLabels, heartbeat, eventId, heldSaid]);
 
   return (
     <div ref={well} className={styles.well} data-theater="basketball">

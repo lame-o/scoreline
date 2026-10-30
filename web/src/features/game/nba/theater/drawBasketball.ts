@@ -10,14 +10,15 @@
  * zoom; nothing is a scaled bitmap. Type is laid out once per play and size
  * (`layoutLabels`).
  */
-import type { CameraFrame, Rect } from "../../../../data/mlb/playCamera";
+import { CameraFrame, type Rect } from "../../../../data/mlb/playCamera";
 import { houseCurve, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
 import { zebra, type Uniform } from "../../../../data/mlb/theaterTeams";
 import type { Side } from "../../../../data/models";
 import { defense, type BasketballScene } from "../../../../data/theater/basketballScene";
 import { TheaterTagLayout, type TagFrame, type TheaterSpots } from "../../../../data/theater/theaterNames";
 import { BasketballScript, basketballStamp, Hoops, view, type Player } from "../../../../data/theater/basketballScript";
-import { gait, keyed, mix, over, Rig, rigArm, rigPose, RigPoses, RigTrack, skeleton, vec, type RigPose, type RigVector } from "../../../../data/theater/rig";
+import { gait, keyed, mix, over, remainder, Rig, rigArm, rigPose, RigPoses, RigTrack, skeleton, vec, type RigPose, type RigVector } from "../../../../data/theater/rig";
+import { bridgeGhosts, bridgeMix, bridgePose, type FrameBridge } from "../../../../data/theater/theaterBridge";
 import { FieldProjection } from "../../core/theater/fieldProjection";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
 import { hsb, rgba, type RGB, type TheaterInk } from "../../mlb/theater/theaterInk";
@@ -1049,13 +1050,32 @@ export interface FrameInputs {
   readonly labels: Labels;
   /** The names over the players: the pointer's, the key man's. */
   readonly tags?: TagFrame | null;
+  /** The court between plays this replay is taking over from (null: none, or the hand-off is done). */
+  readonly bridge?: BasketballBridge | null;
 }
 
-/** A player posed and placed at t; with the ball, where it is in his hands. */
+/** The court between plays as it stands mid-bridge (BasketballFrame.Bridge, theaterBridge.ts): its script and time now, how far the hand-off is, who becomes whom. */
+export type BasketballBridge = FrameBridge<BasketballScript>;
+
+/** The camera at t (BasketballFrame.projection); mid-bridge, eased from the court's framing to the replay's. */
+export function basketballProjection(size: Size, script: BasketballScript, t: number, bridge: BasketballBridge | null = null): HoopProjection {
+  const camera = script.camera.frame(t);
+  if (!bridge) return new HoopProjection(size, camera, script.yaw);
+  const b = bridge.script;
+  return new HoopProjection(size, CameraFrame.mix(b.camera.frame(bridge.t), camera, bridge.w), b.yaw + remainder(script.yaw - b.yaw, 2 * Math.PI) * bridge.w);
+}
+
+/**
+ * A player posed and placed at t; with the ball, where it is in his hands.
+ * A ghost is one of the court's men the replay doesn't have, fading out
+ * over the bridge (his index is the court's).
+ */
 interface Posed {
   readonly index: number;
   readonly figure: RigFigure;
   readonly ball: Point | null;
+  readonly opacity: number;
+  readonly ghost?: boolean;
 }
 
 /**
@@ -1094,18 +1114,51 @@ export function basketballSpots(script: BasketballScript, t: number, size: Size)
   return { figures, ball: ball ? h.at(ball) : null, fixtures: [basketRoom(h, -1), basketRoom(h, 1)] };
 }
 
-/** Everyone at t, far to near: a player in front covers the one behind. */
-function posed(h: HoopProjection, { script, t }: FrameInputs): Posed[] {
+/**
+ * Everyone at t, far to near: a player in front covers the one behind.
+ * Mid-bridge each man the two share goes from where the court between plays
+ * has him to his place in the replay's set, posed between the two and
+ * striding along the way; the court's others fade out, the replay's fade in.
+ */
+function posed(h: HoopProjection, { script, t, bridge }: FrameInputs): Posed[] {
   const carrier = script.carrier(t);
   const order = script.players.flatMap((player, index) => {
-    if (!(player.opacity(t) > 0.01)) return [];
-    const at = player.position(t);
-    return [{ player, index, at, depth: h.depth(at) }];
+    if (!bridge && !(player.opacity(t) > 0.01)) return [];
+    let at = player.position(t);
+    const j = bridge?.pairs.get(index);
+    if (bridge && j != null) at = bridgeMix(bridge.script.players[j]!.position(bridge.t), at, bridge.w);
+    return [{ index, at, ghost: false, depth: h.depth(at) }];
   });
+  if (bridge) {
+    for (const index of bridgeGhosts(bridge.pairs, bridge.script.players.length)) {
+      const at = bridge.script.players[index]!.position(bridge.t);
+      order.push({ index, at, ghost: true, depth: h.depth(at) });
+    }
+  }
   order.sort((a, b) => b.depth - a.depth);
-  return order.map(({ player, index, at }) => {
+  return order.flatMap(({ index, at, ghost }): Posed[] => {
     const lens = h.lens(at);
-    const [body, heading] = playerPose(script, player, index, t, at, lens.unit);
+    if (ghost && bridge) {
+      const player = bridge.script.players[index]!;
+      const o = player.opacity(bridge.t) * (1 - bridge.w);
+      if (!(o > 0.01)) return [];
+      const [body, heading] = playerPose(bridge.script, player, index, bridge.t, at, lens.unit);
+      return [{ index, figure: rigFigure(skeleton(body), heading, lens), ball: null, opacity: o, ghost: true }];
+    }
+    const player = script.players[index]!;
+    let o = player.opacity(t);
+    let [body, heading] = playerPose(script, player, index, t, player.position(t), lens.unit);
+    if (bridge) {
+      const j = bridge.pairs.get(index);
+      if (j != null) {
+        const other = bridge.script.players[j]!;
+        [body, heading] = bridgePose(playerPose(bridge.script, other, j, bridge.t, other.position(bridge.t), lens.unit), [body, heading], bridge.w, bridge.tracks.get(index), bridge.s, at, lens.unit);
+        o = other.opacity(bridge.t) + (o - other.opacity(bridge.t)) * bridge.w;
+      } else {
+        o *= bridge.w;
+      }
+    }
+    if (!(o > 0.01)) return [];
     const skel = skeleton(body);
     const figure = rigFigure(skel, heading, lens);
     let ball: Point | null = null;
@@ -1133,7 +1186,7 @@ function posed(h: HoopProjection, { script, t }: FrameInputs): Posed[] {
       const loose = h.at(spot);
       ball = { x: loose.x + (hand.x - loose.x) * held, y: loose.y + (hand.y - loose.y) * held };
     }
-    return { index, figure, ball };
+    return [{ index, figure, ball, opacity: o }];
   });
 }
 
@@ -1142,8 +1195,7 @@ function drawShadows(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInput
   const w = h.figure * 0.26;
   for (const p of figures) {
     const air = Math.min(p.figure.air / 0.35, 1);
-    const seen = script.players[p.index]!.opacity(t);
-    drawShadow(ctx, p.figure.ground, w * (1 - 0.35 * air), shadow(ink, (1 - 0.5 * air) * seen));
+    drawShadow(ctx, p.figure.ground, w * (1 - 0.35 * air), shadow(ink, (1 - 0.5 * air) * p.opacity));
   }
   // The ball's: larger and softer the higher it flies.
   const ball = script.ball(t);
@@ -1167,7 +1219,7 @@ function drawNames(ctx: Ctx, h: HoopProjection, { script, t, ink, labels, tags }
   const banner = script.banner;
   if (banner && labels.banner && t >= banner.at && t < banner.until + 0.3) clear.push(TheaterTagLayout.banner(labels.banner, h.size));
   if (labels.stamp && t >= script.stamp) clear.push(TheaterTagLayout.stamp(labels.stamp, h.size, TheaterType.inset(h.size)));
-  const people = figures.map((p) => ({ index: p.index, figure: p.figure, height: h.figure, opacity: script.players[p.index]!.opacity(t) }));
+  const people = figures.filter((p) => !p.ghost).map((p) => ({ index: p.index, figure: p.figure, height: h.figure, opacity: p.opacity }));
   const r = ballRadius(h) + 0.6;
   const size = h.size;
   return drawTags(ctx, tags, people, t, size, {
@@ -1179,26 +1231,31 @@ function drawNames(ctx: Ctx, h: HoopProjection, { script, t, ink, labels, tags }
 }
 
 /** Far to near, each with the stem of his raised name just before him. */
-function drawPlayers(ctx: Ctx, h: HoopProjection, { script, t, teams, ink }: FrameInputs, figures: readonly Posed[], stems: Stems): void {
+function drawPlayers(ctx: Ctx, h: HoopProjection, { script, teams, ink, bridge }: FrameInputs, figures: readonly Posed[], stems: Stems): void {
   const offense = figureInks(teams.offense, ink);
   const defenseInks = figureInks(teams.defense, ink);
-  // The referee, only when one comes in to make a call: the zebra shirt.
-  const official = script.players.some((p) => p.team === "official") ? figureInks(zebra(ink.dark ? "dark" : "light"), ink) : offense;
+  // The referee, only while he's doing something (in to make a call, the toss, the ball for free throws): the zebra shirt.
+  const refereed = script.players.some((p) => p.team === "official") || bridge?.script.players.some((p) => p.team === "official") === true;
+  const official = refereed ? figureInks(zebra(ink.dark ? "dark" : "light"), ink) : offense;
   for (const p of figures) {
-    const player = script.players[p.index]!;
-    const inks = player.team === "offense" ? offense : player.team === "defense" ? defenseInks : official;
-    drawStems(ctx, stems, p.index);
-    drawFigure(ctx, p.figure, inks, h.figure, player.opacity(t));
+    // A ghost wears his own team's colors: the court's offense is the replay's (else it crossfades).
+    const team = p.ghost ? (bridge?.script.players[p.index]?.team ?? "offense") : script.players[p.index]!.team;
+    const inks = team === "offense" ? offense : team === "defense" ? defenseInks : official;
+    if (!p.ghost) drawStems(ctx, stems, p.index);
+    drawFigure(ctx, p.figure, inks, h.figure, p.opacity);
   }
 }
 
 /** Where the ball is drawn: in his hands, or along its flight; and whether it's inside the hoop (then the rim's front and the net go over it). */
-function ballPoint(h: HoopProjection, { script, t }: FrameInputs, figures: readonly Posed[]): { point: Point; inHoop: boolean } | null {
+function ballPoint(h: HoopProjection, { script, t, bridge }: FrameInputs, figures: readonly Posed[]): { point: Point; inHoop: boolean } | null {
   const ball = script.ball(t);
   if (!ball) return null;
-  for (const p of figures) if (p.ball) return { point: p.ball, inHoop: false };
+  // Mid-bridge, from where the court between plays had it to the replay's.
+  const from = bridge?.script.ball(bridge.t);
+  const bridged = (p: Point): Point => (bridge && from ? bridgeMix(h.at(from), p, bridge.w) : p);
+  for (const p of figures) if (p.ball) return { point: bridged(p.ball), inHoop: false };
   const inHoop = Math.hypot(ball.x - Hoops.rim.x, ball.y - Hoops.rim.y) < 1.1 && ball.z < Hoops.rimHeight + 0.25 && ball.z > Hoops.rimHeight - 2.6;
-  return { point: h.at(ball), inHoop };
+  return { point: bridged(h.at(ball)), inHoop };
 }
 
 /** The ball's size: a touch larger than life, it's what the eye follows. */

@@ -12,18 +12,22 @@
  * own goal line, z up. The offense lines up as the play says (in the gun or
  * under center, heavy, empty, a bunch, the punt and field-goal units, the
  * kickoff), round the ball on its hash. Time is a replay's: the snap after
- * half a second on the formation, everything after it about one and a half
- * times the game's speed, so a snap runs 2–5 s, and the stamp holds a third
- * of a second on it. Then the field settles: on a new down the two teams jog
- * back to the new line; after a score, a kick or a turnover they hold where
- * it ended. A touchdown's try is a scene of its own, a shorter beat.
+ * half a second on the formation; the action, from the snap until the ball
+ * is dead, laid out at about one and a half times the game's speed and then
+ * played `actionPace` (1.3×) slower, near the game's own, so the throw, the
+ * ball's flight, the run and the tackle are easy to follow (a snap runs
+ * 2.5–6 s); the stamp holds a third of a second on it. Then the field
+ * settles, at its own pace: on a new down the two teams jog back to the new
+ * line; after a score, a kick or a turnover they hold where it ended. A
+ * touchdown's try is a scene of its own, a shorter beat.
  *
  * The play is told in the order it happened, by the men ESPN credits: the
  * defense in its own base front, each man in his depth-chart slot; the rush
  * that got home as he threw; the strip, the scramble for the ball and who
  * came up with it, then the return; the kick blocked at the line; each flag
- * thrown by the nearest official when and where its foul happened, and the
- * yards walked off after.
+ * thrown when and where its foul happened by the official nearest it, at his
+ * post (he's on the field only for the throw: an official the data has doing
+ * nothing isn't drawn), and the yards walked off after.
  *
  *     const script = FootballScript.play(scene);
  *     script.ball(2.1); script.camera.frame(2.1);
@@ -34,7 +38,8 @@ import { easeValue, fieldPoint, ground, type Ease, type FieldPoint, type Point }
 import type { Side } from "../models";
 import { DepthSlot, kindIs, playText, rounded, type Flag as SceneFlag, type FootballScene, type Lane, type Participant, type Position } from "./footballScene";
 import { ballMemo, RigTrack, type RigFacing } from "./rig";
-import { CameraPath, CameraRig, clearing, intersects, maxY, midX, unionAll } from "./theaterKit";
+import type { BridgeFigure } from "./theaterBridge";
+import { CameraPath, CameraRig, clearing, intersects, maxY, midX, Pace, unionAll } from "./theaterKit";
 
 // MARK: - The field
 
@@ -93,18 +98,18 @@ export const Gridiron = {
 
 // MARK: - Script
 
-/** The two teams, the official who throws a flag, and the trainers who come out to a man hurt. */
+/** The two teams, the official who throws a flag (for the throw), and the trainers who come out to a man hurt (and the coach who throws a challenge flag). */
 export type Team = "offense" | "defense" | "official" | "staff";
 
-/** Who he is on the play: his stance and pose follow from it. */
-export type Role = "line" | "quarterback" | "back" | "receiver" | "tightEnd" | "front" | "backer" | "corner" | "safety" | "kicker" | "holder" | "punter" | "returner" | "cover" | "official";
+/** Who he is on the play: his stance and pose follow from it. `official`: the official who throws a flag; `staff`: off the field's roster (a trainer, a coach). */
+export type Role = "line" | "quarterback" | "back" | "receiver" | "tightEnd" | "front" | "backer" | "corner" | "safety" | "kicker" | "holder" | "punter" | "returner" | "cover" | "official" | "staff";
 
 /**
  * A moment of the play in his hands: besides the catch, the throw, the kick,
  * the tackle and the block, a punch at the ball in another man's arms (the
- * `strip`), laid out on the grass for a loose ball (`scramble`), an
- * official's flag thrown (`flagThrow`), up off the line with both arms high
- * for a kick (`leap`).
+ * `strip`), laid out on the grass for a loose ball (`scramble`), a flag
+ * thrown (`flagThrow`: an official's, a coach's red challenge flag), up off
+ * the line with both arms high for a kick (`leap`).
  */
 export interface Action {
   readonly kind: "catchHigh" | "catchChest" | "throwBall" | "handoff" | "kick" | "tackle" | "block" | "spike" | "scoop" | "strip" | "scramble" | "flagThrow" | "leap";
@@ -319,6 +324,21 @@ export class FootballScript {
    * him: the tags over the field name him, and nobody else.
    */
   credits = new Map<number, Participant>();
+  /** The action's stretch: from the snap to the ball being dead the clock runs slower than the play was laid out (`actionPace`). */
+  pace = new Pace();
+
+  /**
+   * How much slower the action plays than it's laid out: from the snap to
+   * the ball being dead (the drop, the throw and the ball's flight, the run,
+   * the tackle, a kick and its return). The walk-up before the snap, the
+   * hold on the stamp and the jog back to the line keep their pace.
+   */
+  static readonly actionPace = 1.3;
+
+  /** `t` on the action's own clock (the laid-out one): a pose keyed off an action plays at the pace the action does. */
+  local(t: number): number {
+    return this.pace.laidOut(t);
+  }
 
   /** The camera's yaw at t: the script's own, or partway through a turn. */
   yawAt(t: number): number {
@@ -352,6 +372,27 @@ export class FootballScript {
   /** The room the camera keeps round a spot, at this script's yaw. */
   room(p: FieldPoint, figure: boolean): Rect {
     return Gridiron.room(p, figure, this.yaw);
+  }
+
+  /**
+   * Everyone as the hand-off from the field between snaps matches them
+   * (theaterBridge.ts): by side (`offense` has the ball in this script; the
+   * staff on their own), his depth-chart slot or else his role, where he is
+   * at t.
+   */
+  bridgeFigures(offense: Side, t: number): BridgeFigure[] {
+    return this.players.map((p) => {
+      const group = p.team === "offense" ? (offense === "top" ? 0 : 1) : p.team === "defense" ? (offense === "top" ? 1 : 0) : p.team === "official" ? 2 : 3;
+      return { group, kind: p.key ?? p.role, athlete: null, at: p.position(t) };
+    });
+  }
+
+  /** The replay's own lead-in: the formation's still moment before anyone (or the ball) moves, which a hand-off from the idle uses first. */
+  get leadIn(): number {
+    let first = Infinity;
+    for (const p of this.players) if (p.moves[0]) first = Math.min(first, p.moves[0].start);
+    for (const f of this.flights) first = Math.min(first, f.start);
+    return Math.max(Number.isFinite(first) ? first : 0.5, 0);
   }
 
   /** The first flag thrown. */
@@ -441,11 +482,15 @@ export class FootballScript {
     return b.script;
   }
 
-  /** A snap's replay, the field facing as `yaw` turns it (FieldFacing: up and to the right when the offense attacks the screen's right). */
-  static play(scene: FootballScene, yaw: number = Gridiron.yaw): FootballScript {
+  /**
+   * A snap's replay, the field facing as `yaw` turns it (FieldFacing: up and
+   * to the right when the offense attacks the screen's right), its action
+   * played `pace` times slower than laid out.
+   */
+  static play(scene: FootballScene, yaw: number = Gridiron.yaw, pace: number = FootballScript.actionPace): FootballScript {
     const b = new Builder(FootballScript.played(scene) ?? scene, Gridiron.y(scene.from), scene.shotgun, scene);
     b.script.yaw = yaw;
-    b.build();
+    b.build(pace);
     b.script.measureBodies();
     return b.script;
   }
@@ -500,11 +545,13 @@ export class FootballScript {
       return RigTrack.measure(0, this.duration, 8.5, (t) => player.position(t), (t): RigFacing => {
         const here = player.position(t);
         const ahead = { x: here.x, y: here.y + 60 * way };
-        const a = player.actions.find((a) => t > a.at - 0.45 && t < a.at + 0.2);
+        // The action's windows on its own clock, so they keep their share of the play when it's slowed.
+        const local = this.local(t);
+        const a = player.actions.find((a) => local > this.local(a.at) - 0.45 && local < this.local(a.at) + 0.2);
         if (a) return { point: a.kind === "spike" || a.kind === "kick" ? ahead : a.toward };
         const look = player.looks.findLast((l) => t >= l.from);
         if (look) return { point: look.point };
-        if (t > snap && t < snap + 1.6) {
+        if (local > snap && local < snap + 1.6) {
           const p = player.position(t - 0.05);
           const q = player.position(t + 0.05);
           if ((q.y - p.y) * way < -0.5 * Math.hypot(q.x - p.x, q.y - p.y)) return { point: ahead, always: true };
@@ -935,7 +982,7 @@ export class Builder {
       const i = nearest(pool.filter((k) => fallback.includes(this.script.players[k]!.role)));
       if (i != null) return i;
     }
-    return nearest(pool.filter((k) => this.script.players[k]!.role !== "official"));
+    return nearest(pool.filter((k) => this.script.players[k]!.role !== "official" && this.script.players[k]!.role !== "staff"));
   }
 
   /** A slot's kind, whichever side it's on: an end, an interior lineman, a backer, a corner, a safety; the offense's line, receivers, tight ends, backs. */
@@ -1240,7 +1287,7 @@ export class Builder {
 
   // MARK: Build
 
-  build(): void {
+  build(pace: number = FootballScript.actionPace): void {
     const scene = this.scene;
     if (!scene) return;
     if (scene.kind.type === "fieldGoal") this.script.yaw = 0;
@@ -1295,12 +1342,54 @@ export class Builder {
         this.penalty();
         break;
     }
+    // The action, snap to dead ball, slowed; the flags then come when and where their fouls happened in it.
+    if (!stopped && scene.kind.type !== "penalty" && pace !== 1) this.stretch(pace, this.snap, this.over);
     if (!stopped && scene.kind.type !== "penalty") this.flags();
     this.finish();
     this.headline();
     this.measureStamp();
     this.settle();
     this.shoot();
+  }
+
+  // MARK: Pace
+
+  /**
+   * The action laid out so far, from `a` to `b`, played `k` times slower:
+   * every moment in it moved along the slower clock, every one after it
+   * moved later by as much; nothing before it changes.
+   */
+  stretch(k: number, a: number, b: number): void {
+    const pace = new Pace(a, Math.max(b, a), k);
+    const r = (t: number) => pace.stretched(t);
+    const { script } = this;
+    for (const p of script.players) {
+      p.moves = p.moves.map((m) => new Move(r(m.start), r(m.end), m.path, m.ease));
+      p.actions = p.actions.map((x) => ({ ...x, at: r(x.at) }));
+      p.holds = p.holds.map((h) => ({ ...h, from: r(h.from), until: r(h.until) }));
+      p.looks = p.looks.map((l) => ({ ...l, from: r(l.from) }));
+      p.set = p.set != null ? r(p.set) : null;
+      p.resets = p.resets != null ? r(p.resets) : null;
+      p.appear = r(p.appear);
+      p.vanish = r(p.vanish);
+    }
+    script.flights = script.flights.map((f) => {
+      const moved = new Flight(r(f.start), r(f.end), f.from, f.to, f.arc, f.ease, f.hops);
+      moved.fresh = f.fresh;
+      return moved;
+    });
+    script.legs = script.legs.map((l) => ({ ...l, from: r(l.from), until: r(l.until) }));
+    script.flashes = script.flashes.map((f) => ({ ...f, at: r(f.at) }));
+    script.flags = script.flags.map((f) => ({ ...f, thrown: r(f.thrown), lands: r(f.lands) }));
+    script.stamp = r(script.stamp);
+    script.score = script.score != null ? r(script.score) : null;
+    script.ballGone = r(script.ballGone);
+    this.over = r(this.over);
+    this.release = this.release != null ? r(this.release) : null;
+    this.arrival = this.arrival ? { at: r(this.arrival.at), point: this.arrival.point } : null;
+    this.stop = this.stop ? { at: r(this.stop.at), point: this.stop.point } : null;
+    this.recoveredAt = this.recoveredAt != null ? r(this.recoveredAt) : null;
+    script.pace = pace;
   }
 
   // MARK: Pass
@@ -2180,7 +2269,7 @@ export class Builder {
     if (!walked || !(Math.abs(end - ended) > 0.5)) return;
     const from = walked.from != null ? Gridiron.y(walked.from) : ended;
     const lands = Math.max(script.flags.length > 0 ? Math.max(...script.flags.map((f) => f.lands)) : this.over, this.over);
-    // The ball goes to the official's spot, then walks.
+    // The ball goes to the spot of the foul, then walks.
     const ball = script.ball(lands);
     if (ball && (Math.abs(ball.y - from) > 1 || Math.abs(ball.x - this.ballX) > 1)) this.fly(ball, { x: this.ballX, y: from, z: 0.6 }, lands + 0.25, 0.45, arc(5));
     this.walk(from, end, lands + 0.85, false);
@@ -2225,24 +2314,33 @@ export class Builder {
     return { at: Math.min(mid, end.at), near: ballAt(mid), fixed: false, late: false };
   }
 
-  /** An official's flag, thrown at the foul: from the official nearest it (at his post since the snap), end over end to the spot. */
+  /**
+   * An official's flag, thrown at the foul: from the official nearest it, at
+   * his post, end over end to the spot. He's on the field for the throw:
+   * fading in as he reaches back, gone once it's down (the data has him
+   * doing nothing else).
+   */
   throwFlag(spot: Point, lands: number, declined = false, wing = false): void {
     const thrown = lands - 0.45;
-    const thrower = this.official(spot, wing);
+    const thrower = this.official(spot, wing, thrown);
     const hand = this.position(thrower, thrown);
     this.script.players[thrower]!.act("flagThrow", thrown, spot);
     this.script.flags.push({ thrown, lands, from: fieldPoint(hand, 6.5), to: spot, declined });
     this.script.flashes.push({ beat: "flag", at: lands, point: fieldPoint(spot) });
   }
 
+  /** How long before his throw an official fades in (in full as he reaches back), and how long after it he's gone. */
+  static readonly officialBefore = 0.7;
+  static readonly officialAfter = 0.6;
+
   /**
    * The official nearest a spot, at his post: the referee behind the
    * backfield, the umpire (the NFL's, in it), the line judge and the head
    * linesman on the sidelines at the line, the back judge deep; a foul at
    * the line (`wing`) is the sideline officials'. Added the first time one
-   * throws.
+   * throws, on the field round each throw (`thrown`).
    */
-  official(p: Point, wing = false): number {
+  official(p: Point, wing: boolean, thrown: number): number {
     const { line, ballX, script } = this;
     const sides = [
       { x: -Gridiron.half - 3, y: line },
@@ -2258,9 +2356,19 @@ export class Builder {
         ];
     let post = posts[0]!;
     for (const q of posts) if (hypotP(q, p) < hypotP(post, p)) post = q;
+    const from = thrown - Builder.officialBefore;
+    const until = thrown + Builder.officialAfter;
     const i = script.players.findIndex((pl) => pl.team === "official" && pl.at.x === post.x && pl.at.y === post.y);
-    if (i >= 0) return i;
-    script.players.push(new Player("official", post, "official"));
+    if (i >= 0) {
+      const official = script.players[i]!;
+      official.appear = Math.min(official.appear, from);
+      official.vanish = Math.max(official.vanish, until);
+      return i;
+    }
+    const official = new Player("official", post, "official");
+    official.appear = from;
+    official.vanish = until;
+    script.players.push(official);
     return script.players.length - 1;
   }
 

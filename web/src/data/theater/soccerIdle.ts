@@ -3,16 +3,21 @@
  * so a live match never looks frozen: every event ESPN logs gets its beat,
  * and between them the ball goes round. A corner: the taker jogs to the flag
  * on the side it went out, the box fills, each man picked up. A foul: the
- * man fouled down, the referee in, then the free kick set up at the real
- * spot (a wall when it's in range). Offside: the assistant's flag up level
- * with the man. A booking: the referee's card up to the real player where
- * his foul was; a red, and he walks. A substitution: the man coming off to
- * the halfway line, the board up, the man coming on. A man hurt: down, the
- * physios on. A VAR check, its decision; half time and full time, off to
- * the tunnel; the second half's kick-off with the ends changed. Otherwise
- * the team on the ball (the last event's) passes it round in its formation
- * from the lineups, the other team shifting with it, a pass every few
- * seconds.
+ * man fouled down, then the free kick set up at the real spot (a wall when
+ * it's in range). Offside: the assistant's flag up level with the man. A
+ * booking: the referee's card up to the real player where his foul was; a
+ * red, and he walks. A substitution: the man coming off to the halfway
+ * line, the board up, the man coming on. A man hurt: down, the physios on.
+ * A VAR check, its decision; half time and full time, off to the tunnel;
+ * the second half's kick-off with the ends changed. Otherwise the team on
+ * the ball (the last event's) passes it round in its formation from the
+ * lineups, the other team shifting with it, a pass every few seconds.
+ *
+ * The officials are on the pitch only for what the data has them do: the
+ * referee for a booking (in to the man, the card, away), the assistant for
+ * an offside (up the touchline to him, the flag), the fourth official for a
+ * substitution (the board). Each fades in as he comes and out as he goes;
+ * otherwise there are only the players, nobody standing about in their way.
  *
  * Each is a script like a moment's (soccerScript.ts), a pure function of
  * what the feed said and t, in sparse beats: a second or two of motion,
@@ -420,7 +425,7 @@ export function sameSoccerIdle(a: SoccerIdle | null, b: SoccerIdle | null): bool
   return a.seed === b.seed && a.possession === b.possession && a.homeRight === b.homeRight && a.ball.x === b.ball.x && a.ball.y === b.ball.y && a.lineups === b.lineups && a.event?.id === b.event?.id;
 }
 
-/** The pitch between moments (`SoccerScript(idle:)`): both elevens, the officials, and the beat. */
+/** The pitch between moments (`SoccerScript(idle:)`): both elevens, an official for his act, and the beat. */
 export function soccerIdleScript(idle: SoccerIdle): SoccerScript {
   const b = new IdleBuilder(idle);
   b.build();
@@ -483,7 +488,6 @@ class IdleBuilder {
   private readonly random: SplitMix64;
   /** Each man of the team on the ball (attacking) and the other, by athlete. */
   private readonly men: { attacking: Man[]; defending: Man[] } = { attacking: [], defending: [] };
-  private referee = 0;
   /** What the camera keeps in frame, by when. */
   private readonly focus: Focus[] = [];
 
@@ -556,8 +560,16 @@ class IdleBuilder {
     this.script.actors[i]!.looks.push({ from, point });
   }
 
-  private hold(i: number, kind: "down" | "kneel" | "cardUp" | "ear" | "screen" | "boardUp", from: number, until: number): void {
+  private hold(i: number, kind: "down" | "kneel" | "cardUp" | "boardUp", from: number, until: number): void {
     this.script.actors[i]!.holds.push({ kind, from, until });
+  }
+
+  /** An official on the pitch for his act alone: fading in as the beat opens, gone (faded out) from `until`. */
+  private official(label: string, p: Point, until: number): number {
+    const i = this.add("official", label, p);
+    this.script.actors[i]!.appear = 0.05;
+    this.script.actors[i]!.vanish = until;
+    return i;
   }
 
   /** Everyone into the shape for a ball at `ball`, from `start`, at a jog. */
@@ -593,7 +605,7 @@ class IdleBuilder {
   }
 
   build(): void {
-    const { idle, random, script } = this;
+    const { idle, script } = this;
     const ball = idle.ball;
     for (const team of ["attacking", "defending"] as const) {
       this.men[team] = this.lineup(team).players.map((p) => {
@@ -602,18 +614,8 @@ class IdleBuilder {
         return { player: p, actor: i };
       });
     }
-    // The officials: the referee near the play, an assistant on each touchline level with the last defender.
-    const sx = random.sign();
-    const rx = ball.x + sx * random.in(6, 11);
-    const sy = random.sign();
-    const ry = clamp(ball.y + sy * random.in(5, 10), 4, Pitch.width - 4);
-    this.referee = this.add("official", "referee", { x: rx, y: ry });
-    const lastMan = this.men.defending.filter((m) => m.player.place !== 1).map((m) => this.position(m.actor, 0).x);
-    const line = this.right ? (lastMan.length > 0 ? Math.max(...lastMan) : 70) : lastMan.length > 0 ? Math.min(...lastMan) : 35;
-    const near = this.add("official", "assistant", { x: line, y: -1.2 });
-    this.add("official", "assistant", { x: Pitch.length - line, y: Pitch.width + 1.2 });
     script.flights = [new Flight("carry", 0, 0.01, fieldPoint(ball, 0.11), fieldPoint(ball, 0.11))];
-    const [loopStart, period] = idle.event ? this.beat(idle.event, near) : this.circulate(ball);
+    const [loopStart, period] = idle.event ? this.beat(idle.event) : this.circulate(ball);
     script.loop = loopStart < Infinity && period > 0 ? { start: loopStart, period } : null;
     script.duration = period > 0 ? loopStart + period : Math.max(loopStart, 1);
     script.settle = script.duration;
@@ -685,7 +687,7 @@ class IdleBuilder {
   // MARK: Events
 
   /** An event's beat: the stage it sets, at its real spot, with its real men. */
-  private beat(e: SoccerEvent, assistant: number): [number, number] {
+  private beat(e: SoccerEvent): [number, number] {
     const { idle, random, script } = this;
     const ball = idle.ball;
     switch (e.kind.type) {
@@ -695,8 +697,12 @@ class IdleBuilder {
       case "handball":
         return this.freeKick(e);
       case "offside": {
-        // The assistant level with him, his flag up; then the free kick back.
+        // The assistant up the near touchline from the last defender's line, level with him, his flag up, and gone;
+        // then the free kick back.
         const man = this.man("defending", e.athlete, e.player, ball) ?? 0;
+        const lastMan = this.men.defending.filter((m) => m.player.place !== 1).map((m) => this.position(m.actor, 0).x);
+        const line = this.right ? (lastMan.length > 0 ? Math.max(...lastMan) : 70) : lastMan.length > 0 ? Math.min(...lastMan) : 35;
+        const assistant = this.official("assistant", { x: line, y: -1.2 }, 5.7);
         this.move(man, ball, 0.2, 1.2);
         this.move(assistant, { x: ball.x, y: -1.2 }, 0.2, 1.6);
         script.props.push({ kind: "flag", actor: assistant, from: 1.4, until: 5.5 });
@@ -713,10 +719,7 @@ class IdleBuilder {
         return this.injury(e);
       case "varCheck":
       case "varDecision": {
-        // Everyone waits; the referee's hand to his ear, then (the decision) his sign for the screen.
-        this.move(this.referee, { x: ball.x + 4, y: ball.y + 2 }, 0.3, 2.4);
-        const decided = e.kind.type === "varDecision";
-        this.hold(this.referee, decided ? "screen" : "ear", 2.6, decided ? 5.5 : 14);
+        // Everyone waits on it, a few drifting about; the tag says the check and the decision.
         for (const { actor } of this.everyone) {
           if (!(random.in(0, 1) < 0.25)) continue;
           const here = this.position(actor, 0);
@@ -725,7 +728,6 @@ class IdleBuilder {
           const from = random.in(3, 8);
           this.move(actor, { x, y }, from, random.in(9, 10));
         }
-        this.focus.push({ from: 0, until: 16, actors: [this.referee], points: [ball], closest: 30 });
         return [16, 12];
       }
       case "resume":
@@ -735,11 +737,11 @@ class IdleBuilder {
         return this.kickoff();
       case "halftime":
       case "fullTime": {
-        // Off to the tunnel at the halfway line, the officials last.
+        // Off to the tunnel at the halfway line.
         const tunnel = { x: Pitch.length / 2, y: -5 };
         script.actors.forEach((actor, i) => {
           const d = hypot(tunnel, this.position(i, 0.3));
-          const leave = 0.3 + random.in(0, 1.2) + (actor.team === "official" ? 1.2 : 0);
+          const leave = 0.3 + random.in(0, 1.2);
           const arrive = leave + clamp(d / 5, 3, 9);
           this.move(i, { x: tunnel.x + random.in(-3, 3), y: tunnel.y }, leave, arrive);
           actor.vanish = arrive - 0.8;
@@ -814,7 +816,6 @@ class IdleBuilder {
       this.move(keeper, { x: goalX + s * 0.7, y: 34 + (flag.y === 0 ? -1 : 1) }, 0.4, 2.4);
       this.look(keeper, 2.4, spot);
     }
-    this.move(this.referee, { x: goalX + s * 14, y: flag.y === 0 ? 50 : 18 }, 0.5, 3.6);
     // The jostling: a man in the box steps off his marker and back, round and round.
     let t = 6.5;
     for (let n = 0; n < 2; n++) {
@@ -831,7 +832,7 @@ class IdleBuilder {
     return [6.0, 12.0];
   }
 
-  /** A foul: the man fouled down, the referee in, then the free kick. */
+  /** A foul: the man fouled down, the fouler over him, then the free kick. */
   private freeKick(e: SoccerEvent): [number, number] {
     const { random } = this;
     const spot = this.idle.ball;
@@ -847,9 +848,7 @@ class IdleBuilder {
       this.move(fouler, { x, y: spot.y + sign * random.in(1.5, 2.5) }, 0.1, 0.7);
       this.look(fouler, 0.8, spot);
     }
-    this.move(this.referee, { x: spot.x + random.sign() * 3, y: spot.y + 2.5 }, 0.3, 2.6);
-    this.look(this.referee, 2.6, spot);
-    this.focus.push({ from: 0, until: 4.2, actors: [...[fouler, fouled].filter((x): x is number => x != null), this.referee], points: [spot], closest: 20 });
+    this.focus.push({ from: 0, until: 4.2, actors: [fouler, fouled].filter((x): x is number => x != null), points: [spot], closest: 20 });
     return this.freeKickSetup(spot, 4.2, true, e.penalty);
   }
 
@@ -907,18 +906,26 @@ class IdleBuilder {
     return [t - 1, 11];
   }
 
-  /** A booking: the man to the referee where his foul was, the card up; a red, and he walks off. */
+  /**
+   * A booking: the referee in from a few strides off to where the foul was,
+   * the man to him, the card up; then the referee away and gone (he's on the
+   * pitch only for this). A red, and the man walks off.
+   */
   private card(e: SoccerEvent, red: boolean): [number, number] {
     const { idle, random, script } = this;
     const spot = idle.ball;
     const team = e.side === idle.possession ? "attacking" : "defending";
     const booked = this.man(team, e.athlete, e.player, spot) ?? 0;
-    this.move(this.referee, spot, 0.2, 1.6);
+    const side = random.sign();
+    const onPitch = (p: Point): Point => ({ x: clamp(p.x, 3, Pitch.length - 3), y: clamp(p.y, 3, Pitch.width - 3) });
+    const referee = this.official("referee", onPitch({ x: spot.x - side * 9, y: spot.y + random.sign() * 5 }), 6.4);
+    this.move(referee, spot, 0.2, 1.6);
+    this.move(referee, onPitch({ x: spot.x + side * 9, y: spot.y + random.sign() * 4 }), 4.9, 6.9);
     this.move(booked, { x: spot.x + 1.6, y: spot.y + random.sign() * 0.8 }, 0.3, 1.9);
     this.look(booked, 1.9, spot);
-    this.look(this.referee, 1.7, { x: spot.x + 1.6, y: spot.y });
-    this.hold(this.referee, "cardUp", 2.2, 4.6);
-    script.props.push({ kind: red ? "redCard" : "yellowCard", actor: this.referee, from: 2.2, until: 4.6 });
+    this.look(referee, 1.7, { x: spot.x + 1.6, y: spot.y });
+    this.hold(referee, "cardUp", 2.2, 4.6);
+    script.props.push({ kind: red ? "redCard" : "yellowCard", actor: referee, from: 2.2, until: 4.6 });
     // The rest stand off a few yards.
     for (const { actor } of this.everyone) {
       if (actor === booked) continue;
@@ -936,7 +943,7 @@ class IdleBuilder {
       script.actors[booked]!.vanish = 5.2 + walk - 0.6;
       end = 5.2 + walk + 0.5;
     }
-    this.focus.push({ from: 0, until: red ? end : 6, actors: [booked, this.referee], points: [spot], closest: 16 });
+    this.focus.push({ from: 0, until: red ? end : 6, actors: [booked, referee], points: [spot], closest: 16 });
     return [end, 0];
   }
 
@@ -944,7 +951,7 @@ class IdleBuilder {
   private substitution(e: SoccerEvent): [number, number] {
     const { script } = this;
     const line = { x: Pitch.length / 2, y: -1.2 };
-    const fourth = this.add("official", "fourth official", { x: line.x + 2.2, y: -3 });
+    const fourth = this.official("fourth official", { x: line.x + 2.2, y: -3 }, 8.7);
     this.hold(fourth, "boardUp", 0.4, 8.5);
     script.props.push({ kind: "board", actor: fourth, from: 0.4, until: 8.5 });
     this.look(fourth, 0, Pitch.center);
@@ -960,15 +967,13 @@ class IdleBuilder {
     return [0.6 + walk + 6, 0];
   }
 
-  /** A man down: on the grass where he is, the players round him, the referee waving the physios on; they run on from the bench side. */
+  /** A man down: on the grass where he is, the players round him, the physios running on from the bench side. */
   private injury(e: SoccerEvent): [number, number] {
     const { idle, random, script } = this;
     const team = e.side === idle.possession ? "attacking" : "defending";
     const hurt = this.man(team, e.athlete, e.player, idle.ball) ?? this.men[team][0]?.actor ?? 0;
     const down = this.position(hurt, 0);
     this.hold(hurt, "down", 0.4, Infinity);
-    this.move(this.referee, { x: down.x + 3, y: down.y + 2 }, 0.4, 2.6);
-    this.look(this.referee, 2.6, { x: down.x, y: -3 });
     for (const { actor } of this.everyone) {
       if (actor === hurt) continue;
       const here = this.position(actor, 0);
@@ -1018,7 +1023,6 @@ class IdleBuilder {
     forwards.slice(0, 2).forEach((i, k) => {
       script.actors[i]!.at = { x: c.x + s * (k === 0 ? 0.4 : 1.6), y: c.y + (k === 0 ? -0.6 : 7) };
     });
-    script.actors[this.referee]!.at = { x: c.x - s * 12, y: c.y + 9 };
     // Loop: the kicker's foot on the ball, a man bouncing on his toes.
     const kicker = forwards[0];
     if (kicker != null) this.hold(kicker, "cardUp", 4, 4.8);

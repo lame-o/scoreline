@@ -43,10 +43,17 @@ export interface StageInputs {
   readonly bursts: (height: number) => readonly StageBurst[];
   /** Reduce Motion's end state for the moment: a bloom where it happened, or null. */
   readonly bloom: ((size: Size) => Bloom | null) | null;
-  /** One frame at t (Infinity: as it ended): the field, the play and its type, then the bursts given. */
-  readonly paint: (ctx: Ctx, size: Size, pt: number, t: number, bursts: readonly StageBurst[]) => void;
-  /** Seconds the replay holds its first frame before t = 0 (a try's breath after its touchdown). */
+  /**
+   * One frame at t (Infinity: as it ended): the field, the play and its
+   * type, then the bursts given. `since`: seconds since the replay began,
+   * its lead included (a hand-off from the field between plays is timed by
+   * it); t otherwise.
+   */
+  readonly paint: (ctx: Ctx, size: Size, pt: number, t: number, bursts: readonly StageBurst[], since: number) => void;
+  /** Seconds the replay holds its first frame before t = 0 (a try's breath after its touchdown; a hand-off from the field between plays). */
   readonly lead?: number;
+  /** When the play came in (performance.now(), ms): its replay's clock starts `lead` seconds after it (theaterBridge.ts); else now. */
+  readonly came?: number | null;
   /** Told when a replay has run its course (a touchdown's try follows it). */
   readonly onEnd?: (id: string) => void;
 }
@@ -70,7 +77,7 @@ export class TheaterStage {
   private bursts: readonly StageBurst[] = [];
   private armedFor: string | null = null;
   private bloom: { value: Bloom; start: number } | null = null;
-  private replay: { id: string; start: number; pausedAt: number | null } | null = null;
+  private replay: { id: string; start: number; lead: number; pausedAt: number | null } | null = null;
   private fade: { snapshot: HTMLCanvasElement; start: number } | null = null;
   private shownID: string | null | undefined = undefined;
   private frame = 0;
@@ -133,8 +140,9 @@ export class TheaterStage {
       this.armedFor = null;
       if (next.frozen == null && !next.reduceMotion && next.news && next.id != null) {
         // A new play replays from its start (and a new one mid-replay cuts to itself).
-        const start = now + (next.lead ?? 0) * 1000;
-        this.replay = { id: next.id, start, pausedAt: this.visible ? null : now };
+        const lead = next.lead ?? 0;
+        const start = (next.came ?? now) + lead * 1000;
+        this.replay = { id: next.id, start, lead, pausedAt: this.visible ? null : now };
         this.fade = null;
       } else {
         this.replay = null;
@@ -283,9 +291,11 @@ export class TheaterStage {
     const { ctx, size } = this;
     if (!i || size.width === 0 || size.height === 0) return;
     const t = this.time(now);
+    const r = this.replay;
+    const since = r && r.id === i.id && i.frozen == null && Number.isFinite(t) ? ((r.pausedAt ?? now) - r.start) / 1000 + r.lead : t;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, size.width, size.height);
-    i.paint(ctx, size, this.pt, t, Number.isFinite(t) ? this.bursts : []);
+    i.paint(ctx, size, this.pt, t, Number.isFinite(t) ? this.bursts : [], since);
     const bloom = this.bloom;
     if (bloom) {
       ctx.save();

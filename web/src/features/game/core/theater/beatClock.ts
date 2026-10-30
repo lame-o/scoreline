@@ -91,6 +91,17 @@ export class BeatClock {
     this.tick();
   }
 
+  /**
+   * Seconds into the idle `key` now, by the wall clock, while it runs and is
+   * seen (a replay taking over from it: theaterBridge.ts); null when it
+   * isn't the one running, it's unseen, frozen or Reduce Motion's still.
+   */
+  elapsed(key: string, now: number = performance.now()): number | null {
+    const i = this.inputs;
+    if (!i || this.key !== key || i.frozen != null || i.still != null || !this.visible) return null;
+    return (now - this.since) / 1000;
+  }
+
   private get visible(): boolean {
     return this.onScreen && document.visibilityState !== "hidden";
   }

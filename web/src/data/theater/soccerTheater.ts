@@ -19,6 +19,7 @@ import { pitchBursts, theaterOwns } from "./goalCelebrationRules";
 import { string } from "./soccerEntries";
 import { parseEvent, parseTouch, type SoccerEvent, type SoccerIdle, type SoccerTouch } from "./soccerIdle";
 import { PitchCamera, PitchFrame, type Basis, type SoccerScript } from "./soccerScript";
+import { bridgePlan, TheaterBridge, type BridgePlan } from "./theaterBridge";
 import { TheaterBurst } from "./theaterKit";
 import { known, TEAM_ONLY, TheaterCast, theaterPerson, type CastMember, type TheaterPerson, type TheaterWho } from "./theaterNames";
 
@@ -168,6 +169,18 @@ export function soccerShown(state: SoccerTheaterState, replaying: string | null,
   if (!scene) return null;
   if (replaying === soccerKey(scene)) return rested === soccerKey(scene) ? null : scene;
   return state.news ? scene : null;
+}
+
+/**
+ * How the pitch between moments on screen (`idle` at `t`, its team on the
+ * ball `possession`) meets a moment's replay that comes in now (`side` on
+ * the ball) (SoccerTheater.bridge): each man from where he is in the shape
+ * to his place as the move begins, unless the move starts far from where
+ * the ball was going round (`TheaterBridge.far.soccer`), or Reduce Motion:
+ * then a crossfade. (pure; tested)
+ */
+export function soccerBridge(idle: SoccerScript, possession: Side, t: number, replay: SoccerScript, side: Side, reduceMotion: boolean, beatLeft: number | null = null): BridgePlan {
+  return bridgePlan(idle.bridgeFigures(possession, t), replay.bridgeFigures(side, 0), { room: replay.leadIn, far: TheaterBridge.far.soccer, reduceMotion, beatLeft });
 }
 
 /** A moment's replay, by its play; a goal struck off by VAR replays as a beat of its own. */

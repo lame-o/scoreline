@@ -22,7 +22,7 @@ import { cueBursts } from "../../src/data/celebrations";
 import { attacksRight, buildUpOf, crossbar, decides, distance, isMoment, keepers, minute, parse, Pitch, scored, surname, touchLimit, type SoccerScene } from "../../src/data/theater/soccerScene";
 import { goalFrame, PitchCamera, PitchFrame, room, SoccerScript } from "../../src/data/theater/soccerScript";
 import { CameraFollow, TheaterBurst } from "../../src/data/theater/theaterKit";
-import { buildUpLimit, loftSpeed, passSpeed } from "../../src/data/theater/soccerScript";
+import { buildUpLimit, buildUpPace, loftSpeed, passSpeed } from "../../src/data/theater/soccerScript";
 import { keeperSave } from "../../src/data/theater/soccerScene";
 import { dot, norm, skeleton, vec, minus, type RigVector } from "../../src/data/theater/rig";
 import { actorPose, PitchPose } from "../../src/features/game/soccer/theater/drawSoccer";
@@ -334,10 +334,10 @@ describe("soccer theater: choreography", () => {
     expect(broken.slice(0, 3)).toEqual([]);
   });
 
-  it("every replay runs 3–11 s", () => {
+  it("every replay runs 3–12 s (its build-up played 1.3× slower)", () => {
     const lengths = scripts.map(([, s]) => s.duration);
     expect(Math.min(...lengths)).toBeGreaterThanOrEqual(3);
-    expect(Math.max(...lengths)).toBeLessThanOrEqual(11);
+    expect(Math.max(...lengths)).toBeLessThanOrEqual(12);
   });
 
   it("the ball never jumps between flights (a cross arrives at the head that meets it)", () => {
@@ -626,7 +626,8 @@ describe("soccer theater: the dive", () => {
 describe("soccer theater: the pace of a move", () => {
   it("a nine-pass move, as a replay cuts it: picked up a few passes in, the early ones hurried, White's cross at the game's pace, the header inside 5.6 s", () => {
     const s = header!.scene;
-    const script = SoccerScript.build(s);
+    // As the move is laid out (it then plays `buildUpPace` slower).
+    const script = SoccerScript.build(s, {}, 1);
     const passes = script.flights.filter((f) => f.kind === "pass" && f.end <= script.strike + 0.01);
     const cross = passes[passes.length - 1]!;
     const d = Math.hypot(cross.to.x - cross.from.x, cross.to.y - cross.from.y);
@@ -641,9 +642,9 @@ describe("soccer theater: the pace of a move", () => {
     expect(opens).toBeGreaterThan(0);
   });
 
-  it("no pass so hurried it reads as a jump; every build-up comes in around five seconds", () => {
+  it("no pass so hurried it reads as a jump; every build-up comes in around five seconds as laid out, six and a half as it plays (1.3× slower)", () => {
     expect(scripts.every(([, s]) => s.flights.filter((f) => f.kind === "pass").every((f) => f.end - f.start >= 0.2 - 1e-9))).toBe(true);
-    expect(scripts.every(([scene, s]) => s.strike <= (scene.start === "openPlay" ? 0.5 : 1.3) + buildUpLimit + 0.6)).toBe(true);
+    expect(scripts.every(([scene, s]) => s.strike <= (scene.start === "openPlay" ? 0.5 : 1.3) + (buildUpLimit + 0.6) * buildUpPace)).toBe(true);
   });
 });
 

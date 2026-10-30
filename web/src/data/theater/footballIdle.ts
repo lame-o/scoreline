@@ -11,8 +11,10 @@
  * Timeout") or the two-minute warning empties the field to both sidelines;
  * the end of a quarter turns the field round as the teams change ends; at
  * halftime they leave; a man hurt on the play stays down while the trainers
- * come out; a challenge's red flag comes in from the bench and the referee
- * goes to the monitor. Then they come back, huddle and line up again.
+ * come out; a challenge's red flag comes in from the bench while the teams
+ * wait. Then they come back, huddle and line up again. No officials: nothing
+ * in the data has them doing anything on the field, and standing there they
+ * only got in the way.
  *
  * Each is a script like a snap's (footballScript.ts), a pure function of
  * what the feed said and t, so the harness can draw any moment of it. They
@@ -332,7 +334,6 @@ const pick = <T>(items: readonly T[], random: SplitMix64): T => items[Math.trunc
 /** The idle's beats (the Swift Builder's `idle` and its helpers), on a formation already laid out. */
 class IdleBuilder {
   private readonly random: SplitMix64;
-  private referee = 0;
 
   constructor(
     private readonly b: Builder,
@@ -354,14 +355,6 @@ class IdleBuilder {
     script.next = script.lines;
     // Everyone set as the last snap left them; out of their stances as they turn away.
     for (const p of script.players) if (p.set != null) p.set = 0.35;
-    // The officials at their posts: the referee behind the backfield, the umpire, a man on each sideline at the line.
-    const sx = random.sign();
-    this.referee = this.addOfficial({ x: b.ballX + sx * random.in(6, 12), y: line - random.in(36, 44) });
-    const ux = random.sign();
-    const umpire = { x: b.ballX - ux * random.in(4, 10), y: 0 };
-    this.addOfficial({ x: umpire.x, y: line + random.in(14, 22) });
-    this.addOfficial({ x: -Gridiron.half - 4, y: line + random.in(-4, 4) });
-    this.addOfficial({ x: Gridiron.half + 4, y: line + random.in(-4, 4) });
 
     let t = 0;
     let back = true;
@@ -420,12 +413,7 @@ class IdleBuilder {
     this.finish(focus);
   }
 
-  private addOfficial(p: Point): number {
-    this.script.players.push(new Player("official", p, "official"));
-    return this.script.players.length - 1;
-  }
-
-  /** The players of a team in the formation (not the officials, nor staff). */
+  /** The players of a team in the formation (not the staff). */
   private team(team: Team): number[] {
     return this.script.players.flatMap((p, i) => (p.team === team ? [i] : []));
   }
@@ -595,7 +583,7 @@ class IdleBuilder {
     }
   }
 
-  /** The half (or the game) over: both teams jog off to their benches and out of sight; the officials walk off; the field stands empty. */
+  /** The half (or the game) over: both teams jog off to their benches and out of sight; the field stands empty. */
   private leave(): void {
     const { b, idle, random, script } = this;
     script.players.forEach((player, i) => {
@@ -649,7 +637,7 @@ class IdleBuilder {
     const bench = (side === "offense" ? idle.bench : -idle.bench) * (Gridiron.half + 6);
     for (let k = 0; k < 2; k++) {
       const from = { x: bench, y: down.y + k * 8 - 4 };
-      script.players.push(new Player("staff", from, "official"));
+      script.players.push(new Player("staff", from, "staff"));
       const trainer = script.players.length - 1;
       near.push(trainer);
       const by = { x: down.x + (k === 0 ? -4.5 : 4.5), y: down.y + (k === 0 ? 2.5 : -2.5) };
@@ -671,9 +659,15 @@ class IdleBuilder {
     return 28;
   }
 
-  /** A second look: on a challenge, the red flag in from the bench of the team that threw it; the referee to the monitor at the near sideline, heads down over it, then back to the spot with the call; the teams in loose knots meanwhile. Returns when they're back. */
+  /**
+   * A second look: on a challenge, the red flag in from the bench of the
+   * team that threw it; the teams in loose knots while it's looked at (the
+   * tag says what's under review, then the call). The referee isn't drawn
+   * walking to the monitor: the data has him doing nothing on the field.
+   * Returns when they're back.
+   */
   private review(review: Review, focus: IdleFocus[]): number {
-    const { b, idle, random, script, referee } = this;
+    const { b, idle, random, script } = this;
     if (review.kind === "challenge") {
       const side = review.side != null ? (review.side === idle.offense ? idle.bench : -idle.bench) : -FieldFacing.near(idle.yaw);
       const from = { x: side * (Gridiron.half + 8), y: b.line + random.in(-25, 25), z: 6 };
@@ -682,7 +676,7 @@ class IdleBuilder {
       script.flags.push({ thrown: 0.7, lands: 1.5, from, to, declined: false, red: true });
       script.flashes.push({ beat: "flag", at: 1.5, point: fieldPoint(to) });
       // Thrown by the head coach, at his bench.
-      script.players.push(new Player("staff", { x: from.x + side * 2, y: from.y - 2 }, "official"));
+      script.players.push(new Player("staff", { x: from.x + side * 2, y: from.y - 2 }, "staff"));
       const coach = script.players.length - 1;
       script.players[coach]!.act("flagThrow", 0.7, to);
       this.look(coach, 0, to);
@@ -690,16 +684,6 @@ class IdleBuilder {
       // The flag coming in, and the field it lands on.
       focus.push({ from: 0, until: 3.4, players: [], points: [fieldPoint(to), from, b.spot, { x: to.x * 0.4, y: to.y, z: 0 }], closest: 60 });
     }
-    const near = FieldFacing.near(idle.yaw);
-    const monitor = { x: near * (Gridiron.half + 5), y: b.line + random.in(-10, 10) };
-    const spotted = this.home(referee);
-    b.move(referee, [monitor], 1.8, 5.2, "inOut");
-    this.look(referee, 5, { x: near * (Gridiron.half + 30), y: monitor.y });
-    // The referee at the monitor, the teams waiting.
-    focus.push({ from: 4.2, until: 15.5, players: [referee, ...this.team("offense"), ...this.team("defense")], points: [], closest: 60 });
-    b.move(referee, [{ x: b.ballX + 6, y: b.line - 8 }], 15.5, 18.6, "inOut");
-    this.look(referee, 18.4, { x: b.ballX, y: b.line + 60 });
-    b.move(referee, [spotted], 21.5, 23.5, "inOut");
     // The teams wait in knots on the field.
     const offense = this.team("offense");
     const defense = this.team("defense");
@@ -714,9 +698,9 @@ class IdleBuilder {
   /**
    * The idle's camera (following the beats, then still) and its beats:
    * everyone on the field and the lines, or what a moment is about (a man
-   * down and the trainers with him, a flag coming in, the referee at the
-   * monitor) while it lasts. Through a turn of the field it frames each
-   * instant exactly, as the field swings under it.
+   * down and the trainers with him, a flag coming in) while it lasts.
+   * Through a turn of the field it frames each instant exactly, as the
+   * field swings under it.
    */
   private finish(focus: readonly IdleFocus[]): void {
     const { b, script } = this;
@@ -733,7 +717,7 @@ class IdleBuilder {
         items = f.players.filter((i) => script.players[i]!.opacity(t) > 0.5).map((i) => Gridiron.room(fieldPoint(script.players[i]!.position(t)), true, yaw));
         items.push(...f.points.map((p) => Gridiron.room(p, false, yaw)));
       } else {
-        items = script.players.flatMap((p) => (p.opacity(t) > 0.5 && p.team !== "official" ? [Gridiron.room(fieldPoint(p.position(t)), true, yaw)] : []));
+        items = script.players.flatMap((p) => (p.opacity(t) > 0.5 ? [Gridiron.room(fieldPoint(p.position(t)), true, yaw)] : []));
         if (script.lines.gain != null) items.push(Gridiron.room({ x: ballX, y: script.lines.gain, z: 0 }, false, yaw));
       }
       items.push(Gridiron.room(spot, false, yaw));

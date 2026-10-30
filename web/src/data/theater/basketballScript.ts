@@ -21,7 +21,10 @@
  *
  * Time is a replay's: half a second on the set, then the play at about game
  * speed (a three's flight 1.2 s), the stamp a beat after the net, and the
- * court holds the end until the camera settles.
+ * court holds the end until the camera settles. The approach (the passes,
+ * the drive, the cut, up to the shooter gathering) is laid out a touch
+ * quicker than life and played `approachPace` (1.2×) slower; the shot itself
+ * keeps gravity's honest time.
  *
  * Web differences, none of them in what's drawn: the gridiron's view
  * (`Gridiron.view`) is copied here as `view`, and the flights are
@@ -40,7 +43,8 @@ import type { Formation, HoopsEnds, Lineup } from "./basketballBeats";
 import { defense, made, posterized, typeCallWords, type BasketballKind, type BasketballScene, type Miss, type Person, type Rebound } from "./basketballScene";
 import { ballMemo, Rig, RigTrack, type RigFacing } from "./rig";
 import { seed64, SplitMix64 } from "./splitMix64";
-import { CameraPath, CameraRig, clearing, fitting, intersects, midX, unionAll } from "./theaterKit";
+import type { BridgeFigure } from "./theaterBridge";
+import { CameraPath, CameraRig, clearing, fitting, intersects, midX, Pace, unionAll } from "./theaterKit";
 
 // MARK: - The court
 
@@ -161,7 +165,7 @@ export class HoopFlight {
 
 // MARK: - Script
 
-/** The two fives, and the referee who comes in to make a call. */
+/** The two fives, and the referee who comes in to make a call (on the floor only while he's doing something). */
 export type Team = "offense" | "defense" | "official";
 
 /**
@@ -384,6 +388,23 @@ export class BasketballScript {
     return Hoops.room(p, figure, this.yaw);
   }
 
+  /** The ten as the hand-off from the court between plays matches them (theaterBridge.ts): by side (`side` has the ball here), where each is at t. */
+  bridgeFigures(t: number): BridgeFigure[] {
+    const offense = this.side ?? "top";
+    return this.players.map((p) => {
+      const group = p.team === "offense" ? (offense === "top" ? 0 : 1) : p.team === "defense" ? (offense === "top" ? 1 : 0) : 2;
+      return { group, kind: "", athlete: null, at: p.position(t) };
+    });
+  }
+
+  /** The replay's own lead-in: its set's still moment before anyone (or the ball) moves, which a hand-off from the court between plays uses first. */
+  get leadIn(): number {
+    let first = Infinity;
+    for (const p of this.players) if (p.moves[0]) first = Math.min(first, p.moves[0].start);
+    for (const f of this.flights) first = Math.min(first, f.start);
+    return Math.max(Number.isFinite(first) ? first : 0.45, 0);
+  }
+
   /** Where everyone is at t, and the ball: what the next beat (or the court between plays) starts from. */
   lineup(t: number): Lineup {
     let holder = this.carrier(t)?.player ?? null;
@@ -477,10 +498,21 @@ export class BasketballScript {
 
   // MARK: - Building
 
+  /**
+   * How much slower a replay's approach plays than it's laid out: from the
+   * set until the shooter gathers (the passes, the drive, the cut). Measured
+   * on the night's replays, the men's top speeds as laid out ran past a
+   * sprint (median 11 m/s, against 9–10) while the passes sat at life's
+   * 10–15 m/s (median 12): 1.2× brings the men to a sprint's ceiling and
+   * keeps the passes in life's band (1.3 would drop them under it). The
+   * shot's flight, timed by gravity, and everything after it keep their pace.
+   */
+  static readonly approachPace = 1.2;
+
   /** A play replayed in full (the marquee). `right`: it's at the right basket (null: the whole-game convention, the top team's at the right). */
-  static play(scene: BasketballScene, right: boolean | null = null): BasketballScript {
+  static play(scene: BasketballScene, right: boolean | null = null, pace: number = BasketballScript.approachPace): BasketballScript {
     const b = new Builder(scene, scene.offense, right ?? scene.offense !== "bottom");
-    b.build();
+    b.build(pace);
     b.script.measureBodies();
     return b.script;
   }
@@ -884,7 +916,7 @@ export class Builder {
 
   // MARK: Build
 
-  build(): void {
+  build(pace: number = BasketballScript.approachPace): void {
     const scene = this.scene;
     if (!scene) return;
     if (scene.kind === "freeThrow") this.freeThrow();
@@ -901,11 +933,48 @@ export class Builder {
       this.credit(blocker, scene.blocker);
     }
     this.aftermath();
+    // The approach slowed, up to the shooter gathering (his shot's motion begins half a second before it leaves his hand).
+    const release = this.script.release;
+    if (pace !== 1 && release != null) {
+      const lead = this.script.leadIn;
+      this.stretch(pace, lead, Math.max(release - 0.55, lead));
+    }
     this.finish();
     this.headline();
     this.measureStamp();
     this.settleDown();
     this.shootCamera();
+  }
+
+  // MARK: Pace
+
+  /**
+   * What's laid out so far, from `a` to `b`, played `k` times slower: every
+   * moment in it moved along the slower clock, every one after it moved
+   * later by as much; nothing before it changes.
+   */
+  stretch(k: number, a: number, b: number): void {
+    const pace = new Pace(a, Math.max(b, a), k);
+    const r = (t: number) => pace.stretched(t);
+    const { script } = this;
+    for (const p of script.players) {
+      p.moves = p.moves.map((m) => new Move(r(m.start), r(m.end), m.path, m.ease));
+      p.actions = p.actions.map((x) => ({ ...x, at: r(x.at) }));
+      p.jumps = p.jumps.map((j) => new Jump(r(j.from), r(j.peak), r(j.until), j.height, j.hang));
+      p.enters = r(p.enters);
+      p.leaves = r(p.leaves);
+    }
+    script.flights = script.flights.map((f) => new HoopFlight(r(f.start), r(f.end), f.from, f.to, f.arc));
+    script.legs = script.legs.map((l) => ({ ...l, from: r(l.from), until: r(l.until) }));
+    script.flashes = script.flashes.map((f) => ({ ...f, at: r(f.at) }));
+    script.net = script.net ? { ...script.net, at: r(script.net.at) } : null;
+    script.rimHit = script.rimHit != null ? r(script.rimHit) : null;
+    script.score = script.score != null ? r(script.score) : null;
+    script.release = script.release != null ? r(script.release) : null;
+    script.stamp = r(script.stamp);
+    script.look = script.look ? { ...script.look, from: r(script.look.from) } : null;
+    this.over = r(this.over);
+    this.arrive = r(this.arrive);
   }
 
   // MARK: The half court

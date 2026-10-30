@@ -14,7 +14,7 @@ import { PitchFrame } from "../../src/data/theater/soccerScript";
 import { PitchProjection } from "../../src/data/theater/soccerTheater";
 import { gait, mix, remainder, Rig, rigArm, RigGait, rigPose, RigPoses, RigTrack, skeleton, vec, type RigMotion, type RigPose, type RigVector } from "../../src/data/theater/rig";
 import { FieldProjection } from "../../src/features/game/core/theater/fieldProjection";
-import { drawFigure, figureInks, nearest, RigLens, rigFigure } from "../../src/features/game/core/theater/rigFigure";
+import { drawFigure, figureInks, nearest, RigLens, rigFigure, zebraBands } from "../../src/features/game/core/theater/rigFigure";
 import { theaterInk } from "../../src/features/game/mlb/theater/theaterInk";
 import type { Uniform } from "../../src/data/mlb/theaterTeams";
 import { GridProjection } from "../../src/features/game/football/theater/drawFootball";
@@ -273,6 +273,7 @@ describe("drawn", () => {
     const big = new RigLens({ x: 60, y: 108 }, { x: lens.x.x * k, y: lens.x.y * k }, { x: lens.y.x * k, y: lens.y.y * k }, { x: lens.z.x * k, y: lens.z.y * k }, lens.unit, lens.view, height);
     const calls: { op: "fill" | "stroke"; ink: string; clipped: boolean; alpha: number }[] = [];
     let depth = 0;
+    let closed = 0;
     const clips: number[] = [];
     const ctx = {
       fillStyle: "",
@@ -286,7 +287,9 @@ describe("drawn", () => {
       lineTo() {},
       arc() {},
       ellipse() {},
-      closePath() {},
+      closePath() {
+        closed++;
+      },
       save() {
         depth++;
       },
@@ -305,8 +308,9 @@ describe("drawn", () => {
       },
     };
     const inks = figureInks(uniform, theaterInk("dark"));
-    drawFigure(ctx as unknown as CanvasRenderingContext2D, rigFigure(pose, heading, big), inks, height, opacity);
-    return { calls, inks, alpha: ctx.globalAlpha, depth };
+    const figure = rigFigure(pose, heading, big);
+    drawFigure(ctx as unknown as CanvasRenderingContext2D, figure, inks, height, opacity);
+    return { calls, inks, alpha: ctx.globalAlpha, depth, closed, torso: figure.torso };
   }
 
   const striding = gait({ heading: 0, phase: 0.1, speed: 5, push: 0, weight: 1 }, { left: vec(0.12, 0.06, 0), right: vec(-0.16, -0.06, 0.18) });
@@ -343,7 +347,7 @@ describe("drawn", () => {
     expect(lines).toBeGreaterThan(0);
   });
 
-  it("an official's kit: stripes down the body and the sleeves, slacks of their own, all inside the outline; a plain uniform as it was", () => {
+  it("an official's kit: a few bold stripes down the body (two at a theater's size), slacks of their own, all inside the outline; a plain uniform as it was", () => {
     const zebra: Uniform = { ...plain, stripes: "#000000" };
     const slacks: Uniform = { ...plain, legs: "#000000" };
     for (const [pose, heading] of poses) {
@@ -351,9 +355,10 @@ describe("drawn", () => {
         const p = record(pose, heading, height, 1);
         const z = record(pose, heading, height, 1, zebra);
         const t = record(pose, heading, height, 1, slacks);
-        // The stripes: strokes in their ink, every one kept to its part; none on a plain jersey.
-        expect(z.calls.some((c) => c.op === "stroke" && c.ink === "#000000")).toBe(true);
-        expect(z.calls.filter((c) => c.ink === "#000000").every((c) => c.op === "stroke" && c.clipped)).toBe(true);
+        // The stripes: one fill in their ink, kept to the body (never the sleeves), as many as `zebraBands` gives its torso; none on a plain jersey.
+        expect(z.calls.filter((c) => c.ink === "#000000")).toEqual([{ op: "fill", ink: "#000000", clipped: true, alpha: 1 }]);
+        expect(z.closed - p.closed).toBe(zebraBands(z.torso).count + 1); // each stripe, and the body they're clipped to
+        expect(zebraBands(z.torso).count).toBe(height === 60 ? 2 : 1);
         expect(p.calls.some((c) => c.ink === "#000000")).toBe(false);
         // The slacks: the legs stroked in their own color.
         expect(t.calls.some((c) => c.op === "stroke" && c.ink === "#000000" && !c.clipped)).toBe(true);

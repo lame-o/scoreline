@@ -55,6 +55,7 @@ import {
   type SlideTeam,
 } from "../../../data/scoringSlide";
 import { sectionForChart } from "../../../data/sections";
+import { TheaterDelays } from "../../../data/theater/theaterDelays";
 import { toHex } from "../../../data/teamColors";
 import { getSettings, useSettings } from "../../../state/settings";
 import { useWidth } from "../../../design/useWidth";
@@ -321,9 +322,11 @@ export class ScoringSlides implements SlideTaker {
       const entry = head ? this.entries.get(head.id) : undefined;
       if (!head || !entry) return;
       if (entry.ready != null) {
-        if (time < entry.ready) return this.wait(entry.ready);
+        // A replay that bridged in from the field between plays started its clock that much later: still land with its climax.
+        const ready = entry.ready + (entry.follow ? TheaterDelays.delay(head.id) * 1000 : 0);
+        if (time < ready) return this.wait(ready);
         // A moment for its logo to decode, so it never arrives as a placeholder.
-        if (!this.logoReady(head) && time < entry.ready + LOGO_WAIT) return this.wait(time + 30);
+        if (!this.logoReady(head) && time < ready + LOGO_WAIT) return this.wait(time + 30);
       } else if (time < entry.deadline) {
         return this.wait(entry.deadline);
       }
