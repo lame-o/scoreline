@@ -477,6 +477,32 @@ extension ScorelineTests {
         check(SlidePaint.contrast(brewersPaint.slab, brewersPaint.stripe) >= 4.5,
               "the Brewers' kicker and chip: navy type on the gold (the slab's own color, where it reads)")
 
+        // MARK: Layering
+
+        // The slide passed under the hero card: drawn inside the card's
+        // GlassEffectContainer, which composites its glass shapes (and what's
+        // in them) over everything else inside it, and the cover's opacity,
+        // applied around the card's glass in there, reached neither the glass
+        // nor the score on it.
+        let detailSource = (try? String(contentsOf: URL(fileURLWithPath: "Sources/Scoreline/DetailView.swift"), encoding: .utf8)) ?? ""
+        let detailLines = detailSource.split(separator: "\n", omittingEmptySubsequences: false).map { $0.components(separatedBy: "//").first ?? "" }
+        let heroStart = detailLines.firstIndex { $0.contains("private var hero: some View") } ?? 0
+        let heroEnd = detailLines.firstIndex { $0.contains("private var wash:") } ?? 0
+        let hero = heroStart < heroEnd ? Array(detailLines[heroStart..<heroEnd].enumerated()) : []
+        func heroLines(_ code: String) -> [Int] { hero.filter { $0.element.contains(code) }.map(\.offset) }
+        let cards = heroLines(".slideCard()"), slidesOver = heroLines(".heroSlide(slides)"), containers = heroLines("GlassGroupModifier")
+        let spans = Array(zip(cards, slidesOver))
+        check(!hero.isEmpty && heroLines("ScoringSlideHost(").isEmpty && cards.count == 2 && slidesOver.count == 2
+              && spans.allSatisfy { $0 < $1 } && !containers.isEmpty
+              && containers.allSatisfy { g in spans.contains { $0.0 < g && g < $0.1 } },
+              "both heroes' slides are drawn over the card from outside its glass container (the match hero's wraps the card, never the slide)",
+              "cards \(cards), slides \(slidesOver), containers \(containers)")
+        if #available(macOS 26.0, *) {
+            check(GlassPresence.glass(.clear, presence: 0) == .identity && GlassPresence.glass(.clear, presence: 0.01) == .clear
+                  && GlassPresence.glass(.regular, presence: 1) == .regular,
+                  "the card steps aside through its glass: identity glass once gone (a container ignores an opacity around it), itself until then")
+        }
+
         // MARK: The line
 
         func slide(_ id: String, _ tier: ScoringSlide.Tier = .normal) -> ScoringSlide {

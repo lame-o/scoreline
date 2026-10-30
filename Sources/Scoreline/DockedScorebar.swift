@@ -429,6 +429,7 @@ private struct FloatingGlass: ViewModifier {
     let tint: Color?
     #if DEBUG
     @Environment(\.glassStandIn) private var standIn
+    @Environment(\.glassPresence) private var presence
     #endif
 
     @ViewBuilder func body(content: Content) -> some View {
@@ -439,6 +440,8 @@ private struct FloatingGlass: ViewModifier {
                 // Regular glass blurs what's under it: the plate is nearly opaque.
                 .background(shape.fill(clear ? Color.primary.opacity(0.05) : Color(nsColor: .windowBackgroundColor).opacity(0.92)))
                 .overlay(shape.stroke(Color.primary.opacity(clear ? 0.10 : 0.14), lineWidth: 0.5))
+                // Steps aside as the glass would (`glassPresence`).
+                .opacity(presence)
         } else {
             content.glass(in: shape, tint: tint, interactive: interactive, clear: clear)
         }
@@ -668,6 +671,8 @@ private struct ScoreboardGlint: ViewModifier {
     let shape: AnyShape
     let surface: DockRules.Surface
     @Environment(\.scoreboardSurface) private var current
+    /// The card stepping aside for a slide takes its sheen with it (the slide brings its own).
+    @Environment(\.glassPresence) private var presence
     #if DEBUG
     @Environment(\.dockProgressOverride) private var override
     #else
@@ -676,7 +681,7 @@ private struct ScoreboardGlint: ViewModifier {
 
     func body(content: Content) -> some View {
         let on = (override.map(DockRules.surface(p:)) ?? current?.current ?? .hero) == surface
-        content.glint(trigger, in: shape, active: on)
+        content.glint(trigger, in: shape, active: on && presence > 0)
     }
 }
 

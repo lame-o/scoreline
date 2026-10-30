@@ -317,14 +317,19 @@ struct DetailView: View {
               // Decisive (or the final whistle): one sheen across the card,
               // while the hero (not the docked bar) is the scoreboard on screen.
               .scoreboardGlint(beats.glints, in: RoundedRectangle(cornerRadius: Metrics.heroRadius, style: .continuous), on: .hero)
-              // A score's slide takes the card over while it holds (out of the hierarchy between scores).
+              // A score's slide takes the card over while it holds: the card
+              // steps aside, and the slide is drawn over it (`heroSlide`).
               .modifier(SlideCover(slides: slides))
-              .overlay { ScoringSlideHost(slides: slides, surface: .hero) }
+              .slideCard()
               coStreamBadge
               staleNote
             }
             // Neighboring glass shapes blend as one surface.
             .modifier(GlassGroupModifier(spacing: 8))
+            // Out here, never inside the container: it composites the card's
+            // glass over anything in it, and the slide passed under the card.
+            // Out of the hierarchy between scores.
+            .heroSlide(slides)
             // Scrolling away, it shrinks toward the header and fades as the bar takes over.
             .heroTuck()
             .pageSection(PageGeometry.hero)
@@ -361,13 +366,15 @@ struct DetailView: View {
             .floatingGlass(in: RoundedRectangle(cornerRadius: Metrics.heroRadius, style: .continuous), clear: true, interactive: false)
             .scoreboardGlint(beats.glints, in: RoundedRectangle(cornerRadius: Metrics.heroRadius, style: .continuous), on: .hero)
             .modifier(SlideCover(slides: slides))
-            .overlay { ScoringSlideHost(slides: slides, surface: .hero) }
+            .slideCard()
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(event.state == .live ? [.isHeader, .updatesFrequently] : .isHeader)
             .accessibilityHeading(.h1)
             .modifier(PageHeadingFocus())
             staleNote
             }
+            // As the match hero's: over the card, from outside it.
+            .heroSlide(slides)
             .heroTuck()
             .pageSection(PageGeometry.hero)
             .padding(.horizontal, 10)

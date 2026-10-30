@@ -12,6 +12,7 @@ private struct GlassModifier<S: Shape>: ViewModifier {
     let clear: Bool
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.glassPresence) private var presence
     #if DEBUG
     /// The render harness: Liquid Glass can't be captured offscreen.
     @Environment(\.glassStandIn) private var standIn
@@ -30,15 +31,48 @@ private struct GlassModifier<S: Shape>: ViewModifier {
             content
                 .background(shape.fill(tint?.opacity(0.9) ?? Color(nsColor: .controlBackgroundColor)))
                 .overlay(shape.stroke(Color.primary.opacity(increased ? 0.25 : 0.12), lineWidth: 0.5))
+                .opacity(presence)
         } else if #available(macOS 26.0, *) {
             let base: Glass = clear && !increased ? .clear : .regular
-            content.glassEffect(base.tint(tint).interactive(interactive), in: shape)
-                .overlay { if increased { shape.stroke(Color.primary.opacity(0.25), lineWidth: 0.5).allowsHitTesting(false) } }
+            // Stepping aside (`glassPresence`): the content fades inside the
+            // glass and the glass itself goes, as only those reach the screen
+            // through a container.
+            content.opacity(presence)
+                .glassEffect(GlassPresence.glass(base.tint(tint).interactive(interactive), presence: presence), in: shape)
+                .overlay { if increased { shape.stroke(Color.primary.opacity(0.25 * presence), lineWidth: 0.5).allowsHitTesting(false) } }
         } else {
             content
                 .background(shape.fill(tint?.opacity(0.85) ?? Color.primary.opacity(increased ? 0.1 : 0.07)))
                 .overlay(shape.stroke(Color.primary.opacity(increased ? 0.25 : 0.08), lineWidth: 0.5))
+                .opacity(presence)
         }
+    }
+}
+
+/// A glass surface stepping aside (the hero card under its scoring slide).
+/// Inside a `GlassEffectContainer` an opacity can't do it: the container
+/// composites its glass shapes, with their content, over everything else
+/// inside it, and an opacity applied around a glass view reaches neither the
+/// glass nor what's in it. So the surface steps aside from within: its
+/// content fades, and the glass becomes identity glass (no glass), which the
+/// container fades out with the same animation.
+enum GlassPresence {
+    /// The glass at `presence` (0 gone, 1 shown): itself until it's gone.
+    @available(macOS 26.0, *)
+    static func glass(_ glass: Glass, presence: Double) -> Glass { presence > 0 ? glass : .identity }
+}
+
+private struct GlassPresenceKey: EnvironmentKey {
+    static let defaultValue = 1.0
+}
+
+extension EnvironmentValues {
+    /// How much of the glass surfaces below shows, 0 to 1 (see `GlassPresence`):
+    /// `SlideCover` steps the hero card aside with it. Every glass surface
+    /// reads it; nothing but the cover ever sets it.
+    var glassPresence: Double {
+        get { self[GlassPresenceKey.self] }
+        set { self[GlassPresenceKey.self] = newValue }
     }
 }
 
