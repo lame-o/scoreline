@@ -256,7 +256,7 @@ export interface FigureInks {
   readonly legShades: readonly string[];
   /** An official's stripes, if the uniform has them. */
   readonly stripes: string | null;
-  /** Whether anything differs from a plain jersey (stripes, other legs): then each limb is drawn on its own. */
+  /** Whether the legs differ from the jersey: then each limb is drawn on its own. */
   readonly dressed: boolean;
 }
 
@@ -287,7 +287,7 @@ export function figureInks(u: Uniform, ink: TheaterInk): FigureInks {
     legs,
     legShades: u.legs ? shaded(legs) : shades,
     stripes: u.stripes ?? null,
-    dressed: u.stripes != null || u.legs != null,
+    dressed: u.legs != null,
   };
   byScheme.set(key, made);
   return made;
@@ -459,8 +459,6 @@ function draw(ctx: Ctx, f: RigFigure, inks: FigureInks, height: number): void {
   capsule(ctx, f.head, f.head, f.headRadius + halo);
   ctx.fillStyle = inks.rim;
   ctx.fill();
-  // An official's stripes: as many as read at this size (four across the body at a theater's), the sleeves' as wide.
-  const bands = inks.stripes === null ? 0 : Math.min(Math.max(Math.trunc((f.torso / 0.5 - 1) / 2), 1), 4) * 2 + 1;
   const shadeOf = (l: RigLimb, k: number) => {
     const list = l.arm ? inks.shades : inks.legShades;
     return list[Math.min(Math.max(k, 0), list.length - 1)]!;
@@ -471,11 +469,6 @@ function draw(ctx: Ctx, f: RigFigure, inks: FigureInks, height: number): void {
     ctx.strokeStyle = shadeOf(l, shade);
     ctx.lineWidth = f.limb;
     ctx.stroke();
-    if (l.arm && inks.stripes !== null) {
-      const wide = f.torso / bands;
-      const across = Math.max(Math.trunc((f.limb / wide - 1) / 2), 1) * 2 + 1;
-      if (f.limb / across >= 0.4) stripes(ctx, [l.root, l.joint, l.end], w, across, inks.stripes);
-    }
   };
   // Behind the body, far to near: a run of the same shade in one stroke (one at a time in an official's kit).
   boneCount = 0;
@@ -503,7 +496,7 @@ function draw(ctx: Ctx, f: RigFigure, inks: FigureInks, height: number): void {
   ctx.strokeStyle = inks.jersey;
   ctx.lineWidth = f.torso;
   ctx.stroke();
-  if (inks.stripes !== null) stripes(ctx, [f.hip, f.neck], f.torso / 2, bands, inks.stripes);
+  if (inks.stripes !== null) zebra(ctx, f, inks.stripes);
   bodyBone = boneCount;
   addBone(f.hip, f.neck, f.torso / 2);
   ctx.lineWidth = f.limb;
@@ -569,46 +562,52 @@ function draw(ctx: Ctx, f: RigFigure, inks: FigureInks, height: number): void {
 }
 
 /**
- * Stripes along a part (the body, a sleeve) `r` either side of its line
- * (TheaterDraw.stripes): `bands` across it, light and dark by turns, light at
- * its edges; kept to the part, so they never leave the figure.
+ * An official's shirt, as a pictogram draws it (TheaterDraw.zebra): a few
+ * bold, even black stripes down the torso, white between them and at its
+ * edges, clipped to the body's own shape (the arms and the head go over it
+ * as they would over a jersey). Two where the torso has room for them to
+ * read, one on the smallest figures (`zebraBands`).
  */
-function stripes(ctx: Ctx, line: readonly Point[], r: number, bands: number, ink: string): void {
-  // Each segment's way; a segment with no length takes its neighbour's.
-  const ways = line.slice(1).map((b, j) => {
-    const a = line[j]!;
-    const d = Math.hypot(b.x - a.x, b.y - a.y);
-    return d > 1e-6 ? { x: (b.x - a.x) / d, y: (b.y - a.y) / d } : null;
-  });
-  const way = ways.find((d) => d !== null);
-  if (!way) return;
-  const dirs = ways.map((d) => d ?? way);
-  const band = (2 * r) / bands;
+function zebra(ctx: Ctx, f: RigFigure, ink: string): void {
+  const a = f.hip;
+  const b = f.neck;
+  const r = f.torso / 2;
+  const d = Math.hypot(b.x - a.x, b.y - a.y);
+  const along = d > 1e-6 ? { x: (b.x - a.x) / d, y: (b.y - a.y) / d } : { x: 0, y: -1 };
+  const across = { x: -along.y, y: along.x };
+  const bands = zebraBands(f.torso);
+  // Each stripe overruns the body's round ends: the clip trims it.
+  const corner = (o: number, from: Point, out: number) => ({ x: from.x + across.x * o + along.x * out, y: from.y + across.y * o + along.y * out });
   ctx.save();
   ctx.beginPath();
-  for (let j = 0; j + 1 < line.length; j++) capsule(ctx, line[j]!, line[j + 1]!, r);
+  capsule(ctx, a, b, r);
   ctx.clip();
   ctx.beginPath();
-  for (let k = 1; k < bands; k += 2) {
-    const off = -r + (k + 0.5) * band;
-    dirs.forEach((d, j) => {
-      const nx = -d.y * off;
-      const ny = d.x * off;
-      // Run past the ends: the part's round ends trim them.
-      let a = line[j]!;
-      let b = line[j + 1]!;
-      if (j === 0) a = { x: a.x - d.x * r, y: a.y - d.y * r };
-      if (j === dirs.length - 1) b = { x: b.x + d.x * r, y: b.y + d.y * r };
-      if (j === 0) ctx.moveTo(a.x + nx, a.y + ny);
-      else ctx.lineTo(a.x + nx, a.y + ny);
-      ctx.lineTo(b.x + nx, b.y + ny);
-    });
+  let x = -r + bands.white;
+  for (let k = 0; k < bands.count; k++) {
+    const corners = [corner(x, a, -r), corner(x + bands.black, a, -r), corner(x + bands.black, b, r), corner(x, b, r)];
+    ctx.moveTo(corners[0]!.x, corners[0]!.y);
+    for (const c of corners.slice(1)) ctx.lineTo(c.x, c.y);
+    ctx.closePath();
+    x += bands.black + bands.white;
   }
-  ctx.strokeStyle = ink;
-  ctx.lineWidth = band;
-  ctx.lineCap = "butt";
-  ctx.stroke();
+  ctx.fillStyle = ink;
+  ctx.fill();
   ctx.restore();
+}
+
+/**
+ * The zebra's stripes for a torso this wide (TheaterDraw.zebraBands): how
+ * many black ones, and how wide each black and white band is. Every band
+ * the same width, so black and white both read bold (a pictogram's stripes,
+ * never pinstripes): two once the torso has room, one on the smallest
+ * figures. (pure; tested)
+ */
+export function zebraBands(torso: number): { count: number; black: number; white: number } {
+  const count = torso >= 3 ? 2 : 1;
+  // `count` black and `count + 1` white, all one width.
+  const unit = torso / (2 * count + 1);
+  return { count, black: unit, white: unit };
 }
 
 /** A canvas a fading figure is drawn on first, then laid down at its opacity. */

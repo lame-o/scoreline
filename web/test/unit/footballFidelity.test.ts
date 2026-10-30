@@ -772,7 +772,7 @@ describe("football theater: every play in the order it happened", () => {
   const all = [...college, ...nfl].flatMap((g) => g.items.flatMap((i) => parse(i, g.teams) ?? []));
   const scripts = all.map((scene) => [scene, FootballScript.play(scene)] as const);
 
-  it("every play of two college games and the NFL's turnovers, hits and flags: finite, the ball never under the grass, 2–11 s", () => {
+  it("every play of two college games and the NFL's turnovers, hits and flags: finite, the ball never under the grass, 2–12.5 s (a kick and its return, slowed)", () => {
     const insane = scripts.filter(([, s]) => {
       for (let k = 0; k * 0.1 <= s.duration; k++) {
         const t = k * 0.1;
@@ -780,7 +780,7 @@ describe("football theater: every play in the order it happened", () => {
         const b = s.ball(t);
         if (b && !(Number.isFinite(b.x) && Number.isFinite(b.y) && b.z >= -0.01)) return true;
       }
-      return !(s.duration > 2 && s.duration < 11 && s.stamp < s.settle);
+      return !(s.duration > 2 && s.duration < 12.5 && s.stamp < s.settle);
     });
     expect(insane.slice(0, 3).map(([scene, s]) => `${scene.text.slice(0, 50)} ${s.duration}`)).toEqual([]);
   });

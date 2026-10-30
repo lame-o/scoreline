@@ -725,7 +725,7 @@ describe("the try", () => {
     expect(through.z).toBeGreaterThan(Gridiron.crossbar);
     expect(s.banner).toBeNull();
     expect([stamp(attempt), footballStamp(attempt).title]).toEqual(["XP ✓", "Elliott"]);
-    expect(s.duration).toBeLessThan(3.6);
+    expect(s.duration).toBeLessThan(4.2);
     expect(s.duration).toBeLessThan(script("9213")!.duration);
   });
 
@@ -785,9 +785,9 @@ describe("the stamp's corner and the pace", () => {
     expect(toRest.crowded / Math.max(toRest.frames, 1)).toBeLessThan(0.03);
   });
 
-  it("the replays are brisk: half of them done in under 4.6 s", () => {
+  it("the replays stay brisk with the action slowed 1.3×: half of them done in under 5.2 s", () => {
     const lengths = all.map((s) => s.duration).sort((a, b) => a - b);
-    expect(lengths[Math.trunc(lengths.length / 2)]!).toBeLessThan(4.6);
+    expect(lengths[Math.trunc(lengths.length / 2)]!).toBeLessThan(5.2);
   });
 });
 

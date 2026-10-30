@@ -13,9 +13,10 @@ import { fieldPoint, houseCurve, smooth, type FieldPoint, type Point } from "../
 import { gait, keyed, mirrored, mix, over, Rig, rigArm, rigPose, RigPoses, RigTrack, vec, withPose, type RigArm, type RigPose, type RigVector } from "../../../../data/theater/rig";
 import { referee, type Uniform } from "../../../../data/mlb/theaterTeams";
 import { Pitch, stampDetail, surname, type SoccerScene } from "../../../../data/theater/soccerScene";
-import type { Actor, SoccerProp, SoccerScript } from "../../../../data/theater/soccerScript";
+import { PitchFrame, type Actor, type SoccerProp, type SoccerScript, type Team } from "../../../../data/theater/soccerScript";
 import { PitchProjection } from "../../../../data/theater/soccerTheater";
-import type { Rect } from "../../../../data/mlb/playCamera";
+import { CameraFrame, type Rect } from "../../../../data/mlb/playCamera";
+import { bridgeGhosts, bridgeMix, bridgePose, type FrameBridge } from "../../../../data/theater/theaterBridge";
 import { TheaterTagLayout, type HitFigure, type TagFrame, type TheaterSpots } from "../../../../data/theater/theaterNames";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, shift, type RigFigure } from "../../core/theater/rigFigure";
 import { drawStems, drawTags, tagRing, type Stems, type TagFigure } from "../../core/theater/theaterTags";
@@ -392,10 +393,6 @@ export const PitchPose = {
   }),
   /** The referee's card (or the assistant's flag, a kicker's signal): one arm straight up. */
   cardUp: rigPose({ lean: -0.05, rightArm: rigArm({ swing: 3.0, spread: 0.12, turn: 0.3, bend: 0.05 }) }),
-  /** A hand to his ear: the referee listening to VAR. */
-  ear: rigPose({ nod: 0.1, rightArm: rigArm({ swing: 2.5, spread: 0.45, turn: 1.0, bend: 2.2 }) }),
-  /** The sign for the screen: both hands up and out, drawing it. */
-  screen: rigPose({ leftArm: rigArm({ swing: 2.0, spread: 0.6, turn: 0.4, bend: 0.5 }), rightArm: rigArm({ swing: 2.0, spread: 0.6, turn: 0.4, bend: 0.5 }) }),
   /** The board held up in both hands. */
   boardUp: rigPose({ lean: -0.08, leftArm: rigArm({ swing: 2.8, spread: 0.1, turn: 0.3, bend: 0.25 }), rightArm: rigArm({ swing: 2.8, spread: 0.1, turn: 0.3, bend: 0.25 }) }),
   down(side: number): RigPose {
@@ -451,12 +448,6 @@ export function actorPose(script: SoccerScript, actor: Actor, index: number, t: 
         return [mix(base, PitchPose.kneel, into), m.heading];
       case "cardUp":
         base = over(base, PitchPose.cardUp, into, m.weight);
-        break;
-      case "ear":
-        base = over(base, PitchPose.ear, into, m.weight);
-        break;
-      case "screen":
-        base = over(base, PitchPose.screen, into, m.weight);
         break;
       case "boardUp":
         base = over(base, PitchPose.boardUp, into, m.weight);
@@ -558,22 +549,62 @@ export function actorPose(script: SoccerScript, actor: Actor, index: number, t: 
   return [base, m.heading];
 }
 
-/** A player posed and placed at t: his figure, its height, and where his hands are (a keeper holding the ball has it there). */
+/** A player posed and placed at t: his figure, its height, where his hands are (a keeper holding the ball has it there), and where he stands on the pitch. */
 interface Posed {
   readonly figure: RigFigure;
   readonly height: number;
   readonly hands: Point;
+  readonly at: Point;
+}
+
+/** One of the idle's men the replay doesn't have, fading out over the bridge. */
+interface Ghost {
+  readonly posed: Posed;
+  readonly opacity: number;
+  readonly team: Team;
 }
 
 /** Everyone at t, by actor. */
-function posed(f: PitchProjection, { script, t }: FrameInputs): Posed[] {
-  return script.actors.map((actor, index) => place(script, actor, index, f, t));
+function posed(f: PitchProjection, { script, t, bridge }: FrameInputs): Posed[] {
+  return script.actors.map((actor, index) => place(script, actor, index, f, t, bridge ?? null));
 }
 
-function place(script: SoccerScript, actor: Actor, index: number, f: PitchProjection, t: number): Posed {
-  const at = actor.position(t);
+/** The idle's men fading out mid-bridge, where the idle has them and as it poses them. */
+function ghosts(f: PitchProjection, { bridge }: FrameInputs): Ghost[] {
+  if (!bridge) return [];
+  return bridgeGhosts(bridge.pairs, bridge.script.actors.length).flatMap((j) => {
+    const actor = bridge.script.actors[j]!;
+    const o = actor.opacity(bridge.t) * (1 - bridge.w);
+    if (!(o > 0.01)) return [];
+    const at = actor.position(bridge.t);
+    const lens = RigLens.pitch(f, at);
+    const [body, heading] = actorPose(bridge.script, actor, j, bridge.t, at, lens.unit);
+    const figure = rigFigure(body, heading, lens);
+    return [{ posed: { figure, height: lens.height, hands: grip(figure), at }, opacity: o, team: actor.team }];
+  });
+}
+
+/** How much of actor `i` shows at t: mid-bridge, a man the idle didn't have fades in (SoccerFrame.seen). */
+function seen({ script, t, bridge }: FrameInputs, i: number): number {
+  const o = script.actors[i]!.opacity(t);
+  if (!bridge) return o;
+  const j = bridge.pairs.get(i);
+  if (j == null) return o * bridge.w;
+  const from = bridge.script.actors[j]!.opacity(bridge.t);
+  return from + (o - from) * bridge.w;
+}
+
+function place(script: SoccerScript, actor: Actor, index: number, f: PitchProjection, t: number, bridge: SoccerBridge | null): Posed {
+  let at = actor.position(t);
+  // Mid-bridge: between where the idle has him and his place in the replay, posed between the two, striding along the way.
+  const j = bridge?.pairs.get(index);
+  if (bridge && j != null) at = bridgeMix(bridge.script.actors[j]!.position(bridge.t), at, bridge.w);
   const lens = RigLens.pitch(f, at);
-  const [body, heading] = actorPose(script, actor, index, t, at, lens.unit);
+  let [body, heading] = actorPose(script, actor, index, t, actor.position(t), lens.unit);
+  if (bridge && j != null) {
+    const other = bridge.script.actors[j]!;
+    [body, heading] = bridgePose(actorPose(bridge.script, other, j, bridge.t, other.position(bridge.t), lens.unit), [body, heading], bridge.w, bridge.tracks.get(index), bridge.s, at, lens.unit);
+  }
   const figure = rigFigure(body, heading, lens);
   // At full stretch, his leading hand goes exactly to the ball.
   const dive = actor.dive;
@@ -585,9 +616,9 @@ function place(script: SoccerScript, actor: Actor, index: number, f: PitchProjec
     const lead = side > 0 ? figure.hands[1] : figure.hands[0];
     const pull = fall > 0 ? 1 - smooth(fall) : smooth(u);
     shift(figure, (target.x - lead.x) * pull, (target.y - lead.y) * pull);
-    return { figure, height: lens.height, hands: side > 0 ? figure.hands[1] : figure.hands[0] };
+    return { figure, height: lens.height, hands: side > 0 ? figure.hands[1] : figure.hands[0], at };
   }
-  return { figure, height: lens.height, hands: grip(figure) };
+  return { figure, height: lens.height, hands: grip(figure), at };
 }
 
 // MARK: - Labels (laid out once per moment and size)
@@ -659,6 +690,25 @@ export interface FrameInputs {
   readonly labels: Labels;
   /** The names over the players: the pointer's, the key man's. */
   readonly tags?: TagFrame | null;
+  /** The pitch between moments this replay is taking over from (null: none, or the hand-off is done). */
+  readonly bridge?: SoccerBridge | null;
+}
+
+/**
+ * The pitch between moments as it stands mid-bridge (SoccerFrame.Bridge,
+ * theaterBridge.ts): its script and time now, how far the hand-off is, who
+ * becomes whom, and the idle's teams' colors (its team on the ball may be
+ * the replay's other).
+ */
+export interface SoccerBridge extends FrameBridge<SoccerScript> {
+  readonly teams: SoccerTeams;
+}
+
+/** The camera at t (SoccerFrame.projection); mid-bridge, eased from the idle's framing to the replay's (both the main camera's). */
+export function soccerProjection(size: { readonly width: number; readonly height: number }, script: SoccerScript, t: number, bridge: SoccerBridge | null = null): PitchProjection {
+  const frame = script.frame(t);
+  if (!bridge || frame.angle.kind !== "stand") return new PitchProjection(size, frame);
+  return new PitchProjection(size, new PitchFrame(CameraFrame.mix(bridge.script.frame(bridge.t).camera, frame.camera, bridge.w)));
 }
 
 /**
@@ -670,21 +720,23 @@ export interface FrameInputs {
 export function drawSoccerFrame(ctx: Ctx, f: PitchProjection, input: FrameInputs): void {
   const figures = posed(f, input);
   const hands = held(input, figures);
-  drawShadows(ctx, f, input, figures);
+  const faded = ghosts(f, input);
+  drawShadows(ctx, f, input, figures, faded);
   // The names on the pitch, under all that plays: the move's trail and the goals too.
   const stems = drawNames(ctx, f, input, figures, hands);
   drawTrails(ctx, f, input, "ground");
   drawTrails(ctx, f, input, "air");
-  drawStage(ctx, f, input, figures, stems);
+  drawStage(ctx, f, input, figures, faded, stems);
   drawTheBall(ctx, f, input, hands);
   drawImpacts(ctx, f, input);
   drawLabels(ctx, f, input);
 }
 
 /** Where the keeper holding the ball has his hands. */
-function held({ script, t }: FrameInputs, figures: readonly Posed[]): Point | null {
+function held(input: FrameInputs, figures: readonly Posed[]): Point | null {
+  const { script, t } = input;
   const i = script.heldBy;
-  if (i == null || !(t >= script.heldFrom) || i >= figures.length || !(script.actors[i]!.opacity(t) > 0.01)) return null;
+  if (i == null || !(t >= script.heldFrom) || i >= figures.length || !(seen(input, i) > 0.01)) return null;
   return figures[i]!.hands;
 }
 
@@ -701,9 +753,12 @@ export function soccerSpots(script: SoccerScript, t: number, size: { readonly wi
 }
 
 /** Where the ball is drawn at t (in the keeper's hands, or where it is), how big, how faint, and a man's height there. */
-function ballSpot(f: PitchProjection, { script, t }: FrameInputs, hands: Point | null): { point: Point; radius: number; opacity: number; height: number } | null {
-  const ball = script.ball(t);
+function ballSpot(f: PitchProjection, { script, t, bridge }: FrameInputs, hands: Point | null): { point: Point; radius: number; opacity: number; height: number } | null {
+  let ball = script.ball(t);
   if (!ball) return null;
+  // Mid-bridge, from where the ball was going round to where the move starts.
+  const from = bridge?.script.ball(bridge.t);
+  if (bridge && from) ball = { x: from.x + (ball.x - from.x) * bridge.w, y: from.y + (ball.y - from.y) * bridge.w, z: from.z + (ball.z - from.z) * bridge.w };
   const height = f.figure(ball);
   return { point: hands ?? f.point(ball), radius: Math.min(Math.max(0.3 * f.scale(ball), 1.7), Math.max(height * 0.11, 1.7)), opacity: script.ballOpacity(t), height };
 }
@@ -726,8 +781,8 @@ function drawNames(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: re
   const shown: TagFigure[] = [];
   figures.forEach((p, index) => {
     const actor = script.actors[index]!;
-    const seen = actor.opacity(t);
-    if (seen > 0.01) shown.push({ index, figure: p.figure, height: p.height, opacity: seen, drawn: actor.shaped ? seen * receding(script, t, p.figure.ground, f.size) : null });
+    const o = seen(input, index);
+    if (o > 0.01) shown.push({ index, figure: p.figure, height: p.height, opacity: o, drawn: actor.shaped ? o * receding(script, t, p.figure.ground, f.size) : null });
   });
   const spot = ballSpot(f, input, hands);
   const r = spot ? spot.radius + 0.6 : 0;
@@ -786,10 +841,11 @@ function drawTrails(ctx: Ctx, f: PitchProjection, { script, t, teams, ink }: Fra
   });
 }
 
-function drawShadows(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInputs, figures: readonly Posed[]): void {
+function drawShadows(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: readonly Posed[], faded: readonly Ghost[]): void {
+  const { script, t, ink } = input;
   // Under the hips; smaller and fainter as he leaves the ground (and gone with him, when he's off).
-  figures.forEach((p, i) => {
-    const shown = script.actors[i]!.opacity(t);
+  const all = [...figures.map((p, i) => [p, seen(input, i)] as const), ...faded.map((g) => [g.posed, g.opacity] as const)];
+  all.forEach(([p, shown]) => {
     if (!(shown > 0.01)) return;
     const air = Math.min(p.figure.air / 0.4, 1);
     const w = p.height * 0.3 * (1 - 0.35 * air);
@@ -822,6 +878,8 @@ function drawShadows(ctx: Ctx, f: PitchProjection, { script, t, ink }: FrameInpu
 
 type Item =
   | { readonly depth: number; readonly kind: "actor"; readonly index: number }
+  /** One of the idle's men fading out mid-bridge (by his place in the ghosts). */
+  | { readonly depth: number; readonly kind: "ghost"; readonly index: number }
   /** From behind a goal: all of it at once, at its goal line. */
   | { readonly depth: number; readonly kind: "goalBack" | "nearPost" | "goal"; readonly right: boolean };
 
@@ -845,36 +903,44 @@ type GoalPart = "net" | "frame" | "nearPost";
  * The goals and the players, far to near (a man in front of the post covers
  * it), each with the stem of his raised name just before him.
  */
-function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: readonly Posed[], stems: Stems): void {
-  const { script, t, teams, ink } = input;
+function drawStage(ctx: Ctx, f: PitchProjection, input: FrameInputs, figures: readonly Posed[], faded: readonly Ghost[], stems: Stems): void {
+  const { script, t, teams, ink, bridge } = input;
   const attacking = figureInks(teams.attacking, ink);
   const defending = figureInks(teams.defending, ink);
-  // Between moments, the officials in the referee's kit (FIFA yellow, else the first that reads apart from both teams) and the physios in the staff's slate.
-  const officials = script.actors.some((a) => a.team === "official") ? figureInks(referee([teams.attacking.jersey, teams.defending.jersey], ink.dark ? "dark" : "light"), ink) : defending;
-  const staff = script.actors.some((a) => a.team === "staff") ? figureInks(STAFF, ink) : defending;
+  // Between moments, an official in the referee's kit (FIFA yellow, else the first that reads apart from both teams) and the physios in the staff's slate.
+  const anyOfficial = script.actors.some((a) => a.team === "official") || faded.some((g) => g.team === "official");
+  const officials = anyOfficial ? figureInks(referee([teams.attacking.jersey, teams.defending.jersey], ink.dark ? "dark" : "light"), ink) : defending;
+  const staff = script.actors.some((a) => a.team === "staff") || faded.some((g) => g.team === "staff") ? figureInks(STAFF, ink) : defending;
+  // The idle's men fading out wear the idle's colors.
+  const idleInks = bridge ? { attacking: figureInks(bridge.teams.attacking, ink), defending: figureInks(bridge.teams.defending, ink) } : null;
   let items: Item[];
   const behind = f.behind;
   if (behind != null) {
-    items = script.actors.map((a, index) => ({ depth: f.depth(fieldPoint(a.position(t))), kind: "actor", index }));
+    items = script.actors.map((_, index) => ({ depth: f.depth(fieldPoint(figures[index]!.at)), kind: "actor", index }));
     for (const right of [false, true]) {
       // The goal in front of the lens covers everyone beyond its line.
       const line: FieldPoint = { x: right ? Pitch.length : 0, y: Pitch.width / 2, z: 0 };
       items.push({ depth: f.depth(line) + (right === behind ? -0.01 : 0.01), kind: "goal", right });
     }
   } else {
-    items = script.actors.map((a, index) => ({ depth: a.position(t).y, kind: "actor", index }));
+    items = script.actors.map((_, index) => ({ depth: figures[index]!.at.y, kind: "actor", index }));
     for (const right of [false, true]) {
       items.push({ depth: Pitch.posts.far + 0.01, kind: "goalBack", right });
       items.push({ depth: Pitch.posts.near - 0.01, kind: "nearPost", right });
     }
   }
+  faded.forEach((g, index) => items.push({ depth: behind == null ? g.posed.at.y : f.depth(fieldPoint(g.posed.at)), kind: "ghost", index }));
   // Stable, as Swift's sort keeps equal depths in order.
   const order = items.map((item, i) => ({ item, i })).sort((a, b) => b.item.depth - a.item.depth || a.i - b.i);
   for (const { item } of order) {
-    if (item.kind === "actor") {
+    if (item.kind === "ghost") {
+      const g = faded[item.index]!;
+      const inks = g.team === "attacking" ? (idleInks?.attacking ?? attacking) : g.team === "defending" ? (idleInks?.defending ?? defending) : g.team === "official" ? officials : staff;
+      drawFigure(ctx, g.posed.figure, inks, g.posed.height, g.opacity);
+    } else if (item.kind === "actor") {
       const actor = script.actors[item.index]!;
       const placed = figures[item.index]!;
-      const shown = actor.opacity(t);
+      const shown = seen(input, item.index);
       if (!(shown > 0.01)) continue;
       // The stem of his raised name just before him: over the men behind him, under the men in front.
       drawStems(ctx, stems, item.index);

@@ -15,7 +15,8 @@
  * net when it's on target; then the payoff holds: the net ripples and the
  * scorer wheels away, or the keeper comes up with it (or punches it to where
  * it landed). The replay ends on the frame the theater holds until the next
- * moment.
+ * moment. Squeezed into five seconds, a build-up runs quicker than life, so
+ * it's played `buildUpPace` (1.3×) slower; the shot keeps its own pace.
  *
  * The men who touched the ball are where they touched it, struck with the
  * foot or the head Opta logs; with the lineups, everyone else in both
@@ -32,19 +33,17 @@ import { Move } from "../mlb/playScript";
 import { easeValue, fieldPoint, ground, type Ease, type FieldPoint, type Point } from "../mlb/theaterField";
 import { attacksRight, characters, crossbar, goalOf, lineupsOn, Pitch, scored, SoccerLineup, stampDetail, surname, type KeeperAction, type LineupPlayer, type Lineups, type SoccerScene, type Touch } from "./soccerScene";
 import { ballMemo, Rig, RigTrack, type RigFacing } from "./rig";
-import { CameraFollow } from "./theaterKit";
+import type { BridgeFigure } from "./theaterBridge";
+import { CameraFollow, Pace } from "./theaterKit";
 import { BIG_CHANCE_XG } from "../liveFeeds/soccer";
+import type { Side } from "../models";
 
-/** The team on the ball and the other; between moments, the officials and the physios too (soccerIdle.ts). */
+/** The team on the ball and the other; between moments, an official for his act (a booking, an offside, a substitution) and the physios too (soccerIdle.ts). */
 export type Team = "attacking" | "defending" | "official" | "staff";
 
-/**
- * A pose held for a while between moments: a man down, a physio on a knee,
- * the referee's card or the assistant's flag up, a hand to the ear for VAR,
- * the sign for the screen, the board held up.
- */
+/** A pose held for a while between moments: a man down, a physio on a knee, the referee's card or the assistant's flag up, the board held up. */
 export interface Hold {
-  readonly kind: "down" | "kneel" | "cardUp" | "ear" | "screen" | "boardUp";
+  readonly kind: "down" | "kneel" | "cardUp" | "boardUp";
   readonly from: number;
   readonly until: number;
 }
@@ -319,11 +318,33 @@ export class SoccerScript {
   }
 
   /**
-   * The moment's replay, with everyone in both starting elevens when the
-   * lineups are known. (`new SoccerScript()` is the pitch with nobody on it:
-   * no moment yet.)
+   * Everyone as the hand-off from the pitch between moments matches them
+   * (theaterBridge.ts): by side (`attacking` is on the ball here; the
+   * officials and the physios on their own), the keepers with each other,
+   * the same man by his athlete; where each is at t.
    */
-  static build(scene: SoccerScene, lineups: Lineups = {}): SoccerScript {
+  bridgeFigures(attacking: Side, t: number): BridgeFigure[] {
+    return this.actors.map((a) => {
+      const group = a.team === "attacking" ? (attacking === "top" ? 0 : 1) : a.team === "defending" ? (attacking === "top" ? 1 : 0) : a.team === "official" ? 2 : 3;
+      return { group, kind: a.role === "keeper" ? "keeper" : "", athlete: a.athlete, at: a.position(t) };
+    });
+  }
+
+  /**
+   * The replay's own lead-in: the moment before the first touch is played
+   * (the shape only drifting with the ball, the taker over a set piece),
+   * which a hand-off from the pitch between moments uses first.
+   */
+  get leadIn(): number {
+    return Math.max(this.flights.find((f) => f.end - f.start > 0.05)?.start ?? this.strike, 0);
+  }
+
+  /**
+   * The moment's replay, with everyone in both starting elevens when the
+   * lineups are known, its build-up played `pace` times slower than laid
+   * out. (`new SoccerScript()` is the pitch with nobody on it: no moment yet.)
+   */
+  static build(scene: SoccerScene, lineups: Lineups = {}, pace: number = buildUpPace): SoccerScript {
     const b = new Builder(scene, lineups);
     b.buildUp();
     b.strike();
@@ -332,6 +353,9 @@ export class SoccerScript {
     b.cut();
     b.squads();
     b.finish();
+    // The build-up slowed, from the first pass to the strike; the shot and the payoff keep their pace.
+    const first = b.script.flights.find((f) => f.end - f.start > 0.05)?.start;
+    if (pace !== 1 && first != null && first < b.script.strike) b.stretch(pace, first, b.script.strike);
     b.headline();
     b.measureStamp();
     b.shoot();
@@ -414,6 +438,14 @@ export const runSpeed = 9;
 export const jogSpeed = 6.5;
 /** The build-up runs no longer than this, if it can help it: a longer move plays its early passes faster. */
 export const buildUpLimit = 5.0;
+/**
+ * How much slower the build-up plays than it's laid out (the shot and the
+ * payoff keep their pace). Measured on the fixtures' moments, the squeezed
+ * build-up ran faster than life: passes along the grass at the 30 m/s cap
+ * (median), against life's 12–20; the men's top speeds at a median 17 m/s,
+ * against a sprint's 9–10. The most it may slow, 1.3×.
+ */
+export const buildUpPace = 1.3;
 
 interface Mark {
   t: number;
@@ -538,6 +570,41 @@ export class Builder {
   /** A lofted ball's height over the line: higher the longer it goes. */
   peak(d: number, cross: boolean): number {
     return cross ? Math.min(2.2 + d * 0.09, 7) : Math.min(2.5 + d * 0.11, 11);
+  }
+
+  // MARK: Pace
+
+  /**
+   * What's laid out so far, from `a` to `b`, played `k` times slower: every
+   * moment in it moved along the slower clock, every one after it moved
+   * later by as much; nothing before it changes.
+   */
+  stretch(k: number, a: number, b: number): void {
+    const pace = new Pace(a, Math.max(b, a), k);
+    const r = (t: number) => pace.stretched(t);
+    const { script } = this;
+    for (const p of script.actors) {
+      p.moves = p.moves.map((m) => new Move(r(m.start), r(m.end), m.path, m.ease));
+      p.actions = p.actions.map((x) => ({ ...x, at: r(x.at) }));
+      p.dive = p.dive ? { ...p.dive, start: r(p.dive.start), reach: r(p.dive.reach) } : null;
+      p.holds = p.holds.map((h) => ({ ...h, from: r(h.from), until: r(h.until) }));
+      p.looks = p.looks.map((l) => ({ ...l, from: r(l.from) }));
+      p.appear = r(p.appear);
+      p.vanish = r(p.vanish);
+    }
+    script.flights = script.flights.map((f) => new Flight(f.kind, r(f.start), r(f.end), f.from, f.to, f.arc, f.ease));
+    script.impacts = script.impacts.map((x) => ({ ...x, at: r(x.at) }));
+    script.reverse = script.reverse ? { ...script.reverse, from: r(script.reverse.from), until: r(script.reverse.until) } : null;
+    script.strike = r(script.strike);
+    script.arrive = r(script.arrive);
+    script.stamp = r(script.stamp);
+    script.heldFrom = r(script.heldFrom);
+    script.ballGone = r(script.ballGone);
+    script.settle = r(script.settle);
+    script.duration = r(script.duration);
+    this.payoffAt = r(this.payoffAt);
+    this.possession = this.possession.map((x) => ({ ...x, from: r(x.from), to: r(x.to) }));
+    for (const [actor, list] of this.marks) this.marks.set(actor, list.map((m) => ({ ...m, t: r(m.t) })));
   }
 
   // MARK: Build-up

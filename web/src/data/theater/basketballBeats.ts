@@ -9,10 +9,11 @@
  * player of his position would come from (a center from the block, a guard
  * from the arc). Each free throw is its own beat (the shooter's routine is
  * his own, every trip), each whistle is called at ESPN's spot by a referee
- * who runs in to make it, each turnover is told by its kind (picked off,
- * poked loose, out of bounds, a travel, a charge with the defender on the
- * floor), and the stoppages (substitutions, timeouts, reviews, the ends of
- * periods) take the floor where it stood.
+ * who runs in to make it (and goes once he has: a referee is on the floor
+ * only while he's doing something), each turnover is told by its kind
+ * (picked off, poked loose, out of bounds, a travel, a charge with the
+ * defender on the floor), and the stoppages (substitutions, timeouts,
+ * reviews, the ends of periods) take the floor where it stood.
  *
  * Every beat starts where the last one left everyone (`Lineup`, turned half
  * a turn when the ball changes hands), so the court plays on like a video
@@ -406,19 +407,28 @@ export class BeatBuilder extends Builder {
     this.script.players[i]!.move(path, start, end, ease);
   }
 
-  /** The referee nearest the call comes in to see it (the lead on the baseline for one near the basket, else the trail on the near sideline), whistles at `t` and signals. */
+  /**
+   * The referee nearest the call comes in to see it (the lead on the
+   * baseline for one near the basket, else the trail on the near sideline),
+   * whistles at `t` and signals; then he's gone (fading out as his signal
+   * comes down: standing there he'd only be in the way).
+   */
   whistle(t: number, spot: Point, signal: ActionKind = "signal", toward: Point | null = null): number {
     const deep = spot.x > 79;
     const stand = deep ? { x: 95.4, y: spot.y >= 25 ? 31 : 19 } : { x: Math.min(Math.max(spot.x - 5, 50), 82), y: this.offNear(1.6) };
     const from = deep ? { x: 95.6, y: stand.y + (spot.y >= 25 ? 4 : -4) } : { x: stand.x - 6, y: stand.y };
     const ref = new Player("official", from);
     ref.enters = Math.max(t - 0.9, -0.3);
+    ref.leaves = t + BeatBuilder.signalled;
     ref.move([stand], Math.max(t - 0.7, 0), t, "out");
     ref.act(signal, t + 0.06, toward ?? spot);
     this.script.players.push(ref);
     this.script.flashes.push({ beat: "whistle", at: t, point: fieldPoint(stand, 6.2) });
     return this.script.players.length - 1;
   }
+
+  /** How long a referee stays after his whistle: his signal held and lowered, then he fades. */
+  static readonly signalled = 1.5;
 
   /** Play stops at the whistle: everyone eases to a stop just past where he was going (`except` aside). */
   freeze(t: number, except: ReadonlySet<number> = new Set()): void {
@@ -780,7 +790,6 @@ export class BeatBuilder extends Builder {
     if (!this.place(lineup, ["lane"])) this.laneUp();
     // The shooter is the one at the line.
     this.trade(0, this.nearest([0, 1, 2, 3, 4], line));
-    const official = this.laneOfficial();
     // His routine: seeded by him, so it's the same every trip.
     const routine = new SplitMix64(seed64("routine·" + (scene.shooter?.id ?? scene.shooter?.name ?? scene.id)));
     const dribbles = Math.trunc(routine.in(1, 3.99));
@@ -821,8 +830,10 @@ export class BeatBuilder extends Builder {
         this.arrive = f.end;
       }
       if (!last) {
-        // The referee takes it under the basket.
+        // The referee in under the basket to take it for the next one, and gone with it.
+        const official = this.laneOfficial(this.arrive - 0.6);
         this.walk(official, [{ x: 93.2, y: 25 + (this.position(official, 0).y > 25 ? 2.5 : -2.5) }], this.arrive, this.arrive + 0.7, "out");
+        script.players[official]!.leaves = this.arrive + 1.2;
       }
     } else {
       const c = carom(missOf(scene));
@@ -873,10 +884,10 @@ export class BeatBuilder extends Builder {
     this.start = { offense: this.offense, at: [...ours, ...theirs], holder: 0, ball: null, formation: "lane", camera: null, yaw: null };
   }
 
-  /** The lead referee under the basket for free throws. */
-  laneOfficial(): number {
+  /** The lead referee under the basket for free throws, on the floor from `from`. */
+  laneOfficial(from = -1): number {
     const ref = new Player("official", { x: 95.2, y: 21 });
-    ref.enters = -1;
+    ref.enters = from;
     this.script.players.push(ref);
     return this.script.players.length - 1;
   }
@@ -1257,6 +1268,8 @@ export class BeatBuilder extends Builder {
     this.fly(fieldPoint(c, 13.2), fieldPoint(c, 12.4), top, tip - top, STRAIGHT);
     this.act(official, "toss", toss, c);
     this.walk(official, [{ x: c.x, y: c.y - 6 }], toss + 0.1, toss + 0.9);
+    // Out of the circle, and gone.
+    script.players[official]!.leaves = toss + 1.2;
     for (const j of [0, 5]) {
       this.jump(j, tip - 0.36, tip, tip + 0.4, 2.6);
       this.act(j, "tip", tip, c);
@@ -1696,14 +1709,18 @@ export class BeatBuilder extends Builder {
 
   // MARK: Free throws to come
 
-  /** Free throws to come: everyone walks to the lane (the man fouled to the line), the referee under the basket bounces him the ball; then a shuffle now and then. */
+  /**
+   * Free throws to come: everyone walks to the lane (the man fouled to the
+   * line), the referee under the basket bounces him the ball and goes; then
+   * a shuffle now and then. (Already on the lane, the shooter has the ball:
+   * no referee.)
+   */
   laneRest(rest: RestSpec): number {
     const script = this.script;
     script.formation = "lane";
     const line = { x: Hoops.freeThrow - 0.6, y: 25 };
     let t = 0;
     if (this.place(rest.from, ["lane"])) {
-      this.laneOfficial();
       this.hold(this.start?.holder ?? 0, 0, Infinity);
     } else {
       const from = rest.from;
@@ -1740,6 +1757,7 @@ export class BeatBuilder extends Builder {
       // The ball from the referee to the man at the line.
       script.legs = [{ from: 0, until: t + 0.4, hand: { kind: "held", player: ref } }];
       const caught = this.pass(ref, 0, t + 0.4, line, "bounce");
+      script.players[ref]!.leaves = caught + 0.8;
       this.hold(0, caught, Infinity);
       t = caught + 0.2;
     }

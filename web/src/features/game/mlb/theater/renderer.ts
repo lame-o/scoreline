@@ -14,9 +14,11 @@
  * - Between plays, a beat (a pitch, a visit, a change; playBeatScript.ts) or an idle move is drawn on its own
  *   clock from when the stage began it, the loop running only until it's over (at half the frame rate for an
  *   idle move: it's small and slow); with Reduce Motion, off screen or in a hidden tab it's drawn as it ends.
+ * - A pitch or a replay that comes in while the field between pitches is on screen takes over from it
+ *   (`handoff`, theaterBridge.ts): each figure from where he is to his place as it begins, or a quick crossfade.
  */
 import { cueDuration, cueFor, presetFor, type CelebrationLevel, type CelebrationPalette } from "../../../../data/celebrations";
-import { restCamera } from "../../../../data/mlb/playCamera";
+import { CameraFrame, restCamera } from "../../../../data/mlb/playCamera";
 import type { PlayScene } from "../../../../data/mlb/playScene";
 import type { PlayScript } from "../../../../data/mlb/playScript";
 import { burstEnd, plateCelebration, type TheaterBurst } from "../../../../data/mlb/theaterCelebration";
@@ -25,6 +27,25 @@ import type { LiveMoment } from "../../../../data/moments";
 import { drawBursts, drawField, drawFrame, FieldProjection, layoutLabels, type Labels, type Size } from "./drawTheater";
 import { mixHex, rgba, type TheaterInk } from "./theaterInk";
 import type { TagFrame } from "../../../../data/theater/theaterNames";
+import type { RigTrack } from "../../../../data/theater/rig";
+import type { BridgePlan } from "../../../../data/theater/theaterBridge";
+import { drawLayers } from "../../core/theater/layers";
+
+/**
+ * The hand-off from the field between pitches to what came in (PlayStage.Bridge;
+ * `id`: a replay's play or a beat's): when it came (performance.now(), ms),
+ * the plan, and the field as it was (an idle move's script plays on under the
+ * bridge, on its own clock from `since`; null: the field was still), each
+ * traveller's stride.
+ */
+export interface PlayHandoff {
+  readonly id: string;
+  readonly came: number;
+  readonly plan: BridgePlan;
+  readonly script: PlayScript;
+  readonly since: number | null;
+  readonly tracks: ReadonlyMap<number, RigTrack>;
+}
 
 export interface StageInputs {
   readonly scene: PlayScene | null;
@@ -48,6 +69,8 @@ export interface StageInputs {
   readonly paused?: boolean;
   /** The names over the figures for the script drawn at t (the play's, or a beat's), through its projection. */
   readonly tags?: ((script: PlayScript, t: number, f: FieldProjection) => TagFrame | null) | null;
+  /** What came in taking over from the field between pitches (its replay's clock starts the plan's delay after it came). */
+  readonly handoff?: PlayHandoff | null;
 }
 
 const CROSSFADE_MS = 350;
@@ -105,8 +128,9 @@ export class TheaterRenderer {
       this.shownID = id;
       this.bloom = null;
       if (next.frozen == null && !next.reduceMotion && next.news && id != null) {
-        // A new play replays from its pitch (and a new one mid-replay cuts to itself).
-        this.replay = { id, start: now };
+        // A new play replays from its pitch (and a new one mid-replay cuts to itself); taking over from the field between pitches, once the hand-off has room.
+        const h = next.handoff?.id === id ? next.handoff : null;
+        this.replay = { id, start: h ? h.came + h.plan.delay * 1000 : now };
         this.fade = null;
       } else {
         this.replay = null;
@@ -186,7 +210,7 @@ export class TheaterRenderer {
   private replayTime(now: number): number {
     const i = this.inputs;
     if (!i || !i.scene || !this.replay || this.replay.id !== i.scene.id) return Infinity;
-    const t = (now - this.replay.start) / 1000;
+    const t = Math.max((now - this.replay.start) / 1000, 0);
     return t > this.replayEnd() ? Infinity : t;
   }
 
@@ -201,9 +225,7 @@ export class TheaterRenderer {
       const t = (now - beat.start) / 1000;
       return t > beat.script.duration ? Infinity : Math.max(t, 0);
     }
-    if (!i.scene || !this.replay || this.replay.id !== i.scene.id) return Infinity;
-    const t = (now - this.replay.start) / 1000;
-    return t > this.replayEnd() ? Infinity : t;
+    return this.replayTime(now);
   }
 
   private replayEnd(): number {
@@ -285,10 +307,36 @@ export class TheaterRenderer {
     const script = beat?.script ?? i.script;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, size.width, size.height);
-    const f = new FieldProjection(size, script.camera.frame(t));
-    drawField(ctx, f, i.ink);
-    drawFrame(ctx, f, { scene: beat ? null : i.scene, script, t, teams: i.teams, ink: i.ink, labels: this.labels!, footer: i.footer ?? 0, tags: i.tags?.(script, t, f) ?? null });
-    if (Number.isFinite(t) && this.bursts.length > 0) drawBursts(ctx, f, this.bursts, t, this.palette(), this.pt);
+    // Mid-hand-off from the field between pitches: the figures travelling (the frame blends), or the field fading out.
+    const h = i.handoff;
+    const s = h && h.id === (beat ? beat.key : i.scene?.id) && Number.isFinite(t) ? (now - h.came) / 1000 : Infinity;
+    const live = h && s < h.plan.end ? h : null;
+    const w = live ? live.plan.weight(s) : 1;
+    const idleT = live?.since != null ? Math.min((now - live.since) / 1000, live.script.duration) : Infinity;
+    const bridge = live && live.plan.mode === "bridge" ? { script: live.script, t: idleT, w, s, pairs: live.plan.pairs, tracks: live.tracks } : null;
+    const camera = script.camera.frame(t);
+    const f = new FieldProjection(size, bridge ? CameraFrame.mix(bridge.script.camera.frame(idleT), camera, w) : camera);
+    const frame = (c: CanvasRenderingContext2D) => {
+      drawField(c, f, i.ink);
+      drawFrame(c, f, { scene: beat ? null : i.scene, script, t, teams: i.teams, ink: i.ink, labels: this.labels!, footer: i.footer ?? 0, tags: i.tags?.(script, t, f) ?? null, bridge });
+      if (Number.isFinite(t) && this.bursts.length > 0) drawBursts(c, f, this.bursts, t, this.palette(), this.pt);
+    };
+    if (live && live.plan.mode === "crossfade") {
+      // A crossfade: the two frames each partly there (where a frame leaves its well bare, the other never shows through it alone).
+      const g = new FieldProjection(size, live.script.camera.frame(idleT));
+      drawLayers(ctx, [
+        [w, frame],
+        [
+          1 - w,
+          (c) => {
+            drawField(c, g, i.ink);
+            drawFrame(c, g, { scene: null, script: live.script, t: idleT, teams: i.teams, ink: i.ink, labels: this.labels!, footer: i.footer ?? 0 });
+          },
+        ],
+      ]);
+    } else {
+      frame(ctx);
+    }
     if (this.bloom?.cue) {
       // At the plate, through the rest framing (Reduce Motion never moves the camera).
       const still = new FieldProjection(size, restCamera());

@@ -16,6 +16,8 @@ import type { Side } from "../models";
 import { decisive, opposite, type LiveMoment } from "../moments";
 import { basketballRecent, made, sameScene, type BasketballScene, type BasketballTheaterState, type Person } from "./basketballScene";
 import { Hoops, type BasketballScript } from "./basketballScript";
+import { remainder } from "./rig";
+import { bridgePlan, TheaterBridge, type BridgePlan } from "./theaterBridge";
 import { TheaterBurst as Burst } from "./theaterKit";
 import { known, TEAM_ONLY, TheaterCast, theaterPerson, type CastMember, type TheaterPerson } from "./theaterNames";
 
@@ -104,6 +106,18 @@ const DEG = Math.PI / 180;
  * (`cueFor`): the celebration level, Reduce Motion, and one particle burst
  * every 10 s. (pure; tested)
  */
+/**
+ * How the court between plays on screen (`rest` at `t`) meets a replay that
+ * comes in now (BasketballTheater.bridge): each man from where he is in the
+ * set to his place in the replay's, unless the replay's set is far from
+ * where the court stands (the other end, the ball the other way:
+ * `TheaterBridge.far.basketball`), or Reduce Motion: then a crossfade. (pure; tested)
+ */
+export function basketballBridge(rest: BasketballScript, t: number, replay: BasketballScript, reduceMotion: boolean, beatLeft: number | null = null): BridgePlan {
+  const together = rest.side === replay.side && Math.abs(remainder(rest.yaw - replay.yaw, 2 * Math.PI)) < 0.3;
+  return bridgePlan(rest.bridgeFigures(t), replay.bridgeFigures(0), { room: replay.leadIn, far: TheaterBridge.far.basketball, together, reduceMotion, beatLeft });
+}
+
 export const BasketballCelebration = {
   /** The shot chart bursts only when there's no theater to. */
   courtBursts(theaterShown: boolean): boolean {

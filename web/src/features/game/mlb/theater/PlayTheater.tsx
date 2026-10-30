@@ -83,7 +83,9 @@ import { useTheaterNames, type NamesPose } from "../../core/theater/useTheaterNa
 import { NO_FIELDERS, type BaseballFielders, type BaseballNow } from "../../../../data/mlb/fielders";
 import { playCast } from "../../../../data/mlb/playNames";
 import { theaterLabels, type TheaterCast, type TheaterPerson } from "../../../../data/theater/theaterNames";
-import { TheaterRenderer } from "./renderer";
+import { bridgeTracks } from "../../../../data/theater/theaterBridge";
+import { TheaterDelays } from "../../../../data/theater/theaterDelays";
+import { TheaterRenderer, type PlayHandoff } from "./renderer";
 import { theaterInk } from "./theaterInk";
 import { useMeasuredTheater, useMLBTimeline } from "./useStatcast";
 import { useSlidePlate } from "./slidePlate";
@@ -276,6 +278,10 @@ export function PlayTheater({
   const [shown, setShown] = useState<string | null>(null);
   const [beat, setBeat] = useState<BeatShow | null>(null);
   const [move, setMove] = useState<IdleShow | null>(null);
+  // The field between pitches on screen as of the last frame React drew (an idle move's script from its start, or the still field), and
+  // the hand-off from it to what came in, while that runs.
+  const fieldShown = useRef<{ readonly script: PlayScript; readonly since: number | null; readonly side: Side } | null>(null);
+  const handoff = useRef<PlayHandoff | null>(null);
   const [captionAt, setCaptionAt] = useState(-1);
   const camera = useRef<CameraFrame>(restCamera());
   // On screen (the well in view, the tab visible), and how wide (the tag's pitch names).
@@ -314,11 +320,44 @@ export function PlayTheater({
     else setShown(line.length >= 2 ? line[line.length - 2]!.id : "");
   }, [shown, line]);
 
-  // A new play cuts in, as a replay cuts in on another (a scoring slide keeps time with it).
+  /**
+   * What came in (a replay's script, or a beat's; `id` its play or beat)
+   * takes over from the field between pitches on screen, from where
+   * everyone is (theaterBridge.ts); returns when its own clock starts
+   * (performance.now(), ms).
+   */
+  const handOff = (id: string, next: PlayScript, nextSide: Side, came: number): number => {
+    handoff.current = null;
+    const shown = fieldShown.current;
+    if (!shown || frozen != null || reduceMotion) return came;
+    const field = shown.script;
+    const since = shown.since;
+    const idleAt = (s: number) => (since != null ? Math.min((came + s * 1000 - since) / 1000, field.duration) : Infinity);
+    const t = idleAt(0);
+    const plan = field.bridge(t, next, shown.side === nextSide, reduceMotion, since != null ? field.duration - t : null);
+    const tracks = bridgeTracks(
+      plan,
+      8.5,
+      (j, s) => ({ at: field.actors[j]!.position(idleAt(s)), heading: field.rig[j]?.motion(idleAt(s)).heading ?? 0 }),
+      (i, s) => {
+        const u = plan.replayTime(s);
+        return { at: next.actors[i]!.position(u), heading: next.rig[i]?.motion(u).heading ?? 0 };
+      },
+    );
+    handoff.current = { id, came, plan, script: field, since, tracks };
+    return came + plan.delay * 1000;
+  };
+
+  // A new play cuts in, as a replay cuts in on another (a scoring slide keeps time with it); one that comes in while the field between
+  // pitches is on screen takes over from it.
   const playID = state.play?.id ?? null;
   useEffect(() => {
     if (playID == null || !state.news || frozen != null || reduceMotion) return;
     if (!line.some((b) => b.id === playID)) return;
+    if (play?.id === playID) {
+      const came = performance.now();
+      TheaterDelays.note(playID, (handOff(playID, script, play.batting ?? batting ?? "top", came) - came) / 1000);
+    }
     setBeat(null);
     setMove(null);
     camera.current = restCamera();
@@ -399,7 +438,8 @@ export function PlayTheater({
     const following = queue[1];
     const to = !reduceMotion && next.kind.kind === "pitch" && following?.kind.kind === "pitch" ? battery(nextRest) : restCamera();
     const from = reduceMotion ? restCamera() : camera.current;
-    setBeat({ beat: next, start: performance.now(), script: beatScript(next, nextRest, from, to), to });
+    const beatShown = beatScript(next, nextRest, from, to);
+    setBeat({ beat: next, start: handOff(next.id, beatShown, battingSide(next, batting), performance.now()), script: beatShown, to });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending, beat, replaying, play?.id, rested, shown, frozen]);
 
@@ -534,6 +574,10 @@ export function PlayTheater({
   const footer = live ? 16 : 0;
   // The beat on screen, for its cast: a pitching change's men, a substitution's.
   const shownPlayBeat = frozenBeat ? frozenBeat.beat : beat ? beat.beat : null;
+  // What's on screen now, for what comes in next: the field between pitches (an idle move, or still), or nothing to take over from.
+  useEffect(() => {
+    fieldShown.current = !play && !beat && frozen == null ? { script: move?.script ?? script, since: move?.start ?? null, side } : null;
+  });
   useEffect(() => {
     // Each script's cast, built once (the play's or the field's, and the beat's or idle move's while one's up).
     const casts = new WeakMap<PlayScript, TheaterCast>();
@@ -555,7 +599,7 @@ export function PlayTheater({
           return [{ index, ground: lens.origin, height: lens.height }];
         }),
       );
-    renderer.current?.update({ scene: play, news: state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen, onEnd: setEnded, beat: shownBeat, footer, paused: !onScreen, tags });
+    renderer.current?.update({ scene: play, news: state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen, onEnd: setEnded, beat: shownBeat, footer, paused: !onScreen, tags, handoff: handoff.current });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [play, state.news, script, teams, ink, statcast, moment, level, reduceMotion, frozen, shownBeat?.key, shownBeat?.script, footer, onScreen, labels, tag, live, side, people, fielders, numbers, now, shownPlayBeat]);
 

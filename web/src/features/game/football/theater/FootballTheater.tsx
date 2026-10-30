@@ -17,8 +17,12 @@
  * through the camera (TheaterStage, drawFootball.ts). It reads the live
  * lane itself (and nothing above it does), so a new play redraws the
  * theater alone. A new play replays (a new one mid-replay cuts to itself;
- * with Reduce Motion it crossfades to how it ended and the camera never
- * moves); several that arrive together replay in turn, oldest first. Its
+ * one that comes in while the field between snaps is on screen takes over
+ * from it: theaterBridge.ts, each man from where he is to his place in the
+ * formation, or a quick crossfade when the snap's spot is far from where the
+ * idle stands; with Reduce Motion it crossfades to how it ended and the
+ * camera never moves); several that arrive together replay in turn, oldest
+ * first. Its
  * end holds (the stamp, the ball, the players where it ended) until the
  * next snap or `HOLD_MS`, then crossfades to the field between snaps
  * (footballIdle.ts), so a live game never looks frozen: the huddle, the
@@ -55,7 +59,10 @@ import { NEUTRAL, type Scheme, type TeamPalette } from "../../../../data/teamCol
 import { FieldFacing, footballIdle, FootballStatus, idleScript, sameIdle, type FootballIdle, type StatusNames, type StatusTag } from "../../../../data/theater/footballIdle";
 import type { FootballScene, FootballTheaterState } from "../../../../data/theater/footballScene";
 import { FootballScript } from "../../../../data/theater/footballScript";
-import { DEFAULT_REST, FootballCelebration, footballCast, footballDown, footballShown, FootballTheaterWatch, footballRest, footballWaiting, nextQueued, type FootballBurst } from "../../../../data/theater/footballTheater";
+import { DEFAULT_REST, FootballCelebration, footballBridge, footballCast, footballDown, footballShown, FootballTheaterWatch, footballRest, footballWaiting, nextQueued, type FootballBurst } from "../../../../data/theater/footballTheater";
+import type { RigTrack } from "../../../../data/theater/rig";
+import { beatLeft, bridgeTracks, type BridgePlan } from "../../../../data/theater/theaterBridge";
+import { TheaterDelays } from "../../../../data/theater/theaterDelays";
 import { theaterLabels } from "../../../../data/theater/theaterNames";
 import type { TheaterPerson } from "../../../../data/theater/theaterPeople";
 import { HOLD_MS } from "../../../../data/theater/theaterKit";
@@ -65,12 +72,13 @@ import { useChartMoment } from "../../core/moments";
 import { BeatClock } from "../../core/theater/beatClock";
 import { TheaterStage, type StageInputs } from "../../core/theater/TheaterStage";
 import { TheaterFlipButton, TheaterHeartbeat, TheaterStatusTag, useTheaterFlip } from "../../core/theater/TheaterStatus";
-import { accentOf, drawBursts, TheaterType, teamPalette, type Size, type StageBurst } from "../../core/theater/theaterKit";
+import { accentOf, drawBursts, TheaterType, teamPalette, type Ctx, type Size, type StageBurst } from "../../core/theater/theaterKit";
+import { drawLayers } from "../../core/theater/layers";
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
 import styles from "../../core/theater/TheaterWell.module.css";
 import { useTheaterNames, type NamesPose } from "../../core/theater/useTheaterNames";
-import { drawFootballFrame, drawGridiron, GridProjection, hitFigures, layoutLabels, type EndZone, type FootballTeams, type Labels } from "./drawFootball";
+import { drawFootballFrame, drawGridiron, footballProjection, GridProjection, hitFigures, layoutLabels, type EndZone, type FootballBridge, type FootballTeams, type Labels } from "./drawFootball";
 import { useSlideField } from "./slideField";
 
 export interface FootballTheaterProps {
@@ -168,6 +176,22 @@ function still(idle: FootballIdle, script: FootballScript): number {
   }
 }
 
+/**
+ * The hand-off from the field between snaps to the replay of `id`
+ * (FootballStage.Bridge): when the play came in (performance.now(), ms), the
+ * plan, and the idle as it was (its script plays on under the bridge, from
+ * `elapsed` seconds in), each traveller's stride.
+ */
+interface Handoff {
+  readonly id: string;
+  readonly came: number;
+  readonly plan: BridgePlan;
+  readonly idle: FootballIdle;
+  readonly script: FootballScript;
+  readonly elapsed: number;
+  readonly tracks: ReadonlyMap<number, RigTrack>;
+}
+
 /** The idle's script, built once per idle (a render for anything else reuses it): its camera track and motion take a few milliseconds. */
 function useIdleScript(idle: FootballIdle | null): FootballScript | null {
   const cache = useRef<{ idle: FootballIdle; script: FootballScript } | null>(null);
@@ -217,15 +241,54 @@ export default function FootballTheater({
   replayNow.current = replay;
   const clockLive = frozen == null;
   const queueKey = (state.queue ?? []).map((q) => q.id).join(",");
+  // The field between snaps last drawn (what's on screen when a snap comes in), and the hand-off from it while it runs.
+  const shownIdle = useRef<{ readonly idle: FootballIdle; readonly key: string; readonly script: FootballScript } | null>(null);
+  const handoff = useRef<Handoff | null>(null);
+  // A replay's script, built once (the snap's start and its frames share it).
+  const built = useRef<{ readonly scene: FootballScene; readonly yaw: number; readonly script: FootballScript } | null>(null);
+  const replayFor = (scene: FootballScene, yaw: number): FootballScript => {
+    const b = built.current;
+    if (b && b.scene === scene && b.yaw === yaw) return b.script;
+    const script = FootballScript.play(scene, yaw);
+    built.current = { scene, yaw, script };
+    return script;
+  };
 
-  const start = useCallback(
-    (scene: FootballScene) => {
-      played.add(scene.id);
-      setRested(null);
-      setReplay({ id: scene.id, done: false });
-    },
-    [played],
-  );
+  /**
+   * A snap's replay, from now; taking over from the field between snaps on
+   * screen (`bridging`), from where everyone is (theaterBridge.ts), its
+   * clock starting once the hand-off has used up the formation's half
+   * second (later only when it needs more).
+   */
+  const start = (scene: FootballScene, bridging = false) => {
+    played.add(scene.id);
+    setRested(null);
+    handoff.current = null;
+    const shown = shownIdle.current;
+    const came = performance.now();
+    const elapsed = bridging && shown ? (beats.current?.elapsed(shown.key, came) ?? null) : null;
+    if (shown && elapsed != null) {
+      const idle = shown.script;
+      const script = replayFor(scene, FieldFacing.yaw(scene.offense, scene.period, flipped));
+      const t = idle.idleTime(elapsed);
+      const plan = footballBridge(idle, shown.idle.offense, t, script, scene.offense ?? "top", reduceMotion, beatLeft(idle.beats, t));
+      const tracks = bridgeTracks(
+        plan,
+        8.5,
+        (j, s) => {
+          const u = idle.idleTime(elapsed + s);
+          return { at: idle.players[j]!.position(u), heading: idle.rig[j]?.motion(u).heading ?? 0 };
+        },
+        (i, s) => {
+          const u = plan.replayTime(s);
+          return { at: script.players[i]!.position(u), heading: script.rig[i]?.motion(u).heading ?? 0 };
+        },
+      );
+      handoff.current = { id: scene.id, came, plan, idle: shown.idle, script: idle, elapsed, tracks };
+      TheaterDelays.note(scene.id, plan.delay);
+    }
+    setReplay({ id: scene.id, done: false });
+  };
   // A new snap replays from its snap, after any queued before it that haven't (one already replaying carries on to them);
   // with Reduce Motion each is over at once (its end crossfades in, and holds). History doesn't.
   useEffect(() => {
@@ -241,8 +304,10 @@ export default function FootballTheater({
       return;
     }
     if (r && !r.done) return;
+    // The field between snaps was on screen (nothing replayed yet, or the last one's end had held): the replay takes over from it.
+    const fromIdle = r == null || rested === r.id;
     const waiting = footballWaiting(state, r?.id ?? null, played);
-    if (waiting) start(waiting);
+    if (waiting) start(waiting, fromIdle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.play?.id, queueKey]);
   // A touchdown replayed here is followed by its try, as a short beat of its own: a cut to the try's formation, a breath, the snap.
@@ -294,9 +359,10 @@ export default function FootballTheater({
   /** Which idle it is: a new stoppage, snap, spot or turn of the field starts it again. */
   const idleKey = `${state.stoppage?.id ?? "-"}|${state.play?.id ?? "-"}|${rest ? rest.rest.yard : "-"}|${restOffense === "bottom"}|${flipped}|${downDistance ?? ""}`;
   const idling = useIdleScript(idle);
+  if (idle && idling) shownIdle.current = { idle, key: idleKey, script: idling };
   const yaw = play ? FieldFacing.yaw(play.offense, play.period, flipped) : 0;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const replayScript = useMemo(() => (play ? FootballScript.play(play, yaw) : null), [play, yaw]);
+  const replayScript = useMemo(() => (play ? replayFor(play, yaw) : null), [play, yaw]);
   const script = replayScript ?? idling ?? FootballScript.rest(DEFAULT_REST);
   // The scoring slide lands with this replay's climax.
   useSlideField(state, play, script);
@@ -307,13 +373,16 @@ export default function FootballTheater({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme],
   );
-  const teams: FootballTeams = useMemo(() => (offense === "top" ? { offense: dressed.top, defense: dressed.bottom } : { offense: dressed.bottom, defense: dressed.top }), [dressed, offense]);
+  // Each side's look with the ball (the idle a replay takes over from may have the other's).
+  const teamsBy = useMemo((): Record<Side, FootballTeams> => ({ top: { offense: dressed.top, defense: dressed.bottom }, bottom: { offense: dressed.bottom, defense: dressed.top } }), [dressed]);
+  const teams = teamsBy[offense];
   // The end zones: the offense's own nearest the camera, the one it attacks at the far end.
-  const zones = useMemo(() => {
+  const zonesBy = useMemo((): Record<Side, { near: EndZone; far: EndZone }> => {
     const top: EndZone = { color: solid(palette.top, scheme), name: topName.toUpperCase() };
     const bottom: EndZone = { color: solid(palette.bottom, scheme), name: bottomName.toUpperCase() };
-    return offense === "top" ? { near: top, far: bottom } : { near: bottom, far: top };
-  }, [palette.top, palette.bottom, scheme, topName, bottomName, offense]);
+    return { top: { near: top, far: bottom }, bottom: { near: bottom, far: top } };
+  }, [palette.top, palette.bottom, scheme, topName, bottomName]);
+  const zones = zonesBy[offense];
   const ink = useMemo(() => theaterInk(scheme), [scheme]);
   // Who each figure is (the credited men by name, everyone else by team and place), and each side's tags in the color it wears.
   const cast = useMemo(() => footballCast(script, play, offense, people, play ? `${play.id}|${flipped}` : `idle|${idleKey}`), [script, play, offense, people, idleKey, flipped]);
@@ -374,10 +443,13 @@ export default function FootballTheater({
       if (!idle) return NO_STATUS;
       return FootballStatus.idle(idle, state.stoppage ?? null, script, t, names, downDistance, { top: situation?.topTimeouts ?? null, bottom: situation?.bottomTimeouts ?? null });
     };
+    // Taking over from the field between snaps: the men travel (the frame blends), or the idle fades out over the set formation.
+    const h = play && handoff.current?.id === play.id ? handoff.current : null;
     const inputs: StageInputs = {
       id: play?.id ?? `idle|${idleKey}`,
       news: play ? news : false,
-      lead: following ? 0.3 : 0,
+      lead: following ? 0.3 : (h?.plan.delay ?? 0),
+      came: h?.came ?? null,
       // Its course run: the touchdown's try follows, or its end holds.
       onEnd: (id) => setReplay((r) => (r && r.id === id && !r.done ? { id, done: true } : r)),
       duration: script.duration,
@@ -397,14 +469,39 @@ export default function FootballTheater({
               return { cue, origin, palette: teamPalette(color(play.scorer), ink) };
             }
           : null,
-      paint: (ctx, size, pt, t, bursts: readonly StageBurst[]) => {
-        const f = new GridProjection(size, script.camera.frame(t), script.yawAt(t));
+      paint: (ctx, size, pt, t, bursts: readonly StageBurst[], since) => {
+        const live = h && since < h.plan.end ? h : null;
+        const w = live ? live.plan.weight(since) : 1;
+        const idleT = live ? live.script.idleTime(live.elapsed + since) : 0;
+        const bridge: FootballBridge | null = live && live.plan.mode === "bridge" ? { script: live.script, t: idleT, w, s: since, pairs: live.plan.pairs, tracks: live.tracks } : null;
+        const f = footballProjection(size, script, t, bridge);
         const status = statusAt(t);
         const tags = tagged.frame(cast, tagLabels, { status: status.tag, flip: true, heartbeat: "trailing" }, () => hitFigures(f, script, t));
-        drawGridiron(ctx, f, ink, zones.near, zones.far);
-        drawFootballFrame(ctx, f, { script, t, teams, ink, labels: labelsFor(ctx, size, pt), tags });
-        if (bursts.length > 0) {
-          drawBursts(ctx, bursts, t, (p) => f.at(p), TheaterType.bannerOrigin(size, pt), (b) => teamPalette(color((b as FootballBurst).side ?? null), ink), size);
+        const frame = (c: Ctx) => {
+          drawGridiron(c, f, ink, zones.near, zones.far);
+          drawFootballFrame(c, f, { script, t, teams, ink, labels: labelsFor(c, size, pt), tags, bridge });
+          if (bursts.length > 0) {
+            drawBursts(c, bursts, t, (p) => f.at(p), TheaterType.bannerOrigin(size, pt), (b) => teamPalette(color((b as FootballBurst).side ?? null), ink), size);
+          }
+        };
+        if (live && live.plan.mode === "crossfade") {
+          // A crossfade: the two frames each partly there.
+          const idle = live.script;
+          const g = new GridProjection(size, idle.camera.frame(idleT), idle.yawAt(idleT));
+          const idleTeams = teamsBy[live.idle.offense];
+          const idleZones = zonesBy[live.idle.offense];
+          drawLayers(ctx, [
+            [w, frame],
+            [
+              1 - w,
+              (c) => {
+                drawGridiron(c, g, ink, idleZones.near, idleZones.far);
+                drawFootballFrame(c, g, { script: idle, t: idleT, teams: idleTeams, ink, labels: layoutLabels(c, null, idle, idleTeams, ink, size, pt) });
+              },
+            ],
+          ]);
+        } else {
+          frame(ctx);
         }
         say(status);
       },
@@ -424,7 +521,7 @@ export default function FootballTheater({
       draw: (t) => stage.current?.update({ ...inputs, frozen: t }),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [play, news, following, script, teams, zones, ink, moment, level, reduceMotion, frozen, idleKey, names, downDistance, situation?.topTimeouts, situation?.bottomTimeouts, state.stoppage, cast, tagLabels, tagged]);
+  }, [play, news, following, script, teams, zones, teamsBy, zonesBy, ink, moment, level, reduceMotion, frozen, idleKey, names, downDistance, situation?.topTimeouts, situation?.bottomTimeouts, state.stoppage, cast, tagLabels, tagged]);
 
   return (
     <div ref={well} className={styles.well} data-theater="football">

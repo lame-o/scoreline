@@ -9,7 +9,8 @@
  *   /results/climbing/:event/:dcat, /results/tournament/:slug   results deeper than a row
  *   /standings/:league      tables; /rankings/:league polls; /bracket/:league/:id brackets
  *   /team/:id, /player/:id  team and player pages (features/profiles; `teamHref`, `playerHref`)
- *   /dev/theater            development only: the play theater's preview (/football, /soccer, /basketball: theirs; `?t=` freezes; /names: the names harness)
+ *   /dev/theater            development only: the play theater's preview (/football, /soccer, /basketball: theirs; `?t=` freezes; /names: the names harness;
+ *                           /flow: the play flow harness)
  *   /dev/odds               development only: Win Probability with Polymarket on recorded games (`?game=nba|soccer&state=live`)
  */
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -52,6 +53,8 @@ const router = createBrowserRouter([
             { path: "dev/theater/basketball", lazy: () => import("../features/game/nba/theater/BasketballTheaterPreview").then((m) => ({ Component: m.BasketballTheaterPreview })) },
             // The names on the isometric views at the Mac contact sheet's moments (`?only=b4`).
             { path: "dev/theater/names", lazy: () => import("../features/game/core/theater/NamesPreview").then((m) => ({ Component: m.NamesPreview })) },
+            // The play flow (the hand-off from the field between plays, the officials, the pace) at the Mac contact sheet's moments (`?only=bridge`).
+            { path: "dev/theater/flow", lazy: () => import("../features/game/core/theater/FlowPreview").then((m) => ({ Component: m.FlowPreview })) },
             // Win Probability with Polymarket on recorded games, live, final and before (`?game=nba|soccer&state=live&at=95&speed=30`).
             { path: "dev/odds", lazy: () => import("../features/game/core/odds/OddsPreview").then((m) => ({ Component: m.OddsPreview })) },
           ]

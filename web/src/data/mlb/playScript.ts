@@ -43,6 +43,7 @@ import { seedOf, type Hurt } from "./playBeat";
 import { pitchPosition, plateTime, type StatcastPitch } from "./statcast";
 import { Ballpark, distanceBetween, easeValue, fieldPoint, ground, ORIGIN, samePoint, type Ease, type FieldPoint, type Point } from "./theaterField";
 import { ballMemo, RigTrack, type RigFacing } from "../theater/rig";
+import { bridgePlan, TheaterBridge, type BridgeFigure, type BridgePlan } from "../theater/theaterBridge";
 
 /** The teams, and the umpires (who wear neither). */
 export type Team = "fielding" | "batting" | "official";
@@ -481,6 +482,41 @@ export class PlayScript {
     script.actors.push(new Actor("official", Ballpark.umpire(rest.bats), { kind: "umpire" }));
     script.measureBodies();
     return script;
+  }
+
+  /**
+   * Everyone as the hand-off from the field between pitches matches them
+   * (theaterBridge.ts): by team, by role (each fielder his own position, the
+   * batter, the runners, the umpire, a coach), the same man by his athlete;
+   * where each is at t.
+   */
+  bridgeFigures(t: number): BridgeFigure[] {
+    return this.actors.map((a) => {
+      const group = a.team === "batting" ? 0 : a.team === "fielding" ? 1 : 2;
+      const kind = a.role.kind === "fielder" ? `f${a.role.n}` : a.role.kind;
+      return { group, kind, athlete: a.athlete, at: a.position(t) };
+    });
+  }
+
+  /** Its own lead-in: the still moment before anyone (or the ball) moves, which a hand-off from the field between pitches uses first. */
+  get leadIn(): number {
+    let first = Infinity;
+    for (const a of this.actors) if (a.moves[0]) first = Math.min(first, a.moves[0].start);
+    for (const f of this.flights) if (!f.fresh) first = Math.min(first, f.start);
+    return Math.max(Number.isFinite(first) ? first : 0.5, 0);
+  }
+
+  /**
+   * How the field between pitches on screen (`this` at `t`: the routine
+   * between pitches, an idle move or still) meets what comes in now (`next`:
+   * a pitch's beat, a play's replay) (PlayTheater.bridge): each figure from
+   * where he is to his place as it begins, unless it's another field (the
+   * other half of the inning: `together` false), a man far out of place
+   * (`TheaterBridge.far.baseball`), or Reduce Motion: then a crossfade.
+   * (pure; tested)
+   */
+  bridge(t: number, next: PlayScript, together: boolean, reduceMotion: boolean, beatLeft: number | null = null): BridgePlan {
+    return bridgePlan(this.bridgeFigures(t), next.bridgeFigures(0), { room: next.leadIn, far: TheaterBridge.far.baseball, together, reduceMotion, beatLeft });
   }
 
   /** The plate umpire's index (the last of the figures there at the start). */

@@ -49,7 +49,11 @@ import type { SoccerAddedTime } from "../../../../data/soccer";
 import { addedShowing, eventBeat, PitchFacing, sameSoccerIdle, soccerEvents, soccerIdle, soccerIdleScript, SoccerStatus, turnedScene, type SoccerIdle, type SoccerNames, type SoccerStatusTag } from "../../../../data/theater/soccerIdle";
 import { goalOf, lineupsOn, scored, type SoccerScene, type SoccerTheaterState } from "../../../../data/theater/soccerScene";
 import { SoccerScript } from "../../../../data/theater/soccerScript";
-import { GoalCelebration, idleKeyMan, PitchProjection, sentences, soccerCast, soccerKey, soccerShown, SoccerTheaterWatch } from "../../../../data/theater/soccerTheater";
+import { GoalCelebration, idleKeyMan, PitchProjection, sentences, soccerBridge, soccerCast, soccerKey, soccerShown, SoccerTheaterWatch } from "../../../../data/theater/soccerTheater";
+import type { Side } from "../../../../data/models";
+import type { RigTrack } from "../../../../data/theater/rig";
+import { beatLeft, bridgeTracks, type BridgePlan } from "../../../../data/theater/theaterBridge";
+import { TheaterDelays } from "../../../../data/theater/theaterDelays";
 import { HOLD_MS } from "../../../../data/theater/theaterKit";
 import { NO_CAST, theaterLabels, type HitFigure, type TheaterPerson } from "../../../../data/theater/theaterNames";
 import { useSettings } from "../../../../state/settings";
@@ -59,12 +63,13 @@ import { BeatClock } from "../../core/theater/beatClock";
 import { RigLens } from "../../core/theater/rigFigure";
 import { TheaterStage, type StageInputs } from "../../core/theater/TheaterStage";
 import { TheaterFlipButton, TheaterHeartbeat, TheaterStatusTag, useTheaterFlip } from "../../core/theater/TheaterStatus";
-import { accentOf, drawBursts, TheaterType, teamPalette, type Size } from "../../core/theater/theaterKit";
+import { accentOf, drawBursts, TheaterType, teamPalette, type Ctx, type Size } from "../../core/theater/theaterKit";
 import wellStyles from "../../core/theater/TheaterWell.module.css";
 import { useTheaterNames, type NamesPose } from "../../core/theater/useTheaterNames";
+import { drawLayers } from "../../core/theater/layers";
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
-import { drawPitch, drawSoccerFrame, layoutLabels, type Labels, type SoccerTeams } from "./drawSoccer";
+import { drawPitch, drawSoccerFrame, layoutLabels, soccerProjection, type Labels, type SoccerBridge, type SoccerTeams } from "./drawSoccer";
 import { useSlidePitch } from "./slidePitch";
 import styles from "./SoccerTheater.module.css";
 
@@ -138,6 +143,22 @@ function useTheaterState(feed: SoccerFeed | null, homeTeamID: string | null): So
 /** A team's color for the tag, as hex without the hash (the kit's own, else none). */
 const tagColor = (color: string | null | undefined): string | null => (color ? color.replace(/^#/, "") : null);
 
+/**
+ * The hand-off from the pitch between moments to the replay of `id`
+ * (SoccerStage.Bridge): when the moment came in (performance.now(), ms), the
+ * plan, and the idle as it was (its script plays on under the bridge, from
+ * `elapsed` seconds in), each traveller's stride.
+ */
+interface Handoff {
+  readonly id: string;
+  readonly came: number;
+  readonly plan: BridgePlan;
+  readonly idle: SoccerIdle;
+  readonly script: SoccerScript;
+  readonly elapsed: number;
+  readonly tracks: ReadonlyMap<number, RigTrack>;
+}
+
 /** The pitch between moments' script, built once per idle (a render for anything else reuses it). */
 function useIdleScript(idle: SoccerIdle | null): SoccerScript | null {
   const cache = useRef<{ idle: SoccerIdle; script: SoccerScript } | null>(null);
@@ -177,6 +198,9 @@ export default function SoccerTheater({
   const [rested, setRested] = useState<string | null>(null);
   const [played, setPlayed] = useState<ReadonlySet<string>>(NONE_PLAYED);
   const clockLive = frozen == null;
+  // The pitch between moments last drawn (what's on screen when a moment comes in), and the hand-off from it while it runs.
+  const shownIdle = useRef<{ readonly idle: SoccerIdle; readonly key: string; readonly script: SoccerScript } | null>(null);
+  const handoff = useRef<Handoff | null>(null);
   // A new moment replays from its first touch; with Reduce Motion it's over at once (its end crossfades in, and holds). History doesn't.
   // A goal just struck off replays as its NO GOAL beat.
   useEffect(() => {
@@ -188,7 +212,32 @@ export default function SoccerTheater({
       return;
     }
     const s = state.scene;
-    if (!state.news || !s) return;
+    if (!state.news || !s || replay?.id === s.id) return;
+    // The pitch between moments was on screen (nothing replayed yet, or the last one's end had held): the replay takes over from it.
+    const fromIdle = replay == null || rested === replay.id;
+    handoff.current = null;
+    const shownNow = shownIdle.current;
+    const came = performance.now();
+    const elapsed = fromIdle && !reduceMotion && shownNow ? (beats.current?.elapsed(shownNow.key, came) ?? null) : null;
+    if (shownNow && elapsed != null && scene?.id === s.id && replayScript) {
+      const idle = shownNow.script;
+      const t = idle.idleTime(elapsed);
+      const plan = soccerBridge(idle, shownNow.idle.possession, t, replayScript, scene.side, reduceMotion, beatLeft(idle.beats, t));
+      const tracks = bridgeTracks(
+        plan,
+        2.5,
+        (j, s) => {
+          const u = idle.idleTime(elapsed + s);
+          return { at: idle.actors[j]!.position(u), heading: idle.rig[j]?.motion(u).heading ?? 0 };
+        },
+        (i, s) => {
+          const u = plan.replayTime(s);
+          return { at: replayScript.actors[i]!.position(u), heading: replayScript.rig[i]?.motion(u).heading ?? 0 };
+        },
+      );
+      handoff.current = { id: s.id, came, plan, idle: shownNow.idle, script: idle, elapsed, tracks };
+      TheaterDelays.note(s.id, plan.delay);
+    }
     setReplay((r) => (r?.id === s.id ? r : { id: s.id, done: reduceMotion }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.scene?.id, state.overturned?.id]);
@@ -232,6 +281,7 @@ export default function SoccerTheater({
   // The moment's script with both elevens, built once (a render for anything else reuses it); the pitch's between moments.
   const replayScript = useMemo(() => (scene ? SoccerScript.build(scene, lineups ?? {}) : null), [scene, lineups]);
   const idling = useIdleScript(idle);
+  if (idle && idling) shownIdle.current = { idle, key: idleKey, script: idling };
   const script = replayScript ?? idling ?? new SoccerScript();
   // The scoring slide lands with this replay's climax.
   useSlidePitch(state, scene, script);
@@ -242,7 +292,9 @@ export default function SoccerTheater({
   );
   // The attacking team: the moment's, or the one on the ball (home is the top team).
   const side = scene?.side ?? idle?.possession ?? "top";
-  const teams: SoccerTeams = useMemo(() => (side === "top" ? { attacking: dressed.top, defending: dressed.bottom } : { attacking: dressed.bottom, defending: dressed.top }), [dressed, side]);
+  // Each side's look on the ball (the idle a replay takes over from may have the other's).
+  const teamsBy = useMemo((): Record<Side, SoccerTeams> => ({ top: { attacking: dressed.top, defending: dressed.bottom }, bottom: { attacking: dressed.bottom, defending: dressed.top } }), [dressed]);
+  const teams = teamsBy[side];
   const ink = useMemo(() => theaterInk(scheme), [scheme]);
   const names: SoccerNames = useMemo(() => ({ top: topTeam, bottom: bottomTeam, topColor: tagColor(kits.top.color), bottomColor: tagColor(kits.bottom.color) }), [topTeam, bottomTeam, kits.top.color, kits.bottom.color]);
   // Who each player on screen is, once per script: the moment's men as they stood (each change made by its minute), or the pitch's between moments.
@@ -318,9 +370,13 @@ export default function SoccerTheater({
       }
       return idle ? SoccerStatus.idle(idle, t, names, addedNow) : NO_STATUS;
     };
+    // Taking over from the pitch between moments: the men travel (the frame blends), or the idle fades out over the move's start.
+    const hand = key && handoff.current?.id === key ? handoff.current : null;
     const inputs: StageInputs = {
       id: key ?? `idle|${idleKey}`,
       news: key ? news : false,
+      lead: hand?.plan.delay ?? 0,
+      came: hand?.came ?? null,
       // Its course run: its end holds.
       onEnd: (id) => setReplay((r) => (r && r.id === id && !r.done ? { id, done: true } : r)),
       duration: script.duration,
@@ -340,15 +396,40 @@ export default function SoccerTheater({
               return { cue, origin, palette: teamPalette(color, ink) };
             }
           : null,
-      paint: (ctx, size, pt, t, bursts) => {
-        const f = new PitchProjection(size, script.frame(t));
+      paint: (ctx, size, pt, t, bursts, since) => {
+        const live = hand && since < hand.plan.end ? hand : null;
+        const w = live ? live.plan.weight(since) : 1;
+        const idleT = live ? live.script.idleTime(live.elapsed + since) : 0;
+        const bridge: SoccerBridge | null =
+          live && live.plan.mode === "bridge" ? { script: live.script, t: idleT, w, s: since, pairs: live.plan.pairs, tracks: live.tracks, teams: teamsBy[live.idle.possession] } : null;
+        const f = soccerProjection(size, script, t, bridge);
         const status = statusAt(t);
         const tags = named.frame(cast, labels, { status: status.tag, flip: true, heartbeat: heartbeatLeading ? "leading" : "trailing" }, () => figuresAt(f, t));
-        drawPitch(ctx, f, ink);
-        drawSoccerFrame(ctx, f, { scene, script, t, teams, ink, labels: labelsFor(ctx, size, pt), tags });
-        if (bursts.length > 0) {
-          const palette = teamPalette(color, ink);
-          drawBursts(ctx, bursts, t, (p) => f.point(p), TheaterType.bannerOrigin(size, pt), () => palette, size);
+        const frame = (c: Ctx) => {
+          drawPitch(c, f, ink);
+          drawSoccerFrame(c, f, { scene, script, t, teams, ink, labels: labelsFor(c, size, pt), tags, bridge });
+          if (bursts.length > 0) {
+            const palette = teamPalette(color, ink);
+            drawBursts(c, bursts, t, (p) => f.point(p), TheaterType.bannerOrigin(size, pt), () => palette, size);
+          }
+        };
+        if (live && live.plan.mode === "crossfade") {
+          // A crossfade: the two frames each partly there.
+          const idle = live.script;
+          const g = new PitchProjection(size, idle.frame(idleT));
+          const idleTeams = teamsBy[live.idle.possession];
+          drawLayers(ctx, [
+            [w, frame],
+            [
+              1 - w,
+              (c) => {
+                drawPitch(c, g, ink);
+                drawSoccerFrame(c, g, { scene: null, script: idle, t: idleT, teams: idleTeams, ink, labels: layoutLabels(c, null, idle, idleTeams, ink, size, pt) });
+              },
+            ],
+          ]);
+        } else {
+          frame(ctx);
         }
         say(status);
       },
@@ -368,7 +449,7 @@ export default function SoccerTheater({
       draw: (t) => stage.current?.update({ ...inputs, frozen: t }),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene, key, news, script, teams, ink, moment, level, reduceMotion, frozen, idleKey, names, addedNow, cast, labels]);
+  }, [scene, key, news, script, teams, teamsBy, ink, moment, level, reduceMotion, frozen, idleKey, names, addedNow, cast, labels]);
 
   return (
     <div className={styles.theater}>

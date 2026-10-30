@@ -20,6 +20,7 @@ import { Ballpark, easeValue, houseCurve, criticalSpring, ORIGIN, type Point } f
 import { BaseballPoses, deliverAt } from "../../../../data/mlb/theaterPose";
 import { umpire, type TheaterTeams, type Uniform } from "../../../../data/mlb/theaterTeams";
 import { keyed, mirrored, mix, over, Rig, RigPoses, RigTrack, gait, type RigPose } from "../../../../data/theater/rig";
+import { bridgeGhosts, bridgeMix, bridgePose, type FrameBridge } from "../../../../data/theater/theaterBridge";
 import { luminance } from "../../../../data/teamColors";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
 import { drawStems, drawTags, tagRing, type Stems } from "../../core/theater/theaterTags";
@@ -532,7 +533,16 @@ export interface FrameInputs {
   readonly footer?: number;
   /** The names over the figures: the pointer's, the batter's. */
   readonly tags?: TagFrame | null;
+  /** The field between pitches this pitch (or replay) is taking over from (null: none, or the hand-off is done). */
+  readonly bridge?: PlayBridge | null;
 }
+
+/**
+ * The field between pitches as it stands mid-bridge (PlayFrame.Bridge,
+ * theaterBridge.ts): its script and its time now (an idle move plays on under
+ * the hand-off), how far the hand-off is, and who becomes whom.
+ */
+export type PlayBridge = FrameBridge<PlayScript>;
 
 /**
  * One frame: the tarp and the shadows on the field, the names (under
@@ -580,7 +590,7 @@ function drawNames(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: re
   return drawTags(
     ctx,
     input.tags,
-    figures.map((p) => {
+    figures.filter((p) => !p.ghost).map((p) => {
       const bat = heldBat(p, f, input);
       return { index: p.index, figure: p.figure, height: f.figure, opacity: p.opacity, held: bat ? { from: bat.from, to: bat.to, width: bat.width + 1.4 } : null };
     }),
@@ -820,23 +830,60 @@ function drawShadows(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInpu
   }
 }
 
-/** A figure posed and placed at t. */
+/**
+ * A figure posed and placed at t. A ghost is one of the field's figures the
+ * newcomer doesn't have, fading out over the bridge (his index is the field's).
+ */
 interface Posed {
   readonly index: number;
   readonly figure: RigFigure;
   readonly opacity: number;
+  readonly ghost?: boolean;
 }
 
-/** Everyone on the field at t, far to near: a figure in front covers the one behind. */
+/**
+ * Everyone on the field at t, far to near: a figure in front covers the one
+ * behind. Mid-bridge each figure the two share goes from where the field
+ * between pitches has him to his place as the pitch (or the replay) begins,
+ * posed between the two and striding along the way; the field's others fade
+ * out, the newcomer's fade in.
+ */
 function posed(f: FieldProjection, input: FrameInputs): Posed[] {
-  const { script, t } = input;
-  const order = script.actors.map((actor, index) => ({ actor, index, at: actor.position(t) })).sort((a, b) => b.at.y - a.at.y);
+  const { script, t, bridge } = input;
+  const order = script.actors.map((actor, index) => {
+    let at = actor.position(t);
+    const j = bridge?.pairs.get(index);
+    if (bridge && j != null) at = bridgeMix(bridge.script.actors[j]!.position(bridge.t), at, bridge.w);
+    return { index, at, ghost: false };
+  });
+  if (bridge) for (const index of bridgeGhosts(bridge.pairs, bridge.script.actors.length)) order.push({ index, at: bridge.script.actors[index]!.position(bridge.t), ghost: true });
+  order.sort((a, b) => b.at.y - a.at.y);
   const out: Posed[] = [];
-  for (const { actor, index, at } of order) {
-    const o = actor.opacity(t);
-    if (!(o > 0.01)) continue;
+  for (const { index, at, ghost } of order) {
     const lens = RigLens.field(f, at);
-    const [body, heading] = pose(script, t, actor, index, at, lens.unit);
+    if (ghost && bridge) {
+      const actor = bridge.script.actors[index]!;
+      const o = actor.opacity(bridge.t) * (1 - bridge.w);
+      if (!(o > 0.01)) continue;
+      const [body, heading] = pose(bridge.script, bridge.t, actor, index, at, lens.unit);
+      out.push({ index, figure: rigFigure(body, heading, lens), opacity: o, ghost: true });
+      continue;
+    }
+    const actor = script.actors[index]!;
+    let o = actor.opacity(t);
+    if (!bridge && !(o > 0.01)) continue;
+    let [body, heading] = pose(script, t, actor, index, actor.position(t), lens.unit);
+    if (bridge) {
+      const j = bridge.pairs.get(index);
+      if (j != null) {
+        const other = bridge.script.actors[j]!;
+        [body, heading] = bridgePose(pose(bridge.script, bridge.t, other, j, other.position(bridge.t), lens.unit), [body, heading], bridge.w, bridge.tracks.get(index), bridge.s, at, lens.unit);
+        o = other.opacity(bridge.t) + (o - other.opacity(bridge.t)) * bridge.w;
+      } else {
+        o *= bridge.w;
+      }
+    }
+    if (!(o > 0.01)) continue;
     out.push({ index, figure: rigFigure(body, heading, lens), opacity: o });
   }
   return out;
@@ -850,6 +897,12 @@ function drawFigures(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: 
   // The umpires in their own kit (`umpire` in theaterTeams.ts), never a team's.
   const officials = figureInks(UMPIRES[ink.dark ? "dark" : "light"], ink);
   for (const p of figures) {
+    const ghost = p.ghost ? input.bridge?.script.actors[p.index] : undefined;
+    if (ghost) {
+      // The field's figure the newcomer doesn't have, fading out in his own kit.
+      drawFigure(ctx, p.figure, ghost.team === "batting" ? batting : ghost.team === "official" ? officials : fielding, f.figure, p.opacity);
+      continue;
+    }
     const actor = script.actors[p.index]!;
     if (actor.bats && actor.dropsBat != null && t >= actor.dropsBat) {
       drawDroppedBat(ctx, f.point(Ballpark.box(actor.bats)), actor.bats, 1 - Math.min(Math.max((t - script.settle) / 0.4, 0), 1), f, ink);
@@ -1106,11 +1159,16 @@ function drawDroppedBat(ctx: Ctx, p: Point, bats: Hand, fade: number, f: FieldPr
 }
 
 /** Where the ball is drawn at t, how big (a touch larger than life) and how faint. */
-function ballSpot(f: FieldProjection, { script, t }: FrameInputs): { point: Point; radius: number; opacity: number } | null {
-  const ball = script.ball(t);
+function ballSpot(f: FieldProjection, { script, t, bridge }: FrameInputs): { point: Point; radius: number; opacity: number } | null {
+  let ball = script.ball(t);
   if (!ball) return null;
   const o = script.ballOpacity(t);
   if (!(o > 0.01)) return null;
+  // Mid-bridge, from where the field between pitches had it (back to the mound, in the catcher's mitt) to the newcomer's.
+  const from = bridge?.script.ball(bridge.t);
+  if (bridge && from && bridge.script.ballOpacity(bridge.t) > 0.01) {
+    ball = { x: from.x + (ball.x - from.x) * bridge.w, y: from.y + (ball.y - from.y) * bridge.w, z: from.z + (ball.z - from.z) * bridge.w };
+  }
   return { point: f.at(ball), radius: Math.min(Math.max(0.42 * f.scale, 1.7), Math.max(f.figure * 0.12, 1.7)), opacity: o };
 }
 

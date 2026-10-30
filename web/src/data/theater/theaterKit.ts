@@ -1,8 +1,9 @@
 /**
  * What the play theaters share, whatever the sport (TheaterKit.swift § Hold
- * and § Camera): how long a replay's end holds (all three), and for football
- * and soccer the broadcast camera's spring and its shot blends, and a
- * camera's path through a replay. The baseball theater came
+ * and § Camera): how long a replay's end holds (all three), a replay's pace
+ * (FootballScript.Pace: where its clock runs slower than laid out), and for
+ * football and soccer the broadcast camera's spring and its shot blends, and
+ * a camera's path through a replay. The baseball theater came
  * first and keeps its own copies (data/mlb/playCamera.ts) with the same
  * constants; these are the general form, for any projection. Pure numbers:
  * the drawing half of TheaterKit (figures, the ball, the type) is
@@ -20,6 +21,36 @@ import type { FieldPoint, Point } from "../mlb/theaterField";
  * next batter up, both teams set at the line, the quiet pitch).
  */
 export const HOLD_MS = 8000;
+
+// MARK: - Pace
+
+/**
+ * A stretch of a script's clock (FootballScript.Pace): as laid out, from
+ * `from` to `to` it runs `factor` times slower; everything after it comes
+ * that much later. Football's action, basketball's approach and soccer's
+ * build-up each play slower than they're laid out, where they ran faster
+ * than life.
+ */
+export class Pace {
+  constructor(
+    readonly from = 0,
+    readonly to = 0,
+    readonly factor = 1,
+  ) {}
+
+  /** Laid-out time to the script's. (pure; tested) */
+  stretched(t: number): number {
+    if (this.factor === 1 || !Number.isFinite(t) || !(t > this.from)) return t;
+    return t <= this.to ? this.from + (t - this.from) * this.factor : t + (this.to - this.from) * (this.factor - 1);
+  }
+
+  /** The script's time to the laid-out clock: what a throw's or a tackle's motion keys from, so it slows with the play. (pure; tested) */
+  laidOut(t: number): number {
+    if (this.factor === 1 || !Number.isFinite(t) || !(t > this.from)) return t;
+    const end = this.from + (this.to - this.from) * this.factor;
+    return t <= end ? this.from + (t - this.from) / this.factor : t - (this.to - this.from) * (this.factor - 1);
+  }
+}
 
 // MARK: - Camera
 

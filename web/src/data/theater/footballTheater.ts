@@ -18,6 +18,8 @@ import { decisive, type LiveMoment } from "../moments";
 import { parseStoppage, type FootballStoppage } from "./footballIdle";
 import { FootballDepthChart, opponent, parse, shortName, type DepthCharts, type Down, type FootballScene, type FootballTheaterState, type KindName, type Participant, type Position } from "./footballScene";
 import type { FootballScript, Player, Rest } from "./footballScript";
+import { remainder } from "./rig";
+import { bridgePlan, TheaterBridge, type BridgePlan } from "./theaterBridge";
 import { assumed, known, TheaterCast, theaterPerson, type CastKey, type CastMember, type TheaterPerson, type TheaterWho } from "./theaterNames";
 
 // MARK: - The field between plays
@@ -75,6 +77,19 @@ export function footballWaiting(state: FootballTheaterState, replay: string | nu
   const play = state.play;
   if (!play) return null;
   return (replay != null ? nextQueued(state, replay, played) : null) ?? (state.queue ?? []).find((q) => !played.has(q.id)) ?? (played.has(play.id) ? null : play);
+}
+
+/**
+ * How the field between snaps on screen (`idle` at `t`, `idleOffense` its
+ * side with the ball) meets a replay that comes in now (FootballTheater.bridge):
+ * each man from where he is to his place in the formation, unless the
+ * snap's spot is far from where the idle stands (the other end, or the next
+ * down's spot walked off: `TheaterBridge.far.football`), or Reduce Motion:
+ * then a crossfade. (pure; tested)
+ */
+export function footballBridge(idle: FootballScript, idleOffense: Side, t: number, replay: FootballScript, offense: Side, reduceMotion: boolean, beatLeft: number | null = null): BridgePlan {
+  const together = idleOffense === offense && Math.abs(remainder(idle.yawAt(t) - replay.yaw, 2 * Math.PI)) < 0.6;
+  return bridgePlan(idle.bridgeFigures(idleOffense, t), replay.bridgeFigures(offense, 0), { room: replay.leadIn, far: TheaterBridge.far.football, together, reduceMotion, beatLeft });
 }
 
 /** "3rd & 7 at PHI 35" → 3rd & 7; "1st & Goal" → its distance unknown (10). (FootballTheater.down; pure; tested) */
@@ -373,9 +388,9 @@ export const FootballCelebration = {
  * by his role), named from the box score (else the text's "B.Murphy") with
  * its number; everyone else only what the theater knows of him, his team and
  * the place he lines up in (`SEAHAWKS · DE`), never the depth chart's
- * probable name. Officials and trainers: nobody. The key man is the one with
- * the ball: the first credited man to have it from the start (a pass's
- * quarterback, a run's back), then from each carry on whoever has it last
+ * probable name. Officials, trainers and coaches: nobody. The key man is
+ * the one with the ball: the first credited man to have it from the start
+ * (a pass's quarterback, a run's back), then from each carry on whoever has it last
  * (the receiver from the catch, the man who picked it off); the kicker on a
  * kickoff until it's caught; the kicker of a field goal or a try
  * throughout. Between snaps, nobody. `scope`: the script's own key. (pure;
@@ -508,6 +523,7 @@ export function tagPosition(player: Pick<Player, "key" | "role">, credit: Positi
       return kick === "punt" ? "PR" : "KR";
     case "cover":
     case "official":
+    case "staff":
       return "";
   }
 }
