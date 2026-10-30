@@ -23,7 +23,7 @@ import type { Side } from "../models";
 import { liveMoment, shortened, Tier, type Accent, type LiveMoment, type MomentKind } from "../moments";
 import { soccerFacts } from "../scoringFacts";
 import { credit, isGoal, teamID } from "../theater/soccerEntries";
-import { teamIDFromRef } from "./baseball";
+import { FeedLooks, teamIDFromRef } from "./baseball";
 
 export type ActionKind = "pass" | "shot" | "goal" | "yellow" | "red" | "other";
 /** How a shot ended (goals are the `goal` kind). */
@@ -326,10 +326,19 @@ export class SoccerFeed {
   rosters: Readonly<Partial<Record<Side, JSONValue>>> = {};
   loaded = false;
   version = 0;
+  /**
+   * This look follows on from the last (the tab wasn't hidden, nor the lane
+   * paused, for long): the theater beside the lane reads it with each change
+   * (`SoccerTheaterWatch`, `LaneExtras.following`), as the Mac's lane passes
+   * `news: primed && following`.
+   */
+  following = true;
 
   private moments: LiveMoment[] = [];
   /** Whether this page has had a complete load: before it, everything is history. */
   private primed = false;
+  /** The page's looks: whether each follows on from the last (`following`). */
+  private looks = new FeedLooks();
   /** The last few located actions, so a card can be put at its foul. */
   private recent: PitchAction[] = [];
   private fetched = 0;
@@ -368,6 +377,7 @@ export class SoccerFeed {
   }
 
   private async look(fetcher: Fetcher, { league, eventID, homeTeamID, rosters, signal }: SoccerUpdate): Promise<void> {
+    this.following = this.looks.follows(this.now());
     let lineups = false;
     if (rosters && Object.keys(rosters).length > 0 && JSON.stringify(rosters) !== JSON.stringify(this.rosters)) {
       this.rosters = rosters;

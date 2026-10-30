@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { activeRun, andOne, BasketballFeed, makes, momentAt, normalized, reconcile, scoringRun, type Teams } from "../../src/data/liveFeeds/basketball";
 import { Tier } from "../../src/data/moments";
+import { BasketballTheaterWatch } from "../../src/data/theater/basketballTheater";
 import { fixture } from "./fixtures";
 
 interface Core {
@@ -74,6 +75,31 @@ describe("the NBA fast lane", () => {
     // Nothing is news twice.
     await feed.update(lane(160).fetcher, { path: "basketball/nba", eventID: "1", teams });
     expect(feed.takeMoments()).toEqual([]);
+  });
+
+  it("the look that catches up after the tab was hidden is history for the theater, as the first is (its moments still come); the next look's plays are news", async () => {
+    let t = 1000;
+    const feed = new BasketballFeed(() => t);
+    const options = { path: "basketball/nba", eventID: "1", teams };
+    await feed.update(lane(140).fetcher, options);
+    t += 5_000;
+    await feed.update(lane(145).fetcher, options);
+    expect(feed.history).toBe(1);
+    feed.takeMoments();
+    t += 120_000;
+    await feed.update(lane(155).fetcher, options);
+    expect(feed.history).toBe(feed.looks);
+    expect(feed.takeMoments().length).toBeGreaterThan(0);
+    const watch = new BasketballTheaterWatch();
+    const later = Date.now() + 3_600_000;
+    watch.update(feed.items, teams, feed.looks, (id) => feed.seenIn(id), later, feed.history);
+    expect(watch.state.news.size).toBe(0);
+    t += 5_000;
+    await feed.update(lane(160).fetcher, options);
+    expect(feed.history).toBe(feed.looks - 1);
+    watch.update(feed.items, teams, feed.looks, (id) => feed.seenIn(id), later, feed.history);
+    expect(watch.state.news.size).toBeGreaterThan(0);
+    expect([...watch.state.news].every((id) => feed.seenIn(id) === feed.looks)).toBe(true);
   });
 
   it("stops being live with the status, clearing what only matters while it's on", async () => {

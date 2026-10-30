@@ -133,6 +133,7 @@ export function useBaseballPage(game: GameContext): SportPage {
               playsVersion={feed.playsVersion}
               names={detail.athleteNames}
               heard={feed.heard}
+              following={feed.following}
               delay={feed.delay}
               situation={situation}
               inning={inning}

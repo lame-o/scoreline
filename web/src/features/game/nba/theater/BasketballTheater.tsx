@@ -127,7 +127,7 @@ class TheaterFollow {
   }
 
   private process(): boolean {
-    return this.watch.update(this.feed.items, this.teams, this.feed.looks, (id) => this.feed.seenIn(id), Date.now());
+    return this.watch.update(this.feed.items, this.teams, this.feed.looks, (id) => this.feed.seenIn(id), Date.now(), this.feed.history);
   }
 
   /** The theater's state and the lane's say on the game: a new object only when any changes. */

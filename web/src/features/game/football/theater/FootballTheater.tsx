@@ -119,7 +119,7 @@ class TheaterFollow {
   }
 
   private process(): boolean {
-    const changed = this.watch.update(this.feed.items, this.teams, this.primed, Date.now(), this.feed.charts);
+    const changed = this.watch.update(this.feed.items, this.teams, this.primed, Date.now(), this.feed.charts, this.feed.following);
     this.primed = this.feed.loaded;
     return changed;
   }

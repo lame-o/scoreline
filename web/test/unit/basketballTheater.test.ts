@@ -411,6 +411,15 @@ describe("news and the court between plays", () => {
     expect([...basketballTheaterState(plays, state, 1, () => null, Date.now()).news].sort()).toEqual([...state.news].sort());
   });
 
+  it("plays the look coming back to the page caught up on are history; those after it are news", () => {
+    const plays = scenesOf(games[0]!).slice(0, 10);
+    const old = { plays: [], news: new Set<string>(), heard: null };
+    const seen = () => 6;
+    const later = Date.now() + 3_600_000;
+    expect(basketballTheaterState(plays, old, 6, seen, later, 6).news.size).toBe(0);
+    expect([...basketballTheaterState(plays, old, 6, seen, later, 5).news].sort()).toEqual([...new Set(plays.map((p) => p.id))].sort());
+  });
+
   it("between plays the team with the ball sets up in its half, the point guard with it; nobody's: round the center circle", () => {
     const rest = restScript(restOf({ offense: "bottom" }));
     const tipOff = restScript(restOf({ offense: null }));

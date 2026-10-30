@@ -15,6 +15,7 @@
  * every snap that arrives replays.
  */
 import { describe, expect, it } from "vitest";
+import { FeedLooks } from "../../src/data/liveFeeds/baseball";
 import type { FootballTeams } from "../../src/data/liveFeeds/football";
 import type { Point } from "../../src/data/mlb/theaterField";
 import { FieldFacing, footballIdle, FootballStatus, idleScript, parseStoppage, type FootballStoppage, type StatusNames, type StoppageKind } from "../../src/data/theater/footballIdle";
@@ -375,6 +376,30 @@ describe("every snap replays", () => {
     expect(footballShown(state, null, null, new Set([snaps[0]!.id]))?.id).toBe(snaps[1]!.id);
     expect(footballShown(state, snaps[1]!.id, null, new Set([snaps[0]!.id, snaps[1]!.id]))?.id).toBe(snaps[1]!.id);
     expect(footballShown(state, snaps[2]!.id, snaps[2]!.id, new Set(snaps.map((s) => s.id)))).toBeNull();
+  });
+
+  it("the look after the tab was hidden and shown again catches up (history, like opening the page); the next follows on", () => {
+    const gaps = new FeedLooks();
+    const t0 = Date.now();
+    const looked = [gaps.follows(t0), gaps.follows(t0 + 6_000), gaps.follows(t0 + 126_000), gaps.follows(t0 + 132_000)];
+    expect(looked).toEqual([true, true, false, true]);
+  });
+
+  it("…so the lane's watch takes that look as history: only its newest snap, replayed only if it only just happened; the heartbeat still counts from it", () => {
+    const at = items.flatMap((item, i) => (parse(item, teams) ? [i] : []));
+    const look = (following: boolean) => {
+      const watch = new FootballTheaterWatch();
+      watch.update(items.slice(0, at[0]! + 1), teams, false, now);
+      watch.update(items.slice(0, at[3]! + 1), teams, true, now + 120_000, undefined, following);
+      return watch.state;
+    };
+    const back = look(false);
+    expect(back.news).toBe(false);
+    expect(back.queue?.map((q) => q.id)).toEqual([back.play!.id]);
+    expect(back.heard).toBe(now + 120_000);
+    const on = look(true);
+    expect(on.news).toBe(true);
+    expect(on.queue?.length).toBeGreaterThan(2);
   });
 
   it("history (the page just opened) queues nothing", () => {

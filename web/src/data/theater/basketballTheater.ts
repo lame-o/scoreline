@@ -27,8 +27,10 @@ export const NO_PLAYS: BasketballTheaterState = { plays: [], news: new Set(), he
  * The theater after a look at the plays (BasketballFeed.theater): the
  * newest plays, every kind. A play is news if it first appeared after the
  * first complete look (`seenIn`: the look it was first seen in), or if it
- * only just happened; a play that was news stays news, edits and all.
- * `heard` moves when a new play comes. (pure; tested)
+ * only just happened; a play that was news stays news, edits and all. The
+ * first look is history, as is one catching up on coming back to the page
+ * (`history`: the last such, `BasketballFeed.history`). `heard` moves when
+ * a new play comes. (pure; tested)
  */
 export function basketballTheaterState(
   plays: readonly BasketballScene[],
@@ -36,13 +38,14 @@ export function basketballTheaterState(
   looks: number,
   seenIn: (id: string) => number | null,
   now: number,
+  history = 1,
 ): BasketballTheaterState {
   const ids = new Set(plays.map((p) => p.id));
   const news = new Set([...previous.news].filter((id) => ids.has(id)));
   for (const scene of plays) {
     if (news.has(scene.id)) continue;
     const seen = seenIn(scene.id) ?? looks;
-    if (seen > 1 || (scene.wallclock != null && now - scene.wallclock < RECENT_MS)) news.add(scene.id);
+    if (seen > history || (scene.wallclock != null && now - scene.wallclock < RECENT_MS)) news.add(scene.id);
   }
   const before = new Set(previous.plays.map((p) => p.id));
   const heard = previous.heard == null || [...ids].some((id) => !before.has(id)) ? now : previous.heard;
@@ -66,11 +69,16 @@ export class BasketballTheaterWatch {
   state: BasketballTheaterState = NO_PLAYS;
   private items: readonly JSONValue[] | null = null;
 
-  /** `looks`: the lane's complete looks so far; `seenIn`: the look a play was first seen in. True when the state changed. */
-  update(items: readonly JSONValue[], teams: Teams, looks: number, seenIn: (id: string) => number | null, now: number = Date.now()): boolean {
+  /**
+   * `looks`: the lane's complete looks so far; `seenIn`: the look a play was
+   * first seen in; `history`: the last look that's history (the first, or
+   * one catching up on coming back: `BasketballFeed.history`). True when
+   * the state changed.
+   */
+  update(items: readonly JSONValue[], teams: Teams, looks: number, seenIn: (id: string) => number | null, now: number = Date.now(), history = 1): boolean {
     if (items === this.items) return false;
     this.items = items;
-    const next = basketballTheaterState(basketballRecent(items, teams), this.state, looks, seenIn, now);
+    const next = basketballTheaterState(basketballRecent(items, teams), this.state, looks, seenIn, now, history);
     if (sameTheaterState(next, this.state)) return false;
     this.state = next;
     return true;

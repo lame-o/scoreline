@@ -212,10 +212,16 @@ export function retracting(
   return { ...state, overturned: { ...shown, review: "overturned" }, scene: latest(rest, homeTeamID, keepers, scale), news: false };
 }
 
-/** What the theater reads from the lane beside the window: the goals VAR struck off (`SoccerFeed.struck`) and each side's roster (`SoccerFeed.rosters`). */
+/**
+ * What the theater reads from the lane beside the window: the goals VAR
+ * struck off (`SoccerFeed.struck`), each side's roster (`SoccerFeed.rosters`),
+ * and whether the look that brought the change follows on from the last
+ * (`SoccerFeed.following`; absent: it does).
+ */
 export interface LaneExtras {
   readonly struck?: ReadonlySet<string>;
   readonly rosters?: Readonly<Partial<Record<Side, JSONValue>>>;
+  readonly following?: boolean;
 }
 
 /**
@@ -246,8 +252,15 @@ export class SoccerTheaterWatch {
   private rosters: LaneExtras["rosters"] = undefined;
   private scale: PitchScale | null = null;
 
-  /** After a change to the lane. `primed`: the lane had a complete load before this change. Returns whether `state` changed. */
+  /**
+   * After a change to the lane. `primed`: the lane had a complete load
+   * before this change; a look that doesn't follow on from the last
+   * (`lane.following`: it catches up after a gap) is history, as on opening
+   * the page (the heartbeat still counts from it). Returns whether `state`
+   * changed.
+   */
   update(window: readonly JSONValue[], homeTeamID: string | null, primed: boolean, now: number = Date.now(), lane: LaneExtras = {}): boolean {
+    const following = lane.following ?? true;
     let changed = false;
     // Both starting elevens, once the page has the summary.
     if (lane.rosters && lane.rosters !== this.rosters) {
@@ -300,7 +313,7 @@ export class SoccerTheaterWatch {
       if (half != null) period = half;
     }
     const before = this.state;
-    let next = this.moment(window, first, revised, homeTeamID, primed, now, scale) ?? before;
+    let next = this.moment(window, first, revised, homeTeamID, primed && following, now, scale) ?? before;
     if (fresh.length > 0) {
       const wallclock = Date.parse(string(at(fresh[fresh.length - 1], "wallclock")) ?? "");
       next = {
@@ -308,7 +321,7 @@ export class SoccerTheaterWatch {
         sceneOrder: next.scene?.id !== before.scene?.id && momentOrder != null ? momentOrder : (next.sceneOrder ?? null),
         events: [...(next.events ?? []), ...events].slice(-10),
         // Events that arrive with the page open are news, and play their beats.
-        newsFrom: primed && next.newsFrom == null && events[0] ? events[0].order : (next.newsFrom ?? null),
+        newsFrom: primed && following && next.newsFrom == null && events[0] ? events[0].order : (next.newsFrom ?? null),
         touch: touch ?? next.touch ?? null,
         period: period ?? next.period ?? null,
         heard: primed ? now : Number.isFinite(wallclock) ? wallclock : (next.heard ?? null),
@@ -323,7 +336,7 @@ export class SoccerTheaterWatch {
   private serial = 0;
 
   /** The newest moment, when one has arrived (or the one showing has been followed by its save or block, or edited), with the plays before it; null when nothing changed. */
-  private moment(window: readonly JSONValue[], first: number, revised: ReadonlySet<string>, homeTeamID: string | null, primed: boolean, now: number, scale: PitchScale): SoccerTheaterState | null {
+  private moment(window: readonly JSONValue[], first: number, revised: ReadonlySet<string>, homeTeamID: string | null, news: boolean, now: number, scale: PitchScale): SoccerTheaterState | null {
     Object.assign(this.keepers, keepers(window.slice(first)));
     const shown = this.state.scene?.id ?? null;
     const index = window.findLastIndex((p) => isMoment(p));
@@ -332,7 +345,7 @@ export class SoccerTheaterWatch {
     if (!(index >= first || (id === shown && (index >= first - 6 || (id != null && revised.has(id)))))) return null;
     const scene = parse(window, index, homeTeamID, this.keepers, scale);
     if (!scene) return null;
-    return soccerTheaterState(scene, this.state, primed, now);
+    return soccerTheaterState(scene, this.state, news, now);
   }
 }
 
