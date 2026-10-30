@@ -438,6 +438,14 @@ struct TheaterTeams: Equatable {
                            accent: accent(own.bottom))
         return (uniform(top, accent: accent(own.top)), home, .whites(.bottom))
     }
+
+    /// Both teams dressed as the theaters dress them: in their kits when
+    /// known, else in the palette's colors as they are.
+    static func dressed(_ kits: TheaterKits?, palette: TeamPalette, scheme: ColorScheme) -> (top: Uniform, bottom: Uniform) {
+        guard let kits else { return (Uniform(solid(palette.top, scheme)), Uniform(solid(palette.bottom, scheme))) }
+        let d = dress(kits, scheme: scheme)
+        return (d.top, d.bottom)
+    }
 }
 
 // MARK: - Poses
@@ -1410,6 +1418,16 @@ struct PlayTheater: View {
         var numbers: [String: String]
     }
 
+    /// The field a play leaves: its runners (`bases`, the live diamond's,
+    /// else the play's own), the next batter (`bats`); after a third out, the
+    /// sides changed. (pure)
+    nonisolated static func rest(after play: PlayScene, bases: [Bool]?, bats: PlayScene.Hand?, batting: GameDetail.Side?) -> PlayScript.Rest {
+        let swapped = play.endsInning
+        let side: GameDetail.Side = swapped ? (play.batting == .bottom ? .top : .bottom) : play.batting ?? batting ?? .top
+        return PlayScript.Rest(bases: swapped ? [false, false, false] : bases ?? play.basesAfter, bats: bats, swapped: swapped,
+                               fieldingHome: side == .top)
+    }
+
     /// How the field between pitches on screen (`field` at `t`: the routine
     /// between pitches, an idle move or still) meets what comes in now (a
     /// pitch's beat, a play's replay): each figure from where he is to his
@@ -1551,6 +1569,9 @@ private struct PlayStage: View {
     /// Half as tall as wide, up to this; wider than that, the field centers in the well.
     static let maxHeight: CGFloat = 320
 
+    /// Its section on screen: scrolled away, no frames are drawn (the clocks, and what plays next, carry on).
+    private var seen: Bool { geometry?.visibility[sectionID(.atPlate)].map { !$0.isHidden } ?? true }
+
     // MARK: The timeline
 
     /// What's still to come: the timeline after the last thing shown, news
@@ -1628,10 +1649,7 @@ private struct PlayStage: View {
 
     /// The field a play leaves: its runners (or the live bases), the next batter; after a third out, the sides changed.
     private func rest(for play: PlayScene) -> PlayScript.Rest {
-        let swapped = play.endsInning
-        let side: GameDetail.Side = swapped ? (play.batting == .bottom ? .top : .bottom) : play.batting ?? batting ?? .top
-        return PlayScript.Rest(bases: swapped ? [false, false, false] : bases ?? play.basesAfter, bats: state.bats, swapped: swapped,
-                               fieldingHome: side == .top)
+        PlayTheater.rest(after: play, bases: bases, bats: state.bats, batting: batting)
     }
 
     private func side(_ display: Display) -> GameDetail.Side {
@@ -1769,7 +1787,7 @@ private struct PlayStage: View {
             let wide = geo.size.width >= 440
             ZStack(alignment: .topLeading) {
                 Group {
-                    if animating || fading {
+                    if (animating && seen) || fading {
                         // An idle move at half the frame rate: it's small and slow.
                         TimelineView(.animation(minimumInterval: idling(display) && !fading ? 1.0 / 30 : nil)) { context in
                             let t = time(display, at: context.date)
@@ -2013,7 +2031,6 @@ private struct PlayStage: View {
     /// view), with motion allowed: idle moves run.
     private var idleKey: IdleKey {
         let resting: Bool = { if case .rest = display { return true }; return false }()
-        let seen = geometry?.visibility[sectionID(.atPlate)].map { !$0.isHidden } ?? true
         return IdleKey(on: resting && pageLive && seen && !reduceMotion && clock == .live && opened, rest: rest(for: last), between: between,
                        seed: PlayBeat.seed(shown ?? "rest"))
     }
@@ -2334,13 +2351,15 @@ enum PlateCelebration {
 /// the wall as the camera moves. A TimelineView only while one plays; on
 /// the harness's frozen clock, the frame at t. With Reduce Motion there's no
 /// replay: a home run blooms at the plate, as the play's end state shows.
-private struct TheaterCelebration: View {
+struct TheaterCelebration: View {
     let play: PlayScene
     let script: PlayScript
     let size: CGSize
     let color: Color
     /// When the replay began.
     let start: Date?
+    /// A replay a row opened: the play's moment as the live lane offered it, in place of the page's.
+    var replayed: LiveMoment? = nil
     @Environment(MomentCenter.self) private var moments: MomentCenter?
     @Environment(\.celebrationClock) private var clock
     @Environment(\.celebrationLevel) private var level
@@ -2352,7 +2371,7 @@ private struct TheaterCelebration: View {
     @State private var held: LiveMoment?
 
     var body: some View {
-        let current = momentFor(.plate, in: moments)
+        let current = replayed ?? momentFor(.plate, in: moments)
         let moment = current?.id == play.id ? current : start == nil ? nil : held
         let bursts = PlateCelebration.theater(moment, play: play, script: script, level: level, reduceMotion: reduceMotion,
                                               height: size.height)

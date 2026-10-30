@@ -144,6 +144,10 @@ final class SoccerFeed {
     @ObservationIgnored private var reviews: [Review] = []
     /// Goals struck off since the last call, for the page to take back.
     @ObservationIgnored private var retracted: [String] = []
+    /// Every shot and goal read, as the theater would replay it, by play ID:
+    /// what the page's key events and plays list replay (Replays.swift).
+    /// Assigned only when it changes.
+    private(set) var replays: [String: PlayReplay] = [:]
 
     /// A goal under review: where it was read, and when.
     struct Review: Equatable {
@@ -253,6 +257,7 @@ final class SoccerFeed {
             newItems.removeAll { struck.contains(Self.playID($0)) && SoccerScene.isGoal($0) }
             newActions.removeAll { struck.contains($0.playID) }
         }
+        if !newItems.isEmpty || !edited.isEmpty { readReplays(window + newItems, homeTeamID: homeTeamID) }
         let shownBefore = theater.scene?.id
         updateTheater(newItems, revised: edited, homeTeamID: homeTeamID, news: primed && following)
         if !newItems.isEmpty {
@@ -307,10 +312,25 @@ final class SoccerFeed {
         if next != theater { theater = next }
     }
 
+    /// Each moment in a run of plays (the window and what just came: on the
+    /// first look, the whole match) as the theater would replay it, each
+    /// read again while what follows it can still change it (its save, its
+    /// block, VAR); an entry that's no longer a moment drops out.
+    private func readReplays(_ plays: [JSON], homeTeamID: String?) {
+        let known = keepers.merging(SoccerScene.keepers(in: plays)) { _, newer in newer }
+        var next = replays
+        for index in plays.indices {
+            guard let id = SoccerScene.playID(plays[index]) else { continue }
+            next[id] = Replays.soccer(plays, at: index, homeTeamID: homeTeamID, keepers: known)
+        }
+        if next != replays { replays = next }
+    }
+
     /// A goal struck off: out of the shot map and the trail, taken back from
     /// the page's moments, and off the stage.
     private func retract(_ ids: Set<String>, homeTeamID: String?) {
         retracted += ids
+        if replays.keys.contains(where: ids.contains) { replays = replays.filter { !ids.contains($0.key) } }
         shots.removeAll { ids.contains($0.playID) }
         trail.removeAll { ids.contains($0.playID) }
         window.removeAll { SoccerScene.playID($0).map(ids.contains) == true && SoccerScene.isGoal($0) }
@@ -656,6 +676,12 @@ final class FootballFeed {
         func side(_ id: String?) -> GameDetail.Side? { id == topID ? .top : id == bottomID ? .bottom : nil }
     }
 
+    /// Every entry read, by ID, in the order read (an edit replaces its
+    /// earlier version): the page's replays build its scoring plays from it
+    /// (never observed).
+    @ObservationIgnored private(set) var entries: [JSON] = []
+    @ObservationIgnored private var entryIndex: [String: Int] = [:]
+
     func update(path: String, eventID: String, teams: Teams) async {
         guard !updating else { return }
         updating = true
@@ -715,6 +741,12 @@ final class FootballFeed {
             let items = json["items"].array
             for item in items {
                 newestID = item["id"].string ?? newestID
+                if let id = item["id"].string {
+                    if let i = entryIndex[id] { entries[i] = item } else {
+                        entryIndex[id] = entries.count
+                        entries.append(item)
+                    }
+                }
                 // The score and the ball after the latest play in play order, not list order.
                 let sequence = Double(item["sequenceNumber"].string ?? "") ?? item["sequenceNumber"].double ?? 0
                 if sequence >= latestSequence {
@@ -1021,6 +1053,18 @@ final class FootballFeed {
             topTimeouts: (teams.topIsHome ? s["homeTimeouts"] : s["awayTimeouts"]).int,
             bottomTimeouts: (teams.topIsHome ? s["awayTimeouts"] : s["homeTimeouts"]).int,
             lastPlay: lastPlay)
+    }
+}
+
+extension FootballFeed.Teams {
+    /// An event's teams: ESPN team IDs, codes and names, home from the summary.
+    init(_ event: Event, topIsHome homeIsTop: Bool) {
+        let ids = event.competitors.map { $0.id?.split(separator: "-").last.map(String.init) }
+        let names = (top: event.competitors.first?.abbreviation ?? "", bottom: event.competitors.last?.abbreviation ?? "")
+        let full = (top: event.competitors.first?.name ?? "", bottom: event.competitors.last?.name ?? "")
+        self.init(topIsHome: homeIsTop, topID: ids.first ?? nil, bottomID: ids.last ?? nil,
+                  homeAbbreviation: homeIsTop ? names.top : names.bottom, awayAbbreviation: homeIsTop ? names.bottom : names.top,
+                  homeName: homeIsTop ? full.top : full.bottom, awayName: homeIsTop ? full.bottom : full.top)
     }
 }
 
@@ -1390,7 +1434,7 @@ final class BaseballFeed {
 
     /// An at-bat's result as a moment, from its structured type (the result
     /// entry's `alternativeType`), never its text.
-    static func moment(_ item: JSON, side: (String?) -> GameDetail.Side?) -> LiveMoment? {
+    nonisolated static func moment(_ item: JSON, side: (String?) -> GameDetail.Side?) -> LiveMoment? {
         guard item["type"]["type"].string == "play-result", let id = item["id"].string else { return nil }
         let result = item["alternativeType"]["type"].string ?? ""
         let text = item["text"].string ?? ""
@@ -1436,7 +1480,7 @@ final class BaseballFeed {
 
     /// The home team takes the lead in the bottom of the 9th or later: the
     /// game is over. A scoring result's score fields are the score after it.
-    static func walkOff(_ item: JSON) -> Bool { PlayScene.walkOff(item) }
+    nonisolated static func walkOff(_ item: JSON) -> Bool { PlayScene.walkOff(item) }
 
     /// Core plays name their team by link; the summary parsers expect `team.id`.
     private static func normalized(_ item: JSON) -> JSON {

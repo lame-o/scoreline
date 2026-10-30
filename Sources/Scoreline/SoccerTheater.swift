@@ -1125,6 +1125,7 @@ private struct SoccerStage: View {
     @Environment(\.celebrationClock) private var clock
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.pageGeometry) private var geometry
     /// The replay on screen: which moment, when it began, and whether it's over.
     @State private var replay: Replay?
     /// The moment's script, built once (a body run for anything else reuses it).
@@ -1224,6 +1225,9 @@ private struct SoccerStage: View {
     /// Half as tall as wide, up to this; wider than that, the pitch centers in the well.
     static let maxHeight: CGFloat = 320
 
+    /// Its section on screen: scrolled away, no frames are drawn (the clocks, and what plays next, carry on).
+    private var seen: Bool { geometry?.visibility[sectionID(.pitch)].map { !$0.isHidden } ?? true }
+
     private func teams(_ side: GameDetail.Side) -> SoccerTeams {
         let dressed: (top: Uniform, bottom: Uniform)
         if let kits {
@@ -1277,7 +1281,7 @@ private struct SoccerStage: View {
             ZStack(alignment: .topLeading) {
                 Group {
                     if let scene {
-                        if playing || fading {
+                        if (playing && seen) || fading {
                             TimelineView(.animation) { context in
                                 layer(scene, script, at: context.date, cast, labels, heartbeat, teams, ink, geo.size)
                             }
@@ -1286,7 +1290,7 @@ private struct SoccerStage: View {
                             layer(scene, script, at: .now, cast, labels, heartbeat, teams, ink, geo.size)
                                 .transition(.identity)
                         }
-                    } else if (clock == .live && !reduceMotion && onScreen && script.moving(at: idleNow)) || fading {
+                    } else if (clock == .live && !reduceMotion && onScreen && seen && script.moving(at: idleNow)) || fading {
                         TimelineView(.animation) { context in
                             idleLayer(idle, script, idleTime(script, at: context.date), at: context.date, cast, labels, teams, ink, geo.size)
                         }
@@ -1684,13 +1688,15 @@ enum GoalCelebration {
 /// moment arrives, so a goal at the end of a long move still has them after
 /// the page's moment has moved on. With Reduce Motion there's no replay: a
 /// goal blooms over the net, as the moment's end state shows.
-private struct SoccerCelebration: View {
+struct SoccerCelebration: View {
     let scene: SoccerScene
     let script: SoccerScript
     let size: CGSize
     let color: Color
     /// When the replay began.
     let start: Date?
+    /// A replay a row opened: the play's moment as the live lane offered it, in place of the page's.
+    var replayed: LiveMoment? = nil
     @Environment(MomentCenter.self) private var moments: MomentCenter?
     @Environment(\.celebrationClock) private var clock
     @Environment(\.celebrationLevel) private var level
@@ -1701,7 +1707,7 @@ private struct SoccerCelebration: View {
     @State private var over: Date?
 
     var body: some View {
-        let moment = momentFor(.pitch, in: moments)
+        let moment = replayed ?? momentFor(.pitch, in: moments)
         let current = GoalCelebration.theater(moment, scene: scene, script: script, level: level, reduceMotion: reduceMotion,
                                               height: size.height)
         let bursts = current.isEmpty ? armed ?? [] : current

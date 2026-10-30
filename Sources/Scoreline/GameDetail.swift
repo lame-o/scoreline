@@ -256,10 +256,20 @@ struct GameDetail {
         let score: String?
     }
 
+    /// A line of the plays list, and the ESPN play it's about (nil: a line
+    /// of commentary with no play, "Match ends").
+    struct RecentPlay: Hashable {
+        var id: String?
+        var text: String
+    }
+
     var stats: [Stat] = []
     var linescore: Linescore?
     var moments: [Moment] = []
-    var recentPlays: [String] = []
+    var recentPlays: [RecentPlay] = []
+    /// Baseball: the plays the page's rows are about that can replay in the
+    /// isometric view, by play ID (Replays.swift), built from the summary's plays.
+    var replays: [String: PlayReplay] = [:]
     /// Win probability for the top competitor.
     var topWinProbability: Double?
     /// Chance of a draw (soccer), so it isn't folded into either side.
@@ -587,7 +597,7 @@ enum ESPNDetail {
             detail.recentPlays = summary["commentary"].array.suffix(4).reversed().compactMap { c in
                 guard let text = c["text"].string else { return nil }
                 let time = c["time"]["displayValue"].string ?? ""
-                return time.isEmpty ? text : "\(time)  \(text)"
+                return GameDetail.RecentPlay(id: c["play"]["id"].string, text: time.isEmpty ? text : "\(time)  \(text)")
             }
         case .baseball:
             let plays = summary["plays"].array
@@ -600,7 +610,7 @@ enum ESPNDetail {
                     period: p["period"]["number"].int)
             }
             detail.recentPlays = plays.filter { $0["type"]["type"].string == "play-result" }
-                .suffix(4).reversed().compactMap { $0["text"].string }
+                .suffix(4).reversed().compactMap { p in p["text"].string.map { GameDetail.RecentPlay(id: p["id"].string, text: $0) } }
             detail.atBat = currentAtBat(plays)
             detail.battedBalls = battedBalls(plays, side: side)
             for team in summary["boxscore"]["players"].array {
@@ -616,6 +626,9 @@ enum ESPNDetail {
             // The lineups' numbers and places over the box score's (where the pitchers are).
             detail.people = TheaterPeople.boxscore(summary).merging(TheaterPeople.rosters(summary)) { _, roster in roster }
             detail.fielders = BaseballFielders(summary, side: side)
+            // The rows' plays, as the play theater would replay them (Statcast's account joins them on the page).
+            detail.replays = Replays.baseball(plays, ids: Set(detail.moments.map(\.id) + detail.recentPlays.compactMap(\.id)), side: side,
+                                              names: detail.athleteNames)
             if event.state == .live {
                 var theater = PlayScene.theater(plays, side: side, names: detail.athleteNames)
                 // What Statcast measured of the last play, if it answers promptly (the live lane asks again).
@@ -644,7 +657,9 @@ enum ESPNDetail {
                     score: scoreAfter(p, topIsHome: topComp?["homeAway"].string == "home"),
                     period: p["period"]["number"].int)
             }
-            detail.recentPlays = summary["plays"].array.suffix(4).reversed().compactMap { $0["text"].string }
+            detail.recentPlays = summary["plays"].array.suffix(4).reversed().compactMap { p in
+                p["text"].string.map { GameDetail.RecentPlay(id: p["id"].string, text: $0) }
+            }
             if sport == .football { detail.people = TheaterPeople.boxscore(summary) }
         }
 
@@ -657,7 +672,9 @@ enum ESPNDetail {
                 detail.baseball?.runners = GameDetail.Baseball.runners(summary["situation"], names: detail.athleteNames)
                 detail.baseball?.runnerIDs = GameDetail.Baseball.runnerIDs(summary["situation"])
             }
-            if detail.recentPlays.isEmpty, let last = situation["lastPlay"]["text"].string { detail.recentPlays = [last] }
+            if detail.recentPlays.isEmpty, let last = situation["lastPlay"]["text"].string {
+                detail.recentPlays = [GameDetail.RecentPlay(id: situation["lastPlay"]["id"].string, text: last)]
+            }
         }
         return detail
     }

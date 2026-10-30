@@ -17,7 +17,7 @@ final class BasketballFeed {
     /// edits and deletions included: splice over the summary's with `NBADetail.plays`.
     private(set) var plays: [GameDetail.CourtPlay] = []
     /// The last few plays, newest first ("Q3 4:12  …").
-    private(set) var recentPlays: [String] = []
+    private(set) var recentPlays: [GameDetail.RecentPlay] = []
     private(set) var score: LiveScore?
     /// The period of the newest play, the one `score` is read from (the
     /// linescore puts the points since the summary in this period's cell).
@@ -60,8 +60,9 @@ final class BasketballFeed {
     func replay(_ id: String?) {
         if replaying != id { replaying = id }
     }
-    /// The newest plays, in ESPN's order (game order).
-    @ObservationIgnored private var window: [JSON] = []
+    /// The newest plays, in ESPN's order (game order). The page's replays
+    /// read it for the plays since they fetched the game (never observed).
+    @ObservationIgnored private(set) var window: [JSON] = []
     /// Index in ESPN's full play list of `window[0]`.
     @ObservationIgnored private var windowStart = 0
     @ObservationIgnored private var fetched: Int?
@@ -117,6 +118,21 @@ final class BasketballFeed {
         let bottomID: String?
         let topName: String
         let bottomName: String
+
+        init(topIsHome: Bool, topID: String?, bottomID: String?, topName: String, bottomName: String) {
+            self.topIsHome = topIsHome
+            self.topID = topID
+            self.bottomID = bottomID
+            self.topName = topName
+            self.bottomName = bottomName
+        }
+
+        /// An event's teams, by ESPN team ID and code.
+        init(_ event: Event, topIsHome: Bool) {
+            let ids = event.competitors.map { $0.id?.split(separator: "-").last.map(String.init) }
+            self.init(topIsHome: topIsHome, topID: ids.first ?? nil, bottomID: ids.last ?? nil,
+                      topName: event.competitors.first?.abbreviation ?? "", bottomName: event.competitors.last?.abbreviation ?? "")
+        }
         func side(_ id: String?) -> GameDetail.Side? {
             guard let id else { return nil }
             return id == topID ? .top : id == bottomID ? .bottom : nil

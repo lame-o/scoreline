@@ -1679,6 +1679,8 @@ struct MomentList: View {
                         // Keep crests in one column when some rows have a score.
                         Color.clear.frame(width: 44, height: 1)
                     }
+                    // A play that can replay in the isometric view: its glyph on hover (its place kept on every row).
+                    ReplayGlyph(play: Replays.play(of: m.id))
                 }
                 .linkedRow(Focus(play: m.id, period: m.period, side: m.side),
                            litBy: { $0?.matches(play: m.id, period: m.period, side: m.side) ?? false }, pinnable: true)
@@ -1686,6 +1688,8 @@ struct MomentList: View {
                 .accessibilityLabel(spoken(m, score: score))
                 // VoiceOver: "Show on Shot Chart" (or the pitch, linescore…), pinned and scrolled to.
                 .showOnChartAction(Focus(play: m.id, period: m.period, side: m.side))
+                // A click opens its replay under it (and pins it on the charts).
+                .replayRow(ReplayRow(section: .moments, play: Replays.play(of: m.id)))
                 .widthDetail(.vertical, whileResizing: resizing, otherwise: Motion.arrive)
             }
         }

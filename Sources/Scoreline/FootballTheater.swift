@@ -964,6 +964,7 @@ private struct FootballStage: View {
     @Environment(\.celebrationClock) private var clock
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.pageGeometry) private var geometry
     /// The replay on screen: which play, when it began, and whether it's over.
     @State private var replay: Replay?
     /// The play's script, built once (a body run for anything else reuses it).
@@ -1036,6 +1037,9 @@ private struct FootballStage: View {
 
     /// Half as tall as wide, up to this.
     static let maxHeight: CGFloat = 320
+
+    /// Its section on screen: scrolled away, no frames are drawn (the clocks, and what plays next, carry on).
+    private var seen: Bool { geometry?.visibility[sectionID(.field)].map { !$0.isHidden } ?? true }
 
     /// The play on screen (see `FootballTheater.shown`); nil, the field between snaps.
     private var shown: FootballScene? { FootballTheater.shown(state, replaying: replay?.id, rested: rested, played: played) }
@@ -1120,7 +1124,7 @@ private struct FootballStage: View {
             ZStack(alignment: .topLeading) {
                 Group {
                     if let play {
-                        if playing || fading {
+                        if (playing && seen) || fading {
                             TimelineView(.animation) { context in
                                 layer(play, script, at: context.date, cast, labels, teams, ink, geo.size, zones)
                             }
@@ -1129,7 +1133,7 @@ private struct FootballStage: View {
                             layer(play, script, at: .now, cast, labels, teams, ink, geo.size, zones)
                                 .transition(.identity)
                         }
-                    } else if (clock == .live && !reduceMotion && onScreen && script.moving(at: idleNow)) || fading {
+                    } else if (clock == .live && !reduceMotion && onScreen && seen && script.moving(at: idleNow)) || fading {
                         // A beat: animated until it's over, then still again.
                         TimelineView(.animation) { context in
                             idleLayer(idle, script, idleTime(script, idle, at: context.date), at: context.date, cast, labels, teams, ink, geo.size, zones)
@@ -1572,7 +1576,7 @@ enum FootballCelebration {
 /// the goal line as the camera moves. A TimelineView only while one plays; on
 /// the harness's frozen clock, the frame at t. With Reduce Motion there's no
 /// replay: a touchdown blooms in the end zone, as the play's end state shows.
-private struct FootballCelebrationStage: View {
+struct FootballCelebrationStage: View {
     let play: FootballScene
     let script: FootballScript
     let size: CGSize
@@ -1580,6 +1584,8 @@ private struct FootballCelebrationStage: View {
     let colors: (offense: Color, defense: Color)
     /// When the replay began.
     let start: Date?
+    /// A replay a row opened: the play's moment as the live lane offered it, in place of the page's.
+    var replayed: LiveMoment? = nil
     @Environment(MomentCenter.self) private var moments: MomentCenter?
     @Environment(\.celebrationClock) private var clock
     @Environment(\.celebrationLevel) private var level
@@ -1588,7 +1594,7 @@ private struct FootballCelebrationStage: View {
     @State private var over: Date?
 
     var body: some View {
-        let moment = momentFor(.field, in: moments)
+        let moment = replayed ?? momentFor(.field, in: moments)
         let bursts = FootballCelebration.theater(moment, play: play, script: script, level: level, reduceMotion: reduceMotion,
                                                  height: size.height)
         Group {

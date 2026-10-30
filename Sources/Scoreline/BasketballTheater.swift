@@ -996,6 +996,7 @@ private struct BasketballStage: View {
     @Environment(\.celebrationClock) private var clock
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.pageGeometry) private var geometry
     /// What's being told, from when.
     @State private var showing: Showing?
     /// The court between plays, from when.
@@ -1068,6 +1069,9 @@ private struct BasketballStage: View {
 
     /// Half as tall as wide, up to this.
     static let maxHeight: CGFloat = 320
+
+    /// Its section on screen: scrolled away, no frames are drawn (the clocks, and what plays next, carry on).
+    private var seen: Bool { geometry?.visibility[sectionID(.court)].map { !$0.isHidden } ?? true }
 
     // MARK: What's on screen
 
@@ -1174,7 +1178,7 @@ private struct BasketballStage: View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 Group {
-                    if now.moving || fading {
+                    if (now.moving && seen) || fading {
                         TimelineView(.animation) { context in
                             picture(now, at: context.date, cast: cast, labels: labels, teams: teams, ink: ink, size: geo.size, paint: paint)
                         }
@@ -1535,12 +1539,14 @@ enum BasketballCelebration {
 /// it moves. A TimelineView only while one plays; on the harness's frozen
 /// clock, the frame at t. With Reduce Motion there's no replay: a basket
 /// that celebrates blooms at the rim, as the play's end shows.
-private struct BasketballCelebrationStage: View {
+struct BasketballCelebrationStage: View {
     let play: BasketballScene
     let script: BasketballScript
     let size: CGSize
     let colors: (offense: Color, defense: Color)
     let start: Date?
+    /// A replay a row opened: the play's moment as the live lane offered it, in place of the page's.
+    var replayed: LiveMoment? = nil
     @Environment(MomentCenter.self) private var moments: MomentCenter?
     @Environment(\.celebrationClock) private var clock
     @Environment(\.celebrationLevel) private var level
@@ -1552,7 +1558,7 @@ private struct BasketballCelebrationStage: View {
     @State private var latched: LiveMoment?
 
     var body: some View {
-        let current = momentFor(.court, in: moments)
+        let current = replayed ?? momentFor(.court, in: moments)
         let moment = latched ?? (current?.id == play.id ? current : nil)
         let bursts = BasketballCelebration.theater(moment, play: play, script: script, level: level, reduceMotion: reduceMotion, height: size.height)
         Group {

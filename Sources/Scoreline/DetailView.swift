@@ -72,6 +72,8 @@ struct DetailView: View {
     #endif
     /// NBA: the court's replay and the player picked in the box score or leaders, shared by every NBA view.
     @State private var nbaStage = NBAStage()
+    /// The plays the rows can replay in the isometric view, and the row open.
+    @State private var replays: PageReplays
     /// What the hero has said, period by period: the line score (and its peek) is kept no older than it.
     @State private var ledger = HeaderLedger()
     /// The hero scoreboard's beats: digit pops, the wash pulse, the glint, the trophy.
@@ -111,6 +113,7 @@ struct DetailView: View {
          preloaded: GameDetail? = nil, standings: [StandingsRow] = []) {
         self.snapshot = snapshot
         _live = State(initialValue: snapshot)
+        _replays = State(initialValue: PageReplays(snapshot))
         self.onBack = onBack
         self.onOpenStandings = onOpenStandings
         self.onOpenBracket = onOpenBracket
@@ -125,6 +128,86 @@ struct DetailView: View {
         #if DEBUG
         let _ = Self.bodyRuns += 1
         #endif
+        scaffold
+        // Polls re-run only this modifier; the page re-renders when its event (or its table's live games) changed.
+        .modifier(LiveEventSync(snapshot: snapshot, league: tableLeague, live: $live, leagueLive: $leagueLive,
+                                staleSince: $storeStaleSince))
+        // The line score and the scores list kept no older than the hero's numbers.
+        .modifier(HeaderSync(ledger: ledger, eventID: event.id, reading: heroReading, lane: laneScores.map { [$0.top, $0.bottom] }))
+        // The wash sits behind the whole page, not inside the scroll content, so
+        // it starts at the panel's top edge (under the header and its glass
+        // buttons) and fades out below the card with no hard edge.
+        .background(alignment: .top) {
+            // Fades in with the page instead of appearing at full strength
+            // behind the outgoing one.
+            // A new climber's colors crossfade in, slowly enough to feel like a
+            // change of light rather than a cut.
+            ZStack {
+                // A score lifts the scorer's side for 1.55 s (both sides on a
+                // climbing page: they're the climber's flag). Only the wash
+                // re-renders while it plays.
+                WashPulse(trigger: beats.washPulses) { b in
+                    HeroWash(left: wash.left, right: wash.right, intensity: wash.intensity,
+                             boost: (beats.washSide == .bottom ? 0 : b, beats.washSide == .top ? 0 : b))
+                }
+                .id(washCountry ?? "none")
+                .transition(.opacity)
+            }
+            .animation(reduceMotion ? Motion.fade : Motion.light, value: washCountry)
+            .frame(height: 250)
+            .ignoresSafeArea()
+            .stackIn(slides: false)
+        }
+        .pageLoading(detail == nil && !failed)
+        .delayedSpinner(while: detail == nil && !failed, show: $showSpinner)
+        .task(id: snapshot.id) {
+            // The soccer feed outlives the page: until it has caught up, it's history.
+            if case .espn(_, _, .soccer)? = snapshot.ref { soccerFeed.beginPage() }
+            await poll()
+        }
+        .onDisappear {
+            moments.clear()
+            slides.clear()
+            oddsFeed.stop()
+        }
+        .onChange(of: store.showOdds) { _, on in
+            if on, let detail { Task { await discoverOdds(event, detail) } } else { oddsFeed.reset() }
+        }
+        .onChange(of: snapshot.id) { resetStage() }
+        #if DEBUG
+        .onAppear { probe?(PageProbe(geometry: geometry, linked: linked, peek: peek, stage: nbaStage, moments: moments)) }
+        #endif
+        // The hero's scoreboard beat: a score-tier moment, on this page, now.
+        .onChange(of: moments.current?.id) { _, _ in
+            guard let m = moments.current, m.tier == .score, !resizing else { return }
+            // A slide's sheen is the decisive glint: the hero's would sweep under it.
+            beats.score(MatchRules.scorer(of: m), decisive: m.decisive, glint: !slides.carries(m.id), at: .now)
+            // A climbing final decided: the trophy arrives with the gold.
+            if m.decisive, m.chart == .ascent { beats.trophy() }
+        }
+        // The hero's numbers going up (same match only: a page reused for
+        // another match isn't a score).
+        .onChange(of: [event.id] + heroScores) { old, new in
+            guard old.count == 3, new.count == 3, old[0] == new[0] else { return }
+            for side in [GameDetail.Side.top, .bottom] {
+                let i = side == .top ? 1 : 2
+                guard let was = old[i].flatMap(Double.init), let now = new[i].flatMap(Double.init), now > was else { continue }
+                beats.scoreRose(side, at: .now)
+            }
+        }
+        // The final whistle, while the page is open (never when it opens on a final).
+        .onChange(of: event.state) { old, new in
+            guard old == .live, new == .final else { return }
+            finalBeat()
+        }
+        // While the game is live, the fast lane keeps the moving parts current.
+        .task(id: "\(snapshot.id)|\(event.state == .live)") { await fastLane() }
+        // ⌘R on a match refreshes the match too, not just the scores list.
+        .onChange(of: commands?.refreshToken) { Task { await refreshDetail(event) } }
+    }
+
+    /// The page itself: the header, and the scroll view with what floats over it.
+    private var scaffold: some View {
         // No divider under the header: the team-color wash runs straight up to it.
         VStack(spacing: 0) {
             header.stackIn().pageChrome()
@@ -170,85 +253,14 @@ struct DetailView: View {
             .environment(linked)
             .environment(moments)
             .environment(nbaStage)
+            // The rows' replays, kept in step with the summary and the live lanes (only this modifier reads the lanes for them).
+            // (The store keeps a soccer page's feed; asking for one on any other page would make one.)
+            .modifier(ReplaySync(replays: replays, detail: detail, event: event, soccer: isSoccer ? soccerFeed : nil, football: footballFeed,
+                                 basketball: basketballFeed))
             // NBA: players on fire, ESPN's scoring run (CourtView, GameFlowView, BoxScoreView, LeadersView).
             .environment(basketballFeed)
             .environment(\.peekShow, peekShow)
         }
-        // Polls re-run only this modifier; the page re-renders when its event (or its table's live games) changed.
-        .modifier(LiveEventSync(snapshot: snapshot, league: tableLeague, live: $live, leagueLive: $leagueLive,
-                                staleSince: $storeStaleSince))
-        // The line score and the scores list kept no older than the hero's numbers.
-        .modifier(HeaderSync(ledger: ledger, eventID: event.id, reading: heroReading, lane: laneScores.map { [$0.top, $0.bottom] }))
-        // The wash sits behind the whole page, not inside the scroll content, so
-        // it starts at the panel's top edge (under the header and its glass
-        // buttons) and fades out below the card with no hard edge.
-        .background(alignment: .top) {
-            // Fades in with the page instead of appearing at full strength
-            // behind the outgoing one.
-            // A new climber's colors crossfade in, slowly enough to feel like a
-            // change of light rather than a cut.
-            ZStack {
-                // A score lifts the scorer's side for 1.55 s (both sides on a
-                // climbing page: they're the climber's flag). Only the wash
-                // re-renders while it plays.
-                WashPulse(trigger: beats.washPulses) { b in
-                    HeroWash(left: wash.left, right: wash.right, intensity: wash.intensity,
-                             boost: (beats.washSide == .bottom ? 0 : b, beats.washSide == .top ? 0 : b))
-                }
-                .id(washCountry ?? "none")
-                .transition(.opacity)
-            }
-            .animation(reduceMotion ? Motion.fade : Motion.light, value: washCountry)
-            .frame(height: 250)
-            .ignoresSafeArea()
-            .stackIn(slides: false)
-        }
-        .pageLoading(detail == nil && !failed)
-        .delayedSpinner(while: detail == nil && !failed, show: $showSpinner)
-        .task(id: snapshot.id) {
-            // The soccer feed outlives the page: until it has caught up, it's history.
-            if case .espn(_, _, .soccer)? = snapshot.ref { soccerFeed.beginPage() }
-            await poll()
-        }
-        .onDisappear {
-            moments.clear()
-            slides.clear()
-            oddsFeed.stop()
-        }
-        .onChange(of: store.showOdds) { _, on in
-            if on, let detail { Task { await discoverOdds(event, detail) } } else { oddsFeed.reset() }
-        }
-        .onChange(of: snapshot.id) { nbaStage.reset() }
-        #if DEBUG
-        .onAppear { probe?(PageProbe(geometry: geometry, linked: linked, peek: peek, stage: nbaStage, moments: moments)) }
-        #endif
-        // The hero's scoreboard beat: a score-tier moment, on this page, now.
-        .onChange(of: moments.current?.id) { _, _ in
-            guard let m = moments.current, m.tier == .score, !resizing else { return }
-            // A slide's sheen is the decisive glint: the hero's would sweep under it.
-            beats.score(MatchRules.scorer(of: m), decisive: m.decisive, glint: !slides.carries(m.id), at: .now)
-            // A climbing final decided: the trophy arrives with the gold.
-            if m.decisive, m.chart == .ascent { beats.trophy() }
-        }
-        // The hero's numbers going up (same match only: a page reused for
-        // another match isn't a score).
-        .onChange(of: [event.id] + heroScores) { old, new in
-            guard old.count == 3, new.count == 3, old[0] == new[0] else { return }
-            for side in [GameDetail.Side.top, .bottom] {
-                let i = side == .top ? 1 : 2
-                guard let was = old[i].flatMap(Double.init), let now = new[i].flatMap(Double.init), now > was else { continue }
-                beats.scoreRose(side, at: .now)
-            }
-        }
-        // The final whistle, while the page is open (never when it opens on a final).
-        .onChange(of: event.state) { old, new in
-            guard old == .live, new == .final else { return }
-            finalBeat()
-        }
-        // While the game is live, the fast lane keeps the moving parts current.
-        .task(id: "\(snapshot.id)|\(event.state == .live)") { await fastLane() }
-        // ⌘R on a match refreshes the match too, not just the scores list.
-        .onChange(of: commands?.refreshToken) { Task { await refreshDetail(event) } }
     }
 
     // MARK: Header
@@ -1398,8 +1410,8 @@ struct DetailView: View {
                         // The NBA's live lane is a step ahead of the full refresh.
                         ForEach(isNBA && live && !basketballFeed.recentPlays.isEmpty ? basketballFeed.recentPlays : d.recentPlays,
                                 id: \.self) { play in
-                            Text(play).font(.system(size: 11.5)).foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
+                            // A play that can replay in the isometric view opens it under its line.
+                            RecentPlayRow(play: play)
                         }
                     }
                     .readableWidth()
@@ -1840,11 +1852,22 @@ struct DetailView: View {
         return DockBar.make(inputs)
     }
 
-    /// Back, except that Esc first drops a pin (a click or ⌘[ always goes back).
-    /// Esc is never swallowed: with nothing pinned it goes back as before.
+    /// Another match on the same page: the NBA court's replay and pick, and the rows' replays, start over.
+    private func resetStage() {
+        nbaStage.reset()
+        replays.reset()
+    }
+
+    /// Back, except that Esc first closes an open replay and drops a pin (a
+    /// click or ⌘[ always goes back). Esc is never swallowed: with nothing
+    /// open or pinned it goes back as before.
     private func back() {
         if let key = NSApp.currentEvent, key.type == .keyDown, key.keyCode == 53 {
-            if linked.unpin() { return }
+            var closed = false
+            if replays.open != nil {
+                withAnimation(reduceMotion ? Motion.fade : Motion.standard) { closed = replays.close() }
+            }
+            if linked.unpin() || closed { return }
             if nbaStage.pinned != nil {
                 nbaStage.unpin()
                 return
@@ -2093,13 +2116,7 @@ struct DetailView: View {
             case let .espn(path, id, .football)?:
                 // Wait for the first full load: it says which team is home.
                 guard let homeIsTop = detail?.topIsHome else { break }
-                let ids = current.competitors.map { $0.id?.split(separator: "-").last.map(String.init) }
-                let names = (top: current.competitors.first?.abbreviation ?? "", bottom: current.competitors.last?.abbreviation ?? "")
-                let full = (top: current.competitors.first?.name ?? "", bottom: current.competitors.last?.name ?? "")
-                let teams = FootballFeed.Teams(topIsHome: homeIsTop, topID: ids.first ?? nil, bottomID: ids.last ?? nil,
-                                               homeAbbreviation: homeIsTop ? names.top : names.bottom,
-                                               awayAbbreviation: homeIsTop ? names.bottom : names.top,
-                                               homeName: homeIsTop ? full.top : full.bottom, awayName: homeIsTop ? full.bottom : full.top)
+                let teams = FootballFeed.Teams(current, topIsHome: homeIsTop)
                 let before = footballFeed.score
                 await footballFeed.update(path: path, eventID: id, teams: teams)
                 retract(footballFeed.takeRetractions())
@@ -2120,10 +2137,7 @@ struct DetailView: View {
             case let .espn(path, id, .basketball)? where path == NBADetail.path:
                 // Wait for the first full load: it says which team is home.
                 guard let topIsHome = detail?.topIsHome else { break }
-                let ids = current.competitors.map { $0.id?.split(separator: "-").last.map(String.init) }
-                let teams = BasketballFeed.Teams(topIsHome: topIsHome, topID: ids.first ?? nil, bottomID: ids.last ?? nil,
-                                                 topName: current.competitors.first?.abbreviation ?? "",
-                                                 bottomName: current.competitors.last?.abbreviation ?? "")
+                let teams = BasketballFeed.Teams(current, topIsHome: topIsHome)
                 await basketballFeed.update(eventID: id, teams: teams)
                 retract(basketballFeed.takeRetractions())
                 offer(basketballFeed.takeMoments())
