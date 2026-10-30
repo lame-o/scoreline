@@ -402,8 +402,8 @@ enum TheaterDraw {
     /// An official's shirt, as a pictogram draws it: a few bold, even black
     /// stripes down the torso, white between them and at its edges, clipped
     /// to the body's own shape (the arms and the head go over it as they
-    /// would over a jersey). Three where the torso has room for them to
-    /// read, two on a small figure (`zebraBands`).
+    /// would over a jersey). Two where the torso has room for them to
+    /// read, one on the smallest figures (`zebraBands`).
     static func zebra(_ figure: RigFigure, ink: GraphicsContext.Shading, in context: GraphicsContext) {
         let a = figure.hip, b = figure.neck, r = figure.torso / 2
         let d = hypot(b.x - a.x, b.y - a.y)
@@ -429,14 +429,15 @@ enum TheaterDraw {
     }
 
     /// The zebra's stripes for a torso this wide: how many black ones, and
-    /// how wide each black and white band is (black nearly twice as wide
-    /// as white, so they read bold): three once the torso has room for
-    /// them, two on a small figure, one on the smallest. (pure; tested)
+    /// how wide each black and white band is. Every band the same width,
+    /// so black and white both read bold (a pictogram's stripes, never
+    /// pinstripes): two once the torso has room, one on the smallest
+    /// figures. (pure; tested)
     static func zebraBands(_ torso: CGFloat) -> (count: Int, black: CGFloat, white: CGFloat) {
-        let count = torso >= 4 ? 3 : torso >= 2.2 ? 2 : 1
-        // `count` black at 1.8 units, `count + 1` white at 1.
-        let unit = torso / (CGFloat(count) * 1.8 + CGFloat(count + 1))
-        return (count, unit * 1.8, unit)
+        let count = torso >= 3 ? 2 : 1
+        // `count` black and `count + 1` white, all one width.
+        let unit = torso / CGFloat(2 * count + 1)
+        return (count, unit, unit)
     }
 
     /// A drawn part of a figure: a segment and how far round it.

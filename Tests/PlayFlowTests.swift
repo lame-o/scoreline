@@ -250,9 +250,9 @@ extension ScorelineTests {
               "baseball: the plate umpire stays, behind the catcher, unchanged")
 
         let small = TheaterDraw.zebraBands(2.4), large = TheaterDraw.zebraBands(5.5)
-        check(Uniform.zebra(dark: true).stripes != nil && large.count == 3 && small.count == 2 && large.black > large.white * 1.5
+        check(Uniform.zebra(dark: true).stripes != nil && large.count == 2 && small.count == 1 && large.black == large.white
               && abs(CGFloat(large.count) * large.black + CGFloat(large.count + 1) * large.white - 5.5) < 1e-9 && small.black >= 0.6,
-              "the zebra shirt: three bold, even black stripes across the torso (two on the smallest figures), black nearly twice the white between, filling it edge to edge")
+              "the zebra shirt: two bold black stripes across the torso (one on the smallest figures), black and white bands one width, filling it edge to edge")
 
         // MARK: Pace: the action slowed, the rest at its own pace
 
