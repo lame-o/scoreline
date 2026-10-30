@@ -17,9 +17,13 @@ import SwiftUI
 // through the camera (SoccerScript.swift), so lines stay crisp at any zoom
 // and the two never disagree on it. A TimelineView exists only while a
 // replay runs; between moments the last one holds as it ended. Moments already on the page when it opened show as
-// they ended; a new one mid-replay cuts to itself; with Reduce Motion each
-// moment crossfades to how it ended and the camera never moves. Decorative
-// for VoiceOver: the caption carries the moment.
+// they ended; a new one mid-replay cuts to itself; one that comes in while
+// the pitch between moments is on screen takes over from it (TheaterBridge:
+// each man from where he is in the shape to his place at the move's first
+// touch, or a quick crossfade when the move starts far from where the ball
+// was going round); with Reduce Motion each moment crossfades to how it
+// ended and the camera never moves. Decorative for VoiceOver: the caption
+// carries the moment.
 
 /// The broadcast camera's perspective through a framing, filling the view.
 struct PitchProjection {
@@ -292,10 +296,53 @@ struct SoccerFrame: View, Equatable {
     let size: CGSize
     /// The names over the players: the pointer's, the key man's.
     var tags = TheaterTags()
+    /// The pitch between moments this replay is taking over from (nil:
+    /// none, or the hand-off is done).
+    var bridge: Bridge? = nil
+
+    /// The pitch between moments as it stands mid-bridge (TheaterBridge):
+    /// its script and its time now (it plays on under the hand-off), how far
+    /// the hand-off is, who becomes whom, and the idle's teams' colors.
+    struct Bridge: Equatable {
+        var script: SoccerScript
+        var t: Double
+        /// 0 the idle, 1 the replay.
+        var w: Double
+        /// Seconds since the moment came in: where each traveller is along his track.
+        var s: Double
+        /// Replay actor → idle actor.
+        var pairs: [Int: Int]
+        var tracks: [Int: RigTrack]
+        /// The idle's colors: its team on the ball may be the replay's other.
+        var teams: SoccerTeams
+
+        /// The idle's men the replay doesn't have: they fade out.
+        var ghosts: [Int] {
+            let paired = Set(pairs.values)
+            return script.actors.indices.filter { !paired.contains($0) }
+        }
+    }
 
     /// The time first: mid-replay it's all that differs.
     static func == (a: SoccerFrame, b: SoccerFrame) -> Bool {
-        a.t == b.t && a.size == b.size && a.teams == b.teams && a.ink == b.ink && a.tags == b.tags && a.scene == b.scene && a.script == b.script
+        a.t == b.t && a.size == b.size && a.teams == b.teams && a.ink == b.ink && a.tags == b.tags && a.scene == b.scene && a.bridge == b.bridge
+            && a.script == b.script
+    }
+
+    /// The camera at t; mid-bridge, eased from the idle's framing to the replay's (both the main camera's).
+    func projection(_ size: CGSize) -> PitchProjection {
+        let frame = script.frame(at: t)
+        guard let b = bridge, frame.angle == .stand else { return PitchProjection(size: size, camera: frame) }
+        return PitchProjection(size: size, camera: PitchFrame(camera: b.script.frame(at: b.t).camera.mix(frame.camera, b.w)))
+    }
+
+    /// How much of actor `i` shows at t: mid-bridge, a man the idle didn't have fades in.
+    private func seen(_ i: Int) -> Double {
+        let o = script.actors[i].opacity(at: t)
+        guard let b = bridge else { return o }
+        guard let j = b.pairs[i] else { return o * b.w }
+        let from = b.script.actors[j].opacity(at: b.t)
+        return from + (o - from) * b.w
     }
 
     /// The type, laid out once as views and drawn into each frame.
@@ -306,15 +353,15 @@ struct SoccerFrame: View, Equatable {
 
     var body: some View {
         Canvas { context, size in
-            let f = PitchProjection(size: size, camera: script.frame(at: t))
+            let f = projection(size)
             context.clip(to: f.bounds)
             PitchLayer.draw(&context, f, ink: ink)
-            let figures = posed(f), hands = held(figures)
-            drawShadows(&context, f, figures)
+            let figures = posed(f), hands = held(figures), ghosts = self.ghosts(f)
+            drawShadows(&context, f, figures, ghosts: ghosts)
             // The names on the pitch, under all that plays: the move's trail and the goals too.
             let stems = drawTags(context, f, figures, hands: hands)
             drawTrails(&context, f)
-            drawStage(&context, f, figures, stems: stems)
+            drawStage(&context, f, figures, ghosts: ghosts, stems: stems)
             drawBall(&context, f, hands: hands)
             drawImpacts(&context, f)
             drawLabels(&context, f)
@@ -337,14 +384,14 @@ struct SoccerFrame: View, Equatable {
         if t >= script.stamp, let symbol = context.resolveSymbol(id: Symbol.stamp) {
             clear.append(TheaterTagLayout.stamp(symbol.size, in: f.size, inset: max(f.size.height * 0.055, 9), trailing: script.cornerRight))
         }
-        let shown = figures.indices.filter { script.actors[$0].opacity(at: t) > 0.01 }, well = f.size
+        let shown = figures.indices.filter { seen($0) > 0.01 }, well = f.size
         let ball = ballSpot(f, hands: hands).map { b in
             let r = b.radius + 0.6
             return TheaterTags.Ball(shape: Path(ellipseIn: CGRect(x: b.point.x - r, y: b.point.y - r, width: 2 * r, height: 2 * r)), height: b.height,
                                     opacity: b.opacity)
         }
         return tags.draw(shown.map { i in
-            let seen = script.actors[i].opacity(at: t)
+            let seen = self.seen(i)
             return TheaterTags.Figure(index: i, figure: figures[i].figure, height: figures[i].height, opacity: seen,
                                       drawn: script.actors[i].shaped ? seen * receding(figures[i].figure.ground, size: f.size) : nil)
         }, ball: ball, t: t, size: f.size, clear: clear, ring: ink.tagRing,
@@ -399,10 +446,9 @@ struct SoccerFrame: View, Equatable {
 
     // MARK: Shadows
 
-    private func drawShadows(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed]) {
+    private func drawShadows(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed], ghosts: [Ghost]) {
         // Under the hips; smaller and fainter as he leaves the ground, and gone with him when he leaves the pitch.
-        for (i, p) in figures.enumerated() {
-            let shown = script.actors[i].opacity(at: t)
+        for (p, shown) in figures.indices.map({ (figures[$0], seen($0)) }) + ghosts.map({ ($0.posed, $0.opacity) }) {
             guard shown > 0 else { continue }
             let air = min(p.figure.air / 0.4, 1), w = p.height * 0.3 * (1 - 0.35 * air), g = p.figure.ground
             context.fill(Path(ellipseIn: CGRect(x: g.x - w, y: g.y - w * 0.3, width: 2 * w, height: w * 0.6)),
@@ -429,19 +475,23 @@ struct SoccerFrame: View, Equatable {
 
     /// Where the keeper holding the ball has his hands.
     private func held(_ figures: [Posed]) -> CGPoint? {
-        guard let i = script.heldBy, t >= script.heldFrom, i < figures.count, script.actors[i].opacity(at: t) > 0.01 else { return nil }
+        guard let i = script.heldBy, t >= script.heldFrom, i < figures.count, seen(i) > 0.01 else { return nil }
         return figures[i].hands
     }
 
     /// The goals and the players, far to near (a man in front of the post
     /// covers it), each with the stem of his raised name just before him.
-    private func drawStage(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed], stems: [Int: [TheaterTags.Stem]]) {
+    private func drawStage(_ context: inout GraphicsContext, _ f: PitchProjection, _ figures: [Posed], ghosts: [Ghost], stems: [Int: [TheaterTags.Stem]]) {
         let attacking = FigureInks(teams.attacking, ink: ink, in: context)
         let defending = FigureInks(teams.defending, ink: ink, in: context)
-        let officials = script.actors.contains { $0.team == .official } ? FigureInks(.referee(against: [teams.attacking.jersey, teams.defending.jersey], dark: ink.dark), ink: ink, in: context) : defending
-        let staff = script.actors.contains { $0.team == .staff } ? FigureInks(FootballFrame.staff, ink: ink, in: context) : defending
+        let anyOfficial = script.actors.contains { $0.team == .official } || ghosts.contains { $0.team == .official }
+        let officials = anyOfficial ? FigureInks(.referee(against: [teams.attacking.jersey, teams.defending.jersey], dark: ink.dark), ink: ink, in: context) : defending
+        let staff = script.actors.contains { $0.team == .staff } || ghosts.contains { $0.team == .staff } ? FigureInks(FootballFrame.staff, ink: ink, in: context) : defending
+        // The idle's men fading out wear the idle's colors.
+        let idleInks = bridge.map { (FigureInks($0.teams.attacking, ink: ink, in: context), FigureInks($0.teams.defending, ink: ink, in: context)) }
         enum Item {
             case actor(Int)
+            case ghost(Int)
             case goalBack(right: Bool)
             case nearPost(right: Bool)
             /// From behind a goal: all of it at once, at its goal line.
@@ -449,19 +499,20 @@ struct SoccerFrame: View, Equatable {
         }
         var items: [(depth: Double, item: Item)]
         if let behind = f.behind {
-            items = script.actors.indices.map { (f.depth(FieldPoint(script.actors[$0].position(at: t))), .actor($0)) }
+            items = script.actors.indices.map { (f.depth(FieldPoint(figures[$0].at)), .actor($0)) }
             for right in [false, true] {
                 // The goal in front of the lens covers everyone beyond its line.
                 let line = FieldPoint(x: right ? Pitch.length : 0, y: Pitch.width / 2)
                 items.append((f.depth(line) + (right == behind ? -0.01 : 0.01), .goal(right: right)))
             }
         } else {
-            items = script.actors.indices.map { (script.actors[$0].position(at: t).y, .actor($0)) }
+            items = script.actors.indices.map { (figures[$0].at.y, .actor($0)) }
             for right in [false, true] {
                 items.append((Pitch.posts.far + 0.01, .goalBack(right: right)))
                 items.append((Pitch.posts.near - 0.01, .nearPost(right: right)))
             }
         }
+        items += ghosts.indices.map { k in (f.behind == nil ? ghosts[k].at.y : f.depth(FieldPoint(ghosts[k].at)), .ghost(k)) }
         for (_, item) in items.sorted(by: { $0.depth > $1.depth }) {
             switch item {
             case let .goalBack(right): drawGoal(&context, f, right: right, parts: [.net, .frame])
@@ -469,9 +520,18 @@ struct SoccerFrame: View, Equatable {
             case let .goal(right):
                 // Seen from behind, the net is nearest the lens; from the far end, furthest.
                 drawGoal(&context, f, right: right, parts: right == f.behind ? [.nearPost, .frame, .net] : [.net, .frame, .nearPost])
+            case let .ghost(k):
+                let g = ghosts[k]
+                let inks = switch g.team {
+                case .attacking: idleInks?.0 ?? attacking
+                case .defending: idleInks?.1 ?? defending
+                case .official: officials
+                case .staff: staff
+                }
+                TheaterDraw.figure(g.posed.figure, inks: inks, height: g.posed.height, opacity: g.opacity, in: context)
             case let .actor(i):
                 let actor = script.actors[i], figure = figures[i]
-                let shown = actor.opacity(at: t)
+                let shown = seen(i)
                 guard shown > 0.01 else { continue }
                 // The stem of his raised name just before him: over the men behind him, under the men in front.
                 stems[i]?.forEach { $0.draw(in: context) }
@@ -621,12 +681,22 @@ struct SoccerFrame: View, Equatable {
         context.stroke(mesh, with: .color(ink.net), lineWidth: close ? min(max(f.scale(at: FieldPoint(x: x, y: Pitch.width / 2)) * 0.02, 0.6), 1.1) : 0.5)
     }
 
-    /// A player posed and placed at t: his figure, its height, and where
-    /// his hands are (a keeper holding the ball has it there).
+    /// A player posed and placed at t: his figure, its height, where his
+    /// hands are (a keeper holding the ball has it there), and where he
+    /// stands on the pitch.
     private struct Posed {
         let figure: RigFigure
         let height: CGFloat
         let hands: CGPoint
+        var at = CGPoint.zero
+    }
+
+    /// One of the idle's men the replay doesn't have, fading out over the bridge.
+    private struct Ghost {
+        let posed: Posed
+        let at: CGPoint
+        let opacity: Double
+        let team: SoccerScript.Team
     }
 
     /// Everyone at t, by actor.
@@ -634,10 +704,32 @@ struct SoccerFrame: View, Equatable {
         script.actors.indices.map { place(script.actors[$0], $0, f) }
     }
 
+    /// The idle's men fading out mid-bridge, where the idle has them and as it poses them.
+    private func ghosts(_ f: PitchProjection) -> [Ghost] {
+        guard let b = bridge else { return [] }
+        let idle = SoccerFrame(scene: nil, script: b.script, t: b.t, teams: b.teams, ink: ink, size: size)
+        return b.ghosts.compactMap { j in
+            let actor = b.script.actors[j], o = actor.opacity(at: b.t) * (1 - b.w)
+            guard o > 0.01 else { return nil }
+            let at = actor.position(at: b.t), lens = RigLens(f, at: at)
+            let (body, heading) = idle.pose(actor, j, at: at, unit: lens.unit)
+            let figure = RigFigure(body, heading: heading, lens: lens)
+            return Ghost(posed: Posed(figure: figure, height: lens.height, hands: figure.grip, at: at), at: at, opacity: o, team: actor.team)
+        }
+    }
+
     private func place(_ actor: SoccerScript.Actor, _ index: Int, _ f: PitchProjection) -> Posed {
-        let at = actor.position(at: t)
+        var at = actor.position(at: t)
+        // Mid-bridge: between where the idle has him and his place in the replay, posed between the two, striding along the way.
+        let paired = bridge.flatMap { b in b.pairs[index].map { (b, $0) } }
+        if let (b, j) = paired { at = TheaterBridge.mix(b.script.actors[j].position(at: b.t), at, b.w) }
         let lens = RigLens(f, at: at)
-        let (body, heading) = pose(actor, index, at: at, unit: lens.unit)
+        var (body, heading) = pose(actor, index, at: actor.position(at: t), unit: lens.unit)
+        if let (b, j) = paired {
+            let idle = SoccerFrame(scene: nil, script: b.script, t: b.t, teams: b.teams, ink: ink, size: size), other = b.script.actors[j]
+            (body, heading) = TheaterBridge.pose(from: idle.pose(other, j, at: other.position(at: b.t), unit: lens.unit), to: (body, heading), w: b.w,
+                                                 track: b.tracks[index], s: b.s, at: at, unit: lens.unit)
+        }
         var figure = RigFigure(body, heading: heading, lens: lens)
         // At full stretch, his leading hand goes exactly to the ball.
         if let dive = actor.dive, t >= dive.start {
@@ -647,9 +739,9 @@ struct SoccerFrame: View, Equatable {
             let lead = side > 0 ? figure.hands.1 : figure.hands.0
             let pull = fall > 0 ? 1 - smooth(fall) : smooth(u)
             figure.shift(by: CGVector(dx: (target.x - lead.x) * pull, dy: (target.y - lead.y) * pull))
-            return Posed(figure: figure, height: lens.height, hands: side > 0 ? figure.hands.1 : figure.hands.0)
+            return Posed(figure: figure, height: lens.height, hands: side > 0 ? figure.hands.1 : figure.hands.0, at: at)
         }
-        return Posed(figure: figure, height: lens.height, hands: figure.grip)
+        return Posed(figure: figure, height: lens.height, hands: figure.grip, at: at)
     }
 
     private func smooth(_ u: Double) -> Double { Rig.smooth(u) }
@@ -686,8 +778,6 @@ struct SoccerFrame: View, Equatable {
             case .down: return (base.mix(.down(1), into), m.heading)
             case .kneel: return (base.mix(GridPose.kneel, into), m.heading)
             case .cardUp: base = base.over(.cardUp, into, moving: m.weight)
-            case .ear: base = base.over(.ear, into, moving: m.weight)
-            case .screen: base = base.over(.screen, into, moving: m.weight)
             case .boardUp: base = base.over(.boardUp, into, moving: m.weight)
             }
         }
@@ -730,7 +820,11 @@ struct SoccerFrame: View, Equatable {
 
     /// Where the ball is drawn at t (in the keeper's hands, or where it is), how big, how faint, and a man's height there.
     private func ballSpot(_ f: PitchProjection, hands: CGPoint?) -> (point: CGPoint, radius: CGFloat, opacity: Double, height: CGFloat)? {
-        guard let ball = script.ball(at: t) else { return nil }
+        guard var ball = script.ball(at: t) else { return nil }
+        // Mid-bridge, from where the ball was going round to where the move starts.
+        if let b = bridge, let from = b.script.ball(at: b.t) {
+            ball = FieldPoint(x: from.x + (ball.x - from.x) * b.w, y: from.y + (ball.y - from.y) * b.w, z: from.z + (ball.z - from.z) * b.w)
+        }
         let height = f.figure(at: ball.ground)
         return (hands ?? f.point(ball), min(max(0.3 * f.scale(at: ball), 1.7), max(height * 0.11, 1.7)), script.ballOpacity(at: t), height)
     }
@@ -977,6 +1071,18 @@ struct SoccerTheater: View {
     /// A moment's replay, by its play; a goal struck off by VAR replays as a beat of its own.
     static func key(_ scene: SoccerScene) -> String { scene.review == .overturned ? scene.id + "-var" : scene.id }
 
+    /// How the pitch between moments on screen (`idle` at `t`, its team on
+    /// the ball `possession`) meets a moment's replay that comes in now
+    /// (`side` on the ball): each man from where he is in the shape to his
+    /// place as the move begins, unless the move starts far from where the
+    /// ball was going round (`TheaterBridge.Far.soccer`), or Reduce Motion:
+    /// then a crossfade. (pure; tested)
+    static func bridge(from idle: SoccerScript, possession: GameDetail.Side, at t: Double, to replay: SoccerScript, side: GameDetail.Side,
+                       reduceMotion: Bool, beatLeft: Double? = nil) -> TheaterBridge.Plan {
+        TheaterBridge.plan(idle: idle.bridgeFigures(attacking: possession, at: t), replay: replay.bridgeFigures(attacking: side, at: 0),
+                           room: replay.leadIn, far: TheaterBridge.Far.soccer, reduceMotion: reduceMotion, beatLeft: beatLeft)
+    }
+
     /// ESPN runs a note onto the end of a sentence ("…with a cross.Goal
     /// confirmed following VAR Review."): a space between them.
     static func sentences(_ text: String) -> String {
@@ -1029,6 +1135,8 @@ private struct SoccerStage: View {
     @State private var played: Set<String> = []
     /// When the pitch went idle, and which idle it was.
     @State private var idleClock: IdleClock?
+    /// The pitch between moments a replay is taking over from, while the hand-off runs.
+    @State private var bridge: Bridge?
     @State private var tick = 0
     @State private var hovering = false
     @State private var onScreen = false
@@ -1059,6 +1167,19 @@ private struct SoccerStage: View {
     struct IdleClock: Equatable {
         let key: String
         let since: Date
+    }
+
+    /// The hand-off from the pitch between moments to the replay keyed `id`:
+    /// when the moment came in, the plan, and the idle as it was (its script
+    /// plays on under the bridge, on its own clock from `since`).
+    struct Bridge: Equatable {
+        let id: String
+        let came: Date
+        let plan: TheaterBridge.Plan
+        let idle: SoccerIdle
+        let script: SoccerScript
+        let since: Date
+        let tracks: [Int: RigTrack]
     }
 
     private struct Wake: Equatable {
@@ -1218,6 +1339,7 @@ private struct SoccerStage: View {
                 try? await Task.sleep(for: .seconds(max(script.duration - Date.now.timeIntervalSince(replay.start), 0) + 0.05))
                 guard !Task.isCancelled, self.replay?.id == replay.id else { return }
                 self.replay?.done = true
+                bridge = nil
                 return
             }
             // Done: its end holds a while (unless the next moment comes), then the pitch goes on.
@@ -1265,9 +1387,26 @@ private struct SoccerStage: View {
         let status = banner || t >= script.stamp ? TheaterStatus() : SoccerStatus.replay(scene, names: names)
         let tags = TheaterTags(cast: cast, labels: labels, pointer: pointer, at: date, reduceMotion: reduceMotion, status: status.tag, flip: hovering,
                                heartbeat: heartbeat)
+        // Taking over from the pitch between moments: the men travel (the frame blends), or the idle fades out over the move's start.
+        let handoff = bridge.flatMap { b -> (Bridge, s: Double)? in
+            let s = date.timeIntervalSince(b.came)
+            return b.id == SoccerTheater.key(scene) && s < b.plan.end ? (b, s) : nil
+        }
+        let blend = handoff.flatMap { h -> SoccerFrame.Bridge? in
+            h.0.plan.mode == .bridge ? SoccerFrame.Bridge(script: h.0.script, t: h.0.script.idleTime(date.timeIntervalSince(h.0.since)), w: h.0.plan.weight(h.s),
+                                                          s: h.s, pairs: h.0.plan.pairs, tracks: h.0.tracks, teams: self.teams(h.0.idle.possession)) : nil
+        }
+        // A crossfade: the two frames each partly there (where a frame leaves its well bare, the other never shows through it alone).
+        let fade = handoff.map { $0.0.plan.mode == .crossfade ? $0.0.plan.weight($0.s) : 1 } ?? 1
         return ZStack(alignment: .topLeading) {
-            SoccerFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: size, tags: tags)
+            SoccerFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: size, tags: tags, bridge: blend)
                 .equatable()
+                .opacity(fade)
+            if let h = handoff, h.0.plan.mode == .crossfade {
+                SoccerFrame(scene: nil, script: h.0.script, t: h.0.script.idleTime(date.timeIntervalSince(h.0.since)), teams: self.teams(h.0.idle.possession),
+                            ink: ink, size: size)
+                    .opacity(1 - h.0.plan.weight(h.s))
+            }
             TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
         }
     }
@@ -1306,7 +1445,29 @@ private struct SoccerStage: View {
             return
         }
         guard state.news, let scene = state.scene, replay?.id != scene.id else { return }
-        replay = Replay(id: scene.id, start: .now, done: reduceMotion)
+        // The pitch between moments was on screen (nothing replayed yet, or the last one's end had held): the replay takes over from it.
+        let fromIdle = replay == nil || rested == replay?.id
+        bridge = nil
+        let now = Date.now
+        guard fromIdle, !reduceMotion, onScreen, let idleClock, let shown = built.shown else {
+            replay = Replay(id: scene.id, start: now, done: reduceMotion)
+            return
+        }
+        let drawn = drawn(scene), script = built.script(for: drawn, lineups: state.lineups)
+        let elapsed = now.timeIntervalSince(idleClock.since), t = shown.script.idleTime(elapsed)
+        let beatLeft = shown.script.beats.first { t >= $0.lowerBound && t < $0.upperBound }.map { $0.upperBound - t }
+        let plan = SoccerTheater.bridge(from: shown.script, possession: shown.idle.possession, at: t, to: script, side: drawn.side,
+                                        reduceMotion: reduceMotion, beatLeft: beatLeft)
+        let tracks = TheaterBridge.tracks(plan, height: 2.5, idle: { j, s in
+            let u = shown.script.idleTime(elapsed + s)
+            return (shown.script.actors[j].position(at: u), j < shown.script.rig.count ? shown.script.rig[j].motion(at: u).heading : 0)
+        }, replay: { i, s in
+            let u = plan.replayTime(s)
+            return (script.actors[i].position(at: u), i < script.rig.count ? script.rig[i].motion(at: u).heading : 0)
+        })
+        bridge = Bridge(id: scene.id, came: now, plan: plan, idle: shown.idle, script: shown.script, since: idleClock.since, tracks: tracks)
+        TheaterDelays.note(scene.id, plan.delay)
+        replay = Replay(id: scene.id, start: now.addingTimeInterval(plan.delay))
     }
 }
 
@@ -1337,6 +1498,12 @@ private final class ScriptCache {
             idleScript = SoccerScript(idle: idle)
         }
         return idleScript!
+    }
+
+    /// The pitch between moments last drawn: what's on screen when a moment comes in.
+    var shown: (idle: SoccerIdle, script: SoccerScript)? {
+        guard let idle, let idleScript else { return nil }
+        return (idle, idleScript)
     }
 }
 

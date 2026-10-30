@@ -229,7 +229,7 @@ struct FigureInks {
     let legs: GraphicsContext.Shading
     /// An official's stripes, if the uniform has them.
     let stripes: GraphicsContext.Shading?
-    /// Whether anything differs from a plain jersey (stripes, other legs): then each limb is drawn on its own.
+    /// Whether the legs differ from the jersey: then each limb is drawn on its own.
     let dressed: Bool
     private let color: Color
     private let legColor: Color
@@ -248,7 +248,7 @@ struct FigureInks {
         cap = context.resolve(.color(uniform.cap))
         legs = uniform.legs.map { context.resolve(.color($0)) } ?? jersey
         stripes = uniform.stripes.map { context.resolve(.color($0)) }
-        dressed = uniform.stripes != nil || uniform.legs != nil
+        dressed = uniform.legs != nil
         color = uniform.jersey
         legColor = uniform.legs ?? uniform.jersey
         deepest = ink.dark ? 0.32 : 0.22
@@ -322,16 +322,10 @@ enum TheaterDraw {
         // The outline: every part's, grown by the halo, filled as one shape.
         context.fill(outline(figure, grown: halo(height)), with: inks.rim)
         let style = StrokeStyle(lineWidth: figure.limb, lineCap: .round, lineJoin: .round)
-        // An official's stripes: as many as read at this size (four across the body at a theater's), the sleeves' as wide.
-        let bands = inks.stripes == nil ? 0 : min(max(Int((figure.torso / 0.5 - 1) / 2), 1), 4) * 2 + 1
         func paint(_ l: RigFigure.Limb, _ shade: Int) {
             var p = Path()
             p.addLines([l.root, l.joint, l.end])
             context.stroke(p, with: inks.shade(shade, of: l, in: context), style: style)
-            if l.arm, let ink = inks.stripes {
-                let wide = figure.torso / CGFloat(bands), across = max(Int((figure.limb / wide - 1) / 2), 1) * 2 + 1
-                if figure.limb / CGFloat(across) >= 0.4 { stripes([l.root, l.joint, l.end], w, bands: across, ink: ink, in: context) }
-            }
         }
         // Behind the body, far to near: a run of the same shade in one stroke (one at a time in an official's kit).
         var drawn: [Bone] = []
@@ -353,7 +347,7 @@ enum TheaterDraw {
             context.stroke(run, with: inks.shade(shade, in: context), style: style)
         }
         context.stroke(figure.body, with: inks.jersey, style: StrokeStyle(lineWidth: figure.torso, lineCap: .round))
-        if let ink = inks.stripes { stripes([figure.hip, figure.neck], figure.torso / 2, bands: bands, ink: ink, in: context) }
+        if let ink = inks.stripes { zebra(figure, ink: ink, in: context) }
         drawn.append(Bone(a: figure.hip, b: figure.neck, r: figure.torso / 2, body: true))
         let head = Path(ellipseIn: figure.headRect)
         let under = limbs[i...].filter(\.underHead), over = limbs[i...].filter { !$0.underHead }
@@ -405,37 +399,45 @@ enum TheaterDraw {
         over.forEach(cross)
     }
 
-    /// Stripes along a part (the body, a sleeve) `r` either side of its
-    /// line: `bands` across it, light and dark by turns, light at its edges;
-    /// kept to the part, so they never leave the figure.
-    private static func stripes(_ line: [CGPoint], _ r: CGFloat, bands: Int, ink: GraphicsContext.Shading, in context: GraphicsContext) {
-        // Each segment's way; a segment with no length takes its neighbour's.
-        let ways = zip(line, line.dropFirst()).map { a, b -> CGVector in
-            let d = hypot(b.x - a.x, b.y - a.y)
-            return d > 1e-6 ? CGVector(dx: (b.x - a.x) / d, dy: (b.y - a.y) / d) : .zero
-        }
-        guard let way = ways.first(where: { $0 != .zero }) else { return }
-        let dirs = ways.map { $0 == .zero ? way : $0 }
-        let band = 2 * r / CGFloat(bands)
-        var p = Path()
-        for k in stride(from: 1, to: bands, by: 2) {
-            let off = -r + (CGFloat(k) + 0.5) * band
-            for (j, d) in dirs.enumerated() {
-                let n = CGVector(dx: -d.dy * off, dy: d.dx * off)
-                // Run past the ends: the part's round ends trim them.
-                var a = line[j], b = line[j + 1]
-                if j == 0 { a = CGPoint(x: a.x - d.dx * r, y: a.y - d.dy * r) }
-                if j == dirs.count - 1 { b = CGPoint(x: b.x + d.dx * r, y: b.y + d.dy * r) }
-                let from = CGPoint(x: a.x + n.dx, y: a.y + n.dy), to = CGPoint(x: b.x + n.dx, y: b.y + n.dy)
-                if j == 0 { p.move(to: from) } else { p.addLine(to: from) }
-                p.addLine(to: to)
+    /// An official's shirt, as a pictogram draws it: a few bold, even black
+    /// stripes down the torso, white between them and at its edges, clipped
+    /// to the body's own shape (the arms and the head go over it as they
+    /// would over a jersey). Two where the torso has room for them to
+    /// read, one on the smallest figures (`zebraBands`).
+    static func zebra(_ figure: RigFigure, ink: GraphicsContext.Shading, in context: GraphicsContext) {
+        let a = figure.hip, b = figure.neck, r = figure.torso / 2
+        let d = hypot(b.x - a.x, b.y - a.y)
+        let along = d > 1e-6 ? CGVector(dx: (b.x - a.x) / d, dy: (b.y - a.y) / d) : CGVector(dx: 0, dy: -1)
+        let across = CGVector(dx: -along.dy, dy: along.dx)
+        let bands = zebraBands(figure.torso)
+        var stripes = Path()
+        var x = -r + bands.white
+        for _ in 0..<bands.count {
+            // Each stripe overruns the body's round ends: the clip trims it.
+            func corner(_ o: CGFloat, _ from: CGPoint, _ out: CGFloat) -> CGPoint {
+                CGPoint(x: from.x + across.dx * o + along.dx * out, y: from.y + across.dy * o + along.dy * out)
             }
+            stripes.addLines([corner(x, a, -r), corner(x + bands.black, a, -r), corner(x + bands.black, b, r), corner(x, b, r)])
+            stripes.closeSubpath()
+            x += bands.black + bands.white
         }
-        var part = Path()
-        for (a, b) in zip(line, line.dropFirst()) { capsule(a, b, r, into: &part) }
-        var c = context
-        c.clip(to: part)
-        c.stroke(p, with: ink, style: StrokeStyle(lineWidth: band, lineCap: .butt, lineJoin: .round))
+        var body = Path()
+        capsule(a, b, r, into: &body)
+        var layer = context
+        layer.clip(to: body)
+        layer.fill(stripes, with: ink)
+    }
+
+    /// The zebra's stripes for a torso this wide: how many black ones, and
+    /// how wide each black and white band is. Every band the same width,
+    /// so black and white both read bold (a pictogram's stripes, never
+    /// pinstripes): two once the torso has room, one on the smallest
+    /// figures. (pure; tested)
+    static func zebraBands(_ torso: CGFloat) -> (count: Int, black: CGFloat, white: CGFloat) {
+        let count = torso >= 3 ? 2 : 1
+        // `count` black and `count + 1` white, all one width.
+        let unit = torso / CGFloat(2 * count + 1)
+        return (count, unit, unit)
     }
 
     /// A drawn part of a figure: a segment and how far round it.

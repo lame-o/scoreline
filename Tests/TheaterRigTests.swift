@@ -221,7 +221,7 @@ extension ScorelineTests {
         check(apart <= 2, "a fading figure fades as one: half the figure, never one part showing through another",
               String(format: "%.0f/255 apart", apart))
 
-        // An official's kit: stripes down the body (four at a theater's size) and the sleeves, legs in their own color,
+        // An official's kit: a few bold stripes down the body (two at this size), legs in their own color,
         // all inside the figure (its outline untouched); a plain uniform exactly as it was.
         var striped = white, slacks = white, own = white
         striped.stripes = .black
@@ -252,8 +252,8 @@ extension ScorelineTests {
                 dark = now
             }
         }
-        check(stripesAcross == 4 && outside == 0 && legsDiffer && plainSame,
-              "an official's kit: four stripes down the body at a theater's size and slacks of their own, all inside the outline; a plain uniform as it was",
+        check(stripesAcross == 2 && outside == 0 && legsDiffer && plainSame,
+              "an official's kit: two bold stripes down the body and slacks of their own, all inside the outline; a plain uniform as it was",
               "\(stripesAcross) stripes, \(outside) pixels outside")
 
         // Each sport's officials in their own kit: soccer's referee in yellow unless a team wears it.

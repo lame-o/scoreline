@@ -76,6 +76,7 @@ struct ScorelineTests {
         playLive()
         playBeats()
         playUmpire()
+        playFlow()
         headerSync()
         await scoringSlides()
         odds()

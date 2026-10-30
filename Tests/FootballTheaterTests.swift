@@ -474,7 +474,7 @@ extension ScorelineTests {
             check(s.yaw == 0 && through.map { abs($0.x) < Gridiron.upright && $0.z > Gridiron.crossbar } == true && s.banner == nil
                   && stamp(attempt) == "XP ✓" && FootballStamp(attempt).title == "Elliott",
                   "…replayed as its own beat: through the uprights, no headline, XP ✓ by Elliott")
-            check(s.duration < 3.6 && s.duration < (script("9213")?.duration ?? 0), "…and a short one, shorter than a field goal's",
+            check(s.duration < 4.2 && s.duration < (script("9213")?.duration ?? 0), "…and a short one, shorter than a field goal's",
                   String(format: "%.2f s", s.duration))
         } else {
             check(false, "the touchdown's extra point")
@@ -534,7 +534,7 @@ extension ScorelineTests {
               "once the stamp has landed nobody stands in its corner: not the pile as the play holds, not at rest; the camera's move to rest rarely brushes it",
               "hold \(hold.crowded) of \(hold.frames), to rest \(toRest.crowded) of \(toRest.frames), at rest \(atRest)")
         let median = lengths.sorted()[lengths.count / 2]
-        check(median < 4.6, "the replays are brisk: half of them done in under 4.6 s", String(format: "median %.2f s", median))
+        check(median < 5.2, "the replays stay brisk with the action slowed 1.3×: half of them done in under 5.2 s", String(format: "median %.2f s", median))
 
         // MARK: Between plays
 
@@ -994,9 +994,9 @@ extension ScorelineTests {
             !(stride(from: 0.0, through: s.duration, by: 0.1).allSatisfy { t in
                 s.players.allSatisfy { p in let q = p.position(at: t); return q.x.isFinite && q.y.isFinite }
                     && (s.ball(at: t).map { $0.x.isFinite && $0.y.isFinite && $0.z >= -0.01 } ?? true)
-            } && s.duration > 2 && s.duration < 11 && s.stamp < s.settle)
+            } && s.duration > 2 && s.duration < 12.5 && s.stamp < s.settle)
         }
-        check(sane.isEmpty, "every play of two college games and the NFL's turnovers, hits and flags: finite, the ball never under the grass, 2–11 s",
+        check(sane.isEmpty, "every play of two college games and the NFL's turnovers, hits and flags: finite, the ball never under the grass, 2–12.5 s (a kick and its return, slowed)",
               sane.prefix(3).map { "\($0.0.text.prefix(50)) \($0.1.duration)" }.joined(separator: " | "))
         let teams = FootballTeams(offense: Uniform(.blue), defense: Uniform(.orange))
         let broken = scripts.filter { scene, _ in !scene.flags.isEmpty || scene.loose != nil || scene.pressure != nil || scene.blocker != nil }

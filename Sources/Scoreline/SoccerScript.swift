@@ -15,7 +15,8 @@ import SwiftUI
 // net when it's on target; then the payoff holds: the net ripples and the
 // scorer wheels away, or the keeper comes up with it (or punches it to where
 // it landed). The replay ends on the frame the theater holds until the next
-// moment.
+// moment. Squeezed into five seconds, a build-up runs quicker than life, so
+// it's played `buildUpPace` (1.3×) slower; the shot keeps its own pace.
 //
 // The men who touched the ball are where they touched it, struck with the
 // foot or the head Opta logs; with the lineups, everyone else in both
@@ -24,15 +25,15 @@ import SwiftUI
 // the headline lands, and where the broadcast camera looks.
 
 struct SoccerScript: Equatable {
-    /// The team on the ball and the other; between moments, the officials
-    /// and the physios too (SoccerIdle.swift).
+    /// The team on the ball and the other; between moments, an official for
+    /// his act (a booking, an offside, a substitution) and the physios too
+    /// (SoccerIdle.swift).
     enum Team { case attacking, defending, official, staff }
 
     /// A pose held for a while between moments: a man down, a physio on a
-    /// knee, the referee's card or the assistant's flag up, a hand to the
-    /// ear for VAR, the sign for the screen, the board held up.
+    /// knee, the referee's card or the assistant's flag up, the board held up.
     struct Hold: Equatable {
-        enum Kind: Equatable { case down, kneel, cardUp, ear, screen, boardUp }
+        enum Kind: Equatable { case down, kneel, cardUp, boardUp }
         var kind: Kind
         var from: Double
         var until = Double.infinity
@@ -274,6 +275,29 @@ struct SoccerScript: Equatable {
         return held
     }
 
+    /// Everyone as the hand-off from the pitch between moments matches them
+    /// (TheaterBridge): by side (`attacking` is on the ball here; the
+    /// officials and the physios on their own), the keepers with each
+    /// other, the same man by his athlete; where each is at t.
+    func bridgeFigures(attacking: GameDetail.Side, at t: Double) -> [TheaterBridge.Figure] {
+        actors.map { a in
+            let group = switch a.team {
+            case .attacking: attacking == .top ? 0 : 1
+            case .defending: attacking == .top ? 1 : 0
+            case .official: 2
+            case .staff: 3
+            }
+            return TheaterBridge.Figure(group: group, kind: a.role == .keeper ? "keeper" : "", athlete: a.athlete, at: a.position(at: t))
+        }
+    }
+
+    /// The replay's own lead-in: the moment before the first touch is
+    /// played (the shape only drifting with the ball, the taker over a set
+    /// piece), which a hand-off from the pitch between moments uses first.
+    var leadIn: Double {
+        max(flights.first { $0.end - $0.start > 0.05 }?.start ?? strike, 0)
+    }
+
     func ballOpacity(at t: Double) -> Double {
         ballGone.isFinite ? 1 - min(max((t - ballGone) / 0.3, 0), 1) : 1
     }
@@ -292,7 +316,7 @@ extension SoccerScript {
     /// The moment's replay, with everyone in both starting elevens when
     /// the lineups are known. (`SoccerScript()` is the pitch with nobody on
     /// it: no moment yet.)
-    init(_ scene: SoccerScene, lineups: [GameDetail.Side: SoccerLineup] = [:]) {
+    init(_ scene: SoccerScene, lineups: [GameDetail.Side: SoccerLineup] = [:], pace: Double = SoccerScript.buildUpPace) {
         var b = Builder(scene: scene, lineups: lineups)
         b.buildUp()
         b.strike()
@@ -301,6 +325,10 @@ extension SoccerScript {
         b.cut()
         b.squads()
         b.finish()
+        // The build-up slowed, from the first pass to the strike; the shot and the payoff keep their pace.
+        if pace != 1, let first = b.script.flights.first(where: { $0.end - $0.start > 0.05 })?.start, first < b.script.strike {
+            b.stretch(pace, from: first, to: b.script.strike)
+        }
         b.headline()
         b.measureStamp()
         b.shoot()
@@ -340,6 +368,12 @@ extension SoccerScript {
     /// The build-up runs no longer than this, if it can help it: a longer
     /// move plays its early passes faster.
     static let buildUpLimit = 5.0
+    /// How much slower the build-up plays than it's laid out (the shot and
+    /// the payoff keep their pace). Measured on the fixtures' moments, the
+    /// squeezed build-up ran faster than life: passes along the grass at the
+    /// 30 m/s cap (median), against life's 12–20; the men's top speeds at a
+    /// median 17 m/s, against a sprint's 9–10. The most it may slow, 1.3×.
+    static let buildUpPace = 1.3
 
     /// Assembles a script beat by beat.
     struct Builder {
@@ -437,6 +471,43 @@ extension SoccerScript {
 
         /// A lofted ball's height over the line: higher the longer it goes.
         func peak(_ d: Double, cross: Bool) -> Double { cross ? min(2.2 + d * 0.09, 7) : min(2.5 + d * 0.11, 11) }
+
+        // MARK: Pace
+
+        /// What's laid out so far, from `a` to `b`, played `k` times slower:
+        /// every moment in it moved along the slower clock, every one after
+        /// it moved later by as much; nothing before it changes.
+        mutating func stretch(_ k: Double, from a: Double, to b: Double) {
+            let pace = FootballScript.Pace(from: a, to: max(b, a), factor: k)
+            func r(_ t: Double) -> Double { pace.stretched(t) }
+            for i in script.actors.indices {
+                var p = script.actors[i]
+                p.moves = p.moves.map { PlayScript.Move(start: r($0.start), end: r($0.end), path: $0.path, ease: $0.ease) }
+                p.actions = p.actions.map { var x = $0; x.at = r(x.at); return x }
+                p.dive = p.dive.map { var d = $0; d.start = r(d.start); d.reach = r(d.reach); return d }
+                p.holds = p.holds.map { var h = $0; h.from = r(h.from); h.until = r(h.until); return h }
+                p.looks = p.looks.map { var l = $0; l.from = r(l.from); return l }
+                p.appear = r(p.appear)
+                p.vanish = r(p.vanish)
+                script.actors[i] = p
+            }
+            for i in script.flights.indices {
+                script.flights[i].start = r(script.flights[i].start)
+                script.flights[i].end = r(script.flights[i].end)
+            }
+            script.impacts = script.impacts.map { var x = $0; x.at = r(x.at); return x }
+            script.reverse = script.reverse.map { var x = $0; x.from = r(x.from); x.until = r(x.until); return x }
+            script.strike = r(script.strike)
+            script.arrive = r(script.arrive)
+            script.stamp = r(script.stamp)
+            script.heldFrom = r(script.heldFrom)
+            script.ballGone = r(script.ballGone)
+            script.settle = r(script.settle)
+            script.duration = r(script.duration)
+            payoffAt = r(payoffAt)
+            possession = possession.map { (r($0.from), r($0.to), $0.actors, $0.flight) }
+            marks = marks.mapValues { $0.map { var m = $0; m.t = r(m.t); return m } }
+        }
 
         // MARK: Build-up
 

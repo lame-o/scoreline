@@ -9,7 +9,8 @@ import SwiftUI
 // man the data credits, who goes where a player of his position would come
 // from (a center from the block, a guard from the arc). Each free throw is
 // its own beat (the shooter's routine is his own, every trip), each whistle
-// is called at ESPN's spot by a referee who runs in to make it, each turnover
+// is called at ESPN's spot by a referee who runs in to make it (and goes once
+// he has: a referee is on the floor only while he's doing something), each turnover
 // is told by its kind (picked off, poked loose, out of bounds, a travel, a
 // charge with the defender on the floor), and the stoppages (substitutions,
 // timeouts, reviews, the ends of periods) take the floor where it stood.
@@ -248,7 +249,8 @@ extension BasketballScript.Builder {
 
     /// The referee nearest the call comes in to see it (the lead on the
     /// baseline for one near the basket, else the trail on the near
-    /// sideline), whistles at `t` and signals.
+    /// sideline), whistles at `t` and signals; then he's gone (fading out
+    /// as his signal comes down: standing there he'd only be in the way).
     @discardableResult
     mutating func whistle(at t: Double, spot: CGPoint, signal: Action.Kind = .signal, toward: CGPoint? = nil) -> Int {
         let deep = spot.x > 79
@@ -256,12 +258,17 @@ extension BasketballScript.Builder {
         let from = deep ? CGPoint(x: 95.6, y: stand.y + (spot.y >= 25 ? 4 : -4)) : CGPoint(x: stand.x - 6, y: stand.y)
         var ref = Player(team: .official, at: from)
         ref.enters = max(t - 0.9, -0.3)
+        ref.leaves = t + Self.signalled
         ref.move(to: [stand], from: max(t - 0.7, 0), to: t, ease: .out)
         ref.act(signal, at: t + 0.06, toward: toward ?? spot)
         script.players.append(ref)
         script.flashes.append(Flash(beat: .whistle, at: t, point: FieldPoint(stand, z: 6.2)))
         return script.players.count - 1
     }
+
+    /// How long a referee stays after his whistle: his signal held and
+    /// lowered, then he fades.
+    static let signalled = 1.5
 
     /// Play stops at the whistle: everyone eases to a stop just past where
     /// he was going (`except` aside).
@@ -654,7 +661,6 @@ extension BasketballScript.Builder {
         }
         // The shooter is the one at the line.
         trade(0, nearest(Array(0..<5), to: line))
-        let official = laneOfficial()
         // His routine: seeded by him, so it's the same every trip.
         var routine = SplitMix64(seed: Celebration.seed("routine·" + (scene.shooter?.id ?? scene.shooter?.name ?? scene.id)))
         let dribbles = Int(routine.in(1...3.99))
@@ -695,8 +701,10 @@ extension BasketballScript.Builder {
                 arrive = f.end
             }
             if !last {
-                // The referee takes it under the basket.
+                // The referee in under the basket to take it for the next one, and gone with it.
+                let official = laneOfficial(from: arrive - 0.6)
                 walk(official, to: [CGPoint(x: 93.2, y: 25 + (position(official, 0).y > 25 ? 2.5 : -2.5))], from: arrive, to: arrive + 0.7, ease: .out)
+                script.players[official].leaves = arrive + 1.2
             }
         } else {
             let c = Self.carom(missOf(scene))
@@ -741,10 +749,10 @@ extension BasketballScript.Builder {
         start = Lineup(offense: offense, at: ours + theirs, holder: 0, ball: nil, formation: .lane)
     }
 
-    /// The lead referee under the basket for free throws.
-    mutating func laneOfficial() -> Int {
+    /// The lead referee under the basket for free throws, on the floor from `from`.
+    mutating func laneOfficial(from: Double = -1) -> Int {
         var ref = Player(team: .official, at: CGPoint(x: 95.2, y: 21))
-        ref.enters = -1
+        ref.enters = from
         script.players.append(ref)
         return script.players.count - 1
     }
@@ -1099,6 +1107,8 @@ extension BasketballScript.Builder {
         fly(from: FieldPoint(c, z: 13.2), to: FieldPoint(c, z: 12.4), start: top, time: tip - top, arc: .straight)
         act(official, .toss, at: toss, toward: c)
         walk(official, to: [CGPoint(x: c.x, y: c.y - 6)], from: toss + 0.1, to: toss + 0.9)
+        // Out of the circle, and gone.
+        script.players[official].leaves = toss + 1.2
         for j in [0, 5] {
             jump(j, from: tip - 0.36, peak: tip, until: tip + 0.4, height: 2.6)
             act(j, .tip, at: tip, toward: c)
@@ -1527,14 +1537,14 @@ extension BasketballScript.Builder {
     // MARK: Free throws to come
 
     /// Free throws to come: everyone walks to the lane (the man fouled to the
-    /// line), the referee under the basket bounces him the ball; then a
-    /// shuffle now and then.
+    /// line), the referee under the basket bounces him the ball and goes;
+    /// then a shuffle now and then. (Already on the lane, the shooter has
+    /// the ball: no referee.)
     mutating func laneRest(_ rest: BasketballScript.Rest) -> Double {
         script.formation = .lane
         let line = CGPoint(x: Hoops.freeThrow - 0.6, y: 25)
         var t = 0.0
         if place(rest.from, allowed: [.lane]) {
-            _ = laneOfficial()
             hold(start?.holder ?? 0, from: 0, until: .infinity)
         } else {
             let from = rest.from
@@ -1565,6 +1575,7 @@ extension BasketballScript.Builder {
             // The ball from the referee to the man at the line.
             script.legs = [BasketballScript.Leg(from: 0, until: t + 0.4, hand: .held(ref))]
             let caught = pass(ref, to: 0, at: t + 0.4, point: line, style: .bounce)
+            script.players[ref].leaves = caught + 0.8
             hold(0, from: caught, until: .infinity)
             t = caught + 0.2
         }

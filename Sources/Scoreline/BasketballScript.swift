@@ -22,7 +22,10 @@ import SwiftUI
 //
 // Time is a replay's: half a second on the set, then the play at about game
 // speed (a three's flight 1.2 s), the stamp a beat after the net, and the
-// court holds the end until the camera settles.
+// court holds the end until the camera settles. The approach (the passes,
+// the drive, the cut, up to the shooter gathering) is laid out a touch
+// quicker than life and played `approachPace` (1.2×) slower; the shot itself
+// keeps gravity's honest time.
 
 // MARK: - The court
 
@@ -126,7 +129,8 @@ extension RigLens {
 // MARK: - Script
 
 struct BasketballScript: Equatable {
-    /// The two fives, and the referee who comes in to make a call.
+    /// The two fives, and the referee who comes in to make a call (on the
+    /// floor only while he's doing something).
     enum Team { case offense, defense, official }
 
     /// A moment of the play in his hands (or reaching for it).
@@ -304,6 +308,27 @@ struct BasketballScript: Equatable {
 
     func room(_ p: FieldPoint, figure: Bool) -> CGRect { Hoops.room(p, figure: figure, yaw: yaw) }
 
+    /// The ten as the hand-off from the court between plays matches them
+    /// (TheaterBridge): by side (`side` has the ball here), where each is at t.
+    func bridgeFigures(at t: Double) -> [TheaterBridge.Figure] {
+        let offense = side ?? .top
+        return players.map { p in
+            let group = switch p.team {
+            case .offense: offense == .top ? 0 : 1
+            case .defense: offense == .top ? 1 : 0
+            case .official: 2
+            }
+            return TheaterBridge.Figure(group: group, at: p.position(at: t))
+        }
+    }
+
+    /// The replay's own lead-in: its set's still moment before anyone (or
+    /// the ball) moves, which a hand-off from the court between plays uses first.
+    var leadIn: Double {
+        let moves = players.compactMap { $0.moves.first?.start }, thrown = flights.map(\.start)
+        return max((moves + thrown).min() ?? 0.45, 0)
+    }
+
     /// A broadcast tag over the play: its words, whose color, and from when.
     struct Tag: Equatable {
         var text: String
@@ -378,12 +403,21 @@ struct BasketballScript: Equatable {
 // MARK: - Building
 
 extension BasketballScript {
+    /// How much slower a replay's approach plays than it's laid out: from
+    /// the set until the shooter gathers (the passes, the drive, the cut).
+    /// Measured on the night's replays, the men's top speeds as laid out ran
+    /// past a sprint (median 11 m/s, against 9–10) while the passes sat at
+    /// life's 10–15 m/s (median 12): 1.2× brings the men to a sprint's
+    /// ceiling and keeps the passes in life's band (1.3 would drop them
+    /// under it). The shot's flight, timed by gravity, and everything after
+    /// it keep their pace.
+    static let approachPace = 1.2
 
     /// A play replayed in full (the marquee). `right`: it's at the right
     /// basket (nil: the whole-game convention, the top team's at the right).
-    init(_ scene: BasketballScene, right: Bool? = nil) {
+    init(_ scene: BasketballScene, right: Bool? = nil, pace: Double = BasketballScript.approachPace) {
         var b = Builder(scene: scene, offense: scene.offense, right: right ?? (scene.offense != .bottom))
-        b.build()
+        b.build(pace: pace)
         self = b.script
         measureBodies()
     }
@@ -728,7 +762,7 @@ extension BasketballScript {
 
         // MARK: Build
 
-        mutating func build() {
+        mutating func build(pace: Double = BasketballScript.approachPace) {
             guard let scene else { return }
             if scene.kind == .freeThrow {
                 freeThrow()
@@ -744,11 +778,49 @@ extension BasketballScript {
             if scene.assister != nil { credit(script.shooter.flatMap { passers[$0] }, scene.assister) }
             if scene.blocker != nil { credit((5..<script.players.count).first { k in script.players[k].actions.contains { $0.kind == .block } }, scene.blocker) }
             aftermath()
+            // The approach slowed, up to the shooter gathering (his shot's motion begins half a second before it leaves his hand).
+            if pace != 1, let release = script.release {
+                let lead = script.leadIn
+                stretch(pace, from: lead, to: max(release - 0.55, lead))
+            }
             finish()
             headline()
             measureStamp()
             settle()
             shoot()
+        }
+
+        // MARK: Pace
+
+        /// What's laid out so far, from `a` to `b`, played `k` times slower:
+        /// every moment in it moved along the slower clock, every one after
+        /// it moved later by as much; nothing before it changes.
+        mutating func stretch(_ k: Double, from a: Double, to b: Double) {
+            let pace = FootballScript.Pace(from: a, to: max(b, a), factor: k)
+            func r(_ t: Double) -> Double { pace.stretched(t) }
+            for i in script.players.indices {
+                var p = script.players[i]
+                p.moves = p.moves.map { PlayScript.Move(start: r($0.start), end: r($0.end), path: $0.path, ease: $0.ease) }
+                p.actions = p.actions.map { var x = $0; x.at = r(x.at); return x }
+                p.jumps = p.jumps.map { var j = $0; j.from = r(j.from); j.peak = r(j.peak); j.until = r(j.until); return j }
+                p.enters = r(p.enters)
+                p.leaves = r(p.leaves)
+                script.players[i] = p
+            }
+            for i in script.flights.indices {
+                script.flights[i].start = r(script.flights[i].start)
+                script.flights[i].end = r(script.flights[i].end)
+            }
+            script.legs = script.legs.map { var l = $0; l.from = r(l.from); l.until = r(l.until); return l }
+            script.flashes = script.flashes.map { var f = $0; f.at = r(f.at); return f }
+            script.net = script.net.map { var n = $0; n.at = r(n.at); return n }
+            script.rimHit = script.rimHit.map(r)
+            script.score = script.score.map(r)
+            script.release = script.release.map(r)
+            script.stamp = r(script.stamp)
+            script.look = script.look.map { var l = $0; l.from = r(l.from); return l }
+            over = r(over)
+            arrive = r(arrive)
         }
 
         // MARK: The half court

@@ -195,7 +195,7 @@ extension ScorelineTests {
         }
         check(finite, "every moment's players and ball stay finite, the ball never under the grass")
         let lengths = scripts.map { $0.1.duration }
-        check(lengths.allSatisfy { $0 >= 3 && $0 <= 11 }, "every replay runs 3–11 s",
+        check(lengths.allSatisfy { $0 >= 3 && $0 <= 12 }, "every replay runs 3–12 s (its build-up played 1.3× slower)",
               "\(String(format: "%.1f", lengths.min() ?? 0))–\(String(format: "%.1f", lengths.max() ?? 0))")
         // The ball never jumps: each flight starts where (and how high) the one before ended, or at a player's feet.
         let jumps = scripts.filter { _, s in
@@ -411,7 +411,8 @@ extension ScorelineTests {
         // MARK: The pace of a move
 
         if let s = header?.scene {
-            let script = SoccerScript(s)
+            // As the move is laid out (it then plays `buildUpPace` slower).
+            let script = SoccerScript(s, pace: 1)
             let passes = script.flights.filter { $0.kind == .pass && $0.end <= script.strike + 0.01 }
             let cross = passes.last
             let d = cross.map { hypot($0.to.x - $0.from.x, $0.to.y - $0.from.y) } ?? 0
@@ -426,8 +427,8 @@ extension ScorelineTests {
         }
         check(scripts.allSatisfy { _, s in s.flights.filter { $0.kind == .pass }.allSatisfy { $0.end - $0.start >= 0.2 - 1e-9 } },
               "no pass so hurried it reads as a jump")
-        check(scripts.allSatisfy { scene, s in s.strike <= (scene.start == .openPlay ? 0.5 : 1.3) + SoccerScript.buildUpLimit + 0.6 },
-              "every build-up comes in around five seconds")
+        check(scripts.allSatisfy { scene, s in s.strike <= (scene.start == .openPlay ? 0.5 : 1.3) + (SoccerScript.buildUpLimit + 0.6) * SoccerScript.buildUpPace },
+              "every build-up comes in around five seconds as laid out, six and a half as it plays (1.3× slower)")
 
         // MARK: The stamp's corner
 
