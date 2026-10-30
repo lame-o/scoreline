@@ -80,6 +80,7 @@ struct ScorelineTests {
         headerSync()
         await scoringSlides()
         odds()
+        modules()
         await replays()
 
         print("\n\(passes) passed, \(failures) failed")

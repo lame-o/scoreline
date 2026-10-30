@@ -112,6 +112,15 @@ final class ScoreStore {
     private(set) var collapsed: Set<String> {
         didSet { defaults.set(Array(collapsed), forKey: Keys.collapsed) }
     }
+    /// Game-page modules folded or hidden, per sport and module, app-wide
+    /// ("nba.liveView"; PageModules.swift). Only match pages read it.
+    var modules: ModuleLayout {
+        didSet {
+            guard modules != oldValue else { return }
+            defaults.set(modules.folded.sorted(), forKey: Keys.foldedModules)
+            defaults.set(modules.hidden.sorted(), forKey: Keys.hiddenModules)
+        }
+    }
     /// The landing page's arrangement: the league list or the tile board.
     /// Same games either way, so it doesn't bump `version`.
     var landingView: LandingView {
@@ -197,6 +206,8 @@ final class ScoreStore {
         static let celebrationSounds = CelebrationSound.defaultsKey
         static let scoringSlides = "scoringSlides"
         static let showOdds = "showOdds"
+        static let foldedModules = ModuleKeys.folded
+        static let hiddenModules = ModuleKeys.hidden
     }
 
     init() {
@@ -223,6 +234,8 @@ final class ScoreStore {
         followed = (defaults.data(forKey: Keys.followed).flatMap { try? JSONDecoder().decode([FollowedTeam].self, from: $0) } ?? [])
             .filter { !$0.id.hasPrefix("espn-hockey-") }
         collapsed = Set(defaults.stringArray(forKey: Keys.collapsed) ?? [])
+        modules = ModuleLayout(folded: Set(defaults.stringArray(forKey: Keys.foldedModules) ?? []),
+                               hidden: Set(defaults.stringArray(forKey: Keys.hiddenModules) ?? []))
         teamFilters = ((defaults.dictionary(forKey: Keys.teamFilters) as? [String: [String]]) ?? [:]).mapValues(Set.init)
         filteredLeagues = Set(defaults.stringArray(forKey: Keys.filteredLeagues) ?? [])
         liveFirst = defaults.bool(forKey: Keys.liveFirst)
