@@ -503,10 +503,10 @@ enum NBADetail {
     }
 
     /// The last few plays, newest first, with their clock ("Q3 4:12  …").
-    static func recentPlays(_ plays: [JSON], count: Int = 4) -> [String] {
+    static func recentPlays(_ plays: [JSON], count: Int = 4) -> [GameDetail.RecentPlay] {
         plays.filter { !($0["text"].string ?? "").isEmpty }.suffix(count).reversed().map { p in
             let clock = clockLabel(period: p["period"]["number"].int, clock: p["clock"]["displayValue"].string ?? "")
-            return "\(clock)  \(plain(p["text"].string ?? ""))"
+            return GameDetail.RecentPlay(id: p["id"].string, text: "\(clock)  \(plain(p["text"].string ?? ""))")
         }
     }
 

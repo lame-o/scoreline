@@ -346,12 +346,21 @@ private struct LinkedRow: ViewModifier {
     /// The pointer is on this row: its own wash shows at once, like a list
     /// row's (the house rule: hover is instant). The linked charts follow on
     /// the page's timing.
-    @State private var pointer = false
+    @State private var hovering = false
+    #if DEBUG
+    /// The render harness points at a row.
+    @Environment(\.rowHoverPreview) private var preview
+    private var pointer: Bool { hovering || (preview != nil && preview == focus) }
+    #else
+    private var pointer: Bool { hovering }
+    #endif
 
     func body(content: Content) -> some View {
         let pinned = pinnable && linked?.pinned == focus
         let strength = contrast == .increased ? 0.12 : 0.07
         content
+            // The row's own pointer, for what shows only on hover (a replayable play's glyph).
+            .environment(\.rowHovered, pointer)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background {
@@ -372,7 +381,7 @@ private struct LinkedRow: ViewModifier {
             .padding(.vertical, Self.reach - 2)
             .contentShape(Rectangle())
             .onHover { inside in
-                pointer = inside
+                hovering = inside
                 linked?.hover(focus, inside)
             }
             .padding(.horizontal, -6)
@@ -387,6 +396,32 @@ private struct LinkedRow: ViewModifier {
             }
     }
 }
+
+private struct RowHoveredKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// The pointer is on the linked row this view is in.
+    var rowHovered: Bool {
+        get { self[RowHoveredKey.self] }
+        set { self[RowHoveredKey.self] = newValue }
+    }
+}
+
+#if DEBUG
+private struct RowHoverPreviewKey: EnvironmentKey {
+    static let defaultValue: Focus? = nil
+}
+
+extension EnvironmentValues {
+    /// The render harness: the linked row with this focus draws as pointed at.
+    var rowHoverPreview: Focus? {
+        get { self[RowHoverPreviewKey.self] }
+        set { self[RowHoverPreviewKey.self] = newValue }
+    }
+}
+#endif
 
 /// A linked row's ghost wash, reading the page's focus itself: the one view
 /// a hover re-runs per row.

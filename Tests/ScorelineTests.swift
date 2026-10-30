@@ -80,6 +80,7 @@ struct ScorelineTests {
         headerSync()
         await scoringSlides()
         odds()
+        await replays()
 
         print("\n\(passes) passed, \(failures) failed")
         exit(failures == 0 ? 0 : 1)
@@ -559,7 +560,7 @@ struct ScorelineTests {
         check(nba.flow.map(\.margin) == [0, 3, 2] && nba.flow.last?.scorer == .bottom, "game flow follows the score",
               "\(nba.flow.map(\.margin))")
         check(nba.newestElapsed == 720, "the summary's newest play is the last in order")
-        check(NBADetail.recentPlays(plays.map(JSON.init)).first == "Q1 0.0  End of the 1st Quarter", "latest plays, newest first")
+        check(NBADetail.recentPlays(plays.map(JSON.init)).first?.text == "Q1 0.0  End of the 1st Quarter", "latest plays, newest first")
         // winprobability comes in sequence order: "4" was entered late but sits last in the game.
         let wp = JSON(["plays": plays, "winprobability": [["playId": "2", "homeWinPercentage": 0.4], ["playId": "4", "homeWinPercentage": 0.45],
                                                           ["playId": "9", "homeWinPercentage": 0.3]]] as [String: Any])
