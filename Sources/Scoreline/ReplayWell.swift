@@ -157,7 +157,7 @@ struct ReplayWell: View {
             : TeamPalette(top: context.top?.color, bottom: context.bottom?.color, scheme: scheme)
     }
 
-    private var seen: Bool { geometry?.visibility[sectionID(section)].map { !$0.isHidden } ?? true }
+    private var seen: Bool { geometry.map { $0.contentVisibility(sectionID(section)).map { !$0.isHidden } ?? true } ?? true }
 
     /// Seconds since it began (the harness's frozen clock: its time); infinity while held.
     private func elapsed(at date: Date) -> Double {

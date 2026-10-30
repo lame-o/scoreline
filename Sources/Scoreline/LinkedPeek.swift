@@ -502,7 +502,7 @@ struct LinkedPeekHost<Content: View>: View {
         guard let focus else { return PeekController.Input(held: hovering, blocked: blocked) }
         let target = route(focus, hovered != nil ? controller.pointerSection : nil)
         return PeekController.Input(focus: focus, pinned: hovered == nil, target: target,
-                                    visibility: target.flatMap { geometry?.visibility[sectionID($0)] },
+                                    visibility: target.flatMap { geometry?.contentVisibility(sectionID($0)) },
                                     held: hovering, blocked: blocked)
     }
 

@@ -237,28 +237,42 @@ struct DetailSection<Content: View>: View {
     var accessory: SectionAccessory? = nil
     var spokenCaption: String? = nil
     @ViewBuilder let content: Content
+    /// On a match page, the section is a module: it folds (PageModules.swift).
+    @Environment(\.moduleChrome) private var module
 
     var body: some View {
         // The title block and the content are separate entrance units; content
         // that is itself a StackColumn (tables, lists) cascades row by row.
         StackColumn(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                SectionTitle(title, accessory: accessory)
-                if let caption {
-                    Text(caption)
-                        .font(Viz.note)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        // A spanning section's caption still reads as one comfortable line.
-                        .readableWidth()
-                        .accessibilityLabel(spokenCaption ?? caption)
+            if let module {
+                ModuleHeader(title: title, caption: caption, spokenCaption: spokenCaption, accessory: accessory, chrome: module) {
+                    EmptyView()
                 }
+                if module.keepsAlive {
+                    content.foldKeptAlive(module.folded).environment(\.moduleChrome, nil)
+                } else if !module.folded {
+                    content.environment(\.moduleChrome, nil).transition(module.motion.content)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    SectionTitle(title, accessory: accessory)
+                    if let caption {
+                        Text(caption)
+                            .font(Viz.note)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                            // A spanning section's caption still reads as one comfortable line.
+                            .readableWidth()
+                            .accessibilityLabel(spokenCaption ?? caption)
+                    }
+                }
+                content
             }
-            content
         }
         .padding(.horizontal, Metrics.gutter)
-        .padding(.top, 16)
+        // Folded, modules sit a little closer: a page of glances reads as one list.
+        .padding(.top, module?.folded == true ? 12 : 16)
         .containerValue(\.stacksOwnRows, true)
     }
 }

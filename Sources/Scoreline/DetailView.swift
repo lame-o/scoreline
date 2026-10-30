@@ -90,6 +90,10 @@ struct DetailView: View {
     @State private var surface = ScoreboardSurface()
     /// Whether the pointer is over the page's content (a reference: writing it re-renders nothing).
     @State private var pointer = PointerPresence()
+    /// How the last fold animates (a click, Reduce Motion, a key): its transitions read it.
+    @State private var foldMotion = FoldMotion.animated
+    /// The sport's Customize sheet is over the page.
+    @State private var customizing = false
     #if DEBUG
     @Environment(\.pageProbe) private var probe
     /// Harness counter: body runs (scrolling must add none).
@@ -174,6 +178,8 @@ struct DetailView: View {
             if on, let detail { Task { await discoverOdds(event, detail) } } else { oddsFeed.reset() }
         }
         .onChange(of: snapshot.id) { resetStage() }
+        // Folded modules' content is never in view (theaters stop drawing; a moment's owner isn't seen).
+        .onChange(of: foldedIDs, initial: true) { _, ids in geometry.setFolded(ids) }
         #if DEBUG
         .onAppear { probe?(PageProbe(geometry: geometry, linked: linked, peek: peek, stage: nbaStage, moments: moments)) }
         #endif
@@ -261,6 +267,8 @@ struct DetailView: View {
             .environment(basketballFeed)
             .environment(\.peekShow, peekShow)
         }
+        // The sport's Customize sheet, over the whole page (its header too).
+        .overlay { customizeSheet }
     }
 
     // MARK: Header
@@ -883,6 +891,9 @@ struct DetailView: View {
     /// A block of the match page. Internal (not private) so the split-page
     /// plan can be unit tested.
     enum Section: Hashable {
+        /// The isometric theater, live (all four sports with one): its own
+        /// module, above the chart it used to share a section with.
+        case liveView
         case field, atPlate, atBat, pitch, timeline, table, maps, rounds, rosters, winProbability
         case linescore, moments, stats, plays, battedBalls, wall, scorecard, climbingWatch, results, startlist, ascent
         case streams, whereToWatch, bracket
@@ -892,24 +903,27 @@ struct DetailView: View {
 
     /// What a fan wants first, per sport and state: the live picture while
     /// it's on; the story of the game once it's over.
-    private var order: [Section] {
-        let state = event.state
-        switch event.ref {
+    private var order: [Section] { Self.order(event.ref, event.state) }
+
+    /// The same, for any sport and state (the Customize sheet lists every state's). The Live View,
+    /// live only, sits above the chart it replays for.
+    static func order(_ ref: EventRef?, _ state: EventState) -> [Section] {
+        switch ref {
         case .espn(_, _, .soccer)?:
             switch state {
-            case .live: return [.pitch, .timeline, .winProbability, .stats, .table, .moments, .plays, .whereToWatch]
+            case .live: return [.liveView, .pitch, .timeline, .winProbability, .stats, .table, .moments, .plays, .whereToWatch]
             case .final: return [.timeline, .winProbability, .pitch, .moments, .stats, .table, .plays]
             case .scheduled: return [.winProbability, .table, .whereToWatch]
             }
         case .espn(_, _, .baseball)?:
             switch state {
-            case .live: return [.atPlate, .atBat, .linescore, .winProbability, .bracket, .moments, .battedBalls, .plays, .whereToWatch]
+            case .live: return [.liveView, .atPlate, .atBat, .linescore, .winProbability, .bracket, .moments, .battedBalls, .plays, .whereToWatch]
             case .final: return [.linescore, .winProbability, .bracket, .moments, .battedBalls, .plays]
             case .scheduled: return [.winProbability, .bracket, .whereToWatch]
             }
         case let .espn(path, _, .basketball)? where path == NBADetail.path:
             switch state {
-            case .live: return [.court, .flow, .linescore, .leaders, .moments, .box, .stats, .winProbability, .plays, .table,
+            case .live: return [.liveView, .court, .flow, .linescore, .leaders, .moments, .box, .stats, .winProbability, .plays, .table,
                                 .injuries, .whereToWatch]
             case .final: return [.flow, .court, .winProbability, .linescore, .leaders, .box, .moments, .stats, .table]
             // Before tip-off: who's out, ESPN's matchup predictor, season leaders.
@@ -917,7 +931,7 @@ struct DetailView: View {
             }
         case .espn?:
             switch state {
-            case .live: return [.field, .winProbability, .linescore, .moments, .stats, .table, .plays, .whereToWatch]
+            case .live: return [.liveView, .field, .winProbability, .linescore, .moments, .stats, .table, .plays, .whereToWatch]
             case .final: return [.linescore, .winProbability, .moments, .stats, .table, .plays]
             case .scheduled: return [.winProbability, .table, .whereToWatch]
             }
@@ -968,13 +982,13 @@ struct DetailView: View {
         switch ref {
         case .espn(_, _, .soccer)?:
             switch state {
-            case .live: [.columns(left: [.pitch, .stats, .plays], right: [.timeline, .moments, .winProbability, .table, .whereToWatch])]
+            case .live: [.columns(left: [.liveView, .pitch, .stats, .plays], right: [.timeline, .moments, .winProbability, .table, .whereToWatch])]
             case .final: [.columns(left: [.pitch, .stats], right: [.timeline, .winProbability, .moments, .table, .plays])]
             case .scheduled: [.columns(left: [.table], right: [.winProbability, .whereToWatch])]
             }
         case .espn(_, _, .baseball)?:
             switch state {
-            case .live: [.columns(left: [.atPlate, .atBat, .battedBalls],
+            case .live: [.columns(left: [.liveView, .atPlate, .atBat, .battedBalls],
                                   right: [.linescore, .winProbability, .moments, .bracket, .plays, .whereToWatch])]
             case .final: [.columns(left: [.linescore, .battedBalls], right: [.winProbability, .moments, .bracket, .plays])]
             case .scheduled: [.columns(left: [.bracket], right: [.winProbability, .whereToWatch])]
@@ -985,7 +999,7 @@ struct DetailView: View {
             // player shows only their shots without scrolling, and the
             // leaders below it light the same player on both.
             switch state {
-            case .live: [.columns(left: [.court, .flow, .winProbability, .linescore, .moments, .plays, .table],
+            case .live: [.columns(left: [.liveView, .court, .flow, .winProbability, .linescore, .moments, .plays, .table],
                                   right: [.box, .leaders, .stats, .injuries, .whereToWatch])]
             case .final: [.columns(left: [.flow, .court, .winProbability, .linescore, .moments, .table], right: [.box, .leaders, .stats, .injuries])]
             // Before tip-off: who's out and how it shapes up, beside the standings.
@@ -993,7 +1007,7 @@ struct DetailView: View {
             }
         case .espn?:
             switch state {
-            case .live: [.columns(left: [.field, .stats, .plays], right: [.winProbability, .linescore, .moments, .table, .whereToWatch])]
+            case .live: [.columns(left: [.liveView, .field, .stats, .plays], right: [.winProbability, .linescore, .moments, .table, .whereToWatch])]
             case .final: [.columns(left: [.linescore, .stats], right: [.winProbability, .moments, .table, .plays])]
             case .scheduled: [.columns(left: [.table], right: [.winProbability, .whereToWatch])]
             }
@@ -1059,10 +1073,14 @@ struct DetailView: View {
         return placed
     }
 
+    /// The sections with something to show, in order, before the sport's hidden modules come out.
+    private func available(_ d: GameDetail) -> [Section] { order.filter { has($0, d) } }
+
     /// The shown sections and where each goes: today's order in one column;
-    /// the sport's plan from 680pt.
+    /// the sport's plan from 680pt. Hidden modules come out first, so the
+    /// plan lends a section to a column they'd leave empty.
     private func arrangement(_ d: GameDetail) -> [PlacedSection] {
-        let shown = order.filter { has($0, d) }
+        let shown = store.modules.shown(available(d), on: pageKind)
         guard layout.split else { return shown.map { PlacedSection(section: $0, slot: MatchSlot()) } }
         return Self.wideArrangement(shown, plan: Self.widePlan(event.ref, event.state))
     }
@@ -1083,8 +1101,11 @@ struct DetailView: View {
     private var content: some View {
         if let detail {
             let placed = arrangement(detail)
+            let modules = placed.map(\.section)
             ForEach(Array(placed.enumerated()), id: \.element.section) { index, item in
                 section(item.section, detail)
+                    // Each section is a module: it folds, and its header's menu hides it (PageModules.swift).
+                    .environment(\.moduleChrome, chrome(item.section, detail, page: modules))
                     .environment(\.widthClass, room(for: item.slot))
                     // Where it is (for the peek and the bar), which section the
                     // pointer is in (rows there may peek), and the flash when a
@@ -1113,6 +1134,16 @@ struct DetailView: View {
                     .padding(.top, 16)
                     .matchSlot(.span, rank: 0)
             }
+            // Nothing leaves without a way back: what the sport hides here, by name.
+            let hidden = store.modules.hiddenHere(available(detail), on: pageKind)
+            if let kind = pageKind, !hidden.isEmpty {
+                HiddenModulesLine(names: hidden.map { Self.moduleName($0, on: kind) }, page: kind.name) {
+                    withAnimation(reduceMotion ? Motion.fade : Motion.standard) {
+                        for section in hidden { store.modules.hide(section, on: kind, false) }
+                    }
+                }
+                .matchSlot(.span, rank: 0)
+            }
         } else if failed {
             note(ErrorCopy.inline("match details"))
         } else if showSpinner {
@@ -1123,6 +1154,9 @@ struct DetailView: View {
     /// Whether a section has anything to show right now.
     private func has(_ kind: Section, _ d: GameDetail) -> Bool {
         switch kind {
+        // Live only, wherever the sport's chart has a theater (and as long as it did when they shared a section).
+        case .liveView: event.state == .live
+            && (isNBA ? has(.court, d) : isSoccer ? has(.pitch, d) : isBaseball ? has(.atPlate, d) : has(.field, d))
         case .field: (footballFeed.situation ?? d.football) != nil && event.state == .live
         case .atPlate: liveBaseball(d) != nil && event.state == .live
         // Stays up between batters ("Waiting for the first pitch"), so the page doesn't jump.
@@ -1202,7 +1236,8 @@ struct DetailView: View {
         switch kind {
         case .pitch:
             PitchView(trail: soccerFeed.trail, shots: soccerFeed.shots, live: live,
-                      palette: palette, topName: names.top, bottomName: names.bottom, cards: soccerFeed.cards, theater: live)
+                      palette: palette, topName: names.top, bottomName: names.bottom, cards: soccerFeed.cards,
+                      theater: live && liveViewOpen(d))
         case .timeline:
             SoccerTimeline(moments: d.moments, currentMinute: live ? soccerMinute : nil, palette: palette,
                            topName: names.top, bottomName: names.bottom)
@@ -1218,7 +1253,7 @@ struct DetailView: View {
             }
         case .battedBalls:
             SprayChartView(balls: battedBalls(d), palette: palette, topName: names.top, bottomName: names.bottom,
-                           celebrates: PlateCelebration.sprayChartBursts(theaterShown: has(.atPlate, d)))
+                           celebrates: PlateCelebration.sprayChartBursts(theaterShown: liveViewOpen(d)))
         case .wall:
             ClimbingWallView(routes: excerpt?.athlete.map { Self.wallExcerpt(d.wall, athlete: $0) } ?? d.wall,
                              live: roundLive(d), yours: Set(store.climbingCountries))
@@ -1235,7 +1270,7 @@ struct DetailView: View {
                 CourtView(shots: nbaShots(nba), palette: palette, topName: names.top, bottomName: names.bottom,
                           players: nba.players, names: leaderNames(nba), live: live,
                           plays: nbaPlays(nba), now: live ? basketballFeed.elapsed ?? event.clock.flatMap(nbaElapsed) : nil,
-                          onOpenProfile: courtProfile(nba), celebrates: BasketballCelebration.courtBursts(theaterShown: live))
+                          onOpenProfile: courtProfile(nba), celebrates: BasketballCelebration.courtBursts(theaterShown: live && liveViewOpen(d)))
             }
         case .flow:
             if let nba = d.basketball {
@@ -1256,40 +1291,26 @@ struct DetailView: View {
         let live = event.state == .live
         if has(kind, d) {
             switch kind {
+            case .liveView:
+                DetailSection(title: "Live View", caption: liveViewCaption, accessory: .live) {
+                    theater(d)
+                }
             case .field:
                 if let football = footballFeed.situation ?? d.football {
                     DetailSection(title: "Field",
                                   caption: "This drive, snap by snap. \(names.top) defends the left end zone.",
                                   accessory: .live,
                                   spokenCaption: "This drive, snap by snap. \(full.top) defending the left end zone.") {
-                        VStack(alignment: .leading, spacing: 10) {
-                            // Reads the live lane's last snap itself, so a play redraws only the theater.
-                            let rest = FootballTheater.rest(football)
-                            FootballTheater(feed: footballFeed, rest: rest?.rest, restOffense: rest?.offense, palette: palette,
-                                            kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last),
-                                            topName: names.top, bottomName: names.bottom, eventID: event.id,
-                                            situation: football.downDistance, timeouts: (football.topTimeouts, football.bottomTimeouts),
-                                            topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
-                                            people: d.people)
-                            FootballField(situation: football, topLabel: names.top, bottomLabel: names.bottom, palette: palette,
-                                          drive: fieldDrive, possession: footballFeed.possession ?? football.possession,
-                                          twoMinuteDrill: twoMinuteDrill,
-                                          celebrates: FootballCelebration.driveChartBursts(theaterShown: true))
-                        }
+                        FootballField(situation: football, topLabel: names.top, bottomLabel: names.bottom, palette: palette,
+                                      drive: fieldDrive, possession: footballFeed.possession ?? football.possession,
+                                      twoMinuteDrill: twoMinuteDrill,
+                                      celebrates: FootballCelebration.driveChartBursts(theaterShown: liveViewOpen(d)))
                     }
                 }
             case .atPlate:
                 if let baseball = liveBaseball(d) {
                     DetailSection(title: "At the Plate", caption: "Live count, runners and matchup from ESPN.", accessory: .live) {
-                        BaseballDiamond(situation: baseball, batting: battingSide, palette: palette) {
-                            // Reads the live lane's last play itself, so a play redraws only the theater.
-                            PlayTheater(feed: baseballFeed, preloaded: d.theater,
-                                        bases: [baseball.onFirst, baseball.onSecond, baseball.onThird], batting: battingSide,
-                                        situation: baseball, inning: baseballFeed.inning ?? event.detail,
-                                        palette: palette, kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last),
-                                        topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
-                                        people: d.people, fielders: d.fielders)
-                        }
+                        BaseballDiamond(situation: baseball, batting: battingSide, palette: palette) { EmptyView() }
                     }
                 }
             case .atBat:
@@ -1304,13 +1325,6 @@ struct DetailView: View {
                               accessory: live ? .live : .final,
                               spokenCaption: (live ? "The last 10 actions, live. " : "Every shot, with each goal's path. ")
                                   + "\(full.top) attacking left to right, \(full.bottom) right to left.") {
-                    if live {
-                        // Reads the live lane's latest moment itself, so a moment redraws only the theater.
-                        SoccerTheater(feed: soccerFeed, palette: palette,
-                                      kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last), eventID: event.id,
-                                      topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
-                                      added: d.soccerAdded, people: d.people)
-                    }
                     chart(.pitch, d)
                 }
             case .timeline:
@@ -1468,19 +1482,13 @@ struct DetailView: View {
                     BroadcasterList(broadcasters: d.broadcasters)
                 }
             case .court:
-                // The chart keeps one end per team all game; the theater above takes the broadcast's (swapped at halftime).
+                // The chart keeps one end per team all game; the Live View above takes the broadcast's (swapped at halftime).
+                let above = live && liveViewOnPage(d)
                 DetailSection(title: "Shot Chart",
-                              caption: "\(courtLead(live: live)) \(names.top) shoots →, \(names.bottom) ←\(live ? " (above: the ends as on TV)" : "").",
+                              caption: "\(courtLead(live: live)) \(names.top) shoots →, \(names.bottom) ←\(above ? " (above: the ends as on TV)" : "").",
                               accessory: live ? .live : .final,
                               spokenCaption: "\(courtLead(live: live)) \(full.top) at the right basket, \(full.bottom) at the left"
-                                  + (live ? "; the replay above takes the broadcast's ends." : ".")) {
-                    if live {
-                        // Reads the live lane's newest play itself, so a basket redraws only the theater.
-                        BasketballTheater(feed: basketballFeed, palette: palette,
-                                          kits: TheaterKits(top: event.competitors.first, bottom: event.competitors.last),
-                                          topIsHome: d.topIsHome ?? false, topName: names.top, bottomName: names.bottom,
-                                          topTeam: full.top, bottomTeam: full.bottom, eventID: event.id, people: d.people)
-                    }
+                                  + (above ? "; the replay above takes the broadcast's ends." : ".")) {
                     chart(.court, d)
                 }
             case .flow:
@@ -1543,6 +1551,202 @@ struct DetailView: View {
     /// The shot chart's caption, before the directions.
     private func courtLead(live: Bool) -> String {
         live ? "The last plays trail to the ball." : "Every shot. Play to replay the game."
+    }
+
+    // MARK: Modules
+
+    /// Which page this is, for its modules' keys ("nba.liveView").
+    private var pageKind: PageKind? { PageKind.of(event.ref) }
+
+    /// The page's folded modules, by section ID, for the page's geometry.
+    private var foldedIDs: Set<String> {
+        Set(order.filter { store.modules.isFolded($0, on: pageKind) }.map(sectionID))
+    }
+
+    /// The Live View is on the page (not hidden from its menu).
+    private func liveViewOnPage(_ d: GameDetail) -> Bool {
+        has(.liveView, d) && !store.modules.isHidden(.liveView, on: pageKind)
+    }
+
+    /// The Live View is on the page and open: it replays the play and owns
+    /// its celebration. Folded or hidden, the chart it sat with does.
+    private func liveViewOpen(_ d: GameDetail) -> Bool {
+        liveViewOnPage(d) && !store.modules.isFolded(.liveView, on: pageKind)
+    }
+
+    private var liveViewCaption: String {
+        if isNBA { return "The latest play, replayed as it happened, the ends as on TV." }
+        if isSoccer { return "The latest chance, replayed with its build-up." }
+        if isBaseball { return "The latest pitch, replayed as it happened." }
+        return "The latest snap, replayed as it happened."
+    }
+
+    /// The sport's isometric theater. Each reads its live lane's newest play
+    /// itself, so a play redraws only the theater.
+    @ViewBuilder
+    private func theater(_ d: GameDetail) -> some View {
+        let names = shortNames(d), full = spokenTeams
+        let kits = TheaterKits(top: event.competitors.first, bottom: event.competitors.last)
+        if isNBA {
+            BasketballTheater(feed: basketballFeed, palette: palette, kits: kits,
+                              topIsHome: d.topIsHome ?? false, topName: names.top, bottomName: names.bottom,
+                              topTeam: full.top, bottomTeam: full.bottom, eventID: event.id, people: d.people)
+        } else if isSoccer {
+            SoccerTheater(feed: soccerFeed, palette: palette, kits: kits, eventID: event.id,
+                          topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
+                          added: d.soccerAdded, people: d.people)
+        } else if isBaseball, let baseball = liveBaseball(d) {
+            PlayTheater(feed: baseballFeed, preloaded: d.theater,
+                        bases: [baseball.onFirst, baseball.onSecond, baseball.onThird], batting: battingSide,
+                        situation: baseball, inning: baseballFeed.inning ?? event.detail,
+                        palette: palette, kits: kits,
+                        topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
+                        people: d.people, fielders: d.fielders)
+        } else if let football = footballFeed.situation ?? d.football {
+            let rest = FootballTheater.rest(football)
+            FootballTheater(feed: footballFeed, rest: rest?.rest, restOffense: rest?.offense, palette: palette, kits: kits,
+                            topName: names.top, bottomName: names.bottom, eventID: event.id,
+                            situation: football.downDistance, timeouts: (football.topTimeouts, football.bottomTimeouts),
+                            topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
+                            people: d.people)
+        }
+    }
+
+    /// A section as a module: its fold, its glance (built only while folded),
+    /// and what its header does. `page`: every module on the page, for ⌥-click.
+    private func chrome(_ section: Section, _ d: GameDetail, page: [Section]) -> ModuleChrome? {
+        guard let kind = pageKind else { return nil }
+        let folded = store.modules.isFolded(section, on: kind)
+        return ModuleChrome(name: Self.moduleName(section, on: kind), page: kind.name, folded: folded,
+                            glance: folded ? glance(section, d) : nil, moment: DockRules.chart(for: section),
+                            motion: foldMotion, keepsAlive: section == .liveView) { action, keyboard in
+            act(action, on: section, page: page, keyboard: keyboard)
+        }
+    }
+
+    private func act(_ action: ModuleAction, on section: Section, page: [Section], keyboard: Bool) {
+        switch action {
+        case let .toggle(all):
+            // ⌥: every module on the page goes the way this one does.
+            let fold = !store.modules.isFolded(section, on: pageKind)
+            setFolded(all ? page : [section], fold, keyboard: keyboard)
+        case let .fold(fold):
+            guard store.modules.isFolded(section, on: pageKind) != fold else { return }
+            setFolded([section], fold, keyboard: keyboard)
+        case .hide:
+            withAnimation(reduceMotion ? Motion.fade : Motion.standard) { store.modules.hide(section, on: pageKind, true) }
+        case .customize:
+            withAnimation(reduceMotion ? Motion.fade : Motion.quick) { customizing = true }
+        }
+    }
+
+    /// Folds or unfolds, remembered for the sport. Height springs on
+    /// `standard` (it retargets: a quick double-click reverses mid-flight);
+    /// Reduce Motion only cross-fades; a key is instant.
+    private func setFolded(_ sections: [Section], _ fold: Bool, keyboard: Bool) {
+        let motion: FoldMotion = keyboard ? .instant : reduceMotion ? .fade : .animated
+        var transaction = Transaction(animation: motion == .animated ? Motion.standard : nil)
+        transaction.disablesAnimations = motion == .instant
+        withTransaction(transaction) {
+            foldMotion = motion
+            var modules = store.modules
+            for section in sections { modules.fold(section, on: pageKind, fold) }
+            store.modules = modules
+        }
+    }
+
+    /// A folded module's line, from the same data the module shows (so it
+    /// updates live). Nil: its caption stands in.
+    private func glance(_ section: Section, _ d: GameDetail) -> ModuleGlance? {
+        let names = shortNames(d)
+        let live = event.state == .live
+        switch section {
+        case .liveView:
+            // The newest play the theater has to tell.
+            if isNBA { return (basketballFeed.recentPlays.first ?? d.recentPlays.first).map { ModuleGlance.play($0.text) } }
+            if isSoccer { return soccerFeed.trail.last.map { ModuleGlance.text($0.minute, $0.text) } }
+            if isBaseball { return liveBaseball(d)?.lastPlay.map { ModuleGlance.text(baseballFeed.inning ?? event.detail ?? "", $0) } }
+            let football = footballFeed.situation ?? d.football
+            return football?.lastPlay.map { ModuleGlance.text(football?.downDistance ?? "", $0) }
+        case .plays:
+            let plays = isNBA && live && !basketballFeed.recentPlays.isEmpty ? basketballFeed.recentPlays : d.recentPlays
+            return plays.first.map { ModuleGlance.play($0.text) }
+        case .court:
+            guard let nba = d.basketball else { return nil }
+            let shots = nbaShots(nba)
+            let top = ModuleGlance.Shooting(fg: nba.topTotals["FG"], threes: nba.topTotals["3PT"]) ?? .init(shots, side: .top)
+            let bottom = ModuleGlance.Shooting(fg: nba.bottomTotals["FG"], threes: nba.bottomTotals["3PT"]) ?? .init(shots, side: .bottom)
+            return .shooting(top: top, bottom: bottom, names: names)
+        case .flow:
+            return d.basketball.flatMap { .flow(NBADetail.flow(summary: $0.flow, lane: live ? basketballFeed.flow : []), names: names) }
+        case .linescore:
+            guard let summary = d.linescore else { return nil }
+            let line = ledger.reconciled(summary)
+            return .linescore(headers: line.headers, top: line.top, bottom: line.bottom, names: names, baseball: isBaseball, live: live)
+        case .leaders: return d.basketball.flatMap { .leaders($0.leaders) }
+        case .box: return d.basketball.flatMap { .box((followedSide ?? .top) == .top ? $0.topBox : $0.bottomBox, live: live) }
+        case .stats: return .stats(d.stats)
+        case .injuries: return d.basketball.flatMap { .injuries($0.injuries) }
+        case .whereToWatch: return .broadcasters(d.broadcasters.map(\.name))
+        case .moments: return .newest(d.moments, soccer: isSoccer)
+        case .timeline:
+            let scores = heroScores
+            return .timeline(d.moments, score: "\(scores.first.flatMap { $0 } ?? "0")–\(scores.last.flatMap { $0 } ?? "0")")
+        case .table:
+            let ids = Set(event.competitors.compactMap(\.id))
+            return .standings(standings.filter { ids.contains($0.id) }.map { (name: $0.abbreviation, rank: $0.rank) })
+        case .atBat: return .atBat(baseballFeed.loaded ? baseballFeed.atBat : d.atBat)
+        case .atPlate:
+            return liveBaseball(d).map { .atPlate(outs: $0.outs, bases: [$0.onFirst, $0.onSecond, $0.onThird], batter: $0.batter, pitcher: $0.pitcher) }
+        case .field:
+            guard let football = footballFeed.situation ?? d.football else { return nil }
+            let side = footballFeed.possession ?? football.possession
+            return .field(possession: side.map { $0 == .top ? names.top : names.bottom }, downDistance: football.downDistance,
+                          plays: fieldDrive.count)
+        case .pitch:
+            return live ? soccerFeed.trail.last.map { .text($0.minute, $0.text) } : .shotMap(soccerFeed.shots, names: names)
+        case .battedBalls:
+            let balls = battedBalls(d)
+            return balls.last.map { .text(balls.count == 1 ? "1 in play" : "\(balls.count) in play", $0.text) }
+        case .winProbability:
+            // ESPN's bar (Polymarket's chart says its own, in OddsSection).
+            guard let p = d.topWinProbability else { return nil }
+            let draw = d.drawProbability
+            return .chances(OddsSplit(top: p, draw: draw, bottom: max(1 - p - (draw ?? 0), 0)), final: event.state == .final,
+                            top: (palette.top, names.top), draw: draw == nil ? nil : Viz.neutral, bottom: (palette.bottom, names.bottom))
+        default:
+            return nil
+        }
+    }
+
+    /// The sport's Customize sheet: show or hide each module, over a scrim
+    /// (a click outside, Esc or Done closes it).
+    @ViewBuilder
+    private var customizeSheet: some View {
+        if customizing, let kind = pageKind {
+            ZStack(alignment: .top) {
+                Color.black.opacity(colorScheme == .dark ? 0.32 : 0.16)
+                    .contentShape(Rectangle())
+                    .onTapGesture { closeCustomize() }
+                    .accessibilityHidden(true)
+                CustomizeModulesSheet(page: kind.name,
+                                      rows: Self.modules(for: event.ref).map {
+                                          .init(section: $0.section, name: Self.moduleName($0.section, on: kind), liveOnly: $0.liveOnly)
+                                      },
+                                      isShown: { !store.modules.isHidden($0, on: kind) },
+                                      setShown: { section, shown in
+                                          withAnimation(reduceMotion ? Motion.fade : Motion.standard) { store.modules.hide(section, on: kind, !shown) }
+                                      },
+                                      restore: { withAnimation(reduceMotion ? Motion.fade : Motion.standard) { store.modules.showAll(on: kind) } },
+                                      done: closeCustomize)
+                    .padding(.top, 44)
+            }
+            .transition(.opacity)
+        }
+    }
+
+    private func closeCustomize() {
+        withAnimation(Motion.exit) { customizing = false }
     }
 
     private func note(_ text: String) -> some View {
@@ -1862,6 +2066,8 @@ struct DetailView: View {
     /// click or ⌘[ always goes back). Esc is never swallowed: with nothing
     /// open or pinned it goes back as before.
     private func back() {
+        // Esc (or ⌘[) with the Customize sheet open closes the sheet.
+        if customizing { return closeCustomize() }
         if let key = NSApp.currentEvent, key.type == .keyDown, key.keyCode == 53 {
             var closed = false
             if replays.open != nil {
@@ -1905,7 +2111,7 @@ struct DetailView: View {
     /// the pill (`readout`).
     private func peekInputs(_ d: GameDetail, for focus: Focus, readout: Bool) -> PeekInputs {
         var inputs = PeekInputs()
-        inputs.shown = Set(order.filter { has($0, d) })
+        inputs.shown = Set(store.modules.shown(available(d), on: pageKind))
         let names = shortNames(d)
         if let summary = d.linescore {
             // As the section shows it: no older than the hero.
@@ -2007,6 +2213,8 @@ struct DetailView: View {
     private var peekShow: PeekShowAction {
         PeekShowAction(title: { focus in peekRoute(focus, source: nil).map(peekTitle) }, perform: { focus in
             guard let target = peekRoute(focus, source: nil) else { return }
+            // "Show on Shot Chart" opens it if it's folded (at once, like the scroll).
+            if store.modules.isFolded(target, on: pageKind) { setFolded([target], false, keyboard: true) }
             linked.pin(focus)
             geometry.scroll(toSection: sectionID(target), topInset: PageGeometry.dockInset + 8, animated: false)
             AccessibilityNotification.LayoutChanged().post()
@@ -2052,41 +2260,44 @@ struct DetailView: View {
     /// theater to time it to. Read once per score, never observed.
     private func slidePlan(for m: LiveMoment) -> SlidePlan {
         guard let d = detail else { return SlidePlan() }
-        func seen(_ section: Section) -> Bool { geometry.visibility[sectionID(section)].map { !$0.isHidden } ?? false }
+        // A folded module's content isn't seen, wherever its header is.
+        func seen(_ section: Section) -> Bool { geometry.contentVisibility(sectionID(section)).map { !$0.isHidden } ?? false }
+        // The Live View owns a play's celebration while it's on the page and open; folded or hidden, the chart does.
+        let theaterOpen = liveViewOpen(d)
         var plan = SlidePlan()
         switch m.chart {
         case .plate:
             // The theater owns a play's celebration when the page shows it; the spray chart otherwise.
-            let theater = has(.atPlate, d)
-            plan.ownerVisible = seen(theater ? .atPlate : .battedBalls)
+            let theater = has(.liveView, d)
+            plan.ownerVisible = seen(theaterOpen ? .liveView : .battedBalls)
             if theater {
                 let feed = baseballFeed
                 plan.theater = .baseball(feed)
-                plan.follow = plan.ownerVisible && !reduceMotion
+                plan.follow = theaterOpen && plan.ownerVisible && !reduceMotion
                 // A new plate appearance waits up to 3 s for Statcast before the theater has it.
                 plan.patience = 3.6
                 plan.batted = { feed.theater.play?.id == m.id ? feed.theater.play?.measured?.batted : nil }
             }
         case .field:
-            plan.ownerVisible = seen(.field)
+            plan.ownerVisible = seen(theaterOpen ? .liveView : .field)
             if has(.field, d) {
                 plan.theater = .football(footballFeed)
-                plan.follow = plan.ownerVisible && !reduceMotion
+                plan.follow = theaterOpen && plan.ownerVisible && !reduceMotion
             }
         case .pitch:
-            plan.ownerVisible = seen(.pitch)
+            plan.ownerVisible = seen(theaterOpen ? .liveView : .pitch)
             if event.state == .live {
                 plan.theater = .soccer(soccerFeed)
-                plan.follow = plan.ownerVisible && !reduceMotion
+                plan.follow = theaterOpen && plan.ownerVisible && !reduceMotion
             }
         case .court:
-            // The court's theater replays every basket and owns its celebration while it's shown.
-            plan.ownerVisible = seen(.court)
+            // The Live View replays every basket and owns its celebration while it's open.
+            plan.ownerVisible = seen(theaterOpen ? .liveView : .court)
             if event.state == .live {
                 plan.theater = .basketball(basketballFeed)
-                plan.follow = plan.ownerVisible && !reduceMotion
+                plan.follow = theaterOpen && plan.ownerVisible && !reduceMotion
                 // It tells every play in order: a basket may wait its turn (never longer than the queue's budget).
-                if plan.ownerVisible { plan.patience = BasketballQueue.budget }
+                if theaterOpen && plan.ownerVisible { plan.patience = BasketballQueue.budget }
             }
         case .ascent, .rounds:
             plan.ownerVisible = seen(DockRules.section(for: m.chart))

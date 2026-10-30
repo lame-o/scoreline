@@ -103,6 +103,23 @@ enum DockRules {
         }
     }
 
+    /// The chart a section captions moments for (`section(for:)` turned round):
+    /// folded, that section's glance carries them.
+    static func chart(for section: DetailView.Section) -> LiveMoment.Chart? {
+        switch section {
+        case .field: .field
+        case .pitch: .pitch
+        case .atPlate: .plate
+        case .battedBalls: .spray
+        case .rounds: .rounds
+        case .wall: .wall
+        case .ascent: .ascent
+        case .scorecard: .boulder
+        case .court: .court
+        default: nil
+        }
+    }
+
     /// The moment the bar's status slot shows instead of the clock: a captioned
     /// moment whose caption can't be seen. A chart in view (or with its lower
     /// part, where the caption sits, in view) keeps its own caption.
@@ -760,7 +777,7 @@ struct DockedScorebarHost: View {
         guard p > 0, let old, let new else { return }
         let moment = moments.current.flatMap { m in seen.map { (kind: m.kind, age: Date.now.timeIntervalSince($0.at)) } }
         let motion = DockRules.shouldToss(change: (old, new), moment: moment,
-                                          fieldVisibility: geometry?.visibility[sectionID(.field)],
+                                          fieldVisibility: geometry?.contentVisibility(sectionID(.field)),
                                           level: level, reduceMotion: reduceMotion, live: bar.phase == .live,
                                           catchUp: Date.now.timeIntervalSince(appeared) < 1.5, resizing: resizing)
         switch motion {

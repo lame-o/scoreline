@@ -422,6 +422,8 @@ struct OddsSection: View {
     @State private var window = OddsWindow.game
     @State private var onScreen = false
     @State private var pointer = OddsPointer()
+    /// On a match page: folded, the header says each side's chance.
+    @Environment(\.moduleChrome) private var module
     #if DEBUG
     @Environment(\.oddsHarness) private var harness
     private var visible: Bool { onScreen || harness != nil }
@@ -439,7 +441,8 @@ struct OddsSection: View {
         let data = OddsChartData.make(feed: feed, baseline: baseline, state: event.state, window: live ? shownWindow : .game,
                                       eventStart: event.start)
         let lines = self.lines
-        OddsSectionChrome(title: final ? "How the Odds Moved" : "Win Probability", caption: caption, accessory: accessory) {
+        OddsSectionChrome(title: final ? "How the Odds Moved" : "Win Probability", caption: caption, accessory: accessory,
+                          glance: glance) {
             if live { windowControl }
         } content: {
             VStack(alignment: .leading, spacing: 0) {
@@ -459,6 +462,13 @@ struct OddsSection: View {
         .onChange(of: pageLive) { _, live in feed.show(onScreen && live, event: event) }
         .onChange(of: event.state) { _, _ in if onScreen && pageLive { feed.show(true, event: event) } }
         .onDisappear { feed.stop() }
+    }
+
+    /// Folded, the legend in a line: each side's chance, keyed by its color (the feed stays live while the header's on screen).
+    private var glance: ModuleGlance? {
+        guard module?.folded == true, let split = feed.latest else { return nil }
+        return ModuleGlance.chances(split, final: final, top: (OddsStyle.line(palette.top), names.top),
+                                    draw: threeWay ? OddsStyle.draw(scheme) : nil, bottom: (OddsStyle.line(palette.bottom), names.bottom))
     }
 
     /// Each outcome's line, in the legend's order: team lines held to their
@@ -490,7 +500,10 @@ struct OddsSection: View {
 
     #if DEBUG
     private var shownWindow: OddsWindow { harness?.window ?? window }
-    private var accessory: SectionAccessory? { live ? (harness?.stills == true ? nil : .live) : final ? .final : nil }
+    /// (Stills draw the Live mark in the window control's likeness; folded, that goes, so the mark is the header's own.)
+    private var accessory: SectionAccessory? {
+        live ? (harness?.stills == true && module?.folded != true ? nil : .live) : final ? .final : nil
+    }
     /// ImageRenderer can't draw AppKit controls (or the live dot's layer): the harness draws likenesses.
     @ViewBuilder
     private var windowControl: some View {
@@ -526,27 +539,39 @@ struct OddsSectionChrome<Trailing: View, Content: View>: View {
     var caption: String? = nil
     var accessory: SectionAccessory? = nil
     var spokenCaption: String? = nil
+    /// Folded (on a match page), each side's chance.
+    var glance: ModuleGlance? = nil
     @ViewBuilder let trailing: Trailing
     @ViewBuilder let content: Content
+    @Environment(\.moduleChrome) private var module
 
     var body: some View {
         StackColumn(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                SectionTitle(title, accessory: accessory) { trailing }
-                if let caption {
-                    Text(caption)
-                        .font(Viz.note)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .readableWidth()
-                        .accessibilityLabel(spokenCaption ?? caption)
+            if let module {
+                // Folded, the plot (and its scrub) leaves; the header stays, so the feed stays live for the glance.
+                ModuleHeader(title: title, caption: caption, spokenCaption: spokenCaption, accessory: accessory, glance: glance,
+                             chrome: module) { trailing }
+                if !module.folded {
+                    content.environment(\.moduleChrome, nil).transition(module.motion.content)
                 }
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    SectionTitle(title, accessory: accessory) { trailing }
+                    if let caption {
+                        Text(caption)
+                            .font(Viz.note)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .readableWidth()
+                            .accessibilityLabel(spokenCaption ?? caption)
+                    }
+                }
+                content
             }
-            content
         }
         .padding(.horizontal, Metrics.gutter)
-        .padding(.top, 16)
+        .padding(.top, module?.folded == true ? 12 : 16)
         .containerValue(\.stacksOwnRows, true)
     }
 }

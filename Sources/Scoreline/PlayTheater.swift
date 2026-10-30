@@ -1569,8 +1569,8 @@ private struct PlayStage: View {
     /// Half as tall as wide, up to this; wider than that, the field centers in the well.
     static let maxHeight: CGFloat = 320
 
-    /// Its section on screen: scrolled away, no frames are drawn (the clocks, and what plays next, carry on).
-    private var seen: Bool { geometry?.visibility[sectionID(.atPlate)].map { !$0.isHidden } ?? true }
+    /// The Live View on screen: scrolled away or folded, no frames are drawn (the clocks, and what plays next, carry on).
+    private var seen: Bool { geometry.map { $0.contentVisibility(sectionID(.liveView)).map { !$0.isHidden } ?? true } ?? true }
 
     // MARK: The timeline
 

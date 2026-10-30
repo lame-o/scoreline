@@ -35,6 +35,10 @@ final class PageGeometry {
     /// The scroll viewport's size (changes with the panel, never with scrolling).
     private(set) var viewport: CGSize = .zero
 
+    /// Folded modules (match pages): only their header is on the page, so
+    /// their content (a theater, a chart) is never in view, wherever the
+    /// header is. Written when the page's folds change, never on scroll.
+    private(set) var folded: Set<String> = []
     /// Section frames in content coordinates.
     @ObservationIgnored private(set) var frames: [String: CGRect] = [:]
     /// Rows a page scrolls to (`pageAnchor`), in content coordinates. Not
@@ -87,6 +91,25 @@ final class PageGeometry {
         apply(state(for: visibleRect))
     }
 
+    /// A section left the page (hidden, or nothing to show): it's in view nowhere.
+    func forget(_ id: String) {
+        guard frames.removeValue(forKey: id) != nil else { return }
+        apply(state(for: visibleRect))
+    }
+
+    func setFolded(_ ids: Set<String>) {
+        if folded != ids { folded = ids }
+    }
+
+    /// How much of a section's content is on screen: its `visibility`, except
+    /// that a folded section's content is hidden even with its header in view
+    /// (the theater stops drawing, a moment's owner isn't seen, the peek shows
+    /// the chart). The docked bar's news line reads plain `visibility`: a
+    /// folded header in view carries the moment in its glance.
+    func contentVisibility(_ id: String) -> Visibility? {
+        Self.contentVisibility(visibility[id], folded: folded.contains(id))
+    }
+
     func report(anchor frame: CGRect, for id: String) {
         if anchors[id] != frame { anchors[id] = frame }
     }
@@ -130,6 +153,15 @@ final class PageGeometry {
         if fraction >= 0.6 { return .visible }
         if fraction <= 0.4 { return .hidden(edge) }
         return .partial(edge)
+    }
+
+    /// A section's content, folded or not: folded, hidden on the side its header is (below when in view).
+    nonisolated static func contentVisibility(_ visibility: Visibility?, folded: Bool) -> Visibility? {
+        guard folded else { return visibility }
+        switch visibility {
+        case let .hidden(edge)?, let .partial(edge)?: return .hidden(edge)
+        case .visible?, nil: return .hidden(.below)
+        }
     }
 
     /// Where to scroll so a row shows whole below `topInset`: its top just
@@ -198,6 +230,8 @@ private struct PageSection: ViewModifier {
             content.onGeometryChange(for: CGRect.self) { $0.frame(in: .named(PageGeometry.space)) } action: { frame in
                 geometry.report(frame: frame, for: id)
             }
+            // Hidden from its menu (or with nothing left to show), its last frame mustn't read as in view.
+            .onDisappear { geometry.forget(id) }
         } else {
             content
         }

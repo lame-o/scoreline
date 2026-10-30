@@ -1038,8 +1038,8 @@ private struct FootballStage: View {
     /// Half as tall as wide, up to this.
     static let maxHeight: CGFloat = 320
 
-    /// Its section on screen: scrolled away, no frames are drawn (the clocks, and what plays next, carry on).
-    private var seen: Bool { geometry?.visibility[sectionID(.field)].map { !$0.isHidden } ?? true }
+    /// The Live View on screen: scrolled away or folded, no frames are drawn (the clocks, and what plays next, carry on).
+    private var seen: Bool { geometry.map { $0.contentVisibility(sectionID(.liveView)).map { !$0.isHidden } ?? true } ?? true }
 
     /// The play on screen (see `FootballTheater.shown`); nil, the field between snaps.
     private var shown: FootballScene? { FootballTheater.shown(state, replaying: replay?.id, rested: rested, played: played) }
