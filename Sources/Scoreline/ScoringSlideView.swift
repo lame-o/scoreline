@@ -3,8 +3,9 @@ import SwiftUI
 // The scoring slide on screen (its rules and words: ScoringSlide.swift): a
 // broadcast lower third. The page's `ScoringSlides` keeps the line and plays
 // one slide at a time; its hosts put it over the hero card (which steps
-// aside while it's up: `SlideCover`) or just under the docked bar, and are
-// out of the hierarchy between slides. The bar is drawn from a pose: live, a
+// aside while it's up: `SlideCover`), drawn from outside the card's glass
+// container (`heroSlide`), or just under the docked bar, and are out of the
+// hierarchy between slides. The bar is drawn from a pose: live, a
 // keyframe animator plays the wipe in (its layers land by 0.7 s, the sheen
 // done by about 1 s) and out (0.38 s), and nothing animates or ticks during
 // the hold; on the harness's frozen clock the same keyframes are sampled at
@@ -467,6 +468,9 @@ struct ScoringSlideHost: View {
     let slides: ScoringSlides
     /// The scoreboard it rides: `.hero` overlays the hero card, `.bar` sits under the docked bar.
     let surface: DockRules.Surface
+    /// The hero card's frame (`slideCard`), when the host draws from outside
+    /// it (`heroSlide`): the bar is placed on it. Nil: the frame it's given.
+    var card: Anchor<CGRect>? = nil
     @Environment(\.scoreboardSurface) private var current
     #if DEBUG
     @Environment(\.dockProgressOverride) private var override
@@ -482,15 +486,47 @@ struct ScoringSlideHost: View {
         let shown = slides.current, start = 0.0, harnessed = false
         #endif
         if let slide = shown, (override.map(DockRules.surface(p:)) ?? current?.current ?? .hero) == surface {
-            ScoringSlideBar(slide: slide, leaving: slides.leaving, start: start, fills: surface == .hero,
-                            settled: !harnessed && slides.settled)
+            let bar = ScoringSlideBar(slide: slide, leaving: slides.leaving, start: start, fills: surface == .hero,
+                                      settled: !harnessed && slides.settled)
                 .id(slide.id)
                 .modifier(SlidePlacement(surface: surface))
-                // Information, never in the way: clicks go to the page, and VoiceOver
-                // hears its one announcement (the hero stays the scoreboard).
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-                .transition(.identity)
+            Group {
+                if let card {
+                    GeometryReader { proxy in
+                        let frame = proxy[card]
+                        bar.frame(width: frame.width, height: frame.height).offset(x: frame.minX, y: frame.minY)
+                    }
+                } else {
+                    bar
+                }
+            }
+            // Information, never in the way: clicks go to the page, and VoiceOver
+            // hears its one announcement (the hero stays the scoreboard).
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .transition(.identity)
+        }
+    }
+}
+
+/// The hero card's frame, handed up to `heroSlide`.
+private struct SlideCardKey: PreferenceKey {
+    static let defaultValue: Anchor<CGRect>? = nil
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) { value = value ?? nextValue() }
+}
+
+extension View {
+    /// The hero card a scoring slide covers: its frame goes up to `heroSlide`.
+    func slideCard() -> some View { anchorPreference(key: SlideCardKey.self, value: .bounds) { $0 } }
+
+    /// The hero's scoring slide, over the card marked `slideCard()` inside,
+    /// drawn here: outside the hero's glass container, so it's the top layer.
+    /// A `GlassEffectContainer` composites its glass shapes (and what's in
+    /// them) over everything else inside it, so a slide drawn in there passed
+    /// under the card. The hero's tuck still moves it with the card.
+    func heroSlide(_ slides: ScoringSlides) -> some View {
+        overlayPreferenceValue(SlideCardKey.self) { card in
+            if let card { ScoringSlideHost(slides: slides, surface: .hero, card: card) }
         }
     }
 }
@@ -517,7 +553,9 @@ private struct SlidePlacement: ViewModifier {
 /// once the slide has gone: the hero card (its glass and all) under the bar
 /// is never seen around it. Only for a slide on the hero; one under the
 /// docked bar leaves the bar be. Reads which scoreboard shows only while a
-/// slide does, as the host does.
+/// slide does, as the host does. It steps aside through the glass itself
+/// (`glassPresence`): the card sits in a glass container, and an opacity
+/// around a glass view there reaches neither the glass nor what's in it.
 struct SlideCover: ViewModifier {
     let slides: ScoringSlides
     @Environment(\.scoreboardSurface) private var current
@@ -532,7 +570,7 @@ struct SlideCover: ViewModifier {
     func body(content: Content) -> some View {
         let covered = slides.current != nil && onHero
         content
-            .opacity(frozen ?? (covered ? 0 : 1))
+            .environment(\.glassPresence, frozen ?? (covered ? 0 : 1))
             .animation(frozen == nil ? .easeOut(duration: covered ? SlideMotion.coverOut : SlideMotion.coverIn) : nil, value: covered)
     }
 
