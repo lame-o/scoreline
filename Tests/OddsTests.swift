@@ -1,4 +1,6 @@
+import AppKit
 import Foundation
+import SwiftUI
 
 // Live odds, checked on real captures (Tests/Fixtures/odds, trimmed): GSW
 // 119–114 at MIN on 28 Oct (ESPN 401909888, Polymarket nba-gsw-min-2026-10-28,
@@ -198,18 +200,18 @@ extension ScorelineTests {
         // MARK: The chart's geometry
 
         let domain = date("2026-10-29T00:10:41Z")...date("2026-10-29T02:43:59Z")
-        let badge = OddsStyle.badgeWidth(["GSW", "MIN", "Draw"])
+        let labelWidth = OddsStyle.labelWidth(["GSW", "MIN", "Draw"])
         for width in [296.0, 620.0] {
-            let layout = OddsLayout(size: CGSize(width: width, height: 139), plotHeight: 124, domain: domain, badgeWidth: badge)
-            let halves = layout.halves
-            check(layout.midY == layout.y(0.5) && halves.top.maxY == layout.midY && halves.bottom.minY == layout.midY
-                  && layout.y(1) == layout.plot.minY && layout.y(0) == layout.plot.maxY,
-                  "\(Int(width))pt: the line changes color exactly at 50%")
-            let clear = [0, 0.001, 0.5, 0.999, 1].allSatisfy { p in
-                let frame = layout.badge(at: CGPoint(x: layout.x(domain.upperBound), y: layout.y(p)))
-                return frame.minX >= 0 && frame.maxX <= width && frame.minY >= 0 && frame.maxY <= 124
+            let layout = OddsLayout(size: CGSize(width: width, height: 139), plotHeight: 124, domain: domain, labelWidth: labelWidth)
+            check(layout.y(1) == layout.plot.minY && layout.y(0) == layout.plot.maxY && layout.y(0.5) == layout.plot.midY
+                  && layout.labelX + labelWidth <= width,
+                  "\(Int(width))pt: one fixed 0–100% scale, the end labels' column inside the well")
+            let whole = [0, 0.001, 0.5, 0.999, 1].allSatisfy { p in
+                layout.endLabels(OddsSplit(top: p, draw: nil, bottom: 1 - p), outcomes: [.top, .bottom]).allSatisfy {
+                    $0.y - OddsStyle.labelHeight / 2 >= 0 && $0.y + OddsStyle.labelHeight / 2 <= 124
+                }
             }
-            check(clear, "\(Int(width))pt: the badge never clips, at 0%, 50% and 100% at the live end")
+            check(whole, "\(Int(width))pt: the end labels never clip, at 0%, 50% and 100%")
             let minute = date("2026-10-29T01:41:00Z")
             check(layout.snap(x: layout.x(minute + 29), within: domain) == minute
                   && layout.snap(x: layout.x(minute + 31), within: domain) == minute + 60
@@ -219,24 +221,112 @@ extension ScorelineTests {
                   "\(Int(width))pt: every quarter named under its own span")
         }
         let pregameSpan = date("2026-10-28T20:00Z")...date("2026-10-29T00:10Z")
-        let pregame = OddsLayout(size: CGSize(width: 296, height: 139), plotHeight: 124, domain: pregameSpan, badgeWidth: badge)
+        let pregame = OddsLayout(size: CGSize(width: 296, height: 139), plotHeight: 124, domain: pregameSpan, labelWidth: labelWidth)
         let hours = OddsPlot.hourLabels(pregame)
         check(!hours.isEmpty && zip(hours, hours.dropFirst()).allSatisfy { $1.x - $0.x >= 56 }
               && hours.allSatisfy { $0.x >= pregame.plot.minX + 14 && $0.x <= pregame.plot.maxX - 14 },
               "before the game: whole hours under the axis, 56pt apart at least", "\(hours.map(\.label))")
+
+        // MARK: End labels dodge as a cluster
+
+        let compact = OddsLayout(size: CGSize(width: 296, height: 139), plotHeight: 124, domain: domain, labelWidth: labelWidth)
+        let three: [OddsMarket.Outcome] = [.top, .draw, .bottom]
+        func apart(_ labels: [OddsEndLabel]) -> Bool {
+            let ys = labels.map(\.y).sorted()
+            return zip(ys, ys.dropFirst()).allSatisfy { $1 - $0 >= OddsStyle.labelHeight - 0.001 }
+        }
+        let close = compact.endLabels(OddsSplit(top: 0.32, draw: 0.32, bottom: 0.37), outcomes: three)
+        let mean = { (ys: [CGFloat]) in ys.reduce(0, +) / CGFloat(ys.count) }
+        check(apart(close) && abs(mean(close.map(\.y)) - mean(close.map(\.dot.y))) < 0.01
+              && close.sorted { $0.y < $1.y }.map(\.outcome) == [.bottom, .top, .draw] && close.map(\.displaced) == [false, true, true],
+              "a near-tie (MUN 32 · Draw 32 · BOU 37): one cluster centered on its lines, in their order; leaders for the two moved off",
+              "\(close.map { "\($0.outcome) \($0.y)" })")
+        let blowout = compact.endLabels(OddsSplit(top: 0.98, draw: nil, bottom: 0.02), outcomes: [.top, .bottom])
+        check(blowout.allSatisfy { !$0.displaced && $0.y == $0.dot.y }, "a 98/2 blowout: each label sits on its own line, no leader")
+        let zeros = compact.endLabels(OddsSplit(top: 0, draw: 0, bottom: 1), outcomes: three)
+        check(apart(zeros) && zeros.allSatisfy { $0.y - OddsStyle.labelHeight / 2 >= 0 && $0.y + OddsStyle.labelHeight / 2 <= 124 }
+              && zeros[0].y < zeros[1].y && zeros[0].displaced && zeros[1].displaced && !zeros[2].displaced,
+              "two outcomes at 0%: stacked inside the plot (top team first), both led back to the line; the winner on its own",
+              "\(zeros.map(\.y))")
+        check(OddsLayout.dodge([20, 60, 100], gap: 13, within: 6.5...117.5) == [20, 60, 100]
+              && OddsLayout.dodge([50, 52, 54], gap: 13, within: 6.5...117.5) == [39, 52, 65]
+              && OddsLayout.dodge([10, 12, 30], gap: 13, within: 6.5...117.5).allSatisfy { $0 >= 6.5 },
+              "labels that fit stay put; three that collide share their mean; a cluster at the edge is held inside")
+
+        // MARK: Rounding: the shown chances sum to 100
+
+        func shown(_ s: OddsSplit, final: Bool = false) -> [Int] { s.outcomes.map { s.percents(final: final)[$0] ?? -1 } }
+        check(shown(OddsSplit(top: 0.525, draw: nil, bottom: 0.475)) == [53, 47] && shown(OddsSplit(top: 0.475, draw: nil, bottom: 0.525)) == [47, 53]
+              && shown(OddsSplit(top: 0.975, draw: nil, bottom: 0.025)) == [98, 2],
+              "two-way: the trailing side is 100 minus the leader (52.5/47.5 → 53/47, never 53 + 48; 97.5/2.5 → 98/2, never 98 + 3)")
+        let sweep = stride(from: 0.0, through: 1.0, by: 0.0005).allSatisfy { p in
+            let two = OddsSplit(top: p, draw: nil, bottom: 1 - p).percents()
+            let n = OddsSeries.normalized(top: p, draw: 0.3 * (1 - p), bottom: 0.7 * (1 - p) + 0.01)
+            return (two[.top] ?? 0) + (two[.bottom] ?? 0) == 100 && n.percents().values.reduce(0, +) == 100
+                && n.percents(final: true).values.reduce(0, +) == 100
+        }
+        check(sweep, "every split, two-way or three-way, shows chances summing to exactly 100")
+        check(shown(OddsSplit(top: 0.3249, draw: 0.3249, bottom: 0.3502)) == [33, 32, 35]
+              && shown(OddsSplit(top: 0.996, draw: 0.002, bottom: 0.002)) == [98, 1, 1]
+              && shown(OddsSplit(top: 0, draw: 0, bottom: 1), final: true) == [0, 0, 100]
+              && shown(OddsSplit(top: 0.999, draw: nil, bottom: 0.001)) == [99, 1] && shown(OddsSplit(top: 1, draw: nil, bottom: 0), final: true) == [100, 0],
+              "three-way by largest remainder; never 0 or 100 until it's final")
+
+        // MARK: Colors
+
+        func srgb(_ color: Color) -> [Int] {
+            let c = NSColor(color).usingColorSpace(.sRGB)
+            return [c?.redComponent, c?.greenComponent, c?.blueComponent].map { Int((($0 ?? -1) * 255).rounded()) }
+        }
+        check(srgb(OddsStyle.draw(.light)) == [174, 174, 174] && srgb(OddsStyle.draw(.dark)) == [93, 93, 93],
+              "the draw recedes toward the surface: #aeaeae light, #5d5d5d dark (validated)")
+        let sky = TeamPalette(top: "99c5ea", bottom: nil, scheme: .light).top
+        let before = OKLab(NSColor(sky)), after = OKLab(NSColor(OddsStyle.line(sky)))
+        let red = Color(hex: "da020e") ?? .red
+        check((before?.chroma ?? 1) < 0.10 && (after?.chroma ?? 0) >= 0.099 && abs((after?.l ?? 0) - (before?.l ?? 1)) < 0.01
+              && abs((after?.hue ?? 0) - (before?.hue ?? 180)) < 2 && OddsStyle.line(red) == red && OddsStyle.line(Viz.neutral) == Viz.neutral,
+              "team lines keep 0.10 chroma (City's sky blue on light lifts to it, same lightness and hue); vivid colors and gray stay",
+              "\(String(describing: before?.chroma)) → \(String(describing: after?.chroma))")
+
+        // MARK: Live and still
+
+        check(OddsMotion.live(final: false, streaming: true, seen: true, reduceMotion: false)
+              && !OddsMotion.live(final: true, streaming: true, seen: true, reduceMotion: false)
+              && !OddsMotion.live(final: false, streaming: false, seen: true, reduceMotion: false)
+              && !OddsMotion.live(final: false, streaming: true, seen: false, reduceMotion: false)
+              && !OddsMotion.live(final: false, streaming: true, seen: true, reduceMotion: true),
+              "every end is live while the market streams and the chart is seen; final, not streaming, off screen or Reduce Motion: still dots")
+        let level = OddsSplit(top: 0.30, draw: 0.32, bottom: 0.38)
+        check(OddsMotion.mover(from: OddsSplit(top: 0.55, draw: nil, bottom: 0.45), to: OddsSplit(top: 0.53, draw: nil, bottom: 0.47)) == .bottom
+              && OddsMotion.mover(from: level, to: OddsSplit(top: 0.29, draw: 0.30, bottom: 0.41)) == .bottom
+              && OddsMotion.mover(from: level, to: OddsSplit(top: 0.27, draw: 0.33, bottom: 0.40)) == .top
+              && OddsMotion.mover(from: level, to: level) == nil,
+              "the bright beat goes to the outcome that moved most (two-way, the side gaining); no move, no beat")
+        let beats = [100.0, 101.7, 103.3, 250.05].map { OddsMotion.beat(after: $0, epoch: 100) }
+        check(zip([100.0, 101.7, 103.3, 250.05], beats).allSatisfy { t, b in
+            let cycles = (b - 100) / OddsStyle.pulsePeriod
+            return b >= t - 1e-9 && b < t + OddsStyle.pulsePeriod && abs(cycles - cycles.rounded()) < 1e-9
+        }, "a beat lands on the next beat of the shared pulse, never out of step", "\(beats)")
         check(OddsGlide.progress(0) == 0 && OddsGlide.progress(OddsStyle.glide) == 1 && OddsGlide.progress(1) == 1
               && OddsGlide.progress(0.1) < OddsGlide.progress(0.2) && OddsGlide.progress(0.1) > 0.4,
               "the glide eases out (8% a frame) and lands at exactly 0.5 s")
+
+        // MARK: Data and readings
+
         let live = OddsChartData.domain(state: .live, window: .recent, start: domain.lowerBound, end: nil,
                                         first: domain.lowerBound, last: domain.upperBound, now: domain.upperBound)
         let final = OddsChartData.domain(state: .final, window: .game, start: domain.lowerBound, end: domain.upperBound,
                                          first: domain.lowerBound - 1800, last: domain.upperBound + 900, now: .now)
         check(live.upperBound == domain.upperBound && live.upperBound.timeIntervalSince(live.lowerBound) == 600 && final == domain,
               "10 min slides with the newest point; a final runs from tip-off to the last play")
-        let data = OddsChartData(revision: 1, threeWay: false, line: history, espn: nba.espn, draftKings: nba.draftKings,
-                                 periods: nba.periods, domain: domain, live: false, final: true)
+        let points = history.map { OddsSplitPoint(t: $0.t, split: OddsSplit(top: $0.p, draw: nil, bottom: 1 - $0.p)) }
+        let data = OddsChartData(revision: 1, threeWay: false, points: points, espn: nba.espn, periods: nba.periods, domain: domain,
+                                 live: false, final: true)
         let reading = OddsReading.at(somePlay.t + 10, data: data, baseline: nba)
         check(reading?.split != nil && reading?.espn != nil && reading?.play != nil && (reading?.when().contains(" · ") ?? false),
-              "a reading lists Polymarket, ESPN, the clock and wall time, and the nearest play", "\(String(describing: reading?.when()))")
+              "a reading has Polymarket, ESPN, the clock and wall time, and the nearest play", "\(String(describing: reading?.when()))")
+        check(data.split(at: .distantPast) == points.first?.split && data.split(at: .distantFuture) == points.last?.split
+              && data.split(at: points[10].t + 1) == points[10].split,
+              "the split at a minute: the point in effect then (the first, before it)")
     }
 }
