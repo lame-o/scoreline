@@ -52,7 +52,7 @@ import { arr, at, bool, str, type JSONValue } from "../json";
 import type { GameClock, Side } from "../models";
 import { liveMoment, Tier, type Accent, type LiveMoment } from "../moments";
 import { nbaFacts } from "../scoringFacts";
-import { liveScore, playIDFromRef, teamIDFromRef, type LiveScore } from "./baseball";
+import { FeedLooks, liveScore, playIDFromRef, teamIDFromRef, type LiveScore } from "./baseball";
 
 /** Who's playing, for reading the plays (BasketballFeed.Teams). */
 export interface Teams {
@@ -146,6 +146,12 @@ export class BasketballFeed {
   items: readonly JSONValue[] = [];
   /** Complete looks at the play list so far: a play is news only from a later look than the first (the theater's rule, `seenIn`). */
   looks = 0;
+  /**
+   * The last look that's history: the first, or the one that caught up on
+   * coming back to the page (`FeedLooks`: the tab hidden, or the lane
+   * paused, for a while). The theater reads it beside the lane.
+   */
+  history = 1;
 
   private window: JSONValue[] = [];
   /** Index in ESPN's full play list of `window[0]`. */
@@ -158,6 +164,9 @@ export class BasketballFeed {
   private announced = new Map<string, LiveMoment>();
   private retracted: string[] = [];
   private primed = false;
+  /** The page's looks; whether this one catches up after a gap (`history`). */
+  private following = new FeedLooks();
+  private catchingUp = false;
   /** The look each play was first seen in. */
   private firstSeen = new Map<string, number>();
   private teams: Teams | null = null;
@@ -208,6 +217,7 @@ export class BasketballFeed {
   }
 
   private async look(fetcher: Fetcher, { path, eventID, teams, signal }: BasketballUpdate): Promise<void> {
+    this.catchingUp = !this.following.follows(this.now());
     this.teams = teams;
     this.quarter = path.endsWith("wnba") ? QUARTER.wnba : QUARTER.nba;
     const league = path.split("/").pop() ?? "nba";
@@ -322,6 +332,7 @@ export class BasketballFeed {
       nextStart += drop;
     }
     this.fetched = total;
+    if (this.catchingUp) this.history = this.looks + 1;
     this.ingest(next, nextStart, teams);
   }
 

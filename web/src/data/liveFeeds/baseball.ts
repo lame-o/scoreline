@@ -62,6 +62,27 @@ export const REREAD_MS = 20_000;
 /** A play this fresh when the page opens still replays (ESPN publishes plays 15–45 s after they happen). */
 export const RECENT_MS = 60_000;
 
+/**
+ * A live feed's looks while its page is open (LiveFeeds.swift `FeedLooks`;
+ * every lane keeps one). The page stops looking while its tab is hidden (or
+ * its lane otherwise pauses: the computer asleep) and starts again on coming
+ * back: the look that catches up on what was missed is history, as on
+ * opening the page, so the theater doesn't replay the plays it missed back
+ * to back. Only the newest replays, if it only just happened. (pure; tested)
+ */
+export class FeedLooks {
+  /** Longer than the wait between looks plus a slow look's round trips (ms). */
+  static readonly gap = 30_000;
+  private last: number | null = null;
+
+  /** Whether the look at `now` (epoch ms) follows on from the last one; marks it. */
+  follows(now: number): boolean {
+    const last = this.last;
+    this.last = now;
+    return last == null || now - last <= FeedLooks.gap;
+  }
+}
+
 export class BaseballFeed<T extends TheaterLike = TheaterLike> {
   situation: Baseball | null = null;
   /** Pitches of the at-bat in progress (or the last one between batters). */
@@ -81,6 +102,12 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
   delay: Delay | null = null;
   /** Bumped each time the plays in the window change: the theater's timeline is built from them. */
   playsVersion = 0;
+  /**
+   * This look follows on from the last (the tab wasn't hidden, nor the lane
+   * paused, for long): the theater's timeline reads it beside the lane, as
+   * the Mac's `rebuildTimeline(news: primed && following)` does (PlayTheater).
+   */
+  following = true;
 
   /** The most recent plays (the theater's timeline, every pitch and what came between, is built from them). */
   get plays(): readonly JSONValue[] {
@@ -97,6 +124,8 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
   /** At-bat results that arrived since the page opened. */
   private moments: LiveMoment[] = [];
   private primed = false;
+  /** The page's looks: whether each follows on from the last (`following`). */
+  private looks = new FeedLooks();
   private fetched: number | null = null;
   private lastPlayRef: string | null = null;
   private newestID: string | null = null;
@@ -134,6 +163,7 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
   }
 
   private async look(fetcher: Fetcher, { path, eventID, names, side, signal }: BaseballUpdate): Promise<void> {
+    this.following = this.looks.follows(this.now());
     {
       const league = path.split("/").pop() ?? path;
       const base = `https://sports.core.api.espn.com/v2/sports/baseball/leagues/${league}/events/${eventID}/competitions/${eventID}`;
@@ -243,8 +273,9 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
       this.windowStart += this.window.length - WINDOW_SIZE;
       this.window = this.window.slice(-WINDOW_SIZE);
     }
-    // Until a complete look it's history; after, at-bat results are news.
-    const news = this.primed;
+    // Until a complete look it's history; after, at-bat results are news
+    // (not those a look coming back to the page catches up on).
+    const news = this.primed && this.following;
     if (this.primed) this.moments.push(...look.new.flatMap((item) => baseballMoment(item, side) ?? []));
     // A result rewritten: its moment again (a bigger one is news again), and taken back if it no
     // longer applies; it's measured again as what it is now (a new scene). One replaced is taken back too.

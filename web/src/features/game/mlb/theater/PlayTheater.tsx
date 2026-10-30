@@ -110,6 +110,8 @@ export interface PlayTheaterProps {
   readonly names?: Readonly<Record<string, string>>;
   /** When the lane last brought anything (the heartbeat), and a delay ESPN's status says. */
   readonly heard?: number | null;
+  /** The lane's last look follows on from the one before (`BaseballFeed.following`): what a look catching up after a gap brings is history. */
+  readonly following?: boolean;
   readonly delay?: Delay | null;
   /** The live count and outs, and the inning ("Top 7th"): the tag until the timeline says more. */
   readonly situation?: Baseball | null;
@@ -164,11 +166,13 @@ const NO_RUNNERS: readonly [string | null, string | null, string | null] = [null
 const BRIEF_HOLD_MS = 1_400;
 
 /**
- * The timeline with what's news: entries first seen after the theater first
- * saw any are news (it opened on the rest: history isn't replayed); one seen
- * before keeps what it was; the newest play is news as the lane's is.
+ * The timeline with what's news (BaseballFeed.rebuildTimeline): entries
+ * first seen after the theater first saw any are news (it opened on the
+ * rest: history isn't replayed), but not those a look coming back to the
+ * page catches up on (`following`: the lane's `FeedLooks`); one seen before
+ * keeps what it was; the newest play is news as the lane's is.
  */
-function useTimeline(plays: readonly JSONValue[], version: number, atBats: readonly StatcastAtBat[], names: Readonly<Record<string, string>>, state: TheaterState): PlayBeat[] {
+function useTimeline(plays: readonly JSONValue[], version: number, atBats: readonly StatcastAtBat[], names: Readonly<Record<string, string>>, state: TheaterState, following: boolean): PlayBeat[] {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const base = useMemo(() => timeline(plays, atBats, names), [version, atBats, names]);
   const seen = useRef<Map<string, boolean>>(new Map());
@@ -179,13 +183,13 @@ function useTimeline(plays: readonly JSONValue[], version: number, atBats: reado
     return base.map((b) => {
       let news = seen.current.get(b.id);
       if (news === undefined) {
-        news = !first && primed.current;
+        news = !first && primed.current && following;
         seen.current.set(b.id, news);
       }
       if (isPlayBeat(b) && b.id === state.play?.id) news = state.news;
       return news === b.news ? b : { ...b, news };
     });
-  }, [base, state.play?.id, state.news]);
+  }, [base, state.play?.id, state.news, following]);
 }
 
 /** The team at bat for a beat: between halves, the one about to; after a third out, the other. */
@@ -235,6 +239,7 @@ export function PlayTheater({
   playsVersion = 0,
   names = {},
   heard = null,
+  following = true,
   delay = null,
   situation = null,
   inning = null,
@@ -264,7 +269,7 @@ export function PlayTheater({
   // MLB's at-bats for the timeline (the full feed's, and the one under way), and its status.
   const mlb = useMLBTimeline(event, live && frozen == null);
   const held = mlbDelay(mlb.status) ?? delay;
-  const line = useTimeline(plays, playsVersion, mlb.atBats, names, state);
+  const line = useTimeline(plays, playsVersion, mlb.atBats, names, state, following);
   const numbers = givenNumbers ?? mlb.numbers;
 
   // The last entry shown (or passed over): what's after it, and news, is still to come. "": before everything.

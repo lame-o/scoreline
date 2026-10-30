@@ -278,6 +278,19 @@ describe("soccer theater: what's news", () => {
     expect(fresh.state.scene?.id).toBe(header!.scene.id);
     expect(fresh.state.news).toBe(false);
   });
+
+  it("the look that catches up after the tab was hidden (FeedLooks) is history too: its moment and events aren't news; the heartbeat still counts from it", () => {
+    const clip = header!.clip;
+    const at = header!.index;
+    const late = Date.parse("2030-01-01T00:00:00Z");
+    const watch = new SoccerTheaterWatch();
+    watch.update(clip.plays.slice(0, at), clip.home, false, late);
+    expect(watch.update(clip.plays.slice(0, at + 1), clip.home, true, late + 120_000, { following: false })).toBe(true);
+    expect(watch.state.scene?.id).toBe(header!.scene.id);
+    expect(watch.state.news).toBe(false);
+    expect(watch.state.newsFrom ?? null).toBeNull();
+    expect(watch.state.heard).toBe(late + 120_000);
+  });
 });
 
 describe("soccer theater: between moments", () => {

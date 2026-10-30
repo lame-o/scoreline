@@ -236,5 +236,29 @@ describe("the lane reads ESPN's rewrites again", () => {
     expect(lane.atBat.map((p) => p.id)).toEqual(["4019080450605030091"]);
     expect(lane.takeRetractions()).toEqual(["4019080450605030090"]);
   });
+
+  it("the look that catches up after the tab was hidden (FeedLooks) is history for the theater, as the first is; the next look's result is news", async () => {
+    const result = (id: string, n: number) => ({ id, type: { type: "play-result" }, atBatId: `40190804506${n}`, text: `Result ${n}`, period: { type: "Top", number: 6 }, team: { $ref: "http://x/teams/30?lang=en" } });
+    const theaterOf = (plays: readonly unknown[]): TheaterLike => {
+      const last = plays.findLast((p) => (p as { type: { type: string } }).type.type === "play-result") as { id: string } | undefined;
+      return { play: last ? { id: last.id, wallclock: null } : null, news: false };
+    };
+    let items: unknown[] = [start, pitch("4019080450605030090", "ball---confirmed", 1)];
+    let now = 0;
+    const lane = new BaseballFeed(theaterOf, () => now);
+    const fetcher = feed(() => items);
+    const look = async (at: number, next: unknown) => {
+      items = [...items, next];
+      now = at;
+      await lane.update(fetcher, { path: "baseball/mlb", eventID: "1", names: {}, side });
+      return lane.theater;
+    };
+    await lane.update(fetcher, { path: "baseball/mlb", eventID: "1", names: {}, side });
+    expect(await look(5_000, result("1001", 1))).toMatchObject({ play: { id: "1001" }, news: true });
+    expect(await look(125_000, result("1002", 2))).toMatchObject({ play: { id: "1002" }, news: false });
+    expect(lane.following).toBe(false);
+    expect(await look(130_000, result("1003", 3))).toMatchObject({ play: { id: "1003" }, news: true });
+    expect(lane.following).toBe(true);
+  });
 });
 

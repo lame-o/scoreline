@@ -23,7 +23,7 @@ import { at, bool, num, str, arr, type JSONValue } from "../json";
 import type { GameClock, Side } from "../models";
 import { liveMoment, Tier, type Accent, type LiveMoment, type MomentKind } from "../moments";
 import { footballFacts } from "../scoringFacts";
-import { liveScore, playIDFromRef, teamIDFromRef, type LiveScore } from "./baseball";
+import { FeedLooks, liveScore, playIDFromRef, teamIDFromRef, type LiveScore } from "./baseball";
 
 // MARK: - Geometry (FootballGeometry: shared with the tiles, so the two never disagree)
 
@@ -400,6 +400,12 @@ export class FootballFeed {
   charts: Readonly<Partial<Record<Side, JSONValue>>> = {};
   /** Bumped on every change: a snapshot for `useSyncExternalStore`. */
   version = 0;
+  /**
+   * This look follows on from the last (the tab wasn't hidden, nor the lane
+   * paused, for long): the theater beside the lane reads it with each change
+   * (`FootballTheaterWatch`), as the Mac's lane passes `primed && following`.
+   */
+  following = true;
 
   /** Depth charts by season and team, kept for the day across pages: they change once a week. */
   static chartCache = new Map<string, { readonly chart: JSONValue; readonly fetched: number }>();
@@ -417,6 +423,8 @@ export class FootballFeed {
   private retracted: string[] = [];
   private moments: LiveMoment[] = [];
   private primed = false;
+  /** The page's looks: whether each follows on from the last (`following`). */
+  private looks = new FeedLooks();
   /** When the depth charts were last asked for. */
   private chartsAsked: number | null = null;
   private inflight: Promise<void> | null = null;
@@ -471,6 +479,7 @@ export class FootballFeed {
   }
 
   private async look(fetcher: Fetcher, { path, eventID, teams, signal }: FootballUpdate): Promise<void> {
+    this.following = this.looks.follows(this.now());
     const league = path.split("/").pop() ?? path;
     const base = `https://sports.core.api.espn.com/v2/sports/football/leagues/${league}/events/${eventID}/competitions/${eventID}`;
     const [s, status] = await Promise.all([fetcher(`${base}/situation`, { signal }).catch(() => null), fetcher(`${base}/status`, { signal }).catch(() => null)]);

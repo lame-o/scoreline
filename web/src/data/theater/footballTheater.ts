@@ -194,10 +194,20 @@ export class FootballTheaterWatch {
 
   /**
    * `primed`: the lane had a complete look before this change; `charts`:
-   * the lane's depth charts as ESPN sent them (`FootballFeed.charts`). True
-   * when the state changed.
+   * the lane's depth charts as ESPN sent them (`FootballFeed.charts`);
+   * `following`: the look that brought this change follows on from the last
+   * (`FootballFeed.following`): one catching up after a gap is history, as
+   * on opening the page (the heartbeat still counts from it). True when the
+   * state changed.
    */
-  update(items: readonly JSONValue[], teams: FootballTeams, primed: boolean, now: number = Date.now(), charts: Readonly<Partial<Record<Side, JSONValue>>> = NO_CHARTS): boolean {
+  update(
+    items: readonly JSONValue[],
+    teams: FootballTeams,
+    primed: boolean,
+    now: number = Date.now(),
+    charts: Readonly<Partial<Record<Side, JSONValue>>> = NO_CHARTS,
+    following = true,
+  ): boolean {
     let changed = false;
     if (charts !== this.rawCharts) {
       this.rawCharts = charts;
@@ -267,7 +277,7 @@ export class FootballTheaterWatch {
       placed = spot(snaps, shown);
     }
     if (placed.length === 0) return changed;
-    this.state = { ...footballTheaterQueued(placed, stoppage, this.state, primed, now), heard: this.heard };
+    this.state = { ...footballTheaterQueued(placed, stoppage, this.state, primed && following, now), heard: this.heard };
     return true;
   }
 }
