@@ -206,7 +206,7 @@ extension ScorelineTests {
             let s = FootballScript(idle: idle)
             check(idle.phase == .off && s.players.allSatisfy { $0.opacity(at: s.duration) < 0.01 } && s.ball(at: s.duration) == nil
                   && FootballStatus.idle(idle, stoppage: stop, script: s, t: 3, names: names, situation: nil, timeoutsLeft: (nil, nil)).tag == "Halftime",
-                  "halftime: both teams and the officials off, the field empty, HALFTIME")
+                  "halftime: both teams off, the field empty, HALFTIME")
         }
         // A man hurt: down, his teammates round him, two trainers out to him, then off.
         if let mitchell {
@@ -223,16 +223,15 @@ extension ScorelineTests {
             check(FootballStatus.idle(idle, stoppage: nil, script: s, t: 10, names: names, situation: nil, timeoutsLeft: (nil, nil)) == TheaterStatus(tag: "Injury · Q.Mitchell", tint: "06424d"),
                   "…tagged INJURY · Q.MITCHELL in the Eagles' color")
         }
-        // A challenge: the red flag in from the challenger's bench, the referee to the monitor, the call.
+        // A challenge: the red flag in from the challenger's bench, the teams waiting (no referee walking to the monitor), the call.
         if let (play, gt) = reviewed("Atlanta challenged") {
             let idle = FootballIdle.make(play: play, stoppage: nil, rest: FootballScript.Rest(yard: 99, gain: nil), offense: .bottom, down: nil, kickoff: false, flipped: false)
             let s = FootballScript(idle: idle)
             let red = s.flags.first { $0.red }
             check(red.map { ($0.from.x > 0) == (idle.bench > 0) && abs($0.to.x) < Gridiron.half && $0.lands < 2 } == true,
                   "Atlanta's red flag thrown in from its own bench")
-            let ref = s.players.indices.first { s.players[$0].team == .official }
-            check(ref.map { abs(s.players[$0].position(at: 10).x) > Gridiron.half && s.players[$0].position(at: 10).x * FieldFacing.near(yaw: s.yaw) > 0 } == true,
-                  "the referee at the replay monitor on the near sideline")
+            check(!s.players.contains { $0.team == .official } && s.players.contains { $0.team == .staff && $0.actions.contains { $0.kind == .flagThrow } },
+                  "the coach's throw is the only one off the field; no official stands about (nor walks to the monitor)")
             let atlNames = FootballStatus.Names(top: "49ers", bottom: "Falcons", topColor: "aa0000", bottomColor: "a71930")
             let tags = [2.0, 10, 18].map { FootballStatus.idle(idle, stoppage: nil, script: s, t: $0, names: atlNames, situation: nil, timeoutsLeft: (nil, nil)).tag ?? "" }
             check(tags == ["Challenge · Falcons", "Under review · runner was out of bounds", "Ruling stands"],

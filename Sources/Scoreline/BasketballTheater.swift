@@ -31,9 +31,12 @@ import SwiftUI
 // through the camera, so lines stay crisp at any zoom and the two never
 // disagree on it. A TimelineView exists only while something moves; between
 // the court's sparse beats it's a still frame. Plays already on the page
-// when it opened aren't told (the live court); with Reduce Motion each play
-// crossfades to how it ended, the camera never moves, nothing idles, and the
-// tags still say what's happening. Decorative for VoiceOver (the shot chart
+// when it opened aren't told (the live court); a replay that comes in while
+// the court rests takes over from it (TheaterBridge: each man from where he
+// is in the half-court set to his place in the replay's, or a quick
+// crossfade when the replay's set is at the other end); with Reduce Motion
+// each play crossfades to how it ended, the camera never moves, nothing
+// idles, and the tags still say what's happening. Decorative for VoiceOver (the shot chart
 // carries the play), all but the turn control.
 
 // MARK: - Court
@@ -402,14 +405,14 @@ enum HoopPose {
     /// A hand on him: the reach that draws a whistle, the arm out at his chest.
     static let reach = RigPose(hip: RigVector(0.03, 0, 0.42), lean: 0.4, left: RigVector(0.16, 0.1, 0), right: RigVector(-0.14, -0.12, 0), knees: 0.25,
                                leftArm: RigArm(swing: 0.6, spread: 0.5, turn: -0.2, bend: 0.5), rightArm: RigArm(swing: 1.45, spread: 0.12, turn: -0.2, bend: 0.15))
-    /// Knocked down by the charge: on his back, arms flung out.
-    static let fallen = RigPose(hip: RigVector(-0.1, 0, 0.12), pitch: -1.45, nod: 0.35, left: RigVector(0.02, 0.1, -0.36),
-                                right: RigVector(0.06, -0.1, -0.3), knees: 0.3, leftArm: RigArm(swing: 2.5, spread: 0.55, bend: 0.4),
-                                rightArm: RigArm(swing: 2.3, spread: 0.6, bend: 0.5))
     /// A referee's call: a fist straight up (a foul, a timeout), the other arm at his side.
     static let signal = RigPose(leftArm: RigArm(swing: 0.25, spread: 0.2, turn: -0.2, bend: 0.3), rightArm: RigArm(swing: 3.05, spread: 0.05, turn: 0.2, bend: 0.12))
     /// Pointing the way the ball goes now: the arm out level.
     static let point = RigPose(turn: 0.35, leftArm: RigArm(swing: 0.2, spread: 0.2, bend: 0.3), rightArm: RigArm(swing: 1.55, spread: 0.45, turn: 0.35, bend: 0.05))
+    /// Knocked down by the charge: on his back, arms flung out.
+    static let fallen = RigPose(hip: RigVector(-0.1, 0, 0.12), pitch: -1.45, nod: 0.35, left: RigVector(0.02, 0.1, -0.36),
+                                right: RigVector(0.06, -0.1, -0.3), knees: 0.3, leftArm: RigArm(swing: 2.5, spread: 0.55, bend: 0.4),
+                                rightArm: RigArm(swing: 2.3, spread: 0.6, bend: 0.5))
     /// Hands on his hips, waiting on a free throw.
     static let hips = RigPose(hip: RigVector(0, 0, 0.49), leftArm: RigArm(swing: 0.3, spread: 0.75, turn: -0.9, bend: 1.9),
                               rightArm: RigArm(swing: 0.3, spread: 0.75, turn: -0.9, bend: 1.9))
@@ -433,18 +436,49 @@ struct BasketballFrame: View, Equatable {
     var paint = HoopsCourtLayer.Paint()
     /// The names over the players: the pointer's, the key man's.
     var tags = TheaterTags()
+    /// The court between plays this replay is taking over from (nil: none,
+    /// or the hand-off is done).
+    var bridge: Bridge? = nil
+
+    /// The court between plays as it stands mid-bridge (TheaterBridge): its
+    /// script and its time now (it plays on under the hand-off), how far the
+    /// hand-off is, and who becomes whom.
+    struct Bridge: Equatable {
+        var script: BasketballScript
+        var t: Double
+        /// 0 the court between plays, 1 the replay.
+        var w: Double
+        /// Seconds since the play came in: where each traveller is along his track.
+        var s: Double
+        /// Replay player → the court's.
+        var pairs: [Int: Int]
+        var tracks: [Int: RigTrack]
+
+        /// The court's men the replay doesn't have: they fade out.
+        var ghosts: [Int] {
+            let paired = Set(pairs.values)
+            return script.players.indices.filter { !paired.contains($0) }
+        }
+    }
 
     /// The time first: mid-replay it's all that differs.
     static func == (a: BasketballFrame, b: BasketballFrame) -> Bool {
         a.t == b.t && a.size == b.size && a.teams == b.teams && a.ink == b.ink && a.paint == b.paint && a.tags == b.tags && a.scene == b.scene
-            && a.script == b.script
+            && a.bridge == b.bridge && a.script == b.script
+    }
+
+    /// The camera at t; mid-bridge, eased from the court's framing to the replay's.
+    func projection(_ size: CGSize) -> HoopProjection {
+        let camera = script.camera.frame(at: t)
+        guard let b = bridge else { return HoopProjection(size: size, camera: camera, yaw: script.yaw) }
+        return HoopProjection(size: size, camera: b.script.camera.frame(at: b.t).mix(camera, b.w), yaw: b.script.yaw + remainder(script.yaw - b.script.yaw, 2 * .pi) * b.w)
     }
 
     private enum Symbol: Hashable { case stamp, banner }
 
     var body: some View {
         Canvas { context, size in
-            let h = HoopProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw)
+            let h = projection(size)
             context.clip(to: h.bounds)
             HoopsCourtLayer.draw(&context, h, ink: ink, paint: paint)
             let figures = posed(h), ball = ballPoint(h, figures)
@@ -482,8 +516,7 @@ struct BasketballFrame: View, Equatable {
             return TheaterTags.Ball(shape: Path(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r)), height: h.figure)
         }
         let well = h.size
-        return tags.draw(figures.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: h.figure,
-                                                          opacity: script.players[$0.index].opacity(at: t)) },
+        return tags.draw(figures.filter { !$0.ghost }.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: h.figure, opacity: $0.opacity) },
                   ball: disc, t: t, size: h.size, clear: clear, ring: ink.tagRing,
                   replay: TheaterReplay(length: script.duration) { Self.spots(script, at: $0, size: well) }, in: context)
     }
@@ -499,24 +532,54 @@ struct BasketballFrame: View, Equatable {
 
     // MARK: Players
 
-    /// A player posed and placed at t; with the ball, where it is in his hands.
+    /// A player posed and placed at t; with the ball, where it is in his
+    /// hands. A ghost is one of the court's men the replay doesn't have,
+    /// fading out over the bridge (his index is the court's).
     private struct Posed {
         let index: Int
         let figure: RigFigure
         var ball: CGPoint? = nil
+        var opacity = 1.0
+        var ghost = false
     }
 
     /// Everyone at t, far to near: a player in front covers the one behind.
+    /// Mid-bridge each man the two share goes from where the court between
+    /// plays has him to his place in the replay's set, posed between the two
+    /// and striding along the way; the court's others fade out, the replay's fade in.
     private func posed(_ h: HoopProjection) -> [Posed] {
         let carrier = script.carrier(at: t)
-        return script.players.indices
-            .filter { script.players[$0].opacity(at: t) > 0.01 }
-            .map { (index: $0, at: script.players[$0].position(at: t)) }
+        let idle = bridge.map { BasketballFrame(scene: nil, script: $0.script, t: $0.t, teams: teams, ink: ink, size: size) }
+        var list: [(index: Int, at: CGPoint, ghost: Bool)] = script.players.indices.map { i in
+            var at = script.players[i].position(at: t)
+            if let b = bridge, let j = b.pairs[i] { at = TheaterBridge.mix(b.script.players[j].position(at: b.t), at, b.w) }
+            return (i, at, false)
+        }
+        if let b = bridge { list += b.ghosts.map { ($0, b.script.players[$0].position(at: b.t), true) } }
+        return list
             .sorted { h.depth($0.at) > h.depth($1.at) }
-            .map { index, at in
-                let player = script.players[index]
+            .compactMap { index, at, ghost in
                 let lens = RigLens(h, at: at)
-                let (body, heading) = pose(player, index, at: at, unit: lens.unit)
+                if ghost, let b = bridge, let idle {
+                    let player = b.script.players[index], o = player.opacity(at: b.t) * (1 - b.w)
+                    guard o > 0.01 else { return nil }
+                    let (body, heading) = idle.pose(player, index, at: at, unit: lens.unit)
+                    return Posed(index: index, figure: RigFigure(RigSkeleton(body), heading: heading, lens: lens), opacity: o, ghost: true)
+                }
+                let player = script.players[index]
+                var o = player.opacity(at: t)
+                var (body, heading) = pose(player, index, at: player.position(at: t), unit: lens.unit)
+                if let b = bridge, let idle {
+                    if let j = b.pairs[index] {
+                        let other = b.script.players[j]
+                        (body, heading) = TheaterBridge.pose(from: idle.pose(other, j, at: other.position(at: b.t), unit: lens.unit), to: (body, heading),
+                                                             w: b.w, track: b.tracks[index], s: b.s, at: at, unit: lens.unit)
+                        o = other.opacity(at: b.t) + (o - other.opacity(at: b.t)) * b.w
+                    } else {
+                        o *= b.w
+                    }
+                }
+                guard o > 0.01 else { return nil }
                 let skeleton = RigSkeleton(body)
                 let figure = RigFigure(skeleton, heading: heading, lens: lens)
                 var ball: CGPoint?
@@ -541,7 +604,7 @@ struct BasketballFrame: View, Equatable {
                     let loose = h.point(spot)
                     ball = CGPoint(x: loose.x + (hand.x - loose.x) * held, y: loose.y + (hand.y - loose.y) * held)
                 }
-                return Posed(index: index, figure: figure, ball: ball)
+                return Posed(index: index, figure: figure, ball: ball, opacity: o)
             }
     }
 
@@ -550,8 +613,7 @@ struct BasketballFrame: View, Equatable {
         let w = h.figure * 0.26
         for p in figures {
             let air = min(p.figure.air / 0.35, 1)
-            let seen = script.players[p.index].opacity(at: t)
-            TheaterDraw.shadow(at: p.figure.ground, radius: w * (1 - 0.35 * air), color: ink.shadow.opacity((1 - 0.5 * air) * seen), in: context)
+            TheaterDraw.shadow(at: p.figure.ground, radius: w * (1 - 0.35 * air), color: ink.shadow.opacity((1 - 0.5 * air) * p.opacity), in: context)
         }
         // The ball's: larger and softer the higher it flies.
         if let ball = script.ball(at: t), ball.z > 0.6, script.flight(at: t) != nil {
@@ -566,17 +628,19 @@ struct BasketballFrame: View, Equatable {
     /// Far to near, each with the stem of his raised name just before him.
     private func drawPlayers(_ context: inout GraphicsContext, _ h: HoopProjection, _ figures: [Posed], stems: [Int: [TheaterTags.Stem]]) {
         let offense = FigureInks(teams.offense, ink: ink, in: context), defense = FigureInks(teams.defense, ink: ink, in: context)
-        // The referee, only when one comes in to make a call: the zebra shirt.
-        let official = script.players.contains { $0.team == .official } ? FigureInks(.zebra(dark: ink.dark), ink: ink, in: context) : offense
+        // The referee, only while he's doing something (in to make a call, the toss, the ball for free throws): the zebra shirt.
+        let refereed = script.players.contains { $0.team == .official } || bridge?.script.players.contains { $0.team == .official } == true
+        let official = refereed ? FigureInks(.zebra(dark: ink.dark), ink: ink, in: context) : offense
         for p in figures {
-            let player = script.players[p.index]
-            let inks = switch player.team {
+            // A ghost wears his own team's colors: the court's offense is the replay's (else it crossfades).
+            let team = p.ghost ? bridge?.script.players[p.index].team ?? .offense : script.players[p.index].team
+            let inks = switch team {
             case .offense: offense
             case .defense: defense
             case .official: official
             }
-            stems[p.index]?.forEach { $0.draw(in: context) }
-            TheaterDraw.figure(p.figure, inks: inks, height: h.figure, opacity: player.opacity(at: t), in: context)
+            if !p.ghost { stems[p.index]?.forEach { $0.draw(in: context) } }
+            TheaterDraw.figure(p.figure, inks: inks, height: h.figure, opacity: p.opacity, in: context)
         }
     }
 
@@ -699,9 +763,14 @@ struct BasketballFrame: View, Equatable {
     /// whether it's inside the hoop (then the rim's front and the net go over it).
     private func ballPoint(_ h: HoopProjection, _ figures: [Posed]) -> (point: CGPoint, inHoop: Bool)? {
         guard let ball = script.ball(at: t) else { return nil }
-        if let held = figures.lazy.compactMap(\.ball).first { return (held, false) }
+        // Mid-bridge, from where the court between plays had it to the replay's.
+        func bridged(_ p: CGPoint) -> CGPoint {
+            guard let b = bridge, let from = b.script.ball(at: b.t) else { return p }
+            return TheaterBridge.mix(h.point(from), p, b.w)
+        }
+        if let held = figures.lazy.compactMap(\.ball).first { return (bridged(held), false) }
         let inHoop = hypot(ball.x - Hoops.rim.x, ball.y - Hoops.rim.y) < 1.1 && ball.z < Hoops.rimHeight + 0.25 && ball.z > Hoops.rimHeight - 2.6
-        return (h.point(ball), inHoop)
+        return (bridged(h.point(ball)), inHoop)
     }
 
     /// The ball's size: a touch larger than life, it's what the eye follows.
@@ -890,6 +959,18 @@ struct BasketballTheater: View {
                         names: (topTeam.isEmpty ? topName : topTeam, bottomTeam.isEmpty ? bottomName : bottomTeam), eventID: eventID,
                         people: people, onReplay: { feed?.replay($0) })
     }
+
+    /// How the court between plays on screen (`rest` at `t`) meets a replay
+    /// that comes in now: each man from where he is in the set to his place
+    /// in the replay's, unless the replay's set is far from where the court
+    /// stands (the other end, the ball the other way:
+    /// `TheaterBridge.Far.basketball`), or Reduce Motion: then a crossfade. (pure; tested)
+    static func bridge(from rest: BasketballScript, at t: Double, to replay: BasketballScript, reduceMotion: Bool,
+                       beatLeft: Double? = nil) -> TheaterBridge.Plan {
+        let together = rest.side == replay.side && abs(remainder(rest.yaw - replay.yaw, 2 * .pi)) < 0.3
+        return TheaterBridge.plan(idle: rest.bridgeFigures(at: t), replay: replay.bridgeFigures(at: 0), room: replay.leadIn,
+                                  far: TheaterBridge.Far.basketball, together: together, reduceMotion: reduceMotion, beatLeft: beatLeft)
+    }
 }
 
 /// The theater's stage: whatever is being told (a replay, a beat), or the
@@ -929,6 +1010,8 @@ private struct BasketballStage: View {
     @State private var fading = false
     /// The scripts on screen, built once (a body run for anything else reuses them).
     @State private var built = BasketballScripts()
+    /// The court between plays a replay is taking over from, while the hand-off runs.
+    @State private var bridge: Bridge?
 
     init(state: BasketballTheaterState, possession: GameDetail.Side?, period: Int?, live: Bool, palette: TeamPalette, kits: TheaterKits?,
          topIsHome: Bool, homeName: String, names: (top: String, bottom: String), eventID: String, people: [String: TheaterPerson],
@@ -960,6 +1043,18 @@ private struct BasketballStage: View {
     struct Resting: Equatable {
         let rest: BasketballScript.Rest
         let start: Date
+    }
+
+    /// The hand-off from the court between plays to the replay of `id`: when
+    /// the play came in, the plan, and the court as it was (its script plays
+    /// on under the bridge, on its own clock from `since`).
+    struct Bridge: Equatable {
+        let id: String
+        let came: Date
+        let plan: TheaterBridge.Plan
+        let script: BasketballScript
+        let since: Date
+        let tracks: [Int: RigTrack]
     }
 
     struct Told: Equatable {
@@ -1087,9 +1182,10 @@ private struct BasketballStage: View {
                         picture(now, at: .now, cast: cast, labels: labels, teams: teams, ink: ink, size: geo.size, paint: paint)
                     }
                 }
-                // A replay cuts in; anything else crossfades (the same floor from the same side: no change at all).
+                // A replay cuts in (taking over from the court between plays inside its frame); anything else crossfades (the same floor
+                // from the same side: no change at all), a replay too with Reduce Motion.
                 .id(now.key)
-                .transition(now.unit?.marquee == true ? .identity : .opacity.animation(.easeInOut(duration: 0.28)))
+                .transition(now.unit?.marquee == true && !reduceMotion ? .identity : .opacity.animation(.easeInOut(duration: 0.28)))
                 .accessibilityHidden(true)
                 if let unit = now.unit, unit.marquee {
                     BasketballCelebrationStage(play: unit.scene, script: now.script, size: geo.size, colors: (teams.offense.accent, teams.defense.accent),
@@ -1128,9 +1224,26 @@ private struct BasketballStage: View {
         let status = status(now, t: t)
         let tags = TheaterTags(cast: cast, labels: labels, pointer: pointer, at: date, reduceMotion: reduceMotion, status: status.tag,
                                flip: hovering, heartbeat: live || clock != .live ? .trailing : nil)
+        // Taking over from the court between plays: the men travel (the frame blends), or the court fades out over the replay's set.
+        let handoff = bridge.flatMap { b -> (Bridge, s: Double)? in
+            let s = date.timeIntervalSince(b.came)
+            return b.id == now.unit?.scene.id && s < b.plan.end ? (b, s) : nil
+        }
+        let blend = handoff.flatMap { h -> BasketballFrame.Bridge? in
+            h.0.plan.mode == .bridge ? BasketballFrame.Bridge(script: h.0.script, t: date.timeIntervalSince(h.0.since), w: h.0.plan.weight(h.s), s: h.s,
+                                                              pairs: h.0.plan.pairs, tracks: h.0.tracks) : nil
+        }
+        // A crossfade: the two frames each partly there (where a frame leaves its well bare, the other never shows through it alone).
+        let fade = handoff.map { $0.0.plan.mode == .crossfade ? $0.0.plan.weight($0.s) : 1 } ?? 1
         return ZStack(alignment: .topLeading) {
-            BasketballFrame(scene: now.scene, script: now.script, t: t, teams: teams, ink: ink, size: size, paint: paint, tags: tags)
+            BasketballFrame(scene: now.scene, script: now.script, t: t, teams: teams, ink: ink, size: size, paint: paint, tags: tags, bridge: blend)
                 .equatable()
+                .opacity(fade)
+            if let h = handoff, h.0.plan.mode == .crossfade {
+                BasketballFrame(scene: nil, script: h.0.script, t: date.timeIntervalSince(h.0.since), teams: self.teams(h.0.script.side ?? .top), ink: ink,
+                                size: size, paint: paint)
+                    .opacity(1 - h.0.plan.weight(h.s))
+            }
             TheaterStatusTag(status: status, height: size.height)
                 .padding(.top, 8)
         }
@@ -1166,7 +1279,26 @@ private struct BasketballStage: View {
             if unit.scene.kind != .substitution { told.context = unit.scene }
             if let resting { told.rest = resting.rest }
             let fallback = resting?.rest.offense ?? showing.map { script($0).side } ?? possession
-            showing = Showing(unit: unit, from: unit.marquee ? nil : from, fallback: fallback, start: date, done: reduceMotion)
+            // A replay that comes in while the court rests takes over from it, from where everyone is (TheaterBridge).
+            bridge = nil
+            var start = date
+            if unit.marquee, let resting, !reduceMotion {
+                let rest = script(resting), elapsed = date.timeIntervalSince(resting.start)
+                let replay = built.unit(unit, from: nil, ends: ends(unit.scene.period), fallback: fallback)
+                let beatLeft = rest.active.first { elapsed >= $0.lowerBound && elapsed < $0.upperBound }.map { $0.upperBound - elapsed }
+                let plan = BasketballTheater.bridge(from: rest, at: elapsed, to: replay, reduceMotion: reduceMotion, beatLeft: beatLeft)
+                let tracks = TheaterBridge.tracks(plan, height: Hoops.ground, idle: { j, s in
+                    let u = elapsed + s
+                    return (rest.players[j].position(at: u), j < rest.rig.count ? rest.rig[j].motion(at: u).heading : 0)
+                }, replay: { i, s in
+                    let u = max(plan.replayTime(s), 0)
+                    return (replay.players[i].position(at: u), i < replay.rig.count ? replay.rig[i].motion(at: u).heading : 0)
+                })
+                bridge = Bridge(id: unit.scene.id, came: date, plan: plan, script: rest, since: resting.start, tracks: tracks)
+                TheaterDelays.note(unit.scene.id, plan.delay)
+                start = date.addingTimeInterval(plan.delay)
+            }
+            showing = Showing(unit: unit, from: unit.marquee ? nil : from, fallback: fallback, start: start, done: reduceMotion)
             resting = nil
             onReplay(unit.marquee ? unit.scene.id : nil)
             return

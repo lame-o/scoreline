@@ -13,18 +13,22 @@ import SwiftUI
 // own goal line, z up. The offense lines up as the play says (in the gun or
 // under center, heavy, empty, a bunch, the punt and field-goal units, the
 // kickoff), round the ball on its hash. Time is a replay's: the snap after
-// half a second on the formation, everything after it about one and a half
-// times the game's speed, so a snap runs 2–5 s, and the stamp holds a third
-// of a second on it. Then the field settles: on a new down the two teams jog
-// back to the new line; after a score, a kick or a turnover they hold where
-// it ended. A touchdown's try is a scene of its own, a shorter beat.
+// half a second on the formation; the action, from the snap until the ball
+// is dead, laid out at about one and a half times the game's speed and then
+// played `actionPace` (1.3×) slower, near the game's own, so the throw, the
+// ball's flight, the run and the tackle are easy to follow (a snap runs
+// 2.5–6 s); the stamp holds a third of a second on it. Then the field
+// settles, at its own pace: on a new down the two teams jog back to the new
+// line; after a score, a kick or a turnover they hold where it ended. A
+// touchdown's try is a scene of its own, a shorter beat.
 //
 // The play is told in the order it happened, by the men ESPN credits: the
 // defense in its own base front, each man in his depth-chart slot; the rush
 // that got home as he threw; the strip, the scramble for the ball and who
 // came up with it, then the return; the kick blocked at the line; each flag
-// thrown by the nearest official when and where its foul happened, and the
-// yards walked off after.
+// thrown when and where its foul happened by the official nearest it, at his
+// post (he's on the field only for the throw: an official the data has doing
+// nothing isn't drawn), and the yards walked off after.
 
 // MARK: - The field
 
@@ -97,7 +101,9 @@ struct GridProjection {
 // MARK: - Script
 
 struct FootballScript: Equatable {
-    /// The two teams, the official who throws a flag, and the trainers who come out to a man hurt.
+    /// The two teams, the official who throws a flag (for the throw), and
+    /// the trainers who come out to a man hurt (and the coach who throws a
+    /// challenge flag).
     enum Team { case offense, defense, official, staff }
 
     /// Who he is on the play: his stance and pose follow from it.
@@ -105,7 +111,10 @@ struct FootballScript: Equatable {
         case line, quarterback, back, receiver, tightEnd
         case front, backer, corner, safety
         case kicker, holder, punter, returner, cover
+        /// The official who throws a flag.
         case official
+        /// Off the field's roster: a trainer, a coach.
+        case staff
     }
 
     /// A moment of the play in his hands.
@@ -116,7 +125,7 @@ struct FootballScript: Equatable {
             case strip
             /// Laid out on the grass for a loose ball.
             case scramble
-            /// An official's flag, thrown.
+            /// A flag, thrown: an official's, a coach's red challenge flag.
             case flagThrow
             /// Up off the line, both arms high: a kick blocked.
             case leap
@@ -312,9 +321,67 @@ struct FootballScript: Equatable {
     /// fumble, kicked, returned, blocked it, was flagged), on the figure the
     /// play gives him: the tags over the field name him, and nobody else.
     var credits: [Int: FootballScene.Participant] = [:]
+    /// The action's stretch: from the snap to the ball being dead the clock
+    /// runs slower than the play was laid out (`actionPace`).
+    var pace = Pace()
+
+    /// How much slower the action plays than it's laid out: from the snap
+    /// to the ball being dead (the drop, the throw and the ball's flight, the
+    /// run, the tackle, a kick and its return). The walk-up before the snap,
+    /// the hold on the stamp and the jog back to the line keep their pace.
+    static let actionPace = 1.3
+
+    /// A stretch of a script's clock: as laid out, from `from` to `to` it
+    /// runs `factor` times slower; everything after it comes that much later.
+    struct Pace: Equatable {
+        var from = 0.0
+        var to = 0.0
+        var factor = 1.0
+
+        /// Laid-out time to the script's. (pure; tested)
+        func stretched(_ t: Double) -> Double {
+            guard factor != 1, t.isFinite, t > from else { return t }
+            return t <= to ? from + (t - from) * factor : t + (to - from) * (factor - 1)
+        }
+
+        /// The script's time to the laid-out clock: what a throw's or a
+        /// tackle's motion keys from, so it slows with the play. (pure; tested)
+        func laidOut(_ t: Double) -> Double {
+            guard factor != 1, t.isFinite, t > from else { return t }
+            let end = from + (to - from) * factor
+            return t <= end ? from + (t - from) / factor : t - (to - from) * (factor - 1)
+        }
+    }
+
+    /// `t` on the action's own clock (the laid-out one): a pose keyed off
+    /// an action plays at the pace the action does.
+    func local(_ t: Double) -> Double { pace.laidOut(t) }
 
     /// The room the camera keeps round a spot, at this script's yaw.
     func room(_ p: FieldPoint, figure: Bool) -> CGRect { Gridiron.room(p, figure: figure, yaw: yaw) }
+
+    /// Everyone as the hand-off from the field between snaps matches them
+    /// (TheaterBridge): by side (`offense` has the ball in this script; the
+    /// staff on their own), his depth-chart slot or else his role, where he
+    /// is at t.
+    func bridgeFigures(offense: GameDetail.Side, at t: Double) -> [TheaterBridge.Figure] {
+        players.map { p in
+            let group = switch p.team {
+            case .offense: offense == .top ? 0 : 1
+            case .defense: offense == .top ? 1 : 0
+            case .official: 2
+            case .staff: 3
+            }
+            return TheaterBridge.Figure(group: group, kind: p.key ?? "\(p.role)", at: p.position(at: t))
+        }
+    }
+
+    /// The replay's own lead-in: the formation's still moment before anyone
+    /// (or the ball) moves, which a hand-off from the idle uses first.
+    var leadIn: Double {
+        let moves = players.compactMap { $0.moves.first?.start }, thrown = flights.map(\.start)
+        return max((moves + thrown).min() ?? 0.5, 0)
+    }
 
     /// The first flag thrown.
     var flag: Flag? { flags.first }
@@ -394,11 +461,12 @@ extension FootballScript {
     init(_ scene: FootballScene) { self.init(scene, yaw: Gridiron.yaw) }
 
     /// A snap's replay, the field facing as `yaw` turns it (FieldFacing: up
-    /// and to the right when the offense attacks the screen's right).
-    init(_ scene: FootballScene, yaw: Double) {
+    /// and to the right when the offense attacks the screen's right), its
+    /// action played `pace` times slower than laid out.
+    init(_ scene: FootballScene, yaw: Double, pace: Double = FootballScript.actionPace) {
         var b = Builder(scene: Self.played(scene) ?? scene, ruling: scene, line: Gridiron.y(scene.from), shotgun: scene.shotgun)
         b.script.yaw = yaw
-        b.build()
+        b.build(pace: pace)
         self = b.script
         measureBodies()
     }
@@ -444,11 +512,13 @@ extension FootballScript {
             let way: Double = player.team == .offense ? 1 : -1
             return RigTrack(from: 0, through: duration, height: 8.5, position: player.position(at:)) { t in
                 let here = player.position(at: t), ahead = CGPoint(x: here.x, y: here.y + 60 * way)
-                if let a = player.actions.first(where: { t > $0.at - 0.45 && t < $0.at + 0.2 }) {
+                // The action's windows on its own clock, so they keep their share of the play when it's slowed.
+                let local = script.local(t)
+                if let a = player.actions.first(where: { local > script.local($0.at) - 0.45 && local < script.local($0.at) + 0.2 }) {
                     return RigFacing(point: a.kind == .spike || a.kind == .kick ? ahead : a.toward)
                 }
                 if let look = player.looks.last(where: { t >= $0.from }) { return RigFacing(point: look.point) }
-                if t > snap, t < snap + 1.6 {
+                if local > snap, local < snap + 1.6 {
                     let a = player.position(at: t - 0.05), b = player.position(at: t + 0.05)
                     if (b.y - a.y) * way < -0.5 * hypot(b.x - a.x, b.y - a.y) { return RigFacing(point: ahead, always: true) }
                 }
@@ -709,7 +779,7 @@ extension FootballScript {
             let roles = Self.roles(p?.position)
             if !roles.isEmpty, let i = nearest(pool.filter { roles.contains(script.players[$0].role) }) { return i }
             if !fallback.isEmpty, let i = nearest(pool.filter { fallback.contains(script.players[$0].role) }) { return i }
-            return nearest(pool.filter { script.players[$0].role != .official })
+            return nearest(pool.filter { ![.official, .staff].contains(script.players[$0].role) })
         }
 
         /// A slot's kind, whichever side it's on: an end, an interior
@@ -937,7 +1007,7 @@ extension FootballScript {
 
         // MARK: Build
 
-        mutating func build() {
+        mutating func build(pace: Double = FootballScript.actionPace) {
             guard let scene else { return }
             if case .fieldGoal = scene.kind { script.yaw = 0 }
             if case .extraPoint = scene.kind { script.yaw = 0 }
@@ -961,12 +1031,52 @@ extension FootballScript {
             case .fieldGoal, .extraPoint: fieldGoal()
             case .penalty: scrimmage(); penalty()
             }
+            // The action, snap to dead ball, slowed; the flags then come when and where their fouls happened in it.
+            if !stopped, scene.kind != .penalty, pace != 1 { stretch(pace, from: snap, to: over) }
             if !stopped, scene.kind != .penalty { flags() }
             finish()
             headline()
             measureStamp()
             settle()
             shoot()
+        }
+
+        // MARK: Pace
+
+        /// The action laid out so far, from `a` to `b`, played `k` times
+        /// slower: every moment in it moved along the slower clock, every one
+        /// after it moved later by as much; nothing before it changes.
+        mutating func stretch(_ k: Double, from a: Double, to b: Double) {
+            let pace = FootballScript.Pace(from: a, to: max(b, a), factor: k)
+            func r(_ t: Double) -> Double { pace.stretched(t) }
+            for i in script.players.indices {
+                var p = script.players[i]
+                p.moves = p.moves.map { PlayScript.Move(start: r($0.start), end: r($0.end), path: $0.path, ease: $0.ease) }
+                p.actions = p.actions.map { var x = $0; x.at = r(x.at); return x }
+                p.holds = p.holds.map { var h = $0; h.from = r(h.from); h.until = r(h.until); return h }
+                p.looks = p.looks.map { var l = $0; l.from = r(l.from); return l }
+                p.set = p.set.map(r)
+                p.resets = p.resets.map(r)
+                p.appear = r(p.appear)
+                p.vanish = r(p.vanish)
+                script.players[i] = p
+            }
+            for i in script.flights.indices {
+                script.flights[i].start = r(script.flights[i].start)
+                script.flights[i].end = r(script.flights[i].end)
+            }
+            script.legs = script.legs.map { var l = $0; l.from = r(l.from); l.until = r(l.until); return l }
+            script.flashes = script.flashes.map { var f = $0; f.at = r(f.at); return f }
+            script.flags = script.flags.map { var f = $0; f.thrown = r(f.thrown); f.lands = r(f.lands); return f }
+            script.stamp = r(script.stamp)
+            script.score = script.score.map(r)
+            script.ballGone = r(script.ballGone)
+            over = r(over)
+            release = release.map(r)
+            arrival = arrival.map { (r($0.at), $0.point) }
+            stop = stop.map { (r($0.at), $0.point) }
+            recoveredAt = recoveredAt.map(r)
+            script.pace = pace
         }
 
         // MARK: Pass
@@ -1727,7 +1837,7 @@ extension FootballScript {
             guard let walked, abs(end - ended) > 0.5 else { return }
             let from = walked.from.map(Gridiron.y) ?? ended
             let lands = max(script.flags.map(\.lands).max() ?? over, over)
-            // The ball goes to the official's spot, then walks.
+            // The ball goes to the spot of the foul, then walks.
             if let ball = script.ball(at: lands), abs(ball.y - from) > 1 || abs(ball.x - ballX) > 1 {
                 fly(from: ball, to: FieldPoint(x: ballX, y: from, z: 0.6), start: lands + 0.25, time: 0.45, arc: .arc(5))
             }
@@ -1762,27 +1872,38 @@ extension FootballScript {
         }
 
         /// An official's flag, thrown at the foul: from the official nearest
-        /// it (at his post since the snap), end over end to the spot.
+        /// it, at his post, end over end to the spot. He's on the field for
+        /// the throw: fading in as he reaches back, gone once it's down (the
+        /// data has him doing nothing else).
         mutating func throwFlag(at spot: CGPoint, lands: Double, declined: Bool = false, wing: Bool = false) {
             let thrown = lands - 0.45
-            let thrower = official(near: spot, wing: wing)
+            let thrower = official(near: spot, wing: wing, throwing: thrown)
             let hand = position(thrower, thrown)
             script.players[thrower].act(.flagThrow, at: thrown, toward: spot)
             script.flags.append(Flag(thrown: thrown, lands: lands, from: FieldPoint(hand, z: 6.5), to: spot, declined: declined))
             script.flashes.append(Flash(beat: .flag, at: lands, point: FieldPoint(spot)))
         }
 
+        /// How long before his throw an official fades in (in full as he
+        /// reaches back), and how long after it he's gone.
+        static let officialBefore = 0.7, officialAfter = 0.6
+
         /// The official nearest a spot, at his post: the referee behind the
         /// backfield, the umpire (the NFL's, in it), the line judge and the
         /// head linesman on the sidelines at the line, the back judge deep;
         /// a foul at the line (`wing`) is the sideline officials'. Added the
-        /// first time one throws.
-        mutating func official(near p: CGPoint, wing: Bool = false) -> Int {
+        /// first time one throws, on the field round each throw (`throwing`).
+        mutating func official(near p: CGPoint, wing: Bool = false, throwing thrown: Double) -> Int {
             let sides = [CGPoint(x: -Gridiron.half - 3, y: line), CGPoint(x: Gridiron.half + 3, y: line)]
             let posts = wing ? sides : [CGPoint(x: ballX + 16, y: line - 40), CGPoint(x: ballX - 12, y: line - 33)] + sides + [CGPoint(x: ballX + 6, y: line + 75)]
             let post = posts.min { hypot($0.x - p.x, $0.y - p.y) < hypot($1.x - p.x, $1.y - p.y) }!
-            if let i = script.players.indices.first(where: { script.players[$0].team == .official && script.players[$0].at == post }) { return i }
-            script.players.append(Player(team: .official, at: post, role: .official))
+            let from = thrown - Self.officialBefore, until = thrown + Self.officialAfter
+            if let i = script.players.indices.first(where: { script.players[$0].team == .official && script.players[$0].at == post }) {
+                script.players[i].appear = min(script.players[i].appear, from)
+                script.players[i].vanish = max(script.players[i].vanish, until)
+                return i
+            }
+            script.players.append(Player(team: .official, at: post, role: .official, appear: from, vanish: until))
             return script.players.count - 1
         }
 

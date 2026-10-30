@@ -289,8 +289,8 @@ struct Uniform: Equatable {
     var piping: Color? = nil
     /// Type in the team's color: a hit's stamp, the banner, the runs pill.
     var accent: Color
-    /// An official's shirt: stripes of this color down the jersey (the
-    /// body and the sleeves), inside the figure (nil: a plain jersey).
+    /// An official's shirt: a few bold stripes of this color down the body,
+    /// inside the figure (nil: a plain jersey).
     var stripes: Color? = nil
     /// An official's shorts or slacks: the legs in this color (nil: the jersey's).
     var legs: Color? = nil
@@ -312,18 +312,20 @@ struct Uniform: Equatable {
 }
 
 /// The officials' kits, one look per sport so they never pass for a team's
-/// men: football's and basketball's zebra shirt with black trousers, soccer's
-/// referee in FIFA yellow with black shorts, baseball's umpire in navy with
-/// gray slacks; a black cap on each. On a light panel a pale shirt takes a
-/// rim of its own, as home whites do, instead of the white halo.
+/// men (on the field only while the data has one doing something): football's
+/// and basketball's zebra shirt with black trousers, soccer's referee in FIFA
+/// yellow with black shorts, baseball's umpire in navy with gray slacks; a
+/// black cap on each. On a light panel a pale shirt takes a rim of its own,
+/// as home whites do, instead of the white halo.
 extension Uniform {
     private static let officialCap = Color(white: 0.12)
     private static let blackKit = Color(white: 0.12)
 
-    /// Football's and basketball's officials: the zebra shirt, black trousers.
+    /// Football's and basketball's officials: the zebra shirt (a few bold
+    /// black stripes on white: `TheaterDraw.zebra`), black trousers.
     static func zebra(dark: Bool) -> Uniform {
         Uniform(jersey: Color(white: 0.96), cap: officialCap, piping: dark ? nil : Color(white: 0.3), accent: .white,
-                stripes: Color(white: 0.1), legs: blackKit)
+                stripes: Color(white: 0.08), legs: blackKit)
     }
 
     /// Baseball's umpire: a navy shirt, gray slacks.
@@ -563,11 +565,42 @@ struct PlayFrame: View, Equatable {
     var footer: CGFloat = 0
     /// The names over the figures: the pointer's, the batter's.
     var tags = TheaterTags()
+    /// The field between pitches this pitch (or replay) is taking over from
+    /// (nil: none, or the hand-off is done).
+    var bridge: Bridge? = nil
+
+    /// The field between pitches as it stands mid-bridge (TheaterBridge):
+    /// its script and its time now (an idle move plays on under the
+    /// hand-off), how far the hand-off is, and who becomes whom.
+    struct Bridge: Equatable {
+        var script: PlayScript
+        var t: Double
+        /// 0 the field between pitches, 1 what comes in.
+        var w: Double
+        /// Seconds since it came in: where each traveller is along his track.
+        var s: Double
+        /// Figure → the field's.
+        var pairs: [Int: Int]
+        var tracks: [Int: RigTrack]
+
+        /// The field's figures the newcomer doesn't have: they fade out.
+        var ghosts: [Int] {
+            let paired = Set(pairs.values)
+            return script.actors.indices.filter { !paired.contains($0) }
+        }
+    }
 
     /// The time first: mid-replay it's all that differs.
     static func == (a: PlayFrame, b: PlayFrame) -> Bool {
         a.t == b.t && a.size == b.size && a.footer == b.footer && a.teams == b.teams && a.ink == b.ink && a.tags == b.tags && a.scene == b.scene
-            && a.script == b.script
+            && a.bridge == b.bridge && a.script == b.script
+    }
+
+    /// The camera at t; mid-bridge, eased from the field's framing to the newcomer's.
+    func projection(_ size: CGSize) -> FieldProjection {
+        let camera = script.camera.frame(at: t)
+        guard let b = bridge else { return FieldProjection(size: size, camera: camera) }
+        return FieldProjection(size: size, camera: b.script.camera.frame(at: b.t).mix(camera, b.w))
     }
 
     /// The type, laid out once as views and drawn into each frame: resolving
@@ -576,7 +609,7 @@ struct PlayFrame: View, Equatable {
 
     var body: some View {
         Canvas { context, size in
-            let f = FieldProjection(size: size, camera: script.camera.frame(at: t))
+            let f = projection(size)
             context.clip(to: f.bounds)
             BallparkLayer.draw(&context, f, ink: ink)
             drawTarp(&context, f)
@@ -619,7 +652,7 @@ struct PlayFrame: View, Equatable {
                                     .insetBy(dx: -0.6, dy: -0.6)), height: f.figure, opacity: b.opacity)
         }
         let well = f.size
-        return tags.draw(figures.map { p in
+        return tags.draw(figures.filter { !$0.ghost }.map { p in
             TheaterTags.Figure(index: p.index, figure: p.figure, height: f.figure, opacity: p.opacity, held: heldBat(p, f).map { ($0.line, $0.width + 1.4) })
         }, ball: ball, t: t, size: f.size, clear: clear, ring: ink.tagRing,
            replay: TheaterReplay(length: script.duration) { Self.spots(script, at: $0, size: well) }, in: context)
@@ -784,24 +817,53 @@ struct PlayFrame: View, Equatable {
 
     // MARK: Figures
 
-    /// A figure posed and placed at t.
+    /// A figure posed and placed at t. A ghost is one of the field's
+    /// figures the newcomer doesn't have, fading out over the bridge (his
+    /// index is the field's).
     private struct Posed {
         let index: Int
         let figure: RigFigure
         let opacity: Double
+        var ghost = false
     }
 
-    /// Everyone on the field at t, far to near: a figure in front covers the one behind.
+    /// Everyone on the field at t, far to near: a figure in front covers the
+    /// one behind. Mid-bridge each figure the two share goes from where the
+    /// field between pitches has him to his place as the pitch (or the
+    /// replay) begins, posed between the two and striding along the way; the
+    /// field's others fade out, the newcomer's fade in.
     private func posed(_ f: FieldProjection) -> [Posed] {
-        script.actors.indices
-            .map { (index: $0, at: script.actors[$0].position(at: t)) }
+        let idle = bridge.map { PlayFrame(scene: nil, script: $0.script, t: $0.t, teams: teams, ink: ink, size: size) }
+        var list: [(index: Int, at: CGPoint, ghost: Bool)] = script.actors.indices.map { i in
+            var at = script.actors[i].position(at: t)
+            if let b = bridge, let j = b.pairs[i] { at = TheaterBridge.mix(b.script.actors[j].position(at: b.t), at, b.w) }
+            return (i, at, false)
+        }
+        if let b = bridge { list += b.ghosts.map { ($0, b.script.actors[$0].position(at: b.t), true) } }
+        return list
             .sorted { $0.at.y > $1.at.y }
-            .compactMap { index, at in
-                let actor = script.actors[index]
-                let o = actor.opacity(at: t)
-                guard o > 0.01 else { return nil }
+            .compactMap { index, at, ghost in
                 let lens = RigLens(f, at: at)
-                let (body, heading) = pose(actor, index, at: at, unit: lens.unit)
+                if ghost, let b = bridge, let idle {
+                    let actor = b.script.actors[index], o = actor.opacity(at: b.t) * (1 - b.w)
+                    guard o > 0.01 else { return nil }
+                    let (body, heading) = idle.pose(actor, index, at: at, unit: lens.unit)
+                    return Posed(index: index, figure: RigFigure(body, heading: heading, lens: lens), opacity: o, ghost: true)
+                }
+                let actor = script.actors[index]
+                var o = actor.opacity(at: t)
+                var (body, heading) = pose(actor, index, at: actor.position(at: t), unit: lens.unit)
+                if let b = bridge, let idle {
+                    if let j = b.pairs[index] {
+                        let other = b.script.actors[j]
+                        (body, heading) = TheaterBridge.pose(from: idle.pose(other, j, at: other.position(at: b.t), unit: lens.unit), to: (body, heading),
+                                                             w: b.w, track: b.tracks[index], s: b.s, at: at, unit: lens.unit)
+                        o = other.opacity(at: b.t) + (o - other.opacity(at: b.t)) * b.w
+                    } else {
+                        o *= b.w
+                    }
+                }
+                guard o > 0.01 else { return nil }
                 return Posed(index: index, figure: RigFigure(body, heading: heading, lens: lens), opacity: o)
             }
     }
@@ -810,8 +872,19 @@ struct PlayFrame: View, Equatable {
     private func drawFigures(_ context: inout GraphicsContext, _ f: FieldProjection, _ figures: [Posed], stems: [Int: [TheaterTags.Stem]]) {
         let batting = FigureInks(teams.batting, ink: ink, in: context), fielding = FigureInks(teams.fielding, ink: ink, in: context)
         // The umpires in their own kit (Uniform.umpire), never a team's.
-        let officials = script.actors.contains { $0.team == .official } ? FigureInks(.umpire(dark: ink.dark), ink: ink, in: context) : fielding
+        let officials = script.actors.contains { $0.team == .official } || bridge?.script.actors.contains { $0.team == .official } == true
+            ? FigureInks(.umpire(dark: ink.dark), ink: ink, in: context) : fielding
         for p in figures {
+            if p.ghost, let ghost = bridge?.script.actors[p.index] {
+                // The field's figure the newcomer doesn't have, fading out in his own kit.
+                let inks = switch ghost.team {
+                case .batting: batting
+                case .fielding: fielding
+                case .official: officials
+                }
+                TheaterDraw.figure(p.figure, inks: inks, height: f.figure, opacity: p.opacity, in: context)
+                continue
+            }
             let actor = script.actors[p.index]
             if let bats = actor.bats, actor.dropsBat.map({ t >= $0 }) ?? false {
                 drawDroppedBat(&context, at: f.point(Ballpark.box(bats)), bats: bats, fade: 1 - min(max((t - script.settle) / 0.4, 0), 1), f: f)
@@ -1050,9 +1123,13 @@ struct PlayFrame: View, Equatable {
 
     /// Where the ball is drawn at t, how big (a touch larger than life) and how faint.
     private func ballSpot(_ f: FieldProjection) -> (point: CGPoint, radius: CGFloat, opacity: Double)? {
-        guard let ball = script.ball(at: t) else { return nil }
+        guard var ball = script.ball(at: t) else { return nil }
         let o = script.ballOpacity(at: t)
         guard o > 0.01 else { return nil }
+        // Mid-bridge, from where the field between pitches had it (back to the mound, in the catcher's mitt) to the newcomer's.
+        if let b = bridge, let from = b.script.ball(at: b.t), b.script.ballOpacity(at: b.t) > 0.01 {
+            ball = FieldPoint(x: from.x + (ball.x - from.x) * b.w, y: from.y + (ball.y - from.y) * b.w, z: from.z + (ball.z - from.z) * b.w)
+        }
         return (f.point(ball), min(max(0.42 * f.scale, 1.7), max(f.figure * 0.12, 1.7)), o)
     }
 
@@ -1332,6 +1409,18 @@ struct PlayTheater: View {
         var fielders: BaseballFielders
         var numbers: [String: String]
     }
+
+    /// How the field between pitches on screen (`field` at `t`: the routine
+    /// between pitches, an idle move or still) meets what comes in now (a
+    /// pitch's beat, a play's replay): each figure from where he is to his
+    /// place as it begins, unless it's another field (the other half of the
+    /// inning: `together` false), a man far out of place
+    /// (`TheaterBridge.Far.baseball`), or Reduce Motion: then a crossfade. (pure; tested)
+    static func bridge(from field: PlayScript, at t: Double, to next: PlayScript, together: Bool = true, reduceMotion: Bool,
+                       beatLeft: Double? = nil) -> TheaterBridge.Plan {
+        TheaterBridge.plan(idle: field.bridgeFigures(at: t), replay: next.bridgeFigures(at: 0), room: next.leadIn, far: TheaterBridge.Far.baseball,
+                           together: together, reduceMotion: reduceMotion, beatLeft: beatLeft)
+    }
 }
 
 /// One frame of the theater and what it says: the field and its figures
@@ -1350,11 +1439,22 @@ struct DiamondFrame: View {
     var heartbeat = false
     /// The names over the figures.
     var tags = TheaterTags()
+    /// Taking over from the field between pitches: the figures travel (TheaterBridge)…
+    var bridge: PlayFrame.Bridge? = nil
+    /// …or the field fades out over the newcomer's start (its script, its time, how much of it still shows).
+    var fading: (script: PlayScript, t: Double, opacity: Double)? = nil
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            PlayFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: size, footer: heartbeat ? 16 : 0, tags: tags)
+            // A crossfade: the two frames each partly there (where a frame leaves its well bare, the other never shows through it alone).
+            PlayFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: size, footer: heartbeat ? 16 : 0, tags: tags, bridge: bridge)
                 .equatable()
+                .opacity(fading.map { 1 - $0.opacity } ?? 1)
+            if let fading {
+                PlayFrame(scene: nil, script: fading.script, t: fading.t, teams: teams, ink: ink, size: size, footer: heartbeat ? 16 : 0)
+                    .equatable()
+                    .opacity(fading.opacity)
+            }
             TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
         }
     }
@@ -1396,6 +1496,8 @@ private struct PlayStage: View {
     @State private var beat: BeatShow?
     /// The idle move on screen.
     @State private var move: IdleShow?
+    /// The field between pitches a pitch (or a replay) is taking over from, while the hand-off runs.
+    @State private var bridge: Bridge?
     /// Where the last beat left the camera (a pitch with another to follow: on the battery).
     @State private var camera = CameraFrame.rest
     @State private var opened = false
@@ -1423,6 +1525,22 @@ private struct PlayStage: View {
         let kind: IdleBeat
         let seed: UInt64
         let start: Date
+    }
+
+    /// The hand-off from the field between pitches to what came in (`id`: a
+    /// replay's play or a beat's): when it came, the plan, and the field as
+    /// it was (an idle move's script plays on under the bridge, on its own
+    /// clock from `since`; nil: the field was still).
+    struct Bridge: Equatable {
+        let id: String
+        let came: Date
+        let plan: TheaterBridge.Plan
+        let script: PlayScript
+        let since: Date?
+        let tracks: [Int: RigTrack]
+
+        /// The field's time at `date`: an idle move's, held at its end; the still field's.
+        func idleTime(_ date: Date) -> Double { since.map { min(date.timeIntervalSince($0), script.duration) } ?? .infinity }
     }
 
     /// How long a replay's end stays up when nothing new has come.
@@ -1656,8 +1774,9 @@ private struct PlayStage: View {
                         TimelineView(.animation(minimumInterval: idling(display) && !fading ? 1.0 / 30 : nil)) { context in
                             let t = time(display, at: context.date)
                             let status = status(display, at: t, script: script, wide: wide)
+                            let handoff = handoff(display, at: context.date)
                             DiamondFrame(scene: scene, script: script, t: t, teams: teams, ink: ink, size: geo.size, status: status, heartbeat: live,
-                                         tags: tags(cast, labels, status, at: context.date))
+                                         tags: tags(cast, labels, status, at: context.date), bridge: handoff.bridge, fading: handoff.fading)
                         }
                         .transition(.identity)
                     } else {
@@ -1727,6 +1846,43 @@ private struct PlayStage: View {
         TheaterTags.hit(PlayFrame.spots(script, at: t, size: size).figures, at: point)
     }
 
+    /// Mid-hand-off from the field between pitches to what's on screen now:
+    /// the figures travelling (the frame blends), or the field fading out.
+    private func handoff(_ display: Display, at date: Date) -> (bridge: PlayFrame.Bridge?, fading: (script: PlayScript, t: Double, opacity: Double)?) {
+        let id: String? = switch display {
+        case let .replay(r): r.id
+        case let .beat(b): b.beat.id
+        default: nil
+        }
+        guard let bridge, bridge.id == id else { return (nil, nil) }
+        let s = date.timeIntervalSince(bridge.came)
+        guard s < bridge.plan.end else { return (nil, nil) }
+        let t = bridge.idleTime(date), w = bridge.plan.weight(s)
+        if bridge.plan.mode == .crossfade { return (nil, (bridge.script, t, 1 - w)) }
+        return (PlayFrame.Bridge(script: bridge.script, t: t, w: w, s: s, pairs: bridge.plan.pairs, tracks: bridge.tracks), nil)
+    }
+
+    /// What came in (a replay's script, or a beat's) takes over from the
+    /// field between pitches on screen (`field`, an idle move's clock
+    /// `since`), from where everyone is (TheaterBridge); returns when its
+    /// own clock starts.
+    private func handOff(_ id: String, to next: PlayScript, from field: PlayScript?, since: Date?, together: Bool, at date: Date) -> Date {
+        bridge = nil
+        guard let field, clock == .live, !reduceMotion else { return date }
+        let t = since.map { min(date.timeIntervalSince($0), field.duration) } ?? .infinity
+        let plan = PlayTheater.bridge(from: field, at: t, to: next, together: together, reduceMotion: reduceMotion,
+                                      beatLeft: since.map { _ in field.duration - t })
+        let tracks = TheaterBridge.tracks(plan, height: 8.5, idle: { j, s in
+            let u = since.map { min(date.addingTimeInterval(s).timeIntervalSince($0), field.duration) } ?? .infinity
+            return (field.actors[j].position(at: u), j < field.rig.count ? field.rig[j].motion(at: u).heading : 0)
+        }, replay: { i, s in
+            let u = plan.replayTime(s)
+            return (next.actors[i].position(at: u), i < next.rig.count ? next.rig[i].motion(at: u).heading : 0)
+        })
+        bridge = Bridge(id: id, came: date, plan: plan, script: field, since: since, tracks: tracks)
+        return date.addingTimeInterval(plan.delay)
+    }
+
     /// A play's frames keep its ID (a new one cuts in); beats and the field between share one.
     private func identity(_ display: Display) -> String {
         switch display {
@@ -1775,6 +1931,10 @@ private struct PlayStage: View {
         }
         let queue = PlayBeat.catchUp(pending)
         guard let next = queue.first else { return }
+        // The field between pitches on screen (an idle move, or still): what comes in takes over from it.
+        let resting: Bool = if case .rest = display { true } else { false }
+        let standing = resting ? script(.rest).script : nil, since = move?.start, restSide = side(display)
+        let now = Date.now
         move = nil
         if next.isPlay, let play = state.play {
             camera = .rest
@@ -1783,13 +1943,19 @@ private struct PlayStage: View {
                 shown = play.id
                 return
             }
-            replay = Replay(id: play.id, start: .now, play: play)
+            let script = scripts.script(play, rest: rest(for: play))
+            let start = handOff(play.id, to: script, from: standing, since: since, together: restSide == (play.batting ?? batting ?? .top), at: now)
+            TheaterDelays.note(play.id, start.timeIntervalSince(now))
+            replay = Replay(id: play.id, start: start, play: play)
             return
         }
         func isPitch(_ b: PlayBeat?) -> Bool { if case .pitch = b?.kind { return true }; return false }
         let field = rest(for: next)
         let to = !reduceMotion && isPitch(next) && isPitch(queue.dropFirst().first) ? PlayScript.battery(field) : .rest
-        beat = BeatShow(beat: next, start: .now, from: reduceMotion ? .rest : camera, to: to)
+        let from = reduceMotion ? CameraFrame.rest : camera
+        let start = handOff(next.id, to: scripts.beat(next, rest: field, from: from, to: to), from: standing, since: since,
+                            together: restSide == battingSide(next), at: now)
+        beat = BeatShow(beat: next, start: start, from: from, to: to)
     }
 
     /// Each step in its time: a beat to its end, then the next; a replay to

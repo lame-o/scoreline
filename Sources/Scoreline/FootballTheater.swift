@@ -18,9 +18,12 @@ import SwiftUI
 // crisp at any zoom and the two never disagree on it. A TimelineView exists
 // only while a replay runs; between plays the field is static. Plays
 // already on the page when it opened show as they ended; a new one
-// mid-replay cuts to itself; with Reduce Motion each play crossfades to how
-// it ended and the camera never moves. Decorative for VoiceOver: the drive
-// chart carries the play.
+// mid-replay cuts to itself; one that comes in while the field between snaps
+// is on screen takes over from it (TheaterBridge: each man from where he is
+// to his place in the formation, or a quick crossfade when the snap's spot is
+// far from where the idle stands); with Reduce Motion each play crossfades to
+// how it ended and the camera never moves. Decorative for VoiceOver: the
+// drive chart carries the play.
 
 // MARK: - Field
 
@@ -246,7 +249,7 @@ enum GridPose {
     static let knocked = RigPose(hip: RigVector(-0.1, 0, 0.12), pitch: -1.45, nod: 0.35, left: RigVector(0.02, 0.1, -0.36),
                                  right: RigVector(0.06, -0.1, -0.3), knees: 0.3, leftArm: RigArm(swing: 2.5, spread: 0.55, bend: 0.4),
                                  rightArm: RigArm(swing: 2.3, spread: 0.6, bend: 0.5))
-    /// An official's flag: drawn back and up beside his head, then whipped through and down at the spot.
+    /// A flag thrown (an official's, a coach's red one): drawn back and up beside his head, then whipped through and down at the spot.
     static let flagBack = RigPose(turn: -0.35, twist: -0.3, left: RigVector(0.08, 0.1, 0), right: RigVector(-0.08, -0.1, 0),
                                   leftArm: RigArm(swing: 0.6, spread: 0.3, bend: 0.4), rightArm: RigArm(swing: 2.5, spread: 0.45, turn: 0.9, bend: 1.3))
     static let flagThrow = RigPose(turn: 0.15, lean: 0.25, twist: 0.3, left: RigVector(0.14, 0.1, 0), right: RigVector(-0.12, -0.1, 0.02),
@@ -268,11 +271,44 @@ struct FootballFrame: View, Equatable {
     var zones = GridironLayer.Zones()
     /// The names over the players: the pointer's, the key man's.
     var tags = TheaterTags()
+    /// The field between snaps this replay is taking over from (nil: none,
+    /// or the hand-off is done).
+    var bridge: Bridge? = nil
+
+    /// The idle as it stands mid-bridge (TheaterBridge): its script and its
+    /// time now (it plays on under the hand-off), how far the hand-off is,
+    /// and who becomes whom.
+    struct Bridge: Equatable {
+        var script: FootballScript
+        var t: Double
+        /// 0 the idle, 1 the replay.
+        var w: Double
+        /// Seconds since the play came in: where each traveller is along his track.
+        var s: Double
+        /// Replay player → idle player.
+        var pairs: [Int: Int]
+        /// Each traveller's stride along the bridge.
+        var tracks: [Int: RigTrack]
+
+        /// The idle's men the replay doesn't have: they fade out.
+        var ghosts: [Int] {
+            let paired = Set(pairs.values)
+            return script.players.indices.filter { !paired.contains($0) }
+        }
+    }
 
     /// The time first: mid-replay it's all that differs.
     static func == (a: FootballFrame, b: FootballFrame) -> Bool {
         a.t == b.t && a.size == b.size && a.teams == b.teams && a.ink == b.ink && a.zones == b.zones && a.tags == b.tags && a.scene == b.scene
-            && a.script == b.script
+            && a.bridge == b.bridge && a.script == b.script
+    }
+
+    /// The camera at t; mid-bridge, eased from the idle's framing (and its turn of the field) to the replay's.
+    func projection(_ size: CGSize) -> GridProjection {
+        let camera = script.camera.frame(at: t), yaw = script.yaw(at: t)
+        guard let b = bridge else { return GridProjection(size: size, camera: camera, yaw: yaw) }
+        let from = b.script.camera.frame(at: b.t), turned = b.script.yaw(at: b.t)
+        return GridProjection(size: size, camera: from.mix(camera, b.w), yaw: turned + (yaw - turned) * b.w)
     }
 
     /// The type, laid out once as views and drawn into each frame.
@@ -289,7 +325,7 @@ struct FootballFrame: View, Equatable {
 
     var body: some View {
         Canvas { context, size in
-            let f = GridProjection(size: size, camera: script.camera.frame(at: t), yaw: script.yaw(at: t))
+            let f = projection(size)
             context.clip(to: f.bounds)
             GridironLayer.draw(&context, f, ink: ink, zones: zones)
             drawLines(&context, f)
@@ -328,10 +364,15 @@ struct FootballFrame: View, Equatable {
             return path
         }
         let width = max(1.4, 1.6 / max(f.scale, 0.1))
-        if let gain = FootballScript.line(script.lines.gain, script.next.gain, u: u) {
+        // Mid-bridge, from where the idle had them to where the replay does.
+        let lines = bridge.map { b in (gain: FootballScript.line(b.script.lines.gain, script.lines.gain, u: b.w),
+                                       scrimmage: FootballScript.line(b.script.lines.scrimmage, script.lines.scrimmage, u: b.w)) }
+            ?? (gain: FootballScript.line(script.lines.gain, script.next.gain, u: u),
+                scrimmage: FootballScript.line(script.lines.scrimmage, script.next.scrimmage, u: u))
+        if let gain = lines.gain {
             context.fill(band(gain.y, width: width), with: .color(Self.gainYellow.opacity(0.85 * gain.opacity)))
         }
-        if let line = FootballScript.line(script.lines.scrimmage, script.next.scrimmage, u: u) {
+        if let line = lines.scrimmage {
             context.fill(band(line.y, width: width), with: .color(Self.scrimmageBlue.opacity(0.85 * line.opacity)))
         }
         // A flag's yards, while they're walked off: a band between the spots.
@@ -383,7 +424,8 @@ struct FootballFrame: View, Equatable {
         // Under the hips (longer for a man down); smaller and fainter as he leaves the ground.
         let w = f.figure * 0.3
         for p in figures {
-            let down = [.down, .knocked].contains(script.players[p.index].hold(at: t)?.kind)
+            let held = p.ghost ? bridge.flatMap { $0.script.players[p.index].hold(at: $0.t) } : script.players[p.index].hold(at: t)
+            let down = [.down, .knocked].contains(held?.kind)
             let air = min(p.figure.air / 0.4, 1)
             TheaterDraw.shadow(at: p.figure.ground, radius: (down ? w * 1.6 : w) * (1 - 0.35 * air), color: ink.shadow.opacity(p.opacity * (1 - 0.45 * air)),
                                in: context)
@@ -406,25 +448,54 @@ struct FootballFrame: View, Equatable {
 
     // MARK: Players
 
-    /// A player posed and placed at t; with the ball, where it is in his hands.
+    /// A player posed and placed at t; with the ball, where it is in his
+    /// hands. A ghost is one of the idle's men the replay doesn't have,
+    /// fading out over the bridge (his index is the idle's).
     private struct Posed {
         let index: Int
         let figure: RigFigure
         let opacity: Double
         var ball: CGPoint? = nil
+        var ghost = false
     }
 
-    /// Everyone on the field at t, far to near: a player in front covers the one behind.
+    /// Everyone on the field at t, far to near: a player in front covers the
+    /// one behind. Mid-bridge each man the two scenes share is where he is
+    /// between his idle spot and his place in the replay, posed between the
+    /// two and striding along the way; the idle's other men fade out, the
+    /// replay's fade in.
     private func posed(_ f: GridProjection) -> [Posed] {
-        script.players.indices
-            .map { (index: $0, at: script.players[$0].position(at: t)) }
-            .sorted { Gridiron.view($0.at, yaw: script.yaw(at: t)).y > Gridiron.view($1.at, yaw: script.yaw(at: t)).y }
-            .compactMap { index, at in
-                let player = script.players[index]
-                let o = player.opacity(at: t)
-                guard o > 0.01 else { return nil }
+        let idle = bridge.map { FootballFrame(scene: nil, script: $0.script, t: $0.t, teams: teams, ink: ink, size: size) }
+        var list: [(index: Int, at: CGPoint, ghost: Bool)] = script.players.indices.map { i in
+            var at = script.players[i].position(at: t)
+            if let b = bridge, let j = b.pairs[i] { at = TheaterBridge.mix(b.script.players[j].position(at: b.t), at, b.w) }
+            return (i, at, false)
+        }
+        if let b = bridge { list += b.ghosts.map { ($0, b.script.players[$0].position(at: b.t), true) } }
+        return list
+            .sorted { Gridiron.view($0.at, yaw: f.yaw).y > Gridiron.view($1.at, yaw: f.yaw).y }
+            .compactMap { index, at, ghost in
                 let lens = RigLens(f, at: at)
-                let (body, heading) = pose(player, index, at: at, unit: lens.unit)
+                if ghost, let b = bridge, let idle {
+                    let player = b.script.players[index], o = player.opacity(at: b.t) * (1 - b.w)
+                    guard o > 0.01 else { return nil }
+                    let (body, heading) = idle.pose(player, index, at: at, unit: lens.unit)
+                    return Posed(index: index, figure: RigFigure(body, heading: heading, lens: lens), opacity: o, ghost: true)
+                }
+                let player = script.players[index]
+                var o = player.opacity(at: t)
+                var (body, heading) = pose(player, index, at: script.players[index].position(at: t), unit: lens.unit)
+                if let b = bridge, let idle {
+                    if let j = b.pairs[index] {
+                        let other = b.script.players[j]
+                        (body, heading) = TheaterBridge.pose(from: idle.pose(other, j, at: other.position(at: b.t), unit: lens.unit), to: (body, heading),
+                                                             w: b.w, track: b.tracks[index], s: b.s, at: at, unit: lens.unit)
+                        o = other.opacity(at: b.t) + (o - other.opacity(at: b.t)) * b.w
+                    } else {
+                        o *= b.w
+                    }
+                }
+                guard o > 0.01 else { return nil }
                 let figure = RigFigure(body, heading: heading, lens: lens)
                 // Carried: in both hands at the chest, or the tucking hand; from where it came, into them.
                 var ball: CGPoint?
@@ -437,7 +508,7 @@ struct FootballFrame: View, Equatable {
                     let loose = f.point(next)
                     var hold = CGPoint(x: grip.x + (tuck.x - grip.x) * tucked, y: grip.y + (tuck.y - grip.y) * tucked)
                     // Cocked to throw: in the throwing hand, back by his ear.
-                    let cocked = Self.cocked(player, at: t)
+                    let cocked = Self.cocked(player, at: t, pace: script.pace)
                     hold = CGPoint(x: hold.x + (throwing.x - hold.x) * cocked, y: hold.y + (throwing.y - hold.y) * cocked)
                     ball = CGPoint(x: loose.x + (hold.x - loose.x) * held, y: loose.y + (hold.y - loose.y) * held)
                 }
@@ -447,27 +518,34 @@ struct FootballFrame: View, Equatable {
 
     /// How far the ball has gone from both hands into the throwing hand
     /// (his right) as he cocks to throw: none until the windup, all of it
-    /// from then until it's away. (pure; tested)
-    static func cocked(_ player: FootballScript.Player, at t: Double) -> Double {
-        guard let pass = player.actions.first(where: { ($0.kind == .throwBall || $0.kind == .spike) && t > $0.at - 0.34 && t < $0.at + 0.05 })
-        else { return 0 }
-        return Rig.smooth((t - pass.at + 0.34) / 0.14)
+    /// from then until it's away, on the action's own clock (`pace`: slowed
+    /// with the play). (pure; tested)
+    static func cocked(_ player: FootballScript.Player, at t: Double, pace: FootballScript.Pace = FootballScript.Pace()) -> Double {
+        let t = pace.laidOut(t)
+        guard let pass = player.actions.first(where: { a in
+            let at = pace.laidOut(a.at)
+            return (a.kind == .throwBall || a.kind == .spike) && t > at - 0.34 && t < at + 0.05
+        }) else { return 0 }
+        return Rig.smooth((t - pace.laidOut(pass.at) + 0.34) / 0.14)
     }
 
     /// Far to near, each with the stem of his raised name just before him.
     private func drawPlayers(_ context: inout GraphicsContext, _ f: GridProjection, _ figures: [Posed], stems: [Int: [TheaterTags.Stem]]) {
         let offense = FigureInks(teams.offense, ink: ink, in: context), defense = FigureInks(teams.defense, ink: ink, in: context)
-        // An official, only when one throws a flag (or between snaps): the zebra shirt. A trainer in the staff's slate.
+        // An official, only for his throw: the zebra shirt. A trainer (or a coach) in the staff's slate.
         let official = script.players.contains { $0.team == .official } ? FigureInks(.zebra(dark: ink.dark), ink: ink, in: context) : offense
-        let staff = script.players.contains { $0.team == .staff } ? FigureInks(Self.staff, ink: ink, in: context) : offense
+        let staffed = script.players.contains { $0.team == .staff } || bridge?.script.players.contains { $0.team == .staff } == true
+        let staff = staffed ? FigureInks(Self.staff, ink: ink, in: context) : offense
         for p in figures {
-            let inks = switch script.players[p.index].team {
+            // A ghost wears his own team's colors: the idle's offense is the replay's (else it crossfades).
+            let team = p.ghost ? bridge?.script.players[p.index].team ?? .staff : script.players[p.index].team
+            let inks = switch team {
             case .offense: offense
             case .defense: defense
             case .official: official
             case .staff: staff
             }
-            stems[p.index]?.forEach { $0.draw(in: context) }
+            if !p.ghost { stems[p.index]?.forEach { $0.draw(in: context) } }
             TheaterDraw.figure(p.figure, inks: inks, height: f.figure, opacity: p.opacity, in: context)
         }
     }
@@ -519,8 +597,10 @@ struct FootballFrame: View, Equatable {
             body = body.over(tucked, held * (player.role == .quarterback ? smooth((m.speed - 1.5) / 1) : 1), moving: 1)
         }
 
+        // Each action's motion on the action's own clock: slowed with the play, a throw is as easy to follow as its flight.
+        let local = script.local(t)
         for action in player.actions {
-            let x = t - action.at
+            let x = local - script.local(action.at)
             switch action.kind {
             case .catchHigh:
                 body = body.over(.catchHigh, envelope(x, attack: 0.25, release: 0.3), moving: m.weight)
@@ -590,7 +670,9 @@ struct FootballFrame: View, Equatable {
     /// follows), the way it points (along its flight) and its tail while it flies.
     private func ballSpot(_ f: GridProjection, held: CGPoint?) -> (point: CGPoint, radius: CGFloat, angle: Double, trail: [CGPoint]?)? {
         guard let ball = script.ball(at: t) else { return nil }
-        let p = held ?? f.point(ball)
+        var p = held ?? f.point(ball)
+        // Mid-bridge, from where the idle had it (on the spot, on the tee) to the replay's.
+        if let b = bridge, let from = b.script.ball(at: b.t) { p = TheaterBridge.mix(f.point(from), p, b.w) }
         let r = min(max(0.55 * f.scale, 2.2), max(f.figure * 0.13, 2.2))
         guard let flight = script.flight(at: t) else { return (p, r, 0, nil) }
         let trail = (1...6).map { f.point(flight.point(at: max(t - Double($0) * 0.014, flight.start))) }
@@ -690,7 +772,8 @@ struct FootballFrame: View, Equatable {
                              height: f.f.figure)
         }
         let well = f.size
-        return tags.draw(figures.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: f.f.figure, opacity: $0.opacity) }, ball: ball, t: t,
+        return tags.draw(figures.filter { !$0.ghost }.map { TheaterTags.Figure(index: $0.index, figure: $0.figure, height: f.f.figure, opacity: $0.opacity) },
+                         ball: ball, t: t,
                   size: f.size, clear: clear, ring: ink.tagRing, replay: TheaterReplay(length: script.duration) { Self.spots(script, at: $0, size: well) },
                   in: context)
     }
@@ -840,6 +923,20 @@ struct FootballTheater: View {
         return state.queue[(i + 1)...].first { !played.contains($0.id) }
     }
 
+    /// How the field between snaps on screen (`idle` at `t`, the offense
+    /// its side with the ball) meets a replay that comes in now: each man
+    /// from where he is to his place in the formation, unless the snap's
+    /// spot is far from where the idle stands (the other end, or the next
+    /// down's spot walked off: `TheaterBridge.Far.football`), or Reduce
+    /// Motion: then a crossfade. (pure; tested)
+    static func bridge(from idle: FootballScript, offense idleOffense: GameDetail.Side, at t: Double, to replay: FootballScript,
+                       offense: GameDetail.Side, reduceMotion: Bool, beatLeft: Double? = nil) -> TheaterBridge.Plan {
+        let together = idleOffense == offense && abs(remainder(idle.yaw(at: t) - replay.yaw, 2 * .pi)) < 0.6
+        return TheaterBridge.plan(idle: idle.bridgeFigures(offense: idleOffense, at: t), replay: replay.bridgeFigures(offense: offense, at: 0),
+                                  room: replay.leadIn, far: TheaterBridge.Far.football, together: together, reduceMotion: reduceMotion,
+                                  beatLeft: beatLeft)
+    }
+
     /// "3rd & 7 at PHI 35" → 3rd & 7; "1st & Goal" → its distance unknown (10). (pure; tested)
     static func down(_ text: String?) -> FootballScene.Down? {
         guard let text, let m = text.firstMatch(of: #/^(\d)(?:st|nd|rd|th) & (\d+|Goal)/#), let down = Int(m.1) else { return nil }
@@ -877,6 +974,8 @@ private struct FootballStage: View {
     @State private var played: Set<String> = []
     /// When the field went idle, and which idle it was.
     @State private var idleClock: IdleClock?
+    /// The field between snaps a replay is taking over from, while the hand-off runs.
+    @State private var bridge: Bridge?
     /// Wakes the field between snaps for its next beat.
     @State private var tick = 0
     @State private var hovering = false
@@ -914,6 +1013,19 @@ private struct FootballStage: View {
     struct IdleClock: Equatable {
         let key: String
         let since: Date
+    }
+
+    /// The hand-off from the field between snaps to the replay of `id`: when
+    /// the play came in, the plan, and the idle as it was (its script plays
+    /// on under the bridge, on its own clock from `since`).
+    struct Bridge: Equatable {
+        let id: String
+        let came: Date
+        let plan: TheaterBridge.Plan
+        let idle: FootballIdle
+        let script: FootballScript
+        let since: Date
+        let tracks: [Int: RigTrack]
     }
 
     private struct Wake: Equatable {
@@ -1075,6 +1187,7 @@ private struct FootballStage: View {
                 try? await Task.sleep(for: .seconds(max(script.duration - Date.now.timeIntervalSince(replay.start), 0) + 0.05))
                 guard !Task.isCancelled, self.replay?.id == replay.id else { return }
                 self.replay?.done = true
+                bridge = nil
                 return
             }
             // Done: the next snap waiting replays at once; else its end holds a while, then the field returns to the game.
@@ -1113,9 +1226,27 @@ private struct FootballStage: View {
         let banner = script.banner.map { t >= $0.at - 0.3 && t < $0.until + 0.3 } ?? false
         let status = banner ? TheaterStatus(updated: state.heard) : FootballStatus.replay(play, script: script, t: t, names: names)
         let tags = TheaterTags(cast: cast, labels: labels, pointer: pointer, at: date, reduceMotion: reduceMotion, status: status.tag, flip: hovering)
+        // Taking over from the field between snaps: the men travel (the frame blends), or the idle fades out over the set formation.
+        let handoff = bridge.flatMap { b -> (Bridge, s: Double)? in
+            let s = date.timeIntervalSince(b.came)
+            return b.id == play.id && s < b.plan.end ? (b, s) : nil
+        }
+        let blend = handoff.flatMap { h -> FootballFrame.Bridge? in
+            let b = h.0
+            return b.plan.mode == .bridge ? FootballFrame.Bridge(script: b.script, t: b.script.idleTime(date.timeIntervalSince(b.since)), w: b.plan.weight(h.s),
+                                                                 s: h.s, pairs: b.plan.pairs, tracks: b.tracks) : nil
+        }
+        // A crossfade: the two frames each partly there (where a frame leaves its well bare, the other never shows through it alone).
+        let fade = handoff.map { $0.0.plan.mode == .crossfade ? $0.0.plan.weight($0.s) : 1 } ?? 1
         return ZStack(alignment: .topLeading) {
-            FootballFrame(scene: play, script: script, t: t, teams: teams, ink: ink, size: size, zones: zones, tags: tags)
+            FootballFrame(scene: play, script: script, t: t, teams: teams, ink: ink, size: size, zones: zones, tags: tags, bridge: blend)
                 .equatable()
+                .opacity(fade)
+            if let h = handoff, h.0.plan.mode == .crossfade {
+                FootballFrame(scene: nil, script: h.0.script, t: h.0.script.idleTime(date.timeIntervalSince(h.0.since)), teams: self.teams(h.0.idle.offense),
+                              ink: ink, size: size, zones: self.zones(h.0.idle.offense))
+                    .opacity(1 - h.0.plan.weight(h.s))
+            }
             TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
         }
     }
@@ -1158,13 +1289,40 @@ private struct FootballStage: View {
             return
         }
         if let replay, !replay.done { return }
-        if let waiting = FootballTheater.waiting(state, after: replay?.id, played: played) { start(waiting) }
+        // The field between snaps was on screen (nothing replayed yet, or the last one's end had held): the replay takes over from it.
+        let fromIdle = replay == nil || rested == replay?.id
+        if let waiting = FootballTheater.waiting(state, after: replay?.id, played: played) { start(waiting, bridging: fromIdle) }
     }
 
-    private func start(_ scene: FootballScene) {
+    /// A snap's replay, from now; taking over from the field between snaps
+    /// on screen (`bridging`), from where everyone is (TheaterBridge), its
+    /// clock starting once the hand-off has used up the formation's half
+    /// second (later only when it needs more).
+    private func start(_ scene: FootballScene, bridging: Bool = false) {
         played.insert(scene.id)
         rested = nil
-        replay = Replay(id: scene.id, start: .now)
+        bridge = nil
+        let now = Date.now
+        guard bridging, onScreen, let idleClock, let shown = built.shown else {
+            replay = Replay(id: scene.id, start: now)
+            return
+        }
+        let offense = scene.offense ?? .top
+        let script = built.script(for: scene, yaw: FieldFacing.yaw(scene.offense, period: scene.period, flipped: flipped))
+        let elapsed = now.timeIntervalSince(idleClock.since), t = shown.script.idleTime(elapsed)
+        let beatLeft = shown.script.beats.first { t >= $0.lowerBound && t < $0.upperBound }.map { $0.upperBound - t }
+        let plan = FootballTheater.bridge(from: shown.script, offense: shown.idle.offense, at: t, to: script, offense: offense,
+                                          reduceMotion: reduceMotion, beatLeft: beatLeft)
+        let tracks = TheaterBridge.tracks(plan, height: 8.5, idle: { j, s in
+            let u = shown.script.idleTime(elapsed + s)
+            return (shown.script.players[j].position(at: u), j < shown.script.rig.count ? shown.script.rig[j].motion(at: u).heading : 0)
+        }, replay: { i, s in
+            let u = plan.replayTime(s)
+            return (script.players[i].position(at: u), i < script.rig.count ? script.rig[i].motion(at: u).heading : 0)
+        })
+        bridge = Bridge(id: scene.id, came: now, plan: plan, idle: shown.idle, script: shown.script, since: idleClock.since, tracks: tracks)
+        TheaterDelays.note(scene.id, plan.delay)
+        replay = Replay(id: scene.id, start: now.addingTimeInterval(plan.delay))
     }
 
     private func nextQueued(after id: String) -> FootballScene? { FootballTheater.nextQueued(state, after: id, played: played) }
@@ -1207,6 +1365,12 @@ private final class FootballScripts {
         }
         return idleScript!
     }
+
+    /// The field between snaps last drawn: what's on screen when a snap comes in.
+    var shown: (idle: FootballIdle, script: FootballScript)? {
+        guard let idle, let idleScript else { return nil }
+        return (idle, idleScript)
+    }
 }
 
 private struct WellHeight: ViewModifier {
@@ -1226,7 +1390,7 @@ extension FootballScript {
     /// the box score (else the text's "B.Murphy") with its number; everyone
     /// else only what the theater knows of him, his team and the place he
     /// lines up in (`SEAHAWKS · DE`), never the depth chart's probable name.
-    /// Officials and trainers: nobody. The key man is the one with the ball:
+    /// Officials, trainers and coaches: nobody. The key man is the one with the ball:
     /// the first credited man to have it from the start (a pass's
     /// quarterback, a run's back), then from each carry on whoever has it
     /// last (the receiver from the catch, the man who picked it off); the
@@ -1312,7 +1476,7 @@ extension FootballScript {
         case .holder: return "H"
         case .punter: return "P"
         case .returner: return kick == .punt ? "PR" : "KR"
-        case .cover, .official: return ""
+        case .cover, .official, .staff: return ""
         }
     }
 

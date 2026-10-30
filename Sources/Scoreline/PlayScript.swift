@@ -630,6 +630,35 @@ extension PlayScript {
         measureBodies()
     }
 
+    /// Everyone as the hand-off from the field between pitches matches them
+    /// (TheaterBridge): by team, by role (each fielder his own position, the
+    /// batter, the runners, the umpire, a coach), the same man by his
+    /// athlete; where each is at t.
+    func bridgeFigures(at t: Double) -> [TheaterBridge.Figure] {
+        actors.map { a in
+            let group = switch a.team {
+            case .batting: 0
+            case .fielding: 1
+            case .official: 2
+            }
+            let kind = switch a.role {
+            case let .fielder(n): "f\(n)"
+            case .batter: "batter"
+            case .runner: "runner"
+            case .coach: "coach"
+            case .umpire: "umpire"
+            }
+            return TheaterBridge.Figure(group: group, kind: kind, athlete: a.athlete, at: a.position(at: t))
+        }
+    }
+
+    /// Its own lead-in: the still moment before anyone (or the ball) moves,
+    /// which a hand-off from the field between pitches uses first.
+    var leadIn: Double {
+        let moves = actors.compactMap { $0.moves.first?.start }, thrown = flights.filter { !$0.fresh }.map(\.start)
+        return max((moves + thrown).min() ?? 0.5, 0)
+    }
+
     /// The plate umpire's index (the last of the figures there at the start).
     var umpire: Int? { actors.lastIndex { $0.role == .umpire } }
 

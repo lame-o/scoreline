@@ -12,8 +12,9 @@ import SwiftUI
 // warning empties the field to both sidelines; the end of a quarter turns the
 // field round as the teams change ends; at halftime they leave; a man hurt on
 // the play stays down while the trainers come out; a challenge's red flag
-// comes in from the bench and the referee goes to the monitor. Then they come
-// back, huddle and line up again.
+// comes in from the bench while the teams wait. Then they come back, huddle
+// and line up again. No officials: nothing in the data has them doing
+// anything on the field, and standing there they only got in the way.
 //
 // Each is a script like a snap's (FootballScript.swift), a pure function of
 // what the feed said and t, so the harness can draw any moment of it. They
@@ -308,11 +309,6 @@ extension FootballScript.Builder {
         script.next = script.lines
         // Everyone set as the last snap left them; out of their stances as they turn away.
         for i in script.players.indices where script.players[i].set != nil { script.players[i].set = 0.35 }
-        // The officials at their posts: the referee behind the backfield, the umpire, a man on each sideline at the line.
-        let referee = addOfficial(CGPoint(x: ballX + random.sign() * random.in(6...12), y: line - random.in(36...44)))
-        addOfficial(CGPoint(x: ballX - random.sign() * random.in(4...10), y: line + random.in(14...22)))
-        addOfficial(CGPoint(x: -Gridiron.half - 4, y: line + random.in(-4...4)))
-        addOfficial(CGPoint(x: Gridiron.half + 4, y: line + random.in(-4...4)))
 
         var t = 0.0
         var back = true
@@ -341,12 +337,12 @@ extension FootballScript.Builder {
             script.ballGone = 4.6
             script.duration = 6
             script.settle = 6
-            finishIdle(referee: referee)
+            finishIdle()
             return
         case let .injury(hurt):
             t = injury(hurt, idle: idle, random: &random, focus: &focus)
         case let .review(review):
-            t = self.review(review, idle: idle, referee: referee, random: &random, focus: &focus)
+            t = self.review(review, idle: idle, random: &random, focus: &focus)
         }
         if back {
             // Back to the huddle, a breath, the break, and the line-up.
@@ -361,16 +357,10 @@ extension FootballScript.Builder {
         script.loop = FootballScript.Loop(start: start, period: period)
         script.duration = start + period
         script.settle = script.duration
-        finishIdle(referee: referee, focus: focus)
+        finishIdle(focus: focus)
     }
 
-    @discardableResult
-    mutating func addOfficial(_ at: CGPoint) -> Int {
-        script.players.append(Player(team: .official, at: at, role: .official))
-        return script.players.count - 1
-    }
-
-    /// The players of a team in the formation (not the officials, nor staff).
+    /// The players of a team in the formation (not the staff).
     func team(_ team: FootballScript.Team) -> [Int] { script.players.indices.filter { script.players[$0].team == team } }
 
     /// Where a man stands in the formation: his place at the line.
@@ -515,7 +505,7 @@ extension FootballScript.Builder {
     }
 
     /// The half (or the game) over: both teams jog off to their benches and
-    /// out of sight; the officials walk off; the field stands empty.
+    /// out of sight; the field stands empty.
     mutating func leave(_ idle: FootballIdle, random: inout SplitMix64) {
         for i in script.players.indices {
             let side: Double = switch script.players[i].team {
@@ -568,7 +558,7 @@ extension FootballScript.Builder {
         let bench = (side == .offense ? idle.bench : -idle.bench) * (Gridiron.half + 6)
         for k in 0..<2 {
             let from = CGPoint(x: bench, y: down.y + Double(k) * 8 - 4)
-            script.players.append(Player(team: .staff, at: from, role: .official))
+            script.players.append(Player(team: .staff, at: from, role: .staff))
             let trainer = script.players.count - 1
             near.append(trainer)
             let by = CGPoint(x: down.x + (k == 0 ? -4.5 : 4.5), y: down.y + (k == 0 ? 2.5 : -2.5))
@@ -590,11 +580,11 @@ extension FootballScript.Builder {
     }
 
     /// A second look: on a challenge, the red flag in from the bench of the
-    /// team that threw it; the referee to the monitor at the near sideline,
-    /// heads down over it, then back to the spot with the call; the teams in
-    /// loose knots meanwhile. Returns when they're back.
-    mutating func review(_ review: FootballScene.Review, idle: FootballIdle, referee: Int, random: inout SplitMix64,
-                         focus: inout [IdleFocus]) -> Double {
+    /// team that threw it; the teams in loose knots while it's looked at
+    /// (the tag says what's under review, then the call). The referee isn't
+    /// drawn walking to the monitor: the data has him doing nothing on the
+    /// field. Returns when they're back.
+    mutating func review(_ review: FootballScene.Review, idle: FootballIdle, random: inout SplitMix64, focus: inout [IdleFocus]) -> Double {
         if review.kind == .challenge {
             let side: Double = review.side.map { $0 == idle.offense ? idle.bench : -idle.bench } ?? -FieldFacing.near(yaw: idle.yaw)
             let from = FieldPoint(x: side * (Gridiron.half + 8), y: line + random.in(-25...25), z: 6)
@@ -602,7 +592,7 @@ extension FootballScript.Builder {
             script.flags.append(FootballScript.Flag(thrown: 0.7, lands: 1.5, from: from, to: to, red: true))
             script.flashes.append(FootballScript.Flash(beat: .flag, at: 1.5, point: FieldPoint(to)))
             // Thrown by the head coach, at his bench.
-            script.players.append(Player(team: .staff, at: CGPoint(x: from.x + side * 2, y: from.y - 2), role: .official))
+            script.players.append(Player(team: .staff, at: CGPoint(x: from.x + side * 2, y: from.y - 2), role: .staff))
             let coach = script.players.count - 1
             script.players[coach].act(.flagThrow, at: 0.7, toward: to)
             script.players[coach].looks.append(FootballScript.Look(from: 0, point: to))
@@ -610,16 +600,6 @@ extension FootballScript.Builder {
             // The flag coming in, and the field it lands on.
             focus.append(IdleFocus(from: 0, until: 3.4, players: [], points: [FieldPoint(to), from, spot, FieldPoint(x: to.x * 0.4, y: to.y)]))
         }
-        let near = FieldFacing.near(yaw: idle.yaw)
-        let monitor = CGPoint(x: near * (Gridiron.half + 5), y: line + random.in(-10...10))
-        let spotted = home(referee)
-        move(referee, to: [monitor], from: 1.8, to: 5.2, ease: .inOut)
-        script.players[referee].looks.append(FootballScript.Look(from: 5, point: CGPoint(x: near * (Gridiron.half + 30), y: monitor.y)))
-        // The referee at the monitor, the teams waiting.
-        focus.append(IdleFocus(from: 4.2, until: 15.5, players: [referee] + team(.offense) + team(.defense)))
-        move(referee, to: [CGPoint(x: ballX + 6, y: line - 8)], from: 15.5, to: 18.6, ease: .inOut)
-        script.players[referee].looks.append(FootballScript.Look(from: 18.4, point: CGPoint(x: ballX, y: line + 60)))
-        move(referee, to: [spotted], from: 21.5, to: 23.5, ease: .inOut)
         // The teams wait in knots on the field.
         let offense = team(.offense), defense = team(.defense)
         ring(offense, around: CGPoint(x: ballX + random.in(-6...6), y: line - random.in(20...26)), radius: 9, first: at(.quarterback), from: 0.8,
@@ -631,10 +611,9 @@ extension FootballScript.Builder {
 
     /// The idle's camera (following the beats, then still) and its beats:
     /// everyone on the field and the lines, or what a moment is about (a
-    /// man down and the trainers with him, a flag coming in, the referee at
-    /// the monitor) while it lasts. Through a turn of the field it frames
+    /// man down and the trainers with him, a flag coming in) while it lasts. Through a turn of the field it frames
     /// each instant exactly, as the field swings under it.
-    mutating func finishIdle(referee: Int, focus: [IdleFocus] = []) {
+    mutating func finishIdle(focus: [IdleFocus] = []) {
         script.legs.sort { $0.from < $1.from }
         let end = script.duration, script = self.script, spot = self.spot, ballX = self.ballX
         func goal(_ t: Double) -> CameraFrame {
@@ -645,7 +624,7 @@ extension FootballScript.Builder {
                     .map { Gridiron.room(FieldPoint(script.players[$0].position(at: t)), figure: true, yaw: yaw) }
                 items += f.points.map { Gridiron.room($0, figure: false, yaw: yaw) }
             } else {
-                items = script.players.indices.filter { script.players[$0].opacity(at: t) > 0.5 && script.players[$0].team != .official }
+                items = script.players.indices.filter { script.players[$0].opacity(at: t) > 0.5 }
                     .map { Gridiron.room(FieldPoint(script.players[$0].position(at: t)), figure: true, yaw: yaw) }
                 if let gain = script.lines.gain { items.append(Gridiron.room(FieldPoint(x: ballX, y: gain), figure: false, yaw: yaw)) }
             }

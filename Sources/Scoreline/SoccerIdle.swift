@@ -4,15 +4,21 @@ import SwiftUI
 // never looks frozen: every event ESPN logs gets its beat, and between them
 // the ball goes round. A corner: the taker jogs to the flag on the side it
 // went out, the box fills, each man picked up. A foul: the man fouled down,
-// the referee in, then the free kick set up at the real spot (a wall when
-// it's in range). Offside: the assistant's flag up level with the man.
-// A booking: the referee's card up to the real player where his foul was;
-// a red, and he walks. A substitution: the man coming off to the halfway
-// line, the board up, the man coming on. A man hurt: down, the physios on.
+// then the free kick set up at the real spot (a wall when it's in range).
+// Offside: the assistant's flag up level with the man. A booking: the
+// referee's card up to the real player where his foul was; a red, and he
+// walks. A substitution: the man coming off to the halfway line, the board
+// up, the man coming on. A man hurt: down, the physios on.
 // A VAR check, its decision; half time and full time, off to the tunnel; the
 // second half's kick-off with the ends changed. Otherwise the team on the
 // ball (the last event's) passes it round in its formation from the
 // lineups, the other team shifting with it, a pass every few seconds.
+//
+// The officials are on the pitch only for what the data has them do: the
+// referee for a booking (in to the man, the card, away), the assistant for an
+// offside (up the touchline to him, the flag), the fourth official for a
+// substitution (the board). Each fades in as he comes and out as he goes;
+// otherwise there are only the players, nobody standing about in their way.
 //
 // Each is a script like a moment's (SoccerScript.swift), a pure function of
 // what the feed said and t, in sparse beats: a second or two of motion, then
@@ -336,8 +342,8 @@ struct SoccerProp: Equatable {
 }
 
 extension SoccerScript {
-    /// The pitch between moments (SoccerIdle): both elevens, the officials,
-    /// and the beat.
+    /// The pitch between moments (SoccerIdle): both elevens, an official
+    /// for his act, and the beat.
     init(idle: SoccerIdle) {
         var b = IdleBuilder(idle: idle)
         b.build()
@@ -366,7 +372,6 @@ extension SoccerScript {
         var random: SplitMix64
         /// Each man of the team on the ball (attacking) and the other, by athlete.
         var men: [Team: [(player: SoccerLineup.Player, actor: Int)]] = [:]
-        var referee = 0
         /// What the camera keeps in frame, by when.
         var focus: [(from: Double, until: Double, actors: [Int], points: [CGPoint], closest: Double)] = []
 
@@ -429,6 +434,15 @@ extension SoccerScript {
             script.actors[i].move(to: [p], from: start, to: end, ease: ease)
         }
 
+        /// An official on the pitch for his act alone: fading in as the beat
+        /// opens, gone (faded out) from `until`.
+        mutating func official(_ name: String, at p: CGPoint, until: Double) -> Int {
+            let i = add(.official, name, at: p)
+            script.actors[i].appear = 0.05
+            script.actors[i].vanish = until
+            return i
+        }
+
         /// Everyone into the shape for a ball at `ball`, from `start`, at a jog.
         mutating func reshape(ball: CGPoint, from start: Double, except: Set<Int> = []) {
             for team in [Team.attacking, .defending] {
@@ -467,13 +481,6 @@ extension SoccerScript {
                     return (p, i)
                 }
             }
-            // The officials: the referee near the play, an assistant on each touchline level with the last defender.
-            referee = add(.official, "referee", at: CGPoint(x: ball.x + random.sign() * random.in(6...11), y: min(max(ball.y + random.sign() * random.in(5...10), 4), Pitch.width - 4)))
-            let lastMan = (men[.defending] ?? []).filter { $0.player.place != 1 }.map { position($0.actor, 0).x }
-            let line = right ? lastMan.max() ?? 70 : lastMan.min() ?? 35
-            let near = add(.official, "assistant", at: CGPoint(x: line, y: -1.2))
-            let far = add(.official, "assistant", at: CGPoint(x: Pitch.length - line, y: Pitch.width + 1.2))
-            _ = far
             script.flights = [Flight(kind: .carry, start: 0, end: 0.01, from: FieldPoint(ball, z: 0.11), to: FieldPoint(ball, z: 0.11))]
             var loopStart = 0.6
             var period = 0.0
@@ -481,7 +488,7 @@ extension SoccerScript {
             case .play:
                 (loopStart, period) = circulate(from: ball)
             case let .event(event):
-                (loopStart, period) = beat(event, assistant: near)
+                (loopStart, period) = beat(event)
             }
             script.loop = loopStart < .infinity && period > 0 ? Loop(start: loopStart, period: period) : nil
             script.duration = period > 0 ? loopStart + period : max(loopStart, 1)
@@ -550,7 +557,7 @@ extension SoccerScript {
         // MARK: Events
 
         /// An event's beat: the stage it sets, at its real spot, with its real men.
-        mutating func beat(_ e: SoccerEvent, assistant: Int) -> (Double, Double) {
+        mutating func beat(_ e: SoccerEvent) -> (Double, Double) {
             let ball = idle.ball
             switch e.kind {
             case .corner:
@@ -558,8 +565,12 @@ extension SoccerScript {
             case .foul, .handball:
                 return freeKick(e, foul: true)
             case .offside:
-                // The assistant level with him, his flag up; then the free kick back.
+                // The assistant up the near touchline from the last defender's line, level with him, his flag up, and gone;
+                // then the free kick back.
                 let man = self.man(.defending, athlete: e.athlete, name: e.player, near: ball) ?? 0
+                let lastMan = (men[.defending] ?? []).filter { $0.player.place != 1 }.map { position($0.actor, 0).x }
+                let line = right ? lastMan.max() ?? 70 : lastMan.min() ?? 35
+                let assistant = official("assistant", at: CGPoint(x: line, y: -1.2), until: 5.7)
                 move(man, to: ball, from: 0.2, to: 1.2)
                 move(assistant, to: CGPoint(x: ball.x, y: -1.2), from: 0.2, to: 1.6)
                 script.props.append(SoccerProp(kind: .flag, actor: assistant, from: 1.4, until: 5.5))
@@ -573,27 +584,22 @@ extension SoccerScript {
             case .injury, .delay:
                 return injury(e)
             case .varCheck, .varDecision:
-                // Everyone waits; the referee's hand to his ear, then (the decision) his sign for the screen.
-                move(referee, to: CGPoint(x: ball.x + 4, y: ball.y + 2), from: 0.3, to: 2.4)
-                var decision = false
-                if case .varDecision = e.kind { decision = true }
-                script.actors[referee].holds.append(Hold(kind: decision ? .screen : .ear, from: 2.6, until: decision ? 5.5 : 14))
+                // Everyone waits on it, a few drifting about; the tag says the check and the decision.
                 for (_, i) in (men[.attacking] ?? []) + (men[.defending] ?? []) where random.in(0...1) < 0.25 {
                     let here = position(i, 0)
                     move(i, to: CGPoint(x: here.x + random.in(-3...3), y: here.y + random.in(-3...3)), from: random.in(3...8), to: random.in(9...10))
                 }
-                focus.append((0, 16, [referee], [ball], 30))
                 return (16, 12)
             case .resume:
                 return circulate(from: ball)
             case .kickoff, .secondHalf:
                 return kickoff(e)
             case .halftime, .fullTime:
-                // Off to the tunnel at the halfway line, the officials last.
+                // Off to the tunnel at the halfway line.
                 let tunnel = CGPoint(x: Pitch.length / 2, y: -5)
                 for i in script.actors.indices {
                     let here = position(i, 0.3), d = hypot(tunnel.x - here.x, tunnel.y - here.y)
-                    let leave = 0.3 + random.in(0...1.2) + (script.actors[i].team == .official ? 1.2 : 0)
+                    let leave = 0.3 + random.in(0...1.2)
                     let arrive = leave + min(max(d / 5, 3), 9)
                     move(i, to: CGPoint(x: tunnel.x + random.in(-3...3), y: tunnel.y), from: leave, to: arrive)
                     script.actors[i].vanish = arrive - 0.8
@@ -653,7 +659,6 @@ extension SoccerScript {
                 move(keeper, to: CGPoint(x: goalX + s * 0.7, y: 34 + (flag.y == 0 ? -1 : 1)), from: 0.4, to: 2.4)
                 script.actors[keeper].looks.append(Look(from: 2.4, point: spot))
             }
-            move(referee, to: CGPoint(x: goalX + s * 14, y: flag.y == 0 ? 50 : 18), from: 0.5, to: 3.6)
             // The jostling: a man in the box steps off his marker and back, round and round.
             var t = 6.5
             for _ in 0..<2 {
@@ -668,7 +673,7 @@ extension SoccerScript {
             return (6.0, 12.0)
         }
 
-        /// A foul: the man fouled down, the referee in, then the free kick.
+        /// A foul: the man fouled down, the fouler over him, then the free kick.
         mutating func freeKick(_ e: SoccerEvent, foul: Bool) -> (Double, Double) {
             let spot = idle.ball
             let fouler = man(.defending, athlete: e.athlete, name: e.player, near: spot)
@@ -681,9 +686,7 @@ extension SoccerScript {
                 move(fouler, to: CGPoint(x: spot.x + random.in(-2...2), y: spot.y + random.sign() * random.in(1.5...2.5)), from: 0.1, to: 0.7)
                 script.actors[fouler].looks.append(Look(from: 0.8, point: spot))
             }
-            move(referee, to: CGPoint(x: spot.x + random.sign() * 3, y: spot.y + 2.5), from: 0.3, to: 2.6)
-            script.actors[referee].looks.append(Look(from: 2.6, point: spot))
-            focus.append((0, 4.2, [fouler, fouled].compactMap { $0 } + [referee], [spot], 20))
+            focus.append((0, 4.2, [fouler, fouled].compactMap { $0 }, [spot], 20))
             return freeKickSetup(at: spot, from: 4.2, foul: true, penalty: e.penalty)
         }
 
@@ -731,13 +734,18 @@ extension SoccerScript {
             return (t - 1, 11)
         }
 
-        /// A booking: the man to the referee where his foul was, the card up;
-        /// a red, and he walks off.
+        /// A booking: the referee in from a few strides off to where the foul
+        /// was, the man to him, the card up; then the referee away and gone
+        /// (he's on the pitch only for this). A red, and the man walks off.
         mutating func card(_ e: SoccerEvent, red: Bool) -> (Double, Double) {
             let spot = idle.ball
             let team: Team = (e.side == idle.possession) ? .attacking : .defending
             let booked = man(team, athlete: e.athlete, name: e.player, near: spot) ?? 0
+            let side = random.sign()
+            func onPitch(_ p: CGPoint) -> CGPoint { CGPoint(x: min(max(p.x, 3), Pitch.length - 3), y: min(max(p.y, 3), Pitch.width - 3)) }
+            let referee = official("referee", at: onPitch(CGPoint(x: spot.x - side * 9, y: spot.y + random.sign() * 5)), until: 6.4)
             move(referee, to: spot, from: 0.2, to: 1.6)
+            move(referee, to: onPitch(CGPoint(x: spot.x + side * 9, y: spot.y + random.sign() * 4)), from: 4.9, to: 6.9)
             move(booked, to: CGPoint(x: spot.x + 1.6, y: spot.y + random.sign() * 0.8), from: 0.3, to: 1.9)
             script.actors[booked].looks.append(Look(from: 1.9, point: spot))
             script.actors[referee].looks.append(Look(from: 1.7, point: CGPoint(x: spot.x + 1.6, y: spot.y)))
@@ -767,7 +775,7 @@ extension SoccerScript {
         /// runs to his place.
         mutating func substitution(_ e: SoccerEvent) -> (Double, Double) {
             let line = CGPoint(x: Pitch.length / 2, y: -1.2)
-            let fourth = add(.official, "fourth official", at: CGPoint(x: line.x + 2.2, y: -3))
+            let fourth = official("fourth official", at: CGPoint(x: line.x + 2.2, y: -3), until: 8.7)
             script.actors[fourth].holds.append(Hold(kind: .boardUp, from: 0.4, until: 8.5))
             script.props.append(SoccerProp(kind: .board, actor: fourth, from: 0.4, until: 8.5))
             script.actors[fourth].looks.append(Look(from: 0, point: Pitch.center))
@@ -784,14 +792,12 @@ extension SoccerScript {
         }
 
         /// A man down: on the grass where he is, the players round him, the
-        /// referee waving the physios on; they run on from the bench side.
+        /// physios running on from the bench side.
         mutating func injury(_ e: SoccerEvent) -> (Double, Double) {
             let team: Team = e.side == idle.possession ? .attacking : .defending
             let hurt = man(team, athlete: e.athlete, name: e.player, near: idle.ball) ?? (men[team]?.first?.actor ?? 0)
             let down = position(hurt, 0)
             script.actors[hurt].holds.append(Hold(kind: .down, from: 0.4, until: .infinity))
-            move(referee, to: CGPoint(x: down.x + 3, y: down.y + 2), from: 0.4, to: 2.6)
-            script.actors[referee].looks.append(Look(from: 2.6, point: CGPoint(x: down.x, y: -3)))
             for (_, i) in (men[.attacking] ?? []) + (men[.defending] ?? []) where i != hurt {
                 let here = position(i, 0), d = hypot(here.x - down.x, here.y - down.y)
                 guard d < 14 else { continue }
@@ -838,7 +844,6 @@ extension SoccerScript {
             for (k, i) in forwards.prefix(2).enumerated() {
                 script.actors[i].at = CGPoint(x: c.x + s * (k == 0 ? 0.4 : 1.6), y: c.y + (k == 0 ? -0.6 : 7))
             }
-            script.actors[referee].at = CGPoint(x: c.x - s * 12, y: c.y + 9)
             // Loop: the kicker's foot on the ball, a man bouncing on his toes.
             if let kicker = forwards.first {
                 script.actors[kicker].holds.append(Hold(kind: .cardUp, from: 4, until: 4.8))
@@ -908,10 +913,6 @@ extension SoccerScript {
 extension RigPose {
     /// The referee's card (or the assistant's flag, a kicker's signal): one arm straight up.
     static let cardUp = RigPose(lean: -0.05, rightArm: RigArm(swing: 3.0, spread: 0.12, turn: 0.3, bend: 0.05))
-    /// A hand to his ear: the referee listening to VAR.
-    static let ear = RigPose(nod: 0.1, rightArm: RigArm(swing: 2.5, spread: 0.45, turn: 1.0, bend: 2.2))
-    /// The sign for the screen: both hands up and out, drawing it.
-    static let screen = RigPose(leftArm: RigArm(swing: 2.0, spread: 0.6, turn: 0.4, bend: 0.5), rightArm: RigArm(swing: 2.0, spread: 0.6, turn: 0.4, bend: 0.5))
     /// The board held up in both hands.
     static let boardUp = RigPose(lean: -0.08, leftArm: RigArm(swing: 2.8, spread: 0.1, turn: 0.3, bend: 0.25),
                                  rightArm: RigArm(swing: 2.8, spread: 0.1, turn: 0.3, bend: 0.25))
