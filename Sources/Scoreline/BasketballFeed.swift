@@ -60,9 +60,28 @@ final class BasketballFeed {
     func replay(_ id: String?) {
         if replaying != id { replaying = id }
     }
+
+    /// While the page broadcasts (BROADCAST §3), the live marks the page's
+    /// charts read (players on fire, the run) as presented at p, not as the
+    /// lane read them: nothing spoils a play the page hasn't told yet.
+    private(set) var presentation: Broadcast.NBALive?
+
+    func present(_ live: Broadcast.NBALive?) {
+        if presentation != live { presentation = live }
+    }
+
+    /// Players on fire, as shown (at p while the page broadcasts).
+    var shownStreaks: [String: Int] { presentation?.streaks ?? streaks }
+    /// ESPN's scoring run, as shown (at p while the page broadcasts).
+    var shownRuns: [Run] { presentation.map { $0.run.map { [$0] } ?? [] } ?? runs }
     /// The newest plays, in ESPN's order (game order). The page's replays
     /// read it for the plays since they fetched the game (never observed).
     @ObservationIgnored private(set) var window: [JSON] = []
+    /// Bumps with each complete look at the plays (the broadcast timeline ingests `window` then).
+    @ObservationIgnored private(set) var windowRevision = 0
+    /// The core status as last read (the broadcast's clock evidence), and when the situation was last read.
+    @ObservationIgnored private(set) var lastStatus: JSON?
+    @ObservationIgnored private(set) var lastRead: Date?
     /// Index in ESPN's full play list of `window[0]`.
     @ObservationIgnored private var windowStart = 0
     @ObservationIgnored private var fetched: Int?
@@ -159,8 +178,12 @@ final class BasketballFeed {
         async let situationCall = try? JSON.fetch(situationURL)
         async let statusCall = try? JSON.fetch(statusURL)
         let (situation, status) = await (situationCall, statusCall)
-        if let status { read(status) }
+        if let status {
+            read(status)
+            lastStatus = status
+        }
         guard let situation else { return }
+        lastRead = .now
         // New plays only when the last one changed.
         let lastRef = situation["lastPlay"]["$ref"].string
         if lastRef != lastPlayRef || !loaded {
@@ -282,6 +305,7 @@ final class BasketballFeed {
         looks += 1
         let previous = Set(window.compactMap { $0["id"].string })
         window = next
+        windowRevision += 1
         windowStart = start
         newestID = window.last?["id"].string
         if let latest = window.last.flatMap(LiveScore.init) {

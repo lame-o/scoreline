@@ -148,6 +148,9 @@ final class SoccerFeed {
     /// what the page's key events and plays list replay (Replays.swift).
     /// Assigned only when it changes.
     private(set) var replays: [String: PlayReplay] = [:]
+    /// The last complete look's entries in feed order (a tail of the match), and its count: the broadcast timeline's core lane.
+    @ObservationIgnored private(set) var lastLook: [JSON] = []
+    @ObservationIgnored private(set) var lookRevision = 0
 
     /// A goal under review: where it was read, and when.
     struct Review: Equatable {
@@ -195,10 +198,12 @@ final class SoccerFeed {
         var touch: SoccerTouch?
         var period: Int?
         var momentOrder: Int?
+        var look: [JSON] = []
         while true {
             guard !Task.isCancelled, let url = URL(string: "\(base)?limit=\(size)&page=\(page)"),
                   let json = try? await JSON.fetch(url) else { break }
             let items = json["items"].array
+            look += items
             for (offset, item) in items.enumerated() {
                 let id = Self.playID(item)
                 // Read before: an edit, if anything changed.
@@ -275,7 +280,11 @@ final class SoccerFeed {
         if primed {
             moments += newActions.compactMap(\.moment) + newCards.values.compactMap(\.moment) + unplaced
         }
-        if complete { primed = true }
+        if complete {
+            primed = true
+            lastLook = look
+            lookRevision += 1
+        }
         loaded = true
         if !newCards.isEmpty { cards.merge(newCards) { _, new in new } }
         guard !newActions.isEmpty else { return }
@@ -680,6 +689,12 @@ final class FootballFeed {
     /// earlier version): the page's replays build its scoring plays from it
     /// (never observed).
     @ObservationIgnored private(set) var entries: [JSON] = []
+    /// The last complete look's entries (a tail of the game), its count, the
+    /// status as last read and when the situation was: the broadcast timeline's lanes.
+    @ObservationIgnored private(set) var lastLook: [JSON] = []
+    @ObservationIgnored private(set) var lookRevision = 0
+    @ObservationIgnored private(set) var lastStatus: JSON?
+    @ObservationIgnored private(set) var lastRead: Date?
     @ObservationIgnored private var entryIndex: [String: Int] = [:]
 
     func update(path: String, eventID: String, teams: Teams) async {
@@ -693,8 +708,10 @@ final class FootballFeed {
         async let situationCall = try? JSON.fetch(situationURL)
         async let statusCall = try? JSON.fetch(statusURL)
         let (situationJSON, status) = await (situationCall, statusCall)
+        if situationJSON != nil { lastRead = .now }
 
         if let status {
+            lastStatus = status
             clock = Self.clock(status)
             if let text = clock, let seconds = status["clock"].double, let period = status["period"].int {
                 gameClock = GameClock(seconds: seconds, sampledAt: .now, period: period, direction: .down,
@@ -734,11 +751,13 @@ final class FootballFeed {
         var page = max(fetched - 1, 0) / Self.pageSize + 1
         var new: [DrivePlay] = []
         var complete = false
+        var look: [JSON] = []
         /// Entries newer than the theater's snap: only the newest that is one gets parsed.
         var newer: [(item: JSON, sequence: Double)] = []
         while !Task.isCancelled, let url = URL(string: "\(base)/plays?limit=\(Self.pageSize)&page=\(page)"),
               let json = try? await JSON.fetch(url) {
             let items = json["items"].array
+            look += items
             for item in items {
                 newestID = item["id"].string ?? newestID
                 if let id = item["id"].string {
@@ -769,6 +788,10 @@ final class FootballFeed {
                 break
             }
             page += 1
+        }
+        if complete {
+            lastLook = look
+            lookRevision += 1
         }
         // An edited play replaces its earlier version.
         let known = Dictionary(plays.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -1126,6 +1149,13 @@ final class BaseballFeed {
     @ObservationIgnored private var updating = false
     /// MLB's at-bat under way and the game's status there (its live poll).
     @ObservationIgnored private var mlbLive: Statcast.Live?
+    /// The last complete look's entries (a tail of the game), its count, the
+    /// status, when the situation was read and the play it follows: the broadcast timeline's lanes.
+    @ObservationIgnored private(set) var lastLook: [JSON] = []
+    @ObservationIgnored private(set) var lookRevision = 0
+    @ObservationIgnored private(set) var lastStatus: JSON?
+    @ObservationIgnored private(set) var lastRead: Date?
+    @ObservationIgnored private(set) var situationPlay: String?
     /// ESPN's status, held up ("Rain Delay").
     @ObservationIgnored private var espnDelay: PlayBeat.Delay?
     /// The theater's timeline as built from the plays (and MLB's events), and every entry ID it has had.
@@ -1154,6 +1184,8 @@ final class BaseballFeed {
         async let situationCall = try? JSON.fetch(situationURL)
         async let statusCall = try? JSON.fetch(statusURL)
         let (s, status) = await (situationCall, statusCall)
+        if let status { lastStatus = status }
+        if s != nil { lastRead = .now }
         if let status, status["type"]["state"].string == "in" {
             inning = status["type"]["shortDetail"].string
         }
@@ -1181,6 +1213,7 @@ final class BaseballFeed {
             if !Task.isCancelled, lastID == nil || lastID == newestID { lastPlayRef = lastRef }
         }
         let lastPlay = window.last { $0["type"]["type"].string == "play-result" }?["text"].string
+        situationPlay = lastRef.flatMap { ref in ref.range(of: "/plays/").map { String(ref[$0.upperBound...].prefix { $0.isNumber }) } }
         let next = Self.settledSituation(Self.situation(s, names: names, lastPlay: lastPlay), window: window, names: names)
         if next != situation {
             situation = next
@@ -1259,6 +1292,8 @@ final class BaseballFeed {
         guard !Task.isCancelled, complete || from == end else { return }
         reread = .now
         fetched = read
+        lastLook = fresh
+        lookRevision += 1
         let look = Self.reread(window, from: from - windowStart, fresh: fresh)
         window = look.window
         if window.count > Self.windowSize {

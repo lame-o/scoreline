@@ -149,7 +149,8 @@ struct TimelinePlay<Play: Equatable & Sendable>: Equatable, Sendable {
     let eventTime: PTime?
     /// A stopped-clock play after a stoppage: its moment lies between the
     /// stoppage's start and the clock's restart (the anchor solver places the
-    /// cluster backward from the restart; nothing inside the bound is invented here).
+    /// cluster backward from the restart; nothing inside the bound is invented
+    /// here). Every play of one cluster has the identical bound: group by it.
     let eventBounds: ClosedRange<PTime>?
     /// Where `eventTime` comes from.
     let timeSource: EventTimeSource

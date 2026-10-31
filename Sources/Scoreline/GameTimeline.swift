@@ -844,25 +844,38 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// and the clock's restart: the restart as the fast lane saw it, or as the
     /// next running-clock play implies (its clock ran that long before it),
     /// or, until either is known, its own arrival less the feed's minimum lag.
+    /// Every play of one cluster shares one bound (the theater groups clusters by it):
+    /// the union of its plays' bounds, which is the restart for all once that's known.
     private mutating func boundStoppedClusters() {
         guard policy.clockCountsDown == true else { return }
-        var stoppage: (period: Int, elapsed: Double, at: PTime)?
+        var stoppage: (period: Int, elapsed: Double, at: PTime, from: Int)?
+        var cluster: [Int] = []
+        func close() {
+            guard let s = stoppage, !cluster.isEmpty else { return }
+            var upper = cluster.map { records[$0].firstSeen - policy.minimumLag }.max() ?? s.at
+            if let restart = restart(after: (s.period, s.elapsed, s.at), from: cluster[0]) { upper = min(upper, restart) }
+            let bound = s.at...max(s.at, upper)
+            for k in cluster {
+                records[k].bounds = bound
+                records[k].timeSource = .bounded
+            }
+            cluster = []
+        }
         for k in records.indices {
             let e = records[k].entry
             guard let g = e.clock.elapsed else {
+                close()
                 stoppage = nil
                 continue
             }
             if let s = stoppage, s.period == e.period, abs(g - s.elapsed) < 0.05 {
-                var upper = records[k].firstSeen - policy.minimumLag
-                if let restart = restart(after: s, from: k) { upper = min(upper, restart) }
-                let lower = s.at
-                records[k].bounds = lower...max(lower, upper)
-                records[k].timeSource = .bounded
+                cluster.append(k)
                 continue
             }
-            stoppage = e.kind.stopsClock ? (e.period, g, records[k].eventTime) : nil
+            close()
+            stoppage = e.kind.stopsClock ? (e.period, g, records[k].eventTime, k) : nil
         }
+        close()
     }
 
     /// When the clock restarted after a stoppage at `s`: the fast lane's first
