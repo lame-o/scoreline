@@ -30,6 +30,8 @@ extension ScorelineTests {
         broadcastFloor()
         print("\nBroadcast: the recorder's status and core lanes")
         broadcastRecorderLanes()
+        print("\nBroadcast: what the theater plans from")
+        broadcastPlanning()
     }
 
     // MARK: Helpers
@@ -920,5 +922,62 @@ extension ScorelineTests {
         check(statusReadings > 20, "the status lane comes from status.jsonl", "\(statusReadings)")
         // Revisions and removals across looks merge by ID, the newest version winning.
         check(timeline.records.allSatisfy { r in r.entry.wallclock != nil }, "every entry keeps its wallclock across looks")
+    }
+}
+
+
+// MARK: - The theater's planning inputs
+
+extension ScorelineTests {
+    /// Phase 0's director plans from `snapshot.plays + pending` and re-plans on
+    /// `revision`; a skip leaves it the next play's binding horizon.
+    static func broadcastPlanning() {
+        let s0 = ScoreLine(home: 0, away: 0)
+        var policy = testPolicy
+        policy.horizons = BindingHorizons(live: 2, byKind: ["shot": 3.5])
+        // A skip across a stoppage stops the next live-ball play's horizon short of it.
+        var t = GameTimeline<RawPlay>(policy: policy)
+        t.ingest(look([play("foul", at: 100, elapsed: 400, live: false, stops: true, score: s0),
+                       play("shot", at: 130, elapsed: 401, score: s0, label: "shot")], at: 140))
+        t.tell(through: 100)
+        let shot = t.nextUntold?.presentAt ?? 0
+        let end = t.quietSpan(from: 101, knowledge: 1000)
+        check(end.map { abs($0 - (shot - 3.5)) < 1e-9 } == true, "a skip stops the shot's 3.5 s horizon short of it",
+              "\(String(describing: end)) vs \(shot)")
+        // …and a dead-ball play next (horizon 0): unchanged, the skip lands on it.
+        var d = GameTimeline<RawPlay>(policy: policy)
+        d.ingest(look([play("foul", at: 100, elapsed: 400, live: false, stops: true, score: s0),
+                       play("ft", at: 130, elapsed: 400, live: false, score: s0, label: "ft")], at: 140))
+        d.tell(through: 100)
+        let ft = d.nextUntold?.presentAt ?? 0
+        check(d.quietSpan(from: 101, knowledge: 1000).map { abs($0 - ft) < 1e-9 } == true, "a dead-ball play next: the skip lands on it, as before")
+
+        // A play arriving past the watermark (pending) is a new revision. (The prior
+        // lag holds the network guard back until ten lags are measured.)
+        var trusting = policy
+        trusting.lagTrust = 10
+        var e = BroadcastEngine<RawPlay>(sport: .basketball, policy: trusting)
+        e.ingest(look([play("a", at: 100, elapsed: 10, score: s0)], at: 140))
+        e.advance(now: 140)
+        let r0 = e.snapshot(at: 140).revision
+        e.ingest(look([play("a", at: 100, elapsed: 10, score: s0), play("b", at: 139, elapsed: 49, score: s0)], at: 141))
+        let snap = e.snapshot(at: 141)
+        check(snap.pending.map(\.id) == ["b"] && snap.revision != r0, "a pending arrival bumps the revision",
+              "pending \(snap.pending.map(\.id)) \(r0)→\(snap.revision)")
+        // A fast-lane restart that moves a stopped-clock cluster's bounds is a new revision too.
+        var c = GameTimeline<RawPlay>(policy: policy)
+        c.ingest(look([play("foul", at: 100, elapsed: 400, live: false, stops: true, score: s0),
+                       play("ft1", at: 100, elapsed: 400, live: false, score: s0, label: "ft"),
+                       play("ft2", at: 100, elapsed: 400, live: false, score: s0, label: "ft")], at: 130))
+        c.observe(FastReading(arrived: 131, state: .live, period: 1, elapsed: 400, running: false, score: s0, source: "status"))
+        let bounded = c.records.first { $0.id == "ft2" }?.bounds, r1 = c.revision
+        c.observe(FastReading(arrived: 136, state: .live, period: 1, elapsed: 400, running: false, score: s0, source: "status"))
+        let unchanged = c.revision == r1
+        // Running again by 140: the restart (~114 with the prior fast lag) is tighter than the firstSeen bound (120).
+        c.observe(FastReading(arrived: 140, state: .live, period: 1, elapsed: 403, running: true, score: s0, source: "status"))
+        let moved = c.records.first { $0.id == "ft2" }?.bounds
+        check(bounded != nil && moved != bounded && c.revision != r1, "a restart that re-bounds the cluster bumps the revision",
+              "\(String(describing: bounded)) → \(String(describing: moved))")
+        check(unchanged, "a reading that moves nothing doesn't")
     }
 }

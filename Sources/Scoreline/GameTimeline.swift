@@ -1004,12 +1004,27 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         fast = lane
         // A restart seen: the stopped-clock plays before it are bounded by it now.
         if records.contains(where: { $0.bounds != nil && !$0.isTold }) {
+            let before = records.map { Placement($0) }
             for k in records.indices {
                 records[k].bounds = nil
                 records[k].timeSource = records[k].estimated ? .estimated : records[k].entry.reportedSource
             }
             boundStoppedClusters()
             schedule()
+            // Plays that moved (bounds, event time, moment) are a new revision: a planner re-plans.
+            if records.map({ Placement($0) }) != before { revision &+= 1 }
+        }
+    }
+
+    /// Where a play sits on the event-time axis, as a planner sees it.
+    private struct Placement: Equatable {
+        let eventTime: PTime, presentAt: PTime, lower: PTime?, upper: PTime?, source: EventTimeSource
+        init(_ r: Record) {
+            eventTime = r.eventTime
+            presentAt = r.presentAt
+            lower = r.bounds?.lowerBound
+            upper = r.bounds?.upperBound
+            source = r.timeSource
         }
     }
 
@@ -1062,7 +1077,10 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// hold anywhere inside it. Nil when there's no such span.
     func quietSpan(from p: PTime, knowledge: PTime) -> PTime? {
         guard let last = lastTold, last.presentAt <= p else { return nil }
-        let end = min(nextUntold?.presentAt ?? .infinity, knowledge)
+        // A skip stops the next play's binding horizon short of it, so the theater
+        // has its lead-in before the decisive moment (dead-ball kinds: 0, unchanged).
+        let next = nextUntold.map { $0.presentAt - horizons.horizon(for: $0.entry.kind) }
+        let end = min(next ?? .infinity, knowledge)
         guard end > p else { return nil }
         let stopped = last.entry.kind.stopsClock || policy.clockCountsDown == nil && last.entry.kind.endsPeriod != nil
             || fast.stopped(over: p...min(end, p + 600), lag: fastLag, period: last.entry.period)
