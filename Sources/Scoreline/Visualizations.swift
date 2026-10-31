@@ -272,7 +272,7 @@ struct DetailSection<Content: View>: View {
         }
         .padding(.horizontal, Metrics.gutter)
         // Folded, modules sit a little closer: a page of glances reads as one list.
-        .padding(.top, module?.folded == true ? 12 : 16)
+        .padding(.top, ModuleChrome.headerInset(folded: module?.folded == true))
         .containerValue(\.stacksOwnRows, true)
     }
 }

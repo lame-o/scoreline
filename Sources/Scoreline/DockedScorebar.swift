@@ -488,6 +488,7 @@ struct PageProbe {
     let peek: PeekController
     let stage: NBAStage
     let moments: MomentCenter
+    let drag: ModuleDrag
 }
 
 private struct PageProbeKey: EnvironmentKey {

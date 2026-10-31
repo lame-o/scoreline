@@ -46,8 +46,20 @@ final class PageGeometry {
     @ObservationIgnored private(set) var anchors: [String: CGRect] = [:]
     /// The visible part of the content, as of the last scroll.
     @ObservationIgnored private var visibleRect: CGRect = .zero
-    /// Set by `PageScrollView`: scrolls the content to an offset.
-    @ObservationIgnored var scrollHandler: ((CGFloat, Bool) -> Void)?
+    /// Set by `PageScrollView`: scrolls the content to an offset, with an
+    /// animation (nil: at once).
+    @ObservationIgnored var scrollHandler: ((CGFloat, Animation?) -> Void)?
+    /// The scroll content's height, as last laid out.
+    @ObservationIgnored private(set) var contentHeight: CGFloat = 0
+    /// While set, the page's height stops resizing the panel (a module drag
+    /// folds the page for a moment: the panel mustn't shrink under the pointer).
+    @ObservationIgnored var holdsSize = false
+    /// Called after a section reports a new frame (a module drag waits for the folded page's layout).
+    @ObservationIgnored var framesChanged: (() -> Void)?
+    #if DEBUG
+    /// The viewport in the window (SwiftUI's global space): the interaction harness aims its clicks with it.
+    @ObservationIgnored var viewportFrame: CGRect = .zero
+    #endif
 
     /// The hero's section ID, which drives `dockProgress`.
     nonisolated static let hero = "hero"
@@ -62,7 +74,13 @@ final class PageGeometry {
         scroll(toY: max(0, frame.minY - topInset), animated: animated)
     }
 
-    func scroll(toY y: CGFloat, animated: Bool) { scrollHandler?(y, animated) }
+    func scroll(toY y: CGFloat, animated: Bool) { scrollHandler?(y, animated ? Motion.travel : nil) }
+
+    /// The same, on a given animation (a drop settling on `standard`).
+    func scroll(toY y: CGFloat, animation: Animation?) { scrollHandler?(y, animation) }
+
+    /// The visible part of the content, as of the last scroll.
+    var visible: CGRect { visibleRect }
 
     /// Brings a row's top to `topInset` below the viewport's top (a mark
     /// clicked in a docked bar: its row lands just under the bar).
@@ -89,6 +107,7 @@ final class PageGeometry {
         guard frames[id] != frame else { return }
         frames[id] = frame
         apply(state(for: visibleRect))
+        framesChanged?()
     }
 
     /// A section left the page (hidden, or nothing to show): it's in view nowhere.
@@ -117,6 +136,8 @@ final class PageGeometry {
     func report(viewport size: CGSize) {
         if viewport != size { viewport = size }
     }
+
+    func report(contentHeight height: CGFloat) { contentHeight = height }
 
     /// What a scroll position means. Pure apart from reading `frames`; called
     /// from the scroll geometry transform on every scroll.

@@ -598,8 +598,13 @@ struct ModuleChrome {
     /// instead of leaving: the Live View's theater keeps its running order
     /// and clocks, exactly as when it's scrolled away.
     var keepsAlive = false
+    /// Dragging the header past 4pt moves the module (nil: it doesn't).
+    var reorder: ModuleReorder? = nil
     /// `keyboard`: from a key, so it doesn't animate.
     var act: @MainActor (ModuleAction, _ keyboard: Bool) -> Void
+
+    /// The space above a module's header: open, and (closer) folded.
+    static func headerInset(folded: Bool) -> CGFloat { folded ? 12 : 16 }
 }
 
 private struct ModuleChromeKey: EnvironmentKey {
@@ -620,7 +625,9 @@ extension EnvironmentValues {
 /// → unfolds, ⌥-click folds or unfolds every module on the page. The context
 /// menu collapses, hides the module on the sport's pages, or customizes them.
 /// VoiceOver: "Shot Chart, collapsed", with the glance as its value; still a
-/// heading, so the rotor lists folded modules.
+/// heading, so the rotor lists folded modules. Pressed and dragged past 4pt,
+/// it carries its module to a new place (`ModuleDrag`); VoiceOver has Move Up
+/// and Move Down for the same.
 struct ModuleHeader<Trailing: View>: View {
     let title: String
     var caption: String? = nil
@@ -631,8 +638,14 @@ struct ModuleHeader<Trailing: View>: View {
     let chrome: ModuleChrome
     @ViewBuilder var trailing: Trailing
     @State private var hovering = false
+    /// A drag past the threshold is under way (resets however it ends).
+    @GestureState private var dragging = false
 
     private var folded: Bool { chrome.folded }
+
+    /// Below 4pt a press is a click (the fold, from the button underneath);
+    /// past it, the module moves, and the click never lands.
+    private static var threshold: CGFloat { 4 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: folded ? 3 : 2) {
@@ -675,10 +688,31 @@ struct ModuleHeader<Trailing: View>: View {
         // Under the title and glance, so a click anywhere on them is the disclosure's;
         // a control in the title row stays its own.
         .background { button }
-        .onHover { hovering = $0 }
+        .onHover { inside in
+            hovering = inside
+            #if DEBUG
+            ModuleProbe.hover?(chrome.name, inside)
+            #endif
+        }
         .contextMenu { menu }
+        // Over the button: it wins once the pointer travels past the threshold, and only then.
+        .highPriorityGesture(reorderGesture, including: chrome.reorder == nil ? .subviews : .all)
+        .onChange(of: dragging) { _, now in
+            if !now { chrome.reorder?.drag.released() }
+        }
         .padding(.horizontal, -6)
         .padding(.vertical, -4)
+    }
+
+    private var reorderGesture: some Gesture {
+        DragGesture(minimumDistance: Self.threshold, coordinateSpace: .named(ModuleDrag.space))
+            .updating($dragging) { _, state, _ in state = true }
+            .onChanged { value in
+                guard let reorder = chrome.reorder else { return }
+                reorder.drag.changed(value, reorder: reorder, folded: folded,
+                                     image: ModuleDragImage(title: title, caption: caption, accessory: accessory, glance: glance))
+            }
+            .onEnded { _ in chrome.reorder?.drag.ended() }
     }
 
     private var button: some View {
@@ -703,6 +737,10 @@ struct ModuleHeader<Trailing: View>: View {
         .accessibilityAddTraits(.isHeader)
         .accessibilityHeading(.h2)
         .accessibilityHint(folded ? "Expands the section" : "Collapses the section")
+        .accessibilityActions {
+            if let up = chrome.reorder?.moveUp { Button("Move Up", action: up) }
+            if let down = chrome.reorder?.moveDown { Button("Move Down", action: down) }
+        }
     }
 
     /// "Shot Chart, collapsed". (pure; tested)

@@ -552,6 +552,8 @@ struct PageScrollView<Content: View>: View {
         var content: CGFloat?
         var viewport: CGFloat = 0
         var offset: CGFloat = 0
+        /// The offset last asked of the scroll position.
+        var requested: CGFloat?
     }
 
     @ViewBuilder var body: some View {
@@ -571,12 +573,17 @@ struct PageScrollView<Content: View>: View {
                 // Its own height, which doesn't depend on how tall the panel is.
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
                     metrics.content = height
-                    if contentActive { size?.content(height, for: token) }
+                    geometry?.report(contentHeight: height)
+                    // A module drag holds the panel's size while the page is folded for it.
+                    if contentActive, geometry?.holdsSize != true { size?.content(height, for: token) }
                     begin()
                     restoreIfReady()
                 }
         }
         .scrollPosition($position)
+        #if DEBUG
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { geometry?.viewportFrame = $0 }
+        #endif
         // Each scroll position becomes a small value (hidden sections, a dock
         // step); only a change in it is written, never every frame.
         .onScrollGeometryChange(for: PageGeometry.State?.self) { geo in
@@ -670,6 +677,7 @@ struct PageScrollView<Content: View>: View {
         guard abs(y - metrics.offset) > 0.5 else { return .handled }
         var instant = Transaction()
         instant.disablesAnimations = true
+        metrics.requested = y
         withTransaction(instant) { position.scrollTo(y: y) }
         return .handled
     }
@@ -678,11 +686,16 @@ struct PageScrollView<Content: View>: View {
     /// scorebar's back-to-top. Instant when not animated (keyboard, Reduce Motion).
     private func registerScrolling() {
         guard let geometry else { return }
-        let position = $position
-        geometry.scrollHandler = { y, animated in
-            var transaction = Transaction(animation: animated ? Motion.travel : nil)
-            transaction.disablesAnimations = !animated
-            withTransaction(transaction) { position.wrappedValue.scrollTo(y: y) }
+        let position = $position, metrics = metrics
+        geometry.scrollHandler = { y, animation in
+            var transaction = Transaction(animation: animation)
+            transaction.disablesAnimations = animation == nil
+            // The last target asked for again still scrolls: the content may have moved
+            // under it since (a module drag folded the page and the offset clamped).
+            // (Nudged inward: past the end, a target is ignored.)
+            let target = metrics.requested == y ? (y >= 0.01 ? y - 0.01 : y + 0.01) : y
+            metrics.requested = target
+            withTransaction(transaction) { position.wrappedValue.scrollTo(y: target) }
         }
     }
 
@@ -705,6 +718,7 @@ struct PageScrollView<Content: View>: View {
         guard let saved = pendingRestore, let height = metrics.content, height > 0 else { return }
         var instant = Transaction()
         instant.disablesAnimations = true
+        metrics.requested = min(saved, height)
         withTransaction(instant) { position.scrollTo(y: min(saved, height)) }
         if height >= saved { pendingRestore = nil }
     }

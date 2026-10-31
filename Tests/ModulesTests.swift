@@ -5,8 +5,7 @@ import SwiftUI
 // default, how hidden modules leave the page before the split page places it,
 // the Live View's and Win Probability's places, what each folded module says,
 // and how the user's order merges into each state's plan (and survives a
-// relaunch).
-// Checked without views.
+// relaunch). Checked without views.
 
 extension ScorelineTests {
     static func modules() {
@@ -319,6 +318,14 @@ extension ScorelineTests {
         let left = ["court", "flow"], split = ["court", "box", "flow", "leaders"]
         check(O.step("flow", by: -1, run: left, page: split, previous: []) == ["flow", "box", "court", "leaders"],
               "split page: Move Up stays in the module's column")
+        check(ModuleDrag.autoscrollSpeed(pointer: 300, height: 600, topInset: 0) == 0
+              && ModuleDrag.autoscrollSpeed(pointer: 0, height: 600, topInset: 0) == -12
+              && ModuleDrag.autoscrollSpeed(pointer: 578, height: 600, topInset: 0) == 6
+              && ModuleDrag.autoscrollSpeed(pointer: 60, height: 600, topInset: 48) < 0,
+              "autoscroll: within 44pt of an edge (below the docked bar), faster nearer it")
+        check(ModuleDrag.springProgress(0) == 0 && ModuleDrag.springProgress(0.3) > 0.98 && ModuleDrag.springProgress(0.6) == 1
+              && ModuleDrag.springProgress(0.1) < ModuleDrag.springProgress(0.15),
+              "the settle's scroll glides on standard's curve: from 0, nearly there at 0.3 s, done by 0.6 s, never back")
     }
 
     private static func modulesOrderPages() {
