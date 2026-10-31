@@ -8,8 +8,11 @@ import Foundation
 // which nobody can see. The only discontinuities are declared:
 //
 // - **Start and wake**: the live edge, without telling what came before.
-// - **Jump**: more than `jumpMax` behind the target (a long stall): to the live
-//   edge, a crossfade, the plays in between told as history.
+// - **Jump**: more than `jumpMax` behind the target (a long stall): toward the
+//   live edge, a crossfade, the plays in between told as history. Never over a
+//   play that must be told live (a score, a VAR decision, a shot, a card: the
+//   timeline's `jumpLimit`): it lands just short of the first one, and the rest
+//   of the deficit is made up in dead time (skips) and by the slew.
 // - **Skip**: across a stoppage the clock may move instantly, forward to catch
 //   up or by holding still to fall back, because nothing on screen changes
 //   there (no play to tell, the game clock stopped). That's where TV puts its
@@ -93,6 +96,16 @@ struct PresentationClock: Equatable, Sendable {
         var cap: PTime
         /// p may move instantly up to here (a stoppage with nothing to tell); nil: nowhere.
         var quietUntil: PTime?
+        /// A jump lands no later than here: just short of the first untold play that
+        /// must be told live (its lead-in included); nil: anywhere up to the edge.
+        var jumpLimit: PTime?
+
+        init(target: Double, cap: PTime, quietUntil: PTime? = nil, jumpLimit: PTime? = nil) {
+            self.target = target
+            self.cap = cap
+            self.quietUntil = quietUntil
+            self.jumpLimit = jumpLimit
+        }
     }
 
     /// One piece of the plan: p(t) = p0 + v0·(t − t0) + a·(t − t0)²/2, for t in [t0, t1).
@@ -211,10 +224,11 @@ struct PresentationClock: Equatable, Sendable {
             note(.wake(at: now, from: p, to: to))
             p = to
             v = 1
-        } else if now - p - inputs.target > tuning.jumpMax, edge > p {
-            // Far behind (a long stall): a declared jump.
-            note(.jump(at: now, from: p, to: edge))
-            p = edge
+        } else if now - p - inputs.target > tuning.jumpMax, min(edge, inputs.jumpLimit ?? .infinity) - p >= tuning.minSkip {
+            // Far behind (a long stall): a declared jump, landing short of any play that must be told live.
+            let to = min(edge, inputs.jumpLimit ?? .infinity)
+            note(.jump(at: now, from: p, to: to))
+            p = to
             v = 1
         } else if tuning.stoppages, now - p - inputs.target > tuning.minSkip, let quiet = inputs.quietUntil, quiet > p {
             // Behind, inside a stoppage: catch up where nothing on screen changes.

@@ -60,6 +60,12 @@ enum BroadcastBench {
         var reviews: [String: Int] = [:]
         /// Told scores revised down and held until the next play told (VAR overturns).
         var holds = 0
+        /// Plays that change the score, told: by how ("history (jump)" is what the jump rule forbids).
+        var scoring: [String: Int] = [:]
+        /// Each jump's length (p moved), and each long stall's recovery: from the
+        /// resume until D is back within 5 s of its target, with the deficit at the resume.
+        var jumpLengths: [Double] = []
+        var recoveries: [(deficit: Double, took: Double)] = []
     }
 
     /// How a live-ball play's arrival met its binding horizon (late binding, CHOREOGRAPHY §4.6).
@@ -187,6 +193,7 @@ enum BroadcastBench {
         var lastScore: ScoreLine?
         var newestLiveBefore: PTime?
         var stallSince: PTime?
+        var recovering: (since: PTime, deficit: Double)?
         var stepStarted = DispatchTime.now()
         replay.run(cadence) { replay, t, step, change in
             report.stepTime.append(Double(DispatchTime.now().uptimeNanoseconds - stepStarted.uptimeNanoseconds) / 1e6)
@@ -199,7 +206,9 @@ enum BroadcastBench {
                 report.corrected += change.correctedTold.count
                 report.removedTold += change.removedTold.count
                 for id in change.lateInsertions {
-                    if let r = timeline.record(id), r.entry.kind.announced, let why = r.told { report.reviews["\(why) (inserted)", default: 0] += 1 }
+                    guard let r = timeline.record(id), let why = r.told else { continue }
+                    if r.entry.kind.announced { report.reviews["\(why) (inserted)", default: 0] += 1 }
+                    if changesScore(timeline, id) { report.scoring["\(why) (inserted)", default: 0] += 1 }
                 }
                 if timeline.heldScore != nil, timeline.heldSince == t { report.holds += 1 }
                 let p = engine.p(at: t)
@@ -225,14 +234,27 @@ enum BroadcastBench {
                     report.stalls.append(held)
                     if stallSince == nil { stallSince = at - held }
                     stallSince = nil
+                    if held >= 30 { recovering = (at, engine.clock.delay(at: at) - engine.clock.target) }
                 case let .skip(_, from, to): report.skips.append(to - from)
-                case .jump: report.jumps += 1
+                case let .jump(_, from, to):
+                    report.jumps += 1
+                    report.jumpLengths.append(to - from)
                 case .wake: report.wakes += 1
                 case .start: break
                 }
             }
             if step.correction != nil { report.safetyNet += 1 }
+            if let r = recovering, engine.clock.delay(at: t) <= engine.clock.target + 5 {
+                report.recoveries.append((r.deficit, t - r.since))
+                recovering = nil
+            }
+            let jumped = step.events.contains { if case .jump = $0 { true } else { false } }
             for record in step.told {
+                if let why = record.told {
+                    let how = why == .history && jumped ? "history (jump)" : "\(why)"
+                    if record.entry.kind.announced { report.reviews[how, default: 0] += 1 }
+                    if changesScore(timeline, record.id) { report.scoring[how, default: 0] += 1 }
+                }
                 report.told += 1
                 let label = record.entry.kind.label
                 switch record.told {
@@ -251,7 +273,6 @@ enum BroadcastBench {
                     if record.firstSeen <= t - timeline.horizons.horizon(for: record.entry.kind) + 1e-6 { cell.known += 1 }
                     report.knownBeforeLeadIn[label] = cell
                 }
-                if record.entry.kind.announced, let why = record.told { report.reviews["\(why)", default: 0] += 1 }
                 if let score = record.entry.score, score != lastScore {
                     // A new score (not a reversal): against the scoreboard, today's page and the real moment.
                     if let last = lastScore, score.home + score.away > last.home + last.away, let board = boardFirst[score] {
@@ -394,6 +415,9 @@ enum BroadcastBench {
             r.behindReal.lane += x.behindReal.lane
             for (k, v) in x.reviews { r.reviews[k, default: 0] += v }
             r.holds += x.holds
+            for (k, v) in x.scoring { r.scoring[k, default: 0] += v }
+            r.jumpLengths += x.jumpLengths
+            r.recoveries += x.recoveries
         }
         return r
     }
@@ -402,6 +426,13 @@ enum BroadcastBench {
         guard !values.isEmpty else { return "none" }
         func q(_ p: Double) -> String { String(format: "%.1f", Stats.quantile(values, p)) }
         return "n=\(values.count) p50=\(q(0.5)) p90=\(q(0.9)) p95=\(q(0.95)) max=\(String(format: "%.1f", values.max() ?? 0))"
+    }
+
+    /// Whether a play raises the score over the play before it (a goal, a basket, a run).
+    static func changesScore<P>(_ timeline: GameTimeline<P>, _ id: String) -> Bool {
+        guard let k = timeline.records.firstIndex(where: { $0.id == id }), let score = timeline.records[k].entry.score else { return false }
+        guard let before = timeline.records[..<k].last(where: { $0.entry.score != nil })?.entry.score else { return false }
+        return score.home + score.away > before.home + before.away
     }
 
     /// Binding counts (Binding.allCases order): every live-ball kind, or decisive and flow apart.
@@ -441,6 +472,14 @@ enum BroadcastBench {
             lines.append("  each new score behind its real moment (p50, s; n=\(real.broadcast.count)): the broadcast \(p50(real.broadcast)), "
                 + "today's page \(p50(real.page)), the scoreboard \(p50(real.board)), the slow lane's first sight \(p50(real.lane))")
             lines.append("    the broadcast: \(summary(real.broadcast)); today's page: \(summary(real.page)); the scoreboard: \(summary(real.board)); slow lane: \(summary(real.lane))")
+        }
+        if !r.scoring.isEmpty {
+            lines.append("  scoring plays told: " + r.scoring.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
+        }
+        if !r.jumpLengths.isEmpty || !r.recoveries.isEmpty {
+            lines.append("  jumps (p moved, s): " + r.jumpLengths.map { String(format: "%.0f", $0) }.joined(separator: ", ")
+                + "; long stalls' recovery (deficit at resume → back within 5 s of target): "
+                + r.recoveries.map { String(format: "%.0f s → %.0f s", $0.deficit, $0.took) }.joined(separator: ", "))
         }
         if !r.reviews.isEmpty || r.holds > 0 {
             lines.append("  announced (VAR decisions) told: " + r.reviews.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
