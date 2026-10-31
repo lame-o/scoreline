@@ -4,11 +4,17 @@ import Foundation
 // The game as one broadcast, part 6: the recording loader and replay (the bench's front end).
 //
 // Reads what the feed recorder saved (`~/Developer/scoreline-recordings`):
-// `<sport>/<event>/<arrival-ms>.json.gz` (each changed summary, as it arrived)
-// and `<sport>/scores.jsonl` (the scoreboard's score and clock per event, each
-// change). The recorder is still writing there, so it's read only: files
-// changed in the last few seconds are skipped, and a half-written last line of
-// `scores.jsonl` is ignored.
+// - `<sport>/<event>/<arrival-ms>.json.gz`: each changed summary, as it arrived;
+// - `<sport>/scores.jsonl`: the scoreboard's score and clock per event, each change;
+// - `<sport>/<event>/status.jsonl`: the core status the app polls every 5 s,
+//   each change (`{at, clock, displayClock, period, state, detail}`), since
+//   2026-10-31 01:50 PT; without it, the status comes from the scoreboard's rows;
+// - soccer: `<sport>/<event>/core/<arrival-ms>.json.gz` (`{count, offset,
+//   items}`: the newest one or two pages of core plays, each change), soccer's
+//   real slow lane (the app's theater and timeline read the core plays).
+// The recorder is still writing there, so it's read only: files changed in
+// the last few seconds are skipped, and a half-written last line of a
+// `.jsonl` is ignored.
 //
 // `RecordingReplay` feeds a recording through the real lanes (`BroadcastLanes`)
 // into a `BroadcastEngine` on a virtual clock: the slow lane polled at the
@@ -48,6 +54,17 @@ struct Recording: Sendable {
     let snapshots: [Snapshot]
     /// This event's scoreboard rows, oldest first.
     let rows: [RawPlay]
+    /// The core status as the app polls it, each change, oldest first (empty: not recorded).
+    var status: [RawPlay] = []
+    /// Soccer's core plays, each changed look (empty: not recorded).
+    var core: [Snapshot] = []
+
+    /// The first and last arrivals of anything recorded.
+    var span: ClosedRange<PTime>? {
+        let times = (snapshots + core).map(\.arrived)
+        guard let first = times.min(), let last = times.max() else { return nil }
+        return first...last
+    }
 
     static let defaultRoot = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Developer/scoreline-recordings")
 
@@ -83,20 +100,46 @@ struct Recording: Sendable {
     /// A recorded game, read only. Files modified in the last `settle` seconds
     /// (the recorder may still be writing them) are left out.
     static func load(root: URL = defaultRoot, sport: String, event: String, settle: TimeInterval = 10, now: Date = Date()) -> Recording {
-        let fm = FileManager.default
         let dir = root.appendingPathComponent(sport).appendingPathComponent(event)
-        let names = (try? fm.contentsOfDirectory(atPath: dir.path)) ?? []
-        var snapshots: [Snapshot] = []
-        for name in names where name.hasSuffix(".json.gz") {
+        var recording = Recording(sportDirectory: sport, event: event, snapshots: gzips(in: dir, settle: settle, now: now),
+                                  rows: scoreRows(root.appendingPathComponent(sport).appendingPathComponent("scores.jsonl"), event: event))
+        recording.status = lines(dir.appendingPathComponent("status.jsonl"))
+        recording.core = gzips(in: dir.appendingPathComponent("core"), settle: settle, now: now)
+        return recording
+    }
+
+    /// `<arrival-ms>.json.gz` files in a directory, oldest first, settled ones only.
+    static func gzips(in dir: URL, settle: TimeInterval, now: Date) -> [Snapshot] {
+        let fm = FileManager.default
+        var out: [Snapshot] = []
+        for name in (try? fm.contentsOfDirectory(atPath: dir.path)) ?? [] where name.hasSuffix(".json.gz") {
             guard let ms = Double(name.dropLast(".json.gz".count)) else { continue }
             let url = dir.appendingPathComponent(name)
             if let modified = (try? fm.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date,
                now.timeIntervalSince(modified) < settle { continue }
-            snapshots.append(Snapshot(arrived: ms / 1000, url: url))
+            out.append(Snapshot(arrived: ms / 1000, url: url))
         }
-        snapshots.sort { $0.arrived < $1.arrived }
-        return Recording(sportDirectory: sport, event: event, snapshots: snapshots,
-                         rows: scoreRows(root.appendingPathComponent(sport).appendingPathComponent("scores.jsonl"), event: event))
+        return out.sorted { $0.arrived < $1.arrived }
+    }
+
+    /// A `.jsonl` file's rows, oldest first; a half-written last line is ignored.
+    static func lines(_ url: URL) -> [RawPlay] {
+        guard let data = try? Data(contentsOf: url) else { return [] }
+        var rows: [RawPlay] = []
+        for line in data.split(separator: UInt8(ascii: "\n")) where !line.isEmpty {
+            let json = JSON(data: Data(line))
+            guard json.raw != nil else { continue }
+            rows.append(RawPlay(json: json, digest: rows.count))
+        }
+        return rows
+    }
+
+    /// A status row in the core status's own shape, for the app's reader (`BroadcastLanes.reading(status:)`).
+    static func status(_ row: JSON) -> JSON {
+        JSON(["clock": row["clock"].raw ?? NSNull(), "displayClock": row["displayClock"].raw ?? NSNull(),
+              "period": row["period"].raw ?? NSNull(),
+              "type": ["state": row["state"].raw ?? NSNull(), "shortDetail": row["detail"].raw ?? NSNull(),
+                       "detail": row["detail"].raw ?? NSNull()]] as [String: Any])
     }
 
     /// The scoreboard rows for one event; a half-written last line is ignored.
@@ -110,6 +153,9 @@ struct Recording: Sendable {
         }
         return rows
     }
+
+    /// A recorded look at soccer's core plays: `{count, offset, items}`.
+    func coreLook(_ snapshot: Snapshot) -> JSON? { summary(snapshot) }
 
     /// A snapshot's summary.
     func summary(_ snapshot: Snapshot) -> JSON? {
@@ -147,8 +193,13 @@ struct RecordingReplay {
     /// Something the replay does at a virtual time.
     enum Input: Sendable {
         case slow(Recording.Snapshot?)
+        /// Soccer's core plays: the recorded look as of the poll.
+        case core(Recording.Snapshot?)
         case scoreboard(RawPlay)
+        /// The status from the scoreboard's rows (before `status.jsonl` was recorded).
         case status(RawPlay, running: Bool?)
+        /// The recorded core status.
+        case statusRow(RawPlay)
     }
 
     let recording: Recording
@@ -172,16 +223,20 @@ struct RecordingReplay {
 
     /// The inputs at the cadence, in time order (ties: slow lane first).
     func schedule(_ cadence: Cadence, from start: PTime? = nil, through end: PTime? = nil) -> [(t: PTime, input: Input)] {
-        guard let first = recording.snapshots.first, let last = recording.snapshots.last else { return [] }
-        let begin = start ?? first.arrived
-        // Past the last snapshot the recording knows nothing: replaying on would only stall.
-        let finish = end ?? (last.arrived + cadence.slow)
+        guard let span = recording.span else { return [] }
+        let begin = start ?? span.lowerBound
+        // Past the last look the recording knows nothing: replaying on would only stall.
+        let finish = end ?? (span.upperBound + cadence.slow)
         var out: [(t: PTime, input: Input)] = []
-        // The slow lane: each poll gets the newest snapshot that had arrived by then.
+        // The slow lane: each poll gets the newest look that had arrived by then. Soccer's
+        // is its core plays when they were recorded (its summary has only the key events).
+        let soccerCore = sport == .soccer && !recording.core.isEmpty
+        let looks = soccerCore ? recording.core : recording.snapshots
         var t = begin, s = 0
-        while t <= finish {
-            while s + 1 < recording.snapshots.count, recording.snapshots[s + 1].arrived <= t { s += 1 }
-            out.append((t, .slow(recording.snapshots[s].arrived <= t ? recording.snapshots[s] : nil)))
+        while t <= finish, !looks.isEmpty {
+            while s + 1 < looks.count, looks[s + 1].arrived <= t { s += 1 }
+            let look = looks[s].arrived <= t ? looks[s] : nil
+            out.append((t, soccerCore ? .core(look) : .slow(look)))
             t += cadence.slow
         }
         let rows = recording.rows
@@ -198,8 +253,18 @@ struct RecordingReplay {
             if let r = row(at: t) { out.append((t, .scoreboard(r.row))) }
             t += cadence.scoreboard
         }
-        if let status = cadence.status {
-            // The status from the scoreboard's rows (the recorder didn't save the core status):
+        if !recording.status.isEmpty {
+            // The recorded core status, at the app's cadence (5 s; the recorder's own when it has none).
+            let statuses = recording.status
+            t = begin
+            var k = -1
+            while t <= finish {
+                while k + 1 < statuses.count, (statuses[k + 1].json["at"].double ?? .infinity) <= t { k += 1 }
+                if k >= 0 { out.append((t, .statusRow(statuses[k]))) }
+                t += cadence.status ?? 5
+            }
+        } else if let status = cadence.status {
+            // The status from the scoreboard's rows (before the recorder saved the core status):
             // running while the rows' clock keeps changing, stopped once they stop.
             t = begin
             while t <= finish {
@@ -243,6 +308,28 @@ struct RecordingReplay {
                 parsed[snapshot.arrived] = entries
             }
             return engine.ingest(LaneSnapshot(lane: .summary, entries: entries, coverage: .full, arrived: t))
+        case let .core(look):
+            guard let look else { return nil }
+            guard look != lastSnapshot else {
+                engine.noteRead(.core, at: t)
+                return nil
+            }
+            lastSnapshot = look
+            let entries: [TimelineEntry<RawPlay>]
+            if let cached = parsed[look.arrived] {
+                entries = cached
+            } else {
+                guard let json = recording.coreLook(look) else { return nil }
+                entries = BroadcastLanes.entries(json["items"].array, sport: sport, policy: policy)
+                parsed[look.arrived] = entries
+            }
+            return engine.ingest(LaneSnapshot(lane: .core, entries: entries, coverage: .tail, arrived: t))
+        case let .statusRow(row):
+            if let reading = BroadcastLanes.reading(status: Recording.status(row.json), policy: policy, previous: lastStatus, at: t) {
+                lastStatus = reading
+                engine.observe(reading)
+            }
+            return nil
         case let .scoreboard(row):
             if let reading = BroadcastLanes.reading(row: row.json, policy: policy, previous: lastScoreboard, at: t) {
                 lastScoreboard = reading

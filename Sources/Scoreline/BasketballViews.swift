@@ -616,7 +616,7 @@ struct CourtView: View {
 
     /// A picked player's straight makes, live (not in a replay).
     private func streak(_ player: String, time: Double?) -> Int {
-        live && time == nil && feed?.playing == true ? feed?.streaks[player] ?? 0 : 0
+        live && time == nil && feed?.playing == true ? feed?.shownStreaks[player] ?? 0 : 0
     }
 
     private func playerName(_ id: String) -> String { players[id]?.name ?? names[id] ?? "Player" }
@@ -684,7 +684,7 @@ struct CourtView: View {
         if let span = focus.span {
             // A run on the game flow: its baskets, and when.
             let mine = Self.lit(scene.shots, by: focus)
-            let run = feed?.runs.first { $0.span == span }
+            let run = feed?.shownRuns.first { $0.span == span }
             let lead = run.map { "\(name($0.team)) \($0.label)" } ?? focus.side.map { "\(name($0)) run" } ?? "Run"
             return (lead, "\(mine.filter(\.made).count) of \(mine.count) · \(NBADetail.spanLabel(span))")
         }
@@ -904,7 +904,7 @@ struct GameFlowView: View {
     /// ESPN's run while it's on (live, not in a replay).
     private func activeRun(replay: Double?) -> BasketballFeed.Run? {
         guard replay == nil, !final, now != nil, feed?.playing == true else { return nil }
-        return feed?.runs.first
+        return feed?.shownRuns.first
     }
 
     private func chart(replay: Double?) -> some View {
@@ -1183,7 +1183,7 @@ struct GameFlowView: View {
     /// first); on a run, "LAL 12–0 run", then when.
     private func readout(_ focus: Focus?) -> (lead: String, detail: String)? {
         if let focus, focus.play == nil, let span = focus.span {
-            let run = feed?.runs.first { $0.span == span }
+            let run = feed?.shownRuns.first { $0.span == span }
             let team = (run?.team ?? focus.side).map { $0 == .top ? topName : bottomName }
             return ([team, run?.label ?? "Run"].compactMap { $0 }.joined(separator: " "), NBADetail.spanLabel(span))
         }
@@ -1247,7 +1247,7 @@ struct LeadersView: View {
     /// A leader's straight makes while the game is on (3+ shows a flame).
     private func streak(_ player: String?) -> Int {
         guard let player, feed?.playing == true else { return 0 }
-        return feed?.streaks[player] ?? 0
+        return feed?.shownStreaks[player] ?? 0
     }
 
     var body: some View {
@@ -1558,7 +1558,7 @@ struct BoxScoreView: View {
                      transition: AnyTransition) -> some View {
         let onCourt = floor && p.onCourt
         let picked = stage?.pinned == p.id
-        let hot = live && feed?.playing == true ? feed?.streaks[p.id] ?? 0 : 0
+        let hot = live && feed?.playing == true ? feed?.shownStreaks[p.id] ?? 0 : 0
         let onFire = hot >= NBADetail.fireStreak
         return Button {
             stage?.togglePin(p.id)

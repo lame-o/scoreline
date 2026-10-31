@@ -17,16 +17,25 @@ import Foundation
 //   content, not the newest arrival.
 // - **Event time.** `wallclock` (ESPN) or MLB's `startTime`; batched logging
 //   times and missing ones are estimated from the game clock against their
-//   neighbors. Plays are presented at `presentAt`, the event times made
-//   monotone in timeline order (a backdated substitution goes right after the
-//   play before it, never back in time).
+//   neighbors. A play at a stopped game clock after a stoppage (free throws
+//   and their rebounds after a foul, a timeout and a challenge) carries the
+//   stoppage's stamp, not its own moment: its event time is a bound, [the
+//   stoppage's start, the clock's restart], from the fast lane and the next
+//   running-clock play, and such plays never size the delay. Plays are
+//   presented at `presentAt`: event times made monotone in timeline order, a
+//   bounded cluster placed backward from its restart (or the theater's
+//   solved anchors, once it supplies them).
 // - **Told.** What's been presented is recorded and always a prefix of the
 //   timeline: a play inserted behind told plays is told at once ("late"), a
 //   revision to a told play is a quiet correction, and a told play is never
 //   untold.
-// - **Knowledge.** The watermark is the event time up to which the timeline is
-//   believed complete (`knowledge(at:)`), from four kinds of evidence; the
-//   presentation clock never presents past it.
+// - **Knowledge.** The watermark is how far the timeline is known complete
+//   for certain (`knowledge(at:)`): the late-insertion floor, a running game's
+//   quiet allowance (confirmed or extended by the fast lane), a score the fast
+//   lane has and no play explains, and a network guard. The clock never
+//   presents past it less the binding horizon. How far behind live the page
+//   runs is a separate, statistical matter: `targetDelay`, sized so almost
+//   every live-ball play is known by its binding horizon (late binding).
 // - **Score.** The presented score is the score after the last told play, so
 //   score and plays can't disagree. The fast lane's score is a hint: one no
 //   play explains holds the watermark, and after a grace period it's applied
@@ -56,6 +65,19 @@ struct GameClockReading: Hashable, Sendable {
     var display: String?
 
     static let none = GameClockReading(elapsed: nil)
+}
+
+/// Where a play's event time comes from (CHOREOGRAPHY §10 `timeSource`).
+enum EventTimeSource: Hashable, Sendable {
+    /// ESPN's `wallclock`, trusted: the game clock had moved since the last stoppage.
+    case wallclock
+    /// MLB's `startTime` (the pitch's own moment, to the millisecond).
+    case statsapi
+    /// Estimated from the game clock between neighbors (missing, or batched logging).
+    case estimated
+    /// At a stopped clock after a stoppage: the stamp is the stoppage's; the
+    /// moment lies within `eventBounds` (the stoppage's start to the clock's restart).
+    case bounded
 }
 
 /// What kind of play it is, as far as the clock and the watermark care.
@@ -121,6 +143,8 @@ struct TimelineEntry<Payload: Sendable & Equatable>: Equatable, Sendable {
     var score: ScoreLine?
     /// The feed's line, for logs and the bench.
     var text: String
+    /// Where `wallclock` came from (MLB's feed sets `.statsapi`).
+    var reportedSource: EventTimeSource = .wallclock
     /// What changed between versions, by the adapter's own fields (a revision is a new digest).
     var digest: Int
     /// The sport's parsed play (Phase A: the feed's own entry, as JSON).
@@ -222,6 +246,9 @@ enum TellReason: Hashable, Sendable {
     case late
     /// Before the page opened, or skipped by a declared jump: shown, never told as news.
     case history
+    /// Far behind what's told (more than 30 s past its moment), or inserted behind
+    /// told plays: a scorer's correction, attached quietly, never told as news.
+    case correction
 }
 
 /// One ingest's effect, for the page (what to re-derive) and the bench (what to count).
@@ -242,7 +269,7 @@ struct Knowledge: Equatable, Sendable {
     enum Bound: Hashable, Sendable {
         /// The newest live-ball play less the late-insertion allowance: the floor, when nothing better holds.
         case insertion
-        /// The slow lane was read recently, so everything older than its lag is in.
+        /// The network guard: the slow lane hasn't been read for a few read intervals.
         case freshness
         /// The game clock runs and nothing's come for longer than the sport allows.
         case quiet
@@ -295,14 +322,31 @@ struct ScoreCorrection: Equatable, Sendable {
     var applied: PTime
 }
 
+/// Late binding (BROADCAST §2): how long before a play's decisive moment the
+/// director must know the play's details. Before that horizon the lead-in is
+/// generic flow it can steer at bind time; inside it (the shooter's catch or
+/// gather, the snap, the strike) it needs the play. Supplied per kind by the
+/// theater side (`Broadcast.bindingHorizons`); live-ball 2.5 s by default
+/// (*tune*); dead-ball kinds attach late to their stoppage and need none.
+struct BindingHorizons: Equatable, Sendable {
+    var live: Double = 2.5
+    /// By the kind's label ("shot", "snap", "pitch").
+    var byKind: [String: Double] = [:]
+
+    /// The kind's own entry, else `live` for live-ball kinds and none for dead-ball (they attach late).
+    func horizon(for kind: PlayKind) -> Double {
+        byKind[kind.label] ?? (kind.phase == .dead ? 0 : live)
+    }
+}
+
 /// The numbers the timeline and the clock run on, per sport (BroadcastLanes.swift sets them).
 struct BroadcastPolicy: Equatable, Sendable {
-    /// The quantile of live-ball arrival lag the delay is sized from (BROADCAST: start at 0.95).
+    /// The quantile of live-ball (lag + binding horizon) the delay is sized from (tuned on the bench).
     var quantile = 0.95
-    /// The director's lead-in: a play must be known this long before its moment.
-    var leadIn: Double = 2.5
+    /// The binding horizons, until the theater supplies its own.
+    var horizons = BindingHorizons()
     /// A little room on top.
-    var margin: Double = 1.5
+    var margin: Double = 1.0
     /// The live-ball lag assumed before enough plays have arrived (measured per sport).
     var priorLag: Double = 45
     /// The lag window: this many of the newest live-ball arrivals.
@@ -314,10 +358,17 @@ struct BroadcastPolicy: Equatable, Sendable {
     var maxDelay: Double = 150
     /// How far behind the newest live-ball play another may still be inserted (measured).
     var insertionAllowance: Double = 4
+    /// No play reaches the feed sooner than this after it happens (measured p10 ≈ 23 s for the NBA): an upper bound
+    /// for a stopped-clock play's moment until the clock's restart is known.
+    var minimumLag: Double = 10
     /// The longest a running game goes without logging a live-ball play, in wall seconds.
     var quietRunning: Double = 60
     /// The fast lane's lag behind event time, until it's measured.
     var priorFastLag: Double = 24
+    /// Hold the clock before a score the fast lane has and no play explains. Off (the default, measured
+    /// on the bench: it cost ~10 s of delay to tell such baskets on time rather than as micro catch-ups):
+    /// the clock keeps time, and the order guard is at the tell (nothing after the score is told before it).
+    var holdForUnexplainedScores = false
     /// A score the fast lane has and no play explains is applied once it's held the clock this long.
     var safetyGrace: Double = 20
     /// More than this far behind the target delay: a declared jump.
@@ -330,6 +381,8 @@ struct BroadcastPolicy: Equatable, Sendable {
     var periodLength: Double = 720
     var overtimeLength: Double = 300
     var regulationPeriods = 4
+    /// Approaching a hard cap, the clock slews down (0.92×) from this far ahead of it, then eases to a hold.
+    var approach: Double = 5
     /// The app's cadence for the slow lane (the bench replays it).
     var slowPoll: Double = 5
     /// And for the fast lane's score (the scoreboard) and clock (the core status).
@@ -364,6 +417,11 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         /// The event time used: the reported one, or an estimate (`estimated`).
         var eventTime: PTime = 0
         var estimated = false
+        /// Where the event time comes from; for a stopped-clock play after a stoppage, the bound it lies in.
+        var timeSource = EventTimeSource.wallclock
+        var bounds: ClosedRange<PTime>?
+        /// Its arrival lag, if it arrived at the frontier (it may still turn out to be untrustworthy).
+        var arrivalLag: Double?
         /// When it's presented on p: event times made monotone in timeline order.
         var presentAt: PTime = 0
         var told: TellReason?
@@ -377,6 +435,11 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
 
         var id: String { entry.id }
         var isTold: Bool { told != nil }
+        /// A live-ball play whose event time is its own (the clock had moved since the
+        /// last stoppage): only these size the delay and calibrate the fast lane.
+        var trusted: Bool {
+            entry.kind.phase == .live && (timeSource == .wallclock || timeSource == .statsapi) && bounds == nil
+        }
     }
 
     let policy: BroadcastPolicy
@@ -388,8 +451,13 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     private var lanes: [LaneID: LaneView] = [:]
     /// When the first look arrived.
     private(set) var opened: PTime?
-    /// Live-ball arrival lags (first seen − event time), oldest first.
-    private(set) var lags: [Double] = []
+    /// The binding horizons (the theater's, once it supplies them).
+    var horizons: BindingHorizons {
+        didSet { if horizons != oldValue { revision &+= 1 } }
+    }
+    /// The theater's solved decisive moments (Phase 0's anchor solver), by play:
+    /// untold plays are presented there, so the score and the slide agree with the theater.
+    private(set) var anchors: [String: PTime] = [:]
     /// When each slow lane was last read successfully, changed or not.
     private var lastRead: [LaneID: PTime] = [:]
     /// The gaps between the slow lane's reads (any lane), newest last.
@@ -424,6 +492,7 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
 
     init(policy: BroadcastPolicy) {
         self.policy = policy
+        horizons = policy.horizons
     }
 
     // MARK: Reading
@@ -487,28 +556,41 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         return line
     }
 
-    /// The live-ball lag quantile the delay and the freshness bound are sized from.
-    var lagQuantile: Double {
-        let window = Array(lags.suffix(policy.lagWindow))
-        guard !window.isEmpty else { return policy.priorLag }
+    /// Live-ball arrivals at the frontier with trusted event times, by arrival: lag and kind.
+    var lags: [(lag: Double, kind: PlayKind)] {
+        records.filter { $0.trusted && $0.arrivalLag != nil }.sorted { $0.firstSeen < $1.firstSeen }
+            .suffix(policy.lagWindow).map { ($0.arrivalLag!, $0.entry.kind) }
+    }
+
+    /// The live-ball lag quantile (the network guard's freshness allowance).
+    var lagQuantile: Double { quantile(of: lags.map(\.lag), prior: policy.priorLag) }
+
+    /// How often the slow lane is read.
+    var readInterval: Double {
+        readGaps.count < 3 ? policy.slowPoll : Stats.quantile(Array(readGaps.suffix(12)), 0.5)
+    }
+
+    /// The delay the clock aims for (BROADCAST §2, late binding): the
+    /// quantile of each live-ball play's lag plus its binding horizon (the
+    /// smallest delay at which the director almost always has a play by the
+    /// time it must bind it), plus a margin. Plays later than that are
+    /// recoverable: a compressed lead-in, a declared micro catch-up of up to
+    /// 1.5 s, else the clock slews down (CHOREOGRAPHY §4.6).
+    var targetDelay: Double {
+        let need = lags.map { $0.lag + horizons.horizon(for: $0.kind) }
+        let delay = quantile(of: need, prior: policy.priorLag + horizons.live) + policy.margin
+        return min(max(delay, policy.minDelay), policy.maxDelay)
+    }
+
+    /// The quantile over the newest window, leaning on the prior until the
+    /// window is trusted (never below what it's seen).
+    private func quantile(of values: [Double], prior: Double) -> Double {
+        let window = Array(values.suffix(policy.lagWindow))
+        guard !window.isEmpty else { return prior }
         let measured = Stats.quantile(window, policy.quantile)
         guard window.count < policy.lagTrust else { return measured }
-        // Until the window is trusted it leans on the prior, never below what it's seen.
         let w = Double(window.count) / Double(policy.lagTrust)
-        return max(measured, w * measured + (1 - w) * policy.priorLag)
-    }
-
-    /// How often the slow lane is read: what's known is only as fresh as the last read.
-    var readInterval: Double {
-        readGaps.count < 3 ? policy.slowPoll : Stats.quantile(Array(readGaps.suffix(12)), 0.9)
-    }
-
-    /// The delay the clock aims for (BROADCAST §2): the live-ball lag quantile,
-    /// plus the slow lane's read interval (between reads, the watermark stands
-    /// where the last read left it, so a smaller delay would stall the clock
-    /// before every read), the lead-in and a margin.
-    var targetDelay: Double {
-        min(max(lagQuantile + readInterval + policy.leadIn + policy.margin, policy.minDelay), policy.maxDelay)
+        return max(measured, w * measured + (1 - w) * prior)
     }
 
     // MARK: Ingest
@@ -655,13 +737,10 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
                 let behind = frontier.map { (entry.wallclock ?? .infinity) < $0 - 60 } ?? false
                 record.backfill = opening || behind
                 if let reason = toldTombstones.removeValue(forKey: entry.id) { record.told = reason }
+                // A live-ball play at the frontier: its lag sizes the delay (if its time turns out trustworthy).
+                if !record.backfill, entry.kind.phase == .live, let w = entry.wallclock { record.arrivalLag = arrived - w }
                 next.append(record)
                 change.added.append(entry.id)
-                // A live-ball play at the frontier: its lag sizes the delay.
-                if !record.backfill, entry.kind.phase == .live, let w = entry.wallclock {
-                    lags.append(arrived - w)
-                    if lags.count > policy.lagWindow * 4 { lags.removeFirst(lags.count - policy.lagWindow * 4) }
-                }
             }
         }
         for old in previous where !seen.contains(old.id) {
@@ -678,7 +757,7 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         if let lastTold = records.lastIndex(where: \.isTold) {
             let toldP = records[lastTold].toldAt ?? records[lastTold].presentAt
             for i in 0..<lastTold where !records[i].isTold {
-                records[i].told = records[i].backfill ? .history : .late
+                records[i].told = records[i].backfill ? .history : .correction
                 records[i].toldAt = toldP
                 records[i].toldDigest = records[i].entry.digest
                 records[i].presentAt = toldP
@@ -753,35 +832,151 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         for k in 0..<n {
             records[k].eventTime = times[k] ?? records[k].firstSeen
             records[k].estimated = estimated[k]
+            records[k].timeSource = estimated[k] ? .estimated : records[k].entry.reportedSource
+            records[k].bounds = nil
+        }
+        boundStoppedClusters()
+    }
+
+    /// Plays at a stopped game clock after a stoppage: ESPN stamps them with
+    /// the stoppage's time (a timeout's, a challenge's), sometimes minutes
+    /// before they happen. Each such play lies between the stoppage's start
+    /// and the clock's restart: the restart as the fast lane saw it, or as the
+    /// next running-clock play implies (its clock ran that long before it),
+    /// or, until either is known, its own arrival less the feed's minimum lag.
+    /// Every play of one cluster shares one bound (the theater groups clusters by it):
+    /// the union of its plays' bounds, which is the restart for all once that's known.
+    private mutating func boundStoppedClusters() {
+        guard policy.clockCountsDown == true else { return }
+        var stoppage: (period: Int, elapsed: Double, at: PTime, from: Int)?
+        var cluster: [Int] = []
+        func close() {
+            guard let s = stoppage, !cluster.isEmpty else { return }
+            var upper = cluster.map { records[$0].firstSeen - policy.minimumLag }.max() ?? s.at
+            if let restart = restart(after: (s.period, s.elapsed, s.at), from: cluster[0]) { upper = min(upper, restart) }
+            let bound = s.at...max(s.at, upper)
+            for k in cluster {
+                records[k].bounds = bound
+                records[k].timeSource = .bounded
+            }
+            cluster = []
+        }
+        for k in records.indices {
+            let e = records[k].entry
+            guard let g = e.clock.elapsed else {
+                close()
+                stoppage = nil
+                continue
+            }
+            if let s = stoppage, s.period == e.period, abs(g - s.elapsed) < 0.05 {
+                cluster.append(k)
+                continue
+            }
+            close()
+            stoppage = e.kind.stopsClock ? (e.period, g, records[k].eventTime, k) : nil
+        }
+        close()
+    }
+
+    /// When the clock restarted after a stoppage at `s`: the fast lane's first
+    /// moving reading after it (between it and the last stopped one, less the
+    /// lane's lag), or the next running-clock play's moment less the time it ran.
+    private func restart(after s: (period: Int, elapsed: Double, at: PTime), from k: Int) -> PTime? {
+        var best: PTime?
+        let lag = fastLag
+        var previous: FastReading?
+        for r in fast.readings where r.period == s.period {
+            defer { previous = r }
+            guard r.arrived - lag > s.at, let e = r.elapsed, e > s.elapsed + 0.5 else { continue }
+            let before = previous.map { $0.arrived } ?? r.arrived
+            best = (before + r.arrived) / 2 - lag
+            break
+        }
+        for j in records.indices.dropFirst(k + 1) where records[j].entry.period == s.period {
+            guard let g = records[j].entry.clock.elapsed, g > s.elapsed + 0.05 else { continue }
+            if records[j].timeSource == .wallclock || records[j].timeSource == .statsapi {
+                let implied = records[j].eventTime - (g - s.elapsed)
+                best = min(best ?? implied, implied)
+            }
+            break
+        }
+        return best
+    }
+
+    /// `presentAt`: event times made monotone in timeline order; a bounded
+    /// cluster placed backward from its restart, a second apart (or at the
+    /// theater's anchors). Told plays keep theirs.
+    private mutating func schedule() {
+        var floor = -Double.infinity
+        var i = 0
+        while i < records.count {
+            // A run of plays sharing one bound: placed backward from its upper end.
+            var j = i
+            if let b = records[i].bounds {
+                while j + 1 < records.count, records[j + 1].bounds == b { j += 1 }
+            }
+            for k in i...j {
+                if records[k].isTold {
+                    if records[k].toldAt == nil { records[k].presentAt = max(records[k].eventTime, floor) }
+                    floor = max(floor, records[k].presentAt)
+                    continue
+                }
+                var at = records[k].eventTime
+                if let b = records[k].bounds { at = max(b.lowerBound, b.upperBound - Self.backoff(records, from: k, to: j)) }
+                if let anchor = anchors[records[k].id] { at = anchor }
+                records[k].presentAt = max(at, floor)
+                floor = records[k].presentAt
+            }
+            i = j + 1
         }
     }
 
-    /// `presentAt`: event times made monotone in timeline order. Told plays keep theirs.
-    private mutating func schedule() {
-        var floor = -Double.infinity
-        for i in records.indices {
-            if records[i].isTold {
-                if records[i].toldAt == nil { records[i].presentAt = max(records[i].eventTime, floor) }
-                floor = max(floor, records[i].presentAt)
-            } else {
-                records[i].presentAt = max(records[i].eventTime, floor)
-                floor = records[i].presentAt
-            }
+    /// The order guard: while the fast lane has a score no play explains, nothing
+    /// after the last reading the plays explain is told (the clock keeps time).
+    var tellBarrier: PTime? {
+        guard !policy.holdForUnexplainedScores else { return nil }
+        return fast.unexplainedFrom(timeline: self, lag: fastLag)
+    }
+
+    /// How far before a bounded cluster's restart its `k`th play goes, placed
+    /// backward from the last (`j`): the last a second before the restart, free
+    /// throws the routine's ~14 s apart (CHOREOGRAPHY §3.1), the rest 2 s.
+    /// Provisional: the theater's anchor solver places the cluster precisely.
+    static func backoff(_ records: [Record], from k: Int, to j: Int) -> Double {
+        var t = 1.0
+        var i = j
+        while i > k {
+            let both = records[i].entry.kind.label == "free throw" && records[i - 1].entry.kind.label == "free throw"
+            t += both ? 14 : 2
+            i -= 1
         }
+        return t
+    }
+
+    /// The theater's solved decisive moments (CHOREOGRAPHY §5.1): untold plays
+    /// are presented at them, so the score, the lists and the theater agree to the frame.
+    mutating func setAnchors(_ solved: [String: PTime]) {
+        guard solved != anchors else { return }
+        anchors = solved
+        schedule()
+        revision &+= 1
     }
 
     // MARK: Telling
 
     /// Tells every play the clock has reached (`presentAt ≤ p`), in order, and
-    /// returns them. One the clock passed by more than `lateAfter` before it was
-    /// known is told late.
+    /// returns them; none past `barrier` (a score no play explains yet: the
+    /// order guard). One the clock passed by up to `lateAfter` is on time (a
+    /// micro catch-up, CHOREOGRAPHY §4.6); by more, late; by more than 30 s, a
+    /// quiet correction.
     @discardableResult
-    mutating func tell(through p: PTime, reason: TellReason = .onTime, lateAfter: Double = 1.5) -> [Record] {
+    mutating func tell(through p: PTime, reason: TellReason = .onTime, lateAfter: Double = 1.5, barrier: PTime = .infinity) -> [Record] {
         var told: [Record] = []
         var i = toldCount
-        while i < records.count, records[i].presentAt <= p {
+        while i < records.count, records[i].presentAt <= p, records[i].presentAt <= barrier || reason == .history {
             var why = reason
             if why == .onTime, records[i].backfill { why = .history }
+            if why == .onTime, p - records[i].presentAt > 30 { why = .correction }
             if why == .onTime, p - records[i].presentAt > lateAfter { why = .late }
             records[i].told = why
             records[i].toldAt = p
@@ -807,6 +1002,30 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         var lane = fast
         lane.observe(reading, timeline: self)
         fast = lane
+        // A restart seen: the stopped-clock plays before it are bounded by it now.
+        if records.contains(where: { $0.bounds != nil && !$0.isTold }) {
+            let before = records.map { Placement($0) }
+            for k in records.indices {
+                records[k].bounds = nil
+                records[k].timeSource = records[k].estimated ? .estimated : records[k].entry.reportedSource
+            }
+            boundStoppedClusters()
+            schedule()
+            // Plays that moved (bounds, event time, moment) are a new revision: a planner re-plans.
+            if records.map({ Placement($0) }) != before { revision &+= 1 }
+        }
+    }
+
+    /// Where a play sits on the event-time axis, as a planner sees it.
+    private struct Placement: Equatable {
+        let eventTime: PTime, presentAt: PTime, lower: PTime?, upper: PTime?, source: EventTimeSource
+        init(_ r: Record) {
+            eventTime = r.eventTime
+            presentAt = r.presentAt
+            lower = r.bounds?.lowerBound
+            upper = r.bounds?.upperBound
+            source = r.timeSource
+        }
     }
 
     /// The fast lane's lag behind event time: measured where its score changes
@@ -818,38 +1037,38 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
 
     // MARK: Knowledge (the watermark)
 
-    /// Up to where the timeline is believed complete at `now` (BROADCAST's
-    /// watermark), from four kinds of evidence:
+    /// How far the timeline is known complete at `now`, for certain (the
+    /// watermark: the clock never presents past it less the binding horizon).
+    /// Hard evidence only; how far behind live to run is `targetDelay`'s job.
     /// - insertion: everything older than the newest live-ball play less the
     ///   late-insertion allowance is in (the floor);
-    /// - freshness: the slow lane, read at `r`, has everything older than
-    ///   `r` less its lag quantile (the one the delay uses), so the frontier
-    ///   moves through the gaps between plays while reads succeed;
-    /// - quiet: but not past `quietRunning` after the newest play while the game
-    ///   clock may be running, unless the fast lane confirms a stoppage (its clock
-    ///   stopped at the newest play's, or an interval): then quiet runs from that reading;
+    /// - quiet: a game whose clock may be running doesn't go silent for
+    ///   longer than the sport allows (`quietRunning`) after the newest play:
+    ///   past that, plays are missing (ESPN's play-by-play has stalled). The
+    ///   fast lane's stopped clock at the newest play's, or an interval,
+    ///   confirms a stoppage and restarts the allowance from that reading;
     /// - unexplained score: not past the last fast reading whose score the
-    ///   timeline explains, while a newer one shows a score no play has.
-    /// Reads that fail leave freshness where it was: the clock stalls rather
-    /// than present a game it hasn't heard.
+    ///   timeline explains, while a newer one has a score no play does (a
+    ///   free throw during a stoppage holds only once the clock runs again);
+    /// - network: not past the last successful read plus a few read intervals,
+    ///   less the lag quantile: when reads fail the clock stalls rather than
+    ///   present a game it hasn't heard.
     func knowledge(at now: PTime) -> Knowledge {
         guard let newestAny = newest else { return Knowledge(frontier: -.infinity, bound: .empty) }
         let floor = (newestLive ?? newestAny) - policy.insertionAllowance
-        let freshness = (lastReadAt ?? now) - lagQuantile
-        var cap = PTime.infinity
+        var cap = (lastReadAt ?? now) + 3 * readInterval - lagQuantile
         var bound = Knowledge.Bound.freshness
         let quietFrom = max(newestAny, fast.quietConfirmed(through: self, lag: fastLag) ?? -.infinity)
         if quietFrom + policy.quietRunning < cap {
             cap = quietFrom + policy.quietRunning
             bound = .quiet
         }
-        if let unexplained = fast.unexplainedFrom(timeline: self, lag: fastLag), unexplained < cap {
+        if policy.holdForUnexplainedScores, let unexplained = fast.unexplainedFrom(timeline: self, lag: fastLag), unexplained < cap {
             cap = unexplained
             bound = .unexplainedScore
         }
-        let candidate = min(freshness, cap)
-        if candidate < floor { return Knowledge(frontier: floor, bound: .insertion) }
-        return Knowledge(frontier: candidate, bound: freshness <= cap ? .freshness : bound)
+        if cap < floor { return Knowledge(frontier: floor, bound: .insertion) }
+        return Knowledge(frontier: cap, bound: bound)
     }
 
     /// How far past `p` nothing on screen would change: no play to tell before
@@ -858,7 +1077,10 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// hold anywhere inside it. Nil when there's no such span.
     func quietSpan(from p: PTime, knowledge: PTime) -> PTime? {
         guard let last = lastTold, last.presentAt <= p else { return nil }
-        let end = min(nextUntold?.presentAt ?? .infinity, knowledge)
+        // A skip stops the next play's binding horizon short of it, so the theater
+        // has its lead-in before the decisive moment (dead-ball kinds: 0, unchanged).
+        let next = nextUntold.map { $0.presentAt - horizons.horizon(for: $0.entry.kind) }
+        let end = min(next ?? .infinity, knowledge)
         guard end > p else { return nil }
         let stopped = last.entry.kind.stopsClock || policy.clockCountsDown == nil && last.entry.kind.endsPeriod != nil
             || fast.stopped(over: p...min(end, p + 600), lag: fastLag, period: last.entry.period)
@@ -874,12 +1096,16 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
 
     // MARK: Safety net
 
-    /// A score the fast lane has, that no play explains, applied once it has
-    /// held the clock for the grace period: quietly, right after the newest
-    /// play (BROADCAST §1). `held`: how long the clock has been held by it.
+    /// A score the fast lane has, that no play explains, applied once the
+    /// grace has run out: quietly, right after the newest play (BROADCAST §1).
+    /// The grace runs from the latest moment the score could have happened (its
+    /// reading, less the fast lane's lag) on p, or, with the clock held for it,
+    /// from the hold (`held`).
     @discardableResult
-    mutating func applySafetyNet(now: PTime, held: Double) -> ScoreCorrection? {
-        guard held >= policy.safetyGrace, let reading = fast.unexplainedReading(timeline: self), let score = reading.score else { return nil }
+    mutating func applySafetyNet(now: PTime, p: PTime, held: Double?) -> ScoreCorrection? {
+        guard let reading = fast.unexplainedReading(timeline: self), let score = reading.score else { return nil }
+        let overdue = policy.holdForUnexplainedScores ? (held ?? 0) : p - (reading.arrived - fastLag)
+        guard overdue >= policy.safetyGrace else { return nil }
         let at = max(reading.arrived - fastLag, records.last?.presentAt ?? -.infinity)
         let correction = ScoreCorrection(after: records.last?.id, at: at, score: score, applied: now)
         corrections.append(correction)
@@ -912,11 +1138,14 @@ struct FastLane: Equatable, Sendable {
 
     private static let keep = 160
 
-    /// A low quantile of the matched lags: the lane is polled, so each sighting
-    /// is late by up to a poll, and the earliest ones are the truest.
+    /// The matched lags' median, less half the lane's interval between score
+    /// readings: each sighting is late by up to one poll (half, on average).
     var lag: Double? {
         guard samples.count >= 3 else { return nil }
-        return Stats.quantile(Array(samples.suffix(20)), 0.25)
+        let scored = readings.filter { $0.score != nil }.map(\.arrived)
+        let gaps = zip(scored.dropFirst(), scored).map { $0 - $1 }.filter { $0 > 0.5 }
+        let interval = gaps.isEmpty ? 0 : Stats.quantile(gaps, 0.5)
+        return max(Stats.quantile(Array(samples.suffix(20)), 0.5) - interval / 2, 3)
     }
 
     mutating func observe<P>(_ reading: FastReading, timeline: GameTimeline<P>) {
@@ -936,7 +1165,9 @@ struct FastLane: Equatable, Sendable {
             guard !earlier.contains(score), !matched.contains(score), let seen = firstSeen[score] else { continue }
             matched.insert(score)
             let sample = seen - record.eventTime
-            guard seen > opened, record.entry.wallclock != nil, !record.estimated, sample > 0, sample < 180 else { continue }
+            // Only plays whose time is their own (a running-clock basket, not a free throw stamped at the stoppage).
+            guard seen > opened, record.trusted || (record.timeSource == .wallclock && record.bounds == nil),
+                  sample > 0, sample < 180 else { continue }
             samples.append(sample)
             if samples.count > 40 { samples.removeFirst(samples.count - 40) }
         }
@@ -997,7 +1228,10 @@ struct FastLane: Equatable, Sendable {
         let known = Set(timeline.scores).union(timeline.corrections.map(\.score))
         let first = readings.firstIndex { $0.score == score } ?? readings.count - 1
         let consistent = readings[..<first].last { $0.score.map(known.contains) ?? false }
-        let changedAfter = (consistent?.arrived ?? readings[first].arrived - 30) - lag
+        // The score changed after the last reading that had the old one, and after the last
+        // play that still carries the old one (every play carries the score after it).
+        let lastOld = timeline.scores.last.flatMap { old in timeline.records.last { $0.entry.score == old }?.eventTime }
+        let changedAfter = max((consistent?.arrived ?? readings[first].arrived - 30) - lag, lastOld ?? -.infinity)
         // The clock as the lanes read it just before the score, and with it.
         let before = readings[..<first].last { $0.elapsed != nil && $0.running != nil }
         let with = readings[first...].first { $0.elapsed != nil }

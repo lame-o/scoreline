@@ -143,18 +143,27 @@ struct OddsChartData: Equatable {
         }
     }
 
+    /// The market as it stood at `until` (each tick at its own time): what the page shows while it broadcasts. (pure; tested)
+    static func shown(_ points: [OddsPoint], until: Date?) -> [OddsPoint] {
+        guard let until else { return points }
+        return points.filter { $0.t <= until }
+    }
+
+    /// `until`: while the page broadcasts, p: the market as it stood then (no tick after it).
     @MainActor
     static func make(feed: OddsFeed, baseline: OddsBaseline, state: EventState, window: OddsWindow, eventStart: Date,
-                     now: Date = .now) -> OddsChartData? {
+                     now: Date = .now, until: Date? = nil) -> OddsChartData? {
         guard let market = feed.market else { return nil }
+        let now = until ?? now
         var data = OddsChartData(revision: feed.revision, threeWay: market.threeWay, domain: now...now, live: state == .live,
                                  final: state == .final)
         let start = baseline.start ?? eventStart
+        func shown(_ outcome: OddsMarket.Outcome) -> [OddsPoint] { Self.shown(feed.series[outcome] ?? [], until: until) }
         if market.threeWay {
-            data.points = OddsSeries.stacked(top: feed.series[.top] ?? [], draw: feed.series[.draw] ?? [],
-                                             bottom: feed.series[.bottom] ?? []).map { OddsSplitPoint(t: $0.t, split: $0.split) }
+            data.points = OddsSeries.stacked(top: shown(.top), draw: shown(.draw), bottom: shown(.bottom))
+                .map { OddsSplitPoint(t: $0.t, split: $0.split) }
         } else {
-            data.points = (feed.series[.top] ?? []).map { OddsSplitPoint(t: $0.t, split: OddsSplit(top: $0.p, draw: nil, bottom: 1 - $0.p)) }
+            data.points = shown(.top).map { OddsSplitPoint(t: $0.t, split: OddsSplit(top: $0.p, draw: nil, bottom: 1 - $0.p)) }
         }
         data.domain = domain(state: state, window: window, start: start, end: state == .final ? baseline.end : nil,
                              first: data.points.first?.t, last: data.points.last?.t, now: now)
@@ -416,6 +425,11 @@ struct OddsSection: View {
     let palette: TeamPalette
     /// ESPN's number for the header when its series is empty (the NBA's pregame predictor).
     var espnNow: Double? = nil
+    /// While the page broadcasts (BROADCAST §3): its presentation clock. The
+    /// market is shown up to p (each tick at its own time ≤ p, so the line
+    /// moves with the basket, not 50 s before it), redrawn when p reaches the
+    /// next tick: scheduled, never polled.
+    var presentation: PresentationClock? = nil
     @Environment(\.pageLive) private var pageLive
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -438,20 +452,13 @@ struct OddsSection: View {
     private var streaming: Bool { feed.connection == .live || feed.connection == .polling }
 
     var body: some View {
-        let data = OddsChartData.make(feed: feed, baseline: baseline, state: event.state, window: live ? shownWindow : .game,
-                                      eventStart: event.start)
-        let lines = self.lines
-        OddsSectionChrome(title: final ? "How the Odds Moved" : "Win Probability", caption: caption, accessory: accessory,
-                          glance: glance) {
-            if live { windowControl }
-        } content: {
-            VStack(alignment: .leading, spacing: 0) {
-                OddsHeader(data: data, latest: data?.head?.split ?? feed.latest, lines: lines, baseline: baseline, names: names,
-                           state: event.state, espnNow: baseline.espn.last?.p ?? espnNow, pointer: pointer)
-                OddsPlot(data: data, lines: lines, pointer: pointer, spoken: spoken,
-                         live: OddsMotion.live(final: final, streaming: streaming, seen: visible && pageLive, reduceMotion: reduceMotion))
-                    .padding(.top, 8)
-                OddsFooter(feed: feed, data: data, baseline: baseline, pointer: pointer, live: live, ticking: visible && pageLive)
+        Group {
+            if let clock = presentation {
+                TimelineView(.explicit(Self.schedule(feed.series.values.joined().map(\.t), clock: clock, now: Date()))) { context in
+                    section(until: Date(timeIntervalSince1970: clock.p(at: context.date.timeIntervalSince1970)))
+                }
+            } else {
+                section(until: nil)
             }
         }
         // Tracking follows the chart on and off screen (and the page with the panel).
@@ -464,9 +471,37 @@ struct OddsSection: View {
         .onDisappear { feed.stop() }
     }
 
+    private func section(until: Date?) -> some View {
+        let data = OddsChartData.make(feed: feed, baseline: baseline, state: event.state, window: live ? shownWindow : .game,
+                                      eventStart: event.start, until: until)
+        let lines = self.lines
+        let latest = until == nil ? data?.head?.split ?? feed.latest : data?.head?.split
+        return OddsSectionChrome(title: final ? "How the Odds Moved" : "Win Probability", caption: caption, accessory: accessory,
+                                 glance: glance(latest)) {
+            if live { windowControl }
+        } content: {
+            VStack(alignment: .leading, spacing: 0) {
+                OddsHeader(data: data, latest: latest, lines: lines, baseline: baseline, names: names,
+                           state: event.state, espnNow: baseline.espn.last?.p ?? espnNow, pointer: pointer)
+                OddsPlot(data: data, lines: lines, pointer: pointer, spoken: spoken,
+                         live: OddsMotion.live(final: final, streaming: streaming, seen: visible && pageLive, reduceMotion: reduceMotion))
+                    .padding(.top, 8)
+                OddsFooter(feed: feed, data: data, baseline: baseline, pointer: pointer, live: live, ticking: visible && pageLive)
+            }
+        }
+    }
+
+    /// When p reaches each tick not yet shown (the next ~2 minutes of the market): the chart's redraws. (pure; tested)
+    static func schedule(_ ticks: [Date], clock: PresentationClock, now: Date) -> [Date] {
+        let t = now.timeIntervalSince1970
+        let p = clock.p(at: t)
+        let pending = ticks.map(\.timeIntervalSince1970).filter { $0 > p }.sorted().prefix(240)
+        return [now] + pending.compactMap { clock.wall(reaching: $0, after: t).map { Date(timeIntervalSince1970: $0 + 0.01) } }
+    }
+
     /// Folded, the legend in a line: each side's chance, keyed by its color (the feed stays live while the header's on screen).
-    private var glance: ModuleGlance? {
-        guard module?.folded == true, let split = feed.latest else { return nil }
+    private func glance(_ latest: OddsSplit?) -> ModuleGlance? {
+        guard module?.folded == true, let split = latest else { return nil }
         return ModuleGlance.chances(split, final: final, top: (OddsStyle.line(palette.top), names.top),
                                     draw: threeWay ? OddsStyle.draw(scheme) : nil, bottom: (OddsStyle.line(palette.bottom), names.bottom))
     }

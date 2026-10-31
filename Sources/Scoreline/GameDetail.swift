@@ -337,6 +337,19 @@ struct GameDetail {
     var broadcast: String?
     /// Official broadcasters (US market, as ESPN reports them).
     var broadcasters: [Broadcaster] = []
+    /// The summary's plays as the broadcast timeline reads them (parsed as the
+    /// summary loads, off the main actor; nil: no play list, or not a broadcast sport).
+    var broadcastPlays: [TimelineEntry<RawPlay>]?
+    /// ESPN's win probability after each play, by play ID: the presented one is the last told play's.
+    var winByPlay: [String: WinChance] = [:]
+    /// Soccer: every commentary line, oldest first (the presented list is the last told ones).
+    var allRecentPlays: [RecentPlay] = []
+
+    /// The home side's chance and the draw's, after a play.
+    struct WinChance: Equatable {
+        let home: Double
+        let tie: Double
+    }
 
     var isEmpty: Bool {
         stats.isEmpty && linescore == nil && moments.isEmpty && recentPlays.isEmpty && football == nil
@@ -542,7 +555,18 @@ enum ESPNDetail {
         }
         let summary = try await summaryCall
         let board = await boardCall
+        var detail = parse(summary: summary, board: board, path: path, id: id, sport: sport, event: event)
+        // What Statcast measured of the last play, if it answers promptly (the live lane asks again).
+        if let lookup, let play = detail.theater?.play {
+            detail.theater?.play?.measured = await play.measure(lookup, within: .milliseconds(600))
+        }
+        return detail
+    }
 
+    /// The page's detail from a summary (and, for football and baseball live,
+    /// the scoreboard's situation). Pure: the fetch is `load`'s; the recording
+    /// bench and the offscreen check parse recorded summaries with it.
+    static func parse(summary: JSON, board: JSON?, path: String, id: String, sport: Sport, event: Event) -> GameDetail {
         // Map ESPN team ids to our top/bottom order.
         let ids = event.competitors.map { $0.id?.split(separator: "-").last.map(String.init) }
         func side(_ teamID: String?) -> GameDetail.Side? {
@@ -575,6 +599,18 @@ enum ESPNDetail {
             detail.linescore = linescore(top: topComp, bottom: bottomComp, sport: sport)
         }
 
+        // The broadcast's view of the summary: its plays as timeline entries, ESPN's chance after each.
+        if event.state == .live, let broadcastSport = Broadcast.sport(of: event),
+           let plays = BroadcastLanes.summaryPlays(summary, sport: broadcastSport) {
+            detail.broadcastPlays = BroadcastLanes.entries(plays, sport: broadcastSport,
+                                                           policy: BroadcastLanes.policy(broadcastSport, path: path))
+        }
+        for entry in summary["winprobability"].array {
+            if let id = entry["playId"].string, let home = entry["homeWinPercentage"].double {
+                detail.winByPlay[id] = GameDetail.WinChance(home: home, tie: entry["tiePercentage"].double ?? 0)
+            }
+        }
+
         // Win probability is reported for the home side.
         if let latest = summary["winprobability"].array.last, let home = latest["homeWinPercentage"].double {
             let tie = latest["tiePercentage"].double ?? 0
@@ -594,11 +630,12 @@ enum ESPNDetail {
             detail.lineups = SoccerLineup.lineups(summary["rosters"], side: side)
             detail.people = TheaterPeople.rosters(summary)
             detail.soccerAdded = SoccerAddedTime.latest(summary["commentary"])
-            detail.recentPlays = summary["commentary"].array.suffix(4).reversed().compactMap { c in
+            detail.allRecentPlays = summary["commentary"].array.compactMap { c in
                 guard let text = c["text"].string else { return nil }
                 let time = c["time"]["displayValue"].string ?? ""
                 return GameDetail.RecentPlay(id: c["play"]["id"].string, text: time.isEmpty ? text : "\(time)  \(text)")
             }
+            detail.recentPlays = Array(detail.allRecentPlays.suffix(4).reversed())
         case .baseball:
             let plays = summary["plays"].array
             detail.moments = plays.filter { $0["scoringPlay"].bool == true }.map { p in
@@ -630,10 +667,7 @@ enum ESPNDetail {
             detail.replays = Replays.baseball(plays, ids: Set(detail.moments.map(\.id) + detail.recentPlays.compactMap(\.id)), side: side,
                                               names: detail.athleteNames)
             if event.state == .live {
-                var theater = PlayScene.theater(plays, side: side, names: detail.athleteNames)
-                // What Statcast measured of the last play, if it answers promptly (the live lane asks again).
-                if let lookup, let play = theater.play { theater.play?.measured = await play.measure(lookup, within: .milliseconds(600)) }
-                detail.theater = theater
+                detail.theater = PlayScene.theater(plays, side: side, names: detail.athleteNames)
             }
         case .basketball where path == NBADetail.path:
             let topIsHome = topComp?["homeAway"].string == "home"

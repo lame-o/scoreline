@@ -29,7 +29,6 @@ enum BroadcastLanes {
         case .basketball:
             // Live-ball lag p50 31 s, p90 47 s (one 4th quarter); miss and rebound arrive together.
             p.priorLag = 47
-            p.leadIn = 2.5
             // A shot clock: something live is logged at least every 24 game seconds, ~3× in wall time when it stops.
             p.quietRunning = 45
             // Free throws trail their foul by 22–89 s; the net is for a play that never comes.
@@ -41,7 +40,7 @@ enum BroadcastLanes {
         case .football:
             // Snap to snap p50 42 s, p90 69–90 s inside a drive; the clock often runs between.
             p.priorLag = 50
-            p.leadIn = 6
+            p.horizons = BindingHorizons(live: 2.5, byKind: ["snap": 3, "kick": 3])
             p.quietRunning = 100
             p.insertionAllowance = 6
             p.safetyGrace = 60
@@ -52,7 +51,6 @@ enum BroadcastLanes {
         case .soccer:
             // Entries every 2 s (p50); dead balls run to 105 s (goals, subs, injuries).
             p.priorLag = 45
-            p.leadIn = 3
             p.quietRunning = 120
             p.safetyGrace = 45
             p.clockCountsDown = false
@@ -64,7 +62,6 @@ enum BroadcastLanes {
         case .baseball:
             // Pitch to pitch p50 20 s, p90 31 s; mound visits ~73 s, pitching changes ~147 s.
             p.priorLag = 35
-            p.leadIn = 4
             p.quietRunning = 150
             p.safetyGrace = 45
             p.clockCountsDown = nil
@@ -339,34 +336,64 @@ enum BroadcastLanes {
                              digest: digest, payload: RawPlay(json: play, digest: digest))
     }
 
-    /// MLB's live feed's times for ESPN's plays: each at-bat's pitches by
-    /// number (ESPN's at-bat n is statsapi's `atBatIndex` n − 1). statsapi's
-    /// `startTime` is the pitch's own moment, to the millisecond; ESPN's
-    /// wallclock trails it by p50 1.1 s and by 8–20 s a quarter of the time
-    /// (CHOREOGRAPHY §3.4). Returns the entries with those times.
-    static func timed(_ entries: [TimelineEntry<RawPlay>], statsapi feed: JSON) -> [TimelineEntry<RawPlay>] {
-        var pitchTimes: [Int: [PTime]] = [:]
-        var resultTimes: [Int: PTime] = [:]
+    /// MLB's times for one plate appearance: each pitch's `startTime`, and when the at-bat ended.
+    struct PlateTimes: Equatable, Sendable {
+        var pitches: [PTime]
+        var end: PTime?
+    }
+
+    /// MLB's live feed (raw statsapi JSON) as plate times, keyed by half-inning (our periods) and the
+    /// plate appearance's place in it.
+    static func plateTimes(statsapi feed: JSON) -> [Int: [PlateTimes]] {
+        var out: [Int: [PlateTimes]] = [:]
         for play in feed["liveData"]["plays"]["allPlays"].array {
-            guard let index = play["atBatIndex"].int else { continue }
-            var pitches: [PTime] = []
-            for event in play["playEvents"].array where event["isPitch"].bool == true {
-                if let t = EventTime.parse(event["startTime"].string) { pitches.append(t) }
-            }
-            pitchTimes[index + 1] = pitches
-            if let t = EventTime.parse(play["about"]["endTime"].string ?? play["playEndTime"].string) { resultTimes[index + 1] = t }
+            guard let inning = play["about"]["inning"].int, let top = play["about"]["isTopInning"].bool else { continue }
+            let pitches = play["playEvents"].array.filter { $0["isPitch"].bool == true }.compactMap { EventTime.parse($0["startTime"].string) }
+            out[inning * 2 - (top ? 1 : 0), default: []].append(PlateTimes(pitches: pitches, end: EventTime.parse(play["about"]["endTime"].string)))
         }
-        guard !pitchTimes.isEmpty else { return entries }
-        var pitchNumber: [Int: Int] = [:]
+        return out
+    }
+
+    /// The same from the at-bats the page's StatcastStore already parsed.
+    static func plateTimes(_ atBats: [Statcast.AtBat]) -> [Int: [PlateTimes]] {
+        var out: [Int: [PlateTimes]] = [:]
+        for ab in atBats.sorted(by: { $0.index < $1.index }) {
+            let pitches = ab.events.filter(\.isPitch).compactMap { $0.start?.timeIntervalSince1970 }
+            let end = ab.complete ? ab.events.last?.start?.timeIntervalSince1970 : nil
+            out[ab.inning * 2 - (ab.top ? 1 : 0), default: []].append(PlateTimes(pitches: pitches, end: end))
+        }
+        return out
+    }
+
+    /// ESPN's plays with MLB's times (CHOREOGRAPHY §3.4: statsapi's `startTime` is
+    /// the pitch's own moment to the millisecond; ESPN's wallclock trails it by
+    /// p50 1.1 s and by 8–20 s a quarter of the time). Plate appearances are
+    /// matched by half-inning and their place in it; an at-bat whose pitch
+    /// counts differ between the two keeps ESPN's times (never a wrong join).
+    static func timed(_ entries: [TimelineEntry<RawPlay>], with plates: [Int: [PlateTimes]]) -> [TimelineEntry<RawPlay>] {
+        guard !plates.isEmpty else { return entries }
+        // ESPN's at-bats in each half-inning, in order.
+        var atBats: [Int: [Int]] = [:]
+        for e in entries where e.kind.label == "pitch" || e.kind.label == "result" {
+            let atBat = Int(e.progress / 1000)
+            if atBats[e.period]?.last != atBat, !(atBats[e.period]?.contains(atBat) ?? false) { atBats[e.period, default: []].append(atBat) }
+        }
+        var pitchCount: [Int: Int] = [:]
+        for e in entries where e.kind.label == "pitch" { pitchCount[Int(e.progress / 1000), default: 0] += 1 }
+        var seen: [Int: Int] = [:]
         return entries.map { entry in
-            var e = entry
             let atBat = Int(entry.progress / 1000)
+            guard entry.kind.label == "pitch" || entry.kind.label == "result",
+                  let ordinal = atBats[entry.period]?.firstIndex(of: atBat), let plate = plates[entry.period].flatMap({ ordinal < $0.count ? $0[ordinal] : nil }),
+                  plate.pitches.count == pitchCount[atBat] else { return entry }
+            var e = entry
             if entry.kind.label == "pitch" {
-                let n = pitchNumber[atBat, default: 0]
-                pitchNumber[atBat] = n + 1
-                if let times = pitchTimes[atBat], n < times.count { e.wallclock = times[n] }
-            } else if entry.kind.label == "result", let t = resultTimes[atBat] {
-                e.wallclock = t
+                let n = seen[atBat, default: 0]
+                seen[atBat] = n + 1
+                if n < plate.pitches.count { e.wallclock = plate.pitches[n]; e.reportedSource = .statsapi }
+            } else if let end = plate.end {
+                e.wallclock = end
+                e.reportedSource = .statsapi
             }
             return e
         }

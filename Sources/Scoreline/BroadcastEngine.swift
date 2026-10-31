@@ -40,6 +40,12 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
 
     mutating func observe(_ reading: FastReading) { timeline.observe(reading) }
 
+    /// The theater's binding horizons (late binding): the delay re-sizes from them.
+    mutating func setHorizons(_ horizons: BindingHorizons) { timeline.horizons = horizons }
+
+    /// The theater's solved decisive moments: untold plays are presented at them (one truth for score and slide).
+    mutating func setAnchors(_ anchors: [String: PTime]) { timeline.setAnchors(anchors) }
+
     // MARK: Stepping
 
     /// Re-plans the clock with what the timeline knows at `now`, then tells
@@ -51,9 +57,8 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
         var step = Step()
         guard !timeline.isEmpty else { return step }
         replan(now: now, into: &step)
-        // The safety net: held at the watermark by a score no play explains.
-        if let knowledge = step.knowledge, knowledge.bound == .unexplainedScore, let held = clock.stalled(at: now),
-           let correction = timeline.applySafetyNet(now: now, held: held) {
+        // The safety net: a score no play explains, past its grace.
+        if let correction = timeline.applySafetyNet(now: now, p: clock.p(at: now), held: clock.stalled(at: now)) {
             step.correction = correction
             replan(now: now, into: &step)
         }
@@ -63,7 +68,8 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
     private mutating func replan(now: PTime, into step: inout Step) {
         let knowledge = timeline.knowledge(at: now)
         step.knowledge = knowledge
-        let cap = knowledge.frontier - policy.leadIn
+        // The director must know a play by its binding horizon: p stays that far short of the watermark.
+        let cap = knowledge.frontier - timeline.horizons.live
         let before = clock.events.count
         let pBefore = clock.started ? clock.p(at: now) : cap
         let quiet = timeline.quietSpan(from: pBefore, knowledge: cap)
@@ -78,7 +84,7 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
             default: false
             }
         }
-        step.told += history ? timeline.tellHistory(through: p) : timeline.tell(through: p)
+        step.told += history ? timeline.tellHistory(through: p) : timeline.tell(through: p, barrier: timeline.tellBarrier ?? .infinity)
     }
 
     // MARK: Reading
@@ -102,6 +108,11 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
         // The hold's start (it's when a stall begins) and the safety net's deadline.
         if let hold = clock.pieces.last, hold.v0 == 0, hold.a == 0, hold.t0 > now { candidates.append(hold.t0) }
         if let since = clock.stalledSince, clock.regime == .stalled { candidates.append(since + policy.safetyGrace + 0.01) }
+        // The order guard lifting on its own (the safety net's grace on p).
+        if let reading = timeline.fast.unexplainedReading(timeline: timeline),
+           let t = clock.wall(reaching: reading.arrived - timeline.fastLag + policy.safetyGrace + 0.01, after: now) {
+            candidates.append(t)
+        }
         // Slew pieces end: the regime changes (the bench logs D).
         for piece in clock.pieces where piece.t0 > now + 1e-3 { candidates.append(piece.t0) }
         return candidates.filter { $0 > now + 1e-3 }.min()
@@ -115,9 +126,10 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
         var pending: [TimelinePlay<Payload>] = []
         var told = Set<String>()
         for (order, r) in timeline.records.enumerated() {
-            let play = TimelinePlay(id: r.id, order: order, eventTime: r.eventTime, presentAt: r.presentAt, period: r.entry.period,
-                                    clock: r.entry.clock, kind: r.entry.kind, score: r.entry.score, revision: r.revisions,
-                                    estimated: r.estimated, firstSeen: r.firstSeen, play: r.entry.payload)
+            let play = TimelinePlay(id: r.id, order: order, eventTime: r.eventTime, eventBounds: r.bounds, timeSource: r.timeSource,
+                                    presentAt: r.presentAt, period: r.entry.period, clock: r.entry.clock, kind: r.entry.kind,
+                                    score: r.entry.score, revision: r.revisions, estimated: r.estimated, firstSeen: r.firstSeen,
+                                    play: r.entry.payload)
             if r.isTold { told.insert(r.id) }
             if r.eventTime <= watermark || r.isTold { plays.append(play) } else { pending.append(play) }
         }
@@ -132,8 +144,16 @@ struct TimelinePlay<Play: Equatable & Sendable>: Equatable, Sendable {
     let id: String
     /// The timeline's order (position): ESPN's list order, football's sequence, MLB's at-bat and pitch.
     let order: Int
-    /// The event time: wallclock, MLB's startTime, or an estimate (`estimated`).
+    /// The event time as reported (wallclock, MLB's startTime) or estimated. For a
+    /// `.bounded` play it's the stoppage's stamp: the moment is in `eventBounds`.
     let eventTime: PTime?
+    /// A stopped-clock play after a stoppage: its moment lies between the
+    /// stoppage's start and the clock's restart (the anchor solver places the
+    /// cluster backward from the restart; nothing inside the bound is invented
+    /// here). Every play of one cluster has the identical bound: group by it.
+    let eventBounds: ClosedRange<PTime>?
+    /// Where `eventTime` comes from.
+    let timeSource: EventTimeSource
     /// Phase A's presentation time: event times made monotone in order. Phase
     /// 0's anchor solver supersedes it with decisive moments.
     let presentAt: PTime
@@ -151,8 +171,9 @@ struct TimelinePlay<Play: Equatable & Sendable>: Equatable, Sendable {
 
     func map<T>(_ transform: (Play) -> T?) -> TimelinePlay<T>? {
         transform(play).map {
-            TimelinePlay<T>(id: id, order: order, eventTime: eventTime, presentAt: presentAt, period: period, clock: clock,
-                            kind: kind, score: score, revision: revision, estimated: estimated, firstSeen: firstSeen, play: $0)
+            TimelinePlay<T>(id: id, order: order, eventTime: eventTime, eventBounds: eventBounds, timeSource: timeSource, presentAt: presentAt,
+                            period: period, clock: clock, kind: kind, score: score, revision: revision, estimated: estimated,
+                            firstSeen: firstSeen, play: $0)
         }
     }
 }

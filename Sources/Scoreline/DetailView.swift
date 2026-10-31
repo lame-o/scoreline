@@ -32,7 +32,16 @@ struct DetailView: View {
     @State private var live: Event
     /// Live games in this page's table league (the projected table), synced the same way.
     @State private var leagueLive: [Event] = []
-    @State private var detail: GameDetail?
+    /// The detail as last loaded; the page shows it as presented (`detail`).
+    @State private var loadedDetail: GameDetail?
+    /// Counts loads (the presented detail's memo key).
+    @State private var loadedRevision = 0
+    /// The game as one broadcast (BROADCAST.md): the timeline, the presentation
+    /// clock, and what's presented at p, which everything on the page but the
+    /// theaters reads.
+    @State private var broadcast = Broadcast()
+    /// The presented event the menu bar and the alerts last had.
+    @State private var shownEvent: Event?
     @State private var failed = false
     /// When the detail last loaded, and how many refreshes in a row have
     /// failed since: two or more on a live game, and the page says it's stale.
@@ -97,14 +106,22 @@ struct DetailView: View {
     /// A module's header being dragged to a new place (ModuleDrag.swift).
     @State private var drag = ModuleDrag()
     #if DEBUG
+    /// The offscreen check drives the page from a recording on a virtual clock.
+    @Environment(\.broadcastHarness) private var broadcastHarness
     @Environment(\.pageProbe) private var probe
     /// Harness counter: body runs (scrolling must add none).
     static var bodyRuns = 0
     #endif
 
     /// Live score and status come from the store's regular refresh; the richer
-    /// detail refreshes on its own cadence while this page is open.
-    private var event: Event { live }
+    /// detail refreshes on its own cadence while this page is open. While the
+    /// game broadcasts, both are as presented at p: the score after the last
+    /// told play, the clock as it read then, live until the last play is told.
+    private var event: Event { broadcast.present(live) }
+
+    /// The detail as presented at p (`Broadcast.present`): the play lists, the
+    /// charts' plays, Win Probability, the line score and the held tables.
+    private var detail: GameDetail? { broadcast.present(loadedDetail, revision: loadedRevision, side: teamSide) }
     private var soccerFeed: SoccerFeed { store.soccerFeed(for: snapshot.id) }
 
     private static let contentSpace = "detail.content"
@@ -125,7 +142,7 @@ struct DetailView: View {
         self.onOpenBracket = onOpenBracket
         self.onOpenRankings = onOpenRankings
         self.backTitle = backTitle
-        _detail = State(initialValue: preloaded)
+        _loadedDetail = State(initialValue: preloaded)
         _standings = State(initialValue: standings)
         _extrasShown = State(initialValue: preloaded != nil)
     }
@@ -176,7 +193,18 @@ struct DetailView: View {
             slides.clear()
             oddsFeed.stop()
             drag.abandon()
+            broadcast.end()
+            store.present(nil)
+            shownEvent = nil
         }
+        // The broadcast's lanes: the store's scoreboard copy of the game, as it polls.
+        .onChange(of: live) { _, new in broadcast.observe(scoreboard: new) }
+        // Moments whose play was just told: offered now (the moment slot, the celebrations, the slides).
+        .onChange(of: broadcast.releasedRevision) { _, _ in offerNow(broadcast.takeReleased()) }
+        // The menu bar follows the presented game while this page is open; so do the alerts.
+        .onChange(of: broadcast.presented) { _, _ in presentedChanged() }
+        // The floor going (p reached it, an overturn, the timeout): the menu bar's copy follows, quietly.
+        .onChange(of: broadcast.floor) { _, _ in presentedChanged(notify: false) }
         .onChange(of: store.showOdds) { _, on in
             if on, let detail { Task { await discoverOdds(event, detail) } } else { oddsFeed.reset() }
         }
@@ -190,6 +218,17 @@ struct DetailView: View {
         }
         #if DEBUG
         .onAppear { probe?(PageProbe(geometry: geometry, linked: linked, peek: peek, stage: nbaStage, moments: moments, drag: drag)) }
+        // The offscreen check: a recording's loads, core plays and scoreboard at virtual times, the clock stepped by it.
+        .onAppear {
+            guard let harness = broadcastHarness else { return }
+            broadcast.time = BroadcastTime(now: { harness.now })
+            broadcast.automatic = false
+            harness.broadcast = broadcast
+        }
+        .onChange(of: broadcastHarness?.loads) { _, _ in if let d = broadcastHarness?.load { harnessLoaded(d) } }
+        .onChange(of: broadcastHarness?.cores) { _, _ in if let items = broadcastHarness?.core { broadcast.ingest(core: items) } }
+        .onChange(of: broadcastHarness?.boards) { _, _ in if let board = broadcastHarness?.board { live = board } }
+        .onChange(of: broadcastHarness?.ticks) { _, _ in broadcast.step() }
         #endif
         // The hero's scoreboard beat: a score-tier moment, on this page, now.
         .onChange(of: moments.current?.id) { _, _ in
@@ -320,12 +359,12 @@ struct DetailView: View {
                     teamColumn(top)
                     VStack(spacing: 3) {
                         if top.score != nil || bottom.score != nil {
-                            let lane = laneScores
+                            let scores = heroScores
                             HStack(spacing: 10) {
                                 // A final's loser steps back; nobody does on a draw (the house rule).
-                                score(lane?.top ?? top.score, emphasized: !event.stepsBack(top), side: .top)
+                                score(scores.first ?? nil, emphasized: !event.stepsBack(top), side: .top)
                                 Text("–").foregroundStyle(.tertiary)
-                                score(lane?.bottom ?? bottom.score, emphasized: !event.stepsBack(bottom), side: .bottom)
+                                score(scores.last ?? nil, emphasized: !event.stepsBack(bottom), side: .bottom)
                             }
                             .font(.system(size: 30, weight: .semibold, design: .rounded).monospacedDigit())
                             // The score never wraps; team names give way first.
@@ -443,6 +482,7 @@ struct DetailView: View {
     /// Live football: the team with the ball (fast lane first, then the scoreboard).
     private var footballPossession: GameDetail.Side? {
         guard event.state == .live, case .espn(_, _, .football)? = event.ref else { return nil }
+        if broadcast.active, let teams = footballTeams { return broadcast.footballPossession(teams) }
         if let side = footballFeed.possession ?? footballFeed.situation?.possession { return side }
         guard let id = event.possession else { return nil }
         return event.competitors.first?.id == id ? .top : event.competitors.last?.id == id ? .bottom : nil
@@ -453,11 +493,15 @@ struct DetailView: View {
     /// docked bar both read it.
     private var nbaBall: (side: GameDetail.Side?, inAir: Bool) {
         guard event.state == .live, isNBA else { return (nil, false) }
+        if broadcast.active { return (nbaPresented?.possession, nbaPresented?.inAir ?? false) }
         return (basketballFeed.possession, basketballFeed.ballInAir)
     }
 
     /// Live NBA: the last five minutes of the fourth or overtime, within five.
-    private var nbaClutch: Bool { event.state == .live && isNBA && basketballFeed.clutch }
+    private var nbaClutch: Bool {
+        guard event.state == .live, isNBA else { return false }
+        return broadcast.active ? nbaPresented?.clutch ?? false : basketballFeed.clutch
+    }
 
     /// The ball by a team's name in the hero, while live: football, and the
     /// NBA (dimmed while a shot is in the air).
@@ -588,9 +632,12 @@ struct DetailView: View {
             .scoreboardBeat(beats.pops(side), color: side == .top ? palette.top : palette.bottom, on: .hero)
     }
 
-    /// The numbers the hero shows, top first (the lane's, while it's ahead).
+    /// The numbers the hero shows, top first: while broadcasting, the presented
+    /// score (never below what the user had already seen: `Broadcast.floor`);
+    /// otherwise the lane's, while it's ahead.
     private var heroScores: [String?] {
         guard case let .match(top, bottom) = event.content else { return [] }
+        if broadcast.active { return [top.score, bottom.score] }
         let lane = laneScores
         return [lane?.top ?? top.score, lane?.bottom ?? bottom.score]
     }
@@ -651,26 +698,30 @@ struct DetailView: View {
     /// Baseball, live: the team at bat (its color fills the bases).
     private var battingSide: GameDetail.Side? {
         guard isBaseball, event.state == .live else { return nil }
-        return MatchRules.battingSide(inning: baseballFeed.inning ?? event.detail, topIsHome: detail?.topIsHome)
+        return MatchRules.battingSide(inning: broadcast.active ? event.detail : baseballFeed.inning ?? event.detail, topIsHome: detail?.topIsHome)
     }
 
     /// Football, live: the team with the ball trails by one score with two minutes or less left.
     private var twoMinuteDrill: Bool {
-        guard event.state == .live, case .espn(_, _, .football)? = event.ref, let clock = footballFeed.gameClock else { return false }
+        guard event.state == .live, case .espn(_, _, .football)? = event.ref,
+              let clock = broadcast.active ? event.clock : footballFeed.gameClock else { return false }
         let scores = heroScores.compactMap { $0.flatMap(Int.init) }
         guard scores.count == 2 else { return false }
-        let possession = footballFeed.possession ?? footballFeed.situation?.possession
+        let possession = broadcast.active ? footballPossession : footballFeed.possession ?? footballFeed.situation?.possession
         return MatchRules.twoMinuteDrill(period: clock.period, seconds: clock.seconds, possession: possession,
                                          top: scores[0], bottom: scores[1])
     }
 
     /// The live clock, for the hero and the bar: football's fast lane, then the
     /// NBA's, then the scoreboard's.
-    private var liveClock: GameClock? { footballFeed.gameClock ?? basketballFeed.gameClock ?? event.clock }
+    private var liveClock: GameClock? {
+        broadcast.active ? event.clock : footballFeed.gameClock ?? basketballFeed.gameClock ?? event.clock
+    }
 
     /// What the clock line says without a running clock: the lanes' text, the inning, half-time.
     private var liveClockFallback: String {
-        footballFeed.clock ?? basketballFeed.clock ?? baseballFeed.inning
+        if broadcast.active { return event.detail?.uppercased() == "HT" ? "Half-time" : event.detail ?? "Live" }
+        return footballFeed.clock ?? basketballFeed.clock ?? baseballFeed.inning
             ?? (event.detail?.uppercased() == "HT" ? "Half-time" : event.detail ?? "Live")
     }
 
@@ -1193,11 +1244,11 @@ struct DetailView: View {
         // Live only, wherever the sport's chart has a theater (and as long as it did when they shared a section).
         case .liveView: event.state == .live
             && (isNBA ? has(.court, d) : isSoccer ? has(.pitch, d) : isBaseball ? has(.atPlate, d) : has(.field, d))
-        case .field: (footballFeed.situation ?? d.football) != nil && event.state == .live
+        case .field: shownFootball != nil && event.state == .live
         case .atPlate: liveBaseball(d) != nil && event.state == .live
         // Stays up between batters ("Waiting for the first pitch"), so the page doesn't jump.
         case .atBat: event.state == .live && (baseballFeed.loaded || !d.atBat.isEmpty)
-        case .pitch: extrasShown && (event.state == .live ? !soccerFeed.trail.isEmpty : !soccerFeed.shots.isEmpty)
+        case .pitch: extrasShown && (event.state == .live ? !soccerTrail.isEmpty : !soccerShots.isEmpty)
         case .timeline: d.moments.contains { $0.minute != nil } || event.state == .live
         // Today's table says nothing about a game from another season (G2).
         case .table: extrasShown && d.seasonIsCurrent != false && (soccerLeague ?? collegeLeague ?? nbaLeague) != nil && !standings.isEmpty
@@ -1211,7 +1262,7 @@ struct DetailView: View {
         case .moments: !d.moments.isEmpty
         case .stats: !d.stats.isEmpty
         case .plays: !d.recentPlays.isEmpty && d.football == nil
-        case .battedBalls: !d.battedBalls.isEmpty || !baseballFeed.battedBalls.isEmpty
+        case .battedBalls: !battedBalls(d).isEmpty
         // While a final is on, the climber-by-climber view above covers it.
         case .wall: !d.wall.isEmpty && !has(.ascent, d)
         case .scorecard: !d.boulders.isEmpty
@@ -1271,8 +1322,8 @@ struct DetailView: View {
         let live = event.state == .live
         switch kind {
         case .pitch:
-            PitchView(trail: soccerFeed.trail, shots: soccerFeed.shots, live: live,
-                      palette: palette, topName: names.top, bottomName: names.bottom, cards: soccerFeed.cards,
+            PitchView(trail: soccerTrail, shots: soccerShots, live: live,
+                      palette: palette, topName: names.top, bottomName: names.bottom, cards: soccerCards,
                       theater: live && liveViewOpen(d))
         case .timeline:
             SoccerTimeline(moments: d.moments, currentMinute: live ? soccerMinute : nil, palette: palette,
@@ -1281,7 +1332,7 @@ struct DetailView: View {
             if let summary = d.linescore {
                 // NBA live: T (and the quarter being played) from the live lane, so it matches the hero
                 // instead of trailing it by up to the summary's 30 s.
-                let linescore = isNBA && event.state == .live
+                let linescore = isNBA && event.state == .live && !broadcast.active
                     ? d.topIsHome.map { basketballFeed.linescore(summary, topIsHome: $0) } ?? summary : summary
                 // Every sport: no older than the hero, period by period (the summary trails the lanes).
                 SyncedLinescore(ledger: ledger, linescore: linescore, topName: names.top, bottomName: names.bottom,
@@ -1305,14 +1356,14 @@ struct DetailView: View {
             if let nba = d.basketball {
                 CourtView(shots: nbaShots(nba), palette: palette, topName: names.top, bottomName: names.bottom,
                           players: nba.players, names: leaderNames(nba), live: live,
-                          plays: nbaPlays(nba), now: live ? basketballFeed.elapsed ?? event.clock.flatMap(nbaElapsed) : nil,
+                          plays: nbaPlays(nba), now: live ? nbaNow : nil,
                           onOpenProfile: courtProfile(nba), celebrates: BasketballCelebration.courtBursts(theaterShown: live && liveViewOpen(d)))
             }
         case .flow:
             if let nba = d.basketball {
-                GameFlowView(flow: NBADetail.flow(summary: nba.flow, lane: live ? basketballFeed.flow : []),
+                GameFlowView(flow: nbaFlow(nba),
                              palette: palette, topName: names.top, bottomName: names.bottom,
-                             now: live ? basketballFeed.elapsed ?? event.clock.flatMap(nbaElapsed) : nil,
+                             now: live ? nbaNow : nil,
                              final: event.state == .final)
             }
         default:
@@ -1332,13 +1383,13 @@ struct DetailView: View {
                     theater(d)
                 }
             case .field:
-                if let football = footballFeed.situation ?? d.football {
+                if let football = shownFootball {
                     DetailSection(title: "Field",
                                   caption: "This drive, snap by snap. \(names.top) defends the left end zone.",
                                   accessory: .live,
                                   spokenCaption: "This drive, snap by snap. \(full.top) defending the left end zone.") {
                         FootballField(situation: football, topLabel: names.top, bottomLabel: names.bottom, palette: palette,
-                                      drive: fieldDrive, possession: footballFeed.possession ?? football.possession,
+                                      drive: fieldDrive, possession: footballPossession ?? football.possession,
                                       twoMinuteDrill: twoMinuteDrill,
                                       celebrates: FootballCelebration.driveChartBursts(theaterShown: liveViewOpen(d)))
                     }
@@ -1352,7 +1403,7 @@ struct DetailView: View {
             case .atBat:
                 let count = liveBaseball(d).map { SectionAccessory.count(balls: $0.balls, strikes: $0.strikes) }
                 DetailSection(title: "This At-Bat", accessory: count) {
-                    StrikeZoneView(pitches: baseballFeed.loaded ? baseballFeed.atBat : d.atBat)
+                    StrikeZoneView(pitches: shownAtBat(d))
                 }
             case .pitch:
                 DetailSection(title: live ? "Live Pitch" : "Shot Map",
@@ -1425,7 +1476,7 @@ struct DetailView: View {
                     // Two sides that must read apart in every sport: a clash steps to an alternate color.
                     OddsSection(feed: oddsFeed, baseline: baseline, event: event, names: names, spoken: full,
                                 palette: .nba(top: event.competitors.first, bottom: event.competitors.last, scheme: colorScheme),
-                                espnNow: d.topWinProbability)
+                                espnNow: d.topWinProbability, presentation: broadcast.active ? broadcast.clock : nil)
                 } else if let p = d.topWinProbability {
                     DetailSection(title: "Win Probability",
                                   caption: event.state == .scheduled ? "ESPN's matchup predictor, before tip-off."
@@ -1458,8 +1509,7 @@ struct DetailView: View {
                               caption: isNBA ? "Play-by-play from ESPN, newest first." : "ESPN commentary, newest first.") {
                     StackColumn(spacing: 6) {
                         // The NBA's live lane is a step ahead of the full refresh.
-                        ForEach(isNBA && live && !basketballFeed.recentPlays.isEmpty ? basketballFeed.recentPlays : d.recentPlays,
-                                id: \.self) { play in
+                        ForEach(latestPlays(d), id: \.self) { play in
                             // A play that can replay in the isometric view opens it under its line.
                             RecentPlayRow(play: play)
                         }
@@ -1633,10 +1683,12 @@ struct DetailView: View {
             SoccerTheater(feed: soccerFeed, palette: palette, kits: kits, eventID: event.id,
                           topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
                           added: d.soccerAdded, people: d.people)
-        } else if isBaseball, let baseball = liveBaseball(d) {
+        } else if isBaseball, let baseball = theaterBaseball {
+            // The theaters keep today's inputs until the director (CHOREOGRAPHY Phase 0) reads the broadcast.
             PlayTheater(feed: baseballFeed, preloaded: d.theater,
-                        bases: [baseball.onFirst, baseball.onSecond, baseball.onThird], batting: battingSide,
-                        situation: baseball, inning: baseballFeed.inning ?? event.detail,
+                        bases: [baseball.onFirst, baseball.onSecond, baseball.onThird],
+                        batting: MatchRules.battingSide(inning: baseballFeed.inning ?? live.detail, topIsHome: loadedDetail?.topIsHome),
+                        situation: baseball, inning: baseballFeed.inning ?? live.detail,
                         palette: palette, kits: kits,
                         topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
                         people: d.people, fielders: d.fielders)
@@ -1745,14 +1797,16 @@ struct DetailView: View {
         switch section {
         case .liveView:
             // The newest play the theater has to tell.
-            if isNBA { return (basketballFeed.recentPlays.first ?? d.recentPlays.first).map { ModuleGlance.play($0.text) } }
-            if isSoccer { return soccerFeed.trail.last.map { ModuleGlance.text($0.minute, $0.text) } }
-            if isBaseball { return liveBaseball(d)?.lastPlay.map { ModuleGlance.text(baseballFeed.inning ?? event.detail ?? "", $0) } }
-            let football = footballFeed.situation ?? d.football
+            if isNBA { return latestPlays(d).first.map { ModuleGlance.play($0.text) } }
+            if isSoccer { return soccerTrail.last.map { ModuleGlance.text($0.minute, $0.text) } }
+            if isBaseball {
+                let inning = broadcast.active ? event.detail ?? "" : baseballFeed.inning ?? event.detail ?? ""
+                return liveBaseball(d)?.lastPlay.map { ModuleGlance.text(inning, $0) }
+            }
+            let football = shownFootball
             return football?.lastPlay.map { ModuleGlance.text(football?.downDistance ?? "", $0) }
         case .plays:
-            let plays = isNBA && live && !basketballFeed.recentPlays.isEmpty ? basketballFeed.recentPlays : d.recentPlays
-            return plays.first.map { ModuleGlance.play($0.text) }
+            return latestPlays(d).first.map { ModuleGlance.play($0.text) }
         case .court:
             guard let nba = d.basketball else { return nil }
             let shots = nbaShots(nba)
@@ -1760,7 +1814,7 @@ struct DetailView: View {
             let bottom = ModuleGlance.Shooting(fg: nba.bottomTotals["FG"], threes: nba.bottomTotals["3PT"]) ?? .init(shots, side: .bottom)
             return .shooting(top: top, bottom: bottom, names: names)
         case .flow:
-            return d.basketball.flatMap { .flow(NBADetail.flow(summary: $0.flow, lane: live ? basketballFeed.flow : []), names: names) }
+            return d.basketball.flatMap { .flow(nbaFlow($0), names: names) }
         case .linescore:
             guard let summary = d.linescore else { return nil }
             let line = ledger.reconciled(summary)
@@ -1777,16 +1831,16 @@ struct DetailView: View {
         case .table:
             let ids = Set(event.competitors.compactMap(\.id))
             return .standings(standings.filter { ids.contains($0.id) }.map { (name: $0.abbreviation, rank: $0.rank) })
-        case .atBat: return .atBat(baseballFeed.loaded ? baseballFeed.atBat : d.atBat)
+        case .atBat: return .atBat(shownAtBat(d))
         case .atPlate:
             return liveBaseball(d).map { .atPlate(outs: $0.outs, bases: [$0.onFirst, $0.onSecond, $0.onThird], batter: $0.batter, pitcher: $0.pitcher) }
         case .field:
-            guard let football = footballFeed.situation ?? d.football else { return nil }
-            let side = footballFeed.possession ?? football.possession
+            guard let football = shownFootball else { return nil }
+            let side = footballPossession ?? football.possession
             return .field(possession: side.map { $0 == .top ? names.top : names.bottom }, downDistance: football.downDistance,
                           plays: fieldDrive.count)
         case .pitch:
-            return live ? soccerFeed.trail.last.map { .text($0.minute, $0.text) } : .shotMap(soccerFeed.shots, names: names)
+            return live ? soccerTrail.last.map { .text($0.minute, $0.text) } : .shotMap(soccerShots, names: names)
         case .battedBalls:
             let balls = battedBalls(d)
             return balls.last.map { .text(balls.count == 1 ? "1 in play" : "\(balls.count) in play", $0.text) }
@@ -1939,9 +1993,12 @@ struct DetailView: View {
         // Soccer lists the home side first.
         let homeID = current.competitors.first?.id?.split(separator: "-").last.map(String.init)
         let feed = soccerFeed
+        let look = feed.lookRevision
         async let updated: Void = feed.update(league: String(slug), eventID: id, homeTeamID: homeID, lineups: detail?.lineups ?? [:])
         if standings.isEmpty { standings = await store.standings(for: league) }
         await updated
+        // The broadcast's core lane: the look's entries (a tail of the match), or a read with nothing new.
+        if feed.lookRevision != look { broadcast.ingest(core: feed.lastLook) } else { broadcast.noteRead() }
         // A goal VAR struck off goes before anything new shows.
         retract(feed.takeRetractions())
         let fresh = feed.takeMoments()
@@ -1979,14 +2036,29 @@ struct DetailView: View {
 
     /// Every shot: the full load's, plus any newer ones the live lane has seen.
     private func nbaShots(_ nba: GameDetail.Basketball) -> [GameDetail.Shot] {
-        event.state == .live ? NBADetail.shots(summary: nba.shots, newestElapsed: nba.newestElapsed, lane: basketballFeed.shots)
-                             : nba.shots
+        guard event.state == .live else { return nba.shots }
+        let shots = NBADetail.shots(summary: nba.shots, newestElapsed: nba.newestElapsed, lane: basketballFeed.shots)
+        return broadcast.active ? shots.filter { broadcast.shows($0.id) } : shots
     }
 
     /// Every play for the court: the full load's, with the live lane's newer
     /// (and re-read) plays spliced over them.
     private func nbaPlays(_ nba: GameDetail.Basketball) -> [GameDetail.CourtPlay] {
-        event.state == .live ? NBADetail.plays(summary: nba.plays, lane: basketballFeed.plays) : nba.plays
+        guard event.state == .live else { return nba.plays }
+        let plays = NBADetail.plays(summary: nba.plays, lane: basketballFeed.plays)
+        return broadcast.active ? plays.filter { broadcast.shows($0.id) } : plays
+    }
+
+    /// The game flow: the full load's, plus the live lane's newer scores (cut to what's told).
+    private func nbaFlow(_ nba: GameDetail.Basketball) -> [GameDetail.FlowPoint] {
+        guard event.state == .live else { return nba.flow }
+        let flow = NBADetail.flow(summary: nba.flow, lane: basketballFeed.flow)
+        return broadcast.active ? flow.filter { broadcast.shows($0.id) } : flow
+    }
+
+    /// Game seconds played: at p while broadcasting, else the live lane's (or the scoreboard's) reading.
+    private var nbaNow: Double? {
+        broadcast.active ? nbaPresented?.elapsed : basketballFeed.elapsed ?? event.clock.flatMap(nbaElapsed)
     }
 
     /// Leaders' names by athlete ID, for players the box score doesn't list.
@@ -2087,13 +2159,27 @@ struct DetailView: View {
     private var fieldDrive: [DrivePlay] {
         if let moment = moments.current, moment.chart == .field, moment.tier == .score,
            let scoring = footballFeed.drive(containing: moment.id) {
-            return scoring
+            return scoring.filter { broadcast.shows($0.id) }
         }
-        return footballFeed.drive
+        return footballFeed.drive.filter { broadcast.shows($0.id) }
+    }
+
+    /// The play theater's diamond: today's (the fast lane's, else the last load's), until Phase 0.
+    private var theaterBaseball: GameDetail.Baseball? {
+        guard let d = loadedDetail else { return nil }
+        guard let s = baseballFeed.situation else { return d.baseball }
+        return GameDetail.Baseball(balls: s.balls, strikes: s.strikes, outs: s.outs,
+                                   onFirst: s.onFirst, onSecond: s.onSecond, onThird: s.onThird,
+                                   batter: s.batter ?? d.baseball?.batter, pitcher: s.pitcher ?? d.baseball?.pitcher,
+                                   lastPlay: s.lastPlay ?? d.baseball?.lastPlay, runners: s.runners,
+                                   batterID: s.batter == nil ? d.baseball?.batterID : s.batterID,
+                                   pitcherID: s.pitcher == nil ? d.baseball?.pitcherID : s.pitcherID, runnerIDs: s.runnerIDs)
     }
 
     /// The diamond from the fast lane when it has spoken, else the last full load.
     private func liveBaseball(_ d: GameDetail) -> GameDetail.Baseball? {
+        // Broadcasting: the diamond after the last told play (`Broadcast.present`).
+        if broadcast.active { return d.baseball }
         guard let s = baseballFeed.situation else { return d.baseball }
         return GameDetail.Baseball(balls: s.balls, strikes: s.strikes, outs: s.outs,
                                    onFirst: s.onFirst, onSecond: s.onSecond, onThird: s.onThird,
@@ -2106,16 +2192,18 @@ struct DetailView: View {
 
     /// Every ball in play: the full load's, plus any the fast lane has seen since.
     private func battedBalls(_ d: GameDetail) -> [GameDetail.BattedBall] {
+        if broadcast.active { return d.battedBalls }
         let known = Set(d.battedBalls.map(\.id))
         return d.battedBalls + baseballFeed.battedBalls.filter { !known.contains($0.id) }
     }
 
     /// The fast lane's score, top team first, while it's ahead of the panel's
-    /// regular refresh (never behind it).
+    /// regular refresh (never behind it). Against the store's own copy (not the
+    /// presented one): the scores list reads it, never this page while it broadcasts.
     private var laneScores: (top: String, bottom: String)? {
-        guard event.state == .live, let topIsHome = detail?.topIsHome,
+        guard live.state == .live, let topIsHome = loadedDetail?.topIsHome,
               let lane = footballFeed.score ?? baseballFeed.score ?? basketballFeed.score else { return nil }
-        let known = event.competitors.compactMap { $0.score.flatMap(Int.init) }.reduce(0, +)
+        let known = live.competitors.compactMap { $0.score.flatMap(Int.init) }.reduce(0, +)
         guard lane.home + lane.away >= known else { return nil }
         return topIsHome ? ("\(lane.home)", "\(lane.away)") : ("\(lane.away)", "\(lane.home)")
     }
@@ -2127,7 +2215,7 @@ struct DetailView: View {
         let scores = heroScores
         var inputs = DockInputs(event: event, detail: detail, colors: (palette.top, palette.bottom),
                                 scores: (scores.first ?? nil, scores.last ?? nil))
-        inputs.football = footballFeed.situation ?? detail?.football
+        inputs.football = shownFootball
         inputs.clock = liveClock
         inputs.clockFallback = liveClockFallback
         inputs.baseball = detail.flatMap(liveBaseball)
@@ -2141,7 +2229,7 @@ struct DetailView: View {
             inputs.possession = ball.side
             inputs.possessionInAir = ball.inAir
             inputs.clutch = nbaClutch
-            inputs.run = event.state == .live ? basketballFeed.runs.first?.label : nil
+            inputs.run = event.state == .live ? (broadcast.active ? nbaPresented?.run?.label : basketballFeed.runs.first?.label) : nil
         }
         return DockBar.make(inputs)
     }
@@ -2212,9 +2300,9 @@ struct DetailView: View {
         }
         switch event.ref {
         case .espn(_, _, .soccer)?:
-            let actions = (event.state == .live ? soccerFeed.trail : []) + soccerFeed.shots
+            let actions = (event.state == .live ? soccerTrail : []) + soccerShots
             inputs.pitch = actions.map { PeekInputs.Mark(id: $0.playID, lead: $0.minute, detail: $0.text) }
-                + soccerFeed.cards.map { PeekInputs.Mark(id: $0.key, lead: $0.value.minute, detail: $0.value.text) }
+                + soccerCards.map { PeekInputs.Mark(id: $0.key, lead: $0.value.minute, detail: $0.value.text) }
             inputs.timeline = d.moments.filter { $0.minute != nil && $0.kind != .other && $0.kind != .score }
                 .map { PeekInputs.Mark(id: $0.id, side: $0.side, lead: $0.clock, detail: MomentList.headline($0)) }
         case .espn(_, _, .baseball)?:
@@ -2319,7 +2407,13 @@ struct DetailView: View {
     /// them), the moment slot takes the update (and gives out the page's
     /// burst), then each slide learns whether the burst is its own and when
     /// to show.
+    /// A lane's moments: each waits for its play's moment on p (`Broadcast.gate`),
+    /// then the moment slot, the celebrations and the slides take it (`offerNow`).
     private func offer(_ batch: [LiveMoment], detail loaded: GameDetail? = nil) {
+        offerNow(broadcast.gate(batch), detail: loaded)
+    }
+
+    private func offerNow(_ batch: [LiveMoment], detail loaded: GameDetail? = nil) {
         guard store.scoringSlides, !batch.isEmpty else { return moments.offer(batch) }
         let slid = slides.take(batch, context: slideContext(loaded ?? detail))
         moments.offer(batch, quiet: slid)
@@ -2328,8 +2422,10 @@ struct DetailView: View {
     }
 
     private func retract(_ ids: [String]) {
-        moments.retract(ids)
-        slides.retract(ids)
+        // Only what was offered comes back down; a moment still waiting just goes.
+        let offered = broadcast.retract(ids)
+        moments.retract(offered)
+        slides.retract(offered)
     }
 
     /// Who's who for the slides: the two sides, and climbing's round and route.
@@ -2412,6 +2508,9 @@ struct DetailView: View {
     /// Small, frequent requests while live and only while this page is open:
     /// football's spot and clock, CS2's round score, soccer's newest actions.
     private func fastLane() async {
+        #if DEBUG
+        if broadcastHarness != nil { return }
+        #endif
         while !Task.isCancelled {
             let current = event
             guard current.state == .live, hasFastLane(current) else { return }
@@ -2421,7 +2520,10 @@ struct DetailView: View {
                 guard let homeIsTop = detail?.topIsHome else { break }
                 let teams = FootballFeed.Teams(current, topIsHome: homeIsTop)
                 let before = footballFeed.score
+                let look = footballFeed.lookRevision, read = footballFeed.lastRead
                 await footballFeed.update(path: path, eventID: id, teams: teams)
+                feedBroadcast(look: (look, footballFeed.lookRevision, footballFeed.lastLook), read: (read, footballFeed.lastRead),
+                              status: footballFeed.lastStatus)
                 retract(footballFeed.takeRetractions())
                 offer(footballFeed.takeMoments())
                 // A score: refresh the rest (scoring list, stats) now, not in half a minute.
@@ -2431,9 +2533,13 @@ struct DetailView: View {
                 let ids = current.competitors.map { $0.id?.split(separator: "-").last.map(String.init) }
                 let top = ids.first ?? nil, bottom = ids.last ?? nil
                 let before = baseballFeed.score
+                let look = baseballFeed.lookRevision, read = baseballFeed.lastRead
                 await baseballFeed.update(path: path, eventID: id, names: names, statcast: Statcast.Lookup(current)) { team in
                     team == top ? .top : team == bottom ? .bottom : nil
                 }
+                if let situation = baseballFeed.situation { broadcast.observe(situation: situation, after: baseballFeed.situationPlay) }
+                feedBroadcast(look: (look, baseballFeed.lookRevision, baseballFeed.lastLook), read: (read, baseballFeed.lastRead),
+                              status: baseballFeed.lastStatus)
                 retract(baseballFeed.takeRetractions())
                 offer(baseballFeed.takeMoments())
                 if before != nil, baseballFeed.score != before { await refreshDetail(current) }
@@ -2441,7 +2547,11 @@ struct DetailView: View {
                 // Wait for the first full load: it says which team is home.
                 guard let topIsHome = detail?.topIsHome else { break }
                 let teams = BasketballFeed.Teams(current, topIsHome: topIsHome)
+                let look = basketballFeed.windowRevision, read = basketballFeed.lastRead
                 await basketballFeed.update(eventID: id, teams: teams)
+                feedBroadcast(look: (look, basketballFeed.windowRevision, basketballFeed.window), read: (read, basketballFeed.lastRead),
+                              status: basketballFeed.lastStatus)
+                basketballFeed.present(broadcast.active ? nbaPresented : nil)
                 retract(basketballFeed.takeRetractions())
                 offer(basketballFeed.takeMoments())
             case .counterStrike?:
@@ -2454,7 +2564,10 @@ struct DetailView: View {
                                                            names: (current.competitors.first?.name ?? "", current.competitors.last?.name ?? ""),
                                                            maps: detail?.maps ?? []))
                     }
-                    withAnimation(reduceMotion ? nil : Motion.quick) { detail?.csLive = live }
+                    withAnimation(reduceMotion ? nil : Motion.quick) {
+                        loadedDetail?.csLive = live
+                        loadedRevision += 1
+                    }
                 }
             case .espn(_, _, .soccer)?:
                 // A few kilobytes: only actions added since the last look.
@@ -2468,6 +2581,96 @@ struct DetailView: View {
             try? await Task.sleep(for: .seconds(isSoccer ? 8 : (isClimbing ? 4 : 5)))
         }
     }
+
+    // MARK: The broadcast (BROADCAST.md §3)
+
+    /// A summary loaded: the broadcast starts on a live game's first (its score
+    /// floor what the user could already see: the scoreboard's and the scores
+    /// list's copies, and the hero's own), and reads each one's plays and tables.
+    private func broadcastLoaded(_ loaded: GameDetail) {
+        if let topIsHome = loaded.topIsHome { broadcast.begin(live, topIsHome: topIsHome, seen: [store.listed(live)]) }
+        broadcast.ingest(summary: loaded)
+        basketballFeed.present(broadcast.active ? nbaPresented : nil)
+    }
+
+    /// A fast lane's update: its new look at the plays (a tail of the game) or a read with nothing new, and its status.
+    private func feedBroadcast(look: (before: Int, after: Int, items: [JSON]), read: (before: Date?, after: Date?), status: JSON?) {
+        broadcast.observe(status: status)
+        if look.after != look.before {
+            broadcast.ingest(core: look.items)
+        } else if read.after != read.before {
+            broadcast.noteRead()
+        }
+    }
+
+    /// The presented game moved: the menu bar follows it, the alerts too, and the NBA's live marks.
+    private func presentedChanged(notify: Bool = true) {
+        guard broadcast.active else { return }
+        let shown = broadcast.present(live)
+        if notify, let was = shownEvent, was.competitors.map(\.score) != shown.competitors.map(\.score) || was.state != shown.state {
+            store.notifyPresented(from: was, to: shown)
+        }
+        shownEvent = shown
+        store.present(shown)
+        basketballFeed.present(nbaPresented)
+    }
+
+    /// ESPN team ID to top/bottom, as the summary's parsers map them.
+    private var teamSide: (String?) -> GameDetail.Side? {
+        let ids = live.competitors.map { $0.id?.split(separator: "-").last.map(String.init) }
+        return { id in
+            guard let id else { return nil }
+            return id == ids.first ?? nil ? .top : id == ids.last ?? nil ? .bottom : nil
+        }
+    }
+
+    private var footballTeams: FootballFeed.Teams? {
+        loadedDetail?.topIsHome.map { FootballFeed.Teams(live, topIsHome: $0) }
+    }
+
+    /// The field: the down, distance and spot after the last told play (broadcasting), else the fast lane's.
+    private var shownFootball: GameDetail.Football? {
+        let today = footballFeed.situation ?? detail?.football
+        guard broadcast.active, let teams = footballTeams else { return today }
+        return broadcast.footballSituation(teams, fallback: today)
+    }
+
+    /// The NBA's live marks at p: the ball, a shot in the air, clutch time, the run, players on fire.
+    private var nbaPresented: Broadcast.NBALive? {
+        guard broadcast.active, isNBA, let nba = detail?.basketball, let topIsHome = loadedDetail?.topIsHome else { return nil }
+        return broadcast.presentedNBA(nbaPlays(nba), teams: BasketballFeed.Teams(live, topIsHome: topIsHome))
+    }
+
+    /// The Latest list: the told plays (broadcasting); otherwise the NBA's live lane, a step ahead of the full refresh.
+    private func latestPlays(_ d: GameDetail) -> [GameDetail.RecentPlay] {
+        if broadcast.active { return d.recentPlays }
+        return isNBA && event.state == .live && !basketballFeed.recentPlays.isEmpty ? basketballFeed.recentPlays : d.recentPlays
+    }
+
+    /// This at-bat's pitches: the told ones (broadcasting); otherwise the fast lane's once it has spoken.
+    private func shownAtBat(_ d: GameDetail) -> [GameDetail.Pitch] {
+        broadcast.active ? d.atBat : baseballFeed.loaded ? baseballFeed.atBat : d.atBat
+    }
+
+    /// Soccer's trail, shots and cards, cut to what's told.
+    private var soccerTrail: [PitchAction] { soccerFeed.trail.filter { broadcast.shows($0.playID) } }
+    private var soccerShots: [PitchAction] { soccerFeed.shots.filter { broadcast.shows($0.playID) } }
+    private var soccerCards: [String: PitchAction] { soccerFeed.cards.filter { broadcast.shows($0.key) } }
+
+    #if DEBUG
+    /// A load the offscreen check delivers: the first assembles the page, later ones update it.
+    private func harnessLoaded(_ loaded: GameDetail) {
+        guard loadedDetail != nil else {
+            arrival = .data(in: Self.contentSpace, page: page)
+            extrasShown = true
+            broadcastLoaded(loaded)
+            loadedDetail = loaded
+            loadedRevision += 1
+            return
+        }
+        apply(loaded)
+    }
+    #endif
 
     // MARK: Loading
 
@@ -2494,12 +2697,18 @@ struct DetailView: View {
                 if !deltas.isEmpty { rankShift = RankShift(id: rankShift.id + 1, deltas: deltas) }
             }
         }
-        let structural = loaded.moments.map(\.id) != detail?.moments.map(\.id)
-            || loaded.recentPlays != detail?.recentPlays
-        if structural {
-            withAnimation(reduceMotion ? Motion.fade : Motion.standard) { detail = loaded }
+        // The broadcast reads the summary's plays first, so its rows wait for their moment.
+        broadcastLoaded(loaded)
+        let structural = loaded.moments.map(\.id) != loadedDetail?.moments.map(\.id)
+            || loaded.recentPlays != loadedDetail?.recentPlays
+        if structural && !broadcast.active {
+            withAnimation(reduceMotion ? Motion.fade : Motion.standard) {
+                loadedDetail = loaded
+                loadedRevision += 1
+            }
         } else {
-            detail = loaded
+            loadedDetail = loaded
+            loadedRevision += 1
         }
     }
 
@@ -2545,6 +2754,9 @@ struct DetailView: View {
     }
 
     private func poll() async {
+        #if DEBUG
+        if broadcastHarness != nil { return }
+        #endif
         var extras: Task<Void, Never>?
         // Leaving the page stops its background fetches too.
         defer { extras?.cancel() }
@@ -2569,7 +2781,9 @@ struct DetailView: View {
                     // The first data assembles like a page entrance: no withAnimation here.
                     arrival = .data(in: Self.contentSpace, page: page)
                     extrasShown = ready
-                    detail = loaded
+                    broadcastLoaded(loaded)
+                    loadedDetail = loaded
+                    loadedRevision += 1
                     firstLoad = false
                     if !ready {
                         await finish(task)
