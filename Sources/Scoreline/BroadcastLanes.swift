@@ -242,7 +242,9 @@ enum BroadcastLanes {
         let period = play["period"]["number"].int ?? 0
         let typeText = play["type"]["text"].string ?? ""
         let typeID = play["type"]["id"].string ?? ""
-        let remaining = play["clock"]["value"].double
+        // College summaries give only "11:35" (no numeric value): the stoppage clusters
+        // and the presented clock need it as seconds.
+        let remaining = play["clock"]["value"].double ?? play["clock"]["displayValue"].string.flatMap(NBADetail.seconds)
         let length = policy.length(of: period)
         let elapsed = remaining.map { length > 0 ? max(length - $0, 0) : $0 }
         let text = (play["text"].string ?? "").lowercased()

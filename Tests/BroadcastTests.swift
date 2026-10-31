@@ -1190,6 +1190,31 @@ extension ScorelineTests {
               "after the stall, the jump lands short of the score", "stalled at \(stalledAt), jumps \(jumps)")
         check(told["b"] == .history && told["c"] == .history && told["d"] == .history && told["goal"] != nil && told["goal"] != .history,
               "the flow before it goes by as history; the score is told live", "\(told.sorted { $0.key < $1.key })")
+
+        // Held at the watermark far behind, the watermark creeping a read at a time: no crossfade per read.
+        var creep = PresentationClock()
+        creep.update(now: 0, inputs: .init(target: 50, cap: -50))
+        for now in stride(from: 10.0, through: 90, by: 10) { creep.update(now: now, inputs: .init(target: 50, cap: -45)) }
+        creep.update(now: 100, inputs: .init(target: 50, cap: -40))
+        check(!creep.events.contains { if case .jump = $0 { true } else { false } }, "a watermark 5 s ahead isn't worth a jump: the clock runs to it")
+
+        // The heartbeat: while the game goes on, the clock is updated at least every 5 s,
+        // so a stretch with nothing read is never taken for the Mac asleep.
+        var quiet = BroadcastEngine<RawPlay>(sport: .basketball, policy: testPolicy)
+        quiet.ingest(look([play("a", at: 100, elapsed: 10, score: s0)], at: 130))
+        quiet.advance(now: 130)
+        var t2: PTime = 130, wakes = 0
+        while t2 < 400, let next = quiet.nextWake(after: t2), next - t2 <= BroadcastEngine<RawPlay>.heartbeat + 1e-6 {
+            t2 = next
+            wakes += quiet.advance(now: t2).events.filter { if case .wake = $0 { true } else { false } }.count
+        }
+        check(t2 >= 400 && wakes == 0, "nothing read for minutes: the heartbeat keeps the clock awake (no wake, no history)", "\(t2) \(wakes)")
+
+        // College football's summary gives the clock only as "11:35": it still makes elapsed seconds (clusters need them).
+        let cfb = JSON(["id": "p1", "period": ["number": 1], "clock": ["displayValue": "11:35"], "type": ["id": "53", "text": "Kickoff"],
+                        "text": "kickoff", "sequenceNumber": "9", "wallclock": "2026-10-31T16:11:58Z"] as [String: Any])
+        let entry = BroadcastLanes.football(cfb, policy: BroadcastLanes.policy(.football, path: "football/college-football"))?.entry
+        check(entry?.clock.elapsed == 900 - 695, "a college play's clock from its display value", "\(String(describing: entry?.clock.elapsed))")
     }
 }
 
