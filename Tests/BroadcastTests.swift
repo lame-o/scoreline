@@ -28,7 +28,7 @@ extension ScorelineTests {
     static let testPolicy: BroadcastPolicy = {
         var p = BroadcastPolicy()
         p.priorLag = 30
-        p.leadIn = 2
+        p.horizons = BindingHorizons(live: 2)
         p.margin = 1
         p.slowPoll = 5
         p.quietRunning = 60
@@ -128,8 +128,8 @@ extension ScorelineTests {
         l.ingest(look([a, c], at: 140))
         l.tell(through: 125)
         let late = l.ingest(look([a, play("sub", at: 101, elapsed: 10, live: false, label: "substitution"), c], at: 300))
-        check(late.lateInsertions == ["sub"] && l.record("sub")?.told == .late && l.toldCount == 3,
-              "a play inserted behind told ones is told late; told stays a prefix")
+        check(late.lateInsertions == ["sub"] && l.record("sub")?.told == .correction && l.toldCount == 3,
+              "a play inserted behind told ones attaches quietly (a correction); told stays a prefix")
         // Told: on time at its moment; late once the clock had passed it before it arrived.
         // (The opening look is history; the plays after it are news.)
         let o0 = play("o", at: 60, elapsed: 1)
@@ -183,14 +183,15 @@ extension ScorelineTests {
         t.ingest(look([play("a", at: 100, elapsed: 10)], at: 100))   // opening look: says nothing about lag
         t.ingest(look([play("a", at: 100, elapsed: 10), play("b", at: 110, elapsed: 20)], at: 135))  // lag 25
         check(abs(t.lagQuantile - 25) < 0.01, "the lag quantile is measured from live plays at the frontier", "\(t.lagQuantile)")
+        // The network guard: the last read plus three read intervals (5 s), less the lag quantile.
         var k = t.knowledge(at: 135)
-        check(k.bound == .freshness && abs(k.frontier - 110) < 0.01, "the watermark is the last read less the lag quantile", "\(k)")
+        check(k.bound == .freshness && abs(k.frontier - 125) < 0.01, "the network guard: the last read, plus three reads, less the lag", "\(k)")
         t.noteRead(.summary, at: 140)
         t.noteRead(.summary, at: 145)
         k = t.knowledge(at: 145)
-        check(abs(k.frontier - 120) < 0.01, "reads with nothing new still move it")
+        check(abs(k.frontier - 135) < 0.01, "reads with nothing new still move it", "\(k)")
         k = t.knowledge(at: 400)
-        check(abs(k.frontier - 120) < 0.01, "no reads: it stands still (the clock will stall rather than guess)")
+        check(abs(k.frontier - 135) < 0.01, "no reads: it stands still (the clock will stall rather than guess)")
         // Quiet: a running game can't go silent past the sport's allowance.
         t.noteRead(.summary, at: 300)
         k = t.knowledge(at: 300)
@@ -209,21 +210,37 @@ extension ScorelineTests {
         k = f.knowledge(at: 152)
         check(k.frontier >= 146 - 1e-9, "the newest live play less the allowance is always known", "\(k)")
 
-        // An unexplained fast-lane score holds the watermark at the last reading the plays explain.
-        var u = GameTimeline<RawPlay>(policy: testPolicy)
+        // An unexplained fast-lane score: the order guard at the tell, at the last reading the plays explain
+        // (with the hold on, the watermark itself stops there).
+        var holding = testPolicy
+        holding.holdForUnexplainedScores = true
+        var u = GameTimeline<RawPlay>(policy: holding)
         let s0 = ScoreLine(home: 10, away: 10), s1 = ScoreLine(home: 12, away: 10)
         u.ingest(look([play("a", at: 100, elapsed: 10, score: s0)], at: 101))
         u.observe(FastReading(arrived: 120, state: .live, period: 1, elapsed: 40, running: true, score: s0, source: "scoreboard"))
         u.observe(FastReading(arrived: 150, state: .live, period: 1, elapsed: 70, running: true, score: s1, source: "scoreboard"))
         u.noteRead(.summary, at: 200)
         k = u.knowledge(at: 200)
-        check(k.bound == .unexplainedScore && abs(k.frontier - (120 - u.fastLag)) < 0.01,
-              "a score no play explains holds the watermark before it", "\(k)")
+        check(k.bound == .unexplainedScore && abs(k.frontier - 100) < 0.01,
+              "a score no play explains holds the watermark before it (after the last play with the old score)", "\(k)")
         // The play arrives: released.
         u.ingest(look([play("a", at: 100, elapsed: 10, score: s0), play("b", at: 130, elapsed: 40, score: s1)], at: 205))
         check(u.knowledge(at: 205).bound != .unexplainedScore, "the scoring play's arrival releases it")
+        var guarded = GameTimeline<RawPlay>(policy: testPolicy)
+        guarded.ingest(look([play("a", at: 100, elapsed: 10, score: s0)], at: 101))
+        guarded.observe(FastReading(arrived: 120, state: .live, period: 1, elapsed: 40, running: true, score: s0, source: "scoreboard"))
+        guarded.observe(FastReading(arrived: 150, state: .live, period: 1, elapsed: 70, running: true, score: s1, source: "scoreboard"))
+        guarded.noteRead(.summary, at: 200)
+        check(guarded.knowledge(at: 200).bound != .unexplainedScore && abs((guarded.tellBarrier ?? 0) - 100) < 0.01,
+              "by default the clock keeps time and the tell waits at the guard instead")
+        // Plays that still carry the old score precede the basket; one without a score after them waits.
+        guarded.ingest(look([play("a", at: 100, elapsed: 10, score: s0), play("c", at: 110, elapsed: 20, score: s0),
+                             play("d", at: 140, elapsed: 50, score: s0), play("e", at: 146, elapsed: 56)], at: 205))
+        let barred = guarded.tell(through: 150, barrier: guarded.tellBarrier ?? .infinity)
+        check(barred.map(\.id) == ["a", "c", "d"] && !guarded.isTold("e"), "nothing past the guard is told before the score's play",
+              "\(barred.map(\.id))")
         // Free throws while the clock is stopped at the foul: through the stoppage, not past the restart.
-        var ft = GameTimeline<RawPlay>(policy: testPolicy)
+        var ft = GameTimeline<RawPlay>(policy: holding)
         ft.ingest(look([play("foul", at: 100, elapsed: 400, live: false, stops: true, score: s0)], at: 101))
         ft.observe(FastReading(arrived: 120, state: .live, period: 1, elapsed: 400, running: false, score: s0, source: "scoreboard"))
         ft.observe(FastReading(arrived: 150, state: .live, period: 1, elapsed: 400, running: false, score: s1, source: "scoreboard"))
@@ -233,7 +250,7 @@ extension ScorelineTests {
         k = ft.knowledge(at: 170)
         check(k.bound == .unexplainedScore && abs(k.frontier - (150 - ft.fastLag)) < 0.01, "…but they do once the clock runs again", "\(k)")
 
-        // The safety net: applied once held past the grace, retired by the play.
+        // The safety net: applied once p is the grace past the score's latest moment, retired by the play.
         var e = BroadcastEngine<RawPlay>(sport: .basketball, policy: testPolicy)
         e.ingest(look([play("a", at: 100, elapsed: 10, score: s0)], at: 140))
         e.observe(FastReading(arrived: 140, state: .live, period: 1, elapsed: 40, running: true, score: s0, source: "scoreboard"))
@@ -357,20 +374,17 @@ extension ScorelineTests {
         e.ingest(look(Array(plays.prefix(3)), at: 1100))
         e.ingest(look(plays, at: 1100))
         e.advance(now: 1100)
-        // Opened with D = 30 + 5 + 2 + 1 = 38: p = 1062, everything before told as history.
+        // Opened with D = (lag 30 + horizon 2) + margin 1 = 33: p = 1067, everything before told as history.
         let open = e.presented(at: 1100)
-        check(abs(e.p(at: 1100) - 1062) < 1e-6 && open.told == 3 && open.score == s1, "opens at the live edge with the past as history",
+        check(abs(e.p(at: 1100) - 1067) < 1e-6 && open.told == 3 && open.score == s1, "opens at the live edge with the past as history",
               "p \(e.p(at: 1100)) told \(open.told)")
         check(e.timeline.records.prefix(3).allSatisfy { $0.told == .history }, "plays before the open are history, never news")
         // The three is presented at its moment, with its score, not before.
-        let before = e.presented(at: 1107.9), after = e.presented(at: 1108.1)
-        check(before.score == s1 && after.score == s1, "not told until the engine reaches it (the score waits for the play)")
-        // The lane is read every 5 s, as the app does (between reads the watermark stands still).
-        e.noteRead(.summary, at: 1105)
-        e.advance(now: 1105)
-        e.noteRead(.summary, at: 1108)
-        let step = e.advance(now: 1108)
-        check(step.told.map(\.id) == ["three"] && step.told.first?.told == .onTime && e.presented(at: 1108).score == s2,
+        check(e.nextWake(after: 1100) == 1103, "the next wake is the three's moment on p", "\(String(describing: e.nextWake(after: 1100)))")
+        check(e.presented(at: 1102.9).score == s1, "not told until the engine reaches it (the score waits for the play)")
+        e.noteRead(.summary, at: 1103)
+        let step = e.advance(now: 1103)
+        check(step.told.map(\.id) == ["three"] && step.told.first?.told == .onTime && e.presented(at: 1103).score == s2,
               "told at its moment: the score changes with it")
         // The clock: running between plays from the last, never past the next play's clock.
         var g = GameTimeline<RawPlay>(policy: testPolicy)
@@ -482,7 +496,7 @@ extension ScorelineTests {
             guard var replay = RecordingReplay(recording) else { return ([], [], [], 0, 0, 0, (0, 0), []) }
             var told: [String] = [], scores: [ScoreLine?] = [], delays: [Double] = [], inOrder: [String] = []
             var late = 0, stalls = 0, steps = 0, known = 0, total = 0
-            let leadIn = replay.policy.leadIn
+            let leadIn = replay.policy.horizons.live
             var ordered = true
             replay.run(.app(replay.policy)) { replay, t, step, _ in
                 steps += 1
@@ -518,8 +532,9 @@ extension ScorelineTests {
         check(delays.allSatisfy { $0 > 40 && $0 < 90 }, "D stays between 40 and 90 s on the slice",
               String(format: "%.1f…%.1f", delays.min() ?? 0, delays.max() ?? 0))
         let share = a.known.1 > 0 ? Double(a.known.0) / Double(a.known.1) : 0
-        check(share >= 0.9, "at least 90% of live-ball plays are known before their lead-in", "\(a.known.0)/\(a.known.1)")
-        check(a.late <= 2, "late live-ball tellings are rare", "\(a.late)")
+        // Late binding at q 0.95: most are known before their binding horizon; the rest are compressed or micro catch-ups.
+        check(share >= 0.75, "most live-ball plays are known before their binding horizon", "\(a.known.0)/\(a.known.1)")
+        check(a.late <= 1, "late live-ball tellings (past a micro catch-up) are rare", "\(a.late)")
         // The theater's view: plays up to the watermark, told ones marked, in order.
         guard var replay = RecordingReplay(recording) else { return }
         var snapshot: TimelineSnapshot<RawPlay>?

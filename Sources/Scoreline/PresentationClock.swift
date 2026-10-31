@@ -16,9 +16,11 @@ import Foundation
 //   catch-ups too, and it's why a stall rarely costs anything once play stops.
 //
 // And the rule over all of them: **p never passes the watermark less the
-// lead-in.** Approaching it, the clock eases to a stop there and holds (a
-// stall); the presented game clock holds with it, and the page goes on living
-// (the theater keeps its ambient motion, the heartbeat keeps beating).
+// binding horizon.** The watermark moves on hard evidence only (BROADCAST §1),
+// so it rarely binds; approaching it, the clock first slews down (0.92×), then
+// eases to a stop there and holds (a stall); the presented game clock holds
+// with it, and the page goes on living (the theater keeps its ambient motion
+// on wall time, the heartbeat keeps beating).
 //
 // The clock is a plan: a few pieces of constant acceleration (p(t) is C¹
 // everywhere except the declared jumps and the slew's 8% rate steps), re-made
@@ -69,12 +71,15 @@ struct PresentationClock: Equatable, Sendable {
         var minSkip: Double = 0.75
         /// Easing into a hold, and out of one.
         var ease: Double = 1.0
+        /// Within this much p of the cap, slew down before the ease.
+        var approach: Double = 5
         /// Updates further apart than this (sleep, another page) are a wake.
         var wakeGap: Double = 30
 
         init(policy: BroadcastPolicy) {
             jumpMax = policy.jumpMax
             stoppages = policy.skipStoppages
+            approach = policy.approach
         }
 
         init() {}
@@ -235,7 +240,8 @@ struct PresentationClock: Equatable, Sendable {
         } else if tuning.stoppages, d < inputs.target - tuning.deadband, let quiet = inputs.quietUntil, quiet > p {
             // Ahead of the target, inside a stoppage: hold still until the delay has grown to it.
             let until = p + inputs.target
-            plan = Self.capped([Piece(t0: now, p0: p, v0: 0, t1: until), Piece(t0: until, p0: p, v0: 1)], at: inputs.cap, ease: tuning.ease)
+            plan = Self.capped([Piece(t0: now, p0: p, v0: 0, t1: until), Piece(t0: until, p0: p, v0: 1)], at: inputs.cap, ease: tuning.ease,
+                               approach: tuning.approach, slow: tuning.slow)
             regime = .stretching
         } else {
             let r = d > inputs.target + tuning.deadband ? tuning.fast : d < inputs.target - tuning.deadband ? tuning.slow : 1
@@ -257,7 +263,7 @@ struct PresentationClock: Equatable, Sendable {
                 t = reach
             }
             plan.append(Piece(t0: t, p0: pAt, v0: 1))
-            plan = Self.capped(plan, at: inputs.cap, ease: tuning.ease)
+            plan = Self.capped(plan, at: inputs.cap, ease: tuning.ease, approach: tuning.approach, slow: tuning.slow)
         }
         // Seal the pieces' ends.
         for i in plan.indices.dropLast() { plan[i].t1 = plan[i + 1].t0 }
@@ -275,12 +281,20 @@ struct PresentationClock: Equatable, Sendable {
         }
     }
 
-    /// The plan, eased to a stop at `cap`: the first time p would come within
-    /// `ease`·v/2 of it, decelerate uniformly to rest exactly there, then hold.
-    static func capped(_ plan: [Piece], at cap: PTime, ease: Double) -> [Piece] {
+    /// The plan, approaching `cap`: within `approach` of it, no faster than
+    /// `slow` (the slew's low bound); then, the first time p comes within its
+    /// braking distance (`ease`·v/2), a uniform deceleration to rest exactly
+    /// at the cap, and a hold.
+    static func capped(_ plan: [Piece], at cap: PTime, ease: Double, approach: Double = 0, slow: Double = 1) -> [Piece] {
+        guard cap.isFinite else { return plan }
         var out: [Piece] = []
         for piece in plan {
-            // Where easing must begin (p within the braking distance of the cap at this pace).
+            if approach > 0, let t = piece.time(reaching: cap - approach), piece.v(at: t) > slow + 1e-9 {
+                var head = piece
+                head.t1 = t
+                if t > piece.t0 { out.append(head) }
+                return out + capped([Piece(t0: t, p0: piece.p(at: t), v0: slow)], at: cap, ease: ease)
+            }
             let v = max(piece.v0, piece.v(at: min(piece.t1, piece.t0 + 3600)))
             let brake = 0.5 * max(v, 0.01) * ease
             if let t = piece.time(reaching: cap - brake) {

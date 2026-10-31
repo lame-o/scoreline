@@ -29,7 +29,6 @@ enum BroadcastLanes {
         case .basketball:
             // Live-ball lag p50 31 s, p90 47 s (one 4th quarter); miss and rebound arrive together.
             p.priorLag = 47
-            p.leadIn = 2.5
             // A shot clock: something live is logged at least every 24 game seconds, ~3× in wall time when it stops.
             p.quietRunning = 45
             // Free throws trail their foul by 22–89 s; the net is for a play that never comes.
@@ -41,7 +40,7 @@ enum BroadcastLanes {
         case .football:
             // Snap to snap p50 42 s, p90 69–90 s inside a drive; the clock often runs between.
             p.priorLag = 50
-            p.leadIn = 6
+            p.horizons = BindingHorizons(live: 2.5, byKind: ["snap": 3, "kick": 3])
             p.quietRunning = 100
             p.insertionAllowance = 6
             p.safetyGrace = 60
@@ -52,7 +51,6 @@ enum BroadcastLanes {
         case .soccer:
             // Entries every 2 s (p50); dead balls run to 105 s (goals, subs, injuries).
             p.priorLag = 45
-            p.leadIn = 3
             p.quietRunning = 120
             p.safetyGrace = 45
             p.clockCountsDown = false
@@ -64,7 +62,6 @@ enum BroadcastLanes {
         case .baseball:
             // Pitch to pitch p50 20 s, p90 31 s; mound visits ~73 s, pitching changes ~147 s.
             p.priorLag = 35
-            p.leadIn = 4
             p.quietRunning = 150
             p.safetyGrace = 45
             p.clockCountsDown = nil
@@ -364,9 +361,13 @@ enum BroadcastLanes {
             if entry.kind.label == "pitch" {
                 let n = pitchNumber[atBat, default: 0]
                 pitchNumber[atBat] = n + 1
-                if let times = pitchTimes[atBat], n < times.count { e.wallclock = times[n] }
+                if let times = pitchTimes[atBat], n < times.count {
+                    e.wallclock = times[n]
+                    e.reportedSource = .statsapi
+                }
             } else if entry.kind.label == "result", let t = resultTimes[atBat] {
                 e.wallclock = t
+                e.reportedSource = .statsapi
             }
             return e
         }
