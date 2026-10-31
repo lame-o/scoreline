@@ -324,14 +324,48 @@ final class ScoreStore {
     }
 
     /// The game whose score is shown in the menu bar: a pinned game, otherwise a
-    /// followed team that's live or just finished.
+    /// followed team that's live or just finished. While that game's page is
+    /// open, its presented copy (BROADCAST §3: nothing spoils the play the page
+    /// hasn't told yet); otherwise the scoreboard's, as ever.
     var menuBarEvent: Event? {
         let all = results.values.flatMap(\.events)
-        if let pinnedID, let pinned = all.first(where: { $0.id == pinnedID }) { return pinned }
-        guard scoreInMenuBar else { return nil }
-        let mine = all.filter(involvesFollowed)
-        return mine.first { $0.state == .live } ?? mine.first { recentFinals[$0.id] != nil }
+        let chosen: Event?
+        if let pinnedID, let pinned = all.first(where: { $0.id == pinnedID }) {
+            chosen = pinned
+        } else if scoreInMenuBar {
+            let mine = all.filter(involvesFollowed)
+            chosen = mine.first { $0.state == .live } ?? mine.first { recentFinals[$0.id] != nil }
+        } else {
+            chosen = nil
+        }
+        return Self.menuBar(chosen, presented: presentedEvent)
     }
+
+    /// The menu bar's game, as presented while its page is open. (pure; tested)
+    static func menuBar(_ chosen: Event?, presented: Event?) -> Event? {
+        guard let chosen, let presented, presented.id == chosen.id else { return chosen }
+        return presented
+    }
+
+    // MARK: The open page's broadcast
+
+    /// The open game page's presented copy of its game, while it broadcasts.
+    private(set) var presentedEvent: Event?
+
+    /// The page's presented game moved (or the page closed: nil). The menu bar follows it.
+    func present(_ event: Event?) {
+        if presentedEvent != event { presentedEvent = event }
+    }
+
+    /// The page's presented game changed: alerts for it follow the presentation
+    /// (the scoreboard's own alerts for this game are held while the page is open).
+    func notifyPresented(from old: Event, to new: Event) {
+        guard notifyFollowed, involvesFollowed(new) else { return }
+        Notifier.shared.notifyChanges(from: old, to: new)
+    }
+
+    /// Whether the scoreboard's alerts for this game wait for the page (BROADCAST §3). (pure; tested)
+    static func alertsFollowPage(_ eventID: String, presented: Event?) -> Bool { presented?.id == eventID }
 
     // MARK: Presentation
 
@@ -1032,7 +1066,8 @@ final class ScoreStore {
             // That team's next game is news now.
             if involvesFollowed(after) { refreshNextGames(force: true) }
         }
-        if notifyFollowed && involvesFollowed(after) {
+        // While its page is open, the game's alerts follow what the page presents (notifyPresented).
+        if notifyFollowed && involvesFollowed(after) && !Self.alertsFollowPage(after.id, presented: presentedEvent) {
             Notifier.shared.notifyChanges(from: before, to: after)
         }
     }
