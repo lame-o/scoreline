@@ -1040,7 +1040,12 @@ struct DetailView: View {
     /// empty (speed climbing has no wall or scorecard; a cup tie has no
     /// table): the other column lends it a section. Ranks run across the whole
     /// page, so when a span between two blocks is hidden they merge in order.
-    static func wideArrangement(_ shown: [Section], plan: [WidePart]) -> [PlacedSection] {
+    ///
+    /// `ranking` (the user's order) applies within each column: a column keeps
+    /// its modules, so the designed pairs stay side by side, and stacks them
+    /// in the ranking's relative order (`ModuleOrder.merge`, the plan's
+    /// column order as the default).
+    static func wideArrangement(_ shown: [Section], plan: [WidePart], ranking: [String] = []) -> [PlacedSection] {
         let listed = Set(plan.flatMap(\.sections))
         let unlisted = shown.filter { !listed.contains($0) }
         var parts = plan
@@ -1062,7 +1067,8 @@ struct DetailView: View {
         for part in parts {
             switch part {
             case let .columns(left, right):
-                var left = left.filter(visible.contains), right = right.filter(visible.contains)
+                var left = ModuleOrder.arrange(left.filter(visible.contains), by: ranking)
+                var right = ModuleOrder.arrange(right.filter(visible.contains), by: ranking)
                 if left.isEmpty, !right.isEmpty {
                     left = [right.removeFirst()]
                 } else if right.isEmpty, left.count > 1 {
@@ -1080,13 +1086,14 @@ struct DetailView: View {
     /// The sections with something to show, in order, before the sport's hidden modules come out.
     private func available(_ d: GameDetail) -> [Section] { order.filter { has($0, d) } }
 
-    /// The shown sections and where each goes: today's order in one column;
-    /// the sport's plan from 680pt. Hidden modules come out first, so the
+    /// The shown sections and where each goes: the state's plan sorted by
+    /// the sport's order in one column; the sport's plan from 680pt, each
+    /// column in the sport's order. Hidden modules come out first, so the
     /// plan lends a section to a column they'd leave empty.
     private func arrangement(_ d: GameDetail) -> [PlacedSection] {
         let shown = store.modules.shown(available(d), on: pageKind)
         guard layout.split else { return shown.map { PlacedSection(section: $0, slot: MatchSlot()) } }
-        return Self.wideArrangement(shown, plan: Self.widePlan(event.ref, event.state))
+        return Self.wideArrangement(shown, plan: Self.widePlan(event.ref, event.state), ranking: store.modules.ranking(on: pageKind))
     }
 
     /// The room a section has: a column's when split (unless it spans), else the page's.
@@ -1741,7 +1748,7 @@ struct DetailView: View {
                                       setShown: { section, shown in
                                           withAnimation(reduceMotion ? Motion.fade : Motion.standard) { store.modules.hide(section, on: kind, !shown) }
                                       },
-                                      restore: { withAnimation(reduceMotion ? Motion.fade : Motion.standard) { store.modules.showAll(on: kind) } },
+                                      restore: { withAnimation(reduceMotion ? Motion.fade : Motion.standard) { store.modules.restoreDefaults(on: kind) } },
                                       done: closeCustomize)
                     .padding(.top, 44)
             }

@@ -11,6 +11,8 @@ import SwiftUI
 // The keys are shared with the web port (settings.ts): `foldedModules` and
 // `hiddenModules`, each a list of "<page>.<module>", where <page> is the web's
 // `pageKind` and <module> its `Section` (the Mac's `DetailView.Section` names).
+// `moduleOrder` maps each <page> to its modules in the user's order (dragged
+// on the page or in the Customize sheet), merged into each state's plan.
 
 // MARK: - Keys
 
@@ -55,6 +57,8 @@ enum ModuleKeys {
     /// UserDefaults keys (the web's settings keys): each a list of module keys.
     static let folded = "foldedModules"
     static let hidden = "hiddenModules"
+    /// A dictionary: page ("nba") → its module IDs ("liveView", "court"), first first.
+    static let order = "moduleOrder"
 
     /// "nba.liveView", "soccer.pitch", "baseball.atBat": the page, then the module.
     static func key(_ kind: PageKind, _ section: DetailView.Section) -> String {
@@ -62,11 +66,15 @@ enum ModuleKeys {
     }
 }
 
-/// Folded and hidden modules, app-wide. Nothing is either by default: a key
-/// missing from both means shown and open. (pure; tested)
+/// Folded, hidden and reordered modules, app-wide. Nothing is any of them by
+/// default: a key missing from all three means shown, open and in the plan's
+/// place. (pure; tested)
 struct ModuleLayout: Equatable {
     var folded: Set<String> = []
     var hidden: Set<String> = []
+    /// Per page kind ("nba"), the user's ranking of its modules by ID. Only
+    /// Restore Defaults removes one: hiding, folding and other states keep it.
+    var order: [String: [String]] = [:]
 
     func isFolded(_ section: DetailView.Section, on kind: PageKind?) -> Bool {
         kind.map { folded.contains(ModuleKeys.key($0, section)) } ?? false
@@ -88,16 +96,36 @@ struct ModuleLayout: Equatable {
         if on { hidden.insert(key) } else { hidden.remove(key) }
     }
 
-    /// The Customize sheet's Restore Defaults: everything on that sport's
-    /// pages shows again (folds are left as they are; other sports untouched).
+    /// Everything on that sport's pages shows again (folds are left as they
+    /// are; other sports untouched).
     mutating func showAll(on kind: PageKind) {
         hidden = hidden.filter { !$0.hasPrefix(kind.rawValue + ".") }
     }
 
-    /// The page's sections without the hidden ones, in order: what the
-    /// layout (one column or `wideArrangement`) places.
-    func shown(_ sections: [DetailView.Section], on kind: PageKind?) -> [DetailView.Section] {
-        sections.filter { !isHidden($0, on: kind) }
+    /// The Customize sheet's Restore Defaults: every module shows again, in
+    /// each state's own plan. Folds stay; other sports are untouched.
+    mutating func restoreDefaults(on kind: PageKind) {
+        showAll(on: kind)
+        order[kind.rawValue] = nil
+    }
+
+    /// The sport's ranking (empty: the plans' order).
+    func ranking(on kind: PageKind?) -> [String] {
+        kind.flatMap { order[$0.rawValue] } ?? []
+    }
+
+    /// A page's modules took a new order (a drag, Move Up or Down): those
+    /// on the page rank in that order; every other one keeps its place.
+    mutating func rank(_ page: [String], on kind: PageKind?) {
+        guard let kind, !page.isEmpty else { return }
+        order[kind.rawValue] = ModuleOrder.ranked(page: page, previous: ranking(on: kind))
+    }
+
+    /// The page's sections without the hidden ones, in the user's order (or
+    /// `ranking`, a drag's proposal): what the one-column page stacks and
+    /// `wideArrangement` places.
+    func shown(_ sections: [DetailView.Section], on kind: PageKind?, ranking: [String]? = nil) -> [DetailView.Section] {
+        ModuleOrder.arrange(sections.filter { !isHidden($0, on: kind) }, by: ranking ?? self.ranking(on: kind))
     }
 
     /// The sections this page would show but doesn't: the page's end names them.
@@ -152,6 +180,100 @@ extension DetailView {
         var all: [Section] = []
         for section in live + final + scheduled where !all.contains(section) { all.append(section) }
         return all.map { ($0, live.contains($0) && !final.contains($0) && !scheduled.contains($0)) }
+    }
+}
+
+// MARK: - Order
+
+/// The user's order of a sport's modules, one sequence per sport, app-wide:
+/// dragged on any of its pages or in the Customize sheet. Each page merges it
+/// into its own state's plan, so a ranking made live carries to the final
+/// (without what only a live page has), and one made on a final carries to a
+/// live page with the Live View still where its plan puts it. (pure; tested)
+enum ModuleOrder {
+    /// A page's modules, `defaults` (what's on it, in this state's plan),
+    /// sorted by `ranking`. A module the user never ranked keeps its default
+    /// spot beside its default neighbors: it follows the nearest ranked module
+    /// above it in the plan, or, when none is above it, leads the first one.
+    /// Duplicates and IDs not on the page are ignored.
+    static func merge<ID: Hashable>(_ defaults: [ID], ranking: [ID]) -> [ID] {
+        var rank: [ID: Int] = [:]
+        for (i, id) in ranking.enumerated() where rank[id] == nil { rank[id] = i }
+        guard let firstRanked = defaults.first(where: { rank[$0] != nil }) else { return defaults }
+        let ranked = defaults.filter { rank[$0] != nil }.sorted { rank[$0, default: 0] < rank[$1, default: 0] }
+        var leading: [ID] = [], following: [ID: [ID]] = [:]
+        var anchor: ID?
+        for id in defaults {
+            if rank[id] != nil {
+                anchor = id
+            } else if let anchor {
+                following[anchor, default: []].append(id)
+            } else {
+                leading.append(id)
+            }
+        }
+        var result: [ID] = []
+        for id in ranked {
+            if id == firstRanked { result += leading }
+            result.append(id)
+            result += following[id] ?? []
+        }
+        return result
+    }
+
+    /// Sections sorted by a ranking of their IDs (`merge`).
+    static func arrange(_ sections: [DetailView.Section], by ranking: [String]) -> [DetailView.Section] {
+        guard !ranking.isEmpty else { return sections }
+        let byID = Dictionary(sections.map { (sectionID($0), $0) }, uniquingKeysWith: { first, _ in first })
+        return merge(sections.map(sectionID), ranking: ranking).compactMap { byID[$0] }
+    }
+
+    /// The sport's ranking once a page's modules took a new order: those on
+    /// the page rank in the page's order; every other one (live only, hidden,
+    /// another state's) keeps its place beside its neighbors. Nothing already
+    /// ranked ever falls out.
+    static func ranked(page: [String], previous: [String]) -> [String] {
+        var seen = Set<String>()
+        let base = (previous + page).filter { seen.insert($0).inserted }
+        return merge(base, ranking: page)
+    }
+
+    /// A run of the page (a column of the split page) in a new order: its
+    /// modules take the places the run held in the page's sequence, and the
+    /// other column's keep theirs.
+    static func permute(_ sequence: [String], run: [String]) -> [String] {
+        let members = Set(run)
+        guard Set(sequence.filter(members.contains)) == members, sequence.filter(members.contains).count == run.count else { return sequence }
+        var next = run.makeIterator()
+        return sequence.map { members.contains($0) ? next.next() ?? $0 : $0 }
+    }
+
+    /// `id` moved to `index` among the others in `run`.
+    static func move(_ id: String, to index: Int, in run: [String]) -> [String] {
+        var others = run.filter { $0 != id }
+        others.insert(id, at: min(max(index, 0), others.count))
+        return others
+    }
+
+    /// Where a dragged module lands in its run: the slot nearest its top
+    /// edge. `heights`: the run's other modules, top to bottom, as they stand.
+    static func slot(top: CGFloat, runTop: CGFloat, heights: [CGFloat]) -> Int {
+        var y = runTop, best = 0, distance = abs(top - runTop)
+        for (i, height) in heights.enumerated() {
+            y += height
+            if abs(top - y) < distance {
+                best = i + 1
+                distance = abs(top - y)
+            }
+        }
+        return best
+    }
+
+    /// Move Up or Move Down (VoiceOver): the sport's ranking with `id` one
+    /// place along its run, or nil at the run's end.
+    static func step(_ id: String, by delta: Int, run: [String], page: [String], previous: [String]) -> [String]? {
+        guard let i = run.firstIndex(of: id), run.indices.contains(i + delta) else { return nil }
+        return ranked(page: permute(page, run: move(id, to: i + delta, in: run)), previous: previous)
     }
 }
 
