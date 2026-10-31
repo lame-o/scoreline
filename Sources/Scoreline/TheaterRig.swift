@@ -306,8 +306,8 @@ struct RigFacing {
 /// up, slowing), how far through its stride it is, and how much it's
 /// moving at all; and where each foot lands, when it lifts, and where it
 /// lands next. Any frame reads it at t.
-struct RigTrack: Equatable {
-    struct Sample: Equatable {
+struct RigTrack: Equatable, Sendable {
+    struct Sample: Equatable, Sendable {
         var heading: Float
         var phase: Float
         var speed: Float
@@ -320,12 +320,33 @@ struct RigTrack: Equatable {
     /// then. On a step he comes to rest on (`still`), the ground under him
     /// as he stops, and the foot goes where his standing pose puts it: the
     /// last stride lands in his stance, the next leaves from it.
-    struct Step: Equatable {
+    struct Step: Equatable, Sendable {
         var land: Double
         var lift: Double
         var at: CGPoint
         var heading: Double
         var still = false
+    }
+
+    /// The stride as it stands at one instant (CHOREOGRAPHY §5.5.6): what a
+    /// track spliced in there carries on from, so a splice never slides a
+    /// planted foot or jumps a swinging one. Each foot's step under way (down
+    /// where it was planted, its lift still to come; or in the air since it
+    /// lifted), and for a foot in the air the landing it was going to.
+    struct Carry: Equatable, Sendable {
+        var phase: Double
+        var heading: Double
+        var speed: Double
+        var left: Step
+        var right: Step
+        var leftNext: Step?
+        var rightNext: Step?
+
+        /// Standing at `p`, facing `heading`: a figure that hasn't moved yet.
+        static func standing(at p: CGPoint, heading: Double) -> Carry {
+            let step = Step(land: -.infinity, lift: .infinity, at: p, heading: heading, still: true)
+            return Carry(phase: 0, heading: heading, speed: 0, left: step, right: step)
+        }
     }
 
     static let rate = 60.0
@@ -350,23 +371,36 @@ struct RigTrack: Equatable {
     /// `height` tall at `position`, facing what `facing` says when it isn't
     /// moving (or always).
     init(from start: Double, through end: Double, height: Double, position: (Double) -> CGPoint, facing: (Double) -> RigFacing?) {
+        self.init(from: start, through: end, height: height, history: 0, continuing: nil, position: position, facing: facing)
+    }
+
+    /// The same, carrying on from another track's stride at `start` (a
+    /// splice): its phase, heading and steps, a planted foot left where it
+    /// is and a swinging one landing where it was going to. `position` also
+    /// answers for `history` seconds before `start` (the path just behind
+    /// the splice), so the speed's smoothing reads the same there as the
+    /// track it carries on from did.
+    init(from start: Double, through end: Double, height: Double, history: Double, continuing prior: Carry?,
+         position: (Double) -> CGPoint, facing: (Double) -> RigFacing?) {
         self.start = start
         self.end = end
         self.height = height
         let dt = 1 / Self.rate
         let n = max(Int(((end - start) * Self.rate).rounded(.up)), 0)
+        let back = max(Int((history * Self.rate).rounded(.down)), 0)
         func time(_ i: Int) -> Double { i >= n ? end : start + Double(i) * dt }
         // Speed and direction from the path, then smoothed both ways (it's all known): a new move's jump in pace eases.
-        var raw = [Double](repeating: 0, count: n + 1), ways = [Double](repeating: 0, count: n + 1), spots = [CGPoint]()
+        var raw = [Double](repeating: 0, count: n + 1 + back), ways = [Double](repeating: 0, count: n + 1 + back), spots = [CGPoint]()
         spots.reserveCapacity(n + 1)
-        var way = 0.0
-        for i in 0...n {
+        var way = prior?.heading ?? 0
+        for k in 0...(n + back) {
+            let i = k - back
             let t = time(i), a = position(t - dt / 2), b = position(t + dt / 2)
-            spots.append(position(t))
+            if i >= 0 { spots.append(position(t)) }
             let d = hypot(b.x - a.x, b.y - a.y)
-            raw[i] = d / dt / height
+            raw[k] = d / dt / height
             if d / dt > 0.04 * height { way = atan2(b.y - a.y, b.x - a.x) }
-            ways[i] = way
+            ways[k] = way
         }
         func smoothed(_ x: [Double], _ r: Int) -> [Double] {
             guard r > 0, x.count > 2 else { return x }
@@ -379,15 +413,17 @@ struct RigTrack: Equatable {
                 return s / w
             }
         }
-        let speeds = smoothed(raw, 5)
-        let pushes = smoothed(speeds.indices.map { i in
-            (speeds[min(i + 1, n)] - speeds[max(i - 1, 0)]) / (Double(min(i + 1, n) - max(i - 1, 0)) * dt)
+        let all = smoothed(raw, 5)
+        let allPushes = smoothed(all.indices.map { i in
+            (all[min(i + 1, all.count - 1)] - all[max(i - 1, 0)]) / (Double(min(i + 1, all.count - 1) - max(i - 1, 0)) * dt)
         }, 6)
-        // Their first look at what they face.
-        var heading = speeds[0] > 0.3 && !(facing(start)?.always ?? false) ? ways[0] : facing(start).map { f in
-            hypot(f.point.x - spots[0].x, f.point.y - spots[0].y) > 1e-6 ? atan2(f.point.y - spots[0].y, f.point.x - spots[0].x) : ways[0]
-        } ?? ways[0]
-        var phase = 0.0
+        let speeds = Array(all[back...]), pushes = Array(allPushes[back...])
+        let headings = Array(ways[back...])
+        // Their first look at what they face (or the heading carried on).
+        var heading = prior?.heading ?? (speeds[0] > 0.3 && !(facing(start)?.always ?? false) ? headings[0] : facing(start).map { f in
+            hypot(f.point.x - spots[0].x, f.point.y - spots[0].y) > 1e-6 ? atan2(f.point.y - spots[0].y, f.point.x - spots[0].x) : headings[0]
+        } ?? headings[0])
+        var phase = prior?.phase ?? 0.0
         samples.reserveCapacity(n + 1)
         for i in 0...n {
             let t = time(i), v = speeds[i]
@@ -395,7 +431,7 @@ struct RigTrack: Equatable {
                 // Turning: toward where it's going, else what it watches; quickly standing, wider at a sprint.
                 let face = facing(t)
                 var goal: Double?
-                if v > 0.3, face?.always != true { goal = ways[i] } else if let p = face?.point,
+                if v > 0.3, face?.always != true { goal = headings[i] } else if let p = face?.point,
                    hypot(p.x - spots[i].x, p.y - spots[i].y) > 0.05 * height { goal = atan2(p.y - spots[i].y, p.x - spots[i].x) }
                 if let goal {
                     let gap = remainder(goal - heading, 2 * .pi)
@@ -416,8 +452,18 @@ struct RigTrack: Equatable {
         }
         // The steps: each foot lands as its part of the stride comes round, and lifts after its share.
         for (side, offset) in [(0, 0.0), (1, 0.5)] {
-            var steps = [Step(land: -.infinity, lift: .infinity, at: spots[0], heading: Double(samples[0].heading))]
-            var count = floor(offset), down = true
+            let carried = prior.map { side == 0 ? $0.left : $0.right }
+            let landing = prior.flatMap { side == 0 ? $0.leftNext : $0.rightNext }
+            var steps = [carried ?? Step(land: -.infinity, lift: .infinity, at: spots[0], heading: Double(samples[0].heading))]
+            var count = floor(Double(samples[0].phase) + offset), down = true
+            // A foot carried on in the air lands where it was going to; one carried down lifts when its share is up.
+            var fixed: Set<Int> = carried == nil ? [] : [0]
+            if let c = carried, c.lift.isFinite, c.lift <= start {
+                down = false
+            } else if carried != nil {
+                steps[0].lift = .infinity
+            }
+            var pending = down ? nil : landing
             for i in stride(from: 1, through: n, by: 1) {
                 let a = Double(samples[i - 1].phase) + offset, b = Double(samples[i].phase) + offset
                 guard b > a else { continue }
@@ -428,12 +474,24 @@ struct RigTrack: Equatable {
                 }
                 if !down, floor(b) > count {
                     count = floor(b)
-                    steps.append(Step(land: when(count), lift: .infinity, at: .zero, heading: 0))
+                    if var next = pending {
+                        next.lift = .infinity
+                        fixed.insert(steps.count)
+                        steps.append(next)
+                        pending = nil
+                    } else {
+                        steps.append(Step(land: when(count), lift: .infinity, at: .zero, heading: 0))
+                    }
                     down = true
                 }
             }
+            // The landing carried on comes even if the new stride is slower to reach it.
+            if let next = pending {
+                fixed.insert(steps.count)
+                steps.append(next)
+            }
             // Each foot lands under where the hips will be halfway through its time down; or where he stands, if he stops on it.
-            for k in steps.indices {
+            for k in steps.indices where !fixed.contains(k) {
                 let s = steps[k]
                 let from = Int(((max(s.land, start) - start) * Self.rate).rounded(.up)), to = Int(((min(s.lift, end) - start) * Self.rate).rounded(.down))
                 if from <= to, let i = (max(from, 0)...max(min(to, n), 0)).first(where: { samples[$0].weight < 0.04 }) {
@@ -449,6 +507,41 @@ struct RigTrack: Equatable {
             }
             if side == 0 { left = steps } else { right = steps }
         }
+    }
+
+    /// The stride at `t`, to carry on from (CHOREOGRAPHY §5.5.6).
+    func carry(at t: Double) -> Carry {
+        let s = sample(at: t)
+        func foot(_ steps: [Step]) -> (Step, Step?) {
+            guard !steps.isEmpty else { return (Step(land: -.infinity, lift: .infinity, at: .zero, heading: Double(s.heading)), nil) }
+            var lo = 0, hi = steps.count - 1
+            while lo < hi {
+                let mid = (lo + hi + 1) / 2
+                if steps[mid].land <= t { lo = mid } else { hi = mid - 1 }
+            }
+            var step = steps[lo]
+            guard t >= step.lift else {
+                step.lift = .infinity
+                return (step, nil)
+            }
+            return (step, lo + 1 < steps.count ? steps[lo + 1] : nil)
+        }
+        let (l, ln) = foot(left), (r, rn) = foot(right)
+        return Carry(phase: Double(s.phase), heading: Double(s.heading), speed: Double(s.speed), left: l, right: r, leftNext: ln, rightNext: rn)
+    }
+
+    /// Whether each foot is down at `t` (between its landing and its lift).
+    func planted(at t: Double) -> (left: Bool, right: Bool) {
+        func down(_ steps: [Step]) -> Bool {
+            guard !steps.isEmpty else { return true }
+            var lo = 0, hi = steps.count - 1
+            while lo < hi {
+                let mid = (lo + hi + 1) / 2
+                if steps[mid].land <= t { lo = mid } else { hi = mid - 1 }
+            }
+            return t < steps[lo].lift || lo + 1 >= steps.count
+        }
+        return (down(left), down(right))
     }
 
     private func sample(at t: Double) -> Sample {

@@ -44,6 +44,8 @@ enum BroadcastBench {
     }
 
     static func main(_ arguments: [String]) -> Int32 {
+        // The theater bench (TheaterBench.swift): `./test.sh --bench --theater <mode> …`.
+        if arguments.first == "--theater" { return MainActor.assumeIsolated { TheaterBench.main(Array(arguments.dropFirst())) } }
         var root = Recording.defaultRoot
         var recorder = false
         var targets: [String] = []

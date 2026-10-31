@@ -353,6 +353,10 @@ struct SoccerFrame: View, Equatable {
 
     var body: some View {
         Canvas { context, size in
+            #if BENCH
+            let probe = TheaterProbe.open()
+            defer { TheaterProbe.close(probe) }
+            #endif
             let f = projection(size)
             context.clip(to: f.bounds)
             PitchLayer.draw(&context, f, ink: ink)
@@ -1769,3 +1773,10 @@ struct SoccerCelebration: View {
         .accessibilityHidden(true)
     }
 }
+
+#if BENCH
+extension SoccerFrame {
+    /// The bench's sampling and posing of one frame (Tests/TheaterBench.swift): every figure placed and posed at t.
+    func benchPosed(_ size: CGSize) -> Int { posed(projection(size)).count }
+}
+#endif

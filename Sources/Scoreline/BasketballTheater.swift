@@ -478,6 +478,10 @@ struct BasketballFrame: View, Equatable {
 
     var body: some View {
         Canvas { context, size in
+            #if BENCH
+            let probe = TheaterProbe.open()
+            defer { TheaterProbe.close(probe) }
+            #endif
             let h = projection(size)
             context.clip(to: h.bounds)
             HoopsCourtLayer.draw(&context, h, ink: ink, paint: paint)
@@ -1622,3 +1626,10 @@ struct BasketballCelebrationStage: View {
         .accessibilityHidden(true)
     }
 }
+
+#if BENCH
+extension BasketballFrame {
+    /// The bench's sampling and posing of one frame (Tests/TheaterBench.swift): every figure placed and posed at t.
+    func benchPosed(_ size: CGSize) -> Int { posed(projection(size)).count }
+}
+#endif
