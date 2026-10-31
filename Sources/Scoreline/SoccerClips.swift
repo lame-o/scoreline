@@ -27,6 +27,8 @@ struct PitchClip: TheaterClip, @unchecked Sendable {
     let paths: [MotionPath?]
     /// A moment's own time stretched where it asked too much of anyone (ClipWarp).
     let warp: ClipWarp
+    /// The men who still can't make it, faded through (ClipFades).
+    let fades: ClipFades
 
     init(_ script: SoccerScript, scene: SoccerScene?, idle: SoccerIdle?, attacking: GameDetail.Side) {
         self.script = script
@@ -44,13 +46,15 @@ struct PitchClip: TheaterClip, @unchecked Sendable {
                               band: a.team == .official || a.team == .staff ? "official" : a.role == .keeper ? "keeper" : "outfield", height: 2.5)
         }
         let bands = figures.map { MotionLimits.soccer.band($0.band) }
+        // The ball going round loops: its paths aren't re-timed (a run would straddle the loop's seam); the warp slows them.
         let paths = script.actors.indices.map { i -> MotionPath? in
             let a = script.actors[i]
             let contacts = a.actions.filter { [.kick, .header, .control, .throwIn, .gather, .aerial, .punch, .claim].contains($0.kind) }
-            return ClipPaths.resynthesized(a.moves, contacts: contacts.map(\.at), band: bands[i], span: 0...max(script.duration, 0)) { a.position(at: $0) }
+            return ClipPaths.resynthesized(a.moves, contacts: contacts.map(\.at), band: bands[i], span: 0...max(script.duration, 0),
+                                           retime: idle == nil) { a.position(at: $0) }
         }
         self.paths = paths
-        warp = idle != nil ? .identity : ClipWarp.make(length: script.duration, need: { u in
+        let warp = ClipWarp.make(length: script.duration, need: { u in
             var most = 1.0
             for i in paths.indices {
                 guard let path = paths[i], script.actors[i].opacity(at: u) > 0.05, script.actors[i].dive.map({ u < $0.start }) ?? true else { continue }
@@ -60,14 +64,27 @@ struct PitchClip: TheaterClip, @unchecked Sendable {
             }
             return most
         }, steady: { u in script.flights.contains { u > $0.start && u < $0.end && $0.end - $0.start < 1.5 } }) ?? .identity
+        self.warp = warp
         length = idle == nil ? (warp.isIdentity ? script.duration : warp.stretched) : .infinity
+        // Whoever still can't make a moment's run, even slowed, fades through it (declared, counted).
+        fades = idle != nil ? .none : ClipFades.make(figures: paths.count, length: warp.isIdentity ? script.duration : warp.stretched, bands: bands) { i, t in
+            guard let path = paths[i], script.actors[i].dive.map({ warp.script(t) < $0.start }) ?? true else { return 0 }
+            let rate = (warp.script(t + 0.004) - warp.script(t - 0.004)) / 0.008
+            return simd_length(path.velocity(at: warp.script(t))) * rate
+        }
         still = idle == nil ? warp.clip(script.leadIn) : 0
-        decisive = idle == nil ? (script.impacts.first { $0.kind == .net }?.at ?? script.arrive).map(warp.clip) : nil
+        decisive = idle == nil ? warp.clip(script.impacts.first { $0.kind == .net }?.at ?? script.arrive) : nil
         essential = idle == nil ? min(length, (decisive ?? 0) + 1.5) : 0
     }
 
-    /// The script's time at the clip's time `t`: a moment holds its end; the ball going round loops.
-    func local(_ t: Double) -> Double { idle == nil ? min(max(warp.script(t), 0), script.duration) : script.idleTime(t) }
+    /// The script's time at the clip's time `t`: a moment holds its end; the ball going round loops (in its stretched time).
+    func local(_ t: Double) -> Double {
+        guard idle != nil else { return min(max(warp.script(t), 0), script.duration) }
+        guard let loop = script.loop, loop.period > 0 else { return warp.script(min(max(t, 0), warp.clip(script.duration))) }
+        let start = warp.clip(loop.start), period = warp.clip(loop.start + loop.period) - start
+        guard period > 0, t > start + period else { return warp.script(min(max(t, 0), warp.clip(script.duration))) }
+        return warp.script(start + (t - start).truncatingRemainder(dividingBy: period))
+    }
 
     var ambient: Bool { kind == .idle }
 
@@ -79,7 +96,7 @@ struct PitchClip: TheaterClip, @unchecked Sendable {
     }
 
     func heading(_ figure: Int, at t: Double) -> Double { figure < script.rig.count ? script.rig[figure].motion(at: local(t)).heading : 0 }
-    func opacity(_ figure: Int, at t: Double) -> Double { script.actors[figure].opacity(at: local(t)) }
+    func opacity(_ figure: Int, at t: Double) -> Double { script.actors[figure].opacity(at: local(t)) * fades.opacity(figure, at: t) }
 
     func ball(at t: Double) -> ClipBall? {
         let u = local(t)
@@ -95,7 +112,7 @@ struct PitchClip: TheaterClip, @unchecked Sendable {
 
     func moving(at t: Double) -> Bool {
         guard t >= 0 else { return false }
-        return idle == nil ? t <= length : script.beats.contains { $0.contains(script.idleTime(t)) } || script.loop != nil
+        return idle == nil ? t <= length : script.beats.contains { $0.contains(local(t)) } || script.loop != nil
     }
 }
 

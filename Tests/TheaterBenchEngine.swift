@@ -43,6 +43,7 @@ enum EngineRun {
         let size = TheaterBench.Cost.size
         var lastWall: PTime?
         var decisive: [String: (presented: PTime, anchor: PTime)] = [:]
+        var slipped = Set<String>()
         var declaredUntil = -Double.infinity
         var sampled = 0
         let trace = ProcessInfo.processInfo.environment["THEATER_TRACE"] != nil
@@ -67,6 +68,7 @@ enum EngineRun {
                 }
                 print(line)
             }
+            countFades(baked)
             if trace {
                 scan(baked)
                 whySlipped(baked)
@@ -76,10 +78,21 @@ enum EngineRun {
             for p in baked.plan.placements where p.start >= baked.start - 1e-9 {
                 guard let id = p.play, let a = p.anchor, let d = p.clip.decisive else { continue }
                 decisive[id] = (p.offset + d, a + p.shift)
+                // A declared catch-up (told late by the slip), or on time.
+                if p.slip > 1e-3 { slipped.insert(id) } else { slipped.remove(id) }
             }
         }
         /// Each new clip's own frames, before any splice: a step past the cap inside one is the clip's, not the engine's.
         var scanned: Set<String> = []
+        /// The declared fades (a run a clip can't make even slowed), once per clip.
+        var faded: [String: Int] = [:]
+        func countFades(_ baked: BakedPlan<B.Sport.Clip>) {
+            for p in baked.plan.placements where p.start >= baked.start - 1e-9 {
+                guard let id = p.play else { continue }
+                let n = (p.clip as? GridClip)?.fades.count ?? (p.clip as? PitchClip)?.fades.count ?? 0
+                if n > 0 { faded[id] = n }
+            }
+        }
         /// A play that slipped: who needed the time, and why (the violations of a generous travel).
         func whySlipped(_ baked: BakedPlan<B.Sport.Clip>) {
             let limits = B.limits
@@ -108,6 +121,7 @@ enum EngineRun {
                 let key = p.play ?? "rest@\(Int(p.offset))"
                 guard !scanned.contains(key), p.clip.length.isFinite else { continue }
                 scanned.insert(key)
+                if !trace { continue }
                 // The clip's own speed: its worst moment past the sprint, with the path's segment there.
                 var worst: (ratio: Double, i: Int, t: Double) = (0, 0, 0)
                 for i in p.clip.figures.indices {
@@ -241,7 +255,7 @@ enum EngineRun {
             }
             if data || clockChanged || session.chain.isEmpty { replan(t) }
             // One truth on p, as the page has it: the timeline presents each play where the theater's plan puts it.
-            let anchors = session.chain.plans.last?.plan.published ?? [:]
+            let anchors = session.anchors(now: t)
             if anchors != published {
                 published = anchors
                 replay.setAnchors(anchors)
@@ -256,11 +270,12 @@ enum EngineRun {
             }
         }
         var report = meter.report
-        let errors = Array(measured.values)
-        report.decisiveErrors = errors
-        report.catchUps = errors.filter { $0 > 1e-3 }
+        // On time against its anchor (§9.2's gate), and the declared catch-ups apart (their lateness).
+        report.decisiveErrors = measured.filter { !slipped.contains($0.key) }.map(\.value)
+        report.catchUps = measured.filter { slipped.contains($0.key) }.map(\.value)
         _ = decisive
         report.notes.append("plans spliced: \(result.plans)")
+        report.notes.append("declared fades (a run no man could make, faded through): \(faded.values.reduce(0, +)) in \(faded.count) clips")
         result.report = report
         return result
     }

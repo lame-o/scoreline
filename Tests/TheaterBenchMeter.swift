@@ -262,7 +262,7 @@ extension ContinuityReport {
         lines.append("    camera: max pan \(f(cameraPanMax, 3)) view-heights/frame, max yaw step \(f(cameraYawJumpMax, 2))°, max yaw speed \(f(yawSpeedMax, 1))°/s, jumps \(cameraJumps)")
         if !decisiveErrors.isEmpty {
             let abs = decisiveErrors.map { Swift.abs($0) }
-            lines.append("    decisiveError: n=\(abs.count) p50 \(f(Stats.quantile(abs, 0.5), 3)) s, p95 \(f(Stats.quantile(abs, 0.95), 3)) s, max \(f(abs.max() ?? 0, 3)) s")
+            lines.append("    decisiveError (on time; catch-ups apart): n=\(abs.count) p50 \(f(Stats.quantile(abs, 0.5), 3)) s, p95 \(f(Stats.quantile(abs, 0.95), 3)) s, max \(f(abs.max() ?? 0, 3)) s")
         }
         if !catchUps.isEmpty {
             lines.append("    catch-ups: \(catchUps.count), p50 \(f(Stats.quantile(catchUps, 0.5))) s, max \(f(catchUps.max() ?? 0)) s")

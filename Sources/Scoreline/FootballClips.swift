@@ -82,12 +82,14 @@ struct GridClip: TheaterClip, @unchecked Sendable {
         let paths = script.players.indices.map { i -> MotionPath? in
             let p = script.players[i]
             let contacts = p.actions.filter { [.catchHigh, .catchChest, .throwBall, .handoff, .kick, .tackle, .strip, .scoop].contains($0.kind) }
-            return ClipPaths.resynthesized(p.moves, contacts: contacts.map(\.at), band: bands[i], span: 0...max(script.duration, 0)) { p.position(at: $0) }
+            return ClipPaths.resynthesized(p.moves, contacts: contacts.map(\.at), band: bands[i], span: 0...max(script.duration, 0), retime: idle == nil) {
+                p.position(at: $0)
+            }
         }
         self.paths = paths
         // A replay runs slower where anyone would outrun his legs, the ball's flights at their own pace (the field
         // between snaps loops: it keeps its own time).
-        warp = ClipWarp.make(length: script.duration, need: { u in
+        let warp = ClipWarp.make(length: script.duration, need: { u in
             var most = 1.0
             for i in paths.indices {
                 guard let path = paths[i], script.players[i].opacity(at: u) > 0.05 else { continue }
@@ -97,7 +99,14 @@ struct GridClip: TheaterClip, @unchecked Sendable {
             }
             return most
         }, steady: { u in script.flight(at: u).map { $0.end - $0.start < 1.5 } ?? false }) ?? .identity
+        self.warp = warp
         length = idle == nil ? (warp.isIdentity ? script.duration : warp.stretched) : .infinity
+        // Whoever still can't make a replay's run, even slowed, fades through it (declared, counted).
+        fades = idle != nil ? .none : ClipFades.make(figures: paths.count, length: warp.isIdentity ? script.duration : warp.stretched, bands: bands) { i, t in
+            guard let path = paths[i] else { return 0 }
+            let rate = (warp.script(t + 0.004) - warp.script(t - 0.004)) / 0.008
+            return simd_length(path.velocity(at: warp.script(t))) * rate
+        }
         still = idle == nil ? warp.clip(script.leadIn) : 0
         decisive = idle == nil ? Self.decisive(script).map(warp.clip) : nil
         essential = idle == nil ? min(length, (decisive ?? 0) + 1.2) : 0
@@ -105,6 +114,8 @@ struct GridClip: TheaterClip, @unchecked Sendable {
 
     /// A replay's own time stretched where it asked too much of anyone (ClipWarp).
     let warp: ClipWarp
+    /// The men who still can't make it, faded through (ClipFades).
+    let fades: ClipFades
 
     /// The ball dead: the score, else the hit or the catch that ends it, else the incompletion's landing.
     static func decisive(_ s: FootballScript) -> Double? {
@@ -140,7 +151,7 @@ struct GridClip: TheaterClip, @unchecked Sendable {
         return GridWorld.heading(h, right: right)
     }
 
-    func opacity(_ figure: Int, at t: Double) -> Double { script.players[figure].opacity(at: local(t)) }
+    func opacity(_ figure: Int, at t: Double) -> Double { script.players[figure].opacity(at: local(t)) * fades.opacity(figure, at: t) }
 
     func ball(at t: Double) -> ClipBall? {
         let lt = local(t)

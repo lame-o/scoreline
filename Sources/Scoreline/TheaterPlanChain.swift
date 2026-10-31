@@ -39,6 +39,8 @@ struct Plan<Clip: TheaterClip>: Sendable {
     var toldBefore: Set<String> = []
     /// Where each play this plan tells is presented on p (its decisive moment): the timeline presents it there too.
     var published: [String: PTime] = [:]
+    /// Each placed play's decisive moment on the theater's time (the director maps it to p through the clock).
+    var decisive: [String: PTime] = [:]
 
     func placement(at t: PTime) -> Int? {
         guard let first = placements.first else { return nil }

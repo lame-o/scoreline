@@ -130,6 +130,9 @@ struct ClipPlacement<Clip: TheaterClip>: Sendable {
     var shift = 0.0
     /// Every play its telling covers (its own, a miss's rebound, a replay's retold lead-in).
     var covers: [String] = []
+    /// Where each play it tells is presented on p, at the shift it was placed with (its decisive moment; the plays it
+    /// covers at theirs). On the chain they're at these plus `shift`: as the shift moves (a hold, a skip), so do they.
+    var presents: [String: PTime] = [:]
 
     func time(_ p: PTime) -> Double { p - offset }
     func figure(of actor: ActorID) -> Int? { cast.firstIndex(of: actor) }
@@ -477,8 +480,8 @@ enum TheaterPlanner {
             placement.entering = meeting.newcomers
             placement.covers = [unit.id] + unit.covers
             // One truth on p: where each play it tells is presented (its decisive moment; the plays it covers, at theirs).
-            draft.published[unit.id] = data + meeting.slip
-            for id in unit.covers { if let a = anchors[id]?.at { draft.published[id] = a + meeting.slip } }
+            placement.presents[unit.id] = data + meeting.slip
+            for id in unit.covers { if let a = anchors[id]?.at { placement.presents[id] = a + meeting.slip } }
             for (i, id) in meeting.cast.enumerated() { identify(&draft, id, as: clip.figures[i]) }
             draft.placements.append(placement)
             sequencer.handOff(&draft, draft.placements.count - 1)
@@ -497,6 +500,14 @@ enum TheaterPlanner {
         while let last = draft.placements.last, last.offset + last.clip.length < draft.horizon {
             let end = last.offset + last.clip.length
             append(&draft, sequencer.next(after: last.clip, at: end, draft: draft), at: end, limits: limits, sequencer: sequencer, nextID: &nextID)
+        }
+        // Published on p as T runs now: a placement made before a hold or a skip moved the shift presents its plays
+        // where its decisive frame will be drawn, so the score never lands apart from it.
+        for p in draft.placements {
+            for (id, at) in p.presents {
+                draft.published[id] = at + p.shift - shift
+                draft.decisive[id] = at + p.shift
+            }
         }
         var present = Set<ActorID>()
         for p in draft.placements { present.formUnion(p.cast); present.formUnion(p.leaving) }
@@ -589,8 +600,9 @@ enum TheaterHandOff {
 /// where it did), and quintics through them carry him C²: he runs through a
 /// junction, rounds the corner, eases into a start. Nil: he never moves.
 enum ClipPaths {
+    /// `retime`: false for a loop (a re-timed run would straddle its seam; the clip's warp slows it instead).
     static func resynthesized(_ moves: [PlayScript.Move], contacts: [Double], band: MotionLimits.Band, span: ClosedRange<Double>,
-                              position: (Double) -> CGPoint) -> MotionPath? {
+                              retime: Bool = true, position: (Double) -> CGPoint) -> MotionPath? {
         let moves = moves.sorted { $0.start < $1.start }
         guard !moves.isEmpty else { return nil }
         var keys: [MotionKey] = []
@@ -630,7 +642,7 @@ enum ClipPaths {
             keys.insert(MotionKey(t: t, at: SIMD2(at.x, at.y), kind: .through, hard: true), at: index)
         }
         guard keys.count > 1 else { return nil }
-        return TheaterMotion.path(retimed(keys, band: band, span: span), band: band)
+        return TheaterMotion.path(retime ? retimed(keys, band: band, span: span) : keys, band: band)
     }
 
     /// Today's key times kept where a man can make them; where he can't (a
@@ -736,8 +748,8 @@ enum ClipPaths {
 /// before it are free to move apart, in order. Where any man would run past
 /// his sprint (or push past his limits), the script's time runs slower, so
 /// the contacts move later and nobody hurries; the ball's flights keep their
-/// own pace (a pass isn't floated), so the stretch falls on the runs between
-/// them. The stretch is eased in and out (no sudden change of pace), and the
+/// own pace where they can (a short one slows at most by `steadyMost`), so
+/// the stretch falls on the runs between them. The stretch is eased in and out (no sudden change of pace), and the
 /// clip simply starts earlier by what it gained before its decisive moment:
 /// the planner places that moment at its anchor all the same.
 struct ClipWarp: Equatable, Sendable {
@@ -748,8 +760,9 @@ struct ClipWarp: Equatable, Sendable {
     let length: Double
 
     static let identity = ClipWarp(times: [], step: 1, length: 0)
-    /// The most a short flight slows (its pace barely changes to the eye).
-    static let steadyMost = 1.25
+    /// The most a short flight slows when a runner needs the time: the contacts move apart rather than anyone
+    /// outrunning his legs (a pass or a rebound at half its pace at worst; most never slow at all).
+    static let steadyMost = 2.0
 
     var isIdentity: Bool { times.isEmpty }
     /// The clip's length in its own (stretched) time.
@@ -809,5 +822,58 @@ struct ClipWarp: Equatable, Sendable {
         let x = u / step
         let k = min(Int(x), times.count - 2)
         return times[k] + (times[k + 1] - times[k]) * (x - Double(k))
+    }
+}
+
+/// The last resort (§5.5.4, §6): a man today's script moves faster than his
+/// legs even with the clip's time stretched (a far defender it sends into a
+/// tackle) fades out before the stretch he can't make and back in after it,
+/// rather than gliding at a speed no one runs. Declared: the bench counts them.
+struct ClipFades: Equatable, Sendable {
+    /// Per figure, the clip-time spans he's hidden through (each with its fade either side).
+    let spans: [[ClosedRange<Double>]]
+
+    static let none = ClipFades(spans: [])
+    /// The fade either side of a hidden stretch.
+    static let fade = 0.25
+
+    var count: Int { spans.reduce(0) { $0 + $1.count } }
+
+    /// `speed(i, t)`: figure i's speed at the clip's time t (its path through the warp).
+    static func make(figures: Int, length: Double, bands: [MotionLimits.Band], speed: (Int, Double) -> Double) -> ClipFades {
+        guard length.isFinite, length > 0 else { return .none }
+        var spans: [[ClosedRange<Double>]] = Array(repeating: [], count: figures)
+        for i in 0..<figures {
+            let limit = bands[i].sprint * (1 + bands[i].overspeed)
+            var t = 0.0, from: Double?
+            while t <= length {
+                let fast = speed(i, t) > limit
+                if fast, from == nil { from = t }
+                if !fast, let a = from {
+                    spans[i].append((a - fade)...(t + fade))
+                    from = nil
+                }
+                t += 1.0 / 60
+            }
+            if let a = from { spans[i].append((a - fade)...(length + fade)) }
+            // Overlapping fades merge.
+            spans[i] = spans[i].reduce(into: []) { merged, s in
+                if let last = merged.last, s.lowerBound <= last.upperBound + fade { merged[merged.count - 1] = last.lowerBound...max(last.upperBound, s.upperBound) }
+                else { merged.append(s) }
+            }
+        }
+        return ClipFades(spans: spans)
+    }
+
+    /// How much of figure i shows at t: 1 outside his hidden stretches, out and in over `fade` at their ends.
+    func opacity(_ i: Int, at t: Double) -> Double {
+        guard i < spans.count else { return 1 }
+        var o = 1.0
+        for s in spans[i] where t > s.lowerBound && t < s.upperBound {
+            // In from either end over the fade, then gone between.
+            let depth = min(min(t - s.lowerBound, s.upperBound - t) / ClipFades.fade, 1)
+            o = min(o, 1 - TheaterCurve.inOut(depth))
+        }
+        return o
     }
 }

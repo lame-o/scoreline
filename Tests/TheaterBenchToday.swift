@@ -162,7 +162,16 @@ extension Today {
     }
 
     /// Today's basketball stage over a recording: the continuity meter's report.
-    static func basketball(_ recording: Recording, label: String, frameHook: ((Double, [MeterFigure]) -> Void)? = nil) -> ContinuityReport {
+    /// A crossfade under way on today's stage: the frame it leaves (frozen as it was) and how far the new one is in.
+    struct Fade {
+        var script: BasketballScript
+        var scene: BasketballScene?
+        var t: Double
+        var w: Double
+    }
+
+    static func basketball(_ recording: Recording, label: String, frameHook: ((Double, [MeterFigure]) -> Void)? = nil,
+                           render: ((Double, Basketball, Fade?) -> Void)? = nil) -> ContinuityReport {
         let (arrivals, summary) = arrivals(recording)
         guard let summary, let first = arrivals.first else { return ContinuityReport(label: label) }
         let teams = TheaterBench.Samples.nbaTeams(summary)
@@ -175,6 +184,8 @@ extension Today {
         var keys = Keys()
         var lastKey = ""
         var crossfadeUntil = -Double.infinity
+        var leaving: (script: BasketballScript, scene: BasketballScene?, t: Double)?
+        var shownNow: (script: BasketballScript, scene: BasketballScene?, t: Double)?
         var t = first.t
         while t <= end {
             // Plays in (the lane's onChange): the stage advances only when nothing's being told.
@@ -202,9 +213,16 @@ extension Today {
                     change = .crossfade
                     reason = stage.showing != nil ? "beat" : "court between plays"
                     crossfadeUntil = t + 0.28
+                    leaving = shownNow
                 }
             }
             lastKey = key
+            shownNow = current(stage, at: t)
+            if let render {
+                let u = min(max(1 - (crossfadeUntil - t) / 0.28, 0), 1)
+                let w = u < 0.5 ? 2 * u * u : 1 - pow(-2 * u + 2, 2) / 2
+                render(t, stage, t < crossfadeUntil ? leaving.map { Fade(script: $0.script, scene: $0.scene, t: $0.t, w: w) } : nil)
+            }
             let (figures, camera) = present(stage, at: t, keys: &keys, swapped: rekey)
             frameHook?(t, figures)
             meter.add(MeterFrame(t: t, figures: figures, camera: camera, ball: nil, change: change, reason: reason))
@@ -360,5 +378,38 @@ extension Today {
         }
         keys.previous = placed.map { (keys.current[$0.index] ?? 0, $0.figure) }
         return (figures, HoopsWorld.camera(camera, yaw: yaw))
+    }
+}
+
+
+// MARK: - Today's frame, drawn (the video)
+
+extension Today {
+    /// What today's stage has on screen at t: its script, the play, and the script's time.
+    static func current(_ stage: Basketball, at t: Double) -> (script: BasketballScript, scene: BasketballScene?, t: Double)? {
+        if let showing = stage.showing { return (showing.script, showing.unit.scene, min(max(t - showing.start, 0), showing.script.duration)) }
+        if let resting = stage.resting { return (resting.script, nil, max(t - resting.start, 0)) }
+        return nil
+    }
+
+    /// Today's frame at t as the page draws it: mid-bridge the court between plays blends into the replay's set; in a
+    /// crossfade the frame it leaves fades out under the new one.
+    @ViewBuilder
+    static func frame(_ stage: Basketball, at t: Double, fade: Fade?, teams: BasketballTeams, ink: TheaterInk, size: CGSize) -> some View {
+        if let now = current(stage, at: t) {
+            let blend = stage.bridge.flatMap { b -> BasketballFrame.Bridge? in
+                let s = t - b.came
+                guard b.id == stage.showing?.unit.scene.id, s < b.plan.end, b.plan.mode == .bridge else { return nil }
+                return BasketballFrame.Bridge(script: b.script, t: t - b.since, w: b.plan.weight(s), s: s, pairs: b.plan.pairs, tracks: b.tracks)
+            }
+            ZStack {
+                if let fade {
+                    BasketballFrame(scene: fade.scene, script: fade.script, t: fade.t, teams: teams, ink: ink, size: size)
+                        .opacity(1 - fade.w)
+                }
+                BasketballFrame(scene: now.scene, script: now.script, t: now.t, teams: teams, ink: ink, size: size, bridge: blend)
+                    .opacity(fade?.w ?? 1)
+            }
+        }
     }
 }

@@ -1721,7 +1721,10 @@ private struct BasketballDirectedStage: View {
     /// What the frame drew, for the offscreen check.
     private func report(wall: PTime, T: PTime, _ drawn: (clip: HoopsClip, t: Double, world: BasketballFrame.World)) {
         #if DEBUG
-        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id, clipTime: drawn.t, decisive: drawn.clip.decisive))
+        let chain = director.chain
+        let told = chain.plans.last?.plan.placements.compactMap(\.play).suffix(4).joined(separator: ",") ?? ""
+        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id, clipTime: drawn.t, decisive: drawn.clip.decisive,
+                                  note: "seen \(seen) plans \(chain.plans.count) rev \(chain.revision) busy \(director.busy) tells \(told)"))
         #endif
     }
 }

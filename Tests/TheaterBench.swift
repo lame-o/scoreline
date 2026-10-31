@@ -4,6 +4,10 @@ import SwiftUI
 // continuity, before and after the choreography engine, on recorded games.
 //
 //   ./test.sh --bench --theater cost [sport…]          per-frame cost of today's frames (sample + pose, the Canvas, allocations)
+//   ./test.sh --bench --theater today|engine [sport…]  continuity of today's stages and of the engine (THEATER_TRACE=1: every jump;
+//                                                       --twice: the engine run twice, its determinism hashes compared)
+//   ./test.sh --bench --theater engine-cost [sport…]   per-frame cost of the engine's frames (sampling + posing, the Canvas, allocations)
+//   ./test.sh --bench --theater video <out.mp4>        today and the engine side by side on the NBA fixture's dense stretch
 //
 // Every number is measured on this machine, inside this process: the Canvas
 // is drawn through an offscreen ImageRenderer, timed and counted by
@@ -18,7 +22,7 @@ enum TheaterBench {
         var args = arguments
         let mode = args.isEmpty ? "cost" : args.removeFirst()
         // The allocation counter only where allocations are counted (it sees every malloc).
-        if mode == "cost" || args.contains("--cost") { TheaterProbe.install() }
+        if mode.hasSuffix("cost") || args.contains("--cost") { TheaterProbe.install() }
         let wanted = args.filter { !$0.hasPrefix("--") }
         let chosen = wanted.isEmpty ? sports : sports.filter { s in wanted.contains { $0.hasPrefix(s) } }
         switch mode {
@@ -40,28 +44,33 @@ enum TheaterBench {
             for sport in chosen {
                 for (recording, units) in recordings(sport) {
                     let label = "\(recording.sportDirectory) \(recording.event), the engine"
-                    switch sport {
-                    case "basketball":
-                        let run = EngineRun.basketball(recording, label: label)
-                        print(run.report.render(units: units))
-                        print(String(format: "    determinism hash %016llx", run.hash))
-                    case "football":
-                        let run = EngineRun.run(GridBench.self, recording, label: label)
-                        print(run.report.render(units: units))
-                        print(String(format: "    determinism hash %016llx", run.hash))
-                    case "soccer":
-                        let run = EngineRun.run(PitchBench.self, recording, label: label)
-                        print(run.report.render(units: units))
-                        print(String(format: "    determinism hash %016llx", run.hash))
-                    case "baseball":
-                        let run = EngineRun.run(DiamondBench.self, recording, label: label)
-                        print(run.report.render(units: units))
-                        print(String(format: "    determinism hash %016llx", run.hash))
-                    default: print("  \(label): not yet")
+                    guard let run = engine(sport, recording, label: label) else { continue }
+                    print(run.report.render(units: units))
+                    print(String(format: "    determinism hash %016llx", run.hash))
+                    // Run again from scratch: the bench is deterministic when both hashes agree.
+                    if args.contains("--twice"), let again = engine(sport, recording, label: label) {
+                        print(String(format: "    determinism hash, second run %016llx: %@", again.hash, again.hash == run.hash ? "identical" : "DIFFERENT"))
                     }
                 }
             }
             return 0
+        case "engine-cost":
+            for sport in chosen {
+                guard let (recording, _) = recordings(sport).first,
+                      let run = engine(sport, recording, label: "\(recording.sportDirectory) \(recording.event)", cost: true) else { continue }
+                var series = Cost.Series(label: "engine")
+                series.pose = zip(run.sampling, run.cost.pose).map { $0 + $1 }
+                series.poseAllocations = zip(run.samplingAllocations, run.cost.poseAllocations).map { $0 + $1 }
+                series.canvas = run.cost.canvas
+                series.canvasAllocations = run.cost.canvasAllocations
+                var sampling = Cost.Series(label: "sample")
+                sampling.pose = run.sampling
+                sampling.poseAllocations = run.samplingAllocations
+                print(Cost.render(Cost.Report(sport: sport, size: Cost.size, series: [series, sampling]), title: "the engine's frames (sample + pose, the Canvas)"))
+            }
+            return 0
+        case "video":
+            return BenchVideo.run(wanted)
         default:
             print("Unknown theater bench mode: \(mode)")
             return 64
@@ -72,6 +81,17 @@ enum TheaterBench {
 
     /// The theater bench's recordings: Tests/Fixtures/theater/<sport>_<league>/<event>.
     static let root = FixtureProtocol.directory.appendingPathComponent("theater")
+
+    /// A sport through the engine (nil: a sport it doesn't know).
+    static func engine(_ sport: String, _ recording: Recording, label: String, cost: Bool = false) -> EngineRun.Result? {
+        switch sport {
+        case "basketball": EngineRun.run(HoopsBench.self, recording, label: label, cost: cost)
+        case "football": EngineRun.run(GridBench.self, recording, label: label, cost: cost)
+        case "soccer": EngineRun.run(PitchBench.self, recording, label: label, cost: cost)
+        case "baseball": EngineRun.run(DiamondBench.self, recording, label: label, cost: cost)
+        default: nil
+        }
+    }
 
     /// The broadcast's fixtures: soccer's core-lane recording lives there (synthetic until a real one exists).
     static let broadcastRoot = FixtureProtocol.directory.appendingPathComponent("broadcast")
@@ -206,10 +226,10 @@ extension TheaterBench {
             }
         }
 
-        static func render(_ r: Report) -> String {
+        static func render(_ r: Report, title: String = "today's frames") -> String {
             func ms(_ values: [Double], _ q: Double) -> String { String(format: "%.3f", Stats.quantile(values, q) * 1000) }
             func n(_ values: [Int], _ q: Double) -> String { String(format: "%.0f", Stats.quantile(values.map(Double.init), q)) }
-            var lines = ["", "== \(r.sport): per-frame cost, today's frames (\(Int(r.size.width))×\(Int(r.size.height)) pt at \(Int(scale))×)"]
+            var lines = ["", "== \(r.sport): per-frame cost, \(title) (\(Int(r.size.width))×\(Int(r.size.height)) pt at \(Int(scale))×)"]
             lines.append("  kind          frames  pose ms p50/p99/max      allocs p50/p99   canvas ms p50/p99/max    allocs p50/p99   sum p99")
             var all = Series(label: "all")
             for s in r.series {

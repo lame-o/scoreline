@@ -96,6 +96,8 @@ struct TheaterFrameReport: Equatable {
     var play: String?
     var clipTime: Double
     var decisive: Double?
+    /// The director's state, for the check's log (seen, plans, what the newest plan tells).
+    var note = ""
     var reached: Bool { decisive.map { clipTime >= $0 - 1e-6 } ?? false }
 }
 
@@ -184,7 +186,11 @@ private struct TheaterDirecting<Sport: TheaterSport>: ViewModifier {
                 director.timelineDidChange(source.snapshot())
             }
             .onChange(of: source.revision) { _, _ in director.timelineDidChange(source.snapshot()) }
-            .onChange(of: source.clock) { _, clock in clockChanged(clock) }
+            .onChange(of: source.clock) { _, clock in
+                clockChanged(clock)
+                // The clock re-planned: where T reaches each decisive frame on p moved with it.
+                source.setAnchors(director.anchors)
+            }
             .onChange(of: director.chain.revision) { _, _ in
                 source.setAnchors(director.anchors)
                 cues?.publish(director)

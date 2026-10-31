@@ -173,7 +173,7 @@ final class ScoringSlides {
                 continue
             }
             guard let head = line.first, let entry = entries[head.id] else { return }
-            if var ready = entry.ready {
+            if let ready = entry.ready {
                 if time < ready { await Self.sleep(until: ready); continue }
                 // A moment for its logo to decode, so it never arrives as a placeholder.
                 if !logoReady(head), time < ready + Self.logoWait {

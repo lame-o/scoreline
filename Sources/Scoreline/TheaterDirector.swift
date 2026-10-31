@@ -49,6 +49,24 @@ struct TheaterTime: Equatable, Sendable {
         return t
     }
 
+    /// The wall time T reaches `target` on `clock`'s pieces (T never runs backward: a bisection), from `now` on;
+    /// nil if it's already past or beyond a day.
+    func wall(reaching target: PTime, clock: PresentationClock, after now: PTime) -> PTime? {
+        guard at(now, clock: clock) < target else { return nil }
+        var lo = now, hi = now + max(target - at(now, clock: clock), 0.5)
+        var guardSteps = 0
+        while at(hi, clock: clock) < target, guardSteps < 40 {
+            hi = now + (hi - now) * 2
+            guardSteps += 1
+            if hi - now > 86_400 { return nil }
+        }
+        for _ in 0..<60 {
+            let mid = (lo + hi) / 2
+            if at(mid, clock: clock) < target { lo = mid } else { hi = mid }
+        }
+        return hi
+    }
+
     /// Advances to `now` on the clock that ran until then, then applies what the clock did at `now`.
     mutating func advance(to now: PTime, ran clock: PresentationClock, then events: [PresentationClock.Event], now updated: PresentationClock) {
         if wall == nil {
@@ -151,9 +169,10 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
     }
 
     /// What a plan made now would be made from: the splice a quarter second ahead of T, on the chain's grid.
-    mutating func request(now: PTime) -> Request? {
+    /// `lead`: how far ahead of T the splice goes (the time the bake gets; more after a plan came back too late).
+    mutating func request(now: PTime, lead: Double = TheaterTiming.commitLead) -> Request? {
         guard let T = theaterTime(at: now), let history else { return nil }
-        let c = chain.isEmpty ? T : chain.commit(after: T)
+        let c = chain.isEmpty ? T : chain.commit(after: T, lead: lead)
         revision &+= 1
         // While T runs on wall time (a hold) its shift from p grows: anchors go with the shift as it is now.
         let shift = clock.map { T - $0.p(at: now) } ?? time.shift
@@ -177,6 +196,19 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
         return true
     }
 
+    /// Where each placed play is presented on p: the p the clock will show as T reaches its decisive frame (so the
+    /// score, the lists and the court land together however T and p run between now and then); a play whose frame
+    /// is already drawn keeps what was published.
+    func anchors(now: PTime) -> [String: PTime] {
+        guard let plan = chain.plans.last?.plan else { return [:] }
+        var out = plan.published
+        guard let clock, time.started else { return out }
+        for (id, at) in plan.decisive {
+            if let w = time.wall(reaching: at, clock: clock, after: now) { out[id] = clock.p(at: w) }
+        }
+        return out
+    }
+
     /// When the plan runs out (the court between plays needs its next rounds): a wall time to re-plan by.
     func horizonWake(now: PTime) -> PTime? {
         guard let last = chain.plans.last, let T = theaterTime(at: now) else { return nil }
@@ -197,6 +229,9 @@ final class TheaterDirector<Sport: TheaterSport> {
     @ObservationIgnored private(set) var visible = true
     @ObservationIgnored private var pending = false
     @ObservationIgnored private var clock: PresentationClock?
+    /// How far ahead the next splice goes: the commit lead, doubled after a plan comes back past its splice (a slow
+    /// machine, a busy moment) and easing back as plans land in time.
+    @ObservationIgnored private var lead = TheaterTiming.commitLead
     /// Wall time now (the app passes `Date()`'s; tests and the bench a virtual clock).
     @ObservationIgnored var now: () -> PTime = { Date().timeIntervalSince1970 }
 
@@ -208,11 +243,14 @@ final class TheaterDirector<Sport: TheaterSport> {
     /// What the plan is made from (the teams, the viewer's turn).
     var facts: Sport.Facts { session.facts }
 
+    /// A plan is being made (the offscreen check waits for it on its virtual clock).
+    var busy: Bool { baking != nil }
+
     /// The theater's time and its clock, for the view's frame schedule.
     var timing: (time: TheaterTime, clock: PresentationClock)? { session.timing }
 
-    /// Where each play is presented on p (its decisive moment as the plan has it): the timeline presents it there too.
-    var anchors: [String: PTime] { chain.plans.last?.plan.published ?? [:] }
+    /// Where each play is presented on p (as T reaches its decisive frame): the timeline presents it there too.
+    var anchors: [String: PTime] { session.anchors(now: now()) }
 
     /// The plays changed (an ingest, a revision, a removal): re-plan from a quarter second ahead.
     func timelineDidChange(_ snapshot: TimelineSnapshot<RawPlay>) {
@@ -249,16 +287,18 @@ final class TheaterDirector<Sport: TheaterSport> {
             pending = true
             return
         }
-        guard let request = session.request(now: now()) else { return }
+        guard let request = session.request(now: now(), lead: lead) else { return }
         baking = Task { [weak self] in
             let made = await Self.make(request)
             guard let self, !Task.isCancelled else { return }
             self.baking = nil
             if self.session.accept(made.0, nextID: made.nextID, now: self.now()) {
                 self.chain = self.session.chain
+                self.lead = max(TheaterTiming.commitLead, self.lead * 0.75)
                 self.scheduleHorizon()
             } else {
-                // Too late for its splice: again, from now.
+                // Too late for its splice: again, from now, with more room.
+                self.lead = min(self.lead * 2, 4)
                 self.pending = true
             }
             if self.pending {

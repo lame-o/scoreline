@@ -8,7 +8,9 @@ import simd
 // the limits, the cruise), the splice (a new plan reproduces the world it
 // starts from exactly: positions, velocities, accelerations, the stride with
 // its planted feet), the stride carried across it with no foot slip, and the
-// camera's yaw (hysteresis, its dwell, critically damped and capped).
+// camera's yaw (hysteresis, its dwell, critically damped and capped), and
+// retiming as built (a travel always on time, pulling up before turning, a
+// run that beats the legs given its time, a clip's own time stretched).
 
 /// A clip for the tests: each figure on a straight line at its own speed from its own start, the camera on the first.
 private struct LineClip: TheaterClip {
@@ -35,6 +37,7 @@ extension ScorelineTests {
         quintics()
         splice()
         yaw()
+        retiming()
     }
 
     private static func anchorSolver() {
@@ -241,5 +244,47 @@ extension ScorelineTests {
         }
         check(peak <= 45 * .pi / 180 + 1e-9 && overshoot < 1e-6 && abs(op.state.yaw - rule.low) < 1e-3,
               "a change of ends orbits the camera smoothly: critically damped, never past 45°/s", "peak \(peak * 180 / .pi)°/s")
+    }
+
+    /// Retiming (§5.5.4 as built): a travel always lands on time; a man running the wrong way pulls up first; a run
+    /// that beats the legs gets its time (contacts unmoved); a clip's time stretches until nobody outruns his legs.
+    private static func retiming() {
+        let band = MotionLimits.basketball.band("wing")
+        // A travel with too little time still lands where and when it must (the limits check finds the time it needs).
+        let rushed = TheaterMotion.travel(from: .zero, SIMD2(10, 0), .zero, at: 2, to: SIMD2(60, 20), duration: 0.8, band: band, cruiseOver: 12)
+        check(simd_length(rushed.position(at: 2.8) - SIMD2(60, 20)) < 1e-6 && simd_length(rushed.velocity(at: 2.8)) < 1e-6,
+              "a travel short of time still arrives on time, at rest (no man is left behind at the join)")
+        // Running the wrong way, too fast to turn in place: he pulls up within his limits, then goes.
+        let v0 = SIMD2(-22.0, 6)
+        let need = TheaterMotion.shortestTravel(from: .zero, v0, .zero, to: SIMD2(14, 0), band: band, cruiseOver: 12)
+        let back = TheaterMotion.travel(from: .zero, v0, .zero, at: 0, to: SIMD2(14, 0), duration: need, band: band, cruiseOver: 12)
+        check(need < 6 && TheaterMotion.violations(back, from: 0, to: need, band: band).isEmpty && simd_length(back.position(at: need) - SIMD2(14, 0)) < 1e-6,
+              "a man sprinting the wrong way pulls up, then comes back, inside his limits and in a few seconds", "need \(need) s")
+        // A run today's script times faster than his legs: the stop comes later; a ball contact keeps its moment.
+        let keys = [MotionKey(t: 0, at: SIMD2(0, 0), kind: .depart, hard: false), MotionKey(t: 0.3, at: SIMD2(30, 0), kind: .arrive, hard: false),
+                    MotionKey(t: 3.0, at: SIMD2(30, 0), kind: .depart, hard: false), MotionKey(t: 3.6, at: SIMD2(34, 4), kind: .through, hard: true),
+                    MotionKey(t: 4.5, at: SIMD2(36, 4), kind: .arrive, hard: false)]
+        let retimed = ClipPaths.retimed(keys, band: band, span: 0...6)
+        check(retimed[1].t - retimed[0].t >= TheaterMotion.shortest(distance: 30, band: band) - 1e-9 && retimed[3].t == 3.6,
+              "a run faster than the legs gets the time it needs (he arrives later); the catch stays exactly when it was",
+              "\(retimed.map(\.t))")
+        // A clip's time stretches where its script asks too much: in its own time, nobody outruns his legs.
+        let fast = MotionPath(segments: [Quintic(t0: 1, duration: 0.6, from: .zero, .zero, .zero, to: SIMD2(30, 0), .zero, .zero)])
+        let need2: (Double) -> Double = { u in
+            max(simd_length(fast.velocity(at: u)) / (band.sprint * 0.97),
+                (simd_length(fast.acceleration(at: u)) / (min(band.accel, band.decel, band.lateral) * 0.97)).squareRoot())
+        }
+        guard let warp = ClipWarp.make(length: 4, need: need2, steady: { _ in false }) else { return check(false, "a script that asks too much is stretched") }
+        var worst = 0.0
+        var t = 0.0
+        while t < warp.stretched {
+            let a = fast.position(at: warp.script(t)), b = fast.position(at: warp.script(t + 1.0 / 240))
+            worst = max(worst, simd_length(b - a) * 240 / band.sprint)
+            t += 1.0 / 240
+        }
+        check(worst <= 1.0 && warp.stretched > 4 && abs(warp.script(warp.clip(2.5)) - 2.5) < 1e-6 && abs(warp.clip(0.5) - 0.5) < 1e-9,
+              "a clip's own time stretches until nobody outruns his legs (before the move it's the script's own time)",
+              "worst \(worst) of the sprint, length \(warp.stretched)")
+        check(ClipWarp.make(length: 4, need: { _ in 1 }, steady: { _ in false }) == nil, "a script that asks nothing too much keeps its own time")
     }
 }
