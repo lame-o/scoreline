@@ -53,8 +53,12 @@ enum BroadcastLanes {
             p.overtimeLength = path.hasSuffix("college-football") ? 0 : 600
             p.regulationPeriods = 4
             p.priorFastLag = 25
-            // Until its recordings are measured: the NBA's margin and jump.
-            p.margin = 1
+            // Rarely late, as the user chose (BROADCAST §2's football table: two college games
+            // 2026-10-31, our own outages taken out): q 0.95, horizon 2.5 s, margin 10 s,
+            // D ≈ 74 s, live-ball plays past their moment 2.6% (the NBA's level). The NFL
+            // takes college's until its own recordings (2026-11-01) are measured.
+            p.quantile = 0.95
+            p.margin = 10
             p.jumpMax = 40
         case .soccer:
             // Entries every 2 s (p50); dead balls run to 105 s (goals, subs, injuries).
