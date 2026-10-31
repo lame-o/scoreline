@@ -349,14 +349,16 @@ final class ScoreStore {
     private struct Derived {
         let sections: [Section]
         let quietLeagues: [League]
+        let screened: [String: [Event]]
         let liveCount: Int
     }
 
     private var derived: Derived {
         let minute = Int(Date().timeIntervalSince1970 / 60)
         if let cache = derivedCache, cache.version == version, cache.minute == minute { return cache.value }
-        let value = Derived(sections: computeSections(now: .now), quietLeagues: computeQuietLeagues(now: .now),
-                            liveCount: computeLiveCount())
+        let quiet = computeQuietLeagues(now: .now)
+        let value = Derived(sections: computeSections(now: .now), quietLeagues: quiet,
+                            screened: computeScreened(quiet, now: .now), liveCount: computeLiveCount())
         derivedCache = (version, minute, value)
         return value
     }
@@ -378,6 +380,9 @@ final class ScoreStore {
     }
     /// Enabled leagues that loaded fine but have nothing to show.
     var quietLeagues: [League] { derived.quietLeagues }
+    /// Quiet leagues that aren't idle: their team filter hid today's games.
+    /// Those games, live first, so the footnote can say so and offer them.
+    var screened: [String: [Event]] { derived.screened }
     /// Live games the user would see: their filtered leagues plus followed teams.
     var liveCount: Int { derived.liveCount }
 
@@ -416,6 +421,34 @@ final class ScoreStore {
             guard let result = results[league.id], !result.failed else { return false }
             return visible(filtered(result.events, league: league), now: now).isEmpty
         }
+    }
+
+    private func computeScreened(_ quiet: [League], now: Date) -> [String: [Event]] {
+        Self.screened(quiet, results: results, filtered: filteredLeagues, picks: teamFilters, now: now)
+    }
+
+    /// For each quiet league with a team filter on: the games in the window it hid.
+    static func screened(_ quiet: [League], results: [String: LeagueResult], filtered: Set<String>,
+                         picks: [String: Set<String>], now: Date) -> [String: [Event]] {
+        var screened: [String: [Event]] = [:]
+        for league in quiet where league.source != .ifsc && filtered.contains(league.id) && !(picks[league.id] ?? []).isEmpty {
+            let hidden = inWindow(results[league.id]?.events ?? [], now: now)
+            if !hidden.isEmpty { screened[league.id] = hidden }
+        }
+        return screened
+    }
+
+    /// The games the list's window holds, without its fallback to the next
+    /// fixture: what a team filter hid today, not a game days away.
+    static func inWindow(_ events: [Event], now: Date) -> [Event] {
+        let hour: TimeInterval = 3600
+        return events.filter { e in
+            switch e.state {
+            case .live: true
+            case .final: e.start > now - 18 * hour
+            case .scheduled: e.start > now - 6 * hour && e.start < now + 36 * hour
+            }
+        }.sorted(by: order)
     }
 
     private func computeLiveCount() -> Int {

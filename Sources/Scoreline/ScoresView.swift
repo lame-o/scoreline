@@ -482,7 +482,13 @@ struct ScoresView: View {
         VStack(alignment: .leading, spacing: 6) {
             // Say over what period: daily leagues are fetched for today and
             // tomorrow, weekly ones (NFL, college) for the current week.
-            let quiet = store.quietLeagues
+            // A league your team filter emptied isn't idle: it says so, and
+            // offers what's live, instead of "no games".
+            let screened = store.quietLeagues.filter { store.screened[$0.id] != nil }
+            let quiet = store.quietLeagues.filter { store.screened[$0.id] == nil }
+            ForEach(screened) { league in
+                ScreenedLeague(league: league, events: store.screened[league.id] ?? [], onSelect: onSelect)
+            }
             // A quiet league whose calendar knows its next game day links to its schedule.
             let schedule = ScheduleStore.shared
             let known = quiet.filter { schedule.nextDay(for: $0) != nil }
@@ -598,6 +604,57 @@ struct ScoresView: View {
 }
 
 // MARK: - Section header
+
+/// A league whose team filter hid today's games: not "no games" but none of
+/// yours, with any live game one click away. The filter stays as it is.
+private struct ScreenedLeague: View {
+    let league: League
+    let events: [Event]
+    let onSelect: (Event) -> Void
+
+    var body: some View {
+        let live = events.filter { $0.state == .live }
+        VStack(alignment: .leading, spacing: 4) {
+            Text("\(league.name): none of your teams " + (Self.weekly(league) ? "this week" : "today or tomorrow"))
+            ForEach(live.prefix(3)) { event in
+                Button {
+                    onSelect(event)
+                } label: {
+                    HStack(spacing: 5) {
+                        LiveDot()
+                        Text(Self.line(event))
+                            .foregroundStyle(.primary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Open this game (it stays hidden from your \(league.name) teams)")
+                .accessibilityLabel("Live: \(Self.line(event))")
+                .accessibilityHint("Opens the game")
+            }
+            if live.count > 3 {
+                Text("and \(live.count - 3) more live")
+            }
+        }
+    }
+
+    /// Weekly leagues (NFL, college) are fetched for the week, the rest for today and tomorrow.
+    static func weekly(_ league: League) -> Bool {
+        if case .espn(_, true) = league.source { return true }
+        return false
+    }
+
+    /// "Spurs 1–0 C Palace · 42'", in the list's order for the sport.
+    static func line(_ event: Event) -> String {
+        guard case let .match(top, bottom) = event.content else {
+            if case let .field(title, _) = event.content { return title }
+            return ""
+        }
+        let score = [top.score, bottom.score].compactMap { $0 }
+        let middle = score.count == 2 ? " \(score[0])–\(score[1]) " : " v "
+        return top.name + middle + bottom.name + (event.detail.map { " · \($0)" } ?? "")
+    }
+}
 
 private struct SectionHeader: View {
     @Environment(ScoreStore.self) private var store
