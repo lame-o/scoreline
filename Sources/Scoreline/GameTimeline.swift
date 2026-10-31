@@ -377,6 +377,13 @@ struct BroadcastPolicy: Equatable, Sendable {
     var quietRunning: Double = 60
     /// The fast lane's lag behind event time, until it's measured.
     var priorFastLag: Double = 24
+    /// The live-ball kinds whose moment the theater must bind (shots, saves, set
+    /// pieces); nil: every live-ball kind. The others are flow (soccer's passes
+    /// and touches): the director can fold a late one into the flow around it.
+    var decisive: Set<String>?
+    /// Size the delay and the network guard on the decisive kinds only (late flow
+    /// is absorbed by the director, never told out of order). Off: every live-ball kind.
+    var sizeOnDecisive = false
     /// Hold the clock before a score the fast lane has and no play explains. Off (the default, measured
     /// on the bench: it cost ~10 s of delay to tell such baskets on time rather than as micro catch-ups):
     /// the clock keeps time, and the order guard is at the tell (nothing after the score is told before it).
@@ -582,8 +589,18 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
 
     /// Live-ball arrivals at the frontier with trusted event times, by arrival: lag and kind.
     var lags: [(lag: Double, kind: PlayKind)] {
-        records.filter { $0.trusted && $0.arrivalLag != nil }.sorted { $0.firstSeen < $1.firstSeen }
+        records.filter { $0.trusted && $0.arrivalLag != nil && sizes($0.entry.kind) }.sorted { $0.firstSeen < $1.firstSeen }
             .suffix(policy.lagWindow).map { ($0.arrivalLag!, $0.entry.kind) }
+    }
+
+    /// Whether a kind sizes the delay: every live-ball kind, or (`sizeOnDecisive`) the decisive ones.
+    func sizes(_ kind: PlayKind) -> Bool {
+        !policy.sizeOnDecisive || policy.decisive.map { $0.contains(kind.label) } ?? true
+    }
+
+    /// Whether the theater must bind this kind's moment (not flow it can fold in).
+    func isDecisive(_ kind: PlayKind) -> Bool {
+        kind.phase == .live && (policy.decisive.map { $0.contains(kind.label) } ?? true)
     }
 
     /// The live-ball lag quantile (the network guard's freshness allowance).

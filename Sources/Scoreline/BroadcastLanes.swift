@@ -59,6 +59,9 @@ enum BroadcastLanes {
             p.regulationPeriods = 2
             p.priorFastLag = 25
             p.slowPoll = 8
+            // What the director must bind: shots (goals among them), saves, and the
+            // set pieces awarded. Passes and touches are flow it can fold a late one into.
+            p.decisive = BroadcastLanes.soccerDecisive
         case .baseball:
             // Pitch to pitch p50 20 s, p90 31 s; mound visits ~73 s, pitching changes ~147 s.
             p.priorLag = 35
@@ -259,6 +262,9 @@ enum BroadcastLanes {
     /// A soccer entry. Located entries and every shot, goal and save are live;
     /// cards, substitutions, VAR and the half's admin are dead. The clock never
     /// stops but at the half.
+    /// Soccer's decisive kinds (BroadcastPolicy.decisive).
+    static let soccerDecisive: Set<String> = ["shot", "save", "corner", "free kick"]
+
     /// A shot or a goal by its core type. ESPN posts a shot first as a "temp-attempt"
     /// (~37 s after it, p50) and revises it in place to on target, off target or
     /// blocked a minute or more later: the temporary one is the shot. "goal-kick" is a restart, not a goal.
