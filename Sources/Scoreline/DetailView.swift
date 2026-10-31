@@ -902,37 +902,38 @@ struct DetailView: View {
     }
 
     /// What a fan wants first, per sport and state: the live picture while
-    /// it's on; the story of the game once it's over.
+    /// it's on; the story of the game once it's over. Win Probability opens
+    /// every page that has it, right under the Live View when there is one.
     private var order: [Section] { Self.order(event.ref, event.state) }
 
     /// The same, for any sport and state (the Customize sheet lists every state's). The Live View,
-    /// live only, sits above the chart it replays for.
+    /// live only, leads the page; Win Probability, then the chart it replays for, follow it.
     static func order(_ ref: EventRef?, _ state: EventState) -> [Section] {
         switch ref {
         case .espn(_, _, .soccer)?:
             switch state {
-            case .live: return [.liveView, .pitch, .timeline, .winProbability, .stats, .table, .moments, .plays, .whereToWatch]
-            case .final: return [.timeline, .winProbability, .pitch, .moments, .stats, .table, .plays]
+            case .live: return [.liveView, .winProbability, .pitch, .timeline, .stats, .table, .moments, .plays, .whereToWatch]
+            case .final: return [.winProbability, .timeline, .pitch, .moments, .stats, .table, .plays]
             case .scheduled: return [.winProbability, .table, .whereToWatch]
             }
         case .espn(_, _, .baseball)?:
             switch state {
-            case .live: return [.liveView, .atPlate, .atBat, .linescore, .winProbability, .bracket, .moments, .battedBalls, .plays, .whereToWatch]
-            case .final: return [.linescore, .winProbability, .bracket, .moments, .battedBalls, .plays]
+            case .live: return [.liveView, .winProbability, .atPlate, .atBat, .linescore, .bracket, .moments, .battedBalls, .plays, .whereToWatch]
+            case .final: return [.winProbability, .linescore, .bracket, .moments, .battedBalls, .plays]
             case .scheduled: return [.winProbability, .bracket, .whereToWatch]
             }
         case let .espn(path, _, .basketball)? where path == NBADetail.path:
             switch state {
-            case .live: return [.liveView, .court, .flow, .linescore, .leaders, .moments, .box, .stats, .winProbability, .plays, .table,
+            case .live: return [.liveView, .winProbability, .court, .flow, .linescore, .leaders, .moments, .box, .stats, .plays, .table,
                                 .injuries, .whereToWatch]
-            case .final: return [.flow, .court, .winProbability, .linescore, .leaders, .box, .moments, .stats, .table]
-            // Before tip-off: who's out, ESPN's matchup predictor, season leaders.
-            case .scheduled: return [.injuries, .winProbability, .leaders, .table, .whereToWatch]
+            case .final: return [.winProbability, .flow, .court, .linescore, .leaders, .box, .moments, .stats, .table]
+            // Before tip-off: the matchup predictor, who's out, season leaders.
+            case .scheduled: return [.winProbability, .injuries, .leaders, .table, .whereToWatch]
             }
         case .espn?:
             switch state {
-            case .live: return [.liveView, .field, .winProbability, .linescore, .moments, .stats, .table, .plays, .whereToWatch]
-            case .final: return [.linescore, .winProbability, .moments, .stats, .table, .plays]
+            case .live: return [.liveView, .winProbability, .field, .linescore, .moments, .stats, .table, .plays, .whereToWatch]
+            case .final: return [.winProbability, .linescore, .moments, .stats, .table, .plays]
             case .scheduled: return [.winProbability, .table, .whereToWatch]
             }
         case .counterStrike?:
@@ -978,18 +979,21 @@ struct DetailView: View {
     /// events, linescore cells beside the plays they light, climbers' rows
     /// beside the lanes and cards they light. A section's column never changes
     /// at runtime, so a live list growing in one column never moves the other.
+    /// Win Probability is at or near the top of its column: just under the
+    /// court in the NBA (the court stays beside the box score) and under the
+    /// timeline on a soccer final (it stays beside the shot map).
     static func widePlan(_ ref: EventRef?, _ state: EventState) -> [WidePart] {
         switch ref {
         case .espn(_, _, .soccer)?:
             switch state {
-            case .live: [.columns(left: [.liveView, .pitch, .stats, .plays], right: [.timeline, .moments, .winProbability, .table, .whereToWatch])]
+            case .live: [.columns(left: [.liveView, .pitch, .stats, .plays], right: [.winProbability, .timeline, .moments, .table, .whereToWatch])]
             case .final: [.columns(left: [.pitch, .stats], right: [.timeline, .winProbability, .moments, .table, .plays])]
             case .scheduled: [.columns(left: [.table], right: [.winProbability, .whereToWatch])]
             }
         case .espn(_, _, .baseball)?:
             switch state {
             case .live: [.columns(left: [.liveView, .atPlate, .atBat, .battedBalls],
-                                  right: [.linescore, .winProbability, .moments, .bracket, .plays, .whereToWatch])]
+                                  right: [.winProbability, .linescore, .moments, .bracket, .plays, .whereToWatch])]
             case .final: [.columns(left: [.linescore, .battedBalls], right: [.winProbability, .moments, .bracket, .plays])]
             case .scheduled: [.columns(left: [.bracket], right: [.winProbability, .whereToWatch])]
             }
@@ -999,11 +1003,11 @@ struct DetailView: View {
             // player shows only their shots without scrolling, and the
             // leaders below it light the same player on both.
             switch state {
-            case .live: [.columns(left: [.liveView, .court, .flow, .winProbability, .linescore, .moments, .plays, .table],
+            case .live: [.columns(left: [.liveView, .court, .winProbability, .flow, .linescore, .moments, .plays, .table],
                                   right: [.box, .leaders, .stats, .injuries, .whereToWatch])]
             case .final: [.columns(left: [.flow, .court, .winProbability, .linescore, .moments, .table], right: [.box, .leaders, .stats, .injuries])]
             // Before tip-off: who's out and how it shapes up, beside the standings.
-            case .scheduled: [.columns(left: [.injuries, .winProbability, .leaders], right: [.table, .whereToWatch])]
+            case .scheduled: [.columns(left: [.winProbability, .injuries, .leaders], right: [.table, .whereToWatch])]
             }
         case .espn?:
             switch state {

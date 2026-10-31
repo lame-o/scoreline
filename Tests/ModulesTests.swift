@@ -3,7 +3,7 @@ import SwiftUI
 // Collapsible modules on the game page: the keys a fold or a hide is kept
 // under (shared with the web port), what's folded or hidden by default, how
 // hidden modules leave the page before the split page places it, the Live
-// View's own place above its chart, and what each folded module says.
+// View's and Win Probability's places, and what each folded module says.
 // Checked without views.
 
 extension ScorelineTests {
@@ -14,6 +14,7 @@ extension ScorelineTests {
         modulesPage()
         modulesGlances()
         modulesVisibility()
+        modulesWinProbability()
     }
 
     private typealias S = DetailView.Section
@@ -74,9 +75,9 @@ extension ScorelineTests {
     private static func modulesPage() {
         for (ref, chart, name) in [(nbaRef, S.court, "NBA"), (soccerRef, .pitch, "soccer"), (mlbRef, .atPlate, "baseball"), (nflRef, .field, "football")] {
             let live = DetailView.order(ref, .live)
-            let i = live.firstIndex(of: .liveView), j = live.firstIndex(of: chart)
             let chartName = DetailView.moduleName(chart, on: PageKind.of(ref))
-            check(i != nil && j == i.map { $0 + 1 }, "\(name) live: the Live View just above \(chartName)", "\(live)")
+            check(Array(live.prefix(3)) == [.liveView, .winProbability, chart],
+                  "\(name) live: the Live View first, Win Probability under it, then \(chartName)", "\(live)")
             check(!DetailView.order(ref, .final).contains(.liveView) && !DetailView.order(ref, .scheduled).contains(.liveView),
                   "\(name): the Live View is live only")
             let left = DetailView.widePlan(ref, .live).compactMap { part -> [S]? in
@@ -220,5 +221,44 @@ extension ScorelineTests {
         let m = LiveMoment(id: "m", chart: .court, tier: .swing, kind: .made(value: 3), lead: "3-pointer", detail: "Curry")
         check(DockRules.newsLine(moment: m, chartVisibility: V.visible) == nil && DockRules.newsLine(moment: m, chartVisibility: .hidden(.above)) == m,
               "docked bar: the folded header in view has the moment; off screen, the bar's news line")
+    }
+
+    // MARK: Win Probability's default place
+
+    private static func modulesWinProbability() {
+        let gens = EventRef.espn(path: "basketball/wnba", id: "1", sport: .basketball)
+        for (ref, name) in [(nbaRef, "NBA"), (soccerRef, "soccer"), (mlbRef, "baseball"), (nflRef, "football"), (gens, "basketball")] {
+            let live = DetailView.order(ref, .live), final = DetailView.order(ref, .final), pre = DetailView.order(ref, .scheduled)
+            check(live.firstIndex(of: .winProbability) == 1 && live.first == .liveView && final.first == .winProbability
+                  && pre.first == .winProbability,
+                  "\(name): Win Probability right under the Live View live, first before the game and in the final",
+                  "\(live.prefix(3)) | \(final.prefix(2)) | \(pre.prefix(2))")
+        }
+        // A live page without a theater (the WNBA's generic page): Win Probability leads it.
+        var layout = ModuleLayout()
+        layout.hide(.liveView, on: .espn, true)
+        check(layout.shown(DetailView.order(gens, .live), on: .espn).first == .winProbability,
+              "no Live View on the page: Win Probability is the first module, under the score")
+        // Split page: at or near the top of its column, the designed pairs kept.
+        func column(_ ref: EventRef, _ state: EventState) -> [S] {
+            for case let .columns(left, right) in DetailView.widePlan(ref, state) {
+                if left.contains(.winProbability) { return left }
+                if right.contains(.winProbability) { return right }
+            }
+            return []
+        }
+        for (ref, name) in [(nbaRef, "NBA"), (soccerRef, "soccer"), (mlbRef, "baseball"), (nflRef, "football")] {
+            for state in [EventState.live, .final, .scheduled] {
+                // The NBA final keeps the flow, then the court beside the box score: Win Probability is third.
+                let col = column(ref, state).filter { $0 != .liveView }
+                check((col.firstIndex(of: .winProbability) ?? 99) <= (PageKind.of(ref) == .nba && state == .final ? 2 : 1),
+                      "\(name) \(state) split page: Win Probability at or near the top of its column", "\(col)")
+            }
+        }
+        let nbaLive = column(nbaRef, .live), nbaFinal = column(nbaRef, .final)
+        check(Array(nbaLive.prefix(3)) == [.liveView, .court, .winProbability] && nbaFinal.prefix(3).contains(.court),
+              "NBA split page: the court stays beside the box score, Win Probability just under it", "\(nbaLive) | \(nbaFinal)")
+        check(column(soccerRef, .final).first == .timeline && column(soccerRef, .live).first == .winProbability,
+              "soccer split page: a final's timeline stays beside the shot map; live, Win Probability tops the column")
     }
 }
