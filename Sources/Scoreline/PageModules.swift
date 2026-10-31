@@ -547,6 +547,8 @@ struct ModuleHeader<Trailing: View>: View {
                 .fill(Color.primary.opacity(hovering ? 0.06 : 0))
                 // The lift is instant; it fades out.
                 .animation(hovering ? nil : Motion.fade, value: hovering)
+                // Lit, the wash is a filled shape over the button: it mustn't take the click.
+                .allowsHitTesting(false)
         }
         // Under the title and glance, so a click anywhere on them is the disclosure's;
         // a control in the title row stays its own.
