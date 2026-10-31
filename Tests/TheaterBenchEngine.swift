@@ -30,6 +30,7 @@ enum EngineRun {
     static func run<B: BenchSport>(_ sport: B.Type, _ recording: Recording, label: String, cost: Bool = false,
                                    frame: ((PTime, PlanChain<B.Sport.Clip>, FrameScratch) -> Void)? = nil) -> Result {
         var result = Result(report: ContinuityReport(label: label))
+        var planSeconds: [Double] = []
         // The page hands the timeline the theater's binding horizons (late binding): the replay starts with them.
         guard let sport = recording.sport else { return result }
         var policy = BroadcastLanes.policy(sport, path: recording.path)
@@ -53,7 +54,9 @@ enum EngineRun {
         var lastStep: [Int: Double] = [:]
         func replan(_ now: PTime) {
             guard let request = session.request(now: now) else { return }
+            let began = DispatchTime.now().uptimeNanoseconds
             let (baked, next) = TheaterSession<B.Sport>.make(request)
+            planSeconds.append(Double(DispatchTime.now().uptimeNanoseconds - began) / 1e9)
             guard session.accept(baked, nextID: next, now: now) else { return }
             result.plans += 1
             if trace {
@@ -277,6 +280,10 @@ enum EngineRun {
         report.catchUps = measured.filter { slipped.contains($0.key) }.map(\.value)
         _ = decisive
         report.notes.append("plans spliced: \(result.plans)")
+        // What a plan costs to make and bake (off the main actor in the app): the timeline waits up to 5 s for a late play's.
+        let ms = planSeconds.map { $0 * 1000 }
+        report.notes.append(String(format: "plan + bake time: p50 %.1f ms, p99 %.1f ms, max %.1f ms (%d made)",
+                                   Stats.quantile(ms, 0.5), Stats.quantile(ms, 0.99), ms.max() ?? 0, ms.count))
         report.notes.append("declared fades (a run no man could make, faded through): \(faded.values.reduce(0, +)) in \(faded.count) clips")
         result.report = report
         return result

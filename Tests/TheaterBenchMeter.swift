@@ -134,8 +134,8 @@ struct ContinuityMeter {
                 report.teleportMaxDistance = d
             }
             if ratio > 1.5, discontinuous, frame.change == .same, report.jumpLog.count < 40 {
-                report.jumpLog.append(String(format: "t=%.2f key=%d d=%.2f from (%.1f,%.1f) to (%.1f,%.1f) %@", frame.t, f.key, d, p.position.x, p.position.y,
-                                             f.position.x, f.position.y, frame.reason ?? ""))
+                report.jumpLog.append(String(format: "t=%.2f key=%d d=%.2f from (%.1f,%.1f) to (%.1f,%.1f) %@ · %@ (was %@)", frame.t, f.key, d,
+                                             p.position.x, p.position.y, f.position.x, f.position.y, frame.reason ?? "", f.source, p.source))
             }
             if frame.change == .same {
                 report.actorSeconds += dt

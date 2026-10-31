@@ -6,7 +6,8 @@ import SwiftUI
 //   ./test.sh --bench --theater cost [sport…]          per-frame cost of today's frames (sample + pose, the Canvas, allocations)
 //   ./test.sh --bench --theater today|engine [sport…]  continuity of today's stages and of the engine (THEATER_TRACE=1: every jump;
 //                                                       --twice: the engine run twice, its determinism hashes compared;
-//                                                       --real: the recorder's live recordings too, beside the fixtures)
+//                                                       --real: the recorder's live recordings too, beside the fixtures;
+//                                                       --event=ID: that recording only)
 //   ./test.sh --bench --theater engine-cost [sport…]   per-frame cost of the engine's frames (sampling + posing, the Canvas, allocations)
 //   ./test.sh --bench --theater video <out.mp4>        today and the engine side by side on the NBA fixture's dense stretch
 //
@@ -26,6 +27,7 @@ enum TheaterBench {
         if mode.hasSuffix("cost") || args.contains("--cost") { TheaterProbe.install() }
         let wanted = args.filter { !$0.hasPrefix("--") }
         real = args.contains("--real")
+        event = args.first { $0.hasPrefix("--event=") }.map { String($0.dropFirst("--event=".count)) }
         let chosen = wanted.isEmpty ? sports : sports.filter { s in wanted.contains { $0.hasPrefix(s) } }
         switch mode {
         case "cost":
@@ -101,6 +103,8 @@ enum TheaterBench {
     /// `--real`: the recorder's own folder first (the weekend's live recordings, whole, as they are), then the
     /// fixtures it doesn't have (a fixture cut from a recording is skipped for the whole one).
     static var real = false
+    /// `--event=ID`: only that recording.
+    static var event: String?
 
     static func recordings(_ sport: String) -> [(Recording, String)] {
         var roots = sport == "soccer" ? [root, broadcastRoot] : [root]
@@ -108,7 +112,7 @@ enum TheaterBench {
         var seen = Set<String>()
         return roots.flatMap { root in
             Recording.sports(root: root).filter { $0.hasPrefix(sport) }.flatMap { dir in
-                Recording.events(root: root, sport: dir).filter { seen.insert(dir + "/" + $0).inserted }.map {
+                Recording.events(root: root, sport: dir).filter { e in event.map { e.contains($0) } ?? true }.filter { seen.insert(dir + "/" + $0).inserted }.map {
                     (Recording.load(root: root, sport: dir, event: $0, settle: 0), sport == "soccer" ? "m" : "ft")
                 }
             }
