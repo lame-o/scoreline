@@ -39,6 +39,7 @@ extension ScorelineTests {
         yaw()
         retiming()
         oneScheduler()
+        summaryDrives()
     }
 
     private static func anchorSolver() {
@@ -288,6 +289,22 @@ extension ScorelineTests {
               "a clip's own time stretches until nobody outruns his legs (before the move it's the script's own time)",
               "worst \(worst) of the sprint, length \(warp.stretched)")
         check(ClipWarp.make(length: 4, need: { _ in 1 }, steady: { _ in false }) == nil, "a script that asks nothing too much keeps its own time")
+    }
+
+    /// The broadcast's football plays come from the summary's drives, which name teams by id (the core lane by
+    /// reference): the directed field reads both.
+    private static func summaryDrives() {
+        let raw = #"""
+        {"id": "401858278835", "type": {"id": "5", "text": "Rush"}, "text": "(00:09) No Huddle-Shotgun #7 K.Jennings rush middle for 0 yards to the SMU31",
+         "start": {"down": 2, "distance": 10, "yardLine": 69, "team": {"id": "2567"}},
+         "end": {"down": 3, "distance": 10, "yardLine": 69, "team": {"id": "2567"}},
+         "statYardage": 0, "period": {"number": 4}, "clock": {"displayValue": "0:02"}, "wallclock": "2026-10-31T19:34:49Z"}
+        """#
+        let teams = FootballFeed.Teams(topIsHome: false, topID: "183", bottomID: "2567", homeAbbreviation: "SMU", awayAbbreviation: "SYR",
+                                       homeName: "Mustangs", awayName: "Orange")
+        let scene = FootballScene.parse(JSON(data: Data(raw.utf8)), teams: teams)
+        check(scene?.offense == .bottom && scene?.flips == false, "a summary drive's play (teams by id) parses for the directed field",
+              "\(String(describing: scene?.offense))")
     }
 
     /// One scheduler (the theater's anchors are the tell times): an anchored play is told at its anchor though the

@@ -515,8 +515,10 @@ extension FootballScene {
         let college = isCollege(text)
         let kicking = type.contains("kickoff") || type.contains("punt")
         // The team that snapped or kicked: the start's (the play's own team is the receiving one on a kick or a return).
-        let startTeam = idFrom(item["start"]["team"]["$ref"].string, "/teams/")
-        let offense = teams.side(startTeam ?? (kicking ? nil : idFrom(item["team"]["$ref"].string, "/teams/")))
+        // The core lane names teams by reference ("…/teams/21"), the summary's drives by id.
+        func teamID(of node: JSON) -> String? { idFrom(node["team"]["$ref"].string, "/teams/") ?? node["team"]["id"].string }
+        let startTeam = teamID(of: item["start"])
+        let offense = teams.side(startTeam ?? (kicking ? nil : teamID(of: item)))
         guard let offense else { return nil }
         let home = (offense == .top) == teams.topIsHome
         func yard(_ line: Double) -> Double { home ? line : 100 - line }
@@ -544,7 +546,7 @@ extension FootballScene {
         if let down = item["end"]["down"].int, (1...4).contains(down) {
             scene.after = Down(down: down, distance: item["end"]["distance"].int ?? 10)
         }
-        let endTeam = idFrom(item["end"]["team"]["$ref"].string, "/teams/")
+        let endTeam = teamID(of: item["end"])
         scene.flips = startTeam != nil && endTeam != nil && startTeam != endTeam
         if item["scoringPlay"].bool == true {
             switch item["scoringType"]["name"].string {
