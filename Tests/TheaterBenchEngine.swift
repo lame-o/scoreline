@@ -216,6 +216,8 @@ enum EngineRun {
                 let figures = B.figures(drawn, chain, scratch, size: size)
                 var change = MeterFrame.Change.same
                 if T <= declaredUntil { change = .declared }
+                // The theater's time itself jumped (a declared jump or a wake: T moves with p): a declared cut, not a glide.
+                if lastT.isFinite, T - lastT > 2.0 / 60 { change = .declared }
                 // Each decisive moment as it's drawn, against its anchor on p (the clock the theater ran on then).
                 if let plan = chain.plan(at: T)?.plan {
                     for p in plan.placements {

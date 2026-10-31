@@ -94,8 +94,11 @@ struct TheaterFrameReport: Equatable {
     var T: PTime
     var p: PTime
     var play: String?
+    /// The clip's own time (stretched, as its decisive moment is), not its script's.
     var clipTime: Double
     var decisive: Double?
+    /// The plays the newest plan has placed (their decisive frames planned).
+    var placed: Set<String> = []
     /// The director's state, for the check's log (seen, plans, what the newest plan tells).
     var note = ""
     var reached: Bool { decisive.map { clipTime >= $0 - 1e-6 } ?? false }

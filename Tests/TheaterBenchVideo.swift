@@ -60,12 +60,13 @@ enum BenchVideo {
 
     /// One labelled frame image.
     static func image<V: View>(_ view: V, label: String) -> CGImage? {
-        let framed = ZStack(alignment: .bottomLeading) {
+        let framed = ZStack(alignment: .topTrailing) {
             view.frame(width: size.width, height: size.height)
             Text(label)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.75))
-                .padding(8)
+                .padding(.top, 34)
+                .padding(.trailing, 10)
         }
         .frame(width: size.width, height: size.height)
         .background(Color(white: 0.11))

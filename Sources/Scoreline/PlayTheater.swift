@@ -1720,7 +1720,7 @@ private struct PlayDirectedStage: View {
 
     private func report(wall: PTime, T: PTime, _ drawn: (clip: DiamondClip, t: Double, world: PlayFrame.World)) {
         #if DEBUG
-        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id ?? drawn.clip.beat?.id, clipTime: drawn.t,
+        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id ?? drawn.clip.beat?.id, clipTime: drawn.clip.warp.clip(drawn.t),
                                   decisive: drawn.clip.decisive))
         #endif
     }

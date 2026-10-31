@@ -844,7 +844,7 @@ struct ClipFades: Equatable, Sendable {
         guard length.isFinite, length > 0 else { return .none }
         var spans: [[ClosedRange<Double>]] = Array(repeating: [], count: figures)
         for i in 0..<figures {
-            let limit = bands[i].sprint * (1 + bands[i].overspeed)
+            let limit = bands[i].sprint * 1.05
             var t = 0.0, from: Double?
             while t <= length {
                 let fast = speed(i, t) > limit

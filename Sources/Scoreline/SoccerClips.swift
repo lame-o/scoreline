@@ -49,6 +49,8 @@ struct PitchClip: TheaterClip, @unchecked Sendable {
         // The ball going round loops: its paths aren't re-timed (a run would straddle the loop's seam); the warp slows them.
         let paths = script.actors.indices.map { i -> MotionPath? in
             let a = script.actors[i]
+            // A keeper's dive is the script's own (his hands go exactly to the ball): his path stays the script's throughout.
+            guard a.dive == nil else { return nil }
             let contacts = a.actions.filter { [.kick, .header, .control, .throwIn, .gather, .aerial, .punch, .claim].contains($0.kind) }
             return ClipPaths.resynthesized(a.moves, contacts: contacts.map(\.at), band: bands[i], span: 0...max(script.duration, 0),
                                            retime: idle == nil) { a.position(at: $0) }

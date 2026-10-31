@@ -5,7 +5,8 @@ import SwiftUI
 //
 //   ./test.sh --bench --theater cost [sport…]          per-frame cost of today's frames (sample + pose, the Canvas, allocations)
 //   ./test.sh --bench --theater today|engine [sport…]  continuity of today's stages and of the engine (THEATER_TRACE=1: every jump;
-//                                                       --twice: the engine run twice, its determinism hashes compared)
+//                                                       --twice: the engine run twice, its determinism hashes compared;
+//                                                       --real: the recorder's live recordings too, beside the fixtures)
 //   ./test.sh --bench --theater engine-cost [sport…]   per-frame cost of the engine's frames (sampling + posing, the Canvas, allocations)
 //   ./test.sh --bench --theater video <out.mp4>        today and the engine side by side on the NBA fixture's dense stretch
 //
@@ -24,6 +25,7 @@ enum TheaterBench {
         // The allocation counter only where allocations are counted (it sees every malloc).
         if mode.hasSuffix("cost") || args.contains("--cost") { TheaterProbe.install() }
         let wanted = args.filter { !$0.hasPrefix("--") }
+        real = args.contains("--real")
         let chosen = wanted.isEmpty ? sports : sports.filter { s in wanted.contains { $0.hasPrefix(s) } }
         switch mode {
         case "cost":
@@ -96,8 +98,12 @@ enum TheaterBench {
     /// The broadcast's fixtures: soccer's core-lane recording lives there (synthetic until a real one exists).
     static let broadcastRoot = FixtureProtocol.directory.appendingPathComponent("broadcast")
 
+    /// `--real`: the recorder's own folder too (the weekend's live recordings, as they are), not only the fixtures.
+    static var real = false
+
     static func recordings(_ sport: String) -> [(Recording, String)] {
-        let roots = sport == "soccer" ? [root, broadcastRoot] : [root]
+        var roots = sport == "soccer" ? [root, broadcastRoot] : [root]
+        if real { roots.append(Recording.defaultRoot) }
         var seen = Set<String>()
         return roots.flatMap { root in
             Recording.sports(root: root).filter { $0.hasPrefix(sport) }.flatMap { dir in

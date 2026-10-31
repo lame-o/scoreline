@@ -1935,7 +1935,8 @@ private struct FootballDirectedStage: View {
 
     private func report(wall: PTime, T: PTime, _ drawn: (clip: GridClip, t: Double, world: FootballFrame.World)) {
         #if DEBUG
-        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id, clipTime: drawn.t, decisive: drawn.clip.decisive))
+        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id, clipTime: drawn.clip.warp.clip(drawn.t),
+                                  decisive: drawn.clip.decisive))
         #endif
     }
 }

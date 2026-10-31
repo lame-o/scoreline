@@ -162,7 +162,8 @@ extension ScorelineTests {
         guard let state = chain.state(at: c) else { return check(false, "the chain has a state to splice from") }
         let second = LineClip(starts: [SIMD2(70, 10), SIMD2(30, 40), SIMD2(62, 26)], velocities: [.zero, SIMD2(3, 0), .zero], still: 2.5)
         var next: UInt16 = 10
-        let meeting = Splice.meet(second, offset: c + 0.5, earliest: c, limits: .basketball, cast: [0: ids[0], 1: ids[1], 2: ids[2]], nextID: &next) { t in
+        // (Time enough for the first man to turn out of his run and get there: the ramp allows for the turn.)
+        let meeting = Splice.meet(second, offset: c + 1.0, earliest: c, limits: .basketball, cast: [0: ids[0], 1: ids[1], 2: ids[2]], nextID: &next) { t in
             ids.compactMap { id in
                 chain.state(at: t)?.actor(id).map { Splice.Man(state: $0, figure: actors[id]!) }
             }
@@ -262,7 +263,7 @@ extension ScorelineTests {
               "a man sprinting the wrong way pulls up, then comes back, inside his limits and in a few seconds", "need \(need) s")
         // A run today's script times faster than his legs: the stop comes later; a ball contact keeps its moment.
         let keys = [MotionKey(t: 0, at: SIMD2(0, 0), kind: .depart, hard: false), MotionKey(t: 0.3, at: SIMD2(30, 0), kind: .arrive, hard: false),
-                    MotionKey(t: 3.0, at: SIMD2(30, 0), kind: .depart, hard: false), MotionKey(t: 3.6, at: SIMD2(34, 4), kind: .through, hard: true),
+                    MotionKey(t: 3.2, at: SIMD2(30, 0), kind: .depart, hard: false), MotionKey(t: 3.6, at: SIMD2(34, 4), kind: .through, hard: true),
                     MotionKey(t: 4.5, at: SIMD2(36, 4), kind: .arrive, hard: false)]
         let retimed = ClipPaths.retimed(keys, band: band, span: 0...6)
         check(retimed[1].t - retimed[0].t >= TheaterMotion.shortest(distance: 30, band: band) - 1e-9 && retimed[3].t == 3.6,

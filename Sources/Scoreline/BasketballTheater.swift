@@ -1723,8 +1723,13 @@ private struct BasketballDirectedStage: View {
         #if DEBUG
         let chain = director.chain
         let told = chain.plans.last?.plan.placements.compactMap(\.play).suffix(4).joined(separator: ",") ?? ""
-        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id, clipTime: drawn.t, decisive: drawn.clip.decisive,
-                                  note: "seen \(seen) plans \(chain.plans.count) rev \(chain.revision) busy \(director.busy) tells \(told)"))
+        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id, clipTime: drawn.clip.warp.clip(drawn.t),
+                                  decisive: drawn.clip.decisive, placed: Set(chain.plans.last.map { Array($0.plan.decisive.keys) } ?? []),
+                                  note: "seen \(seen) plans \(chain.plans.count) rev \(chain.revision) busy \(director.busy) tells \(told) anchors "
+                                      + director.anchors.sorted { $0.key < $1.key }.suffix(6).map { "\($0.key.suffix(3))@\(String(format: "%.2f", $0.value))" }
+                                      .joined(separator: " ")
+                                      + (chain.plans.last.map { " decisiveT " + $0.plan.decisive.sorted { $0.key < $1.key }.suffix(6)
+                                          .map { "\($0.key.suffix(3))@\(String(format: "%.2f", $0.value))" }.joined(separator: " ") } ?? "")))
         #endif
     }
 }
