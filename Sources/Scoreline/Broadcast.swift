@@ -72,10 +72,10 @@ final class Broadcast: BroadcastTheaterSource {
     /// woke): the scoreboard's, and the scores list's. A shown score never
     /// steps back below it: each side shows max(p's score, the floor) until
     /// p's score reaches it on both sides; then it's gone for good. It goes
-    /// too when the fast lane itself corrects below it (a genuine overturn),
-    /// and after `floorTimeout`. Only the score: the court and the lists still
-    /// tell those plays at p, so the score leads them once, and only by what
-    /// the user had already seen.
+    /// too when the fast lane itself corrects below it (a genuine overturn), when
+    /// a told play takes a score back (a VAR decision), and after `floorTimeout`.
+    /// Only the score: the court and the lists still tell those plays at p, so
+    /// the score leads them once, and only by what the user had already seen.
     private(set) var floor: ScoreLine?
 
     @ObservationIgnored private(set) var engine: BroadcastEngine<RawPlay>?
@@ -112,6 +112,8 @@ final class Broadcast: BroadcastTheaterSource {
     /// When the floor was set (it lapses `floorTimeout` later).
     @ObservationIgnored private var floorSince: PTime = 0
     static let floorTimeout: Double = 120
+    /// p's score when the floor was last settled (a drop since then is a told reversal).
+    @ObservationIgnored private var settledScore: ScoreLine?
 
     /// The moments released since the last call (their play's moment came).
     func takeReleased() -> [LiveMoment] {
@@ -179,11 +181,15 @@ final class Broadcast: BroadcastTheaterSource {
         return ScoreLine(home: max(score.home, floor.home), away: max(score.away, floor.away))
     }
 
-    /// The floor goes once p's score has reached it on both sides, or it has stood for `floorTimeout`.
+    /// The floor goes once p's score has reached it on both sides, when a told
+    /// play takes a score back (a VAR decision: the score the user saw is
+    /// overturned on screen, so the floor goes with it), or after `floorTimeout`.
     private func settleFloor(now: PTime) {
+        defer { settledScore = presented.score }
         guard let f = floor else { return }
         let reached = presented.score.map { $0.home >= f.home && $0.away >= f.away } ?? false
-        if reached || now - floorSince >= Self.floorTimeout { floor = nil }
+        let reversed = settledScore.flatMap { was in presented.score.map { $0.home < was.home || $0.away < was.away } } ?? false
+        if reached || reversed || now - floorSince >= Self.floorTimeout { floor = nil }
     }
 
     /// The page closed (or another game took it): everything shows as today again.

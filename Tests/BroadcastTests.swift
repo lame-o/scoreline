@@ -32,6 +32,8 @@ extension ScorelineTests {
         broadcastRecorderLanes()
         print("\nBroadcast: what the theater plans from")
         broadcastPlanning()
+        print("\nBroadcast: a VAR decision is told, never a quiet correction")
+        broadcastVAR()
     }
 
     // MARK: Helpers
@@ -992,5 +994,112 @@ extension ScorelineTests {
         } else {
             check(false, "the soccer fixture replays")
         }
+    }
+}
+
+
+// MARK: - VAR
+
+extension ScorelineTests {
+    /// The real Chelsea v Manchester United window (Tests/Fixtures/broadcast/soccer_eng.1/401879248):
+    /// a 34th-minute goal at 06:04:37, a VAR check from 06:04:40, the decision
+    /// logged with the check's start time but arriving 132 s later, the check's
+    /// end at 06:06:04, the free kick at 06:06:12. The goal entry itself is
+    /// revised in place to "Deleted After Review" (score back to 0–0).
+    static func broadcastVAR() {
+        func kind(_ type: String, located: Bool = false) -> PlayKind? {
+            var item: [String: Any] = ["id": "1", "type": ["type": type], "period": ["number": 1], "clock": ["value": 600.0],
+                                       "wallclock": "2026-10-31T13:00:00Z"]
+            if located { item["fieldPositionX"] = 0.5 }
+            return BroadcastLanes.soccer(JSON(item), policy: BroadcastLanes.policy(.soccer, path: "soccer/eng.1"))?.kind
+        }
+        check(kind("temp-attempt")?.label == "shot" && kind("temp-attempt")?.phase == .live, "a temporary attempt is the shot (ESPN revises it in place later)")
+        check(kind("goal-kick", located: true)?.label == "entry", "a goal kick is a restart, not a shot")
+        check(kind("var---referee-decision-cancelled")?.announced == true && kind("deleted-after-review")?.announced == true,
+              "VAR decisions are announced kinds")
+        check(kind("start-delay")?.delay == .opens && kind("end-delay")?.delay == .closes, "a delay's start and end")
+
+        let root = URL(fileURLWithPath: "Tests/Fixtures/broadcast")
+        let recording = Recording.load(root: root, sport: "soccer_eng.1", event: "401879248", settle: 0)
+        check(recording.core.count > 15 && !recording.status.isEmpty && !recording.rows.isEmpty,
+              "the real VAR window loads: core looks, status and scoreboard rows", "\(recording.core.count) \(recording.status.count) \(recording.rows.count)")
+        let goal = "54531150", review = "54531246", start = "54531185", end = "54531247", restart = "54531248"
+        let before = ScoreLine(home: 0, away: 1), after = ScoreLine(home: 0, away: 0)
+        for d in [70.0, 40.0] {
+            var policy = BroadcastLanes.policy(.soccer, path: recording.path)
+            policy.minDelay = d
+            policy.maxDelay = d
+            guard var replay = RecordingReplay(recording, policy: policy) else { check(false, "the VAR window replays"); continue }
+            var steps: [(t: PTime, score: ScoreLine?, told: [String], held: Bool)] = []
+            replay.run(.app(replay.policy)) { replay, t, step, _ in
+                let timeline = replay.engine.timeline
+                steps.append((t, timeline.presentedScore(at: replay.engine.p(at: t)), step.told.map(\.id), timeline.heldScore != nil))
+            }
+            let timeline = replay.engine.timeline
+            guard let v = timeline.record(review), let s = timeline.record(start), let e = timeline.record(end),
+                  let goalStep = steps.firstIndex(where: { $0.told.contains(goal) }),
+                  let reviewStep = steps.firstIndex(where: { $0.told.contains(review) }),
+                  let restartStep = steps.firstIndex(where: { $0.told.contains(restart) }) else {
+                check(false, "D \(Int(d)): the goal, the decision and the restart are told", "\(timeline.records.map(\.id))")
+                continue
+            }
+            let tag = "D \(Int(d)) s:"
+            check(v.bounds == s.eventTime...e.eventTime && v.timeSource == .bounded && abs(v.presentAt - (e.eventTime - 1)) < 1e-6,
+                  "\(tag) the decision is placed at the end of the check (bounded by its start and end), not at its stamp",
+                  "\(String(describing: v.bounds)) at \(v.presentAt - e.eventTime)")
+            // (At 40 s the network guard holds p ~50 s back, so it's on time here too; telling an announced
+            // play that comes >30 s late as an event rather than a correction is Phase 0's tell path.)
+            check(v.told == .onTime || v.told == .late, "\(tag) the decision is told as an event, not a quiet correction",
+                  "\(String(describing: v.told))")
+            check(steps[goalStep].score == before, "\(tag) the goal is told with its score (0–1)", "\(String(describing: steps[goalStep].score))")
+            check(steps[goalStep..<reviewStep].allSatisfy { $0.score == before },
+                  "\(tag) the score stays 0–1 until the decision is told (the goal's revision doesn't revert it early)",
+                  steps[goalStep..<reviewStep].map { "\($0.score.map { "\($0.away)-\($0.home)" } ?? "nil")" }.joined(separator: " "))
+            check(steps[reviewStep].score == after, "\(tag) …and reverts to 0–0 with the decision", "\(String(describing: steps[reviewStep].score))")
+            check(restartStep >= reviewStep, "\(tag) the free kick after the decision")
+            if d >= 60 { check(steps.contains { $0.held }, "\(tag) the told score was held while the decision waited its turn") }
+        }
+
+        // An announced play inserted behind told plays (a VAR decision that took minutes): told as an event, late.
+        var behind = GameTimeline<RawPlay>(policy: testPolicy)
+        behind.ingest(look([play("g", at: 100, elapsed: 10, score: ScoreLine(home: 0, away: 1)),
+                            play("k", at: 130, elapsed: 40, score: ScoreLine(home: 0, away: 1))], at: 140))
+        behind.tell(through: 135)
+        var decision = play("v", at: 103, elapsed: 13, live: false, score: ScoreLine(home: 0, away: 0))
+        decision.kind = PlayKind(.dead, "review", announced: true)
+        var fix = play("f", at: 104, elapsed: 14, live: false, score: ScoreLine(home: 0, away: 1))
+        fix.kind = PlayKind(.dead, "other")
+        let inserted = behind.ingest(look([behind.record("g")!.entry, decision, fix, behind.record("k")!.entry], at: 300))
+        check(inserted.lateInsertions == ["v", "f"] && behind.record("v")?.told == .late && behind.record("f")?.told == .correction,
+              "inserted behind told plays: an announced play is told late (an event), anything else a quiet correction",
+              "\(String(describing: behind.record("v")?.told)) \(String(describing: behind.record("f")?.told))")
+
+        // The page: a told reversal takes the floor with it.
+        let policy = BroadcastLanes.policy(.basketball, path: NBADetail.path)
+        var now: PTime = 1100
+        let b = Broadcast()
+        b.automatic = false
+        b.time = BroadcastTime(now: { now })
+        let event = Event(id: "espn-r", content: .match(top: comp("espn-basketball-1", "Away", "9"), bottom: comp("espn-basketball-2", "Home", "9")),
+                          state: .live, start: .now, detail: "9:40 - 1st", caption: nil, link: nil,
+                          ref: .espn(path: NBADetail.path, id: "r", sport: .basketball))
+        let p1 = nbaPlay("r1", at: 1000, clock: "11:00", type: 92, text: "Home makes layup", home: 2, away: 0, shooting: true, scoring: true, team: "2")
+        let p2 = nbaPlay("r2", at: 1010, clock: "10:50", type: 92, text: "Away makes three", home: 2, away: 3, shooting: true, scoring: true)
+        var d = GameDetail()
+        d.topIsHome = false
+        d.broadcastPlays = BroadcastLanes.entries([p1, p2], sport: .basketball, policy: policy)
+        b.begin(event, topIsHome: false)
+        b.ingest(summary: d)
+        let floored = b.floor != nil && b.presented.score == ScoreLine(home: 2, away: 3)
+        // The three is taken back (the play revised to no score); the next play is told after it.
+        let undone = nbaPlay("r2", at: 1010, clock: "10:50", type: 92, text: "Away three overturned", home: 2, away: 0, shooting: true, scoring: false)
+        let reviewPlay = nbaPlay("r3", at: 1058, clock: "10:02", type: 92, text: "Home misses jumper", home: 2, away: 0, shooting: true, team: "2")
+        now = 1105
+        d.broadcastPlays = BroadcastLanes.entries([p1, undone, reviewPlay], sport: .basketball, policy: policy)
+        b.ingest(summary: d)
+        // No review entry: a scorer's fix, quiet as before (no hold); the score falls back and the floor goes.
+        check(floored && b.presented.score == ScoreLine(home: 2, away: 0) && b.floor == nil,
+              "a score taken back on a told play drops the floor (the score the user saw is overturned)",
+              "floored \(floored) \(String(describing: b.presented.score)) floor \(String(describing: b.floor))")
     }
 }

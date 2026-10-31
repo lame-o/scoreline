@@ -57,6 +57,7 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
         var step = Step()
         guard !timeline.isEmpty else { return step }
         replan(now: now, into: &step)
+        timeline.settleHeldScore(now: now)
         // The safety net: a score no play explains, past its grace.
         if let correction = timeline.applySafetyNet(now: now, p: clock.p(at: now), held: clock.stalled(at: now)) {
             step.correction = correction
@@ -112,6 +113,10 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
         if let reading = timeline.fast.unexplainedReading(timeline: timeline),
            let t = clock.wall(reaching: reading.arrived - timeline.fastLag + policy.safetyGrace + 0.01, after: now) {
             candidates.append(t)
+        }
+        // A held score lapsing with nothing left to tell.
+        if timeline.heldScore != nil, timeline.nextUntold == nil, let since = timeline.heldSince {
+            candidates.append(since + GameTimeline<Payload>.heldScoreGrace + 0.01)
         }
         // Slew pieces end: the regime changes (the bench logs D).
         for piece in clock.pieces where piece.t0 > now + 1e-3 { candidates.append(piece.t0) }
