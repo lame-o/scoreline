@@ -12,11 +12,43 @@ extension ScorelineTests {
         columns()
         statusColumn()
         words()
+        screenedLeagues()
     }
 
     private static func game(_ state: EventState, liveLine: String? = nil, caption: String? = nil) -> Event {
         Event(id: "g", content: .match(top: comp("a", "Arsenal"), bottom: comp("b", "Chelsea")), state: state, start: .now,
               detail: nil, caption: caption, link: nil, liveLine: liveLine)
+    }
+
+    // MARK: A team filter that empties a league
+
+    /// Your Premier League filter picks five teams; Spurs v Palace is live. The
+    /// league isn't "no games": it's none of yours, with the live game offered.
+    private static func screenedLeagues() {
+        let now = Date()
+        func match(_ id: String, _ home: String, _ away: String, _ state: EventState, start: Date) -> Event {
+            Event(id: id, content: .match(top: comp(home, home), bottom: comp(away, away)), state: state, start: start,
+                  detail: state == .live ? "42'" : nil, caption: nil, link: nil)
+        }
+        let epl = League.catalog.first { $0.id == "eng.1" }!
+        let results = ["eng.1": LeagueResult(events: [
+            match("final", "che", "mun", .final, start: now - 5 * 3600),
+            match("live", "tot", "cry", .live, start: now - 2400),
+            match("later", "avl", "ful", .scheduled, start: now + 9000),
+            match("weekAway", "ars", "liv", .scheduled, start: now + 6 * 86400),
+        ])]
+        let picks = ["eng.1": Set(["ars", "liv"])]
+        let screened = ScoreStore.screened([epl], results: results, filtered: ["eng.1"], picks: picks, now: now)
+        check(screened["eng.1"]?.map(\.id) == ["live", "later", "final"],
+              "a filter that empties a league: today's hidden games, live first, not the fixture a week away",
+              "\(screened["eng.1"]?.map(\.id) ?? [])")
+        check(ScoreStore.screened([epl], results: results, filtered: [], picks: picks, now: now).isEmpty,
+              "with the filter off, a quiet league is just quiet")
+        check(ScoreStore.screened([epl], results: results, filtered: ["eng.1"], picks: [:], now: now).isEmpty,
+              "a filter with no teams picked hides nothing")
+        let idle = ["eng.1": LeagueResult(events: [match("weekAway", "ars", "liv", .scheduled, start: now + 6 * 86400)])]
+        check(ScoreStore.screened([epl], results: idle, filtered: ["eng.1"], picks: picks, now: now).isEmpty,
+              "nothing today or tomorrow: the league is idle, not screened")
     }
 
     // MARK: Rows
