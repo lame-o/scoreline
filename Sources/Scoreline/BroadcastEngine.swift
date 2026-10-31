@@ -45,6 +45,8 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
 
     /// The theater's solved decisive moments: untold plays are presented at them (one truth for score and slide).
     mutating func setAnchors(_ anchors: [String: PTime]) { timeline.setAnchors(anchors) }
+    /// …and the plays the theater planned from: a newer one waits for its anchor (nil: none waits).
+    mutating func setAnchors(_ anchors: [String: PTime], covering: Set<String>?) { timeline.setAnchors(anchors, covering: covering) }
 
     // MARK: Stepping
 
@@ -85,7 +87,7 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
             default: false
             }
         }
-        step.told += history ? timeline.tellHistory(through: p) : timeline.tell(through: p, barrier: timeline.tellBarrier ?? .infinity)
+        step.told += history ? timeline.tellHistory(through: p) : timeline.tell(through: p, barrier: timeline.tellBarrier ?? .infinity, now: now)
     }
 
     // MARK: Reading
@@ -114,6 +116,8 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
            let t = clock.wall(reaching: reading.arrived - timeline.fastLag + policy.safetyGrace + 0.01, after: now) {
             candidates.append(t)
         }
+        // A play waiting for the theater's anchor past its grace: the fallback tells it.
+        if let deadline = timeline.coverDeadline { candidates.append(deadline + 0.01) }
         // A held score lapsing with nothing left to tell.
         if timeline.heldScore != nil, timeline.nextUntold == nil, let since = timeline.heldSince {
             candidates.append(since + GameTimeline<Payload>.heldScoreGrace + 0.01)

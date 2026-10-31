@@ -480,6 +480,18 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// Anchored plays told while the order guard would have held them (newest last): the guard and the theater
     /// disagreed, which is worth a report (the theater's anchor wins).
     private(set) var guardOverrides: [String] = []
+    /// The plays the theater's newest plan was made from (nil: no theater schedules this timeline). A play past
+    /// them waits for its anchor rather than being told by the fallback first, up to `coverWait` after it arrived.
+    private(set) var covered: Set<String>?
+    /// Plays the fallback told while a theater scheduled (it hadn't anchored them within `coverWait`), newest last:
+    /// worth a report, as the court tells them late.
+    private(set) var uncoveredTells: [String] = []
+    /// How many of each there have been (the lists keep the newest 50).
+    private(set) var guardOverrideCount = 0
+    private(set) var uncoveredTellCount = 0
+    /// How long after it arrived (wall time) a play the theater hasn't planned yet waits for its anchor (a plan
+    /// lands in well under a second; this is for a theater that has stopped planning).
+    static var coverWait: Double { 5 }
     /// When each slow lane was last read successfully, changed or not.
     private var lastRead: [LaneID: PTime] = [:]
     /// The gaps between the slow lane's reads (any lane), newest last.
@@ -1051,10 +1063,30 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// The theater's solved decisive moments (CHOREOGRAPHY §5.1): untold plays
     /// are presented at them, so the score, the lists and the theater agree to the frame.
     mutating func setAnchors(_ solved: [String: PTime]) {
+        setAnchors(solved, covering: covered)
+    }
+
+    /// …and the plays the theater planned from (`covering`): a play past them waits for the next plan's anchor.
+    mutating func setAnchors(_ solved: [String: PTime], covering: Set<String>?) {
+        guard solved != anchors || covering != covered else { return }
+        covered = covering
         guard solved != anchors else { return }
         anchors = solved
         schedule()
         revision &+= 1
+    }
+
+    /// Whether the untold play at `i` waits for the theater: it schedules this timeline, and its newest plan was
+    /// made before the play was known (so it has no anchor yet).
+    private func waitsForTheater(_ i: Int) -> Bool {
+        guard let covered else { return false }
+        return anchors[records[i].id] == nil && !covered.contains(records[i].id)
+    }
+
+    /// When (wall time) the fallback tells the next play if the theater still hasn't anchored it (nil: nothing waits).
+    var coverDeadline: PTime? {
+        guard toldCount < records.count, waitsForTheater(toldCount) else { return nil }
+        return records[toldCount].firstSeen + Self.coverWait
     }
 
     // MARK: Telling
@@ -1070,19 +1102,34 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// order, and the court draws it then). The guard stays the fallback for
     /// plays with no anchor; one it would have held against an anchor is
     /// noted in `guardOverrides` (a bug to report, never a second schedule).
+    /// A play the theater hasn't planned yet (it came in after the newest
+    /// plan was made: a late arrival) waits for its anchor, and every play
+    /// after it with it; the fallback tells it only `coverWait` after it
+    /// arrived (wall time `now`; without one, past its `presentAt`), noted
+    /// in `uncoveredTells`.
     @discardableResult
-    mutating func tell(through p: PTime, reason: TellReason = .onTime, lateAfter: Double = 1.5, barrier: PTime = .infinity) -> [Record] {
+    mutating func tell(through p: PTime, reason: TellReason = .onTime, lateAfter: Double = 1.5, barrier: PTime = .infinity,
+                       now: PTime? = nil) -> [Record] {
         var told: [Record] = []
         var i = toldCount
         while i < records.count, records[i].presentAt <= p,
               records[i].presentAt <= barrier || reason == .history || anchors[records[i].id] != nil {
+            if reason != .history, waitsForTheater(i) {
+                let waited = now.map { $0 - records[i].firstSeen } ?? p - records[i].presentAt
+                guard waited > Self.coverWait else { break }
+                uncoveredTells.append(records[i].id)
+                uncoveredTellCount += 1
+                if uncoveredTells.count > 50 { uncoveredTells.removeFirst() }
+            }
             if reason != .history, records[i].presentAt > barrier {
                 guardOverrides.append(records[i].id)
+                guardOverrideCount += 1
                 if guardOverrides.count > 50 { guardOverrides.removeFirst() }
             }
             var why = reason
             if why == .onTime, records[i].backfill { why = .history }
-            if why == .onTime, p - records[i].presentAt > 30 { why = .correction }
+            // More than 30 s late: a quiet correction, unless it's an announced kind (a VAR decision): told as an event, late.
+            if why == .onTime, p - records[i].presentAt > 30 { why = records[i].entry.kind.announced ? .late : .correction }
             if why == .onTime, p - records[i].presentAt > lateAfter { why = .late }
             records[i].told = why
             records[i].toldAt = p

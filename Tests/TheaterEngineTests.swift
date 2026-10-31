@@ -38,6 +38,7 @@ extension ScorelineTests {
         splice()
         yaw()
         retiming()
+        oneScheduler()
     }
 
     private static func anchorSolver() {
@@ -287,5 +288,76 @@ extension ScorelineTests {
               "a clip's own time stretches until nobody outruns his legs (before the move it's the script's own time)",
               "worst \(worst) of the sprint, length \(warp.stretched)")
         check(ClipWarp.make(length: 4, need: { _ in 1 }, steady: { _ in false }) == nil, "a script that asks nothing too much keeps its own time")
+    }
+
+    /// One scheduler (the theater's anchors are the tell times): an anchored play is told at its anchor though the
+    /// order guard would hold it (and the override is noted); an announced kind (a VAR decision) more than 30 s late
+    /// is told as an event, never as a quiet correction (Chelsea v Man United, 71': a free kick, a ruled-out goal, the
+    /// delay and the decision, 06:59:47–07:00:16, all first seen 07:03:46).
+    private static func oneScheduler() {
+        var timeline = GameTimeline<RawPlay>(policy: testPolicy)
+        // (The opening look is history; the plays under test come after it.)
+        timeline.ingest(look([play("o", at: 900, elapsed: 0)], at: 905))
+        timeline.ingest(look([play("o", at: 900, elapsed: 0), play("a", at: 1000, elapsed: 10),
+                              play("b", at: 1010, elapsed: 20, score: ScoreLine(home: 2, away: 0))], at: 1040))
+        timeline.tellHistory(through: 901)
+        timeline.setAnchors(["a": 1000.5, "b": 1010.8])
+        let told = timeline.tell(through: 1011, barrier: 1005)
+        check(told.map(\.id) == ["a", "b"] && timeline.record("b")?.presentAt == 1010.8 && timeline.guardOverrides == ["b"],
+              "an anchored play is told at its anchor though the order guard would hold it, and the override is noted",
+              "told \(told.map(\.id)), overrides \(timeline.guardOverrides)")
+        var unanchored = GameTimeline<RawPlay>(policy: testPolicy)
+        unanchored.ingest(look([play("o", at: 900, elapsed: 0)], at: 905))
+        unanchored.ingest(look([play("o", at: 900, elapsed: 0), play("a", at: 1000, elapsed: 10), play("b", at: 1010, elapsed: 20)], at: 1040))
+        unanchored.tellHistory(through: 901)
+        check(unanchored.tell(through: 1011, barrier: 1005).map(\.id) == ["a"], "without an anchor the order guard still holds a play (the fallback)")
+
+        // A late arrival: the theater's newest plan was made before "c" was known. It waits for its anchor (and so does
+        // every play after it), then is told there; past the wait, the fallback tells it, noted.
+        var arrival = GameTimeline<RawPlay>(policy: testPolicy)
+        arrival.ingest(look([play("o", at: 900, elapsed: 0)], at: 905))
+        arrival.ingest(look([play("o", at: 900, elapsed: 0), play("a", at: 1000, elapsed: 10)], at: 1001))
+        arrival.tellHistory(through: 901)
+        arrival.setAnchors(["a": 1000.5], covering: ["o", "a"])
+        arrival.ingest(look([play("o", at: 900, elapsed: 0), play("a", at: 1000, elapsed: 10), play("c", at: 1003, elapsed: 13),
+                          play("d", at: 1004, elapsed: 14)], at: 1004))
+        let waited = arrival.tell(through: 1004.5)
+        check(waited.map(\.id) == ["a"] && arrival.coverDeadline == 1009, "a play the theater hasn't planned yet waits for its anchor, and those after it",
+              "told \(waited.map(\.id)), deadline \(String(describing: arrival.coverDeadline))")
+        arrival.setAnchors(["a": 1000.5, "c": 1009, "d": 1009.01], covering: ["o", "a", "c", "d"])
+        let atAnchor = arrival.tell(through: 1009)
+        check(atAnchor.map(\.id) == ["c"] && arrival.record("c")?.told == .onTime && arrival.uncoveredTells.isEmpty,
+              "…then it's told at its anchor (on time), and the next after it", "told \(atAnchor.map(\.id))")
+        var gone = GameTimeline<RawPlay>(policy: testPolicy)
+        gone.ingest(look([play("o", at: 900, elapsed: 0)], at: 905))
+        gone.tellHistory(through: 901)
+        gone.setAnchors([:], covering: ["o"])
+        gone.ingest(look([play("o", at: 900, elapsed: 0), play("c", at: 1003, elapsed: 13)], at: 1004))
+        // The wait runs from its arrival (wall time 1004), however late it came.
+        let early = gone.tell(through: 1020, now: 1008.9), fallback = gone.tell(through: 1020, now: 1009.1)
+        check(early.isEmpty && fallback.map(\.id) == ["c"] && gone.uncoveredTells == ["c"] && gone.record("c")?.told == .late,
+              "with no anchor within the wait after it arrived, the fallback tells it (late), noted",
+              "early \(early.map(\.id)), fallback \(fallback.map(\.id)), noted \(gone.uncoveredTells)")
+        var free = GameTimeline<RawPlay>(policy: testPolicy)
+        free.ingest(look([play("o", at: 900, elapsed: 0)], at: 905))
+        free.tellHistory(through: 901)
+        free.ingest(look([play("o", at: 900, elapsed: 0), play("c", at: 1003, elapsed: 13)], at: 1004))
+        check(free.tell(through: 1003.5).map(\.id) == ["c"], "with no theater scheduling, nothing waits (the timeline's own schedule)")
+
+        // 71': the decision told 210 s after its moment.
+        let base = 1_793_455_187.0   // 06:59:47 PDT
+        var var71 = GameTimeline<RawPlay>(policy: testPolicy)
+        var71.ingest(look([play("54534850", at: base - 120, elapsed: 4100, live: false)], at: base - 110))
+        var71.tellHistory(through: base - 119)
+        var decision = play("54535016", at: base + 29, elapsed: 4260, live: false, score: ScoreLine(home: 1, away: 1))
+        decision.kind = PlayKind(.dead, "review", announced: true)
+        var restart = play("54535017", at: base + 40, elapsed: 4270, live: false)
+        restart.kind = PlayKind(.dead, "other")
+        var71.ingest(look([play("54534850", at: base - 120, elapsed: 4100, live: false), play("54534884", at: base, elapsed: 4232, live: false),
+                           decision, restart], at: base + 239))
+        let late = var71.tell(through: base + 239)
+        check(var71.record("54535016")?.told == .late && var71.record("54535017")?.told == .correction && late.count == 3,
+              "an announced play more than 30 s late is told late, as an event; a plain one is a quiet correction",
+              "\(String(describing: var71.record("54535016")?.told)) \(String(describing: var71.record("54535017")?.told))")
     }
 }

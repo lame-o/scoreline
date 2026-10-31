@@ -873,7 +873,10 @@ extension SoccerScript {
             let landing = CGPoint(x: (set.x + target.x) / 2, y: target.y - (dy >= 0 ? 1 : -1) * min(abs(dy) * 0.35, 1.1))
             script.actors[keeper].dive = Actor.Dive(start: start, reach: max(reach, start + 0.12), target: target, landing: landing)
             mark(keeper, start, set)
-            mark(keeper, reach + 0.32, landing, ease: .out)
+            // His body springs out on the house ease-out (at first about 4.35 times its mean pace), never faster than a
+            // keeper goes: a long dive at a quick shot lands him a little later.
+            let travel = distance(set, landing), quickest = travel * 4.35 / (MotionLimits.soccer.band("keeper").sprint * 1.05)
+            mark(keeper, max(reach + 0.32, start + quickest), landing, ease: .out)
         }
 
         // MARK: Payoff

@@ -44,7 +44,8 @@ protocol BroadcastTheaterSource: AnyObject {
     /// Late binding: each kind's binding horizon (the delay re-sizes from them).
     func setBindingHorizons(_ horizons: BindingHorizons)
     /// The solved decisive moments: untold plays are presented there (one truth for score, lists and theater).
-    func setAnchors(_ anchors: [String: PTime])
+    /// `covering`: the plays the theater planned from; a newer one waits for its anchor (nil: none waits).
+    func setAnchors(_ anchors: [String: PTime], covering: Set<String>?)
 }
 
 /// Wall time for the broadcast: the real clock, or the harness's virtual one.
@@ -302,13 +303,17 @@ final class Broadcast: BroadcastTheaterSource {
     func step(now: PTime? = nil) {
         guard active, var engine else { return }
         let now = now ?? time.now()
-        let overridden = engine.timeline.guardOverrides.count
+        let overridden = engine.timeline.guardOverrideCount, uncovered = engine.timeline.uncoveredTellCount
         let shownBefore = Self.shown(presented.score, floor: floor)
         let result = engine.advance(now: now)
         self.engine = engine
         // The order guard would have held a play the theater anchored: told at the anchor (one scheduler), and noted.
-        for id in engine.timeline.guardOverrides.dropFirst(min(overridden, engine.timeline.guardOverrides.count)) {
+        for id in engine.timeline.guardOverrides.suffix(engine.timeline.guardOverrideCount - overridden) {
             Log.theater.notice("order guard overridden by the theater's anchor for play \(id, privacy: .public)")
+        }
+        // The theater never anchored a play it was scheduling: the fallback told it (the court tells it late).
+        for id in engine.timeline.uncoveredTells.suffix(engine.timeline.uncoveredTellCount - uncovered) {
+            Log.theater.notice("play \(id, privacy: .public) told without the theater's anchor (none within the wait)")
         }
         // Woke (or came back to the page): what the user could see then is the floor again.
         if result.events.contains(where: { if case .wake = $0 { true } else { false } }) {
@@ -744,9 +749,9 @@ final class Broadcast: BroadcastTheaterSource {
         step()
     }
 
-    func setAnchors(_ anchors: [String: PTime]) {
+    func setAnchors(_ anchors: [String: PTime], covering: Set<String>?) {
         guard var engine else { return }
-        engine.setAnchors(anchors)
+        engine.setAnchors(anchors, covering: covering)
         self.engine = engine
         step()
     }

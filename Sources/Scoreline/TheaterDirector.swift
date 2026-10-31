@@ -122,6 +122,10 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
         var nextID: UInt16
         /// Not seen: planned (its anchors are the tell times) but not baked for frames.
         var light = false
+        /// The theater's time jumped with p (a declared jump, a wake): this plan's start is a declared cut.
+        var declared = false
+        /// The timeline's plays it's made from (up to the watermark).
+        var known: Set<String> = []
     }
 
     private(set) var chain = PlanChain<Sport.Clip>()
@@ -129,6 +133,8 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
     /// Plays known when the page opened: shown as the court they left, never told.
     private(set) var history: Set<String>?
     private(set) var plays: [TimelinePlay<Sport.Play>] = []
+    /// The timeline's plays as of the last snapshot (the sport may not scene every one).
+    private var known: Set<String> = []
     var facts: Sport.Facts
     private var nextID: UInt16 = 1
     private var revision: UInt32 = 0
@@ -136,6 +142,8 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
     private var clock: PresentationClock?
     /// p holds (a stall or a stretch): plays past it wait.
     private(set) var holding: PTime?
+    /// A declared jump happened since the last plan: the next one declares its cut.
+    private var declareNext = false
 
     init(facts: Sport.Facts) { self.facts = facts }
 
@@ -161,12 +169,15 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
         let held = updated.regime == .stalled || updated.regime == .stretching
         let wasHolding = holding != nil
         holding = held ? updated.p(at: now) : nil
+        // T moved with p (declared): the plan made next starts with a declared cut.
+        if events.contains(where: { if case .jump = $0 { true } else if case .wake = $0 { true } else { false } }) { declareNext = true }
         return held != wasHolding || abs(time.shift - shiftBefore) > 0.05 || events.contains { if case .skip = $0 { true } else { false } }
     }
 
     /// New plays (or revised, or removed).
     mutating func timelineDidChange(_ snapshot: TimelineSnapshot<RawPlay>) {
         plays = Sport.plays(snapshot, facts: facts)
+        known = Set(snapshot.plays.map(\.id))
         if history == nil { history = Set(plays.map(\.id)) }
     }
 
@@ -178,21 +189,27 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
         revision &+= 1
         // While T runs on wall time (a hold) its shift from p grows: anchors go with the shift as it is now.
         let shift = clock.map { T - $0.p(at: now) } ?? time.shift
-        return Request(plays: plays, history: history, facts: facts, chain: chain, at: c, shift: shift, deferFrom: holding, revision: revision,
-                       nextID: nextID)
+        var request = Request(plays: plays, history: history, facts: facts, chain: chain, at: c, shift: shift, deferFrom: holding,
+                              revision: revision, nextID: nextID)
+        request.declared = declareNext
+        request.known = known
+        return request
     }
 
     /// Plans and bakes (pure; off the main actor in the app).
     static func make(_ request: Request) -> (BakedPlan<Sport.Clip>, nextID: UInt16) {
         var nextID = request.nextID
-        let plan = Sport.plan(request.plays, history: request.history, facts: request.facts, chain: request.chain, at: request.at,
+        var plan = Sport.plan(request.plays, history: request.history, facts: request.facts, chain: request.chain, at: request.at,
                               shift: request.shift, deferFrom: request.deferFrom, revision: request.revision, nextID: &nextID)
+        if request.declared { plan.declared = true }
+        plan.known = request.known.subtracting(plan.deferred)
         return (TheaterBake.bake(plan, light: request.light), nextID)
     }
 
     /// Takes in a baked plan if it's still in time (its splice not yet passed); else it must be made again.
     mutating func accept(_ baked: BakedPlan<Sport.Clip>, nextID: UInt16, now: PTime) -> Bool {
         if let T = theaterTime(at: now), !chain.isEmpty, baked.start < T - 1e-6 { return false }
+        if baked.plan.declared { declareNext = false }
         chain.splice(baked, now: theaterTime(at: now) ?? baked.start)
         self.nextID = max(self.nextID, nextID)
         return true
@@ -210,6 +227,9 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
         }
         return out
     }
+
+    /// The plays the newest plan was made from: the timeline waits for the anchor of one past them (nil: no plan yet).
+    var covering: Set<String>? { chain.plans.last?.plan.known }
 
     /// When the plan runs out (the court between plays needs its next rounds): a wall time to re-plan by.
     func horizonWake(now: PTime) -> PTime? {
@@ -253,6 +273,9 @@ final class TheaterDirector<Sport: TheaterSport> {
 
     /// Where each play is presented on p (as T reaches its decisive frame): the timeline presents it there too.
     var anchors: [String: PTime] { session.anchors(now: now()) }
+
+    /// The plays the newest plan has seen: a newer one waits for its anchor (the court and the score land together).
+    var covering: Set<String>? { session.covering }
 
     /// The plays changed (an ingest, a revision, a removal): re-plan from a quarter second ahead.
     func timelineDidChange(_ snapshot: TimelineSnapshot<RawPlay>) {

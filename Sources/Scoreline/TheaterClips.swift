@@ -509,6 +509,14 @@ enum TheaterPlanner {
         for p in draft.placements {
             for (id, at) in p.presents { fixed[id] = at + p.shift }
         }
+        // The past is fixed: a moment the court reached before this plan's splice (told then) keeps its time.
+        var past = Set<String>()
+        if let previous {
+            for (id, at) in previous.plan.decisive where at <= c + 1e-6 {
+                fixed[id] = at
+                past.insert(id)
+            }
+        }
         let order = sequencer.anchorInputs.map(\.id).filter { !history.contains($0) }
         var ceilings = [PTime](repeating: .infinity, count: order.count)
         var ceiling = PTime.infinity
@@ -523,13 +531,18 @@ enum TheaterPlanner {
             if let f = fixed[id] {
                 at = max(f, floor + step)
             } else if let solved = anchors[id]?.at {
+                // Past the hold, it waits (the clock holds short of it): its moment comes from the plan after.
+                if let deferFrom, solved >= deferFrom {
+                    draft.deferred.insert(id)
+                    continue
+                }
                 at = min(max(solved + shift, floor + step), ceilings[i] - step)
                 at = max(at, floor + step)
             } else {
                 continue
             }
             draft.decisive[id] = at
-            draft.published[id] = at - shift
+            if !past.contains(id) { draft.published[id] = at - shift }
             floor = at
         }
         var present = Set<ActorID>()

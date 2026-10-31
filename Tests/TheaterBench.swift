@@ -98,12 +98,13 @@ enum TheaterBench {
     /// The broadcast's fixtures: soccer's core-lane recording lives there (synthetic until a real one exists).
     static let broadcastRoot = FixtureProtocol.directory.appendingPathComponent("broadcast")
 
-    /// `--real`: the recorder's own folder too (the weekend's live recordings, as they are), not only the fixtures.
+    /// `--real`: the recorder's own folder first (the weekend's live recordings, whole, as they are), then the
+    /// fixtures it doesn't have (a fixture cut from a recording is skipped for the whole one).
     static var real = false
 
     static func recordings(_ sport: String) -> [(Recording, String)] {
         var roots = sport == "soccer" ? [root, broadcastRoot] : [root]
-        if real { roots.append(Recording.defaultRoot) }
+        if real { roots.insert(Recording.defaultRoot, at: 0) }
         var seen = Set<String>()
         return roots.flatMap { root in
             Recording.sports(root: root).filter { $0.hasPrefix(sport) }.flatMap { dir in

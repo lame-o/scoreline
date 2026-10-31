@@ -41,6 +41,11 @@ struct Plan<Clip: TheaterClip>: Sendable {
     var published: [String: PTime] = [:]
     /// Each placed play's decisive moment on the theater's time (the director maps it to p through the clock).
     var decisive: [String: PTime] = [:]
+    /// The timeline's plays this plan was made from: one it hasn't seen waits for the next plan's anchor, never told
+    /// by the timeline's fallback first.
+    var known: Set<String> = []
+    /// Plays past the hold, left for the plan after it (the timeline waits for their anchors too).
+    var deferred: Set<String> = []
 
     func placement(at t: PTime) -> Int? {
         guard let first = placements.first else { return nil }
