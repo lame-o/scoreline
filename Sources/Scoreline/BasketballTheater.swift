@@ -739,7 +739,13 @@ struct BasketballFrame: View, Equatable {
         let still = stance.mix(.stand, ease)
         let feet = track.feet(at: stride?.t ?? t, anchor: stride?.at ?? here, heading: m.heading, unit: unit, speed: m.speed,
                               stand: (still.left, still.right))
-        var body = still.mix(.gait(m, feet: feet), m.weight)
+        let gait = RigPose.gait(m, feet: feet)
+        var body = still.mix(gait, m.weight)
+        // A planted foot stays planted once the stride carries his weight (blended with the stance by the weight
+        // alone, it would slide with him as he slows).
+        let planted = smooth(m.weight / 0.5)
+        body.left = still.left + (gait.left - still.left) * planted
+        body.right = still.right + (gait.right - still.right) * planted
 
         // With the ball: in both hands at the chest, or on the dribble.
         if let carry = script.carrier(at: t), carry.player == index {

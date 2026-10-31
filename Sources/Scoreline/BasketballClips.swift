@@ -52,13 +52,6 @@ enum HoopsWorld {
         let world = right ? ground : SIMD2(Hoops.length, Hoops.width) - ground
         return SIMD4(world.x, world.y, log(frame.span), Self.yaw(right: right))
     }
-
-    /// The world camera as a framing in the view at its yaw (the projection's terms).
-    static func frame(_ camera: SIMD4<Double>) -> (frame: CameraFrame, yaw: Double) {
-        let yaw = camera.w
-        let view = Gridiron.view(CGPoint(x: camera.x, y: camera.y), yaw: yaw)
-        return (CameraFrame(x: view.x, y: view.y / 2, span: exp(camera.z)), yaw)
-    }
 }
 
 // MARK: - Clips
@@ -334,182 +327,20 @@ struct HoopsFacts: Equatable, Sendable {
 
 enum HoopsPlanner {
     /// The timeline's plays as scenes (ESPN's own entries through today's parser), in order.
+    /// Everything known is planned: the plays up to the watermark and those past it (`pending`: they've arrived,
+    /// though another may still be inserted before them, and then the plan simply splices again). Without them
+    /// the theater would learn of a play only a few seconds before its moment.
     static func plays(_ snapshot: TimelineSnapshot<RawPlay>, teams: BasketballFeed.Teams) -> [TimelinePlay<BasketballScene>] {
-        let json = snapshot.plays.map(\.play.json)
-        return snapshot.plays.indices.compactMap { i in
-            BasketballScene.parse(json, at: i, teams: teams).flatMap { scene in snapshot.plays[i].map { _ in scene } }
+        let all = snapshot.plays + snapshot.pending
+        let json = all.map(\.play.json)
+        return all.indices.compactMap { i in
+            BasketballScene.parse(json, at: i, teams: teams).flatMap { scene in all[i].map { _ in scene } }
         }
-    }
-
-    /// The plan from the splice at `c`: what's on screen carries on, each
-    /// play still to tell is placed at its anchor and met from the world as
-    /// it will stand, and the court between plays fills every gap to the
-    /// horizon. `history`: plays from before the page opened (never told).
-    static func plan(_ plays: [TimelinePlay<BasketballScene>], history: Set<String>, facts: HoopsFacts, chain: PlanChain<HoopsClip>,
-                     at c: PTime, shift: Double = 0, deferFrom: PTime? = nil, revision: UInt32, nextID: inout UInt16) -> Plan<HoopsClip> {
-        let limits = MotionLimits.basketball
-        let previous = chain.plan(at: c)
-        let state = chain.state(at: c)
-        // What's on screen carries on (and the clip before it, while men still blend out of it).
-        var keep: [ClipPlacement<HoopsClip>] = []
-        var toldBefore = previous?.plan.toldBefore ?? []
-        if let previous, let k = previous.plan.placement(at: c) {
-            let from = max(k - 1, 0)
-            keep = Array(previous.plan.placements[from...k])
-            for p in previous.plan.placements[..<from] { toldBefore.formUnion(p.covers) }
-        }
-        var draft = Plan<HoopsClip>(revision: revision, start: c, horizon: c + 60, state: state, placements: keep,
-                                    actors: previous?.plan.actors ?? [:])
-        draft.toldBefore = toldBefore
-        draft.history = chain.history(before: c)
-        draft.yawRule = .basketball
-        if let previous {
-            let at = YawRule.target(previous.yawTargets, at: c)
-            let since = previous.yawTargets.last { $0.at <= c }?.at ?? c - 10
-            draft.yaw = (at, since)
-        }
-        let scenes = plays.map(\.play)
-        let news = scenes.filter { !history.contains($0.id) }
-        // The opening: the court the last play before the page left, everyone in place (a declared jump).
-        if keep.isEmpty {
-            let last = scenes.last { history.contains($0.id) && $0.kind != .substitution }
-            let rest = BasketballFlow.rest(after: last, previous: nil, from: nil, ends: facts.ends(last?.period ?? scenes.first?.period),
-                                           possession: last?.after ?? last?.offense)
-            let clip = HoopsClip(BasketballScript(rest: rest), scene: nil, kind: .rest, rest: rest)
-            var cast: [ActorID] = []
-            for figure in clip.figures {
-                let id = ActorID(nextID)
-                nextID &+= 1
-                cast.append(id)
-                draft.actors[id] = figure
-            }
-            draft.placements = [ClipPlacement(clip: clip, offset: c, start: c, cast: cast)]
-            draft.declared = true
-            draft.openingCamera = clip.camera(at: 0)
-            draft.yaw = (clip.camera(at: 0).w, c - 10)
-        }
-        // Everything already handled: before the page, told by plans before, or by what carries on.
-        var handled = history.union(draft.toldBefore)
-        for p in draft.placements { handled.formUnion(p.covers) }
-        let units = BasketballQueue.units(news, told: handled)
-        // Anchors: what carries on keeps its own.
-        var frozen: [String: PTime] = [:]
-        for p in draft.placements { if let id = p.play, let a = p.anchor { frozen[id] = a } }
-        let anchors = AnchorSolver.solve(HoopsAnchors.inputs(plays), frozen: frozen)
-        var possession = scenes.last { history.contains($0.id) && $0.after != nil }?.after
-        var toldRest = draft.placements.last { $0.clip.kind == .rest }?.clip.rest
-        let lastScene = draft.placements.last { $0.clip.scene != nil }?.clip.scene
-        if let s = lastScene, let after = s.after { possession = after }
-        var earliest = draft.placements.last.map { $0.essentialEnd(after: c) } ?? c
-        for unit in units {
-            let scene = unit.scene
-            // On p; the chain runs on the theater's time, `shift` ahead. Past a hold, it waits for the clock.
-            let data = anchors[scene.id]?.at ?? (earliest - shift)
-            if let deferFrom, data >= deferFrom { break }
-            let anchor = data + shift
-            // A dead-ball play that arrives after its moment has passed attaches to the stoppage on screen
-            // (§4.6): it's never needed on time, and telling it now would be telling it out of place.
-            if isAdmin(scene), anchor + TheaterTiming.microCatchUp < earliest {
-                draft.toldBefore.insert(scene.id)
-                draft.notes.append(PlanNote(at: earliest, kind: .catchUp(play: scene.id, late: earliest - anchor)))
-                continue
-            }
-            let ends = facts.ends(scene.period)
-            func build(_ at: PTime) -> HoopsClip {
-                if unit.marquee {
-                    return HoopsClip(BasketballScript(scene, right: ends.right(scene.offense)), scene: scene, kind: .replay)
-                }
-                let lineup = Self.lineup(draft, at: at, ends: ends)
-                return HoopsClip(BasketballScript(beat: scene, group: unit.group, ends: ends, from: lineup, fallback: possession), scene: scene,
-                                 kind: .beat)
-            }
-            var clip = build(max(earliest, anchor - 3))
-            var offset = anchor - (clip.decisive ?? 0)
-            var meeting = Splice.meet(clip, offset: offset, earliest: earliest, limits: limits, nextID: &nextID) { men(draft, at: $0) }
-            if !unit.marquee, abs(meeting.start - max(earliest, anchor - 3)) > 0.3 {
-                // A beat starts from the floor as it stands when it begins: build it from there.
-                clip = build(meeting.start)
-                offset = anchor - (clip.decisive ?? 0)
-                meeting = Splice.meet(clip, offset: offset, earliest: earliest, limits: limits, nextID: &nextID) { men(draft, at: $0) }
-            }
-            // The court between plays the splice cuts before it began never plays.
-            draft.placements.removeAll { $0.clip.kind == .rest && $0.start >= meeting.start - 1e-9 && $0.start > c }
-            var placement = ClipPlacement(clip: clip, offset: meeting.offset, start: meeting.start, cast: meeting.cast, travel: meeting.travel,
-                                      join: meeting.join, leaving: meeting.leaving, play: scene.id, anchor: data, slip: meeting.slip)
-            placement.shift = shift
-            placement.covers = [scene.id] + unit.covers
-            for (i, id) in meeting.cast.enumerated() { identify(&draft, id, as: clip.figures[i]) }
-            draft.placements.append(placement)
-            handOff(&draft, draft.placements.count - 1)
-            if meeting.slip > 1e-3 { draft.notes.append(PlanNote(at: meeting.offset + (clip.decisive ?? 0), kind: .catchUp(play: scene.id, late: meeting.slip))) }
-            if scene.made, scene.points > 0, let d = clip.decisive {
-                let at = meeting.offset + d
-                draft.cues.append(Cue(at: at, until: at + 3, kind: .scored(scene.id), source: .known(play: scene.id)))
-            }
-            if let after = scene.after { possession = after }
-            earliest = draft.placements[draft.placements.count - 1].essentialEnd(after: c)
-            // The court between plays from where the play leaves everyone.
-            let end = meeting.offset + clip.length
-            let restSide = scene.after ?? possession
-            let restEnds = facts.ends(scene.period)
-            var rest = BasketballFlow.rest(after: scene, previous: toldRest, from: lineup(draft, at: end, ends: restEnds, side: restSide),
-                                           ends: restEnds, possession: possession)
-            rest.ends = restEnds
-            appendRest(&draft, rest, at: end, limits: limits, nextID: &nextID)
-            toldRest = rest
-        }
-        // The court between plays round by round to the horizon (then only the men it still has).
-        let lastEnd = draft.placements.last.map { $0.offset + $0.clip.length } ?? c
-        draft.horizon = max(c + 45, lastEnd + 2, (draft.placements.last { $0.play != nil }.map { $0.offset + $0.clip.length } ?? c) + 30)
-        while let last = draft.placements.last, last.offset + last.clip.length < draft.horizon {
-            let end = last.offset + last.clip.length
-            var next = last.clip.rest ?? toldRest ?? BasketballScript.Rest(offense: possession)
-            if last.clip.kind == .rest {
-                next.round += 1
-                if case .inbound = next.phase { next.phase = .live }
-            }
-            next.from = lineup(draft, at: end, ends: next.ends, side: next.offense)
-            appendRest(&draft, next, at: end, limits: limits, nextID: &nextID)
-        }
-        var present = Set<ActorID>()
-        for p in draft.placements { present.formUnion(p.cast); present.formUnion(p.leaving) }
-        draft.actors = draft.actors.filter { present.contains($0.key) }
-        return draft
     }
 
     /// Plays that change nothing on the floor by themselves (they attach to the stoppage they belong to).
     static func isAdmin(_ scene: BasketballScene) -> Bool {
         [.substitution, .timeout, .challenge].contains(scene.kind)
-    }
-
-    static func appendRest(_ draft: inout Plan<HoopsClip>, _ rest: BasketballScript.Rest, at t: PTime, limits: MotionLimits, nextID: inout UInt16) {
-        let clip = HoopsClip(BasketballScript(rest: rest), scene: nil, kind: .rest, rest: rest)
-        let meeting = Splice.meet(clip, offset: t, earliest: t, limits: limits, nextID: &nextID) { men(draft, at: $0) }
-        let placement = ClipPlacement(clip: clip, offset: meeting.offset, start: meeting.start, cast: meeting.cast, travel: meeting.travel,
-                                  join: meeting.join, leaving: meeting.leaving)
-        for (i, id) in meeting.cast.enumerated() { identify(&draft, id, as: clip.figures[i]) }
-        draft.placements.append(placement)
-        handOff(&draft, draft.placements.count - 1)
-    }
-
-    /// A man's identity: his team never changes; the athlete a clip credits him as stays with him.
-    static func identify(_ draft: inout Plan<HoopsClip>, _ id: ActorID, as figure: ClipFigure) {
-        if var known = draft.actors[id] {
-            if let athlete = figure.athlete { known.athlete = athlete }
-            draft.actors[id] = known
-        } else {
-            draft.actors[id] = figure
-        }
-    }
-
-    /// The world's men at t as the splice reads them (present ones only).
-    static func men(_ draft: Plan<HoopsClip>, at t: PTime) -> [Splice.Man] {
-        draft.everyone.compactMap { id in
-            guard let m = draft.motion(of: id, at: t), m.opacity > 0.05, let figure = draft.actors[id] else { return nil }
-            let state = ActorState(id: id, position: m.position, velocity: m.velocity, acceleration: m.acceleration,
-                                   rig: .standing(at: CGPoint(x: m.position.x, y: m.position.y), heading: 0), opacity: m.opacity)
-            return Splice.Man(state: state, figure: figure)
-        }
     }
 
     /// The floor at t as a beat starts from it (`Lineup`, in `side`'s frame): the ten men where each would come to rest
@@ -518,7 +349,7 @@ enum HoopsPlanner {
         guard let k = draft.placement(at: t) else { return nil }
         let clip = draft.placements[k].clip
         let offense = side ?? clip.script.side ?? .top
-        let men = Self.men(draft, at: t).filter { $0.figure.group < 2 }
+        let men = TheaterPlanner.men(draft, at: t).filter { $0.figure.group < 2 }
         let own = offense == .top ? 0 : 1
         // Five a side: mid-substitution the man coming on and the man going off both show; the five most there play.
         func five(_ side: [Splice.Man]) -> [Splice.Man] {
@@ -555,47 +386,6 @@ enum HoopsPlanner {
         return Lineup(offense: offense, at: at, holder: holder, ball: holder == nil ? ball : nil, formation: clip.formation)
     }
 
-    /// The ball across a splice: it stays with the man who has it when he's the clip's man with it; else it's passed
-    /// to him (inferred: the inbound, the outlet), landing as he's set.
-    static func handOff(_ draft: inout Plan<HoopsClip>, _ k: Int) {
-        let p = draft.placements[k]
-        guard case let .held(i)? = p.clip.ball(at: p.clip.still), i < p.cast.count else { return }
-        let target = p.cast[i]
-        let before = TheaterBake.ballSpans(Plan(revision: draft.revision, start: draft.start, horizon: draft.horizon, state: draft.state,
-                                                placements: Array(draft.placements[..<k]), actors: draft.actors))
-        var holder: ActorID?
-        var from: SIMD3<Double>?
-        switch TheaterBake.ballSpan(before, at: p.start) {
-        case let .clip(j, _)?:
-            let q = draft.placements[j]
-            switch q.clip.ball(at: min(max(q.time(p.start), 0), q.clip.length)) {
-            case let .held(h)?: holder = q.cast[h]
-            case let .free(point, _)?: from = point
-            case nil: break
-            }
-        case let .held(id, _)?: holder = id
-        case let .flight(f)?: from = f.to
-        case nil: break
-        }
-        if holder == target {
-            draft.placements[k].holder = target
-            return
-        }
-        let join = p.join[target] ?? p.offset + p.clip.still
-        let landing = draft.motion(of: target, at: join)?.position ?? p.clip.position(i, at: p.clip.still)
-        let to = SIMD3(landing.x, landing.y, 4.4)
-        let start: SIMD3<Double>
-        if let holder, let m = draft.motion(of: holder, at: p.start) { start = SIMD3(m.position.x, m.position.y, 4.4) } else {
-            start = from ?? to
-        }
-        let distance = simd_length(SIMD2(to.x - start.x, to.y - start.y))
-        let duration = min(max(distance / 40, 0.35), 1.1)
-        let launch = max(p.start, join - duration)
-        var origin = start
-        if let holder, let m = draft.motion(of: holder, at: launch) { origin = SIMD3(m.position.x, m.position.y, 4.4) }
-        draft.placements[k].holder = holder
-        draft.placements[k].ball = BallFlight(t0: launch, t1: launch + duration, from: origin, to: to, apex: 1 + distance / 30)
-    }
 }
 
 // MARK: - Painting
@@ -706,9 +496,91 @@ enum HoopsSport: TheaterSport {
 
     static func plan(_ plays: [TimelinePlay<BasketballScene>], history: Set<String>, facts: HoopsFacts, chain: PlanChain<HoopsClip>, at c: PTime,
                      shift: Double, deferFrom: PTime?, revision: UInt32, nextID: inout UInt16) -> Plan<HoopsClip> {
-        HoopsPlanner.plan(plays, history: history, facts: facts, chain: chain, at: c, shift: shift, deferFrom: deferFrom, revision: revision,
-                          nextID: &nextID)
+        var sequencer = HoopsSequencer(plays: plays, history: history, facts: facts)
+        return TheaterPlanner.plan(&sequencer, history: history, chain: chain, at: c, shift: shift, deferFrom: deferFrom, revision: revision,
+                                   nextID: &nextID)
     }
 
     static var horizons: [String: Double] { HoopsAnchors.horizons }
+}
+
+/// Basketball's Phase 0 running order (today's queue, nothing passed over), as clips.
+struct HoopsSequencer: ClipSequencer {
+    let plays: [TimelinePlay<BasketballScene>]
+    let history: Set<String>
+    let facts: HoopsFacts
+    /// Who has the ball, and the court between plays the last telling left.
+    var possession: GameDetail.Side?
+    var toldRest: BasketballScript.Rest?
+
+    init(plays: [TimelinePlay<BasketballScene>], history: Set<String>, facts: HoopsFacts) {
+        self.plays = plays
+        self.history = history
+        self.facts = facts
+        possession = plays.map(\.play).last { history.contains($0.id) && $0.after != nil }?.after
+    }
+
+    var limits: MotionLimits { .basketball }
+    var yawRule: YawRule? { .basketball }
+    var anchorInputs: [AnchorInput] { HoopsAnchors.inputs(plays) }
+
+    func units(handled: Set<String>) -> [TellUnit<BasketballQueue.Unit>] {
+        let news = plays.map(\.play).filter { !history.contains($0.id) }
+        return BasketballQueue.units(news, told: handled).map { u in
+            TellUnit(id: u.scene.id, scene: u, covers: u.covers, admin: HoopsPlanner.isAdmin(u.scene), fromWorld: !u.marquee, lead: u.marquee ? 0.9 : 0.5)
+        }
+    }
+
+    mutating func opening(at t: PTime) -> HoopsClip {
+        let scenes = plays.map(\.play)
+        let last = scenes.last { history.contains($0.id) && $0.kind != .substitution }
+        let rest = BasketballFlow.rest(after: last, previous: nil, from: nil, ends: facts.ends(last?.period ?? scenes.first?.period),
+                                       possession: last?.after ?? last?.offense)
+        toldRest = rest
+        return HoopsClip(BasketballScript(rest: rest), scene: nil, kind: .rest, rest: rest)
+    }
+
+    mutating func resume(_ kept: [ClipPlacement<HoopsClip>]) {
+        if let rest = kept.last(where: { $0.clip.kind == .rest })?.clip.rest { toldRest = rest }
+        if let after = kept.last(where: { $0.clip.scene != nil })?.clip.scene?.after { possession = after }
+    }
+
+    mutating func clip(for unit: TellUnit<BasketballQueue.Unit>, at t: PTime, draft: Plan<HoopsClip>) -> HoopsClip {
+        let scene = unit.scene.scene, ends = facts.ends(scene.period)
+        if unit.scene.marquee { return HoopsClip(BasketballScript(scene, right: ends.right(scene.offense)), scene: scene, kind: .replay) }
+        let lineup = HoopsPlanner.lineup(draft, at: t, ends: ends)
+        return HoopsClip(BasketballScript(beat: scene, group: unit.scene.group, ends: ends, from: lineup, fallback: possession), scene: scene, kind: .beat)
+    }
+
+    mutating func told(_ unit: TellUnit<BasketballQueue.Unit>) {
+        if let after = unit.scene.scene.after { possession = after }
+    }
+
+    mutating func rest(after unit: TellUnit<BasketballQueue.Unit>, at t: PTime, draft: Plan<HoopsClip>) -> HoopsClip {
+        let scene = unit.scene.scene, ends = facts.ends(scene.period)
+        var rest = BasketballFlow.rest(after: scene, previous: toldRest, from: HoopsPlanner.lineup(draft, at: t, ends: ends, side: scene.after ?? possession),
+                                       ends: ends, possession: possession)
+        rest.ends = ends
+        toldRest = rest
+        return HoopsClip(BasketballScript(rest: rest), scene: nil, kind: .rest, rest: rest)
+    }
+
+    mutating func next(after clip: HoopsClip, at t: PTime, draft: Plan<HoopsClip>) -> HoopsClip {
+        var next = clip.rest ?? toldRest ?? BasketballScript.Rest(offense: possession)
+        if clip.kind == .rest {
+            next.round += 1
+            if case .inbound = next.phase { next.phase = .live }
+        }
+        next.from = HoopsPlanner.lineup(draft, at: t, ends: next.ends, side: next.offense)
+        toldRest = next
+        return HoopsClip(BasketballScript(rest: next), scene: nil, kind: .rest, rest: next)
+    }
+
+    func cues(for unit: TellUnit<BasketballQueue.Unit>, clip: HoopsClip, at decisive: PTime) -> [Cue] {
+        let scene = unit.scene.scene
+        guard scene.made, scene.points > 0 else { return [] }
+        return [Cue(at: decisive, until: decisive + 3, kind: .scored(scene.id), source: .known(play: scene.id))]
+    }
+
+    func handOff(_ draft: inout Plan<HoopsClip>, _ k: Int) { TheaterHandOff.ball(&draft, k, speed: 40, height: 4.4) }
 }

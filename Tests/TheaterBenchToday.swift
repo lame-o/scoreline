@@ -226,6 +226,25 @@ extension Today {
         return report
     }
 
+    /// Keys for a frame's figures: kept for the same script; across a swap, the most charitable pairing with the frame
+    /// before (the same man, then his role, then the nearest); a bridge's own pairs when it says who becomes whom.
+    static func assignKeys(_ keys: inout Keys, _ placed: [(index: Int, figure: TheaterBridge.Figure)], swapped: Bool, pairs: [Int: Int]? = nil) {
+        if swapped || keys.current.isEmpty {
+            var assigned: [Int: Int] = [:]
+            if let pairs, swapped {
+                for (i, j) in pairs { if let k = keys.current[j] { assigned[i] = k } }
+            } else {
+                let matched = TheaterBridge.match(idle: keys.previous.map(\.figure), replay: placed.map(\.figure))
+                for (r, i) in matched { assigned[placed[r].index] = keys.previous[i].key }
+            }
+            keys.current = [:]
+            for p in placed { keys.current[p.index] = assigned[p.index] ?? keys.fresh() }
+        } else {
+            for p in placed where keys.current[p.index] == nil { keys.current[p.index] = keys.fresh() }
+        }
+        keys.previous = placed.map { (keys.current[$0.index] ?? 0, $0.figure) }
+    }
+
     /// Persistent keys for figures across swaps of scripts.
     struct Keys {
         var next = 0
@@ -303,9 +322,17 @@ extension Today {
                 return SIMD3(w.x, w.y, f.z / lens.unit)
             }
             let planted = track.planted(at: trackT)
-            let fig = MeterFigure(key: 0, position: world, heading: worldHeading, band: band, feet: (foot(body.left), foot(body.right)),
+            var fig = MeterFigure(key: 0, position: world, heading: worldHeading, band: band, feet: (foot(body.left), foot(body.right)),
                                   planted: (planted.left && body.left.z < 0.01, planted.right && body.right.z < 0.01), weight: m.weight,
                                   height: Hoops.ground, opacity: opacity)
+            fig.source = blend != nil ? "bridge" : stage.showing.map { $0.unit.marquee ? "replay" : "beat" } ?? "rest"
+            let rig = track.feet(at: trackT, anchor: at, heading: m.heading, unit: 1, speed: m.speed,
+                                 stand: (RigVector(0, 0.1, 0), RigVector(0, -0.1, 0)))
+            func rigWorld(_ v: RigVector) -> SIMD2<Double> {
+                HoopsWorld.point(CGPoint(x: at.x + v.x * cos(m.heading) - v.y * sin(m.heading), y: at.y + v.x * sin(m.heading) + v.y * cos(m.heading)),
+                                 right: right)
+            }
+            fig.rigFeet = (rigWorld(rig.left), rigWorld(rig.right))
             let athlete = script.credits[i].flatMap { $0.id ?? $0.name }
             placed.append((i, TheaterBridge.Figure(group: group(player.team, offense), athlete: athlete, at: CGPoint(x: world.x, y: world.y)), fig, false))
         }

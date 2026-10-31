@@ -122,6 +122,9 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
     /// The theater's time and the clock it runs on (the view's schedule maps tiers through them).
     var timing: (time: TheaterTime, clock: PresentationClock)? { clock.map { (time, $0) } }
 
+    /// p at a wall time, on the clock the theater runs on (the bench measures decisive moments against it).
+    func presentation(at now: PTime) -> PTime? { clock?.p(at: now) }
+
     /// The theater's time at `now`.
     func theaterTime(at now: PTime) -> PTime? {
         guard let clock, time.started else { return nil }
@@ -204,6 +207,9 @@ final class TheaterDirector<Sport: TheaterSport> {
 
     /// The theater's time and its clock, for the view's frame schedule.
     var timing: (time: TheaterTime, clock: PresentationClock)? { session.timing }
+
+    /// Where each play is presented on p (its decisive moment as the plan has it): the timeline presents it there too.
+    var anchors: [String: PTime] { chain.plans.last?.plan.published ?? [:] }
 
     /// The plays changed (an ingest, a revision, a removal): re-plan from a quarter second ahead.
     func timelineDidChange(_ snapshot: TimelineSnapshot<RawPlay>) {

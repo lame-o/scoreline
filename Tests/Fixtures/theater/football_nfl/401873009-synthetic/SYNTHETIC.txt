@@ -1,0 +1,4 @@
+Synthesized, not recorded: the recorder had captured only scoreboards for this sport. Made from a static fixture of core
+plays with wallclocks in the recorder's format. Arrival model (an assumption): each play first arrives lag seconds after
+its wallclock, lag uniform in [25, 50] s by a hash of its ID (the NBA's measured live-ball lag runs p50 31-41 s, p90 47 s);
+the summary is read every 10 s; the scoreboard leads the plays by 6 s. Replace with a real recording when one exists.

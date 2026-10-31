@@ -45,6 +45,10 @@ enum TheaterBench {
                         let run = EngineRun.basketball(recording, label: label)
                         print(run.report.render(units: units))
                         print(String(format: "    determinism hash %016llx", run.hash))
+                    case "football":
+                        let run = EngineRun.run(GridBench.self, recording, label: label)
+                        print(run.report.render(units: units))
+                        print(String(format: "    determinism hash %016llx", run.hash))
                     default: print("  \(label): not yet")
                     }
                 }

@@ -21,6 +21,10 @@ struct MeterFigure {
     /// The rig's height (feet a figure stands): a slip's millimetres are on a 1.8 m man.
     var height = 1.0
     var opacity = 1.0
+    /// What moves him now (a clip's kind, or a splice's travel): the report splits speed by it.
+    var source = ""
+    /// The rig's own planted feet in the world (the stride before any pose blends it), for the spec's footSlip.
+    var rigFeet: (left: SIMD2<Double>, right: SIMD2<Double>)?
 }
 
 struct MeterFrame {
@@ -74,6 +78,11 @@ struct ContinuityReport {
     var decisiveErrors: [Double] = []
     var catchUps: [Double] = []
     var notes: [String] = []
+    var overSpeedBySource: [String: Double] = [:]
+    var secondsBySource: [String: Double] = [:]
+    /// The rig's own planted feet (§9.2's definition: the stride, before a pose blends it): max mm and frames over 0.5.
+    var rigSlipMax = 0.0
+    var rigSlipFrames = 0
     var jumpLog: [String] = []
     /// Frames where a man ran past 1.5× his cap for more than a frame (a superhuman glide, not a cut).
     var glideFrames = 0
@@ -120,15 +129,17 @@ struct ContinuityMeter {
                 report.teleportMax = ratio
                 report.teleportMaxDistance = d
             }
-            if ratio > 1.5, discontinuous, frame.change == .same, report.jumpLog.count < 12 {
+            if ratio > 1.5, discontinuous, frame.change == .same, report.jumpLog.count < 40 {
                 report.jumpLog.append(String(format: "t=%.2f key=%d d=%.2f from (%.1f,%.1f) to (%.1f,%.1f) %@", frame.t, f.key, d, p.position.x, p.position.y,
                                              f.position.x, f.position.y, frame.reason ?? ""))
             }
             if frame.change == .same {
                 report.actorSeconds += dt
+                report.secondsBySource[f.source, default: 0] += dt
                 let v = d / dt
                 if v > f.band.sprint * 1.001 {
                     report.overSpeedSeconds += dt
+                    report.overSpeedBySource[f.source, default: 0] += dt
                     report.maxOverspeed = max(report.maxOverspeed, v / f.band.sprint - 1)
                 }
                 if let q = older[f.key], before?.change == .same || prev.change == .same {
@@ -157,7 +168,15 @@ struct ContinuityMeter {
                     if turn > cap * 1.05 { report.overTurnSeconds += dt }
                 }
             }
-            // A planted foot must stay where it was planted.
+            // The rig's own planted foot (the stride itself).
+            if let a = f.rigFeet, let b = p.rigFeet, f.weight > 0.5, p.weight > 0.5 {
+                for (now, was, down) in [(a.left, b.left, f.planted.left && p.planted.left), (a.right, b.right, f.planted.right && p.planted.right)] where down {
+                    let slip = simd_length(now - was) / max(f.height, 1e-6) * 1800
+                    report.rigSlipMax = max(report.rigSlipMax, slip)
+                    if slip > 0.5 { report.rigSlipFrames += 1 }
+                }
+            }
+            // A planted foot must stay where it was planted (as drawn, the pose's blends included).
             if let a = f.feet, let b = p.feet, f.weight > 0.5, p.weight > 0.5 {
                 for (now, was, down) in [(a.left, b.left, f.planted.left && p.planted.left), (a.right, b.right, f.planted.right && p.planted.right)] where down {
                     let slip = simd_length(SIMD2(now.x - was.x, now.y - was.y)) / max(f.height, 1e-6) * 1800
@@ -222,7 +241,12 @@ extension ContinuityReport {
         lines.append("    teleportMax (continuous frames): \(f(teleportMax)) × the cap (\(f(teleportMaxDistance, 2)) \(units) in a frame); glide frames past 1.5× the cap: \(glideFrames)")
         lines.append("    speed over the sprint cap: \(f(speedShare * 100))% of actor-seconds, max +\(f(maxOverspeed * 100, 0))%")
         lines.append("    accel over the limits: \(f(accelShare * 100))%; turning over the rig's cap: \(f(turnShare * 100))%")
-        lines.append("    footSlip: max \(f(footSlipMax, 1)) mm-eq, \(footSlipFrames) foot-frames over 0.5 mm; across scene changes \(f(footSlipAcrossChanges, 1)) mm-eq")
+        lines.append("    footSlip (the rig's planted foot): max \(f(rigSlipMax, 2)) mm-eq, \(rigSlipFrames) foot-frames over 0.5 mm")
+        lines.append("    footSlip (as drawn): max \(f(footSlipMax, 1)) mm-eq, \(footSlipFrames) foot-frames over 0.5 mm; across scene changes \(f(footSlipAcrossChanges, 1)) mm-eq")
+        if !secondsBySource.isEmpty {
+            lines.append("    over the sprint cap by what moves him: " + secondsBySource.sorted { $0.key < $1.key }.map { k, v in
+                "\(k.isEmpty ? "?" : k) \(f((overSpeedBySource[k] ?? 0) / max(v, 1e-9) * 100))% of \(f(v / 60, 1)) actor-min" }.joined(separator: ", "))
+        }
         lines.append("    camera: max pan \(f(cameraPanMax, 3)) view-heights/frame, max yaw step \(f(cameraYawJumpMax, 2))°, max yaw speed \(f(yawSpeedMax, 1))°/s, jumps \(cameraJumps)")
         if !decisiveErrors.isEmpty {
             let abs = decisiveErrors.map { Swift.abs($0) }

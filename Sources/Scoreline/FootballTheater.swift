@@ -274,6 +274,37 @@ struct FootballFrame: View, Equatable {
     /// The field between snaps this replay is taking over from (nil: none,
     /// or the hand-off is done).
     var bridge: Bridge? = nil
+    /// Drawn from the choreography engine's world (TheaterView): its camera,
+    /// every man where the engine has him and posed by the clip that has him,
+    /// the ball; `script` is the clip in charge (its lines, flags, flashes,
+    /// stamp and banner), and everything is in its frame.
+    var world: World? = nil
+
+    struct World: Equatable {
+        struct Figure: Equatable {
+            var index: Int
+            var team: FootballScript.Team
+            var at: CGPoint
+            var body: RigPose
+            var heading: Double
+            var opacity: Double
+            /// The ball in his hands: where on him (both hands, tucked, cocked to throw).
+            var holds: Bool
+            var tucked = 0.0
+            var cocked = 0.0
+            var down = false
+        }
+
+        enum Ball: Equatable {
+            case held
+            case free(FieldPoint, flying: Bool)
+        }
+
+        var camera: CameraFrame
+        var yaw: Double
+        var figures: [Figure]
+        var ball: Ball?
+    }
 
     /// The idle as it stands mid-bridge (TheaterBridge): its script and its
     /// time now (it plays on under the hand-off), how far the hand-off is,
@@ -300,11 +331,12 @@ struct FootballFrame: View, Equatable {
     /// The time first: mid-replay it's all that differs.
     static func == (a: FootballFrame, b: FootballFrame) -> Bool {
         a.t == b.t && a.size == b.size && a.teams == b.teams && a.ink == b.ink && a.zones == b.zones && a.tags == b.tags && a.scene == b.scene
-            && a.bridge == b.bridge && a.script == b.script
+            && a.bridge == b.bridge && a.world == b.world && a.script == b.script
     }
 
     /// The camera at t; mid-bridge, eased from the idle's framing (and its turn of the field) to the replay's.
     func projection(_ size: CGSize) -> GridProjection {
+        if let world { return GridProjection(size: size, camera: world.camera, yaw: world.yaw) }
         let camera = script.camera.frame(at: t), yaw = script.yaw(at: t)
         guard let b = bridge else { return GridProjection(size: size, camera: camera, yaw: yaw) }
         let from = b.script.camera.frame(at: b.t), turned = b.script.yaw(at: b.t)
@@ -428,14 +460,21 @@ struct FootballFrame: View, Equatable {
         // Under the hips (longer for a man down); smaller and fainter as he leaves the ground.
         let w = f.figure * 0.3
         for p in figures {
-            let held = p.ghost ? bridge.flatMap { $0.script.players[p.index].hold(at: $0.t) } : script.players[p.index].hold(at: t)
-            let down = [.down, .knocked].contains(held?.kind)
+            let down: Bool
+            if let world {
+                down = world.figures.first { $0.index == p.index }?.down ?? false
+            } else {
+                let held = p.ghost ? bridge.flatMap { $0.script.players[p.index].hold(at: $0.t) } : script.players[p.index].hold(at: t)
+                down = [.down, .knocked].contains(held?.kind)
+            }
             let air = min(p.figure.air / 0.4, 1)
             TheaterDraw.shadow(at: p.figure.ground, radius: (down ? w * 1.6 : w) * (1 - 0.35 * air), color: ink.shadow.opacity(p.opacity * (1 - 0.45 * air)),
                                in: context)
         }
         // The ball's: larger and softer the higher it flies, with a hairline up to it once it's well off the grass.
-        if let ball = script.ball(at: t), ball.z > 0.3, script.flight(at: t) != nil {
+        let flying: FieldPoint? = world.map { w in if case let .free(b, true)? = w.ball { return b }; return nil }
+            ?? (script.flight(at: t) != nil ? script.ball(at: t) : nil)
+        if let ball = flying, ball.z > 0.3 {
             let g = f.point(ball.ground)
             let spread = 1 + min(ball.z / 50, 1.4)
             let r = max(0.55 * f.scale, 1.6) * spread
@@ -469,6 +508,7 @@ struct FootballFrame: View, Equatable {
     /// two and striding along the way; the idle's other men fade out, the
     /// replay's fade in.
     private func posed(_ f: GridProjection) -> [Posed] {
+        if let world { return posed(world, f) }
         let idle = bridge.map { FootballFrame(scene: nil, script: $0.script, t: $0.t, teams: teams, ink: ink, size: size) }
         var list: [(index: Int, at: CGPoint, ghost: Bool)] = script.players.indices.map { i in
             var at = script.players[i].position(at: t)
@@ -520,6 +560,28 @@ struct FootballFrame: View, Equatable {
             }
     }
 
+    /// The engine's men, far to near: each posed as the world has him, the ball in the hands of the man who has it.
+    private func posed(_ world: World, _ f: GridProjection) -> [Posed] {
+        world.figures.sorted { Gridiron.view($0.at, yaw: f.yaw).y > Gridiron.view($1.at, yaw: f.yaw).y }.map { w in
+            let lens = RigLens(f, at: w.at)
+            let figure = RigFigure(w.body, heading: w.heading, lens: lens)
+            var ball: CGPoint?
+            if w.holds {
+                let grip = figure.grip, tuck = figure.hands.0, throwing = figure.hands.1
+                var hold = CGPoint(x: grip.x + (tuck.x - grip.x) * w.tucked, y: grip.y + (tuck.y - grip.y) * w.tucked)
+                hold = CGPoint(x: hold.x + (throwing.x - hold.x) * w.cocked, y: hold.y + (throwing.y - hold.y) * w.cocked)
+                ball = hold
+            }
+            return Posed(index: w.index, figure: figure, opacity: w.opacity, ball: ball)
+        }
+    }
+
+    /// Whose a figure is in this frame's colors, and whether he's down on the grass.
+    private func team(_ p: Posed) -> FootballScript.Team {
+        if let world { return world.figures.first { $0.index == p.index }?.team ?? .offense }
+        return p.ghost ? bridge?.script.players[p.index].team ?? .staff : script.players[p.index].team
+    }
+
     /// How far the ball has gone from both hands into the throwing hand
     /// (his right) as he cocks to throw: none until the windup, all of it
     /// from then until it's away, on the action's own clock (`pace`: slowed
@@ -537,13 +599,14 @@ struct FootballFrame: View, Equatable {
     private func drawPlayers(_ context: inout GraphicsContext, _ f: GridProjection, _ figures: [Posed], stems: [Int: [TheaterTags.Stem]]) {
         let offense = FigureInks(teams.offense, ink: ink, in: context), defense = FigureInks(teams.defense, ink: ink, in: context)
         // An official, only for his throw: the zebra shirt. A trainer (or a coach) in the staff's slate.
-        let official = script.players.contains { $0.team == .official } ? FigureInks(.zebra(dark: ink.dark), ink: ink, in: context) : offense
-        let staffed = script.players.contains { $0.team == .staff } || bridge?.script.players.contains { $0.team == .staff } == true
+        let officiated = world.map { $0.figures.contains { $0.team == .official } } ?? script.players.contains { $0.team == .official }
+        let official = officiated ? FigureInks(.zebra(dark: ink.dark), ink: ink, in: context) : offense
+        let staffed = world.map { $0.figures.contains { $0.team == .staff } }
+            ?? (script.players.contains { $0.team == .staff } || bridge?.script.players.contains { $0.team == .staff } == true)
         let staff = staffed ? FigureInks(Self.staff, ink: ink, in: context) : offense
         for p in figures {
             // A ghost wears his own team's colors: the idle's offense is the replay's (else it crossfades).
-            let team = p.ghost ? bridge?.script.players[p.index].team ?? .staff : script.players[p.index].team
-            let inks = switch team {
+            let inks = switch team(p) {
             case .offense: offense
             case .defense: defense
             case .official: official
@@ -560,9 +623,12 @@ struct FootballFrame: View, Equatable {
     /// planted feet), else how he stands (down in his stance before the snap
     /// and once he's set at the new line). `unit`: body units to the foot
     /// where he stands. (tested)
-    func pose(_ player: FootballScript.Player, _ index: Int, at here: CGPoint, unit: Double) -> (RigPose, Double) {
-        let track = index < script.rig.count ? script.rig[index] : RigTrack(at: here)
-        let m = track.motion(at: t)
+    /// `stride`: the engine's track for him in the world (TheaterView), its time and where he is in it; the heading
+    /// returned is then the world's.
+    func pose(_ player: FootballScript.Player, _ index: Int, at here: CGPoint, unit: Double,
+              stride: (track: RigTrack, t: Double, at: CGPoint)? = nil) -> (RigPose, Double) {
+        let track = stride?.track ?? (index < script.rig.count ? script.rig[index] : RigTrack(at: here))
+        let m = track.motion(at: stride?.t ?? t)
         func envelope(_ x: Double, attack: Double, release: Double) -> Double {
             x < 0 ? max(1 + x / attack, 0) : max(1 - x / release, 0)
         }
@@ -576,8 +642,14 @@ struct FootballFrame: View, Equatable {
         var set = player.set.map { 1 - smooth((t - $0) / 0.15) } ?? 0
         if let resets = player.resets { set = max(set, smooth((t - resets + 0.3) / 0.3)) }
         let still = upright.mix(player.role == .quarterback ? GridPose.center : GridPose.stance, set)
-        let feet = track.feet(at: t, anchor: here, heading: m.heading, unit: unit, speed: m.speed, stand: (still.left, still.right))
-        var body = still.mix(.gait(m, feet: feet), m.weight)
+        let feet = track.feet(at: stride?.t ?? t, anchor: stride?.at ?? here, heading: m.heading, unit: unit, speed: m.speed,
+                              stand: (still.left, still.right))
+        let gait = RigPose.gait(m, feet: feet)
+        var body = still.mix(gait, m.weight)
+        // A planted foot stays planted once the stride carries his weight.
+        let planted = smooth(m.weight / 0.5)
+        body.left = still.left + (gait.left - still.left) * planted
+        body.right = still.right + (gait.right - still.right) * planted
 
         if let hold = player.hold(at: t) {
             let into = smooth((t - hold.from) / 0.16)
@@ -673,6 +745,19 @@ struct FootballFrame: View, Equatable {
     /// big (a touch larger than life, as the baseball is: it's what the eye
     /// follows), the way it points (along its flight) and its tail while it flies.
     private func ballSpot(_ f: GridProjection, held: CGPoint?) -> (point: CGPoint, radius: CGFloat, angle: Double, trail: [CGPoint]?)? {
+        if let world {
+            let r = min(max(0.55 * f.scale, 2.2), max(f.figure * 0.13, 2.2))
+            switch world.ball {
+            case .held?: return held.map { ($0, r, 0, nil) }
+            case let .free(ball, flying)?:
+                let p = f.point(ball)
+                guard flying, let flight = script.flight(at: t) else { return (p, r, 0, nil) }
+                let trail = (1...6).map { f.point(flight.point(at: max(t - Double($0) * 0.014, flight.start))) }
+                let angle = trail.first.map { hypot($0.x - p.x, $0.y - p.y) > 0.3 ? atan2(p.y - $0.y, p.x - $0.x) : 0 } ?? 0
+                return (p, r, angle, trail)
+            case nil: return nil
+            }
+        }
         guard let ball = script.ball(at: t) else { return nil }
         var p = held ?? f.point(ball)
         // Mid-bridge, from where the idle had it (on the spot, on the tee) to the replay's.

@@ -944,7 +944,7 @@ final class FootballFeed {
     /// Spots each snap on its hash from the one before it (oldest first;
     /// the first from `previous`, or in the middle with nothing before it).
     /// (pure; tested)
-    static func spot(_ snaps: [FootballScene], after previous: FootballScene?) -> [FootballScene] {
+    nonisolated static func spot(_ snaps: [FootballScene], after previous: FootballScene?) -> [FootballScene] {
         var before = previous
         return snaps.map { snap in
             var spotted = snap

@@ -37,6 +37,8 @@ struct Plan<Clip: TheaterClip>: Sendable {
     var declared = false
     /// Plays told by placements this plan no longer carries.
     var toldBefore: Set<String> = []
+    /// Where each play this plan tells is presented on p (its decisive moment): the timeline presents it there too.
+    var published: [String: PTime] = [:]
 
     func placement(at t: PTime) -> Int? {
         guard let first = placements.first else { return nil }

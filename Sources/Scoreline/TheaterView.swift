@@ -85,3 +85,29 @@ enum TheaterKeyStates {
         return (keys[k], k > 0 ? keys[k - 1] : nil, TheaterCurve.out(fade))
     }
 }
+
+#if DEBUG
+/// What a directed theater drew in a frame, for the offscreen check: the theater's time, the clock's p, the play in
+/// charge and whether its decisive moment has been reached (the frame the score lands with).
+struct TheaterFrameReport: Equatable {
+    var wall: PTime
+    var T: PTime
+    var p: PTime
+    var play: String?
+    var clipTime: Double
+    var decisive: Double?
+    var reached: Bool { decisive.map { clipTime >= $0 - 1e-6 } ?? false }
+}
+
+private struct TheaterFrameProbeKey: EnvironmentKey {
+    static let defaultValue: ((TheaterFrameReport) -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    /// The offscreen check's hook: each directed frame reports what it drew.
+    var theaterFrameProbe: ((TheaterFrameReport) -> Void)? {
+        get { self[TheaterFrameProbeKey.self] }
+        set { self[TheaterFrameProbeKey.self] = newValue }
+    }
+}
+#endif
