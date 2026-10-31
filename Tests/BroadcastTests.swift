@@ -38,6 +38,8 @@ extension ScorelineTests {
         broadcastJumps()
         print("\nBroadcast: how far behind live, on hover only")
         broadcastBehindLive()
+        print("\nBroadcast: our own outages aren't the feed's lag")
+        broadcastOutages()
     }
 
     // MARK: Helpers
@@ -1239,5 +1241,52 @@ extension ScorelineTests {
         finalInputs.behind = BehindLive(seconds: 55)
         check(DockBar.make(inputs).behind == BehindLive(seconds: 55) && DockBar.make(finalInputs).behind == nil,
               "the docked bar's indicator has the readout while live, never on a final")
+    }
+}
+
+
+// MARK: - Our own outages
+
+extension ScorelineTests {
+    static func broadcastOutages() {
+        let s0 = ScoreLine(home: 0, away: 0)
+        // The engine: a lane unread for longer than it should be; what it brings sizes nothing.
+        var t = GameTimeline<RawPlay>(policy: testPolicy)
+        t.ingest(look([play("a", at: 90, elapsed: 10, score: s0)], at: 100))
+        for now in stride(from: 105.0, through: 130, by: 5) { t.noteRead(.summary, at: now) }
+        t.ingest(look([play("a", at: 90, elapsed: 10, score: s0), play("b", at: 128, elapsed: 48, score: s0)], at: 135))
+        t.ingest(look([play("a", at: 90, elapsed: 10, score: s0), play("b", at: 128, elapsed: 48, score: s0),
+                       play("c", at: 150, elapsed: 70, score: s0)], at: 230))
+        check(t.record("b")?.afterOutage == false && t.record("b")?.arrivalLag != nil
+              && t.record("c")?.afterOutage == true && t.record("c")?.arrivalLag == nil && !t.lags.contains { $0.lag > 60 },
+              "a look after 95 s unread: its new play waited on us, so its lag sizes nothing", "\(t.lags)")
+
+        // The recorder's holes: from gaps.jsonl, per lane, failures in a row chained.
+        let base = URL(fileURLWithPath: "/dev/null")
+        var explicit = Recording(sportDirectory: "soccer_eng.1", event: "x", snapshots: [], rows: [])
+        explicit.gaps = [(100, "summary"), (105, "summary"), (300, "core")]
+        let soccer = BroadcastLanes.policy(.soccer, path: "soccer/eng.1")
+        check(explicit.holes(policy: soccer) == [Recording.Hole(range: 99.9...110, lanes: ["summary"]), Recording.Hole(range: 299.9...305, lanes: ["core"])],
+              "gaps.jsonl: each failed fetch leaves its lane unread until the next try", "\(explicit.holes(policy: soccer))")
+        // Older recordings: every lane silent over 60 s while the clock ran is a hole; a halftime isn't.
+        func row(_ at: PTime, _ clock: Double) -> RawPlay { RawPlay(json: JSON(["at": at, "period": 1, "clock": clock] as [String: Any]), digest: 0) }
+        var inferred = Recording(sportDirectory: "soccer_eng.1", event: "y",
+                                 snapshots: stride(from: 0.0, through: 100, by: 10).map { .init(arrived: $0, url: base) }, rows: [])
+        // The recorder silent from 100 to 300 while the clock ran 200 s (a hole); then polling every
+        // 10 s to 400; then 15 min with the clock standing at 1400 (a halftime: no hole).
+        inferred.status = stride(from: 0.0, through: 100, by: 10).map { row($0, 1000 + $0) }
+            + stride(from: 300.0, through: 400, by: 10).map { row($0, 1000 + $0) } + [row(1300, 1400)]
+        check(inferred.holes(policy: soccer) == [Recording.Hole(range: 100...300, lanes: nil)],
+              "no gaps.jsonl: lane silence while the clock ran (not the 15 min the clock stood still)", "\(inferred.holes(policy: soccer))")
+
+        // The replay reads nothing inside a hole.
+        var fixture = Recording.load(root: URL(fileURLWithPath: "Tests/Fixtures/broadcast"), sport: "soccer_eng.1", event: "401879248", settle: 0)
+        guard let first = fixture.core.first?.arrived else { return check(false, "the VAR window loads") }
+        fixture.gaps = [(first + 40, "core"), (first + 45, "core")]
+        guard let replay = RecordingReplay(fixture) else { return check(false, "the VAR window replays") }
+        let inside = replay.schedule(.app(replay.policy)).filter { input in
+            if case .core = input.input { return (first + 40...first + 50).contains(input.t) } else { return false }
+        }
+        check(replay.holes.count == 1 && inside.isEmpty, "the replay withholds a lane's reads inside its hole", "\(inside.count)")
     }
 }

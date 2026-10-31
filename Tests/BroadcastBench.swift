@@ -66,6 +66,11 @@ enum BroadcastBench {
         /// resume until D is back within 5 s of its target, with the deficit at the resume.
         var jumpLengths: [Double] = []
         var recoveries: [(deficit: Double, took: Double)] = []
+        /// The recorder's holes (nothing read inside them), and the live-ball plays that
+        /// landed in the look after one (their lag is ours: left out of the lags and binding).
+        var holes = 0
+        var holeMinutes = 0.0
+        var afterOutage = 0
     }
 
     /// How a live-ball play's arrival met its binding horizon (late binding, CHOREOGRAPHY §4.6).
@@ -175,6 +180,8 @@ enum BroadcastBench {
                         recording.status.isEmpty ? "status from the scoreboard" : "\(recording.status.count) status rows"].compactMap { $0 }.joined(separator: ", ")
         if let span = recording.span { report.minutes = (span.upperBound - span.lowerBound) / 60 }
         report.decisive = policy.decisive
+        report.holes = replay.holes.count
+        report.holeMinutes = replay.holes.reduce(0) { $0 + ($1.range.upperBound - $1.range.lowerBound) } / 60
         // Today's page shows a lane's score while it's ahead (football, baseball, basketball);
         // soccer's page has no lane score: its hero is the scoreboard's.
         let laneScore = sport != .soccer
@@ -212,6 +219,10 @@ enum BroadcastBench {
                 let p = engine.p(at: t)
                 for id in change.added {
                     guard let r = timeline.record(id), !r.backfill, r.entry.kind.phase == .live, let w = r.entry.wallclock else { continue }
+                    if r.afterOutage {
+                        report.afterOutage += 1
+                        continue
+                    }
                     report.lags[r.trusted ? r.entry.kind.label : "\(r.entry.kind.label) (\(r.timeSource))", default: []].append(r.firstSeen - w)
                     if let newest = newestLiveBefore { report.insertion.append(max(newest - r.eventTime, 0)) }
                     // Where p was when it arrived, against its binding horizon and its moment.
@@ -415,6 +426,9 @@ enum BroadcastBench {
             r.holds += x.holds
             for (k, v) in x.scoring { r.scoring[k, default: 0] += v }
             r.jumpLengths += x.jumpLengths
+            r.holes += x.holes
+            r.holeMinutes += x.holeMinutes
+            r.afterOutage += x.afterOutage
             r.recoveries += x.recoveries
         }
         return r
@@ -470,6 +484,10 @@ enum BroadcastBench {
             lines.append("  each new score behind its real moment (p50, s; n=\(real.broadcast.count)): the broadcast \(p50(real.broadcast)), "
                 + "today's page \(p50(real.page)), the scoreboard \(p50(real.board)), the slow lane's first sight \(p50(real.lane))")
             lines.append("    the broadcast: \(summary(real.broadcast)); today's page: \(summary(real.page)); the scoreboard: \(summary(real.board)); slow lane: \(summary(real.lane))")
+        }
+        if r.holes > 0 {
+            lines.append(String(format: "  the recorder's holes: %d, %.0f min in all (nothing read in them); live-ball plays landing after one, left out of lag and binding: %d",
+                                r.holes, r.holeMinutes, r.afterOutage))
         }
         if !r.scoring.isEmpty {
             lines.append("  scoring plays told: " + r.scoring.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))

@@ -459,6 +459,10 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         var lane: LaneID
         /// Known before it could be news: in the opening look, or filled in behind the frontier.
         var backfill = false
+        /// First seen in the look after our own outage (this lane unread for longer than
+        /// it should be: the network failed, the Mac was busy): its lag is ours, not the
+        /// feed's, so it sizes nothing.
+        var afterOutage = false
 
         var id: String { entry.id }
         var isTold: Bool { told != nil }
@@ -670,6 +674,8 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     }
 
     private mutating func merge(_ snapshot: LaneSnapshot<Payload>) -> TimelineChange {
+        // This lane unread for longer than it should be (once its cadence is known): what it brings now waited on us.
+        let outage = readGaps.count >= 3 && (lastRead[snapshot.lane].map { snapshot.arrived - $0 > max(30, 3 * readInterval) } ?? false)
         noteRead(snapshot.lane, at: snapshot.arrived)
         let opening = opened == nil
         if opening { opened = snapshot.arrived }
@@ -689,7 +695,7 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         }
         regressions[snapshot.lane] = nil
         lanes[snapshot.lane] = view
-        return apply(mergedEntries(), arrived: snapshot.arrived, opening: opening)
+        return apply(mergedEntries(), arrived: snapshot.arrived, opening: opening, outage: outage)
     }
 
     /// The game as the lanes have it: the freshest lane for its region, then each
@@ -761,7 +767,7 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     }
 
     private mutating func apply(_ merged: [(entry: TimelineEntry<Payload>, lane: LaneID)], arrived: PTime,
-                                opening: Bool) -> TimelineChange {
+                                opening: Bool, outage: Bool = false) -> TimelineChange {
         var change = TimelineChange()
         let previous = records
         let previousIndex = index
@@ -793,8 +799,10 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
                 let behind = frontier.map { (entry.wallclock ?? .infinity) < $0 - 60 } ?? false
                 record.backfill = opening || behind
                 if let reason = toldTombstones.removeValue(forKey: entry.id) { record.told = reason }
-                // A live-ball play at the frontier: its lag sizes the delay (if its time turns out trustworthy).
-                if !record.backfill, entry.kind.phase == .live, let w = entry.wallclock { record.arrivalLag = arrived - w }
+                record.afterOutage = outage && !record.backfill
+                // A live-ball play at the frontier: its lag sizes the delay (if its time turns out trustworthy),
+                // unless it waited on our own outage.
+                if !record.backfill, !outage, entry.kind.phase == .live, let w = entry.wallclock { record.arrivalLag = arrived - w }
                 next.append(record)
                 change.added.append(entry.id)
             }
