@@ -217,7 +217,10 @@ extension Plan {
 
 enum TheaterBake {
     /// Bakes a plan (off the main actor; pure). `facing(placement, figure, t)` is what a man faces at t in his clip.
-    static func bake<Clip: TheaterClip>(_ plan: Plan<Clip>, camera tuning: CameraOperator.Tuning = CameraOperator.Tuning()) -> BakedPlan<Clip> {
+    /// `light`: no strides (the theater isn't seen: the plan is made, its anchors published, but nobody's feet are
+    /// measured; the plan made when it's seen again carries on from where everyone stands).
+    static func bake<Clip: TheaterClip>(_ plan: Plan<Clip>, camera tuning: CameraOperator.Tuning = CameraOperator.Tuning(),
+                                        light: Bool = false) -> BakedPlan<Clip> {
         let dt = 1 / TheaterTiming.rate
         let n = max(Int(((plan.horizon - plan.start) * TheaterTiming.rate).rounded(.up)), 1) + 1
         func time(_ i: Int) -> PTime { plan.start + Double(i) * dt }
@@ -257,10 +260,11 @@ enum TheaterBake {
                 return CGPoint(x: Double(p.x), y: Double(p.y))
             }
             let poses = poseSpans(plan, id)
-            let rig = RigTrack(from: plan.start, through: plan.horizon, height: figure.height, history: Double(history.count) * dt,
-                               continuing: plan.state?.actor(id)?.rig, position: position) { t in
-                facing(plan, poses, id, at: t)
-            }
+            let rig = light ? RigTrack(at: position(plan.start), height: figure.height)
+                : RigTrack(from: plan.start, through: plan.horizon, height: figure.height, history: Double(history.count) * dt,
+                           continuing: plan.state?.actor(id)?.rig, position: position) { t in
+                    facing(plan, poses, id, at: t)
+                }
             tracks.append(ActorTrack(id: id, figure: figure, start: plan.start, xy: xy, opacity: opacity, rig: rig, poses: poses))
         }
         let ball = ballSpans(plan)

@@ -120,6 +120,8 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
         var deferFrom: PTime?
         var revision: UInt32
         var nextID: UInt16
+        /// Not seen: planned (its anchors are the tell times) but not baked for frames.
+        var light = false
     }
 
     private(set) var chain = PlanChain<Sport.Clip>()
@@ -185,7 +187,7 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
         var nextID = request.nextID
         let plan = Sport.plan(request.plays, history: request.history, facts: request.facts, chain: request.chain, at: request.at,
                               shift: request.shift, deferFrom: request.deferFrom, revision: request.revision, nextID: &nextID)
-        return (TheaterBake.bake(plan), nextID)
+        return (TheaterBake.bake(plan, light: request.light), nextID)
     }
 
     /// Takes in a baked plan if it's still in time (its splice not yet passed); else it must be made again.
@@ -271,23 +273,21 @@ final class TheaterDirector<Sport: TheaterSport> {
         replan()
     }
 
-    /// Plan always, bake when seen (§8.4): off screen, nothing is baked; on return, a fresh plan from where T is.
+    /// Plan always, bake when seen (§8.4): off screen the plans are still made (their anchors are every consumer's
+    /// tell times), only not baked for frames; on return, a full plan from where T is.
     func setVisible(_ seen: Bool) {
         guard seen != visible else { return }
         visible = seen
-        if seen { replan() } else {
-            baking?.cancel()
-            waking?.cancel()
-        }
+        if seen { replan() }
     }
 
     private func replan() {
-        guard visible else { return }
         if baking != nil {
             pending = true
             return
         }
-        guard let request = session.request(now: now(), lead: lead) else { return }
+        guard var request = session.request(now: now(), lead: lead) else { return }
+        request.light = !visible
         baking = Task { [weak self] in
             let made = await Self.make(request)
             guard let self, !Task.isCancelled else { return }

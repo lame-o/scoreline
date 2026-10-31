@@ -99,6 +99,8 @@ struct TheaterFrameReport: Equatable {
     var decisive: Double?
     /// The plays the newest plan has placed (their decisive frames planned).
     var placed: Set<String> = []
+    /// The newest play whose decisive moment the court has drawn by T (every play has one: the told order on screen).
+    var newest: String?
     /// The director's state, for the check's log (seen, plans, what the newest plan tells).
     var note = ""
     var reached: Bool { decisive.map { clipTime >= $0 - 1e-6 } ?? false }

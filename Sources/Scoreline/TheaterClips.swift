@@ -480,7 +480,7 @@ enum TheaterPlanner {
             placement.entering = meeting.newcomers
             placement.covers = [unit.id] + unit.covers
             // One truth on p: where each play it tells is presented (its decisive moment; the plays it covers, at theirs).
-            placement.presents[unit.id] = data + meeting.slip
+            placement.presents[unit.anchor ?? unit.id] = data + meeting.slip
             for id in unit.covers { if let a = anchors[id]?.at { placement.presents[id] = a + meeting.slip } }
             for (i, id) in meeting.cast.enumerated() { identify(&draft, id, as: clip.figures[i]) }
             draft.placements.append(placement)
@@ -501,13 +501,36 @@ enum TheaterPlanner {
             let end = last.offset + last.clip.length
             append(&draft, sequencer.next(after: last.clip, at: end, draft: draft), at: end, limits: limits, sequencer: sequencer, nextID: &nextID)
         }
-        // Published on p as T runs now: a placement made before a hold or a skip moved the shift presents its plays
-        // where its decisive frame will be drawn, so the score never lands apart from it.
+        // One scheduler: every play still to tell gets its moment here, on the theater's time (the director maps it to
+        // p through the clock, and the timeline tells each play then, the court, the score and the lists together).
+        // What a clip tells is where its decisive frame will be drawn; the rest (an attached substitution, a touch
+        // that changed nothing) at the solver's anchor, held between the told plays around it: in order, always.
+        var fixed: [String: PTime] = [:]
         for p in draft.placements {
-            for (id, at) in p.presents {
-                draft.published[id] = at + p.shift - shift
-                draft.decisive[id] = at + p.shift
+            for (id, at) in p.presents { fixed[id] = at + p.shift }
+        }
+        let order = sequencer.anchorInputs.map(\.id).filter { !history.contains($0) }
+        var ceilings = [PTime](repeating: .infinity, count: order.count)
+        var ceiling = PTime.infinity
+        for i in order.indices.reversed() {
+            ceilings[i] = ceiling
+            if let f = fixed[order[i]] { ceiling = min(ceiling, f) }
+        }
+        var floor = -PTime.infinity
+        let step = 0.01
+        for (i, id) in order.enumerated() {
+            var at: PTime
+            if let f = fixed[id] {
+                at = max(f, floor + step)
+            } else if let solved = anchors[id]?.at {
+                at = min(max(solved + shift, floor + step), ceilings[i] - step)
+                at = max(at, floor + step)
+            } else {
+                continue
             }
+            draft.decisive[id] = at
+            draft.published[id] = at - shift
+            floor = at
         }
         var present = Set<ActorID>()
         for p in draft.placements { present.formUnion(p.cast); present.formUnion(p.leaving) }

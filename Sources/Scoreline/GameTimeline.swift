@@ -458,6 +458,9 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// The theater's solved decisive moments (Phase 0's anchor solver), by play:
     /// untold plays are presented there, so the score and the slide agree with the theater.
     private(set) var anchors: [String: PTime] = [:]
+    /// Anchored plays told while the order guard would have held them (newest last): the guard and the theater
+    /// disagreed, which is worth a report (the theater's anchor wins).
+    private(set) var guardOverrides: [String] = []
     /// When each slow lane was last read successfully, changed or not.
     private var lastRead: [LaneID: PTime] = [:]
     /// The gaps between the slow lane's reads (any lane), newest last.
@@ -969,11 +972,22 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// order guard). One the clock passed by up to `lateAfter` is on time (a
     /// micro catch-up, CHOREOGRAPHY §4.6); by more, late; by more than 30 s, a
     /// quiet correction.
+    ///
+    /// One scheduler: a play the theater has anchored is told at its anchor,
+    /// the order guard or not (the theater's solver already put the plays in
+    /// order, and the court draws it then). The guard stays the fallback for
+    /// plays with no anchor; one it would have held against an anchor is
+    /// noted in `guardOverrides` (a bug to report, never a second schedule).
     @discardableResult
     mutating func tell(through p: PTime, reason: TellReason = .onTime, lateAfter: Double = 1.5, barrier: PTime = .infinity) -> [Record] {
         var told: [Record] = []
         var i = toldCount
-        while i < records.count, records[i].presentAt <= p, records[i].presentAt <= barrier || reason == .history {
+        while i < records.count, records[i].presentAt <= p,
+              records[i].presentAt <= barrier || reason == .history || anchors[records[i].id] != nil {
+            if reason != .history, records[i].presentAt > barrier {
+                guardOverrides.append(records[i].id)
+                if guardOverrides.count > 50 { guardOverrides.removeFirst() }
+            }
             var why = reason
             if why == .onTime, records[i].backfill { why = .history }
             if why == .onTime, p - records[i].presentAt > 30 { why = .correction }

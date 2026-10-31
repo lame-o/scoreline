@@ -296,9 +296,14 @@ final class Broadcast: BroadcastTheaterSource {
     func step(now: PTime? = nil) {
         guard active, var engine else { return }
         let now = now ?? time.now()
+        let overridden = engine.timeline.guardOverrides.count
         let shownBefore = Self.shown(presented.score, floor: floor)
         let result = engine.advance(now: now)
         self.engine = engine
+        // The order guard would have held a play the theater anchored: told at the anchor (one scheduler), and noted.
+        for id in engine.timeline.guardOverrides.dropFirst(min(overridden, engine.timeline.guardOverrides.count)) {
+            Log.theater.notice("order guard overridden by the theater's anchor for play \(id, privacy: .public)")
+        }
         // Woke (or came back to the page): what the user could see then is the floor again.
         if result.events.contains(where: { if case .wake = $0 { true } else { false } }) {
             raiseFloor(to: [shownBefore, lastScoreboard?.score].compactMap { $0 }, at: now)

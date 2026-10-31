@@ -1725,6 +1725,7 @@ private struct BasketballDirectedStage: View {
         let told = chain.plans.last?.plan.placements.compactMap(\.play).suffix(4).joined(separator: ",") ?? ""
         probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id, clipTime: drawn.clip.warp.clip(drawn.t),
                                   decisive: drawn.clip.decisive, placed: Set(chain.plans.last.map { Array($0.plan.decisive.keys) } ?? []),
+                                  newest: chain.plans.last?.plan.decisive.filter { $0.value <= T + 1e-3 }.max { $0.value < $1.value }?.key,
                                   note: "seen \(seen) plans \(chain.plans.count) rev \(chain.revision) busy \(director.busy) tells \(told) anchors "
                                       + director.anchors.sorted { $0.key < $1.key }.suffix(6).map { "\($0.key.suffix(3))@\(String(format: "%.2f", $0.value))" }
                                       .joined(separator: " ")

@@ -13,6 +13,8 @@ enum Log {
     static let parse = Logger(subsystem: subsystem, category: "parse")
     /// The panel's lifecycle (`PanelLog`).
     static let panel = Logger(subsystem: subsystem, category: "panel")
+    /// The theaters' director and the broadcast's telling (one scheduler: where they'd have disagreed).
+    static let theater = Logger(subsystem: subsystem, category: "theater")
 }
 
 /// Fetches events for a league from its upstream source.
