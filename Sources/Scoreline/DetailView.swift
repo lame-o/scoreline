@@ -267,7 +267,8 @@ struct DetailView: View {
             // Arrows, Page Up/Down, Space, Home and End scroll the page.
             PageScrollView(keyboardScrolls: true) {
                 VStack(alignment: .leading, spacing: 0) {
-                    hero.stackIn()
+                    // Above the sections under it: the live indicator's hover card hangs below the hero.
+                    hero.stackIn().zIndex(1)
                     // One column, or two from 680pt. The same children either
                     // way, so crossing the breakpoint never rebuilds a section.
                     StackContainer(layout: AnyLayout(MatchColumnsLayout(columns: layout.columns))) { content }
@@ -400,6 +401,8 @@ struct DetailView: View {
             // glass over anything in it, and the slide passed under the card.
             // Out of the hierarchy between scores.
             .heroSlide(slides)
+            // The live indicator's hover card, out here for the same reason as the slide.
+            .behindLiveHost()
             // Scrolling away, it shrinks toward the header and fades as the bar takes over.
             .heroTuck()
             .pageSection(PageGeometry.hero)
@@ -410,6 +413,8 @@ struct DetailView: View {
             // stars and the co-stream badge become its actions.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(heroSpoken)
+            // The live indicator's readout, as the hover says it ("About 55 seconds behind live").
+            .accessibilityValue(event.state == .live ? broadcast.behind?.spoken ?? "" : "")
             .accessibilityAddTraits(event.state == .live ? [.isHeader, .updatesFrequently] : .isHeader)
             .accessibilityHeading(.h1)
             .accessibilityActions { heroActions(top: top, bottom: bottom) }
@@ -769,6 +774,8 @@ struct DetailView: View {
                     }
                     .font(.system(size: 11.5, weight: .semibold).monospacedDigit())
                     .foregroundStyle(.red)
+                    // How far behind live, on hover only (BROADCAST §2).
+                    .behindLiveHover(broadcast.behind, alignment: alignment, id: "hero")
                     .animation(reduceMotion ? nil : Motion.quick, value: nbaClutch)
                     // Baseball: who's up, like CS2's round line.
                     if let side = battingSide, let team = side == .top ? event.competitors.first : event.competitors.last {
@@ -2222,6 +2229,7 @@ struct DetailView: View {
         inputs.twoMinuteDrill = twoMinuteDrill
         inputs.coStreaming = store.coStreamingIDs.contains(event.id)
         inputs.stale = staleSince != nil
+        inputs.behind = broadcast.behind
         if let side = footballPossession {
             inputs.possession = side
         } else if isNBA {

@@ -36,6 +36,8 @@ extension ScorelineTests {
         broadcastVAR()
         print("\nBroadcast: a jump never skips a play that must be told live")
         broadcastJumps()
+        print("\nBroadcast: how far behind live, on hover only")
+        broadcastBehindLive()
     }
 
     // MARK: Helpers
@@ -1186,5 +1188,56 @@ extension ScorelineTests {
               "after the stall, the jump lands short of the score", "stalled at \(stalledAt), jumps \(jumps)")
         check(told["b"] == .history && told["c"] == .history && told["d"] == .history && told["goal"] != nil && told["goal"] != .history,
               "the flow before it goes by as history; the score is told live", "\(told.sorted { $0.key < $1.key })")
+    }
+}
+
+
+// MARK: - Behind live
+
+extension ScorelineTests {
+    static func broadcastBehindLive() {
+        check(BehindLive(delay: 53.4, regime: .tracking) == BehindLive(seconds: 55) && BehindLive(delay: 52.4, regime: .tracking).seconds == 50
+              && BehindLive(delay: 1.2, regime: .tracking).seconds == 5, "the delay rounds to 5 s, never under 5")
+        check(BehindLive(seconds: 55).text == "About 55 s behind live" && BehindLive(seconds: 100).text == "About 1 min 40 s behind live"
+              && BehindLive(seconds: 120).text == "About 2 min behind live", "the hover's words", BehindLive(seconds: 100).text)
+        check(BehindLive(seconds: 55).spoken == "About 55 seconds behind live"
+              && BehindLive(seconds: 65, note: "Catching up").spoken == "About 1 minute 5 seconds behind live, catching up",
+              "VoiceOver's: the same, in words", BehindLive(seconds: 65, note: "Catching up").spoken)
+        check(BehindLive(delay: 80, regime: .catchingUp).note == "Catching up" && BehindLive(delay: 80, regime: .stalled).note == "Waiting for the feed"
+              && BehindLive(delay: 80, regime: .tracking).note == nil && BehindLive(delay: 80, regime: .stretching).note == nil,
+              "a quieter note while catching up or waiting on the feed; none otherwise")
+
+        // The page's model: nil until broadcasting; then the clock's delay.
+        let b = Broadcast()
+        b.automatic = false
+        var now: PTime = 1100
+        b.time = BroadcastTime(now: { now })
+        check(b.behind == nil, "not broadcasting: no readout")
+        let event = Event(id: "espn-h", content: .match(top: comp("espn-basketball-1", "Away", "3"), bottom: comp("espn-basketball-2", "Home", "2")),
+                          state: .live, start: .now, detail: "10:50 - 1st", caption: nil, link: nil,
+                          ref: .espn(path: NBADetail.path, id: "h", sport: .basketball))
+        let policy = BroadcastLanes.policy(.basketball, path: NBADetail.path)
+        var d = GameDetail()
+        d.topIsHome = false
+        d.broadcastPlays = BroadcastLanes.entries([
+            nbaPlay("h1", at: 1000, clock: "11:00", type: 92, text: "Home makes layup", home: 2, away: 0, shooting: true, scoring: true, team: "2"),
+            nbaPlay("h2", at: 1010, clock: "10:50", type: 92, text: "Away makes three", home: 2, away: 3, shooting: true, scoring: true),
+        ], sport: .basketball, policy: policy)
+        b.begin(event, topIsHome: false)
+        b.ingest(summary: d)
+        now = 1101
+        b.step()
+        let expected = BehindLive(delay: b.clock.delay(at: now), regime: b.clock.regime)
+        check(b.behind == expected && (b.behind?.seconds ?? 0) >= 45, "broadcasting: the clock's delay, rounded", "\(String(describing: b.behind))")
+
+        // The docked bar carries it while live only.
+        var inputs = DockInputs(event: event, detail: nil, colors: (.red, .blue), scores: ("3", "2"))
+        inputs.behind = BehindLive(seconds: 55)
+        let final = DockInputs(event: event.with(state: .final, content: event.content, detail: .some("Final")), detail: nil,
+                               colors: (.red, .blue), scores: ("3", "2"))
+        var finalInputs = final
+        finalInputs.behind = BehindLive(seconds: 55)
+        check(DockBar.make(inputs).behind == BehindLive(seconds: 55) && DockBar.make(finalInputs).behind == nil,
+              "the docked bar's indicator has the readout while live, never on a final")
     }
 }

@@ -466,6 +466,14 @@ final class Broadcast: BroadcastTheaterSource {
         return plays
     }
 
+    /// How far behind live the page is now (the clock's delay, rounded to 5 s), for the
+    /// live indicator's hover and VoiceOver; nil while not broadcasting.
+    var behind: BehindLive? {
+        guard active, !ended, clock.started else { return nil }
+        let now = time.now()
+        return BehindLive(delay: clock.delay(at: now), regime: clock.regime)
+    }
+
     /// The event as presented: score, state, status and clock at p.
     func present(_ event: Event) -> Event {
         guard active, case let .match(top, bottom) = event.content, let sport, let engine else { return event }
