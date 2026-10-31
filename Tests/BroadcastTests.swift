@@ -1276,13 +1276,15 @@ extension ScorelineTests {
         // 10 s to 400; then 15 min with the clock standing at 1400 (a halftime: no hole).
         inferred.status = stride(from: 0.0, through: 100, by: 10).map { row($0, 1000 + $0) }
             + stride(from: 300.0, through: 400, by: 10).map { row($0, 1000 + $0) } + [row(1300, 1400)]
-        check(inferred.holes(policy: soccer) == [Recording.Hole(range: 100...300, lanes: nil)],
-              "no gaps.jsonl: lane silence while the clock ran (not the 15 min the clock stood still)", "\(inferred.holes(policy: soccer))")
+        check(inferred.holes(policy: soccer) == [Recording.Hole(range: 100...300, lanes: nil)]
+              && { var logged = inferred; logged.gapLogged = true; return logged.holes(policy: soccer).isEmpty }(),
+              "recorded before gap logging: lane silence while the clock ran is a hole (not the 15 min the clock stood still); with logging, it's the feed's", "\(inferred.holes(policy: soccer))")
 
         // The replay reads nothing inside a hole.
         var fixture = Recording.load(root: URL(fileURLWithPath: "Tests/Fixtures/broadcast"), sport: "soccer_eng.1", event: "401879248", settle: 0)
         guard let first = fixture.core.first?.arrived else { return check(false, "the VAR window loads") }
         fixture.gaps = [(first + 40, "core"), (first + 45, "core")]
+        fixture.gapLogged = true
         guard let replay = RecordingReplay(fixture) else { return check(false, "the VAR window replays") }
         let inside = replay.schedule(.app(replay.policy)).filter { input in
             if case .core = input.input { return (first + 40...first + 50).contains(input.t) } else { return false }

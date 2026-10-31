@@ -62,6 +62,10 @@ struct Recording: Sendable {
     /// scoreboard's; since 2026-10-31 12:22 PT): when and which lane ("summary",
     /// "status", "core", "scoreboard"). Our holes, not the feed's.
     var gaps: [(at: PTime, what: String)] = []
+    /// Whether the recorder logged its failed fetches while this game was recorded
+    /// (the event has a gaps.jsonl, or the sport's began before the game): then its
+    /// holes are explicit, and a silence in every lane is the feed's, not ours.
+    var gapLogged = false
 
     /// The first and last arrivals of anything recorded.
     var span: ClosedRange<PTime>? {
@@ -109,9 +113,16 @@ struct Recording: Sendable {
                                   rows: scoreRows(root.appendingPathComponent(sport).appendingPathComponent("scores.jsonl"), event: event))
         recording.status = lines(dir.appendingPathComponent("status.jsonl"))
         recording.core = gzips(in: dir.appendingPathComponent("core"), settle: settle, now: now)
-        recording.gaps = (lines(dir.appendingPathComponent("gaps.jsonl")) + lines(root.appendingPathComponent(sport).appendingPathComponent("gaps.jsonl")))
+        let eventGaps = dir.appendingPathComponent("gaps.jsonl")
+        let sportGaps = lines(root.appendingPathComponent(sport).appendingPathComponent("gaps.jsonl"))
             .compactMap { row in row.json["at"].double.map { ($0, row.json["what"].string ?? "") } }
-            .sorted { $0.0 < $1.0 }
+        let mine = lines(eventGaps).compactMap { row in row.json["at"].double.map { ($0, row.json["what"].string ?? "") } }
+        if let span = recording.span {
+            // Only the failures while this game was recorded.
+            recording.gaps = (mine + sportGaps).filter { span.contains($0.0) }.sorted { $0.0 < $1.0 }
+            recording.gapLogged = FileManager.default.fileExists(atPath: eventGaps.path)
+                || (sportGaps.map(\.0).min().map { $0 <= span.lowerBound } ?? false)
+        }
         return recording
     }
 
@@ -174,8 +185,8 @@ struct Recording: Sendable {
     /// than 20 s across it (plays went by unread; a break or a halftime moves
     /// it 0–7 s), from the status lane's clock, else the scoreboard's.
     func holes(policy: BroadcastPolicy) -> [Hole] {
+        var out: [Hole] = []
         if !gaps.isEmpty {
-            var out: [Hole] = []
             for lane in Set(gaps.map(\.what)) {
                 var current: ClosedRange<PTime>?
                 for g in gaps where g.what == lane {
@@ -189,20 +200,19 @@ struct Recording: Sendable {
                 }
                 if let c = current { out.append(Hole(range: c, lanes: [lane])) }
             }
-            return out.sorted { $0.range.lowerBound < $1.range.lowerBound }
         }
-        // Older recordings: lane silence while the clock ran.
+        if gapLogged { return out.sorted { $0.range.lowerBound < $1.range.lowerBound } }
+        // Recorded before the recorder logged its failures: lane silence while the clock ran.
         var activity = (snapshots + core).map(\.arrived) + status.compactMap { $0.json["at"].double } + rows.compactMap { $0.json["at"].double }
         activity.sort()
         let clocks = clockReadings(policy: policy)
         func elapsed(atOrBefore t: PTime) -> Double? { clocks.last { $0.at <= t + 0.5 }?.elapsed }
         func elapsed(atOrAfter t: PTime) -> Double? { clocks.first { $0.at >= t - 0.5 }?.elapsed }
-        var out: [Hole] = []
         for (a, b) in zip(activity, activity.dropFirst()) where b - a > 60 {
             guard let e0 = elapsed(atOrBefore: a), let e1 = elapsed(atOrAfter: b), e1 - e0 > 20 else { continue }
             out.append(Hole(range: a...b, lanes: nil))
         }
-        return out
+        return out.sorted { $0.range.lowerBound < $1.range.lowerBound }
     }
 
     /// The game clock as the recording saw it, as game time elapsed: the status lane's, else the scoreboard's.
