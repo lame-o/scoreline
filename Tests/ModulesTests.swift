@@ -19,6 +19,7 @@ extension ScorelineTests {
         modulesOrder()
         modulesOrderPages()
         modulesOrderPersistence()
+        modulesCustomizeOrder()
     }
 
     private typealias S = DetailView.Section
@@ -396,5 +397,22 @@ extension ScorelineTests {
         check(ScoreStore(defaults: defaults).modules.ranking(on: .nba).isEmpty
               && (defaults.dictionary(forKey: ModuleKeys.order) as? [String: [String]])?["nba"] == nil,
               "Restore Defaults clears the saved order")
+    }
+
+    private static func modulesCustomizeOrder() {
+        var layout = ModuleLayout()
+        let rows = DetailView.customizeRows(for: nbaRef, kind: .nba, layout: layout).map(\.id)
+        check(rows == DetailView.modules(for: nbaRef).map { sectionID($0.section) }, "Customize lists the modules in the plan's order by default")
+        // Dragging a handle down two rows and letting go.
+        let to = CustomizeModulesSheet.index(from: 0, travel: 2 * CustomizeModulesSheet.pitch + 6, count: rows.count)
+        check(to == 2 && CustomizeModulesSheet.index(from: 1, travel: -400, count: rows.count) == 0
+              && CustomizeModulesSheet.index(from: 1, travel: 9_999, count: rows.count) == rows.count - 1,
+              "a held row lands in the slot nearest the pointer, within the list")
+        layout.rank(ModuleOrder.move(rows[0], to: to, in: rows), on: .nba)
+        let after = DetailView.customizeRows(for: nbaRef, kind: .nba, layout: layout)
+        check(after.map(\.id)[2] == rows[0] && after.first { $0.id == "plays" }?.liveOnly == true,
+              "the sheet's order is the page's: saved for the sport, rows keep their Live marks")
+        check(layout.shown(DetailView.order(nbaRef, .live), on: .nba).map(sectionID) == after.map(\.id).filter(Set(DetailView.order(nbaRef, .live).map(sectionID)).contains),
+              "a live page follows the sheet's order")
     }
 }

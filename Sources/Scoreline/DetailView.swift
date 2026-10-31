@@ -1811,19 +1811,27 @@ struct DetailView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { closeCustomize() }
                     .accessibilityHidden(true)
-                CustomizeModulesSheet(page: kind.name,
-                                      rows: Self.modules(for: event.ref).map {
-                                          .init(section: $0.section, name: Self.moduleName($0.section, on: kind), liveOnly: $0.liveOnly)
-                                      },
+                CustomizeModulesSheet(page: kind.name, rows: Self.customizeRows(for: event.ref, kind: kind, layout: store.modules),
                                       isShown: { !store.modules.isHidden($0, on: kind) },
                                       setShown: { section, shown in
                                           withAnimation(reduceMotion ? Motion.fade : Motion.standard) { store.modules.hide(section, on: kind, !shown) }
                                       },
+                                      // The sheet animates its own rows; the page behind follows on the same transaction.
+                                      reorder: { ids in store.modules.rank(ids, on: kind) },
                                       restore: { withAnimation(reduceMotion ? Motion.fade : Motion.standard) { store.modules.restoreDefaults(on: kind) } },
                                       done: closeCustomize)
                     .padding(.top, 44)
             }
             .transition(.opacity)
+        }
+    }
+
+    /// The Customize sheet's rows: every module the sport's pages can show, in the sport's order. (pure; tested)
+    static func customizeRows(for ref: EventRef?, kind: PageKind, layout: ModuleLayout) -> [CustomizeModulesSheet.Row] {
+        let modules = Self.modules(for: ref)
+        let liveOnly = Dictionary(modules.map { (sectionID($0.section), $0.liveOnly) }, uniquingKeysWith: { first, _ in first })
+        return ModuleOrder.arrange(modules.map(\.section), by: layout.ranking(on: kind)).map {
+            .init(section: $0, name: moduleName($0, on: kind), liveOnly: liveOnly[sectionID($0)] ?? false)
         }
     }
 

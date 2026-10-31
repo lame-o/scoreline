@@ -892,9 +892,11 @@ struct HiddenModulesLine: View {
 
 // MARK: - Customize
 
-/// A sport's game pages, show or hide each module (no reordering: the
-/// per-state plans and the split page's pairs are designed). Over the page,
-/// like a sheet, inside the panel.
+/// A sport's game pages: show or hide each module, and drag the handles to
+/// set their order (the same order a drag on the page sets; each page keeps
+/// only what it has, and the split page keeps each module in its column).
+/// Over the page, like a sheet, inside the panel. VoiceOver moves a row with
+/// Move Up and Move Down.
 struct CustomizeModulesSheet: View {
     struct Row: Identifiable {
         let section: DetailView.Section
@@ -904,37 +906,59 @@ struct CustomizeModulesSheet: View {
     }
 
     let page: String
+    /// Every module the sport's pages can show, in the sport's order.
     let rows: [Row]
     let isShown: (DetailView.Section) -> Bool
     let setShown: (DetailView.Section, Bool) -> Void
+    /// The rows in a new order: every module's ID, first first.
+    let reorder: ([String]) -> Void
     let restore: () -> Void
     let done: () -> Void
+    /// The row whose handle is held, where it started, and how far it's travelled.
+    @State private var held: String?
+    @State private var heldFrom = 0
+    @State private var travel: CGFloat = 0
+    @GestureState private var handling = false
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// A row and its hairline.
+    static let pitch: CGFloat = 25
+    private static let space = "CustomizeModulesSheet.rows"
+
+    /// Where a held row lands: the slot nearest where it's been dragged. (pure; tested)
+    static func index(from: Int, travel: CGFloat, count: Int) -> Int {
+        min(max(from + Int((travel / pitch).rounded()), 0), max(count - 1, 0))
+    }
+
+    /// The rows as drawn: mid-drag, the held one at its slot, the others out of its way.
+    private var drawn: [Row] {
+        guard let held, let row = rows.first(where: { $0.id == held }) else { return rows }
+        var others = rows.filter { $0.id != held }
+        others.insert(row, at: min(Self.index(from: heldFrom, travel: travel, count: rows.count), others.count))
+        return others
+    }
 
     var body: some View {
+        let drawn = drawn
         VStack(alignment: .leading, spacing: 0) {
             Text("\(page) Game Pages").font(.system(size: 13, weight: .semibold))
                 .accessibilityAddTraits(.isHeader)
-            Text("What shows on every \(page) game.")
+            Text("What shows on every \(page) game, and in what order.")
                 .font(.system(size: 11)).foregroundStyle(.secondary).padding(.top, 2).padding(.bottom, 8)
-            ForEach(rows.indices, id: \.self) { i in
-                let row = rows[i]
-                Toggle(isOn: Binding(get: { isShown(row.section) }, set: { setShown(row.section, $0) })) {
-                    HStack {
-                        Text(row.name).font(.system(size: 12.5)).foregroundStyle(isShown(row.section) ? .primary : .secondary)
-                        Spacer()
-                        if row.liveOnly { Text("Live").font(.system(size: 10)).foregroundStyle(.tertiary).accessibilityHidden(true) }
-                    }
+            VStack(spacing: 0) {
+                ForEach(Array(drawn.enumerated()), id: \.element.id) { i, row in
+                    line(row, at: i, of: drawn.count)
                 }
-                .toggleStyle(ModuleCheckbox())
-                .frame(height: 24)
-                if i < rows.count - 1 { Divider().opacity(0.5).padding(.leading, 21) }
             }
+            .coordinateSpace(name: Self.space)
+            .animation(reduceMotion ? nil : Motion.standard, value: drawn.map(\.id))
             HStack {
                 Button("Restore Defaults", action: restore)
                     .buttonStyle(.plain)
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
+                    .help("Show every module, in each page's own order")
                 Spacer()
                 Button(action: done) {
                     Text("Done").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
@@ -949,11 +973,90 @@ struct CustomizeModulesSheet: View {
         }
         .padding(14)
         .frame(width: 262)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(scheme == .dark ? Color(white: 0.17) : .white))
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(surface))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5))
         .shadow(color: .black.opacity(0.3), radius: 18, y: 8)
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
+        .onChange(of: handling) { _, now in
+            if !now, held != nil { drop() }
+        }
+    }
+
+    private var surface: Color { scheme == .dark ? Color(white: 0.17) : .white }
+
+    private func line(_ row: Row, at i: Int, of count: Int) -> some View {
+        let isHeld = held == row.id
+        return VStack(spacing: 0) {
+            HStack(spacing: 2) {
+                Toggle(isOn: Binding(get: { isShown(row.section) }, set: { setShown(row.section, $0) })) {
+                    HStack {
+                        Text(row.name).font(.system(size: 12.5)).foregroundStyle(isShown(row.section) ? .primary : .secondary)
+                        Spacer()
+                        if row.liveOnly { Text("Live").font(.system(size: 10)).foregroundStyle(.tertiary).accessibilityHidden(true) }
+                    }
+                }
+                .toggleStyle(ModuleCheckbox())
+                .accessibilityActions {
+                    if i > 0 { Button("Move Up") { step(row.id, to: i - 1) } }
+                    if i < count - 1 { Button("Move Down") { step(row.id, to: i + 1) } }
+                }
+                handle(row)
+            }
+            .frame(height: Self.pitch - 1)
+            Rectangle().fill(Color.primary.opacity(i < count - 1 && !isHeld ? 0.08 : 0)).frame(height: 1).padding(.leading, 21)
+        }
+        .background {
+            // Held, the row lifts off the list: the sheet's surface, a soft shadow.
+            if isHeld {
+                RoundedRectangle(cornerRadius: 6, style: .continuous).fill(surface)
+                    .shadow(color: .black.opacity(scheme == .dark ? 0.45 : 0.16), radius: 8, y: 3)
+                    .padding(.horizontal, -6)
+            }
+        }
+        .scaleEffect(isHeld ? 1.02 : 1)
+        // Held, it follows the pointer; the rest slide on `standard` as it passes them.
+        .offset(y: isHeld ? travel - CGFloat(i - heldFrom) * Self.pitch : 0)
+        .zIndex(isHeld ? 1 : 0)
+    }
+
+    /// The handle: grab it to move the row (the rest of the row is the checkbox).
+    private func handle(_ row: Row) -> some View {
+        Image(systemName: "line.3.horizontal")
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(held == row.id ? .secondary : .tertiary)
+            .frame(width: 24, height: Self.pitch - 1)
+            .contentShape(Rectangle())
+            .pointerStyle(held == row.id ? .grabActive : .grabIdle)
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .named(Self.space))
+                    .updating($handling) { _, state, _ in state = true }
+                    .onChanged { value in
+                        if held == nil {
+                            held = row.id
+                            heldFrom = rows.firstIndex { $0.id == row.id } ?? 0
+                        }
+                        travel = value.translation.height
+                    }
+                    .onEnded { _ in drop() }
+            )
+            .help("Drag to reorder")
+            .accessibilityHidden(true)
+    }
+
+    /// Let go: the order is saved, and the row settles into its slot.
+    private func drop() {
+        let order = drawn.map(\.id)
+        withAnimation(reduceMotion ? Motion.fade : Motion.standard) {
+            if order != rows.map(\.id) { reorder(order) }
+            held = nil
+            travel = 0
+        }
+    }
+
+    /// Move Up or Move Down.
+    private func step(_ id: String, to index: Int) {
+        withAnimation(reduceMotion ? Motion.fade : Motion.standard) { reorder(ModuleOrder.move(id, to: index, in: rows.map(\.id))) }
     }
 }
 
