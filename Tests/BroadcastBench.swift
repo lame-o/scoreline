@@ -48,6 +48,8 @@ enum BroadcastBench {
         var fastLag: Double?
         var told = 0
         var history = 0
+        /// The engine's cost per step (ingest + advance), on this (unoptimized) build: for the report only.
+        var stepTime: [Double] = []
     }
 
     /// How a live-ball play's arrival met its binding horizon (late binding, CHOREOGRAPHY §4.6).
@@ -167,7 +169,10 @@ enum BroadcastBench {
         var lastScore: ScoreLine?
         var newestLiveBefore: PTime?
         var stallSince: PTime?
+        var stepStarted = DispatchTime.now()
         replay.run(cadence) { replay, t, step, change in
+            report.stepTime.append(Double(DispatchTime.now().uptimeNanoseconds - stepStarted.uptimeNanoseconds) / 1e6)
+            defer { stepStarted = DispatchTime.now() }
             let engine = replay.engine
             let timeline = engine.timeline
             if let change {
@@ -335,6 +340,7 @@ enum BroadcastBench {
             for (k, v) in x.bounds { r.bounds[k, default: 0] += v }
             r.told += x.told
             r.history += x.history
+            r.stepTime += x.stepTime
         }
         return r
     }
@@ -381,6 +387,10 @@ enum BroadcastBench {
         lines.append(String(format: "  stalls per hour: %.1f", r.minutes > 0 ? Double(r.stalls.count) / (r.minutes / 60) : 0))
         lines.append("  stalls: \(r.stalls.count) (\(summary(r.stalls))); skips: \(r.skips.count) (total \(String(format: "%.0f", r.skips.reduce(0, +))) s); jumps: \(r.jumps); wakes: \(r.wakes)")
         lines.append("  safety net applied: \(r.safetyNet)" + (r.fastLag.map { String(format: "; fast-lane lag %.1f s", $0) } ?? ""))
+        if !r.stepTime.isEmpty {
+            lines.append(String(format: "  engine per step (ingest + advance, unoptimized test build): p50 %.2f ms, p99 %.2f ms over %d steps",
+                                Stats.quantile(r.stepTime, 0.5), Stats.quantile(r.stepTime, 0.99), r.stepTime.count))
+        }
         lines.append("  watermark bound (per step): " + r.bounds.sorted { "\($0.key)" < "\($1.key)" }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))
         return lines.joined(separator: "\n")
     }

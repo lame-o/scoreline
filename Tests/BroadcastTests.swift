@@ -21,6 +21,11 @@ extension ScorelineTests {
         broadcastLanes()
         print("\nBroadcast: recordings")
         broadcastRecording()
+        print("\nBroadcast: the page")
+        broadcastPage()
+        broadcastPolicies()
+        print("\nBroadcast: football, soccer and baseball lanes")
+        broadcastSports()
     }
 
     // MARK: Helpers
@@ -547,5 +552,220 @@ extension ScorelineTests {
         } else {
             check(false, "the theater's snapshot")
         }
+    }
+}
+
+
+// MARK: - The page
+
+extension ScorelineTests {
+    /// An NBA play as ESPN's summary has it.
+    static func nbaPlay(_ id: String, at wall: PTime, clock: String, type: Int, text: String, home: Int, away: Int,
+                        shooting: Bool = false, scoring: Bool = false, team: String = "1", people: [String] = ["9"]) -> JSON {
+        let iso = ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: wall))
+        return JSON(["id": id, "period": ["number": 1], "clock": ["displayValue": clock], "type": ["id": "\(type)", "text": text],
+                     "text": text, "homeScore": home, "awayScore": away, "shootingPlay": shooting, "scoringPlay": scoring,
+                     "scoreValue": scoring ? 3 : 0, "wallclock": iso, "team": ["id": team],
+                     "participants": people.map { ["athlete": ["id": $0]] }] as [String: Any])
+    }
+
+    /// The real page model on a virtual clock: the hero's score, the Latest
+    /// list, Win Probability and the moments change at the play's moment on p,
+    /// not when it arrives; the tables wait for their summary's watermark.
+    static func broadcastPage() {
+        var now: PTime = 1100
+        let b = Broadcast()
+        b.automatic = false
+        b.time = BroadcastTime(now: { now })
+        let event = Event(id: "espn-1", content: .match(top: comp("espn-basketball-1", "Away", "0"), bottom: comp("espn-basketball-2", "Home", "2")),
+                          state: .live, start: .now, detail: "8:00 - 1st", caption: nil, link: nil,
+                          ref: .espn(path: NBADetail.path, id: "1", sport: .basketball))
+        b.begin(event, topIsHome: false)
+        check(b.active, "a live NBA game broadcasts")
+        let policy = BroadcastLanes.policy(.basketball, path: NBADetail.path)
+        let shot1 = nbaPlay("p1", at: 1000, clock: "11:20", type: 92, text: "Home makes jumper", home: 2, away: 0, shooting: true, scoring: true, team: "2")
+        let board = nbaPlay("p2", at: 1010, clock: "11:10", type: 155, text: "Away defensive rebound", home: 2, away: 0)
+        let three = nbaPlay("p3", at: 1080, clock: "10:00", type: 92, text: "Away makes 26-foot three", home: 2, away: 3, shooting: true, scoring: true)
+        func summary(_ plays: [JSON], stat: String) -> GameDetail {
+            var d = GameDetail()
+            d.topIsHome = false
+            d.broadcastPlays = BroadcastLanes.entries(plays, sport: .basketball, policy: policy)
+            d.recentPlays = NBADetail.recentPlays(plays)
+            d.moments = plays.map { GameDetail.Moment(id: $0["id"].string ?? "", kind: .score, clock: "", text: $0["text"].string ?? "", side: nil) }
+            d.winByPlay = ["p2": GameDetail.WinChance(home: 0.45, tie: 0), "p3": GameDetail.WinChance(home: 0.30, tie: 0)]
+            d.stats = [GameDetail.Stat(label: "Field Goal %", top: stat, bottom: stat, topShare: 0.5)]
+            d.linescore = GameDetail.Linescore(headers: ["1", "2", "3", "4", "T"], top: ["3", "", "", "", "3"], bottom: ["2", "", "", "", "2"])
+            return d
+        }
+        // The page opens on the first two plays (history); the three comes 40 s after it happened.
+        b.ingest(summary: summary([shot1, board], stat: "40"))
+        var shown = b.present(event)
+        check(shown.competitors.map(\.score) == ["0", "2"], "the hero shows the score after the last told play", "\(shown.competitors.map(\.score))")
+        now = 1120
+        b.ingest(core: [shot1, board, three])
+        b.ingest(summary: summary([shot1, board, three], stat: "45"))
+        let moment = LiveMoment(id: "p3", chart: .court, tier: .swing, kind: .made(value: 3), lead: "Three", detail: "Away makes 26-foot three", side: .top)
+        check(b.gate([moment]).isEmpty, "a moment waits for its play's moment on p")
+        guard let p3 = b.engine?.timeline.record("p3") else { return check(false, "the three is on the timeline") }
+        // When p reaches it, as the clock plans (it may be slewing toward a new target).
+        guard let moment3 = b.engine?.clock.wall(reaching: p3.presentAt, after: now) else { return check(false, "the clock reaches the three") }
+        now = moment3 - 1
+        b.step()
+        var d = b.present(summary([shot1, board, three], stat: "45"), revision: 1, side: { _ in nil })
+        shown = b.present(event)
+        check(shown.competitors.map(\.score) == ["0", "2"] && d?.recentPlays.first?.id == "p2" && b.takeReleased().isEmpty,
+              "a second before its moment: not on the hero, not in Latest, no moment", "\(shown.competitors.map(\.score))")
+        check(abs((d?.topWinProbability ?? 0) - 0.55) < 1e-9, "Win Probability is the last told play's (ESPN's per play)")
+        check(d?.stats.first?.top == "40", "the box score and stats are the summary p has passed (the newer waits for its watermark)",
+              d?.stats.first?.top ?? "")
+        now = moment3 + 0.01
+        b.step()
+        d = b.present(summary([shot1, board, three], stat: "45"), revision: 1, side: { _ in nil })
+        shown = b.present(event)
+        check(shown.competitors.map(\.score) == ["3", "2"], "at its moment the score changes", "\(shown.competitors.map(\.score))")
+        check(d?.recentPlays.first?.id == "p3" && d?.moments.map(\.id) == ["p1", "p2", "p3"], "…and Latest and the key plays have it, together")
+        check(abs((d?.topWinProbability ?? 0) - 0.70) < 1e-9 && d?.stats.first?.top == "45", "…and Win Probability and the tables")
+        check(b.takeReleased().map(\.id) == ["p3"], "…and its moment is released")
+        check(d?.linescore?.top.first == "3" && d?.linescore?.bottom.first == "2" && d?.linescore?.top.last == "3",
+              "the line score comes from the told plays", "\(String(describing: d?.linescore))")
+        check(shown.state == .live && shown.detail?.contains("1st") == true && shown.clock?.period == 1, "status and clock are p's",
+              shown.detail ?? "")
+        // A retraction: a waiting moment goes quietly; an offered one comes back down.
+        now += 1
+        let late = LiveMoment(id: "p9", chart: .court, tier: .swing, kind: .missed, lead: "Miss", detail: "", side: .top)
+        _ = b.gate([late])
+        check(b.retract(["p9", "p3"]) == ["p3"], "retracting: only what was offered comes back down")
+        b.end()
+        check(!b.active && b.present(event) == event, "closing the page: everything shows as the scoreboard has it again")
+        // A final never broadcasts (the page shows it as today).
+        let final = Event(id: "espn-2", content: event.content, state: .final, start: .now, detail: "Final", caption: nil, link: nil,
+                          ref: event.ref)
+        let f = Broadcast()
+        f.begin(final, topIsHome: false)
+        check(!f.active, "a final game doesn't broadcast")
+    }
+
+    /// The menu bar and the alerts follow the page's presentation for its game
+    /// only; Polymarket's ticks are shown at their own time on p.
+    static func broadcastPolicies() {
+        let a = Event(id: "espn-1", content: .match(top: comp("t", "A", "98"), bottom: comp("b", "B", "100")), state: .live, start: .now,
+                      detail: "4:00 - 4th", caption: nil, link: nil)
+        let presented = a.with(content: .match(top: comp("t", "A", "95"), bottom: comp("b", "B", "100")), detail: .some("4:31 - 4th"))
+        let other = Event(id: "espn-9", content: a.content, state: .live, start: .now, detail: nil, caption: nil, link: nil)
+        check(ScoreStore.menuBar(a, presented: presented)?.competitors.first?.score == "95", "the menu bar shows the open page's presented game")
+        check(ScoreStore.menuBar(other, presented: presented)?.id == "espn-9" && ScoreStore.menuBar(a, presented: nil)?.competitors.first?.score == "98",
+              "…and the scoreboard's for any other game, or once the page closes")
+        check(ScoreStore.alertsFollowPage("espn-1", presented: presented) && !ScoreStore.alertsFollowPage("espn-9", presented: presented),
+              "the scoreboard's alerts wait for the page only for its own game")
+        check(Notifier.body(from: a.with(content: .match(top: comp("t", "A", "95"), bottom: comp("b", "B", "100"))), to: a) != nil,
+              "the presented score rising is an alert, as the scoreboard's would be")
+
+        // The page re-renders only when what it shows changes: not while a running clock just ticks.
+        var a0 = PresentedGame()
+        a0.phase = .live
+        a0.period = 1
+        a0.told = 3
+        a0.clock = PresentedGame.Clock(period: 1, elapsed: 100, running: true, countsDown: true, length: 720)
+        var a1 = a0
+        a1.clock?.elapsed = 105.2
+        check(!Broadcast.differs(a1, from: a0, after: 5), "a running clock ticking on its own doesn't republish")
+        a1.clock?.elapsed = 106
+        check(Broadcast.differs(a1, from: a0, after: 5), "…drifting past 0.75 s (the slew) does")
+        var a2 = a0
+        a2.told = 4
+        check(Broadcast.differs(a2, from: a0, after: 0), "a play told does")
+        var a3 = a0
+        a3.clock?.running = false
+        check(Broadcast.differs(a3, from: a0, after: 0), "the clock stopping (a stall, a whistle) does")
+
+        // Polymarket: a tick at its own time shows once p reaches it, and the chart is scheduled to redraw then.
+        var clock = PresentationClock()
+        clock.update(now: 1000, inputs: .init(target: 50, cap: .infinity, quietUntil: nil))
+        let ticks = [Date(timeIntervalSince1970: 940), Date(timeIntervalSince1970: 955), Date(timeIntervalSince1970: 990)]
+        let points = ticks.enumerated().map { OddsPoint(t: $0.element, p: 0.5 + Double($0.offset) / 10) }
+        let p = Date(timeIntervalSince1970: clock.p(at: 1000))
+        check(OddsChartData.shown(points, until: p).map(\.p) == [0.5], "at p (950) only the tick from before it shows")
+        let schedule = OddsSection.schedule(ticks, clock: clock, now: Date(timeIntervalSince1970: 1000))
+        check(schedule.count == 3 && abs(schedule[1].timeIntervalSince1970 - 1005.01) < 1e-6 && abs(schedule[2].timeIntervalSince1970 - 1040.01) < 1e-6,
+              "the chart redraws when p reaches each tick (scheduled, not polled)", "\(schedule.map(\.timeIntervalSince1970))")
+    }
+}
+
+// MARK: - The other sports' lanes, end to end
+
+extension ScorelineTests {
+    /// A fixture's plays arriving `lag` seconds after their own time, read as
+    /// the core lane every 5 s, through the engine (synthetic arrival: these
+    /// test the lanes and the timeline, not the feed's lag, which the weekend's
+    /// recordings measure).
+    static func synthetic(_ items: [JSON], sport: BroadcastSport, path: String = "", lag: Double = 40)
+        -> (told: [GameTimeline<RawPlay>.Record], engine: BroadcastEngine<RawPlay>, order: [String]) {
+        let policy = BroadcastLanes.policy(sport, path: path)
+        var engine = BroadcastEngine<RawPlay>(sport: sport, policy: policy)
+        let entries = BroadcastLanes.entries(items, sport: sport, policy: policy)
+        let times = entries.compactMap(\.wallclock)
+        guard let first = times.min(), let last = times.max() else { return ([], engine, []) }
+        var told: [GameTimeline<RawPlay>.Record] = []
+        var t = first + lag
+        while t <= last + lag + 60 {
+            // The lane's tail as of t: every play up to the newest that has arrived (in game order).
+            if let newest = entries.lastIndex(where: { ($0.wallclock ?? .infinity) + lag <= t }) {
+                engine.ingest(LaneSnapshot(lane: .core, entries: Array(entries[...newest]), coverage: .tail, arrived: t))
+            } else {
+                engine.noteRead(.core, at: t)
+            }
+            told += engine.advance(now: t).told
+            var w = t
+            while let next = engine.nextWake(after: w), next < t + 5 {
+                w = next
+                told += engine.advance(now: w).told
+            }
+            t += 5
+        }
+        return (told, engine, entries.map(\.id))
+    }
+
+    static func broadcastSports() {
+        // Football: Monday night's DAL at PHI, a quarter of snaps.
+        let football = broadcastFixture("mnf-dal-phi-plays.json")["items"].array
+        let fb = synthetic(Array(football.prefix(60)), sport: .football, path: "football/nfl")
+        let fbOrder = fb.told.filter { $0.told != .history && $0.told != .correction }.map(\.id)
+        check(!fbOrder.isEmpty && fbOrder == fb.order.filter { fbOrder.contains($0) }, "football: snaps are told in sequence order",
+              "\(fbOrder.count) told")
+        let fbLast = fb.engine.timeline.records.last { $0.entry.score != nil }?.entry.score
+        check(fb.engine.presented(at: fb.engine.clock.p(at: .infinity)).score == fbLast || fb.engine.timeline.presentedScore(at: .infinity) == fbLast,
+              "football: the presented score is the last told snap's")
+        let incomplete = fb.engine.timeline.records.first { $0.entry.payload.json["type"]["id"].string == "3" && $0.isTold }
+        if let incomplete, let i = fb.engine.timeline.position(of: incomplete.id), i + 1 < fb.engine.timeline.records.count {
+            let clock = PresentedGame.clock(at: incomplete.presentAt + 0.5, last: incomplete, timeline: fb.engine.timeline, policy: fb.engine.policy)
+            check(clock?.running == false, "football: the clock stops after an incompletion")
+        } else {
+            check(false, "football: the clock stops after an incompletion", "no incompletion told")
+        }
+
+        // Soccer: Villa v City's core plays (every touch, with its wallclock).
+        let pages = ["1bbb58f9c1945678542dc53d", "8e8f4e473432cfae635da5d1"]
+        let soccer = pages.flatMap { broadcastFixture("\($0).bin")["items"].array }
+        let sc = synthetic(Array(soccer.prefix(300)), sport: .soccer, path: "soccer/eng.1")
+        let scOrder = sc.told.filter { $0.told != .history && $0.told != .correction }.map(\.id)
+        check(scOrder.count > 100 && scOrder == sc.order.filter { scOrder.contains($0) }, "soccer: entries are told in the feed's order",
+              "\(scOrder.count)")
+        let minute = sc.engine.presented(at: sc.engine.p(at: (soccer.prefix(300).last.flatMap { EventTime.parse($0["wallclock"].string) } ?? 0) + 40))
+        check(minute.status(.soccer, regulationPeriods: 2).hasSuffix("'"), "soccer: the presented clock reads as a minute",
+              minute.status(.soccer, regulationPeriods: 2))
+
+        // Baseball: World Series Game 4's ESPN plays (half-innings as periods, no game clock).
+        let baseball = broadcastFixture("ws-g4-plays.json")["items"].array
+        let bb = synthetic(Array(baseball.prefix(120)), sport: .baseball, path: "baseball/mlb")
+        let bbOrder = bb.told.filter { $0.told != .history && $0.told != .correction }.map(\.id)
+        check(!bbOrder.isEmpty && bbOrder == bb.order.filter { bbOrder.contains($0) }, "baseball: pitches and results are told in order")
+        let inning = bb.engine.presented(at: bb.engine.p(at: .infinity))
+        check(inning.status(.baseball, regulationPeriods: 18).hasPrefix("Top") || inning.status(.baseball, regulationPeriods: 18).hasPrefix("Bot")
+              || inning.status(.baseball, regulationPeriods: 18).hasPrefix("Mid") || inning.status(.baseball, regulationPeriods: 18).hasPrefix("End"),
+              "baseball: the status is the half-inning", inning.status(.baseball, regulationPeriods: 18))
+    }
+
+    static func broadcastFixture(_ name: String) -> JSON {
+        JSON(data: (try? Data(contentsOf: URL(fileURLWithPath: "Tests/Fixtures/\(name)"))) ?? Data())
     }
 }
