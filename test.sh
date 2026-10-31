@@ -12,12 +12,15 @@ if [[ "${1:-}" == "--record" ]]; then
   find Tests/Fixtures -name "*.bin" -delete 2>/dev/null; rm -f Tests/Fixtures/index.txt
 fi
 mkdir -p build Tests/Fixtures
+# Leave room for the rest of the Mac: the two compiles run side by side, so
+# together they take at most 6 cores (SCORELINE_JOBS sets the test build's share).
+JOBS=${SCORELINE_JOBS:-4}
 
-swiftc -typecheck -D DEBUG -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
+swiftc -j 2 -typecheck -D DEBUG -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
   -F "$SPARKLE" Sources/Scoreline/*.swift > build/debug-typecheck.log 2>&1 &
 DEBUG_CHECK=$!
 
-swiftc -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
+swiftc -j "$JOBS" -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
   -F "$SPARKLE" -framework Sparkle -Xlinker -rpath -Xlinker "$SPARKLE" \
   $(ls Sources/Scoreline/*.swift | grep -v ScorelineApp.swift) Tests/*.swift -o build/ScorelineTests
 
