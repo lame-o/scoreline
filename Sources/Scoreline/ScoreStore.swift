@@ -1043,6 +1043,10 @@ final class ScoreStore {
         return eventIndex[event.id] ?? event
     }
 
+    /// An event as the scores list shows it (with its page's lane score while
+    /// that's ahead): what the user could see before opening its page.
+    func listed(_ event: Event) -> Event { lanes.shown(event, now: .now) }
+
     /// A game page's lane score for its event, top first (DetailView's
     /// `HeaderSync`): the list's row and tile show it until the scoreboard
     /// catches up. Only a new reading redraws the list, and only that game's

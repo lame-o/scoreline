@@ -203,6 +203,8 @@ struct DetailView: View {
         .onChange(of: broadcast.releasedRevision) { _, _ in offerNow(broadcast.takeReleased()) }
         // The menu bar follows the presented game while this page is open; so do the alerts.
         .onChange(of: broadcast.presented) { _, _ in presentedChanged() }
+        // The floor going (p reached it, an overturn, the timeout): the menu bar's copy follows, quietly.
+        .onChange(of: broadcast.floor) { _, _ in presentedChanged(notify: false) }
         .onChange(of: store.showOdds) { _, on in
             if on, let detail { Task { await discoverOdds(event, detail) } } else { oddsFeed.reset() }
         }
@@ -631,11 +633,10 @@ struct DetailView: View {
     }
 
     /// The numbers the hero shows, top first: while broadcasting, the presented
-    /// score (before the first load, none: the scoreboard's is ahead of the page);
+    /// score (never below what the user had already seen: `Broadcast.floor`);
     /// otherwise the lane's, while it's ahead.
     private var heroScores: [String?] {
         guard case let .match(top, bottom) = event.content else { return [] }
-        if broadcastPending { return [nil, nil] }
         if broadcast.active { return [top.score, bottom.score] }
         let lane = laneScores
         return [lane?.top ?? top.score, lane?.bottom ?? bottom.score]
@@ -2583,15 +2584,11 @@ struct DetailView: View {
 
     // MARK: The broadcast (BROADCAST.md §3)
 
-    /// Live and broadcast-capable, before the first load: the hero holds its
-    /// numbers rather than show the scoreboard's (ahead of the page) and step back.
-    private var broadcastPending: Bool {
-        Broadcast.sport(of: live) != nil && live.state == .live && loadedDetail == nil && !failed
-    }
-
-    /// A summary loaded: the broadcast starts on a live game's first, and reads each one's plays and tables.
+    /// A summary loaded: the broadcast starts on a live game's first (its score
+    /// floor what the user could already see: the scoreboard's and the scores
+    /// list's copies, and the hero's own), and reads each one's plays and tables.
     private func broadcastLoaded(_ loaded: GameDetail) {
-        if let topIsHome = loaded.topIsHome { broadcast.begin(live, topIsHome: topIsHome) }
+        if let topIsHome = loaded.topIsHome { broadcast.begin(live, topIsHome: topIsHome, seen: [store.listed(live)]) }
         broadcast.ingest(summary: loaded)
         basketballFeed.present(broadcast.active ? nbaPresented : nil)
     }
@@ -2607,10 +2604,10 @@ struct DetailView: View {
     }
 
     /// The presented game moved: the menu bar follows it, the alerts too, and the NBA's live marks.
-    private func presentedChanged() {
+    private func presentedChanged(notify: Bool = true) {
         guard broadcast.active else { return }
         let shown = broadcast.present(live)
-        if let was = shownEvent, was.competitors.map(\.score) != shown.competitors.map(\.score) || was.state != shown.state {
+        if notify, let was = shownEvent, was.competitors.map(\.score) != shown.competitors.map(\.score) || was.state != shown.state {
             store.notifyPresented(from: was, to: shown)
         }
         shownEvent = shown

@@ -26,6 +26,8 @@ extension ScorelineTests {
         broadcastPolicies()
         print("\nBroadcast: football, soccer and baseball lanes")
         broadcastSports()
+        print("\nBroadcast: a shown score never steps back")
+        broadcastFloor()
     }
 
     // MARK: Helpers
@@ -782,3 +784,96 @@ extension ScorelineTests {
         JSON(data: (try? Data(contentsOf: URL(fileURLWithPath: "Tests/Fixtures/\(name)"))) ?? Data())
     }
 }
+
+
+// MARK: - The floor
+
+extension ScorelineTests {
+    /// Opening a page on a game whose scoreboard is ahead of p: the hero never
+    /// shows less than the user had already seen; p's own score takes over once
+    /// it gets there; an overturn or the timeout lets it go.
+    static func broadcastFloor() {
+        check(Broadcast.shown(ScoreLine(home: 2, away: 3), floor: ScoreLine(home: 4, away: 1)) == ScoreLine(home: 4, away: 3)
+              && Broadcast.shown(ScoreLine(home: 2, away: 3), floor: nil) == ScoreLine(home: 2, away: 3),
+              "shown per side: max(p's score, the floor)")
+        let plays = [
+            nbaPlay("f1", at: 1000, clock: "11:00", type: 92, text: "Home makes layup", home: 2, away: 0, shooting: true, scoring: true, team: "2"),
+            nbaPlay("f2", at: 1010, clock: "10:50", type: 92, text: "Away makes three", home: 2, away: 3, shooting: true, scoring: true),
+            nbaPlay("f3", at: 1050, clock: "10:10", type: 92, text: "Home makes jumper", home: 4, away: 3, shooting: true, scoring: true, team: "2"),
+            nbaPlay("f4", at: 1080, clock: "9:40", type: 92, text: "Away makes jumper", home: 4, away: 5, shooting: true, scoring: true),
+            nbaPlay("f5", at: 1095, clock: "9:25", type: 92, text: "Home makes dunk", home: 6, away: 5, shooting: true, scoring: true, team: "2"),
+        ]
+        let policy = BroadcastLanes.policy(.basketball, path: NBADetail.path)
+        func page(scoreboard away: String, _ home: String) -> (Broadcast, Event, () -> PTime, (PTime) -> Void) {
+            var now: PTime = 1100
+            let b = Broadcast()
+            b.automatic = false
+            b.time = BroadcastTime(now: { now })
+            let event = Event(id: "espn-f", content: .match(top: comp("espn-basketball-1", "Away", away), bottom: comp("espn-basketball-2", "Home", home)),
+                              state: .live, start: .now, detail: "9:40 - 1st", caption: nil, link: nil,
+                              ref: .espn(path: NBADetail.path, id: "f", sport: .basketball))
+            return (b, event, { now }, { now = $0 })
+        }
+        func summary(_ upTo: Int) -> GameDetail {
+            var d = GameDetail()
+            d.topIsHome = false
+            d.broadcastPlays = BroadcastLanes.entries(Array(plays.prefix(upTo)), sport: .basketball, policy: policy)
+            return d
+        }
+        func scores(_ b: Broadcast, _ e: Event) -> [String?] { b.present(e).competitors.map(\.score) }
+
+        // The scoreboard (and the menu bar, the list) showed Away 5, Home 4 when the page opened; p is at 3–2.
+        let (b, event, now, setNow) = page(scoreboard: "5", "4")
+        b.begin(event, topIsHome: false)
+        b.ingest(summary: summary(2))
+        check(b.presented.score == ScoreLine(home: 2, away: 3) && scores(b, event) == ["5", "4"],
+              "opening behind the scoreboard: the hero keeps what the user saw (5–4), not p's 3–2", "\(scores(b, event))")
+        var shown: [[String?]] = [scores(b, event)]
+        setNow(1101)
+        b.ingest(core: plays)
+        // The lane read every 5 s (as the app does), the model stepped at its own wakes between.
+        var t = now()
+        while t < 1200 {
+            let read = (t / 5).rounded(.down) * 5 + 5
+            let next = min(b.engine?.nextWake(after: t) ?? .infinity, read)
+            t = next
+            setNow(t)
+            if t == read { b.noteRead() } else { b.step() }
+            shown.append(scores(b, event))
+        }
+        _ = now()
+        let away = shown.compactMap { $0.first ?? nil }.compactMap(Int.init), home = shown.compactMap { $0.last ?? nil }.compactMap(Int.init)
+        check(zip(away, away.dropFirst()).allSatisfy { $0 <= $1 } && zip(home, home.dropFirst()).allSatisfy { $0 <= $1 },
+              "the shown score never steps back, side by side", "\(shown)")
+        check(b.floor == nil && scores(b, event) == ["5", "6"], "p's score reached the floor: it's gone, and p's own scores show from then",
+              "\(scores(b, event)) floor \(String(describing: b.floor))")
+        check(shown.contains { $0 == ["5", "4"] } && !shown.contains { $0 == ["3", "4"] || $0 == ["3", "2"] },
+              "while it stood, nothing below it showed")
+
+        // A genuine overturn: the scoreboard takes its own score back; the floor goes with it.
+        let (o, oEvent, _, setO) = page(scoreboard: "5", "4")
+        o.begin(oEvent, topIsHome: false)
+        o.ingest(summary: summary(2))
+        setO(1102)
+        o.observe(scoreboard: oEvent)
+        setO(1132)
+        o.observe(scoreboard: oEvent.with(content: .match(top: comp("espn-basketball-1", "Away", "3"), bottom: comp("espn-basketball-2", "Home", "4"))))
+        check(o.floor == nil && scores(o, oEvent) == ["3", "2"], "the scoreboard correcting downward lets the floor go (p's score shows)",
+              "\(scores(o, oEvent))")
+
+        // The timeout: a floor p never reaches lapses after two minutes.
+        let (q, qEvent, _, setQ) = page(scoreboard: "9", "9")
+        q.begin(qEvent, topIsHome: false)
+        q.ingest(summary: summary(2))
+        var held = true
+        for t in stride(from: 1105.0, through: 1100 + Broadcast.floorTimeout + 1, by: 5) {
+            setQ(t)
+            q.noteRead()
+            if t < 1100 + Broadcast.floorTimeout - 1 { held = held && q.floor != nil }
+        }
+        setQ(1100 + Broadcast.floorTimeout + 1)
+        q.noteRead()
+        check(held && q.floor == nil, "a floor that p never reaches lapses after \(Int(Broadcast.floorTimeout)) s")
+    }
+}
+

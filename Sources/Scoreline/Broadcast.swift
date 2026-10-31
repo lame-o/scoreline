@@ -68,6 +68,15 @@ final class Broadcast: BroadcastTheaterSource {
     private(set) var ended = false
     /// Bumps when moments are released (their play just told): the page takes them (`takeReleased`).
     private(set) var releasedRevision = 0
+    /// The score the user could already see when the page opened (or the Mac
+    /// woke): the scoreboard's, and the scores list's. A shown score never
+    /// steps back below it: each side shows max(p's score, the floor) until
+    /// p's score reaches it on both sides; then it's gone for good. It goes
+    /// too when the fast lane itself corrects below it (a genuine overturn),
+    /// and after `floorTimeout`. Only the score: the court and the lists still
+    /// tell those plays at p, so the score leads them once, and only by what
+    /// the user had already seen.
+    private(set) var floor: ScoreLine?
 
     @ObservationIgnored private(set) var engine: BroadcastEngine<RawPlay>?
     /// This game's feed turned out to have no event times (a league that doesn't log wallclocks):
@@ -100,6 +109,9 @@ final class Broadcast: BroadcastTheaterSource {
     @ObservationIgnored private var released: [LiveMoment] = []
     /// When `presented` was published (its game clock ticks on from then).
     @ObservationIgnored private var presentedWall: PTime = 0
+    /// When the floor was set (it lapses `floorTimeout` later).
+    @ObservationIgnored private var floorSince: PTime = 0
+    static let floorTimeout: Double = 120
 
     /// The moments released since the last call (their play's moment came).
     func takeReleased() -> [LiveMoment] {
@@ -128,8 +140,10 @@ final class Broadcast: BroadcastTheaterSource {
     }
 
     /// The page has its first load of a live game: start broadcasting it. A
-    /// final, or a sport without a play-by-play, never starts (everything shows as today).
-    func begin(_ event: Event, topIsHome: Bool) {
+    /// final, or a sport without a play-by-play, never starts (everything shows
+    /// as today). `seen`: other copies of the game the user could already see
+    /// (the scores list's, a lane's): with the event's own, they set the floor.
+    func begin(_ event: Event, topIsHome: Bool, seen: [Event] = []) {
         guard !active, !unsupported, event.state == .live, let sport = Self.sport(of: event), case let .espn(path, id, _)? = event.ref else { return }
         self.sport = sport
         self.path = path
@@ -139,6 +153,37 @@ final class Broadcast: BroadcastTheaterSource {
         rawState = event.state
         engine = BroadcastEngine(sport: sport, policy: BroadcastLanes.policy(sport, path: path))
         active = true
+        raiseFloor(to: ([event] + seen).compactMap(score(of:)), at: time.now())
+    }
+
+    /// A copy of the game's score, home and away.
+    private func score(of event: Event) -> ScoreLine? {
+        guard case let .match(top, bottom) = event.content, let t = top.score.flatMap({ Int($0) }),
+              let b = bottom.score.flatMap({ Int($0) }) else { return nil }
+        return topIsHome ? ScoreLine(home: t, away: b) : ScoreLine(home: b, away: t)
+    }
+
+    /// The floor: per side, the most the user could have seen.
+    private func raiseFloor(to scores: [ScoreLine], at now: PTime) {
+        guard let first = scores.first else { return }
+        let seen = scores.dropFirst().reduce(first) { ScoreLine(home: max($0.home, $1.home), away: max($0.away, $1.away)) }
+        let current = floor ?? seen
+        floor = ScoreLine(home: max(current.home, seen.home), away: max(current.away, seen.away))
+        floorSince = now
+    }
+
+    /// The score as shown: p's, held up per side by the floor while it stands. (pure; tested)
+    static func shown(_ score: ScoreLine?, floor: ScoreLine?) -> ScoreLine? {
+        guard let floor else { return score }
+        guard let score else { return floor }
+        return ScoreLine(home: max(score.home, floor.home), away: max(score.away, floor.away))
+    }
+
+    /// The floor goes once p's score has reached it on both sides, or it has stood for `floorTimeout`.
+    private func settleFloor(now: PTime) {
+        guard let f = floor else { return }
+        let reached = presented.score.map { $0.home >= f.home && $0.away >= f.away } ?? false
+        if reached || now - floorSince >= Self.floorTimeout { floor = nil }
     }
 
     /// The page closed (or another game took it): everything shows as today again.
@@ -152,6 +197,7 @@ final class Broadcast: BroadcastTheaterSource {
         tables = []
         pending = [:]
         offered = []
+        floor = nil
         situations = []
         memo = nil
         payloadMemo = nil
@@ -214,9 +260,12 @@ final class Broadcast: BroadcastTheaterSource {
         guard active, var engine else { return }
         let now = time.now()
         if let reading = BroadcastLanes.reading(event, topIsHome: topIsHome, policy: engine.policy, previous: lastScoreboard, at: now) {
+            // The fast lane correcting its own score downward is a genuine overturn: the floor goes.
+            if let was = lastScoreboard?.score, let score = reading.score, score.home < was.home || score.away < was.away { floor = nil }
             lastScoreboard = reading
             engine.observe(reading)
         }
+        settleFloor(now: now)
         self.engine = engine
         step(now: now)
     }
@@ -247,11 +296,17 @@ final class Broadcast: BroadcastTheaterSource {
     func step(now: PTime? = nil) {
         guard active, var engine else { return }
         let now = now ?? time.now()
+        let shownBefore = Self.shown(presented.score, floor: floor)
         let result = engine.advance(now: now)
         self.engine = engine
+        // Woke (or came back to the page): what the user could see then is the floor again.
+        if result.events.contains(where: { if case .wake = $0 { true } else { false } }) {
+            raiseFloor(to: [shownBefore, lastScoreboard?.score].compactMap { $0 }, at: now)
+        }
         if !result.told.isEmpty { releaseMoments(result.told, now: now) }
         expireMoments(now: now)
         publish(now: now)
+        settleFloor(now: now)
         if automatic { schedule(after: now) }
     }
 
@@ -308,6 +363,8 @@ final class Broadcast: BroadcastTheaterSource {
            let t = engine.clock.wall(reaching: last.presentAt + 5.01, after: now) {
             at = min(at ?? t, t)
         }
+        // The floor lapses on its own.
+        if floor != nil { at = min(at ?? .infinity, floorSince + Self.floorTimeout + 0.01) }
         // Moments for plays the timeline doesn't know expire after a minute.
         if let oldest = pending.values.map(\.since).min() { at = min(at ?? .infinity, oldest + 60.01) }
         guard let at, at.isFinite else { return }
@@ -409,7 +466,7 @@ final class Broadcast: BroadcastTheaterSource {
         let game = presented
         guard game.phase != .pregame || game.score != nil else { return event }
         var t = top, b = bottom
-        if let score = game.score {
+        if let score = Self.shown(game.score, floor: floor) {
             t.score = "\(topIsHome ? score.home : score.away)"
             b.score = "\(topIsHome ? score.away : score.home)"
         }
