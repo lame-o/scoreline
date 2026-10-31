@@ -571,7 +571,7 @@ struct OddsSectionChrome<Trailing: View, Content: View>: View {
             }
         }
         .padding(.horizontal, Metrics.gutter)
-        .padding(.top, module?.folded == true ? 12 : 16)
+        .padding(.top, ModuleChrome.headerInset(folded: module?.folded == true))
         .containerValue(\.stacksOwnRows, true)
     }
 }

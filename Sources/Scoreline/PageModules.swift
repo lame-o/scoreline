@@ -11,6 +11,8 @@ import SwiftUI
 // The keys are shared with the web port (settings.ts): `foldedModules` and
 // `hiddenModules`, each a list of "<page>.<module>", where <page> is the web's
 // `pageKind` and <module> its `Section` (the Mac's `DetailView.Section` names).
+// `moduleOrder` maps each <page> to its modules in the user's order (dragged
+// on the page or in the Customize sheet), merged into each state's plan.
 
 // MARK: - Keys
 
@@ -55,6 +57,8 @@ enum ModuleKeys {
     /// UserDefaults keys (the web's settings keys): each a list of module keys.
     static let folded = "foldedModules"
     static let hidden = "hiddenModules"
+    /// A dictionary: page ("nba") → its module IDs ("liveView", "court"), first first.
+    static let order = "moduleOrder"
 
     /// "nba.liveView", "soccer.pitch", "baseball.atBat": the page, then the module.
     static func key(_ kind: PageKind, _ section: DetailView.Section) -> String {
@@ -62,11 +66,15 @@ enum ModuleKeys {
     }
 }
 
-/// Folded and hidden modules, app-wide. Nothing is either by default: a key
-/// missing from both means shown and open. (pure; tested)
+/// Folded, hidden and reordered modules, app-wide. Nothing is any of them by
+/// default: a key missing from all three means shown, open and in the plan's
+/// place. (pure; tested)
 struct ModuleLayout: Equatable {
     var folded: Set<String> = []
     var hidden: Set<String> = []
+    /// Per page kind ("nba"), the user's ranking of its modules by ID. Only
+    /// Restore Defaults removes one: hiding, folding and other states keep it.
+    var order: [String: [String]] = [:]
 
     func isFolded(_ section: DetailView.Section, on kind: PageKind?) -> Bool {
         kind.map { folded.contains(ModuleKeys.key($0, section)) } ?? false
@@ -88,16 +96,36 @@ struct ModuleLayout: Equatable {
         if on { hidden.insert(key) } else { hidden.remove(key) }
     }
 
-    /// The Customize sheet's Restore Defaults: everything on that sport's
-    /// pages shows again (folds are left as they are; other sports untouched).
+    /// Everything on that sport's pages shows again (folds are left as they
+    /// are; other sports untouched).
     mutating func showAll(on kind: PageKind) {
         hidden = hidden.filter { !$0.hasPrefix(kind.rawValue + ".") }
     }
 
-    /// The page's sections without the hidden ones, in order: what the
-    /// layout (one column or `wideArrangement`) places.
-    func shown(_ sections: [DetailView.Section], on kind: PageKind?) -> [DetailView.Section] {
-        sections.filter { !isHidden($0, on: kind) }
+    /// The Customize sheet's Restore Defaults: every module shows again, in
+    /// each state's own plan. Folds stay; other sports are untouched.
+    mutating func restoreDefaults(on kind: PageKind) {
+        showAll(on: kind)
+        order[kind.rawValue] = nil
+    }
+
+    /// The sport's ranking (empty: the plans' order).
+    func ranking(on kind: PageKind?) -> [String] {
+        kind.flatMap { order[$0.rawValue] } ?? []
+    }
+
+    /// A page's modules took a new order (a drag, Move Up or Down): those
+    /// on the page rank in that order; every other one keeps its place.
+    mutating func rank(_ page: [String], on kind: PageKind?) {
+        guard let kind, !page.isEmpty else { return }
+        order[kind.rawValue] = ModuleOrder.ranked(page: page, previous: ranking(on: kind))
+    }
+
+    /// The page's sections without the hidden ones, in the user's order (or
+    /// `ranking`, a drag's proposal): what the one-column page stacks and
+    /// `wideArrangement` places.
+    func shown(_ sections: [DetailView.Section], on kind: PageKind?, ranking: [String]? = nil) -> [DetailView.Section] {
+        ModuleOrder.arrange(sections.filter { !isHidden($0, on: kind) }, by: ranking ?? self.ranking(on: kind))
     }
 
     /// The sections this page would show but doesn't: the page's end names them.
@@ -152,6 +180,100 @@ extension DetailView {
         var all: [Section] = []
         for section in live + final + scheduled where !all.contains(section) { all.append(section) }
         return all.map { ($0, live.contains($0) && !final.contains($0) && !scheduled.contains($0)) }
+    }
+}
+
+// MARK: - Order
+
+/// The user's order of a sport's modules, one sequence per sport, app-wide:
+/// dragged on any of its pages or in the Customize sheet. Each page merges it
+/// into its own state's plan, so a ranking made live carries to the final
+/// (without what only a live page has), and one made on a final carries to a
+/// live page with the Live View still where its plan puts it. (pure; tested)
+enum ModuleOrder {
+    /// A page's modules, `defaults` (what's on it, in this state's plan),
+    /// sorted by `ranking`. A module the user never ranked keeps its default
+    /// spot beside its default neighbors: it follows the nearest ranked module
+    /// above it in the plan, or, when none is above it, leads the first one.
+    /// Duplicates and IDs not on the page are ignored.
+    static func merge<ID: Hashable>(_ defaults: [ID], ranking: [ID]) -> [ID] {
+        var rank: [ID: Int] = [:]
+        for (i, id) in ranking.enumerated() where rank[id] == nil { rank[id] = i }
+        guard let firstRanked = defaults.first(where: { rank[$0] != nil }) else { return defaults }
+        let ranked = defaults.filter { rank[$0] != nil }.sorted { rank[$0, default: 0] < rank[$1, default: 0] }
+        var leading: [ID] = [], following: [ID: [ID]] = [:]
+        var anchor: ID?
+        for id in defaults {
+            if rank[id] != nil {
+                anchor = id
+            } else if let anchor {
+                following[anchor, default: []].append(id)
+            } else {
+                leading.append(id)
+            }
+        }
+        var result: [ID] = []
+        for id in ranked {
+            if id == firstRanked { result += leading }
+            result.append(id)
+            result += following[id] ?? []
+        }
+        return result
+    }
+
+    /// Sections sorted by a ranking of their IDs (`merge`).
+    static func arrange(_ sections: [DetailView.Section], by ranking: [String]) -> [DetailView.Section] {
+        guard !ranking.isEmpty else { return sections }
+        let byID = Dictionary(sections.map { (sectionID($0), $0) }, uniquingKeysWith: { first, _ in first })
+        return merge(sections.map(sectionID), ranking: ranking).compactMap { byID[$0] }
+    }
+
+    /// The sport's ranking once a page's modules took a new order: those on
+    /// the page rank in the page's order; every other one (live only, hidden,
+    /// another state's) keeps its place beside its neighbors. Nothing already
+    /// ranked ever falls out.
+    static func ranked(page: [String], previous: [String]) -> [String] {
+        var seen = Set<String>()
+        let base = (previous + page).filter { seen.insert($0).inserted }
+        return merge(base, ranking: page)
+    }
+
+    /// A run of the page (a column of the split page) in a new order: its
+    /// modules take the places the run held in the page's sequence, and the
+    /// other column's keep theirs.
+    static func permute(_ sequence: [String], run: [String]) -> [String] {
+        let members = Set(run)
+        guard Set(sequence.filter(members.contains)) == members, sequence.filter(members.contains).count == run.count else { return sequence }
+        var next = run.makeIterator()
+        return sequence.map { members.contains($0) ? next.next() ?? $0 : $0 }
+    }
+
+    /// `id` moved to `index` among the others in `run`.
+    static func move(_ id: String, to index: Int, in run: [String]) -> [String] {
+        var others = run.filter { $0 != id }
+        others.insert(id, at: min(max(index, 0), others.count))
+        return others
+    }
+
+    /// Where a dragged module lands in its run: the slot nearest its top
+    /// edge. `heights`: the run's other modules, top to bottom, as they stand.
+    static func slot(top: CGFloat, runTop: CGFloat, heights: [CGFloat]) -> Int {
+        var y = runTop, best = 0, distance = abs(top - runTop)
+        for (i, height) in heights.enumerated() {
+            y += height
+            if abs(top - y) < distance {
+                best = i + 1
+                distance = abs(top - y)
+            }
+        }
+        return best
+    }
+
+    /// Move Up or Move Down (VoiceOver): the sport's ranking with `id` one
+    /// place along its run, or nil at the run's end.
+    static func step(_ id: String, by delta: Int, run: [String], page: [String], previous: [String]) -> [String]? {
+        guard let i = run.firstIndex(of: id), run.indices.contains(i + delta) else { return nil }
+        return ranked(page: permute(page, run: move(id, to: i + delta, in: run)), previous: previous)
     }
 }
 
@@ -476,8 +598,13 @@ struct ModuleChrome {
     /// instead of leaving: the Live View's theater keeps its running order
     /// and clocks, exactly as when it's scrolled away.
     var keepsAlive = false
+    /// Dragging the header past 4pt moves the module (nil: it doesn't).
+    var reorder: ModuleReorder? = nil
     /// `keyboard`: from a key, so it doesn't animate.
     var act: @MainActor (ModuleAction, _ keyboard: Bool) -> Void
+
+    /// The space above a module's header: open, and (closer) folded.
+    static func headerInset(folded: Bool) -> CGFloat { folded ? 12 : 16 }
 }
 
 private struct ModuleChromeKey: EnvironmentKey {
@@ -498,7 +625,9 @@ extension EnvironmentValues {
 /// → unfolds, ⌥-click folds or unfolds every module on the page. The context
 /// menu collapses, hides the module on the sport's pages, or customizes them.
 /// VoiceOver: "Shot Chart, collapsed", with the glance as its value; still a
-/// heading, so the rotor lists folded modules.
+/// heading, so the rotor lists folded modules. Pressed and dragged past 4pt,
+/// it carries its module to a new place (`ModuleDrag`); VoiceOver has Move Up
+/// and Move Down for the same.
 struct ModuleHeader<Trailing: View>: View {
     let title: String
     var caption: String? = nil
@@ -509,8 +638,14 @@ struct ModuleHeader<Trailing: View>: View {
     let chrome: ModuleChrome
     @ViewBuilder var trailing: Trailing
     @State private var hovering = false
+    /// A drag past the threshold is under way (resets however it ends).
+    @GestureState private var dragging = false
 
     private var folded: Bool { chrome.folded }
+
+    /// Below 4pt a press is a click (the fold, from the button underneath);
+    /// past it, the module moves, and the click never lands.
+    private static var threshold: CGFloat { 4 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: folded ? 3 : 2) {
@@ -553,10 +688,31 @@ struct ModuleHeader<Trailing: View>: View {
         // Under the title and glance, so a click anywhere on them is the disclosure's;
         // a control in the title row stays its own.
         .background { button }
-        .onHover { hovering = $0 }
+        .onHover { inside in
+            hovering = inside
+            #if DEBUG
+            ModuleProbe.hover?(chrome.name, inside)
+            #endif
+        }
         .contextMenu { menu }
+        // Over the button: it wins once the pointer travels past the threshold, and only then.
+        .highPriorityGesture(reorderGesture, including: chrome.reorder == nil ? .subviews : .all)
+        .onChange(of: dragging) { _, now in
+            if !now { chrome.reorder?.drag.released() }
+        }
         .padding(.horizontal, -6)
         .padding(.vertical, -4)
+    }
+
+    private var reorderGesture: some Gesture {
+        DragGesture(minimumDistance: Self.threshold, coordinateSpace: .named(ModuleDrag.space))
+            .updating($dragging) { _, state, _ in state = true }
+            .onChanged { value in
+                guard let reorder = chrome.reorder else { return }
+                reorder.drag.changed(value, reorder: reorder, folded: folded,
+                                     image: ModuleDragImage(title: title, caption: caption, accessory: accessory, glance: glance))
+            }
+            .onEnded { _ in chrome.reorder?.drag.ended() }
     }
 
     private var button: some View {
@@ -581,6 +737,10 @@ struct ModuleHeader<Trailing: View>: View {
         .accessibilityAddTraits(.isHeader)
         .accessibilityHeading(.h2)
         .accessibilityHint(folded ? "Expands the section" : "Collapses the section")
+        .accessibilityActions {
+            if let up = chrome.reorder?.moveUp { Button("Move Up", action: up) }
+            if let down = chrome.reorder?.moveDown { Button("Move Down", action: down) }
+        }
     }
 
     /// "Shot Chart, collapsed". (pure; tested)
@@ -732,9 +892,11 @@ struct HiddenModulesLine: View {
 
 // MARK: - Customize
 
-/// A sport's game pages, show or hide each module (no reordering: the
-/// per-state plans and the split page's pairs are designed). Over the page,
-/// like a sheet, inside the panel.
+/// A sport's game pages: show or hide each module, and drag the handles to
+/// set their order (the same order a drag on the page sets; each page keeps
+/// only what it has, and the split page keeps each module in its column).
+/// Over the page, like a sheet, inside the panel. VoiceOver moves a row with
+/// Move Up and Move Down.
 struct CustomizeModulesSheet: View {
     struct Row: Identifiable {
         let section: DetailView.Section
@@ -744,37 +906,59 @@ struct CustomizeModulesSheet: View {
     }
 
     let page: String
+    /// Every module the sport's pages can show, in the sport's order.
     let rows: [Row]
     let isShown: (DetailView.Section) -> Bool
     let setShown: (DetailView.Section, Bool) -> Void
+    /// The rows in a new order: every module's ID, first first.
+    let reorder: ([String]) -> Void
     let restore: () -> Void
     let done: () -> Void
+    /// The row whose handle is held, where it started, and how far it's travelled.
+    @State private var held: String?
+    @State private var heldFrom = 0
+    @State private var travel: CGFloat = 0
+    @GestureState private var handling = false
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// A row and its hairline.
+    static let pitch: CGFloat = 25
+    private static let space = "CustomizeModulesSheet.rows"
+
+    /// Where a held row lands: the slot nearest where it's been dragged. (pure; tested)
+    static func index(from: Int, travel: CGFloat, count: Int) -> Int {
+        min(max(from + Int((travel / pitch).rounded()), 0), max(count - 1, 0))
+    }
+
+    /// The rows as drawn: mid-drag, the held one at its slot, the others out of its way.
+    private var drawn: [Row] {
+        guard let held, let row = rows.first(where: { $0.id == held }) else { return rows }
+        var others = rows.filter { $0.id != held }
+        others.insert(row, at: min(Self.index(from: heldFrom, travel: travel, count: rows.count), others.count))
+        return others
+    }
 
     var body: some View {
+        let drawn = drawn
         VStack(alignment: .leading, spacing: 0) {
             Text("\(page) Game Pages").font(.system(size: 13, weight: .semibold))
                 .accessibilityAddTraits(.isHeader)
-            Text("What shows on every \(page) game.")
+            Text("What shows on every \(page) game, and in what order.")
                 .font(.system(size: 11)).foregroundStyle(.secondary).padding(.top, 2).padding(.bottom, 8)
-            ForEach(rows.indices, id: \.self) { i in
-                let row = rows[i]
-                Toggle(isOn: Binding(get: { isShown(row.section) }, set: { setShown(row.section, $0) })) {
-                    HStack {
-                        Text(row.name).font(.system(size: 12.5)).foregroundStyle(isShown(row.section) ? .primary : .secondary)
-                        Spacer()
-                        if row.liveOnly { Text("Live").font(.system(size: 10)).foregroundStyle(.tertiary).accessibilityHidden(true) }
-                    }
+            VStack(spacing: 0) {
+                ForEach(Array(drawn.enumerated()), id: \.element.id) { i, row in
+                    line(row, at: i, of: drawn.count)
                 }
-                .toggleStyle(ModuleCheckbox())
-                .frame(height: 24)
-                if i < rows.count - 1 { Divider().opacity(0.5).padding(.leading, 21) }
             }
+            .coordinateSpace(name: Self.space)
+            .animation(reduceMotion ? nil : Motion.standard, value: drawn.map(\.id))
             HStack {
                 Button("Restore Defaults", action: restore)
                     .buttonStyle(.plain)
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
+                    .help("Show every module, in each page's own order")
                 Spacer()
                 Button(action: done) {
                     Text("Done").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
@@ -789,11 +973,90 @@ struct CustomizeModulesSheet: View {
         }
         .padding(14)
         .frame(width: 262)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(scheme == .dark ? Color(white: 0.17) : .white))
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(surface))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5))
         .shadow(color: .black.opacity(0.3), radius: 18, y: 8)
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
+        .onChange(of: handling) { _, now in
+            if !now, held != nil { drop() }
+        }
+    }
+
+    private var surface: Color { scheme == .dark ? Color(white: 0.17) : .white }
+
+    private func line(_ row: Row, at i: Int, of count: Int) -> some View {
+        let isHeld = held == row.id
+        return VStack(spacing: 0) {
+            HStack(spacing: 2) {
+                Toggle(isOn: Binding(get: { isShown(row.section) }, set: { setShown(row.section, $0) })) {
+                    HStack {
+                        Text(row.name).font(.system(size: 12.5)).foregroundStyle(isShown(row.section) ? .primary : .secondary)
+                        Spacer()
+                        if row.liveOnly { Text("Live").font(.system(size: 10)).foregroundStyle(.tertiary).accessibilityHidden(true) }
+                    }
+                }
+                .toggleStyle(ModuleCheckbox())
+                .accessibilityActions {
+                    if i > 0 { Button("Move Up") { step(row.id, to: i - 1) } }
+                    if i < count - 1 { Button("Move Down") { step(row.id, to: i + 1) } }
+                }
+                handle(row)
+            }
+            .frame(height: Self.pitch - 1)
+            Rectangle().fill(Color.primary.opacity(i < count - 1 && !isHeld ? 0.08 : 0)).frame(height: 1).padding(.leading, 21)
+        }
+        .background {
+            // Held, the row lifts off the list: the sheet's surface, a soft shadow.
+            if isHeld {
+                RoundedRectangle(cornerRadius: 6, style: .continuous).fill(surface)
+                    .shadow(color: .black.opacity(scheme == .dark ? 0.45 : 0.16), radius: 8, y: 3)
+                    .padding(.horizontal, -6)
+            }
+        }
+        .scaleEffect(isHeld ? 1.02 : 1)
+        // Held, it follows the pointer; the rest slide on `standard` as it passes them.
+        .offset(y: isHeld ? travel - CGFloat(i - heldFrom) * Self.pitch : 0)
+        .zIndex(isHeld ? 1 : 0)
+    }
+
+    /// The handle: grab it to move the row (the rest of the row is the checkbox).
+    private func handle(_ row: Row) -> some View {
+        Image(systemName: "line.3.horizontal")
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(held == row.id ? .secondary : .tertiary)
+            .frame(width: 24, height: Self.pitch - 1)
+            .contentShape(Rectangle())
+            .pointerStyle(held == row.id ? .grabActive : .grabIdle)
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .named(Self.space))
+                    .updating($handling) { _, state, _ in state = true }
+                    .onChanged { value in
+                        if held == nil {
+                            held = row.id
+                            heldFrom = rows.firstIndex { $0.id == row.id } ?? 0
+                        }
+                        travel = value.translation.height
+                    }
+                    .onEnded { _ in drop() }
+            )
+            .help("Drag to reorder")
+            .accessibilityHidden(true)
+    }
+
+    /// Let go: the order is saved, and the row settles into its slot.
+    private func drop() {
+        let order = drawn.map(\.id)
+        withAnimation(reduceMotion ? Motion.fade : Motion.standard) {
+            if order != rows.map(\.id) { reorder(order) }
+            held = nil
+            travel = 0
+        }
+    }
+
+    /// Move Up or Move Down.
+    private func step(_ id: String, to index: Int) {
+        withAnimation(reduceMotion ? Motion.fade : Motion.standard) { reorder(ModuleOrder.move(id, to: index, in: rows.map(\.id))) }
     }
 }
 

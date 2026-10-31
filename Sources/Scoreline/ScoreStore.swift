@@ -112,13 +112,16 @@ final class ScoreStore {
     private(set) var collapsed: Set<String> {
         didSet { defaults.set(Array(collapsed), forKey: Keys.collapsed) }
     }
-    /// Game-page modules folded or hidden, per sport and module, app-wide
-    /// ("nba.liveView"; PageModules.swift). Only match pages read it.
+    /// Game-page modules folded, hidden or reordered, per sport and module,
+    /// app-wide ("nba.liveView"; PageModules.swift). Only match pages read it.
+    /// Written on every change, so an order survives closing the panel,
+    /// quitting, and a live game turning final.
     var modules: ModuleLayout {
         didSet {
             guard modules != oldValue else { return }
             defaults.set(modules.folded.sorted(), forKey: Keys.foldedModules)
             defaults.set(modules.hidden.sorted(), forKey: Keys.hiddenModules)
+            defaults.set(modules.order.filter { !$0.value.isEmpty }, forKey: Keys.moduleOrder)
         }
     }
     /// The landing page's arrangement: the league list or the tile board.
@@ -183,7 +186,7 @@ final class ScoreStore {
     /// bar. Observed: the menu bar item reads it.
     private var recentFinals: [String: Date] = [:]
 
-    @ObservationIgnored private let defaults = UserDefaults.standard
+    @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var pollTask: Task<Void, Never>?
 
     private enum Keys {
@@ -208,9 +211,12 @@ final class ScoreStore {
         static let showOdds = "showOdds"
         static let foldedModules = ModuleKeys.folded
         static let hiddenModules = ModuleKeys.hidden
+        static let moduleOrder = ModuleKeys.order
     }
 
-    init() {
+    /// `defaults`: the app's own; tests hand in a suite of their own.
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         defaults.register(defaults: [
             Keys.finished: true, Keys.liveCount: true, Keys.scoreInMenuBar: true,
             Keys.notify: true, Keys.coStream: true, Keys.coStreamer: "ohnepixel", Keys.scoringSlides: true,
@@ -235,7 +241,8 @@ final class ScoreStore {
             .filter { !$0.id.hasPrefix("espn-hockey-") }
         collapsed = Set(defaults.stringArray(forKey: Keys.collapsed) ?? [])
         modules = ModuleLayout(folded: Set(defaults.stringArray(forKey: Keys.foldedModules) ?? []),
-                               hidden: Set(defaults.stringArray(forKey: Keys.hiddenModules) ?? []))
+                               hidden: Set(defaults.stringArray(forKey: Keys.hiddenModules) ?? []),
+                               order: defaults.dictionary(forKey: Keys.moduleOrder) as? [String: [String]] ?? [:])
         teamFilters = ((defaults.dictionary(forKey: Keys.teamFilters) as? [String: [String]]) ?? [:]).mapValues(Set.init)
         filteredLeagues = Set(defaults.stringArray(forKey: Keys.filteredLeagues) ?? [])
         liveFirst = defaults.bool(forKey: Keys.liveFirst)

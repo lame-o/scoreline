@@ -25,15 +25,15 @@ extension ScorelineTests {
 
         // Linked-hover partners side by side.
         let soccerLive = columns(arrange(soccer, .live, [.pitch, .timeline, .winProbability, .stats, .table, .moments, .plays, .whereToWatch]))
-        check(soccerLive.left == [.pitch, .stats, .plays] && soccerLive.right == [.timeline, .moments, .winProbability, .table, .whereToWatch],
-              "soccer live: pitch, stats, plays | timeline, key events, win probability, table, where to watch",
+        check(soccerLive.left == [.pitch, .stats, .plays] && soccerLive.right == [.winProbability, .timeline, .moments, .table, .whereToWatch],
+              "soccer live: pitch, stats, plays | win probability, timeline, key events, table, where to watch",
               "\(soccerLive)")
         let nflFinal = columns(arrange(nfl, .final, [.linescore, .moments, .stats, .table, .plays]))
         check(nflFinal.left == [.linescore, .stats] && nflFinal.right == [.moments, .table, .plays],
               "football final: linescore beside the scoring plays it lights")
         let mlbLive = columns(arrange(mlb, .live, [.atPlate, .atBat, .linescore, .winProbability, .moments, .battedBalls, .plays]))
-        check(mlbLive.left == [.atPlate, .atBat, .battedBalls] && mlbLive.right.first == .linescore,
-              "baseball live: diamond and strike zone stack on the left; inning cells on the right")
+        check(mlbLive.left == [.atPlate, .atBat, .battedBalls] && Array(mlbLive.right.prefix(2)) == [.winProbability, .linescore],
+              "baseball live: diamond and strike zone stack on the left; win probability, then inning cells, on the right")
         let climbLive = columns(arrange(climbing, .live, [.ascent, .climbingWatch, .scorecard, .results, .startlist]))
         check(climbLive.left == [.ascent, .scorecard] && climbLive.right == [.climbingWatch, .results, .startlist],
               "climbing live: the wall beside the climbers' rows")

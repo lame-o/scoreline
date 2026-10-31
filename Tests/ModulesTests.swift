@@ -1,10 +1,11 @@
 import SwiftUI
 
-// Collapsible modules on the game page: the keys a fold or a hide is kept
-// under (shared with the web port), what's folded or hidden by default, how
-// hidden modules leave the page before the split page places it, the Live
-// View's own place above its chart, and what each folded module says.
-// Checked without views.
+// Collapsible modules on the game page: the keys a fold, a hide or an order
+// is kept under (shared with the web port), what's folded or hidden by
+// default, how hidden modules leave the page before the split page places it,
+// the Live View's and Win Probability's places, what each folded module says,
+// and how the user's order merges into each state's plan (and survives a
+// relaunch). Checked without views.
 
 extension ScorelineTests {
     static func modules() {
@@ -14,6 +15,11 @@ extension ScorelineTests {
         modulesPage()
         modulesGlances()
         modulesVisibility()
+        modulesWinProbability()
+        modulesOrder()
+        modulesOrderPages()
+        modulesOrderPersistence()
+        modulesCustomizeOrder()
     }
 
     private typealias S = DetailView.Section
@@ -28,7 +34,8 @@ extension ScorelineTests {
         check(ModuleKeys.key(.nba, .liveView) == "nba.liveView" && ModuleKeys.key(.soccer, .pitch) == "soccer.pitch"
               && ModuleKeys.key(.baseball, .atBat) == "baseball.atBat" && ModuleKeys.key(.nba, .winProbability) == "nba.winProbability",
               "keys: page then module, as the web names them (nba.liveView, soccer.pitch)")
-        check(ModuleKeys.folded == "foldedModules" && ModuleKeys.hidden == "hiddenModules", "prefs keys: foldedModules, hiddenModules")
+        check(ModuleKeys.folded == "foldedModules" && ModuleKeys.hidden == "hiddenModules" && ModuleKeys.order == "moduleOrder",
+              "prefs keys: foldedModules, hiddenModules, moduleOrder")
         let wnba = EventRef.espn(path: "basketball/wnba", id: "1", sport: .basketball)
         let cfb = EventRef.espn(path: "football/college-football", id: "1", sport: .football)
         check(PageKind.of(nbaRef) == .nba && PageKind.of(soccerRef) == .soccer && PageKind.of(mlbRef) == .baseball
@@ -74,9 +81,9 @@ extension ScorelineTests {
     private static func modulesPage() {
         for (ref, chart, name) in [(nbaRef, S.court, "NBA"), (soccerRef, .pitch, "soccer"), (mlbRef, .atPlate, "baseball"), (nflRef, .field, "football")] {
             let live = DetailView.order(ref, .live)
-            let i = live.firstIndex(of: .liveView), j = live.firstIndex(of: chart)
             let chartName = DetailView.moduleName(chart, on: PageKind.of(ref))
-            check(i != nil && j == i.map { $0 + 1 }, "\(name) live: the Live View just above \(chartName)", "\(live)")
+            check(Array(live.prefix(3)) == [.liveView, .winProbability, chart],
+                  "\(name) live: the Live View first, Win Probability under it, then \(chartName)", "\(live)")
             check(!DetailView.order(ref, .final).contains(.liveView) && !DetailView.order(ref, .scheduled).contains(.liveView),
                   "\(name): the Live View is live only")
             let left = DetailView.widePlan(ref, .live).compactMap { part -> [S]? in
@@ -220,5 +227,192 @@ extension ScorelineTests {
         let m = LiveMoment(id: "m", chart: .court, tier: .swing, kind: .made(value: 3), lead: "3-pointer", detail: "Curry")
         check(DockRules.newsLine(moment: m, chartVisibility: V.visible) == nil && DockRules.newsLine(moment: m, chartVisibility: .hidden(.above)) == m,
               "docked bar: the folded header in view has the moment; off screen, the bar's news line")
+    }
+
+    // MARK: Win Probability's default place
+
+    private static func modulesWinProbability() {
+        let gens = EventRef.espn(path: "basketball/wnba", id: "1", sport: .basketball)
+        for (ref, name) in [(nbaRef, "NBA"), (soccerRef, "soccer"), (mlbRef, "baseball"), (nflRef, "football"), (gens, "basketball")] {
+            let live = DetailView.order(ref, .live), final = DetailView.order(ref, .final), pre = DetailView.order(ref, .scheduled)
+            check(live.firstIndex(of: .winProbability) == 1 && live.first == .liveView && final.first == .winProbability
+                  && pre.first == .winProbability,
+                  "\(name): Win Probability right under the Live View live, first before the game and in the final",
+                  "\(live.prefix(3)) | \(final.prefix(2)) | \(pre.prefix(2))")
+        }
+        // A live page without a theater (the WNBA's generic page): Win Probability leads it.
+        var layout = ModuleLayout()
+        layout.hide(.liveView, on: .espn, true)
+        check(layout.shown(DetailView.order(gens, .live), on: .espn).first == .winProbability,
+              "no Live View on the page: Win Probability is the first module, under the score")
+        // Split page: at or near the top of its column, the designed pairs kept.
+        func column(_ ref: EventRef, _ state: EventState) -> [S] {
+            for case let .columns(left, right) in DetailView.widePlan(ref, state) {
+                if left.contains(.winProbability) { return left }
+                if right.contains(.winProbability) { return right }
+            }
+            return []
+        }
+        for (ref, name) in [(nbaRef, "NBA"), (soccerRef, "soccer"), (mlbRef, "baseball"), (nflRef, "football")] {
+            for state in [EventState.live, .final, .scheduled] {
+                // The NBA final keeps the flow, then the court beside the box score: Win Probability is third.
+                let col = column(ref, state).filter { $0 != .liveView }
+                check((col.firstIndex(of: .winProbability) ?? 99) <= (PageKind.of(ref) == .nba && state == .final ? 2 : 1),
+                      "\(name) \(state) split page: Win Probability at or near the top of its column", "\(col)")
+            }
+        }
+        let nbaLive = column(nbaRef, .live), nbaFinal = column(nbaRef, .final)
+        check(Array(nbaLive.prefix(3)) == [.liveView, .court, .winProbability] && nbaFinal.prefix(3).contains(.court),
+              "NBA split page: the court stays beside the box score, Win Probability just under it", "\(nbaLive) | \(nbaFinal)")
+        check(column(soccerRef, .final).first == .timeline && column(soccerRef, .live).first == .winProbability,
+              "soccer split page: a final's timeline stays beside the shot map; live, Win Probability tops the column")
+    }
+
+    // MARK: The user's order
+
+    private static func modulesOrder() {
+        typealias O = ModuleOrder
+        check(O.merge(["a", "b", "c"], ranking: []) == ["a", "b", "c"], "no ranking: the plan's order")
+        check(O.merge(["a", "b", "c"], ranking: ["c", "a", "b"]) == ["c", "a", "b"], "everything ranked: the user's order")
+        check(O.merge(["a", "b", "c", "d"], ranking: ["d", "b"]) == ["d", "a", "b", "c"],
+              "never ranked: a module follows the ranked one above it in the plan, or leads the first one", "\(O.merge(["a", "b", "c", "d"], ranking: ["d", "b"]))")
+        check(O.merge(["a", "b"], ranking: ["x", "b", "b", "a"]) == ["b", "a"], "IDs not on the page, and repeats, are ignored")
+
+        // A final's ranking carries to the live page; a live one to the final.
+        let finalRanking = ["box", "flow", "court", "winProbability", "linescore", "leaders", "moments", "stats", "table"]
+        let live = O.arrange(DetailView.order(nbaRef, .live), by: finalRanking).map(sectionID)
+        check(live == ["box", "flow", "court", "liveView", "winProbability", "linescore", "leaders", "moments", "stats", "plays", "table",
+                       "injuries", "whereToWatch"],
+              "ranked on a final, live: the Live View still leads Win Probability; Latest, injuries and where to watch follow their plan neighbors",
+              "\(live)")
+        let liveRanking = ["box"] + DetailView.order(nbaRef, .live).map(sectionID).filter { $0 != "box" }
+        let final = O.arrange(DetailView.order(nbaRef, .final), by: liveRanking).map(sectionID)
+        check(final == ["box", "winProbability", "court", "flow", "linescore", "leaders", "moments", "stats", "table"],
+              "ranked live, the final keeps that order without what only a live page has", "\(final)")
+
+        // A page's new order folds into the ranking without dropping what isn't on it.
+        let previous = ["liveView", "court", "flow", "plays", "box"]
+        let ranked = O.ranked(page: ["flow", "court", "box"], previous: previous)
+        check(ranked == ["flow", "plays", "liveView", "court", "box"],
+              "reordered on a final: live-only modules stay ranked beside their neighbors (Latest follows the flow, the Live View leads the court)",
+              "\(ranked)")
+        check(Set(O.ranked(page: ["a"], previous: ["x", "y"])) == ["a", "x", "y"], "nothing already ranked falls out")
+        check(O.ranked(page: ["flow", "court", "box"], previous: []) == ["flow", "court", "box"], "a first ranking is the page's order")
+
+        // Columns: a run's new order takes the run's places; the other column keeps its own.
+        check(O.permute(["a", "X", "b", "Y", "c"], run: ["c", "a", "b"]) == ["c", "X", "a", "Y", "b"],
+              "a column reordered: the other column's modules keep their places")
+        check(O.move("c", to: 0, in: ["a", "b", "c"]) == ["c", "a", "b"] && O.move("a", to: 9, in: ["a", "b", "c"]) == ["b", "c", "a"],
+              "move: to a slot among the others, clamped")
+        check(O.slot(top: 0, runTop: 0, heights: [40, 40]) == 0 && O.slot(top: 21, runTop: 0, heights: [40, 40]) == 1
+              && O.slot(top: 19, runTop: 0, heights: [40, 40]) == 0 && O.slot(top: 500, runTop: 0, heights: [40, 40]) == 2
+              && O.slot(top: -90, runTop: 0, heights: [40, 40]) == 0,
+              "the gap: the slot nearest the dragged module's top (past half a module, it moves on)")
+
+        // Move Up and Move Down (VoiceOver): one place along the run, nothing at its ends.
+        let page = ["liveView", "court", "flow", "box"]
+        check(O.step("liveView", by: -1, run: page, page: page, previous: []) == nil
+              && O.step("box", by: 1, run: page, page: page, previous: []) == nil, "Move Up at the top, Move Down at the bottom: none")
+        check(O.step("flow", by: -1, run: page, page: page, previous: []) == ["liveView", "flow", "court", "box"]
+              && O.step("court", by: 1, run: page, page: page, previous: []) == ["liveView", "flow", "court", "box"],
+              "Move Up and Move Down swap a module with its neighbor")
+        let left = ["court", "flow"], split = ["court", "box", "flow", "leaders"]
+        check(O.step("flow", by: -1, run: left, page: split, previous: []) == ["flow", "box", "court", "leaders"],
+              "split page: Move Up stays in the module's column")
+        check(ModuleDrag.autoscrollSpeed(pointer: 300, height: 600, topInset: 0) == 0
+              && ModuleDrag.autoscrollSpeed(pointer: 0, height: 600, topInset: 0) == -12
+              && ModuleDrag.autoscrollSpeed(pointer: 578, height: 600, topInset: 0) == 6
+              && ModuleDrag.autoscrollSpeed(pointer: 60, height: 600, topInset: 48) < 0,
+              "autoscroll: within 44pt of an edge (below the docked bar), faster nearer it")
+        check(ModuleDrag.springProgress(0) == 0 && ModuleDrag.springProgress(0.3) > 0.98 && ModuleDrag.springProgress(0.6) == 1
+              && ModuleDrag.springProgress(0.1) < ModuleDrag.springProgress(0.15),
+              "the settle's scroll glides on standard's curve: from 0, nearly there at 0.3 s, done by 0.6 s, never back")
+    }
+
+    private static func modulesOrderPages() {
+        // Hidden modules still leave the page; the rest take the user's order.
+        var layout = ModuleLayout()
+        layout.rank(["box", "court", "flow"], on: .nba)
+        layout.hide(.court, on: .nba, true)
+        let shown = layout.shown(DetailView.order(nbaRef, .final), on: .nba)
+        check(!shown.contains(.court) && shown.firstIndex(of: .box)! < shown.firstIndex(of: .flow)!,
+              "hidden modules are filtered out; the rest follow the ranking", "\(shown)")
+        check(layout.ranking(on: .nba).contains("court") && layout.shown(DetailView.order(nbaRef, .final), on: .soccer).first == .winProbability,
+              "hiding keeps a module's rank; another sport's pages keep their plan")
+
+        // Split page: each column keeps its modules (the designed pairs) in the ranking's relative order.
+        layout = ModuleLayout()
+        let wanted = ["box", "table", "moments", "stats", "leaders", "court", "liveView", "winProbability", "flow", "linescore", "plays"]
+        layout.rank(wanted, on: .nba)
+        let order = layout.shown(DetailView.order(nbaRef, .live), on: .nba)
+        let placed = DetailView.wideArrangement(order, plan: DetailView.widePlan(nbaRef, .live), ranking: layout.ranking(on: .nba))
+        let left = placed.filter { $0.slot.column == .left }.map(\.section), right = placed.filter { $0.slot.column == .right }.map(\.section)
+        check(Set(left) == [.liveView, .court, .winProbability, .flow, .linescore, .moments, .plays, .table]
+              && Set(right) == [.box, .leaders, .stats, .injuries, .whereToWatch],
+              "split page: a module never changes column, however it's ranked")
+        check(left == [.table, .moments, .court, .liveView, .winProbability, .flow, .linescore, .plays]
+              && right == [.box, .stats, .injuries, .whereToWatch, .leaders],
+              "split page: within each column, the ranking's relative order", "\(left) | \(right)")
+        check(DetailView.wideArrangement(order, plan: DetailView.widePlan(nbaRef, .live)).map(\.section)
+              == DetailView.wideArrangement(DetailView.order(nbaRef, .live), plan: DetailView.widePlan(nbaRef, .live)).map(\.section),
+              "split page with no ranking: the plan's columns, as designed")
+
+        // Restore Defaults: the sport's order goes with its hidden modules; folds and other sports stay.
+        layout.rank(["pitch", "timeline"], on: .soccer)
+        layout.fold(.box, on: .nba, true)
+        layout.hide(.box, on: .nba, true)
+        layout.restoreDefaults(on: .nba)
+        check(layout.ranking(on: .nba).isEmpty && layout.hidden.isEmpty && layout.isFolded(.box, on: .nba)
+              && layout.ranking(on: .soccer) == ["pitch", "timeline"],
+              "Restore Defaults: the sport's order and hidden modules reset; folds and other sports stay")
+        check(layout.shown(DetailView.order(nbaRef, .final), on: .nba) == DetailView.order(nbaRef, .final),
+              "restored, a page is in its plan's order again")
+    }
+
+    private static func modulesOrderPersistence() {
+        let suite = "scoreline-tests-module-order"
+        guard let defaults = UserDefaults(suiteName: suite) else { return check(false, "a defaults suite for the order") }
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        // Dragged live: Box Score to the top of the page.
+        let livePage = DetailView.order(nbaRef, .live).map(sectionID)
+        let dragged = ModuleOrder.move("box", to: 0, in: livePage)
+        do {
+            let store = ScoreStore(defaults: defaults)
+            store.modules.rank(dragged, on: .nba)
+            store.modules.fold(.court, on: .nba, true)
+        }
+        // Quit and relaunch (or close and reopen the panel): a new store from the same defaults.
+        let relaunched = ScoreStore(defaults: defaults)
+        check(relaunched.modules.ranking(on: .nba) == dragged && relaunched.modules.isFolded(.court, on: .nba),
+              "the order survives a relaunch: a new store reads the same order back", "\(relaunched.modules.ranking(on: .nba))")
+        let final = relaunched.modules.shown(DetailView.order(nbaRef, .final), on: .nba)
+        check(final.first == .box, "live → final: the dragged order carries to the final", "\(final)")
+        // Hiding, folding and showing never reset it; only Restore Defaults does.
+        relaunched.modules.hide(.box, on: .nba, true)
+        relaunched.modules.hide(.box, on: .nba, false)
+        relaunched.modules.fold(.court, on: .nba, false)
+        check(ScoreStore(defaults: defaults).modules.ranking(on: .nba) == dragged, "hiding, showing and folding keep the order")
+        relaunched.modules.restoreDefaults(on: .nba)
+        check(ScoreStore(defaults: defaults).modules.ranking(on: .nba).isEmpty
+              && (defaults.dictionary(forKey: ModuleKeys.order) as? [String: [String]])?["nba"] == nil,
+              "Restore Defaults clears the saved order")
+    }
+
+    private static func modulesCustomizeOrder() {
+        var layout = ModuleLayout()
+        let rows = DetailView.customizeRows(for: nbaRef, kind: .nba, layout: layout).map(\.id)
+        check(rows == DetailView.modules(for: nbaRef).map { sectionID($0.section) }, "Customize lists the modules in the plan's order by default")
+        // Dragging a handle down two rows and letting go.
+        let to = CustomizeModulesSheet.index(from: 0, travel: 2 * CustomizeModulesSheet.pitch + 6, count: rows.count)
+        check(to == 2 && CustomizeModulesSheet.index(from: 1, travel: -400, count: rows.count) == 0
+              && CustomizeModulesSheet.index(from: 1, travel: 9_999, count: rows.count) == rows.count - 1,
+              "a held row lands in the slot nearest the pointer, within the list")
+        layout.rank(ModuleOrder.move(rows[0], to: to, in: rows), on: .nba)
+        let after = DetailView.customizeRows(for: nbaRef, kind: .nba, layout: layout)
+        check(after.map(\.id)[2] == rows[0] && after.first { $0.id == "plays" }?.liveOnly == true,
+              "the sheet's order is the page's: saved for the sport, rows keep their Live marks")
+        check(layout.shown(DetailView.order(nbaRef, .live), on: .nba).map(sectionID) == after.map(\.id).filter(Set(DetailView.order(nbaRef, .live).map(sectionID)).contains),
+              "a live page follows the sheet's order")
     }
 }

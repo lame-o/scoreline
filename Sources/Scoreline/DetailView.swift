@@ -94,6 +94,8 @@ struct DetailView: View {
     @State private var foldMotion = FoldMotion.animated
     /// The sport's Customize sheet is over the page.
     @State private var customizing = false
+    /// A module's header being dragged to a new place (ModuleDrag.swift).
+    @State private var drag = ModuleDrag()
     #if DEBUG
     @Environment(\.pageProbe) private var probe
     /// Harness counter: body runs (scrolling must add none).
@@ -173,6 +175,7 @@ struct DetailView: View {
             moments.clear()
             slides.clear()
             oddsFeed.stop()
+            drag.abandon()
         }
         .onChange(of: store.showOdds) { _, on in
             if on, let detail { Task { await discoverOdds(event, detail) } } else { oddsFeed.reset() }
@@ -180,8 +183,13 @@ struct DetailView: View {
         .onChange(of: snapshot.id) { resetStage() }
         // Folded modules' content is never in view (theaters stop drawing; a moment's owner isn't seen).
         .onChange(of: foldedIDs, initial: true) { _, ids in geometry.setFolded(ids) }
+        .onAppear { drag.geometry = geometry }
+        // A module in hand that leaves the page (nothing left to show) goes back.
+        .onChange(of: arrangedIDs) { _, ids in
+            if let id = drag.id, !ids.contains(id) { drag.abandon() }
+        }
         #if DEBUG
-        .onAppear { probe?(PageProbe(geometry: geometry, linked: linked, peek: peek, stage: nbaStage, moments: moments)) }
+        .onAppear { probe?(PageProbe(geometry: geometry, linked: linked, peek: peek, stage: nbaStage, moments: moments, drag: drag)) }
         #endif
         // The hero's scoreboard beat: a score-tier moment, on this page, now.
         .onChange(of: moments.current?.id) { _, _ in
@@ -239,6 +247,9 @@ struct DetailView: View {
                 }
                 .padding(.bottom, 14)
             }
+            // A dragged module's pointer and lift are measured in the viewport.
+            .coordinateSpace(name: ModuleDrag.space)
+            .overlay(alignment: .topLeading) { moduleLift }
             // The docked scorebar and the chart peek float over the scroll
             // view: neither ever changes the page's measured height.
             .overlay(alignment: .top) {
@@ -902,37 +913,38 @@ struct DetailView: View {
     }
 
     /// What a fan wants first, per sport and state: the live picture while
-    /// it's on; the story of the game once it's over.
+    /// it's on; the story of the game once it's over. Win Probability opens
+    /// every page that has it, right under the Live View when there is one.
     private var order: [Section] { Self.order(event.ref, event.state) }
 
     /// The same, for any sport and state (the Customize sheet lists every state's). The Live View,
-    /// live only, sits above the chart it replays for.
+    /// live only, leads the page; Win Probability, then the chart it replays for, follow it.
     static func order(_ ref: EventRef?, _ state: EventState) -> [Section] {
         switch ref {
         case .espn(_, _, .soccer)?:
             switch state {
-            case .live: return [.liveView, .pitch, .timeline, .winProbability, .stats, .table, .moments, .plays, .whereToWatch]
-            case .final: return [.timeline, .winProbability, .pitch, .moments, .stats, .table, .plays]
+            case .live: return [.liveView, .winProbability, .pitch, .timeline, .stats, .table, .moments, .plays, .whereToWatch]
+            case .final: return [.winProbability, .timeline, .pitch, .moments, .stats, .table, .plays]
             case .scheduled: return [.winProbability, .table, .whereToWatch]
             }
         case .espn(_, _, .baseball)?:
             switch state {
-            case .live: return [.liveView, .atPlate, .atBat, .linescore, .winProbability, .bracket, .moments, .battedBalls, .plays, .whereToWatch]
-            case .final: return [.linescore, .winProbability, .bracket, .moments, .battedBalls, .plays]
+            case .live: return [.liveView, .winProbability, .atPlate, .atBat, .linescore, .bracket, .moments, .battedBalls, .plays, .whereToWatch]
+            case .final: return [.winProbability, .linescore, .bracket, .moments, .battedBalls, .plays]
             case .scheduled: return [.winProbability, .bracket, .whereToWatch]
             }
         case let .espn(path, _, .basketball)? where path == NBADetail.path:
             switch state {
-            case .live: return [.liveView, .court, .flow, .linescore, .leaders, .moments, .box, .stats, .winProbability, .plays, .table,
+            case .live: return [.liveView, .winProbability, .court, .flow, .linescore, .leaders, .moments, .box, .stats, .plays, .table,
                                 .injuries, .whereToWatch]
-            case .final: return [.flow, .court, .winProbability, .linescore, .leaders, .box, .moments, .stats, .table]
-            // Before tip-off: who's out, ESPN's matchup predictor, season leaders.
-            case .scheduled: return [.injuries, .winProbability, .leaders, .table, .whereToWatch]
+            case .final: return [.winProbability, .flow, .court, .linescore, .leaders, .box, .moments, .stats, .table]
+            // Before tip-off: the matchup predictor, who's out, season leaders.
+            case .scheduled: return [.winProbability, .injuries, .leaders, .table, .whereToWatch]
             }
         case .espn?:
             switch state {
-            case .live: return [.liveView, .field, .winProbability, .linescore, .moments, .stats, .table, .plays, .whereToWatch]
-            case .final: return [.linescore, .winProbability, .moments, .stats, .table, .plays]
+            case .live: return [.liveView, .winProbability, .field, .linescore, .moments, .stats, .table, .plays, .whereToWatch]
+            case .final: return [.winProbability, .linescore, .moments, .stats, .table, .plays]
             case .scheduled: return [.winProbability, .table, .whereToWatch]
             }
         case .counterStrike?:
@@ -978,18 +990,21 @@ struct DetailView: View {
     /// events, linescore cells beside the plays they light, climbers' rows
     /// beside the lanes and cards they light. A section's column never changes
     /// at runtime, so a live list growing in one column never moves the other.
+    /// Win Probability is at or near the top of its column: just under the
+    /// court in the NBA (the court stays beside the box score) and under the
+    /// timeline on a soccer final (it stays beside the shot map).
     static func widePlan(_ ref: EventRef?, _ state: EventState) -> [WidePart] {
         switch ref {
         case .espn(_, _, .soccer)?:
             switch state {
-            case .live: [.columns(left: [.liveView, .pitch, .stats, .plays], right: [.timeline, .moments, .winProbability, .table, .whereToWatch])]
+            case .live: [.columns(left: [.liveView, .pitch, .stats, .plays], right: [.winProbability, .timeline, .moments, .table, .whereToWatch])]
             case .final: [.columns(left: [.pitch, .stats], right: [.timeline, .winProbability, .moments, .table, .plays])]
             case .scheduled: [.columns(left: [.table], right: [.winProbability, .whereToWatch])]
             }
         case .espn(_, _, .baseball)?:
             switch state {
             case .live: [.columns(left: [.liveView, .atPlate, .atBat, .battedBalls],
-                                  right: [.linescore, .winProbability, .moments, .bracket, .plays, .whereToWatch])]
+                                  right: [.winProbability, .linescore, .moments, .bracket, .plays, .whereToWatch])]
             case .final: [.columns(left: [.linescore, .battedBalls], right: [.winProbability, .moments, .bracket, .plays])]
             case .scheduled: [.columns(left: [.bracket], right: [.winProbability, .whereToWatch])]
             }
@@ -999,11 +1014,11 @@ struct DetailView: View {
             // player shows only their shots without scrolling, and the
             // leaders below it light the same player on both.
             switch state {
-            case .live: [.columns(left: [.liveView, .court, .flow, .winProbability, .linescore, .moments, .plays, .table],
+            case .live: [.columns(left: [.liveView, .court, .winProbability, .flow, .linescore, .moments, .plays, .table],
                                   right: [.box, .leaders, .stats, .injuries, .whereToWatch])]
             case .final: [.columns(left: [.flow, .court, .winProbability, .linescore, .moments, .table], right: [.box, .leaders, .stats, .injuries])]
             // Before tip-off: who's out and how it shapes up, beside the standings.
-            case .scheduled: [.columns(left: [.injuries, .winProbability, .leaders], right: [.table, .whereToWatch])]
+            case .scheduled: [.columns(left: [.winProbability, .injuries, .leaders], right: [.table, .whereToWatch])]
             }
         case .espn?:
             switch state {
@@ -1036,7 +1051,12 @@ struct DetailView: View {
     /// empty (speed climbing has no wall or scorecard; a cup tie has no
     /// table): the other column lends it a section. Ranks run across the whole
     /// page, so when a span between two blocks is hidden they merge in order.
-    static func wideArrangement(_ shown: [Section], plan: [WidePart]) -> [PlacedSection] {
+    ///
+    /// `ranking` (the user's order) applies within each column: a column keeps
+    /// its modules, so the designed pairs stay side by side, and stacks them
+    /// in the ranking's relative order (`ModuleOrder.merge`, the plan's
+    /// column order as the default).
+    static func wideArrangement(_ shown: [Section], plan: [WidePart], ranking: [String] = []) -> [PlacedSection] {
         let listed = Set(plan.flatMap(\.sections))
         let unlisted = shown.filter { !listed.contains($0) }
         var parts = plan
@@ -1058,7 +1078,8 @@ struct DetailView: View {
         for part in parts {
             switch part {
             case let .columns(left, right):
-                var left = left.filter(visible.contains), right = right.filter(visible.contains)
+                var left = ModuleOrder.arrange(left.filter(visible.contains), by: ranking)
+                var right = ModuleOrder.arrange(right.filter(visible.contains), by: ranking)
                 if left.isEmpty, !right.isEmpty {
                     left = [right.removeFirst()]
                 } else if right.isEmpty, left.count > 1 {
@@ -1076,13 +1097,25 @@ struct DetailView: View {
     /// The sections with something to show, in order, before the sport's hidden modules come out.
     private func available(_ d: GameDetail) -> [Section] { order.filter { has($0, d) } }
 
-    /// The shown sections and where each goes: today's order in one column;
-    /// the sport's plan from 680pt. Hidden modules come out first, so the
-    /// plan lends a section to a column they'd leave empty.
-    private func arrangement(_ d: GameDetail) -> [PlacedSection] {
-        let shown = store.modules.shown(available(d), on: pageKind)
+    /// The shown sections in the one-column order: the state's plan, sorted
+    /// by the sport's order (or, mid-drag, the drag's proposal).
+    private func shownModules(_ d: GameDetail) -> [Section] {
+        store.modules.shown(available(d), on: pageKind, ranking: drag.preview)
+    }
+
+    /// The shown sections and where each goes: the one-column order; the
+    /// sport's plan from 680pt, each column in the sport's order. Hidden
+    /// modules come out first, so the plan lends a section to a column
+    /// they'd leave empty.
+    private func arrangement(_ shown: [Section]) -> [PlacedSection] {
         guard layout.split else { return shown.map { PlacedSection(section: $0, slot: MatchSlot()) } }
-        return Self.wideArrangement(shown, plan: Self.widePlan(event.ref, event.state))
+        return Self.wideArrangement(shown, plan: Self.widePlan(event.ref, event.state),
+                                    ranking: drag.preview ?? store.modules.ranking(on: pageKind))
+    }
+
+    /// The modules on the page, by ID (a dragged one that leaves it goes back).
+    private var arrangedIDs: [String] {
+        detail.map { shownModules($0).map(sectionID) } ?? []
     }
 
     /// The room a section has: a column's when split (unless it spans), else the page's.
@@ -1100,12 +1133,13 @@ struct DetailView: View {
     @ViewBuilder
     private var content: some View {
         if let detail {
-            let placed = arrangement(detail)
-            let modules = placed.map(\.section)
+            let shown = shownModules(detail)
+            let placed = arrangement(shown)
             ForEach(Array(placed.enumerated()), id: \.element.section) { index, item in
                 section(item.section, detail)
-                    // Each section is a module: it folds, and its header's menu hides it (PageModules.swift).
-                    .environment(\.moduleChrome, chrome(item.section, detail, page: modules))
+                    // Each section is a module: it folds, its header's menu hides it, and
+                    // its header drags it to a new place (PageModules.swift, ModuleDrag.swift).
+                    .environment(\.moduleChrome, chrome(item.section, detail, placed: placed, shown: shown))
                     .environment(\.widthClass, room(for: item.slot))
                     // Where it is (for the peek and the bar), which section the
                     // pointer is in (rows there may peek), and the flash when a
@@ -1118,6 +1152,8 @@ struct DetailView: View {
                             .padding(.top, 9)
                             .padding(.bottom, -6)
                     }
+                    // Mid-drag, the module in hand is unseen here, holding its gap.
+                    .modifier(ModuleGap(drag: drag, id: sectionID(item.section)))
                     .matchSlot(item.slot.column, rank: item.slot.rank)
                     .accessibilitySortPriority(Double(placed.count - index))
             }
@@ -1559,8 +1595,10 @@ struct DetailView: View {
     private var pageKind: PageKind? { PageKind.of(event.ref) }
 
     /// The page's folded modules, by section ID, for the page's geometry.
+    /// Mid-drag, every module is folded (so the Live View draws no frames
+    /// and keeps its queue and clocks); they open again on release.
     private var foldedIDs: Set<String> {
-        Set(order.filter { store.modules.isFolded($0, on: pageKind) }.map(sectionID))
+        Set(order.filter { drag.compact || store.modules.isFolded($0, on: pageKind) }.map(sectionID))
     }
 
     /// The Live View is on the page (not hidden from its menu).
@@ -1571,7 +1609,7 @@ struct DetailView: View {
     /// The Live View is on the page and open: it replays the play and owns
     /// its celebration. Folded or hidden, the chart it sat with does.
     private func liveViewOpen(_ d: GameDetail) -> Bool {
-        liveViewOnPage(d) && !store.modules.isFolded(.liveView, on: pageKind)
+        liveViewOnPage(d) && !store.modules.isFolded(.liveView, on: pageKind) && !drag.compact
     }
 
     private var liveViewCaption: String {
@@ -1612,15 +1650,59 @@ struct DetailView: View {
         }
     }
 
-    /// A section as a module: its fold, its glance (built only while folded),
-    /// and what its header does. `page`: every module on the page, for ⌥-click.
-    private func chrome(_ section: Section, _ d: GameDetail, page: [Section]) -> ModuleChrome? {
+    /// A section as a module: its fold (every module's, mid-drag), its
+    /// glance (built only while folded), what its header does, and how it's
+    /// dragged. `placed`: the page as arranged, for ⌥-click and the drag's
+    /// run; `shown`: the one-column order, which a move re-ranks.
+    private func chrome(_ section: Section, _ d: GameDetail, placed: [PlacedSection], shown: [Section]) -> ModuleChrome? {
         guard let kind = pageKind else { return nil }
-        let folded = store.modules.isFolded(section, on: kind)
+        let folded = store.modules.isFolded(section, on: kind) || drag.compact
+        let page = placed.map(\.section)
+        // Mid-drag the page folds and opens on the drag's motion, whatever the last fold was.
+        let motion = drag.phase == .idle ? foldMotion : reduceMotion ? .fade : .animated
         return ModuleChrome(name: Self.moduleName(section, on: kind), page: kind.name, folded: folded,
                             glance: folded ? glance(section, d) : nil, moment: DockRules.chart(for: section),
-                            motion: foldMotion, keepsAlive: section == .liveView) { action, keyboard in
+                            motion: motion, keepsAlive: section == .liveView,
+                            reorder: reorder(section, on: kind, placed: placed, shown: shown)) { action, keyboard in
             act(action, on: section, page: page, keyboard: keyboard)
+        }
+    }
+
+    /// Dragging a module: its run is its column on the split page (columns
+    /// keep their modules, so the designed pairs stay side by side), else
+    /// the whole page. Move Up and Move Down step it along the same run.
+    private func reorder(_ section: Section, on kind: PageKind, placed: [PlacedSection], shown: [Section]) -> ModuleReorder {
+        let id = sectionID(section)
+        let column = placed.first { $0.section == section }?.slot.column
+        let run = (layout.split ? placed.filter { $0.slot.column == column } : placed).map { sectionID($0.section) }
+        let page = shown.map(sectionID)
+        let store = store, reduceMotion = reduceMotion
+        func step(_ delta: Int) -> (@MainActor () -> Void)? {
+            guard ModuleOrder.step(id, by: delta, run: run, page: page, previous: []) != nil else { return nil }
+            return {
+                guard let next = ModuleOrder.step(id, by: delta, run: run, page: page, previous: store.modules.ranking(on: kind)) else { return }
+                withAnimation(reduceMotion ? Motion.fade : Motion.standard) { store.modules.order[kind.rawValue] = next }
+                AccessibilityNotification.LayoutChanged().post()
+            }
+        }
+        return ModuleReorder(drag: drag, id: id, run: run, page: page,
+                             commit: { page in store.modules.rank(page, on: kind) },
+                             moveUp: step(-1), moveDown: step(1))
+    }
+
+    /// The module in hand, raised over the page at the pointer: its folded header.
+    @ViewBuilder
+    private var moduleLift: some View {
+        if let id = drag.id, let image = drag.image, let d = detail, let kind = pageKind,
+           let section = order.first(where: { sectionID($0) == id }) {
+            ModuleLift(drag: drag) {
+                ModuleHeader(title: image.title, caption: image.caption, accessory: image.accessory, glance: image.glance,
+                             chrome: ModuleChrome(name: Self.moduleName(section, on: kind), page: kind.name, folded: true,
+                                                  glance: glance(section, d), moment: DockRules.chart(for: section),
+                                                  motion: .instant) { _, _ in }) {
+                    EmptyView()
+                }
+            }
         }
     }
 
@@ -1729,19 +1811,27 @@ struct DetailView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { closeCustomize() }
                     .accessibilityHidden(true)
-                CustomizeModulesSheet(page: kind.name,
-                                      rows: Self.modules(for: event.ref).map {
-                                          .init(section: $0.section, name: Self.moduleName($0.section, on: kind), liveOnly: $0.liveOnly)
-                                      },
+                CustomizeModulesSheet(page: kind.name, rows: Self.customizeRows(for: event.ref, kind: kind, layout: store.modules),
                                       isShown: { !store.modules.isHidden($0, on: kind) },
                                       setShown: { section, shown in
                                           withAnimation(reduceMotion ? Motion.fade : Motion.standard) { store.modules.hide(section, on: kind, !shown) }
                                       },
-                                      restore: { withAnimation(reduceMotion ? Motion.fade : Motion.standard) { store.modules.showAll(on: kind) } },
+                                      // The sheet animates its own rows; the page behind follows on the same transaction.
+                                      reorder: { ids in store.modules.rank(ids, on: kind) },
+                                      restore: { withAnimation(reduceMotion ? Motion.fade : Motion.standard) { store.modules.restoreDefaults(on: kind) } },
                                       done: closeCustomize)
                     .padding(.top, 44)
             }
             .transition(.opacity)
+        }
+    }
+
+    /// The Customize sheet's rows: every module the sport's pages can show, in the sport's order. (pure; tested)
+    static func customizeRows(for ref: EventRef?, kind: PageKind, layout: ModuleLayout) -> [CustomizeModulesSheet.Row] {
+        let modules = Self.modules(for: ref)
+        let liveOnly = Dictionary(modules.map { (sectionID($0.section), $0.liveOnly) }, uniquingKeysWith: { first, _ in first })
+        return ModuleOrder.arrange(modules.map(\.section), by: layout.ranking(on: kind)).map {
+            .init(section: $0, name: moduleName($0, on: kind), liveOnly: liveOnly[sectionID($0)] ?? false)
         }
     }
 
@@ -2066,6 +2156,8 @@ struct DetailView: View {
     /// click or ⌘[ always goes back). Esc is never swallowed: with nothing
     /// open or pinned it goes back as before.
     private func back() {
+        // Esc mid-drag puts the module back (the drag's own key monitor usually sees it first).
+        if drag.phase == .dragging { return drag.cancel() }
         // Esc (or ⌘[) with the Customize sheet open closes the sheet.
         if customizing { return closeCustomize() }
         if let key = NSApp.currentEvent, key.type == .keyDown, key.keyCode == 53 {
