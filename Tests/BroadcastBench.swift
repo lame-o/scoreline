@@ -51,6 +51,15 @@ enum BroadcastBench {
         var history = 0
         /// The engine's cost per step (ingest + advance), on this (unoptimized) build: for the report only.
         var stepTime: [Double] = []
+        /// The kinds the theater must bind (nil: every live-ball kind); the rest is flow.
+        var decisive: Set<String>?
+        /// Each new score told, behind its play's real moment: as the broadcast told it,
+        /// as today's page showed it, as the scoreboard had it, and as the slow lane first had the play.
+        var behindReal = (broadcast: [Double](), page: [Double](), board: [Double](), lane: [Double]())
+        /// Announced plays (VAR decisions) told, by how: "onTime", "late", "correction".
+        var reviews: [String: Int] = [:]
+        /// Told scores revised down and held until the next play told (VAR overturns).
+        var holds = 0
     }
 
     /// How a live-ball play's arrival met its binding horizon (late binding, CHOREOGRAPHY §4.6).
@@ -140,6 +149,7 @@ enum BroadcastBench {
             case "unexplained": p.holdForUnexplainedScores = v != 0
             case "approach": p.approach = v
             case "jump": p.jumpMax = v
+            case "sizing": p.sizeOnDecisive = v != 0   // --set sizing=1: size D on the decisive kinds only
             default: print("unknown override \(parts[0])")
             }
         }
@@ -160,6 +170,10 @@ enum BroadcastBench {
                         recording.core.isEmpty ? nil : "\(recording.core.count) core looks",
                         recording.status.isEmpty ? "status from the scoreboard" : "\(recording.status.count) status rows"].compactMap { $0 }.joined(separator: ", ")
         if let span = recording.span { report.minutes = (span.upperBound - span.lowerBound) / 60 }
+        report.decisive = policy.decisive
+        // Today's page shows a lane's score while it's ahead (football, baseball, basketball);
+        // soccer's page has no lane score: its hero is the scoreboard's.
+        let laneScore = sport != .soccer
         // The scoreboard's first sighting of each score, and when the app (polling it every 30 s) would have shown it.
         var boardFirst: [ScoreLine: PTime] = [:]
         for row in recording.rows {
@@ -184,6 +198,10 @@ enum BroadcastBench {
                 report.removals += change.removed.count
                 report.corrected += change.correctedTold.count
                 report.removedTold += change.removedTold.count
+                for id in change.lateInsertions {
+                    if let r = timeline.record(id), r.entry.kind.announced, let why = r.told { report.reviews["\(why) (inserted)", default: 0] += 1 }
+                }
+                if timeline.heldScore != nil, timeline.heldSince == t { report.holds += 1 }
                 let p = engine.p(at: t)
                 for id in change.added {
                     guard let r = timeline.record(id), !r.backfill, r.entry.kind.phase == .live, let w = r.entry.wallclock else { continue }
@@ -233,12 +251,21 @@ enum BroadcastBench {
                     if record.firstSeen <= t - timeline.horizons.horizon(for: record.entry.kind) + 1e-6 { cell.known += 1 }
                     report.knownBeforeLeadIn[label] = cell
                 }
+                if record.entry.kind.announced, let why = record.told { report.reviews["\(why)", default: 0] += 1 }
                 if let score = record.entry.score, score != lastScore {
-                    if lastScore != nil, let board = boardFirst[score] {
+                    // A new score (not a reversal): against the scoreboard, today's page and the real moment.
+                    if let last = lastScore, score.home + score.away > last.home + last.away, let board = boardFirst[score] {
                         report.added.append(t - board)
                         // Today's app: the scoreboard at its next 30-s poll, or the play's own lane, whichever came first.
                         let appBoard = start + ((board - start) / policy.scoreboardPoll).rounded(.up) * policy.scoreboardPoll
-                        report.addedApp.append(t - min(appBoard, record.firstSeen))
+                        let page = laneScore ? min(appBoard, record.firstSeen) : appBoard
+                        report.addedApp.append(t - page)
+                        if record.timeSource == .wallclock || record.timeSource == .statsapi {
+                            report.behindReal.broadcast.append(t - record.eventTime)
+                            report.behindReal.page.append(page - record.eventTime)
+                            report.behindReal.board.append(board - record.eventTime)
+                            report.behindReal.lane.append(record.firstSeen - record.eventTime)
+                        }
                     }
                     lastScore = score
                 }
@@ -276,24 +303,39 @@ enum BroadcastBench {
         for (sport, list) in bySport.sorted(by: { $0.key < $1.key }) {
             let recordings = list.map { Recording.load(root: root, sport: $0.0, event: $0.1) }.filter { $0.snapshots.count + $0.core.count >= 3 }
             guard let first = recordings.first, let kind = first.sport else { continue }
-            print("\n== \(sport): \(recordings.count) games, the app's cadence; margin \(BroadcastLanes.policy(kind, path: first.path).margin) s")
-            print("   q   horizon |  D p50  D p90 | added vs page p50  p90 | after bind  micro≤1.5s  beyond  corrections | stalls/h")
-            for q in quantiles {
-                for h in horizons {
-                    var policy = overridden(BroadcastLanes.policy(kind, path: first.path))
-                    policy.quantile = q
-                    policy.horizons = BindingHorizons(live: h)
-                    let reports = recordings.compactMap { run($0, recorder: recorder, policy: policy) }
-                    let r = combined(reports, label: sport)
-                    let actual = r.delays.map(\.actual).filter(\.isFinite)
-                    let bound = Binding.allCases.map { b in r.binding.values.reduce(0) { $0 + ($1[b] ?? 0) } }
-                    let all = Double(max(bound.reduce(0, +), 1))
-                    func pct(_ v: [Double], _ p: Double) -> Double { v.isEmpty ? .nan : Stats.quantile(v, p) }
-                    print(String(format: "  %.2f  %4.1f s  | %6.1f %6.1f | %13.1f %5.1f | %8.1f%% %9.1f%% %6.1f%% %10.1f%% | %6.1f",
-                                 q, h, pct(actual, 0.5), pct(actual, 0.9), pct(r.addedApp, 0.5), pct(r.addedApp, 0.9),
-                                 Double(bound[1] + bound[2] + bound[3]) / all * 100, Double(bound[2]) / all * 100, Double(bound[3]) / all * 100,
-                                 Double(bound[4]) / all * 100,
-                                 r.minutes > 0 ? Double(r.stalls.count) / (r.minutes / 60) : 0))
+            let base = overridden(BroadcastLanes.policy(kind, path: first.path))
+            // A sport with flow kinds (soccer): D sized on every live-ball kind (a), then on the decisive ones (b).
+            for sizing in base.decisive == nil ? [base.sizeOnDecisive] : [false, true] {
+                let how = base.decisive == nil ? "" : sizing ? " — (b) D sized on decisive kinds only" : " — (a) D sized on every live-ball kind"
+                print("\n== \(sport): \(recordings.count) games, the app's cadence; margin \(base.margin) s\(how)")
+                let over = base.decisive == nil ? "" : " (decisive kinds)"
+                print("   q   horizon |  D p50  D p90 | added vs page p50  p90 | behind real p50 | after bind  micro≤1.5s  beyond  corrections\(over)"
+                    + (base.decisive == nil ? "" : " | flow late") + " | stalls/h")
+                for q in quantiles {
+                    for h in horizons {
+                        var policy = base
+                        policy.sizeOnDecisive = sizing
+                        policy.quantile = q
+                        policy.horizons = BindingHorizons(live: h)
+                        let reports = recordings.compactMap { run($0, recorder: recorder, policy: policy) }
+                        let r = combined(reports, label: sport)
+                        let actual = r.delays.map(\.actual).filter(\.isFinite)
+                        let split = bindingSplit(r)
+                        let bound = split[0].1
+                        let all = Double(max(bound.reduce(0, +), 1))
+                        func pct(_ v: [Double], _ p: Double) -> Double { v.isEmpty ? .nan : Stats.quantile(v, p) }
+                        var line = String(format: "  %.2f  %4.1f s  | %6.1f %6.1f | %13.1f %5.1f | %15.1f | %8.1f%% %9.1f%% %6.1f%% %10.1f%%",
+                                          q, h, pct(actual, 0.5), pct(actual, 0.9), pct(r.addedApp, 0.5), pct(r.addedApp, 0.9),
+                                          pct(r.behindReal.broadcast, 0.5),
+                                          Double(bound[1] + bound[2] + bound[3]) / all * 100, Double(bound[2]) / all * 100, Double(bound[3]) / all * 100,
+                                          Double(bound[4]) / all * 100)
+                        if split.count > 1 {
+                            let flow = split[1].1
+                            line += String(format: " | %8.1f%%", Double(flow[3] + flow[4]) / Double(max(flow.reduce(0, +), 1)) * 100)
+                        }
+                        line += String(format: " | %6.1f", r.minutes > 0 ? Double(r.stalls.count) / (r.minutes / 60) : 0)
+                        print(line)
+                    }
                 }
             }
         }
@@ -345,6 +387,13 @@ enum BroadcastBench {
             r.told += x.told
             r.history += x.history
             r.stepTime += x.stepTime
+            r.decisive = x.decisive
+            r.behindReal.broadcast += x.behindReal.broadcast
+            r.behindReal.page += x.behindReal.page
+            r.behindReal.board += x.behindReal.board
+            r.behindReal.lane += x.behindReal.lane
+            for (k, v) in x.reviews { r.reviews[k, default: 0] += v }
+            r.holds += x.holds
         }
         return r
     }
@@ -353,6 +402,16 @@ enum BroadcastBench {
         guard !values.isEmpty else { return "none" }
         func q(_ p: Double) -> String { String(format: "%.1f", Stats.quantile(values, p)) }
         return "n=\(values.count) p50=\(q(0.5)) p90=\(q(0.9)) p95=\(q(0.95)) max=\(String(format: "%.1f", values.max() ?? 0))"
+    }
+
+    /// Binding counts (Binding.allCases order): every live-ball kind, or decisive and flow apart.
+    static func bindingSplit(_ r: Report) -> [(String, [Int])] {
+        func counts(_ keep: (String) -> Bool) -> [Int] {
+            Binding.allCases.map { b in r.binding.filter { keep($0.key) }.values.reduce(0) { $0 + ($1[b] ?? 0) } }
+        }
+        guard let decisive = r.decisive else { return [("live-ball plays", counts { _ in true })] }
+        return [("decisive plays (\(decisive.sorted().joined(separator: ", ")))", counts(decisive.contains)),
+                ("flow (the rest live-ball)", counts { !decisive.contains($0) })]
     }
 
     static func render(_ r: Report) -> String {
@@ -376,15 +435,27 @@ enum BroadcastBench {
         lines.append("  late insertion behind the newest live play: \(summary(r.insertion))")
         lines.append("  added delay vs the scoreboard (recorded, ~10 s polls): \(summary(r.added))")
         lines.append("  added delay vs today's page (scoreboard every 30 s, or the play's lane): \(summary(r.addedApp))")
+        let real = r.behindReal
+        if !real.broadcast.isEmpty {
+            func p50(_ v: [Double]) -> String { String(format: "%.0f", Stats.quantile(v, 0.5)) }
+            lines.append("  each new score behind its real moment (p50, s; n=\(real.broadcast.count)): the broadcast \(p50(real.broadcast)), "
+                + "today's page \(p50(real.page)), the scoreboard \(p50(real.board)), the slow lane's first sight \(p50(real.lane))")
+            lines.append("    the broadcast: \(summary(real.broadcast)); today's page: \(summary(real.page)); the scoreboard: \(summary(real.board)); slow lane: \(summary(real.lane))")
+        }
+        if !r.reviews.isEmpty || r.holds > 0 {
+            lines.append("  announced (VAR decisions) told: " + r.reviews.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+                + "; told scores held for a reversal: \(r.holds)")
+        }
         let known = r.knownBeforeLeadIn.values.reduce((0, 0)) { ($0.0 + $1.known, $0.1 + $1.total) }
         let share = known.1 > 0 ? Double(known.0) / Double(known.1) * 100 : 0
         lines.append(String(format: "  live-ball plays known before their lead-in: %d/%d (%.1f%%)", known.0, known.1, share)
             + "  " + r.knownBeforeLeadIn.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value.known)/\($0.value.total)" }.joined(separator: ", "))
-        let bound = Binding.allCases.map { b in r.binding.values.reduce(0) { $0 + ($1[b] ?? 0) } }
-        let all = max(bound.reduce(0, +), 1)
-        lines.append(String(format: "  live-ball plays vs their binding horizon (n=%d): known before %.1f%%, lead-in compressed %.1f%%, micro catch-up ≤1.5 s %.1f%%, beyond %.1f%%, corrections %.1f%%",
-                            bound.reduce(0, +), Double(bound[0]) / Double(all) * 100, Double(bound[1]) / Double(all) * 100,
-                            Double(bound[2]) / Double(all) * 100, Double(bound[3]) / Double(all) * 100, Double(bound[4]) / Double(all) * 100))
+        for (name, bound) in bindingSplit(r) {
+            let all = max(bound.reduce(0, +), 1)
+            lines.append(String(format: "  %@ vs their binding horizon (n=%d): known before %.1f%%, lead-in compressed %.1f%%, micro catch-up ≤1.5 s %.1f%%, beyond %.1f%%, corrections %.1f%%",
+                                name, bound.reduce(0, +), Double(bound[0]) / Double(all) * 100, Double(bound[1]) / Double(all) * 100,
+                                Double(bound[2]) / Double(all) * 100, Double(bound[3]) / Double(all) * 100, Double(bound[4]) / Double(all) * 100))
+        }
         lines.append("  told: \(r.told) (\(r.history) as history); late: "
             + (r.late.isEmpty ? "none" : r.late.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")))
         lines.append("  revisions: \(r.revisions) (\(r.corrected) after told), removals: \(r.removals) (\(r.removedTold) after told)")

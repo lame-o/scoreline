@@ -1,0 +1,1 @@
+Real recording, trimmed: Chelsea v Manchester United (401879248), 2026-10-31, around the 34th-minute goal that VAR overturned. Core looks arriving within the window, keeping items whose wallclock is from 150 s before the goal to 260 s after; status.jsonl and the scoreboard rows (../scores.jsonl) over the same arrival window.

@@ -59,6 +59,9 @@ enum BroadcastLanes {
             p.regulationPeriods = 2
             p.priorFastLag = 25
             p.slowPoll = 8
+            // What the director must bind: shots (goals among them), saves, and the
+            // set pieces awarded. Passes and touches are flow it can fold a late one into.
+            p.decisive = BroadcastLanes.soccerDecisive
         case .baseball:
             // Pitch to pitch p50 20 s, p90 31 s; mound visits ~73 s, pitching changes ~147 s.
             p.priorLag = 35
@@ -259,6 +262,17 @@ enum BroadcastLanes {
     /// A soccer entry. Located entries and every shot, goal and save are live;
     /// cards, substitutions, VAR and the half's admin are dead. The clock never
     /// stops but at the half.
+    /// Soccer's decisive kinds (BroadcastPolicy.decisive).
+    static let soccerDecisive: Set<String> = ["shot", "save", "corner", "free kick"]
+
+    /// A shot or a goal by its core type. ESPN posts a shot first as a "temp-attempt"
+    /// (~37 s after it, p50) and revises it in place to on target, off target or
+    /// blocked a minute or more later: the temporary one is the shot. "goal-kick" is a restart, not a goal.
+    static func soccerShot(_ type: String) -> Bool {
+        type.hasPrefix("shot") || type == "temp-attempt" || type == "goal" || type.hasPrefix("goal---") || type == "own-goal"
+            || type.hasPrefix("penalty---") || type == "hit-woodwork" || type == "attempt-saved"
+    }
+
     static func soccer(_ play: JSON, policy: BroadcastPolicy) -> TimelineEntry<RawPlay>? {
         guard let id = play["id"].string ?? play["id"].int.map(String.init) else { return nil }
         let period = play["period"]["number"].int ?? 0
@@ -273,11 +287,25 @@ enum BroadcastLanes {
             kind = PlayKind(.dead, "game end", endsPeriod: period, endsGame: type != "end-regular-time" || policy.regulationPeriods <= period)
         case "substitution", "yellow-card", "red-card", "yellow-red-card", "start-2nd-half", "kickoff", "start-extra-time":
             kind = PlayKind(.dead, type.replacingOccurrences(of: "-", with: " "))
+        case "start-delay":
+            kind = PlayKind(.dead, "delay", delay: .opens)
+        case "end-delay":
+            kind = PlayKind(.dead, "delay", delay: .closes)
         default:
             if type.hasPrefix("var") || type == "deleted-after-review" {
-                kind = PlayKind(.dead, "review")
-            } else if located || type.hasPrefix("shot") || type.hasPrefix("goal") || play["scoringPlay"].bool == true || type == "save" {
-                kind = PlayKind(.live, type.hasPrefix("shot") || type.hasPrefix("goal") || play["scoringPlay"].bool == true ? "shot" : "entry")
+                // A VAR decision (a goal ruled out, a penalty given) and the goal it struck:
+                // told as events even when they come minutes late, never as quiet corrections.
+                kind = PlayKind(.dead, "review", announced: true)
+            } else if soccerShot(type) || play["scoringPlay"].bool == true {
+                kind = PlayKind(.live, "shot")
+            } else if type == "save" || type == "temp-save" {
+                kind = PlayKind(.live, "save")
+            } else if type == "corner-awarded" {
+                kind = PlayKind(.live, "corner")
+            } else if type == "free-kick" {
+                kind = PlayKind(.live, "free kick")
+            } else if located {
+                kind = PlayKind(.live, "entry")
             } else {
                 kind = PlayKind(.dead, "other")
             }

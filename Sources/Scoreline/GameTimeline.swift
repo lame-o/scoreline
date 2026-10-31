@@ -99,13 +99,24 @@ struct PlayKind: Hashable, Sendable {
     /// The period it ends, if it ends one; `endsGame`: the game's last.
     var endsPeriod: Int?
     var endsGame = false
+    /// Told as an event even when it comes late (a VAR decision): never a quiet
+    /// correction. Late, it's told at once where the broadcast is (CATCHING UP).
+    var announced = false
+    /// It opens or closes a delay (soccer's VAR checks, injury stoppages): the
+    /// entries logged inside one carry its start's time but are decided at its end.
+    var delay: Delay?
 
-    init(_ phase: Phase, _ label: String, stopsClock: Bool = false, endsPeriod: Int? = nil, endsGame: Bool = false) {
+    enum Delay: Hashable, Sendable { case opens, closes }
+
+    init(_ phase: Phase, _ label: String, stopsClock: Bool = false, endsPeriod: Int? = nil, endsGame: Bool = false,
+         announced: Bool = false, delay: Delay? = nil) {
         self.phase = phase
         self.label = label
         self.stopsClock = stopsClock || endsPeriod != nil
         self.endsPeriod = endsPeriod
         self.endsGame = endsGame
+        self.announced = announced
+        self.delay = delay
     }
 }
 
@@ -248,6 +259,7 @@ enum TellReason: Hashable, Sendable {
     case history
     /// Far behind what's told (more than 30 s past its moment), or inserted behind
     /// told plays: a scorer's correction, attached quietly, never told as news.
+    /// Never an announced kind (a VAR decision): inserted behind told plays, it's `.late`.
     case correction
 }
 
@@ -365,6 +377,13 @@ struct BroadcastPolicy: Equatable, Sendable {
     var quietRunning: Double = 60
     /// The fast lane's lag behind event time, until it's measured.
     var priorFastLag: Double = 24
+    /// The live-ball kinds whose moment the theater must bind (shots, saves, set
+    /// pieces); nil: every live-ball kind. The others are flow (soccer's passes
+    /// and touches): the director can fold a late one into the flow around it.
+    var decisive: Set<String>?
+    /// Size the delay and the network guard on the decisive kinds only (late flow
+    /// is absorbed by the director, never told out of order). Off: every live-ball kind.
+    var sizeOnDecisive = false
     /// Hold the clock before a score the fast lane has and no play explains. Off (the default, measured
     /// on the bench: it cost ~10 s of delay to tell such baskets on time rather than as micro catch-ups):
     /// the clock keeps time, and the order guard is at the tell (nothing after the score is told before it).
@@ -475,6 +494,15 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// The fast lane, as evidence.
     private(set) var fast = FastLane()
     private(set) var corrections: [ScoreCorrection] = []
+    /// A told play's score revised down (a VAR overturn, a scorer's fix): the
+    /// presented score keeps what was told until the next play is told, so it
+    /// reverts with the review on screen, never quietly ahead of it. With
+    /// nothing left to tell, it lapses after `heldScoreGrace` (an end-of-game fix).
+    private(set) var heldScore: ScoreLine?
+    private(set) var heldSince: PTime?
+    /// How many plays were told when the score was held: the next play told releases it.
+    private var heldAtTold = 0
+    static var heldScoreGrace: Double { 60 }
     /// How often the safety net has applied a score (it should be rare).
     private(set) var safetyNetApplied = 0
 
@@ -538,7 +566,10 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     var scores: [ScoreLine] { records.compactMap(\.entry.score) }
 
     /// The score after the told plays, at `p` (a safety-net correction counts once p reaches it).
-    func presentedScore(at p: PTime) -> ScoreLine? { score(through: toldCount, at: p) }
+    func presentedScore(at p: PTime) -> ScoreLine? {
+        if let held = heldScore, toldCount == heldAtTold { return held }
+        return score(through: toldCount, at: p)
+    }
 
     /// The score after the first `count` plays, and any correction due by `p` placed after them.
     func score(through count: Int, at p: PTime = .infinity) -> ScoreLine? {
@@ -561,8 +592,18 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
 
     /// Live-ball arrivals at the frontier with trusted event times, by arrival: lag and kind.
     var lags: [(lag: Double, kind: PlayKind)] {
-        records.filter { $0.trusted && $0.arrivalLag != nil }.sorted { $0.firstSeen < $1.firstSeen }
+        records.filter { $0.trusted && $0.arrivalLag != nil && sizes($0.entry.kind) }.sorted { $0.firstSeen < $1.firstSeen }
             .suffix(policy.lagWindow).map { ($0.arrivalLag!, $0.entry.kind) }
+    }
+
+    /// Whether a kind sizes the delay: every live-ball kind, or (`sizeOnDecisive`) the decisive ones.
+    func sizes(_ kind: PlayKind) -> Bool {
+        !policy.sizeOnDecisive || policy.decisive.map { $0.contains(kind.label) } ?? true
+    }
+
+    /// Whether the theater must bind this kind's moment (not flow it can fold in).
+    func isDecisive(_ kind: PlayKind) -> Bool {
+        kind.phase == .live && (policy.decisive.map { $0.contains(kind.label) } ?? true)
     }
 
     /// The live-ball lag quantile (the network guard's freshness allowance).
@@ -617,6 +658,13 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// behind what's told.
     @discardableResult
     mutating func ingest(_ snapshot: LaneSnapshot<Payload>) -> TimelineChange {
+        let toldScore = score(through: toldCount)
+        let change = merge(snapshot)
+        holdReversal(from: toldScore, change: change, at: snapshot.arrived)
+        return change
+    }
+
+    private mutating func merge(_ snapshot: LaneSnapshot<Payload>) -> TimelineChange {
         noteRead(snapshot.lane, at: snapshot.arrived)
         let opening = opened == nil
         if opening { opened = snapshot.arrived }
@@ -760,7 +808,8 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         if let lastTold = records.lastIndex(where: \.isTold) {
             let toldP = records[lastTold].toldAt ?? records[lastTold].presentAt
             for i in 0..<lastTold where !records[i].isTold {
-                records[i].told = records[i].backfill ? .history : .correction
+                // An announced kind (a VAR decision) is told as an event even here, never quietly.
+                records[i].told = records[i].backfill ? .history : records[i].entry.kind.announced ? .late : .correction
                 records[i].toldAt = toldP
                 records[i].toldDigest = records[i].entry.digest
                 records[i].presentAt = toldP
@@ -850,6 +899,7 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// Every play of one cluster shares one bound (the theater groups clusters by it):
     /// the union of its plays' bounds, which is the restart for all once that's known.
     private mutating func boundStoppedClusters() {
+        boundDelays()
         guard policy.clockCountsDown == true else { return }
         var stoppage: (period: Int, elapsed: Double, at: PTime, from: Int)?
         var cluster: [Int] = []
@@ -879,6 +929,48 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
             stoppage = e.kind.stopsClock ? (e.period, g, records[k].eventTime, k) : nil
         }
         close()
+    }
+
+    /// A delay (soccer's VAR check, an injury stoppage) runs from the entry that
+    /// opens it to the one that closes it. ESPN logs what's decided inside it
+    /// (the VAR decision) with the delay's start time, but it's decided at the
+    /// end: those entries are bounded by the two and placed backward from the
+    /// end (CHOREOGRAPHY §5.1's cluster placement), so the review plays out on
+    /// screen before the decision. Until the end is logged, their arrival bounds them.
+    private mutating func boundDelays() {
+        var open: Int?
+        var inside: [Int] = []
+        func bound(_ upper: PTime) {
+            guard let o = open, !inside.isEmpty else { return }
+            let b = records[o].eventTime...max(records[o].eventTime, upper)
+            for k in inside where records[k].bounds == nil {
+                records[k].bounds = b
+                records[k].timeSource = .bounded
+            }
+        }
+        for k in records.indices {
+            let kind = records[k].entry.kind
+            if kind.delay == .opens {
+                open = k
+                inside = []
+                continue
+            }
+            guard let o = open else { continue }
+            if records[k].entry.period != records[o].entry.period || kind.phase == .live {
+                // Play went on without a logged end: not a delay to place anything in.
+                open = nil
+                inside = []
+                continue
+            }
+            if kind.delay == .closes {
+                bound(records[k].eventTime)
+                open = nil
+                inside = []
+                continue
+            }
+            inside.append(k)
+        }
+        bound(inside.map { records[$0].firstSeen - policy.minimumLag }.max() ?? 0)
     }
 
     /// When the clock restarted after a stoppage at `s`: the fast lane's first
@@ -1000,6 +1092,41 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         }
         if !told.isEmpty { revision &+= 1 }
         return told
+    }
+
+    /// After an ingest: a VAR-style reversal (a told play's score revised down,
+    /// with the review that explains it: the told play turned into an announced
+    /// kind, or an announced play still waiting its turn) holds the told score
+    /// until the next play is told. A scorer's fix or a removal without a review
+    /// stays a quiet correction, as before.
+    private mutating func holdReversal(from was: ScoreLine?, change: TimelineChange, at now: PTime) {
+        if heldScore != nil, toldCount != heldAtTold { heldScore = nil; heldSince = nil }
+        guard let current = score(through: toldCount) else { return }
+        if let held = heldScore {
+            // Revised back up (the scorer undid it): nothing to hold.
+            if current.home >= held.home && current.away >= held.away { heldScore = nil; heldSince = nil }
+            return
+        }
+        guard let was, current.home < was.home || current.away < was.away else { return }
+        // The review itself told in this ingest (inserted behind told plays): it reverts now, with it.
+        if change.lateInsertions.contains(where: { record($0)?.entry.kind.announced == true }) { return }
+        let review = change.correctedTold.contains { record($0)?.entry.kind.announced == true }
+            || records[toldCount...].contains { $0.entry.kind.announced }
+        guard review else { return }
+        heldScore = was
+        heldSince = now
+        heldAtTold = toldCount
+    }
+
+    /// A held score goes once the next play is told, or, with nothing left to
+    /// tell, after `heldScoreGrace` (an end-of-game fix stays quiet).
+    mutating func settleHeldScore(now: PTime) {
+        guard heldScore != nil else { return }
+        if toldCount != heldAtTold || (nextUntold == nil && heldSince.map { now - $0 >= Self.heldScoreGrace } == true) {
+            heldScore = nil
+            heldSince = nil
+            revision &+= 1
+        }
     }
 
     /// Tells everything up to `p` as history (opening the page, waking, a declared jump).
