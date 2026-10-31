@@ -205,6 +205,9 @@ final class TheaterDirector<Sport: TheaterSport> {
     /// The theater's time at a wall time: what the view samples the chain at.
     func time(at wall: PTime) -> PTime? { session.theaterTime(at: wall) }
 
+    /// What the plan is made from (the teams, the viewer's turn).
+    var facts: Sport.Facts { session.facts }
+
     /// The theater's time and its clock, for the view's frame schedule.
     var timing: (time: TheaterTime, clock: PresentationClock)? { session.timing }
 

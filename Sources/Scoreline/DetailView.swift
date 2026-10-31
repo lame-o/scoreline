@@ -40,6 +40,8 @@ struct DetailView: View {
     /// clock, and what's presented at p, which everything on the page but the
     /// theaters reads.
     @State private var broadcast = Broadcast()
+    /// The directed theater's scoring moments (CHOREOGRAPHY Phase 0): the slides land with its plan.
+    @State private var theaterCues = TheaterCues()
     /// The presented event the menu bar and the alerts last had.
     @State private var shownEvent: Event?
     @State private var failed = false
@@ -1678,11 +1680,13 @@ struct DetailView: View {
         if isNBA {
             BasketballTheater(feed: basketballFeed, palette: palette, kits: kits,
                               topIsHome: d.topIsHome ?? false, topName: names.top, bottomName: names.bottom,
-                              topTeam: full.top, bottomTeam: full.bottom, eventID: event.id, people: d.people)
+                              topTeam: full.top, bottomTeam: full.bottom, eventID: event.id, people: d.people,
+                              source: broadcast, cues: theaterCues, teams: BasketballFeed.Teams(live, topIsHome: d.topIsHome ?? false))
         } else if isSoccer {
             SoccerTheater(feed: soccerFeed, palette: palette, kits: kits, eventID: event.id,
                           topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
-                          added: d.soccerAdded, people: d.people)
+                          added: d.soccerAdded, people: d.people, source: broadcast, cues: theaterCues,
+                          facts: PitchFacts(homeTeamID: event.competitors.first?.id?.split(separator: "-").last.map(String.init)))
         } else if isBaseball, let baseball = theaterBaseball {
             // The theaters keep today's inputs until the director (CHOREOGRAPHY Phase 0) reads the broadcast.
             PlayTheater(feed: baseballFeed, preloaded: d.theater,
@@ -1691,14 +1695,17 @@ struct DetailView: View {
                         situation: baseball, inning: baseballFeed.inning ?? live.detail,
                         palette: palette, kits: kits,
                         topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
-                        people: d.people, fielders: d.fielders)
+                        people: d.people, fielders: d.fielders, source: broadcast, cues: theaterCues,
+                        facts: DiamondFacts(topID: event.competitors.first?.id?.split(separator: "-").last.map(String.init),
+                                            bottomID: event.competitors.last?.id?.split(separator: "-").last.map(String.init),
+                                            names: d.people.mapValues(\.name)))
         } else if let football = footballFeed.situation ?? d.football {
             let rest = FootballTheater.rest(football)
             FootballTheater(feed: footballFeed, rest: rest?.rest, restOffense: rest?.offense, palette: palette, kits: kits,
                             topName: names.top, bottomName: names.bottom, eventID: event.id,
                             situation: football.downDistance, timeouts: (football.topTimeouts, football.bottomTimeouts),
                             topTeam: event.competitors.first?.name ?? "", bottomTeam: event.competitors.last?.name ?? "",
-                            people: d.people)
+                            people: d.people, source: broadcast, cues: theaterCues, facts: footballTeams.map { GridFacts($0) })
         }
     }
 
@@ -2460,7 +2467,7 @@ struct DetailView: View {
             plan.ownerVisible = seen(theaterOpen ? .liveView : .battedBalls)
             if theater {
                 let feed = baseballFeed
-                plan.theater = .baseball(feed)
+                plan.theater = broadcast.active ? .directed(theaterCues) : .baseball(feed)
                 plan.follow = theaterOpen && plan.ownerVisible && !reduceMotion
                 // A new plate appearance waits up to 3 s for Statcast before the theater has it.
                 plan.patience = 3.6
@@ -2469,20 +2476,20 @@ struct DetailView: View {
         case .field:
             plan.ownerVisible = seen(theaterOpen ? .liveView : .field)
             if has(.field, d) {
-                plan.theater = .football(footballFeed)
+                plan.theater = broadcast.active ? .directed(theaterCues) : .football(footballFeed)
                 plan.follow = theaterOpen && plan.ownerVisible && !reduceMotion
             }
         case .pitch:
             plan.ownerVisible = seen(theaterOpen ? .liveView : .pitch)
             if event.state == .live {
-                plan.theater = .soccer(soccerFeed)
+                plan.theater = broadcast.active ? .directed(theaterCues) : .soccer(soccerFeed)
                 plan.follow = theaterOpen && plan.ownerVisible && !reduceMotion
             }
         case .court:
             // The Live View replays every basket and owns its celebration while it's open.
             plan.ownerVisible = seen(theaterOpen ? .liveView : .court)
             if event.state == .live {
-                plan.theater = .basketball(basketballFeed)
+                plan.theater = broadcast.active ? .directed(theaterCues) : .basketball(basketballFeed)
                 plan.follow = theaterOpen && plan.ownerVisible && !reduceMotion
                 // It tells every play in order: a basket may wait its turn (never longer than the queue's budget).
                 if theaterOpen && plan.ownerVisible { plan.patience = BasketballQueue.budget }

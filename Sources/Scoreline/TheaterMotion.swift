@@ -170,6 +170,37 @@ enum TheaterMotion {
     static func travel(from x0: SIMD2<Double>, _ v0: SIMD2<Double>, _ a0: SIMD2<Double>, at t0: PTime, to x1: SIMD2<Double>,
                        _ v1: SIMD2<Double> = .zero, _ a1: SIMD2<Double> = .zero, duration: Double, band: MotionLimits.Band,
                        cruiseOver: Double) -> MotionPath {
+        let direct = steer(from: x0, v0, a0, at: t0, to: x1, v1, a1, duration: duration, band: band, cruiseOver: cruiseOver)
+        // Already on the move and the straight path asks more than his legs (running the wrong way, too fast to turn):
+        // he pulls up first, as a man does, then goes.
+        guard simd_length(v0) > 0.5, !violations(direct, from: t0, to: t0 + duration, band: band).isEmpty,
+              let braked = brake(from: x0, v0, a0, at: t0, to: x1, v1, a1, duration: duration, band: band, cruiseOver: cruiseOver) else {
+            return direct
+        }
+        return braked
+    }
+
+    /// Pulling up from his speed (as hard as the band allows, no harder), standing a moment if there's time, then the
+    /// move to `x1` at a natural pace; nil if the time doesn't allow both.
+    static func brake(from x0: SIMD2<Double>, _ v0: SIMD2<Double>, _ a0: SIMD2<Double>, at t0: PTime, to x1: SIMD2<Double>,
+                      _ v1: SIMD2<Double>, _ a1: SIMD2<Double>, duration: Double, band: MotionLimits.Band, cruiseOver: Double) -> MotionPath? {
+        let speed = simd_length(v0)
+        let stop = max(0.35, 1.875 * speed / min(band.decel, band.lateral) * 1.05)
+        let xs = x0 + v0 * (stop / 2) + a0 * (stop * stop / 12)
+        let left = duration - stop
+        let need = simd_length(v1) > 1e-9 ? simd_length(x1 - xs) / max(band.run, 1e-6) + 0.45 : shortest(distance: simd_length(x1 - xs), band: band)
+        guard left >= need else { return nil }
+        // As slow as a jog allows, no slower than the time left needs.
+        let pace = min(left, max(need * 1.6, need))
+        let pull = Quintic(t0: t0, duration: stop, from: x0, v0, a0, to: xs, .zero, .zero)
+        let go = steer(from: xs, .zero, .zero, at: t0 + duration - pace, to: x1, v1, a1, duration: pace, band: band, cruiseOver: cruiseOver)
+        return MotionPath(segments: [pull] + go.segments)
+    }
+
+    /// The straight form: one quintic, or a ramp, a cruise and a ramp.
+    static func steer(from x0: SIMD2<Double>, _ v0: SIMD2<Double>, _ a0: SIMD2<Double>, at t0: PTime, to x1: SIMD2<Double>,
+                      _ v1: SIMD2<Double> = .zero, _ a1: SIMD2<Double> = .zero, duration: Double, band: MotionLimits.Band,
+                      cruiseOver: Double) -> MotionPath {
         let d = simd_length(x1 - x0)
         let T = max(duration, 1e-3)
         guard d > cruiseOver, simd_length(v1) < 1e-9 else {
@@ -179,7 +210,9 @@ enum TheaterMotion {
         // The cruise speed that fits the time: ramps of at least 0.45 s, each as long as its change of speed needs.
         let along = max(simd_dot(v0, dir), 0)
         func plan(_ vc: Double) -> (r1: Double, r3: Double, cruise: Double, d1: Double, d3: Double) {
-            let r1 = max(0.45, 1.875 * abs(vc - along) / band.accel), r3 = max(0.45, 1.875 * vc / band.decel)
+            // The first ramp turns him onto the line as well as bringing him to speed: as long as the whole change of velocity needs.
+            let change = simd_length(dir * vc - v0)
+            let r1 = max(0.45, 1.875 * change / min(band.accel, band.lateral)), r3 = max(0.45, 1.875 * vc / band.decel)
             let d1 = (along + vc) / 2 * r1, d3 = vc / 2 * r3
             let cruise = max(d - d1 - d3, 0) / max(vc, 1e-6)
             return (r1, r3, cruise, d1, d3)
@@ -190,8 +223,9 @@ enum TheaterMotion {
             if p.r1 + p.cruise + p.r3 > T { lo = mid } else { hi = mid }
         }
         let vc = hi, p = plan(vc)
-        // Too little room for a cruise at all (or the ramps overrun): one quintic.
-        guard p.d1 + p.d3 < d, p.r1 + p.r3 < T else {
+        // Too little room for a cruise at all (or the ramps overrun, or not even a sprint fits the time): one quintic,
+        // which lands on time whatever it asks of him (the limits check is the caller's: `shortestTravel` finds the time).
+        guard p.d1 + p.d3 < d, p.r1 + p.r3 < T, p.r1 + p.cruise + p.r3 <= T + 1e-6 else {
             return MotionPath(segments: [Quintic(t0: t0, duration: T, from: x0, v0, a0, to: x1, .zero, .zero)])
         }
         let slack = T - (p.r1 + p.cruise + p.r3)
@@ -211,9 +245,12 @@ enum TheaterMotion {
     static func shortestTravel(from x0: SIMD2<Double>, _ v0: SIMD2<Double>, _ a0: SIMD2<Double>, to x1: SIMD2<Double>,
                                _ v1: SIMD2<Double> = .zero, _ a1: SIMD2<Double> = .zero, band: MotionLimits.Band, cruiseOver: Double,
                                within limit: Double = 30) -> Double {
+        // Already faster than his sprint (a clip's own glide): the travel may begin at that speed, and only slow from it.
+        var lenient = band
+        lenient.sprint = max(band.sprint, simd_length(v0) * 1.0001)
         func fits(_ T: Double) -> Bool {
             let path = travel(from: x0, v0, a0, at: 0, to: x1, v1, a1, duration: T, band: band, cruiseOver: cruiseOver)
-            return violations(path, from: 0, to: T, band: band).isEmpty
+            return violations(path, from: 0, to: T, band: lenient).isEmpty
         }
         let d = simd_length(x1 - x0)
         if d < 1e-6, simd_length(v0) < 1e-6, simd_length(a0) < 1e-6 { return 0 }

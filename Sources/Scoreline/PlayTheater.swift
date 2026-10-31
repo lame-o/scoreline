@@ -576,6 +576,37 @@ struct PlayFrame: View, Equatable {
     /// The field between pitches this pitch (or replay) is taking over from
     /// (nil: none, or the hand-off is done).
     var bridge: Bridge? = nil
+    /// Drawn from the choreography engine's world (TheaterView): its camera;
+    /// each figure of the clip in charge (`script`) where the engine has his
+    /// man and posed by the clip; the men on their way to another clip (or
+    /// leaving) in their own kit; the ball. The zone, the trace, the flashes,
+    /// the label, the stamp and the banner stay the clip's.
+    var world: World? = nil
+
+    struct World: Equatable {
+        struct Figure: Equatable {
+            var at: CGPoint
+            var body: RigPose
+            var heading: Double
+            var opacity: Double
+        }
+
+        struct Extra: Equatable {
+            /// The engine's man.
+            var index: Int
+            var team: PlayScript.Team
+            var at: CGPoint
+            var body: RigPose
+            var heading: Double
+            var opacity: Double
+        }
+
+        var camera: CameraFrame
+        /// By the clip's actor.
+        var figures: [Int: Figure]
+        var extras: [Extra]
+        var ball: FieldPoint?
+    }
 
     /// The field between pitches as it stands mid-bridge (TheaterBridge):
     /// its script and its time now (an idle move plays on under the
@@ -601,11 +632,12 @@ struct PlayFrame: View, Equatable {
     /// The time first: mid-replay it's all that differs.
     static func == (a: PlayFrame, b: PlayFrame) -> Bool {
         a.t == b.t && a.size == b.size && a.footer == b.footer && a.teams == b.teams && a.ink == b.ink && a.tags == b.tags && a.scene == b.scene
-            && a.bridge == b.bridge && a.script == b.script
+            && a.bridge == b.bridge && a.world == b.world && a.script == b.script
     }
 
     /// The camera at t; mid-bridge, eased from the field's framing to the newcomer's.
     func projection(_ size: CGSize) -> FieldProjection {
+        if let world { return FieldProjection(size: size, camera: world.camera) }
         let camera = script.camera.frame(at: t)
         guard let b = bridge else { return FieldProjection(size: size, camera: camera) }
         return FieldProjection(size: size, camera: b.script.camera.frame(at: b.t).mix(camera, b.w))
@@ -810,8 +842,8 @@ struct PlayFrame: View, Equatable {
         }
         // The ball's: under it on the ground, larger and softer the higher it
         // flies, with a hairline up to the ball once it's well off the grass.
-        if let ball = script.ball(at: t), ball.z > 0.3 {
-            let o = script.ballOpacity(at: t)
+        if let ball = ballPoint, ball.z > 0.3 {
+            let o = world == nil ? script.ballOpacity(at: t) : 1
             let g = f.point(ball.ground)
             let spread = 1 + min(ball.z / 50, 1.4)
             let r = max(0.55 * f.scale, 1.6) * spread
@@ -837,6 +869,24 @@ struct PlayFrame: View, Equatable {
         let figure: RigFigure
         let opacity: Double
         var ghost = false
+        /// A ghost's own kit (the engine's men on their way elsewhere); else the bridge's field has it.
+        var team: PlayScript.Team? = nil
+    }
+
+    /// The ball where it is at t: the engine's in its world, else the script's.
+    private var ballPoint: FieldPoint? { world.map(\.ball) ?? script.ball(at: t) }
+
+    /// The engine's men, far to near: the clip's figures posed as the world has them, the others as ghosts in their kit.
+    private func posed(_ world: World, _ f: FieldProjection) -> [Posed] {
+        var list: [(at: CGPoint, posed: Posed)] = world.figures.compactMap { i, w in
+            guard i < script.actors.count, w.opacity > 0.01 else { return nil }
+            return (w.at, Posed(index: i, figure: RigFigure(w.body, heading: w.heading, lens: RigLens(f, at: w.at)), opacity: w.opacity))
+        }
+        list += world.extras.filter { $0.opacity > 0.01 }.map { e in
+            (e.at, Posed(index: e.index, figure: RigFigure(e.body, heading: e.heading, lens: RigLens(f, at: e.at)), opacity: e.opacity, ghost: true,
+                         team: e.team))
+        }
+        return list.sorted { $0.at.y > $1.at.y }.map(\.posed)
     }
 
     /// Everyone on the field at t, far to near: a figure in front covers the
@@ -845,6 +895,7 @@ struct PlayFrame: View, Equatable {
     /// replay) begins, posed between the two and striding along the way; the
     /// field's others fade out, the newcomer's fade in.
     private func posed(_ f: FieldProjection) -> [Posed] {
+        if let world { return posed(world, f) }
         let idle = bridge.map { PlayFrame(scene: nil, script: $0.script, t: $0.t, teams: teams, ink: ink, size: size) }
         var list: [(index: Int, at: CGPoint, ghost: Bool)] = script.actors.indices.map { i in
             var at = script.actors[i].position(at: t)
@@ -885,11 +936,12 @@ struct PlayFrame: View, Equatable {
         let batting = FigureInks(teams.batting, ink: ink, in: context), fielding = FigureInks(teams.fielding, ink: ink, in: context)
         // The umpires in their own kit (Uniform.umpire), never a team's.
         let officials = script.actors.contains { $0.team == .official } || bridge?.script.actors.contains { $0.team == .official } == true
+            || world?.extras.contains { $0.team == .official } == true
             ? FigureInks(.umpire(dark: ink.dark), ink: ink, in: context) : fielding
         for p in figures {
-            if p.ghost, let ghost = bridge?.script.actors[p.index] {
+            if p.ghost, let team = p.team ?? bridge?.script.actors[p.index].team {
                 // The field's figure the newcomer doesn't have, fading out in his own kit.
-                let inks = switch ghost.team {
+                let inks = switch team {
                 case .batting: batting
                 case .fielding: fielding
                 case .official: officials
@@ -920,9 +972,11 @@ struct PlayFrame: View, Equatable {
     /// he's moving (striding to his planted feet), and over that what he's
     /// doing (the delivery, a swing, a slide, a catch, a throw). `unit`:
     /// body units to the foot where he stands. (tested)
-    func pose(_ actor: PlayScript.Actor, _ index: Int, at here: CGPoint, unit: Double) -> (RigPose, Double) {
-        let track = index < script.rig.count ? script.rig[index] : RigTrack(at: here)
-        let m = track.motion(at: t)
+    /// `stride`: the engine's track for him in the world (TheaterView), its time and where he is in it.
+    func pose(_ actor: PlayScript.Actor, _ index: Int, at here: CGPoint, unit: Double,
+              stride: (track: RigTrack, t: Double, at: CGPoint)? = nil) -> (RigPose, Double) {
+        let track = stride?.track ?? (index < script.rig.count ? script.rig[index] : RigTrack(at: here))
+        let m = track.motion(at: stride?.t ?? t)
         func envelope(_ x: Double, attack: Double, release: Double) -> Double {
             x < 0 ? max(1 + x / attack, 0) : max(1 - x / release, 0)
         }
@@ -941,8 +995,14 @@ struct PlayFrame: View, Equatable {
         // Leading off a base, low, watching the pitcher.
         case .runner: Ballpark.distance(here) > 5 ? .lead : .stand
         }
-        let feet = track.feet(at: t, anchor: here, heading: m.heading, unit: unit, speed: m.speed, stand: (still.left, still.right))
-        var body = still.mix(.gait(m, feet: feet), m.weight)
+        let feet = track.feet(at: stride?.t ?? t, anchor: stride?.at ?? here, heading: m.heading, unit: unit, speed: m.speed,
+                              stand: (still.left, still.right))
+        let gait = RigPose.gait(m, feet: feet)
+        var body = still.mix(gait, m.weight)
+        // A planted foot stays planted once the stride carries his weight.
+        let planted = Rig.smooth(m.weight / 0.5)
+        body.left = still.left + (gait.left - still.left) * planted
+        body.right = still.right + (gait.right - still.right) * planted
         if let slide = actor.slide, t >= slide {
             body = body.mix(.slide, actor.motion(at: t) == nil ? 1 : Rig.smooth((t - slide) / 0.12))
         }
@@ -1135,11 +1195,11 @@ struct PlayFrame: View, Equatable {
 
     /// Where the ball is drawn at t, how big (a touch larger than life) and how faint.
     private func ballSpot(_ f: FieldProjection) -> (point: CGPoint, radius: CGFloat, opacity: Double)? {
-        guard var ball = script.ball(at: t) else { return nil }
-        let o = script.ballOpacity(at: t)
+        guard var ball = ballPoint else { return nil }
+        let o = world == nil ? script.ballOpacity(at: t) : 1
         guard o > 0.01 else { return nil }
         // Mid-bridge, from where the field between pitches had it (back to the mound, in the catcher's mitt) to the newcomer's.
-        if let b = bridge, let from = b.script.ball(at: b.t), b.script.ballOpacity(at: b.t) > 0.01 {
+        if world == nil, let b = bridge, let from = b.script.ball(at: b.t), b.script.ballOpacity(at: b.t) > 0.01 {
             ball = FieldPoint(x: from.x + (ball.x - from.x) * b.w, y: from.y + (ball.y - from.y) * b.w, z: from.z + (ball.z - from.z) * b.w)
         }
         return (f.point(ball), min(max(0.42 * f.scale, 1.7), max(f.figure * 0.12, 1.7)), o)
@@ -1405,13 +1465,22 @@ struct PlayTheater: View {
     /// The summary's players (by athlete ID) and who's in the field: the names over the figures.
     var people: [String: TheaterPerson] = [:]
     var fielders = BaseballFielders()
+    /// The page's broadcast: while it runs, the choreography engine tells the game (PlayDirectedStage) and the
+    /// scoring slides land with its plan (`cues`).
+    var source: Broadcast? = nil
+    var cues: TheaterCues? = nil
+    var facts: DiamondFacts? = nil
 
     var body: some View {
         let live = feed?.loaded == true ? feed?.theater : nil
         let state = live.flatMap { $0.play == nil && $0.timeline.isEmpty ? nil : $0 } ?? preloaded ?? live ?? TheaterState()
-        PlayStage(state: state, bases: bases, batting: batting, situation: situation, inning: inning, palette: palette, kits: kits,
-                  live: live != nil,
-                  names: Names(teams: (topTeam, bottomTeam), people: people, fielders: fielders, numbers: feed?.numbers ?? [:]))
+        let names = Names(teams: (topTeam, bottomTeam), people: people, fielders: fielders, numbers: feed?.numbers ?? [:])
+        if let source, source.active, let facts {
+            PlayDirectedStage(source: source, cues: cues, palette: palette, kits: kits, facts: facts, names: names, heard: state.updated)
+        } else {
+            PlayStage(state: state, bases: bases, batting: batting, situation: situation, inning: inning, palette: palette, kits: kits,
+                      live: live != nil, names: names)
+        }
     }
 
     /// Who's who, for the tags.
@@ -1489,6 +1558,174 @@ struct DiamondFrame: View {
 /// something moves (an idle move at half the frame rate); still between.
 /// A backlog (the feed was slow) plays only its last few pitches. With
 /// Reduce Motion nothing moves: each beat's tag still says what happened.
+// MARK: - On the director (CHOREOGRAPHY Phase 0)
+
+/// The baseball theater on the choreography engine, while the page
+/// broadcasts the game: each pitch's beat and each play's replay told at its
+/// anchor on the broadcast's clock (MLB's own pitch times when the timeline
+/// has them), the field between pitches between them, every hand-off a
+/// splice. Over the field, as today: the tag (the count, a pitch's call, the
+/// stoppage), the heartbeat, the names.
+private struct PlayDirectedStage: View {
+    let source: Broadcast
+    let cues: TheaterCues?
+    let palette: TeamPalette
+    let kits: TheaterKits?
+    let facts: DiamondFacts
+    let names: PlayTheater.Names
+    let heard: Date?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.pageGeometry) private var geometry
+    #if DEBUG
+    @Environment(\.theaterFrameProbe) private var probe
+    #endif
+    @State private var director: TheaterDirector<DiamondSport>
+    @State private var scratch = FrameScratch()
+    @State private var shown = DirectedFrame()
+    @State private var pointer = TheaterPointer()
+    @State private var fading = false
+
+    init(source: Broadcast, cues: TheaterCues?, palette: TeamPalette, kits: TheaterKits?, facts: DiamondFacts, names: PlayTheater.Names, heard: Date?) {
+        self.source = source
+        self.cues = cues
+        self.palette = palette
+        self.kits = kits
+        self.facts = facts
+        self.names = names
+        self.heard = heard
+        _director = State(initialValue: TheaterDirector(facts: facts))
+    }
+
+    private var seen: Bool { geometry.map { $0.contentVisibility(sectionID(.liveView)).map { !$0.isHidden } ?? true } ?? true }
+
+    var body: some View {
+        let ink = TheaterInk(scheme)
+        let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: names.teams)
+        GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                TheaterFrames(director: director, running: seen && !reduceMotion) { wall in
+                    frame(at: wall, size: geo.size, ink: ink, labels: labels)
+                }
+                .accessibilityHidden(true)
+                TheaterHeartbeat(updated: heard, source: "ESPN")
+                    .padding(7)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            }
+            .onContinuousHover(coordinateSpace: .local) { phase in
+                let id: String?
+                switch phase {
+                case let .active(location): id = shown.member(at: location)
+                case .ended: id = nil
+                }
+                if id != pointer.over { pointer.move(to: id, at: .now) }
+            }
+        }
+        .modifier(HalfHeight(cap: PlayStage.maxHeight))
+        .vizWell(padding: 0)
+        .theaterFading(pointer, $fading)
+        .directed(director, source: source, facts: facts, seen: seen, cues: cues)
+    }
+
+    @ViewBuilder
+    private func frame(at wall: PTime, size: CGSize, ink: TheaterInk, labels: TheaterLabels) -> some View {
+        let chain = director.chain
+        if let T = director.time(at: wall), let drawn = sampled(chain, at: T, size: size) {
+            let teams = teams(drawn.clip.batting)
+            let status = status(drawn, wide: size.width > 420)
+            let cast = cast(chain)
+            let tags = TheaterTags(cast: cast, labels: labels, pointer: pointer, at: Date(timeIntervalSince1970: wall), reduceMotion: reduceMotion,
+                                   status: status.tag, flip: false)
+            let _ = spots(drawn.world, size: size)
+            let _ = report(wall: wall, T: T, drawn)
+            ZStack(alignment: .topLeading) {
+                PlayFrame(scene: drawn.clip.scene, script: drawn.clip.script, t: drawn.t, teams: teams, ink: ink, size: size, tags: tags, world: drawn.world)
+                    .equatable()
+                TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
+            }
+        }
+    }
+
+    private func sampled(_ chain: PlanChain<DiamondClip>, at T: PTime, size: CGSize) -> (clip: DiamondClip, t: Double, world: PlayFrame.World)? {
+        chain.sample(T, into: scratch)
+        return DiamondPainter.frame(chain, scratch, size: size)
+    }
+
+    /// The placement in charge and the beat the field between pitches follows (the last one told before it).
+    private func charge(_ chain: PlanChain<DiamondClip>) -> (start: PTime, k: Int, placement: ClipPlacement<DiamondClip>, last: PlayBeat?)? {
+        guard scratch.plan >= 0, scratch.plan < chain.plans.count else { return nil }
+        let baked = chain.plans[scratch.plan]
+        guard let k = DiamondPainter.charge(baked.plan, at: scratch.p) else { return nil }
+        let last = baked.plan.placements[...k].reversed().lazy.compactMap { $0.clip.beat }.first
+        return (baked.start, k, baked.plan.placements[k], last)
+    }
+
+    /// The names: the clip in charge's own cast (the frame keys its figures by the clip's men).
+    private func cast(_ chain: PlanChain<DiamondClip>) -> TheaterCast {
+        guard let c = charge(chain) else { return TheaterCast() }
+        return shown.cast(key: "\(c.start)#\(c.k)") {
+            c.placement.clip.script.cast(c.placement.clip.scene, beat: c.placement.clip.beat, batting: c.placement.clip.batting, fielders: names.fielders,
+                                         people: names.people, numbers: names.numbers, now: BaseballNow(side: c.placement.clip.batting, batter: nil,
+                                                                                                          pitcher: nil, runners: [nil, nil, nil]),
+                                         scope: "\(c.placement.play ?? "rest")#\(c.start)")
+        }
+    }
+
+    private func spots(_ world: PlayFrame.World, size: CGSize) {
+        let f = FieldProjection(size: size, camera: world.camera)
+        shown.update(world.figures.compactMap { i, w in
+            guard w.opacity > 0.01 else { return nil }
+            let lens = RigLens(f, at: w.at)
+            return (i, lens.origin, lens.height)
+        })
+    }
+
+    private func teams(_ side: GameDetail.Side) -> TheaterTeams {
+        let dressed: (top: Uniform, bottom: Uniform)
+        if let kits {
+            let d = TheaterTeams.dress(kits, scheme: scheme)
+            dressed = (d.top, d.bottom)
+        } else {
+            dressed = (Uniform(TheaterTeams.solid(palette.top, scheme)), Uniform(TheaterTeams.solid(palette.bottom, scheme)))
+        }
+        return side == .top ? TheaterTeams(batting: dressed.top, fielding: dressed.bottom) : TheaterTeams(batting: dressed.bottom, fielding: dressed.top)
+    }
+
+    /// The tag, as today's stage words it: nothing while a play replays; a beat's captions as they come; between, where the game stands.
+    private func status(_ drawn: (clip: DiamondClip, t: Double, world: PlayFrame.World), wide: Bool) -> TheaterStatus {
+        var tag: String?, about: PlayBeat?
+        let last = charge(director.chain)?.last
+        switch drawn.clip.kind {
+        case .play:
+            break
+        case .beat:
+            about = drawn.clip.beat
+            if let beat = drawn.clip.beat, let caption = drawn.clip.script.captions.last(where: { $0.at <= drawn.t }) {
+                tag = beat.caption(caption.line, wide: wide)
+            } else {
+                tag = last?.standing
+            }
+        case .rest:
+            about = last
+            tag = last?.standing
+        }
+        let side: GameDetail.Side? = about.flatMap { b in
+            switch b.kind {
+            case .pitch, .batterUp, .play: b.batting
+            default: nil
+            }
+        }
+        return TheaterStatus(tag: tag, tint: side.flatMap { $0 == .top ? kits?.top.color : kits?.bottom.color }, updated: heard)
+    }
+
+    private func report(wall: PTime, T: PTime, _ drawn: (clip: DiamondClip, t: Double, world: PlayFrame.World)) {
+        #if DEBUG
+        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id ?? drawn.clip.beat?.id, clipTime: drawn.t,
+                                  decisive: drawn.clip.decisive))
+        #endif
+    }
+}
+
 private struct PlayStage: View {
     let state: TheaterState
     let bases: [Bool]?
@@ -1967,7 +2204,6 @@ private struct PlayStage: View {
             }
             let script = scripts.script(play, rest: rest(for: play))
             let start = handOff(play.id, to: script, from: standing, since: since, together: restSide == (play.batting ?? batting ?? .top), at: now)
-            TheaterDelays.note(play.id, start.timeIntervalSince(now))
             replay = Replay(id: play.id, start: start, play: play)
             return
         }

@@ -49,6 +49,14 @@ enum TheaterBench {
                         let run = EngineRun.run(GridBench.self, recording, label: label)
                         print(run.report.render(units: units))
                         print(String(format: "    determinism hash %016llx", run.hash))
+                    case "soccer":
+                        let run = EngineRun.run(PitchBench.self, recording, label: label)
+                        print(run.report.render(units: units))
+                        print(String(format: "    determinism hash %016llx", run.hash))
+                    case "baseball":
+                        let run = EngineRun.run(DiamondBench.self, recording, label: label)
+                        print(run.report.render(units: units))
+                        print(String(format: "    determinism hash %016llx", run.hash))
                     default: print("  \(label): not yet")
                     }
                 }
@@ -65,9 +73,18 @@ enum TheaterBench {
     /// The theater bench's recordings: Tests/Fixtures/theater/<sport>_<league>/<event>.
     static let root = FixtureProtocol.directory.appendingPathComponent("theater")
 
+    /// The broadcast's fixtures: soccer's core-lane recording lives there (synthetic until a real one exists).
+    static let broadcastRoot = FixtureProtocol.directory.appendingPathComponent("broadcast")
+
     static func recordings(_ sport: String) -> [(Recording, String)] {
-        Recording.sports(root: root).filter { $0.hasPrefix(sport) }.flatMap { dir in
-            Recording.events(root: root, sport: dir).map { (Recording.load(root: root, sport: dir, event: $0, settle: 0), sport == "soccer" ? "m" : "ft") }
+        let roots = sport == "soccer" ? [root, broadcastRoot] : [root]
+        var seen = Set<String>()
+        return roots.flatMap { root in
+            Recording.sports(root: root).filter { $0.hasPrefix(sport) }.flatMap { dir in
+                Recording.events(root: root, sport: dir).filter { seen.insert(dir + "/" + $0).inserted }.map {
+                    (Recording.load(root: root, sport: dir, event: $0, settle: 0), sport == "soccer" ? "m" : "ft")
+                }
+            }
         }
     }
 

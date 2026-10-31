@@ -34,10 +34,10 @@ enum EngineRun {
         guard let sport = recording.sport else { return result }
         var policy = BroadcastLanes.policy(sport, path: recording.path)
         policy.horizons = BindingHorizons(live: policy.horizons.live, byKind: B.Sport.horizons)
-        guard var replay = RecordingReplay(recording, policy: policy), let summary = recording.snapshots.last.flatMap(recording.summary) else {
-            return result
-        }
-        var session = TheaterSession<B.Sport>(facts: B.facts(summary))
+        guard var replay = RecordingReplay(recording, policy: policy) else { return result }
+        // A core-lane recording (soccer's) has no summary: the facts come from the recording's teams.
+        let summary = recording.snapshots.last.flatMap(recording.summary) ?? JSON([String: Any]())
+        var session = TheaterSession<B.Sport>(facts: B.facts(summary, recording: recording))
         var meter = ContinuityMeter(label: label)
         let scratch = FrameScratch()
         let size = TheaterBench.Cost.size
@@ -67,7 +67,10 @@ enum EngineRun {
                 }
                 print(line)
             }
-            if trace { scan(baked) }
+            if trace {
+                scan(baked)
+                whySlipped(baked)
+            }
             mix(&result.hash, baked)
             if baked.plan.declared { declaredUntil = baked.start + 0.25 }
             for p in baked.plan.placements where p.start >= baked.start - 1e-9 {
@@ -77,11 +80,72 @@ enum EngineRun {
         }
         /// Each new clip's own frames, before any splice: a step past the cap inside one is the clip's, not the engine's.
         var scanned: Set<String> = []
+        /// A play that slipped: who needed the time, and why (the violations of a generous travel).
+        func whySlipped(_ baked: BakedPlan<B.Sport.Clip>) {
+            let limits = B.limits
+            for p in baked.plan.placements where p.start >= baked.start - 1e-9 && p.slip > 1 {
+                var worst: [(need: Double, line: String)] = []
+                for (i, id) in p.cast.enumerated() {
+                    guard let path = p.travel[id], let figure = baked.plan.actors[id] else { continue }
+                    let band = limits.band(figure.band)
+                    let x0 = path.position(at: p.start), v0 = path.velocity(at: p.start), a0 = path.acceleration(at: p.start)
+                    let moving = p.entry > p.clip.still + 1e-6
+                    let x1 = p.clip.position(i, at: p.entry), v1 = moving ? p.clip.velocity(i, at: p.entry) : .zero
+                    let a1 = moving ? p.clip.acceleration(i, at: p.entry) : .zero
+                    let need = TheaterMotion.shortestTravel(from: x0, v0, a0, to: x1, v1, a1, band: band, cruiseOver: limits.cruiseOver)
+                    let probe = TheaterMotion.travel(from: x0, v0, a0, at: 0, to: x1, v1, a1, duration: 12, band: band, cruiseOver: limits.cruiseOver)
+                    let kinds = TheaterMotion.violations(probe, from: 0, to: 12, band: band).prefix(3).map { String(format: "%@@%.2f+%.0f%%", "\($0.kind)", $0.at, $0.over * 100) }
+                    worst.append((need, String(format: "fig %d %@ need %.2f d=%.1f |v0|=%.1f |a0|=%.1f |v1|=%.1f |a1|=%.1f; at 12 s: %@", i, figure.band, need,
+                                               simd_length(x1 - x0), simd_length(v0), simd_length(a0), simd_length(v1), simd_length(a1),
+                                               kinds.joined(separator: " "))))
+                }
+                print("slipped \(p.play ?? "rest") by " + String(format: "%.2f", p.slip) + " entry " + String(format: "%.2f", p.entry))
+                for w in worst.sorted(by: { $0.need > $1.need }).prefix(3) { print("   " + w.line) }
+            }
+        }
         func scan(_ baked: BakedPlan<B.Sport.Clip>) {
             for p in baked.plan.placements where p.start >= baked.start - 1e-9 {
                 let key = p.play ?? "rest@\(Int(p.offset))"
                 guard !scanned.contains(key), p.clip.length.isFinite else { continue }
                 scanned.insert(key)
+                // The clip's own speed: its worst moment past the sprint, with the path's segment there.
+                var worst: (ratio: Double, i: Int, t: Double) = (0, 0, 0)
+                for i in p.clip.figures.indices {
+                    let band = B.limits.band(p.clip.figures[i].band)
+                    var t = 0.0
+                    while t < min(p.clip.length, 40) {
+                        let v = simd_length(p.clip.velocity(i, at: t))
+                        if v / band.sprint > worst.ratio, p.clip.opacity(i, at: t) > 0.05 { worst = (v / band.sprint, i, t) }
+                        t += 1.0 / 60
+                    }
+                }
+                if worst.ratio > 1.12 {
+                    var line = String(format: "clipspeed %@ fig %d t=%.2f +%.0f%%", key, worst.i, worst.t, (worst.ratio - 1) * 100)
+                    if let hoops = p.clip as? HoopsClip {
+                        let u = hoops.local(worst.t), rate = (hoops.local(worst.t + 0.005) - hoops.local(worst.t - 0.005)) / 0.01
+                        let pv = hoops.paths[worst.i].map { simd_length($0.velocity(at: u)) } ?? -1
+                        let flying = hoops.script.flights.contains { u > $0.start && u < $0.end }
+                        line += String(format: " u=%.2f du/dt=%.2f path|v|=%.1f opacity=%.2f flying=%@", u, rate, pv, hoops.script.players[worst.i].opacity(at: u),
+                                       flying ? "yes" : "no")
+                    }
+                    if let grid = p.clip as? GridClip {
+                        let u = grid.local(worst.t), rate = (grid.local(worst.t + 0.005) - grid.local(worst.t - 0.005)) / 0.01
+                        let pv = grid.paths[worst.i].map { simd_length($0.velocity(at: u)) } ?? -1
+                        let player = grid.script.players[worst.i]
+                        line += String(format: " u=%.2f du/dt=%.2f path|v|=%.1f band=%@ role=%@ flight=%@ moves=%d", u, rate, pv, grid.figures[worst.i].band,
+                                       "\(player.role)", grid.script.flight(at: u).map { String(format: "%.2f–%.2f", $0.start, $0.end) } ?? "-", player.moves.count)
+                    }
+                    if let hoops = p.clip as? HoopsClip, let path = hoops.paths[worst.i],
+                       let seg = path.segments.last(where: { $0.t0 <= hoops.local(worst.t) }) {
+                        let a = seg.position(at: seg.t0), b = seg.position(at: seg.t1)
+                        line += String(format: " segment %.2f–%.2f %.1f ft", seg.t0, seg.t1, simd_length(b - a))
+                        let moves = hoops.script.players[worst.i].moves.filter { $0.start <= worst.t + 0.5 && $0.end >= worst.t - 0.5 }
+                        line += " moves " + moves.map { String(format: "[%.2f–%.2f %.1fft]", $0.start, $0.end, $0.length) }.joined()
+                        let acts = hoops.script.players[worst.i].actions.filter { abs($0.at - worst.t) < 1 }.map { String(format: "%@@%.2f", "\($0.kind)", $0.at) }
+                        line += " actions " + acts.joined(separator: ",")
+                    }
+                    print(line)
+                }
                 for i in p.clip.figures.indices {
                     var t = 0.0, last = p.clip.position(i, at: 0)
                     while t < p.clip.length {
@@ -164,6 +228,7 @@ enum EngineRun {
             }
             lastWall = w
         }
+        var published: [String: PTime] = [:]
         replay.run(.app(replay.policy)) { replay, t, step, change in
             let engine = replay.engine
             guard engine.started else { return }
@@ -175,9 +240,21 @@ enum EngineRun {
                 data = true
             }
             if data || clockChanged || session.chain.isEmpty { replan(t) }
+            // One truth on p, as the page has it: the timeline presents each play where the theater's plan puts it.
+            let anchors = session.chain.plans.last?.plan.published ?? [:]
+            if anchors != published {
+                published = anchors
+                replay.setAnchors(anchors)
+            }
             if lastWall == nil { lastWall = t }
         }
         if let w = lastWall { frames(through: w + 30) }
+        if trace {
+            for (id, e) in measured.sorted(by: { $0.key < $1.key }) {
+                let planned = decisive[id].map { String(format: " planned T=%.2f anchor+shift=%.2f", $0.presented, $0.anchor) } ?? ""
+                print(String(format: "decisive %@ error %+.3f s", id, e) + planned)
+            }
+        }
         var report = meter.report
         let errors = Array(measured.values)
         report.decisiveErrors = errors
@@ -227,7 +304,9 @@ enum EngineRun {
                                      band: MotionLimits.basketball.band(track.figure.band), feet: (foot(f.body.left), foot(f.body.right)),
                                      planted: (planted.left && f.body.left.z < 0.01, planted.right && f.body.right.z < 0.01),
                                      weight: actor.motion.weight, height: track.figure.height, opacity: actor.opacity)
-            figure.source = traveling ? "travel" : "\(placement.clip.kind)"
+            figure.source = benchCause(placement, actor.id, at: scratch.p, kind: "\(placement.clip.kind)", band: track.figure.band,
+                                       sprint: MotionLimits.basketball.band(track.figure.band).sprint)
+            _ = traveling
             figure.rigFeet = (rigWorld(rig.left), rigWorld(rig.right))
             out.append(figure)
         }

@@ -62,9 +62,6 @@ extension ScorelineTests {
         let apart = TheaterBridge.plan(idle: idleMen, replay: replayMen, room: 1.0, far: 40, together: false)
         check(far.mode == .crossfade && far.moved > 5 && apart.mode == .crossfade && far.length == TheaterBridge.crossfade,
               "a play that starts far from where the idle stands (the median move past the sport's far rule), or at another end: a quick crossfade instead")
-        TheaterDelays.note("flow-test", roomy.delay + 0.3)
-        check(abs(TheaterDelays.delay("flow-test") - 0.3) < 1e-9 && TheaterDelays.delay("never-bridged") == 0,
-              "a bridged replay's late start is noted for its play, so the scoring slide still lands with its climax")
 
         // MARK: Football: the field between snaps into the snap's formation
 

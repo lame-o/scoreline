@@ -111,3 +111,165 @@ extension EnvironmentValues {
     }
 }
 #endif
+
+// MARK: - A directed theater on the page
+
+/// A directed theater's frames: at the plan's tiers on the theater's time
+/// while `running` (seen, and not Reduce Motion's key states), one still
+/// frame otherwise; on the offscreen check's virtual clock, the frame at its
+/// time, drawn again at each of its steps.
+struct TheaterFrames<Sport: TheaterSport, Content: View>: View {
+    let director: TheaterDirector<Sport>
+    let running: Bool
+    @ViewBuilder let frame: (PTime) -> Content
+    #if DEBUG
+    @Environment(\.broadcastHarness) private var harness
+    #endif
+
+    var body: some View {
+        #if DEBUG
+        if let harness {
+            frame(harness.now)
+        } else {
+            live
+        }
+        #else
+        live
+        #endif
+    }
+
+    @ViewBuilder private var live: some View {
+        if let timing = director.timing {
+            TimelineView(TheaterSchedule(tiers: director.chain.tiers, time: timing.time, clock: timing.clock, running: running)) { context in
+                frame(context.date.timeIntervalSince1970)
+            }
+        }
+    }
+}
+
+extension View {
+    /// A directed theater's conversation with the page's broadcast: it reads
+    /// the timeline (re-planning at each revision) and the clock (its events:
+    /// a hold, a resume, a skip or a jump re-plans), hands back its binding
+    /// horizons and solved anchors (one truth for the score, the lists and
+    /// the court), its scoring cues for the slides, and plans only while seen.
+    func directed<Sport: TheaterSport>(_ director: TheaterDirector<Sport>, source: Broadcast, facts: Sport.Facts, seen: Bool,
+                                       cues: TheaterCues?) -> some View {
+        modifier(TheaterDirecting(director: director, source: source, facts: facts, seen: seen, cues: cues))
+    }
+}
+
+private struct TheaterDirecting<Sport: TheaterSport>: ViewModifier {
+    let director: TheaterDirector<Sport>
+    let source: Broadcast
+    let facts: Sport.Facts
+    let seen: Bool
+    let cues: TheaterCues?
+    /// The last clock event the director has had.
+    @State private var lastEvent: PresentationClock.Event?
+    #if DEBUG
+    @Environment(\.broadcastHarness) private var harness
+    #endif
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                #if DEBUG
+                if let harness { director.now = { [harness] in harness.now } }
+                #endif
+                source.setBindingHorizons(BindingHorizons(live: BindingHorizons().live, byKind: Sport.horizons))
+                director.factsDidChange(facts)
+                director.setVisible(seen)
+                clockChanged(source.clock)
+                director.timelineDidChange(source.snapshot())
+            }
+            .onChange(of: source.revision) { _, _ in director.timelineDidChange(source.snapshot()) }
+            .onChange(of: source.clock) { _, clock in clockChanged(clock) }
+            .onChange(of: director.chain.revision) { _, _ in
+                source.setAnchors(director.anchors)
+                cues?.publish(director)
+            }
+            .onChange(of: facts) { _, now in director.factsDidChange(now) }
+            .onChange(of: seen) { _, now in director.setVisible(now) }
+    }
+
+    /// Hands the director the clock's events since the last it had.
+    private func clockChanged(_ clock: PresentationClock) {
+        let events = clock.events
+        let fresh: [PresentationClock.Event]
+        if let lastEvent, let i = events.lastIndex(of: lastEvent) { fresh = Array(events[(i + 1)...]) } else { fresh = events }
+        lastEvent = events.last
+        director.clockDidChange(clock, events: fresh)
+    }
+}
+
+/// A directed theater's scoring moments, for the page's scoring slides
+/// (CHOREOGRAPHY §12): each scoring play's `Cue.scored` on the theater's
+/// time, and the theater's time at a wall time. The slide lands with the
+/// theater's decisive frame because both are the plan's.
+@MainActor
+@Observable
+final class TheaterCues {
+    private(set) var scored: [(id: String, at: PTime)] = []
+    @ObservationIgnored private var time: (PTime) -> PTime? = { _ in nil }
+
+    func publish<Sport: TheaterSport>(_ director: TheaterDirector<Sport>) {
+        var out: [(id: String, at: PTime)] = []
+        for plan in director.chain.plans {
+            for cue in plan.plan.cues {
+                guard case let .scored(id) = cue.kind else { continue }
+                out.removeAll { $0.id == id }
+                out.append((id, cue.at))
+            }
+        }
+        scored = out.sorted { $0.at < $1.at }
+        time = { [weak director] wall in director?.time(at: wall) }
+    }
+
+    /// The scoring play the theater is at (its decisive moment come, or the next to come).
+    func playing(now wall: PTime) -> String? {
+        guard let T = time(wall) else { return nil }
+        return (scored.last { $0.at <= T + 0.5 } ?? scored.first { $0.at > T })?.id
+    }
+
+    /// Seconds from now to that play's decisive frame.
+    func climax(now wall: PTime) -> Double? {
+        guard let T = time(wall), let id = playing(now: wall), let cue = scored.first(where: { $0.id == id }) else { return nil }
+        return max(cue.at - T, 0)
+    }
+}
+
+/// A directed theater's frame on screen, for the pointer's tag: each man's
+/// spot through the camera, and who he is (the cast of the clip in charge,
+/// keyed by the engine's men). Written as each frame is drawn, never observed.
+@MainActor
+final class DirectedFrame {
+    private(set) var figures: [(index: Int, ground: CGPoint, height: CGFloat)] = []
+    private(set) var cast = TheaterCast()
+    private var castKey = ""
+
+    /// The member under the pointer.
+    func member(at point: CGPoint) -> String? { TheaterTags.hit(figures, at: point).flatMap { cast.members[$0]?.id } }
+
+    func update(_ figures: [(index: Int, ground: CGPoint, height: CGFloat)]) { self.figures = figures }
+
+    /// The clip's own cast (a frame that keys its figures by the clip's men), built once per clip in charge.
+    func cast(key: String, byFigure: () -> TheaterCast) -> TheaterCast {
+        guard key != castKey else { return cast }
+        cast = byFigure()
+        castKey = key
+        return cast
+    }
+
+    /// The clip's cast (by its figures) as the engine's men play them, built once per clip in charge.
+    func cast(key: String, cast men: [ActorID], byFigure: () -> TheaterCast) -> TheaterCast {
+        guard key != castKey else { return cast }
+        let mine = byFigure()
+        var members: [Int: TheaterCast.Member] = [:]
+        for (i, m) in mine.members where i < men.count { members[Int(men[i].raw)] = m }
+        let keys = mine.keys.map { TheaterCast.Key(from: $0.from, figure: $0.figure.flatMap { $0 < men.count ? Int(men[$0].raw) : nil }) }
+        cast = TheaterCast(members: members, keys: keys, scope: mine.scope)
+        castKey = key
+        return cast
+    }
+}

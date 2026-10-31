@@ -178,8 +178,10 @@ extension Plan {
             let local = p.time(t)
             let clamped = min(max(local, 0), p.clip.length)
             let moving = local > 0 && local < p.clip.length
+            // A man entering fades in where the clip has him.
+            let enters = p.entering.contains(id) ? min(max((t - p.start) / 0.4, 0), 1) : 1
             return (p.clip.position(i, at: clamped), moving ? p.clip.velocity(i, at: clamped) : .zero,
-                    moving ? p.clip.acceleration(i, at: clamped) : .zero, p.clip.opacity(i, at: clamped))
+                    moving ? p.clip.acceleration(i, at: clamped) : .zero, p.clip.opacity(i, at: clamped) * enters)
         }
         if p.leaving.contains(id) {
             // He stands where the splice found him and fades.

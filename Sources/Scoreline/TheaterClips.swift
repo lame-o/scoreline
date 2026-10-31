@@ -113,6 +113,9 @@ struct ClipPlacement<Clip: TheaterClip>: Sendable {
     var join: [ActorID: PTime] = [:]
     /// Men the clip has no part for: they fade where they stand over the travel.
     var leaving: [ActorID] = []
+    /// Men the world didn't have at the splice (a referee for his whistle, a sub coming on): they fade in where the clip
+    /// has them.
+    var entering: [ActorID] = []
     /// The clip's time when the travel lands (its still moment; later when the play came late and the lead-in was cut short).
     var entry: Double = 0
     /// The ball, from the splice until the clip has it.
@@ -258,8 +261,6 @@ enum Splice {
             nextID &+= 1
         }
         let castIDs = cast.map { $0! }
-        let present = Set(castIDs)
-        let leaving = men.map(\.state.id).filter { !present.contains($0) }
         func band(_ man: Man, easy: Bool) -> MotionLimits.Band {
             var b = limits.band(man.figure.band)
             if easy {
@@ -270,13 +271,19 @@ enum Splice {
             }
             return b
         }
+        /// The acceleration a travel starts with: his own, inside his limits (a clip's harder push isn't carried
+        /// into the travel; position and speed are).
+        func inherited(_ man: Man, easy: Bool) -> SIMD2<Double> {
+            let b = band(man, easy: easy)
+            return TheaterMotion.clamp(man.state.acceleration, min(b.accel, b.decel))
+        }
         /// How long the slowest man needs to reach his place at clip time `entry`, moving as the clip moves him there.
         func needs(_ men: [Man], easy: Bool, entry: Double) -> Double {
             var most = 0.0
             for (i, id) in castIDs.enumerated() {
                 guard let man = men.first(where: { $0.state.id == id }), clip.opacity(i, at: entry) > 0.01 else { continue }
                 let moving = entry > clip.still + 1e-6
-                let need = TheaterMotion.shortestTravel(from: man.state.position, man.state.velocity, man.state.acceleration,
+                let need = TheaterMotion.shortestTravel(from: man.state.position, man.state.velocity, inherited(man, easy: easy),
                                                         to: clip.position(i, at: entry), moving ? clip.velocity(i, at: entry) : .zero,
                                                         band: band(man, easy: easy), cruiseOver: limits.cruiseOver)
                 most = max(most, need)
@@ -314,6 +321,16 @@ enum Splice {
         var offset = offset
         var slip = 0.0
         let atStart = world(start)
+        // A man matched at the earliest splice who's gone by its start (faded out with the clip before) comes back as
+        // a newcomer: he enters, rather than reappearing somewhere else.
+        var ids = castIDs
+        for i in ids.indices where !atStart.contains(where: { $0.state.id == ids[i] }) && !newcomers.contains(ids[i]) {
+            ids[i] = ActorID(nextID)
+            newcomers.append(ids[i])
+            nextID &+= 1
+        }
+        let present = Set(ids)
+        let leaving = atStart.map(\.state.id).filter { !present.contains($0) }
         let need = needs(atStart, easy: easy, entry: entry)
         if start + need > offset + entry + 1e-6 {
             slip = start + need - (offset + entry)
@@ -321,16 +338,16 @@ enum Splice {
         }
         let joinAt = offset + entry
         var travel: [ActorID: MotionPath] = [:], join: [ActorID: PTime] = [:]
-        for (i, id) in castIDs.enumerated() {
+        for (i, id) in ids.enumerated() {
             guard let man = atStart.first(where: { $0.state.id == id }) else { continue }
             let moving = entry > clip.still + 1e-6
-            travel[id] = TheaterMotion.travel(from: man.state.position, man.state.velocity, man.state.acceleration, at: start,
+            travel[id] = TheaterMotion.travel(from: man.state.position, man.state.velocity, inherited(man, easy: easy), at: start,
                                               to: clip.position(i, at: entry), moving ? clip.velocity(i, at: entry) : .zero,
                                               moving ? clip.acceleration(i, at: entry) : .zero,
                                               duration: max(joinAt - start, 1e-3), band: band(man, easy: easy), cruiseOver: limits.cruiseOver)
             join[id] = joinAt
         }
-        return Meeting(cast: castIDs, start: start, offset: offset, entry: entry, travel: travel, join: join, leaving: leaving, slip: slip,
+        return Meeting(cast: ids, start: start, offset: offset, entry: entry, travel: travel, join: join, leaving: leaving, slip: slip,
                        newcomers: newcomers)
     }
 }
@@ -457,6 +474,7 @@ enum TheaterPlanner {
                                           join: meeting.join, leaving: meeting.leaving, play: unit.id, anchor: data, slip: meeting.slip)
             placement.shift = shift
             placement.entry = meeting.entry
+            placement.entering = meeting.newcomers
             placement.covers = [unit.id] + unit.covers
             // One truth on p: where each play it tells is presented (its decisive moment; the plays it covers, at theirs).
             draft.published[unit.id] = data + meeting.slip
@@ -492,6 +510,7 @@ enum TheaterPlanner {
         var placement = ClipPlacement(clip: clip, offset: meeting.offset, start: meeting.start, cast: meeting.cast, travel: meeting.travel,
                                       join: meeting.join, leaving: meeting.leaving)
         placement.entry = meeting.entry
+        placement.entering = meeting.newcomers
         for (i, id) in meeting.cast.enumerated() { identify(&draft, id, as: clip.figures[i]) }
         draft.placements.append(placement)
         sequencer.handOff(&draft, draft.placements.count - 1)
@@ -557,5 +576,238 @@ enum TheaterHandOff {
         if let holder, let m = draft.motion(of: holder, at: launch) { origin = SIMD3(m.position.x, m.position.y, height) }
         draft.placements[k].holder = holder
         draft.placements[k].ball = BallFlight(t0: launch, t1: launch + duration, from: origin, to: to, apex: 1 + distance / 30)
+    }
+}
+
+// MARK: - Today's paths, re-made (Phase 0)
+
+/// Each figure's path in today's scripts re-made through the motion layer
+/// (CHOREOGRAPHY §5.5.3): today's moves are polylines, each its own easing, so
+/// a man stops dead between two moves, turns a corner in a frame, or starts at
+/// full speed. The same vertices at the same moments become keys (each ball
+/// contact a hard key, so every catch, pass and shot meets the ball exactly
+/// where it did), and quintics through them carry him C²: he runs through a
+/// junction, rounds the corner, eases into a start. Nil: he never moves.
+enum ClipPaths {
+    static func resynthesized(_ moves: [PlayScript.Move], contacts: [Double], band: MotionLimits.Band, span: ClosedRange<Double>,
+                              position: (Double) -> CGPoint) -> MotionPath? {
+        let moves = moves.sorted { $0.start < $1.start }
+        guard !moves.isEmpty else { return nil }
+        var keys: [MotionKey] = []
+        func add(_ t: Double, _ p: CGPoint, _ kind: MotionKey.Kind, hard: Bool) {
+            let at = SIMD2(Double(p.x), Double(p.y))
+            if let last = keys.last, t - last.t < 0.06 {
+                // Too close to the last key: the harder of the two stands.
+                if hard || !last.hard { keys[keys.count - 1] = MotionKey(t: max(t, last.t), at: at, kind: kind, hard: hard || last.hard) }
+                return
+            }
+            keys.append(MotionKey(t: t, at: at, kind: kind, hard: hard))
+        }
+        for (n, m) in moves.enumerated() {
+            let next = n + 1 < moves.count ? moves[n + 1] : nil
+            let cut = next.map { $0.start < m.end - 1e-6 } ?? false
+            let end = cut ? next!.start : m.end
+            // Leaving from rest (nothing before it, or the move before ended a while ago).
+            let resting = n == 0 || moves[n - 1].end < m.start - 0.08
+            add(m.start, m.point(at: m.start), resting ? .depart : .through, hard: false)
+            // Each corner, at the moment today's easing reaches it along the path.
+            var along = 0.0
+            for k in 0..<max(m.lengths.count - 1, 0) {
+                along += m.lengths[k]
+                let t = m.start + inverse(m.ease, along / max(m.length, 1e-9)) * (m.end - m.start)
+                guard t < end - 0.04, t > m.start + 0.04 else { continue }
+                add(t, m.path[k + 1], .through, hard: false)
+            }
+            let arriving = !cut && (next.map { $0.start > m.end + 0.08 } ?? true)
+            add(end, m.point(at: end), arriving ? .arrive : .through, hard: false)
+        }
+        // Where the ball meets him, exactly where it did.
+        for t in contacts {
+            guard let first = keys.first, let last = keys.last, t > first.t, t < last.t else { continue }
+            let at = position(t)
+            keys.removeAll { abs($0.t - t) < 0.06 && !$0.hard }
+            let index = keys.firstIndex { $0.t > t } ?? keys.count
+            keys.insert(MotionKey(t: t, at: SIMD2(at.x, at.y), kind: .through, hard: true), at: index)
+        }
+        guard keys.count > 1 else { return nil }
+        return TheaterMotion.path(retimed(keys, band: band, span: span), band: band)
+    }
+
+    /// Today's key times kept where a man can make them; where he can't (a
+    /// move faster than his sprint, a start or stop harder than his legs),
+    /// the run between two keys where he's at rest or pinned gets the time it
+    /// needs: he leaves earlier (from where he stood) or arrives later (where
+    /// he stops), never past a ball contact (those stay exactly when and where
+    /// they were) nor the clip's ends; the keys inside it are re-timed by
+    /// distance along it, eased out of a stand and into a stop (§5.5.4:
+    /// retiming before infeasibility).
+    static func retimed(_ keys: [MotionKey], band: MotionLimits.Band, span: ClosedRange<Double>) -> [MotionKey] {
+        guard keys.count > 1 else { return keys }
+        var keys = keys
+        func bound(_ k: MotionKey) -> Bool { k.hard || k.kind == .depart || k.kind == .arrive }
+        var edges = keys.indices.filter { bound(keys[$0]) }
+        if edges.first != 0 { edges.insert(0, at: 0) }
+        if edges.last != keys.count - 1 { edges.append(keys.count - 1) }
+        for r in 0..<(edges.count - 1) {
+            let a = edges[r], b = edges[r + 1]
+            guard b > a else { continue }
+            var along = [0.0]
+            var fastest = 0.0
+            for k in a..<b {
+                let d = simd_length(keys[k + 1].at - keys[k].at)
+                along.append(along[along.count - 1] + d)
+                fastest = max(fastest, d / max(keys[k + 1].t - keys[k].t, 1e-6))
+            }
+            let length = along[along.count - 1]
+            guard length > 0.05 else { continue }
+            let restA = keys[a].kind == .depart || keys[a].kind == .arrive
+            let restB = keys[b].kind == .arrive || keys[b].kind == .depart
+            // The least time the run takes him: rest to rest (a quintic's peak speed and push), half of it, or at a run.
+            let push = min(band.accel, band.decel)
+            let least: Double
+            if restA && restB {
+                least = TheaterMotion.shortest(distance: length, band: band)
+            } else if restA || restB {
+                least = max(1.5 * length / band.sprint, (3.5 * length / push).squareRoot())
+            } else {
+                least = length / band.sprint
+            }
+            var t0 = keys[a].t, t1 = keys[b].t
+            // Today's own timing when he can make it.
+            guard t1 - t0 < least || fastest > band.sprint else { continue }
+            if t1 - t0 < least {
+                var short = least - (t1 - t0)
+                // Later into a stop that isn't pinned (up to the next key, or the clip's end).
+                if keys[b].kind == .arrive, !keys[b].hard {
+                    let limit = b + 1 < keys.count ? keys[b + 1].t - 0.06 : span.upperBound
+                    let more = min(short, max(limit - t1, 0))
+                    t1 += more
+                    short -= more
+                }
+                // Earlier out of a standing start that isn't pinned (down to the key before, or the clip's start).
+                if short > 1e-6, keys[a].kind == .depart, !keys[a].hard {
+                    let limit = a > 0 ? keys[a - 1].t + 0.06 : span.lowerBound
+                    t0 -= min(short, max(t0 - limit, 0))
+                }
+            }
+            // The keys inside, by distance along the run, on the run's own shape.
+            func share(_ s: Double) -> Double {
+                var lo = 0.0, hi = 1.0
+                for _ in 0..<30 {
+                    let u = (lo + hi) / 2
+                    let covered: Double
+                    if restA && restB {
+                        covered = u * u * u * (10 - 15 * u + 6 * u * u)
+                    } else if restA {
+                        covered = u * u * (2 - u)
+                    } else if restB {
+                        let w = 1 - u
+                        covered = 1 - w * w * (2 - w)
+                    } else {
+                        covered = u
+                    }
+                    if covered < s { lo = u } else { hi = u }
+                }
+                return (lo + hi) / 2
+            }
+            keys[a].t = t0
+            keys[b].t = t1
+            for k in (a + 1)..<b { keys[k].t = t0 + share(along[k - a] / length) * (t1 - t0) }
+        }
+        return keys
+    }
+
+    /// The moment an easing reaches `share` of its way (bisection: every easing here is monotone).
+    static func inverse(_ ease: PlayScript.Ease, _ share: Double) -> Double {
+        var lo = 0.0, hi = 1.0
+        for _ in 0..<40 {
+            let mid = (lo + hi) / 2
+            if ease.value(mid) < share { lo = mid } else { hi = mid }
+        }
+        return (lo + hi) / 2
+    }
+}
+
+// MARK: - A clip's own time, stretched (Phase 0)
+
+/// A clip's time stretched where today's script asks more of a man than his
+/// legs allow (§5.5.4: retime before anything is infeasible). Today's scripts
+/// are synthesized: only the decisive contact is the data's, so the moments
+/// before it are free to move apart, in order. Where any man would run past
+/// his sprint (or push past his limits), the script's time runs slower, so
+/// the contacts move later and nobody hurries; the ball's flights keep their
+/// own pace (a pass isn't floated), so the stretch falls on the runs between
+/// them. The stretch is eased in and out (no sudden change of pace), and the
+/// clip simply starts earlier by what it gained before its decisive moment:
+/// the planner places that moment at its anchor all the same.
+struct ClipWarp: Equatable, Sendable {
+    /// The clip's time at each step of the script's time.
+    private var times: [Double]
+    let step: Double
+    /// The script's own length.
+    let length: Double
+
+    static let identity = ClipWarp(times: [], step: 1, length: 0)
+    /// The most a short flight slows (its pace barely changes to the eye).
+    static let steadyMost = 1.25
+
+    var isIdentity: Bool { times.isEmpty }
+    /// The clip's length in its own (stretched) time.
+    var stretched: Double { times.last ?? length }
+
+    private init(times: [Double], step: Double, length: Double) {
+        self.times = times
+        self.step = step
+        self.length = length
+    }
+
+    /// The stretch for a script: `need(u)` how much slower its time must run at script time `u` (≥ 1), `steady(u)`
+    /// whether the ball's in flight there (its pace kept). Nil when nothing needs it.
+    static func make(length: Double, step: Double = 1.0 / 60, need: (Double) -> Double, steady: (Double) -> Bool) -> ClipWarp? {
+        guard length.isFinite, length > step else { return nil }
+        let n = Int((length / step).rounded(.up)) + 1
+        var raw = (0..<n).map { k -> Double in
+            let u = min(Double(k) * step, length)
+            return steady(u) ? min(max(need(u), 1), steadyMost) : max(need(u), 1)
+        }
+        guard raw.contains(where: { $0 > 1.001 }) else { return nil }
+        // Spread each slowdown a quarter second either way (the most, then the mean): eased in and out.
+        let half = max(Int((0.25 / step).rounded()), 1)
+        var widened = raw
+        for k in 0..<n { widened[k] = raw[max(k - half, 0)...min(k + half, n - 1)].max() ?? 1 }
+        for k in 0..<n {
+            let window = widened[max(k - half, 0)...min(k + half, n - 1)]
+            let mean = window.reduce(0, +) / Double(window.count)
+            raw[k] = steady(min(Double(k) * step, length)) ? min(mean, steadyMost) : mean
+        }
+        var times = [0.0]
+        times.reserveCapacity(n)
+        for k in 1..<n { times.append(times[k - 1] + step * (raw[k - 1] + raw[k]) / 2) }
+        return ClipWarp(times: times, step: step, length: length)
+    }
+
+    /// The script's time at the clip's time `t` (past either end, it runs on at the script's own pace).
+    func script(_ t: Double) -> Double {
+        guard let last = times.last else { return t }
+        if t <= 0 { return t }
+        if t >= last { return length + (t - last) }
+        var lo = 0, hi = times.count - 1
+        while hi - lo > 1 {
+            let mid = (lo + hi) / 2
+            if times[mid] <= t { lo = mid } else { hi = mid }
+        }
+        let span = times[hi] - times[lo]
+        let f = span > 1e-12 ? (t - times[lo]) / span : 0
+        return min((Double(lo) + f) * step, length)
+    }
+
+    /// The clip's time at the script's time `u`.
+    func clip(_ u: Double) -> Double {
+        guard let last = times.last else { return u }
+        if u <= 0 { return u }
+        if u >= length { return last + (u - length) }
+        let x = u / step
+        let k = min(Int(x), times.count - 2)
+        return times[k] + (times[k + 1] - times[k]) * (x - Double(k))
     }
 }

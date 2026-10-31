@@ -92,72 +92,38 @@ struct HoopsClip: TheaterClip, @unchecked Sendable {
                               athlete: script.credits[i].flatMap { $0.id ?? $0.name }, band: p.team == .official ? "official" : "wing",
                               height: Hoops.ground)
         }
-        length = script.duration
-        still = kind == .replay ? script.leadIn : 0
-        decisive = Self.decisive(script, scene: scene, kind: kind)
-        essential = kind == .rest ? 0 : min(script.duration, (decisive ?? 0) + (kind == .replay ? 1.6 : 0.8))
-        paths = script.players.map { Self.resynthesized($0, band: MotionLimits.basketball.band($0.team == .official ? "official" : "wing")) }
+        let bands = script.players.map { MotionLimits.basketball.band($0.team == .official ? "official" : "wing") }
+        let paths = script.players.indices.map { Self.resynthesized(script.players[$0], band: bands[$0], span: 0...script.duration) }
+        self.paths = paths
+        // Slower where anyone would outrun his legs, the ball's flights at their own pace.
+        warp = ClipWarp.make(length: script.duration, need: { u in
+            var most = 1.0
+            for i in paths.indices {
+                guard let path = paths[i], script.players[i].opacity(at: u) > 0.05 else { continue }
+                let b = bands[i]
+                most = max(most, simd_length(path.velocity(at: u)) / (b.sprint * 0.97),
+                           (simd_length(path.acceleration(at: u)) / (min(b.accel, b.decel, b.lateral) * 0.97)).squareRoot())
+            }
+            return most
+        }, steady: { u in script.flights.contains { u > $0.start && u < $0.end && $0.end - $0.start < 1.5 } }) ?? .identity
+        length = warp.isIdentity ? script.duration : warp.stretched
+        still = kind == .replay ? warp.clip(script.leadIn) : 0
+        decisive = Self.decisive(script, scene: scene, kind: kind).map(warp.clip)
+        essential = kind == .rest ? 0 : min(length, (decisive ?? 0) + (kind == .replay ? 1.6 : 0.8))
     }
 
-    /// Each figure's path re-made through the motion layer (CHOREOGRAPHY §5.5.3): today's moves are polylines,
-    /// each its own easing, so a man stops dead between two moves, turns a corner in a frame, or starts at full
-    /// speed. The same vertices at the same moments become keys (each ball action a hard key, so every catch,
-    /// pass and shot meets the ball exactly where it did), and quintics through them carry him C²: he runs
-    /// through a junction, rounds the corner, eases into a start. Nil: he never moves.
+    /// The script's own time stretched where it asked too much of anyone (ClipWarp).
+    let warp: ClipWarp
+
+    /// The script's time at the clip's time `t`.
+    func local(_ t: Double) -> Double { warp.script(t) }
+
+    /// Each figure's path re-made through the motion layer (ClipPaths).
     let paths: [MotionPath?]
 
-    static func resynthesized(_ player: BasketballScript.Player, band: MotionLimits.Band) -> MotionPath? {
-        let moves = player.moves.sorted { $0.start < $1.start }
-        guard !moves.isEmpty else { return nil }
-        var keys: [MotionKey] = []
-        func add(_ t: Double, _ p: CGPoint, _ kind: MotionKey.Kind, hard: Bool) {
-            let at = SIMD2(Double(p.x), Double(p.y))
-            if let last = keys.last, t - last.t < 0.06 {
-                // Too close to the last key: the harder of the two stands.
-                if hard || !last.hard { keys[keys.count - 1] = MotionKey(t: max(t, last.t), at: at, kind: kind, hard: hard || last.hard) }
-                return
-            }
-            keys.append(MotionKey(t: t, at: at, kind: kind, hard: hard))
-        }
-        for (n, m) in moves.enumerated() {
-            let next = n + 1 < moves.count ? moves[n + 1] : nil
-            let cut = next.map { $0.start < m.end - 1e-6 } ?? false
-            let end = cut ? next!.start : m.end
-            // Leaving from rest (nothing before it, or the move before ended a while ago).
-            let resting = n == 0 || moves[n - 1].end < m.start - 0.08
-            add(m.start, m.point(at: m.start), resting ? .depart : .through, hard: false)
-            // Each corner, at the moment today's easing reaches it along the path.
-            var along = 0.0
-            for k in 0..<max(m.lengths.count - 1, 0) {
-                along += m.lengths[k]
-                let t = m.start + inverse(m.ease, along / max(m.length, 1e-9)) * (m.end - m.start)
-                guard t < end - 0.04, t > m.start + 0.04 else { continue }
-                add(t, m.path[k + 1], .through, hard: false)
-            }
-            let arriving = !cut && (next.map { $0.start > m.end + 0.08 } ?? true)
-            add(end, m.point(at: end), arriving ? .arrive : .through, hard: false)
-        }
-        // Where the ball meets him, exactly where it did.
-        for action in player.actions where [.catchBall, .pass, .lob, .shoot, .layup, .dunk, .hook, .tip, .rebound, .steal, .block].contains(action.kind) {
-            let t = action.at
-            guard t > keys.first!.t, t < keys.last!.t else { continue }
-            let at = player.position(at: t)
-            keys.removeAll { abs($0.t - t) < 0.06 && !$0.hard }
-            let index = keys.firstIndex { $0.t > t } ?? keys.count
-            keys.insert(MotionKey(t: t, at: SIMD2(at.x, at.y), kind: .through, hard: true), at: index)
-        }
-        guard keys.count > 1 else { return nil }
-        return TheaterMotion.path(keys, band: band)
-    }
-
-    /// The moment an easing reaches `share` of its way (bisection: every easing here is monotone).
-    static func inverse(_ ease: PlayScript.Ease, _ share: Double) -> Double {
-        var lo = 0.0, hi = 1.0
-        for _ in 0..<40 {
-            let mid = (lo + hi) / 2
-            if ease.value(mid) < share { lo = mid } else { hi = mid }
-        }
-        return (lo + hi) / 2
+    static func resynthesized(_ player: BasketballScript.Player, band: MotionLimits.Band, span: ClosedRange<Double>) -> MotionPath? {
+        let contacts = player.actions.filter { [.catchBall, .pass, .lob, .shoot, .layup, .dunk, .hook, .tip, .rebound, .steal, .block].contains($0.kind) }
+        return ClipPaths.resynthesized(player.moves, contacts: contacts.map(\.at), band: band, span: span) { player.position(at: $0) }
     }
 
     /// The instant a clip's play is about (CHOREOGRAPHY §5.1's decisive moment, as today's scripts stage it).
@@ -185,31 +151,34 @@ struct HoopsClip: TheaterClip, @unchecked Sendable {
     var ambient: Bool { kind == .rest }
 
     func position(_ figure: Int, at t: Double) -> SIMD2<Double> {
+        let u = local(t)
         if let path = paths[figure] {
-            let p = path.position(at: t)
+            let p = path.position(at: u)
             return HoopsWorld.point(CGPoint(x: p.x, y: p.y), right: right)
         }
-        return HoopsWorld.point(script.players[figure].position(at: t), right: right)
+        return HoopsWorld.point(script.players[figure].position(at: u), right: right)
     }
 
     func heading(_ figure: Int, at t: Double) -> Double {
-        let h = figure < script.rig.count ? script.rig[figure].motion(at: t).heading : 0
+        let h = figure < script.rig.count ? script.rig[figure].motion(at: local(t)).heading : 0
         return HoopsWorld.heading(h, right: right)
     }
 
-    func opacity(_ figure: Int, at t: Double) -> Double { script.players[figure].opacity(at: t) }
+    func opacity(_ figure: Int, at t: Double) -> Double { script.players[figure].opacity(at: local(t)) }
 
     func ball(at t: Double) -> ClipBall? {
-        if let carrier = script.carrier(at: t) { return .held(figure: carrier.player) }
-        guard let b = script.ball(at: t) else { return nil }
-        return .free(HoopsWorld.point(b, right: right), flying: script.flight(at: t) != nil)
+        let u = local(t)
+        if let carrier = script.carrier(at: u) { return .held(figure: carrier.player) }
+        guard let b = script.ball(at: u) else { return nil }
+        return .free(HoopsWorld.point(b, right: right), flying: script.flight(at: u) != nil)
     }
 
-    func camera(at t: Double) -> SIMD4<Double> { HoopsWorld.camera(script.camera.frame(at: t), yaw: script.yaw) }
+    func camera(at t: Double) -> SIMD4<Double> { HoopsWorld.camera(script.camera.frame(at: local(t)), yaw: script.yaw) }
 
     func moving(at t: Double) -> Bool {
-        guard t >= 0, t <= script.duration else { return false }
-        return kind == .rest ? script.active.contains { $0.contains(t) } : true
+        let u = local(t)
+        guard t >= 0, u <= script.duration else { return false }
+        return kind == .rest ? script.active.contains { $0.contains(u) } : true
     }
 
     /// The floor's shape at t (play, the lane, the benches…): a beat that follows starts from it only in play.
@@ -280,7 +249,7 @@ enum HoopsAnchors {
             if p.estimated { weight *= 0.25 }
             // The rebound that restarts a stopped clock happens at the restart itself.
             let restarts = p.kind.phase == .live
-            return AnchorInput(id: p.id, period: p.period, eventTime: p.eventTime, bounds: nil, elapsed: p.clock.elapsed,
+            return AnchorInput(id: p.id, period: p.period, eventTime: p.eventTime, bounds: p.eventBounds, elapsed: p.clock.elapsed,
                                resolution: p.clock.resolution, live: p.kind.phase == .live, stopsClock: p.kind.stopsClock, weight: weight,
                                gapAfter: next.map { gap(s, $0.play) } ?? AnchorSolver.least, restartAfter: restarts ? 0 : 1)
         }
@@ -418,7 +387,7 @@ enum HoopsPainter {
         let plan = baked.plan
         guard let k = charge(plan, at: scratch.p) else { return nil }
         let clip = plan.placements[k].clip
-        let t = plan.placements[k].time(scratch.p)
+        let t = clip.local(plan.placements[k].time(scratch.p))
         let right = clip.right
         let (camera, yaw) = HoopsWorld.frame(scratch.camera, right: right)
         let h = HoopProjection(size: size, camera: camera, yaw: yaw)
@@ -430,8 +399,7 @@ enum HoopsPainter {
         switch scratch.ball {
         case let .clip(j):
             let q = plan.placements[j]
-            let local = q.time(scratch.p)
-            let lt = min(max(local, 0), q.clip.length)
+            let lt = q.clip.local(min(max(q.time(scratch.p), 0), q.clip.length))
             if let carrier = q.clip.script.carrier(at: lt), carrier.player < q.cast.count {
                 holder = q.cast[carrier.player]
                 if carrier.dribbling {
@@ -465,7 +433,7 @@ enum HoopsPainter {
             func posed(_ placement: Int, _ figure: Int, _ time: Double) -> (RigPose, Double)? {
                 let c = plan.placements[placement].clip
                 guard figure < c.script.players.count else { return nil }
-                let frame = BasketballFrame(scene: c.scene, script: c.script, t: time, teams: teams, ink: ink, size: size)
+                let frame = BasketballFrame(scene: c.scene, script: c.script, t: c.local(time), teams: teams, ink: ink, size: size)
                 return frame.pose(c.script.players[figure], figure, at: here, unit: unit, stride: (track.rig, scratch.p, worldHere))
             }
             guard let now = posed(actor.placement, actor.figure, actor.clipTime) else { continue }

@@ -914,6 +914,12 @@ extension SlideTheater {
                      climax: { feed.theater.scene.flatMap { ScoringSlide.climax(SoccerScript($0, lineups: feed.theater.lineups)) } })
     }
 
+    /// A theater on the choreography engine: the scoring play its plan has come to (or comes to next), and the
+    /// seconds to its decisive frame (CHOREOGRAPHY §12: the slide reads the plan's `Cue.scored`).
+    @MainActor static func directed(_ cues: TheaterCues) -> SlideTheater {
+        SlideTheater(playing: { cues.playing(now: Date().timeIntervalSince1970) }, climax: { cues.climax(now: Date().timeIntervalSince1970) })
+    }
+
     /// The NBA: the basket the court's theater replays, as its replay starts
     /// (it tells every play in order, so a basket can wait its turn behind a beat or two).
     @MainActor static func basketball(_ feed: BasketballFeed) -> SlideTheater {

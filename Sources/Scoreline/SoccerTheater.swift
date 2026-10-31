@@ -299,6 +299,42 @@ struct SoccerFrame: View, Equatable {
     /// The pitch between moments this replay is taking over from (nil:
     /// none, or the hand-off is done).
     var bridge: Bridge? = nil
+    /// Drawn from the choreography engine's world (TheaterView): its camera;
+    /// each figure of the clip in charge (`script`) where the engine has his
+    /// man and posed by the clip; the men on their way to another clip (or
+    /// leaving) in their own kit; the ball. The trail, the impacts, the
+    /// banners and the stamp stay the clip's.
+    var world: World? = nil
+
+    struct World: Equatable {
+        struct Figure: Equatable {
+            var at: CGPoint
+            var body: RigPose
+            var heading: Double
+            var opacity: Double
+        }
+
+        struct Extra: Equatable {
+            /// The engine's man.
+            var index: Int
+            var team: SoccerScript.Team
+            var at: CGPoint
+            var body: RigPose
+            var heading: Double
+            var opacity: Double
+        }
+
+        enum Ball: Equatable {
+            case free(FieldPoint, flying: Bool)
+        }
+
+        /// The main stand camera's framing (a declared reverse angle in the clip still wins).
+        var camera: CameraFrame
+        /// By the clip's actor.
+        var figures: [Int: Figure]
+        var extras: [Extra]
+        var ball: Ball?
+    }
 
     /// The pitch between moments as it stands mid-bridge (TheaterBridge):
     /// its script and its time now (it plays on under the hand-off), how far
@@ -326,18 +362,20 @@ struct SoccerFrame: View, Equatable {
     /// The time first: mid-replay it's all that differs.
     static func == (a: SoccerFrame, b: SoccerFrame) -> Bool {
         a.t == b.t && a.size == b.size && a.teams == b.teams && a.ink == b.ink && a.tags == b.tags && a.scene == b.scene && a.bridge == b.bridge
-            && a.script == b.script
+            && a.world == b.world && a.script == b.script
     }
 
     /// The camera at t; mid-bridge, eased from the idle's framing to the replay's (both the main camera's).
     func projection(_ size: CGSize) -> PitchProjection {
         let frame = script.frame(at: t)
+        if let world, frame.angle == .stand { return PitchProjection(size: size, camera: PitchFrame(camera: world.camera)) }
         guard let b = bridge, frame.angle == .stand else { return PitchProjection(size: size, camera: frame) }
         return PitchProjection(size: size, camera: PitchFrame(camera: b.script.frame(at: b.t).camera.mix(frame.camera, b.w)))
     }
 
     /// How much of actor `i` shows at t: mid-bridge, a man the idle didn't have fades in.
     private func seen(_ i: Int) -> Double {
+        if let world { return world.figures[i]?.opacity ?? 0 }
         let o = script.actors[i].opacity(at: t)
         guard let b = bridge else { return o }
         guard let j = b.pairs[i] else { return o * b.w }
@@ -459,7 +497,7 @@ struct SoccerFrame: View, Equatable {
                          with: .color(ink.shadow.opacity((1 - 0.45 * air) * shown)))
         }
         // The ball's: under it on the grass, larger and softer the higher it flies, a hairline up to it once it's well up.
-        if script.heldBy == nil || t < script.heldFrom, let ball = script.ball(at: t), ball.z > 0.25 {
+        if script.heldBy == nil || t < script.heldFrom, let ball = ballPoint, ball.z > 0.25 {
             let o = script.ballOpacity(at: t)
             let g = f.point(ball.ground)
             let spread = 1 + min(ball.z / 12, 1.4)
@@ -705,11 +743,25 @@ struct SoccerFrame: View, Equatable {
 
     /// Everyone at t, by actor.
     private func posed(_ f: PitchProjection) -> [Posed] {
-        script.actors.indices.map { place(script.actors[$0], $0, f) }
+        script.actors.indices.map { place(script.actors[$0], $0, f, world: world?.figures[$0]) }
+    }
+
+    /// The ball where it is at t: the engine's in its world, else the script's.
+    private var ballPoint: FieldPoint? {
+        guard let world else { return script.ball(at: t) }
+        if case let .free(point, _)? = world.ball { return point }
+        return nil
     }
 
     /// The idle's men fading out mid-bridge, where the idle has them and as it poses them.
     private func ghosts(_ f: PitchProjection) -> [Ghost] {
+        if let world {
+            return world.extras.filter { $0.opacity > 0.01 }.map { e in
+                let lens = RigLens(f, at: e.at)
+                let figure = RigFigure(e.body, heading: e.heading, lens: lens)
+                return Ghost(posed: Posed(figure: figure, height: lens.height, hands: figure.grip, at: e.at), at: e.at, opacity: e.opacity, team: e.team)
+            }
+        }
         guard let b = bridge else { return [] }
         let idle = SoccerFrame(scene: nil, script: b.script, t: b.t, teams: b.teams, ink: ink, size: size)
         return b.ghosts.compactMap { j in
@@ -722,14 +774,14 @@ struct SoccerFrame: View, Equatable {
         }
     }
 
-    private func place(_ actor: SoccerScript.Actor, _ index: Int, _ f: PitchProjection) -> Posed {
-        var at = actor.position(at: t)
+    private func place(_ actor: SoccerScript.Actor, _ index: Int, _ f: PitchProjection, world w: World.Figure? = nil) -> Posed {
+        var at = w?.at ?? actor.position(at: t)
         // Mid-bridge: between where the idle has him and his place in the replay, posed between the two, striding along the way.
         let paired = bridge.flatMap { b in b.pairs[index].map { (b, $0) } }
-        if let (b, j) = paired { at = TheaterBridge.mix(b.script.actors[j].position(at: b.t), at, b.w) }
+        if w == nil, let (b, j) = paired { at = TheaterBridge.mix(b.script.actors[j].position(at: b.t), at, b.w) }
         let lens = RigLens(f, at: at)
-        var (body, heading) = pose(actor, index, at: actor.position(at: t), unit: lens.unit)
-        if let (b, j) = paired {
+        var (body, heading) = w.map { ($0.body, $0.heading) } ?? pose(actor, index, at: actor.position(at: t), unit: lens.unit)
+        if w == nil, let (b, j) = paired {
             let idle = SoccerFrame(scene: nil, script: b.script, t: b.t, teams: b.teams, ink: ink, size: size), other = b.script.actors[j]
             (body, heading) = TheaterBridge.pose(from: idle.pose(other, j, at: other.position(at: b.t), unit: lens.unit), to: (body, heading), w: b.w,
                                                  track: b.tracks[index], s: b.s, at: at, unit: lens.unit)
@@ -754,9 +806,11 @@ struct SoccerFrame: View, Equatable {
     /// what he's doing (a strike, a header, a block, arms up) over how he's
     /// moving (striding to his planted feet), else how he stands: watching
     /// the ball. `unit`: body units to the metre where he stands. (tested)
-    func pose(_ actor: SoccerScript.Actor, _ index: Int, at here: CGPoint, unit: Double) -> (RigPose, Double) {
-        let track = index < script.rig.count ? script.rig[index] : RigTrack(at: here, height: 2.5)
-        let m = track.motion(at: t)
+    /// `stride`: the engine's track for him in the world (TheaterView), its time and where he is in it.
+    func pose(_ actor: SoccerScript.Actor, _ index: Int, at here: CGPoint, unit: Double,
+              stride: (track: RigTrack, t: Double, at: CGPoint)? = nil) -> (RigPose, Double) {
+        let track = stride?.track ?? (index < script.rig.count ? script.rig[index] : RigTrack(at: here, height: 2.5))
+        let m = track.motion(at: stride?.t ?? t)
         if let dive = actor.dive, t >= dive.start {
             let set = actor.position(at: dive.start)
             let u = min(max((t - dive.start) / max(dive.reach - dive.start, 0.01), 0), 1)
@@ -773,8 +827,14 @@ struct SoccerFrame: View, Equatable {
             x < 0 ? max(1 + x / attack, 0) : max(1 - x / release, 0)
         }
         let still: RigPose = actor.role == .keeper ? .ready : .stand
-        let feet = track.feet(at: t, anchor: here, heading: m.heading, unit: unit, speed: m.speed, stand: (still.left, still.right))
-        var base = still.mix(.gait(m, feet: feet), m.weight)
+        let feet = track.feet(at: stride?.t ?? t, anchor: stride?.at ?? here, heading: m.heading, unit: unit, speed: m.speed,
+                              stand: (still.left, still.right))
+        let gait = RigPose.gait(m, feet: feet)
+        var base = still.mix(gait, m.weight)
+        // A planted foot stays planted once the stride carries his weight.
+        let planted = smooth(m.weight / 0.5)
+        base.left = still.left + (gait.left - still.left) * planted
+        base.right = still.right + (gait.right - still.right) * planted
         // Between moments: a man down, a physio on a knee, an arm (or two) up.
         if let hold = actor.hold(at: t) {
             let into = smooth((t - hold.from) / 0.3)
@@ -824,13 +884,14 @@ struct SoccerFrame: View, Equatable {
 
     /// Where the ball is drawn at t (in the keeper's hands, or where it is), how big, how faint, and a man's height there.
     private func ballSpot(_ f: PitchProjection, hands: CGPoint?) -> (point: CGPoint, radius: CGFloat, opacity: Double, height: CGFloat)? {
-        guard var ball = script.ball(at: t) else { return nil }
+        guard var ball = ballPoint else { return nil }
         // Mid-bridge, from where the ball was going round to where the move starts.
-        if let b = bridge, let from = b.script.ball(at: b.t) {
+        if world == nil, let b = bridge, let from = b.script.ball(at: b.t) {
             ball = FieldPoint(x: from.x + (ball.x - from.x) * b.w, y: from.y + (ball.y - from.y) * b.w, z: from.z + (ball.z - from.z) * b.w)
         }
         let height = f.figure(at: ball.ground)
-        return (hands ?? f.point(ball), min(max(0.3 * f.scale(at: ball), 1.7), max(height * 0.11, 1.7)), script.ballOpacity(at: t), height)
+        return (hands ?? f.point(ball), min(max(0.3 * f.scale(at: ball), 1.7), max(height * 0.11, 1.7)), world == nil ? script.ballOpacity(at: t) : 1,
+                height)
     }
 
     private func drawBall(_ context: inout GraphicsContext, _ f: PitchProjection, hands: CGPoint?) {
@@ -1034,13 +1095,28 @@ struct SoccerTheater: View {
     var added: SoccerAddedTime? = nil
     /// The squads (the summary's rosters), by athlete ID: the names over the players.
     var people: [String: TheaterPerson] = [:]
+    /// The page's broadcast: while it runs, the choreography engine tells the match (SoccerDirectedStage) and the
+    /// scoring slides land with its plan (`cues`).
+    var source: Broadcast? = nil
+    var cues: TheaterCues? = nil
+    var facts: PitchFacts? = nil
 
     var body: some View {
         let live = feed?.loaded == true ? feed?.theater : nil
         let state = live.flatMap { $0.scene == nil && $0.touch == nil ? nil : $0 } ?? preloaded ?? live ?? SoccerTheaterState()
         let names = SoccerStatus.Names(top: topTeam, bottom: bottomTeam, topColor: kits?.top.color, bottomColor: kits?.bottom.color)
+        let directed = source?.active == true ? facts.map { f -> PitchFacts in
+            var f = f
+            f.lineups = state.lineups
+            return f
+        } : nil
         VStack(alignment: .leading, spacing: 6) {
-            SoccerStage(state: state, palette: palette, kits: kits, names: names, added: added, eventID: eventID ?? "soccer", people: people)
+            if let source, let directed {
+                SoccerDirectedStage(source: source, cues: cues, palette: palette, kits: kits, facts: directed, names: names, added: added,
+                                    eventID: eventID ?? "soccer", people: people, heard: state.heard)
+            } else {
+                SoccerStage(state: state, palette: palette, kits: kits, names: names, added: added, eventID: eventID ?? "soccer", people: people)
+            }
             caption(state)
         }
     }
@@ -1474,7 +1550,6 @@ private struct SoccerStage: View {
             return (script.actors[i].position(at: u), i < script.rig.count ? script.rig[i].motion(at: u).heading : 0)
         })
         bridge = Bridge(id: scene.id, came: now, plan: plan, idle: shown.idle, script: shown.script, since: idleClock.since, tracks: tracks)
-        TheaterDelays.note(scene.id, plan.delay)
         replay = Replay(id: scene.id, start: now.addingTimeInterval(plan.delay))
     }
 }
@@ -1516,6 +1591,182 @@ private final class ScriptCache {
 }
 
 /// Full width, half as tall, up to `cap`.
+// MARK: - On the director (CHOREOGRAPHY Phase 0)
+
+/// The soccer theater on the choreography engine, while the page broadcasts
+/// the match: each moment told at its anchor on the broadcast's clock with
+/// its build-up, the events' beats, the ball going round between them shaped
+/// by where it is, every hand-off a splice. Over the pitch, as today: the
+/// broadcast tag, the heartbeat, the names, the turn.
+private struct SoccerDirectedStage: View {
+    let source: Broadcast
+    let cues: TheaterCues?
+    let palette: TeamPalette
+    let kits: TheaterKits?
+    let facts: PitchFacts
+    let names: SoccerStatus.Names
+    let added: SoccerAddedTime?
+    let eventID: String
+    let people: [String: TheaterPerson]
+    let heard: Date?
+    @AppStorage private var flipped: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.pageGeometry) private var geometry
+    #if DEBUG
+    @Environment(\.theaterFrameProbe) private var probe
+    #endif
+    @State private var director: TheaterDirector<PitchSport>
+    @State private var scratch = FrameScratch()
+    @State private var shown = DirectedFrame()
+    @State private var hovering = false
+    @State private var pointer = TheaterPointer()
+    @State private var fading = false
+
+    init(source: Broadcast, cues: TheaterCues?, palette: TeamPalette, kits: TheaterKits?, facts: PitchFacts, names: SoccerStatus.Names,
+         added: SoccerAddedTime?, eventID: String, people: [String: TheaterPerson], heard: Date?) {
+        self.source = source
+        self.cues = cues
+        self.palette = palette
+        self.kits = kits
+        self.facts = facts
+        self.names = names
+        self.added = added
+        self.eventID = eventID
+        self.people = people
+        self.heard = heard
+        let flipped = AppStorage(wrappedValue: false, TheaterOrientation.key(eventID))
+        _flipped = flipped
+        var turned = facts
+        turned.flipped = flipped.wrappedValue
+        _director = State(initialValue: TheaterDirector(facts: turned))
+    }
+
+    private var seen: Bool { geometry.map { $0.contentVisibility(sectionID(.liveView)).map { !$0.isHidden } ?? true } ?? true }
+
+    private var turned: PitchFacts {
+        var f = facts
+        f.flipped = flipped
+        return f
+    }
+
+    var body: some View {
+        let ink = TheaterInk(scheme)
+        let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: (names.top, names.bottom))
+        GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                TheaterFrames(director: director, running: seen && !reduceMotion) { wall in
+                    frame(at: wall, size: geo.size, ink: ink, labels: labels)
+                }
+                .accessibilityHidden(true)
+                TheaterHeartbeat(updated: heard, source: "ESPN")
+                    .padding(7)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                TheaterFlipButton(eventID: eventID, surface: "pitch")
+                    .padding(7)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .opacity(hovering ? 1 : 0)
+                    .animation(Motion.fade, value: hovering)
+            }
+            .onContinuousHover(coordinateSpace: .local) { phase in
+                let id: String?
+                switch phase {
+                case let .active(location): id = shown.member(at: location)
+                case .ended: id = nil
+                }
+                if id != pointer.over { pointer.move(to: id, at: .now) }
+            }
+        }
+        .modifier(HalfHeight(cap: SoccerStage.maxHeight))
+        .vizWell(padding: 0)
+        .onHover { hovering = $0 }
+        .theaterFading(pointer, $fading)
+        .directed(director, source: source, facts: turned, seen: seen, cues: cues)
+    }
+
+    @ViewBuilder
+    private func frame(at wall: PTime, size: CGSize, ink: TheaterInk, labels: TheaterLabels) -> some View {
+        let chain = director.chain
+        if let T = director.time(at: wall), let drawn = sampled(chain, at: T, size: size) {
+            let teams = teams(drawn.clip.attacking)
+            let status = status(drawn)
+            let cast = cast(chain)
+            let tags = TheaterTags(cast: cast, labels: labels, pointer: pointer, at: Date(timeIntervalSince1970: wall), reduceMotion: reduceMotion,
+                                   status: status.tag, flip: hovering)
+            let _ = spots(drawn.world, size: size)
+            let _ = report(wall: wall, T: T, drawn)
+            ZStack(alignment: .topLeading) {
+                SoccerFrame(scene: drawn.clip.scene, script: drawn.clip.script, t: drawn.t, teams: teams, ink: ink, size: size, tags: tags, world: drawn.world)
+                    .equatable()
+                TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
+            }
+        }
+    }
+
+    private func sampled(_ chain: PlanChain<PitchClip>, at T: PTime, size: CGSize) -> (clip: PitchClip, t: Double, world: SoccerFrame.World)? {
+        chain.sample(T, into: scratch)
+        return PitchPainter.frame(chain, scratch, size: size)
+    }
+
+    /// The names: the clip in charge's own cast (the frame keys its figures by the clip's men).
+    private func cast(_ chain: PlanChain<PitchClip>) -> TheaterCast {
+        guard scratch.plan >= 0, scratch.plan < chain.plans.count else { return TheaterCast() }
+        let baked = chain.plans[scratch.plan]
+        guard let k = PitchPainter.charge(baked.plan, at: scratch.p) else { return TheaterCast() }
+        let p = baked.plan.placements[k]
+        return shown.cast(key: "\(baked.start)#\(k)|\(flipped)") {
+            if let scene = p.clip.scene {
+                return p.clip.script.cast(attacking: scene.side, lineups: facts.lineups.mapValues { $0.on(at: scene.clock) }, people: people,
+                                          key: scene.shooterCredit?.athlete, scope: "\(scene.id)|\(flipped)")
+            }
+            let idle = p.clip.idle
+            return p.clip.script.cast(attacking: p.clip.attacking, lineups: idle?.lineups ?? [:], people: people, key: idle.flatMap(SoccerScript.key),
+                                      scope: "idle|\(baked.start)#\(k)")
+        }
+    }
+
+    /// Each of the clip's men on screen, for the pointer.
+    private func spots(_ world: SoccerFrame.World, size: CGSize) {
+        let f = PitchProjection(size: size, camera: PitchFrame(camera: world.camera))
+        shown.update(world.figures.compactMap { i, w in
+            guard w.opacity > 0.01 else { return nil }
+            let lens = RigLens(f, at: w.at)
+            return (i, lens.origin, lens.height)
+        })
+    }
+
+    private func teams(_ side: GameDetail.Side) -> SoccerTeams {
+        let uniforms: (top: Uniform, bottom: Uniform)
+        if let kits {
+            let d = TheaterTeams.dress(kits, scheme: scheme)
+            uniforms = (d.top, d.bottom)
+        } else {
+            uniforms = (Uniform(TheaterTeams.solid(palette.top, scheme)), Uniform(TheaterTeams.solid(palette.bottom, scheme)))
+        }
+        return side == .top ? SoccerTeams(attacking: uniforms.top, defending: uniforms.bottom) : SoccerTeams(attacking: uniforms.bottom, defending: uniforms.top)
+    }
+
+    private func status(_ drawn: (clip: PitchClip, t: Double, world: SoccerFrame.World)) -> TheaterStatus {
+        var status: TheaterStatus
+        if let scene = drawn.clip.scene {
+            let banner = drawn.clip.script.banners.contains { drawn.t >= $0.at - 0.3 && drawn.t < $0.until + 0.3 }
+            status = banner || drawn.t >= drawn.clip.script.stamp ? TheaterStatus() : SoccerStatus.replay(scene, names: names)
+        } else if let idle = drawn.clip.idle {
+            status = SoccerStatus.idle(idle, t: drawn.t, names: names, added: nil)
+        } else {
+            status = TheaterStatus()
+        }
+        status.updated = heard
+        return status
+    }
+
+    private func report(wall: PTime, T: PTime, _ drawn: (clip: PitchClip, t: Double, world: SoccerFrame.World)) {
+        #if DEBUG
+        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id, clipTime: drawn.t, decisive: drawn.clip.decisive))
+        #endif
+    }
+}
+
 private struct HalfHeight: ViewModifier {
     let cap: CGFloat
 

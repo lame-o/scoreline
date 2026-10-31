@@ -958,10 +958,25 @@ struct FootballTheater: View {
     var bottomTeam = ""
     /// The box score's players, by athlete ID: the names over the credited men.
     var people: [String: TheaterPerson] = [:]
+    /// The page's broadcast: while it runs, the choreography engine tells the game (FootballDirectedStage) and the
+    /// scoring slides land with its plan (`cues`).
+    var source: Broadcast? = nil
+    var cues: TheaterCues? = nil
+    var facts: GridFacts? = nil
 
     var body: some View {
         let names = FootballStatus.Names(top: topTeam.isEmpty ? topName : topTeam, bottom: bottomTeam.isEmpty ? bottomName : bottomTeam,
                                          topColor: kits?.top.color, bottomColor: kits?.bottom.color)
+        if let source, source.active, let facts {
+            FootballDirectedStage(source: source, cues: cues, palette: palette, kits: kits, facts: facts, topName: topName, bottomName: bottomName,
+                                  names: names, situation: situation, timeouts: timeouts, eventID: eventID ?? "football", people: people,
+                                  heard: feed?.theater.heard)
+        } else {
+            stage(names)
+        }
+    }
+
+    private func stage(_ names: FootballStatus.Names) -> some View {
         FootballStage(state: feed?.theater ?? preloaded ?? FootballTheaterState(), rest: rest, restOffense: restOffense, situation: situation,
                       timeouts: timeouts, palette: palette, kits: kits, topName: topName, bottomName: bottomName, names: names,
                       eventID: eventID ?? "football", people: people)
@@ -1414,7 +1429,6 @@ private struct FootballStage: View {
             return (script.players[i].position(at: u), i < script.rig.count ? script.rig[i].motion(at: u).heading : 0)
         })
         bridge = Bridge(id: scene.id, came: now, plan: plan, idle: shown.idle, script: shown.script, since: idleClock.since, tracks: tracks)
-        TheaterDelays.note(scene.id, plan.delay)
         replay = Replay(id: scene.id, start: now.addingTimeInterval(plan.delay))
     }
 
@@ -1742,6 +1756,187 @@ struct FootballCelebrationStage: View {
         }
         .frame(width: size.width, height: size.height)
         .accessibilityHidden(true)
+    }
+}
+
+// MARK: - On the director (CHOREOGRAPHY Phase 0)
+
+/// The football theater on the choreography engine, while the page
+/// broadcasts the game: each snap told at its anchor on the broadcast's
+/// clock, the field between snaps from where the last left everyone, every
+/// hand-off (a replay after another, a touchdown's try) a splice. Over the
+/// field, as today: the broadcast tag, the heartbeat, the names, the turn.
+private struct FootballDirectedStage: View {
+    let source: Broadcast
+    let cues: TheaterCues?
+    let palette: TeamPalette
+    let kits: TheaterKits?
+    let facts: GridFacts
+    let topName: String
+    let bottomName: String
+    let names: FootballStatus.Names
+    let situation: String?
+    let timeouts: (top: Int?, bottom: Int?)
+    let eventID: String
+    let people: [String: TheaterPerson]
+    let heard: Date?
+    @AppStorage private var flipped: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.pageGeometry) private var geometry
+    #if DEBUG
+    @Environment(\.theaterFrameProbe) private var probe
+    #endif
+    @State private var director: TheaterDirector<GridSport>
+    @State private var scratch = FrameScratch()
+    @State private var shown = DirectedFrame()
+    @State private var hovering = false
+    @State private var pointer = TheaterPointer()
+    @State private var fading = false
+
+    init(source: Broadcast, cues: TheaterCues?, palette: TeamPalette, kits: TheaterKits?, facts: GridFacts, topName: String, bottomName: String,
+         names: FootballStatus.Names, situation: String?, timeouts: (top: Int?, bottom: Int?), eventID: String, people: [String: TheaterPerson],
+         heard: Date?) {
+        self.source = source
+        self.cues = cues
+        self.palette = palette
+        self.kits = kits
+        self.facts = facts
+        self.topName = topName
+        self.bottomName = bottomName
+        self.names = names
+        self.situation = situation
+        self.timeouts = timeouts
+        self.eventID = eventID
+        self.people = people
+        self.heard = heard
+        let flipped = AppStorage(wrappedValue: false, TheaterOrientation.key(eventID))
+        _flipped = flipped
+        var turned = facts
+        turned.flipped = flipped.wrappedValue
+        _director = State(initialValue: TheaterDirector(facts: turned))
+    }
+
+    private var seen: Bool { geometry.map { $0.contentVisibility(sectionID(.liveView)).map { !$0.isHidden } ?? true } ?? true }
+
+    private var turned: GridFacts {
+        var f = facts
+        f.flipped = flipped
+        return f
+    }
+
+    var body: some View {
+        let ink = TheaterInk(scheme)
+        let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: (names.top, names.bottom))
+        GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                TheaterFrames(director: director, running: seen && !reduceMotion) { wall in
+                    frame(at: wall, size: geo.size, ink: ink, labels: labels)
+                }
+                .accessibilityHidden(true)
+                TheaterHeartbeat(updated: heard, source: "ESPN")
+                    .padding(7)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                TheaterFlipButton(eventID: eventID, surface: "field")
+                    .padding(7)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .opacity(hovering ? 1 : 0)
+                    .animation(Motion.fade, value: hovering)
+            }
+            .onContinuousHover(coordinateSpace: .local) { phase in
+                let id: String?
+                switch phase {
+                case let .active(location): id = shown.member(at: location)
+                case .ended: id = nil
+                }
+                if id != pointer.over { pointer.move(to: id, at: .now) }
+            }
+        }
+        .modifier(WellHeight(cap: FootballStage.maxHeight))
+        .vizWell(padding: 0)
+        .onHover { hovering = $0 }
+        .theaterFading(pointer, $fading)
+        .directed(director, source: source, facts: turned, seen: seen, cues: cues)
+    }
+
+    @ViewBuilder
+    private func frame(at wall: PTime, size: CGSize, ink: TheaterInk, labels: TheaterLabels) -> some View {
+        let chain = director.chain
+        if let T = director.time(at: wall), let drawn = sampled(chain, at: T, size: size) {
+            let offense = drawn.clip.offense
+            let teams = teams(offense)
+            let status = status(drawn)
+            let cast = cast(chain)
+            let tags = TheaterTags(cast: cast, labels: labels, pointer: pointer, at: Date(timeIntervalSince1970: wall), reduceMotion: reduceMotion,
+                                   status: status.tag, flip: hovering)
+            let _ = spots(drawn.world, size: size)
+            let _ = report(wall: wall, T: T, drawn)
+            ZStack(alignment: .topLeading) {
+                FootballFrame(scene: drawn.clip.scene, script: drawn.clip.script, t: drawn.t, teams: teams, ink: ink, size: size, zones: zones(offense),
+                              tags: tags, world: drawn.world)
+                    .equatable()
+                TheaterStatusTag(status: status, height: size.height).padding(.top, 8)
+            }
+        }
+    }
+
+    private func sampled(_ chain: PlanChain<GridClip>, at T: PTime, size: CGSize) -> (clip: GridClip, t: Double, world: FootballFrame.World)? {
+        chain.sample(T, into: scratch)
+        return GridPainter.frame(chain, scratch, size: size)
+    }
+
+    /// The names: the clip in charge's cast, as the engine's men play it.
+    private func cast(_ chain: PlanChain<GridClip>) -> TheaterCast {
+        guard scratch.plan >= 0, scratch.plan < chain.plans.count else { return TheaterCast() }
+        let plan = chain.plans[scratch.plan].plan
+        guard let k = GridPainter.charge(plan, at: scratch.p) else { return TheaterCast() }
+        let p = plan.placements[k]
+        return shown.cast(key: "\(chain.plans[scratch.plan].start)#\(k)|\(flipped)", cast: p.cast) {
+            p.clip.script.cast(p.clip.scene, offense: p.clip.offense, people: people, scope: p.play.map { "\($0)|\(flipped)" } ?? "idle")
+        }
+    }
+
+    private func spots(_ world: FootballFrame.World, size: CGSize) {
+        let f = GridProjection(size: size, camera: world.camera, yaw: world.yaw)
+        shown.update(world.figures.filter { $0.opacity > 0.01 }.map { w in
+            let lens = RigLens(f, at: w.at)
+            return (w.index, lens.origin, lens.height)
+        })
+    }
+
+    private func teams(_ offense: GameDetail.Side) -> FootballTeams {
+        let uniforms: (top: Uniform, bottom: Uniform)
+        if let kits {
+            let d = TheaterTeams.dress(kits, scheme: scheme)
+            uniforms = (d.top, d.bottom)
+        } else {
+            uniforms = (Uniform(TheaterTeams.solid(palette.top, scheme)), Uniform(TheaterTeams.solid(palette.bottom, scheme)))
+        }
+        return offense == .top ? FootballTeams(offense: uniforms.top, defense: uniforms.bottom) : FootballTeams(offense: uniforms.bottom, defense: uniforms.top)
+    }
+
+    private func zones(_ offense: GameDetail.Side) -> GridironLayer.Zones {
+        let top = GridironLayer.EndZone(color: TheaterTeams.solid(palette.top, scheme), name: topName.uppercased())
+        let bottom = GridironLayer.EndZone(color: TheaterTeams.solid(palette.bottom, scheme), name: bottomName.uppercased())
+        return offense == .top ? GridironLayer.Zones(near: top, far: bottom) : GridironLayer.Zones(near: bottom, far: top)
+    }
+
+    private func status(_ drawn: (clip: GridClip, t: Double, world: FootballFrame.World)) -> TheaterStatus {
+        if let scene = drawn.clip.scene {
+            let banner = drawn.clip.script.banner.map { drawn.t >= $0.at - 0.3 && drawn.t < $0.until + 0.3 } ?? false
+            return banner ? TheaterStatus(updated: heard) : FootballStatus.replay(scene, script: drawn.clip.script, t: drawn.t, names: names)
+        }
+        guard let idle = drawn.clip.idle else { return TheaterStatus(updated: heard) }
+        var status = FootballStatus.idle(idle, stoppage: nil, script: drawn.clip.script, t: drawn.t, names: names,
+                                         situation: situation, timeoutsLeft: timeouts)
+        status.updated = heard
+        return status
+    }
+
+    private func report(wall: PTime, T: PTime, _ drawn: (clip: GridClip, t: Double, world: FootballFrame.World)) {
+        #if DEBUG
+        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id, clipTime: drawn.t, decisive: drawn.clip.decisive))
+        #endif
     }
 }
 

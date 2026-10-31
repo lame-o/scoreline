@@ -79,6 +79,10 @@ struct ContinuityReport {
     var catchUps: [Double] = []
     var notes: [String] = []
     var overSpeedBySource: [String: Double] = [:]
+    /// By cause: seconds more than 12% over the sprint, the worst overspeed, seconds over the push limits.
+    var overSpeed12BySource: [String: Double] = [:]
+    var maxOverspeedBySource: [String: Double] = [:]
+    var overAccelBySource: [String: Double] = [:]
     var secondsBySource: [String: Double] = [:]
     /// The rig's own planted feet (§9.2's definition: the stride, before a pose blends it): max mm and frames over 0.5.
     var rigSlipMax = 0.0
@@ -141,6 +145,8 @@ struct ContinuityMeter {
                     report.overSpeedSeconds += dt
                     report.overSpeedBySource[f.source, default: 0] += dt
                     report.maxOverspeed = max(report.maxOverspeed, v / f.band.sprint - 1)
+                    report.maxOverspeedBySource[f.source] = max(report.maxOverspeedBySource[f.source] ?? 0, v / f.band.sprint - 1)
+                    if v > f.band.sprint * 1.12 { report.overSpeed12BySource[f.source, default: 0] += dt }
                 }
                 if let q = older[f.key], before?.change == .same || prev.change == .same {
                     let dt0 = prev.t - (before?.t ?? prev.t)
@@ -154,9 +160,11 @@ struct ContinuityMeter {
                             let across = simd_length(a - along * dir)
                             if along > f.band.accel * 1.001 || -along > f.band.decel * 1.001 || across > f.band.lateral * 1.001 {
                                 report.overAccelSeconds += dt
+                                report.overAccelBySource[f.source, default: 0] += dt
                             }
                         } else if simd_length(a) > max(f.band.accel, f.band.decel) * 1.001 {
                             report.overAccelSeconds += dt
+                            report.overAccelBySource[f.source, default: 0] += dt
                         }
                     }
                 }
@@ -244,8 +252,12 @@ extension ContinuityReport {
         lines.append("    footSlip (the rig's planted foot): max \(f(rigSlipMax, 2)) mm-eq, \(rigSlipFrames) foot-frames over 0.5 mm")
         lines.append("    footSlip (as drawn): max \(f(footSlipMax, 1)) mm-eq, \(footSlipFrames) foot-frames over 0.5 mm; across scene changes \(f(footSlipAcrossChanges, 1)) mm-eq")
         if !secondsBySource.isEmpty {
-            lines.append("    over the sprint cap by what moves him: " + secondsBySource.sorted { $0.key < $1.key }.map { k, v in
-                "\(k.isEmpty ? "?" : k) \(f((overSpeedBySource[k] ?? 0) / max(v, 1e-9) * 100))% of \(f(v / 60, 1)) actor-min" }.joined(separator: ", "))
+            lines.append("    by what moves him (share of all actor-seconds over the sprint / over +12% / over the push limits; his own seconds; worst):")
+            for (k, v) in secondsBySource.sorted(by: { ($0.value, $0.key) > ($1.value, $1.key) }) {
+                let all = max(actorSeconds, 1e-9)
+                lines.append("      \(k.isEmpty ? "?" : k): \(f((overSpeedBySource[k] ?? 0) / all * 100, 3))% / \(f((overSpeed12BySource[k] ?? 0) / all * 100, 3))% / "
+                             + "\(f((overAccelBySource[k] ?? 0) / all * 100, 3))%; \(f(v / 60, 1)) actor-min; max +\(f((maxOverspeedBySource[k] ?? 0) * 100, 0))%")
+            }
         }
         lines.append("    camera: max pan \(f(cameraPanMax, 3)) view-heights/frame, max yaw step \(f(cameraYawJumpMax, 2))°, max yaw speed \(f(yawSpeedMax, 1))°/s, jumps \(cameraJumps)")
         if !decisiveErrors.isEmpty {

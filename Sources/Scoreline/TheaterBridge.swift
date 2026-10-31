@@ -243,22 +243,3 @@ enum TheaterBridge {
         return moves[min(max(Int((Double(moves.count) * share).rounded(.up)) - 1, 0), moves.count - 1)]
     }
 }
-
-// MARK: - Delays
-
-/// How long each bridged replay's clock started after its play came in (the
-/// idle beat's last moment, the time added in front), by play: the scoring
-/// slide that lands with a replay's climax waits that much longer, so it
-/// still lands with it.
-@MainActor
-enum TheaterDelays {
-    private static var delays: [String: (delay: Double, noted: Date)] = [:]
-
-    static func note(_ id: String, _ delay: Double, at date: Date = .now) {
-        // A minute is long enough for any slide to have landed.
-        delays = delays.filter { date.timeIntervalSince($0.value.noted) < 60 }
-        delays[id] = delay > 0 ? (delay, date) : nil
-    }
-
-    static func delay(_ id: String) -> Double { delays[id]?.delay ?? 0 }
-}

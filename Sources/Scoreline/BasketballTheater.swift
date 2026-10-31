@@ -1047,8 +1047,24 @@ struct BasketballTheater: View {
     var period: Int? = nil
     /// The box score's players, by athlete ID: the names over the credited men.
     var people: [String: TheaterPerson] = [:]
+    /// The page's broadcast: while it runs, the choreography engine tells the game (BasketballDirectedStage) and
+    /// the scoring slides land with its plan (`cues`).
+    var source: Broadcast? = nil
+    var cues: TheaterCues? = nil
+    var teams: BasketballFeed.Teams? = nil
 
     var body: some View {
+        if let source, source.active, let teams {
+            BasketballDirectedStage(source: source, cues: cues, palette: palette, kits: kits, teams: teams,
+                                    homeName: topIsHome ? topName : bottomName,
+                                    names: (topTeam.isEmpty ? topName : topTeam, bottomTeam.isEmpty ? bottomName : bottomTeam), eventID: eventID,
+                                    people: people, heard: feed?.theater.heard)
+        } else {
+            stage
+        }
+    }
+
+    private var stage: some View {
         BasketballStage(state: feed?.theater ?? preloaded ?? BasketballTheaterState(), possession: feed?.possession ?? restOffense,
                         period: feed?.period ?? period, live: feed?.playing ?? false, palette: palette, kits: kits, topIsHome: topIsHome,
                         homeName: topIsHome ? topName : bottomName,
@@ -1395,7 +1411,6 @@ private struct BasketballStage: View {
                     return (replay.players[i].position(at: u), i < replay.rig.count ? replay.rig[i].motion(at: u).heading : 0)
                 })
                 bridge = Bridge(id: unit.scene.id, came: date, plan: plan, script: rest, since: resting.start, tracks: tracks)
-                TheaterDelays.note(unit.scene.id, plan.delay)
                 start = date.addingTimeInterval(plan.delay)
             }
             showing = Showing(unit: unit, from: unit.marquee ? nil : from, fallback: fallback, start: start, done: reduceMotion)
@@ -1514,6 +1529,200 @@ private struct HoopsWellHeight: ViewModifier {
 
     func body(content: Content) -> some View {
         TheaterWell(cap: cap) { content }
+    }
+}
+
+// MARK: - On the director (CHOREOGRAPHY Phase 0)
+
+/// The basketball theater on the choreography engine, while the page
+/// broadcasts the game: the broadcast's timeline and clock say what's told
+/// and when; the director places today's scripts at their plays' anchors and
+/// splices every hand-off (nothing cuts, nothing crossfades); frames come at
+/// the plan's tiers on the theater's time, only while the Live View is seen.
+/// Over the court, as today: the broadcast tag, the heartbeat, the names over
+/// the men, the court's turn on hover, a marquee's celebration.
+private struct BasketballDirectedStage: View {
+    let source: Broadcast
+    let cues: TheaterCues?
+    let palette: TeamPalette
+    let kits: TheaterKits?
+    let teams: BasketballFeed.Teams
+    let homeName: String
+    let names: (top: String, bottom: String)
+    let eventID: String
+    let people: [String: TheaterPerson]
+    let heard: Date?
+    @AppStorage private var flipped: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.pageGeometry) private var geometry
+    #if DEBUG
+    @Environment(\.theaterFrameProbe) private var probe
+    #endif
+    @State private var director: TheaterDirector<HoopsSport>
+    /// The frame's buffers, refilled every frame and never observed.
+    @State private var scratch = FrameScratch()
+    /// The frame on screen, for the pointer (never observed).
+    @State private var shown = DirectedFrame()
+    @State private var hovering = false
+    @State private var pointer = TheaterPointer()
+    @State private var fading = false
+
+    init(source: Broadcast, cues: TheaterCues?, palette: TeamPalette, kits: TheaterKits?, teams: BasketballFeed.Teams, homeName: String,
+         names: (top: String, bottom: String), eventID: String, people: [String: TheaterPerson], heard: Date?) {
+        self.source = source
+        self.cues = cues
+        self.palette = palette
+        self.kits = kits
+        self.teams = teams
+        self.homeName = homeName
+        self.names = names
+        self.eventID = eventID
+        self.people = people
+        self.heard = heard
+        let flipped = AppStorage(wrappedValue: false, TheaterOrientation.key(eventID))
+        _flipped = flipped
+        _director = State(initialValue: TheaterDirector(facts: Self.facts(teams, flipped: flipped.wrappedValue)))
+    }
+
+    static func facts(_ teams: BasketballFeed.Teams, flipped: Bool) -> HoopsFacts {
+        HoopsFacts(topIsHome: teams.topIsHome, flipped: flipped, topID: teams.topID, bottomID: teams.bottomID, topName: teams.topName,
+                   bottomName: teams.bottomName)
+    }
+
+    /// The Live View on screen: scrolled away or folded, no frames are drawn (the plan carries on).
+    private var seen: Bool { geometry.map { $0.contentVisibility(sectionID(.liveView)).map { !$0.isHidden } ?? true } ?? true }
+
+    var body: some View {
+        let ink = TheaterInk(scheme)
+        let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: names)
+        GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                TheaterFrames(director: director, running: seen && !reduceMotion) { wall in
+                    frame(at: wall, size: geo.size, ink: ink, labels: labels)
+                }
+                .accessibilityHidden(true)
+                TheaterHeartbeat(updated: heard, source: "ESPN")
+                    .padding(7)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                TheaterFlipButton(eventID: eventID, surface: "court")
+                    .padding(7)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .opacity(hovering ? 1 : 0)
+                    .animation(Motion.fade, value: hovering)
+            }
+            .onContinuousHover(coordinateSpace: .local) { phase in
+                let id: String?
+                switch phase {
+                case let .active(location): id = shown.member(at: location)
+                case .ended: id = nil
+                }
+                if id != pointer.over { pointer.move(to: id, at: .now) }
+            }
+        }
+        .modifier(HoopsWellHeight(cap: BasketballStage.maxHeight))
+        .vizWell(padding: 0)
+        .onHover { hovering = $0 }
+        .theaterFading(pointer, $fading)
+        .directed(director, source: source, facts: Self.facts(teams, flipped: flipped), seen: seen, cues: cues)
+    }
+
+    /// One frame at a wall time: the theater's time from the clock, the chain sampled into the scratch, today's frame drawing the world.
+    @ViewBuilder
+    private func frame(at wall: PTime, size: CGSize, ink: TheaterInk, labels: TheaterLabels) -> some View {
+        let chain = director.chain
+        if let T = director.time(at: wall), let drawn = sampled(chain, at: T, size: size) {
+            let dressed = dressed(drawn.clip.script.side ?? .top)
+            let status = status(drawn)
+            let cast = cast(chain)
+            let tags = TheaterTags(cast: cast, labels: labels, pointer: pointer, at: Date(timeIntervalSince1970: wall), reduceMotion: reduceMotion,
+                                   status: status.tag, flip: hovering, heartbeat: .trailing)
+            let _ = spots(drawn.world, size: size)
+            let _ = report(wall: wall, T: T, drawn)
+            ZStack(alignment: .topLeading) {
+                BasketballFrame(scene: drawn.clip.scene, script: drawn.clip.script, t: drawn.t, teams: dressed, ink: ink, size: size, paint: paint,
+                                tags: tags, world: drawn.world)
+                    .equatable()
+                if drawn.clip.kind == .replay, let scene = drawn.clip.scene {
+                    BasketballCelebrationStage(play: scene, script: drawn.clip.script, size: size,
+                                               colors: (dressed.offense.accent, dressed.defense.accent),
+                                               start: Date(timeIntervalSince1970: wall - drawn.t))
+                        .id(scene.id)
+                }
+                TheaterStatusTag(status: status, height: size.height)
+                    .padding(.top, 8)
+            }
+        }
+    }
+
+    private func sampled(_ chain: PlanChain<HoopsClip>, at T: PTime, size: CGSize) -> (clip: HoopsClip, t: Double, world: BasketballFrame.World)? {
+        chain.sample(T, into: scratch)
+        return HoopsPainter.frame(chain, scratch, size: size)
+    }
+
+    /// The names: the clip in charge's cast, as the engine's men play it.
+    private func cast(_ chain: PlanChain<HoopsClip>) -> TheaterCast {
+        guard scratch.plan >= 0, scratch.plan < chain.plans.count else { return TheaterCast() }
+        let baked = chain.plans[scratch.plan]
+        guard let k = HoopsPainter.charge(baked.plan, at: scratch.p) else { return TheaterCast() }
+        let p = baked.plan.placements[k]
+        return shown.cast(key: "\(baked.start)#\(k)|\(flipped)", cast: p.cast) {
+            p.clip.script.cast(p.clip.scene, people: people, scope: "\(p.play ?? "rest")|\(flipped)")
+        }
+    }
+
+    /// Each man's spot on screen, for the pointer.
+    private func spots(_ world: BasketballFrame.World, size: CGSize) {
+        let h = HoopProjection(size: size, camera: world.camera, yaw: world.yaw)
+        shown.update(world.figures.filter { $0.opacity > 0.01 }.map { w in
+            let lens = RigLens(h, at: w.at)
+            return (w.index, lens.origin, lens.height)
+        })
+    }
+
+    private func dressed(_ offense: GameDetail.Side) -> BasketballTeams {
+        let uniforms: (top: Uniform, bottom: Uniform)
+        if let kits {
+            let d = TheaterTeams.dress(kits, scheme: scheme)
+            uniforms = (d.top, d.bottom)
+        } else {
+            uniforms = (Uniform(TheaterTeams.solid(palette.top, scheme)), Uniform(TheaterTeams.solid(palette.bottom, scheme)))
+        }
+        return offense == .top ? BasketballTeams(offense: uniforms.top, defense: uniforms.bottom)
+            : BasketballTeams(offense: uniforms.bottom, defense: uniforms.top)
+    }
+
+    /// The paint in the home team's color, its name at center court.
+    private var paint: HoopsCourtLayer.Paint {
+        HoopsCourtLayer.Paint(color: TheaterTeams.solid(teams.topIsHome ? palette.top : palette.bottom, scheme), name: homeName.uppercased())
+    }
+
+    /// What the tag says: the play being told (as today's stage words it), else the court between plays after the last.
+    private func status(_ drawn: (clip: HoopsClip, t: Double, world: BasketballFrame.World)) -> TheaterStatus {
+        let said: (text: String, side: GameDetail.Side?)?
+        if let scene = drawn.clip.scene {
+            said = BasketballStatus.during(unit: BasketballQueue.Unit(scene: scene), script: drawn.clip.script, t: drawn.t, names: names)
+        } else {
+            said = BasketballStatus.between(context: context(), rest: drawn.clip.rest, names: names)
+        }
+        let side = said?.side
+        return TheaterStatus(tag: said?.text, tint: side.flatMap { $0 == .top ? kits?.top.color : kits?.bottom.color }, updated: heard)
+    }
+
+    /// The last play told before the court between plays on screen (the stoppage its tag keeps saying).
+    private func context() -> BasketballScene? {
+        let chain = director.chain
+        guard scratch.plan >= 0, scratch.plan < chain.plans.count else { return nil }
+        let plan = chain.plans[scratch.plan].plan
+        guard let k = HoopsPainter.charge(plan, at: scratch.p) else { return nil }
+        return plan.placements[...k].reversed().lazy.compactMap { $0.clip.scene }.first { $0.kind != .substitution }
+    }
+
+    /// What the frame drew, for the offscreen check.
+    private func report(wall: PTime, T: PTime, _ drawn: (clip: HoopsClip, t: Double, world: BasketballFrame.World)) {
+        #if DEBUG
+        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id, clipTime: drawn.t, decisive: drawn.clip.decisive))
+        #endif
     }
 }
 

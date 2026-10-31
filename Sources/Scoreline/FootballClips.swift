@@ -76,12 +76,35 @@ struct GridClip: TheaterClip, @unchecked Sendable {
             return ClipFigure(group: group, kind: p.key ?? "\(p.role)", athlete: script.credits[i].flatMap { $0.id ?? $0.name },
                               band: p.team == .official || p.team == .staff ? "official" : line.contains(p.role) ? "line" : "skill", height: 8.5)
         }
-        length = idle == nil ? script.duration : .infinity
-        still = idle == nil ? script.leadIn : 0
-        decisive = idle == nil ? Self.decisive(script) : nil
-        essential = idle == nil ? min(script.duration, (decisive ?? 0) + 1.2) : 0
-        paths = script.players.map { _ in nil }
+        let bands = script.players.map { p in
+            MotionLimits.football.band(p.team == .official || p.team == .staff ? "official" : [.line, .front].contains(p.role) ? "line" : "skill")
+        }
+        let paths = script.players.indices.map { i -> MotionPath? in
+            let p = script.players[i]
+            let contacts = p.actions.filter { [.catchHigh, .catchChest, .throwBall, .handoff, .kick, .tackle, .strip, .scoop].contains($0.kind) }
+            return ClipPaths.resynthesized(p.moves, contacts: contacts.map(\.at), band: bands[i], span: 0...max(script.duration, 0)) { p.position(at: $0) }
+        }
+        self.paths = paths
+        // A replay runs slower where anyone would outrun his legs, the ball's flights at their own pace (the field
+        // between snaps loops: it keeps its own time).
+        warp = ClipWarp.make(length: script.duration, need: { u in
+            var most = 1.0
+            for i in paths.indices {
+                guard let path = paths[i], script.players[i].opacity(at: u) > 0.05 else { continue }
+                let b = bands[i]
+                most = max(most, simd_length(path.velocity(at: u)) / (b.sprint * 0.97),
+                           (simd_length(path.acceleration(at: u)) / (min(b.accel, b.decel, b.lateral) * 0.97)).squareRoot())
+            }
+            return most
+        }, steady: { u in script.flight(at: u).map { $0.end - $0.start < 1.5 } ?? false }) ?? .identity
+        length = idle == nil ? (warp.isIdentity ? script.duration : warp.stretched) : .infinity
+        still = idle == nil ? warp.clip(script.leadIn) : 0
+        decisive = idle == nil ? Self.decisive(script).map(warp.clip) : nil
+        essential = idle == nil ? min(length, (decisive ?? 0) + 1.2) : 0
     }
+
+    /// A replay's own time stretched where it asked too much of anyone (ClipWarp).
+    let warp: ClipWarp
 
     /// The ball dead: the score, else the hit or the catch that ends it, else the incompletion's landing.
     static func decisive(_ s: FootballScript) -> Double? {
@@ -93,12 +116,23 @@ struct GridClip: TheaterClip, @unchecked Sendable {
     }
 
     /// An idle loops; a replay holds its end.
-    func local(_ t: Double) -> Double { idle == nil ? min(max(t, 0), script.duration) : script.idleTime(t) }
+    func local(_ t: Double) -> Double {
+        guard idle != nil else { return min(max(warp.script(t), 0), script.duration) }
+        // The field between snaps loops in its stretched time, then reads the script there.
+        guard let loop = script.loop, loop.period > 0 else { return warp.script(min(max(t, 0), warp.clip(script.duration))) }
+        let start = warp.clip(loop.start), period = warp.clip(loop.start + loop.period) - start
+        guard period > 0, t > start + period else { return warp.script(min(max(t, 0), warp.clip(script.duration))) }
+        return warp.script(start + (t - start).truncatingRemainder(dividingBy: period))
+    }
 
     var ambient: Bool { kind == .idle }
 
     func position(_ figure: Int, at t: Double) -> SIMD2<Double> {
-        GridWorld.point(script.players[figure].position(at: local(t)), right: right)
+        if let path = paths[figure] {
+            let p = path.position(at: local(t))
+            return GridWorld.point(CGPoint(x: p.x, y: p.y), right: right)
+        }
+        return GridWorld.point(script.players[figure].position(at: local(t)), right: right)
     }
 
     func heading(_ figure: Int, at t: Double) -> Double {
@@ -122,7 +156,7 @@ struct GridClip: TheaterClip, @unchecked Sendable {
 
     func moving(at t: Double) -> Bool {
         guard t >= 0 else { return false }
-        return idle == nil ? t <= script.duration : script.moving(at: script.idleTime(t))
+        return idle == nil ? t <= length : script.moving(at: local(t))
     }
 }
 
@@ -137,6 +171,24 @@ struct GridFacts: Equatable, Sendable {
     var awayAbbreviation = ""
     var homeName = ""
     var awayName = ""
+
+    init(topIsHome: Bool = false, flipped: Bool = false, topID: String? = nil, bottomID: String? = nil, homeAbbreviation: String = "",
+         awayAbbreviation: String = "", homeName: String = "", awayName: String = "") {
+        self.topIsHome = topIsHome
+        self.flipped = flipped
+        self.topID = topID
+        self.bottomID = bottomID
+        self.homeAbbreviation = homeAbbreviation
+        self.awayAbbreviation = awayAbbreviation
+        self.homeName = homeName
+        self.awayName = awayName
+    }
+
+    /// The page's teams (FootballFeed's).
+    init(_ teams: FootballFeed.Teams) {
+        self.init(topIsHome: teams.topIsHome, topID: teams.topID, bottomID: teams.bottomID, homeAbbreviation: teams.homeAbbreviation,
+                  awayAbbreviation: teams.awayAbbreviation, homeName: teams.homeName, awayName: teams.awayName)
+    }
 
     var teams: FootballFeed.Teams {
         var t = FootballFeed.Teams(topIsHome: topIsHome, topID: topID, bottomID: bottomID, homeAbbreviation: homeAbbreviation,
@@ -185,7 +237,7 @@ enum GridPlanner {
             let snap: Bool = if case .snap = p.play { true } else { false }
             var weight = snap ? 1.0 : 0.25
             if p.estimated { weight *= 0.25 }
-            return AnchorInput(id: p.id, period: p.period, eventTime: p.eventTime, bounds: nil, elapsed: p.clock.elapsed, live: snap,
+            return AnchorInput(id: p.id, period: p.period, eventTime: p.eventTime, bounds: p.eventBounds, elapsed: p.clock.elapsed, live: snap,
                                stopsClock: p.kind.stopsClock, weight: weight, gapAfter: snap ? 8 : 1, restartAfter: 1)
         }
     }

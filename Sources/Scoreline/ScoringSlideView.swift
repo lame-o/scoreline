@@ -174,8 +174,6 @@ final class ScoringSlides {
             }
             guard let head = line.first, let entry = entries[head.id] else { return }
             if var ready = entry.ready {
-                // A replay that bridged in from the field between plays started its clock that much later: still land with its climax.
-                if entry.follow { ready = ready + .seconds(TheaterDelays.delay(head.id)) }
                 if time < ready { await Self.sleep(until: ready); continue }
                 // A moment for its logo to decode, so it never arrives as a placeholder.
                 if !logoReady(head), time < ready + Self.logoWait {
