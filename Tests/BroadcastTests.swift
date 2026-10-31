@@ -760,6 +760,19 @@ extension ScorelineTests {
         let bbOrder = bb.told.filter { $0.told != .history && $0.told != .correction }.map(\.id)
         check(!bbOrder.isEmpty && bbOrder == bb.order.filter { bbOrder.contains($0) }, "baseball: pitches and results are told in order")
         let inning = bb.engine.presented(at: bb.engine.p(at: .infinity))
+        // MLB's own times joined to ESPN's plays (World Series Game 5: ESPN's plays and MLB's feed of the same game).
+        let g5 = broadcastFixture("ws-g5-plays.json")["items"].array
+        let espn = BroadcastLanes.entries(g5, sport: .baseball, policy: BroadcastLanes.policy(.baseball))
+        let plates = BroadcastLanes.plateTimes(statsapi: broadcastFixture("statcast-849799.json"))
+        let joined = BroadcastLanes.timed(espn, with: plates)
+        var gaps: [Double] = []
+        for (before, after) in zip(espn, joined) where after.reportedSource == .statsapi {
+            if let w = before.wallclock, let t = after.wallclock { gaps.append(w - t) }
+        }
+        check(gaps.count > 100 && abs(Stats.quantile(gaps, 0.5)) < 3 && gaps.allSatisfy { abs($0) < 60 },
+              "baseball: MLB's pitch times join ESPN's plays by half-inning and at-bat (ESPN trails by a second or so)",
+              "\(gaps.count) joined, p50 \(Stats.quantile(gaps, 0.5)), max \(gaps.map(abs).max() ?? 0)")
+        check(BroadcastLanes.timed(espn, with: [:]) == espn, "baseball: without MLB's feed, ESPN's times stand")
         check(inning.status(.baseball, regulationPeriods: 18).hasPrefix("Top") || inning.status(.baseball, regulationPeriods: 18).hasPrefix("Bot")
               || inning.status(.baseball, regulationPeriods: 18).hasPrefix("Mid") || inning.status(.baseball, regulationPeriods: 18).hasPrefix("End"),
               "baseball: the status is the half-inning", inning.status(.baseball, regulationPeriods: 18))

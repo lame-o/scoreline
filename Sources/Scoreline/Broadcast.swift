@@ -75,6 +75,8 @@ final class Broadcast: BroadcastTheaterSource {
     @ObservationIgnored private(set) var unsupported = false
     @ObservationIgnored private(set) var sport: BroadcastSport?
     @ObservationIgnored private(set) var path = ""
+    /// ESPN's event ID (MLB's feed is looked up by it).
+    @ObservationIgnored private var espnID = ""
     @ObservationIgnored private(set) var topIsHome = false
     @ObservationIgnored private var eventID: String?
     @ObservationIgnored private var rawState = EventState.scheduled
@@ -128,9 +130,10 @@ final class Broadcast: BroadcastTheaterSource {
     /// The page has its first load of a live game: start broadcasting it. A
     /// final, or a sport without a play-by-play, never starts (everything shows as today).
     func begin(_ event: Event, topIsHome: Bool) {
-        guard !active, !unsupported, event.state == .live, let sport = Self.sport(of: event), case let .espn(path, _, _)? = event.ref else { return }
+        guard !active, !unsupported, event.state == .live, let sport = Self.sport(of: event), case let .espn(path, id, _)? = event.ref else { return }
         self.sport = sport
         self.path = path
+        espnID = id
         self.topIsHome = topIsHome
         eventID = event.id
         rawState = event.state
@@ -169,7 +172,7 @@ final class Broadcast: BroadcastTheaterSource {
                 end()
                 return
             }
-            engine.ingest(LaneSnapshot(lane: .summary, entries: entries, coverage: .full, arrived: now))
+            engine.ingest(LaneSnapshot(lane: .summary, entries: mlbTimed(entries), coverage: .full, arrived: now))
             // The tables are as of the summary's newest play.
             let watermark = entries.compactMap(\.wallclock).max() ?? now
             tables.append((watermark, detail))
@@ -183,10 +186,17 @@ final class Broadcast: BroadcastTheaterSource {
     func ingest(core items: [JSON], at arrived: PTime? = nil) {
         guard active, var engine, let sport else { return }
         let now = arrived ?? time.now()
-        let entries = BroadcastLanes.entries(items, sport: sport, policy: engine.policy)
+        let entries = mlbTimed(BroadcastLanes.entries(items, sport: sport, policy: engine.policy))
         engine.ingest(LaneSnapshot(lane: .core, entries: entries, coverage: .tail, arrived: now))
         self.engine = engine
         step(now: now)
+    }
+
+    /// Baseball: ESPN's plays with MLB's own times, from the at-bats the page's Statcast store has.
+    private func mlbTimed(_ entries: [TimelineEntry<RawPlay>]) -> [TimelineEntry<RawPlay>] {
+        guard sport == .baseball, path == "baseball/mlb" else { return entries }
+        let atBats = StatcastStore.shared.cached(espnEvent: espnID)
+        return atBats.isEmpty ? entries : BroadcastLanes.timed(entries, with: BroadcastLanes.plateTimes(atBats))
     }
 
     /// A slow lane was read and had nothing new (the situation's last play hadn't changed).
