@@ -22,6 +22,7 @@ enum BroadcastBench {
     struct Report {
         var label = ""
         var snapshots = 0
+        var lanes = ""
         var minutes = 0.0
         var delays: [(t: PTime, actual: Double, target: Double)] = []
         var lags: [String: [Double]] = [:]
@@ -108,7 +109,7 @@ enum BroadcastBench {
         var all: [String: [Report]] = [:]
         for (sport, event) in games {
             let recording = Recording.load(root: root, sport: sport, event: event)
-            guard recording.snapshots.count >= 3, let report = run(recording, recorder: recorder, trace: trace) else {
+            guard recording.snapshots.count + recording.core.count >= 3, let report = run(recording, recorder: recorder, trace: trace) else {
                 print("\n== \(sport) \(event): too little recorded (\(recording.snapshots.count) snapshots)")
                 continue
             }
@@ -152,10 +153,11 @@ enum BroadcastBench {
         let cadence = recorder ? RecordingReplay.Cadence.recorder : .app(policy)
         var report = Report()
         report.label = "\(recording.sportDirectory) \(recording.event)"
-        report.snapshots = recording.snapshots.count
-        if let first = recording.snapshots.first, let last = recording.snapshots.last {
-            report.minutes = (last.arrived - first.arrived) / 60
-        }
+        report.snapshots = recording.snapshots.count + recording.core.count
+        report.lanes = [recording.snapshots.isEmpty ? nil : "\(recording.snapshots.count) summaries",
+                        recording.core.isEmpty ? nil : "\(recording.core.count) core looks",
+                        recording.status.isEmpty ? "status from the scoreboard" : "\(recording.status.count) status rows"].compactMap { $0 }.joined(separator: ", ")
+        if let span = recording.span { report.minutes = (span.upperBound - span.lowerBound) / 60 }
         // The scoreboard's first sighting of each score, and when the app (polling it every 30 s) would have shown it.
         var boardFirst: [ScoreLine: PTime] = [:]
         for row in recording.rows {
@@ -164,7 +166,7 @@ enum BroadcastBench {
             let score = ScoreLine(home: home, away: away)
             if boardFirst[score] == nil { boardFirst[score] = at }
         }
-        let start = recording.snapshots.first?.arrived ?? 0
+        let start = recording.span?.lowerBound ?? 0
         var nextSample = start
         var lastScore: ScoreLine?
         var newestLiveBefore: PTime?
@@ -270,7 +272,7 @@ enum BroadcastBench {
         let quantiles = [0.80, 0.85, 0.90, 0.95], horizons = [2.0, 3.0, 4.0, 6.0]
         let bySport = Dictionary(grouping: games, by: \.0)
         for (sport, list) in bySport.sorted(by: { $0.key < $1.key }) {
-            let recordings = list.map { Recording.load(root: root, sport: $0.0, event: $0.1) }.filter { $0.snapshots.count >= 3 }
+            let recordings = list.map { Recording.load(root: root, sport: $0.0, event: $0.1) }.filter { $0.snapshots.count + $0.core.count >= 3 }
             guard let first = recordings.first, let kind = first.sport else { continue }
             print("\n== \(sport): \(recordings.count) games, the app's cadence; margin \(BroadcastLanes.policy(kind, path: first.path).margin) s")
             print("   q   horizon |  D p50  D p90 | added vs page p50  p90 | after bind  micro≤1.5s  beyond  corrections | stalls/h")
@@ -352,7 +354,7 @@ enum BroadcastBench {
     }
 
     static func render(_ r: Report) -> String {
-        var lines = ["", "== \(r.label): \(r.snapshots) snapshots over \(Int(r.minutes.rounded())) min"]
+        var lines = ["", "== \(r.label): \(r.snapshots) looks over \(Int(r.minutes.rounded())) min" + (r.lanes.isEmpty ? "" : " (\(r.lanes))")]
         let actual = r.delays.map(\.actual).filter(\.isFinite), target = r.delays.map(\.target)
         lines.append("  D actual: \(summary(actual))")
         lines.append("  D target: \(summary(target))")

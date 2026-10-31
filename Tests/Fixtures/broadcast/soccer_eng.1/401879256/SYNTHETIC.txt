@@ -1,0 +1,1 @@
+Synthetic arrival over real entries: Villa v City (401879256) core plays from Tests/Fixtures, each arriving 28-40 s after its wallclock, written as the recorder writes soccer's core lane (pages of 20 here, 100 there) and status.jsonl. Tests the loader's format; measures nothing.

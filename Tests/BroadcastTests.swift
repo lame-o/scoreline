@@ -28,6 +28,8 @@ extension ScorelineTests {
         broadcastSports()
         print("\nBroadcast: a shown score never steps back")
         broadcastFloor()
+        print("\nBroadcast: the recorder's status and core lanes")
+        broadcastRecorderLanes()
     }
 
     // MARK: Helpers
@@ -877,3 +879,46 @@ extension ScorelineTests {
     }
 }
 
+
+// MARK: - The recorder's newer lanes
+
+extension ScorelineTests {
+    /// `status.jsonl` (the core status, each change) and soccer's `core/`
+    /// looks (`{count, offset, items}`), on the synthetic Villa v City fixture
+    /// (real entries, synthetic arrival; Tests/Fixtures/broadcast/soccer_eng.1).
+    static func broadcastRecorderLanes() {
+        // A status row reads as the app reads the core status.
+        let row = JSON(["at": 100, "clock": 252.0, "displayClock": "4:12", "period": 3, "state": "in", "detail": "4:12 - 3rd Quarter"] as [String: Any])
+        let nba = BroadcastLanes.policy(.basketball, path: NBADetail.path)
+        let reading = BroadcastLanes.reading(status: Recording.status(row), policy: nba, previous: nil, at: 100)
+        check(reading?.elapsed == 720 - 252 && reading?.period == 3 && reading?.state == .live && reading?.source == "status",
+              "a status.jsonl row reads as the core status (clock, period, state)")
+        let end = JSON(["at": 200, "clock": 0.0, "displayClock": "0.0", "period": 3, "state": "in", "detail": "End of 3rd Quarter"] as [String: Any])
+        check(BroadcastLanes.reading(status: Recording.status(end), policy: nba, previous: reading, at: 200)?.state == .interval,
+              "…and an end of period reads as an interval")
+
+        let root = URL(fileURLWithPath: "Tests/Fixtures/broadcast")
+        let recording = Recording.load(root: root, sport: "soccer_eng.1", event: "401879256", settle: 0)
+        check(recording.core.count > 40 && recording.status.count > 40 && recording.snapshots.isEmpty,
+              "the loader reads soccer's core looks and status rows", "\(recording.core.count) core, \(recording.status.count) status")
+        guard let first = recording.core.first, let look = recording.coreLook(first) else { return check(false, "a core look decompresses") }
+        check(look["count"].int != nil && look["offset"].int != nil && !look["items"].array.isEmpty, "a core look is {count, offset, items}")
+        guard var replay = RecordingReplay(recording) else { return check(false, "the soccer recording replays") }
+        var told: [GameTimeline<RawPlay>.Record] = []
+        var statusReadings = 0
+        replay.run(.app(replay.policy)) { replay, _, step, _ in
+            told += step.told
+            statusReadings = replay.engine.timeline.fast.readings.filter { $0.source == "status" }.count
+        }
+        let timeline = replay.engine.timeline
+        let onTime = told.filter { $0.told == .onTime || $0.told == .late }.map(\.id)
+        let order = timeline.records.map(\.id)
+        check(onTime.count > 30 && onTime == order.filter { onTime.contains($0) }, "soccer's core lane: entries told in the feed's order",
+              "\(onTime.count) told")
+        check(timeline.records.contains { $0.entry.payload.json["scoringPlay"].bool == true && $0.isTold }
+              && timeline.presentedScore(at: .infinity).map { $0.home + $0.away >= 1 } == true, "the goal is told, with its score")
+        check(statusReadings > 20, "the status lane comes from status.jsonl", "\(statusReadings)")
+        // Revisions and removals across looks merge by ID, the newest version winning.
+        check(timeline.records.allSatisfy { r in r.entry.wallclock != nil }, "every entry keeps its wallclock across looks")
+    }
+}
