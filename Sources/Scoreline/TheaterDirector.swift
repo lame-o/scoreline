@@ -240,6 +240,13 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
 
 // MARK: - The director
 
+#if DEBUG
+/// Plans in flight across every director (the offscreen check waits on it: folded, the court draws no frames to say so).
+@MainActor enum TheaterDebug {
+    static var planning = 0
+}
+#endif
+
 /// The game page's theater director (one per page, main actor, event-driven):
 /// only `chain` is observed, and it changes only on a splice.
 @MainActor @Observable
@@ -311,8 +318,14 @@ final class TheaterDirector<Sport: TheaterSport> {
         }
         guard var request = session.request(now: now(), lead: lead) else { return }
         request.light = !visible
+        #if DEBUG
+        TheaterDebug.planning += 1
+        #endif
         baking = Task { [weak self] in
             let made = await Self.make(request)
+            #if DEBUG
+            TheaterDebug.planning -= 1
+            #endif
             guard let self, !Task.isCancelled else { return }
             self.baking = nil
             if self.session.accept(made.0, nextID: made.nextID, now: self.now()) {
