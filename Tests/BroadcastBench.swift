@@ -71,6 +71,10 @@ enum BroadcastBench {
         var holes = 0
         var holeMinutes = 0.0
         var afterOutage = 0
+        /// Inside a hole and the 300 s after it (our own outage and its recovery): the jumps
+        /// and stalls there, kept apart from the feed's (D samples and score delays there are left out).
+        var outageJumps: [Double] = []
+        var outageStalls = 0
     }
 
     /// How a live-ball play's arrival met its binding horizon (late binding, CHOREOGRAPHY §4.6).
@@ -180,6 +184,9 @@ enum BroadcastBench {
                         recording.status.isEmpty ? "status from the scoreboard" : "\(recording.status.count) status rows"].compactMap { $0 }.joined(separator: ", ")
         if let span = recording.span { report.minutes = (span.upperBound - span.lowerBound) / 60 }
         report.decisive = policy.decisive
+        // Our own outages and their recovery: the feed's numbers leave them out.
+        let outageWindows = replay.holes.map { $0.range.lowerBound...($0.range.upperBound + 300) }
+        func ours(_ t: PTime) -> Bool { outageWindows.contains { $0.contains(t) } }
         report.holes = replay.holes.count
         report.holeMinutes = replay.holes.reduce(0) { $0 + ($1.range.upperBound - $1.range.lowerBound) } / 60
         // Today's page shows a lane's score while it's ahead (football, baseball, basketball);
@@ -239,12 +246,17 @@ enum BroadcastBench {
             for event in step.events {
                 switch event {
                 case .stall(let at, _): stallSince = at
+                case .resume(let at, let held) where ours(at - held):
+                    report.outageStalls += 1
+                    stallSince = nil
                 case .resume(let at, let held):
                     report.stalls.append(held)
                     if stallSince == nil { stallSince = at - held }
                     stallSince = nil
                     if held >= 30 { recovering = (at, engine.clock.delay(at: at) - engine.clock.target) }
                 case let .skip(_, from, to): report.skips.append(to - from)
+                case let .jump(at, from, to) where ours(at):
+                    report.outageJumps.append(to - from)
                 case let .jump(_, from, to):
                     report.jumps += 1
                     report.jumpLengths.append(to - from)
@@ -284,7 +296,7 @@ enum BroadcastBench {
                 }
                 if let score = record.entry.score, score != lastScore {
                     // A new score (not a reversal): against the scoreboard, today's page and the real moment.
-                    if let last = lastScore, score.home + score.away > last.home + last.away, let board = boardFirst[score] {
+                    if let last = lastScore, score.home + score.away > last.home + last.away, let board = boardFirst[score], !ours(t) {
                         report.added.append(t - board)
                         // Today's app: the scoreboard at its next 30-s poll, or the play's own lane, whichever came first.
                         let appBoard = start + ((board - start) / policy.scoreboardPoll).rounded(.up) * policy.scoreboardPoll
@@ -301,7 +313,7 @@ enum BroadcastBench {
                 }
             }
             while nextSample <= t {
-                report.delays.append((nextSample, engine.clock.delay(at: nextSample), engine.clock.target))
+                if !ours(nextSample) { report.delays.append((nextSample, engine.clock.delay(at: nextSample), engine.clock.target)) }
                 nextSample += 60
             }
             report.fastLag = timeline.fast.lag
@@ -429,6 +441,8 @@ enum BroadcastBench {
             r.holes += x.holes
             r.holeMinutes += x.holeMinutes
             r.afterOutage += x.afterOutage
+            r.outageJumps += x.outageJumps
+            r.outageStalls += x.outageStalls
             r.recoveries += x.recoveries
         }
         return r
@@ -488,6 +502,9 @@ enum BroadcastBench {
         if r.holes > 0 {
             lines.append(String(format: "  the recorder's holes: %d, %.0f min in all (nothing read in them); live-ball plays landing after one, left out of lag and binding: %d",
                                 r.holes, r.holeMinutes, r.afterOutage))
+            lines.append("    inside them and 300 s after (left out of D, stalls, jumps and score delays): "
+                + "jumps " + (r.outageJumps.isEmpty ? "none" : r.outageJumps.map { String(format: "%.0f s", $0) }.joined(separator: ", "))
+                + ", stalls \(r.outageStalls)")
         }
         if !r.scoring.isEmpty {
             lines.append("  scoring plays told: " + r.scoring.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))

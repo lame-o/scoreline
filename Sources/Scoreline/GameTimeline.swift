@@ -491,6 +491,9 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     private(set) var anchors: [String: PTime] = [:]
     /// When each slow lane was last read successfully, changed or not.
     private var lastRead: [LaneID: PTime] = [:]
+    /// After our own outage, the next reads' new plays waited on us too, until here
+    /// (the first read back may find nothing new, and the batch comes a read later).
+    private var outageUntil: PTime = -.infinity
     /// The gaps between the slow lane's reads (any lane), newest last.
     private var readGaps: [Double] = []
     /// Told plays since removed: one that flickers back isn't told again.
@@ -650,6 +653,7 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
 
     /// A slow lane was read and had nothing new: it's fresh as of `now`.
     mutating func noteRead(_ lane: LaneID, at now: PTime) {
+        if outage(lane, at: now) { outageUntil = now + max(15, 2 * readInterval) }
         if let last = lastRead.values.max(), now > last + 0.05 {
             readGaps.append(now - last)
             if readGaps.count > 24 { readGaps.removeFirst(readGaps.count - 24) }
@@ -659,6 +663,12 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
 
     /// When a slow lane was last read.
     var lastReadAt: PTime? { lastRead.values.max() }
+
+    /// Whether a read of `lane` at `now` comes after our own outage: unread for over
+    /// max(30 s, 3 reads), once the reading cadence is known.
+    private func outage(_ lane: LaneID, at now: PTime) -> Bool {
+        readGaps.count >= 3 && (lastRead[lane].map { now - $0 > max(30, 3 * readInterval) } ?? false)
+    }
 
     /// A look at a lane. The freshest lane wins each region of the game; what
     /// it has is diffed against what was known: new plays, revisions (by ID; a
@@ -674,8 +684,9 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     }
 
     private mutating func merge(_ snapshot: LaneSnapshot<Payload>) -> TimelineChange {
-        // This lane unread for longer than it should be (once its cadence is known): what it brings now waited on us.
-        let outage = readGaps.count >= 3 && (lastRead[snapshot.lane].map { snapshot.arrived - $0 > max(30, 3 * readInterval) } ?? false)
+        // This lane unread for longer than it should be (once its cadence is known), or just
+        // back from that: what it brings now waited on us.
+        let outage = self.outage(snapshot.lane, at: snapshot.arrived) || snapshot.arrived <= outageUntil
         noteRead(snapshot.lane, at: snapshot.arrived)
         let opening = opened == nil
         if opening { opened = snapshot.arrived }
