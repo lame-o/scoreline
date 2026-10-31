@@ -105,11 +105,15 @@ struct PlayKind: Hashable, Sendable {
     /// It opens or closes a delay (soccer's VAR checks, injury stoppages): the
     /// entries logged inside one carry its start's time but are decided at its end.
     var delay: Delay?
+    /// The ball is dead after it until the next entry (soccer: out, a foul, a
+    /// corner or free kick given, a goal, a card) though the game clock runs on:
+    /// nothing on screen moves there, so the clock may skip or hold in it.
+    var stopsPlay = false
 
     enum Delay: Hashable, Sendable { case opens, closes }
 
     init(_ phase: Phase, _ label: String, stopsClock: Bool = false, endsPeriod: Int? = nil, endsGame: Bool = false,
-         announced: Bool = false, delay: Delay? = nil) {
+         announced: Bool = false, delay: Delay? = nil, stopsPlay: Bool = false) {
         self.phase = phase
         self.label = label
         self.stopsClock = stopsClock || endsPeriod != nil
@@ -117,6 +121,7 @@ struct PlayKind: Hashable, Sendable {
         self.endsGame = endsGame
         self.announced = announced
         self.delay = delay
+        self.stopsPlay = stopsPlay
     }
 }
 
@@ -377,6 +382,9 @@ struct BroadcastPolicy: Equatable, Sendable {
     var quietRunning: Double = 60
     /// The fast lane's lag behind event time, until it's measured.
     var priorFastLag: Double = 24
+    /// Kinds a jump never skips (told live, in order), besides any play that
+    /// changes the score and the announced kinds: soccer's shots, saves and cards.
+    var toldLive: Set<String> = []
     /// The live-ball kinds whose moment the theater must bind (shots, saves, set
     /// pieces); nil: every live-ball kind. The others are flow (soccer's passes
     /// and touches): the director can fold a late one into the flow around it.
@@ -1198,6 +1206,29 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         return Knowledge(frontier: cap, bound: bound)
     }
 
+    /// A play a jump must not pass (told live, in order): it changes the score,
+    /// it's announced (a VAR decision), or its kind is one the sport keeps live.
+    func mustTellLive(_ k: Int, after previous: ScoreLine?) -> Bool {
+        let e = records[k].entry
+        if e.kind.announced || policy.toldLive.contains(e.kind.label) { return true }
+        if let score = e.score, let previous, score != previous { return true }
+        return false
+    }
+
+    /// Where a jump may land at the latest: just short of the first untold play
+    /// that must be told live, its lead-in included (CHOREOGRAPHY §4.6: only
+    /// flow and dead-ball administration go by as history). Nil: no such play known.
+    var jumpLimit: PTime? {
+        var previous = score(through: toldCount)
+        for k in toldCount..<records.count {
+            if mustTellLive(k, after: previous) {
+                return records[k].presentAt - horizons.horizon(for: records[k].entry.kind) - 1
+            }
+            if let score = records[k].entry.score { previous = score }
+        }
+        return nil
+    }
+
     /// How far past `p` nothing on screen would change: no play to tell before
     /// it, and the game clock stopped all the way (the last told play stopped
     /// it, or the fast lane says so for that stretch). The clock may skip or
@@ -1209,9 +1240,11 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         let next = nextUntold.map { $0.presentAt - horizons.horizon(for: $0.entry.kind) }
         let end = min(next ?? .infinity, knowledge)
         guard end > p else { return nil }
-        let stopped = last.entry.kind.stopsClock || policy.clockCountsDown == nil && last.entry.kind.endsPeriod != nil
+        // The ball dead (soccer's out of play, ~40% of a match): the game clock runs, but nothing on screen moves.
+        let deadBall = last.entry.kind.stopsPlay
+        let stopped = deadBall || last.entry.kind.stopsClock || policy.clockCountsDown == nil && last.entry.kind.endsPeriod != nil
             || fast.stopped(over: p...min(end, p + 600), lag: fastLag, period: last.entry.period)
-        guard stopped, policy.clockCountsDown != false || last.entry.kind.endsPeriod != nil else { return nil }
+        guard stopped, deadBall || policy.clockCountsDown != false || last.entry.kind.endsPeriod != nil else { return nil }
         // A stopped clock restarts before the next play: its run stays in view.
         if let upcoming = nextUntold, policy.clockCountsDown == true, let g1 = upcoming.entry.clock.elapsed,
            let g0 = last.entry.clock.elapsed, upcoming.entry.period == last.entry.period, g1 > g0 {

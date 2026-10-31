@@ -37,6 +37,11 @@ enum BroadcastLanes {
             p.overtimeLength = 300
             p.regulationPeriods = 4
             p.priorFastLag = 24
+            // The morning-report choice (BROADCAST §2's NBA table): q 0.95, horizon 2.5 s, margin 1 s; jump past 40 s behind.
+            p.quantile = 0.95
+            p.horizons = BindingHorizons(live: 2.5)
+            p.margin = 1
+            p.jumpMax = 40
         case .football:
             // Snap to snap p50 42 s, p90 69–90 s inside a drive; the clock often runs between.
             p.priorLag = 50
@@ -48,6 +53,9 @@ enum BroadcastLanes {
             p.overtimeLength = path.hasSuffix("college-football") ? 0 : 600
             p.regulationPeriods = 4
             p.priorFastLag = 25
+            // Until its recordings are measured: the NBA's margin and jump.
+            p.margin = 1
+            p.jumpMax = 40
         case .soccer:
             // Entries every 2 s (p50); dead balls run to 105 s (goals, subs, injuries).
             p.priorLag = 45
@@ -59,9 +67,19 @@ enum BroadcastLanes {
             p.regulationPeriods = 2
             p.priorFastLag = 25
             p.slowPoll = 8
+            p.quantile = 0.95
             // What the director must bind: shots (goals among them), saves, and the
             // set pieces awarded. Passes and touches are flow it can fold a late one into.
             p.decisive = BroadcastLanes.soccerDecisive
+            // The morning-report choice (BROADCAST §2's soccer table): sized on every live-ball
+            // kind at q 0.95, horizon 3 s, margin 13 s: D ≈ 102 s, +20 s over today's page
+            // (the scoreboard, ~89 s behind real). The margin is the sport's knob.
+            p.horizons = BindingHorizons(live: 3)
+            p.margin = 13
+            // Outages run minutes and the ball is out of play ~40% of a match: jump only past 180 s
+            // behind, and make up the rest in dead time. A jump never passes these (nor a score, nor VAR).
+            p.jumpMax = 180
+            p.toldLive = ["shot", "save", "yellow card", "red card", "yellow red card"]
         case .baseball:
             // Pitch to pitch p50 20 s, p90 31 s; mound visits ~73 s, pitching changes ~147 s.
             p.priorLag = 35
@@ -72,6 +90,9 @@ enum BroadcastLanes {
             p.overtimeLength = 0
             p.regulationPeriods = 18
             p.priorFastLag = 20
+            // Until its recordings are measured: the NBA's margin and jump.
+            p.margin = 1
+            p.jumpMax = 40
         }
         return p
     }
@@ -262,6 +283,9 @@ enum BroadcastLanes {
     /// A soccer entry. Located entries and every shot, goal and save are live;
     /// cards, substitutions, VAR and the half's admin are dead. The clock never
     /// stops but at the half.
+    /// Entries after which the ball is out of play until the restart.
+    static let soccerDeadBall: Set<String> = ["out", "foul", "offside", "hand-ball", "penalty---won", "penalty-won", "injury", "drop-of-ball"]
+
     /// Soccer's decisive kinds (BroadcastPolicy.decisive).
     static let soccerDecisive: Set<String> = ["shot", "save", "corner", "free kick"]
 
@@ -285,29 +309,32 @@ enum BroadcastLanes {
             kind = PlayKind(.dead, "period end", endsPeriod: period)
         case "end-regular-time", "end-extra-time", "full-time", "end-of-game":
             kind = PlayKind(.dead, "game end", endsPeriod: period, endsGame: type != "end-regular-time" || policy.regulationPeriods <= period)
-        case "substitution", "yellow-card", "red-card", "yellow-red-card", "start-2nd-half", "kickoff", "start-extra-time":
+        case "substitution", "yellow-card", "red-card", "yellow-red-card":
+            kind = PlayKind(.dead, type.replacingOccurrences(of: "-", with: " "), stopsPlay: true)
+        case "start-2nd-half", "kickoff", "start-extra-time":
             kind = PlayKind(.dead, type.replacingOccurrences(of: "-", with: " "))
         case "start-delay":
-            kind = PlayKind(.dead, "delay", delay: .opens)
+            kind = PlayKind(.dead, "delay", delay: .opens, stopsPlay: true)
         case "end-delay":
             kind = PlayKind(.dead, "delay", delay: .closes)
         default:
             if type.hasPrefix("var") || type == "deleted-after-review" {
                 // A VAR decision (a goal ruled out, a penalty given) and the goal it struck:
                 // told as events even when they come minutes late, never as quiet corrections.
-                kind = PlayKind(.dead, "review", announced: true)
+                kind = PlayKind(.dead, "review", announced: true, stopsPlay: true)
             } else if soccerShot(type) || play["scoringPlay"].bool == true {
-                kind = PlayKind(.live, "shot")
+                // A goal leaves the ball dead until the kickoff; a shot doesn't (a save, a rebound, a corner follows).
+                kind = PlayKind(.live, "shot", stopsPlay: play["scoringPlay"].bool == true)
             } else if type == "save" || type == "temp-save" {
                 kind = PlayKind(.live, "save")
             } else if type == "corner-awarded" {
-                kind = PlayKind(.live, "corner")
+                kind = PlayKind(.live, "corner", stopsPlay: true)
             } else if type == "free-kick" {
-                kind = PlayKind(.live, "free kick")
+                kind = PlayKind(.live, "free kick", stopsPlay: true)
             } else if located {
-                kind = PlayKind(.live, "entry")
+                kind = PlayKind(.live, "entry", stopsPlay: soccerDeadBall.contains(type))
             } else {
-                kind = PlayKind(.dead, "other")
+                kind = PlayKind(.dead, "other", stopsPlay: soccerDeadBall.contains(type))
             }
         }
         let digest = digest(play) { h in

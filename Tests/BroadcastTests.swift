@@ -34,6 +34,8 @@ extension ScorelineTests {
         broadcastPlanning()
         print("\nBroadcast: a VAR decision is told, never a quiet correction")
         broadcastVAR()
+        print("\nBroadcast: a jump never skips a play that must be told live")
+        broadcastJumps()
     }
 
     // MARK: Helpers
@@ -1101,5 +1103,88 @@ extension ScorelineTests {
         check(floored && b.presented.score == ScoreLine(home: 2, away: 0) && b.floor == nil,
               "a score taken back on a told play drops the floor (the score the user saw is overturned)",
               "floored \(floored) \(String(describing: b.presented.score)) floor \(String(describing: b.floor))")
+    }
+}
+
+
+// MARK: - Jumps
+
+extension ScorelineTests {
+    static func broadcastJumps() {
+        // The clock: a jump lands at its limit, not the edge; with no room before the limit, no jump.
+        var j = PresentationClock()
+        j.update(now: 0, inputs: .init(target: 50, cap: -50))
+        for now in stride(from: 10.0, through: 90, by: 10) { j.update(now: now, inputs: .init(target: 50, cap: -45)) }
+        j.update(now: 100, inputs: .init(target: 50, cap: 60, jumpLimit: 10))
+        check(j.events.contains(.jump(at: 100, from: -45, to: 10)) && abs(j.p(at: 100) - 10) < 1e-9,
+              "a jump lands short of the first play that must be told live, not at the edge", "\(j.events.suffix(2))")
+        var n = PresentationClock()
+        n.update(now: 0, inputs: .init(target: 50, cap: -50))
+        for now in stride(from: 10.0, through: 90, by: 10) { n.update(now: now, inputs: .init(target: 50, cap: -45)) }
+        n.update(now: 100, inputs: .init(target: 50, cap: 60, jumpLimit: -44.9))
+        check(!n.events.contains { if case .jump = $0 { true } else { false } } && n.regime == .catchingUp,
+              "no room before that play: no jump, it catches up instead")
+
+        // The timeline: where a jump may land.
+        let s0 = ScoreLine(home: 0, away: 0), s1 = ScoreLine(home: 1, away: 0)
+        var policy = testPolicy
+        policy.toldLive = ["card"]
+        var t = GameTimeline<RawPlay>(policy: policy)
+        t.ingest(look([play("a", at: 100, elapsed: 10, score: s0), play("b", at: 120, elapsed: 30, score: s0),
+                       play("c", at: 130, elapsed: 40, score: s1), play("d", at: 140, elapsed: 50, score: s1)], at: 145))
+        t.tell(through: 100)
+        check(t.jumpLimit.map { abs($0 - (130 - 2 - 1)) < 1e-9 } == true, "the limit: a score's lead-in short of it", "\(String(describing: t.jumpLimit))")
+        var u = GameTimeline<RawPlay>(policy: policy)
+        u.ingest(look([play("a", at: 100, elapsed: 10, score: s0), play("b", at: 120, elapsed: 30, live: false, score: s0, label: "card"),
+                       play("c", at: 130, elapsed: 40, score: s0)], at: 145))
+        u.tell(through: 100)
+        var v = GameTimeline<RawPlay>(policy: policy)
+        var review = play("r", at: 125, elapsed: 35, live: false, score: s0)
+        review.kind = PlayKind(.dead, "review", announced: true)
+        v.ingest(look([play("a", at: 100, elapsed: 10, score: s0), play("b", at: 120, elapsed: 30, score: s0), review], at: 145))
+        v.tell(through: 100)
+        check(u.jumpLimit.map { abs($0 - (120 - 1)) < 1e-9 } == true && v.jumpLimit.map { abs($0 - (125 - 1)) < 1e-9 } == true,
+              "…a kind the sport keeps live (a card), and an announced play (VAR)", "\(String(describing: u.jumpLimit)) \(String(describing: v.jumpLimit))")
+
+        // Soccer's dead ball: the clock runs, but the ball is out until the restart; nothing moves on screen.
+        var soccer = testPolicy
+        soccer.clockCountsDown = false
+        var w = GameTimeline<RawPlay>(policy: soccer)
+        var out = play("o", at: 100, elapsed: 10, live: false, score: s0)
+        out.kind = PlayKind(.dead, "other", stopsPlay: true)
+        w.ingest(look([out, play("throw", at: 118, elapsed: 28, score: s0)], at: 140))
+        w.tell(through: 100)
+        var x = GameTimeline<RawPlay>(policy: soccer)
+        x.ingest(look([play("pass", at: 100, elapsed: 10, score: s0), play("next", at: 118, elapsed: 28, score: s0)], at: 140))
+        x.tell(through: 100)
+        check(w.quietSpan(from: 101, knowledge: 1000).map { abs($0 - (118 - 2)) < 1e-9 } == true && x.quietSpan(from: 101, knowledge: 1000) == nil,
+              "the ball out of play is a quiet span (skip to the restart's lead-in); in play, none")
+
+        // End to end: a long stall, then the late batch: the flow before the score goes by as history,
+        // the score is told live, in order.
+        var e = testPolicy
+        e.maxDelay = 40
+        var engine = BroadcastEngine<RawPlay>(sport: .basketball, policy: e)
+        engine.ingest(look([play("a", at: 100, elapsed: 10, score: s0)], at: 130))
+        engine.advance(now: 130)
+        for now in stride(from: 135.0, through: 295, by: 5) { engine.advance(now: now) }
+        let stalledAt = engine.p(at: 295)
+        engine.ingest(look([play("a", at: 100, elapsed: 10, score: s0), play("b", at: 120, elapsed: 30, score: s0),
+                            play("c", at: 130, elapsed: 40, score: s0), play("d", at: 140, elapsed: 50, score: s0),
+                            play("goal", at: 150, elapsed: 60, score: s1), play("f", at: 160, elapsed: 70, score: s1)], at: 300))
+        var told: [String: TellReason] = [:]
+        var jumps: [(PTime, PTime)] = []
+        var now = 300.0
+        while now < 330 {
+            let step = engine.advance(now: now)
+            for r in step.told { told[r.id] = r.told }
+            for case let .jump(_, from, to) in step.events { jumps.append((from, to)) }
+            guard let next = engine.nextWake(after: now) else { break }
+            now = min(next, now + 5)
+        }
+        check(stalledAt < 120 && jumps.first.map { abs($0.1 - (150 - 2 - 1)) < 1e-6 } == true,
+              "after the stall, the jump lands short of the score", "stalled at \(stalledAt), jumps \(jumps)")
+        check(told["b"] == .history && told["c"] == .history && told["d"] == .history && told["goal"] != nil && told["goal"] != .history,
+              "the flow before it goes by as history; the score is told live", "\(told.sorted { $0.key < $1.key })")
     }
 }

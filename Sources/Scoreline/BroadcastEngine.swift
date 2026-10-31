@@ -74,7 +74,8 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
         let before = clock.events.count
         let pBefore = clock.started ? clock.p(at: now) : cap
         let quiet = timeline.quietSpan(from: pBefore, knowledge: cap)
-        clock.update(now: now, inputs: PresentationClock.Inputs(target: timeline.targetDelay, cap: cap, quietUntil: quiet))
+        clock.update(now: now, inputs: PresentationClock.Inputs(target: timeline.targetDelay, cap: cap, quietUntil: quiet,
+                                                                jumpLimit: timeline.jumpLimit))
         let events = Array(clock.events[before...])
         step.events += events
         let p = clock.p(at: now) + 1e-6
