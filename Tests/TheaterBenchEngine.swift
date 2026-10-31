@@ -30,7 +30,13 @@ enum EngineRun {
     static func run<B: BenchSport>(_ sport: B.Type, _ recording: Recording, label: String, cost: Bool = false,
                                    frame: ((PTime, PlanChain<B.Sport.Clip>, FrameScratch) -> Void)? = nil) -> Result {
         var result = Result(report: ContinuityReport(label: label))
-        guard var replay = RecordingReplay(recording), let summary = recording.snapshots.last.flatMap(recording.summary) else { return result }
+        // The page hands the timeline the theater's binding horizons (late binding): the replay starts with them.
+        guard let sport = recording.sport else { return result }
+        var policy = BroadcastLanes.policy(sport, path: recording.path)
+        policy.horizons = BindingHorizons(live: policy.horizons.live, byKind: B.Sport.horizons)
+        guard var replay = RecordingReplay(recording, policy: policy), let summary = recording.snapshots.last.flatMap(recording.summary) else {
+            return result
+        }
         var session = TheaterSession<B.Sport>(facts: B.facts(summary))
         var meter = ContinuityMeter(label: label)
         let scratch = FrameScratch()
@@ -61,11 +67,35 @@ enum EngineRun {
                 }
                 print(line)
             }
+            if trace { scan(baked) }
             mix(&result.hash, baked)
             if baked.plan.declared { declaredUntil = baked.start + 0.25 }
             for p in baked.plan.placements where p.start >= baked.start - 1e-9 {
                 guard let id = p.play, let a = p.anchor, let d = p.clip.decisive else { continue }
                 decisive[id] = (p.offset + d, a + p.shift)
+            }
+        }
+        /// Each new clip's own frames, before any splice: a step past the cap inside one is the clip's, not the engine's.
+        var scanned: Set<String> = []
+        func scan(_ baked: BakedPlan<B.Sport.Clip>) {
+            for p in baked.plan.placements where p.start >= baked.start - 1e-9 {
+                let key = p.play ?? "rest@\(Int(p.offset))"
+                guard !scanned.contains(key), p.clip.length.isFinite else { continue }
+                scanned.insert(key)
+                for i in p.clip.figures.indices {
+                    var t = 0.0, last = p.clip.position(i, at: 0)
+                    while t < p.clip.length {
+                        t += 1.0 / 60
+                        let here = p.clip.position(i, at: min(t, p.clip.length))
+                        let d = simd_length(here - last)
+                        if d > 1.5 {
+                            print(String(format: "clipjump %@ fig %d t=%.3f d=%.2f from (%.1f,%.1f) to (%.1f,%.1f) still=%.2f entry=%.2f length=%.2f",
+                                         key, i, t, d, last.x, last.y, here.x, here.y, p.clip.still, p.entry, p.clip.length))
+                            break
+                        }
+                        last = here
+                    }
+                }
             }
         }
         func frames(through t: PTime) {
