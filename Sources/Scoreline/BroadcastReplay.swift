@@ -283,6 +283,12 @@ struct RecordingReplay {
         }.map(\.element)
     }
 
+    /// The theater's binding horizons, as the page passes them to `Broadcast` (the theater bench drives the replay this way).
+    mutating func setHorizons(_ horizons: BindingHorizons) { engine.setHorizons(horizons) }
+
+    /// The theater's solved decisive moments, as the page passes them to `Broadcast`.
+    mutating func setAnchors(_ anchors: [String: PTime]) { engine.setAnchors(anchors) }
+
     /// Applies one input at its time (without advancing the clock).
     mutating func apply(_ input: Input, at t: PTime) -> TimelineChange? {
         now = t

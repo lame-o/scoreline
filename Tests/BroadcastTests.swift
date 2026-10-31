@@ -979,5 +979,18 @@ extension ScorelineTests {
         check(bounded != nil && moved != bounded && c.revision != r1, "a restart that re-bounds the cluster bumps the revision",
               "\(String(describing: bounded)) → \(String(describing: moved))")
         check(unchanged, "a reading that moves nothing doesn't")
+
+        // The replay takes the theater's horizons and anchors as the page does (the theater bench).
+        let root = URL(fileURLWithPath: "Tests/Fixtures/broadcast")
+        if var replay = RecordingReplay(Recording.load(root: root, sport: "soccer_eng.1", event: "401879256", settle: 0)) {
+            let r = replay.engine.timeline.revision
+            replay.setHorizons(BindingHorizons(live: 3, byKind: ["shot": 4]))
+            let horizons = replay.engine.timeline.horizons
+            replay.setAnchors(["x": 1])
+            check(horizons.live == 3 && horizons.byKind["shot"] == 4 && replay.engine.timeline.revision != r,
+                  "the replay passes the theater's horizons and anchors through")
+        } else {
+            check(false, "the soccer fixture replays")
+        }
     }
 }
