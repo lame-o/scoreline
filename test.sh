@@ -2,8 +2,15 @@
 # Offline regression suite. --record refreshes the recorded API responses.
 # Also typechecks the app with -D DEBUG (the render-harness and smoke code that
 # neither the release build nor the tests compile), alongside the test build.
+# --bench [args] builds the same binary and runs the broadcast replay bench
+# instead (Tests/BroadcastBench.swift), skipping the suite and the typecheck.
 set -euo pipefail
 cd "${0:A:h}"
+BENCH=false
+if [[ "${1:-}" == "--bench" ]]; then
+  BENCH=true
+  shift
+fi
 SDK=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX26*.sdk 2>/dev/null | sort -V | tail -1)
 # Updater.swift imports Sparkle, so the tests link it too (never started: the app delegate starts it).
 SPARKLE=$(Support/fetch-sparkle.sh)
@@ -13,11 +20,18 @@ if [[ "${1:-}" == "--record" ]]; then
 fi
 mkdir -p build Tests/Fixtures
 
+if $BENCH; then
+  swiftc -D BENCH -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
+    -F "$SPARKLE" -framework Sparkle -Xlinker -rpath -Xlinker "$SPARKLE" \
+    $(ls Sources/Scoreline/*.swift | grep -v ScorelineApp.swift) Tests/*.swift -o build/ScorelineTests
+  exec ./build/ScorelineTests --bench "$@"
+fi
+
 swiftc -typecheck -D DEBUG -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
   -F "$SPARKLE" Sources/Scoreline/*.swift > build/debug-typecheck.log 2>&1 &
 DEBUG_CHECK=$!
 
-swiftc -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
+swiftc -D BENCH -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
   -F "$SPARKLE" -framework Sparkle -Xlinker -rpath -Xlinker "$SPARKLE" \
   $(ls Sources/Scoreline/*.swift | grep -v ScorelineApp.swift) Tests/*.swift -o build/ScorelineTests
 

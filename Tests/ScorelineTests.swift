@@ -21,6 +21,10 @@ struct ScorelineTests {
     }
 
     static func main() async {
+        // The replay bench (BroadcastBench.swift): `./test.sh --bench [--recorder] [--root dir] [sport[/event]…]`.
+        if let flag = CommandLine.arguments.firstIndex(of: "--bench") {
+            exit(BroadcastBench.main(Array(CommandLine.arguments[(flag + 1)...])))
+        }
         HTTP.stubProtocol = FixtureProtocol.self
         print("Scoreline tests\(FixtureProtocol.recording ? " (recording fixtures)" : "")")
 
@@ -82,6 +86,7 @@ struct ScorelineTests {
         odds()
         modules()
         await replays()
+        broadcast()
 
         print("\n\(passes) passed, \(failures) failed")
         exit(failures == 0 ? 0 : 1)
