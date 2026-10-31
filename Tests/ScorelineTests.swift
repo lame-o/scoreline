@@ -74,6 +74,7 @@ struct ScorelineTests {
         basketballBeats()
         theaterNames()
         theaterRig()
+        theaterEngine()
         statcast()
         playStatcast()
         playCredits()

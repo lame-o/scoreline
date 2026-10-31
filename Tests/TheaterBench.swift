@@ -15,9 +15,10 @@ enum TheaterBench {
     static let sports = ["basketball", "football", "soccer", "baseball"]
 
     static func main(_ arguments: [String]) -> Int32 {
-        TheaterProbe.install()
         var args = arguments
         let mode = args.isEmpty ? "cost" : args.removeFirst()
+        // The allocation counter only where allocations are counted (it sees every malloc).
+        if mode == "cost" || args.contains("--cost") { TheaterProbe.install() }
         let wanted = args.filter { !$0.hasPrefix("--") }
         let chosen = wanted.isEmpty ? sports : sports.filter { s in wanted.contains { $0.hasPrefix(s) } }
         switch mode {
@@ -30,6 +31,20 @@ enum TheaterBench {
                     let label = "\(recording.sportDirectory) \(recording.event), today's stage"
                     switch sport {
                     case "basketball": print(Today.basketball(recording, label: label).render(units: units))
+                    default: print("  \(label): not yet")
+                    }
+                }
+            }
+            return 0
+        case "engine":
+            for sport in chosen {
+                for (recording, units) in recordings(sport) {
+                    let label = "\(recording.sportDirectory) \(recording.event), the engine"
+                    switch sport {
+                    case "basketball":
+                        let run = EngineRun.basketball(recording, label: label)
+                        print(run.report.render(units: units))
+                        print(String(format: "    determinism hash %016llx", run.hash))
                     default: print("  \(label): not yet")
                     }
                 }

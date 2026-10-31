@@ -439,6 +439,40 @@ struct BasketballFrame: View, Equatable {
     /// The court between plays this replay is taking over from (nil: none,
     /// or the hand-off is done).
     var bridge: Bridge? = nil
+    /// Drawn from the choreography engine's world (TheaterView): its camera,
+    /// every man where the engine has him and posed by the clip that has him,
+    /// the ball; `script` is the clip in charge (its flashes, nets, stamp and
+    /// banner), and everything is in its frame.
+    var world: World? = nil
+
+    struct World: Equatable {
+        struct Figure: Equatable {
+            /// The engine's actor (the names over the court key on it).
+            var index: Int
+            var team: BasketballScript.Team
+            var at: CGPoint
+            var body: RigPose
+            var heading: Double
+            var opacity: Double
+            /// The ball in his hands: how (both hands, the right through a layup, on the dribble at a bounce's height).
+            var holds: Hold?
+        }
+
+        enum Hold: Equatable {
+            case hands(oneHanded: Bool)
+            case dribble(up: Double)
+        }
+
+        enum Ball: Equatable {
+            case held
+            case free(FieldPoint, flying: Bool)
+        }
+
+        var camera: CameraFrame
+        var yaw: Double
+        var figures: [Figure]
+        var ball: Ball?
+    }
 
     /// The court between plays as it stands mid-bridge (TheaterBridge): its
     /// script and its time now (it plays on under the hand-off), how far the
@@ -464,11 +498,12 @@ struct BasketballFrame: View, Equatable {
     /// The time first: mid-replay it's all that differs.
     static func == (a: BasketballFrame, b: BasketballFrame) -> Bool {
         a.t == b.t && a.size == b.size && a.teams == b.teams && a.ink == b.ink && a.paint == b.paint && a.tags == b.tags && a.scene == b.scene
-            && a.bridge == b.bridge && a.script == b.script
+            && a.bridge == b.bridge && a.world == b.world && a.script == b.script
     }
 
     /// The camera at t; mid-bridge, eased from the court's framing to the replay's.
     func projection(_ size: CGSize) -> HoopProjection {
+        if let world { return HoopProjection(size: size, camera: world.camera, yaw: world.yaw) }
         let camera = script.camera.frame(at: t)
         guard let b = bridge else { return HoopProjection(size: size, camera: camera, yaw: script.yaw) }
         return HoopProjection(size: size, camera: b.script.camera.frame(at: b.t).mix(camera, b.w), yaw: b.script.yaw + remainder(script.yaw - b.script.yaw, 2 * .pi) * b.w)
@@ -552,6 +587,7 @@ struct BasketballFrame: View, Equatable {
     /// plays has him to his place in the replay's set, posed between the two
     /// and striding along the way; the court's others fade out, the replay's fade in.
     private func posed(_ h: HoopProjection) -> [Posed] {
+        if let world { return posed(world, h) }
         let carrier = script.carrier(at: t)
         let idle = bridge.map { BasketballFrame(scene: nil, script: $0.script, t: $0.t, teams: teams, ink: ink, size: size) }
         var list: [(index: Int, at: CGPoint, ghost: Bool)] = script.players.indices.map { i in
@@ -612,6 +648,34 @@ struct BasketballFrame: View, Equatable {
             }
     }
 
+    /// The engine's men, far to near: each posed as the world has him, the ball in the hands of the man who has it.
+    private func posed(_ world: World, _ h: HoopProjection) -> [Posed] {
+        world.figures.sorted { h.depth($0.at) > h.depth($1.at) }.map { f in
+            let lens = RigLens(h, at: f.at)
+            let skeleton = RigSkeleton(f.body)
+            let figure = RigFigure(skeleton, heading: f.heading, lens: lens)
+            var ball: CGPoint?
+            switch f.holds {
+            case let .dribble(up)?:
+                let c = cos(f.heading), s = sin(f.heading), k = skeleton.hands.1
+                let top = lens.point(RigVector(k.x * c - k.y * s, k.x * s + k.y * c, k.z))
+                let floor = lens.point(RigVector(k.x * c - k.y * s, k.x * s + k.y * c, 0.06))
+                ball = CGPoint(x: floor.x + (top.x - floor.x) * up, y: floor.y + (top.y - floor.y) * up)
+            case let .hands(one)?:
+                let grip = figure.grip, right = figure.hands.1, w = one ? 1.0 : 0
+                ball = CGPoint(x: grip.x + (right.x - grip.x) * w, y: grip.y + (right.y - grip.y) * w)
+            case nil: break
+            }
+            return Posed(index: f.index, figure: figure, ball: ball, opacity: f.opacity)
+        }
+    }
+
+    /// Whose a figure is in this frame's colors: the world's men carry their team; the script's, theirs.
+    private func team(_ p: Posed) -> BasketballScript.Team {
+        if let world { return world.figures.first { $0.index == p.index }?.team ?? .offense }
+        return p.ghost ? bridge?.script.players[p.index].team ?? .offense : script.players[p.index].team
+    }
+
     private func drawShadows(_ context: inout GraphicsContext, _ h: HoopProjection, _ figures: [Posed]) {
         // Under the hips; smaller and fainter as he leaves the floor.
         let w = h.figure * 0.26
@@ -620,7 +684,13 @@ struct BasketballFrame: View, Equatable {
             TheaterDraw.shadow(at: p.figure.ground, radius: w * (1 - 0.35 * air), color: ink.shadow.opacity((1 - 0.5 * air) * p.opacity), in: context)
         }
         // The ball's: larger and softer the higher it flies.
-        if let ball = script.ball(at: t), ball.z > 0.6, script.flight(at: t) != nil {
+        if let world, case let .free(ball, flying)? = world.ball, flying, ball.z > 0.6 {
+            let g = h.point(ball.ground)
+            let spread = 1 + min(ball.z / 30, 0.9)
+            let r = max(0.45 * h.scale, 1.4) * spread
+            context.fill(Path(ellipseIn: CGRect(x: g.x - r, y: g.y - r / 2, width: 2 * r, height: r)),
+                         with: .color(ink.shadow.opacity(min(1.4 / (1 + ball.z / 14), 0.9))))
+        } else if world == nil, let ball = script.ball(at: t), ball.z > 0.6, script.flight(at: t) != nil {
             let g = h.point(ball.ground)
             let spread = 1 + min(ball.z / 30, 0.9)
             let r = max(0.45 * h.scale, 1.4) * spread
@@ -633,12 +703,12 @@ struct BasketballFrame: View, Equatable {
     private func drawPlayers(_ context: inout GraphicsContext, _ h: HoopProjection, _ figures: [Posed], stems: [Int: [TheaterTags.Stem]]) {
         let offense = FigureInks(teams.offense, ink: ink, in: context), defense = FigureInks(teams.defense, ink: ink, in: context)
         // The referee, only while he's doing something (in to make a call, the toss, the ball for free throws): the zebra shirt.
-        let refereed = script.players.contains { $0.team == .official } || bridge?.script.players.contains { $0.team == .official } == true
+        let refereed = world.map { $0.figures.contains { $0.team == .official } }
+            ?? (script.players.contains { $0.team == .official } || bridge?.script.players.contains { $0.team == .official } == true)
         let official = refereed ? FigureInks(.zebra(dark: ink.dark), ink: ink, in: context) : offense
         for p in figures {
             // A ghost wears his own team's colors: the court's offense is the replay's (else it crossfades).
-            let team = p.ghost ? bridge?.script.players[p.index].team ?? .offense : script.players[p.index].team
-            let inks = switch team {
+            let inks = switch team(p) {
             case .offense: offense
             case .defense: defense
             case .official: official
@@ -653,9 +723,12 @@ struct BasketballFrame: View, Equatable {
     /// moving (striding to his planted feet), over how he stands (ready off
     /// the ball, low on defense, at ease once the ball's through); and off
     /// the floor when he jumps. `unit`: body units to the foot. (tested)
-    func pose(_ player: BasketballScript.Player, _ index: Int, at here: CGPoint, unit: Double) -> (RigPose, Double) {
-        let track = index < script.rig.count ? script.rig[index] : RigTrack(at: here)
-        let m = track.motion(at: t)
+    /// `stride`: the engine's track for him in the world (TheaterView), its time and where he is in it; the
+    /// heading returned is then the world's.
+    func pose(_ player: BasketballScript.Player, _ index: Int, at here: CGPoint, unit: Double,
+              stride: (track: RigTrack, t: Double, at: CGPoint)? = nil) -> (RigPose, Double) {
+        let track = stride?.track ?? (index < script.rig.count ? script.rig[index] : RigTrack(at: here))
+        let m = track.motion(at: stride?.t ?? t)
         func envelope(_ x: Double, attack: Double, release: Double) -> Double {
             x < 0 ? max(1 + x / attack, 0) : max(1 - x / release, 0)
         }
@@ -664,7 +737,8 @@ struct BasketballFrame: View, Equatable {
         let ease = script.score.map { smooth((t - $0 - 0.7) / 0.5) } ?? 0
         let stance = player.team == .defense ? HoopPose.guarding : player.team == .official ? .stand : HoopPose.ready
         let still = stance.mix(.stand, ease)
-        let feet = track.feet(at: t, anchor: here, heading: m.heading, unit: unit, speed: m.speed, stand: (still.left, still.right))
+        let feet = track.feet(at: stride?.t ?? t, anchor: stride?.at ?? here, heading: m.heading, unit: unit, speed: m.speed,
+                              stand: (still.left, still.right))
         var body = still.mix(.gait(m, feet: feet), m.weight)
 
         // With the ball: in both hands at the chest, or on the dribble.
@@ -766,6 +840,17 @@ struct BasketballFrame: View, Equatable {
     /// Where the ball is drawn: in his hands, or along its flight; and
     /// whether it's inside the hoop (then the rim's front and the net go over it).
     private func ballPoint(_ h: HoopProjection, _ figures: [Posed]) -> (point: CGPoint, inHoop: Bool)? {
+        if let world {
+            switch world.ball {
+            case .held?: return figures.lazy.compactMap(\.ball).first.map { ($0, false) }
+            case let .free(ball, _)?:
+                let inHoop = [Hoops.rim, CGPoint(x: Hoops.length - Hoops.rim.x, y: Hoops.rim.y)].contains { rim in
+                    hypot(ball.x - rim.x, ball.y - rim.y) < 1.1 && ball.z < Hoops.rimHeight + 0.25 && ball.z > Hoops.rimHeight - 2.6
+                }
+                return (h.point(ball), inHoop)
+            case nil: return nil
+            }
+        }
         guard let ball = script.ball(at: t) else { return nil }
         // Mid-bridge, from where the court between plays had it to the replay's.
         func bridged(_ p: CGPoint) -> CGPoint {
@@ -783,7 +868,8 @@ struct BasketballFrame: View, Equatable {
     /// The basketball: a glowing core with its comet tail while it flies.
     private func drawBall(_ context: inout GraphicsContext, _ h: HoopProjection, at p: CGPoint) {
         let r = ballRadius(h)
-        if let flight = script.flight(at: t) {
+        let flying = world.map { w in if case .free(_, true)? = w.ball { return true }; return false } ?? true
+        if flying, let flight = script.flight(at: t) {
             let trail = (1...6).map { h.point(flight.point(at: max(t - Double($0) * 0.014, flight.start))) }
             TheaterDraw.trail(trail, from: p, radius: r * 0.8, color: ink.leather, in: context)
             TheaterDraw.glow(at: p, radius: r, color: ink.glow, in: context)

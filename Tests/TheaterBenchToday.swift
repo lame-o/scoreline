@@ -38,7 +38,7 @@ enum Today {
 
 extension Today {
     /// BasketballStage, step for step (BasketballTheater.swift `advance`, `finish`, `breathe`, the bridge, `.id(now.key)`).
-    struct Basketball {
+    @MainActor struct Basketball {
         let teams: BasketballFeed.Teams
         let topIsHome = false
         var state = BasketballTheaterState()
