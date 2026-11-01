@@ -9,17 +9,13 @@ extension ScorelineTests {
     static func matchPolish() {
         print("\nMatch page polish")
 
-        // Overtimes are "OT", "2OT", "7OT" everywhere: scoring plays, linescore, peek, NBA.
+        // Overtimes are "OT", "2OT", "7OT" everywhere: scoring plays, linescore, NBA.
         check(ESPNDetail.periodName(4, sport: .football) == "Q4" && ESPNDetail.periodName(5, sport: .football) == "OT"
               && ESPNDetail.periodName(6, sport: .football) == "2OT" && ESPNDetail.periodName(11, sport: .football) == "7OT",
               "a scoring play's period: Q4, OT, 2OT … 7OT (never OT for every overtime)")
         check(ESPNDetail.periodHeader(7, sport: .football) == "3OT" && ESPNDetail.periodHeader(12, sport: .baseball) == "12",
               "linescore headers: 3OT in football, the inning in baseball")
         check(NBADetail.periodName(5) == "OT" && NBADetail.periodName(8) == "4OT", "NBA: OT, then 4OT")
-        var peekInputs = PeekInputs()
-        peekInputs.flow = [PeekInputs.Mark(id: "f1", period: 6, side: .top)]
-        check(PeekRouter.readout(for: Focus(period: 6), target: .flow, inputs: peekInputs)?.lead == "2OT",
-              "the peek names the second overtime 2OT (it said OT2)")
 
         // Game Flow: four five-minute overtimes at 340 share one name.
         let narrow = { (t: Double) -> CGFloat in 30 + 270 * CGFloat(t / NBADetail.periodStart(9)) }

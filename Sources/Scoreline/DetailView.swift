@@ -74,18 +74,16 @@ struct DetailView: View {
     @State private var nbaStage = NBAStage()
     /// The plays the rows can replay in the isometric view, and the row open.
     @State private var replays: PageReplays
-    /// What the hero has said, period by period: the line score (and its peek) is kept no older than it.
+    /// What the hero has said, period by period: the line score is kept no older than it.
     @State private var ledger = HeaderLedger()
     /// The hero scoreboard's beats: digit pops, the wash pulse, the glint, the trophy.
     @State private var beats = HeroBeats()
     /// Climbing, live: who moved up or down the results in the last refresh.
     @State private var rankShift = RankShift()
     /// Where the page's sections are and how far the hero has docked: the
-    /// docked scorebar and the chart peek read it; this page never does, so
-    /// scrolling never re-renders it.
+    /// docked scorebar reads it; this page never does, so scrolling never
+    /// re-renders it.
     @State private var geometry = PageGeometry()
-    /// The chart peek's timing and placement.
-    @State private var peek = PeekController()
     /// Which scoreboard is on screen (hero or docked bar), flipped only at half docked.
     @State private var surface = ScoreboardSurface()
     /// Whether the pointer is over the page's content (a reference: writing it re-renders nothing).
@@ -189,7 +187,7 @@ struct DetailView: View {
             if let id = drag.id, !ids.contains(id) { drag.abandon() }
         }
         #if DEBUG
-        .onAppear { probe?(PageProbe(geometry: geometry, linked: linked, peek: peek, stage: nbaStage, moments: moments, drag: drag)) }
+        .onAppear { probe?(PageProbe(geometry: geometry, linked: linked, stage: nbaStage, moments: moments, drag: drag)) }
         #endif
         // The hero's scoreboard beat: a score-tier moment, on this page, now.
         .onChange(of: moments.current?.id) { _, _ in
@@ -250,21 +248,14 @@ struct DetailView: View {
             // A dragged module's pointer and lift are measured in the viewport.
             .coordinateSpace(name: ModuleDrag.space)
             .overlay(alignment: .topLeading) { moduleLift }
-            // The docked scorebar and the chart peek float over the scroll
-            // view: neither ever changes the page's measured height.
+            // The docked scorebar floats over the scroll view: it never
+            // changes the page's measured height.
             .overlay(alignment: .top) {
                 DockedScorebarHost(bar: dockBar, beats: beats, moments: moments, pinEvent: event, pinned: store.pinnedID == event.id,
                                    slides: slides)
             }
             // A score's slide, once the docked bar is the scoreboard: just under it. Out of the hierarchy between scores.
             .overlay(alignment: .top) { ScoringSlideHost(slides: slides, surface: .bar) }
-            .overlay {
-                LinkedPeekHost(controller: peek, route: { focus, source in peekRoute(focus, source: source) },
-                               readout: { focus, section in peekReadout(focus, section) }, title: peekTitle,
-                               aspect: peekAspect) { section, focus in
-                    peekChart(section, focus: focus)
-                }
-            }
             .environment(\.pageGeometry, geometry)
             .environment(\.scoreboardSurface, surface)
             .environment(linked)
@@ -276,7 +267,7 @@ struct DetailView: View {
                                  basketball: basketballFeed))
             // NBA: players on fire, ESPN's scoring run (CourtView, GameFlowView, BoxScoreView, LeadersView).
             .environment(basketballFeed)
-            .environment(\.peekShow, peekShow)
+            .environment(\.showOnChart, showOnChart)
         }
         // The sport's Customize sheet, over the whole page (its header too).
         .overlay { customizeSheet }
@@ -1141,17 +1132,8 @@ struct DetailView: View {
                     // its header drags it to a new place (PageModules.swift, ModuleDrag.swift).
                     .environment(\.moduleChrome, chrome(item.section, detail, placed: placed, shown: shown))
                     .environment(\.widthClass, room(for: item.slot))
-                    // Where it is (for the peek and the bar), which section the
-                    // pointer is in (rows there may peek), and the flash when a
-                    // clicked peek brings it into view.
+                    // Where it is (for the docked bar and "Show on …").
                     .pageSection(sectionID(item.section))
-                    .onHover { inside in peek.pointer(item.section, inside: inside) }
-                    .overlay {
-                        PeekArrivalFlash(controller: peek, section: item.section)
-                            .padding(.horizontal, Metrics.gutter - 6)
-                            .padding(.top, 9)
-                            .padding(.bottom, -6)
-                    }
                     // Mid-drag, the module in hand is unseen here, holding its gap.
                     .modifier(ModuleGap(drag: drag, id: sectionID(item.section)))
                     .matchSlot(item.slot.column, rank: item.slot.rank)
@@ -1262,11 +1244,9 @@ struct DetailView: View {
          bottom: d.bottomRoster.acronym ?? event.competitors.last?.abbreviation ?? "")
     }
 
-    /// The chart a section shows, shared by the section and its peek: the
-    /// same initializers, so the peek is the same chart with the same
-    /// highlight. `excerpt` narrows list-like charts to a focused climber.
+    /// The chart a section shows.
     @ViewBuilder
-    private func chart(_ kind: Section, _ d: GameDetail, excerpt: Focus? = nil) -> some View {
+    private func chart(_ kind: Section, _ d: GameDetail) -> some View {
         let names = shortNames(d)
         let live = event.state == .live
         switch kind {
@@ -1291,11 +1271,9 @@ struct DetailView: View {
             SprayChartView(balls: battedBalls(d), palette: palette, topName: names.top, bottomName: names.bottom,
                            celebrates: PlateCelebration.sprayChartBursts(theaterShown: liveViewOpen(d)))
         case .wall:
-            ClimbingWallView(routes: excerpt?.athlete.map { Self.wallExcerpt(d.wall, athlete: $0) } ?? d.wall,
-                             live: roundLive(d), yours: Set(store.climbingCountries))
+            ClimbingWallView(routes: d.wall, live: roundLive(d), yours: Set(store.climbingCountries))
         case .scorecard:
-            let cards = excerpt?.athlete.map { id in d.boulders.filter { $0.id == id } } ?? []
-            BoulderScorecard(cards: cards.isEmpty ? d.boulders : cards, problems: d.boulderProblems, yours: Set(store.climbingCountries))
+            BoulderScorecard(cards: d.boulders, problems: d.boulderProblems, yours: Set(store.climbingCountries))
         case .ascent:
             if let route = d.wall.first {
                 LeadAscentView(route: route, upNext: d.upNext, yours: Set(store.climbingCountries),
@@ -2120,7 +2098,7 @@ struct DetailView: View {
         return topIsHome ? ("\(lane.home)", "\(lane.away)") : ("\(lane.away)", "\(lane.home)")
     }
 
-    // MARK: Docked scorebar and chart peek
+    // MARK: Docked scorebar
 
     /// What the docked scorebar shows: the hero's numbers, clock and live detail.
     private var dockBar: DockBar {
@@ -2174,91 +2152,48 @@ struct DetailView: View {
         onBack()
     }
 
-    /// Leaving the page's content clears the hover a beat later: the pointer
-    /// may be on its way onto the peek, which holds what it shows.
+    /// Leaving the page's content clears the hover.
     private func pointerMoved(inside: Bool) {
         pointer.inside = inside
-        guard !inside else { return }
-        let linked = linked, pointer = pointer
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(40))
-            if !pointer.inside { linked.clear() }
-        }
+        if !inside { linked.clear() }
     }
 
-    /// The section a focus would light, if the page has it (`PeekRouter`).
-    private func peekRoute(_ focus: Focus, source: Section?) -> Section? {
+    /// The section a focus would light, if the page has it (`ChartLinks`).
+    private func linkedChart(for focus: Focus) -> Section? {
         guard let d = detail else { return nil }
-        return PeekRouter.target(for: focus, sport: event.ref, state: event.state, inputs: peekInputs(d, for: focus, readout: false),
-                                 source: source)
+        return ChartLinks.target(for: focus, sport: event.ref, inputs: chartLinkInputs(d))
     }
 
-    private func peekReadout(_ focus: Focus, _ section: Section) -> (lead: String, detail: String)? {
-        guard let d = detail else { return nil }
-        return PeekRouter.readout(for: focus, target: section, inputs: peekInputs(d, for: focus, readout: true))
-    }
-
-    /// What the router needs from this page, for this sport only. Routing
-    /// runs on every focus change, so the readout's words are built only for
-    /// the pill (`readout`).
-    private func peekInputs(_ d: GameDetail, for focus: Focus, readout: Bool) -> PeekInputs {
-        var inputs = PeekInputs()
+    /// What the routing needs from this page, for this sport only.
+    private func chartLinkInputs(_ d: GameDetail) -> ChartLinkInputs {
+        typealias Mark = ChartLinkInputs.Mark
+        var inputs = ChartLinkInputs()
         inputs.shown = Set(store.modules.shown(available(d), on: pageKind))
-        let names = shortNames(d)
-        if let summary = d.linescore {
-            // As the section shows it: no older than the hero.
-            let line = ledger.reconciled(summary)
-            inputs.linescore = (line.headers, line.top, line.bottom, names)
-        }
         switch event.ref {
         case .espn(_, _, .soccer)?:
             let actions = (event.state == .live ? soccerFeed.trail : []) + soccerFeed.shots
-            inputs.pitch = actions.map { PeekInputs.Mark(id: $0.playID, lead: $0.minute, detail: $0.text) }
-                + soccerFeed.cards.map { PeekInputs.Mark(id: $0.key, lead: $0.value.minute, detail: $0.value.text) }
+            inputs.pitch = actions.map { Mark(id: $0.playID) } + soccerFeed.cards.map { Mark(id: $0.key) }
             inputs.timeline = d.moments.filter { $0.minute != nil && $0.kind != .other && $0.kind != .score }
-                .map { PeekInputs.Mark(id: $0.id, side: $0.side, lead: $0.clock, detail: MomentList.headline($0)) }
+                .map { Mark(id: $0.id, side: $0.side) }
         case .espn(_, _, .baseball)?:
-            inputs.balls = battedBalls(d).map { ball in
-                let lead = switch ball.outcome {
-                case .single: "Single"
-                case .extraBases: "Extra bases"
-                case .homeRun: "Home run"
-                case .out: "Out"
-                }
-                return PeekInputs.Mark(id: ball.id, period: ball.period, side: ball.side, lead: lead, detail: ball.text)
-            }
+            inputs.balls = battedBalls(d).map { Mark(id: $0.id, period: $0.period, side: $0.side) }
         case let .espn(path, _, .basketball)? where path == NBADetail.path:
             guard let nba = d.basketball else { break }
-            inputs.shots = nbaShots(nba).map { shot in
-                PeekInputs.Mark(id: shot.id, period: shot.period, side: shot.side, player: shot.player,
-                                lead: readout ? "\(shot.made ? "Made" : "Missed") \(shot.value)" : (shot.made ? "Made" : ""),
-                                detail: readout ? NBADetail.short(shot.text) : "")
-            }
-            inputs.flow = nba.flow.map { point in
-                guard readout else { return PeekInputs.Mark(id: point.id, period: point.period, side: point.scorer) }
-                let line = point.top == point.bottom ? "Tied \(point.top)–\(point.bottom)"
-                    : point.top > point.bottom ? "\(names.top) \(point.top)–\(point.bottom)" : "\(names.bottom) \(point.bottom)–\(point.top)"
-                return PeekInputs.Mark(id: point.id, period: point.period, side: point.scorer, lead: line, detail: point.clock)
-            }
-            if readout, let player = focus.player {
-                inputs.names = leaderNames(nba).merging(nba.players.mapValues(\.name)) { _, box in box }
-                if let box = nba.players[player], let fg = CourtView.made(box.fieldGoals) {
-                    inputs.lines[player] = CourtView.shooting(fg, threes: CourtView.made(box.threes) ?? (0, 0))
-                }
-            }
+            inputs.shots = nbaShots(nba).map { Mark(id: $0.id, period: $0.period, side: $0.side, player: $0.player) }
+            inputs.flow = nba.flow.map { Mark(id: $0.id, period: $0.period, side: $0.scorer) }
         case .climbing?:
-            func mark(_ c: GameDetail.WallRoute.Climber) -> PeekInputs.Mark { PeekInputs.Mark(id: String(c.id), lead: c.name, detail: c.label) }
+            func mark(_ c: GameDetail.WallRoute.Climber) -> Mark { Mark(id: String(c.id)) }
             if inputs.shown.contains(.ascent), let route = d.wall.first { inputs.ascent = route.climbers.map(mark) }
             inputs.wall = d.wall.flatMap(\.climbers).map(mark)
-            inputs.cards = d.boulders.map { PeekInputs.Mark(id: String($0.id), lead: $0.name, detail: $0.score ?? "") }
+            inputs.cards = d.boulders.map { Mark(id: String($0.id)) }
         default:
             break
         }
         return inputs
     }
 
-    /// The peek's header: the section's own name.
-    private func peekTitle(_ section: Section) -> String {
+    /// A chart's name, as its section header says it.
+    private func chartTitle(_ section: Section) -> String {
         switch section {
         case .court: "Shot Chart"
         case .flow: "Game Flow"
@@ -2273,38 +2208,11 @@ struct DetailView: View {
         }
     }
 
-    /// The chart's width over its height (`chartUnit`); nil fills the peek's width.
-    private func peekAspect(_ section: Section) -> CGFloat? {
-        switch section {
-        case .court: 94.0 / 50.0
-        case .pitch: 105.0 / 68.0
-        case .battedBalls: 250.0 / 210.0
-        default: nil
-        }
-    }
-
-    /// The chart in the peek: the section's own chart; list-like ones show
-    /// just the focused climber (and neighbors).
-    @ViewBuilder
-    private func peekChart(_ section: Section, focus: Focus?) -> some View {
-        if let d = detail { chart(section, d, excerpt: focus) }
-    }
-
-    /// A climber's lane and their neighbors by rank, on each route they're on.
-    static func wallExcerpt(_ routes: [GameDetail.WallRoute], athlete: Int) -> [GameDetail.WallRoute] {
-        let excerpt = routes.compactMap { route -> GameDetail.WallRoute? in
-            guard let i = route.climbers.firstIndex(where: { $0.id == athlete }) else { return nil }
-            let keep = route.climbers[max(i - 1, 0)...min(i + 1, route.climbers.count - 1)]
-            return GameDetail.WallRoute(name: route.name, climbers: Array(keep), total: route.total)
-        }
-        return excerpt.isEmpty ? routes : excerpt
-    }
-
     /// Rows' "Show on {chart}": pin, bring the chart into view at once, and
     /// move VoiceOver's attention there.
-    private var peekShow: PeekShowAction {
-        PeekShowAction(title: { focus in peekRoute(focus, source: nil).map(peekTitle) }, perform: { focus in
-            guard let target = peekRoute(focus, source: nil) else { return }
+    private var showOnChart: ShowOnChartAction {
+        ShowOnChartAction(title: { focus in linkedChart(for: focus).map(chartTitle) }, perform: { focus in
+            guard let target = linkedChart(for: focus) else { return }
             // "Show on Shot Chart" opens it if it's folded (at once, like the scroll).
             if store.modules.isFolded(target, on: pageKind) { setFolded([target], false, keyboard: true) }
             linked.pin(focus)

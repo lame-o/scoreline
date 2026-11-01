@@ -27,7 +27,7 @@ import { rankingsPath, standingsPath } from "../../../data/schedule";
 import { useRankings, useStandings } from "../../../state/standings";
 import { DetailSection } from "../core/DetailSection";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
-import { linescoreChart, linescorePeek, useCommonSections } from "../core/useCommonSections";
+import { useCommonSections } from "../core/useCommonSections";
 import { CollegeTable } from "./ConferenceTable";
 import { FootballField } from "./FootballField";
 import { useNameLinker } from "./names";
@@ -165,8 +165,6 @@ export function useFootballPage(game: GameContext): SportPage {
             ) : null
         : undefined,
     chip: drill ? "2-MIN DRILL" : null,
-    // The chart peek (LinkedPeek): a scoring play lights its quarter in the line score.
-    peek: { inputs: { linescore: linescorePeek(game) }, chart: (section) => (section === "linescore" ? linescoreChart(game) : null) },
   };
 }
 

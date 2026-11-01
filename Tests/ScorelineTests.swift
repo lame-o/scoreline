@@ -43,7 +43,7 @@ struct ScorelineTests {
         nbaPolish()
         dock()
         dockPages()
-        peek()
+        chartLinks()
         teamColors()
         await pageGeometry()
         scoreChanges()

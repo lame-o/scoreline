@@ -153,7 +153,7 @@ export class PageGeometry {
   /**
    * The visible part of the page in viewport pixels: under the sticky header,
    * inside the pane that scrolls it (the detail pane beside the sidebar, else
-   * the window). The chart peek docks at its edges.
+   * the window).
    */
   viewport(): { left: number; top: number; right: number; bottom: number } {
     const box = this.scroller instanceof Window ? { left: 0, right: window.innerWidth } : this.scroller.getBoundingClientRect();

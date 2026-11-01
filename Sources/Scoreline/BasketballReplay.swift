@@ -355,7 +355,6 @@ struct CourtBall: View {
 /// "Profile ›" link at the end. Where room is short the first name goes
 /// (the surname stays), then the replay's moment, then the threes; then the
 /// line truncates, never the name.
-/// In the linked peek the chip is text only (no ×) and there's no link.
 struct PinnedPlayerLine: View {
     let name: String
     let line: String
