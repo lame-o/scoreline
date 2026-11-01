@@ -496,8 +496,10 @@ enum TheaterBake {
             for track in tracks where i < track.xy.count {
                 let a = track.xy[i], b = track.xy[min(i + 1, track.xy.count - 1)]
                 let v = Double(simd_length(b - a)) / h
-                if track.opacity[i] > 0.01, v > 0.05 * track.figure.height { fps = max(fps, 30) }
-                if track.opacity[i] > 0.01, v > 2.6 * track.figure.height { fps = 60 }
+                // Visible travel needs display-rate frames too, not just a
+                // sprint. Switching walking players to 30 made the new director
+                // visibly less fluid than the original 60 Hz theaters.
+                if track.opacity[i] > 0.01, v > 0.05 * track.figure.height { fps = 60 }
                 if i + 1 < track.opacity.count, abs(track.opacity[i + 1] - track.opacity[i]) > 1e-4 { fps = max(fps, 30) }
             }
             if fps < 60, case .flight? = ballSpan(ball, at: t) { fps = 60 }
@@ -506,7 +508,7 @@ enum TheaterBake {
             let ca = SIMD4<Double>(camera[i]), cb = SIMD4<Double>(camera[j])
             let span = exp(ca.z)
             let pan = simd_length(SIMD2(cb.x - ca.x, cb.y - ca.y)) / h / span
-            if pan > 0.15 || abs(remainder(cb.w - ca.w, 2 * .pi)) / h > 0.02 { fps = 60 } else if pan > 0.002 || abs(cb.z - ca.z) / h > 0.002 { fps = max(fps, 30) }
+            if pan > 0.002 || abs(remainder(cb.w - ca.w, 2 * .pi)) / h > 0.02 || abs(cb.z - ca.z) / h > 0.002 { fps = 60 }
             if fps < 30, let k = plan.placement(at: t), plan.placements[k].clip.moving(at: plan.placements[k].time(t)) { fps = 30 }
             if let last = tiers.last, last.fps == fps {
                 tiers[tiers.count - 1].until = t + dt

@@ -21,13 +21,14 @@ private struct LineClip: TheaterClip {
     var decisive: Double? = 5
     var essential = 0.0
     var ambient = false
+    var reportsMotion = true
     var figures: [ClipFigure] { starts.indices.map { ClipFigure(group: $0 % 2, kind: "player", band: "wing", height: Hoops.ground) } }
     func position(_ i: Int, at t: Double) -> SIMD2<Double> { starts[i] + velocities[i] * max(t - still, 0) }
     func heading(_ i: Int, at t: Double) -> Double { simd_length(velocities[i]) > 0 ? atan2(velocities[i].y, velocities[i].x) : 0 }
     func opacity(_ i: Int, at t: Double) -> Double { 1 }
     func ball(at t: Double) -> ClipBall? { .held(figure: 0) }
     func camera(at t: Double) -> SIMD4<Double> { let p = position(0, at: t); return SIMD4(p.x, p.y, log(40), HoopsWorld.yaw(right: true)) }
-    func moving(at t: Double) -> Bool { true }
+    func moving(at t: Double) -> Bool { reportsMotion }
 }
 
 extension ScorelineTests {
@@ -389,5 +390,23 @@ extension ScorelineTests {
         check(var71.record("54535016")?.told == .late && var71.record("54535017")?.told == .correction && late.count == 3,
               "an announced play more than 30 s late is told late, as an event; a plain one is a quiet correction",
               "\(String(describing: var71.record("54535016")?.told)) \(String(describing: var71.record("54535017")?.told))")
+    }
+}
+
+extension ScorelineTests {
+    static func presentationFrameTiers() {
+        let walking = LineClip(starts: [SIMD2(20, 20)], velocities: [SIMD2(4, 0)])
+        let id = ActorID(1)
+        let plan = Plan(revision: 1, start: 1000, horizon: 1008, state: nil,
+                        placements: [ClipPlacement(clip: walking, offset: 1000, start: 1000, cast: [id])], actors: [id: walking.figures[0]])
+        let baked = TheaterBake.bake(plan)
+        check(baked.tiers.filter { $0.from < 1005 && $0.until > 1001 }.allSatisfy { $0.fps == 60 },
+              "visible walking uses smooth 60 Hz frames, not the former 30 Hz tier")
+        var still = LineClip(starts: [SIMD2(20, 20)], velocities: [.zero])
+        still.reportsMotion = false
+        still.decisive = nil
+        let quiet = Plan(revision: 1, start: 1000, horizon: 1008, state: nil,
+                         placements: [ClipPlacement(clip: still, offset: 1000, start: 1000, cast: [id])], actors: [id: still.figures[0]])
+        check(TheaterBake.bake(quiet).tiers.contains { $0.fps == 0 }, "settled scenes still stop drawing frames")
     }
 }

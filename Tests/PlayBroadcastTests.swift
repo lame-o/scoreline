@@ -142,8 +142,8 @@ extension ScorelineTests {
         for scheme in [ColorScheme.dark, .light] {
             let mode = scheme == .dark ? "dark" : "light"
             let plain = TheaterTeams.dress(navies, scheme: scheme)
-            check(plain.rule == .whites(.bottom) && apart(plain.top, plain.bottom),
-                  "\(mode): two navies with no second colors: the home team wears whites", "\(plain.rule)")
+            check(plain.rule == .whites(.top) && apart(plain.top, plain.bottom),
+                  "\(mode): two navies with no second colors: the away team wears a contrast kit", "\(plain.rule)")
             let dressed = TheaterTeams.dress(espn, scheme: scheme)
             check(dressed.rule == .second(.top) && apart(dressed.top, dressed.bottom),
                   "\(mode): Brewers and Rays navies: the Brewers change into gold (their second color), not gray", "\(dressed.rule)")
@@ -152,12 +152,12 @@ extension ScorelineTests {
             // White and gray second colors aren't colors: they don't count.
             let blank = TheaterTeams.dress(TheaterKits(top: TeamKit(color: "005a9c", alternate: "ffffff"),
                                                        bottom: TeamKit(color: "004687", alternate: "c0c0c0")), scheme: scheme)
-            check(blank.rule == .whites(.bottom) && apart(blank.top, blank.bottom), "\(mode): two blues whose second colors are white and silver: whites")
+            check(blank.rule == .whites(.top) && apart(blank.top, blank.bottom), "\(mode): two blues whose second colors are white and silver: whites")
         }
-        let lightWhites = TheaterTeams.dress(navies, scheme: .light).bottom
+        let lightWhites = TheaterTeams.dress(navies, scheme: .light).top
         check(lightWhites.piping != nil, "light: whites carry piping in the team's color (a white halo wouldn't show them)")
         let pale = TheaterTeams.dress(TheaterKits(top: TeamKit(color: "fdb827"), bottom: TeamKit(color: "ffc52f")), scheme: .light)
-        check(pale.rule == .whites(.bottom) && apart(pale.top, pale.bottom), "light: two golds: the home team in charcoal, dark against light")
+        check(pale.rule == .whites(.top) && apart(pale.top, pale.bottom), "light: two golds: the away team in charcoal, dark against light")
         let black = TheaterTeams.dress(TheaterKits(top: TeamKit(color: "000000"), bottom: TeamKit(color: "27251f")), scheme: .dark)
         check(apart(black.top, black.bottom), "dark: two black teams (gray on a dark panel) still read apart", "\(black.rule)")
 

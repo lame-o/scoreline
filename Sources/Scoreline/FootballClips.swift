@@ -48,6 +48,7 @@ struct GridClip: TheaterClip, @unchecked Sendable {
     let script: FootballScript
     let scene: FootballScene?
     let idle: FootballIdle?
+    let stoppage: FootballStoppage?
     let kind: Kind
     let right: Bool
     let offense: GameDetail.Side
@@ -57,11 +58,15 @@ struct GridClip: TheaterClip, @unchecked Sendable {
     let decisive: Double?
     let essential: Double
     let paths: [MotionPath?]
+    private let loopStart: Double?
+    private let loopPeriod: Double
+    private let endTime: Double
 
-    init(_ script: FootballScript, scene: FootballScene?, idle: FootballIdle?, offense: GameDetail.Side) {
+    init(_ script: FootballScript, scene: FootballScene?, idle: FootballIdle?, offense: GameDetail.Side, stoppage: FootballStoppage? = nil) {
         self.script = script
         self.scene = scene
         self.idle = idle
+        self.stoppage = stoppage
         self.offense = offense
         kind = idle == nil ? .replay : .idle
         right = GridWorld.right(script.yaw)
@@ -100,6 +105,9 @@ struct GridClip: TheaterClip, @unchecked Sendable {
             return most
         }, steady: { u in script.flight(at: u).map { $0.end - $0.start < 1.5 } ?? false }) ?? .identity
         self.warp = warp
+        endTime = warp.clip(script.duration)
+        loopStart = script.loop.map { warp.clip($0.start) }
+        loopPeriod = script.loop.map { warp.clip($0.start + $0.period) - warp.clip($0.start) } ?? 0
         length = idle == nil ? (warp.isIdentity ? script.duration : warp.stretched) : .infinity
         // Whoever still can't make a replay's run, even slowed, fades through it (declared, counted).
         fades = idle != nil ? .none : ClipFades.make(figures: paths.count, length: warp.isIdentity ? script.duration : warp.stretched, bands: bands) { i, t in
@@ -128,12 +136,10 @@ struct GridClip: TheaterClip, @unchecked Sendable {
 
     /// An idle loops; a replay holds its end.
     func local(_ t: Double) -> Double {
-        guard idle != nil else { return min(max(warp.script(t), 0), script.duration) }
+        guard kind == .idle else { return min(max(warp.script(t), 0), script.duration) }
         // The field between snaps loops in its stretched time, then reads the script there.
-        guard let loop = script.loop, loop.period > 0 else { return warp.script(min(max(t, 0), warp.clip(script.duration))) }
-        let start = warp.clip(loop.start), period = warp.clip(loop.start + loop.period) - start
-        guard period > 0, t > start + period else { return warp.script(min(max(t, 0), warp.clip(script.duration))) }
-        return warp.script(start + (t - start).truncatingRemainder(dividingBy: period))
+        guard let start = loopStart, loopPeriod > 0, t > start + loopPeriod else { return warp.script(min(max(t, 0), endTime)) }
+        return warp.script(start + (t - start).truncatingRemainder(dividingBy: loopPeriod))
     }
 
     var ambient: Bool { kind == .idle }
@@ -167,7 +173,9 @@ struct GridClip: TheaterClip, @unchecked Sendable {
 
     func moving(at t: Double) -> Bool {
         guard t >= 0 else { return false }
-        return idle == nil ? t <= length : script.moving(at: local(t))
+        if kind == .replay { return t <= length }
+        guard t < endTime || loopStart != nil else { return false }
+        return script.moving(at: local(t))
     }
 }
 
@@ -298,7 +306,7 @@ struct GridSequencer: ClipSequencer {
         let kickoff = last?.scoring != nil && last?.conversion == nil
         let idle = FootballIdle.make(play: last, stoppage: stoppage, rest: rest, offense: offense, down: last?.after, kickoff: kickoff,
                                      flipped: facts.flipped)
-        return GridClip(FootballScript(idle: idle), scene: nil, idle: idle, offense: idle.offense)
+        return GridClip(FootballScript(idle: idle), scene: nil, idle: idle, offense: idle.offense, stoppage: stoppage)
     }
 
     mutating func opening(at t: PTime) -> GridClip {

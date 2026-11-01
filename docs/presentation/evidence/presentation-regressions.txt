@@ -1,0 +1,29 @@
+
+Game presentation regressions
+  ✓ Steelers–Browns halftime capture loads
+  ✓ opening at halftime immediately presents halftime, not the first-quarter timeout
+  ✓ historical stopped-clock plays are not rescheduled after the page opens
+  ✓ core and status refresh keep the same halftime state
+  ✓ the break has one status and no running game clock
+  ✓ halftime does not claim anyone has possession
+  ✓ the halftime field clears stale possession and down-and-distance
+  ✓ a colorless historical event gets the summary's primary and alternate colors, by team ID
+  ✓ color enrichment preserves score and competition routing
+  ✓ a third-quarter kickoff clears halftime when its presentation moment arrives
+  ✓ official: enter the break once, then hold without replaying the departure
+  ✓ official: players stay in their settled positions
+  ✓ twoMinuteWarning: enter the break once, then hold without replaying the departure
+  ✓ twoMinuteWarning: players stay in their settled positions
+  ✓ halftime: enter the break once, then hold without replaying the departure
+  ✓ halftime: players stay in their settled positions
+  ✓ valid primary colors, including black, are not replaced by logo colors
+  ✓ dark: both red teams retain red identity washes
+  ✓ dark: soccer home-first order gives the away side the contrast kit
+  ✓ dark: black uniforms stay black with a visible outline
+  ✓ light: both red teams retain red identity washes
+  ✓ light: soccer home-first order gives the away side the contrast kit
+  ✓ light: black uniforms stay black with a visible outline
+  ✓ visible walking uses smooth 60 Hz frames, not the former 30 Hz tier
+  ✓ settled scenes still stop drawing frames
+
+25 passed, 0 failed

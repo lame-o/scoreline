@@ -47,6 +47,7 @@ struct PresentedGame: Equatable, Sendable {
     var revision: UInt64 = 0
 
     var isFinal: Bool { phase == .final }
+    var isInterval: Bool { if case .interval = phase { true } else { false } }
 
     /// What's presented at `p`.
     static func at<P>(_ p: PTime, timeline: GameTimeline<P>) -> PresentedGame {

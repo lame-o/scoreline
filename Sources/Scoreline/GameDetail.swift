@@ -299,6 +299,21 @@ struct GameDetail {
     var csLive: CSLive?
     /// Whether the top (first listed) team is at home; ESPN sports only.
     var topIsHome: Bool?
+    /// Authoritative team metadata from the summary, keyed by competitor ID.
+    /// Historical schedule rows often omit colors; this is not match-kit data.
+    var teamColors: [String: TeamKit] = [:]
+
+    func colored(_ event: Event) -> Event {
+        guard case let .match(top, bottom) = event.content else { return event }
+        func colored(_ team: Competitor) -> Competitor {
+            guard let id = team.id, let colors = teamColors[id] else { return team }
+            var result = team
+            if colors.color.flatMap(OKLab.init(hex:)) != nil { result.color = colors.color }
+            if colors.alternate.flatMap(OKLab.init(hex:)) != nil { result.alternateColor = colors.alternate }
+            return result
+        }
+        return event.with(content: .match(top: colored(top), bottom: colored(bottom)))
+    }
     /// The tournament a CS2 match belongs to, for its bracket.
     struct Tournament: Equatable {
         let slug: String
@@ -597,6 +612,11 @@ enum ESPNDetail {
         let bottomComp = competitors.first { $0["team"]["id"].string == ids.last ?? nil }
 
         detail.topIsHome = topComp.map { $0["homeAway"].string == "home" }
+        for team in event.competitors {
+            guard let id = team.id, let rawID = id.split(separator: "-").last,
+                  let raw = competitors.first(where: { $0["team"]["id"].string == String(rawID) }) else { continue }
+            detail.teamColors[id] = TeamKit(color: raw["team"]["color"].string, alternate: raw["team"]["alternateColor"].string)
+        }
         detail.stats = stats(summary, sport: sport, topID: ids.first ?? nil, bottomID: ids.last ?? nil, path: path)
         if sport != .soccer, let topComp, let bottomComp {
             detail.linescore = linescore(top: topComp, bottom: bottomComp, sport: sport)

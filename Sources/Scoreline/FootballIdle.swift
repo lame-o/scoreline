@@ -321,9 +321,17 @@ extension FootballScript.Builder {
             back = false
             t = 4.6
         case let .timeout(side):
-            t = sidelines(idle, teams: side.map { [$0 == idle.offense ? .offense : .defense] } ?? [], random: &random, hold: 34)
+            _ = sidelines(idle, teams: side.map { [$0 == idle.offense ? .offense : .defense] } ?? [], random: &random, hold: 8)
+            script.duration = 9
+            script.settle = 9
+            finishIdle()
+            return
         case .commercial:
-            t = sidelines(idle, teams: [.offense, .defense], random: &random, hold: 44)
+            _ = sidelines(idle, teams: [.offense, .defense], random: &random, hold: 8)
+            script.duration = 9
+            script.settle = 9
+            finishIdle()
+            return
         case let .quarter(turnTo):
             // They gather while the field turns: the teams have changed ends.
             huddles(from: 0.4, random: &random)
@@ -770,7 +778,7 @@ enum FootballStatus {
             return TheaterStatus(tag: tag, tint: names.color(side))
         case .commercial:
             if back { return ballTag }
-            return TheaterStatus(tag: stoppage?.kind == .twoMinuteWarning ? "Two-minute warning" : "Commercial break")
+            return TheaterStatus(tag: stoppage?.kind == .twoMinuteWarning ? "Two-minute warning" : "Official timeout")
         case .quarter:
             if t >= 9 { return ballTag }
             let period = stoppage?.period ?? 1

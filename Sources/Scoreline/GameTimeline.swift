@@ -963,7 +963,12 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
                 stoppage = nil
                 continue
             }
-            if let s = stoppage, s.period == e.period, abs(g - s.elapsed) < 0.05 {
+            // A stopped game clock does not make a later wallclock unreliable.
+            // NFL snaps often share the timeout's game clock but have their own
+            // timestamps. Bounding those by firstSeen can push an entire half
+            // to the moment the page opened (CLE–PIT, 2026-11-01).
+            if let s = stoppage, s.period == e.period, abs(g - s.elapsed) < 0.05,
+               e.wallclock == nil || records[k].estimated || records[k].eventTime <= s.at + 1 {
                 cluster.append(k)
                 continue
             }
@@ -1031,7 +1036,7 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         }
         for j in records.indices.dropFirst(k + 1) where records[j].entry.period == s.period {
             guard let g = records[j].entry.clock.elapsed, g > s.elapsed + 0.05 else { continue }
-            if records[j].timeSource == .wallclock || records[j].timeSource == .statsapi {
+            if records[j].timeSource == .wallclock || records[j].timeSource == .statsapi || records[j].estimated {
                 let implied = records[j].eventTime - (g - s.elapsed)
                 best = min(best ?? implied, implied)
             }

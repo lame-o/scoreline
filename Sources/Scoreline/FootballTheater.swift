@@ -1828,13 +1828,14 @@ private struct FootballDirectedStage: View {
     var body: some View {
         let ink = TheaterInk(scheme)
         let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: (names.top, names.bottom))
+        let uniforms = TheaterTeams.dressed(kits, palette: palette, scheme: scheme)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 TheaterFrames(director: director, running: seen && !reduceMotion) { wall in
-                    frame(at: wall, size: geo.size, ink: ink, labels: labels)
+                    frame(at: wall, size: geo.size, ink: ink, labels: labels, uniforms: uniforms)
                 }
                 .accessibilityHidden(true)
-                TheaterHeartbeat(updated: heard, source: "ESPN")
+                TheaterHeartbeat(updated: source.presented.isInterval ? nil : heard, source: "ESPN")
                     .padding(7)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 TheaterFlipButton(eventID: eventID, surface: "field")
@@ -1860,11 +1861,12 @@ private struct FootballDirectedStage: View {
     }
 
     @ViewBuilder
-    private func frame(at wall: PTime, size: CGSize, ink: TheaterInk, labels: TheaterLabels) -> some View {
+    private func frame(at wall: PTime, size: CGSize, ink: TheaterInk, labels: TheaterLabels, uniforms: (top: Uniform, bottom: Uniform)) -> some View {
         let chain = director.chain
         if let T = director.time(at: wall), let drawn = sampled(chain, at: T, size: size) {
             let offense = drawn.clip.offense
-            let teams = teams(offense)
+            let teams = offense == .top ? FootballTeams(offense: uniforms.top, defense: uniforms.bottom)
+                : FootballTeams(offense: uniforms.bottom, defense: uniforms.top)
             let status = status(drawn)
             let cast = cast(chain)
             let tags = TheaterTags(cast: cast, labels: labels, pointer: pointer, at: Date(timeIntervalSince1970: wall), reduceMotion: reduceMotion,
@@ -1904,17 +1906,6 @@ private struct FootballDirectedStage: View {
         })
     }
 
-    private func teams(_ offense: GameDetail.Side) -> FootballTeams {
-        let uniforms: (top: Uniform, bottom: Uniform)
-        if let kits {
-            let d = TheaterTeams.dress(kits, scheme: scheme)
-            uniforms = (d.top, d.bottom)
-        } else {
-            uniforms = (Uniform(TheaterTeams.solid(palette.top, scheme)), Uniform(TheaterTeams.solid(palette.bottom, scheme)))
-        }
-        return offense == .top ? FootballTeams(offense: uniforms.top, defense: uniforms.bottom) : FootballTeams(offense: uniforms.bottom, defense: uniforms.top)
-    }
-
     private func zones(_ offense: GameDetail.Side) -> GridironLayer.Zones {
         let top = GridironLayer.EndZone(color: TheaterTeams.solid(palette.top, scheme), name: topName.uppercased())
         let bottom = GridironLayer.EndZone(color: TheaterTeams.solid(palette.bottom, scheme), name: bottomName.uppercased())
@@ -1927,7 +1918,7 @@ private struct FootballDirectedStage: View {
             return banner ? TheaterStatus(updated: heard) : FootballStatus.replay(scene, script: drawn.clip.script, t: drawn.t, names: names)
         }
         guard let idle = drawn.clip.idle else { return TheaterStatus(updated: heard) }
-        var status = FootballStatus.idle(idle, stoppage: nil, script: drawn.clip.script, t: drawn.t, names: names,
+        var status = FootballStatus.idle(idle, stoppage: drawn.clip.stoppage, script: drawn.clip.script, t: drawn.t, names: names,
                                          situation: situation, timeoutsLeft: timeouts)
         status.updated = heard
         return status

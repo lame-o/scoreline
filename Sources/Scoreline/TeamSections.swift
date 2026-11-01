@@ -101,7 +101,7 @@ struct NextGameRow: View {
         guard let navigator, let opponent = game.opponent else { return }
         func competitor(_ t: Profile.TeamRef, score: String?) -> Competitor {
             Competitor(id: t.id, name: t.name, abbreviation: t.abbreviation ?? t.name, score: score, logo: t.logo,
-                       isWinner: false, color: t.color)
+                       isWinner: false, color: t.color, alternateColor: t.alternateColor)
         }
         let us = competitor(team, score: game.teamScore), them = competitor(opponent, score: game.opponentScore)
         let soccer = team.sport == .soccer

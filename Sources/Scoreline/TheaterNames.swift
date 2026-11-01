@@ -239,8 +239,8 @@ struct TheaterLabels: Equatable {
     subscript(side: GameDetail.Side) -> Label { side == .top ? top : bottom }
 
     /// From the kits as `TheaterTeams.dress` wears them on this panel: the
-    /// slab in the shirt's own color as it's drawn (black lifted to a gray on
-    /// a dark panel, as the figures are), the stripe in the team's other
+    /// slab in the shirt's own color as it's drawn (black stays black,
+    /// with contrasting text), the stripe in the team's other
     /// color; a team in its second color striped in its own; a team in
     /// whites labeled in its own color. (pure; tested)
     static func make(kits: TheaterKits?, scheme: ColorScheme, teams: (top: String, bottom: String)) -> TheaterLabels {

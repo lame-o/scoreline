@@ -207,7 +207,7 @@ struct ReplayContext: Equatable {
     /// Baseball: MLB's numbers by name, for the tags.
     var numbers: [String: String] = [:]
 
-    var kits: TheaterKits { TheaterKits(top: top, bottom: bottom) }
+    var kits: TheaterKits { TheaterKits(top: top, bottom: bottom, topIsHome: topIsHome) }
     /// Short names ("PHI"), and the teams' full names ("Philadelphia Eagles").
     var codes: (top: String, bottom: String) { (top?.abbreviation ?? "", bottom?.abbreviation ?? "") }
     var teams: (top: String, bottom: String) { (top?.name ?? codes.top, bottom?.name ?? codes.bottom) }

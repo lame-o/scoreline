@@ -209,7 +209,7 @@ struct EventTile: View {
     private var wash: (left: Color, right: Color, intensity: Double)? {
         switch event.content {
         case let .match(top, bottom):
-            let p = palette(top, bottom)
+            let p = TeamPalette(top: top.color, bottom: bottom.color, scheme: colorScheme, distinguish: false)
             return (p.top, p.bottom, 1)
         case .field:
             if case let .climbing(wall)? = event.snapshot, let flag = FlagPalette.colors(ioc: wall.country) {

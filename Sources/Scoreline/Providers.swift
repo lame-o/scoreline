@@ -318,7 +318,7 @@ private enum ESPN {
         /// the line (and the row's height) holds steady.
         private static let betweenSnaps: [String: String] = [
             "Field Goal Good": "Field goal", "Field Goal Missed": "Field goal missed", "Kickoff": "Kickoff",
-            "Extra Point Good": "Extra point", "Official Timeout": "Timeout", "Timeout": "Timeout",
+            "Extra Point Good": "Extra point", "Official Timeout": "Official timeout", "Timeout": "Timeout",
             "Two-minute warning": "Two-minute warning", "Punt": "Punt", "Safety": "Safety",
         ]
         /// Breaks the status already says ("Halftime", "End of 3rd"): no line,
@@ -337,6 +337,11 @@ private enum ESPN {
                 guard path == NBADetail.path, let text = lastPlayText, !text.isEmpty else { return nil }
                 return NBADetail.listLine(text, names: lastPlayNames)
             case .football:
+                // A timeout still carries the previous snap's down and distance.
+                // Show the confirmed break ahead of that stale situation.
+                if let type = lastPlayType, ["Official Timeout", "Timeout", "Two-minute warning"].contains(type) {
+                    return Self.betweenSnaps[type]
+                }
                 if let text = downDistanceText, !text.isEmpty { return text }
                 guard let type = lastPlayType, !type.isEmpty, !Self.breaks.contains(type) else { return nil }
                 return Self.betweenSnaps[type] ?? (type.localizedCaseInsensitiveContains("touchdown") ? "Touchdown" : type)

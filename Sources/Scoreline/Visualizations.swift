@@ -16,7 +16,7 @@ struct TeamPalette {
     let top: Color
     let bottom: Color
 
-    init(top: String?, bottom: String?, scheme: ColorScheme) {
+    init(top: String?, bottom: String?, scheme: ColorScheme, distinguish: Bool = true) {
         /// nil: no color given. `.neutral`: a color with no usable hue here
         /// (pure black on dark, pure white on light) — shown honestly as gray.
         enum Usable { case color(Color, NSColor), neutral }
@@ -37,7 +37,7 @@ struct TeamPalette {
         let (topColor, topNS) = resolve(usable(top), fallback: .blue)
         var (bottomColor, bottomNS) = resolve(usable(bottom), fallback: .orange)
         // Two near-identical colors can't be told apart: the second goes neutral.
-        if let t = topNS, let b = bottomNS {
+        if distinguish, let t = topNS, let b = bottomNS {
             let distance = abs(t.redComponent - b.redComponent) + abs(t.greenComponent - b.greenComponent) + abs(t.blueComponent - b.blueComponent)
             if distance < 0.35 { bottomColor = Viz.neutral; bottomNS = nil }
         }

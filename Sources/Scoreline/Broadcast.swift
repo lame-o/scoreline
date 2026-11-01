@@ -157,6 +157,7 @@ final class Broadcast: BroadcastTheaterSource {
         engine = BroadcastEngine(sport: sport, policy: BroadcastLanes.policy(sport, path: path))
         active = true
         raiseFloor(to: ([event] + seen).compactMap(score(of:)), at: time.now())
+        observe(scoreboard: event)
     }
 
     /// A copy of the game's score, home and away.
@@ -502,7 +503,7 @@ final class Broadcast: BroadcastTheaterSource {
             return GameClock(seconds: seconds, sampledAt: Date(timeIntervalSince1970: presentedWall), period: clock.period,
                              direction: clock.countsDown ? .down : .up, display: status, running: clock.running)
         }
-        if game.isFinal { shown.clock = nil }
+        if game.isFinal || game.isInterval { shown.clock = nil }
         shown.possession = nil
         shown.liveLine = nil
         shown.snapshot = nil
@@ -717,15 +718,33 @@ final class Broadcast: BroadcastTheaterSource {
         return engine?.timeline.lastTold?.entry.payload.json
     }
 
+    /// The presented pause, shared by the hero and section labels.
+    var breakLabel: String? {
+        guard active, let sport, let engine else { return nil }
+        if presented.isInterval { return presented.status(sport, regulationPeriods: engine.policy.regulationPeriods) }
+        guard sport == .football, let type = lastTold?["type"]["text"].string else { return nil }
+        switch type.lowercased() {
+        case "official timeout": return "Official timeout"
+        case "timeout": return "Timeout"
+        case "two-minute warning": return "Two-minute warning"
+        default: return nil
+        }
+    }
+
     /// Football: the team with the ball after the last told play.
     func footballPossession(_ teams: FootballFeed.Teams) -> GameDetail.Side? {
-        guard active, let play = lastTold else { return nil }
+        guard active, presented.phase == .live, let play = lastTold else { return nil }
         return teams.side(FootballFeed.teamID(play["end"]["team"]["$ref"].string) ?? play["end"]["team"]["id"].string
                           ?? FootballFeed.teamID(play["team"]["$ref"].string) ?? play["team"]["id"].string)
     }
 
     /// Football: the down, distance and spot after the last told play (its end).
     func footballSituation(_ teams: FootballFeed.Teams, fallback: GameDetail.Football?) -> GameDetail.Football? {
+        if active, presented.isInterval {
+            guard let last = fallback else { return nil }
+            return GameDetail.Football(downDistance: nil, ballX: last.ballX, lineToGainX: nil, possession: nil, redZone: false,
+                                       topTimeouts: last.topTimeouts, bottomTimeouts: last.bottomTimeouts, lastPlay: last.lastPlay)
+        }
         guard active, let play = lastTold, let raw = play["end"].raw as? [String: Any] else { return fallback }
         var situation = raw
         situation["homeTimeouts"] = fallback.map { teams.topIsHome ? $0.topTimeouts : $0.bottomTimeouts } ?? nil

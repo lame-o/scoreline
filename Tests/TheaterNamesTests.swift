@@ -540,7 +540,7 @@ extension ScorelineTests {
         let spurs = TheaterKits(top: TeamKit(color: "000000", alternate: "c4ced4"), bottom: TeamKit(color: "4e008e", alternate: "79a3dc"))
         let onDark = TheaterLabels.make(kits: spurs, scheme: .dark, teams: ("Spurs", "Jazz")).top.paint
         let onLight = TheaterLabels.make(kits: spurs, scheme: .light, teams: ("Spurs", "Jazz")).top.paint
-        check(second.map { OKLab(hex: $0.color)!.distance(to: $0.label.paint.slab) < 0.2 } == true && onDark.slab.l > 0.5 && onLight.slab.l < 0.35,
-              "the slab in the color he's drawn in: two navies, the team in its second color labeled in it; the Spurs' black gray on a dark panel, as the figures are")
+        check(second.map { OKLab(hex: $0.color)!.distance(to: $0.label.paint.slab) < 0.2 } == true && onDark.slab.l < 0.35 && onLight.slab.l < 0.35,
+              "the slab in the color he's drawn in: two navies, the team in its second color labeled in it; the Spurs remain black in both appearances, as the figures are")
     }
 }

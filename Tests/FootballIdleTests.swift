@@ -171,8 +171,8 @@ extension ScorelineTests {
             let status = FootballStatus.idle(idle, stoppage: stop, script: s, t: 12, names: names, situation: "3rd & 7 at DAL 9", timeoutsLeft: (3, 2))
             check(status == TheaterStatus(tag: "Timeout · Eagles · 2 left", tint: "06424d"),
                   "the tag: TIMEOUT · EAGLES · 2 LEFT, in the Eagles' color", "\(String(describing: status.tag))")
-            let back = s.loop.map { FootballStatus.idle(idle, stoppage: stop, script: s, t: $0.start + 1, names: names, situation: "3rd & 7 at DAL 9", timeoutsLeft: (3, 2)) }
-            check(back?.tag == "Eagles ball · 3rd & 7", "back on the field for the snap: EAGLES BALL · 3RD & 7")
+            let held = FootballStatus.idle(idle, stoppage: stop, script: s, t: s.idleTime(300), names: names, situation: "3rd & 7 at DAL 9", timeoutsLeft: (3, 2))
+            check(s.loop == nil && held.tag == "Timeout · Eagles · 2 left", "a timeout holds at the bench until a new play arrives")
         }
         // A TV timeout and the two-minute warning: both teams to their sidelines.
         if let stop = item("9229").flatMap({ FootballStoppage.parse($0, teams: teams) }), let two = item("1850").flatMap({ FootballStoppage.parse($0, teams: teams) }) {
@@ -180,9 +180,9 @@ extension ScorelineTests {
             let s = FootballScript(idle: idle)
             let off = s.players.indices.filter { [.offense, .defense].contains(s.players[$0].team) }.allSatisfy { abs(s.players[$0].position(at: 8.5).x) > Gridiron.half - 25 }
             check(idle.phase == .commercial && off, "a TV timeout: the field empties to both sidelines")
-            check(FootballStatus.idle(idle, stoppage: stop, script: s, t: 12, names: names, situation: nil, timeoutsLeft: (nil, nil)).tag == "Commercial break"
+            check(FootballStatus.idle(idle, stoppage: stop, script: s, t: 12, names: names, situation: nil, timeoutsLeft: (nil, nil)).tag == "Official timeout"
                   && FootballStatus.idle(idle, stoppage: two, script: s, t: 12, names: names, situation: nil, timeoutsLeft: (nil, nil)).tag == "Two-minute warning",
-                  "…tagged COMMERCIAL BREAK; at 2:00, TWO-MINUTE WARNING")
+                  "…tagged OFFICIAL TIMEOUT; at 2:00, TWO-MINUTE WARNING")
         }
         // The end of a quarter: the field turns as the teams change ends.
         if let stop = item("1042").flatMap({ FootballStoppage.parse($0, teams: teams) }) {

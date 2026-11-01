@@ -118,7 +118,7 @@ struct DetailView: View {
     /// detail refreshes on its own cadence while this page is open. While the
     /// game broadcasts, both are as presented at p: the score after the last
     /// told play, the clock as it read then, live until the last play is told.
-    private var event: Event { broadcast.present(live) }
+    private var event: Event { broadcast.present(loadedDetail?.colored(live) ?? live) }
 
     /// The detail as presented at p (`Broadcast.present`): the play lists, the
     /// charts' plays, Win Probability, the line score and the held tables.
@@ -479,7 +479,7 @@ struct DetailView: View {
     /// climbers, the leader's; after the round, the winner's), and a soft
     /// accent wash until there's anyone to follow.
     private var wash: (left: Color, right: Color, intensity: Double) {
-        if case .match = event.content { return (palette.top, palette.bottom, 1) }
+        if case .match = event.content { return (identityPalette.top, identityPalette.bottom, 1) }
         if let colors = FlagPalette.colors(ioc: washCountry) { return (colors.0, colors.1, 0.85) }
         return (.accentColor, .accentColor, 0.6)
     }
@@ -497,6 +497,11 @@ struct DetailView: View {
     private var palette: TeamPalette {
         if isNBA { return .nba(top: event.competitors.first, bottom: event.competitors.last, scheme: colorScheme) }
         return TeamPalette(top: event.competitors.first?.color, bottom: event.competitors.last?.color, scheme: colorScheme)
+    }
+
+    private var identityPalette: TeamPalette {
+        TeamPalette(top: event.competitors.first?.color, bottom: event.competitors.last?.color,
+                    scheme: colorScheme, distinguish: false)
     }
 
 
@@ -540,7 +545,7 @@ struct DetailView: View {
     }
 
     private func teamColumn(_ c: Competitor) -> some View {
-        let color = c.id == event.competitors.first?.id ? palette.top : palette.bottom
+        let color = c.id == event.competitors.first?.id ? identityPalette.top : identityPalette.bottom
         return VStack(spacing: 6) {
             LogoView(url: c.logo, darkURL: c.darkLogo, size: 34)
                 // A soft glow in the team's color seats the logo on the wash: a
@@ -793,6 +798,9 @@ struct DetailView: View {
                     // How far behind live, on hover only (BROADCAST §2).
                     .behindLiveHover(broadcast.behind, alignment: alignment, id: "hero")
                     .animation(reduceMotion ? nil : Motion.quick, value: nbaClutch)
+                    if let pause = broadcast.breakLabel, !broadcast.presented.isInterval {
+                        Text(pause).font(.system(size: 10.5)).foregroundStyle(.secondary)
+                    }
                     // Baseball: who's up, like CS2's round line.
                     if let side = battingSide, let team = side == .top ? event.competitors.first : event.competitors.last {
                         Text("\(team.abbreviation) batting")
@@ -1389,15 +1397,17 @@ struct DetailView: View {
         if has(kind, d) {
             switch kind {
             case .liveView:
-                DetailSection(title: "Live View", caption: liveViewCaption, accessory: .live) {
+                DetailSection(title: "Live View", caption: liveViewCaption,
+                              accessory: broadcast.breakLabel.map(SectionAccessory.text) ?? .live) {
                     theater(d)
+                    theaterLegend(d)
                 }
             case .field:
                 if let football = shownFootball {
                     DetailSection(title: "Field",
-                                  caption: "This drive, snap by snap. \(names.top) defends the left end zone.",
-                                  accessory: .live,
-                                  spokenCaption: "This drive, snap by snap. \(full.top) defending the left end zone.") {
+                                  caption: "\(broadcast.presented.isInterval ? "Last drive" : "This drive"), snap by snap. \(names.top) defends the left end zone.",
+                                  accessory: broadcast.breakLabel.map(SectionAccessory.text) ?? .live,
+                                  spokenCaption: "\(broadcast.presented.isInterval ? "Last drive" : "This drive"), snap by snap. \(full.top) defending the left end zone.") {
                         FootballField(situation: football, topLabel: names.top, bottomLabel: names.bottom, palette: palette,
                                       drive: fieldDrive, possession: footballPossession ?? football.possession,
                                       twoMinuteDrill: twoMinuteDrill,
@@ -1673,6 +1683,8 @@ struct DetailView: View {
     }
 
     private var liveViewCaption: String {
+        if broadcast.active, broadcast.presented.isInterval { return "\(event.detail ?? "Break") · Play resumes when the next period begins." }
+        if let pause = broadcast.breakLabel { return "\(pause) · Waiting for the next play." }
         if isNBA { return "The latest play, replayed as it happened, the ends as on TV." }
         if isSoccer { return "The latest chance, replayed with its build-up." }
         if isBaseball { return "The latest pitch, replayed as it happened." }
@@ -1681,10 +1693,31 @@ struct DetailView: View {
 
     /// The sport's isometric theater. Each reads its live lane's newest play
     /// itself, so a play redraws only the theater.
+    private func theaterLegend(_ d: GameDetail) -> some View {
+        let homeFirst = d.topIsHome ?? isSoccer
+        let kits = TheaterKits(top: event.competitors.first, bottom: event.competitors.last, topIsHome: homeFirst)
+        let dressed = TheaterTeams.dress(kits, scheme: colorScheme)
+        return HStack(spacing: 12) {
+            ForEach(Array(event.competitors.enumerated()), id: \.element.key) { index, team in
+                HStack(spacing: 4) {
+                    Circle().fill(index == 0 ? dressed.top.jersey : dressed.bottom.jersey)
+                        .overlay(Circle().strokeBorder(.secondary.opacity(0.5), lineWidth: 0.5))
+                        .frame(width: 7, height: 7)
+                    Text("\(team.abbreviation) · \((index == 0) == homeFirst ? "Home" : "Away")")
+                }
+            }
+            Spacer(minLength: 0)
+            Text("Team colors").foregroundStyle(.tertiary)
+        }
+        .font(Viz.note)
+        .foregroundStyle(.secondary)
+        .help("Illustrative team colors. Match-day jerseys may differ; a contrasting kit distinguishes teams with similar colors.")
+    }
+
     @ViewBuilder
     private func theater(_ d: GameDetail) -> some View {
         let names = shortNames(d), full = spokenTeams
-        let kits = TheaterKits(top: event.competitors.first, bottom: event.competitors.last)
+        let kits = TheaterKits(top: event.competitors.first, bottom: event.competitors.last, topIsHome: d.topIsHome ?? isSoccer)
         if isNBA {
             BasketballTheater(feed: basketballFeed, palette: palette, kits: kits,
                               topIsHome: d.topIsHome ?? false, topName: names.top, bottomName: names.bottom,

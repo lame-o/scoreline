@@ -144,11 +144,9 @@ enum TeamTone {
 
 // MARK: - Logo colors
 
-/// Each team's own colors, read from its logo: the colors it reads as
-/// (ignoring white, black, grays and transparency), strongest first. Sources
-/// give at most one team color, often a stock shade many teams share, and
-/// none at all for CS2, so the logo is the better witness. Read once per logo
-/// and kept on disk.
+/// A fallback for teams without source colors (including CS2): colors read
+/// from the logo, ignoring white, black, grays and transparency, strongest
+/// first. A valid source primary is authoritative. Read once and cached.
 @MainActor
 final class TeamColors {
     static let shared = TeamColors()
@@ -185,15 +183,18 @@ final class TeamColors {
 
     func entry(for logo: URL?) -> Entry? { logo.flatMap { entries[$0.absoluteString] } }
 
-    /// The competitor wearing its logo's colors, when they're known. Logos not
-    /// read yet are queued; `onChange` reports when they are.
+    /// Source colors when supplied, otherwise the cached logo fallback.
+    /// Unknown logos are queued; `onChange` reports when they are ready.
     func apply(_ competitor: Competitor) -> Competitor {
+        // A supplied primary color is the team's identity, including black and
+        // white. Logo area is only a fallback, never evidence of a match kit.
+        if competitor.color.flatMap(OKLab.init(hex:)) != nil { return competitor }
         guard let logo = competitor.logo else { return competitor }
         guard let entry = entries[logo.absoluteString] else {
             request(logo)
             return competitor
         }
-        let colors = Self.order(entry, source: competitor.color)
+        let colors = Self.order(entry, source: nil)
         guard !colors.isEmpty else { return competitor }
         var c = competitor
         c.color = colors[0]

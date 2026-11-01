@@ -262,19 +262,21 @@ struct TeamKit: Equatable {
     var alternate: String?
 }
 
-/// Both teams' kits, top (visitors) and bottom (home).
+/// Both teams' illustrative colors and home side (soccer lists home first).
 struct TheaterKits: Equatable {
     var top: TeamKit
     var bottom: TeamKit
+    var home: GameDetail.Side = .bottom
 
     init(top: TeamKit, bottom: TeamKit) {
         self.top = top
         self.bottom = bottom
     }
 
-    init(top: Competitor?, bottom: Competitor?) {
+    init(top: Competitor?, bottom: Competitor?, topIsHome: Bool = false) {
         self.init(top: TeamKit(color: top?.color, alternate: top?.alternateColor),
                   bottom: TeamKit(color: bottom?.color, alternate: bottom?.alternateColor))
+        home = topIsHome ? .top : .bottom
     }
 }
 
@@ -382,7 +384,7 @@ struct TheaterTeams: Equatable {
         case own
         /// This side wears its second color.
         case second(GameDetail.Side)
-        /// This side (the home team) wears whites, or charcoal against a pale color in light mode.
+        /// This side wears a contrasting light or dark kit, retaining its team accent.
         case whites(GameDetail.Side)
     }
 
@@ -393,12 +395,17 @@ struct TheaterTeams: Equatable {
     /// to the panel as the charts fit it (`TeamTone`): when the two read apart
     /// they're worn as they are. When they're too close (two navies), a team
     /// changes into its second color, whichever separates the pair more, if
-    /// it's a real color that does. Failing that, the home team wears whites
+    /// it's a real color that does. Failing that, the away team wears whites
     /// (light against the other team's color), or in light mode charcoal
     /// against a pale one; its cap keeps its own color either way. (pure; tested)
     static func dress(_ kits: TheaterKits, scheme: ColorScheme) -> (top: Uniform, bottom: Uniform, rule: Rule) {
         let dark = scheme == .dark
         func toned(_ hex: String?) -> OKLab? {
+            // Uniforms have an outline; black and white can stay recognizable
+            // here even when chart marks need a neutral substitute.
+            if let lab = hex.flatMap(OKLab.init(hex:)), lab.chroma < 0.03 {
+                return OKLab(l: min(max(lab.l, 0.24), 0.96), a: lab.a, b: lab.b)
+            }
             guard let color = Color(hex: hex), let ns = NSColor(color).usingColorSpace(.sRGB),
                   let adjusted = TeamTone.adjust(ns, scheme: scheme) else { return nil }
             return OKLab(adjusted)
@@ -431,12 +438,17 @@ struct TheaterTeams: Equatable {
             let rest = uniform(other, accent: accent(best.side == .top ? own.bottom : own.top))
             return best.side == .top ? (wearer, rest, .second(.top)) : (rest, wearer, .second(.bottom))
         }
-        // Home whites: light against dark. In light mode a pale visitor gets charcoal instead.
-        let charcoal = !dark && top.l >= 0.6
+        // Illustrative contrast kit: preserve the home side's primary and
+        // distinguish the away side. Soccer lists home first, unlike the NFL.
+        let homeColor = kits.home == .top ? top : bottom
+        let awayColor = kits.home == .top ? bottom : top
+        let charcoal = !dark && homeColor.l >= 0.6
         let jersey = charcoal ? Color(white: 0.24) : Color(white: dark ? 0.96 : 1)
-        let home = Uniform(jersey: jersey, cap: color(bottom), piping: dark || charcoal ? nil : color(bottom).opacity(0.9),
-                           accent: accent(own.bottom))
-        return (uniform(top, accent: accent(own.top)), home, .whites(.bottom))
+        let away = Uniform(jersey: jersey, cap: color(awayColor), piping: dark || charcoal ? nil : color(awayColor).opacity(0.9),
+                           accent: accent(kits.home == .top ? own.bottom : own.top))
+        return kits.home == .top
+            ? (uniform(top, accent: accent(own.top)), away, .whites(.bottom))
+            : (away, uniform(bottom, accent: accent(own.bottom)), .whites(.top))
     }
 
     /// Both teams dressed as the theaters dress them: in their kits when
