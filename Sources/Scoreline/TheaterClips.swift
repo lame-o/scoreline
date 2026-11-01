@@ -420,6 +420,7 @@ enum TheaterPlanner {
         var draft = Plan<S.Clip>(revision: revision, start: c, horizon: c + 60, state: chain.state(at: c), placements: keep,
                                  actors: previous?.plan.actors ?? [:])
         draft.toldBefore = toldBefore
+        draft.kept = keep.count
         draft.published = previous?.plan.published ?? [:]
         draft.history = chain.history(before: c)
         draft.yawRule = sequencer.yawRule
@@ -452,10 +453,16 @@ enum TheaterPlanner {
         for p in draft.placements { if let id = p.play, let a = p.anchor { frozen[id] = a } }
         let anchors = AnchorSolver.solve(sequencer.anchorInputs, frozen: frozen)
         var earliest = draft.placements.last.map { $0.essentialEnd(after: c) } ?? c
-        for unit in units {
+        // Plays past the receding horizon wait for the plan that reaches them (no earlier than this one's horizon).
+        var waiting = Set<String>()
+        for (k, unit) in units.enumerated() {
             let data = anchors[unit.anchor ?? unit.id]?.at ?? (earliest - shift)
             if let deferFrom, data >= deferFrom { break }
             let anchor = data + shift
+            if max(anchor, earliest) > c + TheaterTiming.planAhead {
+                for later in units[k...] { waiting.insert(later.anchor ?? later.id); waiting.insert(later.id); waiting.formUnion(later.covers) }
+                break
+            }
             if unit.admin, anchor + TheaterTiming.microCatchUp < earliest {
                 draft.toldBefore.formUnion([unit.id] + unit.covers)
                 draft.notes.append(PlanNote(at: earliest, kind: .catchUp(play: unit.id, late: earliest - anchor)))
@@ -496,7 +503,7 @@ enum TheaterPlanner {
         }
         // The field between plays round by round to the horizon (then only the men it still has).
         let lastTold = draft.placements.last { $0.play != nil }.map { $0.offset + min($0.clip.length, 60) } ?? c
-        draft.horizon = max(c + 45, lastTold + 30)
+        draft.horizon = max(c + TheaterTiming.planAhead, lastTold + 5)
         while let last = draft.placements.last, last.offset + last.clip.length < draft.horizon {
             let end = last.offset + last.clip.length
             append(&draft, sequencer.next(after: last.clip, at: end, draft: draft), at: end, limits: limits, sequencer: sequencer, nextID: &nextID)
@@ -528,6 +535,8 @@ enum TheaterPlanner {
         let step = 0.01
         for (i, id) in order.enumerated() {
             var at: PTime
+            // Past the receding horizon: not before the plan that places it (the next, made before this one runs out).
+            if waiting.contains(id), fixed[id] == nil { floor = max(floor, draft.horizon) }
             if let f = fixed[id] {
                 at = max(f, floor + step)
             } else if let solved = anchors[id]?.at {

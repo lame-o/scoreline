@@ -510,6 +510,27 @@ struct RigTrack: Equatable, Sendable {
     }
 
     /// The stride at `t`, to carry on from (CHOREOGRAPHY §5.5.6).
+    /// This track from `start` until `until`, then `tail` (measured from `until` on, carrying this track's stride
+    /// there): a bake keeping what the plan before had measured.
+    func keeping(from start: Double, until: Double, then tail: RigTrack) -> RigTrack {
+        var out = self
+        let a = max(Int(((start - self.start) * Self.rate).rounded()), 0)
+        let b = min(max(Int(((until - self.start) * Self.rate).rounded()), a), samples.count)
+        out.start = start
+        out.end = tail.end
+        out.samples = Array(samples[a..<b]) + tail.samples
+        func steps(_ mine: [Step], _ theirs: [Step]) -> [Step] {
+            // From the step under way at `start` up to the one `tail` carries on (its first), then `tail`'s.
+            let first = mine.lastIndex { $0.land <= start } ?? 0
+            let carried = theirs.first?.land ?? .infinity
+            let upTo = mine.firstIndex { $0.land >= carried - 1e-9 } ?? mine.count
+            return (first < upTo ? Array(mine[first..<upTo]) : []) + theirs
+        }
+        out.left = steps(left, tail.left)
+        out.right = steps(right, tail.right)
+        return out
+    }
+
     func carry(at t: Double) -> Carry {
         let s = sample(at: t)
         func foot(_ steps: [Step]) -> (Step, Step?) {

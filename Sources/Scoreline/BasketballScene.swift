@@ -595,18 +595,24 @@ extension BasketballScene {
     static func names(_ text: String) -> (shooter: String?, assister: String?, blocker: String?, stealer: String?, loser: String?,
                                           rebounder: String?, fouler: String?) {
         let text = text.replacingOccurrences(of: "\n", with: " ")
-        var shooter = text.firstMatch(of: #/^(.+?) (?:makes|misses) /#).map { String($0.1) }
+        // Each pattern only where its words are (a regex costs far more than a look for a word): the same names.
+        func has(_ words: String...) -> Bool { words.contains { text.contains($0) } }
+        var shooter = has(" makes ", " misses ") ? text.firstMatch(of: #/^(.+?) (?:makes|misses) /#).map { String($0.1) } : nil
         var blocker: String?
-        if let m = text.firstMatch(of: #/^(.+?) blocks (.+?) ?'s /#) {
+        if has(" blocks "), let m = text.firstMatch(of: #/^(.+?) blocks (.+?) ?'s /#) {
             blocker = String(m.1)
             shooter = String(m.2)
         }
-        let assister = text.firstMatch(of: #/\((.+?) assists\)/#).map { String($0.1) }
-        let stealer = text.firstMatch(of: #/\((.+?) steals\)/#).map { String($0.1) }
-        let loser = text.firstMatch(of: #/^(.+?) (?:bad pass|lost ball|out of bounds|traveling|offensive|shot clock|3-second|step out|palming|double dribble|discontinued|kicked|backcourt|inbound|turnover|lane violation)/#)
-            .map { String($0.1) }
-        let rebounder = text.contains("team rebound") ? nil : text.firstMatch(of: #/^(.+?) (?:offensive|defensive) rebound/#).map { String($0.1) }
-        let fouler = text.firstMatch(of: #/^(.+?) (?:shooting|personal|loose ball|flagrant)/#).map { String($0.1) }
+        let assister = has(" assists)") ? text.firstMatch(of: #/\((.+?) assists\)/#).map { String($0.1) } : nil
+        let stealer = has(" steals)") ? text.firstMatch(of: #/\((.+?) steals\)/#).map { String($0.1) } : nil
+        let loser = has(" bad pass", " lost ball", " out of bounds", " traveling", " offensive", " shot clock", " 3-second", " step out",
+                        " palming", " double dribble", " discontinued", " kicked", " backcourt", " inbound", " turnover", " lane violation")
+            ? text.firstMatch(of: #/^(.+?) (?:bad pass|lost ball|out of bounds|traveling|offensive|shot clock|3-second|step out|palming|double dribble|discontinued|kicked|backcourt|inbound|turnover|lane violation)/#)
+                .map { String($0.1) } : nil
+        let rebounder = text.contains("team rebound") || !has(" offensive rebound", " defensive rebound") ? nil
+            : text.firstMatch(of: #/^(.+?) (?:offensive|defensive) rebound/#).map { String($0.1) }
+        let fouler = has(" shooting", " personal", " loose ball", " flagrant")
+            ? text.firstMatch(of: #/^(.+?) (?:shooting|personal|loose ball|flagrant)/#).map { String($0.1) } : nil
         return (shooter, assister, blocker, stealer, loser, rebounder, fouler)
     }
 

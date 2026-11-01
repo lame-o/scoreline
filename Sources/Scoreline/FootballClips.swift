@@ -433,9 +433,19 @@ enum GridPainter {
 
 /// Football on the director (Phase 0): today's scripts as clips.
 enum GridSport: TheaterSport {
-    static func plays(_ snapshot: TimelineSnapshot<RawPlay>, facts: GridFacts) -> [TimelinePlay<GridPlay>] {
-        GridPlanner.plays(snapshot, teams: facts.teams)
+    /// The snaps up to the watermark, each spotted after the one before (`GridPlanner.plays`), and the stoppages.
+    static func scene(_ raw: [RawPlay], _ json: [JSON], at i: Int, pending: Bool, facts: GridFacts, context: Int, prior: [GridPlay?]) -> GridPlay? {
+        guard !pending else { return nil }
+        if var scene = FootballScene.parse(json[i], teams: facts.teams) {
+            if let last = prior.lazy.reversed().compactMap({ p -> FootballScene? in if case .snap(let s)? = p { s } else { nil } }).first {
+                scene.hash = FootballFeed.spot([scene], after: last).first?.hash ?? scene.hash
+            }
+            return .snap(scene)
+        }
+        return FootballStoppage.parse(json[i], teams: facts.teams).map { .stoppage($0) }
     }
+
+    static var sceneReach: Int { 1 }
 
     static func plan(_ plays: [TimelinePlay<GridPlay>], history: Set<String>, facts: GridFacts, chain: PlanChain<GridClip>, at c: PTime,
                      shift: Double, deferFrom: PTime?, revision: UInt32, nextID: inout UInt16) -> Plan<GridClip> {

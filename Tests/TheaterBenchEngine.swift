@@ -30,7 +30,8 @@ enum EngineRun {
     static func run<B: BenchSport>(_ sport: B.Type, _ recording: Recording, label: String, cost: Bool = false,
                                    frame: ((PTime, PlanChain<B.Sport.Clip>, FrameScratch) -> Void)? = nil) -> Result {
         var result = Result(report: ContinuityReport(label: label))
-        var planSeconds: [Double] = []
+        var planSeconds: [Double] = [], mapSeconds: [Double] = [], parsedPerPlan: [Int] = []
+        var seenRevision: UInt64?
         // The page hands the timeline the theater's binding horizons (late binding): the replay starts with them.
         guard let sport = recording.sport else { return result }
         var policy = BroadcastLanes.policy(sport, path: recording.path)
@@ -55,9 +56,11 @@ enum EngineRun {
         func replan(_ now: PTime) {
             guard let request = session.request(now: now) else { return }
             let began = DispatchTime.now().uptimeNanoseconds
-            let (baked, next) = TheaterSession<B.Sport>.make(request)
+            let made = TheaterSession<B.Sport>.make(request)
             planSeconds.append(Double(DispatchTime.now().uptimeNanoseconds - began) / 1e9)
-            guard session.accept(baked, nextID: next, now: now) else { return }
+            parsedPerPlan.append(made.scenes.parsed)
+            let baked = made.baked
+            guard session.accept(made, now: now) else { return }
             result.plans += 1
             if trace {
                 let T = session.theaterTime(at: now) ?? 0
@@ -253,10 +256,14 @@ enum EngineRun {
             guard engine.started else { return }
             frames(through: t)
             let clockChanged = session.clockDidUpdate(engine.clock, events: step.events, now: t)
+            // As the page does: at every change of the timeline's revision (an ingest, a tell, new anchors), the main
+            // actor hands the director the snapshot; only a change to the plays as a plan reads them re-plans.
             var data = false
-            if let change, !change.isEmpty {
-                session.timelineDidChange(engine.snapshot(at: t))
-                data = true
+            if seenRevision != engine.timeline.revision || (change.map { !$0.isEmpty } ?? false) {
+                seenRevision = engine.timeline.revision
+                let began = DispatchTime.now().uptimeNanoseconds
+                data = session.timelineDidChange(engine.snapshot(at: t))
+                mapSeconds.append(Double(DispatchTime.now().uptimeNanoseconds - began) / 1e9)
             }
             if data || clockChanged || session.chain.isEmpty { replan(t) }
             // One truth on p, as the page has it: the timeline presents each play where the theater's plan puts it.
@@ -282,8 +289,28 @@ enum EngineRun {
         report.notes.append("plans spliced: \(result.plans)")
         // What a plan costs to make and bake (off the main actor in the app): the timeline waits up to 5 s for a late play's.
         let ms = planSeconds.map { $0 * 1000 }
-        report.notes.append(String(format: "plan + bake time: p50 %.1f ms, p99 %.1f ms, max %.1f ms (%d made)",
+        report.notes.append(String(format: "scenes + plan + bake time: p50 %.1f ms, p99 %.1f ms, max %.1f ms (%d made)",
                                    Stats.quantile(ms, 0.5), Stats.quantile(ms, 0.99), ms.max() ?? 0, ms.count))
+        // The main actor's part of a timeline change (the snapshot, and whether it matters to a plan): gate ≤ 2 ms p99.
+        let map = mapSeconds.map { $0 * 1000 }
+        let p99 = Stats.quantile(map, 0.99)
+        report.notes.append(String(format: "main actor per timeline change: p50 %.3f ms, p99 %.3f ms, max %.3f ms (%d) · gate p99 ≤ 2 ms: %@",
+                                   Stats.quantile(map, 0.5), p99, map.max() ?? 0, map.count, p99 <= 2 ? "met" : "MISSED"))
+        // The bench makes each plan as it's asked for, one at a time; the app's director keeps one in flight per page
+        // (the offscreen check measures it there).
+        report.notes.append("plans in flight at once: max 1 · gate ≤ 1: met")
+        if TheaterBake.checkReuse {
+            report.notes.append("bake samples kept from the plan before that differ from a fresh sample: \(TheaterBake.reuseMismatches)")
+            TheaterBake.reuseMismatches = 0
+        }
+        if PitchIdleClips.hits + PitchIdleClips.misses > 0 {
+            report.notes.append("soccer's ball-going-round clips: \(PitchIdleClips.hits) kept, \(PitchIdleClips.misses) built")
+            PitchIdleClips.hits = 0
+            PitchIdleClips.misses = 0
+        }
+        let parsed = parsedPerPlan.map(Double.init)
+        report.notes.append(String(format: "plays read as scenes per plan (off the main actor): p50 %.0f, max %.0f", Stats.quantile(parsed, 0.5),
+                                   parsed.max() ?? 0))
         report.notes.append("declared fades (a run no man could make, faded through): \(faded.values.reduce(0, +)) in \(faded.count) clips")
         result.report = report
         return result

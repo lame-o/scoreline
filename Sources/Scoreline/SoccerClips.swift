@@ -1,5 +1,6 @@
 import SwiftUI
 import simd
+import os
 
 // The soccer theater on the choreography engine, Phase 0 (CHOREOGRAPHY §12):
 // today's scripts (a moment's replay with its build-up, an event's beat, the
@@ -97,7 +98,20 @@ struct PitchClip: TheaterClip, @unchecked Sendable {
         return SIMD2(Double(p.x), Double(p.y))
     }
 
-    func heading(_ figure: Int, at t: Double) -> Double { figure < script.rig.count ? script.rig[figure].motion(at: local(t)).heading : 0 }
+    /// Which way he faces: where he's going, else what he watches (the act he's at, his look, the ball), as today's
+    /// stride measured it; the director's own stride turns him toward it at a man's rate.
+    func heading(_ figure: Int, at t: Double) -> Double {
+        let u = local(t)
+        if figure < script.rig.count { return script.rig[figure].motion(at: u).heading }
+        let a = script.actors[figure]
+        if let m = a.motion(at: u) { return atan2(Double(m.heading.y), Double(m.heading.x)) }
+        let at = a.position(at: u)
+        let held: [SoccerScript.Actor.Action.Kind] = [.gather, .celebrate, .dejected]
+        let point = a.actions.last(where: { u > $0.at - 0.45 && (u < $0.at + 0.2 || held.contains($0.kind)) })?.toward
+            ?? a.looks.last(where: { u >= $0.from })?.point ?? script.ball(at: u)?.ground
+        guard let point, hypot(point.x - at.x, point.y - at.y) > 1e-6 else { return a.team == .attacking ? 0 : .pi }
+        return atan2(Double(point.y - at.y), Double(point.x - at.x))
+    }
     func opacity(_ figure: Int, at t: Double) -> Double { script.actors[figure].opacity(at: local(t)) * fades.opacity(figure, at: t) }
 
     func ball(at t: Double) -> ClipBall? {
@@ -158,6 +172,36 @@ enum PitchPlanner {
     }
 }
 
+/// The ball going round as clips, kept: the same field (`SoccerIdle`) makes the same clip, and every plan places the
+/// field between plays again, so building its script (the men's runs, their strides) once per field, not per plan,
+/// is most of a soccer plan's time saved. The newest few, under a lock (plans run off the main actor).
+enum PitchIdleClips {
+    private static let kept = OSAllocatedUnfairLock(initialState: [(SoccerIdle, PitchClip)]())
+    private static let most = 48
+
+    #if BENCH
+    nonisolated(unsafe) static var hits = 0, misses = 0
+    #endif
+
+    static func clip(for idle: SoccerIdle) -> PitchClip {
+        if let hit = kept.withLock({ list in list.firstIndex { $0.0 == idle }.map { list[$0].1 } }) {
+            #if BENCH
+            hits += 1
+            #endif
+            return hit
+        }
+        #if BENCH
+        misses += 1
+        #endif
+        let clip = PitchClip(SoccerScript(idle: idle, bodies: false), scene: nil, idle: idle, attacking: idle.possession)
+        kept.withLock { list in
+            list.append((idle, clip))
+            if list.count > most { list.removeFirst(list.count - most) }
+        }
+        return clip
+    }
+}
+
 /// Soccer's Phase 0 running order: each moment its replay, each event with a
 /// beat its beat, the ball going round between them shaped by where it is
 /// (a change of cell is a splice now, not a crossfade: S1); nothing passed over.
@@ -183,7 +227,7 @@ struct PitchSequencer: ClipSequencer {
 
     func idle(at t: PTime) -> PitchClip {
         let idle = SoccerIdle.make(event: event, touch: touch, scene: last, period: period, lineups: facts.lineups, flipped: facts.flipped)
-        return PitchClip(SoccerScript(idle: idle), scene: nil, idle: idle, attacking: idle.possession)
+        return PitchIdleClips.clip(for: idle)
     }
 
     /// The cell the ball's in (today's idle key: a 15 × 17 m cell, the side on it, the half).
@@ -238,7 +282,7 @@ struct PitchSequencer: ClipSequencer {
         switch unit.scene {
         case let .moment(scene):
             let drawn = PitchFacing.homeAttacksRight(period: scene.period, flipped: facts.flipped) ? scene : scene.turned()
-            return PitchClip(SoccerScript(drawn, lineups: facts.lineups), scene: drawn, idle: nil, attacking: drawn.side)
+            return PitchClip(SoccerScript(drawn, lineups: facts.lineups, bodies: false), scene: drawn, idle: nil, attacking: drawn.side)
         case .event, .touch:
             var copy = self
             copy.absorb(unit.scene)
@@ -330,8 +374,20 @@ enum PitchPainter {
 
 /// Soccer on the director (Phase 0): today's scripts as clips.
 enum PitchSport: TheaterSport {
-    static func plays(_ snapshot: TimelineSnapshot<RawPlay>, facts: PitchFacts) -> [TimelinePlay<PitchPlay>] {
-        PitchPlanner.plays(snapshot, facts: facts)
+    /// The keepers every moment's scene names (read from the whole timeline).
+    static func sceneContext(_ json: [JSON], facts: PitchFacts) -> [String: SoccerScene.Person] { SoccerScene.keepers(in: json) }
+
+    /// A moment reads the 30 plays before it and the 6 after (`PitchPlanner.plays`).
+    static var sceneReach: Int { 32 }
+
+    static func scene(_ raw: [RawPlay], _ json: [JSON], at i: Int, pending: Bool, facts: PitchFacts, context: [String: SoccerScene.Person],
+                      prior: [PitchPlay?]) -> PitchPlay? {
+        let item = json[i]
+        if SoccerScene.isMoment(item), let scene = SoccerScene.parse(json, at: i, homeTeamID: facts.homeTeamID, keepers: context) {
+            return .moment(scene)
+        }
+        if let event = SoccerEvent.parse(json, at: i, homeTeamID: facts.homeTeamID, order: i) { return .event(event) }
+        return SoccerTouch.parse(item, homeTeamID: facts.homeTeamID, order: i).map { .touch($0) }
     }
 
     static func plan(_ plays: [TimelinePlay<PitchPlay>], history: Set<String>, facts: PitchFacts, chain: PlanChain<PitchClip>, at c: PTime,

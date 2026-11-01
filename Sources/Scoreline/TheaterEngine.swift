@@ -62,6 +62,9 @@ enum TheaterTiming {
     static let keepBehind = 2.0
     /// Baked tracks' rate.
     static let rate = 60.0
+    /// The receding horizon (§4.5, §8.1): a plan places the plays whose moments fall this far past its splice and
+    /// bakes about as far; the plan before its horizon runs out reaches the rest.
+    static let planAhead = 30.0
 }
 
 // MARK: - Motion limits

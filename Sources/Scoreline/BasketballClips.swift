@@ -458,9 +458,15 @@ enum HoopsPainter {
 
 /// Basketball on the director (Phase 0): today's scripts as clips.
 enum HoopsSport: TheaterSport {
-    static func plays(_ snapshot: TimelineSnapshot<RawPlay>, facts: HoopsFacts) -> [TimelinePlay<BasketballScene>] {
-        HoopsPlanner.plays(snapshot, teams: facts.teams)
+    /// A play's scene reads the plays around it (the shot before a rebound, the free throws after a foul).
+    static func scene(_ raw: [RawPlay], _ json: [JSON], at i: Int, pending: Bool, facts: HoopsFacts, context: Int,
+                      prior: [BasketballScene?]) -> BasketballScene? {
+        BasketballScene.parse(json, at: i, teams: facts.teams)
     }
+
+    /// The furthest a scene reads ahead: twelve plays at the same clock for a foul's free throws, four court plays
+    /// (past any substitutions and timeouts) for a miss's rebound.
+    static var sceneReach: Int { 20 }
 
     static func plan(_ plays: [TimelinePlay<BasketballScene>], history: Set<String>, facts: HoopsFacts, chain: PlanChain<HoopsClip>, at c: PTime,
                      shift: Double, deferFrom: PTime?, revision: UInt32, nextID: inout UInt16) -> Plan<HoopsClip> {

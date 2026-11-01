@@ -46,6 +46,8 @@ struct Plan<Clip: TheaterClip>: Sendable {
     var known: Set<String> = []
     /// Plays past the hold, left for the plan after it (the timeline waits for their anchors too).
     var deferred: Set<String> = []
+    /// How many of its first placements it carried on from the plan before (what's on screen at its splice).
+    var kept = 0
 
     func placement(at t: PTime) -> Int? {
         guard let first = placements.first else { return nil }
@@ -199,6 +201,26 @@ extension Plan {
         return nil
     }
 
+    /// Where a man is at `t` and how much of him shows (the bake's read: no derivatives).
+    func sample(of id: ActorID, at t: PTime) -> (position: SIMD2<Double>, opacity: Double)? {
+        guard let k = placement(at: t) else { return nil }
+        let p = placements[k]
+        if let i = p.figure(of: id) {
+            if let path = p.travel[id], let join = p.join[id], t < join {
+                return (path.position(at: t), p.clip.opacity(i, at: max(p.time(t), 0)))
+            }
+            let clamped = min(max(p.time(t), 0), p.clip.length)
+            let enters = p.entering.contains(id) ? min(max((t - p.start) / 0.4, 0), 1) : 1
+            return (p.clip.position(i, at: clamped), p.clip.opacity(i, at: clamped) * enters)
+        }
+        if p.leaving.contains(id) {
+            guard let here = standing(id, at: p.start, before: k) else { return nil }
+            let fade = 1 - min(max((t - p.start) / 0.4, 0), 1)
+            return fade > 0 ? (here, fade * (state?.actor(id)?.opacity ?? 1)) : nil
+        }
+        return nil
+    }
+
     /// Where a man stood at `t` in the placements before `k` (or the splice's state).
     func standing(_ id: ActorID, at t: PTime, before k: Int) -> SIMD2<Double>? {
         var j = k - 1
@@ -221,14 +243,20 @@ extension Plan {
 // MARK: - The bake
 
 enum TheaterBake {
+    #if BENCH
+    nonisolated(unsafe) static var checkReuse = ProcessInfo.processInfo.environment["THEATER_CHECK_REUSE"] != nil
+    nonisolated(unsafe) static var reuseMismatches = 0
+    #endif
+
     /// Bakes a plan (off the main actor; pure). `facing(placement, figure, t)` is what a man faces at t in his clip.
     /// `light`: no strides (the theater isn't seen: the plan is made, its anchors published, but nobody's feet are
     /// measured; the plan made when it's seen again carries on from where everyone stands).
     static func bake<Clip: TheaterClip>(_ plan: Plan<Clip>, camera tuning: CameraOperator.Tuning = CameraOperator.Tuning(),
-                                        light: Bool = false) -> BakedPlan<Clip> {
+                                        light: Bool = false, previous: BakedPlan<Clip>? = nil) -> BakedPlan<Clip> {
         let dt = 1 / TheaterTiming.rate
         let n = max(Int(((plan.horizon - plan.start) * TheaterTiming.rate).rounded(.up)), 1) + 1
         func time(_ i: Int) -> PTime { plan.start + Double(i) * dt }
+        let reuse = reusable(plan, previous: previous)
         var tracks: [ActorTrack] = []
         tracks.reserveCapacity(plan.actors.count)
         for id in plan.everyone {
@@ -237,8 +265,27 @@ enum TheaterBake {
             xy.reserveCapacity(n)
             opacity.reserveCapacity(n)
             var last = plan.state?.actor(id)?.position ?? plan.placements.first.flatMap { p in p.figure(of: id).map { p.clip.position($0, at: 0) } } ?? .zero
+            // Up to the first change this plan makes, a man moves as the plan before had him: its samples, as they were.
+            let before = reuse.flatMap { r in r.from.tracks.first { $0.id == id }.map { (r, $0) } }.flatMap { r, track in
+                r.leaving.contains(id) ? nil : (track, r.offset, r.until)
+            }
+            var kept = 0
             for i in 0..<n {
-                if let m = plan.motion(of: id, at: time(i)) {
+                if let (track, offset, until) = before, time(i) < until, offset + i < track.xy.count {
+                    kept += 1
+                    xy.append(track.xy[offset + i])
+                    opacity.append(track.opacity[offset + i])
+                    last = SIMD2<Double>(track.xy[offset + i])
+                    #if BENCH
+                    // The bench's check that what's kept is what would have been sampled.
+                    if TheaterBake.checkReuse, let m = plan.sample(of: id, at: time(i)),
+                       simd_length(SIMD2<Float>(m.position) - track.xy[offset + i]) > 1e-3 || abs(Float(m.opacity) - track.opacity[offset + i]) > 1e-3 {
+                        TheaterBake.reuseMismatches += 1
+                    }
+                    #endif
+                    continue
+                }
+                if let m = plan.sample(of: id, at: time(i)) {
                     last = m.position
                     xy.append(SIMD2<Float>(m.position))
                     opacity.append(Float(m.opacity))
@@ -265,11 +312,24 @@ enum TheaterBake {
                 return CGPoint(x: Double(p.x), y: Double(p.y))
             }
             let poses = poseSpans(plan, id)
-            let rig = light ? RigTrack(at: position(plan.start), height: figure.height)
-                : RigTrack(from: plan.start, through: plan.horizon, height: figure.height, history: Double(history.count) * dt,
-                           continuing: plan.state?.actor(id)?.rig, position: position) { t in
+            // The stride too, where the samples were kept (short of the change by its smoothing's reach): the plan
+            // before's, then measured on from there, carrying its stride (as at any splice).
+            let reach = 12
+            let rig: RigTrack
+            if light {
+                rig = RigTrack(at: position(plan.start), height: figure.height)
+            } else if let (track, _, _) = before, kept - reach >= Int(TheaterTiming.rate / 2), !track.rig.samples.isEmpty,
+                      abs(track.rig.start - track.start) < 1e-9 {
+                let from = time(kept - reach)
+                let tail = RigTrack(from: from, through: plan.horizon, height: figure.height, history: Double(history.count) * dt + (from - plan.start),
+                                    continuing: track.rig.carry(at: from), position: position) { t in facing(plan, poses, id, at: t) }
+                rig = track.rig.keeping(from: plan.start, until: from, then: tail)
+            } else {
+                rig = RigTrack(from: plan.start, through: plan.horizon, height: figure.height, history: Double(history.count) * dt,
+                               continuing: plan.state?.actor(id)?.rig, position: position) { t in
                     facing(plan, poses, id, at: t)
                 }
+            }
             tracks.append(ActorTrack(id: id, figure: figure, start: plan.start, xy: xy, opacity: opacity, rig: rig, poses: poses))
         }
         let ball = ballSpans(plan)
@@ -296,6 +356,25 @@ enum TheaterBake {
         }
         let tiers = frameTiers(plan, tracks: tracks, ball: ball, camera: baked.samples)
         return BakedPlan(plan: plan, tracks: tracks, camera: baked.samples, cameraVelocity: velocity, ball: ball, tiers: tiers, yawTargets: yawTargets)
+    }
+
+    /// What of the plan before this one's samples can keep: up to the first placement this plan changes (or the
+    /// plan before would have moved on to), on the same 60 Hz grid; not the men fading out where the splice found them
+    /// (their fade reads the splice's state).
+    static func reusable<Clip: TheaterClip>(_ plan: Plan<Clip>, previous: BakedPlan<Clip>?)
+        -> (from: BakedPlan<Clip>, offset: Int, until: PTime, leaving: Set<ActorID>)? {
+        guard let previous, plan.kept > 0, plan.kept <= plan.placements.count else { return nil }
+        let k = previous.plan.placements.lastIndex { $0.start <= plan.start } ?? -1
+        guard k >= 0 else { return nil }
+        let offset = Int(((plan.start - previous.start) * TheaterTiming.rate).rounded())
+        guard offset >= 0, abs(previous.start + Double(offset) / TheaterTiming.rate - plan.start) < 1e-6 else { return nil }
+        let changed = plan.placements[plan.kept...].map(\.start).min() ?? plan.horizon
+        let moved = previous.plan.placements.dropFirst(k + 1).map(\.start).min() ?? previous.plan.horizon
+        let until = min(changed, moved, previous.plan.horizon) - 2 / TheaterTiming.rate
+        guard until > plan.start else { return nil }
+        var leaving = Set<ActorID>()
+        for p in plan.placements.prefix(plan.kept) { leaving.formUnion(p.leaving) }
+        return (previous, offset, until, leaving)
     }
 
     /// Who poses a man and from when.

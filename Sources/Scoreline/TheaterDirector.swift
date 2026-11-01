@@ -97,8 +97,15 @@ protocol TheaterSport: Sendable {
     associatedtype Play: Equatable & Sendable
     associatedtype Facts: Equatable & Sendable
 
-    /// The timeline's plays as this sport's scenes, in order.
-    static func plays(_ snapshot: TimelineSnapshot<RawPlay>, facts: Facts) -> [TimelinePlay<Play>]
+    /// What every play's scene may read (soccer's keepers): when it changes, every scene is read again.
+    associatedtype SceneContext: Equatable & Sendable = Int
+    static func sceneContext(_ json: [JSON], facts: Facts) -> SceneContext
+    /// How many plays either side a play's scene reads (one this near a change is read again).
+    static var sceneReach: Int { get }
+    /// The scene of the timeline's play at `i` of `raw` (its plays, then the pending ones past the watermark); nil:
+    /// none. `prior`: this snapshot's scenes before it.
+    static func scene(_ raw: [RawPlay], _ json: [JSON], at i: Int, pending: Bool, facts: Facts, context: SceneContext,
+                      prior: [Play?]) -> Play?
     /// The plan from the splice at `c` (on the theater's time): each play's anchor at `τ + shift`; plays at or past
     /// `deferFrom` (on p) wait (the clock holds short of them).
     static func plan(_ plays: [TimelinePlay<Play>], history: Set<String>, facts: Facts, chain: PlanChain<Clip>, at c: PTime, shift: Double,
@@ -107,12 +114,69 @@ protocol TheaterSport: Sendable {
     static var horizons: [String: Double] { get }
 }
 
+extension TheaterSport where SceneContext == Int {
+    static func sceneContext(_ json: [JSON], facts: Facts) -> Int { 0 }
+}
+
+extension TheaterSport {
+    static var sceneReach: Int { 24 }
+
+    /// The timeline's plays as this sport's scenes, in order (every play read: the tests' and a first look's way).
+    static func plays(_ snapshot: TimelineSnapshot<RawPlay>, facts: Facts) -> [TimelinePlay<Play>] {
+        var cache = SceneCache<Self>()
+        return cache.read(snapshot, facts: facts)
+    }
+}
+
+/// The timeline's plays read as a sport's scenes, incrementally (off the main actor): each scene is kept until its
+/// play, or a play within the sport's reach of it, changes, so an ingest reads the few new plays, not the game.
+struct SceneCache<Sport: TheaterSport>: Sendable {
+    struct Key: Equatable, Sendable {
+        var id: String
+        var digest: Int
+        var pending: Bool
+    }
+    private var keys: [Key] = []
+    private var scenes: [Sport.Play?] = []
+    private var context: Sport.SceneContext?
+    private var facts: Sport.Facts?
+    /// How many plays the last read parsed (the bench reports it).
+    private(set) var parsed = 0
+
+    mutating func read(_ snapshot: TimelineSnapshot<RawPlay>, facts: Sport.Facts) -> [TimelinePlay<Sport.Play>] {
+        let all = snapshot.plays + snapshot.pending
+        let split = snapshot.plays.count
+        let fresh = all.indices.map { Key(id: all[$0].id, digest: all[$0].play.digest, pending: $0 >= split) }
+        let raw = all.map(\.play)
+        let json = raw.map(\.json)
+        let context = Sport.sceneContext(json, facts: facts)
+        var first = (0..<min(keys.count, fresh.count)).first { keys[$0] != fresh[$0] } ?? min(keys.count, fresh.count)
+        if context != self.context || facts != self.facts { first = 0 }
+        let from = max(first - Sport.sceneReach, 0)
+        var out = Array(scenes.prefix(from))
+        out.reserveCapacity(all.count)
+        for i in from..<all.count {
+            out.append(Sport.scene(raw, json, at: i, pending: i >= split, facts: facts, context: context, prior: out))
+        }
+        parsed = all.count - from
+        keys = fresh
+        scenes = out
+        self.context = context
+        self.facts = facts
+        return all.indices.compactMap { i in out[i].flatMap { scene in all[i].map { _ in scene } } }
+    }
+}
+
 /// The director's state as a pure value: the bench runs it synchronously, the app's director off the main actor.
 struct TheaterSession<Sport: TheaterSport>: Sendable {
     /// What a plan is made from (everything the off-main work reads).
     struct Request: Sendable {
-        var plays: [TimelinePlay<Sport.Play>]
-        var history: Set<String>
+        /// The timeline as it stands, read as scenes off the main actor (`scenes` keeps what's already read).
+        var snapshot: TimelineSnapshot<RawPlay>
+        var scenes: SceneCache<Sport>
+        /// Plays known when the page opened (nil until the first plan reads `opening`, the first snapshot).
+        var history: Set<String>?
+        var opening: TimelineSnapshot<RawPlay>?
         var facts: Sport.Facts
         var chain: PlanChain<Sport.Clip>
         var at: PTime
@@ -124,17 +188,24 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
         var light = false
         /// The theater's time jumped with p (a declared jump, a wake): this plan's start is a declared cut.
         var declared = false
-        /// The timeline's plays it's made from (up to the watermark).
-        var known: Set<String> = []
+    }
+
+    /// A plan made and baked, with what it read.
+    struct Made: Sendable {
+        var baked: BakedPlan<Sport.Clip>
+        var nextID: UInt16
+        var scenes: SceneCache<Sport>
+        var history: Set<String>
     }
 
     private(set) var chain = PlanChain<Sport.Clip>()
     private(set) var time = TheaterTime()
     /// Plays known when the page opened: shown as the court they left, never told.
     private(set) var history: Set<String>?
-    private(set) var plays: [TimelinePlay<Sport.Play>] = []
-    /// The timeline's plays as of the last snapshot (the sport may not scene every one).
-    private var known: Set<String> = []
+    /// The timeline as of the last change that matters to a plan, the first one, and the scenes read so far.
+    private var snapshot: TimelineSnapshot<RawPlay>?
+    private var opening: TimelineSnapshot<RawPlay>?
+    private var scenes = SceneCache<Sport>()
     var facts: Sport.Facts
     private var nextID: UInt16 = 1
     private var revision: UInt32 = 0
@@ -174,44 +245,67 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
         return held != wasHolding || abs(time.shift - shiftBefore) > 0.05 || events.contains { if case .skip = $0 { true } else { false } }
     }
 
-    /// New plays (or revised, or removed).
-    mutating func timelineDidChange(_ snapshot: TimelineSnapshot<RawPlay>) {
-        plays = Sport.plays(snapshot, facts: facts)
-        known = Set(snapshot.plays.map(\.id))
-        if history == nil { history = Set(plays.map(\.id)) }
+    /// New plays (or revised, or removed). Cheap (the main actor's part): true when it matters to a plan. What's told
+    /// and where it's presented don't (the plan sets those); the scenes are read off the main actor, in `make`.
+    mutating func timelineDidChange(_ snapshot: TimelineSnapshot<RawPlay>) -> Bool {
+        if opening == nil { opening = snapshot }
+        if let last = self.snapshot, Self.samePlays(last, snapshot) { return false }
+        self.snapshot = snapshot
+        return true
+    }
+
+    /// Whether two snapshots hold the same plays as a plan reads them (everything but what's told and `presentAt`).
+    static func samePlays(_ a: TimelineSnapshot<RawPlay>, _ b: TimelineSnapshot<RawPlay>) -> Bool {
+        guard a.plays.count == b.plays.count, a.pending.count == b.pending.count else { return false }
+        func same(_ x: TimelinePlay<RawPlay>, _ y: TimelinePlay<RawPlay>) -> Bool {
+            x.id == y.id && x.play.digest == y.play.digest && x.revision == y.revision && x.eventTime == y.eventTime
+                && x.eventBounds == y.eventBounds && x.estimated == y.estimated && x.timeSource == y.timeSource && x.kind == y.kind
+                && x.period == y.period && x.clock == y.clock && x.score == y.score && x.order == y.order
+        }
+        return zip(a.plays, b.plays).allSatisfy(same) && zip(a.pending, b.pending).allSatisfy(same)
     }
 
     /// What a plan made now would be made from: the splice a quarter second ahead of T, on the chain's grid.
     /// `lead`: how far ahead of T the splice goes (the time the bake gets; more after a plan came back too late).
     mutating func request(now: PTime, lead: Double = TheaterTiming.commitLead) -> Request? {
-        guard let T = theaterTime(at: now), let history else { return nil }
+        guard let T = theaterTime(at: now), let snapshot else { return nil }
         let c = chain.isEmpty ? T : chain.commit(after: T, lead: lead)
         revision &+= 1
         // While T runs on wall time (a hold) its shift from p grows: anchors go with the shift as it is now.
         let shift = clock.map { T - $0.p(at: now) } ?? time.shift
-        var request = Request(plays: plays, history: history, facts: facts, chain: chain, at: c, shift: shift, deferFrom: holding,
-                              revision: revision, nextID: nextID)
+        var request = Request(snapshot: snapshot, scenes: scenes, history: history, opening: history == nil ? opening : nil, facts: facts,
+                              chain: chain, at: c, shift: shift, deferFrom: holding, revision: revision, nextID: nextID)
         request.declared = declareNext
-        request.known = known
         return request
     }
 
-    /// Plans and bakes (pure; off the main actor in the app).
-    static func make(_ request: Request) -> (BakedPlan<Sport.Clip>, nextID: UInt16) {
+    /// Reads the scenes, plans and bakes (pure; off the main actor in the app).
+    static func make(_ request: Request) -> Made {
+        var scenes = request.scenes
+        let plays = scenes.read(request.snapshot, facts: request.facts)
+        // Plays known when the page opened: its first snapshot's (the court they left, never told).
+        let history = request.history ?? request.opening.map { opening in
+            opening == request.snapshot ? Set(plays.map(\.id)) : Set(Sport.plays(opening, facts: request.facts).map(\.id))
+        } ?? Set(plays.map(\.id))
         var nextID = request.nextID
-        var plan = Sport.plan(request.plays, history: request.history, facts: request.facts, chain: request.chain, at: request.at,
+        var plan = Sport.plan(plays, history: history, facts: request.facts, chain: request.chain, at: request.at,
                               shift: request.shift, deferFrom: request.deferFrom, revision: request.revision, nextID: &nextID)
         if request.declared { plan.declared = true }
-        plan.known = request.known.subtracting(plan.deferred)
-        return (TheaterBake.bake(plan, light: request.light), nextID)
+        plan.known = Set(request.snapshot.plays.map(\.id)).subtracting(plan.deferred)
+        let baked = TheaterBake.bake(plan, light: request.light, previous: request.chain.plan(at: request.at))
+        return Made(baked: baked, nextID: nextID, scenes: scenes, history: history)
     }
 
-    /// Takes in a baked plan if it's still in time (its splice not yet passed); else it must be made again.
-    mutating func accept(_ baked: BakedPlan<Sport.Clip>, nextID: UInt16, now: PTime) -> Bool {
+    /// Takes in a baked plan if it's still in time (its splice not yet passed); else it must be made again. What it
+    /// read is kept either way.
+    mutating func accept(_ made: Made, now: PTime) -> Bool {
+        scenes = made.scenes
+        if history == nil { history = made.history }
+        let baked = made.baked
         if let T = theaterTime(at: now), !chain.isEmpty, baked.start < T - 1e-6 { return false }
         if baked.plan.declared { declareNext = false }
         chain.splice(baked, now: theaterTime(at: now) ?? baked.start)
-        self.nextID = max(self.nextID, nextID)
+        self.nextID = max(self.nextID, made.nextID)
         return true
     }
 
@@ -241,11 +335,23 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
 // MARK: - The director
 
 #if DEBUG
-/// Plans in flight across every director (the offscreen check waits on it: folded, the court draws no frames to say so).
+/// Plans in flight across every director (the offscreen check waits on it: folded, the court draws no frames to say so),
+/// and the most there ever were at once (a gate: one).
 @MainActor enum TheaterDebug {
-    static var planning = 0
+    static var planning = 0 { didSet { most = max(most, planning) } }
+    static private(set) var most = 0
 }
 #endif
+
+/// Where every page's plans are made: one at a time (an actor: a serial executor off the main actor), at the planning
+/// task's priority (utility). Never a task per data change, never in parallel.
+actor TheaterBakery {
+    static let shared = TheaterBakery()
+
+    func make<Sport: TheaterSport>(_ request: TheaterSession<Sport>.Request) -> TheaterSession<Sport>.Made {
+        TheaterSession<Sport>.make(request)
+    }
+}
 
 /// The game page's theater director (one per page, main actor, event-driven):
 /// only `chain` is observed, and it changes only on a splice.
@@ -286,8 +392,7 @@ final class TheaterDirector<Sport: TheaterSport> {
 
     /// The plays changed (an ingest, a revision, a removal): re-plan from a quarter second ahead.
     func timelineDidChange(_ snapshot: TimelineSnapshot<RawPlay>) {
-        session.timelineDidChange(snapshot)
-        replan()
+        if session.timelineDidChange(snapshot) || chain.isEmpty { replan() }
     }
 
     /// The presentation clock re-planned (its events since the last time): T follows; a hold, a resume, a skip or a jump re-plans.
@@ -321,14 +426,14 @@ final class TheaterDirector<Sport: TheaterSport> {
         #if DEBUG
         TheaterDebug.planning += 1
         #endif
-        baking = Task { [weak self] in
-            let made = await Self.make(request)
+        baking = Task(priority: .utility) { [weak self] in
+            let made = await TheaterBakery.shared.make(request)
             #if DEBUG
             TheaterDebug.planning -= 1
             #endif
             guard let self, !Task.isCancelled else { return }
             self.baking = nil
-            if self.session.accept(made.0, nextID: made.nextID, now: self.now()) {
+            if self.session.accept(made, now: self.now()) {
                 self.chain = self.session.chain
                 self.lead = max(TheaterTiming.commitLead, self.lead * 0.75)
                 self.scheduleHorizon()
@@ -342,10 +447,6 @@ final class TheaterDirector<Sport: TheaterSport> {
                 self.replan()
             }
         }
-    }
-
-    nonisolated private static func make(_ request: TheaterSession<Sport>.Request) async -> (BakedPlan<Sport.Clip>, nextID: UInt16) {
-        TheaterSession<Sport>.make(request)
     }
 
     /// The one wake: before the plan runs out, the next rounds of the court between plays.

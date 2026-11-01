@@ -283,9 +283,13 @@ enum DiamondPainter {
 
 /// Baseball on the director (Phase 0): today's scripts as clips.
 enum DiamondSport: TheaterSport {
-    static func plays(_ snapshot: TimelineSnapshot<RawPlay>, facts: DiamondFacts) -> [TimelinePlay<RawPlay>] {
-        snapshot.plays + snapshot.pending
+    /// Baseball's director reads the feed's plays as they are.
+    static func scene(_ raw: [RawPlay], _ json: [JSON], at i: Int, pending: Bool, facts: DiamondFacts, context: Int,
+                      prior: [RawPlay?]) -> RawPlay? {
+        raw[i]
     }
+
+    static var sceneReach: Int { 0 }
 
     static func plan(_ plays: [TimelinePlay<RawPlay>], history: Set<String>, facts: DiamondFacts, chain: PlanChain<DiamondClip>, at c: PTime,
                      shift: Double, deferFrom: PTime?, revision: UInt32, nextID: inout UInt16) -> Plan<DiamondClip> {

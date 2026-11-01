@@ -344,11 +344,12 @@ struct SoccerProp: Equatable {
 extension SoccerScript {
     /// The pitch between moments (SoccerIdle): both elevens, an official
     /// for his act, and the beat.
-    init(idle: SoccerIdle) {
+    /// `bodies`: measure each man's stride (today's stage poses from it; the director measures its own).
+    init(idle: SoccerIdle, bodies: Bool = true) {
         var b = IdleBuilder(idle: idle)
         b.build()
         self = b.script
-        measureBodies()
+        if bodies { measureBodies() }
     }
 
     /// The script's time for `elapsed` seconds of idle: straight through, then round the loop.

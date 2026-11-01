@@ -316,7 +316,7 @@ extension SoccerScript {
     /// The moment's replay, with everyone in both starting elevens when
     /// the lineups are known. (`SoccerScript()` is the pitch with nobody on
     /// it: no moment yet.)
-    init(_ scene: SoccerScene, lineups: [GameDetail.Side: SoccerLineup] = [:], pace: Double = SoccerScript.buildUpPace) {
+    init(_ scene: SoccerScene, lineups: [GameDetail.Side: SoccerLineup] = [:], pace: Double = SoccerScript.buildUpPace, bodies: Bool = true) {
         var b = Builder(scene: scene, lineups: lineups)
         b.buildUp()
         b.strike()
@@ -333,7 +333,7 @@ extension SoccerScript {
         b.measureStamp()
         b.shoot()
         self = b.script
-        measureBodies()
+        if bodies { measureBodies() }
     }
 
     /// Each player's motion, measured once (`RigTrack`, a 2.5 m figure), and
