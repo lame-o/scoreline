@@ -26,6 +26,21 @@ struct ScorelineTests {
             exit(BroadcastBench.main(Array(CommandLine.arguments[(flag + 1)...])))
         }
         HTTP.stubProtocol = FixtureProtocol.self
+        if CommandLine.arguments.contains("--rig-only") {
+            theaterRig()
+            print("\n\(passes) passed, \(failures) failed")
+            exit(failures == 0 ? 0 : 1)
+        }
+        if CommandLine.arguments.contains("--sync-only") {
+            broadcast()
+            theaterEngine()
+            choreographyIntegration()
+            theaterRig()
+            soccerCompetitions()
+            followingPolicy()
+            print("\n\(passes) passed, \(failures) failed")
+            exit(failures == 0 ? 0 : 1)
+        }
         if let path = ProcessInfo.processInfo.environment["SCORELINE_RENDER_FOLLOWING"] {
             await renderFollowing(to: path)
             exit(0)
@@ -79,6 +94,7 @@ struct ScorelineTests {
         theaterNames()
         theaterRig()
         theaterEngine()
+        choreographyIntegration()
         statcast()
         playStatcast()
         playCredits()

@@ -793,7 +793,7 @@ enum ClipPaths {
 /// before it are free to move apart, in order. Where any man would run past
 /// his sprint (or push past his limits), the script's time runs slower, so
 /// the contacts move later and nobody hurries; the ball's flights keep their
-/// own pace where they can (a short one slows at most by `steadyMost`), so
+/// own pace where they can (a short one normally slows at most by `steadyMost`), so
 /// the stretch falls on the runs between them. The stretch is eased in and out (no sudden change of pace), and the
 /// clip simply starts earlier by what it gained before its decisive moment:
 /// the planner places that moment at its anchor all the same.
@@ -805,8 +805,8 @@ struct ClipWarp: Equatable, Sendable {
     let length: Double
 
     static let identity = ClipWarp(times: [], step: 1, length: 0)
-    /// The most a short flight slows when a runner needs the time: the contacts move apart rather than anyone
-    /// outrunning his legs (a pass or a rebound at half its pace at worst; most never slow at all).
+    /// The usual limit for slowing a short flight. A sport can raise it only as far
+    /// as a visible player's sprint requires, while keeping the contact shared.
     static let steadyMost = 2.0
 
     var isIdentity: Bool { times.isEmpty }
@@ -821,12 +821,25 @@ struct ClipWarp: Equatable, Sendable {
 
     /// The stretch for a script: `need(u)` how much slower its time must run at script time `u` (≥ 1), `steady(u)`
     /// whether the ball's in flight there (its pace kept). Nil when nothing needs it.
-    static func make(length: Double, step: Double = 1.0 / 60, need: (Double) -> Double, steady: (Double) -> Bool) -> ClipWarp? {
+    static func make(length: Double, step: Double = 1.0 / 60, need: (Double) -> Double, steady: (Double) -> Bool,
+                     minimumFlightStretch: ((Double) -> Double)? = nil) -> ClipWarp? {
         guard length.isFinite, length > step else { return nil }
         let n = Int((length / step).rounded(.up)) + 1
+        let flying = (0..<n).map { steady(min(Double($0) * step, length)) }
+        // A ball's usual pace is a preference. If keeping its twofold limit would
+        // force a visible player past his sprint, preserve the contact and grant
+        // only the extra stretch that his speed requires. Keep one limit across
+        // the clip so crossing that threshold cannot introduce a rate discontinuity.
+        var flightLimit = steadyMost
+        if let minimumFlightStretch {
+            for k in 0..<n where flying[k] {
+                let required = minimumFlightStretch(min(Double(k) * step, length))
+                if required.isFinite { flightLimit = max(flightLimit, required) }
+            }
+        }
         var raw = (0..<n).map { k -> Double in
-            let u = min(Double(k) * step, length)
-            return steady(u) ? min(max(need(u), 1), steadyMost) : max(need(u), 1)
+            let required = max(need(min(Double(k) * step, length)), 1)
+            return flying[k] ? min(required, flightLimit) : required
         }
         guard raw.contains(where: { $0 > 1.001 }) else { return nil }
         // Spread each slowdown a quarter second either way (the most, then the mean): eased in and out.
@@ -836,7 +849,7 @@ struct ClipWarp: Equatable, Sendable {
         for k in 0..<n {
             let window = widened[max(k - half, 0)...min(k + half, n - 1)]
             let mean = window.reduce(0, +) / Double(window.count)
-            raw[k] = steady(min(Double(k) * step, length)) ? min(mean, steadyMost) : mean
+            raw[k] = flying[k] ? min(mean, flightLimit) : mean
         }
         var times = [0.0]
         times.reserveCapacity(n)

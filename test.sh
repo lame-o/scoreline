@@ -25,7 +25,7 @@ JOBS=${SCORELINE_JOBS:-4}
 
 if $BENCH; then
   # Keep bounded compile parallelism and optional release flags for meaningful benchmarks.
-  swiftc -j "$JOBS" -D BENCH ${=SCORELINE_BENCH_FLAGS:-} -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
+  swiftc -j "$JOBS" -D BENCH ${=SCORELINE_BENCH_FLAGS:--Osize -wmo} -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
     -F "$SPARKLE" -framework Sparkle -Xlinker -rpath -Xlinker "$SPARKLE" \
     $(ls Sources/Scoreline/*.swift | grep -v ScorelineApp.swift) Tests/*.swift -o build/ScorelineTests
   exec ./build/ScorelineTests --bench "$@"
@@ -50,4 +50,4 @@ if grep -q "warning:" build/debug-typecheck.log; then
 fi
 echo "DEBUG typecheck: ok"
 
-./build/ScorelineTests
+./build/ScorelineTests "$@"

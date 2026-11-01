@@ -44,9 +44,11 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
     mutating func setHorizons(_ horizons: BindingHorizons) { timeline.horizons = horizons }
 
     /// The theater's solved decisive moments: untold plays are presented at them (one truth for score and slide).
-    mutating func setAnchors(_ anchors: [String: PTime]) { timeline.setAnchors(anchors) }
+    mutating func setAnchors(_ anchors: [String: PTime], leadIns: [String: Double] = [:]) { timeline.setAnchors(anchors, leadIns: leadIns) }
     /// …and the plays the theater planned from: a newer one waits for its anchor (nil: none waits).
-    mutating func setAnchors(_ anchors: [String: PTime], covering: Set<String>?) { timeline.setAnchors(anchors, covering: covering) }
+    mutating func setAnchors(_ anchors: [String: PTime], covering: Set<String>?, leadIns: [String: Double] = [:]) {
+        timeline.setAnchors(anchors, covering: covering, leadIns: leadIns)
+    }
 
     // MARK: Stepping
 
@@ -73,12 +75,12 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
         step.knowledge = knowledge
         // The director must know a play by its binding horizon: p stays that far short of the watermark.
         let cap = knowledge.frontier - timeline.horizons.live
-        let before = clock.events.count
+        let before = clock.eventRevision
         let pBefore = clock.started ? clock.p(at: now) : cap
         let quiet = timeline.quietSpan(from: pBefore, knowledge: cap)
         clock.update(now: now, inputs: PresentationClock.Inputs(target: timeline.targetDelay, cap: cap, quietUntil: quiet,
                                                                 jumpLimit: timeline.jumpLimit))
-        let events = Array(clock.events[before...])
+        let events = clock.events(since: before)
         step.events += events
         let p = clock.p(at: now) + 1e-6
         // The live edge (opening, waking) and a declared jump: what's passed is history, not news.

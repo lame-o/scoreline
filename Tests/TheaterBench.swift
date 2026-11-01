@@ -45,19 +45,23 @@ enum TheaterBench {
             }
             return 0
         case "engine":
+            var failures = 0, runs = 0
             for sport in chosen {
                 for (recording, units) in recordings(sport) {
                     let label = "\(recording.sportDirectory) \(recording.event), the engine"
                     guard let run = engine(sport, recording, label: label) else { continue }
+                    runs += 1
                     print(run.report.render(units: units))
                     print(String(format: "    determinism hash %016llx", run.hash))
                     // Run again from scratch: the bench is deterministic when both hashes agree.
                     if args.contains("--twice"), let again = engine(sport, recording, label: label) {
                         print(String(format: "    determinism hash, second run %016llx: %@", again.hash, again.hash == run.hash ? "identical" : "DIFFERENT"))
+                        if again.hash != run.hash { failures += 1 }
                     }
                 }
             }
-            return 0
+            if runs == 0 { print("No recordings matched the requested sport/event."); return 66 }
+            return failures == 0 ? 0 : 1
         case "engine-cost":
             for sport in chosen {
                 guard let (recording, _) = recordings(sport).first,

@@ -251,6 +251,7 @@ enum EngineRun {
             lastWall = w
         }
         var published: [String: PTime] = [:]
+        var publishedLeads: [String: Double] = [:]
         replay.run(.app(replay.policy)) { replay, t, step, change in
             let engine = replay.engine
             guard engine.started else { return }
@@ -268,9 +269,11 @@ enum EngineRun {
             if data || clockChanged || session.chain.isEmpty { replan(t) }
             // One truth on p, as the page has it: the timeline presents each play where the theater's plan puts it.
             let anchors = session.anchors(now: t)
-            if anchors != published {
+            let leads = session.leadIns
+            if anchors != published || leads != publishedLeads {
                 published = anchors
-                replay.setAnchors(anchors)
+                publishedLeads = leads
+                replay.setAnchors(anchors, leadIns: leads)
             }
             if lastWall == nil { lastWall = t }
         }

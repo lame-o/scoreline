@@ -45,7 +45,7 @@ protocol BroadcastTheaterSource: AnyObject {
     func setBindingHorizons(_ horizons: BindingHorizons)
     /// The solved decisive moments: untold plays are presented there (one truth for score, lists and theater).
     /// `covering`: the plays the theater planned from; a newer one waits for its anchor (nil: none waits).
-    func setAnchors(_ anchors: [String: PTime], covering: Set<String>?)
+    func setAnchors(_ anchors: [String: PTime], covering: Set<String>?, leadIns: [String: Double])
 }
 
 /// Wall time for the broadcast: the real clock, or the harness's virtual one.
@@ -757,9 +757,9 @@ final class Broadcast: BroadcastTheaterSource {
         step()
     }
 
-    func setAnchors(_ anchors: [String: PTime], covering: Set<String>?) {
+    func setAnchors(_ anchors: [String: PTime], covering: Set<String>?, leadIns: [String: Double] = [:]) {
         guard var engine else { return }
-        engine.setAnchors(anchors, covering: covering)
+        engine.setAnchors(anchors, covering: covering, leadIns: leadIns)
         self.engine = engine
         step()
     }

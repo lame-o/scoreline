@@ -158,6 +158,12 @@ struct PresentationClock: Equatable, Sendable {
     private(set) var stalledSince: PTime?
     /// What it did, newest last (bounded).
     private(set) var events: [Event] = []
+    /// A cursor independent of the bounded history's length. Long games still deliver new clock events.
+    private(set) var eventRevision: UInt64 = 0
+
+    func events(since revision: UInt64) -> [Event] {
+        Array(events.suffix(Int(min(eventRevision &- revision, UInt64(events.count)))))
+    }
 
     init(tuning: Tuning = Tuning()) {
         self.tuning = tuning
@@ -334,6 +340,7 @@ struct PresentationClock: Equatable, Sendable {
     }
 
     private mutating func note(_ event: Event) {
+        eventRevision &+= 1
         events.append(event)
         if events.count > 400 { events.removeFirst(events.count - 400) }
     }

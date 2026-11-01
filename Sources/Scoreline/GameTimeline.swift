@@ -489,6 +489,9 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// The theater's solved decisive moments (Phase 0's anchor solver), by play:
     /// untold plays are presented there, so the score and the slide agree with the theater.
     private(set) var anchors: [String: PTime] = [:]
+    /// The theater's actual lead-in to each anchor, including travel into the clip.
+    /// Catch-ups must finish before that travel starts, not merely before a sport's minimum horizon.
+    private(set) var leadIns: [String: Double] = [:]
     /// Anchored plays told while the order guard would have held them (newest last): the guard and the theater
     /// disagreed, which is worth a report (the theater's anchor wins).
     private(set) var guardOverrides: [String] = []
@@ -1089,12 +1092,13 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
 
     /// The theater's solved decisive moments (CHOREOGRAPHY §5.1): untold plays
     /// are presented at them, so the score, the lists and the theater agree to the frame.
-    mutating func setAnchors(_ solved: [String: PTime]) {
-        setAnchors(solved, covering: covered)
+    mutating func setAnchors(_ solved: [String: PTime], leadIns: [String: Double] = [:]) {
+        setAnchors(solved, covering: covered, leadIns: leadIns)
     }
 
     /// …and the plays the theater planned from (`covering`): a play past them waits for the next plan's anchor.
-    mutating func setAnchors(_ solved: [String: PTime], covering: Set<String>?) {
+    mutating func setAnchors(_ solved: [String: PTime], covering: Set<String>?, leadIns: [String: Double] = [:]) {
+        self.leadIns = leadIns.filter { $0.value.isFinite && $0.value > 0 }
         guard solved != anchors || covering != covered else { return }
         covered = covering
         guard solved != anchors else { return }
@@ -1302,7 +1306,7 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
         var previous = score(through: toldCount)
         for k in toldCount..<records.count {
             if mustTellLive(k, after: previous) {
-                return records[k].presentAt - horizons.horizon(for: records[k].entry.kind) - 1
+                return records[k].presentAt - max(horizons.horizon(for: records[k].entry.kind), leadIns[records[k].id] ?? 0) - 1
             }
             if let score = records[k].entry.score { previous = score }
         }
@@ -1315,10 +1319,14 @@ struct GameTimeline<Payload: Sendable & Equatable>: Sendable {
     /// hold anywhere inside it. Nil when there's no such span.
     func quietSpan(from p: PTime, knowledge: PTime) -> PTime? {
         guard let last = lastTold, last.presentAt <= p else { return nil }
-        // A skip stops the next play's binding horizon short of it, so the theater
-        // has its lead-in before the decisive moment (dead-ball kinds: 0, unchanged).
-        let next = nextUntold.map { $0.presentAt - horizons.horizon(for: $0.entry.kind) }
-        let end = min(next ?? .infinity, knowledge)
+        // Protect every known approach. An administrative entry can precede a
+        // shot while that shot's longer approach has already begun; protecting
+        // only the next row would let a skip cut through the visible action.
+        var end = knowledge
+        for record in records.dropFirst(toldCount) {
+            let lead = max(horizons.horizon(for: record.entry.kind), leadIns[record.id] ?? 0)
+            end = min(end, record.presentAt - lead)
+        }
         guard end > p else { return nil }
         // The ball dead (soccer's out of play, ~40% of a match): the game clock runs, but nothing on screen moves.
         let deadBall = last.entry.kind.stopsPlay

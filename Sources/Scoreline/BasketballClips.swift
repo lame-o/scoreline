@@ -105,7 +105,12 @@ struct HoopsClip: TheaterClip, @unchecked Sendable {
                            (simd_length(path.acceleration(at: u)) / (min(b.accel, b.decel, b.lateral) * 0.97)).squareRoot())
             }
             return most
-        }, steady: { u in script.flights.contains { u > $0.start && u < $0.end && $0.end - $0.start < 1.5 } }) ?? .identity
+        }, steady: { u in script.flights.contains { u > $0.start && u < $0.end && $0.end - $0.start < 1.5 } }, minimumFlightStretch: { u in
+            paths.indices.reduce(1.0) { most, i in
+                guard let path = paths[i], script.players[i].opacity(at: u) > 0.05 else { return most }
+                return max(most, simd_length(path.velocity(at: u)) / (bands[i].sprint * 0.97))
+            }
+        }) ?? .identity
         length = warp.isIdentity ? script.duration : warp.stretched
         still = kind == .replay ? warp.clip(script.leadIn) : 0
         decisive = Self.decisive(script, scene: scene, kind: kind).map(warp.clip)
@@ -467,6 +472,18 @@ enum HoopsSport: TheaterSport {
     /// The furthest a scene reads ahead: twelve plays at the same clock for a foul's free throws, four court plays
     /// (past any substitutions and timeouts) for a miss's rebound.
     static var sceneReach: Int { 20 }
+
+    static func sceneStart(before first: Int, in json: [JSON]) -> Int {
+        // reboundAfter reads four court plays, skipping any number of substitutions/timeouts.
+        // A raw-row bound alone can leave a miss cached without its newly arrived rebound.
+        var from = max(first - sceneReach, 0), court = 0
+        for i in (0..<first).reversed() {
+            if !BasketballScene.admin.contains(json[i]["type"]["id"].int ?? 0) { court += 1 }
+            from = min(from, i)
+            if court == 4 { break }
+        }
+        return from
+    }
 
     static func plan(_ plays: [TimelinePlay<BasketballScene>], history: Set<String>, facts: HoopsFacts, chain: PlanChain<HoopsClip>, at c: PTime,
                      shift: Double, deferFrom: PTime?, revision: UInt32, nextID: inout UInt16) -> Plan<HoopsClip> {

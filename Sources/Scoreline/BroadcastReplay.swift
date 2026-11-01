@@ -394,7 +394,7 @@ struct RecordingReplay {
     mutating func setHorizons(_ horizons: BindingHorizons) { engine.setHorizons(horizons) }
 
     /// The theater's solved decisive moments, as the page passes them to `Broadcast`.
-    mutating func setAnchors(_ anchors: [String: PTime]) { engine.setAnchors(anchors) }
+    mutating func setAnchors(_ anchors: [String: PTime], leadIns: [String: Double] = [:]) { engine.setAnchors(anchors, leadIns: leadIns) }
 
     /// Applies one input at its time (without advancing the clock).
     mutating func apply(_ input: Input, at t: PTime) -> TimelineChange? {

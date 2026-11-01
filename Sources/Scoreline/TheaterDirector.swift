@@ -102,6 +102,8 @@ protocol TheaterSport: Sendable {
     static func sceneContext(_ json: [JSON], facts: Facts) -> SceneContext
     /// How many plays either side a play's scene reads (one this near a change is read again).
     static var sceneReach: Int { get }
+    /// Earliest scene affected by a changed suffix. Some sports count playing entries rather than raw rows.
+    static func sceneStart(before first: Int, in json: [JSON]) -> Int
     /// The scene of the timeline's play at `i` of `raw` (its plays, then the pending ones past the watermark); nil:
     /// none. `prior`: this snapshot's scenes before it.
     static func scene(_ raw: [RawPlay], _ json: [JSON], at i: Int, pending: Bool, facts: Facts, context: SceneContext,
@@ -120,6 +122,7 @@ extension TheaterSport where SceneContext == Int {
 
 extension TheaterSport {
     static var sceneReach: Int { 24 }
+    static func sceneStart(before first: Int, in json: [JSON]) -> Int { max(first - sceneReach, 0) }
 
     /// The timeline's plays as this sport's scenes, in order (every play read: the tests' and a first look's way).
     static func plays(_ snapshot: TimelineSnapshot<RawPlay>, facts: Facts) -> [TimelinePlay<Play>] {
@@ -152,7 +155,8 @@ struct SceneCache<Sport: TheaterSport>: Sendable {
         let context = Sport.sceneContext(json, facts: facts)
         var first = (0..<min(keys.count, fresh.count)).first { keys[$0] != fresh[$0] } ?? min(keys.count, fresh.count)
         if context != self.context || facts != self.facts { first = 0 }
-        let from = max(first - Sport.sceneReach, 0)
+        let unchanged = first == fresh.count && keys.count == fresh.count
+        let from = unchanged ? first : Sport.sceneStart(before: first, in: json)
         var out = Array(scenes.prefix(from))
         out.reserveCapacity(all.count)
         for i in from..<all.count {
@@ -325,6 +329,19 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
     /// The plays the newest plan was made from: the timeline waits for the anchor of one past them (nil: no plan yet).
     var covering: Set<String>? { chain.plans.last?.plan.known }
 
+    /// The running order's actual approach to each tell. Includes the splice travel, which can begin
+    /// several seconds before a clip's nominal lead-in. A clock skip there would move its anchor mid-play.
+    var leadIns: [String: Double] {
+        guard let plan = chain.plans.last?.plan else { return [:] }
+        var out: [String: Double] = [:]
+        for placement in plan.placements {
+            for (id, at) in placement.presents {
+                out[id] = max(out[id] ?? 0, at + placement.shift - placement.start)
+            }
+        }
+        return out
+    }
+
     /// When the plan runs out (the court between plays needs its next rounds): a wall time to re-plan by.
     func horizonWake(now: PTime) -> PTime? {
         guard let last = chain.plans.last, let T = theaterTime(at: now) else { return nil }
@@ -389,6 +406,7 @@ final class TheaterDirector<Sport: TheaterSport> {
 
     /// The plays the newest plan has seen: a newer one waits for its anchor (the court and the score land together).
     var covering: Set<String>? { session.covering }
+    var leadIns: [String: Double] { session.leadIns }
 
     /// The plays changed (an ingest, a revision, a removal): re-plan from a quarter second ahead.
     func timelineDidChange(_ snapshot: TimelineSnapshot<RawPlay>) {

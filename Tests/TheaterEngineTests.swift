@@ -289,6 +289,19 @@ extension ScorelineTests {
               "a clip's own time stretches until nobody outruns his legs (before the move it's the script's own time)",
               "worst \(worst) of the sprint, length \(warp.stretched)")
         check(ClipWarp.make(length: 4, need: { _ in 1 }, steady: { _ in false }) == nil, "a script that asks nothing too much keeps its own time")
+        let duringFlight = ClipWarp.make(length: 4, need: need2, steady: { _ in true }, minimumFlightStretch: { u in
+            simd_length(fast.velocity(at: u)) / (band.sprint * 0.97)
+        })!
+        var flightWorst = 0.0
+        t = 0
+        while t < duringFlight.stretched {
+            let a = fast.position(at: duringFlight.script(t)), b = fast.position(at: duringFlight.script(t + 1.0 / 240))
+            flightWorst = max(flightWorst, simd_length(b - a) * 240 / band.sprint)
+            t += 1.0 / 240
+        }
+        check(flightWorst <= 1 && abs(duringFlight.script(duringFlight.clip(1.6)) - 1.6) < 1e-6,
+              "a short flight cannot force a player past his sprint; its contact stays on the shared clip clock",
+              "worst \(flightWorst) of the sprint")
     }
 
     /// The broadcast's football plays come from the summary's drives, which name teams by id (the core lane by

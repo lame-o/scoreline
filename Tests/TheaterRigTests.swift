@@ -182,6 +182,8 @@ extension ScorelineTests {
         // Drawn as one solid figure: the outline one shape, never darker where its parts meet or where a limb's
         // line meets it; and fading, one layer: half the figure, not half of each part over the others.
         let white = Uniform(jersey: .white, cap: .white, accent: .white)
+        let diagnostics = ProcessInfo.processInfo.environment["SCORELINE_RIG_DIAGNOSTICS"]
+        var renderIndex = 0
         func pixels(_ figure: RigFigure, opacity: Double, in uniform: Uniform = white) -> [UInt8] {
             let side = 240
             let view = Canvas { context, _ in
@@ -191,6 +193,12 @@ extension ScorelineTests {
             let renderer = ImageRenderer(content: view)
             renderer.scale = 2
             guard let image = renderer.cgImage, let space = CGColorSpace(name: CGColorSpace.sRGB) else { return [] }
+            if let diagnostics {
+                try? FileManager.default.createDirectory(atPath: diagnostics, withIntermediateDirectories: true)
+                try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?
+                    .write(to: URL(fileURLWithPath: diagnostics).appendingPathComponent("figure-\(renderIndex).png"))
+                renderIndex += 1
+            }
             var bytes = [UInt8](repeating: 0, count: side * side * 4)
             let drawn = bytes.withUnsafeMutableBytes { buffer -> Bool in
                 guard let c = CGContext(data: buffer.baseAddress, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side * 4,
@@ -214,6 +222,7 @@ extension ScorelineTests {
                 // Outside the jersey (next to no white in it), the outline alone: never darker than the halo's half over what's left.
                 if solid[i] < 4 { darkest = max(darkest, (Double(solid[i + 3]) - Double(solid[i])) / (255 - Double(solid[i]))) }
                 apart = max(apart, (0..<4).map { abs(Double(faded[i + $0]) - Double(solid[i + $0]) / 2) }.max() ?? 0)
+
             }
         }
         check(darkest <= 0.5 + 3.0 / 255, "the outline is one shape: never darker where the figure's parts meet",
@@ -254,7 +263,7 @@ extension ScorelineTests {
         }
         check(stripesAcross == 2 && outside == 0 && legsDiffer && plainSame,
               "an official's kit: two bold stripes down the body and slacks of their own, all inside the outline; a plain uniform as it was",
-              "\(stripesAcross) stripes, \(outside) pixels outside")
+              "\(stripesAcross) stripes, \(outside) pixels outside, legs differ \(legsDiffer), plain same \(plainSame)")
 
         // Each sport's officials in their own kit: soccer's referee in yellow unless a team wears it.
         let kitNavy = Color(red: 0.1, green: 0.15, blue: 0.35), kitRed = Color(red: 0.8, green: 0.1, blue: 0.15)

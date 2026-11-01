@@ -194,14 +194,14 @@ private struct TheaterDirecting<Sport: TheaterSport>: ViewModifier {
             .onChange(of: source.clock) { _, clock in
                 clockChanged(clock)
                 // The clock re-planned: where T reaches each decisive frame on p moved with it.
-                source.setAnchors(director.anchors, covering: director.covering)
+                source.setAnchors(director.anchors, covering: director.covering, leadIns: director.leadIns)
             }
             .onChange(of: director.chain.revision) { _, _ in
-                source.setAnchors(director.anchors, covering: director.covering)
+                source.setAnchors(director.anchors, covering: director.covering, leadIns: director.leadIns)
                 cues?.publish(director)
             }
             // No theater schedules the plays any more: nothing waits for its anchors.
-            .onDisappear { source.setAnchors(director.anchors, covering: nil) }
+            .onDisappear { source.setAnchors(director.anchors, covering: nil, leadIns: [:]) }
             .onChange(of: facts) { _, now in director.factsDidChange(now) }
             .onChange(of: seen) { _, now in director.setVisible(now) }
     }

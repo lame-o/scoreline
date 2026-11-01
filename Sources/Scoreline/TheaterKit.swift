@@ -248,7 +248,7 @@ struct FigureInks {
         cap = context.resolve(.color(uniform.cap))
         legs = uniform.legs.map { context.resolve(.color($0)) } ?? jersey
         stripes = uniform.stripes.map { context.resolve(.color($0)) }
-        dressed = uniform.legs != nil
+        dressed = uniform.legs.map { $0 != uniform.jersey } ?? false
         color = uniform.jersey
         legColor = uniform.legs ?? uniform.jersey
         deepest = ink.dark ? 0.32 : 0.22
@@ -291,7 +291,15 @@ enum TheaterDraw {
         guard opacity < 1 else { return draw(figure, inks: inks, height: height, in: context) }
         var faded = context
         faded.opacity = opacity
-        faded.drawLayer { draw(figure, inks: inks, height: height, in: $0) }
+        faded.drawLayer { layer in
+            // SwiftUI can flatten a layer containing context clips and apply its
+            // opacity separately to later limbs. A subpixel filter forces the
+            // figure to composite as one image. This radius is below a visible
+            // pixel; the fade regression checks every premultiplied channel.
+            // Opaque figures keep the original drawing path and pay no filter cost.
+            layer.addFilter(.blur(radius: 0.001))
+            draw(figure, inks: inks, height: height, in: layer)
+        }
     }
 
     /// The line where a limb in front crosses: this far out either side of it.

@@ -7,9 +7,9 @@ Status: integration and verification in progress. Not installed or released.
 - Release 1.0.28: `9d842ed`.
 - Claude clock branch: `874b965` (`mac/broadcast`).
 - Claude choreography branch: `a476360` (`mac/choreo`).
-- Thirteen interrupted choreography edits are preserved exactly in `f427e79`; original working tree untouched. Original patch SHA-256: `9b5c950c6bbb78e1c18ee5cccc39b2537f35089ece82947bc98c89d1a62e4350`.
-- Competition/following/replay changes: through `814e39e`.
-- Integration: `481c9f1`, combining both branches and the current app. Both alert paths retain team mute preferences; soccer feeds retain the actual competition path; the removed floating chart panel stays removed.
+- Thirteen interrupted choreography edits are preserved exactly in `9213d19`; original working tree untouched. Original patch SHA-256: `9b5c950c6bbb78e1c18ee5cccc39b2537f35089ece82947bc98c89d1a62e4350`.
+- Competition/following/replay changes: through `c0e98b7`.
+- Integration: `5ef29b8`, combining both branches and the current app. Both alert paths retain team mute preferences; soccer feeds retain the actual competition path; the removed floating chart panel stays removed.
 
 The recovered BROADCAST.md and CHOREOGRAPHY.md are the original working specifications. Their historical measurements are not new verification. Phase A plus Phase 0 is this release's scope. Later sport grammars and the web timing-engine port remain separate phases.
 
