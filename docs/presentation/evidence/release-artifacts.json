@@ -1,0 +1,39 @@
+{
+  "version": "1.0.30",
+  "build": "32",
+  "architectures": [
+    "x86_64",
+    "arm64"
+  ],
+  "installedBinarySHA256": "be7f9046693ffb863f43cdd47d58a2cb2761f728885e4427f1d99986c8681e65",
+  "previousBinarySHA256": "8db0a24f9b71f278ec823eca83c88b15753ee70408c6cddd4176b20784c20659",
+  "backupRetainedLocally": true,
+  "productionSourceCommit": "55097553491f7e4aef6f136d37394b243e4b5271",
+  "assets": {
+    "Scoreline.zip": {
+      "bytes": 17173178,
+      "sha256": "56c66715e1522c65cb2fd54847d1d29df4a7b8877ca4fa417291ee8463e01a7f"
+    },
+    "Scoreline.dmg": {
+      "bytes": 18487077,
+      "sha256": "6c7ff672992400b28675e64a410b225140bdac08b84de4022f5fbbaf2495338b"
+    },
+    "appcast.xml": {
+      "bytes": 959,
+      "sha256": "b14ad1c5b36259ac7827b969f1414600c5a93bbb3a9fca5061d1840335db395d"
+    }
+  },
+  "checks": {
+    "nativeSuitePassed": 3035,
+    "nativeSuiteFailed": 0,
+    "standardSuitePassed": 3035,
+    "standardSuiteFailed": 0,
+    "nativePagePassed": 12,
+    "nativePageFailed": 0,
+    "debugTypecheck": "passed",
+    "codesignDeepStrict": "passed",
+    "sparkleEdDSA": "passed",
+    "appcastXML": "passed",
+    "criticalPreferencesPreserved": true
+  }
+}

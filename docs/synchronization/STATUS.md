@@ -1,8 +1,10 @@
 # Broadcast and choreography integration
 
-Verified November 1, 2026. The universal **Scoreline 1.0.29 (31)** app is installed and verified locally. This completes the interrupted **BROADCAST Phase A + CHOREOGRAPHY Phase 0 integration**, together with competition discovery, following and the Carabao replay/bracket correction. Later sport grammar, renderer and web phases remain separate work.
+Verified November 1, 2026. The universal **Scoreline 1.0.30 (32)** app is installed and verified locally. It includes the 1.0.29 integration and the [presentation follow-up](../presentation/2026-11-01.md) for halftime state, nonrepeating break animations, frame cadence, and team colors. The integration completes the interrupted **BROADCAST Phase A + CHOREOGRAPHY Phase 0 integration**, together with competition discovery, following and the Carabao replay/bracket correction. Later sport grammar, renderer and web phases remain separate work.
 
-Release: https://github.com/lame-o/scoreline/releases/tag/v1.0.29
+Current release: https://github.com/lame-o/scoreline/releases/tag/v1.0.30
+
+The integration measurements below describe 1.0.29. The follow-up has 3,035 passing native checks, 12 passing page checks, repeated NFL/NBA recordings, and frame-cost evidence in `../presentation/`. Later phases remain open as listed below.
 
 ## Preserved inputs
 
@@ -17,7 +19,7 @@ The original Developer checkouts were not reset, cleaned, rebased or updated. Th
 
 BROADCAST.md and CHOREOGRAPHY.md are the recovered original specifications. Their historical measurements are not new verification. INTEGRATION.md explains the corrections and reproduction commands.
 
-## Verification
+## Verification of the 1.0.29 integration
 
 - **3,010 native checks passed, zero failed**, plus successful DEBUG application typecheck. Includes figure pixel regressions, competition routing, following migration, replay construction, bounded clock history, cache invalidation and actual approach protection.
 - **10 actual DetailView checks passed, zero failed**, including Vision verification of rendered score pixels. Scores and decisive scoring frames agreed; six plays told while folded retained their anchors; unfolding moved no tell times; at most one plan was outstanding. Preferences were isolated and HTTP blocked.
@@ -40,7 +42,7 @@ College initially reported 16 and 9 large rig foot changes. Instrumented runs id
 
 Installed NFL observations, 20 seconds each, percent of one CPU core: before 32.41% expanded / 13.34% folded; after 24.54% expanded / 10.45% folded. Game state, thermal conditions and background work differed, so these are observations, not a controlled improvement. All test folds were restored, including the earlier soccer Live View fold; the user's other folds and following selections were preserved.
 
-## Installed interface and release checks
+## Installed interface and release checks for 1.0.29
 
 - Confirmed `/Applications/Scoreline.app` version 1.0.29 build 31 and its exact binary hash against the packaged app.
 - Live Ravens–Bills rendered the directed field, presentation-delay value and existing theme. The two-minute-warning wait matched ESPN's current summary and scoreboard (`401873026`); it was not an app-only freeze.

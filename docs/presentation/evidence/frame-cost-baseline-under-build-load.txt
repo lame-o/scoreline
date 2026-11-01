@@ -1,0 +1,12 @@
+
+== basketball: per-frame cost, the engine's frames (sample + pose, the Canvas) (540×270 pt at 2×)
+  kind          frames  pose ms p50/p99/max      allocs p50/p99   canvas ms p50/p99/max    allocs p50/p99   sum p99
+  engine         72600  0.012/0.063/37.685  2/45   0.294/1.633/64.345  700/2092   1.644
+  sample         72600  0.001/0.007/0.419  0/4   0.000/0.000/0.000  0/0   0.000
+  all           145200  0.010/0.045/37.685  1/27   0.294/1.633/64.345  700/2092   1.644
+
+== football: per-frame cost, the engine's frames (sample + pose, the Canvas) (540×270 pt at 2×)
+  kind          frames  pose ms p50/p99/max      allocs p50/p99   canvas ms p50/p99/max    allocs p50/p99   sum p99
+  engine         78300  0.034/0.138/8.366  3/146   1.117/3.991/55.602  1934/3328   4.034
+  sample         78300  0.002/0.016/2.623  0/19   0.000/0.000/0.000  0/0   0.000
+  all           156600  0.023/0.107/8.366  1/127   1.117/3.991/55.602  1934/3328   4.034

@@ -1,0 +1,31 @@
+  football_nfl 401873024, the engine: 142800 frames over 40.0 min
+    hard cuts: 0
+    crossfades: 0; largest jump hidden under one: 0.0 ft
+    teleportMax (continuous frames): 1.18 × the cap (0.52 ft in a frame); glide frames past 1.5× the cap: 0
+    speed over the sprint cap: 0.06% of actor-seconds, max +29%
+    accel over the limits: 0.16%; turning over the rig's cap: 0.00%
+    footSlip (the rig's planted foot): max 0.00 mm-eq, 0 foot-frames over 0.5 mm
+    footSlip (as drawn): max 264.4 mm-eq, 31695 foot-frames over 0.5 mm; across scene changes 0.0 mm-eq
+    by what moves him (share of all actor-seconds over the sprint / over +12% / over the push limits; his own seconds; worst):
+      clip: idle: 0.053% / 0.024% / 0.002%; 613.2 actor-min; max +29%
+      splice travel: 0.000% / 0.000% / 0.002%; 147.9 actor-min; max +0%
+      clip: replay: 0.008% / 0.004% / 0.155%; 112.3 actor-min; max +23%
+      splice travel (late, into a moving clip): 0.000% / 0.000% / 0.000%; 6.6 actor-min; max +0%
+      referee · clip: idle: 0.000% / 0.000% / 0.000%; 1.5 actor-min; max +0%
+      splice travel (carrying an overspeed): 0.001% / 0.000% / 0.000%; 0.5 actor-min; max +11%
+      referee · clip: replay: 0.000% / 0.000% / 0.000%; 0.3 actor-min; max +0%
+      newcomer · clip: replay: 0.000% / 0.000% / 0.000%; 0.0 actor-min; max +0%
+      newcomer · referee · clip: idle: 0.000% / 0.000% / 0.000%; 0.0 actor-min; max +0%
+      newcomer · clip: idle: 0.000% / 0.000% / 0.000%; 0.0 actor-min; max +0%
+      newcomer · referee · clip: replay: 0.000% / 0.000% / 0.000%; 0.0 actor-min; max +0%
+    camera: max pan 0.023 view-heights/frame, max yaw step 0.75°, max yaw speed 45.0°/s, jumps 0
+    decisiveError (on time; catch-ups apart): n=24 p50 0.000 s, p95 0.040 s, max 0.103 s
+    catch-ups: 12, p50 9.41 s, max 85.71 s
+    plans spliced: 193
+    scenes + plan + bake time: p50 36.2 ms, p99 316.1 ms, max 761.9 ms (193 made)
+    main actor per timeline change: p50 0.043 ms, p99 0.093 ms, max 0.225 ms (170) · gate p99 ≤ 2 ms: met
+    plans in flight at once: max 1 · gate ≤ 1: met
+    plays read as scenes per plan (off the main actor): p50 0, max 24
+    declared fades (a run no man could make, faded through): 25 in 8 clips
+    determinism hash db94789000465faf
+    determinism hash, second run db94789000465faf: identical
