@@ -1,19 +1,21 @@
 #!/bin/zsh
-# Builds Scoreline.app.
+# Builds Scoreline.app for Apple silicon (arm64).
 #   --install     copy it to /Applications and launch it
-#   --universal   build for both Apple silicon and Intel (for sharing)
 set -euo pipefail
 cd "${0:A:h}"
 
 INSTALL=false
-UNIVERSAL=false
 for arg in "$@"; do
   case "$arg" in
     --install) INSTALL=true ;;
-    --universal) UNIVERSAL=true ;;
+    --universal) echo "Intel support has been retired. Run ./build.sh for Apple silicon." >&2; exit 64 ;;
     *) echo "Unknown option: $arg" >&2; exit 64 ;;
   esac
 done
+if $INSTALL && [[ $(sysctl -n hw.optional.arm64 2>/dev/null || true) != 1 ]]; then
+  echo "Scoreline requires an Apple silicon Mac. Nothing was installed." >&2
+  exit 1
+fi
 
 APP=build/Scoreline.app
 BINARY="$APP/Contents/MacOS/Scoreline"
@@ -27,23 +29,11 @@ SPARKLE=$(Support/fetch-sparkle.sh)
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 
-compile() {  # compile <arch> <output>
-  swiftc -parse-as-library -Osize -wmo \
-    -sdk "$SDK" -target "$1-apple-macos15.0" -swift-version 5 \
-    -F "$SPARKLE" -framework Sparkle -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
-    Sources/Scoreline/*.swift -o "$2"
-}
-
-if $UNIVERSAL; then
-  echo "Compiling for Apple silicon and Intel…"
-  compile arm64 build/Scoreline-arm64
-  compile x86_64 build/Scoreline-x86_64
-  lipo -create build/Scoreline-arm64 build/Scoreline-x86_64 -output "$BINARY"
-  rm -f build/Scoreline-arm64 build/Scoreline-x86_64
-else
-  echo "Compiling…"
-  compile arm64 "$BINARY"
-fi
+echo "Compiling for Apple silicon…"
+swiftc -j "${SCORELINE_JOBS:-2}" -parse-as-library -Osize -wmo \
+  -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
+  -F "$SPARKLE" -framework Sparkle -Xlinker -rpath -Xlinker @executable_path/../Frameworks \
+  Sources/Scoreline/*.swift -o "$BINARY"
 strip -x "$BINARY"
 
 cp Support/Info.plist "$APP/Contents/"
@@ -55,6 +45,17 @@ FRAMEWORK="$APP/Contents/Frameworks/Sparkle.framework"
 ditto "$SPARKLE/Sparkle.framework" "$FRAMEWORK"
 for part in XPCServices Headers PrivateHeaders Modules; do
   rm -rf "$FRAMEWORK/$part" "$FRAMEWORK/Versions/B/$part"
+done
+
+# Trim only the embedded copy, never the checksum-verified vendor framework.
+# Keep each arm64 slice's signing metadata for the inside-out signing below.
+for code in "$FRAMEWORK/Versions/B/Sparkle" "$FRAMEWORK/Versions/B/Autoupdate" \
+            "$FRAMEWORK/Versions/B/Updater.app/Contents/MacOS/Updater"; do
+  if [[ $(lipo -archs "$code") != arm64 ]]; then
+    lipo "$code" -thin arm64 -output "$code.arm64"
+    chmod "$(stat -f %OLp "$code")" "$code.arm64"
+    mv "$code.arm64" "$code"
+  fi
 done
 
 echo "Rendering icon…"
@@ -75,6 +76,7 @@ for code in "$FRAMEWORK/Versions/B/Autoupdate" "$FRAMEWORK/Versions/B/Updater.ap
 done
 codesign --force --sign - "$APP"
 codesign --verify --deep --strict "$APP"
+Support/verify-architecture.sh "$APP"
 echo "Built $APP ($(du -sh "$APP" | cut -f1), $(lipo -archs "$BINARY"))"
 
 if $INSTALL; then

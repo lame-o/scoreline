@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Cuts a release:  ./release.sh 1.1 [--publish]
-# Bumps the version in Support/Info.plist, builds a universal app, packages
+# Bumps the version in Support/Info.plist, builds an Apple silicon app, packages
 # Scoreline.zip (what Sparkle and install.sh download) and Scoreline.dmg (drag
 # to Applications), signs the zip with Sparkle's EdDSA key from the login
 # keychain, writes appcast.xml and commits the version bump. Then it prints
@@ -69,9 +69,8 @@ plutil -replace CFBundleShortVersionString -string $VERSION $PLIST
 plutil -replace CFBundleVersion -string $NEW_BUILD $PLIST
 
 print "Building Scoreline $VERSION ($NEW_BUILD)…"
-./build.sh --universal
-ARCHS=$(lipo -archs $APP/Contents/MacOS/Scoreline)
-[[ $ARCHS == *arm64* && $ARCHS == *x86_64* ]] || fail "the build isn't universal ($ARCHS)"
+./build.sh
+Support/verify-architecture.sh "$APP"
 
 OUT=${RELEASE_DIR:-build/release}
 rm -rf $OUT && mkdir -p $OUT
@@ -89,6 +88,7 @@ rm -rf $STAGE
 CHECK=build/zip-check
 rm -rf $CHECK && ditto -x -k $OUT/Scoreline.zip $CHECK
 codesign --verify --deep --strict $CHECK/Scoreline.app
+Support/verify-architecture.sh "$CHECK/Scoreline.app"
 rm -rf $CHECK
 
 print "Signing…"
@@ -108,10 +108,12 @@ cat > $OUT/appcast.xml <<EOF
     <link>https://github.com/$REPO</link>
     <item>
       <title>Scoreline $VERSION</title>
+      <link>https://github.com/$REPO#install</link>
       <pubDate>$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')</pubDate>
       <sparkle:version>$NEW_BUILD</sparkle:version>
       <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>$MIN_OS</sparkle:minimumSystemVersion>
+      <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
       <sparkle:releaseNotesLink>https://github.com/$REPO/releases/tag/$TAG</sparkle:releaseNotesLink>
       <enclosure url="https://github.com/$REPO/releases/download/$TAG/Scoreline.zip"
                  length="$LENGTH" type="application/octet-stream"
@@ -121,6 +123,11 @@ cat > $OUT/appcast.xml <<EOF
 </rss>
 EOF
 xmllint --noout $OUT/appcast.xml
+# Every updater-enabled Scoreline release shipped Sparkle 2.10.0, which
+# understands this 2.9+ hardware gate. Keep the existing feed, but never offer
+# an arm64-only download to an Intel installation.
+HARDWARE=$(xmllint --xpath 'string(/rss/channel/item/*[local-name()="hardwareRequirements" and namespace-uri()="http://www.andymatuschak.org/xml-namespaces/sparkle"])' $OUT/appcast.xml)
+[[ $HARDWARE == arm64 ]] || fail "appcast is missing the Apple silicon hardware requirement"
 
 git commit -q -m "Release $VERSION" -- $PLIST
 COMMITTED=true

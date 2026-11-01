@@ -13,6 +13,12 @@ URL=${SCORELINE_ZIP_URL:-https://github.com/lame-o/scoreline/releases/latest/dow
 
 # Everything runs from main, so a partly downloaded script does nothing.
 main() {
+  # Hardware capability, not uname: an Apple silicon shell can run under Rosetta.
+  # Check before downloading, quitting the existing app or changing its files.
+  if [[ $(sysctl -n hw.optional.arm64 2>/dev/null || true) != 1 ]]; then
+    echo "Scoreline requires an Apple silicon Mac. Nothing was installed." >&2
+    exit 1
+  fi
   local dest manage_running=true
   if [[ -n ${SCORELINE_INSTALL_DIR:-} ]]; then
     dest=$SCORELINE_INSTALL_DIR
@@ -31,6 +37,10 @@ main() {
   curl -fL --progress-bar -o "$tmp/Scoreline.zip" "$URL"
   ditto -x -k "$tmp/Scoreline.zip" "$tmp"
   codesign --verify --deep --strict "$tmp/Scoreline.app"
+  if [[ $(lipo -archs "$tmp/Scoreline.app/Contents/MacOS/Scoreline") != arm64 ]]; then
+    echo "The download is not an Apple silicon-only Scoreline build. Nothing was installed." >&2
+    exit 1
+  fi
 
   # Scoreline is free and open source, and isn't signed with a paid Apple
   # Developer ID (it's ad-hoc signed). If macOS marks a download as

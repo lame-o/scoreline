@@ -290,7 +290,7 @@ Or download `Scoreline.dmg` from [Releases](https://github.com/lame-o/scoreline/
 
 After that, Scoreline keeps itself up to date (**Settings → Updates**).
 
-Requires macOS 15 Sequoia or later, on Apple silicon or Intel.
+Requires macOS 15 Sequoia or later on an Apple silicon Mac (M1 or newer). Starting with 1.0.31, Intel Macs are no longer supported. Existing Intel installations retain their last compatible version; automatic updates exclude releases that require Apple silicon.
 
 ## FAQ
 
@@ -344,7 +344,9 @@ xcode-select --install   # if you don't have the Command Line Tools
 ./test.sh                # the offline test suite (recorded API responses, no network)
 ```
 
-`./build.sh --universal` builds for both Apple silicon and Intel. The web app lives in [`web/`](web) (React on Cloudflare Workers); [`web/ARCHITECTURE.md`](web/ARCHITECTURE.md) explains how to run it.
+`./build.sh` builds only for Apple silicon and removes Intel slices from the embedded updater before signing. The retired `--universal` flag is rejected. Release packaging checks every executable and marks the update as requiring Apple silicon; see [release architecture](docs/RELEASE-ARCHITECTURE.md).
+
+The web app lives in [`web/`](web) (React on Cloudflare Workers); [`web/ARCHITECTURE.md`](web/ARCHITECTURE.md) explains how to run it.
 
 ## Data and disclaimer
 
