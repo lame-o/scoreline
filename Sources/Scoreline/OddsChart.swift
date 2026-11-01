@@ -1395,6 +1395,7 @@ struct OddsScrub: View {
             return .handled
         }
         .accessibilityLabel("Inspect win probability")
+        .accessibilityValue(accessibleReading)
         .accessibilityHint("Hover to inspect. Click to hold. Left and right arrows move fifteen seconds. Escape returns to latest.")
         .accessibilityAdjustableAction { direction in
             switch direction {
@@ -1403,6 +1404,19 @@ struct OddsScrub: View {
             @unknown default: break
             }
         }
+    }
+
+    private var accessibleReading: String {
+        let moment = pointer.moment ?? data.domain.upperBound
+        let time = moment.formatted(.dateTime.month().day().hour().minute().second())
+        let state = pointer.pinned ? "Held" : pointer.active ? "Inspecting" : "Latest"
+        guard let sample = data.observedPoint(at: moment) else {
+            return "\(state), \(time). No market sample at or before this time."
+        }
+        let percentages = sample.split.percents(final: data.final)
+        let values = lines.map { "\($0.name), \(percentages[$0.outcome] ?? 0) percent" }.joined(separator: ". ")
+        let sampleTime = sample.t.formatted(.dateTime.hour().minute().second())
+        return "\(state), \(time). \(values). Market sample, \(sampleTime)."
     }
 
     private func crosshair(_ t: Date, _ sample: OddsSplitPoint?) -> some View {
