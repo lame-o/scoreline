@@ -36,6 +36,10 @@ extension ScorelineTests {
         broadcastVAR()
         print("\nBroadcast: a jump never skips a play that must be told live")
         broadcastJumps()
+        print("\nBroadcast: how far behind live, on hover only")
+        broadcastBehindLive()
+        print("\nBroadcast: our own outages aren't the feed's lag")
+        broadcastOutages()
     }
 
     // MARK: Helpers
@@ -1186,5 +1190,130 @@ extension ScorelineTests {
               "after the stall, the jump lands short of the score", "stalled at \(stalledAt), jumps \(jumps)")
         check(told["b"] == .history && told["c"] == .history && told["d"] == .history && told["goal"] != nil && told["goal"] != .history,
               "the flow before it goes by as history; the score is told live", "\(told.sorted { $0.key < $1.key })")
+
+        // Held at the watermark far behind, the watermark creeping a read at a time: no crossfade per read.
+        var creep = PresentationClock()
+        creep.update(now: 0, inputs: .init(target: 50, cap: -50))
+        for now in stride(from: 10.0, through: 90, by: 10) { creep.update(now: now, inputs: .init(target: 50, cap: -45)) }
+        creep.update(now: 100, inputs: .init(target: 50, cap: -40))
+        check(!creep.events.contains { if case .jump = $0 { true } else { false } }, "a watermark 5 s ahead isn't worth a jump: the clock runs to it")
+
+        // The heartbeat: while the game goes on, the clock is updated at least every 5 s,
+        // so a stretch with nothing read is never taken for the Mac asleep.
+        var quiet = BroadcastEngine<RawPlay>(sport: .basketball, policy: testPolicy)
+        quiet.ingest(look([play("a", at: 100, elapsed: 10, score: s0)], at: 130))
+        quiet.advance(now: 130)
+        var t2: PTime = 130, wakes = 0
+        while t2 < 400, let next = quiet.nextWake(after: t2), next - t2 <= BroadcastEngine<RawPlay>.heartbeat + 1e-6 {
+            t2 = next
+            wakes += quiet.advance(now: t2).events.filter { if case .wake = $0 { true } else { false } }.count
+        }
+        check(t2 >= 400 && wakes == 0, "nothing read for minutes: the heartbeat keeps the clock awake (no wake, no history)", "\(t2) \(wakes)")
+
+        // College football's summary gives the clock only as "11:35": it still makes elapsed seconds (clusters need them).
+        let cfb = JSON(["id": "p1", "period": ["number": 1], "clock": ["displayValue": "11:35"], "type": ["id": "53", "text": "Kickoff"],
+                        "text": "kickoff", "sequenceNumber": "9", "wallclock": "2026-10-31T16:11:58Z"] as [String: Any])
+        let entry = BroadcastLanes.football(cfb, policy: BroadcastLanes.policy(.football, path: "football/college-football"))?.entry
+        check(entry?.clock.elapsed == 900 - 695, "a college play's clock from its display value", "\(String(describing: entry?.clock.elapsed))")
+    }
+}
+
+
+// MARK: - Behind live
+
+extension ScorelineTests {
+    static func broadcastBehindLive() {
+        check(BehindLive(delay: 53.4, regime: .tracking) == BehindLive(seconds: 55) && BehindLive(delay: 52.4, regime: .tracking).seconds == 50
+              && BehindLive(delay: 1.2, regime: .tracking).seconds == 5, "the delay rounds to 5 s, never under 5")
+        check(BehindLive(seconds: 55).text == "About 55 s behind live" && BehindLive(seconds: 100).text == "About 1 min 40 s behind live"
+              && BehindLive(seconds: 120).text == "About 2 min behind live", "the hover's words", BehindLive(seconds: 100).text)
+        check(BehindLive(seconds: 55).spoken == "About 55 seconds behind live"
+              && BehindLive(seconds: 65, note: "Catching up").spoken == "About 1 minute 5 seconds behind live, catching up",
+              "VoiceOver's: the same, in words", BehindLive(seconds: 65, note: "Catching up").spoken)
+        check(BehindLive(delay: 80, regime: .catchingUp).note == "Catching up" && BehindLive(delay: 80, regime: .stalled).note == "Waiting for the feed"
+              && BehindLive(delay: 80, regime: .tracking).note == nil && BehindLive(delay: 80, regime: .stretching).note == nil,
+              "a quieter note while catching up or waiting on the feed; none otherwise")
+
+        // The page's model: nil until broadcasting; then the clock's delay.
+        let b = Broadcast()
+        b.automatic = false
+        var now: PTime = 1100
+        b.time = BroadcastTime(now: { now })
+        check(b.behind == nil, "not broadcasting: no readout")
+        let event = Event(id: "espn-h", content: .match(top: comp("espn-basketball-1", "Away", "3"), bottom: comp("espn-basketball-2", "Home", "2")),
+                          state: .live, start: .now, detail: "10:50 - 1st", caption: nil, link: nil,
+                          ref: .espn(path: NBADetail.path, id: "h", sport: .basketball))
+        let policy = BroadcastLanes.policy(.basketball, path: NBADetail.path)
+        var d = GameDetail()
+        d.topIsHome = false
+        d.broadcastPlays = BroadcastLanes.entries([
+            nbaPlay("h1", at: 1000, clock: "11:00", type: 92, text: "Home makes layup", home: 2, away: 0, shooting: true, scoring: true, team: "2"),
+            nbaPlay("h2", at: 1010, clock: "10:50", type: 92, text: "Away makes three", home: 2, away: 3, shooting: true, scoring: true),
+        ], sport: .basketball, policy: policy)
+        b.begin(event, topIsHome: false)
+        b.ingest(summary: d)
+        now = 1101
+        b.step()
+        let expected = BehindLive(delay: b.clock.delay(at: now), regime: b.clock.regime)
+        check(b.behind == expected && (b.behind?.seconds ?? 0) >= 45, "broadcasting: the clock's delay, rounded", "\(String(describing: b.behind))")
+
+        // The docked bar carries it while live only.
+        var inputs = DockInputs(event: event, detail: nil, colors: (.red, .blue), scores: ("3", "2"))
+        inputs.behind = BehindLive(seconds: 55)
+        let final = DockInputs(event: event.with(state: .final, content: event.content, detail: .some("Final")), detail: nil,
+                               colors: (.red, .blue), scores: ("3", "2"))
+        var finalInputs = final
+        finalInputs.behind = BehindLive(seconds: 55)
+        check(DockBar.make(inputs).behind == BehindLive(seconds: 55) && DockBar.make(finalInputs).behind == nil,
+              "the docked bar's indicator has the readout while live, never on a final")
+    }
+}
+
+
+// MARK: - Our own outages
+
+extension ScorelineTests {
+    static func broadcastOutages() {
+        let s0 = ScoreLine(home: 0, away: 0)
+        // The engine: a lane unread for longer than it should be; what it brings sizes nothing.
+        var t = GameTimeline<RawPlay>(policy: testPolicy)
+        t.ingest(look([play("a", at: 90, elapsed: 10, score: s0)], at: 100))
+        for now in stride(from: 105.0, through: 130, by: 5) { t.noteRead(.summary, at: now) }
+        t.ingest(look([play("a", at: 90, elapsed: 10, score: s0), play("b", at: 128, elapsed: 48, score: s0)], at: 135))
+        t.ingest(look([play("a", at: 90, elapsed: 10, score: s0), play("b", at: 128, elapsed: 48, score: s0),
+                       play("c", at: 150, elapsed: 70, score: s0)], at: 230))
+        check(t.record("b")?.afterOutage == false && t.record("b")?.arrivalLag != nil
+              && t.record("c")?.afterOutage == true && t.record("c")?.arrivalLag == nil && !t.lags.contains { $0.lag > 60 },
+              "a look after 95 s unread: its new play waited on us, so its lag sizes nothing", "\(t.lags)")
+
+        // The recorder's holes: from gaps.jsonl, per lane, failures in a row chained.
+        let base = URL(fileURLWithPath: "/dev/null")
+        var explicit = Recording(sportDirectory: "soccer_eng.1", event: "x", snapshots: [], rows: [])
+        explicit.gaps = [(100, "summary"), (105, "summary"), (300, "core")]
+        let soccer = BroadcastLanes.policy(.soccer, path: "soccer/eng.1")
+        check(explicit.holes(policy: soccer) == [Recording.Hole(range: 99.9...110, lanes: ["summary"]), Recording.Hole(range: 299.9...305, lanes: ["core"])],
+              "gaps.jsonl: each failed fetch leaves its lane unread until the next try", "\(explicit.holes(policy: soccer))")
+        // Older recordings: every lane silent over 60 s while the clock ran is a hole; a halftime isn't.
+        func row(_ at: PTime, _ clock: Double) -> RawPlay { RawPlay(json: JSON(["at": at, "period": 1, "clock": clock] as [String: Any]), digest: 0) }
+        var inferred = Recording(sportDirectory: "soccer_eng.1", event: "y",
+                                 snapshots: stride(from: 0.0, through: 100, by: 10).map { .init(arrived: $0, url: base) }, rows: [])
+        // The recorder silent from 100 to 300 while the clock ran 200 s (a hole); then polling every
+        // 10 s to 400; then 15 min with the clock standing at 1400 (a halftime: no hole).
+        inferred.status = stride(from: 0.0, through: 100, by: 10).map { row($0, 1000 + $0) }
+            + stride(from: 300.0, through: 400, by: 10).map { row($0, 1000 + $0) } + [row(1300, 1400)]
+        check(inferred.holes(policy: soccer) == [Recording.Hole(range: 100...300, lanes: nil)]
+              && { var logged = inferred; logged.gapLogged = true; return logged.holes(policy: soccer).isEmpty }(),
+              "recorded before gap logging: lane silence while the clock ran is a hole (not the 15 min the clock stood still); with logging, it's the feed's", "\(inferred.holes(policy: soccer))")
+
+        // The replay reads nothing inside a hole.
+        var fixture = Recording.load(root: URL(fileURLWithPath: "Tests/Fixtures/broadcast"), sport: "soccer_eng.1", event: "401879248", settle: 0)
+        guard let first = fixture.core.first?.arrived else { return check(false, "the VAR window loads") }
+        fixture.gaps = [(first + 40, "core"), (first + 45, "core")]
+        fixture.gapLogged = true
+        guard let replay = RecordingReplay(fixture) else { return check(false, "the VAR window replays") }
+        let inside = replay.schedule(.app(replay.policy)).filter { input in
+            if case .core = input.input { return (first + 40...first + 50).contains(input.t) } else { return false }
+        }
+        check(replay.holes.count == 1 && inside.isEmpty, "the replay withholds a lane's reads inside its hole", "\(inside.count)")
     }
 }

@@ -257,6 +257,8 @@ struct DockBar: Equatable {
     var phase: Phase
     var top: Team?
     var bottom: Team?
+    /// Broadcasting, live: how far behind live, shown on hovering the live indicator.
+    var behind: BehindLive?
     /// Climbing pages (no teams): the round's title, and the climber line.
     var title: String = ""
     var climber: Climber?
@@ -298,6 +300,8 @@ struct DockInputs {
     var coStreaming = false
     /// Refreshes failing on a live game (the hero says "Can't connect").
     var stale = false
+    /// Broadcasting: how far behind live (the live indicator's hover).
+    var behind: BehindLive?
 }
 
 @MainActor
@@ -307,6 +311,7 @@ extension DockBar {
         let live = e.state == .live
         let phase: Phase = e.state == .live ? .live : e.state == .final ? .final : .upcoming
         var bar = DockBar(phase: phase, status: status(i))
+        bar.behind = live ? i.behind : nil
         switch e.content {
         case let .match(top, bottom):
             let reds = live ? redCards(i.detail) : (0, 0)
@@ -905,6 +910,8 @@ struct DockedScorebar: View {
         // The decisive glint, only while the bar owns the scoreboard.
         .glint(beats.glints, in: shape, active: surface == .bar)
         .overlay(alignment: .topLeading) { tossLayer }
+        // The live indicator's hover card, under the bar, outside its glass.
+        .behindLiveHost()
         .coordinateSpace(name: Self.space)
         // Tier changes slide in from the edge being pulled; nothing animates mid-drag.
         .animation(resizing ? nil : (reduceMotion ? Motion.fade : Motion.standard), value: tier)
@@ -1203,6 +1210,7 @@ struct DockedScorebar: View {
             }
             .font(.system(size: 11, weight: .semibold).monospacedDigit())
             .foregroundStyle(.red)
+            .modifier(BarBehindLive(behind: bar.behind))
         case let .liveText(text):
             HStack(spacing: 4) {
                 LiveDot(animated: !bar.stale)
@@ -1210,6 +1218,7 @@ struct DockedScorebar: View {
             }
             .font(.system(size: 11, weight: .semibold).monospacedDigit())
             .foregroundStyle(.red)
+            .modifier(BarBehindLive(behind: bar.behind))
         case let .final(text):
             Text(text).font(.system(size: 11)).foregroundStyle(.secondary)
         case let .upcoming(start, hasTeams):
@@ -1409,5 +1418,21 @@ struct PossessionToss: View {
             .position(Self.point(v.progress, from: from, to: to, rise: rise))
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+    }
+}
+
+
+/// The bar's live indicator: the readout on hover (trailing, under it), and no
+/// "Back to top" tooltip over it while it has one.
+private struct BarBehindLive: ViewModifier {
+    let behind: BehindLive?
+    @State private var height: CGFloat = 14
+
+    func body(content: Content) -> some View {
+        content
+            .help(behind == nil ? "Back to top" : "")
+            // Hung just under the bar (6 pt below its edge), not over it: the bar is a thin strip.
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+            .behindLiveHover(behind, alignment: .trailing, below: (DockedScorebar.height - height) / 2 + 6, id: "bar")
     }
 }

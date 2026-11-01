@@ -24,8 +24,8 @@ mkdir -p build Tests/Fixtures
 JOBS=${SCORELINE_JOBS:-4}
 
 if $BENCH; then
-  # SCORELINE_BENCH_FLAGS: extra compiler flags for the bench (the theater bench measures frames at the release's -Osize -wmo).
-  swiftc -D BENCH ${=SCORELINE_BENCH_FLAGS:-} -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
+  # Keep bounded compile parallelism and optional release flags for meaningful benchmarks.
+  swiftc -j "$JOBS" -D BENCH ${=SCORELINE_BENCH_FLAGS:-} -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
     -F "$SPARKLE" -framework Sparkle -Xlinker -rpath -Xlinker "$SPARKLE" \
     $(ls Sources/Scoreline/*.swift | grep -v ScorelineApp.swift) Tests/*.swift -o build/ScorelineTests
   exec ./build/ScorelineTests --bench "$@"

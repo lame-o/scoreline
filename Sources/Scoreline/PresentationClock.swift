@@ -72,6 +72,9 @@ struct PresentationClock: Equatable, Sendable {
         var stoppages = true
         /// A skip shorter than this isn't worth one.
         var minSkip: Double = 0.75
+        /// A jump shorter than this isn't worth a crossfade: the clock catches up by running
+        /// (held at the watermark, it would otherwise "jump" a few seconds at every read).
+        var minJump: Double = 10
         /// Easing into a hold, and out of one.
         var ease: Double = 1.0
         /// Within this much p of the cap, slew down before the ease.
@@ -224,7 +227,7 @@ struct PresentationClock: Equatable, Sendable {
             note(.wake(at: now, from: p, to: to))
             p = to
             v = 1
-        } else if now - p - inputs.target > tuning.jumpMax, min(edge, inputs.jumpLimit ?? .infinity) - p >= tuning.minSkip {
+        } else if now - p - inputs.target > tuning.jumpMax, min(edge, inputs.jumpLimit ?? .infinity) - p >= tuning.minJump {
             // Far behind (a long stall): a declared jump, landing short of any play that must be told live.
             let to = min(edge, inputs.jumpLimit ?? .infinity)
             note(.jump(at: now, from: p, to: to))

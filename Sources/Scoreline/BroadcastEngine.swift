@@ -91,6 +91,8 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
         step.told += history ? timeline.tellHistory(through: p) : timeline.tell(through: p, barrier: timeline.tellBarrier ?? .infinity, now: now)
     }
 
+    static var heartbeat: Double { 5 }
+
     // MARK: Reading
 
     /// The moment presented at `now`.
@@ -105,6 +107,10 @@ struct BroadcastEngine<Payload: Sendable & Equatable>: Sendable {
     func nextWake(after now: PTime) -> PTime? {
         guard clock.started else { return nil }
         var candidates: [PTime] = []
+        // A heartbeat while the game goes on: the clock is updated at least this often, so
+        // a stretch with nothing read (our network down) is never taken for the Mac asleep
+        // (a wake tells what passed as history; an outage must tell it live).
+        if timeline.records.last?.entry.kind.endsGame != true { candidates.append(now + Self.heartbeat) }
         let p = clock.p(at: now)
         if let change = PresentedGame.nextChange(after: p, timeline: timeline), let t = clock.wall(reaching: change, after: now) {
             candidates.append(t)
