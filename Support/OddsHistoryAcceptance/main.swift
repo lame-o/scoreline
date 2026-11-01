@@ -277,7 +277,8 @@ private struct RecognizedLine {
                     let reset = try snapshot("latest").map(\.text).joined(separator: " ").lowercased()
                     check(!pointer.active && !pointer.pinned && !reset.contains("pinned"), "\(name): Latest clears inspection in both modules")
                     if fixture.name == "nba", scheme == .dark, width == 520 {
-                        NativeHoverChecks.run(panel: panel, pointer: pointer, frames: probe.frames, check: check)
+                        NativeHoverChecks.run(panel: panel, pointer: pointer, frames: probe.frames,
+                                              data: before, history: fixture.history, names: fixture.names, check: check)
                     }
 
                     let until = fixture.selected.t

@@ -56,6 +56,7 @@ private final class HoverWatchdog: @unchecked Sendable {
 
 @MainActor enum NativeHoverChecks {
     static func run(panel: NSPanel, pointer: OddsPointer, frames: [String: CGRect],
+                    data: OddsChartData, history: MatchHistory, names: (top: String, bottom: String),
                     check: (Bool, String) -> Void) {
         guard let content = panel.contentView else { check(false, "native hover: missing fixture view"); return }
         let window = HoverCheckWindow(contentRect: panel.frame, styleMask: [.borderless], backing: .buffered, defer: false)
@@ -110,12 +111,17 @@ private final class HoverWatchdog: @unchecked Sendable {
             }
             return nil
         }
-        func point(_ prefix: String) -> NSPoint? {
+        func frame(_ prefix: String) -> CGRect? {
             guard let target = element(prefix), target.responds(to: NSSelectorFromString("accessibilityFrame")),
                   let value = target.value(forKey: "accessibilityFrame") as? NSValue else { return nil }
             let rect = value.rectValue
             guard rect.width > 0, rect.height > 0 else { return nil }
-            return window.convertPoint(fromScreen: NSPoint(x: rect.midX, y: rect.midY))
+            return rect
+        }
+        func windowPoint(_ point: CGPoint, in frame: CGRect) -> NSPoint {
+            // SwiftUI uses top-left local coordinates, AppKit screen frames
+            // use bottom-left coordinates. Keep the event on the real mark.
+            window.convertPoint(fromScreen: NSPoint(x: frame.minX + point.x, y: frame.maxY - point.y))
         }
         func reading() -> String {
             guard let target = element("Inspect win probability"), target.responds(to: NSSelectorFromString("accessibilityValue")) else { return "" }
@@ -123,15 +129,32 @@ private final class HoverWatchdog: @unchecked Sendable {
         }
         pointer.clear()
         pump(0.15)
-        guard let oddsPoint = point("Inspect win probability"), let timelinePoint = point("Match timeline,") else {
+        guard let oddsFrame = frame("Inspect win probability"), let timelineFrame = frame("Match timeline,") else {
             check(false, "native hover: both real inspection controls expose their frames")
             return
         }
+        let labelWidth = OddsStyle.labelWidth([names.top, names.bottom])
+        let widthClass = PanelLayout.resolve(width: frames["odds"]?.width ?? panel.frame.width, from: PanelLayout()).page
+        let oddsLayout = OddsLayout(size: oddsFrame.size, plotHeight: OddsStyle.plotHeight(widthClass), domain: data.domain, labelWidth: labelWidth)
+        let timelineLayout = OddsLayout(size: timelineFrame.size, plotHeight: 76, domain: data.domain, labelWidth: labelWidth)
+        let oddsLocation = CGPoint(x: oddsLayout.plot.minX + oddsLayout.plot.width * 0.4, y: oddsLayout.plot.midY)
+        let oddsPoint = windowPoint(oddsLocation, in: oddsFrame)
+        let rawOddsTime = oddsLayout.time(at: oddsLocation.x)
+        let expectedOdds = min(max(Date(timeIntervalSince1970: rawOddsTime.timeIntervalSince1970.rounded()), data.domain.lowerBound), data.domain.upperBound)
+        let targetTime = data.domain.lowerBound + data.domain.upperBound.timeIntervalSince(data.domain.lowerBound) * 0.7
+        let events = history.keyEvents.filter { data.domain.contains($0.t) }
+        guard let target = events.min(by: { abs($0.t.timeIntervalSince(targetTime)) < abs($1.t.timeIntervalSince(targetTime)) }),
+              target.t != expectedOdds else {
+            check(false, "native hover: fixture supplies a distinct reported timeline event")
+            return
+        }
+        let timelineLocation = MatchTimelineGeometry.point(target, layout: timelineLayout)
+        let timelinePoint = windowPoint(timelineLocation, in: timelineFrame)
         check(frames["odds"] != nil && frames["timeline"] != nil, "native hover: production modules are mounted")
         send(.mouseMoved, at: oddsPoint)
         pump(0.2)
         let oddsMoment = pointer.moment, initialChanges = changes.count
-        check(oddsMoment != nil && pointer.active && !pointer.pinned, "native mouse event enters odds inspection")
+        check(oddsMoment == expectedOdds && pointer.active && !pointer.pinned, "native mouse event inspects the exact odds timestamp at forty percent")
         pump(1)
         check(pointer.moment == oddsMoment && changes.count - initialChanges <= 2,
               "stationary native odds hover stays responsive without reading oscillation")
@@ -141,7 +164,8 @@ private final class HoverWatchdog: @unchecked Sendable {
         send(.mouseMoved, at: timelinePoint)
         pump(0.2)
         let timelineMoment = pointer.moment, timelineChanges = changes.count
-        check(timelineMoment != nil && pointer.active, "native mouse crosses directly into timeline inspection")
+        check(timelineMoment == target.t && timelineMoment != oddsMoment && pointer.active,
+              "native mouse crossing selects the distinct reported timeline event")
         pump(1)
         check(pointer.moment == timelineMoment && changes.count - timelineChanges <= 2,
               "stationary native timeline hover stays responsive without reading oscillation")
