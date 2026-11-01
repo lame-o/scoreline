@@ -1,0 +1,31 @@
+  basketball_nba 401909896, the engine: 490200 frames over 136.3 min
+    hard cuts: 0
+    crossfades: 0; largest jump hidden under one: 0.0 ft
+    teleportMax (continuous frames): 0.98 × the cap (0.46 ft in a frame); glide frames past 1.5× the cap: 0
+    speed over the sprint cap: 0.00% of actor-seconds, max +10%
+    accel over the limits: 0.06%; turning over the rig's cap: 0.00%
+    footSlip (the rig's planted foot): max 0.00 mm-eq, 0 foot-frames over 0.5 mm
+    footSlip (as drawn): max 355.7 mm-eq, 20634 foot-frames over 0.5 mm; across scene changes 0.0 mm-eq
+    by what moves him (share of all actor-seconds over the sprint / over +12% / over the push limits; his own seconds; worst):
+      clip: rest: 0.000% / 0.000% / 0.019%; 777.8 actor-min; max +0%
+      splice travel: 0.000% / 0.000% / 0.002%; 254.0 actor-min; max +0%
+      clip: beat: 0.000% / 0.000% / 0.029%; 241.8 actor-min; max +0%
+      clip: replay: 0.000% / 0.000% / 0.007%; 71.7 actor-min; max +0%
+      splice travel (late, into a moving clip): 0.003% / 0.000% / 0.001%; 17.6 actor-min; max +10%
+      referee · clip: beat: 0.000% / 0.000% / 0.000%; 4.1 actor-min; max +0%
+      referee · clip: rest: 0.000% / 0.000% / 0.000%; 1.5 actor-min; max +0%
+      newcomer · referee · clip: rest: 0.000% / 0.000% / 0.000%; 0.1 actor-min; max +0%
+      newcomer · clip: beat: 0.000% / 0.000% / 0.000%; 0.1 actor-min; max +0%
+      newcomer · referee · clip: beat: 0.000% / 0.000% / 0.000%; 0.1 actor-min; max +0%
+      newcomer · clip: replay: 0.000% / 0.000% / 0.000%; 0.0 actor-min; max +0%
+    camera: max pan 0.025 view-heights/frame, max yaw step 0.81°, max yaw speed 45.0°/s, jumps 0
+    decisiveError (on time; catch-ups apart): n=204 p50 0.000 s, p95 0.040 s, max 0.080 s
+    catch-ups: 136, p50 5.70 s, max 477.20 s
+    plans spliced: 757
+    scenes + plan + bake time: p50 43.9 ms, p99 393.4 ms, max 547.9 ms (757 made)
+    main actor per timeline change: p50 0.295 ms, p99 0.634 ms, max 12.512 ms (1396) · gate p99 ≤ 2 ms: met
+    plans in flight at once: max 1 · gate ≤ 1: met
+    plays read as scenes per plan (off the main actor): p50 21, max 138
+    declared fades (a run no man could make, faded through): 0 in 0 clips
+    determinism hash 07e0d7435a2b1680
+    determinism hash, second run 07e0d7435a2b1680: identical

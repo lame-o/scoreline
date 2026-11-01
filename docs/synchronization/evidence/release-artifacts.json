@@ -1,0 +1,25 @@
+{
+  "Scoreline.zip": {
+    "bytes": 17146323,
+    "sha256": "05930e8811a1e2d289f850692b3ed014dbc0136db3136c1f6f12d057f6f89711"
+  },
+  "Scoreline.dmg": {
+    "bytes": 18455290,
+    "sha256": "ca4cc3d886bc6034ee1f2995be8a8c91d5e40a9368b80fd50744a85ed649b457"
+  },
+  "appcast.xml": {
+    "bytes": 959,
+    "sha256": "6458c7fb8b65c215f2f705379d8bfe2e19abf1c00c9cfdc54293cb8514f512cf"
+  },
+  "installedApp": {
+    "version": "1.0.29",
+    "build": "31",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "binarySHA256": "8db0a24f9b71f278ec823eca83c88b15753ee70408c6cddd4176b20784c20659",
+    "codesign": "deep strict verification passed",
+    "sparkle": "EdDSA archive signature verified against the existing SUPublicEDKey"
+  }
+}

@@ -1,0 +1,16 @@
+--- a/Tests/TheaterBenchMeter.swift
++++ b/Tests/TheaterBenchMeter.swift
+@@ -181,7 +181,12 @@
+                 for (now, was, down) in [(a.left, b.left, f.planted.left && p.planted.left), (a.right, b.right, f.planted.right && p.planted.right)] where down {
+                     let slip = simd_length(now - was) / max(f.height, 1e-6) * 1800
+                     report.rigSlipMax = max(report.rigSlipMax, slip)
+-                    if slip > 0.5 { report.rigSlipFrames += 1 }
++                    if slip > 0.5 {
++                        if report.rigSlipFrames < 30 {
++                            print("RIG_DIAGNOSTIC t=\(frame.t) dt=\(dt) key=\(f.key) slip=\(slip) change=\(frame.change) reason=\(frame.reason ?? "") source=\(f.source)")
++                        }
++                        report.rigSlipFrames += 1
++                    }
+                 }
+             }
+             // A planted foot must stay where it was planted (as drawn, the pose's blends included).

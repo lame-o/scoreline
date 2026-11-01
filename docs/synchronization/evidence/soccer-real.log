@@ -1,0 +1,24 @@
+  soccer_eng.1 401879249, the engine: 384360 frames over 121.7 min
+    hard cuts: 0
+    crossfades: 0; largest jump hidden under one: 0.0 m
+    teleportMax (continuous frames): 1.79 × the cap (0.30 m in a frame); glide frames past 1.5× the cap: 106
+    speed over the sprint cap: 0.00% of actor-seconds, max +97%
+    accel over the limits: 0.91%; turning over the rig's cap: 0.00%
+    footSlip (the rig's planted foot): max 0.00 mm-eq, 0 foot-frames over 0.5 mm
+    footSlip (as drawn): max 0.0 mm-eq, 0 foot-frames over 0.5 mm; across scene changes 0.0 mm-eq
+    by what moves him (share of all actor-seconds over the sprint / over +12% / over the push limits; his own seconds; worst):
+      splice travel: 0.000% / 0.000% / 0.029%; 1571.5 actor-min; max +0%
+      clip: idle: 0.004% / 0.003% / 0.876%; 700.5 actor-min; max +97%
+      clip: moment: 0.000% / 0.000% / 0.008%; 14.3 actor-min; max +2%
+      newcomer · clip: idle: 0.000% / 0.000% / 0.000%; 2.1 actor-min; max +0%
+    camera: max pan 0.025 view-heights/frame, max yaw step 0.00°, max yaw speed 0.0°/s, jumps 0
+    catch-ups: 19, p50 361.56 s, max 704.02 s
+    plans spliced: 520
+    scenes + plan + bake time: p50 417.6 ms, p99 909.0 ms, max 1034.0 ms (520 made)
+    main actor per timeline change: p50 1.172 ms, p99 3.606 ms, max 6.053 ms (1580) · gate p99 ≤ 2 ms: MISSED
+    plans in flight at once: max 1 · gate ≤ 1: met
+    soccer's ball-going-round clips: 1606 kept, 1096 built
+    plays read as scenes per plan (off the main actor): p50 0, max 200
+    declared fades (a run no man could make, faded through): 1 in 1 clips
+    determinism hash a0aaefdd60581b85
+    determinism hash, second run a0aaefdd60581b85: identical

@@ -1,0 +1,43 @@
+RIG_DIAGNOSTIC t=1793463834.5725489 dt=32.74139165878296 key=8 slip=15089.967456178189 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793463834.5725489 dt=32.74139165878296 key=10 slip=17917.746049202804 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793463834.5725489 dt=32.74139165878296 key=16 slip=3296.4468149299664 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793463834.5725489 dt=32.74139165878296 key=20 slip=13571.021975389745 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793463834.5725489 dt=32.74139165878296 key=21 slip=9304.186348120815 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793469835.1736023 dt=18.334086418151855 key=7 slip=14177.493376298069 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793469835.1736023 dt=18.334086418151855 key=8 slip=12195.236034662985 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793469835.1736023 dt=18.334086418151855 key=9 slip=13435.454861355698 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793469835.1736023 dt=18.334086418151855 key=18 slip=10452.318074790626 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793469835.1736023 dt=18.334086418151855 key=22 slip=15009.822459418598 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793470127.311044 dt=32.65201950073242 key=5 slip=10764.389859086217 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793470127.311044 dt=32.65201950073242 key=7 slip=6635.424748258189 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793470127.311044 dt=32.65201950073242 key=17 slip=15722.586825106177 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793470127.311044 dt=32.65201950073242 key=21 slip=12050.117033745151 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793470146.835573 dt=14.221678733825684 key=9 slip=2526.1016850727838 change=declared reason=inside a clip source=clip: replay
+RIG_DIAGNOSTIC t=1793470146.835573 dt=14.221678733825684 key=30 slip=11994.311533298998 change=declared reason=inside a clip source=clip: replay
+  football_college-football 401859185, the engine: 648300 frames over 227.1 min
+    hard cuts: 0
+    crossfades: 0; largest jump hidden under one: 0.0 ft
+    teleportMax (continuous frames): 1.26 × the cap (0.56 ft in a frame); glide frames past 1.5× the cap: 0
+    speed over the sprint cap: 0.05% of actor-seconds, max +39%
+    accel over the limits: 0.16%; turning over the rig's cap: 0.00%
+    footSlip (the rig's planted foot): max 17917.75 mm-eq, 16 foot-frames over 0.5 mm
+    footSlip (as drawn): max 17930.5 mm-eq, 119420 foot-frames over 0.5 mm; across scene changes 17930.5 mm-eq
+    by what moves him (share of all actor-seconds over the sprint / over +12% / over the push limits; his own seconds; worst):
+      clip: idle: 0.037% / 0.021% / 0.000%; 3152.6 actor-min; max +29%
+      splice travel: 0.000% / 0.000% / 0.001%; 413.9 actor-min; max +0%
+      clip: replay: 0.013% / 0.005% / 0.157%; 390.2 actor-min; max +39%
+      splice travel (late, into a moving clip): 0.000% / 0.000% / 0.000%; 12.9 actor-min; max +0%
+      referee · clip: replay: 0.000% / 0.000% / 0.000%; 0.2 actor-min; max +0%
+      newcomer · clip: replay: 0.000% / 0.000% / 0.000%; 0.1 actor-min; max +0%
+      newcomer · clip: idle: 0.000% / 0.000% / 0.000%; 0.0 actor-min; max +0%
+      newcomer · referee · clip: replay: 0.000% / 0.000% / 0.000%; 0.0 actor-min; max +0%
+    camera: max pan 0.023 view-heights/frame, max yaw step 0.81°, max yaw speed 45.0°/s, jumps 0
+    decisiveError (on time; catch-ups apart): n=79 p50 0.000 s, p95 0.040 s, max 0.040 s
+    catch-ups: 60, p50 16.27 s, max 2263.18 s
+    plans spliced: 1162
+    scenes + plan + bake time: p50 22.0 ms, p99 299.2 ms, max 1308.2 ms (1162 made)
+    main actor per timeline change: p50 0.081 ms, p99 0.198 ms, max 0.556 ms (452) · gate p99 ≤ 2 ms: met
+    plans in flight at once: max 1 · gate ≤ 1: met
+    plays read as scenes per plan (off the main actor): p50 0, max 16
+    declared fades (a run no man could make, faded through): 158 in 30 clips
+    determinism hash 3a83161538ef92fb

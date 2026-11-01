@@ -1,0 +1,58 @@
+[
+  {
+    "name": "baseline-soccer-real",
+    "exitCode": 0,
+    "elapsedSeconds": 191.31,
+    "note": "Sequential before/after commands; release compiler and diagnostic compilation may still run. Not a controlled whole-app CPU comparison.",
+    "arguments": [
+      "--bench",
+      "--theater",
+      "engine",
+      "soccer",
+      "--real",
+      "--event=401879249"
+    ],
+    "binarySHA256": "3a86249df7040e5f5f2d1b3a404abed9875ec4bcfa4223a3cd75bfc725cad05d"
+  },
+  {
+    "name": "final-soccer-real-serial",
+    "exitCode": 0,
+    "elapsedSeconds": 114.42,
+    "note": "Sequential before/after commands; release compiler and diagnostic compilation may still run. Not a controlled whole-app CPU comparison.",
+    "arguments": [
+      "--theater",
+      "engine",
+      "soccer",
+      "--real",
+      "--event=401879249"
+    ],
+    "binarySHA256": "2cb0f0b96660e1bebabedbd6402b64bff04d28f7b2108c8d7b66f21808f176bc"
+  },
+  {
+    "name": "baseline-frame-cost",
+    "exitCode": 0,
+    "elapsedSeconds": 27.09,
+    "note": "Sequential before/after commands; release compiler and diagnostic compilation may still run. Not a controlled whole-app CPU comparison.",
+    "arguments": [
+      "--bench",
+      "--theater",
+      "engine-cost",
+      "basketball",
+      "soccer"
+    ],
+    "binarySHA256": "3a86249df7040e5f5f2d1b3a404abed9875ec4bcfa4223a3cd75bfc725cad05d"
+  },
+  {
+    "name": "final-frame-cost",
+    "exitCode": 0,
+    "elapsedSeconds": 23.53,
+    "note": "Sequential before/after commands; release compiler and diagnostic compilation may still run. Not a controlled whole-app CPU comparison.",
+    "arguments": [
+      "--theater",
+      "engine-cost",
+      "basketball",
+      "soccer"
+    ],
+    "binarySHA256": "2cb0f0b96660e1bebabedbd6402b64bff04d28f7b2108c8d7b66f21808f176bc"
+  }
+]

@@ -16,7 +16,7 @@ The broadcast clock, continuous theater, competition navigation and following pr
 | A short ball flight could cap the slowdown while a basketball player still exceeded his sprint. | The flight receives the minimum extra stretch required for a feasible run, on the same clock as its contact. | The ball pace preference must not force an impossible player movement. |
 | A determinism mismatch printed a warning but exited successfully. | It fails the command; a missing recording also fails. | Automated verification cannot pass without running the requested scenario. |
 
-The isolated figure-fade reproduction and drawing-cost comparison pass; the complete pixel regression is being rerun for the cheaper isolated-layer implementation. Results and release status belong in STATUS.md; this review is not a claim that all gates have passed.
+The isolated figure-fade reproduction, drawing-cost comparison and complete native pixel regressions pass. The full suite reports 3,010 passed, zero failed. Results and release status belong in STATUS.md; later-phase motion and allocation targets are not implied by these checks.
 
 ## Reproduction
 

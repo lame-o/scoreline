@@ -1,32 +1,65 @@
 # Broadcast and choreography integration
 
-Status: integration and verification in progress. Not installed or released.
+Verified November 1, 2026. The universal **Scoreline 1.0.29 (31)** app is installed and verified locally. This completes the interrupted **BROADCAST Phase A + CHOREOGRAPHY Phase 0 integration**, together with competition discovery, following and the Carabao replay/bracket correction. Later sport grammar, renderer and web phases remain separate work.
+
+Release: https://github.com/lame-o/scoreline/releases/tag/v1.0.29
 
 ## Preserved inputs
 
 - Release 1.0.28: `9d842ed`.
 - Claude clock branch: `874b965` (`mac/broadcast`).
 - Claude choreography branch: `a476360` (`mac/choreo`).
-- Thirteen interrupted choreography edits are preserved exactly in `9213d19`; original working tree untouched. Original patch SHA-256: `9b5c950c6bbb78e1c18ee5cccc39b2537f35089ece82947bc98c89d1a62e4350`.
-- Competition/following/replay changes: through `c0e98b7`.
-- Integration: `5ef29b8`, combining both branches and the current app. Both alert paths retain team mute preferences; soccer feeds retain the actual competition path; the removed floating chart panel stays removed.
+- Thirteen interrupted choreography edits preserved exactly in `9213d19`. Original patch SHA-256: `9b5c950c6bbb78e1c18ee5cccc39b2537f35089ece82947bc98c89d1a62e4350`.
+- Competition/following/replay corrections: through `c0e98b7`.
+- Combined branches: `5ef29b8`. Integration corrections and harnesses: `5958178`. Universal release build: `dfecd27`.
 
-The recovered BROADCAST.md and CHOREOGRAPHY.md are the original working specifications. Their historical measurements are not new verification. Phase A plus Phase 0 is this release's scope. Later sport grammars and the web timing-engine port remain separate phases.
+The original Developer checkouts were not reset, cleaned, rebased or updated. The thirteen-file patch was rechecked byte-for-byte. Local backup refs also retain the original unpublished history; only the reviewed integration is intended for publication. Both alert paths retain team mute preferences; soccer history retains its actual competition; the removed floating chart panel stays removed.
 
-## Completion gates
+BROADCAST.md and CHOREOGRAPHY.md are the recovered original specifications. Their historical measurements are not new verification. INTEGRATION.md explains the corrections and reproduction commands.
 
-1. Run the merged native suite and DEBUG app typecheck; investigate all failures.
-2. Reproduce optimized engine measurements from the interrupted state, then improve measured hot paths. No unoptimized performance claims.
-3. Verify transitions and decisive timing on real NBA/soccer/college recordings and available NFL captures; distinguish recorder outages from feed latency. Repeated runs must be deterministic.
-4. Recover the full-page harness: score, play lists, court and folded/unfolded behavior must agree on the same presentation timeline.
-5. Compare frame and whole-app CPU behavior with the released app, including folded/hidden views. Preserve Reduce Motion and existing design.
-6. Verify the combined app locally, including the Carabao replay/bracket regression.
-7. Integrate and release only the verified result; preserve original worktrees and provide reproducible evidence for Claude's return.
+## Verification
 
-## Known work at interruption
+- **3,010 native checks passed, zero failed**, plus successful DEBUG application typecheck. Includes figure pixel regressions, competition routing, following migration, replay construction, bounded clock history, cache invalidation and actual approach protection.
+- **10 actual DetailView checks passed, zero failed**, including Vision verification of rendered score pixels. Scores and decisive scoring frames agreed; six plays told while folded retained their anchors; unfolding moved no tell times; at most one plan was outstanding. Preferences were isolated and HTTP blocked.
+- Six recording cases ran twice with identical hashes. All reported zero non-declared hard cuts and zero crossfades. NBA, soccer and college use full real recordings; NFL uses a fixed 40-minute real Cardinals–Cowboys capture; baseball uses explicitly synthetic fixture arrivals.
 
-The last written handoff listed planning cost, two transitions and a roughly five-second NBA outlier. Later logs already report zero hard cuts and a smaller 0.88-second NBA outlier, plus 1.34–1.70-second college outliers. These require fresh diagnosis, not blind reimplementation. The original allocation-free rendering goal is explicitly deferred by the Phase 0 implementation notes to the later two-layer renderer; report actual costs rather than claiming that gate passed.
+| Recording | On-time decisive p95 / max | Repeated hash |
+| --- | --- | --- |
+| NBA `401909896` | 0.040 / 0.080 s | `07e0d7435a2b1680` |
+| College `401859185` | 0.040 / 0.040 s | `3a83161538ef92fb` |
+| College `401856842` | 0.040 / 0.060 s | `785e7163ae26784f` |
+| NFL `401873024` real capture | 0.040 / 0.040 s | `a1d18af11efcd1ac` |
+| Soccer `401879249` | No on-time decisive sample; catch-ups separate | `a0aaefdd60581b85` |
+| MLB WS3 fixture | 0.040 / 0.040 s | `087d0a262d5748d5` |
 
-## Skills
+NBA's largest on-time error fell from 0.880 s in the preserved integration baseline to 0.080 s. Maximum sprint excess is +10%, continuous displacement ratio 0.98 times the cap, and rig foot slip zero.
 
-Recovered relevant skills used by Claude: Apple Design, Emil Design Engineering, SwiftUI Expert, SwiftUI Performance Audit, Write Swift, animation review. Apply their platform-appropriate guidance within the project's current Swift 5 language mode and macOS 15 deployment target; no unrelated language migration or visual redesign.
+Optimized measurements use `-Osize -wmo`. Real soccer main-actor p99 was 3.606 ms during concurrent verification/build load, then **1.040 ms** in the serial comparison, within the 2 ms gate, with the same deterministic hash. NBA's p99 was 0.634 ms. At 540×270 points and 2× scale, combined frame p99 was **0.819 ms basketball / 0.764 ms soccer**, both below 2.3 ms; baseline values were 0.825 / 0.770 ms. Compilation could overlap parts of the serial comparison; these are per-frame measurements, not a whole-app CPU reduction claim.
+
+College initially reported 16 and 9 large rig foot changes. Instrumented runs identified **every one as a declared timeline jump**, spanning 14–42 seconds rather than adjacent playback frames. Continuous rig foot slip remained zero. The diagnostic patch and full reports are retained; the original inclusive metric has not been edited to hide those jumps.
+
+Installed NFL observations, 20 seconds each, percent of one CPU core: before 32.41% expanded / 13.34% folded; after 24.54% expanded / 10.45% folded. Game state, thermal conditions and background work differed, so these are observations, not a controlled improvement. All test folds were restored, including the earlier soccer Live View fold; the user's other folds and following selections were preserved.
+
+## Installed interface and release checks
+
+- Confirmed `/Applications/Scoreline.app` version 1.0.29 build 31 and its exact binary hash against the packaged app.
+- Live Ravens–Bills rendered the directed field, presentation-delay value and existing theme. The two-minute-warning wait matched ESPN's current summary and scoreboard (`401873026`); it was not an app-only freeze.
+- Liverpool history → October 28 Chelsea match: clicking **43' Gakpo** and **40' Rogers** displayed both animated goal replays.
+- Match → Competition opened four confirmed Carabao quarterfinal paths, including Liverpool–Chelsea → Liverpool–Bournemouth, highlighting the current match without inventing a future draw.
+- Sports grouped leagues, cups and tournaments under their sports. Carabao opened from Sports, with an independent follow control.
+- Apple silicon + Intel binary, deep/strict bundle signature, archive round-trip, Sparkle EdDSA signature against the existing public key, and appcast XML validation passed. Asset hashes are in `evidence/release-artifacts.json`; the previous installed app has a separate local backup.
+
+## Explicit remaining scope
+
+Phase 0 adapts existing scripts. Some football clips still exceed eventual motion caps (recorded maxima +29–39%, continuous displacement 1.18–1.26 times the cap); drawn poses can slide despite the rig keeping planted feet fixed. Soccer's legacy idle has a short overspeed tail: baseline maximum +74%, integrated +97%, with 0.003% of actor-seconds above +12%. This is **not** claimed to meet Phase 3's motion gate. Actual approach protection changes the windows through which those clips run; it does not replace their grammar.
+
+The allocation-free painter, whole-game CPU targets, sport grammar rewrites and Mac-reviewed web timing-engine port remain later phases. Real recording outages and late data produce declared catch-ups; their large delays remain visible in the reports and are excluded from on-time accuracy.
+
+## Resume here
+
+1. Read this file, INTEGRATION.md and the relevant later phase of CHOREOGRAPHY.md. Keep the existing build.sh/test.sh toolchain; SwiftPM does not work in this machine's CLT setup.
+2. Preserve the original worktrees and patch. The published integration already contains those edits; do not apply them twice.
+3. Use Support/TheaterBench for optimized recordings and Support/BroadcastAcceptance for page synchronization. Raw reports, hashes, check receipts, frame costs and diagnostic instrumentation are committed under evidence/.
+4. Start later motion/CPU work with the legacy clip issues above. Preserve the shared presentation timeline, following/mute policy and actual competition routing.
+
+Recovered skills applied: Apple Design, Emil Design Engineering, SwiftUI Expert, SwiftUI Performance Audit, Write Swift and animation review. Swift 5 language mode, macOS 15 deployment target and the established design system are retained.
