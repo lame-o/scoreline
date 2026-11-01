@@ -236,7 +236,7 @@ struct ScheduleItem: Identifiable, Hashable, Codable, Sendable {
         default: statusDetail
         }
         let eventRef: EventRef? = switch ref {
-        case let .espn(path, id): .espn(path: path, id: id, sport: sport)
+        case let .espn(path, id): .espn(path: CompetitionCatalog.eventPath(path, league: league, sport: sport), id: id, sport: sport)
         case let .counterStrike(slug, tournament): .counterStrike(slug: slug, tournament: tournament)
         case let .climbing(eventID): .climbing(eventID: eventID, category: "", resultURL: nil, round: nil,
                                                eventName: title ?? "", nextURL: nil)

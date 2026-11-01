@@ -80,6 +80,12 @@ final class ScoreStore {
     private(set) var followed: [FollowedTeam] {
         didSet { defaults.set(try? JSONEncoder().encode(followed), forKey: Keys.followed); version += 1 }
     }
+    private(set) var editions: [EditionFollow] {
+        didSet { defaults.set(try? JSONEncoder().encode(editions), forKey: "followedEditions"); startPolling(); version += 1 }
+    }
+    private(set) var mutedTeams: Set<String> {
+        didSet { defaults.set(Array(mutedTeams), forKey: "mutedFollowedTeams") }
+    }
     /// Leagues filtered down to picked teams (climbing: highlighted countries).
     private(set) var teamFilters: [String: Set<String>] {
         didSet { defaults.set(teamFilters.mapValues { Array($0) }, forKey: Keys.teamFilters); version += 1 }
@@ -243,10 +249,18 @@ final class ScoreStore {
         modules = ModuleLayout(folded: Set(defaults.stringArray(forKey: Keys.foldedModules) ?? []),
                                hidden: Set(defaults.stringArray(forKey: Keys.hiddenModules) ?? []),
                                order: defaults.dictionary(forKey: Keys.moduleOrder) as? [String: [String]] ?? [:])
-        teamFilters = ((defaults.dictionary(forKey: Keys.teamFilters) as? [String: [String]]) ?? [:]).mapValues(Set.init)
-        filteredLeagues = Set(defaults.stringArray(forKey: Keys.filteredLeagues) ?? [])
+        var loadedPicks = ((defaults.dictionary(forKey: Keys.teamFilters) as? [String: [String]]) ?? [:]).mapValues(Set.init)
+        if let picks = loadedPicks["wnba"] { loadedPicks["wnba"] = Set(picks.map { $0.replacingOccurrences(of: "espn-basketball-", with: "espn-wnba-") }) }
+        let loadedFilters = FollowingPolicy.migrateFilters(Set(defaults.stringArray(forKey: Keys.filteredLeagues) ?? []), picks: loadedPicks, version: defaults.integer(forKey: "followingSchemaVersion"))
+        teamFilters = loadedPicks
+        filteredLeagues = loadedFilters
+        editions = FollowingPolicy.sanitizeEditions(defaults.data(forKey: "followedEditions").flatMap { try? JSONDecoder().decode([EditionFollow].self, from: $0) } ?? [])
+        mutedTeams = Set(defaults.stringArray(forKey: "mutedFollowedTeams") ?? [])
         liveFirst = defaults.bool(forKey: Keys.liveFirst)
         landingView = defaults.string(forKey: Keys.landingView).flatMap(LandingView.init(rawValue:)) ?? .list
+        defaults.set(loadedPicks.mapValues { Array($0) }, forKey: Keys.teamFilters)
+        defaults.set(Array(loadedFilters), forKey: Keys.filteredLeagues)
+        defaults.set(2, forKey: "followingSchemaVersion")
 
         Notifier.shared.activate()
         // Logos read for the first time repaint their teams in place.
@@ -262,6 +276,24 @@ final class ScoreStore {
             Task { @MainActor in self?.startPolling() }
         }
         startPolling()
+    }
+
+    func toggleEdition(_ edition: EditionFollow) {
+        guard edition.valid else { return }
+        if editions.contains(where: { $0.id == edition.id }) { editions.removeAll { $0.id == edition.id } }
+        else { editions.append(edition) }
+    }
+    func setTeamAlerts(_ id: String, _ on: Bool) {
+        guard followed.contains(where: { $0.id == id }) else { return }
+        if on {
+            mutedTeams.remove(id)
+            if notifyFollowed { Notifier.shared.requestAuthorization() }
+        } else { mutedTeams.insert(id) }
+    }
+    var polledLeagues: [League] {
+        var ids = enabledIDs
+        for id in editions.map(\.source) + followed.compactMap({ FollowingPolicy.teamLeague($0.id) }) + followed.compactMap({ ScheduleStore.shared.nextGames[$0.id]?.league }) where !ids.contains(id) { ids.append(id) }
+        return ids.compactMap(League.with(id:))
     }
 
     // MARK: Leagues
@@ -289,11 +321,13 @@ final class ScoreStore {
         guard let id = competitor.id else { return }
         if let index = followed.firstIndex(where: { $0.id == id }) {
             followed.remove(at: index)
+            mutedTeams.remove(id)
         } else {
             followed.append(FollowedTeam(id: id, name: competitor.name, logo: competitor.logo))
-            if notifyFollowed && followed.count == 1 { Notifier.shared.requestAuthorization() }
+            mutedTeams.insert(id)
         }
         refreshNextGames()
+        startPolling()
     }
 
     /// Each followed team's next game from its schedule, so My Teams can show
@@ -306,11 +340,14 @@ final class ScoreStore {
         Task {
             await ScheduleStore.shared.refreshNextGames(for: teams, force: force)
             version += 1
+            startPolling()
         }
     }
 
     func unfollow(_ team: FollowedTeam) {
         followed.removeAll { $0.id == team.id }
+        mutedTeams.remove(team.id)
+        startPolling()
     }
 
     private func involvesFollowed(_ event: Event) -> Bool {
@@ -360,7 +397,7 @@ final class ScoreStore {
     /// The page's presented game changed: alerts for it follow the presentation
     /// (the scoreboard's own alerts for this game are held while the page is open).
     func notifyPresented(from old: Event, to new: Event) {
-        guard notifyFollowed, involvesFollowed(new) else { return }
+        guard FollowingPolicy.alertsFor(new, followed: followed, muted: mutedTeams, enabled: notifyFollowed) else { return }
         Notifier.shared.notifyChanges(from: old, to: new)
     }
 
@@ -383,14 +420,16 @@ final class ScoreStore {
     private struct Derived {
         let sections: [Section]
         let quietLeagues: [League]
+        let screened: [String: [Event]]
         let liveCount: Int
     }
 
     private var derived: Derived {
         let minute = Int(Date().timeIntervalSince1970 / 60)
         if let cache = derivedCache, cache.version == version, cache.minute == minute { return cache.value }
-        let value = Derived(sections: computeSections(now: .now), quietLeagues: computeQuietLeagues(now: .now),
-                            liveCount: computeLiveCount())
+        let quiet = computeQuietLeagues(now: .now)
+        let value = Derived(sections: computeSections(now: .now), quietLeagues: quiet,
+                            screened: computeScreened(quiet, now: .now), liveCount: computeLiveCount())
         derivedCache = (version, minute, value)
         return value
     }
@@ -412,6 +451,9 @@ final class ScoreStore {
     }
     /// Enabled leagues that loaded fine but have nothing to show.
     var quietLeagues: [League] { derived.quietLeagues }
+    /// Quiet leagues that aren't idle: their team filter hid today's games.
+    /// Those games, live first, so the footnote can say so and offer them.
+    var screened: [String: [Event]] { derived.screened }
     /// Live games the user would see: their filtered leagues plus followed teams.
     var liveCount: Int { derived.liveCount }
 
@@ -424,9 +466,12 @@ final class ScoreStore {
         }
         let mineIDs = Set(mine.map(\.id))
 
-        let leagues = enabledLeagues.compactMap { league -> Section? in
+        let displayedLeagues = polledLeagues.filter { league in enabledIDs.contains(league.id) || editions.contains(where: { $0.source == league.id }) }
+        let leagues = displayedLeagues.compactMap { league -> Section? in
             guard let result = results[league.id] else { return nil }
-            let events = visible(filtered(result.events, league: league), now: now).filter { !mineIDs.contains($0.id) }
+            let base = enabledIDs.contains(league.id) ? filtered(result.events, league: league) : []
+            let selected = Dictionary((base + (league.source == .ifsc ? filtered(result.events, league: league) : result.events).filter { event in editions.contains { $0.matches(event) } }).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            let events = visible(Array(selected.values), now: now).filter { !mineIDs.contains($0.id) }
             guard !events.isEmpty || result.failed else { return nil }
             return Section(id: league.id, title: league.name, symbol: league.sport.symbol,
                            events: events, failed: result.failed && events.isEmpty)
@@ -452,12 +497,42 @@ final class ScoreStore {
         }
     }
 
-    private func computeLiveCount() -> Int {
-        enabledLeagues.reduce(0) { total, league in
-            let events = results[league.id]?.events ?? []
-            let shown = Set(filtered(events, league: league).map(\.id))
-            return total + events.filter { $0.state == .live && (shown.contains($0.id) || involvesFollowed($0)) }.count
+    private func computeScreened(_ quiet: [League], now: Date) -> [String: [Event]] {
+        Self.screened(quiet, results: results, filtered: filteredLeagues, picks: teamFilters, now: now)
+    }
+
+    /// For each quiet league with a team filter on: the games in the window it hid.
+    static func screened(_ quiet: [League], results: [String: LeagueResult], filtered: Set<String>,
+                         picks: [String: Set<String>], now: Date) -> [String: [Event]] {
+        var screened: [String: [Event]] = [:]
+        for league in quiet where league.source != .ifsc && filtered.contains(league.id) && !(picks[league.id] ?? []).isEmpty {
+            let hidden = inWindow(results[league.id]?.events ?? [], now: now)
+            if !hidden.isEmpty { screened[league.id] = hidden }
         }
+        return screened
+    }
+
+    /// The games the list's window holds, without its fallback to the next
+    /// fixture: what a team filter hid today, not a game days away.
+    static func inWindow(_ events: [Event], now: Date) -> [Event] {
+        let hour: TimeInterval = 3600
+        return events.filter { e in
+            switch e.state {
+            case .live: true
+            case .final: e.start > now - 18 * hour
+            case .scheduled: e.start > now - 6 * hour && e.start < now + 36 * hour
+            }
+        }.sorted(by: order)
+    }
+
+    private func computeLiveCount() -> Int {
+        var ids: Set<String> = []
+        for league in polledLeagues {
+            let events = results[league.id]?.events ?? []
+            let shown = Set((enabledIDs.contains(league.id) ? filtered(events, league: league) : []).map(\.id))
+            for event in events where event.state == .live && (shown.contains(event.id) || involvesFollowed(event) || (editions.contains(where: { $0.matches(event) }) && (league.source != .ifsc || !filtered([event], league: league).isEmpty))) { ids.insert(event.id) }
+        }
+        return ids.count
     }
 
     // MARK: Tiles
@@ -621,8 +696,8 @@ final class ScoreStore {
         if league.source == .ifsc {
             return events.filter { ClimbingDiscipline.of($0).map { !climbingDisciplines.isDisjoint(with: $0) } ?? true }
         }
-        if filteredLeagues.contains(league.id), league.source != .ifsc,
-           let picks = teamFilters[league.id], !picks.isEmpty {
+        if filteredLeagues.contains(league.id), league.source != .ifsc {
+            let picks = teamFilters[league.id] ?? []
             return events.filter { e in e.competitors.contains { $0.id.map(picks.contains) ?? false } }
         }
         // College: the Top 25's games and your teams', not all sixty-odd FBS games.
@@ -633,7 +708,7 @@ final class ScoreStore {
     }
 
     var allFailed: Bool {
-        !enabledIDs.isEmpty && enabledIDs.allSatisfy { results[$0]?.failed == true }
+        !polledLeagues.isEmpty && polledLeagues.allSatisfy { results[$0.id]?.failed == true }
     }
 
     func toggleCollapsed(_ section: Section) {
@@ -649,7 +724,7 @@ final class ScoreStore {
     private func myTeamsEvents(now: Date) -> [Event] {
         guard !followed.isEmpty else { return [] }
         var picked: [String: Event] = [:]
-        for league in enabledLeagues {
+        for league in polledLeagues {
             let events = (results[league.id]?.events ?? []).filter(involvesFollowed)
             for team in followed {
                 let theirs = events.filter { $0.competitors.contains { $0.id == team.id } }
@@ -758,7 +833,7 @@ final class ScoreStore {
         generation += 1
         let current = generation
 
-        let leagues = enabledLeagues
+        let leagues = polledLeagues
         let countries = climbingCountries
         let fetched = await withTaskGroup(of: (String, [Event]?).self) { group in
             for league in leagues {
@@ -774,7 +849,7 @@ final class ScoreStore {
         let anySucceeded = fetched.values.contains { $0 != nil } || fetched.isEmpty
         consecutiveFailures = anySucceeded ? 0 : consecutiveFailures + 1
         if !anySucceeded { Log.poll.error("Refresh failed for every league (attempt \(self.consecutiveFailures))") }
-        for (id, fresh) in fetched where enabledIDs.contains(id) {
+        for (id, fresh) in fetched where polledLeagues.contains(where: { $0.id == id }) {
             guard var events = fresh else {
                 // Keep the last good data on a transient failure.
                 results[id, default: LeagueResult()].failed = true
@@ -1070,8 +1145,9 @@ final class ScoreStore {
             // That team's next game is news now.
             if involvesFollowed(after) { refreshNextGames(force: true) }
         }
-        // While its page is open, the game's alerts follow what the page presents (notifyPresented).
-        if notifyFollowed && involvesFollowed(after) && !Self.alertsFollowPage(after.id, presented: presentedEvent) {
+        // While its page is open, alerts follow presentation and the team's explicit alert preference.
+        if FollowingPolicy.alertsFor(after, followed: followed, muted: mutedTeams, enabled: notifyFollowed)
+            && !Self.alertsFollowPage(after.id, presented: presentedEvent) {
             Notifier.shared.notifyChanges(from: before, to: after)
         }
     }

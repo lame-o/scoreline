@@ -15,7 +15,7 @@
 import { broadcaster, type Broadcaster } from "./broadcasters";
 import { enDash, periodLabel } from "./format";
 import type { Fetcher } from "./http";
-import { arr, at, bool, has, num, str, type JSONValue } from "./json";
+import { arr, at, bool, has, int, num, str, type JSONValue } from "./json";
 import { baseballFielders, NO_FIELDERS, type BaseballFielders } from "./mlb/fielders";
 import { TheaterPeople, type TheaterPerson } from "./theater/theaterPeople";
 import type { Competitor, CSLive, ScoreEvent, Side, Sport } from "./models";
@@ -272,6 +272,7 @@ export interface GameDetail {
   readonly venue: string | null;
   /** ESPN's `header.season.current`: false for a game from a past season. Null when unknown. */
   readonly seasonIsCurrent: boolean | null;
+  readonly seasonYear: number | null;
   readonly broadcast: string | null;
   /** Official broadcasters (US market, as ESPN reports them), radio last. */
   readonly broadcasters: readonly Broadcaster[];
@@ -328,6 +329,7 @@ export const EMPTY_DETAIL: GameDetail = {
   fielders: NO_FIELDERS,
   venue: null,
   seasonIsCurrent: null,
+  seasonYear: null,
   broadcast: null,
   broadcasters: [],
   bestOf: null,
@@ -655,6 +657,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     ...EMPTY_DETAIL,
     venue: str(at(summary, "gameInfo", "venue", "fullName")) ?? null,
     seasonIsCurrent: bool(at(summary, "header", "season", "current")) ?? null,
+    seasonYear: int(at(summary, "header", "season", "year")) ?? null,
     broadcast: str(at(competition, "broadcasts", 0, "media", "shortName")) ?? null,
     broadcasters,
     topIsHome,

@@ -1,3 +1,4 @@
+import { competitionEventPath } from "../competitionCatalog";
 /**
  * Where schedules come from (ScheduleProvider.swift, the ESPN and bo3.gg
  * match parts; the IFSC and tournament parts live in `data/seasons.ts`).
@@ -336,7 +337,7 @@ export function scheduleEvent(e: JSONValue, path: string, league: string, sport:
     ifNecessary,
     week: week ?? int(at(e, "week", "number")) ?? null,
     link,
-    ref: { kind: "espn", path, id: rawID },
+    ref: { kind: "espn", path: competitionEventPath(path, leagueID, sport), id: rawID },
     result,
   });
 }
@@ -407,6 +408,7 @@ export function teamSource(id: string): { path: string; league: string; sport: S
     ["espn-ncaaf-", "football/college-football", "college-football", "football"],
     ["espn-football-", "football/nfl", "nfl", "football"],
     ["espn-baseball-", "baseball/mlb", "mlb", "baseball"],
+    ["espn-wnba-", "basketball/wnba", "wnba", "basketball"],
     ["espn-basketball-", "basketball/nba", "nba", "basketball"],
     ["espn-soccer-", "soccer/all", "soccer", "soccer"],
   ];

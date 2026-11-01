@@ -63,7 +63,6 @@ import { announce } from "./announce";
 import { resolvePalette } from "./CelebrationStage";
 import { DOCK_INSET, useSurface, type PageGeometry } from "./geometry";
 import type { MomentSlot, SlideTaker } from "./moments";
-import { useChartPeek } from "./peek";
 import { pointSize, useReducedMotion } from "./useMedia";
 import styles from "./ScoringSlide.module.css";
 
@@ -475,24 +474,23 @@ export function useBindSlides(event: ScoreEvent, detail: GameDetail | null, geom
  * A play theater on the page tells the slides which news play it holds and
  * when its replay peaks (ScoringSlide.swift `SlideTheater.baseball` and the
  * rest): `playing` is read as of the theater's last render, `climax` from
- * the script it replays. A peek's copy of a chart never registers.
+ * the script it replays.
  */
 export function useSlideTheater(chart: MomentChart, playing: string | null, climax: () => number | null, batted?: (id: string) => StatcastBatted | null): void {
   const slides = useContext(SlidesContext);
-  const peek = useChartPeek();
   const latest = useRef({ playing, climax, batted });
   latest.current = { playing, climax, batted };
   useLayoutEffect(() => {
-    if (!slides || peek) return;
+    if (!slides) return;
     return slides.register(chart, {
       playing: () => latest.current.playing,
       climax: () => latest.current.climax(),
       batted: (id) => latest.current.batted?.(id) ?? null,
     });
-  }, [slides, peek, chart]);
+  }, [slides, chart]);
   useLayoutEffect(() => {
-    if (slides && !peek && playing != null) slides.theaterMoved();
-  }, [slides, peek, playing]);
+    if (slides && playing != null) slides.theaterMoved();
+  }, [slides, playing]);
 }
 
 // MARK: - Hosts

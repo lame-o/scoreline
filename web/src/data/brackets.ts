@@ -626,8 +626,8 @@ export function readout(match: BracketMatch): { lead: string; detail: string } {
   return { lead: score ?? names, detail: [score == null ? null : names, match.note].filter(Boolean).join(" · ") };
 }
 
-export function spokenBracket(bracket: Bracket): string {
+export function spokenBracket(bracket: Bracket, terminalLabel = "Final"): string {
   const final = bracket.matches[bracket.finalID];
   const teams = [final?.top?.name, final?.bottom?.name].filter(Boolean);
-  return `Bracket, ${plural(bracket.rounds.length, "round")}. Final: ${teams.length === 0 ? "to be decided" : teams.join(" versus ")}`;
+  return `Bracket, ${plural(bracket.rounds.length, "round")}. ${terminalLabel}: ${teams.length === 0 ? "to be decided" : teams.join(" versus ")}`;
 }

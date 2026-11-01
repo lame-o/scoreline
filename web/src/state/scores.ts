@@ -1,3 +1,4 @@
+import { pollingIDs } from "../data/following";
 /**
  * Live scores as the app holds them: one TanStack Query per enabled league,
  * polled on ScoreStore's cadence, merged poll over poll, and derived into
@@ -144,7 +145,8 @@ export function useScoreboard({ poll = true, background = false }: ScoreboardOpt
   const pinnedID = usePinnedID();
   const nextGames = useNextGames(settings.followed);
   const countries = climbingCountries(settings);
-  const leagues = settings.enabledLeagues.flatMap((id) => leagueWithID(id) ?? []);
+  const nextIDs = [...nextGames.values()].flatMap(games => games.slice(0, 1).map(g => g.league));
+  const leagues = [...new Set([...pollingIDs(settings), ...nextIDs])].flatMap(id => leagueWithID(id) ?? []);
   // The cadence is read when each poll lands, from the latest results.
   const interval = useRef(300);
 

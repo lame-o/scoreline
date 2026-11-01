@@ -25,8 +25,6 @@ struct PitchView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.widthClass) private var widthClass
     @Environment(MomentCenter.self) private var moments: MomentCenter?
-    /// In the chart peek: the pitch alone, no footer.
-    @Environment(\.chartPeek) private var peek
     /// Differentiate Without Color: the bottom team's marks are rounded
     /// squares and its last-touch ring is dashed, so sides differ by shape too.
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiate
@@ -104,9 +102,7 @@ struct PitchView: View {
             .aspectRatio(105.0 / 68.0, contentMode: .fit)
             .vizWell()
 
-            if !peek {
-                FocusReader { focus in footer(target: target(focus)) }
-            }
+            FocusReader { focus in footer(target: target(focus)) }
         }
         .chartUnit(aspect: 105.0 / 68.0, maxHeight: Self.maxPlotHeight)
         .accessibilityElement(children: .ignore)
@@ -909,8 +905,6 @@ struct SprayChartView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.widthClass) private var widthClass
     @Environment(MomentCenter.self) private var moments: MomentCenter?
-    /// In the chart peek: the field alone, no footer.
-    @Environment(\.chartPeek) private var peek
     /// Differentiate Without Color: the bottom team's balls are rounded
     /// squares, so the two teams differ by shape as well as color.
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiate
@@ -1021,9 +1015,7 @@ struct SprayChartView: View {
             .aspectRatio(domain.width / domain.height, contentMode: .fit)
             .vizWell()
 
-            if !peek {
-                FocusReader { focus in footer(focus?.play.flatMap { id in balls.first { $0.id == id } }) }
-            }
+            FocusReader { focus in footer(focus?.play.flatMap { id in balls.first { $0.id == id } }) }
         }
         .chartUnit(aspect: domain.width / domain.height, maxHeight: Self.maxPlotHeight)
         .accessibilityElement(children: .ignore)
@@ -1139,8 +1131,6 @@ struct LeadAscentView: View {
     /// A climber pointed at here, in the results or the starting order: their
     /// mark lights and everyone else's recedes. Pointing at a mark writes it.
     @Environment(LinkedFocus.self) private var linked: LinkedFocus?
-    /// In the chart peek: the wall alone, no footer.
-    @Environment(\.chartPeek) private var peek
     /// The pass playing now (live), set as its moment arrives.
     @State private var livePass: Pass?
     /// Knock triggers per climber: they hold after the moment, so a mark never re-knocks.
@@ -1460,13 +1450,11 @@ struct LeadAscentView: View {
             .frame(height: height)
             .vizWell()
 
-            if !peek {
-                ChartFooter(readout: nil, moment: moment) {
-                    VizLegend {
-                        LegendItem(label: "Climbing") { Capsule().fill(Color.accentColor).frame(width: 4, height: 10) }
-                        LegendItem(label: "High point") { Capsule().fill(Viz.neutral).frame(width: 10, height: 2) }
-                        Text("+ = moving to the next hold").font(Viz.legend).foregroundStyle(.secondary)
-                    }
+            ChartFooter(readout: nil, moment: moment) {
+                VizLegend {
+                    LegendItem(label: "Climbing") { Capsule().fill(Color.accentColor).frame(width: 4, height: 10) }
+                    LegendItem(label: "High point") { Capsule().fill(Viz.neutral).frame(width: 10, height: 2) }
+                    Text("+ = moving to the next hold").font(Viz.legend).foregroundStyle(.secondary)
                 }
             }
         }
@@ -1595,10 +1583,10 @@ struct LeadAscentView: View {
                     }
                     // A long name gives way (truncates) before the wall's left edge;
                     // the height never does.
-                    .frame(width: trackX - 16 + (peek ? 4 : 0), alignment: .trailing)
+                    .frame(width: trackX - 16, alignment: .trailing)
                     .contentShape(Rectangle())
                     .onHover { hover(c, $0) }
-                    .position(x: (trackX - 16) / 2 - (peek ? 2 : 0), y: labelY)
+                    .position(x: (trackX - 16) / 2, y: labelY)
                 }
             }
             .knock(reduceMotion ? 0 : knockBeat, after: knockAt ?? 0, amplitude: 3, dip: 2, outward: -1)
@@ -1840,8 +1828,6 @@ struct ClimbingWallView: View {
     @Environment(LinkedFocus.self) private var linked: LinkedFocus?
     @Environment(MomentCenter.self) private var moments: MomentCenter?
     @Environment(\.celebrationLevel) private var level
-    /// In the chart peek: the lanes alone (no route picker, legend or status line).
-    @Environment(\.chartPeek) private var peek
 
     /// A climber just topped, while it's news.
     private var moment: LiveMoment? { momentFor(.wall, in: moments) }
@@ -1864,17 +1850,12 @@ struct ClimbingWallView: View {
     private static let height: CGFloat = 182
 
     private var route: GameDetail.WallRoute? {
-        // A peek has no picker: it shows the route where the linked climber has a lane.
-        if peek, let id = linked?.focus?.athlete,
-           let lit = routes.first(where: { $0.climbers.prefix(maxLanes).contains { $0.id == id } }) {
-            return lit
-        }
-        return routes.first { $0.name == selected } ?? routes.first
+        routes.first { $0.name == selected } ?? routes.first
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if routes.count > 1, !peek {
+            if routes.count > 1 {
                 Picker("Route", selection: Binding(get: { route?.name ?? "" }, set: { selected = $0 })) {
                     ForEach(routes) { Text("Route \($0.name)").tag($0.name) }
                 }
@@ -1885,13 +1866,11 @@ struct ClimbingWallView: View {
             }
             if let route {
                 plot(route).vizWell()
-                if !peek {
-                    ZStack(alignment: .topLeading) {
-                        legend(route).opacity(moment == nil ? 1 : 0)
-                        if let moment { MomentCaption(moment: moment) }
-                    }
-                    Text(status(route)).font(Viz.note).foregroundStyle(.secondary)
+                ZStack(alignment: .topLeading) {
+                    legend(route).opacity(moment == nil ? 1 : 0)
+                    if let moment { MomentCaption(moment: moment) }
                 }
+                Text(status(route)).font(Viz.note).foregroundStyle(.secondary)
             }
         }
         .onAppear { lastHeights = heights }
@@ -2125,8 +2104,6 @@ struct BoulderScorecard: View {
     @Environment(\.widthClass) private var widthClass
     @Environment(\.celebrationLevel) private var level
     @Environment(\.celebrationClock) private var clock
-    /// In the chart peek: the rows alone, no legend.
-    @Environment(\.chartPeek) private var peek
     /// Places as last seen, to tell who moved.
     @State private var lastRanks: [Int: Int] = [:]
     /// Who moved at the latest change, and by how much (+ is up); cleared after the hold.
@@ -2197,13 +2174,11 @@ struct BoulderScorecard: View {
                         .zIndex(moment?.id.hasPrefix("boulder:\(card.id):") == true ? 1 : 0)
                 }
             }
-            if !peek {
-                ChartFooter(readout: nil, moment: moment) {
-                    VizLegend {
-                        LegendItem(label: "Top") { BoulderCell(problem: .init(reach: .top, tries: nil), height: 14, showsTries: false) }
-                        LegendItem(label: "Zone") { BoulderCell(problem: .init(reach: .zone, tries: nil), height: 14, showsTries: false) }
-                        Text("Numbers show attempts").font(Viz.legend).foregroundStyle(.secondary)
-                    }
+            ChartFooter(readout: nil, moment: moment) {
+                VizLegend {
+                    LegendItem(label: "Top") { BoulderCell(problem: .init(reach: .top, tries: nil), height: 14, showsTries: false) }
+                    LegendItem(label: "Zone") { BoulderCell(problem: .init(reach: .zone, tries: nil), height: 14, showsTries: false) }
+                    Text("Numbers show attempts").font(Viz.legend).foregroundStyle(.secondary)
                 }
             }
         }

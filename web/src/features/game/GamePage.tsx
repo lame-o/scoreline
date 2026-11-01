@@ -1,3 +1,4 @@
+import { CompetitionContext } from "../settings/CompetitionContext";
 /**
  * A game's page (DetailView.swift): the hero, then the sport's sections in
  * one column, or from 680pt in two (data/sections.ts), with a docked
@@ -31,7 +32,6 @@ import { LinkedFocusProvider, LinkedFocusStore } from "./core/linked";
 import { MomentProvider, useCurrentMoment, useMomentSlot } from "./core/moments";
 import { useHeaderLedger, useHeaderSync } from "./core/headerSync";
 import { ScoringSlideHost, SlidesProvider, useBindSlides, useScoringSlides, useScoringSlidesContext } from "./core/scoringSlides";
-import { LinkedPeekHost } from "./core/peek";
 import { listenForUnlock } from "./core/sound";
 import { soundsEnabled } from "../../data/celebrationSound";
 import { useSettings } from "../../state/settings";
@@ -250,6 +250,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
 
   return (
     <>
+      <CompetitionContext event={event} />
       <div className={styles.heroSlot}>
         <Hero
           event={heroEvent}
@@ -303,7 +304,6 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
         <Sections placed={placed} sections={sport.sections} columns={columns} empty={emptyMessage(event)} />
       )}
       {detail.venue ? <p className={styles.venue}>{detail.venue}</p> : null}
-      {loading ? null : <LinkedPeekHost source={sport.peek} kind={pageKind(event.ref)} geometry={geometry} columns={columns} shown={shown} />}
     </>
   );
 }

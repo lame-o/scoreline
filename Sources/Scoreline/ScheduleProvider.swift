@@ -238,7 +238,7 @@ extension ScheduleProvider {
                 top: top, bottom: bottom,
                 venue: venue.isEmpty ? nil : venue, networks: networks(c), notes: notes, ifNecessary: ifNecessary,
                 week: week ?? e["week"]["number"].int, link: link.flatMap(URL.init(string:)),
-                ref: .espn(path: path, id: rawID), result: result)
+                ref: .espn(path: CompetitionCatalog.eventPath(path, league: leagueID, sport: sport), id: rawID), result: result)
         }
 
         /// National networks first (up to three), from either response shape.
@@ -297,6 +297,7 @@ extension ScheduleProvider {
                 ("espn-ncaaf-", "football/college-football", "college-football", .football),
                 ("espn-football-", "football/nfl", "nfl", .football),
                 ("espn-baseball-", "baseball/mlb", "mlb", .baseball),
+                ("espn-wnba-", "basketball/wnba", "wnba", .basketball),
                 ("espn-basketball-", "basketball/nba", "nba", .basketball),
                 ("espn-soccer-", "soccer/all", "soccer", .soccer),
             ]

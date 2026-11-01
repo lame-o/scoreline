@@ -14,6 +14,8 @@ struct ScoresView: View {
     var onOpenSchedule: (ScheduleScope) -> Void = { _ in }
     /// A league's results (the section menu's Results).
     var onOpenResults: (ScheduleScope) -> Void = { _ in }
+    var onSports: () -> Void = {}
+    var onFollowing: () -> Void = {}
     /// The hovered or arrow-keyed game. A reference, so changing it updates
     /// only the rows and tiles whose highlight flips (HighlightGate), not this page.
     @State private var highlight = HighlightState()
@@ -82,6 +84,11 @@ struct ScoresView: View {
     var body: some View {
         VStack(spacing: 0) {
             header.stackIn().pageChrome()
+            HStack(spacing: 16) {
+                Button(action: onSports) { Label("Sports", systemImage: "sportscourt") }
+                Button(action: onFollowing) { Label("Following", systemImage: "star") }
+                Spacer()
+            }.buttonStyle(.plain).font(.system(size: 11.5)).foregroundStyle(.secondary).padding(.horizontal, 16).padding(.vertical, 7)
             content.frame(maxHeight: .infinity, alignment: .top)
             footer.stackIn().pageChrome()
         }
@@ -161,15 +168,19 @@ struct ScoresView: View {
 
     @ViewBuilder
     private var content: some View {
-        if store.enabledIDs.isEmpty {
+        if store.enabledIDs.isEmpty && store.followed.isEmpty && store.editions.isEmpty {
             EmptyState(symbol: "sportscourt", title: "No Sports Yet",
                        message: "Choose the leagues you follow and their scores will live here.") {
-                Button("Add Sports", action: onManage).controlSize(.small)
+                Button("Browse Sports", action: onSports).controlSize(.small)
             }
         } else if store.sections.isEmpty && store.quietLeagues.isEmpty {
             if store.allFailed {
                 // The store really does retry on its own (with backoff).
                 ErrorState("Scores", retriesAutomatically: true) { store.startPolling() }
+            } else if store.lastUpdated != nil {
+                EmptyState(symbol: "calendar", title: "No Matches Right Now", message: "Your selections are saved. Browse the schedule for upcoming matches and results.") {
+                    Button("Schedule") { onOpenSchedule(.all) }.controlSize(.small)
+                }
             } else if store.landingView == .tiles {
                 SkeletonTiles()
             } else {
@@ -312,7 +323,7 @@ struct ScoresView: View {
         let isCollapsed = store.collapsed.contains(section.id)
         SectionHeader(section: section, collapsed: isCollapsed, justToggled: justToggled == section.id, maxLogos: previewLogos,
                       onOpenLeague: onOpenLeague, onOpenStandings: onOpenStandings, onOpenRankings: onOpenRankings,
-                      onOpenSchedule: onOpenSchedule, onOpenResults: onOpenResults) {
+                      onOpenSchedule: onOpenSchedule, onOpenResults: onOpenResults, onFollowing: onFollowing) {
             toggle(section)
         }
         .environment(\.logoNamespace, linking == section.id ? logoSpace : nil)
@@ -482,7 +493,13 @@ struct ScoresView: View {
         VStack(alignment: .leading, spacing: 6) {
             // Say over what period: daily leagues are fetched for today and
             // tomorrow, weekly ones (NFL, college) for the current week.
-            let quiet = store.quietLeagues
+            // A league your team filter emptied isn't idle: it says so, and
+            // offers what's live, instead of "no games".
+            let screened = store.quietLeagues.filter { store.screened[$0.id] != nil }
+            let quiet = store.quietLeagues.filter { store.screened[$0.id] == nil }
+            ForEach(screened) { league in
+                ScreenedLeague(league: league, events: store.screened[league.id] ?? [], onSelect: onSelect)
+            }
             // A quiet league whose calendar knows its next game day links to its schedule.
             let schedule = ScheduleStore.shared
             let known = quiet.filter { schedule.nextDay(for: $0) != nil }
@@ -599,6 +616,57 @@ struct ScoresView: View {
 
 // MARK: - Section header
 
+/// A league whose team filter hid today's games: not "no games" but none of
+/// yours, with any live game one click away. The filter stays as it is.
+private struct ScreenedLeague: View {
+    let league: League
+    let events: [Event]
+    let onSelect: (Event) -> Void
+
+    var body: some View {
+        let live = events.filter { $0.state == .live }
+        VStack(alignment: .leading, spacing: 4) {
+            Text("\(league.name): none of your teams " + (Self.weekly(league) ? "this week" : "today or tomorrow"))
+            ForEach(live.prefix(3)) { event in
+                Button {
+                    onSelect(event)
+                } label: {
+                    HStack(spacing: 5) {
+                        LiveDot()
+                        Text(Self.line(event))
+                            .foregroundStyle(.primary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Open this game (it stays hidden from your \(league.name) teams)")
+                .accessibilityLabel("Live: \(Self.line(event))")
+                .accessibilityHint("Opens the game")
+            }
+            if live.count > 3 {
+                Text("and \(live.count - 3) more live")
+            }
+        }
+    }
+
+    /// Weekly leagues (NFL, college) are fetched for the week, the rest for today and tomorrow.
+    static func weekly(_ league: League) -> Bool {
+        if case .espn(_, true) = league.source { return true }
+        return false
+    }
+
+    /// "Spurs 1–0 C Palace · 42'", in the list's order for the sport.
+    static func line(_ event: Event) -> String {
+        guard case let .match(top, bottom) = event.content else {
+            if case let .field(title, _) = event.content { return title }
+            return ""
+        }
+        let score = [top.score, bottom.score].compactMap { $0 }
+        let middle = score.count == 2 ? " \(score[0])–\(score[1]) " : " v "
+        return top.name + middle + bottom.name + (event.detail.map { " · \($0)" } ?? "")
+    }
+}
+
 private struct SectionHeader: View {
     @Environment(ScoreStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -611,6 +679,7 @@ private struct SectionHeader: View {
     let onOpenRankings: (League) -> Void
     var onOpenSchedule: (ScheduleScope) -> Void = { _ in }
     var onOpenResults: (ScheduleScope) -> Void = { _ in }
+    var onFollowing: () -> Void = {}
     let toggle: () -> Void
     @State private var hovering = false
 
@@ -647,7 +716,7 @@ private struct SectionHeader: View {
         .contextMenu {
             Button(collapsed ? "Expand" : "Collapse", systemImage: collapsed ? "chevron.down" : "chevron.right", action: toggle)
             if let league = League.with(id: section.id) {
-                if league.sport == .soccer {
+                if league.sport == .soccer && CompetitionCatalog.hasTable(league) {
                     Button("Table", systemImage: "list.number") { onOpenStandings(league) }
                 }
                 if league.id == "college-football" {
@@ -659,14 +728,17 @@ private struct SectionHeader: View {
                 }
                 Button("Schedule", systemImage: "calendar") { onOpenSchedule(.for(league: league)) }
                 Button("Results", systemImage: "flag.checkered") { onOpenResults(.for(league: league)) }
-                Button(league.source == .ifsc ? "Choose Countries…" : "Choose Teams…", systemImage: "line.3.horizontal.decrease.circle") {
+                Button("Competition overview", systemImage: "line.3.horizontal.decrease.circle") {
                     onOpenLeague(league)
                 }
                 Divider()
                 Button("Move Up", systemImage: "arrow.up") { withAnimation(Motion.rearrange) { store.move(league.id, by: -1) } }
                 Button("Move Down", systemImage: "arrow.down") { withAnimation(Motion.rearrange) { store.move(league.id, by: 1) } }
                 Divider()
-                Button("Hide \(league.name)", systemImage: "eye.slash") { withAnimation(Motion.rearrange) { store.setEnabled(league, false) } }
+                if store.isEnabled(league) {
+                    Button("Unfollow \(league.name)", systemImage: "eye.slash") { withAnimation(Motion.rearrange) { store.setEnabled(league, false) } }
+                }
+                Button("Manage following…", systemImage: "star", action: onFollowing)
             }
         }
         // The title stays the label; the state (and a collapsed section's

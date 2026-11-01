@@ -1,3 +1,4 @@
+import { EditionFollowButton } from "../settings/EditionFollowButton";
 /**
  * CS2's calendar, S-tier only (TournamentsPage.swift): the tournament
  * underway, the coming months on one axis, then every tournament by month.
@@ -359,6 +360,7 @@ export const TournamentRow = memo(function TournamentRow({
 function TournamentDetail({ event: e, followed, showsHeader = false, inline = false, wide = false, onBracket }: { event: SeasonEvent; followed: ReadonlySet<string>; showsHeader?: boolean; inline?: boolean; wide?: boolean; onBracket: () => void }) {
   return (
     <div className={[styles.openDetail, inline ? styles.inlineWide : null].filter(Boolean).join(" ")} style={{ gap: "calc(8 * var(--pt))" }}>
+      {e.kind.kind === "tournament" ? <EditionFollowButton edition={{source:"cs2", key:e.kind.slug, name:e.name}} /> : null}
       {showsHeader ? (
         <div className={styles.currentCard} style={{ margin: 0, padding: 0, background: "none" }}>
           <TournamentLogo url={e.logo} size={28} />

@@ -139,6 +139,8 @@ describe("ESPN schedules", () => {
     const cup = sortItems(arsenal.items)[0];
     expect(cup?.competition).toBe("Carabao Cup · Fourth Round");
     expect(cup?.league).toBe("eng.league_cup");
+    expect(cup?.ref).toMatchObject({kind:"espn", path:"soccer/eng.league_cup"});
+    expect(itemEvent({...cup!,ref:{kind:"espn",path:"soccer/all",id:"401921842"}}).ref).toMatchObject({kind:"espn",path:"soccer/eng.league_cup"});
     expect(cup?.networks).toEqual(["Paramount+"]);
     const on = (d: DayKey) => arsenal.items.find((i) => i.league === "eng.1" && compactDay(i.day) === compactDay(d));
     expect(on(day(2026, 12, 6))?.start.kind).toBe("exact");
@@ -201,7 +203,7 @@ describe("the agenda", () => {
     const days = buildAgenda([...kc.items, ...cup.items], ["eng.1", "nfl"], true);
     const find = (d: DayKey) => days.find((x) => compactDay(x.day) === compactDay(d));
     expect(find(day(2026, 11, 1))?.groups.map((g) => g.league)).toEqual(["eng.1", "nfl"]);
-    expect(find(day(2026, 10, 27))?.groups[0]?.league).toBe("eng.1");
+    expect(find(day(2026, 10, 27))?.groups[0]?.league).toBe("eng.league_cup");
     const jan3 = dayItems(find(day(2027, 1, 3))!);
     expect(jan3[jan3.length - 1]?.start.kind).toBe("tba");
     const split = splitDays(days, day(2026, 10, 25));

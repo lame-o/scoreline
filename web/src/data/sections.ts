@@ -87,10 +87,10 @@ export function sectionOrder(ref: EventRef | null, state: EventState): readonly 
   switch (pageKind(ref)) {
     case "soccer":
       return state === "live"
-        ? ["pitch", "theater", "timeline", "winProbability", "stats", "table", "moments", "plays", "whereToWatch"]
+        ? ["pitch", "theater", "timeline", "winProbability", "stats", "table", "bracket", "moments", "plays", "whereToWatch"]
         : state === "final"
-          ? ["timeline", "winProbability", "pitch", "theater", "moments", "stats", "table", "plays"]
-          : ["winProbability", "table", "whereToWatch"];
+          ? ["timeline", "winProbability", "pitch", "theater", "moments", "stats", "table", "bracket", "plays"]
+          : ["winProbability", "table", "bracket", "whereToWatch"];
     case "baseball":
       return state === "live"
         ? ["atPlate", "atBat", "linescore", "winProbability", "bracket", "moments", "battedBalls", "plays", "whereToWatch"]
@@ -153,10 +153,10 @@ export function widePlan(ref: EventRef | null, state: EventState): readonly Wide
   switch (pageKind(ref)) {
     case "soccer":
       return state === "live"
-        ? [columns(["pitch", "theater", "stats", "plays"], ["timeline", "moments", "winProbability", "table", "whereToWatch"])]
+        ? [columns(["pitch", "theater", "stats", "plays"], ["timeline", "moments", "winProbability", "table", "bracket", "whereToWatch"])]
         : state === "final"
-          ? [columns(["pitch", "theater", "stats"], ["timeline", "winProbability", "moments", "table", "plays"])]
-          : [columns(["table"], ["winProbability", "whereToWatch"])];
+          ? [columns(["pitch", "theater", "stats"], ["timeline", "winProbability", "moments", "table", "bracket", "plays"])]
+          : [columns(["table", "bracket"], ["winProbability", "whereToWatch"])];
     case "baseball":
       return state === "live"
         ? [columns(["atPlate", "atBat", "battedBalls"], ["linescore", "winProbability", "moments", "bracket", "plays", "whereToWatch"])]

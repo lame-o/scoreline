@@ -14,6 +14,7 @@
  */
 import { memo, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { Link } from "react-router";
+import { gameHref } from "../../data/gameHref";
 import { Icon, LiveStatus } from "../../design/components";
 import { clockTime, countdown, enDash, isDelayed, spokenEventStatus, spokenResult } from "../../data/format";
 import { competitorKey, stepsBack, type Competitor, type ScoreEvent } from "../../data/models";
@@ -116,7 +117,7 @@ function ScheduleRowView({ item, event, keyboard, detail, showsCompetition, expa
     );
   }
   return (
-    <Link to={`/game/${encodeURIComponent(item.id)}`} {...common} draggable={false}>
+    <Link to={gameHref(item.id, item.ref.kind === "espn" ? item.ref.path : item.league)} {...common} draggable={false}>
       {content}
     </Link>
   );

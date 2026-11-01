@@ -165,6 +165,16 @@ extension ScorelineTests {
               "Arsenal: 30 Premier League, 5 Champions League, 1 Carabao Cup fixtures", "\(byLeague)")
         check(cup?.competition == "Carabao Cup · Fourth Round" && cup?.networks == ["Paramount+"] && cup?.id.hasPrefix("espn-") == true,
               "the Carabao Cup tie names its round and network", "\(String(describing: cup?.competition))")
+        if let cup, let encoded = try? JSONEncoder().encode(cup),
+           var raw = (try? JSONSerialization.jsonObject(with: encoded)) as? [String: Any] {
+            raw["ref"] = ["espn": ["path": "soccer/all", "id": "401921842"]]
+            let data = try? JSONSerialization.data(withJSONObject: raw)
+            let restored = data.flatMap { try? JSONDecoder().decode(ScheduleItem.self, from: $0) }
+            check(restored.flatMap { SoccerFeedRequest($0.event().ref) }?.league == "eng.league_cup",
+                  "cached team-history cup fixture opens its actual competition, never soccer/all")
+        }
+        check(cup.map { if case let .espn(path, _) = $0.ref { path == "soccer/eng.league_cup" } else { false } } == true,
+              "new team-history cup fixtures store their actual competition path")
         let epl6 = arsenal.items.first { $0.league == "eng.1" && $0.day == DayKey(year: 2026, month: 12, day: 6) }
         let epl13 = arsenal.items.first { $0.league == "eng.1" && $0.day == DayKey(year: 2026, month: 12, day: 13) }
         let ucl = arsenal.items.filter { $0.league == "uefa.champions" }
@@ -224,8 +234,8 @@ extension ScorelineTests {
         let nov1 = days.first { $0.day == DayKey(year: 2026, month: 11, day: 1) }
         check(nov1?.groups.map(\.league) == ["eng.1", "nfl"], "a day's leagues follow the user's order",
               "\(String(describing: nov1?.groups.map(\.league)))")
-        check(days.first { $0.day == DayKey(year: 2026, month: 10, day: 27) }?.groups.first?.league == "eng.1",
-              "a cup tie sits with its sport's league in the All scope")
+        check(days.first { $0.day == DayKey(year: 2026, month: 10, day: 27) }?.groups.first?.league == "eng.league_cup",
+              "a cataloged cup keeps its own competition group in the All scope")
         let jan3 = days.first { $0.day == DayKey(year: 2027, month: 1, day: 3) }?.items ?? []
         check(jan3.last?.start == .tba, "games without a time come after the day's timed games")
         let split = Agenda.split(days, today: DayKey(year: 2026, month: 10, day: 25))
@@ -432,8 +442,8 @@ extension ScorelineTests {
               && Page.detail(match).backTitle == "Match" && Page.scores.backTitle == "Scores",
               "Back buttons name the page they return to")
         check(Page.standings(League.with(id: "eng.1")!, returnTo: match).parent == .detail(match)
-              && Page.addSports.parent == .manage && Page.scores.parent == nil,
-              "with nothing to return to, Back keeps the old one-level rule")
+              && Page.addSports.parent == .scores && Page.scores.parent == nil,
+              "with no navigation history, Sports returns to Scores and existing detail pages keep their fallback")
 
         // Brackets: a canceled match wasn't played.
         func bracketMatch(_ status: String) -> BracketMatch? {

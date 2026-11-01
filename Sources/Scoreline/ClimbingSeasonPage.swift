@@ -450,6 +450,7 @@ struct ClimbingEventDetail: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if case let .climbing(id) = event.kind { EditionFollowButton(edition: EditionFollow(source: "ifsc", key: String(id), name: event.name)) }
             if showsHeader { header }
             if !event.detailed {
                 HStack(spacing: 6) {

@@ -10,7 +10,7 @@ import type { Sport } from "./models";
  * "espn-football-26" would otherwise be both the Seahawks and UCLA.
  */
 export function espnTeamID(path: string, sport: Sport, team: string): string {
-  return path.endsWith("college-football") ? `espn-ncaaf-${team}` : `espn-${sport}-${team}`;
+  return path.endsWith("wnba") ? `espn-wnba-${team}` : path.endsWith("college-football") ? `espn-ncaaf-${team}` : `espn-${sport}-${team}`;
 }
 
 /** IOC codes that differ from ISO 3166-1 alpha-2 (plus the common climbing nations). */

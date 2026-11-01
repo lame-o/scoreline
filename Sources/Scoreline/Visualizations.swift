@@ -1482,8 +1482,6 @@ struct SoccerTimeline: View {
     let bottomName: String
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.widthClass) private var widthClass
-    /// In the chart peek: the minute labels stay; the pointed-at mark isn't spelled out.
-    @Environment(\.chartPeek) private var peek
 
     private static let gutter: CGFloat = 30
     /// From large up the track has room for a tick every 15': minutes read
@@ -1572,9 +1570,9 @@ struct SoccerTimeline: View {
                             .position(x: x(minute), y: 54)
                     }
                 }
-                .recedes(to: 0) { !peek && target($0) != nil }
+                .recedes(to: 0) { target($0) != nil }
                 FocusReader { focus in
-                    if let target = target(focus), !peek {
+                    if let target = target(focus) {
                         (Text(target.clock).fontWeight(.semibold).foregroundStyle(.primary)
                             + Text("  \(MomentList.headline(target))").foregroundStyle(.secondary))
                             .font(.system(size: 10.5).monospacedDigit())

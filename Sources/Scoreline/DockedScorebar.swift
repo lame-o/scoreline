@@ -435,8 +435,7 @@ extension EnvironmentValues {
 #endif
 
 extension View {
-    /// Liquid Glass for the page's floating surfaces (the bar, the peek, the
-    /// hero card). In a DEBUG render harness Liquid Glass can't be captured
+    /// Liquid Glass for the page's floating surfaces (the bar, the hero card). In a DEBUG render harness Liquid Glass can't be captured
     /// offscreen, so `\.glassStandIn` swaps in a stand-in plate (window color
     /// for regular glass, a faint fill for clear) with a hairline.
     func floatingGlass(in shape: some Shape, clear: Bool = false, interactive: Bool = true, tint: Color? = nil) -> some View {
@@ -490,7 +489,6 @@ extension EnvironmentValues {
 struct PageProbe {
     let geometry: PageGeometry
     let linked: LinkedFocus
-    let peek: PeekController
     let stage: NBAStage
     let moments: MomentCenter
     let drag: ModuleDrag

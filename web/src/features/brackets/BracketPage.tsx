@@ -1,3 +1,4 @@
+import { EditionFollowButton } from "../settings/EditionFollowButton";
 /**
  * A tournament's full picture, one level below a match (Brackets.swift
  * `BracketPage`): the Swiss stage if there is one, then the playoff tree.
@@ -42,7 +43,7 @@ export function BracketPage() {
   if (!source) return <NotFound />;
   const data = query.data;
   return (
-    <TablePage title={title} footer={load.stale ? <StaleNote updated={load.updated} subject="bracket" /> : null}>
+    <TablePage title={title} trailing={source.kind === "csTournament" ? <EditionFollowButton edition={{source:"cs2", key:source.slug, name:title}} /> : null} footer={load.stale ? <StaleNote updated={load.updated} subject="bracket" /> : null}>
       {(layout) =>
         data ? (
           data.swiss == null && data.bracket == null ? (

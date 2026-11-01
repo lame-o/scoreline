@@ -29,7 +29,7 @@ import { arr, at } from "../../../data/json";
 import { makeMatchEvent } from "../../../data/providers/counterStrike";
 import { disciplinesOf } from "../../../data/scoreboard";
 import { getSettings } from "../../../state/settings";
-import { CATALOG, espnPath, leagueWithID } from "../../../data/leagues";
+import { CATALOG, espnPath, leagueForGame } from "../../../data/leagues";
 import type { League, ScoreEvent, Sport } from "../../../data/models";
 import { pageKind } from "../../../data/sections";
 import { useLogoColorsVersion, wearColors } from "../../../state/logoColors";
@@ -150,7 +150,7 @@ async function loadDetail(event: ScoreEvent, signal: AbortSignal): Promise<Detai
 export function useGame(id: string, { poll, league }: { poll: boolean; league: string | null }): GameData {
   const scores = useScoreboard({ poll });
   const boardEvent = scores.event(id) ?? null;
-  const hint = league ? leagueWithID(league) : undefined;
+  const hint = league ? leagueForGame(league) : undefined;
 
   // Off the scoreboards: find the game by its ID (ESPN, and bo3.gg's matches;
   // IFSC rounds come with their refs from the scoreboard).

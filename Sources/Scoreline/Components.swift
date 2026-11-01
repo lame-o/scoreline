@@ -520,8 +520,8 @@ struct PageScrollView<Content: View>: View {
     @Environment(\.pageContentActive) private var contentActive
     @Environment(\.pageSize) private var size
     @State private var token = PageSize.Token()
-    /// Match pages track where their sections are (for the chart peek and the
-    /// docked scorebar); other pages leave this nil.
+    /// Match pages track where their sections are (for the docked scorebar
+    /// and "Show on …"); other pages leave this nil.
     @Environment(\.pageGeometry) private var geometry
     @State private var position = ScrollPosition(edge: .top)
     /// Content height, viewport and offset as last measured. A reference:
@@ -682,7 +682,7 @@ struct PageScrollView<Content: View>: View {
         return .handled
     }
 
-    /// Lets the page's geometry scroll this view: a peek's click, the docked
+    /// Lets the page's geometry scroll this view: "Show on …", the docked
     /// scorebar's back-to-top. Instant when not animated (keyboard, Reduce Motion).
     private func registerScrolling() {
         guard let geometry else { return }

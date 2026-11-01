@@ -1,3 +1,4 @@
+import { EditionFollowButton } from "../settings/EditionFollowButton";
 /**
  * Climbing's rows and the open competition (ClimbingSeasonPage.swift
  * `ClimbingEventRow`, `ClimbingEventDetail`), shared by the season page in
@@ -134,6 +135,7 @@ export function ClimbingEventDetail({ event: e, countries, showsHeader = false, 
   }
   return (
     <div className={[styles.openDetail, inline ? styles.inline : null].filter(Boolean).join(" ")}>
+      {e.kind.kind === "climbing" ? <EditionFollowButton edition={{source:"ifsc", key:String(e.kind.id), name:e.name}} /> : null}
       {showsHeader ? (
         <div className={styles.detailHeader}>
           <h2 className={styles.detailTitle}>

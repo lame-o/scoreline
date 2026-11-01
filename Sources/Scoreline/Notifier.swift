@@ -26,7 +26,8 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     /// Whether macOS will actually show our alerts (the user can block them in System Settings).
     func isBlocked() async -> Bool {
-        await center.notificationSettings().authorizationStatus == .denied
+        guard Bundle.main.bundleIdentifier != nil else { return false }
+        return await center.notificationSettings().authorizationStatus == .denied
     }
 
     func requestAuthorization() {

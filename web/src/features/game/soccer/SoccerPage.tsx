@@ -30,7 +30,6 @@ import { espnPlayerRef } from "../../profiles/ProfileLinks";
 import { shortened } from "../../../data/moments";
 import { headline } from "../core/CommonSections";
 import { DetailSection } from "../core/DetailSection";
-import type { PeekSource } from "../core/peek";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
 import { useCommonSections } from "../core/useCommonSections";
 import { SoccerTableWindow, useLeagueLive, useTableRows } from "../tables/GameTables";
@@ -87,7 +86,6 @@ export function useSoccerPage(game: GameContext): SportPage {
   const ids = useMemo(() => (event.content.kind === "match" ? [event.content.top.id, event.content.bottom.id].filter((x): x is string => x != null) : []), [event.content]);
 
   const sections: Partial<Record<Section, ReactNode>> = { ...common };
-  // The charts, shared by their sections and the chart peek (the same element, so the peek is the same chart).
   const pitchChart = <Pitch trail={feed.trail} shots={feed.shots} cards={feed.cards} live={live} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} width={sectionWidth} theaterShown={live} />;
   const minute = live ? soccerMinute(event.detail) : null;
   const timelineChart = <Timeline moments={detail.moments} currentMinute={minute} palette={palette} topName={names.top} bottomName={names.bottom} width={sectionWidth} />;
@@ -150,22 +148,11 @@ export function useSoccerPage(game: GameContext): SportPage {
         }
       : undefined;
 
-  // The chart peek (LinkedPeek): a key event lights its shot on the pitch, else its mark on the timeline.
-  const peek: PeekSource = {
-    inputs: {
-      pitch: [...(live ? feed.trail : []), ...feed.shots, ...Object.entries(feed.cards).map(([id, a]) => ({ ...a, playID: id }))].map((a) => ({ id: a.playID, side: a.side, lead: a.minute, detail: shortened(a.text) })),
-      timeline: detail.moments.filter((m) => m.minute != null && m.kind !== "other" && m.kind !== "score").map((m) => ({ id: m.id, side: m.side, lead: m.clock, detail: headline(m) })),
-    },
-    chart: (section) => (section === "pitch" ? pitchChart : section === "timeline" ? timelineChart : null),
-    aspect: { pitch: 105 / 68 },
-  };
-
   return {
     sections,
     laneScores,
     clockFallback: event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live"),
     heroNote: tieLine(detail.soccerTie),
     dockSlot,
-    peek,
   };
 }

@@ -163,7 +163,7 @@ extension DetailView {
         case .startlist: "Starting Order"
         case .ascent: "On the Wall"
         case .whereToWatch: "Where to Watch"
-        case .bracket: "Bracket"
+        case .bracket: kind == .soccer ? "Competition" : "Bracket"
         case .court: "Shot Chart"
         case .flow: "Game Flow"
         case .leaders: "Leaders"

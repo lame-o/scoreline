@@ -97,6 +97,18 @@ struct PitchAction: Identifiable, Equatable {
     }
 }
 
+/// Feed eligibility comes from the event reference, including cups outside the catalog.
+struct SoccerFeedRequest {
+    let league: String
+    let eventID: String
+    init?(_ ref: EventRef?) {
+        guard case let .espn(path, id, .soccer)? = ref,
+              path.hasPrefix("soccer/"), let slug = path.split(separator: "/").last else { return nil }
+        league = String(slug)
+        eventID = id
+    }
+}
+
 /// ESPN's event-level feed (each pass, shot, tackle with a location). It loads
 /// a match once, then each refresh fetches only plays added since the last.
 /// Positions are relative to the acting team's attack, so away actions are

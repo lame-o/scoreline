@@ -240,7 +240,7 @@ struct ResultsAgendaPage: View {
     private var chips: ScheduleChips? { .scopes(scope, store: store, onScope: onScope, onDrill: onDrill) }
 
     private func filterable(_ league: League) -> Bool {
-        store.isFilterOn(league) && !store.picks(for: league).isEmpty || league.id == "college-football"
+        store.isFilterOn(league) || league.id == "college-football"
     }
 
     // MARK: Content

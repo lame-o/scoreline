@@ -26,6 +26,10 @@ struct ScorelineTests {
             exit(BroadcastBench.main(Array(CommandLine.arguments[(flag + 1)...])))
         }
         HTTP.stubProtocol = FixtureProtocol.self
+        if let path = ProcessInfo.processInfo.environment["SCORELINE_RENDER_FOLLOWING"] {
+            await renderFollowing(to: path)
+            exit(0)
+        }
         print("Scoreline tests\(FixtureProtocol.recording ? " (recording fixtures)" : "")")
 
         await counterStrike()
@@ -47,7 +51,7 @@ struct ScorelineTests {
         nbaPolish()
         dock()
         dockPages()
-        peek()
+        chartLinks()
         teamColors()
         await pageGeometry()
         scoreChanges()
@@ -88,6 +92,8 @@ struct ScorelineTests {
         modules()
         await replays()
         broadcast()
+        soccerCompetitions()
+        followingPolicy()
 
         print("\n\(passes) passed, \(failures) failed")
         exit(failures == 0 ? 0 : 1)

@@ -68,11 +68,12 @@ enum BracketSource: Hashable {
     /// A postseason on ESPN (MLB).
     case espnPostseason(path: String, year: Int)
     case csTournament(slug: String, name: String)
+    case soccerCompetition(slug: String, name: String, year: Int?)
 
     var title: String {
         switch self {
         case let .espnPostseason(_, year): "\(year) Postseason"
-        case let .csTournament(_, name): name
+        case let .csTournament(_, name), let .soccerCompetition(_, name, _): name
         }
     }
 }
@@ -85,6 +86,8 @@ enum BracketProvider {
         let result: TournamentBrackets = switch source {
         case let .espnPostseason(path, year): try await MLBPostseason.load(path: path, year: year)
         case let .csTournament(slug, _): try await CSTournament.load(slug: slug)
+        case let .soccerCompetition(slug, _, year):
+            try await SoccerCompetitionProvider.load(slug: slug, year: year).tournamentBrackets
         }
         await BracketCache.shared.store(result, for: source)
         return result
@@ -514,9 +517,11 @@ struct BracketView: View {
     @Namespace private var rotor
     /// Where every matchup sits: worked out once, never on a hover.
     private let layout: BracketLayout
+    private let terminalLabel: String
 
-    init(bracket: Bracket, highlight: Set<String> = []) {
+    init(bracket: Bracket, highlight: Set<String> = [], terminalLabel: String = "Final") {
         self.bracket = bracket
+        self.terminalLabel = terminalLabel
         self.highlight = highlight
         layout = BracketLayout(bracket)
     }
@@ -731,7 +736,7 @@ struct BracketView: View {
     private var accessibilityText: String {
         let final = bracket.matches[bracket.finalID]
         let teams = [final?.top?.name, final?.bottom?.name].compactMap { $0 }
-        return "Bracket, \(plural(bracket.rounds.count, "round")). Final: " + (teams.isEmpty ? "to be decided" : teams.joined(separator: " versus "))
+        return "Bracket, \(plural(bracket.rounds.count, "round")). \(terminalLabel): " + (teams.isEmpty ? "to be decided" : teams.joined(separator: " versus "))
     }
 }
 
@@ -949,6 +954,10 @@ struct BracketPage: View {
 
             PageScrollView(keyboardScrolls: true) {
                 StackColumn {
+                    if case let .csTournament(slug, name) = source {
+                        EditionFollowButton(edition: EditionFollow(source: "cs2", key: slug, name: data?.title ?? name)).padding(.horizontal, 16).padding(.top, 8)
+                    }
+
                     if let data {
                         if let swiss = data.swiss {
                             DetailSection(title: "Swiss Stage",
@@ -1000,6 +1009,7 @@ struct BracketPage: View {
         switch source {
         case .espnPostseason: "Series wins in each matchup. Lines carry each winner to the next round."
         case .csTournament: "Maps won in each match. Lines carry each winner to the next round."
+        case .soccerCompetition: "Goals in each tie. Lines connect confirmed advancing teams."
         }
     }
 }

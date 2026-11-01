@@ -8,6 +8,7 @@
  * Everything here is a function of its inputs and `now`, so the page can
  * memoize it and the tests can pin it down.
  */
+import { followedEdition, pollingIDs, type EditionFollow } from "./following";
 import { clockReading } from "./clock";
 import { leagueWithID } from "./leagues";
 import type { Competitor, FollowedTeam, League, LeagueResult, ScoreEvent, Sport } from "./models";
@@ -18,6 +19,7 @@ const DAY = 86_400_000;
 
 /** The preferences the list is derived from (a slice of Settings). */
 export interface ListPreferences {
+  readonly editions?: readonly EditionFollow[];
   readonly enabledLeagues: readonly string[];
   readonly followed: readonly FollowedTeam[];
   /** League → picked team IDs (climbing: "country-SLO"). */
@@ -94,8 +96,8 @@ export function filtered(events: readonly ScoreEvent[], league: League, prefs: L
     });
   }
   const picks = prefs.teamFilters[league.id];
-  if (prefs.filteredLeagues.includes(league.id) && picks && picks.length > 0) {
-    return events.filter((e) => competitors(e).some((c) => c.id != null && picks.includes(c.id)));
+  if (prefs.filteredLeagues.includes(league.id)) {
+    return events.filter((e) => competitors(e).some((c) => c.id != null && (picks ?? []).includes(c.id)));
   }
   if (league.id === "college-football" && prefs.collegeTop25Only) {
     return events.filter((e) => competitors(e).some((c) => c.rank != null || isFollowing(prefs, c)));
@@ -164,7 +166,7 @@ export function myTeamsEvents(
 ): ScoreEvent[] {
   if (prefs.followed.length === 0) return [];
   const picked = new Map<string, ScoreEvent>();
-  for (const id of prefs.enabledLeagues) {
+  for (const id of Object.keys(results)) {
     const league = leagueWithID(id);
     if (!league) continue;
     const events = (results[id]?.events ?? []).filter((e) => involvesFollowed(prefs, e));
@@ -230,11 +232,13 @@ export function computeSections(
   const mineIDs = new Set(mine.map((e) => e.id));
 
   const leagues: Section[] = [];
-  for (const id of prefs.enabledLeagues) {
+  for (const id of [...new Set([...prefs.enabledLeagues, ...(prefs.editions ?? []).map(e => e.source)])]) {
     const league = leagueWithID(id);
     const result = results[id];
     if (!league || !result) continue;
-    const events = visible(filtered(result.events, league, prefs), now, prefs.showFinished).filter((e) => !mineIDs.has(e.id));
+    const base = prefs.enabledLeagues.includes(id) ? filtered(result.events, league, prefs) : [];
+    const selected = new Map([...base, ...(league.source.kind === "ifsc" ? filtered(result.events, league, prefs) : result.events).filter(e => followedEdition(e,prefs))].map(e => [e.id,e]));
+    const events = visible([...selected.values()], now, prefs.showFinished).filter((e) => !mineIDs.has(e.id));
     if (events.length === 0 && !result.failed) continue;
     leagues.push(section(league.id, league.name, league.sport, events, result.failed && events.length === 0));
   }
@@ -265,20 +269,21 @@ export function quietLeagues(results: Readonly<Record<string, LeagueResult>>, pr
 
 /** Live games the user would see: their filtered leagues plus followed teams. */
 export function liveCount(results: Readonly<Record<string, LeagueResult>>, prefs: ListPreferences): number {
-  let total = 0;
-  for (const id of prefs.enabledLeagues) {
+  const ids = new Set<string>();
+  for (const id of new Set([...pollingIDs(prefs), ...Object.keys(results)])) {
     const league = leagueWithID(id);
     const events = results[id]?.events ?? [];
     if (!league) continue;
-    const shown = new Set(filtered(events, league, prefs).map((e) => e.id));
-    total += events.filter((e) => e.state === "live" && (shown.has(e.id) || involvesFollowed(prefs, e))).length;
+    const shown = new Set((prefs.enabledLeagues.includes(id) ? filtered(events, league, prefs) : []).map(e => e.id));
+    for (const e of events) if (e.state === "live" && (shown.has(e.id) || involvesFollowed(prefs,e) || (followedEdition(e,prefs) && (league.source.kind !== "ifsc" || filtered([e],league,prefs).length > 0)))) ids.add(e.id);
   }
-  return total;
+  return ids.size;
 }
 
 /** Every league failed: the page says it can't connect, and live dots hold still. */
 export function allFailed(results: Readonly<Record<string, LeagueResult>>, prefs: ListPreferences): boolean {
-  return prefs.enabledLeagues.length > 0 && prefs.enabledLeagues.every((id) => results[id]?.failed === true);
+  const ids = [...new Set([...pollingIDs(prefs), ...Object.keys(results)])];
+  return ids.length > 0 && ids.every((id) => results[id]?.failed === true);
 }
 
 // MARK: - Polling (ScoreStore.pollInterval)

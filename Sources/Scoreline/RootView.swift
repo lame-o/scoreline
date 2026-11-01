@@ -10,6 +10,8 @@ struct RootView: View {
         case scores
         case manage
         case addSports
+        case following
+        case teams(League)
         case detail(Event)
         /// A league's team picks, opened from settings or from the scores list.
         case league(League, fromScores: Bool)
@@ -144,7 +146,8 @@ struct RootView: View {
                            onOpenStandings: { open(.standings($0, returnTo: nil)) },
                            onOpenRankings: { open(.rankings($0, returnTo: nil)) },
                            onOpenSchedule: { open(.schedule($0)) },
-                           onOpenResults: { open(.schedule($0, mode: .results)) })
+                           onOpenResults: { open(.schedule($0, mode: .results)) },
+                           onSports: { open(.addSports) }, onFollowing: { open(.following) })
             }
             .environment(\.scrollKey, Page.scores.memoryKey)
             // Never an entrance: it's the page you come back to, as you left it.
@@ -162,29 +165,38 @@ struct RootView: View {
                 switch page {
                 case .scores:
                     EmptyView()
-                case .manage:
-                    SizedPage(onChange: { fit($0, loading: $1, for: .manage) }) {
+                case .manage, .following:
+                    SizedPage(onChange: { fit($0, loading: $1, for: page) }) {
                         // ⌘, opens Settings from any page: Back says where it returns to.
-                        ManageView(backTitle: backStack.last?.backTitle ?? "Scores", onDone: { back() },
+                        ManageView(backTitle: backStack.last?.backTitle ?? "Scores", followingPage: page == .following, onFollowing: { open(.following) }, onDone: { back() },
                                    onOpenLeague: { open(.league($0, fromScores: false)) },
-                                   onAddSports: { open(.addSports) })
+                                   onAddSports: { open(.addSports) }, onEdition: { edition in
+                                       if edition.source == "cs2" { open(.bracket(.csTournament(slug: edition.key, name: edition.name), highlight: [], returnTo: nil)) }
+                                       else { open(.schedule(.climbing)) }
+                                   })
                     }
-                    .environment(\.scrollKey, Page.manage.memoryKey)
+                    .id(page.memoryKey)
+                    .environment(\.scrollKey, page.memoryKey)
                     .transition(pageTransition)
                 case .addSports:
                     SizedPage(onChange: { fit($0, loading: $1, for: .addSports) }) {
-                        AddSportsView { back() }
+                        AddSportsView(onBack: { back() }, backTitle: backStack.last?.backTitle ?? "Scores",
+                                      onOpenLeague: { open(.league($0, fromScores: false)) }, onOpenTeams: { open(.teams($0)) })
                     }
                     .environment(\.scrollKey, Page.addSports.memoryKey)
                     .transition(pageTransition)
-                case let .league(league, fromScores):
-                    SizedPage(onChange: { fit($0, loading: $1, for: .league(league, fromScores: fromScores)) }) {
-                        LeagueSettingsView(league: league, backTitle: fromScores ? "Scores" : "Settings",
+                case let .league(league, _), let .teams(league):
+                    SizedPage(onChange: { fit($0, loading: $1, for: page) }) {
+                        LeagueSettingsView(league: league, backTitle: backStack.last?.backTitle ?? "Scores",
                                            onOpen: { open(.detail($0)) }, onOpenSchedule: { open(.schedule($0)) },
                                            onOpenResults: { open(.schedule($0, mode: .results)) },
-                                           onOpenEvent: { open(.eventResults($0)) }) { back() }
+                                           onOpenEvent: { open(.eventResults($0)) },
+                                           onOpenBracket: { open(.bracket($0, highlight: $1, returnTo: nil)) },
+                                           onOpenStandings: { open(.standings($0, returnTo: nil)) }, onOpenRankings: { open(.rankings($0, returnTo: nil)) },
+                                           startsWithTeams: page == .teams(league), startsWithFollowing: backStack.last == .following) { back() }
                     }
-                    .environment(\.scrollKey, Page.league(league, fromScores: fromScores).memoryKey)
+                    .id(page.memoryKey)
+                    .environment(\.scrollKey, page.memoryKey)
                     .transition(pageTransition)
                 case let .detail(event):
                     SizedPage(onChange: { fit($0, loading: $1, for: .detail(event)) }) {
@@ -192,7 +204,8 @@ struct RootView: View {
                                    onOpenStandings: { open(.standings($0, returnTo: event)) },
                                    onOpenBracket: { open(.bracket($0, highlight: $1, returnTo: event)) },
                                    onOpenRankings: { open(.rankings($0, returnTo: event)) },
-                                   backTitle: backStack.last?.backTitle ?? "Scores")
+                                   backTitle: backStack.last?.backTitle ?? "Scores",
+                                   onOpenCompetition: { open(.league($0, fromScores: false)) })
                     }
                     // A different match is a new page: no state carried over.
                     .id(event.id)
@@ -214,8 +227,13 @@ struct RootView: View {
                     .transition(pageTransition)
                 case let .bracket(source, highlight, returnTo):
                     SizedPage(onChange: { fit($0, loading: $1, for: .bracket(source, highlight: highlight, returnTo: returnTo)) }) {
-                        BracketPage(source: source, backTitle: backStack.last?.backTitle ?? (returnTo == nil ? "Scores" : "Match"),
-                                    highlight: highlight) { back() }
+                        if case let .soccerCompetition(slug, name, year) = source {
+                            SoccerCompetitionPage(slug: slug, year: year, name: name, backTitle: backStack.last?.backTitle ?? "Match",
+                                                  highlight: highlight, onBack: { back() }, onOpen: { open(.detail($0)) })
+                        } else {
+                            BracketPage(source: source, backTitle: backStack.last?.backTitle ?? (returnTo == nil ? "Scores" : "Match"),
+                                        highlight: highlight) { back() }
+                        }
                     }
                     .environment(\.scrollKey, Page.bracket(source, highlight: highlight, returnTo: returnTo).memoryKey)
                     .transition(pageTransition)
@@ -404,8 +422,8 @@ extension RootView.Page {
     var depth: Int {
         switch self {
         case .scores: 0
-        case .manage, .detail: 1
-        case .addSports: 2
+        case .manage, .following, .detail: 1
+        case .addSports, .teams: 2
         case let .league(_, fromScores): fromScores ? 1 : 2
         case let .standings(_, returnTo), let .rankings(_, returnTo): returnTo == nil ? 1 : 2
         case let .bracket(_, _, returnTo): returnTo == nil ? 1 : 2
@@ -419,8 +437,9 @@ extension RootView.Page {
     var parent: RootView.Page? {
         switch self {
         case .scores: nil
-        case .manage, .detail, .schedule: .scores
-        case .addSports: .manage
+        case .manage, .following, .detail, .schedule: .scores
+        case .addSports: .scores
+        case .teams: .addSports
         case let .league(_, fromScores): fromScores ? .scores : .manage
         case let .standings(_, returnTo), let .rankings(_, returnTo): returnTo.map { .detail($0) } ?? .scores
         case let .bracket(_, _, returnTo): returnTo.map { .detail($0) } ?? .scores
@@ -434,7 +453,10 @@ extension RootView.Page {
     var backTitle: String {
         switch self {
         case .scores: "Scores"
-        case .manage, .addSports: "Settings"
+        case .manage: "Settings"
+        case .addSports: "Sports"
+        case .following: "Following"
+        case let .teams(league): league.shortName
         case let .league(league, _): league.shortName
         case .detail: "Match"
         case .standings: "Table"
@@ -456,6 +478,8 @@ extension RootView.Page {
         case .scores: "scores"
         case .manage: "manage"
         case .addSports: "addSports"
+        case .following: "following"
+        case let .teams(league): "teams:\(league.id)"
         case let .league(league, _): "league:\(league.id)"
         case let .detail(event): "detail:\(event.id)"
         case let .standings(league, _): "standings:\(league.id)"

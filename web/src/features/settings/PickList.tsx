@@ -1,19 +1,6 @@
-/**
- * A league's teams (or climbing's countries) to pick and follow
- * (LeagueSettingsView.swift `pickList`), as an outline: the picks as of
- * opening first, then college by conference (each folding to a header and a
- * line of crests, open where a team is yours), or a long flat list's first
- * dozen and "Show All". A search above twelve filters flat, across groups.
- *
- * Click anywhere on a row to pick it; the star alone follows. Keyboard, as
- * on the Mac, whenever focus is in the list or its search field: ↑/↓ move
- * through the rows on screen and the group headers; → opens a highlighted
- * group (or steps into an open one), ← closes it (or goes up to its
- * header); Return picks the highlighted row, folds a header or shows all;
- * typing keeps the first match ready for Return; Esc clears the search,
- * then goes back. Keyboard moves never animate; the pointer takes the
- * highlight back.
- */
+/** Team directory and competition selections share the existing keyboard outline.
+ * `global` follows a team across competitions; `scoped` changes only this
+ * competition's picks. A row always has one meaning and one action. */
 import { useQuery } from "@tanstack/react-query";
 import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import {
@@ -54,12 +41,13 @@ interface Highlight {
   readonly keyboard: boolean;
 }
 
-export function TeamPicks({ league }: { league: League }) {
+export function TeamPicks({ league, mode = "scoped" }: { league: League; mode?: "scoped" | "global" }) {
   const climbing = league.source.kind === "ifsc";
   const noun = climbing ? "Countries" : "Teams";
-  const picks = useSettings((s) => s.teamFilters[league.id]) ?? EMPTY;
+  const scopedPicks = useSettings((s) => s.teamFilters[league.id]) ?? EMPTY;
   const followedTeams = useSettings((s) => s.followed);
   const followed = useMemo(() => followedTeams.map((t) => t.id), [followedTeams]);
+  const picks = mode === "global" ? followed : scopedPicks;
   const goBack = useGoBack();
   const query = useQuery({
     queryKey: ["teams", league.id],
@@ -127,7 +115,11 @@ export function TeamPicks({ league }: { league: League }) {
       case "Enter": {
         if (!current) return;
         event.preventDefault();
-        if (current.kind === "row") settings.togglePick(league.id, current.item);
+        if (current.kind === "row") {
+          const team = options.find(o => o.id === current.item);
+          if (mode === "global" && team) settings.toggleFollow({ id: team.id, name: team.name, logo: team.logo });
+          else settings.togglePick(league.id, current.item);
+        }
         else if (current.kind === "header") outline.toggle(current.section, true);
         else {
           // Show All: the highlight moves on to the first row it revealed.
@@ -185,7 +177,7 @@ export function TeamPicks({ league }: { league: League }) {
           ) : (
             sections.map((section) => {
               const lit = highlight.keyboard && highlight.key != null && parseStop(highlight.key)?.section === section.id ? highlight.key : null;
-              const props = { section, league, picks, followed, lit, outline, titled: sections.length > 1 || section.kind === "capped" };
+              const props = { section, league, mode, picks, followed, lit, outline, titled: sections.length > 1 || section.kind === "capped" };
               return section.kind === "disclosure" ? <GroupSection key={section.id} {...props} /> : <PlainSection key={section.id} {...props} />;
             })
           )}
@@ -202,6 +194,7 @@ const EMPTY_OPTIONS: readonly TeamOption[] = [];
 interface SectionProps {
   readonly section: PickSection;
   readonly league: League;
+  readonly mode: "scoped" | "global";
   readonly picks: readonly string[];
   readonly followed: readonly string[];
   /** The keyboard highlight's key, when it's in this section. */
@@ -211,7 +204,7 @@ interface SectionProps {
 }
 
 /** "Selected", a short list, search results, or a long list's first dozen and "Show All". */
-const PlainSection = memo(function PlainSection({ section, league, picks, followed, lit, outline, titled }: SectionProps) {
+const PlainSection = memo(function PlainSection({ section, league, mode, picks, followed, lit, outline, titled }: SectionProps) {
   const flag = useGroupFlag(outline, section.id);
   const shown = section.kind === "capped" ? visibleCount(section.options.length, flag.open) : section.options.length;
   const moreKey = stopKey({ kind: "more", section: section.id });
@@ -220,7 +213,7 @@ const PlainSection = memo(function PlainSection({ section, league, picks, follow
       {titled ? <p className={styles.conference}>{section.title}</p> : <div style={{ height: "calc(8 * var(--pt))" }} />}
       <GroupBox>
         {section.options.slice(0, shown).map((o) => (
-          <PickRow key={o.id} option={o} league={league} section={section.id} picked={picks.includes(o.id)} following={followed.includes(o.id)} lit={lit} />
+          <PickRow key={o.id} option={o} league={league} mode={mode} section={section.id} picked={picks.includes(o.id)} following={followed.includes(o.id)} lit={lit} />
         ))}
       </GroupBox>
       {shown < section.options.length ? (
@@ -233,7 +226,7 @@ const PlainSection = memo(function PlainSection({ section, league, picks, follow
 });
 
 /** A conference: its header (folded: a line of crests and how many are picked), and open, its teams. */
-const GroupSection = memo(function GroupSection({ section, league, picks, followed, lit, outline }: SectionProps) {
+const GroupSection = memo(function GroupSection({ section, league, mode, picks, followed, lit, outline }: SectionProps) {
   const flag = useGroupFlag(outline, section.id);
   const headerKey = stopKey({ kind: "header", section: section.id });
   const picked = section.options.filter((o) => picks.includes(o.id)).length;
@@ -264,7 +257,7 @@ const GroupSection = memo(function GroupSection({ section, league, picks, follow
         <div id={id}>
           <GroupBox>
             {section.options.map((o, i) => (
-              <PickRow key={o.id} option={o} league={league} section={section.id} picked={picks.includes(o.id)} following={followed.includes(o.id)} lit={lit} reveal={flag.revealing ? i : null} crestGroup={flag.animating ? section.id : null} />
+              <PickRow key={o.id} option={o} league={league} mode={mode} section={section.id} picked={picks.includes(o.id)} following={followed.includes(o.id)} lit={lit} reveal={flag.revealing ? i : null} crestGroup={flag.animating ? section.id : null} />
             ))}
           </GroupBox>
         </div>
@@ -276,6 +269,7 @@ const GroupSection = memo(function GroupSection({ section, league, picks, follow
 interface PickRowProps {
   readonly option: TeamOption;
   readonly league: League;
+  readonly mode: "scoped" | "global";
   readonly section: string;
   readonly picked: boolean;
   readonly following: boolean;
@@ -287,8 +281,7 @@ interface PickRowProps {
 }
 
 const PickRow = memo(
-  function PickRow({ option, league, section, picked, following, lit, reveal = null, crestGroup = null }: PickRowProps) {
-    const climbing = league.source.kind === "ifsc";
+  function PickRow({ option, league, mode, section, picked, lit, reveal = null, crestGroup = null }: PickRowProps) {
     const key = stopKey({ kind: "row", section, item: option.id });
     const text = outlineReveal(reveal ?? 0, reveal != null);
     return (
@@ -300,7 +293,7 @@ const PickRow = memo(
           aria-checked={picked}
           data-nav-key={key}
           data-keyboard={lit === key}
-          onClick={() => settings.togglePick(league.id, option.id)}
+          onClick={() => mode === "global" ? settings.toggleFollow({ id: option.id, name: option.name, logo: option.logo }) : settings.togglePick(league.id, option.id)}
         >
           <span className={styles.check}>{picked ? <Icon name="check" size={11} /> : null}</span>
           {option.flag ? (
@@ -314,26 +307,14 @@ const PickRow = memo(
             {option.name}
           </span>
         </button>
-        {climbing ? null : (
-          <button
-            type="button"
-            className={styles.remove}
-            style={{ color: following ? "var(--star)" : undefined }}
-            aria-pressed={following}
-            aria-label={following ? `Unfollow ${option.name}` : `Follow ${option.name}`}
-            title={following ? `Unfollow ${option.name}` : `Follow ${option.name}`}
-            onClick={() => settings.toggleFollow({ id: option.id, name: option.name, logo: option.logo })}
-          >
-            <Icon name={following ? "star" : "starOutline"} size={11} />
-          </button>
-        )}
+
       </div>
     );
   },
   // A row redraws when what it shows changes, or the highlight lands on it or leaves it.
   (a, b) => {
     const key = stopKey({ kind: "row", section: a.section, item: a.option.id });
-    return a.option === b.option && a.picked === b.picked && a.following === b.following && a.reveal === b.reveal && a.crestGroup === b.crestGroup && (a.lit === key) === (b.lit === key);
+    return a.mode === b.mode && a.option === b.option && a.picked === b.picked && a.following === b.following && a.reveal === b.reveal && a.crestGroup === b.crestGroup && (a.lit === key) === (b.lit === key);
   },
 );
 
