@@ -1359,6 +1359,9 @@ struct OddsScrub: View {
                         crosshair(moment, data.observedPoint(at: moment))
                     }
                 }
+                // Inspection is drawn above the stable input surface. It
+                // must never become the mouse's new hit-test target.
+                .allowsHitTesting(false)
             }
             .frame(width: layout.bounds.width, height: layout.bounds.height + OddsStyle.axis, alignment: .topLeading)
             .contentShape(Rectangle())
@@ -1395,7 +1398,7 @@ struct OddsScrub: View {
             return .handled
         }
         .accessibilityLabel("Inspect win probability")
-        .accessibilityValue(accessibleReading)
+        .modifier(OddsScrubAccessibility(data: data, lines: lines, pointer: pointer))
         .accessibilityHint("Hover to inspect. Click to hold. Left and right arrows move fifteen seconds. Escape returns to latest.")
         .accessibilityAdjustableAction { direction in
             switch direction {
@@ -1404,19 +1407,6 @@ struct OddsScrub: View {
             @unknown default: break
             }
         }
-    }
-
-    private var accessibleReading: String {
-        let moment = pointer.moment ?? data.domain.upperBound
-        let time = moment.formatted(.dateTime.month().day().hour().minute().second())
-        let state = pointer.pinned ? "Held" : pointer.active ? "Inspecting" : "Latest"
-        guard let sample = data.observedPoint(at: moment) else {
-            return "\(state), \(time). No market sample at or before this time."
-        }
-        let percentages = sample.split.percents(final: data.final)
-        let values = lines.map { "\($0.name), \(percentages[$0.outcome] ?? 0) percent" }.joined(separator: ". ")
-        let sampleTime = sample.t.formatted(.dateTime.hour().minute().second())
-        return "\(state), \(time). \(values). Market sample, \(sampleTime)."
     }
 
     private func crosshair(_ t: Date, _ sample: OddsSplitPoint?) -> some View {
@@ -1433,6 +1423,32 @@ struct OddsScrub: View {
             }
         }
         .allowsHitTesting(false)
+    }
+}
+
+/// Only this leaf observes the current reading. Reading it in OddsScrub.body
+/// rebuilds the hover responder whenever that responder changes the pointer;
+/// macOS can then send ended/active again without the mouse moving.
+private struct OddsScrubAccessibility: ViewModifier {
+    let data: OddsChartData
+    let lines: [OddsLine]
+    let pointer: OddsPointer
+
+    func body(content: Content) -> some View {
+        content.accessibilityValue(reading)
+    }
+
+    private var reading: String {
+        let moment = pointer.moment ?? data.domain.upperBound
+        let time = moment.formatted(.dateTime.month().day().hour().minute().second())
+        let state = pointer.pinned ? "Held" : pointer.active ? "Inspecting" : "Latest"
+        guard let sample = data.observedPoint(at: moment) else {
+            return "\(state), \(time). No market sample at or before this time."
+        }
+        let percentages = sample.split.percents(final: data.final)
+        let values = lines.map { "\($0.name), \(percentages[$0.outcome] ?? 0) percent" }.joined(separator: ". ")
+        let sampleTime = sample.t.formatted(.dateTime.hour().minute().second())
+        return "\(state), \(time). \(values). Market sample, \(sampleTime)."
     }
 }
 

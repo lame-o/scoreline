@@ -389,14 +389,17 @@ enum GridPainter {
         switch scratch.ball {
         case let .clip(j):
             let q = plan.placements[j]
-            let lt = q.clip.local(q.time(scratch.p))
+            let clipTime = q.time(scratch.p)
+            let lt = q.clip.local(clipTime)
+            // Direct script reads use lt; clip.ball applies the warp itself.
+            // Passing lt to it would slow the flight twice and miss its catch.
             if let carrier = q.clip.script.carrier(at: lt), carrier.player < q.cast.count {
                 holder = q.cast[carrier.player]
                 let player = q.clip.script.players[carrier.player]
                 cocked = FootballFrame.cocked(player, at: lt, pace: q.clip.script.pace)
                 tucked = player.role == .quarterback ? Rig.smooth((Double(scratch.actors.first { $0.id == holder }?.motion.speed ?? 0) - 1.5) / 1) : 1
                 ball = .held
-            } else if case let .free(point, flying)? = q.clip.ball(at: lt) {
+            } else if case let .free(point, flying)? = q.clip.ball(at: clipTime) {
                 ball = .free(FieldPoint(GridWorld.local(SIMD2(point.x, point.y), right: clip.right), z: point.z), flying: flying)
             }
         case let .held(id):

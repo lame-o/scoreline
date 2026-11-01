@@ -208,6 +208,11 @@ private struct RecognizedLine {
                     let oddsFrame = probe.frames["odds"] ?? .zero, timelineFrame = probe.frames["timeline"] ?? .zero
                     check(oddsFrame.width == width && timelineFrame.width == width && timelineFrame.minY >= oddsFrame.maxY,
                           "\(name): separate modules keep equal widths without overlapping")
+                    // The earlier 104pt reserved inspector made this module
+                    // 299pt tall with only a short reported play visible. The
+                    // compact line must remove that empty reading area.
+                    check(timelineFrame.height <= 215,
+                          "\(name): timeline stays compact without an oversized reserved inspector")
                     var alignments: [[String: Any]] = []
                     for label in Set(fixture.history.periods.map(\.label)) {
                         let matches = recognized.filter { $0.text == label }
@@ -242,8 +247,9 @@ private struct RecognizedLine {
                             pointer.pin(variant.t); pump(0.1)
                             if let height = probe.frames["timeline"]?.height { heights.append(height) }
                         }
-                        check(!heights.isEmpty && (heights.max() ?? 0) - (heights.min() ?? 0) <= 0.5,
-                              "\(name): timeline inspector reserves its height across sparse, long and corrected events")
+                        check(!heights.isEmpty && (heights.max() ?? 0) - (heights.min() ?? 0) <= 0.5
+                              && (heights.max() ?? .infinity) <= 215,
+                              "\(name): concise inspector keeps controls stable across sparse, long and corrected events")
                         pointer.pin(fixture.selected.t); pump(0.1)
                     }
 
@@ -270,6 +276,9 @@ private struct RecognizedLine {
                     pointer.clear(); pump()
                     let reset = try snapshot("latest").map(\.text).joined(separator: " ").lowercased()
                     check(!pointer.active && !pointer.pinned && !reset.contains("pinned"), "\(name): Latest clears inspection in both modules")
+                    if fixture.name == "nba", scheme == .dark, width == 520 {
+                        NativeHoverChecks.run(panel: panel, pointer: pointer, frames: probe.frames, check: check)
+                    }
 
                     let until = fixture.selected.t
                     let clipped = OddsChartData.make(feed: feed, baseline: fixture.baseline, state: .live, window: .game,
@@ -287,6 +296,7 @@ private struct RecognizedLine {
                 }
             }
         }
+        receipts += try nflRenders(out: out, check: check)
         let receipt: [String: Any] = ["passed": passed, "failed": failed, "checks": checks, "renders": receipts,
                                       "network": "HTTP blocked; pageLive false prevents market tracking",
                                       "timezone": "System-local display; event timestamps are Unix seconds"]
@@ -294,5 +304,103 @@ private struct RecognizedLine {
             .write(to: URL(fileURLWithPath: "\(out)/result.json"))
         print("\n\(passed) passed, \(failed) failed")
         exit(failed == 0 ? 0 : 1)
+    }
+
+    /// The captured NFL summary has ESPN probabilities but no captured market
+    /// for this event. Render its real timeline, not a made-up Polymarket line.
+    /// NBA/soccer above exercise the production two-module surface; these cases
+    /// exercise the football rail and compare its x geometry to the same odds
+    /// layout. A clearly labeled mutation also forces opposing scores together.
+    @MainActor private static func nflRenders(out: String, check: (Bool, String) -> Void) throws -> [[String: Any]] {
+        let summary = JSON(data: try Data(contentsOf: URL(fileURLWithPath: "Tests/Fixtures/odds/espn-nfl-401873029.json")))
+        let history = MatchHistory.parse(summary, sport: .football, topID: "13", bottomID: "20", path: "football/nfl")
+        let baseline = OddsBaseline.parse(summary, sport: .football, topID: "13", bottomID: "20")
+        let start = DateParser.parse("2026-11-01T18:00:00Z")!
+        guard let top = history.keyEvents.first(where: { $0.side == .top }),
+              let bottom = history.keyEvents.first(where: { $0.side == .bottom }) else {
+            throw NSError(domain: "OddsHistoryAcceptance", code: 5, userInfo: [NSLocalizedDescriptionKey: "NFL capture lacks team-attributed scoring plays"])
+        }
+        check(!baseline.espn.isEmpty && history.keyEvents.count >= 2, "NFL: captured ESPN chronology includes both teams and actual probabilities")
+        var collided = history
+        collided.events = history.events.map { event in
+            guard event.id == bottom.id else { return event }
+            return MatchHistory.Event(id: event.id, t: top.t, period: top.period, clock: event.clock, text: event.text,
+                                      side: event.side, kind: event.kind, score: event.score, timing: .adjusted)
+        }.sorted { $0.t < $1.t }
+        var receipts: [[String: Any]] = []
+        for scheme in [ColorScheme.dark, .light] {
+            for width: CGFloat in [350, 520] {
+                for (variant, shown) in [("recorded", history), ("same-time", collided)] {
+                    let name = "nfl-\(scheme)-\(Int(width))-\(variant)"
+                    let domain = shown.domain(state: .final, window: .game, eventStart: start)
+                    let pointer = OddsPointer(), probe = HistoryProbe()
+                    let labelWidth = OddsStyle.labelWidth(["LV", "NYJ"])
+                    let plotSize = CGSize(width: width - 2 * (Metrics.gutter + 8), height: 69)
+                    let railLayout = OddsLayout(size: plotSize, plotHeight: 54, domain: domain, labelWidth: labelWidth)
+                    let oddsLayout = OddsLayout(size: plotSize, plotHeight: 150, domain: domain, labelWidth: labelWidth)
+                    let marks = MatchTimelineRail.marks(events: shown.keyEvents, layout: railLayout)
+                    check(shown.keyEvents.allSatisfy { railLayout.x($0.t) == oddsLayout.x($0.t) },
+                          "\(name): every football score shares the odds horizontal scale")
+                    check(marks.flatMap(\.events).count == shown.keyEvents.count
+                          && (variant != "same-time" || marks.contains(where: { $0.events.contains(where: { $0.id == top.id }) && $0.events.contains(where: { $0.id == bottom.id }) })),
+                          "\(name): counted rail preserves both teams when scores coincide")
+                    let overlap = marks.enumerated().contains { index, mark in
+                        marks.dropFirst(index + 1).contains { other in
+                            abs(mark.point.y - other.point.y) < 12 && abs(mark.point.x - other.point.x) < mark.radius + other.radius
+                        }
+                    }
+                    check(!overlap, "\(name): football markers remain distinct in the compact rail")
+                    let size = CGSize(width: width, height: 280)
+                    let panel = HistoryPanel(contentRect: NSRect(origin: CGPoint(x: -4000, y: 100), size: size),
+                                             styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+                    panel.alphaValue = 0; panel.isReleasedWhenClosed = false
+                    panel.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
+                    let palette = TeamPalette(top: "A5ACAF", bottom: "125740", scheme: scheme)
+                    let surface = DetailSection(title: "Timeline", caption: "Scoring events · Las Vegas at New York") {
+                        MatchTimeline(history: shown, domain: domain, names: ("LV", "NYJ"), palette: palette,
+                                      pointer: pointer, labelWidth: labelWidth, final: true)
+                    }
+                    .background(GeometryReader { geometry in
+                        Color.clear.preference(key: SectionFrames.self, value: ["timeline": geometry.frame(in: .named("nfl-acceptance"))])
+                    })
+                    .onPreferenceChange(SectionFrames.self) { probe.frames = $0 }
+                    .padding(.vertical, 16)
+                    .coordinateSpace(name: "nfl-acceptance")
+                    .environment(\.spokenTeams, SpokenTeams(top: "Las Vegas Raiders", bottom: "New York Jets"))
+                    .environment(\.colorScheme, scheme).environment(\.glassStandIn, true)
+                    .environment(\.locale, Locale(identifier: "en_US"))
+                    .frame(width: width, height: size.height, alignment: .topLeading)
+                    .background(scheme == .dark ? Color(white: 0.12) : .white)
+                    panel.contentView = NSHostingView(rootView: surface)
+                    panel.orderFrontRegardless(); pointer.pin(top.t); pump()
+                    let frame = probe.frames["timeline"] ?? .zero
+                    check(frame.height > 0 && frame.height <= 193, "\(name): one football rail and concise inspector remain compact")
+                    guard let view = panel.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+                        throw NSError(domain: "OddsHistoryAcceptance", code: 6, userInfo: [NSLocalizedDescriptionKey: "NFL surface did not render"])
+                    }
+                    view.cacheDisplay(in: view.bounds, to: bitmap)
+                    guard let image = bitmap.cgImage, let png = bitmap.representation(using: .png, properties: [:]) else {
+                        throw NSError(domain: "OddsHistoryAcceptance", code: 7, userInfo: [NSLocalizedDescriptionKey: "NFL surface has no pixels"])
+                    }
+                    try png.write(to: URL(fileURLWithPath: "\(out)/\(name).png"))
+                    let recognized = words(image, size: size), text = recognized.map(\.text).joined(separator: " ")
+                    check(text.contains("LV") && text.contains("NYJ") && text.lowercased().contains("pinned"),
+                          "\(name): both team identities and the pin control remain readable")
+                    var heights: [CGFloat] = []
+                    for event in [top, bottom, shown.events.max(by: { $0.text.count < $1.text.count })].compactMap({ $0 }) {
+                        pointer.pin(event.t); pump(0.05)
+                        if let height = probe.frames["timeline"]?.height { heights.append(height) }
+                    }
+                    check(!heights.isEmpty && (heights.max() ?? 0) - (heights.min() ?? 0) <= 0.5,
+                          "\(name): long plays and opposing scores do not move the navigation controls")
+                    receipts.append(["case": name, "width": width, "timelineFrame": NSStringFromRect(frame), "ocr": text,
+                                     "source": "ESPN 401873029; timeline-only render, no captured market exists for this fixture",
+                                     "mutation": variant == "same-time" ? "Second team's first score moved to first team's score time for collision coverage" : "None",
+                                     "scoreCount": shown.keyEvents.count, "markerCount": marks.count])
+                    panel.orderOut(nil); panel.contentView = nil; pump(0.05)
+                }
+            }
+        }
+        return receipts
     }
 }

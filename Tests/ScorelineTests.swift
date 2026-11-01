@@ -26,6 +26,12 @@ struct ScorelineTests {
             exit(BroadcastBench.main(Array(CommandLine.arguments[(flag + 1)...])))
         }
         HTTP.stubProtocol = FixtureProtocol.self
+        if CommandLine.arguments.contains("--football-tag-cost") {
+            footballClipClock()
+            footballTagCost()
+            print("\n\(passes) passed, \(failures) failed")
+            exit(failures == 0 ? 0 : 1)
+        }
         if CommandLine.arguments.contains("--odds-history-only") {
             odds()
             oddsContinuity()
@@ -98,6 +104,7 @@ struct ScorelineTests {
         playTheater()
         playBroadcast()
         footballTheater()
+        footballClipClock()
         footballFidelity()
         footballIdle()
         soccerTheater()

@@ -40,6 +40,37 @@ extension ScorelineTests {
               && MatchTimelineGeometry.time(at: CGPoint(x: 9_999, y: 0), events: [], layout: timeline) == end,
               "Timeline inspection cannot escape the shared displayed domain")
 
+        let football = OddsLayout(size: CGSize(width: 306, height: 69), plotHeight: 54, domain: domain, labelWidth: labelWidth)
+        let rail = MatchTimelineRail.marks(events: events, layout: football)
+        check(rail.count == 2 && rail[0].events.count == 2 && rail.flatMap(\.events).count == events.count,
+              "Football combines simultaneous opposing-team scores without losing either event")
+        check(rail[0].point.x == football.x(top.t) && rail[0].point.y == football.plot.midY,
+              "A simultaneous football group sits on one rail at its exact timestamp")
+        check(MatchTimelineRail.time(at: rail[0].point, marks: rail, layout: football) == top.t,
+              "Selecting a counted football marker pins the reported event time")
+        let near = event("near", 2_781, .bottom)
+        let close = MatchTimelineRail.marks(events: [top, near], layout: football)
+        check(close.count == 1 && MatchTimelineRail.time(at: CGPoint(x: football.x(near.t), y: close[0].point.y), marks: close, layout: football) == near.t,
+              "Nearby grouped scores still select individual timestamps rather than the visual group center")
+        let corner = CGPoint(x: 2.7, y: 2.7)
+        check(MatchTimelineRail.symbol(side: .top, at: .zero, radius: 4).contains(corner)
+              && !MatchTimelineRail.symbol(side: .bottom, at: .zero, radius: 4).contains(corner),
+              "Football team markers differ by circle and diamond shape as well as color")
+        let dense = (0..<200).map { event("dense\($0)", Double($0) * 36, $0.isMultiple(of: 2) ? .top : .bottom) }
+        let denseMarks = MatchTimelineRail.marks(events: dense, layout: football)
+        check(Set(denseMarks.flatMap(\.events).map(\.id)) == Set(dense.map(\.id)),
+              "Narrow football rails preserve every event through dense grouping")
+        let overlap = denseMarks.enumerated().contains { index, mark in
+            denseMarks.dropFirst(index + 1).contains { other in
+                abs(mark.point.y - other.point.y) < 12 && abs(mark.point.x - other.point.x) < mark.radius + other.radius
+            }
+        }
+        check(!overlap && denseMarks.allSatisfy { $0.point.y - 7 >= 0 && $0.point.y + 7 <= football.bounds.height },
+              "Dense football markers do not overlap or expand the compact plotting height")
+        check(MatchTimelineRail.target(at: CGPoint(x: rail[0].point.x, y: -50), marks: rail, layout: football) == nil
+              && MatchTimelineRail.marks(events: [], layout: football).isEmpty,
+              "Football hit testing and empty history do not fabricate events")
+
         let history = MatchHistory(sport: .soccer, events: events)
         check(MatchInspectionControls.destination(forward: false, history: history, domain: domain, moment: nil)?.id == later.id
               && MatchInspectionControls.destination(forward: true, history: history, domain: domain, moment: nil)?.id == top.id,

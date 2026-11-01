@@ -11,5 +11,5 @@ SOURCES=(Sources/Scoreline/*.swift)
 SOURCES=(${SOURCES:#*/ScorelineApp.swift})
 swiftc -j 2 -D DEBUG ${=SCORELINE_ACCEPTANCE_FLAGS:--Osize -wmo} -parse-as-library -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 \
   -F "$SPARKLE" -framework Sparkle -Xlinker -rpath -Xlinker "$SPARKLE" \
-  "${SOURCES[@]}" Support/OddsHistoryAcceptance/main.swift -o build/OddsHistoryAcceptance
+  "${SOURCES[@]}" Support/OddsHistoryAcceptance/*.swift -o build/OddsHistoryAcceptance
 exec ./build/OddsHistoryAcceptance
