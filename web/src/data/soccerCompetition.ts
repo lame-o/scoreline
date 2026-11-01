@@ -16,6 +16,7 @@ export interface CompetitionStage {
 export interface SoccerCompetition {
   readonly title: string; readonly year: number; readonly currentStage: string | null;
   readonly stages: readonly CompetitionStage[]; readonly bracket: Bracket | null;
+  readonly confirmedPaths: readonly Bracket[];
 }
 
 export function competitionPath(slug: string, year?: number | null): string {
@@ -42,6 +43,25 @@ export function competitionBracket(stages: readonly CompetitionStage[]): Bracket
   });
   const finalID = last.ties[0]!.id;
   return matches[finalID]!.feeders.length ? { rounds: rounds.map((s) => s.name), matches, finalID, extra: [] } : null;
+}
+
+/** Published paths through the latest draw, even when no final is known. */
+export function confirmedPaths(stages: readonly CompetitionStage[]): Bracket[] {
+  const knockout = stages.filter(s => !s.hasStandings && !s.thirdPlace);
+  const last = knockout.findLastIndex(s => s.ties.length > 0);
+  if (last < 1) return [];
+  const rounds = knockout.slice(last - 1, last + 1);
+  const matches: Record<string, BracketMatch> = Object.fromEntries(rounds[0]!.ties.map(t => [t.id,t.match]));
+  for (const {match} of rounds[1]!.ties) {
+    const feeders = [match.top?.id,match.bottom?.id].flatMap(team => {
+      if (!team) return [];
+      const candidates = rounds[0]!.ties.filter(({match:m}) => (m.winner === "top" ? m.top?.id : m.winner === "bottom" ? m.bottom?.id : null) === team);
+      return candidates.length === 1 ? [candidates[0]!.id] : [];
+    });
+    matches[match.id] = {...match,feeders};
+  }
+  return rounds[1]!.ties.filter(t => matches[t.id]!.feeders.length > 0)
+    .map(t => ({rounds:rounds.map(s => s.name),matches,finalID:t.id,extra:[]}));
 }
 
 /** Swift SoccerCompetitionProvider.parse, over the same recorded responses. */
@@ -78,18 +98,19 @@ export function parseSoccerCompetition(season: JSONValue, boards: readonly JSONV
       const done = hasLegs ? bool(at(c, "series", "completed")) === true : item.status === "final";
       const winningID = done ? str(at(scores.find((x) => bool(at(x, "winner")) === true), "id")) : undefined;
       const score = (teamID: string | undefined) => integer(at(scores.find((x) => str(at(x, "id")) === teamID), hasLegs ? "aggregateScore" : "score"));
+      const played = games.some(g => g.status === "live" || g.status === "final");
       const note = arr(at(c, "notes")).map((n) => str(at(n, "headline")) ?? str(at(n, "text"))).filter(Boolean).join(" · ");
       ties.set(key, { id: key, games, match: { ...previous.match,
         live: games.some((g) => g.status === "live"), note: note || item.statusDetail,
         winner: !winningID ? null : winningID === previous.match.top?.id ? "top" : winningID === previous.match.bottom?.id ? "bottom" : null,
-        topScore: score(previous.match.top?.id), bottomScore: score(previous.match.bottom?.id) } });
+        topScore: played ? score(previous.match.top?.id) : null, bottomScore: played ? score(previous.match.bottom?.id) : null } });
     }
     return [{ id, name, slug: str(at(s, "slug")) ?? id, hasLegs,
       hasStandings: bool(at(s, "hasStandings")) === true || bool(at(s, "hasGroups")) === true,
       final: bool(at(s, "isFinal")) === true, thirdPlace: bool(at(s, "isThirdPlace")) === true, ties: [...ties.values()] }];
   });
   return { title: str(at(season, "displayName")) ?? slug, year, currentStage: key(at(season, "type", "type")) ?? null,
-    stages, bracket: competitionBracket(stages) };
+    stages, bracket: competitionBracket(stages), confirmedPaths: confirmedPaths(stages) };
 }
 
 export async function loadSoccerCompetition(slug: string, requested: number | null, fetcher: Fetcher, signal?: AbortSignal): Promise<SoccerCompetition> {

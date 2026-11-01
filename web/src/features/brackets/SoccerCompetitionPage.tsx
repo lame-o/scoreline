@@ -43,6 +43,9 @@ export function SoccerCompetitionPage() {
           {data.bracket ? <Section title="Bracket" caption="Confirmed matchups. Two-leg ties show aggregate goals; penalties decide drawn ties.">
             <BracketView bracket={data.bracket} ring={new Set()} />
           </Section> : null}
+          {!data.bracket && data.confirmedPaths.length > 0 ? <Section title="Bracket" caption="Confirmed paths through the latest drawn round. Use the round selector for all fixtures; future pairings are not inferred.">
+            {data.confirmedPaths.map(path => <div key={path.finalID} className={styles.path}><BracketView bracket={path} ring={new Set()} terminalLabel={path.rounds.at(-1)} /></div>)}
+          </Section> : null}
           <label className={styles.stagePicker}>Round or stage
             <select value={stage?.id ?? ""} onChange={(e) => setSelected(e.target.value)}>
               {data.stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}

@@ -7,7 +7,7 @@ Soccer matches now open their competition season: all provider-defined rounds, f
 - Mac: open a soccer match's **Competition** section, or **Season · Rounds and Results** in a soccer competition's Overview. Web uses `/competition/:slug/:year?` from the equivalent links.
 - The selected round starts at the provider's current stage. Earlier rounds and pending rounds remain available in the picker. Match rows open the existing game detail page.
 - Two-leg ties retain both fixtures and use ESPN's series aggregate scores and series winner. A winning first leg never establishes advancement. Shootout winners can advance with a drawn regulation score.
-- A connected bracket appears when a final and confirmed earlier winners establish actual connections. Undrawn future rounds stay pending. Group and league stages are match lists, not knockout brackets. Standings retain their existing separate views.
+- A complete connected bracket appears when a final and confirmed earlier winners establish actual connections. Before the final is drawn, separate bracket paths connect the latest drawn knockout round to confirmed winners in the preceding round. Earlier fixtures remain in the round selector; future pairings are never inferred. Unplayed ties display no score. Undrawn future rounds stay pending. Group and league stages are match lists, not knockout brackets. Standings retain their existing separate views.
 - Following a cup uses existing settings persistence; this change does not enable it by default.
 - Refresh failures keep the last loaded data visible with a stale notice. A failed year fetch or capped monthly response fails the load rather than publishing a truncated season.
 
@@ -17,7 +17,7 @@ Soccer matches now open their competition season: all provider-defined rounds, f
 
 The core season endpoint supplies stage metadata, including `type`, `hasLegs`, `hasStandings`, `hasGroups`, `isFinal` and `isThirdPlace`. Fetch the season's calendar years with `scoreboard?dates=YYYY&limit=1000`, then filter each event by `season.year`. A year at the cap is split into months; another cap is an error. Do not use `season=...&seasontype=...` on scoreboard to retrieve a soccer round: investigation found it could return an unrelated current board.
 
-Schedule links retain the ESPN sport/competition path, including uncataloged soccer cups; the game loader accepts a validated soccer path without adding that competition to settings.
+Schedule links retain the ESPN sport/competition path, including uncataloged soccer cups. Team schedules can supply `soccer/all`; new and cached schedule items normalize this to the validated competition slug before opening a match or its season; the game loader accepts a validated soccer path without adding that competition to settings.
 
 The web core API stays on the existing direct-CORS route; site scoreboards use the existing Worker proxy. No new backend, secrets or proxy permissions.
 
@@ -41,4 +41,8 @@ This season/bracket increment is soccer only; the subsequent cross-sport discove
 - Native: DEBUG app typecheck and the test build passed. The full offline run passed 2,751 checks and reported three failures: an outdated assertion that grouped Carabao Cup under Premier League (updated for its new catalog entry), plus two figure-rendering checks. All 12 new competition/replay checks passed in that run.
 - The two figure-rendering failures were reproduced separately against the untouched `9d842ed` source: whole-figure fading (64/255 pixels apart) and referee stripes/slacks. They are outside this change; no theater/rendering implementation was modified.
 - The focused native rerun recompiled the updated source and tests and passed **168 checks, zero failures**, including agenda grouping, page modules, replays and soccer competitions.
-- No native app installation, deployment, push or merge was performed.
+- At this initial checkpoint, no native app installation, deployment, push or merge was performed. See the subsequent installed-app correction below.
+
+### Installed-app correction, 2026-11-01
+
+The initial implementation stopped before installation, so the running app retained its old behavior. Interactive verification after installing the first build confirmed both goals replayed, but exposed a generic `soccer/all` path in team history and the absence of current-round bracket paths. The fixes above cover fresh and cached history and display all four confirmed Carabao quarterfinal paths, including Liverpool–Chelsea feeding Liverpool–Bournemouth. Regression tests cover these exact cases in native and web code. Final installation verification is recorded in the handoff.

@@ -23,3 +23,5 @@
   color: var(--label-secondary);
   margin: calc(6 * var(--pt)) calc(12 * var(--pt));
 }
+
+.path + .path { margin-top: calc(16 * var(--pt)); }

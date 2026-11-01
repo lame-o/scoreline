@@ -517,9 +517,11 @@ struct BracketView: View {
     @Namespace private var rotor
     /// Where every matchup sits: worked out once, never on a hover.
     private let layout: BracketLayout
+    private let terminalLabel: String
 
-    init(bracket: Bracket, highlight: Set<String> = []) {
+    init(bracket: Bracket, highlight: Set<String> = [], terminalLabel: String = "Final") {
         self.bracket = bracket
+        self.terminalLabel = terminalLabel
         self.highlight = highlight
         layout = BracketLayout(bracket)
     }
@@ -734,7 +736,7 @@ struct BracketView: View {
     private var accessibilityText: String {
         let final = bracket.matches[bracket.finalID]
         let teams = [final?.top?.name, final?.bottom?.name].compactMap { $0 }
-        return "Bracket, \(plural(bracket.rounds.count, "round")). Final: " + (teams.isEmpty ? "to be decided" : teams.joined(separator: " versus "))
+        return "Bracket, \(plural(bracket.rounds.count, "round")). \(terminalLabel): " + (teams.isEmpty ? "to be decided" : teams.joined(separator: " versus "))
     }
 }
 

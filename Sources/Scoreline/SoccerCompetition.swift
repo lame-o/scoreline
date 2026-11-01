@@ -26,6 +26,31 @@ struct SoccerCompetition {
 
     var tournamentBrackets: TournamentBrackets { TournamentBrackets(title: title, bracket: bracket) }
 
+    /// A cup need not have a final draw before its confirmed paths are useful.
+    /// Show the latest two published rounds as independent trees; future draws
+    /// never become inferred feeders or a fabricated champion.
+    var confirmedPaths: [Bracket] {
+        let knockout = stages.filter { !$0.hasStandings && !$0.thirdPlace }
+        guard let lastIndex = knockout.lastIndex(where: { !$0.ties.isEmpty }), lastIndex > 0 else { return [] }
+        let rounds = Array(knockout[(lastIndex - 1)...lastIndex])
+        var matches = Dictionary(uniqueKeysWithValues: rounds[0].ties.map { ($0.id, $0.match) })
+        for tie in rounds[1].ties {
+            var match = tie.match
+            match.feeders = [match.top?.id, match.bottom?.id].compactMap { team in
+                guard let team else { return nil }
+                let candidates = rounds[0].ties.filter {
+                    ($0.match.winner == .top ? $0.match.top?.id : $0.match.winner == .bottom ? $0.match.bottom?.id : nil) == team
+                }
+                return candidates.count == 1 ? candidates[0].id : nil
+            }
+            matches[match.id] = match
+        }
+        return rounds[1].ties.compactMap { tie in
+            guard matches[tie.id]?.feeders.isEmpty == false else { return nil }
+            return Bracket(rounds: rounds.map(\.name), matches: matches, finalID: tie.id)
+        }
+    }
+
     /// Only connect rounds whose actual advancing teams are known. Draws for
     /// future rounds are not predictable, even in an otherwise knockout cup.
     var bracket: Bracket? {
@@ -102,8 +127,9 @@ enum SoccerCompetitionProvider {
                 func score(_ id: String?) -> Int? {
                     scores.first { $0["id"].string == id }?[stage.hasLegs ? "aggregateScore" : "score"].int
                 }
-                tie.match.topScore = score(tie.match.top?.id)
-                tie.match.bottomScore = score(tie.match.bottom?.id)
+                let played = tie.games.contains { $0.status == .live || $0.status == .final }
+                tie.match.topScore = played ? score(tie.match.top?.id) : nil
+                tie.match.bottomScore = played ? score(tie.match.bottom?.id) : nil
                 ties[key] = tie
             }
             stages[i].ties = order.compactMap { ties[$0] }
@@ -182,6 +208,15 @@ struct SoccerCompetitionPage: View {
                         if let bracket = data.bracket {
                             DetailSection(title: "Bracket", caption: "Confirmed matchups. Two-leg ties show aggregate goals; penalties decide drawn ties.") {
                                 BracketView(bracket: bracket, highlight: highlight)
+                            }
+                        }
+                        if data.bracket == nil, !data.confirmedPaths.isEmpty {
+                            DetailSection(title: "Bracket", caption: "Confirmed paths through the latest drawn round. Use the round selector for all fixtures; future pairings are not inferred.") {
+                                VStack(spacing: 16) {
+                                    ForEach(data.confirmedPaths, id: \.finalID) { path in
+                                        BracketView(bracket: path, highlight: highlight, terminalLabel: path.rounds.last ?? "Latest round")
+                                    }
+                                }
                             }
                         }
                         Picker("Round or stage", selection: $selected) {

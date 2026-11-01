@@ -36,7 +36,8 @@ for (const size of [{ width: 390, height: 844, colorScheme: "dark" as const }, {
       const match = page.locator('main a[href*="401921842"]');
       await expect(match).toHaveCount(1);
       await expect(match).toContainText("Liverpool");
-      await expect(page.getByRole("region", { name: "Bracket", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: "Bracket", exact: true })).toBeVisible();
+      await expect(page.getByRole("group", {name:/Bracket, 2 rounds. Quarterfinals:/})).toHaveCount(4);
       await page.waitForTimeout(800);
       await page.screenshot({ path: join(out, `soccer-current-${size.width}.png`) });
       await match.click();

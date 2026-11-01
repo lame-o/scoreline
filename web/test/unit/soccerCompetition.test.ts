@@ -26,6 +26,15 @@ describe("soccer competition seasons", () => {
     expect(data.bracket).toBeNull();
   });
 
+  it("shows the confirmed quarterfinal paths before a final draw exists", () => {
+    const data = parse(current);
+    expect(data.confirmedPaths).toHaveLength(4);
+    expect(data.confirmedPaths.every(p => p.matches[p.finalID]?.topScore == null && p.matches[p.finalID]?.bottomScore == null)).toBe(true);
+    expect(data.confirmedPaths.every(p => p.rounds.join("/") === "Fourth Round/Quarterfinals")).toBe(true);
+    const path = data.confirmedPaths.find(p => [p.matches[p.finalID]?.top?.id,p.matches[p.finalID]?.bottom?.id].includes("364"))!;
+    expect(path.matches[path.finalID]?.feeders).toContain("espn-401921842");
+    expect(data.bracket).toBeNull();
+  });
   it("uses the shootout winner despite a drawn score", () => {
     const tie = parse(current).stages.flatMap((s) => s.ties).find((t) => t.games.some((g) => g.id === "espn-401921842"))!;
     expect(tie.match.top?.id).toBe("364");

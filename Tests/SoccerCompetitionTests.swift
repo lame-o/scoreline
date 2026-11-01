@@ -19,6 +19,13 @@ extension ScorelineTests {
         check(liverpool?.match.top?.id == "364" && liverpool?.match.winner == .top
               && liverpool?.match.topScore == 1 && liverpool?.match.bottomScore == 1,
               "Liverpool advances after penalties despite the 1-1 match score")
+        let paths = current.confirmedPaths
+        check(paths.count == 4 && paths.allSatisfy { $0.rounds == ["Fourth Round", "Quarterfinals"] },
+              "the current cup displays four confirmed quarterfinal paths before the final is drawn")
+        check(paths.allSatisfy { $0.matches[$0.finalID]?.topScore == nil && $0.matches[$0.finalID]?.bottomScore == nil }, "undisputed scheduled quarterfinals have no fabricated zero-zero score")
+        let liverpoolPath = paths.first { $0.matches[$0.finalID]?.has(team: "364") == true }
+        check(liverpoolPath.map { $0.matches[$0.finalID]?.feeders.contains(liverpool?.id ?? "") == true } == true,
+              "Liverpool's shootout victory feeds its actual quarterfinal, without an invented semifinal")
         check(current.stages.last?.ties.isEmpty == true && current.bracket == nil,
               "unpublished final has no invented bracket or champion")
         check(current.stages.flatMap(\.ties).flatMap(\.games).allSatisfy { $0.sortDate > DateParser.parse("2026-06-01T00:00:00Z")! },

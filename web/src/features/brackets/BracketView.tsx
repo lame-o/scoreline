@@ -38,7 +38,7 @@ import styles from "./Brackets.module.css";
 
 const px = (n: number) => `calc(${n} * var(--pt))`;
 
-export function BracketView({ bracket, ring }: { bracket: Bracket; ring: ReadonlySet<string> }) {
+export function BracketView({ bracket, ring, terminalLabel }: { bracket: Bracket; ring: ReadonlySet<string>; terminalLabel?: string }) {
   const frame = useRef<HTMLDivElement>(null);
   const width = useWidth(frame);
   const layout = useMemo(() => bracketLayout(bracket), [bracket]);
@@ -98,7 +98,7 @@ export function BracketView({ bracket, ring }: { bracket: Bracket; ring: Readonl
   );
 
   return (
-    <div className={styles.bracket} style={{ maxWidth: px(maxTreeWidth(rounds)) }} role="group" aria-label={spokenBracket(bracket)}>
+    <div className={styles.bracket} style={{ maxWidth: px(maxTreeWidth(rounds)) }} role="group" aria-label={spokenBracket(bracket, terminalLabel)}>
       <div ref={frame} className={styles.frame}>
         {scrolls ? (
           <div ref={scroller} className={styles.scroller}>

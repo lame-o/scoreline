@@ -1,6 +1,6 @@
 # Sports, competitions and following
 
-Implemented in the isolated `feat/soccer-competitions` checkout, on top of the soccer competition increment. This is local integration work, not an installed or deployed release. Claude's broadcast/choreography branches and the original checkout remain separate.
+Implemented in the isolated `feat/soccer-competitions` checkout, on top of the soccer competition increment. The local Mac build has been installed for interactive verification; this is not a published or deployed release. Claude's broadcast/choreography branches and the original checkout remain separate.
 
 ## Product contract
 
@@ -56,4 +56,4 @@ Release gate: review the diff, reconcile Claude's current branch, resolve or exp
 - Native: final DEBUG typecheck passed. Focused recompilation passed 346 checks, zero failures, covering schedules, results, season results, outlines, following policy and soccer competition behavior.
 - The broader native run passed 2,771 checks and reported three failures: an obsolete fallback-back-navigation assertion (corrected and passed in the focused rerun), plus the same two baseline figure-rendering failures documented in SOCCER-COMPETITIONS.md. The two remaining failures are whole-figure fading (64/255) and referee stripes/slacks, previously reproduced against untouched release 1.0.28. No figure/theater code is changed here.
 - Twelve native offscreen content captures cover Sports, Following and Settings at 340/600 points in light/dark appearance. They use a temporary test preferences domain and do not reproduce the window compositor's glass/vibrancy. They do not replace an installed-build interactive smoke test.
-- Optimized Apple silicon app compiled and passed `codesign --verify --deep --strict`. Icon conversion required access to macOS system services outside the sandbox; packaging/signing then completed using the existing build steps. The ad-hoc-signed review archive was exported, never installed or launched.
+- Optimized Apple silicon app compiled and passed `codesign --verify --deep --strict`. Icon conversion required access to macOS system services outside the sandbox; packaging/signing then completed using the existing build steps. The initial ad-hoc-signed review archive was exported without installation. The subsequent installed-app correction and verification are recorded in the handoff.

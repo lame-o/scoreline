@@ -1,3 +1,4 @@
+import { competitionEventPath } from "./competitionCatalog";
 /**
  * Schedules and results: the values every schedule, results, season,
  * standings and bracket page shares. Ported from ScheduleModels.swift and
@@ -161,7 +162,7 @@ export function itemEvent(item: ScheduleItem): ScoreEvent {
   let ref: EventRef;
   switch (item.ref.kind) {
     case "espn":
-      ref = { kind: "espn", path: item.ref.path, id: item.ref.id, sport: item.sport };
+      ref = { kind: "espn", path: competitionEventPath(item.ref.path, item.league, item.sport), id: item.ref.id, sport: item.sport };
       break;
     case "counterStrike":
       ref = { kind: "counterStrike", slug: item.ref.slug, tournament: item.ref.tournament };
