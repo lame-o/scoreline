@@ -57,7 +57,6 @@ extension View {
 /// dark glass measures a mid-gray (#525762 over the user's desktop, #6E6E6F
 /// over mid-gray), so a lightening well put mid-tone team marks at 1.5–2.7:1
 /// and tick labels at 3.2:1; on the plate they reach 3.0–5.4:1 and 5.2:1.
-/// (Glass rim, solid plate: the chart peek's rule, kept in the page.)
 private struct VizWell: ViewModifier {
     let padding: CGFloat
     @Environment(\.colorScheme) private var scheme
@@ -209,17 +208,13 @@ final class LinkedFocus {
     private(set) var pinned: Focus?
     /// What charts show: the hover, else the pin.
     var focus: Focus? { hovered ?? pinned }
-    /// While the pointer rests on the chart peek, the hover it was showing
-    /// stays (leaving the row for the peek would otherwise clear it).
-    @ObservationIgnored private(set) var held = false
     /// A focus waiting to show (the pointer hasn't rested yet), or a clear
     /// waiting out its grace period (focus nil).
     @ObservationIgnored private var pending: (focus: Focus?, task: Task<Void, Never>)?
 
     /// The pointer left the page: nothing is hovered, whatever was pending.
-    /// A pin stays, and so does a held hover.
+    /// A pin stays.
     func clear() {
-        guard !held else { return }
         pending?.task.cancel()
         pending = nil
         guard hovered != nil else { return }
@@ -241,22 +236,6 @@ final class LinkedFocus {
 
     func togglePin(_ focus: Focus) {
         if pinned == focus { unpin() } else { pin(focus) }
-    }
-
-    /// The pointer entered (true) or left (false) the chart peek. Leaving
-    /// starts the usual grace before the hover clears; landing on a row in
-    /// the meantime simply takes over.
-    func hold(_ on: Bool) {
-        held = on
-        guard !on, hovered != nil else { return }
-        pending?.task.cancel()
-        let task = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(80))
-            guard !Task.isCancelled, let self, !self.held else { return }
-            withAnimation(Motion.fade) { self.hovered = nil }
-            self.pending = nil
-        }
-        pending = (nil, task)
     }
 
     /// Links appear once the pointer settles (80ms), so sweeping across the
@@ -296,11 +275,11 @@ final class LinkedFocus {
                 pending = nil
                 return
             }
-            guard hovered == next, !held else { return }
+            guard hovered == next else { return }
             // A short grace, so crossing the gap to a neighbor doesn't flash everything back.
             let task = Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(80))
-                guard !Task.isCancelled, let self, !self.held else { return }
+                guard !Task.isCancelled, let self else { return }
                 withAnimation(Motion.fade) { self.hovered = nil }
                 self.pending = nil
             }
@@ -434,19 +413,6 @@ private struct FocusWash: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 6, style: .continuous)
             .fill(Color.primary.opacity(pointer || lights(linked?.focus) ? strength : 0))
-    }
-}
-
-private struct ChartPeekKey: EnvironmentKey {
-    static let defaultValue = false
-}
-
-extension EnvironmentValues {
-    /// True inside the linked-chart peek: charts drop what doesn't belong in a
-    /// small live copy (footers, legends, scrubbers, summary lines).
-    var chartPeek: Bool {
-        get { self[ChartPeekKey.self] }
-        set { self[ChartPeekKey.self] = newValue }
     }
 }
 

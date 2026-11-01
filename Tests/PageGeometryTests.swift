@@ -3,7 +3,7 @@ import SwiftUI
 
 // Page geometry and pinned focus: when a section counts as out of view (and
 // which way), how far the hero has docked, writes only on change, and the
-// pin/hold rules the chart peek relies on.
+// hover and pin rules linked charts follow.
 
 extension ScorelineTests {
     static func pageGeometry() async {
@@ -67,17 +67,11 @@ extension ScorelineTests {
 
         linked.hover(b, true)
         try? await Task.sleep(for: .milliseconds(140))
-        linked.hold(true)
-        linked.hover(b, false)
         linked.clear()
-        try? await Task.sleep(for: .milliseconds(140))
-        check(linked.focus == b, "held (pointer on the peek): leaving the row and the page doesn't clear it")
-        linked.hold(false)
-        try? await Task.sleep(for: .milliseconds(140))
-        check(linked.focus == nil, "released: the hover clears after its grace")
+        check(linked.focus == nil, "leaving the page clears the hover")
         linked.hover(a, true)
         try? await Task.sleep(for: .milliseconds(140))
-        linked.hold(true); linked.hold(false)
+        linked.hover(a, false)
         linked.hover(b, true)
         try? await Task.sleep(for: .milliseconds(140))
         check(linked.focus == b, "landing on another row during the grace takes over")

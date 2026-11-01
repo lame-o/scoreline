@@ -6,8 +6,8 @@
  * saying what the block shows and where it comes from, then the content.
  *
  * - `id` (game pages): the section's name in the page plan; it sets
- *   `data-section`, which the page's geometry reads (the docked bar, the
- *   chart peek), and names the title `section-<id>`.
+ *   `data-section`, which the page's geometry reads (the docked bar), and
+ *   names the title `section-<id>`.
  * - `spokenCaption`: the caption in words, when the visible one leans on
  *   glyphs or short names ("MIL attacks →").
  * - `layout`: "stack" (the game page: 8pt between blocks) or "flow" (the

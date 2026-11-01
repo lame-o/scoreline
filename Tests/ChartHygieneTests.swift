@@ -2,16 +2,14 @@ import Foundation
 import SwiftUI
 
 // Chart hygiene: marks keep their room by clipping (no blend-mode knockouts,
-// which punch through the glass panel); charts in the linked peek drop their
-// footers but lay out exactly as they do on the page; the lead ascent takes
-// part in linked hover; one map-point rule.
+// which punch through the glass panel); the lead ascent takes part in linked
+// hover; one map-point rule.
 
 extension ScorelineTests {
     static func chartHygiene() {
         print("\nChart hygiene")
         clearances()
         noBlendModes()
-        peekMode()
         ascentLinks()
         var agree = true
         for top in 0...30 { for bottom in 0...30 where RoundHistoryView.mapPoint(top: top, bottom: bottom) != MatchRules.mapPoint(top: top, bottom: bottom) { agree = false } }
@@ -56,24 +54,25 @@ extension ScorelineTests {
         check(files.count > 20 && offenders.isEmpty, "no blend modes or knockouts in any chart", offenders.joined(separator: ", "))
     }
 
-    // MARK: Peek
+    // MARK: Rendering
 
-    private struct Bitmap: Equatable {
+    private struct Bitmap {
         let bytes: [UInt8]
         let width: Int
         let height: Int
         let bytesPerRow: Int
 
-        /// Rows `from..<to` (in pixels), for comparing part of a chart.
-        func rows(_ from: Int, _ to: Int) -> ArraySlice<UInt8> {
-            bytes[(from * bytesPerRow)..<(min(to, height) * bytesPerRow)]
+        /// The same picture: two renders of one view can differ by a rounding
+        /// step (±1 in a few hundred bytes); a real change moves thousands, by far more.
+        static func same(_ a: Bitmap?, _ b: Bitmap?) -> Bool {
+            guard let a, let b, a.width == b.width, a.height == b.height, a.bytes.count == b.bytes.count else { return false }
+            return zip(a.bytes, b.bytes).allSatisfy { abs(Int($0) - Int($1)) <= 2 }
         }
     }
 
-    private static func render<V: View>(_ view: V, width: CGFloat, linked: LinkedFocus? = nil, peek: Bool) -> Bitmap? {
+    private static func render<V: View>(_ view: V, width: CGFloat, linked: LinkedFocus? = nil) -> Bitmap? {
         let content = view
             .environment(linked ?? LinkedFocus())
-            .environment(\.chartPeek, peek)
             .frame(width: width)
             .fixedSize(horizontal: false, vertical: true)
             .background(Color(white: 0.16))
@@ -82,75 +81,6 @@ extension ScorelineTests {
         renderer.scale = 2
         guard let image = renderer.cgImage, let data = image.dataProvider?.data as Data? else { return nil }
         return Bitmap(bytes: [UInt8](data), width: image.width, height: image.height, bytesPerRow: image.bytesPerRow)
-    }
-
-    /// In a peek the chart drops what's under it, and what's left is the
-    /// page's chart, pixel for pixel, at the same width (never scaled).
-    private static func peekKeepsPlot<V: View>(_ name: String, _ view: V, width: CGFloat = 300) {
-        guard let full = render(view, width: width, peek: false), let peek = render(view, width: width, peek: true) else {
-            return check(false, "\(name) renders")
-        }
-        // (The peek's last pixel row can be part-covered: a fractional height.)
-        check(peek.height < full.height && peek.width == full.width && peek.rows(0, peek.height - 1) == full.rows(0, peek.height - 1),
-              "\(name) in a peek: no footer, the plot itself unchanged at \(Int(width)) pt",
-              "peek \(peek.width)×\(peek.height), page \(full.width)×\(full.height)")
-    }
-
-    private static func peekMode() {
-        let palette = TeamPalette(top: "c8102e", bottom: "132257", scheme: .dark)
-        let shots: [PitchAction] = (0..<8).map { (i: Int) -> PitchAction in
-            let goal = i == 3
-            let x = 70 + Double(i * 3), y = 30 + Double(i * 5)
-            let end: Double? = goal ? 100 : nil, endY: Double? = goal ? 50 : nil
-            return PitchAction(id: i, kind: goal ? .goal : .shot, side: i % 2 == 0 ? .top : .bottom, x: x, y: y,
-                               endX: end, endY: endY, minute: "\(i * 10)'", text: "Shot \(i)", playID: "p\(i)")
-        }
-        peekKeepsPlot("the shot map", PitchView(trail: [], shots: shots, live: false, palette: palette, topName: "LIV", bottomName: "TOT"))
-        let outcomes: [GameDetail.BattedBall.Outcome] = [.single, .out, .homeRun, .extraBases]
-        let balls: [GameDetail.BattedBall] = (0..<10).map { (i: Int) -> GameDetail.BattedBall in
-            let x = 60 + Double(i * 12), y = 60 + Double(i * 9)
-            return GameDetail.BattedBall(id: "b\(i)", x: x, y: y, outcome: outcomes[i % 4], side: i % 2 == 0 ? .top : .bottom,
-                                         text: "Ball \(i)", period: i / 3 + 1)
-        }
-        peekKeepsPlot("balls in play", SprayChartView(balls: balls, palette: palette, topName: "NYY", bottomName: "LAD"))
-        typealias C = GameDetail.WallRoute.Climber
-        func climber(_ id: Int, _ h: Double, onWall: Bool = false) -> C {
-            var c = C(id: id, name: "Climber \(id)", country: "USA", flag: nil, height: h, top: false, label: "\(Int(h))", rank: id)
-            c.onWall = onWall
-            return c
-        }
-        let routeA = GameDetail.WallRoute(name: "A", climbers: [climber(1, 40), climber(2, 35), climber(3, 31)], total: 8)
-        let routeB = GameDetail.WallRoute(name: "B", climbers: [climber(4, 44), climber(5, 22)], total: 8)
-        peekKeepsPlot("high points", ClimbingWallView(routes: [routeA], live: false, yours: []))
-        let cards = (1...3).map { i in
-            GameDetail.BoulderCard(id: i, rank: i, name: "Athlete \(i)", country: "JPN", flag: nil,
-                                   problems: [.init(reach: .top, tries: 1), .init(reach: .zone, tries: 2)], score: "\(90 - i * 10)")
-        }
-        peekKeepsPlot("the boulder scorecard", BoulderScorecard(cards: cards, problems: ["1", "2"]))
-        let ascent = GameDetail.WallRoute(name: "1", climbers: [climber(1, 40), climber(2, 35), climber(3, 30, onWall: true)], total: 8)
-        peekKeepsPlot("the lead ascent", LeadAscentView(route: ascent))
-
-        // No route picker in a peek: it shows the route where the linked climber has a lane.
-        let toB = LinkedFocus()
-        toB.pin(Focus(athlete: 5))
-        let both = render(ClimbingWallView(routes: [routeA, routeB], live: false, yours: []), width: 300, linked: toB, peek: true)
-        let onlyB = render(ClimbingWallView(routes: [routeB], live: false, yours: []), width: 300, linked: toB, peek: true)
-        check(both != nil && both == onlyB, "a peek of the wall shows the linked climber's route")
-
-        // The timeline in a peek keeps its minute labels while a mark is pointed at.
-        let moments = [GameDetail.Moment(id: "g1", kind: .goal, clock: "12'", text: "Mo Salah Goal", side: .top, minute: 12),
-                       GameDetail.Moment(id: "y1", kind: .yellow, clock: "40'", text: "Yellow Card", side: .bottom, minute: 40)]
-        let timeline = SoccerTimeline(moments: moments, currentMinute: nil, palette: palette, topName: "LIV", bottomName: "TOT")
-        let pointed = LinkedFocus()
-        pointed.pin(Focus(play: "g1"))
-        let labels = (92, 120)     // the label row, y 46…60 at 2×
-        if let quiet = render(timeline, width: 300, peek: true), let lit = render(timeline, width: 300, linked: pointed, peek: true),
-           let page = render(timeline, width: 300, linked: pointed, peek: false) {
-            check(lit.rows(labels.0, labels.1) == quiet.rows(labels.0, labels.1) && page.rows(labels.0, labels.1) != quiet.rows(labels.0, labels.1),
-                  "the timeline in a peek keeps its minute labels (on the page, the pointed-at goal takes their row)")
-        } else {
-            check(false, "the timeline renders")
-        }
     }
 
     // MARK: Lead ascent
@@ -166,11 +96,11 @@ extension ScorelineTests {
         func shot(_ athlete: Int?) -> Bitmap? {
             let linked = LinkedFocus()
             if let athlete { linked.pin(Focus(athlete: athlete)) }
-            return render(LeadAscentView(route: route), width: 340, linked: linked, peek: false)
+            return render(LeadAscentView(route: route), width: 340, linked: linked)
         }
         let none = shot(nil), finished = shot(12), climbing = shot(13), elsewhere = shot(99)
-        check(none != nil && finished != none && climbing != none && finished != climbing,
+        check(none != nil && !Bitmap.same(finished, none) && !Bitmap.same(climbing, none) && !Bitmap.same(finished, climbing),
               "the lead ascent lights a linked climber (finished or on the wall); the others step back")
-        check(elsewhere == none, "a climber not on this route changes nothing")
+        check(Bitmap.same(elsewhere, none), "a climber not on this route changes nothing")
     }
 }

@@ -63,10 +63,6 @@ extension TeamPalette {
 /// picked in the box score or leaders narrows it to their shots. A shot, a
 /// quarter's cell, a player's row or a moment in the game flow lights the
 /// shots it means; the newest shot flies in live.
-///
-/// In the linked peek (`\.chartPeek`) it's the court alone at the width it's
-/// given: no scrubber, footer or shooting line; a picked player is named as
-/// text (no ×), and a replay says where it is.
 struct CourtView: View {
     let shots: [GameDetail.Shot]
     let palette: TeamPalette
@@ -94,8 +90,6 @@ struct CourtView: View {
     @Environment(LinkedFocus.self) private var linked: LinkedFocus?
     @Environment(MomentCenter.self) private var moments: MomentCenter?
     @Environment(NBAStage.self) private var pageStage: NBAStage?
-    /// Inside the linked peek: the court alone (see the type's note).
-    @Environment(\.chartPeek) private var peek
     /// The live lane, for players on fire and the run's name (optional: the court works without it).
     @Environment(BasketballFeed.self) private var feed: BasketballFeed?
     @Environment(\.widthClass) private var widthClass
@@ -213,18 +207,14 @@ struct CourtView: View {
                     .vizWell()
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(accessibilityText(scene, time: time, pinned: pinned))
-                if peek {
-                    peekLine(scene, time: time, pinned: pinned)
-                } else {
-                    if replayable {
-                        ReplayScrubber(length: gameLength, end: replayEnd, live: live, time: time, playing: playback != nil,
-                                       score: score(scene.score), onSeek: { stage.seek($0, end: replayEnd) },
-                                       onPlayPause: { playPause(time: time) }, hover: $scrubHover)
-                            .padding(.top, 8)
-                    }
-                    ChartFooter(readout: readout(scene), moment: time == nil && pinned == nil ? moment : nil) {
-                        footer(scene, time: time, pinned: pinned)
-                    }
+                if replayable {
+                    ReplayScrubber(length: gameLength, end: replayEnd, live: live, time: time, playing: playback != nil,
+                                   score: score(scene.score), onSeek: { stage.seek($0, end: replayEnd) },
+                                   onPlayPause: { playPause(time: time) }, hover: $scrubHover)
+                        .padding(.top, 8)
+                }
+                ChartFooter(readout: readout(scene), moment: time == nil && pinned == nil ? moment : nil) {
+                    footer(scene, time: time, pinned: pinned)
                 }
             }
         }
@@ -594,26 +584,6 @@ struct CourtView: View {
         }
     }
 
-    /// The peek's one line under the court: the picked player, as text; else
-    /// in a replay, where it is ("Replay  Q3 6:00 · LAL 78–71"), so a court
-    /// with fewer shots than the page's never looks wrong. Live, nothing.
-    @ViewBuilder
-    private func peekLine(_ scene: CourtScene, time: Double?, pinned: String?) -> some View {
-        if let pinned {
-            PinnedPlayerLine(name: playerName(pinned), line: pinnedLine(pinned, time: time),
-                             shortLine: pinnedShortLine(pinned, time: time),
-                             when: time.map { NBADetail.clockLabel(at: $0) }, streak: streak(pinned, time: time), onClear: nil)
-        } else if let time {
-            (Text("Replay").fontWeight(.semibold).foregroundStyle(.primary)
-                + Text("  \(NBADetail.clockLabel(at: time)) · \(score(scene.score))").foregroundStyle(.secondary))
-                .font(.system(size: 10.5).monospacedDigit())
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .padding(.top, 6)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
     /// A picked player's straight makes, live (not in a replay).
     private func streak(_ player: String, time: Double?) -> Int {
         live && time == nil && feed?.playing == true ? feed?.streaks[player] ?? 0 : 0
@@ -816,8 +786,7 @@ private struct CourtMarkings: View {
 /// The score margin through the game as a step line: above the middle while
 /// the top team leads, below while the bottom team does, each side filled
 /// faintly in its team's color. Quarters are marked; pointing reads out the
-/// score at that moment and lights the basket on the court. In the linked
-/// peek it's the plot alone (no footer).
+/// score at that moment and lights the basket on the court.
 struct GameFlowView: View {
     let flow: [GameDetail.FlowPoint]
     let palette: TeamPalette
@@ -834,7 +803,6 @@ struct GameFlowView: View {
     @Environment(BasketballFeed.self) private var feed: BasketballFeed?
     @Environment(\.widthClass) private var widthClass
     @Environment(\.celebrationLevel) private var level
-    @Environment(\.chartPeek) private var peek
     @Environment(\.spokenTeams) private var teams
     @State private var hovered: Focus?
 
@@ -1043,7 +1011,7 @@ struct GameFlowView: View {
             .vizWell(padding: 8)
 
             // The footer reads the focus itself: a hover re-runs the footer, not the chart.
-            if !peek { FocusReader { focus in footer(focus) } }
+            FocusReader { focus in footer(focus) }
         }
     }
 
@@ -1307,7 +1275,7 @@ struct LeadersView: View {
             .linkedRow(Focus(player: leader.player), litBy: { [player = leader.player] in player != nil && $0?.player == player })
             .help(stage == nil || leader.player == nil ? "" : picked ? "Show every player on the court" : "Show only \(leader.name)'s shots on the court")
             .accessibilityAddTraits(picked ? [.isButton, .isSelected] : .isButton)
-            // VoiceOver: "Show on Shot Chart", pinned and scrolled to (the peek's equivalent).
+            // VoiceOver: "Show on Shot Chart" pins them and scrolls to the court.
             .showOnChartAction(Focus(player: leader.player))
             // A double click anywhere, or "Go to …", opens their page too.
             .playerPageLink(id: leader.player, name: leader.name, photo: leader.headshot)
@@ -1602,7 +1570,7 @@ struct BoxScoreView: View {
         .accessibilityLabel("\(p.name)\(onCourt ? ", on court" : "")\(onFire ? ", \(hot) straight makes" : ""): \(p.minutes) minutes, "
                             + Self.spoken(p.stats, columns: columns.filter { $0.label != "MIN" }))
         .accessibilityAddTraits(picked ? [.isButton, .isSelected] : .isButton)
-        // VoiceOver: "Show on Shot Chart", pinned and scrolled to (the peek's equivalent).
+        // VoiceOver: "Show on Shot Chart" pins them and scrolls to the court.
         .showOnChartAction(Focus(player: p.id))
         .accessibilityHint(stage == nil ? "" : picked ? "Shows every player on the court" : "Shows only this player's shots on the court")
         // A double click anywhere, or "Go to …", opens their page too.

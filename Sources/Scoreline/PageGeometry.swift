@@ -1,9 +1,8 @@
 import SwiftUI
 
 /// Where a page's sections are relative to what's on screen, and how far its
-/// hero has slid under the header. The linked-chart peek asks "is that chart
-/// out of view, and which way?"; the docked scorebar asks "how far has the
-/// hero gone?".
+/// hero has slid under the header. The theater asks "is my section on
+/// screen?"; the docked scorebar asks "how far has the hero gone?".
 ///
 /// Scrolling never writes state per frame. Sections report their frames in
 /// content coordinates (which don't change as the page scrolls), and
@@ -122,8 +121,8 @@ final class PageGeometry {
 
     /// How much of a section's content is on screen: its `visibility`, except
     /// that a folded section's content is hidden even with its header in view
-    /// (the theater stops drawing, a moment's owner isn't seen, the peek shows
-    /// the chart). The docked bar's news line reads plain `visibility`: a
+    /// (the theater stops drawing, a moment's owner isn't seen). The docked
+    /// bar's news line reads plain `visibility`: a
     /// folded header in view carries the moment in its glance.
     func contentVisibility(_ id: String) -> Visibility? {
         Self.contentVisibility(visibility[id], folded: folded.contains(id))

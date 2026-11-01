@@ -114,7 +114,6 @@ export function useBasketballPage(game: GameContext): SportPage {
   const followBottom = useIsFollowing(event.content.kind === "match" ? event.content.bottom.id : null);
   const sectionWidth = game.split ? 320 : 380;
 
-  // The charts, shared by their sections and the chart peek.
   const courtChart = (
     <Court
       shots={shots}
@@ -240,25 +239,6 @@ export function useBasketballPage(game: GameContext): SportPage {
     heroChip: clutch ? "CLUTCH" : null,
     // One chip at a time, by priority: CLUTCH, then a run (DockRules.chip).
     chip: clutch ? "CLUTCH" : run ? runLabel(run) : null,
-    // The chart peek (LinkedPeek): a key play, a quarter or a player lights their shots on the court, else the game flow.
-    peek: nba
-      ? {
-          inputs: {
-            shots: shots.map((x) => ({ id: x.id, period: x.period, side: x.side, player: x.player, lead: `${x.made ? "Made" : "Missed"} ${x.value}`, detail: x.text })),
-            flow: flow.map((p) => ({
-              id: p.id,
-              period: p.period,
-              side: p.scorer,
-              lead: p.top === p.bottom ? `Tied ${p.top}–${p.bottom}` : p.top > p.bottom ? `${names.top} ${p.top}–${p.bottom}` : `${names.bottom} ${p.bottom}–${p.top}`,
-              detail: p.clock,
-            })),
-            names: { ...extraNames, ...Object.fromEntries([...players].map(([id, box]) => [id, box.name])) },
-          },
-          chart: (section) => (section === "court" ? <StageProvider value={stage}>{courtChart}</StageProvider> : section === "flow" ? <StageProvider value={stage}>{flowChart}</StageProvider> : null),
-          aspect: { court: 94 / 50 },
-          picked: { get: () => stage.get().pinned, subscribe: stage.subscribe, pick: (player) => stage.togglePin(player), unpin: () => stage.unpin() },
-        }
-      : null,
   };
 }
 
