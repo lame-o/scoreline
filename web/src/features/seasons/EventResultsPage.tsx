@@ -1,3 +1,4 @@
+import { EditionFollowButton } from "../settings/EditionFollowButton";
 /**
  * Results deeper than a row (EventResultsPage.swift): a climbing category's
  * full ranking, or a CS2 tournament's placings and matches. Opened from the
@@ -115,6 +116,7 @@ function ClimbingCategoryPage() {
     <div ref={root} className={styles.page}>
       {header}
       <div className={styles.content} key={dcat}>
+        <EditionFollowButton edition={{source:"ifsc", key:String(eventID), name:eventName}} />
         {results ? (
           <>
             <p {...stackIn(entrance, 0, styles.summary)}>
@@ -402,6 +404,7 @@ function TournamentResultsDetailPage() {
         className={styles.header}
       />
       <div className={styles.content}>
+        <EditionFollowButton edition={{source:"cs2", key:slug, name}} />
         {t ? (
           split ? (
             // Split: who placed where on the left, how they got there on the right.

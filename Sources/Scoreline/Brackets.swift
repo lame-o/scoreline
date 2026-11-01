@@ -952,6 +952,10 @@ struct BracketPage: View {
 
             PageScrollView(keyboardScrolls: true) {
                 StackColumn {
+                    if case let .csTournament(slug, name) = source {
+                        EditionFollowButton(edition: EditionFollow(source: "cs2", key: slug, name: data?.title ?? name)).padding(.horizontal, 16).padding(.top, 8)
+                    }
+
                     if let data {
                         if let swiss = data.swiss {
                             DetailSection(title: "Swiss Stage",

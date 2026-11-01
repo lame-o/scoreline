@@ -432,8 +432,8 @@ extension ScorelineTests {
               && Page.detail(match).backTitle == "Match" && Page.scores.backTitle == "Scores",
               "Back buttons name the page they return to")
         check(Page.standings(League.with(id: "eng.1")!, returnTo: match).parent == .detail(match)
-              && Page.addSports.parent == .manage && Page.scores.parent == nil,
-              "with nothing to return to, Back keeps the old one-level rule")
+              && Page.addSports.parent == .scores && Page.scores.parent == nil,
+              "with no navigation history, Sports returns to Scores and existing detail pages keep their fallback")
 
         // Brackets: a canceled match wasn't played.
         func bracketMatch(_ status: String) -> BracketMatch? {

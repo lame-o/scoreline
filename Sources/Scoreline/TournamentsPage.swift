@@ -440,6 +440,7 @@ private struct TournamentDetail: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if case let .tournament(slug) = event.kind { EditionFollowButton(edition: EditionFollow(source: "cs2", key: slug, name: event.name)) }
             if showsHeader {
                 HStack(spacing: 10) {
                     TournamentLogo(url: event.logo, size: 28)

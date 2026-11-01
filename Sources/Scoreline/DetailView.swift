@@ -20,6 +20,7 @@ struct DetailView: View {
     let onBack: () -> Void
     var onOpenStandings: (League) -> Void = { _ in }
     /// Opens a bracket, with the team IDs of this match to ring.
+    var onOpenCompetition: (League) -> Void = { _ in }
     var onOpenBracket: (BracketSource, Set<String>) -> Void = { _, _ in }
     /// Opens a league's polls (college football's Top 25).
     var onOpenRankings: (League) -> Void = { _ in }
@@ -114,7 +115,8 @@ struct DetailView: View {
     init(snapshot: Event, onBack: @escaping () -> Void, onOpenStandings: @escaping (League) -> Void = { _ in },
          onOpenBracket: @escaping (BracketSource, Set<String>) -> Void = { _, _ in },
          onOpenRankings: @escaping (League) -> Void = { _ in }, backTitle: String = "Scores",
-         preloaded: GameDetail? = nil, standings: [StandingsRow] = []) {
+         preloaded: GameDetail? = nil, standings: [StandingsRow] = [], onOpenCompetition: @escaping (League) -> Void = { _ in }) {
+        self.onOpenCompetition = onOpenCompetition
         self.snapshot = snapshot
         _live = State(initialValue: snapshot)
         _replays = State(initialValue: PageReplays(snapshot))
@@ -226,6 +228,7 @@ struct DetailView: View {
             // Arrows, Page Up/Down, Space, Home and End scroll the page.
             PageScrollView(keyboardScrolls: true) {
                 VStack(alignment: .leading, spacing: 0) {
+                    competitionContext
                     hero.stackIn()
                     // One column, or two from 680pt. The same children either
                     // way, so crossing the breakpoint never rebuilds a section.
@@ -274,6 +277,26 @@ struct DetailView: View {
     }
 
     // MARK: Header
+
+    @ViewBuilder
+    private var competitionContext: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            if case let .espn(path, _, sport) = event.ref {
+                let id = path.split(separator: "/").last.map(String.init) ?? ""
+                if let league = League.with(id: id) {
+                    Button(league.name) { onOpenCompetition(league) }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
+                } else if sport == .soccer {
+                    Button(event.caption ?? "Competition") { onOpenBracket(.soccerCompetition(slug: id, name: event.caption ?? "Competition", year: nil), []) }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
+                }
+            } else if case let .counterStrike(_, slug?) = event.ref {
+                Button(event.caption ?? "Tournament") { onOpenBracket(.csTournament(slug: slug, name: event.caption ?? "Tournament"), []) }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
+            } else if case let .climbing(_, _, _, _, name, _) = event.ref {
+                Button(name) { ScheduleStore.shared.openRequest = .climbing }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
+            }
+            let names = store.followed.filter { team in event.competitors.contains { $0.id == team.id } }.map(\.name)
+            if !names.isEmpty { Text("Following \(names.joined(separator: ", ")) · All competitions").foregroundStyle(.secondary) }
+        }.font(.system(size: 10.5)).padding(.horizontal, 16).padding(.vertical, 6)
+    }
 
     private var header: some View {
         // No title: the hero below is the page's heading.

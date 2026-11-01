@@ -18,6 +18,8 @@ export function backTitleFor(pathname: string, search = ""): string | null {
   switch (first) {
     case undefined:
       return "Scores";
+    case "following": return "Following";
+    case "sports": return second === "competition" && third ? (leagueWithID(safeDecode(third))?.shortName ?? "Competition") : "Sports";
     case "settings":
       return second === "league" && third ? (leagueWithID(safeDecode(third))?.shortName ?? "Settings") : "Settings";
     case "game":

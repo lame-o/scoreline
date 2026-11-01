@@ -173,12 +173,15 @@ URLs whose query changes on every call defeat the cache. The CS2 provider rounds
 
 ## State: settings and live scores
 
-Settings live in `src/state/settings.ts`: one typed, versioned store in `localStorage` (`scoreline.settings.v1`), synced across tabs. Read a slice with `useSettings((s) => s.followed)`, which re-renders only when that slice changes. Selectors must return stored values or primitives, never new objects. Change settings only through `settings.*` actions. The Mac's rules live there: picking a team turns its league's filter on, a hidden league keeps its picks, and a new league joins the end of the order.
+Settings live in `src/state/settings.ts`: one typed, versioned store in `localStorage` (`scoreline.settings.v1`), synced across tabs. Read a slice with `useSettings((s) => s.followed)`, which re-renders only when that slice changes. Selectors must return stored values or primitives, never new objects. Change settings only through `settings.*` actions. The Mac's rules live there: a competition-scoped pick turns that competition's filter on; a global team follow applies across competitions without enabling them; an unfollowed competition keeps its scoped picks; a newly followed competition joins the end of the order. See `../docs/FOLLOWING.md` for migration and coverage.
 
 | Key | Default | Mac key |
 | --- | --- | --- |
 | `enabledLeagues` | eng.1, uefa.champions, nfl, mlb, cs2, ifsc | `enabledLeagues` |
 | `followed` | [] | `followedTeams` |
+| `schemaVersion` | 2 | `followingSchemaVersion` |
+| `editions` | [] | `followedEditions`: stable CS2 tournament slug or IFSC event ID |
+| `mutedTeams` | [] | `mutedFollowedTeams`: new team follows start silent; existing alert choices survive |
 | `teamFilters` / `filteredLeagues` | {} / [] | same |
 | `collegeTop25Only` | true | same |
 | `climbingDisciplines` | boulder, lead, speed | same |
@@ -203,11 +206,11 @@ To add a setting:
 3. Add an action if it has a rule.
 4. Add a row to the table above.
 
-A change of shape bumps `VERSION` and needs a migration in `sanitize`. The Mac-only settings (live count, open at login, updates) have no web equivalent; the menu bar's live score is the tab's (`scoreInTitle`).
+A change of shape bumps the payload's `schemaVersion` and needs a migration in `sanitize`. Keep `scoreline.settings.v1` stable: the before-paint theme reader uses it. Version 2 preserves the effective all-games scope of legacy empty selections; intentional empty selections after migration show no games. The Mac-only settings (live count, open at login, updates) have no web equivalent; the menu bar's live score is the tab's (`scoreInTitle`).
 
 Per-tab state that isn't a setting: the pinned game (`state/pin.ts`, `pin.toggle(id)`, `useIsPinned(id)`), kept in `sessionStorage` (`scoreline.pinned`) as the Mac keeps its pin until quit.
 
-Live scores live in `src/state/scores.ts`, where `useScoreboard()` makes one TanStack Query per enabled league:
+Live scores live in `src/state/scores.ts`, where `useScoreboard()` makes one TanStack Query per required board (followed competitions, edition sources, followed teams' home boards, and their next fixture's actual catalog competition):
 
 - Cadence, from ScoreStore: every 30s while anything you'd see is live, 60s before a start, otherwise 5 minutes.
 - A failing league retries at 5s, 15s and 30s, then keeps its last good games, marked failed.
@@ -343,7 +346,7 @@ The owner can run `/review-animations` on the motion code for an independent rev
 - **Phones** (under 760px): one column, at most 440pt, like the Mac panel. The window scrolls; headers are sticky, with a soft scroll edge once content is underneath.
 - **From 760px:** a split view. The scores are a glass sidebar (340–420pt, the Mac's compact and medium widths) beside a detail pane, each scrolling on its own. The sidebar stays mounted across pages, so it keeps its scroll, highlight and polling, as the Mac keeps Scores built under every page. With nothing selected, the pane says "No Game Selected" (Mail's pattern).
 - **Width classes:** blocks add detail as they widen, from the Mac's thresholds of 380pt of content (medium), 460 (large) and 560 (xlarge). `useWidth(ref)` gives a block's width in points from one ResizeObserver. Rows show records from medium. Tiles go to 3 small columns from large, and 4 small plus 2 large from 680.
-- **Routes** (`src/app/App.tsx`): `/`, `/game/:id`, `/settings`, `/settings/league/:id`, `/team/:id`, `/player/:id`, and the schedule world, built by the helpers in `data/schedule.ts`:
+- **Routes** (`src/app/App.tsx`): `/`, `/game/:id`, `/sports`, `/following`, `/sports/competition/:id` (Overview, Teams, Following via `?tab=`), `/settings`, `/settings/league/:id` (legacy alias), `/team/:id`, `/player/:id`, and the schedule world, built by the helpers in `data/schedule.ts`:
   - `/schedule` (everything), `/schedule/your-teams`, `/schedule/<league>`, `/schedule/team/<id>?name=&logo=`, `/schedule/climbing`, `/schedule/tournaments`; each faces back in time with `?mode=results` (`schedulePath`).
   - `/results/climbing/<event>/<dcat>?category=&event=` and `/results/tournament/<slug>?name=` (`eventResultsPath`).
   - `/standings/<league>`, `/rankings/<league>`, `/bracket/mlb/<year>`, `/bracket/cs2/<slug>?name=`, each with `?ring=<team ids>` for the match it was opened from (`standingsPath`, `rankingsPath`, `bracketPath`).

@@ -125,17 +125,20 @@ export function ScoresPage({ variant }: { readonly variant: "page" | "sidebar" }
         </div>
       </header>
 
+      <nav className={styles.discovery} aria-label="Scoreline"><button type="button" onClick={() => navigate("/sports")}><Icon name="sportscourt" size={12} />Sports</button><button type="button" onClick={() => navigate("/following")}><Icon name="starOutline" size={12} />Following</button></nav>
       <div className={[styles.content, arrival > 0 ? "stack-in" : null].filter(Boolean).join(" ")} key={view}>
-        {scores.settings.enabledLeagues.length === 0 ? (
+        {scores.settings.enabledLeagues.length === 0 && scores.settings.followed.length === 0 && scores.settings.editions.length === 0 ? (
           <EmptyState
             icon="sportscourt"
             title="No Sports Yet"
             message="Choose the leagues you follow and their scores will live here."
-            actions={<Button onClick={() => navigate("/settings")}>Add Sports</Button>}
+            actions={<Button onClick={() => navigate("/sports")}>Browse Sports</Button>}
           />
         ) : empty ? (
           scores.status === "offline" ? (
             <ErrorState subject="Scores" retriesAutomatically onRetry={() => void scores.refresh()} />
+          ) : scores.status === "ready" ? (
+            <EmptyState icon="calendar" title="No Matches Right Now" message="Your selections are saved. Browse the schedule for upcoming matches and results." actions={<Button onClick={() => navigate("/schedule")}>Schedule</Button>} />
           ) : view === "tiles" ? (
             <SkeletonTiles />
           ) : (

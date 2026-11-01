@@ -24,7 +24,7 @@ struct TeamOption: Identifiable, Hashable {
 /// "espn-football-26" would otherwise be both the Seahawks and UCLA.
 enum ESPNTeamID {
     static func make(path: String, sport: Sport, team: String) -> String {
-        path.hasSuffix("college-football") ? "espn-ncaaf-\(team)" : "espn-\(sport.rawValue)-\(team)"
+        path.hasSuffix("wnba") ? "espn-wnba-\(team)" : path.hasSuffix("college-football") ? "espn-ncaaf-\(team)" : "espn-\(sport.rawValue)-\(team)"
     }
 }
 

@@ -71,7 +71,7 @@ export function NotificationsSection() {
   return (
     <FormSection title="Notifications" icon="bell" caption={caption}>
       <GroupBox>
-        <ToggleRow title="Alerts for my teams" subtitle="When a game starts, on every score, and at the end" checked={on} disabled={permission === "denied" || permission === "unsupported"} onChange={(v) => void toggle(v)} />
+        <ToggleRow title="Alerts for my teams" subtitle="For teams with alerts enabled: starts, scores and finals" checked={on} disabled={permission === "denied" || permission === "unsupported"} onChange={(v) => void toggle(v)} />
         <div className={formStyles.row} data-testid="notification-permission">
           <span className={formStyles.rowTitle} style={{ flex: 1 }}>
             Browser permission

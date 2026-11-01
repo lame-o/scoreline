@@ -66,6 +66,7 @@ export function teamSource(ref: Pick<TeamRef, "id" | "league">): TeamSource | nu
   if (id.startsWith("espn-football-")) return { kind: "espn", sport: "football", path: "football/nfl", team };
   if (id.startsWith("espn-baseball-")) return { kind: "espn", sport: "baseball", path: "baseball/mlb", team };
   // The WNBA stays untouched: its teams get no pages.
+  if (id.startsWith("espn-wnba-")) return null;
   if (id.startsWith("espn-basketball-")) return ref.league === "wnba" ? null : { kind: "espn", sport: "basketball", path: "basketball/nba", team };
   if (id.startsWith("espn-soccer-")) return { kind: "espn", sport: "soccer", path: domesticSoccerPath(ref.league), team };
   return null;

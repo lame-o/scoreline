@@ -403,3 +403,16 @@
   color: var(--accent-text);
   background: var(--fill-surface);
 }
+
+.browseControls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: calc(10 * var(--pt)); padding: calc(14 * var(--pt)) calc(12 * var(--pt)) calc(4 * var(--pt)); }
+.sportSelect { display: flex; align-items: center; gap: calc(8 * var(--pt)); color: var(--label-secondary); font-size: var(--text-callout); }
+.sportSelect select { color: var(--label); background: var(--fill-surface); border: 0.5px solid var(--separator); border-radius: var(--radius-row); padding: calc(5 * var(--pt)); font: inherit; }
+.browseLink { display: flex; align-items: center; flex: 1; min-width: 0; gap: calc(8 * var(--pt)); padding: calc(3 * var(--pt)) 0; border-radius: var(--radius-row); }
+.browseName { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: calc(2 * var(--pt)); }
+.browseDetail { font-size: var(--text-caption); color: var(--label-secondary); }
+.followButton { display: grid; place-items: center; width: calc(30 * var(--pt)); min-height: calc(30 * var(--pt)); flex: none; border-radius: var(--radius-row); color: var(--label-secondary); }
+.followButton[aria-pressed="true"] { color: var(--accent-text); }
+@media (hover: hover) and (pointer: fine) { .followButton:hover, .browseLink:hover { background: var(--fill-hover); } }
+
+.competitionContext { display: flex; flex-wrap: wrap; gap: calc(4 * var(--pt)) calc(10 * var(--pt)); padding: calc(6 * var(--pt)) calc(16 * var(--pt)); font-size: var(--text-caption); color: var(--label-secondary); }
+.competitionContext a { color: var(--accent-text); }

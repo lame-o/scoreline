@@ -1,3 +1,6 @@
+import { Link } from "react-router";
+import { leagueWithID } from "../../data/leagues";
+import { settings, useSettings } from "../../state/settings";
 import { useState } from "react";
 import { useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -26,6 +29,7 @@ export function SoccerCompetitionPage() {
     ...retrying({ every: 60_000 }),
   });
   const data = query.data, load = loadState(query);
+  const followed = useSettings(s => s.enabledLeagues.includes(slug ?? ""));
   const title = data?.title ?? "Competition";
   useDocumentTitle(title);
   if (!valid) return <NotFound />;
@@ -35,6 +39,7 @@ export function SoccerCompetitionPage() {
       footer={load.stale ? <StaleNote updated={load.updated} subject="competition" /> : null}>
       {() => data ? (
         <>
+          {leagueWithID(slug!) ? <p className={styles.note}><Button aria-pressed={followed} onClick={() => settings.setEnabled(slug!, !followed)}>{followed ? "Following competition" : "Follow competition"}</Button>{" · "}<Link to={`/sports/competition/${slug}`}>Competition overview</Link></p> : null}
           {data.bracket ? <Section title="Bracket" caption="Confirmed matchups. Two-leg ties show aggregate goals; penalties decide drawn ties.">
             <BracketView bracket={data.bracket} ring={new Set()} />
           </Section> : null}

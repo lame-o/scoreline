@@ -1,3 +1,4 @@
+import { alertsFor } from "../data/following";
 /**
  * What runs beside every page, as the Mac's ScoreStore and menu bar item
  * run beside its panel (loaded after the first paint; renders nothing):
@@ -47,7 +48,7 @@ export default function LiveServices() {
 
   useEffect(() => {
     const prefs = scores.settings;
-    const all = prefs.enabledLeagues.flatMap((id) => scores.results[id]?.events ?? []);
+    const all = Object.values(scores.results).flatMap(r => r.events);
     events.current = all;
     const before = previous.current;
     previous.current = new Map(all.map((e) => [e.id, e]));
@@ -60,7 +61,7 @@ export default function LiveServices() {
       if (was.state === "live" && (mine(e) || e.id === pin.get())) recentFinals.current.set(e.id, at);
     }
     if (!alerting) return;
-    for (const alert of pollAlerts(before, all, mine, at)) {
+    for (const alert of pollAlerts(before, all, e => alertsFor(e, prefs), at)) {
       void postAlert(alert, { path: gameHref(alert.tag, scores.leagueOf(alert.tag)), open: (path) => navigate(path) });
     }
     // Only a change of data brings news; `alerting` is read as it is then.

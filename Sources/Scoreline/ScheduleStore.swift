@@ -894,9 +894,7 @@ final class ScheduleStore {
         if league.source == .ifsc { return items }
         if !showAll, store.isFilterOn(league) {
             let picks = store.picks(for: league)
-            if !picks.isEmpty {
-                return items.filter { item in item.isField || item.teams.contains { $0.id.map(picks.contains) ?? false } }
-            }
+            return items.filter { item in item.isField || item.teams.contains { $0.id.map(picks.contains) ?? false } }
         }
         if !showAll, league.id == "college-football", store.collegeTop25Only {
             return items.filter { item in item.teams.contains { $0.rank != nil || $0.id.map(isFollowed(store)) ?? false } }

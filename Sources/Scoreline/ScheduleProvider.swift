@@ -297,6 +297,7 @@ extension ScheduleProvider {
                 ("espn-ncaaf-", "football/college-football", "college-football", .football),
                 ("espn-football-", "football/nfl", "nfl", .football),
                 ("espn-baseball-", "baseball/mlb", "mlb", .baseball),
+                ("espn-wnba-", "basketball/wnba", "wnba", .basketball),
                 ("espn-basketball-", "basketball/nba", "nba", .basketball),
                 ("espn-soccer-", "soccer/all", "soccer", .soccer),
             ]

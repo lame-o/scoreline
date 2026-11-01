@@ -144,6 +144,7 @@ enum SoccerCompetitionProvider {
 }
 
 struct SoccerCompetitionPage: View {
+    @Environment(ScoreStore.self) private var store
     @Environment(PanelCommands.self) private var commands: PanelCommands?
     let slug: String
     let year: Int?
@@ -168,6 +169,11 @@ struct SoccerCompetitionPage: View {
                 .pageChrome()
             PageScrollView {
                 StackColumn {
+                    if let league = League.with(id: slug) {
+                        Button { store.setEnabled(league, !store.isEnabled(league)) } label: {
+                            Label(store.isEnabled(league) ? "Following competition" : "Follow competition", systemImage: store.isEnabled(league) ? "star.fill" : "star")
+                        }.controlSize(.small).padding(.horizontal, 16).padding(.top, 8)
+                    }
                     if let data {
                         if failed {
                             Text("Can’t refresh. Showing the last loaded competition.")

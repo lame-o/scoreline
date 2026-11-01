@@ -63,7 +63,7 @@ final class ResultsStore {
             var picks: [String: Set<String>] = [:]
             for league in leagues where store.isFilterOn(league) {
                 let set = store.picks(for: league)
-                if !set.isEmpty { picks[league.id] = set }
+                picks[league.id] = set
             }
             return Context(leagues: leagues, picks: picks, collegeTop25Only: store.collegeTop25Only,
                            followed: store.followed.map { ScheduleTeamRef(id: $0.id, name: $0.name, logo: $0.logo) }, store: store)
@@ -82,7 +82,7 @@ final class ResultsStore {
         /// then college's Top 25 (and your teams).
         func filter(_ items: [ScheduleItem], league: League?, showAll: Bool) -> [ScheduleItem] {
             guard let league, league.source != .ifsc, !showAll else { return items }
-            if let picks = picks[league.id], !picks.isEmpty {
+            if let picks = picks[league.id] {
                 return items.filter { item in item.isField || item.teams.contains { $0.id.map(picks.contains) ?? false } }
             }
             if league.id == "college-football", collegeTop25Only {

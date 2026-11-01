@@ -22,6 +22,10 @@ struct ScorelineTests {
 
     static func main() async {
         HTTP.stubProtocol = FixtureProtocol.self
+        if let path = ProcessInfo.processInfo.environment["SCORELINE_RENDER_FOLLOWING"] {
+            await renderFollowing(to: path)
+            exit(0)
+        }
         print("Scoreline tests\(FixtureProtocol.recording ? " (recording fixtures)" : "")")
 
         await counterStrike()
@@ -83,6 +87,7 @@ struct ScorelineTests {
         modules()
         await replays()
         soccerCompetitions()
+        followingPolicy()
 
         print("\n\(passes) passed, \(failures) failed")
         exit(failures == 0 ? 0 : 1)

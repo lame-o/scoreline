@@ -1,10 +1,6 @@
-/**
- * Settings (ManageView.swift, AddSportsView.swift): followed teams, your
- * sports in your order (drag the handle, or focus it and use ↑/↓), every
- * league to add or remove, appearance, the list's options, the tab's live
- * score, Live Games (celebrations, sounds), notifications, the keyboard and
- * credits (ShellSettings.tsx). One centered column, like System Settings.
- */
+import { requestNotificationPermission } from "../../state/notifications";
+/** Application settings. Following owns subscriptions; Sports owns discovery.
+ * Existing form components, appearance tokens and ordering controls are shared. */
 import { Reorder, useDragControls } from "motion/react";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router";
@@ -16,13 +12,12 @@ import {
   SegmentedControl,
   SPORT_ICON,
   TeamLogo,
-  Toggle,
   ToggleRow,
   formStyles,
 } from "../../design/components";
 import { spring } from "../../design/motion";
-import { CATALOG, leagueWithID } from "../../data/leagues";
-import { SPORTS, SPORT_NAME, type League } from "../../data/models";
+import { leagueWithID } from "../../data/leagues";
+import { type League } from "../../data/models";
 import { PageBack } from "../../app/PageBack";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { settings, useSettings, type CelebrationLevel, type Settings, type Theme } from "../../state/settings";
@@ -40,10 +35,11 @@ export function SettingsPage() {
     <div className={styles.page}>
       <PageHeader title="Settings" leading={<PageBack />} />
       <div className={`${styles.column} ${styles.entrance}`}>
-        <MyTeams />
-
-        <FormSection title="Your Sports" icon="grip" caption={s.enabledLeagues.length > 1 ? "Drag to reorder, or focus a handle and use ↑ and ↓. Choose a league for its teams and options." : undefined}>
-          <YourSports />
+        <FormSection title="Your Scoreline" icon="star">
+          <GroupBox>
+            <Link className={styles.catalogRow} to="/following"><Icon name="star" size={13} /><span className={styles.leagueName}>Following</span><Icon name="chevronRight" size={9} /></Link>
+            <Link className={styles.catalogRow} to="/sports"><Icon name="sportscourt" size={13} /><span className={styles.leagueName}>Browse Sports</span><Icon name="chevronRight" size={9} /></Link>
+          </GroupBox>
         </FormSection>
 
         <FormSection title="Appearance" icon="sun">
@@ -108,10 +104,6 @@ export function SettingsPage() {
 
         <NotificationsSection />
 
-        <FormSection title="All Sports" icon="plusCircle">
-          <AllSports enabled={s.enabledLeagues} />
-        </FormSection>
-
         <KeyboardSection />
         <Credits />
       </div>
@@ -119,17 +111,19 @@ export function SettingsPage() {
   );
 }
 
-function MyTeams() {
+export function MyTeams() {
   const followed = useSettings((s) => s.followed);
+  const muted = useSettings(s => s.mutedTeams);
+  const notify = useSettings(s => s.notifyFollowed);
   return (
-    <FormSection title="My Teams" icon="star">
+    <FormSection title="Teams · All competitions" icon="star">
       {followed.length === 0 ? (
         <p className={styles.hint}>
           <Icon name="starOutline" size={11} />
-          <span>Right-click a game (or touch and hold it), or use the ★ on a league's team list, to follow a team. It shows first, sends alerts and puts its live score in the tab.</span>
+          <span>Follow teams from Sports or a team page. Their matches appear across competitions. Alerts are controlled separately.</span>
         </p>
       ) : (
-        <LinkOrigin name="Settings">
+        <LinkOrigin name="Following">
           <GroupBox label="Followed teams">
             {followed.map((team) => (
               <div key={team.id} className={styles.teamRow}>
@@ -141,6 +135,7 @@ function MyTeams() {
                     {isSupportedTeam({ id: team.id, league: null }) ? <Icon name="chevronRight" size={9} className={styles.teamChevron} /> : null}
                   </span>
                 </TeamLink>
+                <button type="button" className={styles.followButton} aria-label={`${muted.includes(team.id) ? "Enable" : "Mute"} alerts for ${team.name}`} aria-pressed={!muted.includes(team.id)} title={notify ? (muted.includes(team.id) ? "Alerts off" : "Alerts on") : "All team alerts are paused below"} onClick={() => { const on = muted.includes(team.id); settings.setTeamAlerts(team.id, on); if (on && notify) void requestNotificationPermission(); }}><Icon name="bell" size={13} /></button>
                 <button type="button" className={styles.remove} aria-label={`Unfollow ${team.name}`} title={`Unfollow ${team.name}`} onClick={() => settings.unfollow(team.id)}>
                   <Icon name="minusCircle" size={13} />
                 </button>
@@ -154,7 +149,7 @@ function MyTeams() {
 }
 
 /** The enabled leagues in the user's order: drag the handle (a spring reorder), or ↑/↓ on a focused handle (instant). */
-function YourSports() {
+export function YourSports() {
   const enabled = useSettings((s) => s.enabledLeagues);
   const [order, setOrder] = useState(enabled);
   const [dragging, setDragging] = useState(false);
@@ -168,7 +163,7 @@ function YourSports() {
     return (
       <p className={styles.hint}>
         <Icon name="plusCircle" size={11} />
-        <span>Add a sport below and its scores appear on the list.</span>
+        <span>Browse Sports to follow a competition.</span>
       </p>
     );
   }
@@ -182,7 +177,7 @@ function YourSports() {
   };
 
   return (
-    <GroupBox label="Your sports, in order">
+    <GroupBox label="Followed competitions, in order">
       <Reorder.Group axis="y" values={[...order]} onReorder={setOrder} className={styles.order} as="ul">
         {order.map((id) => {
           const league = leagueWithID(id);
@@ -245,7 +240,7 @@ function LeagueOrderRow({ league, onDragStart, onDragEnd, onKeyMove }: { league:
       >
         <Icon name="grip" size={10} />
       </button>
-      <Link to={`/settings/league/${league.id}`} className={styles.leagueLink} aria-label={`${league.name}, ${summary}`}>
+      <Link to={`/sports/competition/${league.id}?tab=following`} className={styles.leagueLink} aria-label={`${league.name}, ${summary}`}>
         <span className={styles.leagueIcon}>
           <Icon name={SPORT_ICON[league.sport]} size={11} />
         </span>
@@ -262,41 +257,7 @@ export function filterSummary(s: Settings, league: League): string {
   const count = (s.teamFilters[league.id] ?? []).length;
   const on = s.filteredLeagues.includes(league.id);
   if (league.source.kind === "ifsc") return !on || count === 0 ? "No countries" : count === 1 ? "1 country" : `${count} countries`;
-  if (!on || count === 0) return "All games";
+  if (!on) return "All games";
+  if (count === 0) return "No teams selected";
   return count === 1 ? "1 team" : `${count} teams`;
-}
-
-/** Every league, by sport: switch one on and it joins the end of your order. */
-function AllSports({ enabled }: { enabled: readonly string[] }) {
-  return (
-    <>
-      {SPORTS.map((sport) => {
-        const leagues = CATALOG.filter((l) => l.sport === sport);
-        return (
-          <div key={sport} style={{ marginBottom: "calc(10 * var(--pt))" }}>
-            <GroupBox label={SPORT_NAME[sport]}>
-              {leagues.map((league) => (
-                <CatalogRow key={league.id} league={league} on={enabled.includes(league.id)} />
-              ))}
-            </GroupBox>
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
-function CatalogRow({ league, on }: { league: League; on: boolean }) {
-  const id = `catalog-${league.id}`;
-  return (
-    <div className={styles.catalogRow}>
-      <span className={styles.leagueIcon}>
-        <Icon name={SPORT_ICON[league.sport]} size={11} />
-      </span>
-      <span id={id} className={styles.leagueName}>
-        {league.name}
-      </span>
-      <Toggle checked={on} onChange={(v) => settings.setEnabled(league.id, v)} labelledBy={id} />
-    </div>
-  );
 }

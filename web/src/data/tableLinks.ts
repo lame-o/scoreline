@@ -3,6 +3,7 @@
  * section menu is on the first paint; `standings.ts` and its parsers aren't).
  * Re-exported from `standings.ts`.
  */
+import { hasTable } from "./competitionCatalog";
 import { espnPath } from "./leagues";
 import type { League } from "./models";
 import { rankingsPath, standingsPath } from "./schedule";
@@ -14,7 +15,7 @@ export type TableKind = "soccer" | "college" | "nba" | "none";
 
 export function tableKind(league: League): TableKind {
   const path = espnPath(league);
-  if (!path) return "none";
+  if (!path || !hasTable(league)) return "none";
   if (path.endsWith("college-football")) return "college";
   if (path === NBA_PATH) return "nba";
   return league.sport === "soccer" ? "soccer" : "none";

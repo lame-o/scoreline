@@ -4,7 +4,7 @@ Soccer matches now open their competition season: all provider-defined rounds, f
 
 ## Behavior
 
-- Mac: open a soccer match's **Competition** section, or **Competition · Rounds and Results** in a soccer league's settings. Web uses `/competition/:slug/:year?` from the equivalent links.
+- Mac: open a soccer match's **Competition** section, or **Season · Rounds and Results** in a soccer competition's Overview. Web uses `/competition/:slug/:year?` from the equivalent links.
 - The selected round starts at the provider's current stage. Earlier rounds and pending rounds remain available in the picker. Match rows open the existing game detail page.
 - Two-leg ties retain both fixtures and use ESPN's series aggregate scores and series winner. A winning first leg never establishes advancement. Shootout winners can advance with a drawn regulation score.
 - A connected bracket appears when a final and confirmed earlier winners establish actual connections. Undrawn future rounds stay pending. Group and league stages are match lists, not knockout brackets. Standings retain their existing separate views.
@@ -33,7 +33,7 @@ Fixtures in both test trees cover the current Carabao season, a completed season
 
 Run the native suite with `./test.sh`; run web `tsc -b`, `pnpm test`, `pnpm build`, and the focused Playwright `competitions.spec.ts`. Browser tests can use any running local server via `SCORELINE_URL`.
 
-This increment is soccer only. NBA/WNBA, NFL and college playoff adapters remain subsequent work. Claude's broadcast/choreography synchronization branches were not merged. Changes are local until explicitly integrated and released; the installed app and public web deployment do not acquire this feature from a passing test.
+This season/bracket increment is soccer only; the subsequent cross-sport discovery and following implementation is documented in [FOLLOWING.md](FOLLOWING.md). NBA/WNBA, NFL and college playoff adapters remain subsequent work. Claude's broadcast/choreography synchronization branches were not merged. Changes are local until explicitly integrated and released; the installed app and public web deployment do not acquire this feature from a passing test.
 
 ### Local validation on 2026-11-01
 

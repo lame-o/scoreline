@@ -151,7 +151,7 @@ export function filterItems(items: readonly ScheduleItem[], league: League, pref
   if (league.source.kind === "ifsc") return [...items];
   if (!showAll && prefs.filteredLeagues.includes(league.id)) {
     const picks = new Set(prefs.teamFilters[league.id] ?? []);
-    if (picks.size > 0) return items.filter((item) => isField(item) || itemTeams(item).some((t) => t.id != null && picks.has(t.id)));
+    return items.filter((item) => isField(item) || itemTeams(item).some((t) => t.id != null && picks.has(t.id)));
   }
   if (!showAll && league.id === "college-football" && prefs.collegeTop25Only) {
     const followed = new Set(prefs.followed.map((t) => t.id));
@@ -162,7 +162,7 @@ export function filterItems(items: readonly ScheduleItem[], league: League, pref
 
 /** Whether a league page can lift its filter (Show All Games). */
 export function filterable(league: League, prefs: ListPreferences): boolean {
-  return (prefs.filteredLeagues.includes(league.id) && (prefs.teamFilters[league.id] ?? []).length > 0) || league.id === "college-football";
+  return prefs.filteredLeagues.includes(league.id) || league.id === "college-football";
 }
 
 // MARK: - CS2 and climbing in a day agenda

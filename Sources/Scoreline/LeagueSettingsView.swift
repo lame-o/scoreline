@@ -1,20 +1,8 @@
 import SwiftUI
 
-/// A sport's page: what's coming up first (its games, competitions or
-/// tournaments, and the way into its full schedule), then its settings: show
-/// every game, or only the teams picked here. For climbing the picks are
-/// countries, whose athletes get called out.
-///
-/// Long lists read as an outline, never one 136-row column: college football
-/// by conference, each collapsed to its header and a line of crests (open
-/// where a team is yours); a long list with no groups (CS2's ranking,
-/// climbing's countries) shows its first dozen and "Show All N".
-///
-/// Interaction: click anywhere on a row to pick it; the star alone follows.
-/// The search field is focused on open, so typing filters immediately (flat,
-/// across every group); ↑/↓ move through the rows on screen and the group
-/// headers, → and ← open and close a highlighted group, Return toggles,
-/// Esc clears the search, then goes back.
+/// A competition hub: browsing, global team follows, and competition-scoped
+/// selections have separate tabs. The existing outline keeps long directories
+/// compact and keyboard navigable. Each row has exactly one selection meaning.
 struct LeagueSettingsView: View {
     @Environment(ScoreStore.self) private var store
     /// How this page was entered: decides whether loaded teams stack or fade in.
@@ -28,7 +16,12 @@ struct LeagueSettingsView: View {
     /// A climbing category's or a CS2 tournament's results page.
     var onOpenEvent: (EventResultsRef) -> Void = { _ in }
     var onOpenBracket: (BracketSource, Set<String>) -> Void = { _, _ in }
+    var onOpenStandings: (League) -> Void = { _ in }
+    var onOpenRankings: (League) -> Void = { _ in }
+    var startsWithTeams = false
+    var startsWithFollowing = false
     let onBack: () -> Void
+    @State private var tab = "overview"
 
     @State private var options: [TeamOption] = []
     /// Picks as they were when the page opened. They're grouped at the top, but
@@ -70,23 +63,40 @@ struct LeagueSettingsView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         // Upcoming spans the page (rows go two-up when split);
                         // settings stay a readable column below.
-                        if league.sport == .soccer {
-                            Button("Competition · Rounds and Results") {
-                                onOpenBracket(.soccerCompetition(slug: league.id, name: league.name, year: nil), [])
-                            }
-                            .padding(16)
-                        }
-                        LeagueUpcomingSection(league: league, onOpen: onOpen, onOpenSchedule: onOpenSchedule)
-                        LeagueResultsSection(league: league, onOpen: onOpen,
-                                             onOpenResults: { onOpenResults(.for(league: league)) }, onOpenEvent: onOpenEvent)
                         StackColumn {
-                            settingsTitle
-                            modePicker
-                            if league.source == .counterStrike { counterStrikeOptions }
-                            if league.id == "college-football" { collegeOptions }
-                            if isClimbing { climbingOptions }
-                            if showsPicks { pickList }
-                            removeButton
+                            GroupBox {
+                                ToggleRow(title: "Follow \(league.name)", subtitle: "Team follows across competitions remain independent.", isOn: Binding(get: { store.isEnabled(league) }, set: { store.setEnabled(league, $0) }))
+                            }.padding(.top, 12)
+                            Picker("Competition page", selection: $tab) {
+                                Text("Overview").tag("overview")
+                                Text(isClimbing ? "Countries" : "Teams").tag("teams")
+                                Text("Following").tag("following")
+                            }.pickerStyle(.segmented).labelsHidden().padding(.horizontal, 12).padding(.vertical, 8)
+                            if tab == "overview" {
+                                GroupLabel(title: "Explore", symbol: "trophy").padding(.horizontal, 16)
+                                GroupBox {
+                                    if league.sport == .soccer {
+                                        exploreLink("Season · Rounds and Results") { onOpenBracket(.soccerCompetition(slug: league.id, name: league.name, year: nil), []) }
+                                    }
+                                    if CompetitionCatalog.hasTable(league) { exploreLink("Standings") { onOpenStandings(league) } }
+                                    if league.id == "college-football" { exploreLink("Top 25") { onOpenRankings(league) } }
+                                    if league.id == "mlb" { exploreLink("Postseason bracket") { onOpenBracket(.espnPostseason(path: "baseball/mlb", year: Calendar.current.component(.year, from: .now)), []) } }
+                                    exploreLink(league.id == "cs2" ? "Tournaments" : league.id == "ifsc" ? "Season competitions" : "Full Schedule") { onOpenSchedule(.for(league: league)) }
+                                }
+                            }
+                            if tab == "teams" {
+                                Text(isClimbing ? "Countries highlight athletes. They do not hide other competitors." : "Follow teams across all competitions. This does not change which competitions you follow.")
+                                    .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true).padding(.horizontal, 16)
+                                pickList
+                            }
+                            if tab == "following" {
+                                settingsTitle
+                                modePicker
+                                if league.source == .counterStrike { counterStrikeOptions }
+                                if league.id == "college-football" { collegeOptions }
+                                if isClimbing { climbingOptions }
+                                if showsPicks && !isClimbing { pickList }
+                            }
                         }
                         .coordinateSpace(name: Self.contentSpace)
                         // One centred column (search and the lazy team list included);
@@ -94,6 +104,10 @@ struct LeagueSettingsView: View {
                         .formColumn()
                         .environment(\.stackArrival, arrival ?? page)
                         .padding(.bottom, 12)
+                        if tab == "overview" {
+                            LeagueUpcomingSection(league: league, onOpen: onOpen, onOpenSchedule: onOpenSchedule)
+                            LeagueResultsSection(league: league, onOpen: onOpen, onOpenResults: { onOpenResults(.for(league: league)) }, onOpenEvent: onOpenEvent)
+                        }
                     }
                 }
                 .modifier(HighlightScroll(state: highlight, proxy: proxy, keyboardDriven: { keyboardDriven }))
@@ -101,7 +115,11 @@ struct LeagueSettingsView: View {
         }
         .pageLoading(loading)
         .delayedSpinner(while: loading, show: $showSpinner)
-        .task(id: league.id) { await load() }
+        .task(id: league.id) { tab = startsWithTeams ? "teams" : startsWithFollowing ? "following" : "overview"; await load() }
+        .onChange(of: tab) { _, _ in
+            initialPicks = tab == "teams" && !isClimbing ? Set(store.followed.map(\.id)) : store.picks(for: league)
+            highlightedID = nil
+        }
         #if DEBUG
         // Render harness only: open or close a group ("outline" id) as a
         // click does, or press a key ("key": up, down, left, right, return).
@@ -121,6 +139,17 @@ struct LeagueSettingsView: View {
         #endif
     }
 
+    private func exploreLink(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack { Text(title).font(.system(size: 13)); Spacer(); Image(systemName: "chevron.right").font(Glyph.row).foregroundStyle(.tertiary) }.padding(.horizontal, 12).padding(.vertical, 8)
+        }.buttonStyle(.plain)
+    }
+    private func toggleTeam(_ id: String) {
+        if tab == "teams", !isClimbing, let team = options.first(where: { $0.id == id }) {
+            store.toggleFollow(Competitor(id: team.id, name: team.name, abbreviation: team.name, score: nil, logo: team.logo, isWinner: false))
+        } else { store.togglePick(id, in: league) }
+    }
+
     private func back() {
         // Esc first clears a search, like any macOS search field.
         if !query.isEmpty { query = ""; return }
@@ -135,7 +164,7 @@ struct LeagueSettingsView: View {
 
     /// Where the settings start, below what's coming up.
     private var settingsTitle: some View {
-        SectionTitle("In Your Scores")
+        SectionTitle("Competition scope")
             .padding(.horizontal, 16)
             .padding(.top, 18)
             .padding(.bottom, 6)
@@ -167,7 +196,7 @@ struct LeagueSettingsView: View {
                 }
             )) {
                 Text("All Games").tag(false)
-                Text("Only My Teams").tag(true)
+                Text("Selected Teams").tag(true)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -175,7 +204,7 @@ struct LeagueSettingsView: View {
             .padding(.top, 4)
 
             Text(store.isFilterOn(league)
-                 ? "Only games involving the teams checked below appear under \(league.name)."
+                 ? "Only the selected teams’ \(league.name) matches appear. Team follows elsewhere remain independent."
                  : "Every \(league.name) game appears. Switch to pick specific teams.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -274,7 +303,7 @@ struct LeagueSettingsView: View {
             if options.count > 12 { searchField }
 
             let sections = self.sections
-            let picks = store.picks(for: league)
+            let picks = tab == "teams" && !isClimbing ? Set(store.followed.map(\.id)) : store.picks(for: league)
             // A lone list says how many are picked; with "Selected" on top it's plain.
             let note = sections.count == 1 && !picks.isEmpty ? "\(picks.count) selected" : nil
             ForEach(sections) { section in
@@ -288,7 +317,7 @@ struct LeagueSettingsView: View {
                                         highlightedID = key
                                     } else if highlightedID == key { highlightedID = nil }
                                 },
-                                togglePick: { store.togglePick($0, in: league) },
+                                togglePick: { toggleTeam($0) },
                                 toggleGroup: { groups.toggle(section.id, style: .click, reduceMotion: reduceMotion) },
                                 showAll: { groups.showAll(section.id, keyboard: false, reduceMotion: reduceMotion) })
                     .equatable()
@@ -352,25 +381,6 @@ struct LeagueSettingsView: View {
                              symbol: isClimbing ? "flag" : "person.3")
     }
 
-    /// Hides the league from Scores (Add Sports brings it back): the scores
-    /// list's "Hide {League}", in the same words.
-    private var removeButton: some View {
-        Button {
-            store.setEnabled(league, false)
-            onBack()
-        } label: {
-            Text("Hide \(league.name)")
-                .font(.system(size: 12.5))
-                .foregroundStyle(Color.accentColor)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 7)
-        }
-        .buttonStyle(ListRowStyle(hovering: false, inset: 0))
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.045)))
-        .padding(.horizontal, 12)
-        .padding(.top, 16)
-    }
-
     // MARK: Keyboard
 
     /// What ↑/↓ stop on: rows on screen, the headers of groups, "Show All".
@@ -412,7 +422,7 @@ struct LeagueSettingsView: View {
     private func activateHighlighted() {
         switch Outline.Stop(key: highlightedID) {
         case let .row(_, item)?:
-            store.togglePick(item, in: league)
+            toggleTeam(item)
         case let .header(id)?:
             groups.toggle(id, style: .keyboard, reduceMotion: reduceMotion)
         case let .more(id)?:
@@ -441,7 +451,7 @@ struct LeagueSettingsView: View {
 
     private func load() async {
         loading = true
-        initialPicks = store.picks(for: league)
+        initialPicks = tab == "teams" && !isClimbing ? Set(store.followed.map(\.id)) : store.picks(for: league)
         let loaded: [TeamOption]?
         do {
             loaded = try await TeamCatalog.options(for: league)
@@ -622,15 +632,13 @@ private struct PickRow: View {
     var revealDelay: Double? = nil
     let onHover: (Bool) -> Void
     let toggle: () -> Void
-    @State private var starHovering = false
     @State private var revealed = false
-    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var textShown: Bool { revealDelay == nil || revealed }
 
     var body: some View {
-        // The whole row picks; the star sits on top of it and only follows.
+        // The tab determines the selection scope; every row has one action.
         Button(action: toggle) {
             HStack(spacing: 8) {
                 if followable {
@@ -646,7 +654,6 @@ private struct PickRow: View {
                 Text(option.name).font(.system(size: 13)).lineLimit(1)
                     .reveal(textShown, reduceMotion: reduceMotion)
                 Spacer(minLength: 6)
-                if followable { Color.clear.frame(width: 22, height: 1) }  // room for the star
                 Image(systemName: picked ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 14))
                     .foregroundStyle(picked ? Color.accentColor : Color.secondary.opacity(0.45))
@@ -657,9 +664,6 @@ private struct PickRow: View {
             .padding(.vertical, 6)
         }
         .buttonStyle(ListRowStyle(hovering: highlighted, keyboard: keyboard))
-        .overlay(alignment: .trailing) {
-            if followable { star.padding(.trailing, 12 + 14 + 8).reveal(textShown, reduceMotion: reduceMotion) }
-        }
         .overlay(alignment: .top) {
             if divider { Divider().padding(.leading, followable ? 40 : 12) }
         }
@@ -675,24 +679,7 @@ private struct PickRow: View {
         }
     }
 
-    private var star: some View {
-        let competitor = Competitor(id: option.id, name: option.name, abbreviation: option.name,
-                                    score: nil, logo: option.logo, isWinner: false)
-        let following = store.isFollowing(competitor)
-        return Button { store.toggleFollow(competitor) } label: {
-            Image(systemName: following ? "star.fill" : "star")
-                .font(.system(size: 12))
-                .foregroundStyle(following ? Color.yellow
-                                 : Color.secondary.opacity(starHovering ? 0.9 : contrast == .increased ? 0.8 : (highlighted ? 0.65 : 0.5)))
-                .contentTransition(.symbolEffect(.replace))
-                .frame(width: 22, height: 22)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { starHovering = $0 }
-        .help(following ? "Unfollow \(option.name)" : "Follow \(option.name): My Teams, alerts, menu bar score")
-        .accessibilityLabel(following ? "Unfollow \(option.name)" : "Follow \(option.name)")
-    }
+
 }
 
 /// A row redraws when what it shows changes (its pick, its highlight), not on

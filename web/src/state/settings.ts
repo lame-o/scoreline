@@ -11,12 +11,13 @@
  * Adding a setting: add it to `Settings` and `DEFAULTS`, read it in
  * `sanitize` (never trust storage), add an action if it needs a rule, and
  * list it in ARCHITECTURE.md § Settings. Changing a setting's shape bumps
- * `VERSION` with a migration in `sanitize`.
+ * `schemaVersion` with a migration in `sanitize`; keep the storage key stable.
  *
  * Mac-only settings (menu bar label, live game count, open at login,
  * updates) have no web equivalent and aren't here.
  */
 import { useSyncExternalStore } from "react";
+import { editionID, sanitizeEditions, type EditionFollow } from "../data/following";
 import { CATALOG, DEFAULT_LEAGUE_IDS, leagueWithID } from "../data/leagues";
 import type { FollowedTeam } from "../data/models";
 import { CLIMBING_DISCIPLINES } from "../data/scoreboard";
@@ -26,6 +27,9 @@ export type Theme = "system" | "light" | "dark";
 export type CelebrationLevel = "full" | "subtle" | "off";
 
 export interface Settings {
+  readonly schemaVersion: 2;
+  readonly editions: readonly EditionFollow[];
+  readonly mutedTeams: readonly string[];
   /** Enabled leagues, in the user's order (Swift `enabledLeagues`). */
   readonly enabledLeagues: readonly string[];
   /** Followed teams, in the order followed (`followedTeams`). */
@@ -75,6 +79,9 @@ export interface Settings {
 }
 
 export const DEFAULTS: Settings = {
+  schemaVersion: 2,
+  editions: [],
+  mutedTeams: [],
   enabledLeagues: DEFAULT_LEAGUE_IDS,
   followed: [],
   teamFilters: {},
@@ -98,6 +105,8 @@ export const DEFAULTS: Settings = {
   resultsDetails: true,
 };
 
+// Keep the storage key stable: the before-paint theme reader and older releases use it.
+// schemaVersion migrates the payload without resetting appearance or scoped picks.
 const VERSION = 1;
 export const STORAGE_KEY = `scoreline.settings.v${VERSION}`;
 
@@ -127,14 +136,18 @@ export function sanitize(raw: unknown): Settings {
       if (known.has(league) && isStringArray(ids)) teamFilters[league] = [...new Set(ids)];
     }
   }
+  if (teamFilters.wnba) teamFilters.wnba = teamFilters.wnba.map(id => id.replace(/^espn-basketball-/, "espn-wnba-"));
   const disciplines = isStringArray(s.climbingDisciplines)
     ? s.climbingDisciplines.filter((d) => (CLIMBING_DISCIPLINES as readonly string[]).includes(d))
     : [...DEFAULTS.climbingDisciplines];
   return {
+    schemaVersion: 2,
+    editions: sanitizeEditions(s.editions),
+    mutedTeams: isStringArray(s.mutedTeams) ? [...new Set(s.mutedTeams)].filter(id => followed.some(t => t.id === id)) : [],
     enabledLeagues: leagues,
     followed,
     teamFilters,
-    filteredLeagues: isStringArray(s.filteredLeagues) ? s.filteredLeagues.filter((id) => known.has(id)) : [],
+    filteredLeagues: isStringArray(s.filteredLeagues) ? [...new Set(s.filteredLeagues)].filter((id) => known.has(id) && (s.schemaVersion === 2 || id === "ifsc" || (teamFilters[id]?.length ?? 0) > 0)) : [],
     collegeTop25Only: flag(s.collegeTop25Only, DEFAULTS.collegeTop25Only),
     climbingDisciplines: disciplines,
     showFinished: flag(s.showFinished, DEFAULTS.showFinished),
@@ -193,7 +206,7 @@ function update(change: (s: Settings) => Partial<Settings>) {
 // Another tab changed them: follow along.
 globalThis.addEventListener?.("storage", (event: StorageEvent) => {
   if (event.key !== STORAGE_KEY) return;
-  current = event.newValue ? sanitize(JSON.parse(event.newValue)) : DEFAULTS;
+  try { current = event.newValue ? sanitize(JSON.parse(event.newValue)) : DEFAULTS; } catch { return; }
   emit();
 });
 
@@ -258,16 +271,25 @@ export const settings = {
     });
   },
 
+  toggleEdition(edition: EditionFollow) {
+    const valid = sanitizeEditions([edition])[0];
+    if (!valid) return;
+    update(s => ({editions: s.editions.some(e => editionID(e) === editionID(valid)) ? s.editions.filter(e => editionID(e) !== editionID(valid)) : [...s.editions, valid]}));
+  },
+  setTeamAlerts(id: string, on: boolean) {
+    update(s => s.followed.some(t => t.id === id) ? {mutedTeams: on ? without(s.mutedTeams, id) : [...new Set([...s.mutedTeams, id])]} : {});
+  },
   // Teams
 
   toggleFollow(team: FollowedTeam) {
     update((s) => ({
+      mutedTeams: s.followed.some(t => t.id === team.id) ? without(s.mutedTeams, team.id) : [...s.mutedTeams, team.id],
       followed: s.followed.some((t) => t.id === team.id) ? s.followed.filter((t) => t.id !== team.id) : [...s.followed, team],
     }));
   },
 
   unfollow(id: string) {
-    update((s) => ({ followed: s.followed.filter((t) => t.id !== id) }));
+    update((s) => ({ followed: s.followed.filter((t) => t.id !== id), mutedTeams: without(s.mutedTeams, id) }));
   },
 
   setFilterOn(league: string, on: boolean) {

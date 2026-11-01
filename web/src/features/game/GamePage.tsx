@@ -1,3 +1,4 @@
+import { CompetitionContext } from "../settings/CompetitionContext";
 /**
  * A game's page (DetailView.swift): the hero, then the sport's sections in
  * one column, or from 680pt in two (data/sections.ts), with a docked
@@ -249,6 +250,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
 
   return (
     <>
+      <CompetitionContext event={event} />
       <div className={styles.heroSlot}>
         <Hero
           event={heroEvent}
