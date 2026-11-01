@@ -147,7 +147,6 @@ private struct RecognizedLine {
     @MainActor static func main() throws {
         HTTP.stubProtocol = HistoryOffline.self
         NSApplication.shared.setActivationPolicy(.prohibited)
-        NSTimeZone.default = TimeZone(secondsFromGMT: 0)!
         let out = "build/odds-history-acceptance"
         try FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
         var passed = 0, failed = 0
@@ -289,7 +288,8 @@ private struct RecognizedLine {
             }
         }
         let receipt: [String: Any] = ["passed": passed, "failed": failed, "checks": checks, "renders": receipts,
-                                      "network": "HTTP blocked; pageLive false prevents market tracking", "timezone": "UTC"]
+                                      "network": "HTTP blocked; pageLive false prevents market tracking",
+                                      "timezone": "System-local display; event timestamps are Unix seconds"]
         try JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys])
             .write(to: URL(fileURLWithPath: "\(out)/result.json"))
         print("\n\(passed) passed, \(failed) failed")

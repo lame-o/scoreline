@@ -139,5 +139,53 @@ extension ScorelineTests {
               "the quiet-market ticker is not rolled back by a concurrent history response")
         check(zip(merged, merged.dropFirst()).allSatisfy { $0.t < $1.t },
               "merged history remains strictly chronological without duplicate timestamps")
+
+        // Recorded while the installed app showed false 0→100→0 spikes.
+        // Both books advertised BUF's last trade, but BAL's own trade and
+        // midpoint endpoints never approached that value. Replaying every
+        // full book/delta/trade catches the original recurrence, not just
+        // the first snapshot.
+        let captureURL = URL(fileURLWithPath: "Tests/Fixtures/odds/pm-nfl-bal-buf-2026-11-01.json")
+        let capture = JSON(data: (try? Data(contentsOf: captureURL)) ?? Data())
+        let capturedFrames = capture["frames"].array
+        check(capturedFrames.count == 28 && capture["endpoints"]["bal"]["book"]["last_trade_price"].double == 0.999
+              && capture["endpoints"]["bal"]["last"]["price"].double == 0.002,
+              "real Ravens–Bills capture contains the mismatched book last price and asset-scoped trade")
+        for (name, endpoint) in [("BAL", "bal"), ("BUF", "buf")] {
+            let token = capture["tokens"][name].string ?? ""
+            let reference = capture["endpoints"][endpoint]["mid"]["mid"].double ?? -1
+            let replay = OddsFeed()
+            replay.adopt(OddsMarket(eventID: "quote-\(name)", slug: "quote-\(name)", tokens: [.init(id: token, outcome: .top)], start: time))
+            for frame in capturedFrames {
+                let at = Date(timeIntervalSince1970: (frame["received"].double ?? 0) / 1000)
+                replay.simulate(OddsFrame.parse(frame["message"].string ?? ""), at: at)
+            }
+            let values = replay.series[.top] ?? []
+            check(!token.isEmpty && !values.isEmpty && values.allSatisfy { abs($0.p - reference) < 1e-9 },
+                  "\(name): all 28 real websocket frames agree with its midpoint, without false winner/loser reversals",
+                  "\(values.map(\.p)) vs \(reference)")
+            check(values.count == 1, "\(name): repeated empty-side books and matching deltas do not publish duplicate fake moves")
+            replay.stop()
+        }
+        check(OddsQuote(bid: nil, ask: 0.001, last: 0.999).displayed == 0.0005
+              && OddsQuote(bid: 0, ask: 0.001, last: 0.999).displayed == 0.0005,
+              "an empty bid book and an explicit zero best bid give the same losing-token midpoint")
+        check(OddsQuote(bid: 0.999, ask: nil, last: 0.001).displayed == 0.9995
+              && OddsQuote(bid: 0.999, ask: 1, last: 0.001).displayed == 0.9995,
+              "an empty ask book and an explicit one best ask give the same winning-token midpoint")
+        check(OddsQuote(bid: nil, ask: nil, last: nil).displayed == nil
+              && OddsQuote(bid: 0.2, ask: 0.8, last: nil).displayed == nil
+              && OddsQuote(bid: 0.8, ask: 0.2, last: nil).displayed == nil,
+              "empty, wide and crossed books without a trusted trade cannot invent a probability")
+        var trusted = OddsQuote()
+        OddsFrame.apply(.trade(0.002), to: &trusted)
+        OddsFrame.apply(.book(bid: nil, ask: 0.3, last: 0.999), to: &trusted)
+        check(trusted.last == 0.002 && trusted.displayed == 0.002,
+              "replacing a wide book cannot overwrite this asset's last trade with the other outcome's book price")
+        OddsFrame.apply(.trade(0.999), to: &trusted)
+        check(trusted.displayed == 0.999, "a genuine asset-scoped extreme trade is retained; no jump-size suppression")
+        let sell = OddsFrame.parse("{\"event_type\":\"last_trade_price\",\"asset_id\":\"bal\",\"side\":\"SELL\",\"price\":\"0.03\"}")
+        check(sell.first?.asset == "bal" && sell.first?.update == .trade(0.03),
+              "SELL is the trade direction, never a request to complement the asset's price")
     }
 }

@@ -1336,8 +1336,8 @@ struct OddsPulse: NSViewRepresentable {
 // MARK: Scrub
 
 /// Pointing (or keyboard focus, then ← →) snaps a 1pt crosshair to the
-/// nearest minute, with a dot on every line there; the legend, the sources
-/// line and the footer read that minute, so nothing covers the lines. A move
+/// nearest second, with a dot at each outcome's observed sample; the legend,
+/// sources line and footer read that moment, so nothing covers the lines. A move
 /// re-renders only the crosshair and those readers.
 struct OddsScrub: View {
     let data: OddsChartData
@@ -1349,6 +1349,7 @@ struct OddsScrub: View {
 
     var body: some View {
         Button {
+            focused = true
             pointer.pin(hovered ?? pointer.moment ?? data.domain.upperBound)
         } label: {
             ZStack(alignment: .topLeading) {
@@ -1381,6 +1382,8 @@ struct OddsScrub: View {
                 if !focused { pointer.hover(nil) }
             }
         }
+        // macOS buttons do not acquire edit focus on click by default.
+        .focusable(interactions: .edit)
         .focusEffectDisabled()
         .focused($focused)
         .onChange(of: focused) { _, on in pointer.hover(on ? pointer.moment ?? data.domain.upperBound : nil) }

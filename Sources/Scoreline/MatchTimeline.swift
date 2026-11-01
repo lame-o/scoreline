@@ -186,6 +186,7 @@ private struct MatchTimelineScrub: View {
 
     var body: some View {
         Button {
+            focused = true
             pointer.pin(hovered ?? pointer.moment ?? layout.domain.upperBound)
         } label: {
             ZStack(alignment: .topLeading) {
@@ -227,6 +228,8 @@ private struct MatchTimelineScrub: View {
                 if !focused { pointer.hover(nil) }
             }
         }
+        // Arrow-key inspection must work even when Keyboard Navigation is off.
+        .focusable(interactions: .edit)
         .focusEffectDisabled()
         .focused($focused)
         .onChange(of: focused) { _, on in

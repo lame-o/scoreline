@@ -348,13 +348,16 @@ struct OddsQuote: Equatable {
     /// trade when the spread is wider than 10¢. Compared in tenths of a cent
     /// (0.40 − 0.30 is 0.10000000000000003). (pure; tested)
     var displayed: Double? {
-        if let bid, let ask, ask >= bid, ((ask - bid) * 1000).rounded() <= 100 { return (bid + ask) / 2 }
-        return last ?? zip(bid, ask).map { ($0 + $1) / 2 }
-    }
-
-    private func zip(_ a: Double?, _ b: Double?) -> (Double, Double)? {
-        guard let a, let b else { return nil }
-        return (a, b)
+        // An empty side is the contract boundary: no bid is 0, no ask is 1.
+        // CLOB's price_change frames and /midpoint use these same bounds.
+        // Thus a losing token with no bids and a 0.001 ask is 0.0005, not
+        // whatever stale last trade happened to accompany a book snapshot.
+        guard bid != nil || ask != nil else { return last }
+        let lower = bid ?? 0, upper = ask ?? 1
+        if upper >= lower, ((upper - lower) * 1000).rounded() <= 100 { return (lower + upper) / 2 }
+        // A wide/crossed book without an asset-specific trade is unknown;
+        // keep the previous observed chart value instead of inventing a midpoint.
+        return last
     }
 }
 
@@ -395,10 +398,13 @@ enum OddsFrame {
 
     static func apply(_ update: Update, to quote: inout OddsQuote) {
         switch update {
-        case let .book(bid, ask, last):
+        case let .book(bid, ask, _):
             quote.bid = bid
             quote.ask = ask
-            if let last { quote.last = last }
+            // The book's last_trade_price is not reliably asset-scoped:
+            // captured BAL and BUF books both carried BUF's 0.999 trade.
+            // Only last_trade_price events identify a trade by asset_id.
+            // Preserve any such trusted trade when replacing the book.
         case let .best(bid, ask):
             if let bid { quote.bid = bid }
             if let ask { quote.ask = ask }
