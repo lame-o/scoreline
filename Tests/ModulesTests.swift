@@ -82,8 +82,8 @@ extension ScorelineTests {
         for (ref, chart, name) in [(nbaRef, S.court, "NBA"), (soccerRef, .pitch, "soccer"), (mlbRef, .atPlate, "baseball"), (nflRef, .field, "football")] {
             let live = DetailView.order(ref, .live)
             let chartName = DetailView.moduleName(chart, on: PageKind.of(ref))
-            check(Array(live.prefix(3)) == [.liveView, .winProbability, chart],
-                  "\(name) live: the Live View first, Win Probability under it, then \(chartName)", "\(live)")
+            check(Array(live.prefix(4)) == [.liveView, .winProbability, .timeline, chart],
+                  "\(name) live: the Live View first, aligned Win Probability and Timeline next, then \(chartName)", "\(live)")
             check(!DetailView.order(ref, .final).contains(.liveView) && !DetailView.order(ref, .scheduled).contains(.liveView),
                   "\(name): the Live View is live only")
             let left = DetailView.widePlan(ref, .live).compactMap { part -> [S]? in
@@ -281,13 +281,13 @@ extension ScorelineTests {
         // A final's ranking carries to the live page; a live one to the final.
         let finalRanking = ["box", "flow", "court", "winProbability", "linescore", "leaders", "moments", "stats", "table"]
         let live = O.arrange(DetailView.order(nbaRef, .live), by: finalRanking).map(sectionID)
-        check(live == ["box", "flow", "court", "liveView", "winProbability", "linescore", "leaders", "moments", "stats", "plays", "table",
+        check(live == ["box", "flow", "court", "liveView", "winProbability", "timeline", "linescore", "leaders", "moments", "stats", "plays", "table",
                        "injuries", "whereToWatch"],
               "ranked on a final, live: the Live View still leads Win Probability; Latest, injuries and where to watch follow their plan neighbors",
               "\(live)")
         let liveRanking = ["box"] + DetailView.order(nbaRef, .live).map(sectionID).filter { $0 != "box" }
         let final = O.arrange(DetailView.order(nbaRef, .final), by: liveRanking).map(sectionID)
-        check(final == ["box", "winProbability", "court", "flow", "linescore", "leaders", "moments", "stats", "table"],
+        check(final == ["box", "winProbability", "timeline", "court", "flow", "linescore", "leaders", "moments", "stats", "table"],
               "ranked live, the final keeps that order without what only a live page has", "\(final)")
 
         // A page's new order folds into the ranking without dropping what isn't on it.
@@ -347,10 +347,10 @@ extension ScorelineTests {
         let order = layout.shown(DetailView.order(nbaRef, .live), on: .nba)
         let placed = DetailView.wideArrangement(order, plan: DetailView.widePlan(nbaRef, .live), ranking: layout.ranking(on: .nba))
         let left = placed.filter { $0.slot.column == .left }.map(\.section), right = placed.filter { $0.slot.column == .right }.map(\.section)
-        check(Set(left) == [.liveView, .court, .winProbability, .flow, .linescore, .moments, .plays, .table]
+        check(Set(left) == [.liveView, .court, .winProbability, .timeline, .flow, .linescore, .moments, .plays, .table]
               && Set(right) == [.box, .leaders, .stats, .injuries, .whereToWatch],
               "split page: a module never changes column, however it's ranked")
-        check(left == [.table, .moments, .court, .liveView, .winProbability, .flow, .linescore, .plays]
+        check(left == [.table, .moments, .court, .liveView, .winProbability, .timeline, .flow, .linescore, .plays]
               && right == [.box, .stats, .injuries, .whereToWatch, .leaders],
               "split page: within each column, the ranking's relative order", "\(left) | \(right)")
         check(DetailView.wideArrangement(order, plan: DetailView.widePlan(nbaRef, .live)).map(\.section)

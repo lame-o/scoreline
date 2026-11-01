@@ -512,31 +512,16 @@ struct OddsBaseline: Equatable {
         let topIsHome = competitors.first { $0["team"]["id"].string == topID }?["homeAway"].string == "home"
         b.draftKings = DraftKings.line(summary, topIsHome: topIsHome)
 
-        // Game order is array order (sequence numbers aren't); football's plays sit inside drives.
-        let raw: [JSON]
-        switch sport {
-        case .football:
-            raw = summary["drives"]["previous"].array.flatMap { $0["plays"].array } + summary["drives"]["current"]["plays"].array
-        case .soccer:
-            raw = summary["commentary"].array.compactMap { c -> JSON? in
-                guard c["play"].exists, var play = c["play"].raw as? [String: Any] else { return nil }
-                play["text"] = c["text"].string ?? play["text"]
-                return JSON(play)
-            }
-        default:
-            raw = summary["plays"].array
-        }
-        var latest = Date.distantPast
+        // Exactly the same chronology as the event timeline, including
+        // commentary ordering, drive overlap and corrected wall timestamps.
         var placed: [(id: String?, play: OddsPlay)] = []
-        for p in raw {
-            guard let wall = DateParser.parse(p["wallclock"].string) else { continue }
-            // Wall clocks run backwards now and then (14 of 552 in GSW at MIN): time never does.
-            latest = max(latest, wall)
+        for entry in MatchHistory.chronology(summary, sport: sport) {
+            let p = entry.json
             let period = p["period"]["number"].int ?? 1
             // The scrub names plays worth naming: the NBA's shots, fouls, turnovers and scores, not substitutions or timeouts.
             let notable = sport != .basketball || NBADetail.isNotable(type: p["type"]["id"].int, scoreValue: p["scoreValue"].int)
             let text = notable ? Self.text(p, sport: sport) : ""
-            placed.append((p["id"].string, OddsPlay(t: latest, period: period, clock: Self.clock(p, sport: sport), text: text)))
+            placed.append((p["id"].string, OddsPlay(t: entry.t, period: period, clock: Self.clock(p, sport: sport), text: text)))
         }
         b.plays = placed.filter { !$0.play.text.isEmpty }.map(\.play)
 

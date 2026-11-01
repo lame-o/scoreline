@@ -125,6 +125,22 @@ struct OddsChartData: Equatable {
         return found.map { points[$0].split } ?? first.split
     }
 
+    /// Reading history must never backfill a price from the future.
+    func observedSplit(at t: Date) -> OddsSplit? {
+        observedPoint(at: t)?.split
+    }
+
+    /// The historical sample behind a reading, so markers can stay on the
+    /// actual plotted vertex rather than float beside an interpolated line.
+    func observedPoint(at t: Date) -> OddsSplitPoint? {
+        var lo = 0, hi = points.count, found: Int?
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if points[mid].t <= t { found = mid; lo = mid + 1 } else { hi = mid }
+        }
+        return found.map { points[$0] }
+    }
+
     /// The time shown (pure; tested). Live: from the first play (or the
     /// scheduled start) to the newest point; final: to the last play; before
     /// the game: the market's last day. The 10 min window slides with the newest point.
@@ -152,7 +168,7 @@ struct OddsChartData: Equatable {
     /// `until`: while the page broadcasts, p: the market as it stood then (no tick after it).
     @MainActor
     static func make(feed: OddsFeed, baseline: OddsBaseline, state: EventState, window: OddsWindow, eventStart: Date,
-                     now: Date = .now, until: Date? = nil) -> OddsChartData? {
+                     now: Date = .now, until: Date? = nil, history: MatchHistory? = nil) -> OddsChartData? {
         guard let market = feed.market else { return nil }
         let now = until ?? now
         var data = OddsChartData(revision: feed.revision, threeWay: market.threeWay, domain: now...now, live: state == .live,
@@ -167,10 +183,15 @@ struct OddsChartData: Equatable {
         }
         data.domain = domain(state: state, window: window, start: start, end: state == .final ? baseline.end : nil,
                              first: data.points.first?.t, last: data.points.last?.t, now: now)
+        if let history, state != .scheduled {
+            data.domain = history.domain(state: state, window: window, eventStart: eventStart,
+                                         latest: data.points.last?.t, until: until)
+        }
         // The end of a finished game is its last play: nothing after the buzzer.
         if state == .final { data.points = data.points.filter { $0.t <= data.domain.upperBound } }
-        data.espn = state == .scheduled ? [] : baseline.espn
-        data.periods = state == .scheduled ? [] : baseline.periods
+        data.espn = state == .scheduled ? [] : Self.shown(baseline.espn, until: until)
+        data.periods = state == .scheduled ? [] : history?.shown(until: until).periods
+            ?? until.map { MatchHistory.clipped(baseline.periods, until: $0) } ?? baseline.periods
         return data
     }
 }
@@ -250,17 +271,21 @@ struct OddsLayout: Equatable {
     var labelX: CGFloat { plot.maxX + OddsStyle.labelGap }
 
     /// Every end's label, beside its dot, then dodged, kept whole inside the drawing area.
-    func endLabels(_ split: OddsSplit, outcomes: [OddsMarket.Outcome]) -> [OddsEndLabel] {
-        let dots = outcomes.map { end(split, $0) }
+    func endLabels(_ split: OddsSplit, outcomes: [OddsMarket.Outcome], order: [OddsMarket.Outcome]? = nil) -> [OddsEndLabel] {
+        let fixedOrder = order.flatMap { $0.count == outcomes.count && Set($0) == Set(outcomes) ? $0 : nil }
+        let arranged = fixedOrder ?? outcomes
+        let dots = arranged.map { end(split, $0) }
         let half = OddsStyle.labelHeight / 2
-        let ys = Self.dodge(dots.map(\.y), gap: OddsStyle.labelHeight, within: (bounds.minY + half)...(bounds.maxY - half))
-        return outcomes.indices.map { OddsEndLabel(outcome: outcomes[$0], dot: dots[$0], y: ys[$0]) }
+        let ys = Self.dodge(dots.map(\.y), gap: OddsStyle.labelHeight, within: (bounds.minY + half)...(bounds.maxY - half),
+                            preservingOrder: fixedOrder != nil)
+        let labels = arranged.indices.map { OddsEndLabel(outcome: arranged[$0], dot: dots[$0], y: ys[$0]) }
+        return outcomes.compactMap { outcome in labels.first { $0.outcome == outcome } }
     }
 
     /// Label centers after dodging (pure; tested): labels that would overlap
     /// merge into a cluster centered on their lines' mean, `gap` apart in their
     /// lines' order (a tie keeps the given order), held within `range`.
-    static func dodge(_ ideal: [CGFloat], gap: CGFloat, within range: ClosedRange<CGFloat>) -> [CGFloat] {
+    static func dodge(_ ideal: [CGFloat], gap: CGFloat, within range: ClosedRange<CGFloat>, preservingOrder: Bool = false) -> [CGFloat] {
         struct Cluster {
             var members: [Int]
             var top: CGFloat
@@ -270,7 +295,7 @@ struct OddsLayout: Equatable {
             let height = CGFloat(members.count - 1) * gap
             return Cluster(members: members, top: min(max(mean, range.lowerBound), range.upperBound - height))
         }
-        let order = ideal.indices.sorted { ideal[$0] != ideal[$1] ? ideal[$0] < ideal[$1] : $0 < $1 }
+        let order = preservingOrder ? Array(ideal.indices) : ideal.indices.sorted { ideal[$0] != ideal[$1] ? ideal[$0] < ideal[$1] : $0 < $1 }
         var clusters = order.map { cluster([$0]) }
         var i = 0
         while i + 1 < clusters.count {
@@ -296,6 +321,84 @@ struct OddsEndLabel: Equatable {
     let y: CGFloat
     /// Moved off its line: a hairline leads back to it.
     var displaced: Bool { abs(y - dot.y) > 2 }
+}
+
+/// End labels keep their outcome identity through a close race. A real
+/// crossing changes their order only after the dots are a label-height
+/// apart; a one-tick wobble around 50/50 never flips the names back and forth.
+enum OddsEndOrder {
+    static func next(_ previous: [OddsMarket.Outcome], split: OddsSplit, outcomes: [OddsMarket.Outcome],
+                     layout: OddsLayout) -> [OddsMarket.Outcome] {
+        guard previous.count == outcomes.count, Set(previous) == Set(outcomes) else {
+            return layout.endLabels(split, outcomes: outcomes).sorted { $0.y < $1.y }.map(\.outcome)
+        }
+        var order = previous
+        for _ in 0..<order.count {
+            for i in 0..<max(order.count - 1, 0) {
+                let a = layout.y(split.share(order[i])), b = layout.y(split.share(order[i + 1]))
+                if a - b > OddsStyle.labelHeight { order.swapAt(i, i + 1) }
+            }
+        }
+        return order
+    }
+
+    /// A leader is only useful when its origin is unambiguous. Crossing
+    /// leaders or two almost coincident dots look like a line joining teams.
+    /// The name's outcome color carries identity in those cases.
+    static func leaders(_ labels: [OddsEndLabel]) -> [OddsEndLabel] {
+        labels.filter { label in
+            label.displaced && !labels.contains { other in
+                other.outcome != label.outcome &&
+                    (abs(other.dot.y - label.dot.y) < OddsStyle.dot + 2 ||
+                     (other.dot.y - label.dot.y) * (other.y - label.y) < 0)
+            }
+        }
+    }
+
+    /// During a genuine reorder, names dissolve before their glyphs collide,
+    /// then return in the new order. The outcome dots remain visible throughout.
+    static func opacity(_ label: OddsEndLabel, among labels: [OddsEndLabel]) -> Double {
+        let distance = labels.filter { $0.outcome != label.outcome }.map { abs($0.y - label.y) }.min() ?? .infinity
+        return Double(min(max((distance - OddsStyle.labelHeight * 0.65) / (OddsStyle.labelHeight * 0.35), 0), 1))
+    }
+}
+
+/// Geometry for a label transition, keyed by outcome rather than vertical
+/// rank. A new quote starts from the current centers, even mid-transition.
+struct OddsLabelGlide: Equatable {
+    let from: [OddsMarket.Outcome: CGFloat]
+    let to: [OddsMarket.Outcome: CGFloat]
+    let start: Date
+
+    init(from: [OddsEndLabel], to: [OddsEndLabel], start: Date) {
+        self.from = Dictionary(uniqueKeysWithValues: from.map { ($0.outcome, $0.y) })
+        self.to = Dictionary(uniqueKeysWithValues: to.map { ($0.outcome, $0.y) })
+        self.start = start
+    }
+
+    func labels(at time: Date, dots: [OddsEndLabel]) -> [OddsEndLabel] {
+        let k = OddsGlide.progress(time.timeIntervalSince(start))
+        return dots.map { label in
+            let a = from[label.outcome] ?? label.y, b = to[label.outcome] ?? label.y
+            return OddsEndLabel(outcome: label.outcome, dot: label.dot, y: a + (b - a) * k)
+        }
+    }
+}
+
+/// Only the transient final connector, never historical samples. When a
+/// quote interrupts a glide, the displayed dot can still be behind the
+/// preceding recorded price. Connecting back to it invents a hook/spike.
+/// Keep that tiny connector absent until the dot enters its true segment.
+enum OddsTail {
+    static func connector(previous: OddsSplitPoint?, head: OddsSplitPoint, shown: OddsSplit,
+                          outcome: OddsMarket.Outcome, layout: OddsLayout) -> [CGPoint] {
+        let end = layout.end(shown, outcome)
+        let last = CGPoint(x: layout.x(head.t), y: end.y)
+        guard let previous else { return [last, end] }
+        let a = previous.split.share(outcome), b = head.split.share(outcome), p = shown.share(outcome)
+        guard p >= min(a, b) - 1e-9, p <= max(a, b) + 1e-9 else { return [] }
+        return [CGPoint(x: layout.x(previous.t), y: layout.y(a)), last, end]
+    }
 }
 
 /// A value easing to the next, Liveline's way: 8% of the remaining distance
@@ -394,10 +497,30 @@ final class OddsPointer {
     /// Whether a minute is being read: flips only as reading starts and ends
     /// (the live ends step back).
     private(set) var active = false
+    /// A click holds this reading while the live feed continues to arrive.
+    private(set) var pinned = false
+    /// The two independent modules always inspect the same stretch of time.
+    var window = OddsWindow.game
 
     func read(_ t: Date?) {
         if moment != t { moment = t }
         if active != (t != nil) { active = t != nil }
+    }
+
+    func hover(_ t: Date?) {
+        guard !pinned else { return }
+        read(t)
+    }
+
+    func pin(_ t: Date?) {
+        pinned = t != nil
+        read(t)
+    }
+
+    func clear() { pin(nil) }
+
+    func step(seconds: TimeInterval, within range: ClosedRange<Date>) {
+        pin(min(max((moment ?? range.upperBound) + seconds, range.lowerBound), range.upperBound))
     }
 }
 
@@ -430,12 +553,14 @@ struct OddsSection: View {
     /// moves with the basket, not 50 s before it), redrawn when p reaches the
     /// next tick: scheduled, never polled.
     var presentation: PresentationClock? = nil
+    var history: MatchHistory? = nil
+    var inspection: OddsPointer? = nil
     @Environment(\.pageLive) private var pageLive
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var window = OddsWindow.game
     @State private var onScreen = false
-    @State private var pointer = OddsPointer()
+    @State private var ownPointer = OddsPointer()
+    private var pointer: OddsPointer { inspection ?? ownPointer }
     /// On a match page: folded, the header says each side's chance.
     @Environment(\.moduleChrome) private var module
     #if DEBUG
@@ -473,7 +598,7 @@ struct OddsSection: View {
 
     private func section(until: Date?) -> some View {
         let data = OddsChartData.make(feed: feed, baseline: baseline, state: event.state, window: live ? shownWindow : .game,
-                                      eventStart: event.start, until: until)
+                                      eventStart: event.start, until: until, history: history)
         let lines = self.lines
         let latest = until == nil ? data?.head?.split ?? feed.latest : data?.head?.split
         return OddsSectionChrome(title: final ? "How the Odds Moved" : "Win Probability", caption: caption, accessory: accessory,
@@ -482,11 +607,13 @@ struct OddsSection: View {
         } content: {
             VStack(alignment: .leading, spacing: 0) {
                 OddsHeader(data: data, latest: latest, lines: lines, baseline: baseline, names: names,
-                           state: event.state, espnNow: baseline.espn.last?.p ?? espnNow, pointer: pointer)
+                           state: event.state, espnNow: baseline.espn.last?.p ?? espnNow, pointer: pointer,
+                           history: history?.shown(until: until))
                 OddsPlot(data: data, lines: lines, pointer: pointer, spoken: spoken,
                          live: OddsMotion.live(final: final, streaming: streaming, seen: visible && pageLive, reduceMotion: reduceMotion))
                     .padding(.top, 8)
-                OddsFooter(feed: feed, data: data, baseline: baseline, pointer: pointer, live: live, ticking: visible && pageLive)
+                OddsFooter(feed: feed, data: data, baseline: baseline, pointer: pointer, live: live, ticking: visible && pageLive,
+                           history: history?.shown(until: until))
             }
         }
     }
@@ -523,7 +650,7 @@ struct OddsSection: View {
     }
 
     private var picker: some View {
-        Picker("Window", selection: $window) {
+        Picker("Window", selection: Binding(get: { pointer.window }, set: { pointer.window = $0; pointer.clear() })) {
             ForEach(OddsWindow.allCases) { Text($0.label).tag($0) }
         }
         .pickerStyle(.segmented)
@@ -534,7 +661,7 @@ struct OddsSection: View {
     }
 
     #if DEBUG
-    private var shownWindow: OddsWindow { harness?.window ?? window }
+    private var shownWindow: OddsWindow { harness?.window ?? pointer.window }
     /// (Stills draw the Live mark in the window control's likeness; folded, that goes, so the mark is the header's own.)
     private var accessory: SectionAccessory? {
         live ? (harness?.stills == true && module?.folded != true ? nil : .live) : final ? .final : nil
@@ -562,7 +689,7 @@ struct OddsSection: View {
         }
     }
     #else
-    private var shownWindow: OddsWindow { window }
+    private var shownWindow: OddsWindow { pointer.window }
     private var accessory: SectionAccessory? { live ? .live : final ? .final : nil }
     private var windowControl: some View { picker }
     #endif
@@ -627,17 +754,18 @@ struct OddsHeader: View {
     let state: EventState
     var espnNow: Double?
     let pointer: OddsPointer
+    var history: MatchHistory? = nil
     @Environment(\.spokenTeams) private var teams
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         OddsMoment(pointer: pointer) { moment in
-            content(moment.flatMap { t in data.flatMap { OddsReading.at(t, data: $0, baseline: baseline) } })
+            content(moment.flatMap { t in data.flatMap { OddsReading.at(t, data: $0, baseline: baseline, history: history) } })
         }
     }
 
     private func content(_ reading: OddsReading?) -> some View {
-        let split = reading?.split ?? latest
+        let split = reading == nil ? latest : reading?.split
         let percents = split?.percents(final: state == .final && reading == nil)
         return VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .firstTextBaseline, spacing: 14) {
@@ -667,7 +795,7 @@ struct OddsHeader: View {
     @ViewBuilder
     private func sources(_ reading: OddsReading?) -> some View {
         let lines = muted
-        if !lines.isEmpty {
+        if reading != nil || !lines.isEmpty {
             Group {
                 if let reading {
                     Text(pointed(reading)).lineLimit(1).truncationMode(.tail)
@@ -681,6 +809,8 @@ struct OddsHeader: View {
             }
             .font(Viz.note)
             .foregroundStyle(.secondary)
+        } else {
+            Text(" ").font(Viz.note).accessibilityHidden(true)
         }
     }
 
@@ -718,16 +848,15 @@ struct OddsHeader: View {
     /// Pointing: ESPN's model at that minute; without it, what doesn't change
     /// with the minute (DraftKings before the game), never today's ESPN.
     private func pointed(_ reading: OddsReading) -> String {
-        if let espn = reading.espn { return "ESPN's model had \(names.top) at \(OddsSeries.percent(espn))% here" }
-        if let dk = baseline.draftKings {
-            return dk.draw != nil ? muted[0] : "For \(names.top): DraftKings \(OddsSeries.percent(dk.top))% \(OddsBaseline.pregame(baseline.sport))"
-        }
-        return "Polymarket at this minute"
+        guard let sampleTime = reading.sampleTime else { return "No market sample at this time" }
+        let sample = "Chart sample " + sampleTime.formatted(.dateTime.hour().minute().second())
+        if let espn = reading.espn { return sample + " · ESPN \(OddsSeries.percent(espn))% for \(names.top)" }
+        return sample
     }
 
     private func spokenText(_ percents: [OddsMarket.Outcome: Int]?, _ reading: OddsReading?) -> String {
         let top = teams?.top ?? names.top, bottom = teams?.bottom ?? names.bottom
-        guard let percents else { return "Polymarket odds loading." }
+        guard let percents else { return reading == nil ? "Polymarket odds loading." : "No recorded market sample at this time." }
         var text = "Polymarket\(reading == nil ? "" : " at this minute"): \(top) \(percents[.top] ?? 0) percent"
         if let draw = percents[.draw] { text += ", draw \(draw) percent" }
         text += ", \(bottom) \(percents[.bottom] ?? 0) percent."
@@ -770,11 +899,13 @@ struct OddsPlot: View {
                         .equatable()
                         .drawingGroup()
                     axisLabels(data, layout, plotHeight: plotHeight)
+                        .accessibilityHidden(true)
                     if !data.isEmpty {
                         // While a minute is being read, the live ends step back (the legend has the floor).
                         OddsHead(data: data, layout: layout, lines: lines, live: live)
                             .opacity(reading ? 0.25 : 1)
                             .transition(.opacity)
+                            .accessibilityHidden(true)
                         OddsScrub(data: data, layout: layout, lines: lines, pointer: pointer)
                     }
                 }
@@ -783,7 +914,7 @@ struct OddsPlot: View {
         }
         .frame(height: plotHeight + OddsStyle.axis)
         .vizWell(padding: 8)
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(summary(data))
         .accessibilityChartDescriptor(OddsChartDescriptor(data: data, top: spoken.top, bottom: spoken.bottom))
     }
@@ -948,6 +1079,8 @@ struct OddsHead: View {
     let live: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var glide: OddsGlide?
+    @State private var labelGlide: OddsLabelGlide?
+    @State private var labelOrder: [OddsMarket.Outcome] = []
     /// The lines a glide moves: their pulses wait, hidden, at the dot's target.
     @State private var moving: Set<OddsMarket.Outcome> = []
     /// Ticks per outcome: each bump makes that dot's next beat the bright one.
@@ -976,13 +1109,18 @@ struct OddsHead: View {
         }
         .allowsHitTesting(false)
         .onChange(of: target) { old, new in moved(from: old, to: new) }
+        .onChange(of: layout.plot) { _, _ in labelGlide = nil }
+        .onChange(of: reduceMotion) { _, reduce in
+            if reduce { glide = nil; labelGlide = nil; moving = [] }
+        }
     }
 
     private func timeline(_ percents: [OddsMarket.Outcome: Int]?) -> some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60, paused: glide == nil)) { context in
             let shown = glide.map { $0.done(at: context.date) ? $0.to : $0.value(at: context.date) } ?? target
             if let shown {
-                let labels = layout.endLabels(shown, outcomes: lines.map(\.outcome))
+                let ordered = layout.endLabels(shown, outcomes: lines.map(\.outcome), order: labelOrder.isEmpty ? nil : labelOrder)
+                let labels = labelGlide?.labels(at: context.date, dots: ordered) ?? ordered
                 ZStack(alignment: .topLeading) {
                     Canvas { ctx, _ in
                         #if DEBUG
@@ -993,16 +1131,18 @@ struct OddsHead: View {
                     ForEach(labels, id: \.outcome) { label in
                         endLabel(label.outcome, percents?[label.outcome])
                             .position(x: layout.labelX + layout.labelWidth / 2, y: label.y)
+                            .opacity(OddsEndOrder.opacity(label, among: labels))
                     }
                 }
             }
         }
     }
 
-    /// The name in secondary ink, the chance in primary.
+    /// Outcome-colored names remain identifiable when near-tie leaders recede.
     private func endLabel(_ outcome: OddsMarket.Outcome, _ value: Int?) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 3) {
-            Text(lines.first { $0.outcome == outcome }?.name ?? "").foregroundStyle(.secondary)
+        let line = lines.first { $0.outcome == outcome }
+        return HStack(alignment: .firstTextBaseline, spacing: 3) {
+            Text(line?.name ?? "").foregroundStyle(line?.color ?? .secondary)
             Text(value.map { "\($0)%" } ?? "–")
                 .foregroundStyle(.primary)
                 .contentTransition(.numericText(value: Double(value ?? 0)))
@@ -1014,18 +1154,27 @@ struct OddsHead: View {
     }
 
     private func moved(from old: OddsSplit?, to new: OddsSplit?) {
-        guard let old, let new, !data.final else { glide = nil; moving = []; return }
+        guard let old, let new, !data.final else { glide = nil; labelGlide = nil; labelOrder = []; moving = []; return }
+        let now = Date.now
         // From what's on screen now, so a value arriving mid-glide never jumps.
-        let from = glide.map { $0.value(at: .now) } ?? old
+        let from = glide.map { $0.value(at: now) } ?? old
+        let outcomes = lines.map(\.outcome)
+        let oldOrder = labelOrder.isEmpty ? OddsEndOrder.next([], split: old, outcomes: outcomes, layout: layout) : labelOrder
+        let dots = layout.endLabels(from, outcomes: outcomes, order: oldOrder)
+        let fromLabels = labelGlide?.labels(at: now, dots: dots) ?? dots
+        let order = OddsEndOrder.next(oldOrder, split: new, outcomes: outcomes, layout: layout)
+        let toLabels = layout.endLabels(new, outcomes: outcomes, order: order)
+        labelOrder = order
         let travel = Set(new.outcomes.filter { abs(layout.y(new.share($0)) - layout.y(from.share($0))) >= 1 })
         // Most ticks move every dot less than a point: nothing to see glide, so no frames for it.
         if !reduceMotion, glide != nil || !travel.isEmpty {
-            let next = OddsGlide(from: from, to: new, start: .now)
+            let next = OddsGlide(from: from, to: new, start: now)
+            labelGlide = OddsLabelGlide(from: fromLabels, to: toLabels, start: now)
             moving = glide == nil ? travel : moving.union(travel)
             glide = next
             Task {
                 try? await Task.sleep(for: .seconds(OddsStyle.glide + 0.02))
-                if glide == next { glide = nil; moving = [] }
+                if glide == next { glide = nil; labelGlide = nil; moving = [] }
             }
         }
         if live, let mover = OddsMotion.mover(from: old, to: new) { beats[mover, default: 0] += 1 }
@@ -1062,25 +1211,22 @@ struct OddsHead: View {
         clip.clip(to: Path(CGRect(x: layout.plot.minX, y: layout.bounds.minY - 4, width: layout.plot.width + 1, height: layout.bounds.height + 8)))
         let cleared = clip.clearing(ends.map { Clearance($0, radius: r + 2) })
         let previous = data.points.count > 1 ? data.points[data.points.count - 2] : nil
-        for (line, end) in zip(drawn, ends) {
+        for line in drawn {
+            let points = OddsTail.connector(previous: previous, head: head, shown: shown, outcome: line.outcome, layout: layout)
+            guard let first = points.first else { continue }
             var path = Path()
-            let last = CGPoint(x: layout.x(head.t), y: end.y)
-            if let previous {
-                path.move(to: CGPoint(x: layout.x(previous.t), y: layout.y(previous.split.share(line.outcome))))
-                path.addLine(to: last)
-            } else {
-                path.move(to: last)
-            }
-            path.addLine(to: end)
+            path.move(to: first)
+            for point in points.dropFirst() { path.addLine(to: point) }
             cleared.stroke(path, with: .color(line.color), style: style)
         }
-        // A label moved off its line keeps a hairline back to it.
-        var leaders = Path()
-        for label in labels where label.displaced {
-            leaders.move(to: CGPoint(x: label.dot.x + r + 2.5, y: label.dot.y))
-            leaders.addLine(to: CGPoint(x: layout.labelX - 2, y: label.y))
+        // Each leader belongs to one outcome; never join ambiguous crossings.
+        for label in OddsEndOrder.leaders(labels) {
+            guard let line = lines.first(where: { $0.outcome == label.outcome }) else { continue }
+            var leader = Path()
+            leader.move(to: CGPoint(x: label.dot.x + r + 2.5, y: label.dot.y))
+            leader.addLine(to: CGPoint(x: layout.labelX - 2, y: label.y))
+            ctx.stroke(leader, with: .color(line.color.opacity(0.45 * OddsEndOrder.opacity(label, among: labels))), lineWidth: 0.75)
         }
-        ctx.stroke(leaders, with: .color(Color.primary.opacity(0.3)), lineWidth: 0.75)
         // The dots, each clearing a ring in the ones beneath it.
         ctx.draw(Array(zip(drawn, ends)), clearance: { Clearance($0.1, radius: r + 1.5) }) { dot, context in
             context.fill(Path(ellipseIn: CGRect(x: dot.1.x - r, y: dot.1.y - r, width: r * 2, height: r * 2)), with: .color(dot.0.color))
@@ -1199,59 +1345,73 @@ struct OddsScrub: View {
     let lines: [OddsLine]
     let pointer: OddsPointer
     @FocusState private var focused: Bool
-
-    private var dataRange: ClosedRange<Date>? {
-        guard let last = data.points.last?.t else { return nil }
-        let first = max(data.points.first?.t ?? last, data.domain.lowerBound)
-        return min(first, last)...last
-    }
+    @State private var hovered: Date?
 
     var body: some View {
-        OddsMoment(pointer: pointer) { moment in
-            if let moment, let split = data.split(at: moment) { crosshair(moment, split) }
+        Button {
+            pointer.pin(hovered ?? pointer.moment ?? data.domain.upperBound)
+        } label: {
+            ZStack(alignment: .topLeading) {
+                Color.clear
+                OddsMoment(pointer: pointer) { moment in
+                    if let moment, data.domain.contains(moment) {
+                        crosshair(moment, data.observedPoint(at: moment))
+                    }
+                }
+            }
+            .frame(width: layout.bounds.width, height: layout.bounds.height + OddsStyle.axis, alignment: .topLeading)
+            .contentShape(Rectangle())
         }
-        .frame(width: layout.bounds.width, height: layout.bounds.height + OddsStyle.axis, alignment: .topLeading)
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
         .onContinuousHover { phase in
-            guard let range = dataRange else { return }
             switch phase {
             case let .active(location):
-                pointer.read(layout.snap(x: location.x, within: range))
+                guard location.x >= layout.plot.minX, location.x <= layout.plot.maxX else {
+                    hovered = nil
+                    if !focused { pointer.hover(nil) }
+                    return
+                }
+                let raw = layout.time(at: location.x)
+                let time = Date(timeIntervalSince1970: raw.timeIntervalSince1970.rounded())
+                let next = min(max(time, data.domain.lowerBound), data.domain.upperBound)
+                if hovered != next { hovered = next }
+                pointer.hover(next)
             case .ended:
-                if !focused { pointer.read(nil) }
+                hovered = nil
+                if !focused { pointer.hover(nil) }
             }
         }
-        // Keyboard focus (Tab, with keyboard navigation on), never a click: a click shouldn't pin the scrub.
-        .focusable(interactions: .activate)
         .focusEffectDisabled()
         .focused($focused)
-        .onChange(of: focused) { _, on in pointer.read(on ? dataRange?.upperBound : nil) }
-        .onKeyPress(.leftArrow) { step(-1) }
-        .onKeyPress(.rightArrow) { step(1) }
+        .onChange(of: focused) { _, on in pointer.hover(on ? pointer.moment ?? data.domain.upperBound : nil) }
+        .onKeyPress(.leftArrow) { pointer.step(seconds: -15, within: data.domain); return .handled }
+        .onKeyPress(.rightArrow) { pointer.step(seconds: 15, within: data.domain); return .handled }
         .onKeyPress(.escape) {
             guard pointer.moment != nil else { return .ignored }
-            pointer.read(nil)
+            pointer.clear()
             return .handled
+        }
+        .accessibilityLabel("Inspect win probability")
+        .accessibilityHint("Hover to inspect. Click to hold. Left and right arrows move fifteen seconds. Escape returns to latest.")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: pointer.step(seconds: 15, within: data.domain)
+            case .decrement: pointer.step(seconds: -15, within: data.domain)
+            @unknown default: break
+            }
         }
     }
 
-    private func step(_ minutes: Double) -> KeyPress.Result {
-        guard let range = dataRange else { return .ignored }
-        let from = pointer.moment ?? range.upperBound
-        let t = Date(timeIntervalSince1970: ((from.timeIntervalSince1970 / 60).rounded() + minutes) * 60)
-        pointer.read(min(max(t, range.lowerBound), range.upperBound))
-        return .handled
-    }
-
-    private func crosshair(_ t: Date, _ split: OddsSplit) -> some View {
+    private func crosshair(_ t: Date, _ sample: OddsSplitPoint?) -> some View {
         Canvas { ctx, _ in
             let x = layout.x(t)
             var rule = Path()
             rule.move(to: CGPoint(x: x, y: layout.plot.minY - 6))
             rule.addLine(to: CGPoint(x: x, y: layout.plot.maxY + 6))
             ctx.stroke(rule, with: .color(Viz.reference), lineWidth: 1)
-            for line in OddsLine.drawn(lines) {
-                let p = CGPoint(x: x, y: layout.y(split.share(line.outcome)))
+            for line in sample == nil ? [] : OddsLine.drawn(lines) {
+                guard let sample, data.domain.contains(sample.t) else { continue }
+                let p = CGPoint(x: layout.x(sample.t), y: layout.y(sample.split.share(line.outcome)))
                 ctx.fill(Path(ellipseIn: CGRect(x: p.x - 3.5, y: p.y - 3.5, width: 7, height: 7)), with: .color(line.color))
             }
         }
@@ -1267,13 +1427,24 @@ struct OddsReading: Equatable {
     /// ESPN's chance for the top team then.
     let espn: Double?
     let play: OddsPlay?
+    var sampleTime: Date? = nil
 
-    static func at(_ t: Date, data: OddsChartData, baseline: OddsBaseline) -> OddsReading? {
-        guard let split = data.split(at: t) else { return nil }
-        let espn = (baseline.start.map { t >= $0 } ?? false) ? baseline.espn(at: t) : nil
-        // The nearest play, if one is near (not across halftime's gap).
-        let play = baseline.play(near: t).flatMap { abs($0.t.timeIntervalSince(t)) <= 150 ? $0 : nil }
-        return OddsReading(t: t, split: split, espn: data.espn.isEmpty ? nil : espn, play: play)
+    static func at(_ t: Date, data: OddsChartData, baseline: OddsBaseline, history: MatchHistory? = nil) -> OddsReading? {
+        let sample = data.observedPoint(at: t)
+        let espn = (baseline.start.map { t >= $0 } ?? false) ? OddsSeries.value(data.espn, at: t) : nil
+        // Never describe an upcoming play as if it has already happened.
+        let play: OddsPlay?
+        if let history {
+            let exact = history.keyEvents.filter { abs($0.t.timeIntervalSince(t)) < 0.5 && $0.t <= t }
+            if let first = exact.first {
+                play = OddsPlay(t: first.t, period: first.period, clock: first.clock, text: exact.map(\.text).joined(separator: " · "))
+            } else {
+                play = history.context(at: t).map { OddsPlay(t: $0.t, period: $0.period, clock: $0.clock, text: $0.text) }
+            }
+        } else {
+            play = baseline.plays.last(where: { $0.t <= t })
+        }
+        return OddsReading(t: t, split: sample?.split, espn: data.espn.isEmpty ? nil : espn, play: play, sampleTime: sample?.t)
     }
 
     /// "Q3 4:12 · 9:41 PM"; before the game, the wall time alone (with the day when it isn't today).
@@ -1281,8 +1452,8 @@ struct OddsReading: Equatable {
         let time = Calendar.current.isDate(t, inSameDayAs: now)
             ? t.formatted(date: .omitted, time: .shortened)
             : t.formatted(.dateTime.weekday(.abbreviated).hour().minute())
-        guard let clock = play?.clock, !clock.isEmpty else { return time }
-        return "\(clock) · \(time)"
+        guard let play, !play.clock.isEmpty else { return time }
+        return "\(abs(t.timeIntervalSince(play.t)) > 2 ? "After " : "")\(play.clock) · \(time)"
     }
 }
 
@@ -1299,11 +1470,13 @@ struct OddsFooter: View {
     let live: Bool
     /// The freshness ticks once a second only while the chart is on screen.
     let ticking: Bool
+    var history: MatchHistory? = nil
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
         OddsMoment(pointer: pointer) { moment in
-            let reading = moment.flatMap { t in data.flatMap { OddsReading.at(t, data: $0, baseline: baseline) } }
-            ChartFooter(readout: reading.map { (lead: $0.when(), detail: $0.play?.text ?? "") }) {
+            let reading = moment.flatMap { t in data.flatMap { OddsReading.at(t, data: $0, baseline: baseline, history: history) } }
+            ChartFooter(readout: reading.map { (lead: $0.when(), detail: $0.split == nil ? "No market sample at this time" : $0.play?.text ?? "No play timestamp at this time") }) {
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     OddsFreshness(feed: feed, live: live, ticking: ticking, volume: feed.market?.volume)
                     Spacer(minLength: 8)
@@ -1315,6 +1488,15 @@ struct OddsFooter: View {
                 }
                 .padding(.top, 8)
             }
+        }
+        if let history, let data {
+            MatchInspectionControls(history: history, domain: data.domain, pointer: pointer, final: data.final)
+        } else if pointer.pinned {
+            Button("Return to latest") { pointer.clear() }.buttonStyle(.plain).font(Viz.note)
+        } else {
+            Text("Hover to inspect · Click to hold · ← → to explore")
+                .font(Viz.note).foregroundStyle(.secondary)
+        }
         }
     }
 }

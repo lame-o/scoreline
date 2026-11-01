@@ -277,6 +277,9 @@ struct GameDetail {
     /// ESPN's side of the odds chart (its model on the wall clock, DraftKings'
     /// line, the plays and periods), for leagues Polymarket lists.
     var odds: OddsBaseline?
+    /// Reported events on the shared wall-time axis, even when this league
+    /// has no Polymarket listing. Missing timestamps are never synthesized.
+    var history: MatchHistory?
     var football: Football?
     var baseball: Baseball?
     /// NBA: shot chart, game flow, leaders, box score, injuries.
@@ -646,6 +649,7 @@ enum ESPNDetail {
         if OddsLeague.series[path] != nil {
             detail.odds = OddsBaseline.parse(summary, sport: sport, topID: ids.first ?? nil, bottomID: ids.last ?? nil)
         }
+        detail.history = MatchHistory.parse(summary, sport: sport, topID: ids.first ?? nil, bottomID: ids.last ?? nil, path: path)
 
         switch sport {
         case .soccer:

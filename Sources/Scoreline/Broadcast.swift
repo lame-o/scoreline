@@ -550,6 +550,10 @@ final class Broadcast: BroadcastTheaterSource {
         }
         (out.topWinProbability, out.drawProbability) = win(d)
         out.odds = d.odds.map(presentedOdds)
+        out.history = d.history?.shown(until: Date(timeIntervalSince1970: p))
+        // A theater anchor can intentionally tell a play after its provider
+        // timestamp. Matching the other page modules also honors that hold.
+        out.history?.events.removeAll { !shows($0.id) }
         if let line = d.linescore { out.linescore = linescore(line, held: held.detail?.linescore) }
         memo = (key, out)
         return out
@@ -603,7 +607,7 @@ final class Broadcast: BroadcastTheaterSource {
         var b = baseline
         b.espn = baseline.espn.filter { $0.t <= until }
         b.plays = baseline.plays.filter { $0.t <= until }
-        b.periods = baseline.periods.filter { $0.start <= until }
+        b.periods = MatchHistory.clipped(baseline.periods, until: until)
         return b
     }
 

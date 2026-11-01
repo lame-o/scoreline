@@ -26,6 +26,15 @@ struct ScorelineTests {
             exit(BroadcastBench.main(Array(CommandLine.arguments[(flag + 1)...])))
         }
         HTTP.stubProtocol = FixtureProtocol.self
+        if CommandLine.arguments.contains("--odds-history-only") {
+            odds()
+            oddsContinuity()
+            matchHistory()
+            matchTimeline()
+            oddsInspection()
+            print("\n\(passes) passed, \(failures) failed")
+            exit(failures == 0 ? 0 : 1)
+        }
         if CommandLine.arguments.contains("--presentation-only") {
             gamePresentationRegressions()
             print("\n\(passes) passed, \(failures) failed")
@@ -110,6 +119,10 @@ struct ScorelineTests {
         headerSync()
         await scoringSlides()
         odds()
+        oddsContinuity()
+        matchHistory()
+        matchTimeline()
+        oddsInspection()
         modules()
         await replays()
         broadcast()

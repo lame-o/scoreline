@@ -272,10 +272,22 @@ final class OddsFeed {
                   let json = try? await JSON.fetch(url), !Task.isCancelled else { continue }
             let points = Polymarket.history(json)
             guard !points.isEmpty else { continue }
-            series[token.outcome] = OddsSeries.compact(have.isEmpty ? points : have + points.filter { $0.t > (have.last?.t ?? .distantPast) },
-                                                       now: now)
+            // The request suspends this actor. A flush or the quiet-market
+            // ticker may have appended since `have`; those observations win.
+            series[token.outcome] = Self.mergingHistory(points, current: series[token.outcome] ?? [],
+                                                        requestedAfter: have.last?.t, now: .now)
         }
         revision += 1
+    }
+
+    /// Extend the history that existed when a request began, then retain
+    /// every observation appended while it was in flight. History never
+    /// overwrites a live quote at an overlapping time. (pure; tested)
+    static func mergingHistory(_ history: [OddsPoint], current: [OddsPoint], requestedAfter: Date?, now: Date) -> [OddsPoint] {
+        let prefix = requestedAfter.map { end in current.filter { $0.t <= end } } ?? []
+        let fetched = requestedAfter.map { end in history.filter { $0.t > end } } ?? history
+        let observed = requestedAfter.map { end in current.filter { $0.t > end } } ?? current
+        return OddsSeries.compact(OddsSeries.merge(prefix + fetched, observed), now: now)
     }
 
     // MARK: Live
@@ -348,14 +360,17 @@ final class OddsFeed {
         }
     }
 
-    private func flush() {
+    private func flush(at time: Date = .now) {
         flushing = nil
-        lastFlush = .now
+        lastFlush = time
         guard let market else { return }
         var changed = false
         for token in market.tokens {
             guard let price = quotes[token.id]?.displayed else { continue }
-            changed = publish(price, for: token.outcome, at: .now) || changed
+            // One coalesced book snapshot has one instant. Separate Date.now
+            // calls invent intermediate normalized soccer prices a few
+            // microseconds apart, which render as false vertical spikes.
+            changed = publish(price, for: token.outcome, at: time) || changed
         }
         if changed { revision += 1 }
         noteHeard()
@@ -432,6 +447,16 @@ final class OddsFeed {
         }
         return series[.top]?.last.map { OddsSplit(top: $0.p, draw: nil, bottom: 1 - $0.p) } ?? market.snapshot
     }
+
+    #if DEBUG || BENCH
+    /// Exercise the real receive/coalescing path with a deterministic clock.
+    /// No network or delayed publish remains after this synchronous sample.
+    func simulate(_ updates: [(asset: String, update: OddsFrame.Update)], at time: Date) {
+        receive(updates)
+        flushing?.cancel()
+        flush(at: time)
+    }
+    #endif
 
     #if DEBUG
     /// The performance check: a tick as the market channel would publish it.

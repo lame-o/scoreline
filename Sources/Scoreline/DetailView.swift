@@ -75,6 +75,8 @@ struct DetailView: View {
     /// Polymarket's market for this game: found as the page loads, followed
     /// live only while its chart is on screen.
     @State private var ownOdds = OddsFeed()
+    /// A held or hovered historical moment, shared by the odds and event modules.
+    @State private var matchInspection = OddsPointer()
     #if DEBUG
     /// The render harness hands the page a prepared market.
     @Environment(\.oddsPreview) private var oddsPreview
@@ -1005,28 +1007,28 @@ struct DetailView: View {
         switch ref {
         case .espn(_, _, .soccer)?:
             switch state {
-            case .live: return [.liveView, .winProbability, .pitch, .timeline, .stats, .table, .bracket, .moments, .plays, .whereToWatch]
+            case .live: return [.liveView, .winProbability, .timeline, .pitch, .stats, .table, .bracket, .moments, .plays, .whereToWatch]
             case .final: return [.winProbability, .timeline, .pitch, .moments, .stats, .table, .bracket, .plays]
             case .scheduled: return [.winProbability, .table, .bracket, .whereToWatch]
             }
         case .espn(_, _, .baseball)?:
             switch state {
-            case .live: return [.liveView, .winProbability, .atPlate, .atBat, .linescore, .bracket, .moments, .battedBalls, .plays, .whereToWatch]
-            case .final: return [.winProbability, .linescore, .bracket, .moments, .battedBalls, .plays]
+            case .live: return [.liveView, .winProbability, .timeline, .atPlate, .atBat, .linescore, .bracket, .moments, .battedBalls, .plays, .whereToWatch]
+            case .final: return [.winProbability, .timeline, .linescore, .bracket, .moments, .battedBalls, .plays]
             case .scheduled: return [.winProbability, .bracket, .whereToWatch]
             }
         case let .espn(path, _, .basketball)? where path == NBADetail.path:
             switch state {
-            case .live: return [.liveView, .winProbability, .court, .flow, .linescore, .leaders, .moments, .box, .stats, .plays, .table,
+            case .live: return [.liveView, .winProbability, .timeline, .court, .flow, .linescore, .leaders, .moments, .box, .stats, .plays, .table,
                                 .injuries, .whereToWatch]
-            case .final: return [.winProbability, .flow, .court, .linescore, .leaders, .box, .moments, .stats, .table]
+            case .final: return [.winProbability, .timeline, .flow, .court, .linescore, .leaders, .box, .moments, .stats, .table]
             // Before tip-off: the matchup predictor, who's out, season leaders.
             case .scheduled: return [.winProbability, .injuries, .leaders, .table, .whereToWatch]
             }
         case .espn?:
             switch state {
-            case .live: return [.liveView, .winProbability, .field, .linescore, .moments, .stats, .table, .plays, .whereToWatch]
-            case .final: return [.winProbability, .linescore, .moments, .stats, .table, .plays]
+            case .live: return [.liveView, .winProbability, .timeline, .field, .linescore, .moments, .stats, .table, .plays, .whereToWatch]
+            case .final: return [.winProbability, .timeline, .linescore, .moments, .stats, .table, .plays]
             case .scheduled: return [.winProbability, .table, .whereToWatch]
             }
         case .counterStrike?:
@@ -1086,8 +1088,8 @@ struct DetailView: View {
         case .espn(_, _, .baseball)?:
             switch state {
             case .live: [.columns(left: [.liveView, .atPlate, .atBat, .battedBalls],
-                                  right: [.winProbability, .linescore, .moments, .bracket, .plays, .whereToWatch])]
-            case .final: [.columns(left: [.linescore, .battedBalls], right: [.winProbability, .moments, .bracket, .plays])]
+                                  right: [.winProbability, .timeline, .linescore, .moments, .bracket, .plays, .whereToWatch])]
+            case .final: [.columns(left: [.linescore, .battedBalls], right: [.winProbability, .timeline, .moments, .bracket, .plays])]
             case .scheduled: [.columns(left: [.bracket], right: [.winProbability, .whereToWatch])]
             }
         case let .espn(path, _, .basketball)? where path == NBADetail.path:
@@ -1096,16 +1098,16 @@ struct DetailView: View {
             // player shows only their shots without scrolling, and the
             // leaders below it light the same player on both.
             switch state {
-            case .live: [.columns(left: [.liveView, .court, .winProbability, .flow, .linescore, .moments, .plays, .table],
+            case .live: [.columns(left: [.liveView, .court, .winProbability, .timeline, .flow, .linescore, .moments, .plays, .table],
                                   right: [.box, .leaders, .stats, .injuries, .whereToWatch])]
-            case .final: [.columns(left: [.flow, .court, .winProbability, .linescore, .moments, .table], right: [.box, .leaders, .stats, .injuries])]
+            case .final: [.columns(left: [.flow, .court, .winProbability, .timeline, .linescore, .moments, .table], right: [.box, .leaders, .stats, .injuries])]
             // Before tip-off: who's out and how it shapes up, beside the standings.
             case .scheduled: [.columns(left: [.winProbability, .injuries, .leaders], right: [.table, .whereToWatch])]
             }
         case .espn?:
             switch state {
-            case .live: [.columns(left: [.liveView, .field, .stats, .plays], right: [.winProbability, .linescore, .moments, .table, .whereToWatch])]
-            case .final: [.columns(left: [.linescore, .stats], right: [.winProbability, .moments, .table, .plays])]
+            case .live: [.columns(left: [.liveView, .field, .stats, .plays], right: [.winProbability, .timeline, .linescore, .moments, .table, .whereToWatch])]
+            case .final: [.columns(left: [.linescore, .stats], right: [.winProbability, .timeline, .moments, .table, .plays])]
             case .scheduled: [.columns(left: [.table], right: [.winProbability, .whereToWatch])]
             }
         case .counterStrike?:
@@ -1271,7 +1273,7 @@ struct DetailView: View {
         // Stays up between batters ("Waiting for the first pitch"), so the page doesn't jump.
         case .atBat: event.state == .live && (baseballFeed.loaded || !d.atBat.isEmpty)
         case .pitch: extrasShown && (event.state == .live ? !soccerTrail.isEmpty : !soccerShots.isEmpty)
-        case .timeline: d.moments.contains { $0.minute != nil } || event.state == .live
+        case .timeline: event.state != .scheduled && (d.history != nil || d.moments.contains { $0.minute != nil })
         // Today's table says nothing about a game from another season (G2).
         case .table: extrasShown && d.seasonIsCurrent != false && (soccerLeague ?? collegeLeague ?? nbaLeague) != nil && !standings.isEmpty
             && (nbaLeague == nil || standings.contains { row in event.competitors.contains { $0.id == row.id } })
@@ -1346,8 +1348,14 @@ struct DetailView: View {
                       palette: palette, topName: names.top, bottomName: names.bottom, cards: soccerCards,
                       theater: live && liveViewOpen(d))
         case .timeline:
-            SoccerTimeline(moments: d.moments, currentMinute: live ? soccerMinute : nil, palette: palette,
-                           topName: names.top, bottomName: names.bottom)
+            if let history = d.history, !history.events.isEmpty || !isSoccer {
+                MatchTimelineSection(history: history, baseline: d.odds, feed: oddsFeed, event: event, names: names,
+                                     palette: .nba(top: event.competitors.first, bottom: event.competitors.last, scheme: colorScheme),
+                                     pointer: matchInspection, presentation: broadcast.active ? broadcast.clock : nil)
+            } else {
+                SoccerTimeline(moments: d.moments, currentMinute: live ? soccerMinute : nil, palette: palette,
+                               topName: names.top, bottomName: names.bottom)
+            }
         case .linescore:
             if let summary = d.linescore {
                 // NBA live: T (and the quarter being played) from the live lane, so it matches the hero
@@ -1436,9 +1444,11 @@ struct DetailView: View {
                 }
             case .timeline:
                 DetailSection(title: "Timeline",
-                              caption: "Goals and cards by minute. \(names.top) above, \(names.bottom) below."
-                                  + (live ? " The red dot marks now." : ""),
-                              spokenCaption: "Goals and cards by minute. \(full.top) above, \(full.bottom) below.") {
+                              caption: isSoccer && d.history?.events.isEmpty != false
+                                  ? "Match minutes · Event timestamps unavailable for odds alignment."
+                                  : "\(isSoccer ? "Goals and cards" : "Scoring plays") · "
+                                    + (oddsShown(d) ? "Same time scale as win probability." : "Hover or select an event to inspect."),
+                              spokenCaption: "\(full.top) above, \(full.bottom) below. Hover or choose an event to inspect it.") {
                     chart(.timeline, d)
                 }
             case .table:
@@ -1496,7 +1506,8 @@ struct DetailView: View {
                     // Two sides that must read apart in every sport: a clash steps to an alternate color.
                     OddsSection(feed: oddsFeed, baseline: baseline, event: event, names: names, spoken: full,
                                 palette: .nba(top: event.competitors.first, bottom: event.competitors.last, scheme: colorScheme),
-                                espnNow: d.topWinProbability, presentation: broadcast.active ? broadcast.clock : nil)
+                                espnNow: d.topWinProbability, presentation: broadcast.active ? broadcast.clock : nil,
+                                history: d.history, inspection: matchInspection)
                 } else if let p = d.topWinProbability {
                     DetailSection(title: "Win Probability",
                                   caption: event.state == .scheduled ? "ESPN's matchup predictor, before tip-off."
