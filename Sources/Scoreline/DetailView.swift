@@ -1886,7 +1886,14 @@ struct DetailView: View {
         case .moments: return .newest(d.moments, soccer: isSoccer)
         case .timeline:
             let scores = heroScores
-            return .timeline(d.moments, score: "\(scores.first.flatMap { $0 } ?? "0")–\(scores.last.flatMap { $0 } ?? "0")")
+            let score = "\(scores.first.flatMap { $0 } ?? "0")–\(scores.last.flatMap { $0 } ?? "0")"
+            if !isSoccer {
+                let detail = d.history?.keyEvents.last.map {
+                    [$0.clock, $0.text].filter { !$0.isEmpty }.joined(separator: " · ")
+                } ?? "No scoring events available"
+                return .text(score, detail)
+            }
+            return .timeline(d.moments, score: score)
         case .table:
             let ids = Set(event.competitors.compactMap(\.id))
             return .standings(standings.filter { ids.contains($0.id) }.map { (name: $0.abbreviation, rank: $0.rank) })
