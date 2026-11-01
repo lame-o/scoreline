@@ -394,3 +394,12 @@
   font-size: var(--text-callout);
   color: var(--label-secondary);
 }
+
+.competitionLink {
+  display: block;
+  margin: var(--gutter);
+  padding: calc(8 * var(--pt));
+  border-radius: var(--radius-row);
+  color: var(--accent-text);
+  background: var(--fill-surface);
+}

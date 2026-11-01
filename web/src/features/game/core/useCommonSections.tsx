@@ -9,6 +9,8 @@
 import type { ReactNode } from "react";
 import type { DetailMoment } from "../../../data/gameDetail";
 import { competitors } from "../../../data/models";
+import { competitionPath } from "../../../data/soccerCompetition";
+import { leagueWithID } from "../../../data/leagues";
 import { bracketPath } from "../../../data/schedule";
 import { pageKind, type Section } from "../../../data/sections";
 import { useSettings } from "../../../state/settings";
@@ -105,6 +107,14 @@ export function useCommonSections(game: GameContext, options: CommonOptions = {}
         <WhereToWatch broadcasters={detail.broadcasters} />
       </DetailSection>
     );
+  }
+
+  if (event.ref?.kind === "espn" && event.ref.sport === "soccer") {
+    const slug = event.ref.path.split("/").pop()!;
+    const title = leagueWithID(slug)?.name ?? event.caption?.split(" · ")[0] ?? "Competition";
+    sections.bracket = <DetailSection id="bracket" title="Competition" caption="Fixtures, results and the path through each round.">
+      <SeriesLink title={title} to={competitionPath(slug, detail.seasonYear)} label="View" />
+    </DetailSection>;
   }
 
   // The bracket this game belongs to: the MLB postseason (CS2 tournaments: the CS2 page adds its own).

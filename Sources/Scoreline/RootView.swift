@@ -182,7 +182,8 @@ struct RootView: View {
                         LeagueSettingsView(league: league, backTitle: fromScores ? "Scores" : "Settings",
                                            onOpen: { open(.detail($0)) }, onOpenSchedule: { open(.schedule($0)) },
                                            onOpenResults: { open(.schedule($0, mode: .results)) },
-                                           onOpenEvent: { open(.eventResults($0)) }) { back() }
+                                           onOpenEvent: { open(.eventResults($0)) },
+                                           onOpenBracket: { open(.bracket($0, highlight: $1, returnTo: nil)) }) { back() }
                     }
                     .environment(\.scrollKey, Page.league(league, fromScores: fromScores).memoryKey)
                     .transition(pageTransition)
@@ -214,8 +215,13 @@ struct RootView: View {
                     .transition(pageTransition)
                 case let .bracket(source, highlight, returnTo):
                     SizedPage(onChange: { fit($0, loading: $1, for: .bracket(source, highlight: highlight, returnTo: returnTo)) }) {
-                        BracketPage(source: source, backTitle: backStack.last?.backTitle ?? (returnTo == nil ? "Scores" : "Match"),
-                                    highlight: highlight) { back() }
+                        if case let .soccerCompetition(slug, name, year) = source {
+                            SoccerCompetitionPage(slug: slug, year: year, name: name, backTitle: backStack.last?.backTitle ?? "Match",
+                                                  highlight: highlight, onBack: { back() }, onOpen: { open(.detail($0)) })
+                        } else {
+                            BracketPage(source: source, backTitle: backStack.last?.backTitle ?? (returnTo == nil ? "Scores" : "Match"),
+                                        highlight: highlight) { back() }
+                        }
                     }
                     .environment(\.scrollKey, Page.bracket(source, highlight: highlight, returnTo: returnTo).memoryKey)
                     .transition(pageTransition)

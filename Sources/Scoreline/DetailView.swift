@@ -914,9 +914,9 @@ struct DetailView: View {
         switch ref {
         case .espn(_, _, .soccer)?:
             switch state {
-            case .live: return [.liveView, .winProbability, .pitch, .timeline, .stats, .table, .moments, .plays, .whereToWatch]
-            case .final: return [.winProbability, .timeline, .pitch, .moments, .stats, .table, .plays]
-            case .scheduled: return [.winProbability, .table, .whereToWatch]
+            case .live: return [.liveView, .winProbability, .pitch, .timeline, .stats, .table, .bracket, .moments, .plays, .whereToWatch]
+            case .final: return [.winProbability, .timeline, .pitch, .moments, .stats, .table, .bracket, .plays]
+            case .scheduled: return [.winProbability, .table, .bracket, .whereToWatch]
             }
         case .espn(_, _, .baseball)?:
             switch state {
@@ -988,9 +988,9 @@ struct DetailView: View {
         switch ref {
         case .espn(_, _, .soccer)?:
             switch state {
-            case .live: [.columns(left: [.liveView, .pitch, .stats, .plays], right: [.winProbability, .timeline, .moments, .table, .whereToWatch])]
-            case .final: [.columns(left: [.pitch, .stats], right: [.timeline, .winProbability, .moments, .table, .plays])]
-            case .scheduled: [.columns(left: [.table], right: [.winProbability, .whereToWatch])]
+            case .live: [.columns(left: [.liveView, .pitch, .stats, .plays], right: [.winProbability, .timeline, .moments, .table, .bracket, .whereToWatch])]
+            case .final: [.columns(left: [.pitch, .stats], right: [.timeline, .winProbability, .moments, .table, .bracket, .plays])]
+            case .scheduled: [.columns(left: [.table, .bracket], right: [.winProbability, .whereToWatch])]
             }
         case .espn(_, _, .baseball)?:
             switch state {
@@ -1540,7 +1540,7 @@ struct DetailView: View {
             case .bracket:
                 if let source = bracketSource(d) {
                     let lines = bracketLines(d)
-                    DetailSection(title: d.tournament == nil ? "Series" : "Tournament", caption: lines.caption) {
+                    DetailSection(title: isSoccer ? "Competition" : d.tournament == nil ? "Series" : "Tournament", caption: lines.caption) {
                         Button {
                             onOpenBracket(source, Set(event.competitors.compactMap { $0.id?.split(separator: "-").last.map(String.init) }))
                         } label: {
@@ -1548,7 +1548,7 @@ struct DetailView: View {
                                 Image(systemName: "trophy").font(.system(size: 12)).foregroundStyle(.secondary).frame(width: 16)
                                 Text(lines.title).font(.system(size: 12, weight: .medium)).lineLimit(1)
                                 Spacer()
-                                Text("Bracket").font(.system(size: 11.5)).foregroundStyle(.secondary)
+                                Text(isSoccer ? "View" : "Bracket").font(.system(size: 11.5)).foregroundStyle(.secondary)
                                 Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
                             }
                             .padding(.horizontal, 6).padding(.vertical, 6)
@@ -1844,6 +1844,9 @@ struct DetailView: View {
 
     /// The bracket this match belongs to: the MLB postseason, or a CS2 tournament.
     private func bracketSource(_ d: GameDetail) -> BracketSource? {
+        if case let .espn(path, _, .soccer)? = event.ref, let slug = path.split(separator: "/").last {
+            return .soccerCompetition(slug: String(slug), name: soccerLeague?.name ?? event.caption?.components(separatedBy: " · ").first ?? "Competition", year: d.seasonYear)
+        }
         if let t = d.tournament { return .csTournament(slug: t.slug, name: t.name) }
         if case let .espn(path, _, .baseball)? = event.ref, event.stage == "post-season" {
             return .espnPostseason(path: path, year: Calendar.current.component(.year, from: event.start))
@@ -1853,6 +1856,7 @@ struct DetailView: View {
 
     /// "World Series" / "Game 2 · MIL leads 2–0"; "PGL Masters Bucharest 2026" / "Group Stage · Round 2".
     private func bracketLines(_ d: GameDetail) -> (title: String, caption: String) {
+        if isSoccer { return (soccerLeague?.name ?? event.caption?.components(separatedBy: " · ").first ?? "Competition", "Fixtures, results and the path through each round.") }
         if let t = d.tournament { return (t.name, t.stage ?? "The full tournament, stage by stage.") }
         let parts = (event.caption ?? "Postseason").components(separatedBy: " · ")
         return (parts.first ?? "Postseason",
@@ -1912,13 +1916,12 @@ struct DetailView: View {
 
     /// Positioned play-by-play (pitch, shots) and the league table.
     private func loadSoccerExtras(_ current: Event) async {
-        guard let league = soccerLeague, case let .espn(path, id, _)? = current.ref,
-              let slug = path.split(separator: "/").last else { return }
+        guard let request = SoccerFeedRequest(current.ref) else { return }
         // Soccer lists the home side first.
         let homeID = current.competitors.first?.id?.split(separator: "-").last.map(String.init)
         let feed = soccerFeed
-        async let updated: Void = feed.update(league: String(slug), eventID: id, homeTeamID: homeID, lineups: detail?.lineups ?? [:])
-        if standings.isEmpty { standings = await store.standings(for: league) }
+        async let updated: Void = feed.update(league: request.league, eventID: request.eventID, homeTeamID: homeID, lineups: detail?.lineups ?? [:])
+        if let league = soccerLeague, standings.isEmpty { standings = await store.standings(for: league) }
         await updated
         // A goal VAR struck off goes before anything new shows.
         retract(feed.takeRetractions())

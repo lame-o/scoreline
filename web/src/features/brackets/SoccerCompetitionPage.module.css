@@ -1,0 +1,25 @@
+.stagePicker {
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--pt));
+  flex-wrap: wrap;
+  margin: calc(18 * var(--pt)) var(--gutter) calc(8 * var(--pt));
+  font-size: var(--text-body);
+}
+
+.stagePicker select {
+  font: inherit;
+  color: inherit;
+  background: var(--fill-surface);
+  border: 1px solid var(--separator);
+  border-radius: calc(8 * var(--pt));
+  padding: calc(7 * var(--pt)) calc(10 * var(--pt));
+  max-width: 100%;
+}
+
+.tie { padding-block: calc(6 * var(--pt)); }
+.note, .date {
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+  margin: calc(6 * var(--pt)) calc(12 * var(--pt));
+}

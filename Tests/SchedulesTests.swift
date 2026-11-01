@@ -224,8 +224,8 @@ extension ScorelineTests {
         let nov1 = days.first { $0.day == DayKey(year: 2026, month: 11, day: 1) }
         check(nov1?.groups.map(\.league) == ["eng.1", "nfl"], "a day's leagues follow the user's order",
               "\(String(describing: nov1?.groups.map(\.league)))")
-        check(days.first { $0.day == DayKey(year: 2026, month: 10, day: 27) }?.groups.first?.league == "eng.1",
-              "a cup tie sits with its sport's league in the All scope")
+        check(days.first { $0.day == DayKey(year: 2026, month: 10, day: 27) }?.groups.first?.league == "eng.league_cup",
+              "a cataloged cup keeps its own competition group in the All scope")
         let jan3 = days.first { $0.day == DayKey(year: 2027, month: 1, day: 3) }?.items ?? []
         check(jan3.last?.start == .tba, "games without a time come after the day's timed games")
         let split = Agenda.split(days, today: DayKey(year: 2026, month: 10, day: 25))

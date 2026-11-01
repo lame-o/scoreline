@@ -651,3 +651,8 @@ What the Mac's menu bar item, Notifier and panel do, a browser does through the 
 - [x] A live-region policy matching Announcer: game pages only, never the list; axe at zero on every page type (`qa.spec.ts`)
 - [ ] A screen-reader pass on VoiceOver (macOS and iOS)
 - [ ] Real-device pass on iOS Safari (safe areas, toolbar collapse, tap feel)
+
+
+### Soccer competitions
+
+`data/soccerCompetition.ts` reads provider season stages and calendar-year scoreboards into ties, preserving two-leg aggregates and shootout advancement. `features/brackets/SoccerCompetitionPage.tsx` presents the stages and confirmed bracket at `/competition/:slug/:year?`. See `../docs/SOCCER-COMPETITIONS.md` for provider constraints and the native replay regression.

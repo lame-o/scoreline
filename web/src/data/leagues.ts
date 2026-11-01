@@ -25,6 +25,8 @@ function league(id: string, name: string, sport: Sport, source: Source): League 
 
 export const CATALOG: readonly League[] = [
   league("eng.1", "Premier League", "soccer", espn("soccer/eng.1")),
+  league("eng.league_cup", "Carabao Cup", "soccer", espn("soccer/eng.league_cup")),
+  league("eng.fa", "FA Cup", "soccer", espn("soccer/eng.fa")),
   league("uefa.champions", "Champions League", "soccer", espn("soccer/uefa.champions")),
   league("uefa.europa", "Europa League", "soccer", espn("soccer/uefa.europa")),
   league("esp.1", "LaLiga", "soccer", espn("soccer/esp.1")),
@@ -60,4 +62,12 @@ export function leagueWithID(id: string): League | undefined {
 /** "soccer/eng.1" for ESPN leagues, else null. */
 export function espnPath(league: League): string | null {
   return league.source.kind === "espn" ? league.source.path : null;
+}
+
+/** A game link may identify an ESPN soccer competition outside the follow catalog. */
+export function leagueForGame(hint: string): League | undefined {
+  const known = leagueWithID(hint) ?? CATALOG.find((l) => espnPath(l) === hint);
+  if (known) return known;
+  const match = /^soccer\/([a-z0-9_-]+(?:\.[a-z0-9_-]+)+)$/.exec(hint);
+  return match ? league(match[1]!, match[1]!, "soccer", espn(hint)) : undefined;
 }

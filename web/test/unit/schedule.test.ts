@@ -201,7 +201,7 @@ describe("the agenda", () => {
     const days = buildAgenda([...kc.items, ...cup.items], ["eng.1", "nfl"], true);
     const find = (d: DayKey) => days.find((x) => compactDay(x.day) === compactDay(d));
     expect(find(day(2026, 11, 1))?.groups.map((g) => g.league)).toEqual(["eng.1", "nfl"]);
-    expect(find(day(2026, 10, 27))?.groups[0]?.league).toBe("eng.1");
+    expect(find(day(2026, 10, 27))?.groups[0]?.league).toBe("eng.league_cup");
     const jan3 = dayItems(find(day(2027, 1, 3))!);
     expect(jan3[jan3.length - 1]?.start.kind).toBe("tba");
     const split = splitDays(days, day(2026, 10, 25));

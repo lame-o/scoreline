@@ -41,6 +41,7 @@ const router = createBrowserRouter([
       { path: "results/tournament/:slug", lazy: () => import("../features/seasons/EventResultsPage").then((m) => ({ Component: m.EventResultsPage })) },
       { path: "standings/:league", lazy: () => import("../features/standings/StandingsPage").then((m) => ({ Component: m.StandingsPage })) },
       { path: "rankings/:league", lazy: () => import("../features/standings/RankingsPage").then((m) => ({ Component: m.RankingsPage })) },
+      { path: "competition/:slug/:year?", lazy: () => import("../features/brackets/SoccerCompetitionPage").then((m) => ({ Component: m.SoccerCompetitionPage })) },
       { path: "bracket/:league/:id", lazy: () => import("../features/brackets/BracketPage").then((m) => ({ Component: m.BracketPage })) },
       { path: "team/:id", lazy: () => import("../features/profiles/TeamPage").then((m) => ({ Component: m.TeamPage })) },
       { path: "player/:id", lazy: () => import("../features/profiles/PlayerPage").then((m) => ({ Component: m.PlayerPage })) },

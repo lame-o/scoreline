@@ -7,7 +7,8 @@
  * athlete on each round instead of filtering. The pick list is an outline
  * with the Mac's keys (PickList.tsx).
  */
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
+import { competitionPath } from "../../data/soccerCompetition";
 import { Button, FormSection, GroupBox, PageHeader, SegmentedControl, ToggleRow, formStyles } from "../../design/components";
 import { leagueWithID } from "../../data/leagues";
 import type { League } from "../../data/models";
@@ -33,6 +34,7 @@ export function LeaguePage() {
       <PageHeader title={league.name} icon={undefined} leading={<PageBack />} />
       <div className={`${styles.column} ${styles.entrance}`}>
         {/* What's next and what just happened lead, as on the Mac's league page (ScheduleHub, ResultsHub). */}
+        {league.sport === "soccer" ? <Link className={styles.competitionLink} to={competitionPath(league.id)}>Competition · Rounds and Results</Link> : null}
         <LeagueHub league={league} />
         <LeagueOptions league={league} />
         <TeamPicks league={league} />

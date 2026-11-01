@@ -27,6 +27,7 @@ struct LeagueSettingsView: View {
     var onOpenResults: (ScheduleScope) -> Void = { _ in }
     /// A climbing category's or a CS2 tournament's results page.
     var onOpenEvent: (EventResultsRef) -> Void = { _ in }
+    var onOpenBracket: (BracketSource, Set<String>) -> Void = { _, _ in }
     let onBack: () -> Void
 
     @State private var options: [TeamOption] = []
@@ -69,6 +70,12 @@ struct LeagueSettingsView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         // Upcoming spans the page (rows go two-up when split);
                         // settings stay a readable column below.
+                        if league.sport == .soccer {
+                            Button("Competition · Rounds and Results") {
+                                onOpenBracket(.soccerCompetition(slug: league.id, name: league.name, year: nil), [])
+                            }
+                            .padding(16)
+                        }
                         LeagueUpcomingSection(league: league, onOpen: onOpen, onOpenSchedule: onOpenSchedule)
                         LeagueResultsSection(league: league, onOpen: onOpen,
                                              onOpenResults: { onOpenResults(.for(league: league)) }, onOpenEvent: onOpenEvent)

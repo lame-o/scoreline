@@ -46,6 +46,8 @@ struct League: Identifiable, Hashable {
 
     static let catalog: [League] = [
         League(id: "eng.1", name: "Premier League", sport: .soccer, source: .espn(path: "soccer/eng.1")),
+        League(id: "eng.league_cup", name: "Carabao Cup", sport: .soccer, source: .espn(path: "soccer/eng.league_cup")),
+        League(id: "eng.fa", name: "FA Cup", sport: .soccer, source: .espn(path: "soccer/eng.fa")),
         League(id: "uefa.champions", name: "Champions League", sport: .soccer, source: .espn(path: "soccer/uefa.champions")),
         League(id: "uefa.europa", name: "Europa League", sport: .soccer, source: .espn(path: "soccer/uefa.europa")),
         League(id: "esp.1", name: "LaLiga", sport: .soccer, source: .espn(path: "soccer/esp.1")),

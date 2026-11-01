@@ -68,11 +68,12 @@ enum BracketSource: Hashable {
     /// A postseason on ESPN (MLB).
     case espnPostseason(path: String, year: Int)
     case csTournament(slug: String, name: String)
+    case soccerCompetition(slug: String, name: String, year: Int?)
 
     var title: String {
         switch self {
         case let .espnPostseason(_, year): "\(year) Postseason"
-        case let .csTournament(_, name): name
+        case let .csTournament(_, name), let .soccerCompetition(_, name, _): name
         }
     }
 }
@@ -85,6 +86,8 @@ enum BracketProvider {
         let result: TournamentBrackets = switch source {
         case let .espnPostseason(path, year): try await MLBPostseason.load(path: path, year: year)
         case let .csTournament(slug, _): try await CSTournament.load(slug: slug)
+        case let .soccerCompetition(slug, _, year):
+            try await SoccerCompetitionProvider.load(slug: slug, year: year).tournamentBrackets
         }
         await BracketCache.shared.store(result, for: source)
         return result
@@ -1000,6 +1003,7 @@ struct BracketPage: View {
         switch source {
         case .espnPostseason: "Series wins in each matchup. Lines carry each winner to the next round."
         case .csTournament: "Maps won in each match. Lines carry each winner to the next round."
+        case .soccerCompetition: "Goals in each tie. Lines connect confirmed advancing teams."
         }
     }
 }
