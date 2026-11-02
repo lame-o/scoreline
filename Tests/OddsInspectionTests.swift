@@ -37,7 +37,6 @@ extension ScorelineTests {
         var finished = OddsChartData(revision: 2, threeWay: false, points: [nearCertain],
                                      espn: [OddsPoint(t: nearCertain.t, p: 0.998)],
                                      domain: start...(start + 100), live: false, final: true)
-        baseline.start = start
         let historical = OddsReading.at(start + 99, data: finished, baseline: baseline)!
         let endpoint = OddsReading.at(start + 100, data: finished, baseline: baseline)!
         let historicalFinal = finished.usesFinalPercentages(at: historical.t)
