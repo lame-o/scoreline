@@ -310,7 +310,7 @@ struct DetailView: View {
             .environment(nbaStage)
             // The rows' replays, kept in step with the summary and the live lanes (only this modifier reads the lanes for them).
             // (The store keeps a soccer page's feed; asking for one on any other page would make one.)
-            .modifier(ReplaySync(replays: replays, detail: detail, event: event, soccer: isSoccer ? soccerFeed : nil, football: footballFeed,
+            .modifier(ReplaySync(replays: replays, detail: detail, loads: loadedRevision, event: event, soccer: isSoccer ? soccerFeed : nil, football: footballFeed,
                                  basketball: basketballFeed))
             // NBA: players on fire, ESPN's scoring run (CourtView, GameFlowView, BoxScoreView, LeadersView).
             .environment(basketballFeed)
