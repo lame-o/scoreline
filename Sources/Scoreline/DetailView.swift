@@ -122,6 +122,9 @@ struct DetailView: View {
     /// told play, the clock as it read then, live until the last play is told.
     private var event: Event { broadcast.present(loadedDetail?.colored(live) ?? live) }
 
+    /// The game's colors, decided once (`MatchColors`).
+    private var colors: MatchColors { MatchColors(event, topIsHome: loadedDetail?.topIsHome) }
+
     /// The detail as presented at p (`Broadcast.present`): the play lists, the
     /// charts' plays, Win Probability, the line score and the held tables.
     private var detail: GameDetail? { broadcast.present(loadedDetail, revision: loadedRevision, side: teamSide) }
@@ -139,7 +142,7 @@ struct DetailView: View {
          preloaded: GameDetail? = nil, standings: [StandingsRow] = [], onOpenCompetition: @escaping (League) -> Void = { _ in }) {
         self.onOpenCompetition = onOpenCompetition
         self.snapshot = snapshot
-        _live = State(initialValue: snapshot)
+        _live = State(initialValue: TeamColors.shared.apply(snapshot))
         _replays = State(initialValue: PageReplays(snapshot))
         self.onBack = onBack
         self.onOpenStandings = onOpenStandings
@@ -481,7 +484,10 @@ struct DetailView: View {
     /// climbers, the leader's; after the round, the winner's), and a soft
     /// accent wash until there's anyone to follow.
     private var wash: (left: Color, right: Color, intensity: Double) {
-        if case .match = event.content { return (identityPalette.top, identityPalette.bottom, 1) }
+        if case .match = event.content {
+            let own = colors.identity(colorScheme)
+            return (own.top, own.bottom, 1)
+        }
         if let colors = FlagPalette.colors(ioc: washCountry) { return (colors.0, colors.1, 0.85) }
         return (.accentColor, .accentColor, 0.6)
     }
@@ -496,15 +502,7 @@ struct DetailView: View {
         return d.ranking.first(where: { $0.rank == 1 })?.country
     }
 
-    private var palette: TeamPalette {
-        if isNBA { return .nba(top: event.competitors.first, bottom: event.competitors.last, scheme: colorScheme) }
-        return TeamPalette(top: event.competitors.first?.color, bottom: event.competitors.last?.color, scheme: colorScheme)
-    }
-
-    private var identityPalette: TeamPalette {
-        TeamPalette(top: event.competitors.first?.color, bottom: event.competitors.last?.color,
-                    scheme: colorScheme, distinguish: false)
-    }
+    private var palette: TeamPalette { colors.palette(colorScheme) }
 
 
     /// Live football: the team with the ball (fast lane first, then the scoreboard).
@@ -547,7 +545,8 @@ struct DetailView: View {
     }
 
     private func teamColumn(_ c: Competitor) -> some View {
-        let color = c.id == event.competitors.first?.id ? identityPalette.top : identityPalette.bottom
+        let own = colors.identity(colorScheme)
+        let color = c.id == event.competitors.first?.id ? own.top : own.bottom
         return VStack(spacing: 6) {
             LogoView(url: c.logo, darkURL: c.darkLogo, size: 34)
                 // A soft glow in the team's color seats the logo on the wash: a
@@ -1370,7 +1369,7 @@ struct DetailView: View {
         case .timeline:
             if let history = timelineHistory(d) {
                 MatchTimelineSection(history: history, baseline: d.odds, feed: oddsFeed, event: event, names: names,
-                                     palette: .nba(top: event.competitors.first, bottom: event.competitors.last, scheme: colorScheme),
+                                     palette: palette,
                                      pointer: matchInspection, presentation: broadcast.active ? broadcast.clock : nil)
             } else {
                 SoccerTimeline(moments: d.moments, currentMinute: live ? soccerMinute : nil, palette: palette,
@@ -1428,7 +1427,6 @@ struct DetailView: View {
                 DetailSection(title: "Live View", caption: liveViewCaption,
                               accessory: broadcast.breakLabel.map(SectionAccessory.text) ?? .live) {
                     theater(d)
-                    theaterLegend(d)
                 }
             case .field:
                 if let football = shownFootball {
@@ -1525,7 +1523,7 @@ struct DetailView: View {
                 if oddsShown(d), let baseline = d.odds {
                     // Two sides that must read apart in every sport: a clash steps to an alternate color.
                     OddsSection(feed: oddsFeed, baseline: baseline, event: event, names: names, spoken: full,
-                                palette: .nba(top: event.competitors.first, bottom: event.competitors.last, scheme: colorScheme),
+                                palette: palette,
                                 espnNow: d.topWinProbability, presentation: broadcast.active ? broadcast.clock : nil,
                                 history: d.history, inspection: matchInspection)
                 } else if let p = d.topWinProbability {
@@ -1724,31 +1722,10 @@ struct DetailView: View {
 
     /// The sport's isometric theater. Each reads its live lane's newest play
     /// itself, so a play redraws only the theater.
-    private func theaterLegend(_ d: GameDetail) -> some View {
-        let homeFirst = d.topIsHome ?? isSoccer
-        let kits = TheaterKits(top: event.competitors.first, bottom: event.competitors.last, topIsHome: homeFirst)
-        let dressed = TheaterTeams.dress(kits, scheme: colorScheme)
-        return HStack(spacing: 12) {
-            ForEach(Array(event.competitors.enumerated()), id: \.element.key) { index, team in
-                HStack(spacing: 4) {
-                    Circle().fill(index == 0 ? dressed.top.jersey : dressed.bottom.jersey)
-                        .overlay(Circle().strokeBorder(.secondary.opacity(0.5), lineWidth: 0.5))
-                        .frame(width: 7, height: 7)
-                    Text("\(team.abbreviation) · \((index == 0) == homeFirst ? "Home" : "Away")")
-                }
-            }
-            Spacer(minLength: 0)
-            Text("Team colors").foregroundStyle(.tertiary)
-        }
-        .font(Viz.note)
-        .foregroundStyle(.secondary)
-        .help("Illustrative team colors. Match-day jerseys may differ; a contrasting kit distinguishes teams with similar colors.")
-    }
-
     @ViewBuilder
     private func theater(_ d: GameDetail) -> some View {
         let names = shortNames(d), full = spokenTeams
-        let kits = TheaterKits(top: event.competitors.first, bottom: event.competitors.last, topIsHome: d.topIsHome ?? isSoccer)
+        let kits = colors
         if isNBA {
             BasketballTheater(feed: basketballFeed, palette: palette, kits: kits,
                               topIsHome: d.topIsHome ?? false, topName: names.top, bottomName: names.bottom,
@@ -2680,6 +2657,7 @@ struct DetailView: View {
     #if DEBUG
     /// A load the offscreen check delivers: the first assembles the page, later ones update it.
     private func harnessLoaded(_ loaded: GameDetail) {
+        let loaded = TeamColors.shared.note(loaded, for: live)
         guard loadedDetail != nil else {
             arrival = .data(in: Self.contentSpace, page: page)
             extrasShown = true
@@ -2697,7 +2675,7 @@ struct DetailView: View {
     /// Later refreshes update in place; only new events (a goal, a play)
     /// animate, so the page doesn't shift while it's read.
     private func apply(_ loaded: GameDetail) {
-        var loaded = loaded
+        var loaded = TeamColors.shared.note(loaded, for: live)
         // Keep whichever CS2 reading is newer, the fast lane's or the full load's
         // (so the score never steps back), and a newer one can carry a moment.
         if let lane = detail?.csLive {
@@ -2793,6 +2771,7 @@ struct DetailView: View {
                 extras = task
                 let loaded = try await DetailProvider.detail(for: current)
                 if firstLoad {
+                    let loaded = TeamColors.shared.note(loaded, for: current)
                     // Give the extras (pitch, table) up to 200ms to land with
                     // the rest, so the page usually assembles once; past that
                     // the page shows and they glide in when they're ready.

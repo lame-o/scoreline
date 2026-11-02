@@ -328,7 +328,7 @@ struct TeamCrest: View {
 
 @MainActor
 enum ProfileColors {
-    /// The team's two colors for a wash, fitted to the scheme (logo colors first, as the match page reads them).
+    /// The team's two colors for a wash, fitted to the scheme (the source's; the logo's for a team without any).
     static func team(_ ref: Profile.TeamRef?, header: Profile.TeamHeader? = nil, scheme: ColorScheme) -> (Color, Color)? {
         guard let ref else { return nil }
         var competitor = Competitor(id: ref.id, name: ref.name, abbreviation: ref.abbreviation ?? "", score: nil,

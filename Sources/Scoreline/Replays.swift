@@ -198,8 +198,6 @@ struct ReplayContext: Equatable {
     var eventID = ""
     var top: Competitor?
     var bottom: Competitor?
-    /// The NBA's palette (its own clash rules).
-    var nba = false
     var topIsHome = false
     var people: [String: TheaterPerson] = [:]
     var fielders = BaseballFielders()
@@ -207,7 +205,7 @@ struct ReplayContext: Equatable {
     /// Baseball: MLB's numbers by name, for the tags.
     var numbers: [String: String] = [:]
 
-    var kits: TheaterKits { TheaterKits(top: top, bottom: bottom, topIsHome: topIsHome) }
+    var kits: TheaterKits { MatchColors(top: top, bottom: bottom, topIsHome: topIsHome) }
     /// Short names ("PHI"), and the teams' full names ("Philadelphia Eagles").
     var codes: (top: String, bottom: String) { (top?.abbreviation ?? "", bottom?.abbreviation ?? "") }
     var teams: (top: String, bottom: String) { (top?.name ?? codes.top, bottom?.name ?? codes.bottom) }
@@ -264,7 +262,7 @@ final class PageReplays {
         guard supported else { return }
         let recent = nba && live && !basketball.recentPlays.isEmpty ? basketball.recentPlays : detail.recentPlays
         let ids = Replays.ids(detail, recent: recent)
-        var context = ReplayContext(eventID: event.id, top: event.competitors.first, bottom: event.competitors.last, nba: nba,
+        var context = ReplayContext(eventID: event.id, top: event.competitors.first, bottom: event.competitors.last,
                                     topIsHome: detail.topIsHome ?? false, people: detail.people, fielders: detail.fielders,
                                     lineups: detail.lineups)
         var next: [String: PlayReplay]

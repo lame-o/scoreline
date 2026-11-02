@@ -135,31 +135,34 @@ extension ScorelineTests {
         func lab(_ c: Color) -> OKLab? { NSColor(c).usingColorSpace(.sRGB).flatMap(OKLab.init) }
         func apart(_ a: Uniform, _ b: Uniform) -> Bool {
             guard let x = lab(a.jersey), let y = lab(b.jersey) else { return false }
-            return x.distance(to: y) >= TheaterTeams.apart
+            return x.distance(to: y) >= MatchColors.apart
         }
         let navies = TheaterKits(top: TeamKit(color: "13294b"), bottom: TeamKit(color: "092c5c"))
         let espn = TheaterKits(top: TeamKit(color: "13294b", alternate: "ffc52f"), bottom: TeamKit(color: "092c5c", alternate: "8fbce6"))
         for scheme in [ColorScheme.dark, .light] {
             let mode = scheme == .dark ? "dark" : "light"
             let plain = TheaterTeams.dress(navies, scheme: scheme)
-            check(plain.rule == .whites(.top) && apart(plain.top, plain.bottom),
-                  "\(mode): two navies with no second colors: the away team wears a contrast kit", "\(plain.rule)")
+            check(navies.top.wear == .contrast && apart(plain.top, plain.bottom),
+                  "\(mode): two navies with no second colors: the away team wears a contrast kit", "\(navies.top.wear)")
             let dressed = TheaterTeams.dress(espn, scheme: scheme)
-            check(dressed.rule == .second(.top) && apart(dressed.top, dressed.bottom),
-                  "\(mode): Brewers and Rays navies: the Brewers change into gold (their second color), not gray", "\(dressed.rule)")
-            let rivals = TheaterTeams.dress(TheaterKits(top: TeamKit(color: "0c2340"), bottom: TeamKit(color: "bd3039")), scheme: scheme)
-            check(rivals.rule == .own && apart(rivals.top, rivals.bottom), "\(mode): navy and red read apart as they are")
-            // White and gray second colors aren't colors: they don't count.
-            let blank = TheaterTeams.dress(TheaterKits(top: TeamKit(color: "005a9c", alternate: "ffffff"),
-                                                       bottom: TeamKit(color: "004687", alternate: "c0c0c0")), scheme: scheme)
-            check(blank.rule == .whites(.top) && apart(blank.top, blank.bottom), "\(mode): two blues whose second colors are white and silver: whites")
+            check(espn.top.wear == .second && apart(dressed.top, dressed.bottom),
+                  "\(mode): Brewers and Rays navies: the Brewers, away, change into gold (their second color), not gray", "\(espn.top.wear)")
+            let rivals = TheaterKits(top: TeamKit(color: "0c2340"), bottom: TeamKit(color: "bd3039"))
+            let rivalsDressed = TheaterTeams.dress(rivals, scheme: scheme)
+            check(rivals.top.wear == .own && rivals.bottom.wear == .own && apart(rivalsDressed.top, rivalsDressed.bottom), "\(mode): navy and red read apart as they are")
+            // A white second color is a real road kit.
+            let blank = TheaterKits(top: TeamKit(color: "005a9c", alternate: "ffffff"), bottom: TeamKit(color: "004687", alternate: "c0c0c0"))
+            let blankDressed = TheaterTeams.dress(blank, scheme: scheme)
+            check(blank.top.color == "ffffff" && apart(blankDressed.top, blankDressed.bottom), "\(mode): two blues, the visitors' second color white: they wear it")
         }
         let lightWhites = TheaterTeams.dress(navies, scheme: .light).top
         check(lightWhites.piping != nil, "light: whites carry piping in the team's color (a white halo wouldn't show them)")
-        let pale = TheaterTeams.dress(TheaterKits(top: TeamKit(color: "fdb827"), bottom: TeamKit(color: "ffc52f")), scheme: .light)
-        check(pale.rule == .whites(.top) && apart(pale.top, pale.bottom), "light: two golds: the away team in charcoal, dark against light")
-        let black = TheaterTeams.dress(TheaterKits(top: TeamKit(color: "000000"), bottom: TeamKit(color: "27251f")), scheme: .dark)
-        check(apart(black.top, black.bottom), "dark: two black teams (gray on a dark panel) still read apart", "\(black.rule)")
+        let golds = TheaterKits(top: TeamKit(color: "fdb827"), bottom: TeamKit(color: "ffc52f"))
+        let pale = TheaterTeams.dress(golds, scheme: .light)
+        check(golds.top.color == MatchColors.charcoal && apart(pale.top, pale.bottom), "light: two golds: the away team in charcoal, dark against light")
+        let blacks = TheaterKits(top: TeamKit(color: "000000"), bottom: TeamKit(color: "27251f"))
+        let black = TheaterTeams.dress(blacks, scheme: .dark)
+        check(apart(black.top, black.bottom), "dark: two black teams still read apart", "\(blacks.top.wear)")
 
         // MARK: One celebration per moment
 

@@ -120,7 +120,7 @@ struct EventTile: View {
     // MARK: Large, live
 
     private func liveLarge(_ top: Competitor, _ bottom: Competitor) -> some View {
-        let palette = self.palette(top, bottom)
+        let palette = self.palette
         let strip = TileStripView(event: event, top: top, bottom: bottom, palette: palette, countries: countries)
         return VStack(spacing: 0) {
             header
@@ -200,16 +200,13 @@ struct EventTile: View {
         return possession == top.id ? .top : possession == bottom.id ? .bottom : nil
     }
 
-    private func palette(_ top: Competitor, _ bottom: Competitor) -> TeamPalette {
-        league?.id == "nba" ? .nba(top: top, bottom: bottom, scheme: colorScheme)
-            : TeamPalette(top: top.color, bottom: bottom.color, scheme: colorScheme)
-    }
+    private var palette: TeamPalette { MatchColors(event).palette(colorScheme) }
 
     /// Team colors, or for climbing the flag of whoever the round is about.
     private var wash: (left: Color, right: Color, intensity: Double)? {
         switch event.content {
-        case let .match(top, bottom):
-            let p = TeamPalette(top: top.color, bottom: bottom.color, scheme: colorScheme, distinguish: false)
+        case .match:
+            let p = MatchColors(event).identity(colorScheme)
             return (p.top, p.bottom, 1)
         case .field:
             if case let .climbing(wall)? = event.snapshot, let flag = FlagPalette.colors(ioc: wall.country) {

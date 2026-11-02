@@ -194,8 +194,7 @@ enum ESPNProfiles {
             Profile.TeamRef(id: ESPNTeamID.make(path: path, sport: sport, team: $0),
                             name: ot["shortDisplayName"].string ?? ot["displayName"].string ?? ot["abbreviation"].string ?? "",
                             logo: ProfileParse.url(ot["logos"][0]["href"].string ?? ot["logo"].string),
-                            league: nil, color: ot["color"].string, alternateColor: ot["alternateColor"].string,
-                            abbreviation: ot["abbreviation"].string)
+                            league: nil, abbreviation: ot["abbreviation"].string)
         }
         let network = c["broadcasts"].array.compactMap { $0["media"]["shortName"].string ?? $0["names"][0].string }.first
         let won = us["winner"].bool

@@ -240,23 +240,19 @@ struct TheaterLabels: Equatable {
 
     /// From the kits as `TheaterTeams.dress` wears them on this panel: the
     /// slab in the shirt's own color as it's drawn (black stays black,
-    /// with contrasting text), the stripe in the team's other
-    /// color; a team in its second color striped in its own; a team in
-    /// whites labeled in its own color. (pure; tested)
+    /// with contrasting text), the stripe in the team's other color; a side
+    /// that changed for this game, the slab in what it changed into and the
+    /// stripe in its own, so its tag can't read as the other side's. (pure; tested)
     static func make(kits: TheaterKits?, scheme: ColorScheme, teams: (top: String, bottom: String)) -> TheaterLabels {
         guard let kits else {
             return TheaterLabels(top: Label(team: teams.top, paint: .team(nil, alternate: nil)), bottom: Label(team: teams.bottom, paint: .team(nil, alternate: nil)))
         }
         let dressed = TheaterTeams.dress(kits, scheme: scheme)
-        func paint(_ worn: Uniform, _ kit: TeamKit, _ side: GameDetail.Side) -> SlidePaint {
-            switch dressed.rule {
-            case .second(side): return SlidePaint.team(OKLab(NSColor(worn.jersey))?.hex ?? kit.alternate, alternate: kit.color)
-            case .whites(side): return SlidePaint.team(kit.color, alternate: kit.alternate)
-            default: return SlidePaint.team(OKLab(NSColor(worn.jersey))?.hex ?? kit.color, alternate: kit.alternate)
-            }
+        func paint(_ worn: Uniform, _ team: MatchColors.Team) -> SlidePaint {
+            SlidePaint.team(OKLab(NSColor(worn.jersey))?.hex ?? team.color, alternate: team.alternate, changed: team.wear != .own)
         }
-        return TheaterLabels(top: Label(team: teams.top, paint: paint(dressed.top, kits.top, .top)),
-                             bottom: Label(team: teams.bottom, paint: paint(dressed.bottom, kits.bottom, .bottom)))
+        return TheaterLabels(top: Label(team: teams.top, paint: paint(dressed.top, kits.top)),
+                             bottom: Label(team: teams.bottom, paint: paint(dressed.bottom, kits.bottom)))
     }
 }
 

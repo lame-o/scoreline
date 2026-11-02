@@ -48,6 +48,7 @@ struct ScorelineTests {
             exit(failures == 0 ? 0 : 1)
         }
         if CommandLine.arguments.contains("--presentation-only") {
+            matchColors()
             gamePresentationRegressions()
             print("\n\(passes) passed, \(failures) failed")
             exit(failures == 0 ? 0 : 1)
@@ -94,6 +95,7 @@ struct ScorelineTests {
         dockPages()
         chartLinks()
         teamColors()
+        matchColors()
         await pageGeometry()
         scoreChanges()
         match()
@@ -829,17 +831,14 @@ struct ScorelineTests {
             c.alternateColor = alternate
             return c
         }
-        let lakersJazz = TeamPalette.nba(top: franchise("13", "552583", "fdb927"), bottom: franchise("26", "4e008e", "79a3dc"), scheme: .dark)
-        let netsCavs = TeamPalette.nba(top: franchise("17", "000000", "ffffff"), bottom: franchise("5", "860038", "fdbb30"), scheme: .dark)
-        check(lakersJazz.bottom != Viz.neutral && netsCavs.top == Viz.neutral,
-              "clashing purples: the Jazz wear their second color; the Nets' black stays an honest gray")
-        let pacers = franchise("11", "0c2340", "ffd520"), nets = franchise("17", "000000", "ffffff")
-        // Dark: navy lifts to a clear blue (TeamTone), already apart from the Nets' gray.
-        // Light: navy beside black looks alike, so the Pacers wear gold.
-        let darkPair = TeamPalette.nba(top: pacers, bottom: nets, scheme: .dark)
-        check(TeamPalette.difference(darkPair.top, darkPair.bottom) >= 0.45
-              && TeamPalette.chroma(TeamPalette.nba(top: pacers, bottom: nets, scheme: .light).top) > 0.5,
-              "beside the Nets: a clear blue in dark; gold in light (navy and black look alike)")
+        // The visitors listed first: on a clash they change, the same in both appearances.
+        let lakersJazz = MatchColors(top: franchise("13", "552583", "fdb927"), bottom: franchise("26", "4e008e", "79a3dc"))
+        let netsCavs = MatchColors(top: franchise("17", "000000", "ffffff"), bottom: franchise("5", "860038", "fdbb30"))
+        check(lakersJazz.top.color == "fdb927" && lakersJazz.bottom.color == "4e008e" && netsCavs.palette(.dark).top == Viz.neutral,
+              "clashing purples: the visiting Lakers change into gold, the Jazz at home don't; the Nets' black stays an honest gray on a chart")
+        let pacersAtNets = MatchColors(top: franchise("11", "0c2340", "ffd520"), bottom: franchise("17", "000000", "ffffff"))
+        check(pacersAtNets.top.color == "ffd520" && pacersAtNets.bottom.color == "000000",
+              "navy beside black looks alike: the visiting Pacers wear gold, in both appearances")
         check(NBADetail.shotText("Mario Hezonja makes 25-foot three point jumper (Jaylon Tyson assists)", shooter: "M. Hezonja")
               == "M. Hezonja 25-ft three point jumper", "a shot after its Made/Missed lead")
     }

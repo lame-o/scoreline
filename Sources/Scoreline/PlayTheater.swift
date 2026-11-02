@@ -256,29 +256,8 @@ enum BallparkLayer {
 
 // MARK: - Teams
 
-/// A team's colors as the source gives them (hex): its own and its second.
-struct TeamKit: Equatable {
-    var color: String?
-    var alternate: String?
-}
-
-/// Both teams' illustrative colors and home side (soccer lists home first).
-struct TheaterKits: Equatable {
-    var top: TeamKit
-    var bottom: TeamKit
-    var home: GameDetail.Side = .bottom
-
-    init(top: TeamKit, bottom: TeamKit) {
-        self.top = top
-        self.bottom = bottom
-    }
-
-    init(top: Competitor?, bottom: Competitor?, topIsHome: Bool = false) {
-        self.init(top: TeamKit(color: top?.color, alternate: top?.alternateColor),
-                  bottom: TeamKit(color: bottom?.color, alternate: bottom?.alternateColor))
-        home = topIsHome ? .top : .bottom
-    }
-}
+/// The theaters' name for a game's colors (`MatchColors`): what each side wears.
+typealias TheaterKits = MatchColors
 
 /// How a team's figures are dressed.
 struct Uniform: Equatable {
@@ -350,7 +329,7 @@ extension Uniform {
             guard let own = lab(c) else { return 0 }
             return teams.map { own.distance(to: $0) }.min() ?? .infinity
         }
-        let shirt = refereeShirts.first { clearance($0) >= TheaterTeams.apart }
+        let shirt = refereeShirts.first { clearance($0) >= MatchColors.apart }
             ?? refereeShirts.max { clearance($0) < clearance($1) } ?? refereeShirts[0]
         let rim = lab(shirt).flatMap { !dark && $0.l > 0.7 ? Color(nsColor: OKLab(l: 0.42, chroma: $0.chroma, hue: $0.hue).nsColor) : nil }
         return Uniform(jersey: shirt, cap: officialCap, piping: rim, accent: shirt, legs: blackKit)
@@ -378,85 +357,16 @@ struct TheaterTeams: Equatable {
         color == Viz.neutral ? Color(white: scheme == .dark ? 0.72 : 0.5) : color
     }
 
-    /// Which way the pair was dressed.
-    enum Rule: Equatable {
-        /// Their own colors read apart.
-        case own
-        /// This side wears its second color.
-        case second(GameDetail.Side)
-        /// This side wears a contrasting light or dark kit, retaining its team accent.
-        case whites(GameDetail.Side)
-    }
-
-    /// Below this (OKLab distance, as each color is shown) two teams look alike on small figures.
-    static let apart = 0.15
-
-    /// Dresses both teams so they always contrast. Each color is first fitted
-    /// to the panel as the charts fit it (`TeamTone`): when the two read apart
-    /// they're worn as they are. When they're too close (two navies), a team
-    /// changes into its second color, whichever separates the pair more, if
-    /// it's a real color that does. Failing that, the away team wears whites
-    /// (light against the other team's color), or in light mode charcoal
-    /// against a pale one; its cap keeps its own color either way. (pure; tested)
-    static func dress(_ kits: TheaterKits, scheme: ColorScheme) -> (top: Uniform, bottom: Uniform, rule: Rule) {
-        let dark = scheme == .dark
-        func toned(_ hex: String?) -> OKLab? {
-            // Uniforms have an outline; black and white can stay recognizable
-            // here even when chart marks need a neutral substitute.
-            if let lab = hex.flatMap(OKLab.init(hex:)), lab.chroma < 0.03 {
-                return OKLab(l: min(max(lab.l, 0.24), 0.96), a: lab.a, b: lab.b)
-            }
-            guard let color = Color(hex: hex), let ns = NSColor(color).usingColorSpace(.sRGB),
-                  let adjusted = TeamTone.adjust(ns, scheme: scheme) else { return nil }
-            return OKLab(adjusted)
-        }
-        let gray = OKLab(l: dark ? 0.72 : 0.5, a: 0, b: 0)
-        let own = (top: toned(kits.top.color), bottom: toned(kits.bottom.color))
-        let top = own.top ?? gray, bottom = own.bottom ?? gray
-        func color(_ lab: OKLab) -> Color { Color(nsColor: lab.nsColor) }
-        // Type in a pale team color (gold) deepens on a light panel, keeping its hue.
-        func accent(_ lab: OKLab?) -> Color {
-            guard let lab else { return .primary }
-            return color(!dark && lab.l > 0.7 ? OKLab(l: 0.6, chroma: lab.chroma, hue: lab.hue) : lab)
-        }
-        // On a light panel a pale jersey (gold, sky blue) needs a rim of its own, deepened, not the white halo.
-        func uniform(_ lab: OKLab, accent: Color) -> Uniform {
-            Uniform(jersey: color(lab), cap: color(lab), piping: !dark && lab.l > 0.7 ? color(OKLab(l: 0.42, chroma: lab.chroma, hue: lab.hue)) : nil,
-                    accent: accent)
-        }
-        if top.distance(to: bottom) >= apart {
-            return (uniform(top, accent: accent(own.top)), uniform(bottom, accent: accent(own.bottom)), .own)
-        }
-        // A second color: a real color (not white, black or gray) that reads apart.
-        let seconds: [(side: GameDetail.Side, lab: OKLab)] = [(.top, kits.top.alternate), (.bottom, kits.bottom.alternate)]
-            .compactMap { side, hex in toned(hex).flatMap { $0.chroma >= 0.06 ? (side, $0) : nil } }
-        let best = seconds.map { s in (s, s.side == .top ? s.lab.distance(to: bottom) : top.distance(to: s.lab)) }
-            .filter { $0.1 >= apart }.max { $0.1 < $1.1 }?.0
-        if let best {
-            let wearer = uniform(best.lab, accent: accent(best.lab))
-            let other = best.side == .top ? bottom : top
-            let rest = uniform(other, accent: accent(best.side == .top ? own.bottom : own.top))
-            return best.side == .top ? (wearer, rest, .second(.top)) : (rest, wearer, .second(.bottom))
-        }
-        // Illustrative contrast kit: preserve the home side's primary and
-        // distinguish the away side. Soccer lists home first, unlike the NFL.
-        let homeColor = kits.home == .top ? top : bottom
-        let awayColor = kits.home == .top ? bottom : top
-        let charcoal = !dark && homeColor.l >= 0.6
-        let jersey = charcoal ? Color(white: 0.24) : Color(white: dark ? 0.96 : 1)
-        let away = Uniform(jersey: jersey, cap: color(awayColor), piping: dark || charcoal ? nil : color(awayColor).opacity(0.9),
-                           accent: accent(kits.home == .top ? own.bottom : own.top))
-        return kits.home == .top
-            ? (uniform(top, accent: accent(own.top)), away, .whites(.bottom))
-            : (away, uniform(bottom, accent: accent(own.bottom)), .whites(.top))
+    /// Both sides as this game has them, toned for this panel.
+    static func dress(_ kits: TheaterKits, scheme: ColorScheme) -> (top: Uniform, bottom: Uniform) {
+        (kits.top.uniform(scheme), kits.bottom.uniform(scheme))
     }
 
     /// Both teams dressed as the theaters dress them: in their kits when
     /// known, else in the palette's colors as they are.
     static func dressed(_ kits: TheaterKits?, palette: TeamPalette, scheme: ColorScheme) -> (top: Uniform, bottom: Uniform) {
         guard let kits else { return (Uniform(solid(palette.top, scheme)), Uniform(solid(palette.bottom, scheme))) }
-        let d = dress(kits, scheme: scheme)
-        return (d.top, d.bottom)
+        return dress(kits, scheme: scheme)
     }
 }
 
@@ -1921,7 +1831,6 @@ private struct PlayStage: View {
             dressed = (d.top, d.bottom)
         } else {
             let top = TheaterTeams.solid(palette.top, scheme), bottom = TheaterTeams.solid(palette.bottom, scheme)
-            // Without kits the palette may have grayed a near-twin: gray against a color still reads apart.
             dressed = (Uniform(top), Uniform(bottom))
         }
         return side == .top ? TheaterTeams(batting: dressed.top, fielding: dressed.bottom)

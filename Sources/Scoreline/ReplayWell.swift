@@ -152,10 +152,7 @@ struct ReplayWell: View {
     /// Where the open well is, so the page can bring it into view.
     static let anchor = "replay.well"
 
-    private var palette: TeamPalette {
-        context.nba ? .nba(top: context.top, bottom: context.bottom, scheme: scheme)
-            : TeamPalette(top: context.top?.color, bottom: context.bottom?.color, scheme: scheme)
-    }
+    private var palette: TeamPalette { context.kits.palette(scheme) }
 
     private var seen: Bool { geometry.map { $0.contentVisibility(sectionID(section)).map { !$0.isHidden } ?? true } ?? true }
 

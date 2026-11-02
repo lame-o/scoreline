@@ -113,7 +113,18 @@ struct OKLab: Equatable {
 /// honestly as gray.
 enum TeamTone {
     static func adjust(_ color: NSColor, scheme: ColorScheme) -> NSColor? {
-        guard var lab = OKLab(color) else { return nil }
+        OKLab(color).flatMap { adjust($0, scheme: scheme) }?.nsColor
+    }
+
+    /// As a man wears it: figures have an outline, so black stays black and
+    /// white stays white, where a chart's mark needs a neutral instead.
+    static func worn(_ lab: OKLab, scheme: ColorScheme) -> OKLab {
+        guard lab.chroma >= 0.03 else { return OKLab(l: min(max(lab.l, 0.24), 0.96), a: lab.a, b: lab.b) }
+        return adjust(lab, scheme: scheme) ?? lab
+    }
+
+    static func adjust(_ color: OKLab, scheme: ColorScheme) -> OKLab? {
+        var lab = color
         let gray = lab.chroma < 0.03
         switch scheme {
         case .dark:
@@ -138,15 +149,18 @@ enum TeamTone {
             let cap = (75...115).contains(lab.hue) && lab.chroma > 0.08 ? 0.8 : 0.62
             if lab.l > cap { lab = OKLab(l: cap, chroma: lab.chroma, hue: lab.hue) }
         }
-        return lab.nsColor
+        return lab
     }
 }
 
 // MARK: - Logo colors
 
-/// A fallback for teams without source colors (including CS2): colors read
-/// from the logo, ignoring white, black, grays and transparency, strongest
-/// first. A valid source primary is authoritative. Read once and cached.
+/// Where a team's colors come from. A valid source primary is authoritative,
+/// and every payload that has one feeds a cache by team ID, so a payload
+/// without colors (a team's schedule, a history page) paints right the first
+/// time. Teams with no source colors at all (CS2) read them from the logo,
+/// ignoring white, black, grays and transparency, strongest first; read once
+/// and cached. This is also where a game's match-day kits are held.
 @MainActor
 final class TeamColors {
     static let shared = TeamColors()
@@ -155,8 +169,6 @@ final class TeamColors {
         /// Up to three clearly different colors, strongest first. Empty: the
         /// logo is black and white, so the source's color stands.
         let colors: [String]
-        /// How strongly the logo reads as each color, relative to the first (1).
-        var weights: [Double] = []
     }
 
     /// The app turns this on; tests and render harnesses never fetch logos.
@@ -167,6 +179,10 @@ final class TeamColors {
     /// Bump when the reading changes, so every logo is read again.
     private static let version = 5
     private var entries: [String: Entry]
+    /// Each team's own colors, by team ID, from every payload that had them.
+    private var known: [String: TeamKit]
+    /// What each side wears in a game, by event and team ID (`note`).
+    private var kits: [String: [String: TeamKit]] = [:]
     private var pending: Set<String> = []
     private var queue: [URL] = []
     private var running = 0
@@ -175,61 +191,82 @@ final class TeamColors {
     private let file: URL? = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
         .appendingPathComponent(Bundle.main.bundleIdentifier ?? "Scoreline", isDirectory: true)
         .appendingPathComponent("team-colors-v\(TeamColors.version).json")
+    private let knownFile: URL? = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+        .appendingPathComponent(Bundle.main.bundleIdentifier ?? "Scoreline", isDirectory: true)
+        .appendingPathComponent("team-identities-v1.json")
 
     private init() {
         entries = file.flatMap { try? Data(contentsOf: $0) }
             .flatMap { try? JSONDecoder().decode([String: Entry].self, from: $0) } ?? [:]
+        known = knownFile.flatMap { try? Data(contentsOf: $0) }
+            .flatMap { try? JSONDecoder().decode([String: TeamKit].self, from: $0) } ?? [:]
     }
 
     func entry(for logo: URL?) -> Entry? { logo.flatMap { entries[$0.absoluteString] } }
 
-    /// Source colors when supplied, otherwise the cached logo fallback.
-    /// Unknown logos are queued; `onChange` reports when they are ready.
+    /// Source colors when supplied (and remembered), else what an earlier
+    /// payload said of this team, else the cached logo fallback. Unknown logos
+    /// are queued; `onChange` reports when they are ready.
     func apply(_ competitor: Competitor) -> Competitor {
         // A supplied primary color is the team's identity, including black and
         // white. Logo area is only a fallback, never evidence of a match kit.
-        if competitor.color.flatMap(OKLab.init(hex:)) != nil { return competitor }
+        if competitor.color.flatMap(OKLab.init(hex:)) != nil {
+            if let id = competitor.id { remember(TeamKit(color: competitor.color, alternate: competitor.alternateColor), for: id) }
+            return competitor
+        }
+        if let id = competitor.id, let team = known[id] {
+            var c = competitor
+            c.color = team.color
+            c.alternateColor = team.alternate ?? competitor.alternateColor
+            return c
+        }
         guard let logo = competitor.logo else { return competitor }
         guard let entry = entries[logo.absoluteString] else {
             request(logo)
             return competitor
         }
-        let colors = Self.order(entry, source: nil)
-        guard !colors.isEmpty else { return competitor }
+        guard let first = entry.colors.first else { return competitor }
         var c = competitor
-        c.color = colors[0]
-        c.alternateColor = colors.count > 1 ? colors[1] : competitor.alternateColor
+        c.color = first
+        c.alternateColor = entry.colors.count > 1 ? entry.colors[1] : competitor.alternateColor
         return c
     }
 
-    /// The logo's colors in the order a team wears them. When the logo reads
-    /// almost as strongly as the source's own color as it does its first one,
-    /// the source's tips it (Thunder blue over the sunset band). A navy source
-    /// color never does: that's the shade half a league shares.
-    nonisolated static func order(_ entry: Entry, source: String?) -> [String] {
-        var colors = entry.colors
-        guard let source = source.flatMap(OKLab.init(hex:)),
-              source.chroma >= 0.12 || (source.l >= 0.4 && source.chroma >= 0.06),
-              let match = colors.indices.dropFirst().first(where: { sameColor(colors[$0], source) }),
-              match < entry.weights.count, entry.weights[match] >= 0.6 else { return colors }
-        colors.insert(colors.remove(at: match), at: 0)
-        return colors
-    }
-
-    /// The same color named two ways: one hue family, similar lightness.
-    private nonisolated static func sameColor(_ hex: String, _ source: OKLab) -> Bool {
-        guard let lab = OKLab(hex: hex) else { return false }
-        var hues = abs(lab.hue - source.hue)
-        if hues > 180 { hues = 360 - hues }
-        return hues <= 25 && abs(lab.l - source.l) <= 0.25
-    }
-
-    func apply(_ events: [Event]) -> [Event] {
-        events.map { event in
-            guard case let .match(top, bottom) = event.content else { return event }
-            let (t, b) = (apply(top), apply(bottom))
-            return t == top && b == bottom ? event : event.with(content: .match(top: t, bottom: b))
+    func apply(_ event: Event) -> Event {
+        guard case let .match(top, bottom) = event.content else { return event }
+        var (t, b) = (apply(top), apply(bottom))
+        if let held = kits[event.id] {
+            t.kit = t.id.flatMap { held[$0] }
+            b.kit = b.id.flatMap { held[$0] }
         }
+        return t == top && b == bottom ? event : event.with(content: .match(top: t, bottom: b))
+    }
+
+    func apply(_ events: [Event]) -> [Event] { events.map(apply) }
+
+    /// A summary's word on a game: each team's own colors, and its kits as this
+    /// game will wear them. Until kickoff they may still come (lineups post
+    /// about 40 minutes before) and are taken once they do; from kickoff what's
+    /// held stands, so a side never changes shirts mid-game. A page first
+    /// opened later holds what its first summary says.
+    func note(_ detail: GameDetail, for event: Event) -> GameDetail {
+        for (id, team) in detail.teamColors where team.color.flatMap(OKLab.init(hex:)) != nil { remember(team, for: id) }
+        var noted = detail
+        if event.state != .scheduled, let held = kits[event.id] {
+            noted.matchKits = held
+        } else if detail.matchKits.isEmpty, let held = kits[event.id] {
+            noted.matchKits = held
+        } else if kits[event.id] != detail.matchKits {
+            kits[event.id] = detail.matchKits
+            if !detail.matchKits.isEmpty { scheduleNotify() }
+        }
+        return noted
+    }
+
+    private func remember(_ team: TeamKit, for id: String) {
+        guard known[id] != team else { return }
+        known[id] = team
+        if isEnabled { scheduleSave() }
     }
 
     private func request(_ logo: URL) {
@@ -292,6 +329,7 @@ final class TeamColors {
         guard let file, let data = try? JSONEncoder().encode(entries) else { return }
         try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: file, options: .atomic)
+        if let knownFile, let teams = try? JSONEncoder().encode(known) { try? teams.write(to: knownFile, options: .atomic) }
     }
 
     /// The logo's colors, strongest first: the color it reads as, then the
@@ -336,8 +374,7 @@ final class TeamColors {
         // Found in bin order; a later color can turn out heavier once its
         // neighbors are gathered in.
         found.sort { $0.weight > $1.weight }
-        let first = found.first?.weight ?? 1
-        return Entry(colors: found.map(\.color.hex), weights: found.map { ($0.weight / first * 100).rounded() / 100 })
+        return Entry(colors: found.map(\.color.hex))
     }
 
     private nonisolated static func distinct(_ x: OKLab, _ y: OKLab) -> Bool {

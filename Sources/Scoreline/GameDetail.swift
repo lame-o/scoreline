@@ -302,9 +302,12 @@ struct GameDetail {
     var csLive: CSLive?
     /// Whether the top (first listed) team is at home; ESPN sports only.
     var topIsHome: Bool?
-    /// Authoritative team metadata from the summary, keyed by competitor ID.
-    /// Historical schedule rows often omit colors; this is not match-kit data.
+    /// Each team's own colors from the summary, by competitor ID: schedule
+    /// rows have none, so a game opened from history reads them here.
     var teamColors: [String: TeamKit] = [:]
+    /// What each side wears in this game, by competitor ID: ESPN's soccer
+    /// summaries have it once lineups post (the other sports don't).
+    var matchKits: [String: TeamKit] = [:]
 
     func colored(_ event: Event) -> Event {
         guard case let .match(top, bottom) = event.content else { return event }
@@ -313,6 +316,7 @@ struct GameDetail {
             var result = team
             if colors.color.flatMap(OKLab.init(hex:)) != nil { result.color = colors.color }
             if colors.alternate.flatMap(OKLab.init(hex:)) != nil { result.alternateColor = colors.alternate }
+            result.kit = matchKits[id]
             return result
         }
         return event.with(content: .match(top: colored(top), bottom: colored(bottom)))
@@ -619,6 +623,9 @@ enum ESPNDetail {
             guard let id = team.id, let rawID = id.split(separator: "-").last,
                   let raw = competitors.first(where: { $0["team"]["id"].string == String(rawID) }) else { continue }
             detail.teamColors[id] = TeamKit(color: raw["team"]["color"].string, alternate: raw["team"]["alternateColor"].string)
+            let wearing = summary["rosters"].array.first { $0["team"]["id"].string == String(rawID) }?["uniform"]
+                ?? summary["boxscore"]["teams"].array.first { $0["team"]["id"].string == String(rawID) }?["team"]["uniform"]
+            detail.matchKits[id] = wearing.flatMap(TeamKit.init(uniform:))
         }
         detail.stats = stats(summary, sport: sport, topID: ids.first ?? nil, bottomID: ids.last ?? nil, path: path)
         if sport != .soccer, let topComp, let bottomComp {

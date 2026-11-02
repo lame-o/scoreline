@@ -80,23 +80,6 @@ extension ScorelineTests {
                   "\(kind): players stay in their settled positions")
         }
 
-        let red = comp("espn-soccer-364", "Liverpool", color: "d11317")
-        var white = comp("espn-football-23", "Steelers", color: "000000")
-        white.alternateColor = "ffb612"
-        check(TeamColors.shared.apply(red).color == "d11317" && TeamColors.shared.apply(white).color == "000000",
-              "valid primary colors, including black, are not replaced by logo colors")
-        for scheme in [ColorScheme.dark, .light] {
-            let identity = TeamPalette(top: "d11317", bottom: "d11317", scheme: scheme, distinguish: false)
-            check(identity.top == identity.bottom && identity.bottom != Viz.neutral,
-                  "\(scheme): both red teams retain red identity washes")
-            let kits = TheaterKits(top: red, bottom: red, topIsHome: true)
-            let dressed = TheaterTeams.dress(kits, scheme: scheme)
-            check(dressed.rule == .whites(.bottom) && dressed.top.jersey != dressed.bottom.jersey,
-                  "\(scheme): soccer home-first order gives the away side the contrast kit")
-            let black = TheaterTeams.dress(TheaterKits(top: red, bottom: white), scheme: scheme)
-            check(OKLab(NSColor(black.bottom.jersey))!.l < 0.35,
-                  "\(scheme): black uniforms stay black with a visible outline")
-        }
         presentationFrameTiers()
     }
 }

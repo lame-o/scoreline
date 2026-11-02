@@ -11,38 +11,23 @@ extension Color {
     }
 }
 
-/// Two team colors that read clearly side by side, in light and dark mode.
+/// Two team colors fitted to this panel. They read apart because the game's
+/// colors were decided that way (`MatchColors`); this only tones them.
 struct TeamPalette {
     let top: Color
     let bottom: Color
 
-    init(top: String?, bottom: String?, scheme: ColorScheme, distinguish: Bool = true) {
-        /// nil: no color given. `.neutral`: a color with no usable hue here
-        /// (pure black on dark, pure white on light) — shown honestly as gray.
-        enum Usable { case color(Color, NSColor), neutral }
-        func usable(_ hex: String?) -> Usable? {
-            guard let color = Color(hex: hex), let ns = NSColor(color).usingColorSpace(.sRGB) else { return nil }
+    init(top: String?, bottom: String?, scheme: ColorScheme) {
+        func toned(_ hex: String?, fallback: Color) -> Color {
+            guard let color = Color(hex: hex), let ns = NSColor(color).usingColorSpace(.sRGB) else { return fallback }
             // Only lightness moves (see TeamTone), so each team keeps its own
-            // hue and saturation and bars and markers stay legible.
-            guard let toned = TeamTone.adjust(ns, scheme: scheme) else { return .neutral }
-            return .color(Color(nsColor: toned), toned)
+            // hue and saturation and bars and markers stay legible. A color
+            // with no usable hue here (pure black on dark, pure white on
+            // light) is shown honestly as gray.
+            return TeamTone.adjust(ns, scheme: scheme).map { Color(nsColor: $0) } ?? Viz.neutral
         }
-        func resolve(_ u: Usable?, fallback: Color) -> (Color, NSColor?) {
-            switch u {
-            case let .color(c, ns)?: (c, ns)
-            case .neutral?: (Viz.neutral, nil)
-            case nil: (fallback, nil)
-            }
-        }
-        let (topColor, topNS) = resolve(usable(top), fallback: .blue)
-        var (bottomColor, bottomNS) = resolve(usable(bottom), fallback: .orange)
-        // Two near-identical colors can't be told apart: the second goes neutral.
-        if distinguish, let t = topNS, let b = bottomNS {
-            let distance = abs(t.redComponent - b.redComponent) + abs(t.greenComponent - b.greenComponent) + abs(t.blueComponent - b.blueComponent)
-            if distance < 0.35 { bottomColor = Viz.neutral; bottomNS = nil }
-        }
-        self.top = topColor
-        self.bottom = bottomColor
+        self.top = toned(top, fallback: .blue)
+        self.bottom = toned(bottom, fallback: .orange)
     }
 }
 

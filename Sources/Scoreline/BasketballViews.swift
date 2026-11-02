@@ -5,55 +5,6 @@ import SwiftUI
 // report and conference standings. Same ink, type and linked hover as every
 // other chart; team colors for marks only.
 
-// MARK: - Team colors
-
-extension TeamPalette {
-    /// NBA teams share a lot of navy, purple, black and red. On NBA pages, when
-    /// the two colors as shown are hard to tell apart (Lakers and Jazz purple;
-    /// Pacers navy beside Nets black, or beside the gray the Nets' black
-    /// becomes on a dark panel), a team wears its second color: the home team
-    /// first, if its second color is vivid and separates them.
-    static func nba(top: Competitor?, bottom: Competitor?, scheme: ColorScheme) -> TeamPalette {
-        let palette = TeamPalette(top: top?.color, bottom: bottom?.color, scheme: scheme)
-        // Each color on its own: the pair's palette may already have grayed
-        // out a near-twin, which would hide the clash.
-        let own = (TeamPalette(top: top?.color, bottom: nil, scheme: scheme).top,
-                   TeamPalette(top: bottom?.color, bottom: nil, scheme: scheme).top)
-        guard difference(own.0, own.1) < 0.45 else { return palette }
-        for swapBottom in [true, false] {
-            guard let alternate = swapBottom ? bottom?.alternateColor : top?.alternateColor,
-                  vivid(alternate, scheme: scheme) else { continue }
-            let swapped = swapBottom ? TeamPalette(top: top?.color, bottom: alternate, scheme: scheme)
-                                     : TeamPalette(top: alternate, bottom: bottom?.color, scheme: scheme)
-            if difference(swapped.top, swapped.bottom) >= 0.45 { return swapped }
-        }
-        return palette
-    }
-
-    /// How different two palette colors look (sum of RGB differences; gray for neutral).
-    static func difference(_ a: Color, _ b: Color) -> CGFloat {
-        let (x, y) = (components(a), components(b))
-        return abs(x.r - y.r) + abs(x.g - y.g) + abs(x.b - y.b)
-    }
-
-    private static func components(_ color: Color) -> (r: CGFloat, g: CGFloat, b: CGFloat) {
-        guard color != Viz.neutral, let c = NSColor(color).usingColorSpace(.sRGB) else { return (0.5, 0.5, 0.5) }
-        return (c.redComponent, c.greenComponent, c.blueComponent)
-    }
-
-    /// How far a color is from gray (0 = gray).
-    static func chroma(_ color: Color) -> CGFloat {
-        let c = components(color)
-        return max(c.r, c.g, c.b) - min(c.r, c.g, c.b)
-    }
-
-    /// A team color that stays clearly colored once adjusted for the panel.
-    private static func vivid(_ hex: String, scheme: ColorScheme) -> Bool {
-        let adjusted = TeamPalette(top: hex, bottom: nil, scheme: scheme).top
-        return adjusted != Viz.neutral && chroma(adjusted) >= 0.3
-    }
-}
-
 // MARK: - Court
 
 /// A full court, side on: every field-goal attempt where it was taken, makes
