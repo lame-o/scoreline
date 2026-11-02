@@ -26,6 +26,11 @@ struct ScorelineTests {
             exit(BroadcastBench.main(Array(CommandLine.arguments[(flag + 1)...])))
         }
         HTTP.stubProtocol = FixtureProtocol.self
+        if CommandLine.arguments.contains("--football-hitch-probe") {
+            do { try FootballHitchProbe.main() }
+            catch { print("Football hitch probe failed: \(error)"); exit(1) }
+            return
+        }
         if CommandLine.arguments.contains("--football-tag-cost") {
             footballClipClock()
             footballTagCost()

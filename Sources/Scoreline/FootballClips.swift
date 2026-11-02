@@ -58,6 +58,9 @@ struct GridClip: TheaterClip, @unchecked Sendable {
     let decisive: Double?
     let essential: Double
     let paths: [MotionPath?]
+    /// The result's deliberate pause, on the script clock. Its duration is
+    /// presentation policy, not spare time for a run back to the line.
+    let resultHold: ClosedRange<Double>?
     private let loopStart: Double?
     private let loopPeriod: Double
     private let endTime: Double
@@ -84,16 +87,20 @@ struct GridClip: TheaterClip, @unchecked Sendable {
         let bands = script.players.map { p in
             MotionLimits.football.band(p.team == .official || p.team == .staff ? "official" : [.line, .front].contains(p.role) ? "line" : "skill")
         }
+        let resultHold = idle == nil ? Self.resultHold(script) : nil
+        self.resultHold = resultHold
         let paths = script.players.indices.map { i -> MotionPath? in
             let p = script.players[i]
             let contacts = p.actions.filter { [.catchHigh, .catchChest, .throwBall, .handoff, .kick, .tackle, .strip, .scoop].contains($0.kind) }
-            return ClipPaths.resynthesized(p.moves, contacts: contacts.map(\.at), band: bands[i], span: 0...max(script.duration, 0), retime: idle == nil) {
+            return ClipPaths.resynthesized(p.moves, contacts: contacts.map(\.at), band: bands[i], span: 0...max(script.duration, 0),
+                                          retime: idle == nil, rest: resultHold) {
                 p.position(at: $0)
             }
         }
         self.paths = paths
-        // A replay runs slower where anyone would outrun his legs, the ball's flights at their own pace (the field
-        // between snaps loops: it keeps its own time).
+        // A replay runs slower where anyone would outrun his legs. The settled
+        // result holds at its authored pace; reset travel gets its own time
+        // after it, without borrowing or stretching the pause.
         let warp = ClipWarp.make(length: script.duration, need: { u in
             var most = 1.0
             for i in paths.indices {
@@ -103,7 +110,7 @@ struct GridClip: TheaterClip, @unchecked Sendable {
                            (simd_length(path.acceleration(at: u)) / (min(b.accel, b.decel, b.lateral) * 0.97)).squareRoot())
             }
             return most
-        }, steady: { u in script.flight(at: u).map { $0.end - $0.start < 1.5 } ?? false }) ?? .identity
+        }, steady: { u in script.flight(at: u).map { $0.end - $0.start < 1.5 } ?? false }, rest: resultHold) ?? .identity
         self.warp = warp
         endTime = warp.clip(script.duration)
         loopStart = script.loop.map { warp.clip($0.start) }
@@ -124,6 +131,25 @@ struct GridClip: TheaterClip, @unchecked Sendable {
     let warp: ClipWarp
     /// The men who still can't make it, faded through (ClipFades).
     let fades: ClipFades
+
+    /// Only protect a genuinely settled result. A kick still in flight, a
+    /// late contact, or a separate beat after the stamp keeps its full motion
+    /// clock. The anonymous convergence after a tackle/TD may finish 0.03–0.05s
+    /// after the stamp; those soft arrivals can land on the result boundary.
+    /// No credited contact is moved to make room for a pause.
+    static func resultHold(_ script: FootballScript) -> ClosedRange<Double>? {
+        let from = script.stamp, to = script.settle
+        guard from.isFinite, to.isFinite, from >= 0, to > from, to < script.duration,
+              !script.flights.contains(where: { $0.start < to && $0.end > from }) else { return nil }
+        let contacts: [FootballScript.Action.Kind] = [.catchHigh, .catchChest, .throwBall, .handoff, .kick, .tackle, .strip, .scoop]
+        for player in script.players {
+            if player.actions.contains(where: { contacts.contains($0.kind) && $0.at >= from && $0.at <= to }) { return nil }
+            for move in player.moves where move.start < to && move.end > from {
+                guard move.start < from, move.end <= from + 0.08 else { return nil }
+            }
+        }
+        return from...to
+    }
 
     /// The ball dead: the score, else the hit or the catch that ends it, else the incompletion's landing.
     static func decisive(_ s: FootballScript) -> Double? {

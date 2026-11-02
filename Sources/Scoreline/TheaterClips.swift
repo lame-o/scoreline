@@ -646,8 +646,11 @@ enum TheaterHandOff {
 /// junction, rounds the corner, eases into a start. Nil: he never moves.
 enum ClipPaths {
     /// `retime`: false for a loop (a re-timed run would straddle its seam; the clip's warp slows it instead).
+    /// `rest`: a deliberate settled hold. Soft arrivals finish at its start,
+    /// and a reset cannot leave before its end. The caller must ensure no
+    /// real contact or separate movement lies inside this interval.
     static func resynthesized(_ moves: [PlayScript.Move], contacts: [Double], band: MotionLimits.Band, span: ClosedRange<Double>,
-                              retime: Bool = true, position: (Double) -> CGPoint) -> MotionPath? {
+                              retime: Bool = true, rest: ClosedRange<Double>? = nil, position: (Double) -> CGPoint) -> MotionPath? {
         let moves = moves.sorted { $0.start < $1.start }
         guard !moves.isEmpty else { return nil }
         var keys: [MotionKey] = []
@@ -677,6 +680,16 @@ enum ClipPaths {
             }
             let arriving = !cut && (next.map { $0.start > m.end + 0.08 } ?? true)
             add(end, m.point(at: end), arriving ? .arrive : .through, hard: false)
+        }
+        if let rest {
+            let p = position(rest.upperBound), at = SIMD2(Double(p.x), Double(p.y))
+            // Pin both sides at rest before retiming. Otherwise a short reset
+            // borrows the result hold, then its acceleration slows the whole
+            // clip (including the supposedly still pause).
+            keys.removeAll { rest.contains($0.t) }
+            keys.append(MotionKey(t: rest.lowerBound, at: at, kind: .arrive, hard: true))
+            keys.append(MotionKey(t: rest.upperBound, at: at, kind: .depart, hard: true))
+            keys.sort { $0.t < $1.t }
         }
         // Where the ball meets him, exactly where it did.
         for t in contacts {
@@ -800,6 +813,9 @@ enum ClipPaths {
 struct ClipWarp: Equatable, Sendable {
     /// The clip's time at each step of the script's time.
     private var times: [Double]
+    /// Explicit source knots only when a protected rest needs exact boundaries
+    /// between 60Hz samples. Other sports retain their existing uniform map.
+    private var knots: [Double]?
     let step: Double
     /// The script's own length.
     let length: Double
@@ -813,8 +829,9 @@ struct ClipWarp: Equatable, Sendable {
     /// The clip's length in its own (stretched) time.
     var stretched: Double { times.last ?? length }
 
-    private init(times: [Double], step: Double, length: Double) {
+    private init(times: [Double], step: Double, length: Double, knots: [Double]? = nil) {
         self.times = times
+        self.knots = knots
         self.step = step
         self.length = length
     }
@@ -822,8 +839,12 @@ struct ClipWarp: Equatable, Sendable {
     /// The stretch for a script: `need(u)` how much slower its time must run at script time `u` (≥ 1), `steady(u)`
     /// whether the ball's in flight there (its pace kept). Nil when nothing needs it.
     static func make(length: Double, step: Double = 1.0 / 60, need: (Double) -> Double, steady: (Double) -> Bool,
-                     minimumFlightStretch: ((Double) -> Double)? = nil) -> ClipWarp? {
+                     minimumFlightStretch: ((Double) -> Double)? = nil, rest: ClosedRange<Double>? = nil) -> ClipWarp? {
         guard length.isFinite, length > step else { return nil }
+        if let rest, rest.lowerBound >= 0, rest.upperBound <= length, rest.upperBound > rest.lowerBound {
+            return keepingRest(length: length, step: step, need: need, steady: steady,
+                               minimumFlightStretch: minimumFlightStretch, rest: rest)
+        }
         let n = Int((length / step).rounded(.up)) + 1
         let flying = (0..<n).map { steady(min(Double($0) * step, length)) }
         // A ball's usual pace is a preference. If keeping its twofold limit would
@@ -857,6 +878,64 @@ struct ClipWarp: Equatable, Sendable {
         return ClipWarp(times: times, step: step, length: length)
     }
 
+    /// Independent motion sections either side of a stationary hold. The
+    /// clock is shared by bodies, ball, poses and camera. Smoothing cannot
+    /// carry a reset's slowdown back into the hold. Both boundaries are rest
+    /// keys (zero ground velocity/acceleration), so changing the clock's rate
+    /// there does not introduce a movement discontinuity.
+    private static func keepingRest(length: Double, step: Double, need: (Double) -> Double, steady: (Double) -> Bool,
+                                    minimumFlightStretch: ((Double) -> Double)?, rest: ClosedRange<Double>) -> ClipWarp? {
+        var knots = stride(from: 0.0, to: length, by: step).map { $0 }
+        knots += [rest.lowerBound, rest.upperBound, length]
+        knots.sort()
+        var distinct: [Double] = []
+        for knot in knots where distinct.last.map({ knot - $0 > 1e-10 }) ?? true { distinct.append(knot) }
+        knots = distinct
+        let n = knots.count
+        let flying = knots.map(steady)
+        var flightLimit = steadyMost
+        if let minimumFlightStretch {
+            for k in knots.indices where flying[k] {
+                let required = minimumFlightStretch(knots[k])
+                if required.isFinite { flightLimit = max(flightLimit, required) }
+            }
+        }
+        let raw = knots.indices.map { k -> Double in
+            guard !rest.contains(knots[k]) else { return 1 }
+            let required = max(need(knots[k]), 1)
+            return flying[k] ? min(required, flightLimit) : required
+        }
+        guard raw.contains(where: { $0 > 1.001 }) else { return nil }
+        // Run the same max-then-mean easing in each motion section. A rest
+        // boundary is an explicit 1x knot, not a fractional sample whose
+        // interpolation could leak a few milliseconds of stretch into it.
+        var widened = raw, rates = raw
+        let head = knots.lastIndex(where: { $0 <= rest.lowerBound }) ?? 0
+        let tail = knots.firstIndex(where: { $0 >= rest.upperBound }) ?? (n - 1)
+        for section in [0...head, tail...(n - 1)] {
+            var lower = section.lowerBound, upper = section.lowerBound
+            var windows: [ClosedRange<Int>] = []
+            windows.reserveCapacity(section.count)
+            for k in section {
+                while lower < k, knots[k] - knots[lower] > 0.25 + 1e-9 { lower += 1 }
+                while upper < section.upperBound, knots[upper + 1] - knots[k] <= 0.25 + 1e-9 { upper += 1 }
+                let window = lower...upper
+                windows.append(window)
+                widened[k] = raw[window].max() ?? 1
+            }
+            for k in section {
+                let window = windows[k - section.lowerBound]
+                let mean = widened[window].reduce(0, +) / Double(window.count)
+                rates[k] = flying[k] ? min(mean, flightLimit) : mean
+            }
+        }
+        for k in knots.indices where rest.contains(knots[k]) { rates[k] = 1 }
+        var times = [0.0]
+        times.reserveCapacity(n)
+        for k in 1..<n { times.append(times[k - 1] + (knots[k] - knots[k - 1]) * (rates[k - 1] + rates[k]) / 2) }
+        return ClipWarp(times: times, step: step, length: length, knots: knots)
+    }
+
     /// The script's time at the clip's time `t` (past either end, it runs on at the script's own pace).
     func script(_ t: Double) -> Double {
         guard let last = times.last else { return t }
@@ -869,6 +948,7 @@ struct ClipWarp: Equatable, Sendable {
         }
         let span = times[hi] - times[lo]
         let f = span > 1e-12 ? (t - times[lo]) / span : 0
+        if let knots { return knots[lo] + (knots[hi] - knots[lo]) * f }
         return min((Double(lo) + f) * step, length)
     }
 
@@ -877,6 +957,15 @@ struct ClipWarp: Equatable, Sendable {
         guard let last = times.last else { return u }
         if u <= 0 { return u }
         if u >= length { return last + (u - length) }
+        if let knots {
+            var lo = 0, hi = knots.count - 1
+            while hi - lo > 1 {
+                let mid = (lo + hi) / 2
+                if knots[mid] <= u { lo = mid } else { hi = mid }
+            }
+            let f = (u - knots[lo]) / (knots[hi] - knots[lo])
+            return times[lo] + (times[hi] - times[lo]) * f
+        }
         let x = u / step
         let k = min(Int(x), times.count - 2)
         return times[k] + (times[k + 1] - times[k]) * (x - Double(k))
