@@ -1345,12 +1345,12 @@ struct OddsScrub: View {
     let lines: [OddsLine]
     let pointer: OddsPointer
     @FocusState private var focused: Bool
-    @State private var hovered: Date?
 
     var body: some View {
         Button {
             focused = true
-            pointer.pin(hovered ?? pointer.moment ?? data.domain.upperBound)
+            // Keyboard and accessibility activation have no pointer location.
+            pointer.pin(pointer.moment ?? data.domain.upperBound)
         } label: {
             ZStack(alignment: .topLeading) {
                 Color.clear
@@ -1367,21 +1367,20 @@ struct OddsScrub: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .highPriorityGesture(SpatialTapGesture().onEnded { value in
+            guard let moment = time(at: value.location) else { return }
+            focused = true
+            pointer.pin(moment)
+        })
         .onContinuousHover { phase in
             switch phase {
             case let .active(location):
-                guard location.x >= layout.plot.minX, location.x <= layout.plot.maxX else {
-                    hovered = nil
+                guard let moment = time(at: location) else {
                     if !focused { pointer.hover(nil) }
                     return
                 }
-                let raw = layout.time(at: location.x)
-                let time = Date(timeIntervalSince1970: raw.timeIntervalSince1970.rounded())
-                let next = min(max(time, data.domain.lowerBound), data.domain.upperBound)
-                if hovered != next { hovered = next }
-                pointer.hover(next)
+                pointer.hover(moment)
             case .ended:
-                hovered = nil
                 if !focused { pointer.hover(nil) }
             }
         }
@@ -1407,6 +1406,13 @@ struct OddsScrub: View {
             @unknown default: break
             }
         }
+    }
+
+    private func time(at location: CGPoint) -> Date? {
+        guard location.x >= layout.plot.minX, location.x <= layout.plot.maxX else { return nil }
+        let raw = layout.time(at: location.x)
+        let rounded = Date(timeIntervalSince1970: raw.timeIntervalSince1970.rounded())
+        return min(max(rounded, data.domain.lowerBound), data.domain.upperBound)
     }
 
     private func crosshair(_ t: Date, _ sample: OddsSplitPoint?) -> some View {

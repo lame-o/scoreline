@@ -301,12 +301,12 @@ private struct MatchTimelineScrub: View {
     let bottomColor: Color
     let pointer: OddsPointer
     @FocusState private var focused: Bool
-    @State private var hovered: Date?
 
     var body: some View {
         Button {
             focused = true
-            pointer.pin(hovered ?? pointer.moment ?? layout.domain.upperBound)
+            // Keyboard and accessibility activation keep the selected moment.
+            pointer.pin(pointer.moment ?? layout.domain.upperBound)
         } label: {
             ZStack(alignment: .topLeading) {
                 Color.clear
@@ -342,20 +342,20 @@ private struct MatchTimelineScrub: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .highPriorityGesture(SpatialTapGesture().onEnded { value in
+            guard let moment = time(at: value.location) else { return }
+            focused = true
+            pointer.pin(moment)
+        })
         .onContinuousHover { phase in
             switch phase {
             case let .active(location):
-                guard location.x >= layout.plot.minX, location.x <= layout.plot.maxX else {
-                    hovered = nil
+                guard let moment = time(at: location) else {
                     if !focused { pointer.hover(nil) }
                     return
                 }
-                let next = rail.map { MatchTimelineRail.time(at: location, marks: $0, layout: layout) }
-                    ?? MatchTimelineGeometry.time(at: location, events: events, layout: layout)
-                if hovered != next { hovered = next }
-                pointer.hover(next)
+                pointer.hover(moment)
             case .ended:
-                hovered = nil
                 if !focused { pointer.hover(nil) }
             }
         }
@@ -391,6 +391,12 @@ private struct MatchTimelineScrub: View {
         .help(rail == nil ? "Hover to inspect. Click to pin. Use arrow keys for previous and next events."
               : "Nearby scoring plays are grouped. Hover or use arrow keys to inspect each event; click to pin. Circles identify the first team, diamonds the second.")
         .onDisappear { pointer.hover(nil) }
+    }
+
+    private func time(at location: CGPoint) -> Date? {
+        guard location.x >= layout.plot.minX, location.x <= layout.plot.maxX else { return nil }
+        return rail.map { MatchTimelineRail.time(at: location, marks: $0, layout: layout) }
+            ?? MatchTimelineGeometry.time(at: location, events: events, layout: layout)
     }
 
     @discardableResult
