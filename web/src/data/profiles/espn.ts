@@ -203,6 +203,7 @@ export function parseGame(e: JSONValue, sport: Sport, path: string, teamID: stri
     result: state === "final" ? (won === true ? "W" : b(at(them, "winner")) === true ? "L" : "D") : null,
     competition: sAt(e, "league", "abbreviation"),
     slug: null,
+    league: sAt(e, "league", "slug"),
   };
 }
 

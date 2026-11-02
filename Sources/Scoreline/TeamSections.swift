@@ -109,7 +109,7 @@ struct NextGameRow: View {
         let (top, bottom) = soccer == game.home ? (us, them) : (them, us)
         let ref: EventRef? = if let slug = game.slug {
             .counterStrike(slug: slug, tournament: game.competition)
-        } else if let path, let sport = team.sport {
+        } else if let sport = team.sport, let path = sport == .soccer ? game.league.map({ "soccer/\($0)" }) ?? path : path {
             .espn(path: path, id: game.id, sport: sport)
         } else { nil }
         guard let ref else { return }

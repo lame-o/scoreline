@@ -360,3 +360,7 @@
   gap: calc(12 * var(--pt));
   padding-top: calc(4 * var(--pt));
 }
+
+/* A place in a round nobody has drawn: hollow, with nobody in it yet. */
+.cell[data-pending] { background: transparent; border: 0.75px dashed var(--separator); }
+.pending { display: grid; place-items: center; height: 100%; font-size: var(--text-caption); color: var(--label-tertiary); }

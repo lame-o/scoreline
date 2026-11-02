@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { alertsFor, editionID, inclusionReasons, matchesEdition, pollingIDs, sanitizeEditions, type EditionFollow } from "../../src/data/following";
-import { competitionKind, hasTable } from "../../src/data/competitionCatalog";
-import { leagueWithID } from "../../src/data/leagues";
+import { competitionKind, hasTable, leagueWithID } from "../../src/data/leagues";
 import { competitors, type ScoreEvent } from "../../src/data/models";
 import { computeSections, filtered, liveCount, allFailed } from "../../src/data/scoreboard";
 import { DEFAULTS, getSettings, sanitize, settings } from "../../src/state/settings";
@@ -69,8 +68,10 @@ describe("explicit following policy", () => {
     expect(ids(computeSections(results,p,now))).toEqual([]);
     expect(liveCount(results,p)).toBe(0);
   });
-  it("starts new team follows silently and keeps alert changes independent", () => {
+  it("a new team follow alerts until its bell says otherwise", () => {
     settings.toggleFollow(team);
+    expect(alertsFor(cup,getSettings())).toBe(true);
+    settings.setTeamAlerts(team.id,false);
     expect(alertsFor(cup,getSettings())).toBe(false);
     settings.setTeamAlerts(team.id,true);
     expect(alertsFor(cup,getSettings())).toBe(true);

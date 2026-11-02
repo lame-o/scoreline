@@ -20,8 +20,9 @@ struct DetailView: View {
     let onBack: () -> Void
     var onOpenStandings: (League) -> Void = { _ in }
     /// Opens a bracket, with the team IDs of this match to ring.
-    var onOpenCompetition: (League) -> Void = { _ in }
     var onOpenBracket: (BracketSource, Set<String>) -> Void = { _, _ in }
+    /// Opens the soccer competition the match was played in.
+    var onOpenCompetition: (CompetitionRef) -> Void = { _ in }
     /// Opens a league's polls (college football's Top 25).
     var onOpenRankings: (League) -> Void = { _ in }
     /// The page Back returns to ("Scores", "Schedule").
@@ -139,7 +140,7 @@ struct DetailView: View {
     init(snapshot: Event, onBack: @escaping () -> Void, onOpenStandings: @escaping (League) -> Void = { _ in },
          onOpenBracket: @escaping (BracketSource, Set<String>) -> Void = { _, _ in },
          onOpenRankings: @escaping (League) -> Void = { _ in }, backTitle: String = "Scores",
-         preloaded: GameDetail? = nil, standings: [StandingsRow] = [], onOpenCompetition: @escaping (League) -> Void = { _ in }) {
+         preloaded: GameDetail? = nil, standings: [StandingsRow] = [], onOpenCompetition: @escaping (CompetitionRef) -> Void = { _ in }) {
         self.onOpenCompetition = onOpenCompetition
         self.snapshot = snapshot
         _live = State(initialValue: TeamColors.shared.apply(snapshot))
@@ -274,7 +275,6 @@ struct DetailView: View {
             // Arrows, Page Up/Down, Space, Home and End scroll the page.
             PageScrollView(keyboardScrolls: true) {
                 VStack(alignment: .leading, spacing: 0) {
-                    competitionContext
                     // Above the sections under it: the live indicator's hover card hangs below the hero.
                     hero.stackIn().zIndex(1)
                     // One column, or two from 680pt. The same children either
@@ -325,26 +325,6 @@ struct DetailView: View {
 
     // MARK: Header
 
-    @ViewBuilder
-    private var competitionContext: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            if case let .espn(path, _, sport) = event.ref {
-                let id = path.split(separator: "/").last.map(String.init) ?? ""
-                if let league = League.with(id: id) {
-                    Button(league.name) { onOpenCompetition(league) }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
-                } else if sport == .soccer {
-                    Button(event.caption ?? "Competition") { onOpenBracket(.soccerCompetition(slug: id, name: event.caption ?? "Competition", year: nil), []) }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
-                }
-            } else if case let .counterStrike(_, slug?) = event.ref {
-                Button(event.caption ?? "Tournament") { onOpenBracket(.csTournament(slug: slug, name: event.caption ?? "Tournament"), []) }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
-            } else if case let .climbing(_, _, _, _, name, _) = event.ref {
-                Button(name) { ScheduleStore.shared.openRequest = .climbing }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
-            }
-            let names = store.followed.filter { team in event.competitors.contains { $0.id == team.id } }.map(\.name)
-            if !names.isEmpty { Text("Following \(names.joined(separator: ", ")) · All competitions").foregroundStyle(.secondary) }
-        }.font(.system(size: 10.5)).padding(.horizontal, 16).padding(.vertical, 6)
-    }
-
     private var header: some View {
         // No title: the hero below is the page's heading.
         HStack(spacing: 6) {
@@ -374,9 +354,7 @@ struct DetailView: View {
         case let .match(top, bottom):
             VStack(spacing: 8) {
               VStack(spacing: 6) {
-                if let caption = event.caption ?? detail?.roundName {
-                    Text(caption).font(.system(size: 10.5)).foregroundStyle(.secondary).lineLimit(1)
-                }
+                heroCaption
                 HStack(alignment: .center, spacing: 0) {
                     teamColumn(top)
                     VStack(spacing: 3) {
@@ -444,7 +422,7 @@ struct DetailView: View {
         case let .field(title, summary):
             VStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
-                if let caption = event.caption { Text(caption).font(.system(size: 10.5)).foregroundStyle(.secondary) }
+                heroCaption
                 Text(title).font(.system(size: 20, weight: .semibold))
                 if !summary.isEmpty {
                     HStack(spacing: 4) {
@@ -1306,7 +1284,7 @@ struct DetailView: View {
         case .startlist: !d.startlist.isEmpty && (d.ranking.isEmpty || d.startlistRound != d.roundName)
         case .streams: !d.streams.isEmpty || store.coStreamingIDs.contains(event.id)
         case .whereToWatch: !d.broadcasters.isEmpty
-        case .bracket: bracketSource(d) != nil
+        case .bracket: bracketAction(d) != nil
         // A live court shows from tip-off; shots fill it in.
         case .court: d.basketball.map { !$0.shots.isEmpty || event.state == .live } ?? false
         case .flow: d.basketball.map { $0.flow.count > 1 || event.state == .live } ?? false
@@ -1661,17 +1639,15 @@ struct DetailView: View {
                     }
                 }
             case .bracket:
-                if let source = bracketSource(d) {
+                if let open = bracketAction(d) {
                     let lines = bracketLines(d)
-                    DetailSection(title: isSoccer ? "Competition" : d.tournament == nil ? "Series" : "Tournament", caption: lines.caption) {
-                        Button {
-                            onOpenBracket(source, Set(event.competitors.compactMap { $0.id?.split(separator: "-").last.map(String.init) }))
-                        } label: {
+                    DetailSection(title: isSoccer ? "Bracket" : d.tournament == nil ? "Series" : "Tournament", caption: lines.caption) {
+                        Button(action: open) {
                             HStack(spacing: 8) {
                                 Image(systemName: "trophy").font(.system(size: 12)).foregroundStyle(.secondary).frame(width: 16)
                                 Text(lines.title).font(.system(size: 12, weight: .medium)).lineLimit(1)
                                 Spacer()
-                                Text(isSoccer ? "View" : "Bracket").font(.system(size: 11.5)).foregroundStyle(.secondary)
+                                Text("Bracket").font(.system(size: 11.5)).foregroundStyle(.secondary)
                                 Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
                             }
                             .padding(.horizontal, 6).padding(.vertical, 6)
@@ -1981,11 +1957,56 @@ struct DetailView: View {
 
     // MARK: Captions
 
+    /// The line over the teams: where the match was played, and the way to it
+    /// (a soccer competition's page, a CS2 tournament's bracket).
+    @ViewBuilder
+    private var heroCaption: some View {
+        let competition = detail?.competition
+        let caption = competition?.line ?? (isSoccer ? soccerLeague?.name : nil) ?? event.caption ?? detail?.roundName
+        if let caption {
+            let text = Text(caption).font(.system(size: 10.5)).foregroundStyle(.secondary).lineLimit(1)
+            if let open = captionAction {
+                HStack(spacing: 3) {
+                    QuietLink(help: "Open \(competition?.name ?? caption)", hint: "Opens the competition.", action: open) { text }
+                    if let note = competition?.note { Text("· \(note)").font(.system(size: 10.5)).foregroundStyle(.secondary).lineLimit(1) }
+                }
+                .padding(.vertical, -3)
+            } else {
+                text
+            }
+        }
+    }
+
+    /// Where the hero's caption goes.
+    private var captionAction: (() -> Void)? {
+        if case let .counterStrike(_, slug?) = event.ref {
+            let name = detail?.tournament?.name ?? event.caption ?? "Tournament"
+            return { onOpenBracket(.csTournament(slug: slug, name: name), matchTeams) }
+        }
+        if isClimbing { return { ScheduleStore.shared.openRequest = .climbing } }
+        guard isSoccer else { return nil }
+        if let competition = detail?.competition { return { openCompetition(competition) } }
+        guard let league = soccerLeague else { return nil }
+        return { onOpenCompetition(CompetitionRef(slug: league.id, name: league.name, highlight: matchTeams)) }
+    }
+
+    private func openCompetition(_ competition: MatchCompetition) {
+        onOpenCompetition(CompetitionRef(slug: competition.slug, name: competition.name, year: competition.year, highlight: matchTeams))
+    }
+
+    /// This match's team IDs as a bracket knows them, to ring.
+    private var matchTeams: Set<String> {
+        Set(event.competitors.compactMap { $0.id?.split(separator: "-").last.map(String.init) })
+    }
+
+    /// What the bracket module opens, if the match has one.
+    private func bracketAction(_ d: GameDetail) -> (() -> Void)? {
+        if let competition = d.competition { return competition.hasKnockout ? { openCompetition(competition) } : nil }
+        return bracketSource(d).map { source in { onOpenBracket(source, matchTeams) } }
+    }
+
     /// The bracket this match belongs to: the MLB postseason, or a CS2 tournament.
     private func bracketSource(_ d: GameDetail) -> BracketSource? {
-        if case let .espn(path, _, .soccer)? = event.ref, let slug = path.split(separator: "/").last {
-            return .soccerCompetition(slug: String(slug), name: soccerLeague?.name ?? event.caption?.components(separatedBy: " · ").first ?? "Competition", year: d.seasonYear)
-        }
         if let t = d.tournament { return .csTournament(slug: t.slug, name: t.name) }
         if case let .espn(path, _, .baseball)? = event.ref, event.stage == "post-season" {
             return .espnPostseason(path: path, year: Calendar.current.component(.year, from: event.start))
@@ -1995,7 +2016,7 @@ struct DetailView: View {
 
     /// "World Series" / "Game 2 · MIL leads 2–0"; "PGL Masters Bucharest 2026" / "Group Stage · Round 2".
     private func bracketLines(_ d: GameDetail) -> (title: String, caption: String) {
-        if isSoccer { return (soccerLeague?.name ?? event.caption?.components(separatedBy: " · ").first ?? "Competition", "Fixtures, results and the path through each round.") }
+        if let competition = d.competition { return (competition.name, "The path through each round.") }
         if let t = d.tournament { return (t.name, t.stage ?? "The full tournament, stage by stage.") }
         let parts = (event.caption ?? "Postseason").components(separatedBy: " · ")
         return (parts.first ?? "Postseason",
@@ -2047,8 +2068,10 @@ struct DetailView: View {
         return "Score is the highest hold reached. Top means finished."
     }
 
-    /// The soccer league this match belongs to ("soccer/eng.1" → Premier League).
+    /// The soccer league this match belongs to: the summary's word for it, once
+    /// it's in ("soccer/eng.1" until then, if that's how the page was reached).
     private var soccerLeague: League? {
+        if let slug = detail?.competition?.slug { return League.with(id: slug) }
         guard case let .espn(path, _, .soccer)? = event.ref, let slug = path.split(separator: "/").last else { return nil }
         return League.with(id: String(slug))
     }

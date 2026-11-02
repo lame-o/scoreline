@@ -1625,6 +1625,7 @@ struct MomentList: View {
     let palette: TeamPalette
     var topTeam: Competitor? = nil
     var bottomTeam: Competitor? = nil
+    @Environment(PageReplays.self) private var replays: PageReplays?
 
     /// Soccer goals don't come with the score; count it up so each goal shows
     /// it. Skipped when there's an own goal, whose credited side ESPN leaves ambiguous.
@@ -1680,7 +1681,9 @@ struct MomentList: View {
                     ReplayGlyph(play: Replays.play(of: m.id))
                 }
                 .linkedRow(Focus(play: m.id, period: m.period, side: m.side),
-                           litBy: { $0?.matches(play: m.id, period: m.period, side: m.side) ?? false }, pinnable: true)
+                           litBy: { $0?.matches(play: m.id, period: m.period, side: m.side) ?? false }, pinnable: true,
+                           // Where rows replay, one that can't (ESPN placed nothing) has no click to promise.
+                           quiet: replays?.supported == true && replays?.plays[Replays.play(of: m.id)] == nil)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(spoken(m, score: score))
                 // VoiceOver: "Show on Shot Chart" (or the pitch, linescore…), pinned and scrolled to.

@@ -30,6 +30,13 @@ enum Sport: String, CaseIterable, Identifiable {
     }
 }
 
+/// A competition's identity at ESPN: dotted, lower-case ("eng.league_cup", "club.friendly").
+enum ESPNSoccerSlug {
+    static func isValid(_ slug: String) -> Bool {
+        slug.range(of: #"^[a-z0-9_-]+(?:\.[a-z0-9_-]+)+$"#, options: .regularExpression) != nil
+    }
+}
+
 enum Source: Hashable {
     /// ESPN scoreboard, e.g. "soccer/eng.1". Weekly leagues (NFL, college football)
     /// are fetched as the current week; everything else day by day.
@@ -39,24 +46,40 @@ enum Source: Hashable {
 }
 
 struct League: Identifiable, Hashable {
+    /// What sort of competition it is, which decides where the Sports page
+    /// lists it and what it can show.
+    enum Kind: Hashable {
+        case league, cup, tournament
+        /// A game's whole calendar (CS2's S-tier), or a series of events (climbing's).
+        case circuit
+    }
+
     let id: String
     let name: String
     let sport: Sport
+    var kind: Kind = .league
     let source: Source
 
     static let catalog: [League] = [
         League(id: "eng.1", name: "Premier League", sport: .soccer, source: .espn(path: "soccer/eng.1")),
-        League(id: "eng.league_cup", name: "Carabao Cup", sport: .soccer, source: .espn(path: "soccer/eng.league_cup")),
-        League(id: "eng.fa", name: "FA Cup", sport: .soccer, source: .espn(path: "soccer/eng.fa")),
-        League(id: "uefa.champions", name: "Champions League", sport: .soccer, source: .espn(path: "soccer/uefa.champions")),
-        League(id: "uefa.europa", name: "Europa League", sport: .soccer, source: .espn(path: "soccer/uefa.europa")),
         League(id: "esp.1", name: "LaLiga", sport: .soccer, source: .espn(path: "soccer/esp.1")),
         League(id: "ita.1", name: "Serie A", sport: .soccer, source: .espn(path: "soccer/ita.1")),
         League(id: "ger.1", name: "Bundesliga", sport: .soccer, source: .espn(path: "soccer/ger.1")),
         League(id: "fra.1", name: "Ligue 1", sport: .soccer, source: .espn(path: "soccer/fra.1")),
         League(id: "eng.2", name: "Championship", sport: .soccer, source: .espn(path: "soccer/eng.2")),
         League(id: "usa.1", name: "MLS", sport: .soccer, source: .espn(path: "soccer/usa.1")),
-        League(id: "fifa.world", name: "FIFA World Cup", sport: .soccer, source: .espn(path: "soccer/fifa.world")),
+
+        League(id: "eng.league_cup", name: "Carabao Cup", sport: .soccer, kind: .cup, source: .espn(path: "soccer/eng.league_cup")),
+        League(id: "eng.fa", name: "FA Cup", sport: .soccer, kind: .cup, source: .espn(path: "soccer/eng.fa")),
+        League(id: "esp.copa_del_rey", name: "Copa del Rey", sport: .soccer, kind: .cup, source: .espn(path: "soccer/esp.copa_del_rey")),
+        League(id: "ger.dfb_pokal", name: "DFB-Pokal", sport: .soccer, kind: .cup, source: .espn(path: "soccer/ger.dfb_pokal")),
+        League(id: "ita.coppa_italia", name: "Coppa Italia", sport: .soccer, kind: .cup, source: .espn(path: "soccer/ita.coppa_italia")),
+
+        League(id: "uefa.champions", name: "Champions League", sport: .soccer, kind: .tournament, source: .espn(path: "soccer/uefa.champions")),
+        League(id: "uefa.europa", name: "Europa League", sport: .soccer, kind: .tournament, source: .espn(path: "soccer/uefa.europa")),
+        League(id: "uefa.europa.conf", name: "Conference League", sport: .soccer, kind: .tournament, source: .espn(path: "soccer/uefa.europa.conf")),
+        League(id: "conmebol.libertadores", name: "Copa Libertadores", sport: .soccer, kind: .tournament, source: .espn(path: "soccer/conmebol.libertadores")),
+        League(id: "fifa.world", name: "FIFA World Cup", sport: .soccer, kind: .tournament, source: .espn(path: "soccer/fifa.world")),
 
         League(id: "nfl", name: "NFL", sport: .football, source: .espn(path: "football/nfl", weekly: true)),
         League(id: "college-football", name: "College Football", sport: .football, source: .espn(path: "football/college-football", weekly: true)),
@@ -66,14 +89,28 @@ struct League: Identifiable, Hashable {
         League(id: "nba", name: "NBA", sport: .basketball, source: .espn(path: "basketball/nba")),
         League(id: "wnba", name: "WNBA", sport: .basketball, source: .espn(path: "basketball/wnba")),
 
-        League(id: "cs2", name: "Counter-Strike 2", sport: .esports, source: .counterStrike),
+        League(id: "cs2", name: "Counter-Strike 2", sport: .esports, kind: .circuit, source: .counterStrike),
 
-        League(id: "ifsc", name: "World Climbing Series", sport: .climbing, source: .ifsc),
+        League(id: "ifsc", name: "World Climbing Series", sport: .climbing, kind: .circuit, source: .ifsc),
     ]
 
     static let defaultIDs = ["eng.1", "uefa.champions", "nfl", "mlb", "cs2", "ifsc"]
 
     static func with(id: String) -> League? { catalog.first { $0.id == id } }
+
+    /// Any competition ESPN has a soccer board for, listed or not ("esp.copa_catalunya"):
+    /// a team followed across competitions plays in all of them. (pure; tested)
+    static func resolving(id: String) -> League? {
+        if let league = with(id: id) { return league }
+        guard ESPNSoccerSlug.isValid(id) else { return nil }
+        return League(id: id, name: id, sport: .soccer, source: .espn(path: "soccer/\(id)"))
+    }
+
+    /// Whether it publishes a table: every soccer competition but a cup, and the
+    /// two others the app draws one for.
+    var hasTable: Bool {
+        sport == .soccer ? kind != .cup : ["nba", "college-football"].contains(id)
+    }
 
     /// A label for tight spaces (small tiles): "EPL", "UCL", "CS2".
     var shortName: String {

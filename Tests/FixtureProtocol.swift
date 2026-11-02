@@ -22,6 +22,10 @@ final class FixtureProtocol: URLProtocol, @unchecked Sendable {
 
     override func startLoading() {
         guard let url = request.url else { return }
+        if !Self.recording, let data = CompetitionRoutes.response(for: url) {
+            finish(data: data, response: HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: nil), error: nil)
+            return
+        }
         let file = Self.directory.appendingPathComponent(Self.key(for: url) + ".bin")
         if Self.recording {
             let task = Self.live.dataTask(with: request) { data, response, error in

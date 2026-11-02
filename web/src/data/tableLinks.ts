@@ -3,8 +3,7 @@
  * section menu is on the first paint; `standings.ts` and its parsers aren't).
  * Re-exported from `standings.ts`.
  */
-import { hasTable } from "./competitionCatalog";
-import { espnPath } from "./leagues";
+import { espnPath, hasTable } from "./leagues";
 import type { League } from "./models";
 import { rankingsPath, standingsPath } from "./schedule";
 

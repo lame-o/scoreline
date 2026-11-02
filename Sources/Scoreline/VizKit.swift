@@ -304,8 +304,10 @@ extension View {
     /// whether a focus lights this row). Only the wash reads the focus, so
     /// pointing anywhere on the page re-runs the washes it changes, never the
     /// rows (their text, their layout) or the list around them.
-    func linkedRow(_ focus: Focus, litBy lit: @escaping (Focus?) -> Bool, pinnable: Bool = false) -> some View {
-        modifier(LinkedRow(focus: focus, lit: .focus(lit), pinnable: pinnable))
+    /// `quiet` rows have no click at all: the pointer still lights their mark on
+    /// the charts, but the row itself doesn't answer it, so it doesn't look pressable.
+    func linkedRow(_ focus: Focus, litBy lit: @escaping (Focus?) -> Bool, pinnable: Bool = false, quiet: Bool = false) -> some View {
+        modifier(LinkedRow(focus: focus, lit: .focus(lit), pinnable: pinnable && !quiet, quiet: quiet))
     }
 }
 
@@ -318,6 +320,7 @@ private struct LinkedRow: ViewModifier {
     let focus: Focus
     let lit: Lit
     let pinnable: Bool
+    var quiet = false
     /// How far past its own bounds a row answers the pointer, above and below.
     static let reach: CGFloat = 4.5
     @Environment(LinkedFocus.self) private var linked: LinkedFocus?
@@ -348,7 +351,7 @@ private struct LinkedRow: ViewModifier {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(Color.primary.opacity(on || pointer ? strength : 0))
                 case let .focus(lights):
-                    FocusWash(lights: lights, pointer: pointer, strength: strength)
+                    FocusWash(lights: lights, pointer: pointer, quiet: quiet, strength: strength)
                 }
             }
             .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -407,12 +410,15 @@ extension EnvironmentValues {
 private struct FocusWash: View {
     let lights: (Focus?) -> Bool
     let pointer: Bool
+    var quiet = false
     let strength: Double
     @Environment(LinkedFocus.self) private var linked: LinkedFocus?
 
     var body: some View {
+        // A quiet row lights for a chart's mark, never for the pointer on it.
+        let on = quiet ? !pointer && lights(linked?.focus) : pointer || lights(linked?.focus)
         RoundedRectangle(cornerRadius: 6, style: .continuous)
-            .fill(Color.primary.opacity(pointer || lights(linked?.focus) ? strength : 0))
+            .fill(Color.primary.opacity(on ? strength : 0))
     }
 }
 

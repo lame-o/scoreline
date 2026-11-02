@@ -18,7 +18,8 @@ actor ScheduleCache {
     /// 3: items carry results (`ScheduleItem.result`).
     /// 4: climbing categories carry their IDs, round links and podium athletes
     /// (a 304 would otherwise keep serving a detail parsed without them).
-    static let parserVersion = 4
+    /// 5: a soccer team's games name the competition they were played in, not `soccer/all`.
+    static let parserVersion = 5
     /// Results add parsed past boards (an EPL month is about 60 KB).
     static let diskLimit = 12_000_000
 

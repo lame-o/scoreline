@@ -356,8 +356,9 @@ struct GameDetail {
     /// ESPN's `header.season.current`: false for a game from a past season,
     /// whose table (today's) would say nothing about it. Nil when unknown.
     var seasonIsCurrent: Bool?
-    /// Provider season year (a European soccer season crosses calendar years).
-    var seasonYear: Int?
+    /// The soccer competition the match was played in: the summary's word for
+    /// it, wherever the page was opened from.
+    var competition: MatchCompetition?
     var broadcast: String?
     /// Official broadcasters (US market, as ESPN reports them).
     var broadcasters: [Broadcaster] = []
@@ -603,7 +604,7 @@ enum ESPNDetail {
         var detail = GameDetail()
         detail.venue = summary["gameInfo"]["venue"]["fullName"].string
         detail.seasonIsCurrent = summary["header"]["season"]["current"].bool
-        detail.seasonYear = summary["header"]["season"]["year"].int
+        if sport == .soccer { detail.competition = MatchCompetition(summary) }
         detail.broadcast = summary["header"]["competitions"][0]["broadcasts"][0]["media"]["shortName"].string
         var seen = Set<String>()
         detail.broadcasters = summary["header"]["competitions"][0]["broadcasts"].array.compactMap { b in

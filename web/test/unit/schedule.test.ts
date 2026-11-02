@@ -140,7 +140,6 @@ describe("ESPN schedules", () => {
     expect(cup?.competition).toBe("Carabao Cup · Fourth Round");
     expect(cup?.league).toBe("eng.league_cup");
     expect(cup?.ref).toMatchObject({kind:"espn", path:"soccer/eng.league_cup"});
-    expect(itemEvent({...cup!,ref:{kind:"espn",path:"soccer/all",id:"401921842"}}).ref).toMatchObject({kind:"espn",path:"soccer/eng.league_cup"});
     expect(cup?.networks).toEqual(["Paramount+"]);
     const on = (d: DayKey) => arsenal.items.find((i) => i.league === "eng.1" && compactDay(i.day) === compactDay(d));
     expect(on(day(2026, 12, 6))?.start.kind).toBe("exact");

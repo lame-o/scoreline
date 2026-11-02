@@ -163,6 +163,8 @@ final class SoccerFeed {
     /// The last complete look's entries in feed order (a tail of the match), and its count: the broadcast timeline's core lane.
     @ObservationIgnored private(set) var lastLook: [JSON] = []
     @ObservationIgnored private(set) var lookRevision = 0
+    /// This match's plays came in ESPN's older form (`OlderSoccerPlays`). Nil until a located one says.
+    @ObservationIgnored private var olderPlays: Bool?
 
     /// A goal under review: where it was read, and when.
     struct Review: Equatable {
@@ -214,7 +216,9 @@ final class SoccerFeed {
         while true {
             guard !Task.isCancelled, let url = URL(string: "\(base)?limit=\(size)&page=\(page)"),
                   let json = try? await JSON.fetch(url) else { break }
-            let items = json["items"].array
+            let read = json["items"].array
+            if olderPlays == nil { olderPlays = OlderSoccerPlays.isOlder(read) }
+            let items = olderPlays == true ? read.map(OlderSoccerPlays.current) : read
             look += items
             for (offset, item) in items.enumerated() {
                 let id = Self.playID(item)
@@ -705,6 +709,8 @@ final class FootballFeed {
     /// status as last read and when the situation was: the broadcast timeline's lanes.
     @ObservationIgnored private(set) var lastLook: [JSON] = []
     @ObservationIgnored private(set) var lookRevision = 0
+    /// This match's plays came in ESPN's older form (`OlderSoccerPlays`). Nil until a located one says.
+    @ObservationIgnored private var olderPlays: Bool?
     @ObservationIgnored private(set) var lastStatus: JSON?
     @ObservationIgnored private(set) var lastRead: Date?
     @ObservationIgnored private var entryIndex: [String: Int] = [:]
@@ -1165,6 +1171,8 @@ final class BaseballFeed {
     /// status, when the situation was read and the play it follows: the broadcast timeline's lanes.
     @ObservationIgnored private(set) var lastLook: [JSON] = []
     @ObservationIgnored private(set) var lookRevision = 0
+    /// This match's plays came in ESPN's older form (`OlderSoccerPlays`). Nil until a located one says.
+    @ObservationIgnored private var olderPlays: Bool?
     @ObservationIgnored private(set) var lastStatus: JSON?
     @ObservationIgnored private(set) var lastRead: Date?
     @ObservationIgnored private(set) var situationPlay: String?
@@ -1666,12 +1674,14 @@ struct LiveStandingsRow: Identifiable, Equatable {
 }
 
 enum Standings {
-    static func fetch(league: League) async throws -> [StandingsRow] {
+    /// `season`: a past soccer season's table, as it finished.
+    static func fetch(league: League, season: Int? = nil) async throws -> [StandingsRow] {
         guard case let .espn(path, _) = league.source else { return [] }
         if path.hasSuffix("college-football") { return try await college(path: path) }
         if path == NBADetail.path { return try await NBAStandings.fetch() }
         guard league.sport == .soccer else { return [] }
-        return soccer(try await JSON.fetch(URL.api("https://site.api.espn.com/apis/v2/sports/\(path)/standings")))
+        let query = season.map { "?season=\($0)" } ?? ""
+        return soccer(try await JSON.fetch(URL.api("https://site.api.espn.com/apis/v2/sports/\(path)/standings\(query)")))
     }
 
     /// A soccer table (or its groups), sorted by group then rank.

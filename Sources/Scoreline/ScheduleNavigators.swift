@@ -315,7 +315,7 @@ struct ScheduleChips: View {
                     if chip.drills, chip.id == chips.first(where: \.drills)?.id, chip.id != chips.first?.id {
                         Divider().frame(height: 14).padding(.horizontal, 2)
                     }
-                    ChipButton(chip: chip, selected: chip.scope == selected) { onSelect(chip.scope) }
+                    ChipButton(title: chip.title, symbol: chip.symbol, drills: chip.drills, selected: chip.scope == selected) { onSelect(chip.scope) }
                 }
             }
             .padding(.horizontal, Metrics.gutter)
@@ -327,8 +327,11 @@ struct ScheduleChips: View {
     }
 }
 
-private struct ChipButton: View {
-    let chip: ScheduleChips.Chip
+/// A chip: a scope on a schedule, a round on a competition's page.
+struct ChipButton: View {
+    let title: String
+    var symbol: String? = nil
+    var drills = false
     let selected: Bool
     let action: () -> Void
     @State private var hovering = false
@@ -336,11 +339,11 @@ private struct ChipButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                if let symbol = chip.symbol {
+                if let symbol {
                     Image(systemName: symbol).font(.system(size: 8.5, weight: .bold)).foregroundStyle(selected ? Color.yellow : .secondary)
                 }
-                Text(chip.title)
-                if chip.drills {
+                Text(title)
+                if drills {
                     Image(systemName: "chevron.right").font(Glyph.link).foregroundStyle(.tertiary).accessibilityHidden(true)
                 }
             }
@@ -353,7 +356,7 @@ private struct ChipButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .help(chip.drills ? "\(chip.title) schedule" : chip.title)
+        .help(drills ? "\(title) schedule" : title)
         .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 }

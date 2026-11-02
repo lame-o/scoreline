@@ -21,14 +21,14 @@
  * entry's own reads (`isGoal`, `credit`, `teamID`, `playID`) live in
  * soccerEntries.ts, so the lane can read them without this parser.
  *
- * Web-only: archived feeds measured 0…1 toward x = 0 (`pitchScale` says
+ * Older feeds measure differently (`pitchScale` says
  * "unit", data/liveFeeds/soccer.ts) are read through the same turn-round as
  * the Live Pitch's (`100 × (1 − v)`), via the trailing `scale` arguments.
  *
  *     const scene = SoccerScene.latest(plays, homeTeamID, SoccerScene.keepers(plays));
  */
 import { arr, at, bool, type JSONValue } from "../json";
-import { BIG_CHANCE_XG, LATE_SECONDS, type PitchScale } from "../liveFeeds/soccer";
+import { BIG_CHANCE_XG, LATE_SECONDS, unitX, unitY, type PitchScale } from "../liveFeeds/soccer";
 import type { Side } from "../models";
 import type { Point } from "../mlb/theaterField";
 import { credit, isGoal, playID, string, teamID, type Credit } from "./soccerEntries";
@@ -55,10 +55,9 @@ function int(v: JSONValue): number | null {
   return d == null ? null : Math.trunc(d);
 }
 
-/** A value read on the feed's scale: unit-scale feeds turned round (a half turn) onto the percent scale (web-only). */
-function scaled(v: number | null, scale: PitchScale): number | null {
-  return v == null ? null : scale === "unit" && v !== 0 ? 100 * (1 - v) : v;
-}
+/** A value read on the feed's scale: an older feed's turned into the usual one (`unitX`, `unitY`). */
+const scaledX = (v: number | null, scale: PitchScale) => (v != null && scale === "unit" ? unitX(v) : v);
+const scaledY = (v: number | null, scale: PitchScale) => (v != null && scale === "unit" ? unitY(v) : v);
 
 // MARK: - Pitch
 
@@ -428,8 +427,10 @@ export function parse(
   shot.xg = double(at(item, "expectedGoals"));
   shot.xgot = double(at(item, "expectedGoalsOnTarget"));
   // Where it was going: ESPN's point in the goal mouth, else its words ("the bottom left corner").
-  const gy = scaled(double(at(item, "goalPositionY")), scale);
-  const aim = gy != null ? { y: gy, z: double(at(item, "goalPositionZ")) ?? 0 } : aimFromWords(text);
+  // An older feed has no goal-mouth point: its end point, when that's on the line, at the height its words give.
+  const endY = double(at(item, "fieldPosition2Y"));
+  const gy = scale === "unit" ? (double(at(item, "fieldPosition2X")) === 0 && endY ? unitY(endY) : null) : double(at(item, "goalPositionY"));
+  const aim = gy != null ? { y: gy, z: scale === "unit" ? aimFromWords(text)?.z ?? 15 : double(at(item, "goalPositionZ")) ?? 0 } : aimFromWords(text);
   if (aim) {
     // In the shooter's frame like everything else: the away team's mouth turns round.
     shot.mouth = { y: Pitch.across(side === "top" ? aim.y : 100 - aim.y), z: Pitch.height(aim.z) };
@@ -683,7 +684,7 @@ export function buildUp(
       switch (type) {
         case "pass":
         case "cross": {
-          const raw = [scaled(double(at(item, "fieldPositionX")), scale) ?? 0, scaled(double(at(item, "fieldPositionY")), scale) ?? 50] as const;
+          const raw = [scaledX(double(at(item, "fieldPositionX")), scale) ?? 0, scaledY(double(at(item, "fieldPositionY")), scale) ?? 50] as const;
           if (raw[0] >= 98.5 && (raw[1] <= 1.5 || raw[1] >= 98.5)) {
             touch.kind = "restart";
             touch.lofted = true;
@@ -795,8 +796,8 @@ export function buildUp(
  * where home attacks right. Null for an entry ESPN didn't place.
  */
 export function place(item: JSONValue, xKey: string, yKey: string, home: string | null, scale: PitchScale = "percent"): Point | null {
-  const x = scaled(double(at(item, xKey)), scale);
-  const y = scaled(double(at(item, yKey)), scale);
+  const x = scaledX(double(at(item, xKey)), scale);
+  const y = scaledY(double(at(item, yKey)), scale);
   if (x == null || y == null || (x === 0 && y === 0)) return null;
   const isHome = teamID(item) === home;
   return Pitch.metres(isHome ? x : 100 - x, isHome ? y : 100 - y);

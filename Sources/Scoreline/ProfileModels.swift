@@ -198,6 +198,8 @@ extension Profile {
         var competition: String?
         /// CS2: the match slug (bo3.gg's match pages are addressed by it).
         var slug: String? = nil
+        /// Soccer: the competition it's in ("uefa.champions"), whichever a team's page was read through.
+        var league: String? = nil
     }
 
     struct RosterPlayer: Equatable, Sendable, Identifiable {

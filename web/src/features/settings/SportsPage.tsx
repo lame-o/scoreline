@@ -3,9 +3,8 @@ import { Link } from "react-router";
 import { FormSection, GroupBox, Icon, PageHeader, SegmentedControl, SPORT_ICON, formStyles } from "../../design/components";
 import { PageBack } from "../../app/PageBack";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
-import { CATALOG } from "../../data/leagues";
+import { CATALOG, competitionHref, competitionKind } from "../../data/leagues";
 import { SPORTS, SPORT_NAME, type Sport } from "../../data/models";
-import { competitionHref, competitionKind } from "../../data/competitionCatalog";
 import { settings, useSettings } from "../../state/settings";
 import styles from "./Settings.module.css";
 

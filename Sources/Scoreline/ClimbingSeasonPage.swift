@@ -450,7 +450,6 @@ struct ClimbingEventDetail: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if case let .climbing(id) = event.kind { EditionFollowButton(edition: EditionFollow(source: "ifsc", key: String(id), name: event.name)) }
             if showsHeader { header }
             if !event.detailed {
                 HStack(spacing: 6) {
@@ -488,6 +487,10 @@ struct ClimbingEventDetail: View {
             HStack(spacing: 12) {
                 if let link = event.link { LinkButton(title: "ifsc.results.info", url: link) }
                 if let sheet = event.infoSheet, event.status != .finished { LinkButton(title: "Info sheet", url: sheet) }
+                if case let .climbing(id) = event.kind {
+                    Spacer(minLength: 0)
+                    EditionStar(edition: EditionFollow(source: "ifsc", key: String(id), name: event.name))
+                }
             }
             .padding(.top, 2)
         }

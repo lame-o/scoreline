@@ -14,8 +14,9 @@ struct ScoresView: View {
     var onOpenSchedule: (ScheduleScope) -> Void = { _ in }
     /// A league's results (the section menu's Results).
     var onOpenResults: (ScheduleScope) -> Void = { _ in }
+    /// A soccer competition's season (the section menu's Competition).
+    var onOpenCompetition: (League) -> Void = { _ in }
     var onSports: () -> Void = {}
-    var onFollowing: () -> Void = {}
     /// The hovered or arrow-keyed game. A reference, so changing it updates
     /// only the rows and tiles whose highlight flips (HighlightGate), not this page.
     @State private var highlight = HighlightState()
@@ -84,11 +85,6 @@ struct ScoresView: View {
     var body: some View {
         VStack(spacing: 0) {
             header.stackIn().pageChrome()
-            HStack(spacing: 16) {
-                Button(action: onSports) { Label("Sports", systemImage: "sportscourt") }
-                Button(action: onFollowing) { Label("Following", systemImage: "star") }
-                Spacer()
-            }.buttonStyle(.plain).font(.system(size: 11.5)).foregroundStyle(.secondary).padding(.horizontal, 16).padding(.vertical, 7)
             content.frame(maxHeight: .infinity, alignment: .top)
             footer.stackIn().pageChrome()
         }
@@ -155,6 +151,7 @@ struct ScoresView: View {
                     ViewSwitcher(selection: store.landingView, onSelect: switchView)
                     IconButton(symbol: "calendar", label: "Schedule", shortcut: "⌘U") { onOpenSchedule(.all) }
                         .keyboardShortcut("u")
+                    IconButton(symbol: "sportscourt", label: "Sports", action: onSports)
                     RefreshButton()
                     IconButton(symbol: "slider.horizontal.3", label: "Settings", shortcut: "⌘,", action: onManage)
                 }
@@ -170,8 +167,8 @@ struct ScoresView: View {
     private var content: some View {
         if store.enabledIDs.isEmpty && store.followed.isEmpty && store.editions.isEmpty {
             EmptyState(symbol: "sportscourt", title: "No Sports Yet",
-                       message: "Choose the leagues you follow and their scores will live here.") {
-                Button("Browse Sports", action: onSports).controlSize(.small)
+                       message: "Choose the competitions and teams you follow and their scores will live here.") {
+                Button("Choose Sports", action: onSports).controlSize(.small)
             }
         } else if store.sections.isEmpty && store.quietLeagues.isEmpty {
             if store.allFailed {
@@ -323,7 +320,7 @@ struct ScoresView: View {
         let isCollapsed = store.collapsed.contains(section.id)
         SectionHeader(section: section, collapsed: isCollapsed, justToggled: justToggled == section.id, maxLogos: previewLogos,
                       onOpenLeague: onOpenLeague, onOpenStandings: onOpenStandings, onOpenRankings: onOpenRankings,
-                      onOpenSchedule: onOpenSchedule, onOpenResults: onOpenResults, onFollowing: onFollowing) {
+                      onOpenSchedule: onOpenSchedule, onOpenResults: onOpenResults, onOpenCompetition: onOpenCompetition) {
             toggle(section)
         }
         .environment(\.logoNamespace, linking == section.id ? logoSpace : nil)
@@ -679,7 +676,7 @@ private struct SectionHeader: View {
     let onOpenRankings: (League) -> Void
     var onOpenSchedule: (ScheduleScope) -> Void = { _ in }
     var onOpenResults: (ScheduleScope) -> Void = { _ in }
-    var onFollowing: () -> Void = {}
+    var onOpenCompetition: (League) -> Void = { _ in }
     let toggle: () -> Void
     @State private var hovering = false
 
@@ -716,7 +713,10 @@ private struct SectionHeader: View {
         .contextMenu {
             Button(collapsed ? "Expand" : "Collapse", systemImage: collapsed ? "chevron.down" : "chevron.right", action: toggle)
             if let league = League.with(id: section.id) {
-                if league.sport == .soccer && CompetitionCatalog.hasTable(league) {
+                if league.sport == .soccer {
+                    Button("Competition", systemImage: "trophy") { onOpenCompetition(league) }
+                }
+                if league.sport == .soccer && league.hasTable {
                     Button("Table", systemImage: "list.number") { onOpenStandings(league) }
                 }
                 if league.id == "college-football" {
@@ -728,7 +728,7 @@ private struct SectionHeader: View {
                 }
                 Button("Schedule", systemImage: "calendar") { onOpenSchedule(.for(league: league)) }
                 Button("Results", systemImage: "flag.checkered") { onOpenResults(.for(league: league)) }
-                Button("Competition overview", systemImage: "line.3.horizontal.decrease.circle") {
+                Button(league.source == .ifsc ? "Choose Countries…" : "Choose Teams…", systemImage: "line.3.horizontal.decrease.circle") {
                     onOpenLeague(league)
                 }
                 Divider()
@@ -736,9 +736,8 @@ private struct SectionHeader: View {
                 Button("Move Down", systemImage: "arrow.down") { withAnimation(Motion.rearrange) { store.move(league.id, by: 1) } }
                 Divider()
                 if store.isEnabled(league) {
-                    Button("Unfollow \(league.name)", systemImage: "eye.slash") { withAnimation(Motion.rearrange) { store.setEnabled(league, false) } }
+                    Button("Unfollow \(league.name)", systemImage: "star.slash") { withAnimation(Motion.rearrange) { store.setEnabled(league, false) } }
                 }
-                Button("Manage following…", systemImage: "star", action: onFollowing)
             }
         }
         // The title stays the label; the state (and a collapsed section's

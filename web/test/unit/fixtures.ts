@@ -13,6 +13,11 @@ export function fixture(name: string): unknown {
   return JSON.parse(readFileSync(join(DIR, name), "utf8"));
 }
 
+/** A recording both the Mac's suite and this one read (Tests/Fixtures). */
+export function sharedFixture(name: string): unknown {
+  return JSON.parse(readFileSync(join(DIR, "..", "..", "..", "Tests", "Fixtures", name), "utf8"));
+}
+
 /** The `events` of a scoreboard fixture, as an array for slicing. */
 export function events(name: string): unknown[] {
   return (fixture(name) as { events: unknown[] }).events;

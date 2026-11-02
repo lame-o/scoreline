@@ -25,6 +25,11 @@ struct ScorelineTests {
         if let flag = CommandLine.arguments.firstIndex(of: "--bench") {
             exit(BroadcastBench.main(Array(CommandLine.arguments[(flag + 1)...])))
         }
+        // The contact sheet renders what ESPN has now, through the app's real network path.
+        if let path = ProcessInfo.processInfo.environment["SCORELINE_RENDER_COMPETITIONS"] {
+            await renderCompetitions(to: path)
+            exit(0)
+        }
         HTTP.stubProtocol = FixtureProtocol.self
         if CommandLine.arguments.contains("--football-hitch-probe") {
             do { try FootballHitchProbe.main() }
@@ -69,9 +74,12 @@ struct ScorelineTests {
             print("\n\(passes) passed, \(failures) failed")
             exit(failures == 0 ? 0 : 1)
         }
-        if let path = ProcessInfo.processInfo.environment["SCORELINE_RENDER_FOLLOWING"] {
-            await renderFollowing(to: path)
-            exit(0)
+        if CommandLine.arguments.contains("--competitions-only") {
+            soccerCompetitions()
+            followingPolicy()
+            await competitionInteractions()
+            print("\n\(passes) passed, \(failures) failed")
+            exit(failures == 0 ? 0 : 1)
         }
         print("Scoreline tests\(FixtureProtocol.recording ? " (recording fixtures)" : "")")
 

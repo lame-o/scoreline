@@ -131,6 +131,39 @@ extension PageHeader where Trailing == EmptyView {
     }
 }
 
+/// The app's search field: a glass capsule with a ring while it has focus.
+struct PageSearchField: View {
+    let prompt: String
+    @Binding var text: String
+    var focused: FocusState<Bool>.Binding
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(.secondary)
+            TextField(prompt, text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12.5))
+                .focused(focused)
+            if !text.isEmpty {
+                Button { text = "" } label: {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 11)).foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+                .help("Clear Search")
+                .accessibilityLabel("Clear Search")
+            }
+        }
+        .padding(.horizontal, 11)
+        .frame(height: 30)
+        .glassCapsule()
+        // Only the ring fades: nothing else in the field rides its animation.
+        // A circular capsule: the continuous one's stroke breaks into flat
+        // spurs at its ends (the "clipped" ring at 340).
+        .overlay(Capsule(style: .circular).strokeBorder(Color.accentColor.opacity(focused.wrappedValue ? 0.55 : 0), lineWidth: 1.5)
+            .animation(Motion.fade, value: focused.wrappedValue))
+    }
+}
+
 /// Leading, title, trailing: the title centered on the bar when it clears
 /// both sides by `gap`, else centered in the room between them, truncated to
 /// fit (a navigation bar's rule).

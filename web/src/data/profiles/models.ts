@@ -214,6 +214,8 @@ export interface GameRef {
   readonly competition: string | null;
   /** CS2: the match slug (bo3.gg's match pages are addressed by it). */
   readonly slug: string | null;
+  /** Soccer: the competition it's in ("uefa.champions"), whichever a team's page was read through. */
+  readonly league?: string | null;
 }
 
 export interface RosterPlayer {

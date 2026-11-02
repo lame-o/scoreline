@@ -5,14 +5,10 @@ struct ManageView: View {
     @Environment(ScoreStore.self) private var store
     /// The page Back returns to (Settings opens from any page with ⌘,).
     var backTitle = "Scores"
-    var followingPage = false
     var onFollowing: () -> Void = {}
     let onDone: () -> Void
-    let onOpenLeague: (League) -> Void
-    let onAddSports: () -> Void
-    var onEdition: (EditionFollow) -> Void = { _ in }
+    var onSports: () -> Void = {}
     @State private var notificationsBlocked = false
-    @State private var addHovering = false
 
     var body: some View {
         @Bindable var store = store
@@ -22,100 +18,67 @@ struct ManageView: View {
 
             PageScrollView {
                 StackColumn {
-                    if followingPage {
-                        caption("Your teams across competitions, plus the competitions you choose. Matches appear once when selections overlap.")
-                        myTeams
-
-                        groupLabel("Competitions", "line.3.horizontal")
-                        GroupBox {
-                            ForEach(store.enabledLeagues) { league in
-                                LeagueOrderRow(league: league) { onOpenLeague(league) }
-                            }
-                            addSportsRow
-                        }
-                        if store.enabledLeagues.count > 1 {
-                            caption("Drag to reorder. Team selections apply only to that competition.")
-                        }
-
-                        if !store.editions.isEmpty {
-                            groupLabel("Tournament editions & events", "trophy")
-                            GroupBox {
-                                ForEach(store.editions) { edition in
-                                    HStack {
-                                        Button(edition.name) { onEdition(edition) }.buttonStyle(.plain)
-                                        Spacer()
-                                        Button { store.toggleEdition(edition) } label: { Image(systemName: "minus.circle.fill") }.buttonStyle(.plain).accessibilityLabel("Unfollow \(edition.name)")
-                                    }.font(.system(size: 13)).padding(.horizontal, 12).padding(.vertical, 8)
-                                }
-                            }
-                            caption("Only the named edition. Alerts are off.")
-                        }
-                        groupLabel("Notifications", "bell")
-                        GroupBox {
-                            ToggleRow(title: "Alerts for my teams", subtitle: "For teams with their alert bell enabled", isOn: $store.notifyFollowed)
-                        }
-                    } else {
-                        groupLabel("Your Scoreline", "star")
-                        GroupBox {
-                            NavigationFormRow(title: "Following", symbol: "star", action: onFollowing)
-                            NavigationFormRow(title: "Browse Sports", symbol: "sportscourt", action: onAddSports)
-                        }
-                        groupLabel("Menu Bar", "menubar.rectangle")
-                        GroupBox {
-                            ToggleRow(title: "Live score", subtitle: "When a team you follow is playing",
-                                      isOn: $store.scoreInMenuBar)
-                            ToggleRow(title: "Live game count", subtitle: "Number of games in progress, next to the icon",
-                                      isOn: $store.showLiveCount)
-                        }
-
-                        groupLabel("Live Games", "sparkles")
-                        GroupBox {
-                            CelebrationLevelRow(level: $store.celebrationLevel)
-                            ToggleRow(title: "Scoring slides", subtitle: "A broadcast banner across the game when a team scores",
-                                      isOn: $store.scoringSlides)
-                            ToggleRow(title: "Sounds", subtitle: "When the game you're watching scores",
-                                      isOn: $store.celebrationSounds)
-                                .disabled(store.celebrationLevel == .off)
-                            ToggleRow(title: "Odds", subtitle: "Polymarket's live market and DraftKings' line on game pages",
-                                      isOn: $store.showOdds)
-                        }
-                        caption("With Reduce Motion on, movement becomes gentle fades.")
-
-                        groupLabel("Notifications", "bell")
-                        GroupBox {
-                            ToggleRow(title: "Alerts for my teams", subtitle: "For teams with alerts enabled: starts, scores and finals",
-                                      isOn: $store.notifyFollowed)
-                            if store.notifyFollowed && notificationsBlocked {
-                                systemSettingsNote("Off in System Settings, so alerts won't appear.") {
-                                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!)
-                                }
-                            }
-                        }
-
-                        groupLabel("General", "gearshape")
-                        GroupBox {
-                            ToggleRow(title: "Show finished games", subtitle: "Results from the last 18 hours",
-                                      isOn: $store.showFinished)
-                            ToggleRow(title: "Live leagues move to top", subtitle: "In the list. Tiles always show live games first.",
-                                      isOn: $store.liveFirst)
-                            ToggleRow(title: "Open at login", isOn: $store.launchAtLogin)
-                            if store.loginItemNeedsApproval {
-                                systemSettingsNote("Needs your approval in Login Items.") {
-                                    SMAppService.openSystemSettingsLoginItems()
-                                }
-                            }
-                        }
-
-                        groupLabel("Updates", "arrow.down.circle")
-                        GroupBox {
-                            versionRow
-                            ToggleRow(title: "Check automatically", subtitle: "Once a day, from GitHub",
-                                      isOn: $updater.checksAutomatically)
-                        }
-
-                        caption("Data from ESPN, bo3.gg and IFSC. Streams from YouTube and Twitch. Win probability by ESPN. Odds from Polymarket and DraftKings.")
-                            .padding(.top, 8)
+                    groupLabel("Your Scoreline", "star")
+                    GroupBox {
+                        NavigationFormRow(title: "Following", symbol: "star", action: onFollowing)
+                        NavigationFormRow(title: "Sports", symbol: "sportscourt", action: onSports)
                     }
+
+                    groupLabel("Menu Bar", "menubar.rectangle")
+                    GroupBox {
+                        ToggleRow(title: "Live score", subtitle: "When a team you follow is playing",
+                                  isOn: $store.scoreInMenuBar)
+                        ToggleRow(title: "Live game count", subtitle: "Number of games in progress, next to the icon",
+                                  isOn: $store.showLiveCount)
+                    }
+
+                    groupLabel("Live Games", "sparkles")
+                    GroupBox {
+                        CelebrationLevelRow(level: $store.celebrationLevel)
+                        ToggleRow(title: "Scoring slides", subtitle: "A broadcast banner across the game when a team scores",
+                                  isOn: $store.scoringSlides)
+                        ToggleRow(title: "Sounds", subtitle: "When the game you're watching scores",
+                                  isOn: $store.celebrationSounds)
+                            .disabled(store.celebrationLevel == .off)
+                        ToggleRow(title: "Odds", subtitle: "Polymarket's live market and DraftKings' line on game pages",
+                                  isOn: $store.showOdds)
+                    }
+                    caption("With Reduce Motion on, movement becomes gentle fades.")
+
+                    groupLabel("Notifications", "bell")
+                    GroupBox {
+                        ToggleRow(title: "Alerts for my teams", subtitle: "Starts, scores and finals. A team's bell in Following turns its own off.",
+                                  isOn: $store.notifyFollowed)
+                        if store.notifyFollowed && notificationsBlocked {
+                            systemSettingsNote("Off in System Settings, so alerts won't appear.") {
+                                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!)
+                            }
+                        }
+                    }
+
+                    groupLabel("General", "gearshape")
+                    GroupBox {
+                        ToggleRow(title: "Show finished games", subtitle: "Results from the last 18 hours",
+                                  isOn: $store.showFinished)
+                        ToggleRow(title: "Live leagues move to top", subtitle: "In the list. Tiles always show live games first.",
+                                  isOn: $store.liveFirst)
+                        ToggleRow(title: "Open at login", isOn: $store.launchAtLogin)
+                        if store.loginItemNeedsApproval {
+                            systemSettingsNote("Needs your approval in Login Items.") {
+                                SMAppService.openSystemSettingsLoginItems()
+                            }
+                        }
+                    }
+
+                    groupLabel("Updates", "arrow.down.circle")
+                    GroupBox {
+                        versionRow
+                        ToggleRow(title: "Check automatically", subtitle: "Once a day, from GitHub",
+                                  isOn: $updater.checksAutomatically)
+                    }
+
+                    caption("Data from ESPN, bo3.gg and IFSC. Streams from YouTube and Twitch. Win probability by ESPN. Odds from Polymarket and DraftKings.")
+                        .padding(.top, 8)
                 }
                 // One centred column however wide the panel: forms read top to
                 // bottom (System Settings never goes two-up). The header stays
@@ -129,31 +92,7 @@ struct ManageView: View {
     }
 
     private var header: some View {
-        PageHeader(followingPage ? "Following" : "Settings") { BackButton(title: backTitle, action: onDone) }
-    }
-
-    private var addSportsRow: some View {
-        Button(action: onAddSports) {
-            HStack(spacing: 8) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.accentColor)
-                    .frame(width: 16)
-                Text("Browse Sports…")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.accentColor)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(Glyph.row)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
-            .padding(.leading, 30)
-            .padding(.trailing, 12)
-            .padding(.vertical, 7)
-        }
-        .buttonStyle(ListRowStyle(hovering: addHovering))
-        .onHover { addHovering = $0 }
+        PageHeader("Settings") { BackButton(title: backTitle, action: onDone) }
     }
 
     /// "Version 1.0" with the manual check beside it, as in Software Update.
@@ -166,30 +105,6 @@ struct ManageView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-    }
-
-    @ViewBuilder
-    private var myTeams: some View {
-        groupLabel("Teams · All competitions", "star.fill")
-        if store.followed.isEmpty {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: "star").font(.system(size: 11)).foregroundStyle(.secondary)
-                Text("Follow teams from Sports or a team page. Their matches appear across competitions. Alerts are controlled separately.")
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.045)))
-            .padding(.horizontal, 12)
-        } else {
-            GroupBox {
-                ForEach(store.followed) { team in
-                    TeamRow(team: team, page: teamPage(team)) { withAnimation(Motion.quick) { store.unfollow(team) } }
-                }
-            }
-        }
     }
 
     /// Inline warning under a toggle whose effect depends on a system setting.
@@ -226,132 +141,5 @@ struct ManageView: View {
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-    }
-}
-
-/// A league in the user's order: drag to reorder, click to open its settings.
-private struct LeagueOrderRow: View {
-    @Environment(ScoreStore.self) private var store
-    let league: League
-    let open: () -> Void
-    @State private var hovering = false
-    @State private var targeted = false
-
-    var body: some View {
-        Button(action: open) {
-            HStack(spacing: 8) {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .help("Drag to reorder")
-                Image(systemName: league.sport.symbol)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 16)
-                Text(league.name).font(.system(size: 13))
-                Spacer()
-                Text(filterSummary).font(.system(size: 11.5)).foregroundStyle(.secondary)
-                Image(systemName: "chevron.right")
-                    .font(Glyph.row)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-        }
-        .buttonStyle(ListRowStyle(hovering: hovering))
-        .onHover { hovering = $0 }
-        // Drop indicator: a line above the row the dragged league will land before.
-        .overlay(alignment: .top) {
-            if targeted { Capsule().fill(Color.accentColor).frame(height: 2).padding(.horizontal, 8).offset(y: -1) }
-        }
-        .draggable(league.id) {
-            Label(league.name, systemImage: league.sport.symbol)
-                .font(.system(size: 12, weight: .medium))
-                .padding(.horizontal, 10).padding(.vertical, 6)
-                .background(.regularMaterial, in: Capsule())
-        }
-        .dropDestination(for: String.self) { ids, _ in
-            guard let id = ids.first else { return false }
-            withAnimation(Motion.rearrange) { store.move(id, before: league.id) }
-            return true
-        } isTargeted: { targeted = $0 }
-        .contextMenu {
-            Button("Move Up", systemImage: "arrow.up") { withAnimation(Motion.rearrange) { store.move(league.id, by: -1) } }
-            Button("Move Down", systemImage: "arrow.down") { withAnimation(Motion.rearrange) { store.move(league.id, by: 1) } }
-            Divider()
-            Button("Unfollow \(league.name)", systemImage: "eye.slash") { withAnimation(Motion.rearrange) { store.setEnabled(league, false) } }
-        }
-        .accessibilityAction(named: "Move Up") { store.move(league.id, by: -1) }
-        .accessibilityAction(named: "Move Down") { store.move(league.id, by: 1) }
-        .accessibilityAction(named: "Unfollow \(league.name)") { store.setEnabled(league, false) }
-    }
-
-    private var filterSummary: String {
-        let count = store.picks(for: league).count
-        guard store.isFilterOn(league) else { return league.source == .ifsc ? "No countries" : "All games" }
-        if count == 0 { return league.source == .ifsc ? "No countries" : "No teams selected" }
-        if league.source == .ifsc { return count == 1 ? "1 country" : "\(count) countries" }
-        return count == 1 ? "1 team" : "\(count) teams"
-    }
-}
-
-extension ManageView {
-    /// A followed team's page. Its league comes from a game on the board
-    /// (soccer needs one); without it the row stays plain.
-    func teamPage(_ team: FollowedTeam) -> Profile.TeamRef? {
-        let league = store.sections.lazy.flatMap(\.events)
-            .first { $0.competitors.contains { $0.id == team.id } }
-            .flatMap { store.leagueByEvent[$0.id] }
-        let ref = Profile.TeamRef(id: team.id, name: team.name, logo: team.logo, league: league)
-        return ref.isSupported ? ref : nil
-    }
-}
-
-private struct TeamRow: View {
-    @Environment(ScoreStore.self) private var store
-    let team: FollowedTeam
-    /// The team's page, when its sport has them: the row opens it.
-    var page: Profile.TeamRef? = nil
-    let remove: () -> Void
-    @State private var hovering = false
-    @Environment(ProfileNavigator.self) private var navigator: ProfileNavigator?
-
-    var body: some View {
-        HStack(spacing: 8) {
-            // Logo, name and chevron are the link; the remove button stays its own.
-            HStack(spacing: 8) {
-                LogoView(url: team.logo)
-                Text(team.name).font(.system(size: 13))
-                Spacer(minLength: 4)
-                if page != nil, navigator != nil {
-                    Image(systemName: "chevron.right").font(Glyph.row).foregroundStyle(.tertiary)
-                        .accessibilityHidden(true)
-                }
-            }
-            .profileRowLink(help: "Go to \(team.name)", action: navigator.flatMap { nav in page.map { p in { nav.open(p) } } })
-            .contextMenu { if let page { GoToTeamItem(team: page, via: navigator) } }
-            Button { store.setTeamAlerts(team.id, store.mutedTeams.contains(team.id)) } label: {
-                Image(systemName: store.mutedTeams.contains(team.id) ? "bell.slash" : "bell.fill")
-                    .font(.system(size: 12)).foregroundStyle(store.mutedTeams.contains(team.id) ? Color.secondary : Color.accentColor).frame(width: 26, height: 26)
-            }.buttonStyle(.plain).accessibilityLabel("\(store.mutedTeams.contains(team.id) ? "Enable" : "Mute") alerts for \(team.name)")
-                .help(store.notifyFollowed ? "Alerts are separate from following" : "All team alerts are paused below")
-            Button(action: remove) {
-                Image(systemName: "minus.circle.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(hovering ? .red : .secondary)
-                    // A 22pt target around the 13pt glyph.
-                    .frame(width: 22, height: 22)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .help("Unfollow \(team.name)")
-            .accessibilityLabel("Unfollow \(team.name)")
-            .onHover { hovering = $0 }
-        }
-        // The row stays 28pt tall; the button's larger target eats the inset.
-        .padding(.leading, 12)
-        .padding(.trailing, 7)
-        .padding(.vertical, 3)
     }
 }

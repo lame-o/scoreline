@@ -386,13 +386,13 @@ export const WhereToWatch = memo(function WhereToWatch({ broadcasters }: { broad
 });
 
 /** "World Series" with "Bracket ›": the postseason bracket, the match's teams ringed (DetailView's `.bracket`). */
-export function SeriesLink({ title, to, label = "Bracket" }: { title: string; to: string; label?: string }) {
+export function SeriesLink({ title, to }: { title: string; to: string }) {
   return (
     <Link className={styles.series} to={to}>
       <Icon name="trophy" size={12} className={styles.watchIcon} />
       <span className={styles.seriesTitle}>{title}</span>
       <span className={styles.seriesMore}>
-        {label} <Icon name="chevronRight" size={9} />
+        Bracket <Icon name="chevronRight" size={9} />
       </span>
     </Link>
   );

@@ -6,7 +6,7 @@ import SwiftUI
 
 // MARK: - Model
 
-struct BracketTeam: Hashable {
+struct BracketTeam: Hashable, Codable, Sendable {
     let id: String
     let name: String
     let abbreviation: String
@@ -14,10 +14,13 @@ struct BracketTeam: Hashable {
 }
 
 /// One matchup: a single match (CS2) or a whole series (MLB).
-struct BracketMatch: Identifiable, Hashable {
+struct BracketMatch: Identifiable, Hashable, Sendable {
     let id: String
     var top: BracketTeam?
     var bottom: BracketTeam?
+    /// A place in a round that hasn't been drawn: no teams, and no line to it,
+    /// because who plays whom isn't known (a soccer cup's future rounds).
+    var pending = false
     /// Maps or games won.
     var topScore: Int?
     var bottomScore: Int?
@@ -32,11 +35,14 @@ struct BracketMatch: Identifiable, Hashable {
 }
 
 /// A knockout tree, drawn from its first round to the final.
-struct Bracket {
+struct Bracket: Sendable {
     /// Round names, first round to final ("Wild Card" … "World Series").
     let rounds: [String]
     let matches: [String: BracketMatch]
     let finalID: String
+    /// Every matchup by round, for a tree not all connected to its final yet:
+    /// each drawn round's matchups stand on their own, with the undrawn ones after them.
+    var columns: [[String]]? = nil
     /// Played outside the tree (a 3rd-place match).
     var extra: [(title: String, match: BracketMatch)] = []
 }
@@ -68,12 +74,11 @@ enum BracketSource: Hashable {
     /// A postseason on ESPN (MLB).
     case espnPostseason(path: String, year: Int)
     case csTournament(slug: String, name: String)
-    case soccerCompetition(slug: String, name: String, year: Int?)
 
     var title: String {
         switch self {
         case let .espnPostseason(_, year): "\(year) Postseason"
-        case let .csTournament(_, name), let .soccerCompetition(_, name, _): name
+        case let .csTournament(_, name): name
         }
     }
 }
@@ -86,8 +91,6 @@ enum BracketProvider {
         let result: TournamentBrackets = switch source {
         case let .espnPostseason(path, year): try await MLBPostseason.load(path: path, year: year)
         case let .csTournament(slug, _): try await CSTournament.load(slug: slug)
-        case let .soccerCompetition(slug, _, year):
-            try await SoccerCompetitionProvider.load(slug: slug, year: year).tournamentBrackets
         }
         await BracketCache.shared.store(result, for: source)
         return result
@@ -474,13 +477,15 @@ struct BracketLayout {
     init(_ bracket: Bracket) {
         var slots: [String: Slot] = [:]
         var nextLeaf: CGFloat = 0
-        let columns = bracket.rounds.count
+        func leaf() -> CGFloat {
+            defer { nextLeaf += 1 }
+            return nextLeaf * (Self.cellHeight + Self.spacing) + Self.cellHeight / 2
+        }
         func place(_ id: String, column: Int) -> CGFloat {
             let feeders = bracket.matches[id]?.feeders ?? []
             let center: CGFloat
             if feeders.isEmpty || column == 0 {
-                center = nextLeaf * (Self.cellHeight + Self.spacing) + Self.cellHeight / 2
-                nextLeaf += 1
+                center = leaf()
             } else {
                 let centers = feeders.map { place($0, column: column - 1) }
                 center = (centers.first! + centers.last!) / 2
@@ -488,7 +493,25 @@ struct BracketLayout {
             slots[id] = Slot(column: column, center: center)
             return center
         }
-        _ = place(bracket.finalID, column: columns - 1)
+        if let columns = bracket.columns {
+            // The latest drawn round's matchups first, each with its feeders beside it.
+            for (column, ids) in columns.enumerated().reversed() {
+                for id in ids where slots[id] == nil && bracket.matches[id]?.pending != true {
+                    _ = place(id, column: column)
+                }
+            }
+            // An undrawn place sits between the two before it, where a tree would
+            // put it. No line says so: nobody has drawn it.
+            for (column, ids) in columns.enumerated() {
+                let before = column > 0 ? columns[column - 1].compactMap { slots[$0]?.center }.sorted() : []
+                for (index, id) in ids.filter({ bracket.matches[$0]?.pending == true }).enumerated() {
+                    let pair = before.dropFirst(index * 2).prefix(2)
+                    slots[id] = Slot(column: column, center: pair.isEmpty ? leaf() : pair.reduce(0, +) / CGFloat(pair.count))
+                }
+            }
+        } else {
+            _ = place(bracket.finalID, column: bracket.rounds.count - 1)
+        }
         self.slots = slots
         height = max(nextLeaf * (Self.cellHeight + Self.spacing) - Self.spacing, Self.cellHeight)
     }
@@ -515,14 +538,15 @@ struct BracketView: View {
     /// Whether the tree's cells show names; the extra matchups follow it.
     @State private var extraNames = false
     @Namespace private var rotor
+    /// A click on a matchup (soccer: its game). Without it the cells only point.
+    var onSelect: ((String) -> Void)? = nil
     /// Where every matchup sits: worked out once, never on a hover.
     private let layout: BracketLayout
-    private let terminalLabel: String
 
-    init(bracket: Bracket, highlight: Set<String> = [], terminalLabel: String = "Final") {
+    init(bracket: Bracket, highlight: Set<String> = [], onSelect: ((String) -> Void)? = nil) {
         self.bracket = bracket
-        self.terminalLabel = terminalLabel
         self.highlight = highlight
+        self.onSelect = onSelect
         layout = BracketLayout(bracket)
     }
 
@@ -583,7 +607,8 @@ struct BracketView: View {
                 if fitted >= Self.minCell {
                     tree(cell: fitted, local: local, ordered: ordered)
                 } else {
-                    let column = Self.focusColumn(bracket, layout: layout)
+                    let column = ordered.first { bracket.matches[$0.id].map(ringed) == true }?.slot.column
+                        ?? Self.focusColumn(bracket, layout: layout)
                     ScrollView(.horizontal) {
                         tree(cell: Self.minCell, local: local, ordered: ordered)
                     }
@@ -673,9 +698,18 @@ struct BracketView: View {
                 if let match = bracket.matches[item.id] {
                     // Each cell reads the focus itself: a hover re-runs the two
                     // cells it lights, never the tree, its lines or its footer.
-                    FocusReader { focus in
+                    let label = FocusReader { focus in
                         BracketCell(match: match, ringed: ringed(match), hovered: (linked == nil ? local : focus?.play) == item.id,
                                     names: names)
+                    }
+                    Group {
+                        if let onSelect, !match.pending {
+                            Button { onSelect(item.id) } label: { label.contentShape(Rectangle()) }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(.isButton)
+                        } else {
+                            label
+                        }
                     }
                     .frame(width: cell, height: BracketLayout.cellHeight)
                     .contentShape(Rectangle())
@@ -683,6 +717,7 @@ struct BracketView: View {
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(Self.spoken(match, round: bracket.rounds.indices.contains(item.slot.column)
                                                     ? bracket.rounds[item.slot.column] : ""))
+                    .accessibilityAction { if !match.pending { onSelect?(item.id) } }
                     .accessibilityRotorEntry(id: item.id, in: rotor)
                     // Round by round, top to bottom.
                     .accessibilitySortPriority(Double(ordered.count - index))
@@ -705,6 +740,7 @@ struct BracketView: View {
     }
 
     private func readout(_ match: BracketMatch) -> (lead: String, detail: String) {
+        if match.pending { return ("Draw pending", "") }
         let names = [match.top?.name ?? "TBD", match.bottom?.name ?? "TBD"].joined(separator: " v ")
         let score = match.topScore.flatMap { t in match.bottomScore.map { "\(t)–\($0)" } }
         return (score ?? names, [score == nil ? nil : names, match.note].compactMap { $0 }.joined(separator: " · "))
@@ -714,6 +750,7 @@ struct BracketView: View {
     /// "Semifinals: to be decided." (pure; tested)
     static func spoken(_ match: BracketMatch, round: String) -> String {
         let prefix = round.isEmpty ? "" : "\(round): "
+        if match.pending { return prefix + "draw pending." }
         guard let top = match.top, let bottom = match.bottom else {
             let known = [match.top?.name, match.bottom?.name].compactMap { $0 }
             return prefix + (known.isEmpty ? "to be decided." : "\(known[0]) versus to be decided.")
@@ -736,7 +773,7 @@ struct BracketView: View {
     private var accessibilityText: String {
         let final = bracket.matches[bracket.finalID]
         let teams = [final?.top?.name, final?.bottom?.name].compactMap { $0 }
-        return "Bracket, \(plural(bracket.rounds.count, "round")). \(terminalLabel): " + (teams.isEmpty ? "to be decided" : teams.joined(separator: " versus "))
+        return "Bracket, \(plural(bracket.rounds.count, "round")). Final: " + (teams.isEmpty ? "to be decided" : teams.joined(separator: " versus "))
     }
 }
 
@@ -750,6 +787,24 @@ private struct BracketCell: View {
     var names = false
 
     var body: some View {
+        if match.pending {
+            // Hollow: a place in the round, nobody in it yet.
+            Text("Draw pending")
+                .font(.system(size: 10.5))
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.primary.opacity(hovered ? 0.045 : 0)))
+                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.14), style: StrokeStyle(lineWidth: 0.75, dash: [3, 3])))
+        } else {
+            teams
+        }
+    }
+
+    private var teams: some View {
         VStack(spacing: 0) {
             row(match.top, match.topScore, side: .top)
             Rectangle().fill(Viz.grid).frame(height: 0.5)
@@ -948,16 +1003,16 @@ struct BracketPage: View {
         VStack(spacing: 0) {
             PageHeader(data?.title ?? source.title) {
                 BackButton(title: backTitle, action: onBack)
+            } trailing: {
+                if case let .csTournament(slug, name) = source {
+                    EditionStar(edition: EditionFollow(source: "cs2", key: slug, name: data?.title ?? name))
+                }
             }
             .stackIn()
             .pageChrome()
 
             PageScrollView(keyboardScrolls: true) {
                 StackColumn {
-                    if case let .csTournament(slug, name) = source {
-                        EditionFollowButton(edition: EditionFollow(source: "cs2", key: slug, name: data?.title ?? name)).padding(.horizontal, 16).padding(.top, 8)
-                    }
-
                     if let data {
                         if let swiss = data.swiss {
                             DetailSection(title: "Swiss Stage",
@@ -1009,7 +1064,6 @@ struct BracketPage: View {
         switch source {
         case .espnPostseason: "Series wins in each matchup. Lines carry each winner to the next round."
         case .csTournament: "Maps won in each match. Lines carry each winner to the next round."
-        case .soccerCompetition: "Goals in each tie. Lines connect confirmed advancing teams."
         }
     }
 }
