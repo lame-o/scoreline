@@ -1,6 +1,6 @@
 # The game as one broadcast (the presentation clock)
 
-## What the user wants (their words, paraphrased)
+## The goal
 
 The game page should feel like the game happening on the Mac, the way a broadcast or a sports video game does:
 
@@ -9,7 +9,7 @@ The game page should feel like the game happening on the Mac, the way a broadcas
 - The score changes at the moment the ball goes in, not before.
 - The scoreboard, the isometric view, the banner, the play lists and the charts never disagree.
 
-Sequence and coherence come first. Being as live as possible comes second; the user said "feel synced to TV" and "even 10 s more is too long", "as little as we can without compromising quality".
+Sequence and coherence come first. Being as live as possible comes second; the owner said "feel synced to TV" and "even 10 s more is too long", "as little as we can without compromising quality".
 
 They want it built properly, at enterprise quality. **If a piece of this would be a shortcut, stop and redesign it; don't ship the shortcut.**
 
@@ -76,7 +76,7 @@ This is the same idea as streaming playout buffers and multiplayer entity interp
   - when more than `Jmax` behind (per sport: basketball 40 s, soccer 180 s; football and baseball 40 s until measured): jump, with a crossfade. **A jump never passes a play that must be told live**: one that changes the score (any sport), an announced kind (VAR), or a kind the sport keeps live (soccer: shots, saves, cards). It lands just short of the first such play, its lead-in included, so that play is told live, in order. Only flow and dead-ball administration go by as history. The rest of the deficit is made up in dead time: skips inside stoppages (soccer's ball out of play counts: out, a foul, a corner or free kick given, a goal, a card, a VAR check; the game clock runs but nothing on screen moves), plus the 1.08× slew. *Implemented on mac/broadcast (the timeline's `jumpLimit`, `PlayKind.stopsPlay`).* On the real Premier League match, the 68'–71' outage: one 65-s jump (it landed before a yellow card) instead of four (105 s and 87 s among them, one over the ruled-out goal), then a 110-s skip inside the VAR check; the 120-s deficit was back within 5 s of the target 32 s after the resume. All three goals and all four VAR entries told live (none as history).
 - **Stall** (the watermark stops advancing): `p` slews down within 5 s of `watermark − bindingHorizon`, eases to it and holds. The game clock display holds; the theater keeps ambient motion on wall time; nothing else on the page freezes.
 - **The clock never presents beyond what's known for certain** (the watermark).
-- **Report `D`** so we can see how far behind live we are. Metric: the added delay versus today's fast-lane score. *The user's choice (2026-10-31): on hover only.* Hovering the live indicator (the hero's red dot and clock, the docked bar's) shows "About 55 s behind live" (the clock's current `D`, rounded to 5 s), with a quieter "Catching up" or "Waiting for the feed" while the clock catches up or stalls. Nothing at rest. VoiceOver hears the same as the hero's value ("About 55 seconds behind live"). Implemented on mac/broadcast (`BehindLive.swift`: the house's floating glass, 80 ms hover intent, grows from the indicator on `Motion.fade`, leaves on `Motion.exit`; drawn outside the hero's glass container, as the scoring slide is).
+- **Report `D`** so we can see how far behind live we are. Metric: the added delay versus today's fast-lane score. *The owner's choice (2026-10-31): on hover only.* Hovering the live indicator (the hero's red dot and clock, the docked bar's) shows "About 55 s behind live" (the clock's current `D`, rounded to 5 s), with a quieter "Catching up" or "Waiting for the feed" while the clock catches up or stalls. Nothing at rest. VoiceOver hears the same as the hero's value ("About 55 seconds behind live"). Implemented on mac/broadcast (`BehindLive.swift`: the house's floating glass, 80 ms hover intent, grows from the indicator on `Motion.fade`, leaves on `Motion.exit`; drawn outside the hero's glass container, as the scoring slide is).
 
 **Measured** (NBA, two recorded 4th quarters at the app's cadence, 42 live-ball plays; one play = 2.4%, so the weekend's recordings must re-tune this):
 
@@ -134,7 +134,7 @@ MLS (761924, one match): 7.8% / 3.9% / 3.9% decisive late at margins 1 / 13 / 20
 | (b) | 0.95 | 3 s | 141.7 s | +25.7 s | 12.4% | 9.7% | 2.6 |
 
   (b) is not smaller: decisive plays are sparse (~0.8/min), so their 40-play window spans ~48 min and keeps the outage in its q95. Sizing stays on every live-ball kind.
-- **Chosen (pending the user's morning report):** every live-ball kind, q 0.95, horizon 3 s, a per-sport margin; soccer 13 s (D p50 101.5 s on the match, +20.1 s over today's page; decisive late 11.3% + 4.1% corrections; 4.7 stalls/h), NBA 1 s (horizon 2.5 s). The margin is the policy's per-sport value (`BroadcastLanes.policy`).
+- **Chosen (pending the owner's morning report):** every live-ball kind, q 0.95, horizon 3 s, a per-sport margin; soccer 13 s (D p50 101.5 s on the match, +20.1 s over today's page; decisive late 11.3% + 4.1% corrections; 4.7 stalls/h), NBA 1 s (horizon 2.5 s). The margin is the policy's per-sport value (`BroadcastLanes.policy`).
 - Today's soccer page is so slow that the accepted +20 s buys more `D`. (a) q 0.95, horizon 3, with the margin raised: margin 10 → D 98 s, +17 s, decisive late 18.5%, 4.7 stalls/h; margin 20 → D 111 s, +27 s, 14.4%, 2.6/h; margin 30 → D 119 s, +36 s, 9.3%, 1.6/h. **A per-sport margin is the soccer knob**: about margin 13 for +20 s.
 - **VAR** (three on this match, all told on time as events). ESPN revises an overturned goal in place to "Deleted After Review" (score back) and logs the VAR decision with the check's start time, arriving 132–213 s later. As implemented: review entries are an *announced* kind (told as an event even when late; never a quiet correction; inserted behind told plays they're `.late`). Entries inside a delay (Start Delay … End Delay) are bounded by it and placed backward from its end, so the decision lands where it was made, after the review beat. A told goal's score revised down with a review is held until the next play is told, so the score reverts *with* the decision, not quietly before it. A told reversal drops the score floor. The >30-s-late case in `tell()` (the 71' VAR arrived in a 210-s outage batch) is Phase 0's, in its tell-scheduling change.
 
@@ -159,7 +159,7 @@ MLS (761924, one match): 7.8% / 3.9% / 3.9% decisive late at margins 1 / 13 / 20
 - **The field.** Football's comes from the last told play's end spot.
 - **Moments wait for their play's moment.** Scoring slides and celebrations get them then; Phase 0 moves slides to `Cue.scored`, and `TheaterDelays` is untouched.
 - **The theaters keep today's inputs** until the director reads `BroadcastTheaterSource`.
-- **A shown score never steps back (the floor).** Opening the page (or waking the Mac) sets a per-side floor: the most the user could already see, meaning the scoreboard's score, the scores list's copy and, on wake, what was shown. The hero, the docked bar and the menu bar show `max(p's score, floor)` per side. The floor goes for good once `p`'s score reaches it on both sides. It also goes if the scoreboard corrects its own score downward (a genuine overturn), and after 120 s. Only the score is held: the court and the lists still tell those plays at `p`, so the score leads them once, and only by what the user had already seen. Nothing new is shown ahead of `p`. A floor going doesn't send an alert. Before the first load the hero shows the scoreboard's score (no blank numbers).
+- **A shown score never steps back (the floor).** Opening the page (or waking the Mac) sets a per-side floor: the most the owner could already see, meaning the scoreboard's score, the scores list's copy and, on wake, what was shown. The hero, the docked bar and the menu bar show `max(p's score, floor)` per side. The floor goes for good once `p`'s score reaches it on both sides. It also goes if the scoreboard corrects its own score downward (a genuine overturn), and after 120 s. Only the score is held: the court and the lists still tell those plays at `p`, so the score leads them once, and only by what the owner had already seen. Nothing new is shown ahead of `p`. A floor going doesn't send an alert. Before the first load the hero shows the scoreboard's score (no blank numbers).
 - **The menu bar** shows the presented copy for the open game, with the floor, so opening the page doesn't step it back. The scoreboard's alerts for that game wait, and the page sends them from the presented changes.
 - **Updates are discrete.** The page re-renders on a play told, a score, a clock start or stop, or a drift over 0.75 s; the clock text ticks itself. The odds chart redraws when `p` reaches each pending tick (`TimelineView(.explicit)`).
 
@@ -222,10 +222,10 @@ Phase A may keep each sport's existing per-play scripts. It must anchor them on 
 
   All four sports. Ships together with CHOREOGRAPHY Phase 0, which owns the theaters, the bench's continuity metrics and video, and deleting `TheaterDelays`.
 - **B onward:** CHOREOGRAPHY.md §12 (Phase 1 basketball, then football, soccer, baseball).
-- **C:** web port, after the user tries the Mac.
+- **C:** web port, after the owner tries the Mac.
 
-## Policy knob (the user decides the default after seeing weekend numbers)
+## Policy knob (the owner decides the default after seeing weekend numbers)
 
 With ESPN's data, full coherence for the NBA costs roughly 20–25 s more than today's score display. Build `D` as a per-sport policy so that's a setting, not a rewrite:
-- **Coherent:** `p` tracks the slow lane. This is the default. On 2026-10-30, after hearing the roughly +20 s cost, the user accepted it ("TV is not live instant either"); keep `D` as small as the data allows.
+- **Coherent:** `p` tracks the slow lane. This is the default. On 2026-10-30, after hearing the roughly +20 s cost, the owner accepted it ("TV is not live instant either"); keep `D` as small as the data allows.
 - **Hybrid:** `p` tracks the fast lane, and a scoring play whose details haven't arrived is told when they do, as an explicitly tagged replay. Never silently out of order.

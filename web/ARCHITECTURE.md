@@ -173,7 +173,7 @@ URLs whose query changes on every call defeat the cache. The CS2 provider rounds
 
 ## State: settings and live scores
 
-Settings live in `src/state/settings.ts`: one typed, versioned store in `localStorage` (`scoreline.settings.v1`), synced across tabs. Read a slice with `useSettings((s) => s.followed)`, which re-renders only when that slice changes. Selectors must return stored values or primitives, never new objects. Change settings only through `settings.*` actions. The Mac's rules live there: a competition-scoped pick turns that competition's filter on; a global team follow applies across competitions without enabling them; an unfollowed competition keeps its scoped picks; a newly followed competition joins the end of the order. See `../docs/FOLLOWING.md` for migration and coverage.
+Settings live in `src/state/settings.ts`: one typed, versioned store in `localStorage` (`scoreline.settings.v1`), synced across tabs. Read a slice with `useSettings((s) => s.followed)`, which re-renders only when that slice changes. Selectors must return stored values or primitives, never new objects. Change settings only through `settings.*` actions. The Mac's rules live there: a competition-scoped pick turns that competition's filter on; a global team follow applies across competitions without enabling them; an unfollowed competition keeps its scoped picks; a newly followed competition joins the end of the order.
 
 | Key | Default | Mac key |
 | --- | --- | --- |
@@ -658,4 +658,4 @@ What the Mac's menu bar item, Notifier and panel do, a browser does through the 
 
 ### Soccer competitions
 
-`data/soccerCompetition.ts` reads provider season stages and calendar-year scoreboards into ties, preserving two-leg aggregates and shootout advancement. `features/brackets/SoccerCompetitionPage.tsx` presents the stages and confirmed bracket at `/competition/:slug/:year?`. See `../docs/SOCCER-COMPETITIONS.md` for provider constraints and the native replay regression.
+`data/soccerCompetition.ts` reads provider season stages and calendar-year scoreboards into ties, preserving two-leg aggregates and shootout advancement. `features/brackets/SoccerCompetitionPage.tsx` presents the stages and confirmed bracket at `/competition/:slug/:year?`.

@@ -49,7 +49,7 @@ The architecture is **Plan → Bake → Sample** with **receding-horizon splicin
 4. **Inferred is honest.** Names and stats go only on what the data credits. Inferred beats carry no names, and catch-ups and replays are tagged.
 5. **Draw only what's seen, only as often as it moves.** No frames off-screen. Frame rate is planned by tier: 0, 30 or 60 fps. Sampling is allocation-free.
 
-**What we build first:** Phase 0 is shared and can run today's scripts. It delivers the replay bench with continuity metrics, the anchor solver, the generalized splice and the carried camera with yaw. Phase 1 is basketball: the lineup tracker with persistent identities, the possession sequencer, half-court and transition choreography, and dead-ball choreography. Then football, soccer and baseball. The web follows once the user has tried the Mac version. Details in §12.
+**What we build first:** Phase 0 is shared and can run today's scripts. It delivers the replay bench with continuity metrics, the anchor solver, the generalized splice and the carried camera with yaw. Phase 1 is basketball: the lineup tracker with persistent identities, the possession sequencer, half-court and transition choreography, and dead-ball choreography. Then football, soccer and baseball. The web follows once the owner has tried the Mac version. Details in §12.
 
 ---
 
@@ -917,7 +917,7 @@ A held ball attaches to the hand's joint position from the rig (existing `posed(
 - **Spring.** It is integrated per plan at 60 Hz (the existing semi-implicit Euler, which is stable at ω·dt ≈ 0.12).
   - Pan and log-zoom stay **critically damped** at ω = 7 with today's caps: 1.4 view-heights/s pan, −1.1…+2.2 zoom.
   - **Yaw** is critically damped at ω = 3.6 (*tune*), settling to 95% in about 1.3 s, capped at 45°/s.
-- **Why critically damped.** A camera is not a thrown object. Apple's guidance is damping 1.0 for anything that isn't carrying the user's momentum: graceful and non-distracting, never overshooting the subject.
+- **Why critically damped.** A camera is not a thrown object. Apple's guidance is damping 1.0 for anything that isn't carrying the owner's momentum: graceful and non-distracting, never overshooting the subject.
 - **Retargeting.** A new goal changes the target; the state keeps its velocity. A replan therefore re-targets mid-pan with no seam: the interruptible-animation rule.
 
 #### 5.6.2 The goal function (per frame of the plan, computed at bake)
@@ -988,7 +988,7 @@ A celebration starts **on the decisive frame**. Apple's multimodal rule: cause a
   - "WHISTLE" for a fast-lane stop not yet explained;
   - "CATCHING UP" only for a declared catch-up longer than 1.5 s;
   - "REPLAY" during replays.
-- **The heartbeat** (`TheaterHeartbeat`) can carry the delay ("Live · 41 s behind"). The user decides whether that shows; BROADCAST reports D either way.
+- **The heartbeat** (`TheaterHeartbeat`) can carry the delay ("Live · 41 s behind"). The owner decides whether that shows; BROADCAST reports D either way.
 - **A developer overlay** (harness and debug builds only) draws provenance rings (white known, amber inferred, gray ambient), anchor ticks and the plan revision. It's the tool for tuning on the bench.
 
 #### 5.6.7 Frame tiers (planned, not reactive)
@@ -1109,7 +1109,7 @@ Clips reuse today's builders (`halfCourt`, `driveToRim`, `cut`, `alleyOop`, `jum
 - **NFL:** wallclock, monotonic. Determine on the bench whether it marks the snap or the dead ball (§3.2). Until then, treat it as the **dead ball** and place the snap at `τ_dead − playLength`.
 - **College:** wallclock is logging time. Use the `(mm:ss)` clock prefix with the running-clock map, and wallclock only as an upper bound.
 - `playLength` from kind and yards: passes 3.5–6.5 s by depth; runs 3–7 s by yards; sacks 3–4.5 s; punts and kickoffs from hang time plus the return; kneels 2.5 s; spikes 1.5 s.
-- **Keep the user's 1.3× snap-to-dead-ball pace** (2026-10-29). The snap is inferred, so a play laid out at real speed is played 1.3× slower by moving the snap anchor earlier by 0.3 × `playLength`, keeping the dead-ball anchor exact. The pre-snap phase absorbs the difference. Walk-ups and resets are never slowed; nothing is sped up.
+- **Keep the owner's 1.3× snap-to-dead-ball pace** (2026-10-29). The snap is inferred, so a play laid out at real speed is played 1.3× slower by moving the snap anchor earlier by 0.3 × `playLength`, keeping the dead-ball anchor exact. The pre-snap phase absorbs the difference. Walk-ups and resets are never slowed; nothing is sped up.
 
 **Lead-in horizons:**
 - **Formation commit at line-up: 15–20 s before the snap** (football audit, hardest problem 2). If the next play isn't known by line-up, line up in the **predicted** formation (the existing idle rules: down, distance, last set). When the real play arrives, realize the difference as a **pre-snap shift or motion**. Teams really do this, so it's never a morph or a crossfade.
@@ -1214,7 +1214,7 @@ Clips reuse today's builders (`halfCourt`, `driveToRim`, `cut`, `alleyOop`, `jum
 - **Pitch data by the pitcher's set: 2.5 s.** If it's missing, the pitcher holds (a step-off is real baseball) for up to 6 s; then the pitch is thrown with `shaped()` from ESPN data, and later Statcast is a quiet correction of the trace.
 - **hitData by contact:** the flight shape is decided before contact and never swapped after (baseball audit, hardest problem 3). If hitData is late, use ESPN's spray spot and trajectory class through `BattedFlight`'s class model.
 
-**Real time is available.** Pitch → pitch is 20 s, plate appearance → plate appearance 39 s, half-inning 196 s (measured), so there is time for real-speed plays: runners at Statcast sprint speed (default 27 ft/s, against today's 95), the trot at 18–22 ft/s (today 140), fielders jogging back at 10–15 ft/s. **Play pace is a policy knob and a decision for the user** (§11.4):
+**Real time is available.** Pitch → pitch is 20 s, plate appearance → plate appearance 39 s, half-inning 196 s (measured), so there is time for real-speed plays: runners at Statcast sprint speed (default 27 ft/s, against today's 95), the trot at 18–22 ft/s (today 140), fielders jogging back at 10–15 ft/s. **Play pace is a policy knob and a decision for the owner** (§11.4):
 - Today's compressed pace was approved ("baseball's speed is fine", 2026-10-29) and stays the default.
 - Phase 4 renders both on the same plate appearances.
 
@@ -1682,7 +1682,7 @@ Tools/TheaterBench/ (or a Tests helper)                   bench + metrics + vide
 - **Keep:** `FootballScene` (add "No Huddle", `clock.value`, PAT unit names, college clock); the builders (pass, rush, sack, kicks, penalty, flags, turnovers) as clips; formations and personnel; `nextHash`; field facing; stoppage idles as dead-ball choreography.
 - **Replace:** `settle()` with the aftermath plus the next walk-up.
 - **Delete:** `FootballStage`'s replay/idle/hold queue; `FootballIdle.make`'s coin-flip strong side; `follow()` cuts.
-- **Football's 1.3× pace stays** (the user's preference, 2026-10-29). The snap is an *inferred* anchor, so plays are laid out at real speed and played 1.3× slower, with the snap moved earlier so the dead-ball anchor stays exact. Nothing else is slowed or sped up.
+- **Football's 1.3× pace stays** (the owner's preference, 2026-10-29). The snap is an *inferred* anchor, so plays are laid out at real speed and played 1.3× slower, with the snap moved earlier so the dead-ball anchor stays exact. Nothing else is slowed or sped up.
 
 **Soccer.**
 - **Keep:** the Opta mapping, keeper and dive logic, the mark solver (as the off-ball tracker's constraint layer), shapes (unified, §7.3), event semantics, celebrations.
@@ -1694,11 +1694,11 @@ Tools/TheaterBench/ (or a Tests helper)                   bench + metrics + vide
 - **Keep:** Statcast kinematics, `shaped()`, `BattedFlight`, `handling`/`official`/`sequenceRuns`, `coverer`, the beat vocabulary.
 - **Replace:** `PlayBeat.timeline`'s merge, by `startTime` anchoring and pitch-attached runner events; `settle` and the fades, by walks.
 - **Delete:** `PlayBeat.catchUp`, `PlayStage`'s preemption, `ScriptMemo` in `body`.
-- **Pace is a decision for the user.** Today's compressed play pace was approved ("baseball's speed is fine", 2026-10-29), while real time is now available: runners at Statcast sprint speed, the trot at ~20 ft/s. Phase 4 renders both on the same plate appearances. The default stays today's pace until the user picks. Since nothing logs intra-play times, either is consistent with the anchors, and the bench applies speed limits scaled by the pace factor.
+- **Pace is a decision for the owner.** Today's compressed play pace was approved ("baseball's speed is fine", 2026-10-29), while real time is now available: runners at Statcast sprint speed, the trot at ~20 ft/s. Phase 4 renders both on the same plate appearances. The default stays today's pace until the owner picks. Since nothing logs intra-play times, either is consistent with the anchors, and the bench applies speed limits scaled by the pace factor.
 
 ### 11.5 Web (`web/src/data/theater/`, `web/src/data/mlb/`, `web/src/features/game/*/theater/`)
 
-The web port mirrors the Swift files almost line for line. Every break in §2 exists there too. **Don't port incrementally.** After each sport's Mac phase is accepted by the user, port its engine files mechanically (§13), and delete the web equivalents of what §11.3–11.4 delete: `theaterDelays.ts`, `basketballFlow.ts`'s queue, `footballTheater.ts`'s queue and holds, `soccerIdle.ts`'s re-keying, and the MLB `catchUp`.
+The web port mirrors the Swift files almost line for line. Every break in §2 exists there too. **Don't port incrementally.** After each sport's Mac phase is accepted by the owner, port its engine files mechanically (§13), and delete the web equivalents of what §11.3–11.4 delete: `theaterDelays.ts`, `basketballFlow.ts`'s queue, `footballTheater.ts`'s queue and holds, `soccerIdle.ts`'s re-keying, and the MLB `catchUp`.
 
 ---
 
@@ -1722,7 +1722,7 @@ Each phase ships on its own, is verified by the bench gates (§9.2) and a video,
   - all §9.2 gates on the NBA fixtures and the weekend's full recordings;
   - `decisiveError` p95 ≤ 0.05 s;
   - whole-game CPU average ≤ 2.5%;
-  - the video (miss, offensive rebound, putback, made three back the other way) reviewed by the user.
+  - the video (miss, offensive rebound, putback, made three back the other way) reviewed by the owner.
 
 **Phase 2: football.** Grammar (§7.2), identities per drive, walk-up into the next formation with pre-snap shifts for late knowledge, real stoppage durations, unit changes, kick walk-offs with the yaw orbit, release envelopes.
 - **Exit:** gates on NFL and college fixtures; F1–F12 gone; CPU ≤ 1.5% average.
@@ -1733,7 +1733,7 @@ Each phase ships on its own, is verified by the bench gates (§9.2) and a video,
 **Phase 4: baseball.** `startTime` anchoring with calibration, pitch-attached runner events, walks instead of fades, on-deck walk-ups, real dead-time choreography, the pace decision (§11.4), the camera family decision (§7.4).
 - **Exit:** gates on the World Series fixtures; M1–M11 gone; CPU ≤ 1.0% average.
 
-**Phase 5: web.** Port per sport after the user's verdict on its Mac phase (the standing practice: defer web ports until the Mac version is reviewed).
+**Phase 5: web.** Port per sport after the owner's verdict on its Mac phase (the standing practice: defer web ports until the Mac version is reviewed).
 
 ### 12.1 Phase 0 as built (mac/choreo)
 
@@ -1864,7 +1864,7 @@ The engine is built to port mechanically:
 
 ### 14.1 The biggest risks
 
-1. **CPU of continuous animation.** The budget (§8.1) is unproven. Mitigations, in order: tiers (30 fps ambient), the static court layer, allocation-free sampling, `rendersAsynchronously`, `-O`. If live play still exceeds 4% at 30 fps, the fallback is "ambient at 20 fps with a short motion blur on the ball", or sparser ambient (fewer off-ball moves). That decision should be made by the user on video and numbers, not by us silently.
+1. **CPU of continuous animation.** The budget (§8.1) is unproven. Mitigations, in order: tiers (30 fps ambient), the static court layer, allocation-free sampling, `rendersAsynchronously`, `-O`. If live play still exceeds 4% at 30 fps, the fallback is "ambient at 20 fps with a short motion blur on the ball", or sparser ambient (fewer off-ball moves). That decision should be made by the owner on video and numbers, not by us silently.
 2. **The quality of inferred play.** Most of what's on screen is synthesized (data law 5). If the backward-planned ambient looks generic, the broadcast feels like a screensaver. Mitigations: data-driven templates, sets biased by tonight's shot zones, matchups by role, and review on video at 1× and 0.5× with fresh eyes the next day. This is where most of the tuning time will go.
 3. **Event-time semantics are unverified for football and baseball.** Does NFL `wallclock` mark the snap or the dead ball? What does statsapi `startTime` mark? The weekend's recordings plus a TV broadcast decide it (§3.2, §7.4). Until then the anchors for those sports are provisional.
 4. **Arrival lag for football and soccer is unmeasured.** The lead-ins and D for those sports wait on the weekend's recordings. The NBA sample is small (one 4th quarter); re-run on full games.
@@ -1872,7 +1872,7 @@ The engine is built to port mechanically:
 6. **Replans while ambient is mid-action.** A replan must never yank a pass already in the air. The commit point covers in-flight segments, but contradictions (a removed play) can still force a visible re-route. These are rare; log and review them.
 7. **Scope.** This is a new engine. The phasing keeps each step shippable, and Phase 0 is valuable even if later phases slip: zero hard cuts with today's clips, and the bench.
 
-### 14.2 Open questions for the user
+### 14.2 Open questions for the owner
 
 - **The delay in the heartbeat:** show "Live · 41 s behind", or keep it hidden?
 - **Instant replays in dead time:** on by default? (Recommended: yes, for marquee plays only.)
@@ -1880,8 +1880,8 @@ The engine is built to port mechanically:
 - **Baseball's pitch → ball-in-play camera change:** a declared cut, as TV does, or a continuous pull-back?
 - **Officials:** the "only while acting" rule stays. In continuous coverage, should a referee trail the play at a distance during live basketball (as on TV) while staying out of the way? (Recommended: no, keep the rule.)
 
-**The user's decisions (2026-10-31, morning):**
-- **Delay policy:** sequence and fluidity over liveness. Use the setting where plays are rarely late (NBA q 0.95, about +27 s over today's score; soccer about +20 s), and apply the same principle to each sport as it's measured. In the user's words: "the key thing is not necessarily being as live as possible, it's the fluidity… the sequence of plays is actually correct."
+**The owner's decisions (2026-10-31, morning):**
+- **Delay policy:** sequence and fluidity over liveness. Use the setting where plays are rarely late (NBA q 0.95, about +27 s over today's score; soccer about +20 s), and apply the same principle to each sport as it's measured. In the owner's words: "the key thing is not necessarily being as live as possible, it's the fluidity… the sequence of plays is actually correct."
 - **Show the delay:** on hover only. The live dot stays clean; hovering shows about how far behind live (for example "About 55 s behind live").
 - **Instant replays in dead time:** yes, big plays only (marquee). They must be unmistakable:
   - the banner says it's a replay *and* names the stoppage ("Replay · Timeout");

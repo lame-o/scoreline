@@ -37,8 +37,8 @@ main() {
   curl -fL --progress-bar -o "$tmp/Scoreline.zip" "$URL"
   ditto -x -k "$tmp/Scoreline.zip" "$tmp"
   codesign --verify --deep --strict "$tmp/Scoreline.app"
-  if [[ $(lipo -archs "$tmp/Scoreline.app/Contents/MacOS/Scoreline") != arm64 ]]; then
-    echo "The download is not an Apple silicon-only Scoreline build. Nothing was installed." >&2
+  if [[ $(lipo -archs "$tmp/Scoreline.app/Contents/MacOS/Scoreline") != *arm64* ]]; then
+    echo "The download doesn't include Apple silicon. Nothing was installed." >&2
     exit 1
   fi
 

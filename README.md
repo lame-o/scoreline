@@ -290,7 +290,7 @@ Or download `Scoreline.dmg` from [Releases](https://github.com/lame-o/scoreline/
 
 After that, Scoreline keeps itself up to date (**Settings → Updates**).
 
-Requires macOS 15 Sequoia or later on an Apple silicon Mac (M1 or newer). Starting with 1.0.31, Intel Macs are no longer supported. Existing Intel installations retain their last compatible version; automatic updates exclude releases that require Apple silicon.
+Requires macOS 15 Sequoia or later on an Apple silicon Mac (M1 or newer). Starting with 1.0.32, Intel Macs are no longer supported. Existing Intel installations retain their last compatible version; automatic updates exclude releases that require Apple silicon.
 
 ## FAQ
 
