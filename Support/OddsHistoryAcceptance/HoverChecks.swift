@@ -44,7 +44,7 @@ private final class HoverWatchdog: @unchecked Sendable {
         withObservationTracking {
             _ = pointer.moment
             _ = pointer.active
-        } onChange: {
+        } onChange: { [weak self] in
             DispatchQueue.main.async { [weak self] in
                 guard let self, !self.finished else { return }
                 self.count += 1
@@ -59,9 +59,14 @@ private final class HoverWatchdog: @unchecked Sendable {
                     data: OddsChartData, history: MatchHistory, names: (top: String, bottom: String),
                     check: (Bool, String) -> Void) {
         guard let content = panel.contentView else { check(false, "native hover: missing fixture view"); return }
+        let previousPolicy = NSApplication.shared.activationPolicy()
+        // A prohibited app with an alpha-zero window can be absent from the
+        // accessibility tree. Keep this fixture offscreen, but expose its real
+        // native controls just as an ordinary accessory app does.
+        NSApplication.shared.setActivationPolicy(.accessory)
         let window = HoverCheckWindow(contentRect: panel.frame, styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
-        window.alphaValue = 0
+        window.alphaValue = 1
         window.acceptsMouseMovedEvents = true
         panel.contentView = nil
         window.contentView = content
@@ -73,6 +78,7 @@ private final class HoverWatchdog: @unchecked Sendable {
             window.contentView = nil
             panel.contentView = content
             window.close()
+            NSApplication.shared.setActivationPolicy(previousPolicy)
         }
         watchdog.start()
         changes.observe(pointer)
@@ -98,23 +104,46 @@ private final class HoverWatchdog: @unchecked Sendable {
                                               isARepeat: false, keyCode: code) else { return }
             window.sendEvent(event)
         }
+        // SwiftUI's virtual nodes can expose the legacy attribute interface
+        // while NSView uses modern accessors. Traverse both; KVC-only discovery
+        // silently loses the virtual controls on some macOS versions.
+        func attribute(_ object: NSObject, modern: String, legacy: String) -> Any? {
+            if object.responds(to: NSSelectorFromString(modern)), let value = object.value(forKey: modern) { return value }
+            let selector = NSSelectorFromString("accessibilityAttributeValue:")
+            guard object.responds(to: selector) else { return nil }
+            return object.perform(selector, with: legacy)?.takeUnretainedValue()
+        }
+        var inspectedLabels: [String] = []
         func element(_ prefix: String) -> NSObject? {
-            var queue: [NSObject] = [content]
+            var queue: [NSObject] = [window, content]
             var seen: Set<ObjectIdentifier> = []
+            inspectedLabels = []
             while !queue.isEmpty, seen.count < 2000 {
                 let next = queue.removeFirst()
                 guard seen.insert(ObjectIdentifier(next)).inserted else { continue }
-                if next.responds(to: NSSelectorFromString("accessibilityLabel")),
-                   let label = next.value(forKey: "accessibilityLabel") as? String, label.hasPrefix(prefix) { return next }
-                if next.responds(to: NSSelectorFromString("accessibilityChildren")),
-                   let children = next.value(forKey: "accessibilityChildren") as? [NSObject] { queue.append(contentsOf: children) }
+                let labels = [attribute(next, modern: "accessibilityLabel", legacy: "AXDescription"),
+                              attribute(next, modern: "accessibilityTitle", legacy: "AXTitle")]
+                    .compactMap { $0 as? String }.filter { !$0.isEmpty }
+                for label in labels {
+                    inspectedLabels.append(label)
+                    if label.hasPrefix(prefix) { return next }
+                }
+                if let children = attribute(next, modern: "accessibilityChildren", legacy: "AXChildren") as? [NSObject] {
+                    queue.append(contentsOf: children)
+                }
+                if let view = next as? NSView { queue.append(contentsOf: view.subviews) }
             }
             return nil
         }
         func frame(_ prefix: String) -> CGRect? {
-            guard let target = element(prefix), target.responds(to: NSSelectorFromString("accessibilityFrame")),
-                  let value = target.value(forKey: "accessibilityFrame") as? NSValue else { return nil }
-            let rect = value.rectValue
+            guard let target = element(prefix) else { return nil }
+            let rect: CGRect
+            if let value = attribute(target, modern: "accessibilityFrame", legacy: "AXFrame") as? NSValue {
+                rect = value.rectValue
+            } else if let point = attribute(target, modern: "accessibilityPosition", legacy: "AXPosition") as? NSValue,
+                      let size = attribute(target, modern: "accessibilitySize", legacy: "AXSize") as? NSValue {
+                rect = CGRect(origin: point.pointValue, size: size.sizeValue)
+            } else { return nil }
             guard rect.width > 0, rect.height > 0 else { return nil }
             return rect
         }
@@ -124,12 +153,20 @@ private final class HoverWatchdog: @unchecked Sendable {
             window.convertPoint(fromScreen: NSPoint(x: frame.minX + point.x, y: frame.maxY - point.y))
         }
         func reading() -> String {
-            guard let target = element("Inspect win probability"), target.responds(to: NSSelectorFromString("accessibilityValue")) else { return "" }
-            return target.value(forKey: "accessibilityValue") as? String ?? ""
+            guard let target = element("Inspect win probability") else { return "" }
+            return attribute(target, modern: "accessibilityValue", legacy: "AXValue") as? String ?? ""
         }
         pointer.clear()
         pump(0.15)
+        // Moving a hosted view between fixture windows rebuilds its native AX
+        // tree asynchronously. Wait for that tree, never substitute guessed
+        // frames or skip assertions when controls are missing.
+        for _ in 0..<20 {
+            if frame("Inspect win probability") != nil && frame("Match timeline,") != nil { break }
+            pump(0.05)
+        }
         guard let oddsFrame = frame("Inspect win probability"), let timelineFrame = frame("Match timeline,") else {
+            print("Native hover AX discovery: visible=\(window.isVisible), alpha=\(window.alphaValue), key=\(window.isKeyWindow), labels=\(inspectedLabels.prefix(30))")
             check(false, "native hover: both real inspection controls expose their frames")
             return
         }

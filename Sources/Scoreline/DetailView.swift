@@ -1448,7 +1448,9 @@ struct DetailView: View {
                                   ? "Match minutes · Event timestamps unavailable for odds alignment."
                                   : "\(isSoccer ? "Goals and cards" : "Scoring plays") · "
                                     + (oddsShown(d) ? "Same time scale as win probability." : "Hover or select an event to inspect."),
-                              spokenCaption: "\(full.top) above, \(full.bottom) below. Hover or choose an event to inspect it.") {
+                              spokenCaption: d.history?.sport == .football
+                                  ? "Scoring plays on one timeline. \(full.top) circles, \(full.bottom) diamonds. Nearby plays are grouped. Hover or choose an event to inspect it."
+                                  : "\(full.top) above, \(full.bottom) below. Hover or choose an event to inspect it.") {
                     chart(.timeline, d)
                 }
             case .table:

@@ -51,10 +51,12 @@ struct MatchTimeline: View {
         if singleRail {
             // A compact legend uses the label column already reserved by the
             // odds chart. There is only one scoring rail, not one per team.
-            (Text("● ") + Text(names.top)).font(Viz.tick).foregroundStyle(OddsStyle.line(palette.top))
+            // Palette tones target graphical contrast; small abbreviations
+            // need primary text contrast, especially a silver team in light mode.
+            (Text("● ").foregroundStyle(OddsStyle.line(palette.top)) + Text(names.top).foregroundStyle(.primary)).font(Viz.tick)
                 .lineLimit(1).frame(width: labelWidth, alignment: .leading)
                 .position(x: layout.plot.maxX + OddsStyle.labelGap + labelWidth / 2, y: layout.plot.midY - 8)
-            (Text("◆ ") + Text(names.bottom)).font(Viz.tick).foregroundStyle(OddsStyle.line(palette.bottom))
+            (Text("◆ ").foregroundStyle(OddsStyle.line(palette.bottom)) + Text(names.bottom).foregroundStyle(.primary)).font(Viz.tick)
                 .lineLimit(1).frame(width: labelWidth, alignment: .leading)
                 .position(x: layout.plot.maxX + OddsStyle.labelGap + labelWidth / 2, y: layout.plot.midY + 8)
         } else {
