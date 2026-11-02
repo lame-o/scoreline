@@ -209,7 +209,7 @@ private final class HoverWatchdog: @unchecked Sendable {
         let labelWidth = OddsStyle.labelWidth([names.top, names.bottom])
         let widthClass = PanelLayout.resolve(width: frames["odds"]?.width ?? panel.frame.width, from: PanelLayout()).page
         let oddsLayout = OddsLayout(size: oddsFrame.size, plotHeight: OddsStyle.plotHeight(widthClass), domain: data.domain, labelWidth: labelWidth)
-        let timelineLayout = OddsLayout(size: timelineFrame.size, plotHeight: 76, domain: data.domain, labelWidth: labelWidth)
+        let timelineLayout = OddsLayout(size: timelineFrame.size, plotHeight: MatchTimelineStyle.plotHeight, domain: data.domain, labelWidth: labelWidth)
         let oddsLocation = CGPoint(x: oddsLayout.plot.minX + oddsLayout.plot.width * 0.4, y: oddsLayout.plot.midY)
         let oddsPoint = windowPoint(oddsLocation, in: oddsFrame)
         let rawOddsTime = oddsLayout.time(at: oddsLocation.x)

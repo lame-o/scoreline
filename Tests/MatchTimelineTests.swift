@@ -8,7 +8,8 @@ extension ScorelineTests {
         let end = start + 7_200
         let domain = start...end
         let labelWidth = OddsStyle.labelWidth(["LIV", "CHE", "Draw"])
-        let timeline = OddsLayout(size: CGSize(width: 540, height: 91), plotHeight: 76, domain: domain, labelWidth: labelWidth)
+        let timeline = OddsLayout(size: CGSize(width: 540, height: MatchTimelineStyle.height),
+                                  plotHeight: MatchTimelineStyle.plotHeight, domain: domain, labelWidth: labelWidth)
         let odds = OddsLayout(size: CGSize(width: 540, height: 165), plotHeight: 150, domain: domain, labelWidth: labelWidth)
         check(timeline.x(start) == odds.x(start) && timeline.x(end) == odds.x(end)
               && timeline.x(start + 2_780) == odds.x(start + 2_780),
@@ -26,6 +27,9 @@ extension ScorelineTests {
         let bottomPoint = MatchTimelineGeometry.point(bottom, layout: timeline)
         check(topPoint.x == bottomPoint.x && topPoint.y < bottomPoint.y,
               "Simultaneous opposing-team events keep their lanes without moving their timestamps")
+        check(topPoint.y == 10 && bottomPoint.y == 38 && MatchTimelineGeometry.y(nil, layout: timeline) == 24
+              && topPoint.y - 7 >= 0 && bottomPoint.y + 7 < MatchTimelineStyle.rowY,
+              "Both teams keep soccer's compact mark positions and selected rings clear of the detail row")
         check(MatchTimelineGeometry.target(at: topPoint, events: events, layout: timeline)?.id == top.id
               && MatchTimelineGeometry.target(at: bottomPoint, events: events, layout: timeline)?.id == bottom.id,
               "Hit testing distinguishes teams when two key events share a timestamp")
@@ -41,7 +45,7 @@ extension ScorelineTests {
               "Timeline inspection cannot escape the shared displayed domain")
 
         let fractionalDomain = (start + 0.8)...(end + 0.2)
-        let fractionalLayout = OddsLayout(size: CGSize(width: 540, height: 91), plotHeight: 76,
+        let fractionalLayout = OddsLayout(size: CGSize(width: 540, height: MatchTimelineStyle.height), plotHeight: MatchTimelineStyle.plotHeight,
                                          domain: fractionalDomain, labelWidth: labelWidth)
         let nearStart = event("near-start", 1.2, .top)
         let nearEnd = event("near-end", 7_199.6, .bottom)
@@ -66,7 +70,8 @@ extension ScorelineTests {
               && MatchTimelineRail.time(at: interior, marks: edgeMarks, layout: fractionalLayout) == second,
               "Empty positions in both timeline styles retain the odds whole-second mapping")
 
-        let football = OddsLayout(size: CGSize(width: 306, height: 69), plotHeight: 54, domain: domain, labelWidth: labelWidth)
+        let football = OddsLayout(size: CGSize(width: 306, height: MatchTimelineStyle.height),
+                                  plotHeight: MatchTimelineStyle.plotHeight, domain: domain, labelWidth: labelWidth)
         let rail = MatchTimelineRail.marks(events: events, layout: football)
         check(rail.count == 2 && rail[0].events.count == 2 && rail.flatMap(\.events).count == events.count,
               "Football combines simultaneous opposing-team scores without losing either event")

@@ -4,6 +4,15 @@ import SwiftUI
 /// are labels from reported plays, never an interpolation through stoppages.
 /// Hover only updates the small scrub/readout leaves; the tracks and markers
 /// stay still, and inspecting history never seeks the broadcast theater.
+enum MatchTimelineStyle {
+    // Match the original SoccerTimeline's vertical rhythm. Horizontal space
+    // still belongs to OddsLayout so market and event timestamps stay aligned.
+    static let height: CGFloat = 60
+    static let plotHeight: CGFloat = 48
+    static let rowY: CGFloat = 54
+    static let teamOffset: CGFloat = 14
+}
+
 struct MatchTimeline: View {
     let history: MatchHistory
     let domain: ClosedRange<Date>
@@ -14,65 +23,91 @@ struct MatchTimeline: View {
     let final: Bool
 
     private var singleRail: Bool { history.sport == .football }
-    private var plotHeight: CGFloat { singleRail ? 54 : 76 }
 
     var body: some View {
         let events = history.keyEvents.filter { domain.contains($0.t) }
         let topColor = OddsStyle.line(palette.top), bottomColor = OddsStyle.line(palette.bottom)
-        VStack(alignment: .leading, spacing: 8) {
-            GeometryReader { geometry in
-                let layout = OddsLayout(size: geometry.size, plotHeight: plotHeight, domain: domain, labelWidth: labelWidth)
-                let rail = singleRail ? MatchTimelineRail.marks(events: events, layout: layout) : nil
-                ZStack(alignment: .topLeading) {
-                    MatchTimelineStill(events: events, periods: history.periods, layout: layout, rail: rail,
-                                       topColor: topColor, bottomColor: bottomColor)
-                        .equatable()
-                    labels(layout).accessibilityHidden(true)
-                    MatchTimelineScrub(history: history, events: events, names: names, layout: layout, rail: rail,
-                                       topColor: topColor, bottomColor: bottomColor, pointer: pointer)
-                }
-            }
-            .frame(height: plotHeight + OddsStyle.axis)
-            // This padding is deliberately identical to OddsPlot's. Both
-            // modules reserve its 30pt left gutter and the odds-label column.
-            .vizWell(padding: 8)
-            MatchTimelineReadout(history: history, domain: domain, names: names, pointer: pointer)
-            MatchInspectionControls(history: history, domain: domain, pointer: pointer, final: final)
-            if history.hasUntimedEvents || history.missingTimeCount > 0 {
-                Text("Some plays have no event timestamp and cannot be aligned with odds.")
-                    .font(Viz.note).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        GeometryReader { geometry in
+            let layout = OddsLayout(size: geometry.size, plotHeight: MatchTimelineStyle.plotHeight,
+                                    domain: domain, labelWidth: labelWidth)
+            let rail = singleRail ? MatchTimelineRail.marks(events: events, layout: layout) : nil
+            ZStack(alignment: .topLeading) {
+                MatchTimelineStill(events: events, periods: history.periods, layout: layout, rail: rail,
+                                   topColor: topColor, bottomColor: bottomColor, live: !final)
+                    .equatable()
+                teamLabels(layout).accessibilityHidden(true)
+                MatchTimelineScrub(history: history, events: events, names: names, layout: layout, rail: rail,
+                                   topColor: topColor, bottomColor: bottomColor, pointer: pointer)
+                MatchTimelineAxis(history: history, domain: domain, names: names,
+                                  layout: layout, pointer: pointer, final: final)
             }
         }
+        .frame(height: MatchTimelineStyle.height)
+        // OddsPlot's well contributes the same inset. Keep just that geometry,
+        // with no box or vertical padding, to preserve the shared time scale.
+        .padding(.horizontal, 8)
     }
 
-    @ViewBuilder
-    private func labels(_ layout: OddsLayout) -> some View {
-        if singleRail {
-            // A compact legend uses the label column already reserved by the
-            // odds chart. There is only one scoring rail, not one per team.
-            // Palette tones target graphical contrast; small abbreviations
-            // need primary text contrast, especially a silver team in light mode.
-            (Text("● ").foregroundStyle(OddsStyle.line(palette.top)) + Text(names.top).foregroundStyle(.primary)).font(Viz.tick)
-                .lineLimit(1).frame(width: labelWidth, alignment: .leading)
-                .position(x: layout.plot.maxX + OddsStyle.labelGap + labelWidth / 2, y: layout.plot.midY - 8)
-            (Text("◆ ").foregroundStyle(OddsStyle.line(palette.bottom)) + Text(names.bottom).foregroundStyle(.primary)).font(Viz.tick)
-                .lineLimit(1).frame(width: labelWidth, alignment: .leading)
-                .position(x: layout.plot.maxX + OddsStyle.labelGap + labelWidth / 2, y: layout.plot.midY + 8)
-        } else {
-            Text(names.top).font(Viz.tick).foregroundStyle(OddsStyle.line(palette.top))
-                .lineLimit(1)
-                .frame(width: OddsStyle.gutter - 5, alignment: .trailing)
-                .position(x: (OddsStyle.gutter - 5) / 2, y: MatchTimelineGeometry.y(.top, layout: layout))
-            Text(names.bottom).font(Viz.tick).foregroundStyle(OddsStyle.line(palette.bottom))
-                .lineLimit(1)
-                .frame(width: OddsStyle.gutter - 5, alignment: .trailing)
-                .position(x: (OddsStyle.gutter - 5) / 2, y: MatchTimelineGeometry.y(.bottom, layout: layout))
+    private func teamLabels(_ layout: OddsLayout) -> some View {
+        VStack(spacing: 0) {
+            teamLabel(names.top, color: OddsStyle.line(palette.top), symbol: "●")
+            Spacer(minLength: 0)
+            teamLabel(names.bottom, color: OddsStyle.line(palette.bottom), symbol: "◆")
         }
-        let labels = history.periods.isEmpty ? OddsPlot.hourLabels(layout) : OddsPlot.periodLabels(history.periods, layout: layout)
-        ForEach(labels, id: \.x) { label in
-            Text(label.label).font(Viz.tick).foregroundStyle(.secondary).fixedSize()
-                .position(x: label.x, y: plotHeight + 8)
+        .frame(width: OddsStyle.gutter - 2, height: 40)
+        .position(x: OddsStyle.gutter / 2 - 2, y: layout.plot.midY)
+    }
+
+    private func teamLabel(_ name: String, color: Color, symbol: String) -> some View {
+        HStack(spacing: 2) {
+            if singleRail {
+                Text(symbol).font(.system(size: 7)).foregroundStyle(color)
+            }
+            Text(name).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(height: 12)
+    }
+}
+
+/// Only this small row observes selection. Like soccer, event detail takes
+/// the axis labels' place, never an extra row below the timeline.
+private struct MatchTimelineAxis: View {
+    let history: MatchHistory
+    let domain: ClosedRange<Date>
+    let names: (top: String, bottom: String)
+    let layout: OddsLayout
+    let pointer: OddsPointer
+    let final: Bool
+
+    var body: some View {
+        Group {
+            if pointer.moment != nil {
+                HStack(spacing: 4) {
+                    MatchTimelineReadout(history: history, domain: domain, names: names, pointer: pointer)
+                    if pointer.pinned {
+                        Button { pointer.clear() } label: {
+                            Image(systemName: "arrow.uturn.backward")
+                                .font(.system(size: 10, weight: .medium))
+                                .frame(width: 18, height: 16)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(final ? "Latest" : "Live")
+                        .help(final ? "Return to the final values" : "Return to the current broadcast time")
+                    }
+                }
+                .frame(width: layout.bounds.width - OddsStyle.gutter, alignment: .leading)
+                .position(x: OddsStyle.gutter + (layout.bounds.width - OddsStyle.gutter) / 2,
+                          y: MatchTimelineStyle.rowY)
+            } else {
+                let labels = history.periods.isEmpty ? OddsPlot.hourLabels(layout) : OddsPlot.periodLabels(history.periods, layout: layout)
+                ForEach(labels, id: \.x) { label in
+                    Text(label.label).font(Viz.tick).foregroundStyle(.secondary).fixedSize()
+                        .position(x: label.x, y: MatchTimelineStyle.rowY)
+                }
+                .accessibilityHidden(true)
+            }
         }
     }
 }
@@ -83,8 +118,8 @@ struct MatchTimeline: View {
 enum MatchTimelineGeometry {
     static func y(_ side: GameDetail.Side?, layout: OddsLayout) -> CGFloat {
         switch side {
-        case .top: layout.plot.minY + layout.plot.height * 0.25
-        case .bottom: layout.plot.minY + layout.plot.height * 0.75
+        case .top: layout.plot.midY - MatchTimelineStyle.teamOffset
+        case .bottom: layout.plot.midY + MatchTimelineStyle.teamOffset
         case nil: layout.plot.midY
         }
     }
@@ -251,30 +286,24 @@ private struct MatchTimelineStill: View, Equatable {
     let rail: [MatchTimelineRail.Mark]?
     let topColor: Color
     let bottomColor: Color
+    let live: Bool
 
     var body: some View {
         Canvas { context, _ in
-            for (index, period) in periods.enumerated() {
-                let start = max(layout.x(period.start), layout.plot.minX)
-                let end = min(layout.x(period.end), layout.plot.maxX)
-                if end > start, index.isMultiple(of: 2) {
-                    context.fill(Path(CGRect(x: start, y: layout.plot.minY, width: end - start, height: layout.plot.height)),
-                                 with: .color(Viz.track))
-                }
-                if layout.domain.contains(period.start) {
-                    var boundary = Path()
-                    boundary.move(to: CGPoint(x: start, y: layout.plot.minY))
-                    boundary.addLine(to: CGPoint(x: start, y: layout.plot.maxY))
-                    context.stroke(boundary, with: .color(Viz.grid), style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
-                }
-            }
-            let lanes: [GameDetail.Side?] = rail == nil ? [.top, .bottom] : [nil]
-            for side in lanes {
-                let y = MatchTimelineGeometry.y(side, layout: layout)
-                var lane = Path()
-                lane.move(to: CGPoint(x: layout.plot.minX, y: y))
-                lane.addLine(to: CGPoint(x: layout.plot.maxX, y: y))
-                context.stroke(lane, with: .color(Viz.baseline), lineWidth: 1)
+            let center = layout.plot.midY
+            let now = CGPoint(x: layout.plot.maxX, y: center)
+            let trackContext = live ? context.clearing([Clearance(now, radius: 4.5)]) : context
+            let track = Path(roundedRect: CGRect(x: layout.plot.minX, y: center - 1,
+                                                width: layout.plot.width, height: 2), cornerRadius: 1)
+            trackContext.fill(track, with: .color(Color.primary.opacity(0.12)))
+            // Period boundaries are short ticks on the shared rule, like
+            // soccer's half-time mark. Breaks retain their real horizontal span.
+            for period in periods.dropFirst() where layout.domain.contains(period.start) {
+                var tick = Path()
+                let x = layout.x(period.start)
+                tick.move(to: CGPoint(x: x, y: center - 5))
+                tick.addLine(to: CGPoint(x: x, y: center + 5))
+                trackContext.stroke(tick, with: .color(Viz.reference), lineWidth: 1)
             }
             if let rail {
                 for mark in rail {
@@ -285,6 +314,9 @@ private struct MatchTimelineStill: View, Equatable {
                     MatchTimelineGeometry.draw(event, at: MatchTimelineGeometry.point(event, layout: layout), in: context,
                                                topColor: topColor, bottomColor: bottomColor)
                 }
+            }
+            if live {
+                context.fill(Path(ellipseIn: CGRect(x: now.x - 3, y: now.y - 3, width: 6, height: 6)), with: .color(.red))
             }
         }
         .allowsHitTesting(false)
@@ -339,7 +371,7 @@ private struct MatchTimelineScrub: View {
                 // hover, alternately clearing and recreating the selection.
                 .allowsHitTesting(false)
             }
-            .frame(width: layout.bounds.width, height: layout.bounds.height + OddsStyle.axis)
+            .frame(width: layout.bounds.width, height: MatchTimelineStyle.plotHeight)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

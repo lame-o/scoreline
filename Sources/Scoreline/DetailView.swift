@@ -1274,7 +1274,7 @@ struct DetailView: View {
         case .atBat: event.state == .live && (baseballFeed.loaded || !d.atBat.isEmpty)
         case .pitch: extrasShown && (event.state == .live ? !soccerTrail.isEmpty : !soccerShots.isEmpty)
         case .timeline: isSoccer
-            ? d.moments.contains { $0.minute != nil } || event.state == .live
+            ? d.moments.contains { $0.minute != nil } || d.history?.events.isEmpty == false || event.state == .live
             : event.state != .scheduled && (d.history != nil || d.moments.contains { $0.minute != nil })
         // Today's table says nothing about a game from another season (G2).
         case .table: extrasShown && d.seasonIsCurrent != false && (soccerLeague ?? collegeLeague ?? nbaLeague) != nil && !standings.isEmpty
@@ -1339,6 +1339,24 @@ struct DetailView: View {
          bottom: d.bottomRoster.acronym ?? event.competitors.last?.abbreviation ?? "")
     }
 
+    /// Keep minute-only soccer goals visible when a provider supplies no
+    /// absolute chronology. Every timed sport otherwise uses the same axis.
+    private func timelineHistory(_ d: GameDetail) -> MatchHistory? {
+        guard let history = d.history else { return nil }
+        if isSoccer, history.events.isEmpty, d.moments.contains(where: { $0.minute != nil }) { return nil }
+        return history
+    }
+
+    private func timelineCaption(_ d: GameDetail, names: (top: String, bottom: String)) -> String {
+        if isSoccer, timelineHistory(d) == nil {
+            return "Goals and cards by minute. \(names.top) above, \(names.bottom) below. Event timestamps unavailable; odds use a separate scale."
+        }
+        let kind = isSoccer ? "Goals and cards" : "Scoring plays"
+        let axis = oddsShown(d) ? "Same time scale as win probability." : "Hover or select an event to inspect."
+        let missing = d.history.map { $0.hasUntimedEvents || $0.missingTimeCount > 0 } ?? false
+        return "\(kind) · \(axis)" + (missing ? " Some plays lack timestamps." : "")
+    }
+
     /// The chart a section shows.
     @ViewBuilder
     private func chart(_ kind: Section, _ d: GameDetail) -> some View {
@@ -1350,7 +1368,7 @@ struct DetailView: View {
                       palette: palette, topName: names.top, bottomName: names.bottom, cards: soccerCards,
                       theater: live && liveViewOpen(d))
         case .timeline:
-            if !isSoccer, let history = d.history {
+            if let history = timelineHistory(d) {
                 MatchTimelineSection(history: history, baseline: d.odds, feed: oddsFeed, event: event, names: names,
                                      palette: .nba(top: event.competitors.first, bottom: event.competitors.last, scheme: colorScheme),
                                      pointer: matchInspection, presentation: broadcast.active ? broadcast.clock : nil)
@@ -1445,17 +1463,12 @@ struct DetailView: View {
                     chart(.pitch, d)
                 }
             case .timeline:
-                DetailSection(title: "Timeline",
-                              caption: isSoccer
-                                  ? "Goals and cards by minute. \(names.top) above, \(names.bottom) below."
-                                    + (live ? " The red dot marks now." : "")
-                                  : "Scoring plays · "
-                                    + (oddsShown(d) ? "Same time scale as win probability." : "Hover or select an event to inspect."),
-                              spokenCaption: isSoccer
-                                  ? "Goals and cards by minute. \(full.top) above, \(full.bottom) below."
+                DetailSection(title: "Timeline", caption: timelineCaption(d, names: names),
+                              spokenCaption: isSoccer && timelineHistory(d) == nil
+                                  ? "Goals and cards by minute. \(full.top) above, \(full.bottom) below. Event timestamps are unavailable; this fallback cannot align with win probability."
                                   : d.history?.sport == .football
-                                  ? "Scoring plays on one timeline. \(full.top) circles, \(full.bottom) diamonds. Nearby plays are grouped. Hover or choose an event to inspect it."
-                                  : "\(full.top) above, \(full.bottom) below. Hover or choose an event to inspect it.") {
+                                  ? "Scoring plays on one timeline. \(full.top) circles, \(full.bottom) diamonds. Nearby plays are grouped. Hover or choose an event to inspect it alongside win probability."
+                                  : "\(full.top) above, \(full.bottom) below. Hover or choose an event to inspect it alongside win probability.") {
                     chart(.timeline, d)
                 }
             case .table:

@@ -2,9 +2,8 @@ import AppKit
 import SwiftUI
 import Vision
 
-// Native acceptance surfaces: production odds, non-soccer shared timelines,
-// and the original minute-based SoccerTimeline. The retained soccer wall-clock
-// cases are isolated engine coverage, not the installed soccer module.
+// Native acceptance surfaces: production odds and shared sport timelines,
+// plus the original minute-based SoccerTimeline fallback for untimed history.
 // Real captured histories, isolated preferences, HTTP blocked.
 // The scripted hover/pin/step/clear calls use the same shared pointer as the
 // graph controls. No mock chart or altered production geometry is rendered.
@@ -102,11 +101,10 @@ private struct HistorySurface: View {
             OddsSection(feed: feed, baseline: fixture.baseline, event: fixture.event(), names: fixture.names,
                         spoken: fixture.full, palette: palette, history: fixture.history, inspection: pointer)
                 .background(frame("odds"))
-            DetailSection(title: fixture.sport == .soccer ? "Timeline · engine fixture" : "Timeline",
-                          caption: fixture.sport == .soccer ? "Isolated wall-clock engine · not the soccer match page."
-                              : "Key events on the same time scale as win probability.") {
+            DetailSection(title: "Timeline", caption: "Key events on the same time scale as win probability.") {
                 MatchTimelineSection(history: fixture.history, baseline: fixture.baseline, feed: feed, event: fixture.event(),
                                      names: fixture.names, palette: palette, pointer: pointer)
+                    .background(frame("rail"))
             }
             .background(frame("timeline"))
         }
@@ -125,6 +123,16 @@ private struct HistorySurface: View {
 private struct RecognizedLine {
     let text: String
     let rect: CGRect
+}
+
+private struct RailFixture {
+    let name: String
+    let history: MatchHistory
+    let names: (top: String, bottom: String)
+    let colors: (top: String, bottom: String)
+    let start: Date
+    let source: String
+    let mutation: String
 }
 
 @main struct OddsHistoryAcceptance {
@@ -158,6 +166,21 @@ private struct RecognizedLine {
         }
     }
 
+    /// Team identity belongs to the left gutter, never to the odds-label
+    /// column on the right. Check the rendered text position, not just its
+    /// presence somewhere in a selected play's description.
+    private static func leftTeams(_ lines: [RecognizedLine], names: (top: String, bottom: String), rail: CGRect) -> Bool {
+        let gutterEnd = rail.minX + 8 + OddsStyle.gutter + 2
+        func match(_ name: String) -> RecognizedLine? {
+            lines.first { line in
+                line.text.contains(name) && rail.contains(CGPoint(x: line.rect.midX, y: line.rect.midY))
+                    && line.rect.maxX <= gutterEnd
+            }
+        }
+        guard let top = match(names.top), let bottom = match(names.bottom) else { return false }
+        return top.rect.midY < bottom.rect.midY
+    }
+
     @MainActor static func main() throws {
         HTTP.stubProtocol = HistoryOffline.self
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -177,7 +200,7 @@ private struct RecognizedLine {
             for scheme in [ColorScheme.dark, .light] {
                 for width: CGFloat in [350, 400, 520] {
                     if hoverOnly && !(fixture.name == "nba" && scheme == .dark && width == 520) { continue }
-                    let name = "\(fixture.sport == .soccer ? "soccer-engine" : fixture.name)-\(scheme)-\(Int(width))"
+                    let name = "\(fixture.name)-\(scheme)-\(Int(width))"
                     let suite = "scoreline.odds-history-check.\(UUID().uuidString)"
                     let defaults = UserDefaults(suiteName: suite)!
                     defer { defaults.removePersistentDomain(forName: suite) }
@@ -211,6 +234,23 @@ private struct RecognizedLine {
                         try png.write(to: URL(fileURLWithPath: "\(out)/\(name)-\(suffix).png"))
                         return words(image, size: size)
                     }
+                    let resting = try snapshot("resting")
+                    let oddsFrame = probe.frames["odds"] ?? .zero, timelineFrame = probe.frames["timeline"] ?? .zero
+                    let railFrame = probe.frames["rail"] ?? .zero
+                    check(railFrame.height == 60, "\(name): the production timeline itself is exactly 60pt tall")
+                    let expectedData = OddsChartData.make(feed: feed, baseline: fixture.baseline, state: .final, window: .game,
+                                                         eventStart: fixture.start, history: fixture.history)!
+                    let labelWidth = OddsStyle.labelWidth([fixture.names.top, fixture.names.bottom] + (fixture.market.threeWay ? ["Draw"] : []))
+                    let innerWidth = width - 2 * (Metrics.gutter + 8)
+                    let oddsGeometry = OddsLayout(size: CGSize(width: innerWidth, height: 165), plotHeight: 150,
+                                                  domain: expectedData.domain, labelWidth: labelWidth)
+                    let railGeometry = OddsLayout(size: CGSize(width: railFrame.width - 16, height: MatchTimelineStyle.height),
+                                                  plotHeight: MatchTimelineStyle.plotHeight, domain: expectedData.domain, labelWidth: labelWidth)
+                    check(fixture.history.keyEvents.allSatisfy { event in
+                        abs((Metrics.gutter + 8 + oddsGeometry.x(event.t)) - (railFrame.minX + 8 + railGeometry.x(event.t))) < 0.01
+                    }, "\(name): every scoring/card timestamp maps to the same page x coordinate as odds")
+                    check(leftTeams(resting, names: fixture.names, rail: railFrame),
+                          "\(name): both team labels stay in the left gutter in team order")
                     pointer.hover(fixture.selected.t); pump()
                     check(pointer.active && !pointer.pinned && pointer.moment == fixture.selected.t, "\(name): hover inspects the reported event")
                     pointer.pin(fixture.selected.t); pump()
@@ -220,19 +260,19 @@ private struct RecognizedLine {
                     check(lower.contains("timeline") && lower.contains("odds moved"), "\(name): both production modules render")
                     check(text.contains(fixture.names.top) && text.contains(fixture.names.bottom) && text.contains("%"),
                           "\(name): teams and probability values stay readable")
-                    check(recognized.filter { $0.text.lowercased().contains("pinned") }.count >= 2,
-                          "\(name): pin state is visible in both modules")
-                    let oddsFrame = probe.frames["odds"] ?? .zero, timelineFrame = probe.frames["timeline"] ?? .zero
+                    let selectedRow = recognized.filter { railFrame.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY))
+                        && $0.rect.midY > railFrame.minY + 45 }
+                    let periodNames = Set(fixture.history.periods.map(\.label))
+                    check(recognized.contains { $0.text.lowercased().contains("pinned") }
+                          && !selectedRow.isEmpty && !selectedRow.contains { periodNames.contains($0.text) },
+                          "\(name): odds shows the pin while timeline replaces its period row with event detail")
                     check(oddsFrame.width == width && timelineFrame.width == width && timelineFrame.minY >= oddsFrame.maxY,
                           "\(name): separate modules keep equal widths without overlapping")
-                    // The earlier 104pt reserved inspector made this module
-                    // 299pt tall with only a short reported play visible. The
-                    // compact line must remove that empty reading area.
-                    check(timelineFrame.height <= 215,
-                          "\(name): timeline stays compact without an oversized reserved inspector")
+                    check(probe.frames["rail"]?.height == 60 && probe.frames["timeline"]?.height == timelineFrame.height,
+                          "\(name): inspection remains inside the 60pt track without a separate footer")
                     var alignments: [[String: Any]] = []
                     for label in Set(fixture.history.periods.map(\.label)) {
-                        let matches = recognized.filter { $0.text == label }
+                        let matches = resting.filter { $0.text == label }
                         guard let top = matches.first(where: { oddsFrame.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) }),
                               let bottom = matches.first(where: { timelineFrame.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) }) else { continue }
                         alignments.append(["label": label, "oddsX": top.rect.midX, "timelineX": bottom.rect.midX,
@@ -246,13 +286,15 @@ private struct RecognizedLine {
                         // Finals must override that remembered preference in
                         // both modules, not only in the probability plot.
                         pointer.window = .recent; pump()
-                        let recent = try snapshot("final-recent-selection")
+                        check(pointer.moment == fixture.selected.t && pointer.pinned,
+                              "\(name): final window normalization preserves the inspected event")
+                        pointer.clear(); pump()
+                        let recent = try snapshot("final-recent-resting")
                         if let firstPeriod = fixture.history.periods.first?.label {
                             check(recent.filter { $0.text == firstPeriod }.count >= 2,
                                   "\(name): final with remembered 10 min selection still shows the first period in both modules")
                         }
-                        check(pointer.moment == fixture.selected.t && pointer.pinned,
-                              "\(name): final window normalization preserves the inspected event")
+                        pointer.pin(fixture.selected.t)
                         pointer.window = .game
 
                         // Sparse / long / corrected plays must not make the
@@ -262,11 +304,11 @@ private struct RecognizedLine {
                         var heights: [CGFloat] = []
                         for variant in variants {
                             pointer.pin(variant.t); pump(0.1)
-                            if let height = probe.frames["timeline"]?.height { heights.append(height) }
+                            if let height = probe.frames["rail"]?.height { heights.append(height) }
                         }
                         check(!heights.isEmpty && (heights.max() ?? 0) - (heights.min() ?? 0) <= 0.5
-                              && (heights.max() ?? .infinity) <= 215,
-                              "\(name): concise inspector keeps controls stable across sparse, long and corrected events")
+                              && heights.allSatisfy { $0 == 60 },
+                              "\(name): sparse, long and corrected event details keep the timeline at 60pt")
                         pointer.pin(fixture.selected.t); pump(0.1)
                     }
 
@@ -291,8 +333,12 @@ private struct RecognizedLine {
                     // final, after testing the injected quote above.
                     feed.preview(market: fixture.market, series: fixture.series, heard: fixture.history.end, connection: .idle)
                     pointer.clear(); pump()
-                    let reset = try snapshot("latest").map(\.text).joined(separator: " ").lowercased()
+                    let resetLines = try snapshot("latest")
+                    let reset = resetLines.map(\.text).joined(separator: " ").lowercased()
                     check(!pointer.active && !pointer.pinned && !reset.contains("pinned"), "\(name): Latest clears inspection in both modules")
+                    check(resetLines.contains { periodNames.contains($0.text)
+                        && railFrame.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) },
+                          "\(name): clearing inspection restores the timeline's period labels")
                     if fixture.name == "nba", scheme == .dark, width == 520 {
                         NativeHoverChecks.run(panel: panel, pointer: pointer, frames: probe.frames,
                                               data: before, history: fixture.history, names: fixture.names, check: check)
@@ -309,9 +355,9 @@ private struct RecognizedLine {
                           "\(name): delayed presentation excludes every future market tick, event and period endpoint")
                     receipts.append(["case": name, "width": width, "periodAlignment": alignments,
                                      "selectedEvent": fixture.selected.id, "selectedTime": fixture.selected.t.timeIntervalSince1970,
-                                     "ocr": text, "oddsFrame": NSStringFromRect(oddsFrame), "timelineFrame": NSStringFromRect(timelineFrame),
-                                     "scope": fixture.sport == .soccer ? "Isolated wall-clock engine; installed soccer uses the original minute-based timeline"
-                                         : "Production odds and timeline modules"])
+                                     "ocr": text, "restingOCR": resting.map(\.text), "oddsFrame": NSStringFromRect(oddsFrame),
+                                     "timelineFrame": NSStringFromRect(timelineFrame), "railFrame": NSStringFromRect(railFrame),
+                                     "scope": "Production odds and timeline modules on a shared wall-clock domain"])
                     panel.orderOut(nil); panel.contentView = nil; feed.stop(); pump(0.05)
                 }
             }
@@ -319,6 +365,7 @@ private struct RecognizedLine {
         if !hoverOnly {
             receipts += try nflRenders(out: out, check: check)
             receipts += try originalSoccerRenders(out: out, check: check)
+            receipts += try additionalRailRenders(out: out, check: check)
         }
         let receipt: [String: Any] = ["passed": passed, "failed": failed, "checks": checks, "renders": receipts,
                                       "ocrRevision": ProcessInfo.processInfo.environment["SCORELINE_OCR_REVISION"] == "2" ? 2 : VNRecognizeTextRequest.defaultRevision,
@@ -336,7 +383,15 @@ private struct RecognizedLine {
     /// inputs; only the core team reference is normalized for the summary parser.
     @MainActor private static func originalSoccerRenders(out: String, check: (Bool, String) -> Void) throws -> [[String: Any]] {
         let captured = JSON(data: try Data(contentsOf: URL(fileURLWithPath: "Tests/Fixtures/competitions/cup-goals.json")))["items"].array
-        let moments = captured.compactMap { play -> GameDetail.Moment? in
+        let untimed = captured.map { play -> JSON in
+            var raw = play.raw as? [String: Any] ?? [:]
+            raw.removeValue(forKey: "wallclock")
+            return JSON(raw)
+        }
+        let missingHistory = MatchHistory.parse(JSON(["keyEvents": untimed.compactMap(\.raw)]), sport: .soccer, topID: "364", bottomID: "363")
+        check(missingHistory.events.isEmpty && missingHistory.missingTimeCount == 2,
+              "untimed soccer: absent wall timestamps retain the original minute fallback instead of fabricated alignment")
+        let moments = untimed.compactMap { play -> GameDetail.Moment? in
             guard var raw = play.raw as? [String: Any], let id = SoccerScene.teamID(play) else { return nil }
             raw["team"] = ["id": id]
             return ESPNDetail.soccerMoment(JSON(raw), side: { $0 == "364" ? .top : $0 == "363" ? .bottom : nil })
@@ -349,7 +404,7 @@ private struct RecognizedLine {
         var receipts: [[String: Any]] = []
         for scheme in [ColorScheme.dark, .light] {
             for width: CGFloat in [350, 520] {
-                let name = "soccer-original-\(scheme)-\(Int(width))"
+                let name = "soccer-untimed-fallback-\(scheme)-\(Int(width))"
                 let linked = LinkedFocus(), probe = HistoryProbe()
                 let layout = PanelLayout.resolve(width: width, from: PanelLayout())
                 let size = CGSize(width: width, height: 190)
@@ -358,7 +413,7 @@ private struct RecognizedLine {
                 panel.alphaValue = 0; panel.isReleasedWhenClosed = false
                 panel.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
                 let palette = TeamPalette(top: "C8102E", bottom: "034694", scheme: scheme)
-                let surface = DetailSection(title: "Timeline", caption: "Goals and cards by minute. LIV above, CHE below.") {
+                let surface = DetailSection(title: "Timeline", caption: "Goals and cards by minute. LIV above, CHE below. Event timestamps unavailable.") {
                     SoccerTimeline(moments: moments, currentMinute: nil, palette: palette, topName: "LIV", bottomName: "CHE")
                         .background(GeometryReader { geometry in
                             Color.clear.preference(key: SectionFrames.self, value: ["rail": geometry.frame(in: .named("soccer-original"))])
@@ -406,10 +461,111 @@ private struct RecognizedLine {
                       "\(name): clearing linked hover restores the minute labels")
                 receipts.append(["case": name, "width": width, "railHeight": initialHeight ?? -1,
                                  "source": "Unmodified SoccerTimeline from release 1.0.30; real Carabao goal fixture 401921842",
-                                 "scope": "Production soccer visual and LinkedFocus model; minute axis is not horizontally aligned with wall-clock odds",
+                                 "mutation": "wallclock removed from both goals to exercise the untimed fallback; original minute and replay inputs retained",
+                                 "scope": "Original component used only when soccer history has no event timestamps; minute axis cannot align with wall-clock odds",
                                  "restingOCR": resting, "focusedOCR": focused, "resetOCR": reset])
                 panel.orderOut(nil); panel.contentView = nil; pump(0.05)
             }
+        }
+        return receipts
+    }
+
+    /// Baseball has a real captured World Series chronology. NBA edge cases
+    /// are explicitly labeled mutations of the existing capture, not alleged
+    /// live data: an empty history and a reported score in an overtime period.
+    @MainActor private static func additionalRailRenders(out: String, check: (Bool, String) -> Void) throws -> [[String: Any]] {
+        let baseball = JSON(data: try Data(contentsOf: URL(fileURLWithPath: "Tests/Fixtures/ws-g5-plays.json")))
+        let mlb = MatchHistory.parse(JSON(["plays": baseball["items"].array.compactMap(\.raw)]), sport: .baseball, topID: "8", bottomID: "30")
+        let nba = try HistoryFixture.load(soccer: false)
+        guard let last = nba.history.keyEvents.last, let end = nba.history.end, let baseballStart = mlb.start else {
+            throw NSError(domain: "OddsHistoryAcceptance", code: 11, userInfo: [NSLocalizedDescriptionKey: "Additional timeline captures are empty"])
+        }
+        var overtime = nba.history
+        overtime.events.append(MatchHistory.Event(id: "acceptance-overtime", t: end + 1200, period: 5, clock: "OT 0:30",
+                                                  text: last.text, side: last.side, kind: .score, score: nil, timing: .reported))
+        overtime.periods.append(OddsPeriod(number: 5, label: "OT", start: end + 120, end: end + 1320))
+        let mlbFixture = RailFixture(name: "mlb", history: mlb, names: ("MIL", "TB"), colors: ("FFC52F", "092C5C"),
+                                    start: baseballStart, source: "Captured World Series Game 5, 401908046", mutation: "None")
+        let empty = RailFixture(name: "nba-empty", history: MatchHistory(sport: .basketball), names: nba.names, colors: nba.colors,
+                                start: nba.start, source: "GSW–MIN capture 401909888", mutation: "All events removed to test honest empty inspection")
+        let ot = RailFixture(name: "nba-overtime", history: overtime, names: nba.names, colors: nba.colors, start: nba.start,
+                             source: "GSW–MIN capture 401909888", mutation: "One existing score text copied to a clearly synthetic overtime event and period")
+        let cases: [(RailFixture, CGFloat, ColorScheme)] = [
+            (mlbFixture, 350, .dark), (mlbFixture, 350, .light), (mlbFixture, 520, .dark), (mlbFixture, 520, .light),
+            (empty, 350, .dark), (ot, 350, .dark)
+        ]
+        check(mlb.keyEvents.contains { $0.side == .top } && mlb.keyEvents.contains { $0.side == .bottom },
+              "MLB: captured scoring plays preserve both teams without invented attribution")
+        var receipts: [[String: Any]] = []
+        for (fixture, width, scheme) in cases {
+            let name = "\(fixture.name)-\(scheme)-\(Int(width))", history = fixture.history
+            let domain = history.events.isEmpty ? nba.start...(nba.start + 7200)
+                : history.domain(state: .final, window: .game, eventStart: fixture.start)
+            let pointer = OddsPointer(), probe = HistoryProbe()
+            let size = CGSize(width: width, height: 190), labelWidth = OddsStyle.labelWidth([fixture.names.top, fixture.names.bottom])
+            let panel = HistoryPanel(contentRect: NSRect(origin: CGPoint(x: -4000, y: 100), size: size),
+                                     styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            panel.alphaValue = 0; panel.isReleasedWhenClosed = false
+            panel.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
+            let palette = TeamPalette(top: fixture.colors.top, bottom: fixture.colors.bottom, scheme: scheme)
+            let layout = PanelLayout.resolve(width: width, from: PanelLayout())
+            let surface = DetailSection(title: "Timeline", caption: fixture.mutation == "None" ? "Scoring plays by inning." : "Acceptance edge case · \(fixture.name)") {
+                MatchTimeline(history: history, domain: domain, names: fixture.names, palette: palette,
+                              pointer: pointer, labelWidth: labelWidth, final: true)
+                    .background(GeometryReader { geometry in
+                        Color.clear.preference(key: SectionFrames.self, value: ["rail": geometry.frame(in: .named("additional-rail"))])
+                    })
+            }
+            .onPreferenceChange(SectionFrames.self) { probe.frames = $0 }
+            .padding(.vertical, 16).coordinateSpace(name: "additional-rail")
+            .environment(\.panelLayout, layout).environment(\.widthClass, layout.page)
+            .environment(\.colorScheme, scheme).environment(\.glassStandIn, true).environment(\.pageLive, false)
+            .environment(\.locale, Locale(identifier: "en_US"))
+            .frame(width: width, height: size.height, alignment: .topLeading)
+            .background(scheme == .dark ? Color(white: 0.12) : .white)
+            panel.contentView = NSHostingView(rootView: surface)
+            panel.orderFrontRegardless(); pump()
+            func snapshot(_ state: String) throws -> [RecognizedLine] {
+                guard let view = panel.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+                    throw NSError(domain: "OddsHistoryAcceptance", code: 12, userInfo: [NSLocalizedDescriptionKey: "Additional timeline did not render"])
+                }
+                view.cacheDisplay(in: view.bounds, to: bitmap)
+                guard let image = bitmap.cgImage, let png = bitmap.representation(using: .png, properties: [:]) else {
+                    throw NSError(domain: "OddsHistoryAcceptance", code: 13, userInfo: [NSLocalizedDescriptionKey: "Additional timeline has no pixels"])
+                }
+                try png.write(to: URL(fileURLWithPath: "\(out)/\(name)-\(state).png"))
+                return words(image, size: size)
+            }
+            let resting = try snapshot("resting"), rail = probe.frames["rail"] ?? .zero
+            check(rail.height == 60, "\(name): the timeline retains the original soccer height")
+            check(leftTeams(resting, names: fixture.names, rail: rail), "\(name): both neutral team labels occupy the left gutter")
+            if fixture.name == "nba-overtime" {
+                check(resting.contains { $0.text == "OT" && rail.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) },
+                      "\(name): the extra period stays visible in the compact bottom row")
+            }
+            let selection = history.keyEvents.last?.t ?? domain.lowerBound + 600
+            pointer.pin(selection); pump()
+            let pinned = try snapshot("pinned")
+            let row = pinned.filter { rail.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) && $0.rect.midY > rail.minY + 45 }
+            check(!row.isEmpty && pointer.pinned && pointer.moment == selection && probe.frames["rail"]?.height == 60,
+                  "\(name): pinning shows one detail row without changing track height")
+            if history.events.isEmpty {
+                check(row.map(\.text).joined(separator: " ").localizedCaseInsensitiveContains("unavailable"),
+                      "\(name): missing history is stated explicitly instead of fabricating a play")
+            }
+            pointer.clear(); pump()
+            let reset = try snapshot("reset")
+            let geometry = OddsLayout(size: CGSize(width: rail.width - 16, height: MatchTimelineStyle.height),
+                                      plotHeight: MatchTimelineStyle.plotHeight, domain: domain, labelWidth: labelWidth)
+            let axis = history.periods.isEmpty ? OddsPlot.hourLabels(geometry) : OddsPlot.periodLabels(history.periods, layout: geometry)
+            let labels = Set(axis.map(\.label))
+            check(!pointer.active && probe.frames["rail"]?.height == 60 && reset.contains { labels.contains($0.text)
+                && rail.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) },
+                  "\(name): clearing restores clock or period labels in the same row")
+            receipts.append(["case": name, "railFrame": NSStringFromRect(rail), "restingOCR": resting.map(\.text),
+                             "pinnedOCR": pinned.map(\.text), "source": fixture.source, "mutation": fixture.mutation,
+                             "scope": "Production timeline-only render; no market prices invented"])
+            panel.orderOut(nil); panel.contentView = nil; pump(0.05)
         }
         return receipts
     }
@@ -443,8 +599,8 @@ private struct RecognizedLine {
                     let domain = shown.domain(state: .final, window: .game, eventStart: start)
                     let pointer = OddsPointer(), probe = HistoryProbe()
                     let labelWidth = OddsStyle.labelWidth(["LV", "NYJ"])
-                    let plotSize = CGSize(width: width - 2 * (Metrics.gutter + 8), height: 69)
-                    let railLayout = OddsLayout(size: plotSize, plotHeight: 54, domain: domain, labelWidth: labelWidth)
+                    let plotSize = CGSize(width: width - 2 * (Metrics.gutter + 8), height: MatchTimelineStyle.height)
+                    let railLayout = OddsLayout(size: plotSize, plotHeight: MatchTimelineStyle.plotHeight, domain: domain, labelWidth: labelWidth)
                     let oddsLayout = OddsLayout(size: plotSize, plotHeight: 150, domain: domain, labelWidth: labelWidth)
                     let marks = MatchTimelineRail.marks(events: shown.keyEvents, layout: railLayout)
                     check(shown.keyEvents.allSatisfy { railLayout.x($0.t) == oddsLayout.x($0.t) },
@@ -467,6 +623,9 @@ private struct RecognizedLine {
                     let surface = DetailSection(title: "Timeline", caption: "Scoring events · Las Vegas at New York") {
                         MatchTimeline(history: shown, domain: domain, names: ("LV", "NYJ"), palette: palette,
                                       pointer: pointer, labelWidth: labelWidth, final: true)
+                            .background(GeometryReader { geometry in
+                                Color.clear.preference(key: SectionFrames.self, value: ["rail": geometry.frame(in: .named("nfl-acceptance"))])
+                            })
                     }
                     .background(GeometryReader { geometry in
                         Color.clear.preference(key: SectionFrames.self, value: ["timeline": geometry.frame(in: .named("nfl-acceptance"))])
@@ -480,31 +639,41 @@ private struct RecognizedLine {
                     .frame(width: width, height: size.height, alignment: .topLeading)
                     .background(scheme == .dark ? Color(white: 0.12) : .white)
                     panel.contentView = NSHostingView(rootView: surface)
-                    panel.orderFrontRegardless(); pointer.pin(top.t); pump()
+                    panel.orderFrontRegardless(); pump()
                     let frame = probe.frames["timeline"] ?? .zero
-                    check(frame.height > 0 && frame.height <= 193, "\(name): one football rail and concise inspector remain compact")
-                    guard let view = panel.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
-                        throw NSError(domain: "OddsHistoryAcceptance", code: 6, userInfo: [NSLocalizedDescriptionKey: "NFL surface did not render"])
+                    let railFrame = probe.frames["rail"] ?? .zero
+                    check(railFrame.height == 60, "\(name): football uses the same 60pt timeline height as soccer")
+                    func snapshot(_ state: String) throws -> [RecognizedLine] {
+                        guard let view = panel.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+                            throw NSError(domain: "OddsHistoryAcceptance", code: 6, userInfo: [NSLocalizedDescriptionKey: "NFL surface did not render"])
+                        }
+                        view.cacheDisplay(in: view.bounds, to: bitmap)
+                        guard let image = bitmap.cgImage, let png = bitmap.representation(using: .png, properties: [:]) else {
+                            throw NSError(domain: "OddsHistoryAcceptance", code: 7, userInfo: [NSLocalizedDescriptionKey: "NFL surface has no pixels"])
+                        }
+                        try png.write(to: URL(fileURLWithPath: "\(out)/\(name)-\(state).png"))
+                        return words(image, size: size)
                     }
-                    view.cacheDisplay(in: view.bounds, to: bitmap)
-                    guard let image = bitmap.cgImage, let png = bitmap.representation(using: .png, properties: [:]) else {
-                        throw NSError(domain: "OddsHistoryAcceptance", code: 7, userInfo: [NSLocalizedDescriptionKey: "NFL surface has no pixels"])
-                    }
-                    try png.write(to: URL(fileURLWithPath: "\(out)/\(name).png"))
-                    let recognized = words(image, size: size), text = recognized.map(\.text).joined(separator: " ")
-                    check(text.contains("LV") && text.contains("NYJ") && text.lowercased().contains("pinned"),
-                          "\(name): both team identities and the pin control remain readable")
+                    let resting = try snapshot("resting")
+                    check(leftTeams(resting, names: ("LV", "NYJ"), rail: railFrame),
+                          "\(name): football identities are on the left in the same order as soccer")
+                    pointer.pin(top.t); pump()
+                    let recognized = try snapshot("pinned"), text = recognized.map(\.text).joined(separator: " ")
+                    let row = recognized.filter { railFrame.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) && $0.rect.midY > railFrame.minY + 45 }
+                    check(leftTeams(recognized, names: ("LV", "NYJ"), rail: railFrame) && !row.isEmpty && pointer.pinned,
+                          "\(name): both team identities remain readable while the bottom row shows the selected play")
                     var heights: [CGFloat] = []
                     for event in [top, bottom, shown.events.max(by: { $0.text.count < $1.text.count })].compactMap({ $0 }) {
                         pointer.pin(event.t); pump(0.05)
-                        if let height = probe.frames["timeline"]?.height { heights.append(height) }
+                        if let height = probe.frames["rail"]?.height { heights.append(height) }
                     }
-                    check(!heights.isEmpty && (heights.max() ?? 0) - (heights.min() ?? 0) <= 0.5,
-                          "\(name): long plays and opposing scores do not move the navigation controls")
+                    check(!heights.isEmpty && heights.allSatisfy { $0 == 60 },
+                          "\(name): long plays and opposing scores stay inside the same 60pt track")
                     receipts.append(["case": name, "width": width, "timelineFrame": NSStringFromRect(frame), "ocr": text,
                                      "source": "ESPN 401873029; timeline-only render, no captured market exists for this fixture",
                                      "mutation": variant == "same-time" ? "Second team's first score moved to first team's score time for collision coverage" : "None",
-                                     "scoreCount": shown.keyEvents.count, "markerCount": marks.count])
+                                     "scoreCount": shown.keyEvents.count, "markerCount": marks.count,
+                                     "railFrame": NSStringFromRect(railFrame), "restingOCR": resting.map(\.text)])
                     panel.orderOut(nil); panel.contentView = nil; pump(0.05)
                 }
             }

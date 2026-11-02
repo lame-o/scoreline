@@ -11,6 +11,7 @@ struct MatchTimelineSection: View {
     let palette: TeamPalette
     let pointer: OddsPointer
     var presentation: PresentationClock? = nil
+    @Environment(LinkedFocus.self) private var linked: LinkedFocus?
 
     var body: some View {
         Group {
@@ -35,5 +36,10 @@ struct MatchTimelineSection: View {
         let lineNames = [names.top, names.bottom] + (feed.market?.threeWay == true ? ["Draw"] : [])
         return MatchTimeline(history: shown, domain: domain, names: names, palette: palette, pointer: pointer,
                              labelWidth: OddsStyle.labelWidth(lineNames), final: event.state == .final)
+            .background {
+                if shown.sport == .soccer, let linked {
+                    MatchFocusLink(history: shown, domain: domain, pointer: pointer, linked: linked)
+                }
+            }
     }
 }
