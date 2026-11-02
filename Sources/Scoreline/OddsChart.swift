@@ -141,6 +141,13 @@ struct OddsChartData: Equatable {
         return found.map { points[$0] }
     }
 
+    /// Only Latest and the exact end of a finished game may display 0/100.
+    /// An earlier inspected quote keeps its in-game cap even after the game
+    /// finishes. This changes rounding, never the observed price or its time.
+    func usesFinalPercentages(at moment: Date?) -> Bool {
+        final && (moment == nil || moment == domain.upperBound)
+    }
+
     /// The time shown (pure; tested). Live: from the first play (or the
     /// scheduled start) to the newest point; final: to the last play; before
     /// the game: the market's last day. The 10 min window slides with the newest point.
@@ -766,7 +773,8 @@ struct OddsHeader: View {
 
     private func content(_ reading: OddsReading?) -> some View {
         let split = reading == nil ? latest : reading?.split
-        let percents = split?.percents(final: state == .final && reading == nil)
+        let finalPercentages = data?.usesFinalPercentages(at: reading?.t) ?? (state == .final && reading == nil)
+        let percents = split?.percents(final: finalPercentages)
         return VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .firstTextBaseline, spacing: 14) {
                 // Rolling to a new value; pointing, the minute's values just appear.
@@ -850,7 +858,10 @@ struct OddsHeader: View {
     private func pointed(_ reading: OddsReading) -> String {
         guard let sampleTime = reading.sampleTime else { return "No market sample at this time" }
         let sample = "Chart sample " + sampleTime.formatted(.dateTime.hour().minute().second())
-        if let espn = reading.espn { return sample + " · ESPN \(OddsSeries.percent(espn))% for \(names.top)" }
+        if let espn = reading.espn {
+            let finalPercentages = data?.usesFinalPercentages(at: reading.t) ?? false
+            return sample + " · ESPN \(OddsSeries.percent(espn, final: finalPercentages))% for \(names.top)"
+        }
         return sample
     }
 
@@ -1451,7 +1462,7 @@ private struct OddsScrubAccessibility: ViewModifier {
         guard let sample = data.observedPoint(at: moment) else {
             return "\(state), \(time). No market sample at or before this time."
         }
-        let percentages = sample.split.percents(final: data.final)
+        let percentages = sample.split.percents(final: data.usesFinalPercentages(at: pointer.moment))
         let values = lines.map { "\($0.name), \(percentages[$0.outcome] ?? 0) percent" }.joined(separator: ". ")
         let sampleTime = sample.t.formatted(.dateTime.hour().minute().second())
         return "\(state), \(time). \(values). Market sample, \(sampleTime)."

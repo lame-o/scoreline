@@ -29,6 +29,42 @@ extension ScorelineTests {
         check(between?.sampleTime == sample.t && between?.t == start + 79,
               "the readout distinguishes chart sample time from selected game time")
         check(between?.when(now: start).hasPrefix("After Q1 10:00") == true, "a stopped or unknown game clock is explicitly the last reported context")
+
+        // One recorded quote is inspected before and at the final whistle.
+        // Header, source line and AX must use the same rounding policy without
+        // moving that quote to the whistle or inventing a settled market price.
+        let nearCertain = OddsSplitPoint(t: start + 90, split: OddsSplit(top: 0.998, draw: nil, bottom: 0.002))
+        var finished = OddsChartData(revision: 2, threeWay: false, points: [nearCertain],
+                                     espn: [OddsPoint(t: nearCertain.t, p: 0.998)],
+                                     domain: start...(start + 100), live: false, final: true)
+        baseline.start = start
+        let historical = OddsReading.at(start + 99, data: finished, baseline: baseline)!
+        let endpoint = OddsReading.at(start + 100, data: finished, baseline: baseline)!
+        let historicalFinal = finished.usesFinalPercentages(at: historical.t)
+        let endpointFinal = finished.usesFinalPercentages(at: endpoint.t)
+        check(!historicalFinal && endpointFinal && finished.usesFinalPercentages(at: nil),
+              "only Latest and the exact final endpoint allow final percentages")
+        check(historical.split?.percents(final: historicalFinal) == [.top: 99, .bottom: 1],
+              "historical header and AX retain in-game caps after the event finishes")
+        check(endpoint.split?.percents(final: endpointFinal) == nearCertain.split.percents(final: finished.usesFinalPercentages(at: nil))
+              && endpoint.split?.percents(final: endpointFinal) == [.top: 100, .bottom: 0],
+              "inspecting the exact final endpoint matches Latest market percentages")
+        check(OddsSeries.percent(historical.espn!, final: historicalFinal) == 99
+              && OddsSeries.percent(endpoint.espn!, final: endpointFinal) == 100,
+              "ESPN source-line rounding follows the same historical and final policy")
+        check(historical.split == nearCertain.split && endpoint.split == nearCertain.split
+              && historical.sampleTime == nearCertain.t && endpoint.sampleTime == nearCertain.t
+              && finished.points == [nearCertain],
+              "final presentation preserves the observed market price and its original sample time")
+        check(OddsSplit(top: 0.6, draw: nil, bottom: 0.4).percents(final: endpointFinal) == [.top: 60, .bottom: 40],
+              "final formatting never fabricates a resolved winner from an unsettled quote")
+        let threeWay = OddsSplit(top: 0.998, draw: 0.001, bottom: 0.001)
+        check(threeWay.percents(final: historicalFinal) == [.top: 98, .draw: 1, .bottom: 1]
+              && threeWay.percents(final: endpointFinal) == [.top: 100, .draw: 0, .bottom: 0],
+              "three-way history and final readings share the same percentage policy")
+        finished.final = false
+        check(!finished.usesFinalPercentages(at: nil) && !finished.usesFinalPercentages(at: finished.domain.upperBound),
+              "a live chart endpoint never enables final percentages")
         for sport in [Sport.soccer, .football, .basketball, .baseball] {
             let ref = EventRef.espn(path: sport == .basketball ? NBADetail.path : "test", id: "1", sport: sport)
             for state in [EventState.live, .final] {
