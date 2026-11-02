@@ -7,6 +7,8 @@ import SwiftUI
 
 /// Competition data for the offline suite, from the recorded season files.
 enum CompetitionRoutes {
+    /// Only while the pages are clicked: the rest of the suite replays its own recordings.
+    nonisolated(unsafe) static var enabled = false
     private static let seasons: [String: [Int: String]] = [
         "eng.league_cup": [2026: "carabao-2026", 2025: "carabao-2025"],
         "eng.fa": [2026: "fa-cup-2026", 2025: "fa-cup-2025"],
@@ -29,7 +31,7 @@ enum CompetitionRoutes {
 
     static func response(for url: URL) -> Data? {
         let path = url.path()
-        guard let slug = seasons.keys.first(where: { path.contains("/soccer/\($0)/") || path.contains("/leagues/\($0)/") }) else {
+        guard enabled, let slug = seasons.keys.first(where: { path.contains("/soccer/\($0)/") || path.contains("/leagues/\($0)/") }) else {
             return nil
         }
         let years = seasons[slug] ?? [:]
@@ -80,8 +82,9 @@ final class OffscreenPage {
         window.contentView = nil
     }
 
+    /// The suite runs without an app run loop: SwiftUI only updates, and a page's tasks only run, while this turns one.
     func settle(_ seconds: Double = 0.25) async {
-        try? await Task.sleep(for: .seconds(seconds))
+        RunLoop.main.run(until: Date().addingTimeInterval(seconds))
     }
 
     // MARK: Reading
@@ -125,7 +128,7 @@ final class OffscreenPage {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if has(label) { return true }
-            try? await Task.sleep(for: .milliseconds(50))
+            await settle(0.05)
         }
         return false
     }
@@ -159,7 +162,7 @@ final class OffscreenPage {
         // picker) tracks the press in a loop that reads it from there.
         NSApp.postEvent(up, atStart: false)
         window.sendEvent(down)
-        try? await Task.sleep(for: .milliseconds(30))
+        await settle(0.03)
         if let release = NSApp.nextEvent(matching: .leftMouseUp, until: .distantPast, inMode: .default, dequeue: true) {
             window.sendEvent(release)
         }
@@ -201,6 +204,8 @@ extension ScorelineTests {
 
     static func competitionInteractions() async {
         print("\nCompetition pages, clicked")
+        CompetitionRoutes.enabled = true
+        defer { CompetitionRoutes.enabled = false }
         await competitionPageClicks()
         await sportsClicks()
         await leagueClicks()

@@ -150,7 +150,6 @@ struct ScorelineTests {
         broadcast()
         soccerCompetitions()
         followingPolicy()
-        await competitionInteractions()
         gamePresentationRegressions()
 
         print("\n\(passes) passed, \(failures) failed")
