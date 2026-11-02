@@ -3,7 +3,8 @@ import Observation
 
 /// Window-local input only: no CGEvent posting, system automation, or changes
 /// to the user's mouse. The window supplies the location that its responders
-/// read between events, allowing a real stationary-hover regression offscreen.
+/// read between events. Offscreen hover coverage remains an explicit failed
+/// assertion if AppKit does not establish its WindowServer tracking phase.
 private final class HoverCheckWindow: NSWindow {
     var testLocation = NSPoint(x: -100, y: -100)
     override var canBecomeKey: Bool { true }
@@ -60,10 +61,16 @@ private final class HoverWatchdog: @unchecked Sendable {
                     check: (Bool, String) -> Void) {
         guard let content = panel.contentView else { check(false, "native hover: missing fixture view"); return }
         let previousPolicy = NSApplication.shared.activationPolicy()
+        let dispatch = ProcessInfo.processInfo.environment["SCORELINE_HOVER_DISPATCH"] ?? "queue"
         // A prohibited app with an alpha-zero window can be absent from the
         // accessibility tree. Keep this fixture offscreen, but expose its real
         // native controls just as an ordinary accessory app does.
         NSApplication.shared.setActivationPolicy(.accessory)
+        // This command-line fixture pumps RunLoop directly instead of calling
+        // NSApplication.run(). Complete AppKit's one-time launch lifecycle so
+        // its native accessibility bridge and key-window machinery exist.
+        NSApplication.shared.finishLaunching()
+        NSApplication.shared.activate()
         let window = HoverCheckWindow(contentRect: panel.frame, styleMask: [.borderless], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.alphaValue = 1
@@ -86,23 +93,35 @@ private final class HoverWatchdog: @unchecked Sendable {
             let until = ProcessInfo.processInfo.systemUptime + duration
             while ProcessInfo.processInfo.systemUptime < until {
                 watchdog.beat()
+                if dispatch == "queue" {
+                    while let event = NSApp.nextEvent(matching: .any, until: Date(), inMode: .default, dequeue: true) {
+                        NSApp.sendEvent(event)
+                    }
+                }
                 _ = RunLoop.main.run(mode: .default, before: Date(timeIntervalSinceNow: 0.01))
             }
             watchdog.beat()
+        }
+        func deliver(_ event: NSEvent) {
+            switch dispatch {
+            case "window": window.sendEvent(event)
+            case "queue": NSApp.postEvent(event, atStart: false)
+            default: NSApp.sendEvent(event)
+            }
         }
         func send(_ type: NSEvent.EventType, at point: NSPoint) {
             window.testLocation = point
             guard let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
                                                 timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
                                                 context: nil, eventNumber: 1, clickCount: type == .mouseMoved ? 0 : 1, pressure: 0) else { return }
-            window.sendEvent(event)
+            deliver(event)
         }
         func key(_ code: UInt16, _ characters: String) {
             guard let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
                                               timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
                                               context: nil, characters: characters, charactersIgnoringModifiers: characters,
                                               isARepeat: false, keyCode: code) else { return }
-            window.sendEvent(event)
+            deliver(event)
         }
         // SwiftUI's virtual nodes can expose the legacy attribute interface
         // while NSView uses modern accessors. Traverse both; KVC-only discovery
@@ -114,23 +133,25 @@ private final class HoverWatchdog: @unchecked Sendable {
             return object.perform(selector, with: legacy)?.takeUnretainedValue()
         }
         var inspectedLabels: [String] = []
+        var inspectedNodes: [String] = []
         func element(_ prefix: String) -> NSObject? {
             var queue: [NSObject] = [window, content]
             var seen: Set<ObjectIdentifier> = []
             inspectedLabels = []
+            inspectedNodes = []
             while !queue.isEmpty, seen.count < 2000 {
                 let next = queue.removeFirst()
                 guard seen.insert(ObjectIdentifier(next)).inserted else { continue }
                 let labels = [attribute(next, modern: "accessibilityLabel", legacy: "AXDescription"),
                               attribute(next, modern: "accessibilityTitle", legacy: "AXTitle")]
                     .compactMap { $0 as? String }.filter { !$0.isEmpty }
+                let children = attribute(next, modern: "accessibilityChildren", legacy: "AXChildren") as? [NSObject] ?? []
+                inspectedNodes.append("\(type(of: next)): children=\(children.count), labels=\(labels)")
                 for label in labels {
                     inspectedLabels.append(label)
                     if label.hasPrefix(prefix) { return next }
                 }
-                if let children = attribute(next, modern: "accessibilityChildren", legacy: "AXChildren") as? [NSObject] {
-                    queue.append(contentsOf: children)
-                }
+                queue.append(contentsOf: children)
                 if let view = next as? NSView { queue.append(contentsOf: view.subviews) }
             }
             return nil
@@ -156,6 +177,14 @@ private final class HoverWatchdog: @unchecked Sendable {
             guard let target = element("Inspect win probability") else { return "" }
             return attribute(target, modern: "accessibilityValue", legacy: "AXValue") as? String ?? ""
         }
+        func press(_ prefix: String) -> Bool {
+            guard let target = element(prefix) else { return false }
+            if let button = target as? NSAccessibilityButton { return button.accessibilityPerformPress() }
+            let selector = NSSelectorFromString("accessibilityPerformAction:")
+            guard target.responds(to: selector) else { return false }
+            _ = target.perform(selector, with: NSAccessibility.Action.press.rawValue)
+            return true
+        }
         pointer.clear()
         pump(0.15)
         // Moving a hosted view between fixture windows rebuilds its native AX
@@ -166,7 +195,7 @@ private final class HoverWatchdog: @unchecked Sendable {
             pump(0.05)
         }
         guard let oddsFrame = frame("Inspect win probability"), let timelineFrame = frame("Match timeline,") else {
-            print("Native hover AX discovery: visible=\(window.isVisible), alpha=\(window.alphaValue), key=\(window.isKeyWindow), labels=\(inspectedLabels.prefix(30))")
+            print("Native hover AX discovery: visible=\(window.isVisible), alpha=\(window.alphaValue), key=\(window.isKeyWindow), active=\(NSApp.isActive), labels=\(inspectedLabels.prefix(30)), nodes=\(inspectedNodes.prefix(30))")
             check(false, "native hover: both real inspection controls expose their frames")
             return
         }
@@ -187,39 +216,96 @@ private final class HoverWatchdog: @unchecked Sendable {
         }
         let timelineLocation = MatchTimelineGeometry.point(target, layout: timelineLayout)
         let timelinePoint = windowPoint(timelineLocation, in: timelineFrame)
+        print("Native input geometry: dispatch=\(dispatch), window=\(window.frame), key=\(window.isKeyWindow), active=\(NSApp.isActive), oddsAX=\(oddsFrame), timelineAX=\(timelineFrame), oddsWindow=\(oddsPoint), timelineWindow=\(timelinePoint)")
+        func diagnose(_ step: String, expected: Date?) {
+            print("Native input \(step): expected=\(expected?.timeIntervalSince1970.description ?? "nil"), actual=\(pointer.moment?.timeIntervalSince1970.description ?? "nil"), active=\(pointer.active), pinned=\(pointer.pinned), key=\(window.isKeyWindow), responder=\(String(describing: window.firstResponder)), AX=\(reading())")
+            fflush(stdout)
+        }
         check(frames["odds"] != nil && frames["timeline"] != nil, "native hover: production modules are mounted")
+
+        // A click may arrive without a preceding move (for example a freshly
+        // presented panel). Its event location must determine the held time.
+        // Do not seed hovered state first: that would hide a latest-time bug.
+        send(.leftMouseDown, at: oddsPoint); send(.leftMouseUp, at: oddsPoint)
+        pump(0.1)
+        diagnose("direct odds click", expected: expectedOdds)
+        check(pointer.pinned && pointer.moment == expectedOdds,
+              "native odds click without prior movement pins the exact clicked timestamp")
+        key(53, "\u{1B}"); pump(0.1)
+        send(.mouseMoved, at: NSPoint(x: -100, y: -100)); pump(0.1)
+        send(.leftMouseDown, at: timelinePoint); send(.leftMouseUp, at: timelinePoint)
+        pump(0.1)
+        diagnose("direct timeline click", expected: target.t)
+        check(pointer.pinned && pointer.moment == target.t,
+              "native timeline click without prior movement pins the exact reported event")
+        send(.leftMouseDown, at: oddsPoint); send(.leftMouseUp, at: oddsPoint)
+        pump(0.1)
+        check(pointer.pinned && pointer.moment == expectedOdds,
+              "native odds click replaces an existing held timeline reading")
+        send(.leftMouseDown, at: timelinePoint); send(.leftMouseUp, at: timelinePoint)
+        pump(0.1)
+        check(pointer.pinned && pointer.moment == target.t,
+              "native timeline click replaces an existing held odds reading")
+        key(53, "\u{1B}"); pump(0.1)
+        send(.mouseMoved, at: NSPoint(x: -100, y: -100)); pump(0.1)
         send(.mouseMoved, at: oddsPoint)
         pump(0.2)
         let oddsMoment = pointer.moment, initialChanges = changes.count
+        diagnose("odds move", expected: expectedOdds)
         check(oddsMoment == expectedOdds && pointer.active && !pointer.pinned, "native mouse event inspects the exact odds timestamp at forty percent")
         pump(1)
-        check(pointer.moment == oddsMoment && changes.count - initialChanges <= 2,
+        check(pointer.active && oddsMoment == expectedOdds && pointer.moment == oddsMoment && changes.count - initialChanges <= 2,
               "stationary native odds hover stays responsive without reading oscillation")
         check(reading().contains("Inspecting") && reading().contains("Market sample"),
               "native odds accessibility value announces the hovered sample")
+        let pressedOdds = press("Inspect win probability")
+        pump(0.1)
+        check(pressedOdds && pointer.pinned && pointer.moment == expectedOdds,
+              "native odds accessibility press holds the currently inspected time")
+        key(53, "\u{1B}"); pump(0.1)
 
         send(.mouseMoved, at: timelinePoint)
         pump(0.2)
         let timelineMoment = pointer.moment, timelineChanges = changes.count
+        diagnose("timeline move", expected: target.t)
         check(timelineMoment == target.t && timelineMoment != oddsMoment && pointer.active,
               "native mouse crossing selects the distinct reported timeline event")
         pump(1)
-        check(pointer.moment == timelineMoment && changes.count - timelineChanges <= 2,
+        check(pointer.active && timelineMoment == target.t && pointer.moment == timelineMoment && changes.count - timelineChanges <= 2,
               "stationary native timeline hover stays responsive without reading oscillation")
+        let pressedTimeline = press("Match timeline,")
+        pump(0.1)
+        check(pressedTimeline && pointer.pinned && pointer.moment == target.t,
+              "native timeline accessibility press holds the currently inspected event")
+        key(53, "\u{1B}"); pump(0.1)
 
         send(.mouseMoved, at: oddsPoint)
         pump(0.1)
         send(.leftMouseDown, at: oddsPoint); send(.leftMouseUp, at: oddsPoint)
         pump(0.1)
         let pinned = pointer.moment
-        check(pointer.pinned && pinned != nil, "native click pins the odds reading and acquires edit focus")
+        check(pointer.pinned && pinned == expectedOdds, "native click pins the exact odds reading and acquires edit focus")
         key(124, "\u{F703}"); pump(0.1)
+        diagnose("odds right arrow", expected: pinned.map { min($0 + 15, data.domain.upperBound) })
         check(pointer.pinned && pinned.map { pointer.moment == $0 + 15 } == true,
               "native right arrow advances the clicked odds control fifteen seconds")
+        key(123, "\u{F702}"); pump(0.1)
+        check(pointer.pinned && pointer.moment == expectedOdds,
+              "native left arrow returns exactly fifteen seconds to the clicked time")
         check(reading().contains("Held"), "native odds accessibility value preserves the pinned announcement")
         key(53, "\u{1B}"); pump(0.1)
         check(!pointer.pinned && !pointer.active, "native Escape clears inspection")
         send(.mouseMoved, at: NSPoint(x: -100, y: -100)); pump(0.2)
         check(!pointer.active, "native mouse exit leaves both modules at latest")
+        let activateOdds = press("Inspect win probability")
+        pump(0.1)
+        check(activateOdds && pointer.pinned && pointer.moment == data.domain.upperBound,
+              "native odds accessibility press activates the latest reading without pointer coordinates")
+        key(53, "\u{1B}"); pump(0.1)
+        let activateTimeline = press("Match timeline,")
+        pump(0.1)
+        check(activateTimeline && pointer.pinned && pointer.moment == data.domain.upperBound,
+              "native timeline accessibility press activates the latest reading without pointer coordinates")
+        key(53, "\u{1B}"); pump(0.1)
     }
 }

@@ -147,6 +147,7 @@ private struct RecognizedLine {
     @MainActor static func main() throws {
         HTTP.stubProtocol = HistoryOffline.self
         NSApplication.shared.setActivationPolicy(.prohibited)
+        let hoverOnly = ProcessInfo.processInfo.environment["SCORELINE_HOVER_ONLY"] == "1"
         let out = "build/odds-history-acceptance"
         try FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
         var passed = 0, failed = 0
@@ -154,12 +155,14 @@ private struct RecognizedLine {
         var checks: [[String: Any]] = []
         func check(_ ok: Bool, _ name: String) {
             print("\(ok ? "PASS" : "FAIL") \(name)")
+            fflush(stdout)
             checks.append(["name": name, "passed": ok])
             if ok { passed += 1 } else { failed += 1 }
         }
         for fixture in try [HistoryFixture.load(soccer: false), HistoryFixture.load(soccer: true)] {
             for scheme in [ColorScheme.dark, .light] {
                 for width: CGFloat in [350, 400, 520] {
+                    if hoverOnly && !(fixture.name == "nba" && scheme == .dark && width == 520) { continue }
                     let name = "\(fixture.name)-\(scheme)-\(Int(width))"
                     let suite = "scoreline.odds-history-check.\(UUID().uuidString)"
                     let defaults = UserDefaults(suiteName: suite)!
@@ -297,12 +300,13 @@ private struct RecognizedLine {
                 }
             }
         }
-        receipts += try nflRenders(out: out, check: check)
+        if !hoverOnly { receipts += try nflRenders(out: out, check: check) }
         let receipt: [String: Any] = ["passed": passed, "failed": failed, "checks": checks, "renders": receipts,
                                       "network": "HTTP blocked; pageLive false prevents market tracking",
                                       "timezone": "System-local display; event timestamps are Unix seconds"]
+        let resultName = hoverOnly ? "hover-result-\(ProcessInfo.processInfo.environment["SCORELINE_HOVER_DISPATCH"] ?? "queue").json" : "result.json"
         try JSONSerialization.data(withJSONObject: receipt, options: [.prettyPrinted, .sortedKeys])
-            .write(to: URL(fileURLWithPath: "\(out)/result.json"))
+            .write(to: URL(fileURLWithPath: "\(out)/\(resultName)"))
         print("\n\(passed) passed, \(failed) failed")
         exit(failed == 0 ? 0 : 1)
     }
