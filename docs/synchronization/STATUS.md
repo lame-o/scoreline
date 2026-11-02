@@ -1,10 +1,12 @@
 # Broadcast and choreography integration
 
-Verified November 1, 2026. The universal **Scoreline 1.0.30 (32)** app is installed and verified locally. It includes the 1.0.29 integration and the [presentation follow-up](../presentation/2026-11-01.md) for halftime state, nonrepeating break animations, frame cadence, and team colors. The integration completes the interrupted **BROADCAST Phase A + CHOREOGRAPHY Phase 0 integration**, together with competition discovery, following and the Carabao replay/bracket correction. Later sport grammar, renderer and web phases remain separate work.
+Updated November 1, 2026. **Scoreline 1.0.31 (33) remains unpublished.** The installed Apple silicon app is the earlier `7a5cb25` candidate, binary SHA-256 prefix `e7066acfe7c7`; its direct-click, repinning, Escape and external odds accessibility checks passed. It does not yet contain the final-reading and result-hold corrections now awaiting a replacement build and shared validation. See [the current odds/history handoff](../odds-history/2026-11-01.md).
 
-Current release: https://github.com/lame-o/scoreline/releases/tag/v1.0.30
+The pending source fixes are `74524cc` for matching final market/ESPN/accessibility percentages, `74ea083` for exact fractional inspection endpoints, and `a7a0a9f` / `898b8e2` for football result holds and exact clock boundaries. The pre-correction probe measured authored 0.700-second pauses stretched to 1.200 seconds after a rush tackle, 1.574 after a completion and 0.970 after a touchdown. The correction keeps the settled hold separate from reset travel while retaining contact/flight opt-outs. Its new physics and boundary regressions have not yet completed the shared test batch. Brief late-touchdown callback gaps and hover-only acceptance remain unverified; this is not a claim that all animation issues are fixed.
 
-The integration measurements below describe 1.0.29. The follow-up has 3,035 passing native checks, 12 passing page checks, repeated NFL/NBA recordings, and frame-cost evidence in `../presentation/`. Later phases remain open as listed below.
+Published baseline: [Scoreline 1.0.30](https://github.com/lame-o/scoreline/releases/tag/v1.0.30), universal build 32, previously installed and verified locally. It includes the 1.0.29 integration and the [presentation follow-up](../presentation/2026-11-01.md) for halftime state, nonrepeating break animations, frame cadence, and team colors. The integration completes the interrupted **BROADCAST Phase A + CHOREOGRAPHY Phase 0 integration**, together with competition discovery, following and the Carabao replay/bracket correction. Later sport grammar, renderer and web phases remain separate work.
+
+The integration measurements below describe 1.0.29. The 1.0.30 presentation follow-up had 3,035 passing native checks, 12 passing page checks, repeated NFL/NBA recordings, and frame-cost evidence in `../presentation/`. These historical receipts do not validate the pending 1.0.31 corrections. Later phases remain open as listed below.
 
 ## Preserved inputs
 
