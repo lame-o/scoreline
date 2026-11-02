@@ -343,6 +343,15 @@ struct OddsQuote: Equatable {
     var bid: Double?
     var ask: Double?
     var last: Double?
+    /// The last trade is news: none since the book was last tight enough to
+    /// price itself.
+    private var tradeIsNews = true
+
+    init(bid: Double? = nil, ask: Double? = nil, last: Double? = nil) {
+        self.bid = bid
+        self.ask = ask
+        self.last = last
+    }
 
     /// Polymarket's own rule: the midpoint of the best bid and ask, or the last
     /// trade when the spread is wider than 10¢. Compared in tenths of a cent
@@ -353,11 +362,27 @@ struct OddsQuote: Equatable {
         // Thus a losing token with no bids and a 0.001 ask is 0.0005, not
         // whatever stale last trade happened to accompany a book snapshot.
         guard bid != nil || ask != nil else { return last }
+        if let midpoint { return midpoint }
+        // A book widening says nothing about the price. Only a trade since it
+        // was tight does: an old one would draw a move that never happened,
+        // and a book breathing around 10¢ would saw between the two. Until
+        // one prints, the chart keeps the value it has.
+        return tradeIsNews ? last : nil
+    }
+
+    private var midpoint: Double? {
         let lower = bid ?? 0, upper = ask ?? 1
-        if upper >= lower, ((upper - lower) * 1000).rounded() <= 100 { return (lower + upper) / 2 }
-        // A wide/crossed book without an asset-specific trade is unknown;
-        // keep the previous observed chart value instead of inventing a midpoint.
-        return last
+        guard upper >= lower, ((upper - lower) * 1000).rounded() <= 100 else { return nil }
+        return (lower + upper) / 2
+    }
+
+    fileprivate mutating func traded(_ price: Double) {
+        last = price
+        tradeIsNews = true
+    }
+
+    fileprivate mutating func bookChanged() {
+        if (bid != nil || ask != nil), midpoint != nil { tradeIsNews = false }
     }
 }
 
@@ -405,11 +430,13 @@ enum OddsFrame {
             // captured BAL and BUF books both carried BUF's 0.999 trade.
             // Only last_trade_price events identify a trade by asset_id.
             // Preserve any such trusted trade when replacing the book.
+            quote.bookChanged()
         case let .best(bid, ask):
             if let bid { quote.bid = bid }
             if let ask { quote.ask = ask }
+            quote.bookChanged()
         case let .trade(price):
-            quote.last = price
+            quote.traded(price)
         }
     }
 }
@@ -491,16 +518,10 @@ struct OddsBaseline: Equatable {
         }
     }
 
-    /// The play nearest a moment (by wall clock). (pure; tested)
-    func play(near t: Date) -> OddsPlay? {
-        guard !plays.isEmpty else { return nil }
-        let i = OddsSeries.index(plays.map(\.t), atOrBefore: t)
-        let candidates = [i, i.map { $0 + 1 } ?? 0].compactMap { $0 }.filter { plays.indices.contains($0) }
-        return candidates.min { abs(plays[$0].t.timeIntervalSince(t)) < abs(plays[$1].t.timeIntervalSince(t)) }.map { plays[$0] }
+    /// The last play worth naming at or before a moment.
+    func play(atOrBefore t: Date) -> OddsPlay? {
+        OddsSeries.last(plays, atOrBefore: t, time: \.t)
     }
-
-    /// ESPN's chance for the top team at a moment (its last play at or before it).
-    func espn(at t: Date) -> Double? { OddsSeries.value(espn, at: t) }
 
     // MARK: Parsing
 
@@ -622,19 +643,25 @@ enum OddsSeries {
     /// The newest stretch kept tick by tick (the 10 min window's span).
     static let raw: TimeInterval = 600
 
-    /// The index of the last time at or before `t` (binary search; times ascending).
-    static func index(_ times: [Date], atOrBefore t: Date) -> Int? {
-        var lo = 0, hi = times.count - 1, found: Int?
-        while lo <= hi {
+    /// Samples further apart than this weren't observed in between: the
+    /// history's coarsest stride is 5 minutes, and a followed market says
+    /// something at least every minute. The line breaks here, rather than
+    /// drawing a price nobody saw.
+    static let gap: TimeInterval = 360
+
+    /// The last element at or before `t` (binary search; times ascending).
+    static func last<Element>(_ items: [Element], atOrBefore t: Date, time: (Element) -> Date) -> Element? {
+        var lo = 0, hi = items.count
+        while lo < hi {
             let mid = (lo + hi) / 2
-            if times[mid] <= t { found = mid; lo = mid + 1 } else { hi = mid - 1 }
+            if time(items[mid]) <= t { lo = mid + 1 } else { hi = mid }
         }
-        return found
+        return lo > 0 ? items[lo - 1] : nil
     }
 
     /// The value in effect at `t`: the last point at or before it.
     static func value(_ points: [OddsPoint], at t: Date) -> Double? {
-        index(points.map(\.t), atOrBefore: t).map { points[$0].p }
+        last(points, atOrBefore: t, time: \.t)?.p
     }
 
     /// At most `cap` points, times strictly increasing: the last `raw` seconds
@@ -679,13 +706,25 @@ enum OddsSeries {
     }
 
     /// Three series on one timeline: at each moment any of them moved, all
-    /// three as they stood, normalized. (pure; tested)
-    static func stacked(top: [OddsPoint], draw: [OddsPoint], bottom: [OddsPoint]) -> [(t: Date, split: OddsSplit)] {
-        let times = Array(Set((top + draw + bottom).map(\.t))).sorted()
-        return times.compactMap { t in
-            guard let a = value(top, at: t), let d = value(draw, at: t), let b = value(bottom, at: t) else { return nil }
-            return (t, normalized(top: a, draw: d, bottom: b))
+    /// three as they stood, normalized. One walk over the three, as this runs
+    /// with every tick. A moment when one of them hasn't been observed for a
+    /// `gap` isn't a reading of all three: it's marked, and the line breaks. (pure; tested)
+    static func stacked(top: [OddsPoint], draw: [OddsPoint], bottom: [OddsPoint]) -> [OddsSplitPoint] {
+        guard !top.isEmpty, !draw.isEmpty, !bottom.isEmpty else { return [] }
+        var out: [OddsSplitPoint] = []
+        out.reserveCapacity(top.count + draw.count + bottom.count)
+        var a = 0, d = 0, b = 0
+        while a < top.count || d < draw.count || b < bottom.count {
+            let t = min(a < top.count ? top[a].t : .distantFuture, d < draw.count ? draw[d].t : .distantFuture,
+                        b < bottom.count ? bottom[b].t : .distantFuture)
+            if a < top.count, top[a].t == t { a += 1 }
+            if d < draw.count, draw[d].t == t { d += 1 }
+            if b < bottom.count, bottom[b].t == t { b += 1 }
+            guard a > 0, d > 0, b > 0 else { continue }
+            let quiet = max(t.timeIntervalSince(top[a - 1].t), t.timeIntervalSince(draw[d - 1].t), t.timeIntervalSince(bottom[b - 1].t))
+            out.append(OddsSplitPoint(t: t, split: normalized(top: top[a - 1].p, draw: draw[d - 1].p, bottom: bottom[b - 1].p), unobserved: quiet > gap))
         }
+        return out
     }
 
     /// Whole points, never 0 or 100 while it's undecided: "100%" is for the

@@ -585,7 +585,7 @@ struct MiniBases: View {
 
 /// The match on one line: time played filled to now, half-time marked, each
 /// team's goals in its own lane (left crest's above, right crest's below),
-/// red cards in the offender's lane. `SoccerTimeline` in miniature.
+/// red cards in the offender's lane. `MatchTimeline` in miniature.
 ///
 /// Live: a new mark arrives like a badge (92% to full, `Motion.quick`), and a
 /// goal pings once in its team's color (`Motion.ping`). Reduce Motion: the

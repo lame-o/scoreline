@@ -48,15 +48,15 @@ enum ChartLinks {
                 return .battedBalls
             }
             if shown(.linescore), focus.period != nil { return .linescore }
-            return nil
+            return timeline(focus, inputs)
         case let .espn(path, _, .basketball)? where path == NBADetail.path:
             if shown(.court), inputs.shots.contains(where: { lights($0, focus) }) { return .court }
             if shown(.flow), let play = focus.play, inputs.flow.contains(where: { $0.id == play }) || focus.period != nil {
                 return .flow
             }
-            return nil
+            return timeline(focus, inputs)
         case .espn(_, _, .football)?:
-            return shown(.linescore) && focus.period != nil ? .linescore : nil
+            return shown(.linescore) && focus.period != nil ? .linescore : timeline(focus, inputs)
         case .climbing?:
             guard let id = focus.athlete.map(String.init) else { return nil }
             if shown(.ascent), inputs.ascent.contains(where: { $0.id == id }) { return .ascent }
@@ -66,6 +66,12 @@ enum ChartLinks {
         default:
             return nil
         }
+    }
+
+    /// The timeline, when the focus is one of its marks: every sport has one.
+    private static func timeline(_ focus: Focus, _ inputs: ChartLinkInputs) -> DetailView.Section? {
+        guard inputs.shown.contains(.timeline), let play = focus.play, inputs.timeline.contains(where: { $0.id == play }) else { return nil }
+        return .timeline
     }
 
     /// Whether a court shot lights for a focus (`CourtView.lit`): one play;

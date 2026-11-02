@@ -7,18 +7,29 @@ extension ScorelineTests {
         let start = Date(timeIntervalSince1970: 1_800_000_000)
         let sample = OddsSplitPoint(t: start + 30, split: OddsSplit(top: 0.6, draw: nil, bottom: 0.4))
         let data = OddsChartData(revision: 1, threeWay: false, points: [sample], domain: start...(start + 100), live: true, final: false)
-        check(data.observedSplit(at: start + 29) == nil, "an inspection never borrows a future market sample")
-        check(data.observedSplit(at: start + 30) == sample.split && data.observedSplit(at: start + 60) == sample.split,
+        check(data.observedPoint(at: start + 29) == nil, "an inspection never borrows a future market sample")
+        check(data.observedPoint(at: start + 30)?.split == sample.split && data.observedPoint(at: start + 60)?.split == sample.split,
               "inspection reports the last observed probability, including a quiet market")
         var swing = data
         swing.points.append(OddsSplitPoint(t: start + 90, split: OddsSplit(top: 0.8, draw: nil, bottom: 0.2)))
         check(swing.observedPoint(at: start + 60) == sample && swing.observedPoint(at: start + 29) == nil,
-              "between samples, the marker keeps the earlier sample's real time and value")
-        check(swing.observedPoint(at: start + 90) == swing.points.last,
-              "an exact sample inspection uses its own timestamp")
-        swing.domain = (start + 45)...(start + 100)
-        check(swing.observedPoint(at: start + 60).map { !swing.domain.contains($0.t) } == true,
-              "a sample before a zoomed window stays outside it instead of being moved onto the edge")
+              "between samples, the reading keeps the earlier sample's real value")
+        check(swing.observedPoint(at: start + 90) == swing.points.last, "an exact sample inspection uses its own timestamp")
+        let middle = swing.drawn(at: start + 60)
+        check(middle.map { abs($0.top - 0.7) < 1e-9 && abs($0.bottom - 0.3) < 1e-9 } == true && swing.drawn(at: start + 29) == nil,
+              "the crosshair's dots sit on the drawn lines at the rule, between samples too; nothing before the first")
+
+        // A stretch nobody observed: no reading, no line.
+        var broken = data
+        broken.points.append(OddsSplitPoint(t: start + 30 + OddsSeries.gap + 60, split: OddsSplit(top: 0.2, draw: nil, bottom: 0.8)))
+        let inGap = start + 30 + OddsSeries.gap + 30
+        check(broken.observedPoint(at: inGap) == nil && broken.drawn(at: inGap) == nil && broken.drawn(at: start + 60) == nil,
+              "inside a gap there's no reading and nothing to put a dot on")
+        var stale = data
+        stale.points.append(OddsSplitPoint(t: start + 90, split: OddsSplit(top: 0.2, draw: nil, bottom: 0.8), unobserved: true))
+        check(stale.observedPoint(at: start + 91) == nil && stale.drawn(at: start + 91) == nil,
+              "a moment one outcome wasn't observed isn't a reading")
+
         var baseline = OddsBaseline()
         baseline.plays = [OddsPlay(t: start + 40, period: 1, clock: "Q1 10:00", text: "First score"),
                           OddsPlay(t: start + 80, period: 1, clock: "Q1 9:45", text: "Second score")]
@@ -26,9 +37,17 @@ extension ScorelineTests {
         check(before != nil && before?.split == nil && before?.play == nil, "a gap has an inspectable time without a fabricated quote or play")
         let between = OddsReading.at(start + 79, data: data, baseline: baseline)
         check(between?.play?.text == "First score", "a near-future score cannot appear in the historical readout")
-        check(between?.sampleTime == sample.t && between?.t == start + 79,
-              "the readout distinguishes chart sample time from selected game time")
-        check(between?.when(now: start).hasPrefix("After Q1 10:00") == true, "a stopped or unknown game clock is explicitly the last reported context")
+        check(between?.t == start + 79, "the reading keeps the moment asked for")
+        check(between?.lead(top: "GSW", final: false) == "Q1 10:00 · GSW 60%", "the footer says it in plain words: where in the game, and the top team's chance")
+        var withModel = data
+        withModel.espn = [OddsPoint(t: start, p: 0.58)]
+        baseline.plays.insert(OddsPlay(t: start, period: 1, clock: "Q1 12:00", text: "Tip"), at: 0)
+        check(OddsReading.at(start + 41, data: withModel, baseline: baseline)?.lead(top: "GSW", final: false) == "Q1 10:00 · GSW 60% · ESPN 58%",
+              "with ESPN's model: Q1 10:00 · GSW 60% · ESPN 58%")
+        baseline.plays.removeFirst()
+        let goal = TimelineMark(moment: GameDetail.Moment(id: "g", kind: .goal, clock: "38'", text: "Marcus Tavernier Goal", side: .bottom), t: start + 60)
+        check(OddsReading.at(start + 60, data: data, baseline: baseline, marks: [goal])?.play?.text == "Marcus Tavernier",
+              "exactly on a key play, the reading names it")
 
         // One recorded quote is inspected before and at the final whistle.
         // Header, source line and AX must use the same rounding policy without
@@ -52,9 +71,8 @@ extension ScorelineTests {
               && OddsSeries.percent(endpoint.espn!, final: endpointFinal) == 100,
               "ESPN source-line rounding follows the same historical and final policy")
         check(historical.split == nearCertain.split && endpoint.split == nearCertain.split
-              && historical.sampleTime == nearCertain.t && endpoint.sampleTime == nearCertain.t
               && finished.points == [nearCertain],
-              "final presentation preserves the observed market price and its original sample time")
+              "final presentation preserves the observed market price")
         check(OddsSplit(top: 0.6, draw: nil, bottom: 0.4).percents(final: endpointFinal) == [.top: 60, .bottom: 40],
               "final formatting never fabricates a resolved winner from an unsettled quote")
         let threeWay = OddsSplit(top: 0.998, draw: 0.001, bottom: 0.001)

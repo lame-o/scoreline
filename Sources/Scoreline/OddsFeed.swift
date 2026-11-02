@@ -140,6 +140,11 @@ final class OddsFeed {
     @ObservationIgnored private var lastFlush = Date.distantPast
     @ObservationIgnored private var lastHeard: Date?
     @ObservationIgnored private var discovered: String?
+    /// Holes in the history the provider has answered for, by token: asked
+    /// once, even if it had nothing to say about them.
+    @ObservationIgnored private var answered: [String: Set<Date>] = [:]
+    @ObservationIgnored private var backfill: Task<Void, Never>?
+    @ObservationIgnored private var backfillFailures = 0
     /// The market channel's own session (the shared HTTP one is for requests).
     private static let session = URLSession(configuration: .ephemeral)
 
@@ -180,6 +185,7 @@ final class OddsFeed {
         market = found
         series = [:]
         quotes = [:]
+        answered = [:]
         revision += 1
     }
 
@@ -227,6 +233,7 @@ final class OddsFeed {
         polling?.cancel(); polling = nil
         ticker?.cancel(); ticker = nil
         flushing?.cancel(); flushing = nil
+        backfill?.cancel(); backfill = nil
         if connection != .idle { connection = .idle }
         if Self.active === self { Self.active = nil }
     }
@@ -237,6 +244,7 @@ final class OddsFeed {
         market = nil
         series = [:]
         quotes = [:]
+        answered = [:]
         discovered = nil
         revision += 1
     }
@@ -260,34 +268,67 @@ final class OddsFeed {
 
     // MARK: History
 
+    /// What the chart is missing, asked for once a look and applied at once,
+    /// so three outcomes never draw from different moments. A request that
+    /// fails is asked again while the chart stays on screen: a game's opening
+    /// is never lost to one bad minute.
     private func loadHistory(_ market: OddsMarket, event: Event) async {
         let now = Date.now
-        let scheduled = event.state == .scheduled
+        let first = event.state == .scheduled ? now - 86_400 : min(market.start, event.start) - 1800
+        let last = event.state == .final ? min(now, event.start + 6 * 3600) : now
+        var fetched: [(token: OddsMarket.Token, hole: ClosedRange<Date>, points: [OddsPoint])] = []
+        var failed = false
         for token in market.tokens {
-            let have = series[token.outcome] ?? []
-            // Fetched before: only the tail since its last point.
-            let from = have.last?.t ?? (scheduled ? now - 86_400 : min(market.start, event.start) - 1800)
-            let to = event.state == .final ? min(now, max(from, event.start) + 6 * 3600) : now
-            guard to > from + 1, let url = Polymarket.historyURL(token: token.id, from: from, to: to),
-                  let json = try? await JSON.fetch(url), !Task.isCancelled else { continue }
-            let points = Polymarket.history(json)
+            for hole in Self.holes(series[token.outcome] ?? [], from: first, to: last, answered: answered[token.id] ?? []) {
+                guard let url = Polymarket.historyURL(token: token.id, from: hole.lowerBound, to: hole.upperBound) else { continue }
+                guard let json = try? await JSON.fetch(url) else {
+                    failed = true
+                    continue
+                }
+                fetched.append((token, hole, Polymarket.history(json)))
+            }
+        }
+        guard !Task.isCancelled else { return }
+        // A flush or the quiet-market ticker may have appended during the
+        // requests; those observations win.
+        for (token, hole, points) in fetched {
+            answered[token.id, default: []].insert(hole.lowerBound)
             guard !points.isEmpty else { continue }
-            // The request suspends this actor. A flush or the quiet-market
-            // ticker may have appended since `have`; those observations win.
-            series[token.outcome] = Self.mergingHistory(points, current: series[token.outcome] ?? [],
-                                                        requestedAfter: have.last?.t, now: .now)
+            series[token.outcome] = Self.mergingHistory(points, current: series[token.outcome] ?? [], within: hole, now: .now)
         }
         revision += 1
+        backfillFailures = failed ? backfillFailures + 1 : 0
+        backfill?.cancel()
+        backfill = !failed ? nil : Task { [weak self, wait = Self.backoff[min(backfillFailures - 1, Self.backoff.count - 1)]] in
+            try? await Task.sleep(for: .seconds(wait))
+            guard !Task.isCancelled else { return }
+            await self?.loadHistory(market, event: event)
+        }
     }
 
-    /// Extend the history that existed when a request began, then retain
-    /// every observation appended while it was in flight. History never
-    /// overwrites a live quote at an overlapping time. (pure; tested)
-    static func mergingHistory(_ history: [OddsPoint], current: [OddsPoint], requestedAfter: Date?, now: Date) -> [OddsPoint] {
-        let prefix = requestedAfter.map { end in current.filter { $0.t <= end } } ?? []
-        let fetched = requestedAfter.map { end in history.filter { $0.t > end } } ?? history
-        let observed = requestedAfter.map { end in current.filter { $0.t > end } } ?? current
-        return OddsSeries.compact(OddsSeries.merge(prefix + fetched, observed), now: now)
+    /// The stretches of `from...to` a series has nothing for: its opening, its
+    /// tail, and between samples a `gap` apart. A hole the provider has already
+    /// answered for stays a hole; the tail is always worth asking. (pure; tested)
+    static func holes(_ points: [OddsPoint], from: Date, to: Date, answered: Set<Date>) -> [ClosedRange<Date>] {
+        guard let first = points.first, let last = points.last else { return from < to ? [from...to] : [] }
+        var holes: [ClosedRange<Date>] = []
+        if first.t.timeIntervalSince(from) > OddsSeries.gap, !answered.contains(from) { holes.append(from...first.t) }
+        for (a, b) in zip(points, points.dropFirst()) where b.t.timeIntervalSince(a.t) > OddsSeries.gap && !answered.contains(a.t) {
+            holes.append(a.t...b.t)
+        }
+        if to > last.t + 1 { holes.append(last.t...to) }
+        return holes
+    }
+
+    /// Fills a hole with history, keeping every observation already there:
+    /// history never overwrites a live quote at an overlapping time. (pure; tested)
+    static func mergingHistory(_ history: [OddsPoint], current: [OddsPoint], within hole: ClosedRange<Date>, now: Date) -> [OddsPoint] {
+        let split = current.firstIndex { $0.t > hole.lowerBound } ?? current.endIndex
+        let before = current[..<split], after = current[split...]
+        let fill = history.filter { point in
+            (before.last.map { point.t > $0.t } ?? true) && (after.first.map { point.t < $0.t } ?? (point.t <= hole.upperBound))
+        }
+        return OddsSeries.compact(Array(before) + fill + Array(after), now: now)
     }
 
     // MARK: Live
@@ -378,13 +419,15 @@ final class OddsFeed {
 
     /// Adds a point when the price moved at least a tenth of a point. A long
     /// quiet spell is kept as the flat stretch it was (a hold point just
-    /// before the move), not a diagonal across it.
+    /// before the move), not a diagonal across it; after a stretch nobody saw
+    /// (a `gap`), the new line just starts, moved or not.
     @discardableResult
     private func publish(_ price: Double, for outcome: OddsMarket.Outcome, at t: Date) -> Bool {
         var points = series[outcome] ?? []
         if let last = points.last {
-            guard abs(price - last.p) >= 0.001, t > last.t else { return false }
-            if t.timeIntervalSince(last.t) > 10 { points.append(OddsPoint(t: t - 1, p: last.p)) }
+            let quiet = t.timeIntervalSince(last.t)
+            guard quiet > 0, abs(price - last.p) >= 0.001 || quiet > OddsSeries.gap else { return false }
+            if quiet > 10, quiet <= OddsSeries.gap { points.append(OddsPoint(t: t - 1, p: last.p)) }
         }
         points.append(OddsPoint(t: t, p: price))
         series[outcome] = points.count > OddsSeries.cap + 60 ? OddsSeries.compact(points, now: t) : points
@@ -436,6 +479,33 @@ final class OddsFeed {
 
     // MARK: Reading
 
+    /// The newest moment the market has spoken for at `until`: what a live
+    /// chart's domain needs, without reading the whole series. Nil until every
+    /// outcome has spoken. (Binary searches: this runs with every tick.)
+    func latestTick(until: Date? = nil) -> Date? {
+        guard let market else { return nil }
+        var newest: Date?
+        for token in market.tokens {
+            guard let t = OddsSeries.last(series[token.outcome] ?? [], atOrBefore: until ?? .distantFuture, time: \.t)?.t else { return nil }
+            newest = max(newest ?? t, t)
+        }
+        return newest
+    }
+
+    /// The ticks past `p`, oldest first: when a broadcasting chart next redraws.
+    func ticks(after p: Date, limit: Int = 240) -> [Date] {
+        var ticks: [Date] = []
+        for points in series.values {
+            var lo = 0, hi = points.count
+            while lo < hi {
+                let mid = (lo + hi) / 2
+                if points[mid].t <= p { lo = mid + 1 } else { hi = mid }
+            }
+            ticks += points[lo...].prefix(limit).map(\.t)
+        }
+        return Array(Set(ticks).sorted().prefix(limit))
+    }
+
     /// The newest split (US: the top team and its complement; soccer: three, normalized).
     var latest: OddsSplit? {
         guard let market else { return nil }
@@ -465,7 +535,9 @@ final class OddsFeed {
         lastHeard = .now
         noteHeard()
     }
+    #endif
 
+    #if DEBUG || BENCH
     /// The render harness: a market and its series without the network.
     func preview(market: OddsMarket, series: [OddsMarket.Outcome: [OddsPoint]], heard: Date? = nil, connection: Connection = .live) {
         self.market = market

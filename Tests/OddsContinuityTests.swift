@@ -126,19 +126,91 @@ extension ScorelineTests {
         let initial = [OddsPoint(t: time, p: 0.4), OddsPoint(t: time + 60, p: 0.5)]
         let fetched = [OddsPoint(t: time + 60, p: 0.51), OddsPoint(t: time + 90, p: 0.55), OddsPoint(t: time + 120, p: 0.6)]
         let duringFetch = initial + [OddsPoint(t: time + 120, p: 0.7), OddsPoint(t: time + 121, p: 0.72)]
-        let merged = OddsFeed.mergingHistory(fetched, current: duringFetch, requestedAfter: initial.last?.t, now: time + 122)
+        let tail = (time + 60)...(time + 122)
+        let merged = OddsFeed.mergingHistory(fetched, current: duringFetch, within: tail, now: time + 122)
         check(merged == initial + [fetched[1], duringFetch[2], duringFetch[3]],
               "history returning after live ticks fills the gap and preserves the newer observations, including an equal-time quote")
-        check(OddsFeed.mergingHistory(fetched, current: initial, requestedAfter: initial.last?.t, now: time + 122)
+        check(OddsFeed.mergingHistory(fetched, current: initial, within: tail, now: time + 122)
               == initial + Array(fetched.dropFirst()), "history extends normally when no quote arrives during the request")
-        let firstLoad = OddsFeed.mergingHistory(fetched, current: [duringFetch[2]], requestedAfter: nil, now: time + 122)
+        let firstLoad = OddsFeed.mergingHistory(fetched, current: [duringFetch[2]], within: (time - 1800)...(time + 122), now: time + 122)
         check(firstLoad == Array(fetched.dropLast()) + [duringFetch[2]],
               "an initial history request also preserves a live tick that arrived before it returned")
         let quietTick = initial + [OddsPoint(t: time + 120, p: 0.5)]
-        check(OddsFeed.mergingHistory(fetched, current: quietTick, requestedAfter: initial.last?.t, now: time + 122).last == quietTick.last,
+        check(OddsFeed.mergingHistory(fetched, current: quietTick, within: tail, now: time + 122).last == quietTick.last,
               "the quiet-market ticker is not rolled back by a concurrent history response")
         check(zip(merged, merged.dropFirst()).allSatisfy { $0.t < $1.t },
               "merged history remains strictly chronological without duplicate timestamps")
+
+        // A failed first request is asked again; a hole in the middle is filled, not overwritten.
+        let gap = OddsSeries.gap
+        let late = [OddsPoint(t: time + 3000, p: 0.6), OddsPoint(t: time + 3060, p: 0.61)]
+        check(OddsFeed.holes(late, from: time, to: time + 3060, answered: []) == [time...(time + 3000)],
+              "ticks arriving after a failed first request leave the game's opening still to ask for")
+        check(OddsFeed.holes(late, from: time, to: time + 3060, answered: [time]).isEmpty,
+              "an opening the provider has answered for, with nothing, isn't asked for again")
+        check(OddsFeed.holes([], from: time, to: time + 60, answered: [time]) == [time...(time + 60)], "no data yet: ask again")
+        let holed = [OddsPoint(t: time, p: 0.5), OddsPoint(t: time + gap + 60, p: 0.6)]
+        check(OddsFeed.holes(holed, from: time, to: time + gap + 60, answered: []) == [time...(time + gap + 60)],
+              "samples a gap apart are a hole to fill")
+        check(OddsFeed.holes(holed, from: time, to: time + gap + 600, answered: [time]) == [(time + gap + 60)...(time + gap + 600)],
+              "an answered hole stays a hole; the tail is always worth asking")
+        let filled = OddsFeed.mergingHistory([OddsPoint(t: time + 120, p: 0.55), OddsPoint(t: time + gap + 90, p: 0.9)], current: holed,
+                                             within: time...(time + gap + 60), now: time + gap + 600)
+        check(filled == [holed[0], OddsPoint(t: time + 120, p: 0.55), holed[1]], "history fills only the hole, between the observations around it")
+
+        // Unobserved time isn't drawn flat.
+        let watcher = OddsFeed()
+        watcher.adopt(OddsMarket(eventID: "gap", slug: "gap", tokens: [.init(id: "t", outcome: .top)], start: time))
+        watcher.simulate([("t", .trade(0.5))], at: time)
+        watcher.simulate([("t", .trade(0.6))], at: time + 30)
+        check(watcher.series[.top]?.count == 3 && watcher.series[.top]?[1] == OddsPoint(t: time + 29, p: 0.5),
+              "a quiet, observed market holds flat until it moves")
+        watcher.simulate([("t", .trade(0.6))], at: time + 30 + gap + 1)
+        check(watcher.series[.top]?.count == 4 && watcher.series[.top]?.last?.t == time + 30 + gap + 1,
+              "after a stretch nobody saw, the line starts again, with no hold point claiming it was flat")
+        watcher.stop()
+        check(watcher.latestTick() == time + 30 + gap + 1 && watcher.latestTick(until: time + 40) == time + 30 && watcher.latestTick(until: time - 1) == nil,
+              "the newest tick at a moment, without reading the series")
+        check(watcher.ticks(after: time + 1).first == time + 29 && watcher.ticks(after: time + 30 + gap + 1).isEmpty, "the ticks still to come")
+        let unspoken = OddsFeed()
+        unspoken.adopt(OddsMarket(eventID: "three", slug: "three", tokens: [.init(id: "a", outcome: .top), .init(id: "b", outcome: .draw), .init(id: "c", outcome: .bottom)], start: time))
+        unspoken.simulate([("a", .trade(0.5))], at: time)
+        check(unspoken.latestTick() == nil, "no market moment until every outcome has spoken")
+        unspoken.stop()
+
+        // Three outcomes: one walk, and a moment one of them went unobserved breaks the line.
+        let quiet = [OddsPoint(t: time, p: 0.4)]
+        let busy = (0...10).map { OddsPoint(t: time + Double($0) * 60, p: 0.3) }
+        let walked = OddsSeries.stacked(top: quiet + [OddsPoint(t: time + 600, p: 0.5)], draw: busy, bottom: busy)
+        check(walked.count == busy.count && walked[5].unobserved == false,
+              "a moment any of them moved, all three as they stood")
+        let silent = OddsSeries.stacked(top: quiet, draw: busy, bottom: busy)
+        check(silent[6].t == time + 360 && !silent[6].unobserved && silent[7].unobserved,
+              "past a gap since an outcome was heard, the moment isn't a reading of all three")
+
+        // A book breathing around 10¢ never saws between its midpoint and an old trade.
+        var breathing = OddsQuote()
+        OddsFrame.apply(.trade(0.70), to: &breathing)
+        OddsFrame.apply(.book(bid: 0.44, ask: 0.46, last: nil), to: &breathing)
+        check(breathing.displayed == 0.45, "tight: the midpoint")
+        OddsFrame.apply(.best(bid: 0.30, ask: 0.60), to: &breathing)
+        check(breathing.displayed == nil, "widened with no trade since: nothing new; the chart keeps the value it has")
+        OddsFrame.apply(.trade(0.52), to: &breathing)
+        check(breathing.displayed == 0.52, "a trade on a wide book is news: it's shown")
+        OddsFrame.apply(.best(bid: 0.51, ask: 0.53), to: &breathing)
+        OddsFrame.apply(.best(bid: 0.30, ask: 0.60), to: &breathing)
+        check(breathing.displayed == nil, "and an old trade isn't again")
+        let flips = OddsFeed()
+        flips.adopt(OddsMarket(eventID: "flips", slug: "flips", tokens: [.init(id: "t", outcome: .top)], start: time))
+        flips.simulate([("t", .trade(0.9))], at: time)
+        flips.simulate([("t", .book(bid: 0.44, ask: 0.46, last: nil))], at: time + 1)
+        for k in 0..<6 {
+            flips.simulate([("t", .best(bid: 0.2, ask: 0.8))], at: time + 2 + Double(k) * 2)
+            flips.simulate([("t", .best(bid: 0.44, ask: 0.46))], at: time + 3 + Double(k) * 2)
+        }
+        check(flips.series[.top]?.map(\.p).suffix(1) == [0.45] && flips.series[.top]?.filter({ $0.t > time + 1 }).isEmpty == true,
+              "wide/tight flips draw no connector: one value, no sawtooth", "\(flips.series[.top]?.map(\.p) ?? [])")
+        flips.stop()
 
         // Recorded while the installed app showed false 0→100→0 spikes.
         // Both books advertised BUF's last trade, but BAL's own trade and

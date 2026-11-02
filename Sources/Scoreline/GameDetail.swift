@@ -23,7 +23,7 @@ struct GameDetail {
     enum Side { case top, bottom }
 
     struct Moment: Identifiable {
-        enum Kind { case goal, ownGoal, yellow, red, score, other }
+        enum Kind { case goal, ownGoal, yellow, red, score, turnover, other }
         let id: String
         let kind: Kind
         let clock: String
