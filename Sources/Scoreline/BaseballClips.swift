@@ -24,8 +24,6 @@ struct DiamondClip: TheaterClip, @unchecked Sendable {
     let essential: Double
     /// Each figure's path re-made through the motion layer (ClipPaths).
     let paths: [MotionPath?]
-    /// The script's own time stretched where it asked too much of anyone (ClipWarp).
-    let warp: ClipWarp
     /// The field between pitches: when anyone's moving in its quiet.
     private let quietBeats: [ClosedRange<Double>]
 
@@ -53,33 +51,21 @@ struct DiamondClip: TheaterClip, @unchecked Sendable {
             return ClipFigure(group: group, kind: kind, band: a.team == .official ? "official" : a.team == .batting ? "runner" : "fielder", height: 8.5)
         }
         let bands = figures.map { Self.limits.band($0.band) }
-        let paths = script.actors.indices.map { i -> MotionPath? in
+        paths = script.actors.indices.map { i -> MotionPath? in
             let a = script.actors[i]
             guard a.dive == nil, a.slide == nil else { return nil }
             return ClipPaths.resynthesized(a.moves, contacts: a.actions.map(\.at), band: bands[i], span: 0...max(script.duration, 0)) { a.position(at: $0) }
         }
-        self.paths = paths
         quietBeats = kind == .rest ? script.actors.flatMap { $0.moves.map { $0.start...($0.end + 0.2) } } : []
-        warp = kind == .rest ? .identity : ClipWarp.make(length: script.duration, need: { u in
-            var most = 1.0
-            for i in paths.indices {
-                guard let path = paths[i], script.actors[i].opacity(at: u) > 0.05 else { continue }
-                let b = bands[i]
-                most = max(most, simd_length(path.velocity(at: u)) / (b.sprint * 0.97),
-                           (simd_length(path.acceleration(at: u)) / (min(b.accel, b.decel, b.lateral) * 0.97)).squareRoot())
-            }
-            return most
-        }, steady: { u in script.flights.contains { u > $0.start && u < $0.end && $0.end - $0.start < 1.5 } }) ?? .identity
-        length = kind == .rest ? .infinity : (warp.isIdentity ? script.duration : warp.stretched)
+        length = kind == .rest ? .infinity : script.duration
         still = 0
-        let moment = script.fence?.at ?? script.release.map { $0 + 0.45 } ?? script.flashes.first?.at
-        decisive = kind == .rest ? nil : moment.map(warp.clip)
+        decisive = kind == .rest ? nil : script.fence?.at ?? script.release.map { $0 + 0.45 } ?? script.flashes.first?.at
         essential = kind == .rest ? 0 : min(length, (decisive ?? 0) + 1.0)
     }
 
     /// The script's time at the clip's time `t`: a play holds its end; the field between pitches goes round its quiet.
     func local(_ t: Double) -> Double {
-        guard kind == .rest else { return min(max(warp.script(t), 0), script.duration) }
+        guard kind == .rest else { return min(max(t, 0), script.duration) }
         return script.duration > 0 ? max(t, 0).truncatingRemainder(dividingBy: script.duration) : 0
     }
 

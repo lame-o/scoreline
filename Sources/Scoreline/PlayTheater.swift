@@ -1526,7 +1526,7 @@ private struct PlayDirectedStage: View {
         let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: names.teams)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                TheaterFrames(director: director, running: seen && !reduceMotion) { wall in
+                TheaterFrames(director: director, running: seen && !reduceMotion, awake: fading) { wall in
                     frame(at: wall, size: geo.size, ink: ink, labels: labels)
                 }
                 .accessibilityHidden(true)
@@ -1649,7 +1649,7 @@ private struct PlayDirectedStage: View {
 
     private func report(wall: PTime, T: PTime, _ drawn: (clip: DiamondClip, t: Double, world: PlayFrame.World)) {
         #if DEBUG
-        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id ?? drawn.clip.beat?.id, clipTime: drawn.clip.warp.clip(drawn.t),
+        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id ?? drawn.clip.beat?.id, clipTime: drawn.t,
                                   decisive: drawn.clip.decisive))
         #endif
     }

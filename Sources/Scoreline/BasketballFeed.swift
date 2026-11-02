@@ -116,7 +116,7 @@ final class BasketballFeed {
     /// Enough history to see where a run started.
     private static let windowSize = 150
     /// A run (by margin: 10–2 is 8) is news when it reaches each of these.
-    static let runMilestones = [8, 12, 16, 20, 24, 28]
+    nonisolated static let runMilestones = [8, 12, 16, 20, 24, 28]
 
     /// A scoring run: who's on it, from its first play to its newest, and
     /// its points against the other team's ("12–0", "10–2").
@@ -417,7 +417,7 @@ final class BasketballFeed {
 
     /// ESPN's scoring run, while it's on: the newest play carries it. It
     /// starts at the play ESPN names (or the earliest we have that carries it).
-    static func activeRun(in plays: [JSON], teams: Teams) -> Run? {
+    nonisolated static func activeRun(in plays: [JSON], teams: Teams) -> Run? {
         guard let last = plays.last, let run = scoringRun(last), let team = teams.side(run.team) else { return nil }
         let first = plays.first { $0["id"].string == run.start } ?? plays.first { scoringRun($0)?.start == run.start }
         func elapsed(_ play: JSON?) -> Double? {
@@ -483,7 +483,7 @@ final class BasketballFeed {
     /// newest 3 plays). Later, the court just updates. Whatever `was`
     /// announced stays: an edit never takes back an accent.
     /// `fromTipOff`: `plays` starts at the opening tip.
-    static func moment(at index: Int, in plays: [JSON], teams: Teams, fromTipOff: Bool = false,
+    nonisolated static func moment(at index: Int, in plays: [JSON], teams: Teams, fromTipOff: Bool = false,
                        age: Int = 0, was: LiveMoment? = nil) -> LiveMoment? {
         let play = plays[index]
         guard let id = play["id"].string else { return nil }
@@ -543,7 +543,7 @@ final class BasketballFeed {
     }
 
     /// A field-goal attempt's moment: a make with its accents, a block, or a miss.
-    private static func shotMoment(at index: Int, in plays: [JSON], teams: Teams, fromTipOff: Bool, age: Int,
+    private nonisolated static func shotMoment(at index: Int, in plays: [JSON], teams: Teams, fromTipOff: Bool, age: Int,
                                    was: LiveMoment?) -> LiveMoment? {
         let play = plays[index]
         guard let id = play["id"].string else { return nil }
@@ -628,7 +628,7 @@ final class BasketballFeed {
     }
 
     /// The shooter's straight makes through `index` (field goals only, by game order).
-    static func makes(endingAt index: Int, in plays: [JSON]) -> Int {
+    nonisolated static func makes(endingAt index: Int, in plays: [JSON]) -> Int {
         guard let shooter = NBADetail.participants(plays[index]).first else { return 0 }
         var count = 0
         for play in plays[...index].reversed() {
@@ -642,7 +642,7 @@ final class BasketballFeed {
 
     /// The sign of the margin the last time a team was ahead before `index`
     /// (nil if nobody led within the plays we have).
-    private static func lastLeader(before index: Int, in plays: [JSON], teams: Teams) -> Int? {
+    private nonisolated static func lastLeader(before index: Int, in plays: [JSON], teams: Teams) -> Int? {
         for j in stride(from: index - 1, through: 0, by: -1) {
             if let score = LiveScore(plays[j]), teams.margin(score) != 0 { return teams.margin(score).signum() }
         }
@@ -651,7 +651,7 @@ final class BasketballFeed {
 
     /// A core play's `scoringRun`: the team on it, its points against the
     /// other team's, and the play it started with (its identity).
-    static func scoringRun(_ play: JSON) -> (team: String?, larger: Int, smaller: Int, start: String?)? {
+    nonisolated static func scoringRun(_ play: JSON) -> (team: String?, larger: Int, smaller: Int, start: String?)? {
         let run = play["scoringRun"]
         guard let larger = run["larger"].int, let smaller = run["smaller"].int else { return nil }
         let start = run["play"]["$ref"].string.flatMap(playID) ?? run["play"]["id"].string
@@ -660,7 +660,7 @@ final class BasketballFeed {
 
     // MARK: Parsing
 
-    static func playID(_ ref: String) -> String? {
+    nonisolated static func playID(_ ref: String) -> String? {
         ref.range(of: "/plays/").map { String(ref[$0.upperBound...].prefix { $0.isNumber }) }
     }
 

@@ -104,6 +104,7 @@ final class Broadcast: BroadcastTheaterSource {
     /// Fast-lane situations (baseball) by the play they follow: the diamond at p.
     @ObservationIgnored private var situations: [(play: String, situation: GameDetail.Baseball)] = []
     @ObservationIgnored private var memo: (key: [Int], detail: GameDetail)?
+    @ObservationIgnored private var eventMemo: (input: Event, game: PresentedGame, floor: ScoreLine?, wall: PTime, shown: Event)?
     @ObservationIgnored private var payloadMemo: (key: Int, plays: [JSON])?
     @ObservationIgnored private var nbaMemo: (key: [Int], live: NBALive)?
     /// Moments released since the page last took them.
@@ -320,15 +321,28 @@ final class Broadcast: BroadcastTheaterSource {
         if result.events.contains(where: { if case .wake = $0 { true } else { false } }) {
             raiseFloor(to: [shownBefore, lastScoreboard?.score].compactMap { $0 }, at: now)
         }
-        if !result.told.isEmpty { releaseMoments(result.told, now: now) }
-        expireMoments(now: now)
-        publish(now: now)
-        settleFloor(now: now)
+        // Everything a step changes lands in one transaction. Each write outside it would flush the one before
+        // through the whole page, synchronously: on a tell, that's the page's body five times over.
+        let next = upcoming(now: now, engine: engine)
+        let telling = next.told != presented.told
+        let land = { [self] in
+            if !result.told.isEmpty { releaseMoments(result.told, now: now) }
+            expireMoments(now: now)
+            publish(next, now: now, engine: engine)
+            settleFloor(now: now)
+        }
+        if telling {
+            // New rows arrive as a page's do (stacked in, or a fade with Reduce Motion); the clock just ticks on.
+            let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            withAnimation(reduce ? Motion.fade : Motion.standard, land)
+        } else {
+            land()
+        }
         if automatic { schedule(after: now) }
     }
 
-    private func publish(now: PTime) {
-        guard let engine else { return }
+    /// What's presented at `now`.
+    private func upcoming(now: PTime, engine: BroadcastEngine<RawPlay>) -> PresentedGame {
         var next = engine.presented(at: now)
         // A final with nothing left to tell ends a moment after its last play, even
         // if ESPN never logs the end.
@@ -338,15 +352,13 @@ final class Broadcast: BroadcastTheaterSource {
         }
         // The game clock holds while the presentation clock does (a stall).
         if engine.clock.rate(at: now) == 0 { next.clock?.running = false }
+        return next
+    }
+
+    private func publish(_ next: PresentedGame, now: PTime, engine: BroadcastEngine<RawPlay>) {
         if Self.differs(next, from: presented, after: now - presentedWall) {
             presentedWall = now
-            // New rows arrive as a page's do (stacked in, or a fade with Reduce Motion); the clock just ticks on.
-            if next.told != presented.told {
-                let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-                withAnimation(reduce ? Motion.fade : Motion.standard) { presented = next }
-            } else {
-                presented = next
-            }
+            presented = next
         }
         if next.isFinal != ended { ended = next.isFinal }
         if engine.timeline.revision != revision { revision = engine.timeline.revision }
@@ -452,6 +464,14 @@ final class Broadcast: BroadcastTheaterSource {
 
     // MARK: Presenting
 
+    /// How far behind live the page is now (the clock's delay, rounded to 5 s), for the live indicator's hover and
+    /// VoiceOver; nil while not broadcasting. Read from the engine's clock: the page's body reads this, and a re-plan
+    /// of the clock mustn't run the page again for a number on a hover.
+    var behind: BehindLive? {
+        guard active, !ended, let clock = engine?.clock, clock.started else { return nil }
+        return BehindLive(delay: clock.delay(at: time.now()), regime: clock.regime)
+    }
+
     /// Whether a play-keyed item shows: told plays do, untold ones wait.
     /// Items the timeline doesn't know (a synthesized ID) show as today.
     func shows(_ id: String?) -> Bool {
@@ -477,19 +497,13 @@ final class Broadcast: BroadcastTheaterSource {
         return plays
     }
 
-    /// How far behind live the page is now (the clock's delay, rounded to 5 s), for the
-    /// live indicator's hover and VoiceOver; nil while not broadcasting.
-    var behind: BehindLive? {
-        guard active, !ended, clock.started else { return nil }
-        let now = time.now()
-        return BehindLive(delay: clock.delay(at: now), regime: clock.regime)
-    }
-
     /// The event as presented: score, state, status and clock at p.
     func present(_ event: Event) -> Event {
         guard active, case let .match(top, bottom) = event.content, let sport, let engine else { return event }
         let game = presented
         guard game.phase != .pregame || game.score != nil else { return event }
+        // A page reads its event dozens of times a body; it changes when the game does.
+        if let memo = eventMemo, memo.input == event, memo.game == game, memo.floor == floor, memo.wall == presentedWall { return memo.shown }
         var t = top, b = bottom
         if let score = Self.shown(game.score, floor: floor) {
             t.score = "\(topIsHome ? score.home : score.away)"
@@ -507,6 +521,7 @@ final class Broadcast: BroadcastTheaterSource {
         shown.possession = nil
         shown.liveLine = nil
         shown.snapshot = nil
+        eventMemo = (event, game, floor, presentedWall, shown)
         return shown
     }
 

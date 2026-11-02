@@ -94,35 +94,15 @@ struct HoopsClip: TheaterClip, @unchecked Sendable {
                               height: Hoops.ground)
         }
         let bands = script.players.map { MotionLimits.basketball.band($0.team == .official || $0.team == .staff ? "official" : "wing") }
-        let paths = script.players.indices.map { Self.resynthesized(script.players[$0], band: bands[$0], span: 0...script.duration) }
-        self.paths = paths
-        // Slower where anyone would outrun his legs, the ball's flights at their own pace.
-        warp = ClipWarp.make(length: script.duration, need: { u in
-            var most = 1.0
-            for i in paths.indices {
-                guard let path = paths[i], script.players[i].opacity(at: u) > 0.05 else { continue }
-                let b = bands[i]
-                most = max(most, simd_length(path.velocity(at: u)) / (b.sprint * 0.97),
-                           (simd_length(path.acceleration(at: u)) / (min(b.accel, b.decel, b.lateral) * 0.97)).squareRoot())
-            }
-            return most
-        }, steady: { u in script.flights.contains { u > $0.start && u < $0.end && $0.end - $0.start < 1.5 } }, minimumFlightStretch: { u in
-            paths.indices.reduce(1.0) { most, i in
-                guard let path = paths[i], script.players[i].opacity(at: u) > 0.05 else { return most }
-                return max(most, simd_length(path.velocity(at: u)) / (bands[i].sprint * 0.97))
-            }
-        }) ?? .identity
-        length = warp.isIdentity ? script.duration : warp.stretched
-        still = kind == .replay ? warp.clip(script.leadIn) : 0
-        decisive = Self.decisive(script, scene: scene, kind: kind).map(warp.clip)
+        paths = script.players.indices.map { Self.resynthesized(script.players[$0], band: bands[$0], span: 0...script.duration) }
+        length = script.duration
+        still = kind == .replay ? script.leadIn : 0
+        decisive = Self.decisive(script, scene: scene, kind: kind)
         essential = kind == .rest ? 0 : min(length, (decisive ?? 0) + (kind == .replay ? 1.6 : 0.8))
     }
 
-    /// The script's own time stretched where it asked too much of anyone (ClipWarp).
-    let warp: ClipWarp
-
     /// The script's time at the clip's time `t`.
-    func local(_ t: Double) -> Double { warp.script(t) }
+    func local(_ t: Double) -> Double { t }
 
     /// Each figure's path re-made through the motion layer (ClipPaths).
     let paths: [MotionPath?]

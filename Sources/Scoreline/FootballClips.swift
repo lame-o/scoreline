@@ -58,12 +58,6 @@ struct GridClip: TheaterClip, @unchecked Sendable {
     let decisive: Double?
     let essential: Double
     let paths: [MotionPath?]
-    /// The result's deliberate pause, on the script clock. Its duration is
-    /// presentation policy, not spare time for a run back to the line.
-    let resultHold: ClosedRange<Double>?
-    private let loopStart: Double?
-    private let loopPeriod: Double
-    private let endTime: Double
 
     init(_ script: FootballScript, scene: FootballScene?, idle: FootballIdle?, offense: GameDetail.Side, stoppage: FootballStoppage? = nil) {
         self.script = script
@@ -87,86 +81,32 @@ struct GridClip: TheaterClip, @unchecked Sendable {
         let bands = script.players.map { p in
             MotionLimits.football.band(p.team == .official || p.team == .staff ? "official" : [.line, .front].contains(p.role) ? "line" : "skill")
         }
-        let resultHold = idle == nil ? Self.resultHold(script) : nil
-        self.resultHold = resultHold
+        // The script's clock is the clip's: each man solved on his own, the contacts he's credited with exactly where
+        // they were. A tackle nobody credits him with is a place he was running to, no more.
+        let seams = script.loop.map { [$0.start, $0.start + $0.period] } ?? []
         let paths = script.players.indices.map { i -> MotionPath? in
             let p = script.players[i]
-            let contacts = p.actions.filter { [.catchHigh, .catchChest, .throwBall, .handoff, .kick, .tackle, .strip, .scoop].contains($0.kind) }
-            return ClipPaths.resynthesized(p.moves, contacts: contacts.map(\.at), band: bands[i], span: 0...max(script.duration, 0),
-                                          retime: idle == nil, rest: resultHold) {
+            let credited = script.credits[i] != nil
+            let contacts = p.actions.filter { a in
+                [.catchHigh, .catchChest, .throwBall, .handoff, .kick, .scoop].contains(a.kind) || (credited && [.tackle, .strip].contains(a.kind))
+            }
+            return ClipPaths.resynthesized(p.moves, contacts: contacts.map(\.at), band: bands[i], span: 0...max(script.duration, 0), seams: seams) {
                 p.position(at: $0)
             }
         }
         self.paths = paths
-        // A replay runs slower where anyone would outrun his legs. The settled
-        // result holds at its authored pace; reset travel gets its own time
-        // after it, without borrowing or stretching the pause.
-        let warp = ClipWarp.make(length: script.duration, need: { u in
-            var most = 1.0
-            for i in paths.indices {
-                guard let path = paths[i], script.players[i].opacity(at: u) > 0.05 else { continue }
-                let b = bands[i]
-                most = max(most, simd_length(path.velocity(at: u)) / (b.sprint * 0.97),
-                           (simd_length(path.acceleration(at: u)) / (min(b.accel, b.decel, b.lateral) * 0.97)).squareRoot())
-            }
-            return most
-        }, steady: { u in
-            guard let flight = script.flight(at: u), flight.end - flight.start < 1.5 else { return false }
-            // A real pass/kick keeps its existing pace preference. The
-            // cosmetic toss to the next line, after the protected result,
-            // must share the time the players need to reset safely. Capping
-            // it at 2x also abruptly capped every runner's clock mid-reset.
-            return resultHold.map { flight.start < $0.upperBound } ?? true
-        }, rest: resultHold) ?? .identity
-        self.warp = warp
-        endTime = warp.clip(script.duration)
-        loopStart = script.loop.map { warp.clip($0.start) }
-        loopPeriod = script.loop.map { warp.clip($0.start + $0.period) - warp.clip($0.start) } ?? 0
-        length = idle == nil ? (warp.isIdentity ? script.duration : warp.stretched) : .infinity
-        // Whoever still can't make a replay's run, even slowed, fades through it (declared, counted).
-        fades = idle != nil ? .none : ClipFades.make(figures: paths.count, length: warp.isIdentity ? script.duration : warp.stretched, bands: bands) { i, t in
-            guard let path = paths[i] else { return 0 }
-            let rate = (warp.script(t + 0.004) - warp.script(t - 0.004)) / 0.008
-            return simd_length(path.velocity(at: warp.script(t))) * rate
+        length = idle == nil ? script.duration : .infinity
+        // Whoever still can't make a replay's run fades through it (declared, counted).
+        fades = idle != nil ? .none : ClipFades.make(figures: paths.count, length: script.duration, bands: bands) { i, t in
+            paths[i].map { simd_length($0.velocity(at: t)) } ?? 0
         }
-        still = idle == nil ? warp.clip(script.leadIn) : 0
-        decisive = idle == nil ? Self.decisive(script).map(warp.clip) : nil
+        still = idle == nil ? script.leadIn : 0
+        decisive = idle == nil ? Self.decisive(script) : nil
         essential = idle == nil ? min(length, (decisive ?? 0) + 1.2) : 0
     }
 
-    /// A replay's own time stretched where it asked too much of anyone (ClipWarp).
-    let warp: ClipWarp
     /// The men who still can't make it, faded through (ClipFades).
     let fades: ClipFades
-
-    /// Only protect a genuinely settled result. A kick still in flight, a
-    /// late contact, or a separate beat after the stamp keeps its full motion
-    /// clock. The anonymous convergence after a tackle/TD may finish 0.03–0.05s
-    /// after the stamp; those soft arrivals can land on the result boundary.
-    /// A quarterback's post-handoff fake may also finish there once he has
-    /// given up the ball, with no later contact or possession in the hold.
-    /// No credited contact is moved to make room for a pause.
-    static func resultHold(_ script: FootballScript) -> ClosedRange<Double>? {
-        let from = script.stamp, to = script.settle
-        guard from.isFinite, to.isFinite, from >= 0, to > from, to < script.duration,
-              !script.flights.contains(where: { $0.start < to && $0.end > from }) else { return nil }
-        let contacts: [FootballScript.Action.Kind] = [.catchHigh, .catchChest, .throwBall, .handoff, .kick, .tackle, .strip, .scoop]
-        for (i, player) in script.players.enumerated() {
-            if player.actions.contains(where: { contacts.contains($0.kind) && $0.at >= from && $0.at <= to }) { return nil }
-            for move in player.moves where move.start < to && move.end > from {
-                let lastContact = player.actions.filter { contacts.contains($0.kind) && $0.at < from }.max { $0.at < $1.at }
-                let holding = script.carrier(at: from)?.player == i || script.legs.contains {
-                    if case let .carry(carrier) = $0.hand, carrier == i { return $0.from >= from && $0.from <= to }
-                    return false
-                }
-                let handedOff = lastContact.map { $0.kind == .handoff && $0.at < move.start } ?? false
-                let fake = player.role == .quarterback && player.team == .offense && move.ease == .out
-                    && handedOff && !holding && move.end < to
-                guard move.start < from, move.end <= from + 0.08 || fake else { return nil }
-            }
-        }
-        return from...to
-    }
 
     /// The ball dead: the score, else the hit or the catch that ends it, else the incompletion's landing.
     static func decisive(_ s: FootballScript) -> Double? {
@@ -179,10 +119,9 @@ struct GridClip: TheaterClip, @unchecked Sendable {
 
     /// An idle loops; a replay holds its end.
     func local(_ t: Double) -> Double {
-        guard kind == .idle else { return min(max(warp.script(t), 0), script.duration) }
-        // The field between snaps loops in its stretched time, then reads the script there.
-        guard let start = loopStart, loopPeriod > 0, t > start + loopPeriod else { return warp.script(min(max(t, 0), endTime)) }
-        return warp.script(start + (t - start).truncatingRemainder(dividingBy: loopPeriod))
+        guard kind == .idle else { return min(max(t, 0), script.duration) }
+        guard let loop = script.loop, loop.period > 0, t > loop.start + loop.period else { return min(max(t, 0), script.duration) }
+        return loop.start + (t - loop.start).truncatingRemainder(dividingBy: loop.period)
     }
 
     var ambient: Bool { kind == .idle }
@@ -217,7 +156,7 @@ struct GridClip: TheaterClip, @unchecked Sendable {
     func moving(at t: Double) -> Bool {
         guard t >= 0 else { return false }
         if kind == .replay { return t <= length }
-        guard t < endTime || loopStart != nil else { return false }
+        guard t < script.duration || script.loop != nil else { return false }
         return script.moving(at: local(t))
     }
 }
@@ -434,8 +373,6 @@ enum GridPainter {
             let q = plan.placements[j]
             let clipTime = q.time(scratch.p)
             let lt = q.clip.local(clipTime)
-            // Direct script reads use lt; clip.ball applies the warp itself.
-            // Passing lt to it would slow the flight twice and miss its catch.
             if let carrier = q.clip.script.carrier(at: lt), carrier.player < q.cast.count {
                 holder = q.cast[carrier.player]
                 let player = q.clip.script.players[carrier.player]

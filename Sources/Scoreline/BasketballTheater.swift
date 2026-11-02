@@ -1602,7 +1602,7 @@ private struct BasketballDirectedStage: View {
         let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: names)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                TheaterFrames(director: director, running: seen && !reduceMotion) { wall in
+                TheaterFrames(director: director, running: seen && !reduceMotion, awake: fading) { wall in
                     frame(at: wall, size: geo.size, ink: ink, labels: labels)
                 }
                 .accessibilityHidden(true)
@@ -1728,7 +1728,7 @@ private struct BasketballDirectedStage: View {
         #if DEBUG
         let chain = director.chain
         let told = chain.plans.last?.plan.placements.compactMap(\.play).suffix(4).joined(separator: ",") ?? ""
-        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id, clipTime: drawn.clip.warp.clip(drawn.t),
+        probe?(TheaterFrameReport(wall: wall, T: T, p: scratch.p, play: drawn.clip.scene?.id, clipTime: drawn.t,
                                   decisive: drawn.clip.decisive, placed: Set(chain.plans.last.map { Array($0.plan.decisive.keys) } ?? []),
                                   newest: chain.plans.last?.plan.decisive.filter { $0.value <= T + 1e-3 }.max { $0.value < $1.value }?.key,
                                   note: "seen \(seen) plans \(chain.plans.count) rev \(chain.revision) busy \(director.busy) tells \(told) anchors "

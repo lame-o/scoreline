@@ -20,7 +20,7 @@ import SwiftUI
 
 /// A play a row can replay: its scene, ready for the sport's script, and its
 /// moment as the live lane would have offered it (what its celebration answers).
-struct PlayReplay: Equatable {
+struct PlayReplay: Equatable, @unchecked Sendable {
     enum Scene: Equatable {
         /// The play, and the field it leaves.
         case baseball(PlayScene, rest: PlayScript.Rest)
@@ -131,53 +131,36 @@ enum Replays {
     /// of the game in play order spotted on its hash from the one before (as
     /// the live lane spots each from the last, watched from the kickoff),
     /// placed on the depth charts; its moment with the score going in.
-    static func football(_ items: [JSON], ids: Set<String>, teams: FootballFeed.Teams,
-                         charts: [GameDetail.Side: FootballDepthChart]) -> [String: PlayReplay] {
-        func sequence(_ item: JSON) -> Double { Double(item["sequenceNumber"].string ?? "") ?? item["sequenceNumber"].double ?? 0 }
-        // The feed isn't always in play order; sequence numbers are (ties keep the feed's order).
-        let ordered = items.enumerated().sorted { (sequence($0.element), $0.offset) < (sequence($1.element), $1.offset) }.map(\.element)
-        let drives = ordered.compactMap { FootballFeed.play($0, teams: teams) }
-        let snaps = FootballFeed.spot(ordered.compactMap { FootballScene.parse($0, teams: teams) }, after: nil)
-        var out: [String: PlayReplay] = [:]
-        for scene in snaps where ids.contains(scene.id) {
-            let moment = drives.first { $0.id == scene.id }.flatMap { play in
-                FootballFeed.moment(play, before: FootballFeed.score(before: play, in: drives), topIsHome: teams.topIsHome)
-            }
-            out[scene.id] = PlayReplay(scene: .football(scene.slotted(by: charts)), moment: moment)
-        }
-        return out
+    nonisolated static func football(_ items: [JSON], ids: Set<String>, teams: FootballFeed.Teams,
+                                     charts: [GameDetail.Side: FootballDepthChart]) -> [String: PlayReplay] {
+        var reader = FootballReplays()
+        return (reader.read(items, teams: teams, charts: charts) ?? [:]).filter { ids.contains($0.key) }
     }
 
     /// Basketball, from ESPN's core plays in game order (normalized as the
     /// live lane reads them): each play among `ids` that the theater replays
     /// in full; its moment as it was when new.
-    static func basketball(_ items: [JSON], ids: Set<String>, teams: BasketballFeed.Teams) -> [String: PlayReplay] {
-        var out: [String: PlayReplay] = [:]
-        for (i, item) in items.enumerated() {
-            guard let id = item["id"].string, ids.contains(id),
-                  let scene = BasketballScene.parse(items, at: i, teams: teams), scene.replays else { continue }
-            out[id] = PlayReplay(scene: .basketball(scene),
-                                 moment: BasketballFeed.moment(at: i, in: items, teams: teams, fromTipOff: items.first.map(Self.tipOff) ?? false))
-        }
-        return out
+    nonisolated static func basketball(_ items: [JSON], ids: Set<String>, teams: BasketballFeed.Teams) -> [String: PlayReplay] {
+        var reader = BasketballReplays()
+        return (reader.read(items, teams: teams) ?? [:]).filter { ids.contains($0.key) }
     }
 
     /// Soccer, from ESPN's core plays: the moment at `index` (a shot, a
     /// goal) with its build-up and what followed, as the theater parses it.
-    static func soccer(_ plays: [JSON], at index: Int, homeTeamID: String?, keepers: [String: SoccerScene.Person]) -> PlayReplay? {
+    nonisolated static func soccer(_ plays: [JSON], at index: Int, homeTeamID: String?, keepers: [String: SoccerScene.Person]) -> PlayReplay? {
         guard let scene = SoccerScene.parse(plays, at: index, homeTeamID: homeTeamID, keepers: keepers) else { return nil }
         return PlayReplay(scene: .soccer(scene), moment: SoccerFeed.action(plays[index], index: 0, homeTeamID: homeTeamID)?.moment)
     }
 
     /// Whether a run of NBA plays starts at the opening tip (the game's first entry).
-    static func tipOff(_ first: JSON) -> Bool {
+    nonisolated static func tipOff(_ first: JSON) -> Bool {
         first["period"]["number"].int == 1 && first["clock"]["value"].double.map { $0 >= 719 } != false
     }
 
     /// An archive and the live lane's newest entries as one run in game
     /// order: the lane's version of an entry both have (an edit), and what
     /// only the lane has after it. (pure; tested)
-    static func merged(_ archive: [JSON], _ lane: [JSON]) -> [JSON] {
+    nonisolated static func merged(_ archive: [JSON], _ lane: [JSON]) -> [JSON] {
         guard !lane.isEmpty else { return archive }
         let fresh = Dictionary(lane.compactMap { item in item["id"].string.map { ($0, item) } }, uniquingKeysWith: { _, newer in newer })
         var seen = Set<String>()
@@ -188,6 +171,155 @@ enum Replays {
         }
         out += lane.filter { $0["id"].string.map { !seen.contains($0) } ?? false }
         return out
+    }
+}
+
+// MARK: - Reading plays once
+
+/// Football's plays as replays, each read once: a play is parsed again only
+/// when its digest changes, and only what follows the first change is spotted
+/// and scored again (a snap's hash comes from the one before it, its moment's
+/// score from the plays before it). Every snap is kept, whether or not a row
+/// shows it yet, so a row that appears finds its replay waiting. (pure)
+struct FootballReplays {
+    private struct Parsed {
+        var digest: Int
+        var scene: FootballScene?
+        var drive: DrivePlay?
+    }
+    private struct Read: Equatable {
+        var id: String
+        var digest: Int
+    }
+
+    private var parsed: [String: Parsed] = [:]
+    private var order: [Read] = []
+    private var spotted: [FootballScene] = []
+    private var built: [String: PlayReplay] = [:]
+    private var teams: (top: String?, bottom: String?, topIsHome: Bool)?
+    private var charts: [GameDetail.Side: FootballDepthChart] = [:]
+    /// How many plays the last read parsed (the tests' and the bench's).
+    private(set) var parsedCount = 0
+
+    /// The replays now, or nil when nothing a replay reads has changed.
+    mutating func read(_ items: [JSON], teams: FootballFeed.Teams, charts: [GameDetail.Side: FootballDepthChart]) -> [String: PlayReplay]? {
+        func sequence(_ item: JSON) -> Double { Double(item["sequenceNumber"].string ?? "") ?? item["sequenceNumber"].double ?? 0 }
+        // The feed isn't always in play order; sequence numbers are (ties keep the feed's order).
+        let ordered = items.enumerated().map { (sequence($0.element), $0.offset, $0.element) }.sorted { ($0.0, $0.1) < ($1.0, $1.1) }.map(\.2)
+        parsedCount = 0
+        let fresh = ordered.enumerated().map { offset, item -> Read in
+            // An entry without an ID can't be kept: its place in the game is all it has.
+            let id = item["id"].string ?? "#\(offset)"
+            let digest = BroadcastLanes.digest(football: item)
+            if parsed[id]?.digest != digest {
+                parsed[id] = Parsed(digest: digest, scene: FootballScene.parse(item, teams: teams), drive: FootballFeed.play(item, teams: teams))
+                parsedCount += 1
+            }
+            return Read(id: id, digest: digest)
+        }
+        let same = self.teams.map { $0.top == teams.topID && $0.bottom == teams.bottomID && $0.topIsHome == teams.topIsHome } ?? false
+        let first = same && charts == self.charts ? (zip(order, fresh).enumerated().first { $1.0 != $1.1 }?.offset ?? min(order.count, fresh.count)) : 0
+        if first == fresh.count, order.count == fresh.count { return nil }
+        // What came before the first change stays exactly as it was read.
+        let before = Set(fresh[..<first].compactMap { parsed[$0.id]?.scene?.id })
+        let kept = spotted.prefix { before.contains($0.id) }
+        var running = Array(kept)
+        running += FootballFeed.spot(fresh[first...].compactMap { parsed[$0.id]?.scene }, after: kept.last)
+        let drives = fresh.compactMap { parsed[$0.id]?.drive }
+        let places = Dictionary(drives.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var next = built.filter { before.contains($0.key) }
+        for scene in running[kept.count...] {
+            let moment = places[scene.id].flatMap { at in
+                FootballFeed.moment(drives[at], before: drives[..<at].last { $0.homeScore != nil && $0.awayScore != nil }.map { ($0.homeScore!, $0.awayScore!) },
+                                    topIsHome: teams.topIsHome)
+            }
+            next[scene.id] = PlayReplay(scene: .football(scene.slotted(by: charts)), moment: moment)
+        }
+        order = fresh
+        spotted = running
+        built = next
+        self.teams = (teams.topID, teams.bottomID, teams.topIsHome)
+        self.charts = charts
+        return next
+    }
+}
+
+/// Basketball's plays as replays, each read once: a play's scene reads the
+/// plays around it, so a change is read again from the sport's own reach
+/// before it (`HoopsSport.sceneStart`), and nothing earlier is. (pure)
+struct BasketballReplays {
+    private struct Read: Equatable {
+        var id: String?
+        var digest: Int
+    }
+
+    private var order: [Read] = []
+    private var built: [Int: (id: String, replay: PlayReplay)] = [:]
+    private var teams: (top: String?, bottom: String?, topIsHome: Bool)?
+    /// How many plays the last read parsed (the tests' and the bench's).
+    private(set) var parsedCount = 0
+
+    /// The replays now, or nil when nothing a replay reads has changed.
+    mutating func read(_ items: [JSON], teams: BasketballFeed.Teams) -> [String: PlayReplay]? {
+        let fresh = items.map { Read(id: $0["id"].string, digest: BroadcastLanes.digest(basketball: $0)) }
+        let same = self.teams.map { $0.top == teams.topID && $0.bottom == teams.bottomID && $0.topIsHome == teams.topIsHome } ?? false
+        var first = same ? (zip(order, fresh).enumerated().first { $1.0 != $1.1 }?.offset ?? min(order.count, fresh.count)) : 0
+        parsedCount = 0
+        if first == fresh.count, order.count == fresh.count { return nil }
+        first = HoopsSport.sceneStart(before: first, in: items)
+        built = built.filter { $0.key < first }
+        let tip = items.first.map(Replays.tipOff) ?? false
+        for i in first..<items.count {
+            parsedCount += 1
+            guard let id = items[i]["id"].string, let scene = BasketballScene.parse(items, at: i, teams: teams), scene.replays else { continue }
+            built[i] = (id, PlayReplay(scene: .basketball(scene), moment: BasketballFeed.moment(at: i, in: items, teams: teams, fromTipOff: tip)))
+        }
+        order = fresh
+        self.teams = (teams.topID, teams.bottomID, teams.topIsHome)
+        return Dictionary(built.values.map { ($0.id, $0.replay) }, uniquingKeysWith: { _, newer in newer })
+    }
+}
+
+/// A run of plays handed across to the builder (the parsed JSON is never written to).
+struct JSONRun: @unchecked Sendable {
+    let items: [JSON]
+    init(_ items: [JSON]) { self.items = items }
+}
+
+/// Where a page's replays are built: off the main actor, one sport's reader at
+/// a time. A row opening never waits for a parse: everything's read as it comes.
+actor ReplayBuilder {
+    private var football = FootballReplays()
+    private var basketball = BasketballReplays()
+    private var baseball: (from: [String: PlayReplay], atBats: Int, built: [String: PlayReplay])?
+    private var soccer: [String: PlayReplay]?
+
+    func football(_ run: JSONRun, teams: FootballFeed.Teams, charts: [GameDetail.Side: FootballDepthChart]) -> [String: PlayReplay]? {
+        football.read(run.items, teams: teams, charts: charts)
+    }
+
+    func basketball(_ run: JSONRun, lane: JSONRun, teams: BasketballFeed.Teams) -> [String: PlayReplay]? {
+        basketball.read(Replays.merged(run.items, lane.items), teams: teams)
+    }
+
+    /// Baseball's come built, with the page's summary: what's added here is MLB's account of each.
+    func baseball(_ plays: [String: PlayReplay], atBats: [Statcast.AtBat]) -> [String: PlayReplay]? {
+        if let baseball, baseball.atBats == atBats.count, baseball.from == plays { return nil }
+        var next = plays
+        for (key, replay) in next {
+            guard case .baseball(var play, let rest) = replay.scene, play.measured == nil else { continue }
+            play.measured = play.measurement(in: atBats) ?? play.runnerMeasurement(in: atBats)
+            next[key]?.scene = .baseball(play, rest: rest)
+        }
+        let changed = baseball?.built != next
+        baseball = (plays, atBats.count, next)
+        return changed ? next : nil
+    }
+
+    func soccer(_ plays: [String: PlayReplay]) -> [String: PlayReplay]? {
+        guard soccer != plays else { return nil }
+        soccer = plays
+        return plays
     }
 }
 
@@ -226,6 +358,8 @@ final class PageReplays {
     /// The game's core plays (football, basketball), fetched once.
     @ObservationIgnored private var archive: (event: String, items: [JSON])?
     @ObservationIgnored private var charts: (event: String, found: [GameDetail.Side: FootballDepthChart])?
+    /// Where this page's replays are read (off the main actor), and what it has read so far.
+    @ObservationIgnored private var builder = ReplayBuilder()
     /// Finished games' core plays, the last few, kept across visits: a final doesn't change.
     private static var finals: [(event: String, items: [JSON])] = []
 
@@ -249,10 +383,13 @@ final class PageReplays {
         plays = [:]
         archive = nil
         charts = nil
+        builder = ReplayBuilder()
     }
 
-    /// The replays for the page's rows now: built from what the page has,
-    /// fetching what a game is missing once.
+    /// The page's replays now: built from what the page has, off the main
+    /// actor, fetching what a game is missing once. Every replayable play is
+    /// kept (the rows look theirs up), so a play told is already here: nothing
+    /// is read when one is told, and a row opens from what's built.
     func update(event: Event, detail: GameDetail, soccer: SoccerFeed?, football: FootballFeed, basketball: BasketballFeed) async {
         guard case let .espn(path, id, sport)? = event.ref else { return }
         let live = event.state == .live
@@ -260,28 +397,25 @@ final class PageReplays {
         let supported = [.baseball, .football, .soccer].contains(sport) || nba
         if supported != self.supported { self.supported = supported }
         guard supported else { return }
-        let recent = nba && live && !basketball.recentPlays.isEmpty ? basketball.recentPlays : detail.recentPlays
-        let ids = Replays.ids(detail, recent: recent)
-        var context = ReplayContext(eventID: event.id, top: event.competitors.first, bottom: event.competitors.last,
+        var context = ReplayContext(eventID: event.id, top: event.competitors.first, bottom: event.competitors.last, nba: nba,
                                     topIsHome: detail.topIsHome ?? false, people: detail.people, fielders: detail.fielders,
                                     lineups: detail.lineups)
-        var next: [String: PlayReplay]
+        let builder = builder
+        let next: [String: PlayReplay]?
         switch sport {
         case .baseball:
-            next = detail.replays.filter { ids.contains($0.key) }
             // MLB's account of each play: its feed fetched once for the game (the live lane keeps it current).
-            if let lookup = Statcast.Lookup(event), !next.isEmpty {
-                let atBats = await StatcastStore.shared.atBats(espnEvent: lookup.espnEvent, start: lookup.start, teams: lookup.teams)
+            var atBats: [Statcast.AtBat] = []
+            if let lookup = Statcast.Lookup(event), !detail.replays.isEmpty {
+                atBats = await StatcastStore.shared.atBats(espnEvent: lookup.espnEvent, start: lookup.start, teams: lookup.teams)
                 guard !Task.isCancelled else { return }
                 context.numbers = StatcastStore.shared.numbers(espnEvent: lookup.espnEvent)
-                for (key, replay) in next {
-                    guard case .baseball(var play, let rest) = replay.scene, play.measured == nil else { continue }
-                    play.measured = play.measurement(in: atBats) ?? play.runnerMeasurement(in: atBats)
-                    next[key]?.scene = .baseball(play, rest: rest)
-                }
             }
+            let plays = detail.replays, found = atBats
+            next = await Task.detached(priority: .utility) { await builder.baseball(plays, atBats: found) }.value
         case .soccer:
-            next = soccer?.replays.filter { ids.contains($0.key) } ?? [:]
+            let plays = soccer?.replays ?? [:]
+            next = await Task.detached(priority: .utility) { await builder.soccer(plays) }.value
         case .football:
             guard let homeIsTop = detail.topIsHome else { return }
             let teams = FootballFeed.Teams(event, topIsHome: homeIsTop)
@@ -291,18 +425,23 @@ final class PageReplays {
                                  normalize: { $0 })
             let found = league == "nfl" ? await depthCharts(event, teams: teams) : [:]
             guard !Task.isCancelled else { return }
-            next = Replays.football(items, ids: ids, teams: teams, charts: found)
+            let run = JSONRun(items)
+            next = await Task.detached(priority: .utility) { await builder.football(run, teams: teams, charts: found) }.value
         case .basketball:
             guard let topIsHome = detail.topIsHome else { return }
             let items = await archived(event, url: "https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/events/\(id)/competitions/\(id)/plays",
                                        normalize: BasketballFeed.normalized)
             guard !Task.isCancelled else { return }
-            next = Replays.basketball(Replays.merged(items, live ? basketball.window : []), ids: ids, teams: BasketballFeed.Teams(event, topIsHome: topIsHome))
+            let teams = BasketballFeed.Teams(event, topIsHome: topIsHome)
+            let run = JSONRun(items), lane = JSONRun(live ? basketball.window : [])
+            next = await Task.detached(priority: .utility) { await builder.basketball(run, lane: lane, teams: teams) }.value
         default:
             return
         }
+        guard !Task.isCancelled else { return }
         if context != self.context { self.context = context }
-        if next != plays { plays = next }
+        guard let next else { return }
+        plays = next
         var opening = opening
         opening.keep { next[$0] != nil }
         if opening != self.opening { self.opening = opening }
@@ -352,12 +491,14 @@ final class PageReplays {
 }
 
 /// Hands the page's replays to its rows, and keeps them in step with what
-/// they're built from: the page's rows (the summary, the NBA lane's latest
-/// plays) and the live lanes. Only this modifier follows the lanes, so a new
-/// entry never runs the page again.
+/// they're built from: the page's summary and the live lanes, as they arrive.
+/// What's told doesn't move it: the rows look up plays already read. Only this
+/// modifier follows the lanes, so a new entry never runs the page again.
 struct ReplaySync: ViewModifier {
     let replays: PageReplays
     let detail: GameDetail?
+    /// The page's count of loads: a new summary.
+    let loads: Int
     let event: Event
     let soccer: SoccerFeed?
     let football: FootballFeed
@@ -366,14 +507,11 @@ struct ReplaySync: ViewModifier {
     private struct Key: Equatable {
         var event: String
         var state: EventState
-        var rows: Set<String>
-        var baseball: [String: PlayReplay]
-        var people: Int
+        var loads: Int
         /// What each lane last brought.
         var soccer: Int
         var football: Date?
         var basketball: Date?
-        var latest: [GameDetail.RecentPlay]
     }
 
     func body(content: Content) -> some View {
@@ -384,10 +522,9 @@ struct ReplaySync: ViewModifier {
     }
 
     private var key: Key? {
-        guard let detail else { return nil }
+        guard detail != nil else { return nil }
         let live = event.state == .live
-        return Key(event: event.id, state: event.state, rows: Replays.ids(detail, recent: detail.recentPlays), baseball: detail.replays,
-                   people: detail.people.count, soccer: soccer?.replays.count ?? 0, football: live ? football.theater.heard : nil,
-                   basketball: live ? basketball.theater.heard : nil, latest: live ? basketball.recentPlays : [])
+        return Key(event: event.id, state: event.state, loads: loads, soccer: soccer?.replays.count ?? 0,
+                   football: live ? football.theater.heard : nil, basketball: live ? basketball.theater.heard : nil)
     }
 }

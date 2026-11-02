@@ -222,7 +222,7 @@ struct TheaterSession<Sport: TheaterSport>: Sendable {
 
     init(facts: Sport.Facts) { self.facts = facts }
 
-    /// The theater's time and the clock it runs on (the view's schedule maps tiers through them).
+    /// The theater's time and the clock it runs on (the view's wake maps tiers through them).
     var timing: (time: TheaterTime, clock: PresentationClock)? { clock.map { (time, $0) } }
 
     /// p at a wall time, on the clock the theater runs on (the bench measures decisive moments against it).
@@ -375,6 +375,8 @@ actor TheaterBakery {
 @MainActor @Observable
 final class TheaterDirector<Sport: TheaterSport> {
     private(set) var chain = PlanChain<Sport.Clip>()
+    /// Bumps when the clock the theater's time runs on changes: when the plan's next frames are due moved with it.
+    private(set) var clockRevision: UInt64 = 0
     @ObservationIgnored private var session: TheaterSession<Sport>
     @ObservationIgnored private var baking: Task<Void, Never>?
     @ObservationIgnored private var waking: Task<Void, Never>?
@@ -398,7 +400,7 @@ final class TheaterDirector<Sport: TheaterSport> {
     /// A plan is being made (the offscreen check waits for it on its virtual clock).
     var busy: Bool { baking != nil }
 
-    /// The theater's time and its clock, for the view's frame schedule.
+    /// The theater's time and its clock, for the view's frames.
     var timing: (time: TheaterTime, clock: PresentationClock)? { session.timing }
 
     /// Where each play is presented on p (as T reaches its decisive frame): the timeline presents it there too.
@@ -417,6 +419,7 @@ final class TheaterDirector<Sport: TheaterSport> {
     func clockDidChange(_ clock: PresentationClock, events: [PresentationClock.Event]) {
         self.clock = clock
         if session.clockDidUpdate(clock, events: events, now: now()) || chain.isEmpty { replan() }
+        clockRevision &+= 1
     }
 
     /// The viewer turned the court (the facts changed): re-plan.

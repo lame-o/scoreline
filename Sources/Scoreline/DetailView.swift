@@ -42,6 +42,8 @@ struct DetailView: View {
     /// clock, and what's presented at p, which everything on the page but the
     /// theaters reads.
     @State private var broadcast = Broadcast()
+    /// The game in its teams' colors, worked out once per change (`event` is read dozens of times a body).
+    @State private var colors = EventColors()
     /// The directed theater's scoring moments (CHOREOGRAPHY Phase 0): the slides land with its plan.
     @State private var theaterCues = TheaterCues()
     /// The presented event the menu bar and the alerts last had.
@@ -121,7 +123,7 @@ struct DetailView: View {
     /// detail refreshes on its own cadence while this page is open. While the
     /// game broadcasts, both are as presented at p: the score after the last
     /// told play, the clock as it read then, live until the last play is told.
-    private var event: Event { broadcast.present(loadedDetail?.colored(live) ?? live) }
+    private var event: Event { broadcast.present(colors.event(live, in: loadedDetail, revision: loadedRevision)) }
 
     /// The game's colors, decided once (`MatchColors`).
     private var colors: MatchColors { MatchColors(event, topIsHome: loadedDetail?.topIsHome) }
@@ -314,7 +316,7 @@ struct DetailView: View {
             .environment(nbaStage)
             // The rows' replays, kept in step with the summary and the live lanes (only this modifier reads the lanes for them).
             // (The store keeps a soccer page's feed; asking for one on any other page would make one.)
-            .modifier(ReplaySync(replays: replays, detail: detail, event: event, soccer: isSoccer ? soccerFeed : nil, football: footballFeed,
+            .modifier(ReplaySync(replays: replays, detail: detail, loads: loadedRevision, event: event, soccer: isSoccer ? soccerFeed : nil, football: footballFeed,
                                  basketball: basketballFeed))
             // NBA: players on fire, ESPN's scoring run (CourtView, GameFlowView, BoxScoreView, LeadersView).
             .environment(basketballFeed)
@@ -2830,6 +2832,19 @@ struct DetailView: View {
             let interval: Double = detail == nil ? 5 : (current.state == .live ? (hasFastLane(current) ? 30 : 15) : 120)
             try? await Task.sleep(for: .seconds(interval))
         }
+    }
+}
+
+/// The live event in the colors the page's load says, kept by reference so reading it writes nothing the page observes.
+@MainActor
+final class EventColors {
+    private var memo: (live: Event, revision: Int, colored: Event)?
+
+    func event(_ live: Event, in detail: GameDetail?, revision: Int) -> Event {
+        if let memo, memo.revision == revision, memo.live == live { return memo.colored }
+        let colored = detail?.colored(live) ?? live
+        memo = (live, revision, colored)
+        return colored
     }
 }
 

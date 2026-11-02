@@ -278,7 +278,7 @@ final class SoccerFeed {
             newItems.removeAll { struck.contains(Self.playID($0)) && SoccerScene.isGoal($0) }
             newActions.removeAll { struck.contains($0.playID) }
         }
-        if !newItems.isEmpty || !edited.isEmpty { readReplays(window + newItems, homeTeamID: homeTeamID) }
+        if !newItems.isEmpty || !edited.isEmpty { await readReplays(window + newItems, homeTeamID: homeTeamID) }
         let shownBefore = theater.scene?.id
         updateTheater(newItems, revised: edited, homeTeamID: homeTeamID, news: primed && following)
         if !newItems.isEmpty {
@@ -341,14 +341,19 @@ final class SoccerFeed {
     /// first look, the whole match) as the theater would replay it, each
     /// read again while what follows it can still change it (its save, its
     /// block, VAR); an entry that's no longer a moment drops out.
-    private func readReplays(_ plays: [JSON], homeTeamID: String?) {
-        let known = keepers.merging(SoccerScene.keepers(in: plays)) { _, newer in newer }
-        var next = replays
-        for index in plays.indices {
-            guard let id = SoccerScene.playID(plays[index]) else { continue }
-            next[id] = Replays.soccer(plays, at: index, homeTeamID: homeTeamID, keepers: known)
-        }
-        if next != replays { replays = next }
+    private func readReplays(_ plays: [JSON], homeTeamID: String?) async {
+        let run = JSONRun(plays), keepers = keepers, was = replays
+        // Off the main actor: the first look reads the whole match.
+        let next = await Task.detached(priority: .utility) { () -> [String: PlayReplay]? in
+            let known = keepers.merging(SoccerScene.keepers(in: run.items)) { _, newer in newer }
+            var next = was
+            for index in run.items.indices {
+                guard let id = SoccerScene.playID(run.items[index]) else { continue }
+                next[id] = Replays.soccer(run.items, at: index, homeTeamID: homeTeamID, keepers: known)
+            }
+            return next == was ? nil : next
+        }.value
+        if let next { replays = next }
     }
 
     /// A goal struck off: out of the shot map and the trail, taken back from
@@ -448,7 +453,7 @@ final class SoccerFeed {
                           side: team.map { $0 == homeTeamID ? .top : .bottom })
     }
 
-    static func action(_ item: JSON, index: Int, homeTeamID: String?) -> PitchAction? {
+    nonisolated static func action(_ item: JSON, index: Int, homeTeamID: String?) -> PitchAction? {
         guard let x = item["fieldPositionX"].double, let y = item["fieldPositionY"].double,
               x != 0 || y != 0,
               let teamRef = item["team"]["$ref"].string,
@@ -498,7 +503,7 @@ final class SoccerFeed {
         return action
     }
 
-    private static func playID(_ item: JSON) -> String {
+    private nonisolated static func playID(_ item: JSON) -> String {
         item["id"].string ?? item["id"].int.map(String.init) ?? ""
     }
 
@@ -679,7 +684,7 @@ final class FootballFeed {
 
     private static let pageSize = 50
     /// Clock stoppages and admin entries, not snaps.
-    private static let notPlays: Set<String> = ["Official Timeout", "Timeout", "End Period", "End of Half", "End of Game",
+    private nonisolated static let notPlays: Set<String> = ["Official Timeout", "Timeout", "End Period", "End of Half", "End of Game",
                                                 "Two-minute warning", "Coin Toss", "End of Regulation"]
 
     /// The plays of the drive in progress (or the last one), oldest first.
@@ -767,7 +772,6 @@ final class FootballFeed {
         // Start at the page holding the newest known play and read it whole:
         // ESPN edits plays in place (yardage, the extra point, a call overturned).
         var page = max(fetched - 1, 0) / Self.pageSize + 1
-        var new: [DrivePlay] = []
         var complete = false
         var look: [JSON] = []
         /// Entries newer than the theater's snap: only the newest that is one gets parsed.
@@ -793,7 +797,6 @@ final class FootballFeed {
                         possessionTeam = team
                     }
                 }
-                if let play = Self.play(item, teams: teams) { new.append(play) }
                 if sequence >= theaterSequence { newer.append((item, sequence)) }
                 if sequence > heardSequence {
                     heardSequence = sequence
@@ -811,6 +814,9 @@ final class FootballFeed {
             lastLook = look
             lookRevision += 1
         }
+        // What the look says, read off the main actor: a play in hand while it's read never waits for it.
+        let read = await Self.read(look: JSONRun(look), newer: newer, teams: teams, charts: charts, after: theaterSequence)
+        let new = read.plays
         // An edited play replaces its earlier version.
         let known = Dictionary(plays.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
         var merged = plays
@@ -834,15 +840,7 @@ final class FootballFeed {
                 .sorted { ($0.element.sequence, $0.offset) < ($1.element.sequence, $1.offset) }
                 .map(\.element)
         }
-        // The newest few snaps, oldest first: each is spotted on its hash from the one before.
-        let charts = charts
-        let recent = Array(newer.sorted { $0.sequence > $1.sequence }.lazy
-            .compactMap { entry in FootballScene.parse(entry.item, teams: teams).map { (scene: $0.slotted(by: charts), sequence: entry.sequence) } }
-            .prefix(5).reversed())
-        // What stopped play after the newest snap (a timeout, a TV timeout, the quarter's end), if anything has.
-        let after = recent.last?.sequence ?? theaterSequence
-        let stoppage = newer.filter { $0.sequence > after }.max { $0.sequence < $1.sequence }
-            .flatMap { FootballStoppage.parse($0.item, teams: teams) }
+        let recent = read.recent, stoppage = read.stoppage
         if let snap = recent.last, !Task.isCancelled {
             theaterSequence = snap.sequence
             let snaps = recent.map(\.scene)
@@ -880,10 +878,40 @@ final class FootballFeed {
         if complete { primed = true }
     }
 
+    /// What a look at the plays says: its plays, the newest few snaps (oldest
+    /// first; each is spotted on its hash from the one before) and what stopped
+    /// play after the newest (a timeout, a TV timeout, the quarter's end).
+    private static func read(look: JSONRun, newer: [(item: JSON, sequence: Double)], teams: Teams, charts: [GameDetail.Side: FootballDepthChart],
+                             after theaterSequence: Double) async -> (plays: [DrivePlay], recent: [(scene: FootballScene, sequence: Double)], stoppage: FootballStoppage?) {
+        let newer = NewerEntries(newer)
+        let done = await Task.detached(priority: .utility) { () -> LookRead in
+            let plays = look.items.compactMap { play($0, teams: teams) }
+            let recent = Array(newer.entries.sorted { $0.sequence > $1.sequence }.lazy
+                .compactMap { entry in FootballScene.parse(entry.item, teams: teams).map { (scene: $0.slotted(by: charts), sequence: entry.sequence) } }
+                .prefix(5).reversed())
+            let after = recent.last?.sequence ?? theaterSequence
+            let stoppage = newer.entries.filter { $0.sequence > after }.max { $0.sequence < $1.sequence }
+                .flatMap { FootballStoppage.parse($0.item, teams: teams) }
+            return LookRead(plays: plays, recent: recent, stoppage: stoppage)
+        }.value
+        return (done.plays, done.recent, done.stoppage)
+    }
+
+    private struct NewerEntries: @unchecked Sendable {
+        let entries: [(item: JSON, sequence: Double)]
+        init(_ entries: [(item: JSON, sequence: Double)]) { self.entries = entries }
+    }
+
+    private struct LookRead: @unchecked Sendable {
+        var plays: [DrivePlay]
+        var recent: [(scene: FootballScene, sequence: Double)]
+        var stoppage: FootballStoppage?
+    }
+
     /// A play as a moment for the field. A touchdown belongs to whoever owns
     /// the end zone it reached: a pick-six or return scores for the defense.
     /// A late go-ahead score is decisive; a long gain is a big play.
-    static func moment(_ play: DrivePlay, before: (home: Int, away: Int)? = nil, topIsHome: Bool = true) -> LiveMoment? {
+    nonisolated static func moment(_ play: DrivePlay, before: (home: Int, away: Int)? = nil, topIsHome: Bool = true) -> LiveMoment? {
         guard let m = play.moment else { return nil }
         let side: GameDetail.Side? = m.kind == .touchdown ? (play.endX >= 50 ? .top : .bottom) : play.side
         var moment = LiveMoment(id: play.id, chart: .field, tier: m.tier, kind: m.kind, lead: m.lead, detail: play.text, side: side)
@@ -1016,7 +1044,7 @@ final class FootballFeed {
 
     // MARK: Parsing
 
-    static func teamID(_ ref: String?) -> String? {
+    nonisolated static func teamID(_ ref: String?) -> String? {
         guard let ref, let range = ref.range(of: "/teams/") else { return nil }
         return ref[range.upperBound...].split(whereSeparator: { $0 == "?" || $0 == "/" }).first.map(String.init)
     }
@@ -1029,7 +1057,7 @@ final class FootballFeed {
         return "\(display) - \(name)"
     }
 
-    static func play(_ item: JSON, teams: Teams) -> DrivePlay? {
+    nonisolated static func play(_ item: JSON, teams: Teams) -> DrivePlay? {
         let type = item["type"]["text"].string ?? ""
         guard !notPlays.contains(type), !type.hasPrefix("End "),
               let start = item["start"]["yardLine"].double, let end = item["end"]["yardLine"].double,

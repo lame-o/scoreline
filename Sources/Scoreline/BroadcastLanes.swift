@@ -220,11 +220,7 @@ enum BroadcastLanes {
             let stopped = stoppage(type: play["type"]["text"].string)
             kind = PlayKind(.dead, stopped == nil ? "other" : "timeout", stopsClock: true, stoppage: stopped)
         }
-        let digest = digest(play) { h in
-            h.combine(play["coordinate"]["x"].double)
-            h.combine(play["coordinate"]["y"].double)
-            h.combine(play["shootingPlay"].bool)
-        }
+        let digest = digest(basketball: play)
         return TimelineEntry(id: id, wallclock: EventTime.parse(play["wallclock"].string), period: period,
                              progress: elapsed ?? 0,
                              clock: GameClockReading(elapsed: elapsed, resolution: display.contains(":") ? 1 : 0.1, display: display),
@@ -280,7 +276,18 @@ enum BroadcastLanes {
                 || play["isPenalty"].bool == true || typeID == "8" || text.contains("spike")
             kind = PlayKind(.live, play["isPenalty"].bool == true || typeID == "8" ? "penalty" : kick ? "kick" : "snap", stopsClock: stops)
         }
-        let digest = digest(play) { h in
+        let digest = digest(football: play)
+        let entry = TimelineEntry(id: id, wallclock: EventTime.parse(play["wallclock"].string), period: period,
+                                  progress: elapsed ?? sequence,
+                                  clock: GameClockReading(elapsed: elapsed, display: play["clock"]["displayValue"].string),
+                                  kind: kind, score: score(play), text: play["shortText"].string ?? play["text"].string ?? typeText,
+                                  digest: digest, payload: RawPlay(json: play, digest: digest))
+        return (entry, Double(period) * 1e7 + sequence)
+    }
+
+    /// A football play's digest: the common fields, and where it starts and ends.
+    static func digest(football play: JSON) -> Int {
+        digest(play) { h in
             h.combine(play["start"]["yardLine"].double)
             h.combine(play["end"]["yardLine"].double)
             h.combine(play["start"]["down"].int)
@@ -288,12 +295,15 @@ enum BroadcastLanes {
             h.combine(play["isPenalty"].bool)
             h.combine(play["isTurnover"].bool)
         }
-        let entry = TimelineEntry(id: id, wallclock: EventTime.parse(play["wallclock"].string), period: period,
-                                  progress: elapsed ?? sequence,
-                                  clock: GameClockReading(elapsed: elapsed, display: play["clock"]["displayValue"].string),
-                                  kind: kind, score: score(play), text: play["shortText"].string ?? play["text"].string ?? typeText,
-                                  digest: digest, payload: RawPlay(json: play, digest: digest))
-        return (entry, Double(period) * 1e7 + sequence)
+    }
+
+    /// A basketball play's digest: the common fields, and where the shot was taken.
+    static func digest(basketball play: JSON) -> Int {
+        digest(play) { h in
+            h.combine(play["coordinate"]["x"].double)
+            h.combine(play["coordinate"]["y"].double)
+            h.combine(play["shootingPlay"].bool)
+        }
     }
 
     // MARK: Soccer

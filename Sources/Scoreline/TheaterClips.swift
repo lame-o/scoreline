@@ -644,13 +644,15 @@ enum TheaterHandOff {
 /// contact a hard key, so every catch, pass and shot meets the ball exactly
 /// where it did), and quintics through them carry him C²: he runs through a
 /// junction, rounds the corner, eases into a start. Nil: he never moves.
+///
+/// The script's clock is the clock: a clip runs at its script's own pace, its
+/// flights to the frame. A man the script asks too much of is solved on his
+/// own, and nobody else slows for him (`solved`).
 enum ClipPaths {
-    /// `retime`: false for a loop (a re-timed run would straddle its seam; the clip's warp slows it instead).
-    /// `rest`: a deliberate settled hold. Soft arrivals finish at its start,
-    /// and a reset cannot leave before its end. The caller must ensure no
-    /// real contact or separate movement lies inside this interval.
+    /// `solve`: false to take the keys exactly as they are. `seams`: moments he
+    /// must keep (a loop's ends: what he does either side has to meet).
     static func resynthesized(_ moves: [PlayScript.Move], contacts: [Double], band: MotionLimits.Band, span: ClosedRange<Double>,
-                              retime: Bool = true, rest: ClosedRange<Double>? = nil, position: (Double) -> CGPoint) -> MotionPath? {
+                              solve: Bool = true, seams: [Double] = [], position: (Double) -> CGPoint) -> MotionPath? {
         let moves = moves.sorted { $0.start < $1.start }
         guard !moves.isEmpty else { return nil }
         var keys: [MotionKey] = []
@@ -681,46 +683,68 @@ enum ClipPaths {
             let arriving = !cut && (next.map { $0.start > m.end + 0.08 } ?? true)
             add(end, m.point(at: end), arriving ? .arrive : .through, hard: false)
         }
-        if let rest {
-            let p = position(rest.upperBound), at = SIMD2(Double(p.x), Double(p.y))
-            // Pin both sides at rest before retiming. Otherwise a short reset
-            // borrows the result hold, then its acceleration slows the whole
-            // clip (including the supposedly still pause).
-            keys.removeAll { rest.contains($0.t) }
-            keys.append(MotionKey(t: rest.lowerBound, at: at, kind: .arrive, hard: true))
-            keys.append(MotionKey(t: rest.upperBound, at: at, kind: .depart, hard: true))
-            keys.sort { $0.t < $1.t }
-        }
-        // Where the ball meets him, exactly where it did.
-        for t in contacts {
+        // Where the ball meets him, exactly where it did; and the moments he has to keep.
+        for t in contacts + seams {
             guard let first = keys.first, let last = keys.last, t > first.t, t < last.t else { continue }
             let at = position(t)
             keys.removeAll { abs($0.t - t) < 0.06 && !$0.hard }
             let index = keys.firstIndex { $0.t > t } ?? keys.count
             keys.insert(MotionKey(t: t, at: SIMD2(at.x, at.y), kind: .through, hard: true), at: index)
         }
+        // A contact past either end of his moves is where he starts or finishes: that spot stands too.
+        if let first = keys.first, contacts.contains(where: { $0 <= first.t }) { keys[0].hard = true }
+        if let last = keys.last, contacts.contains(where: { $0 >= last.t }) { keys[keys.count - 1].hard = true }
         guard keys.count > 1 else { return nil }
-        return TheaterMotion.path(retime ? retimed(keys, band: band, span: span) : keys, band: band)
+        return TheaterMotion.path(solve ? solved(keys, band: band, span: span) : keys, band: band)
     }
 
-    /// Today's key times kept where a man can make them; where he can't (a
+    /// The least time a run of `length` takes him, as he stands at either end: from rest to rest whichever of one
+    /// easing and a ramp, a cruise and a ramp is quicker; from or to a run, half of that; between two runs, his sprint.
+    static func least(length: Double, restA: Bool, restB: Bool, band: MotionLimits.Band) -> Double {
+        if restA, restB { return min(TheaterMotion.shortest(distance: length, band: band), cruising(length: length, band: band).time) }
+        if restA || restB { return max(1.5 * length / band.sprint, (3.5 * length / min(band.accel, band.decel)).squareRoot()) }
+        return length / band.sprint
+    }
+
+    /// Rest to rest by a ramp (at the band's push), a cruise and a ramp: the least time and the cruise's speed.
+    static func cruising(length: Double, band: MotionLimits.Band) -> (time: Double, speed: Double) {
+        // A quintic ramp to speed v takes 1.875 v / push and covers half of v times that.
+        let c = 0.9375 * (1 / band.accel + 1 / band.decel)
+        let best = (length / c).squareRoot(), v = min(best, band.sprint)
+        return (length / v + c * v, v)
+    }
+
+    /// How far along his path he can get in `time`, as he stands at either end (`least`, turned round).
+    static func reach(time: Double, restA: Bool, restB: Bool, band: MotionLimits.Band) -> Double {
+        var lo = 0.0, hi = band.sprint * max(time, 0)
+        for _ in 0..<30 {
+            let mid = (lo + hi) / 2
+            if least(length: mid, restA: restA, restB: restB, band: band) <= time { lo = mid } else { hi = mid }
+        }
+        return lo
+    }
+
+    /// Today's key times kept where a man can make them. Where he can't (a
     /// move faster than his sprint, a start or stop harder than his legs),
-    /// the run between two keys where he's at rest or pinned gets the time it
-    /// needs: he leaves earlier (from where he stood) or arrives later (where
-    /// he stops), never past a ball contact (those stay exactly when and where
-    /// they were) nor the clip's ends; the keys inside it are re-timed by
-    /// distance along it, eased out of a stand and into a stop (§5.5.4:
-    /// retiming before infeasibility).
-    static func retimed(_ keys: [MotionKey], band: MotionLimits.Band, span: ClosedRange<Double>) -> [MotionKey] {
-        guard keys.count > 1 else { return keys }
-        var keys = keys
+    /// him alone, in this order:
+    /// - he leaves earlier (from where he stood) or arrives later (where he
+    ///   stops), never past a ball contact nor the clip's ends;
+    /// - he runs it as a run, up to speed and holding it, not one long easing;
+    /// - he ends short of a spot he's not credited with reaching, how far he
+    ///   got is where what he does next starts; his last run of the clip he's
+    ///   still on, so the next clip carries him on from there;
+    /// - a man who must meet the ball starts as near it as he has to.
+    /// Two contacts too close for his legs are the only thing left as it is: the ball wins.
+    static func solved(_ input: [MotionKey], band: MotionLimits.Band, span: ClosedRange<Double>) -> [MotionKey] {
+        guard input.count > 1 else { return input }
+        var keys = input
         func bound(_ k: MotionKey) -> Bool { k.hard || k.kind == .depart || k.kind == .arrive }
-        var edges = keys.indices.filter { bound(keys[$0]) }
-        if edges.first != 0 { edges.insert(0, at: 0) }
-        if edges.last != keys.count - 1 { edges.append(keys.count - 1) }
-        for r in 0..<(edges.count - 1) {
-            let a = edges[r], b = edges[r + 1]
-            guard b > a else { continue }
+        func rest(_ k: MotionKey, first: Bool) -> Bool { k.kind == .depart || k.kind == .arrive || (first && !k.hard) }
+        var a = 0, passes = 0
+        while a < keys.count - 1, passes < 4 * input.count {
+            passes += 1
+            var b = a + 1
+            while b < keys.count - 1, !bound(keys[b]) { b += 1 }
             var along = [0.0]
             var fastest = 0.0
             for k in a..<b {
@@ -729,24 +753,17 @@ enum ClipPaths {
                 fastest = max(fastest, d / max(keys[k + 1].t - keys[k].t, 1e-6))
             }
             let length = along[along.count - 1]
-            guard length > 0.05 else { continue }
-            let restA = keys[a].kind == .depart || keys[a].kind == .arrive
-            let restB = keys[b].kind == .arrive || keys[b].kind == .depart
-            // The least time the run takes him: rest to rest (a quintic's peak speed and push), half of it, or at a run.
-            let push = min(band.accel, band.decel)
-            let least: Double
-            if restA && restB {
-                least = TheaterMotion.shortest(distance: length, band: band)
-            } else if restA || restB {
-                least = max(1.5 * length / band.sprint, (3.5 * length / push).squareRoot())
-            } else {
-                least = length / band.sprint
-            }
+            let restA = rest(keys[a], first: a == 0), restB = rest(keys[b], first: false)
+            let need = least(length: length, restA: restA, restB: restB, band: band)
             var t0 = keys[a].t, t1 = keys[b].t
-            // Today's own timing when he can make it.
-            guard t1 - t0 < least || fastest > band.sprint else { continue }
-            if t1 - t0 < least {
-                var short = least - (t1 - t0)
+            // Today's own timing when he can make it (one easing or a walk: nothing to see).
+            let plain = !restA || !restB || (1.875 * length / max(t1 - t0, 1e-6) <= band.sprint && 5.77 * length / pow(max(t1 - t0, 1e-6), 2) <= min(band.accel, band.decel))
+            guard length > 0.05, !(t1 - t0 >= need && fastest <= band.sprint && plain) else {
+                a = b
+                continue
+            }
+            if t1 - t0 < need {
+                var short = need - (t1 - t0)
                 // Later into a stop that isn't pinned (up to the next key, or the clip's end).
                 if keys[b].kind == .arrive, !keys[b].hard {
                     let limit = b + 1 < keys.count ? keys[b + 1].t - 0.06 : span.upperBound
@@ -760,31 +777,155 @@ enum ClipPaths {
                     t0 -= min(short, max(t0 - limit, 0))
                 }
             }
-            // The keys inside, by distance along the run, on the run's own shape.
-            func share(_ s: Double) -> Double {
-                var lo = 0.0, hi = 1.0
-                for _ in 0..<30 {
-                    let u = (lo + hi) / 2
-                    let covered: Double
-                    if restA && restB {
-                        covered = u * u * u * (10 - 15 * u + 6 * u * u)
-                    } else if restA {
-                        covered = u * u * (2 - u)
-                    } else if restB {
-                        let w = 1 - u
-                        covered = 1 - w * w * (2 - w)
-                    } else {
-                        covered = u
-                    }
-                    if covered < s { lo = u } else { hi = u }
-                }
-                return (lo + hi) / 2
+            let time = t1 - t0
+            if time >= need - 1e-6 {
+                shape(&keys, a, b, t0: t0, t1: t1, along: along, restA: restA, restB: restB, band: band)
+                // The shape may have added keys: on from the run's end.
+                a = keys.firstIndex { $0.t >= t1 - 1e-9 } ?? keys.count - 1
+                continue
             }
-            keys[a].t = t0
-            keys[b].t = t1
-            for k in (a + 1)..<b { keys[k].t = t0 + share(along[k - a] / length) * (t1 - t0) }
+            let got = reach(time: time, restA: restA, restB: restB, band: band)
+            if !keys[b].hard {
+                // He ends short, or (the clip's last run) is still on his way when it ends.
+                let last = b == keys.count - 1
+                let open = last && restB
+                let distance = open ? min(length, reach(time: time, restA: restA, restB: false, band: band)) : got
+                let was = keys[b].at
+                let here = point(along: along, keys, a, distance)
+                let direction = heading(along: along, keys, a, distance)
+                var inside: [MotionKey] = []
+                for k in (a + 1)..<b where along[k - a] < distance - 0.5 {
+                    var key = keys[k]
+                    key.t = t0 + (along[k - a] / max(distance, 1e-6)) * time
+                    inside.append(key)
+                }
+                keys[a].t = t0
+                keys[b].t = t1
+                keys[b].at = here
+                if open {
+                    // At a run's pace, or what the time lets him get to: the next clip takes that over.
+                    let speed = min(band.run, restA ? 2 * distance / max(time, 1e-6) : band.sprint)
+                    keys[b].kind = .through
+                    keys[b].velocity = direction * speed
+                    keys[b].acceleration = .zero
+                }
+                // What he does next starts from where he got to.
+                var k = b + 1
+                while k < keys.count, simd_length(keys[k].at - was) < 0.5 {
+                    if !keys[k].hard { keys[k].at = here }
+                    k += 1
+                }
+                keys.replaceSubrange((a + 1)..<b, with: inside)
+                a += inside.count + 1
+                continue
+            }
+            if !keys[a].hard, a == 0 || keys[a].kind == .depart || keys[a].kind == .arrive {
+                // He has to meet the ball: he starts as near it as his legs need.
+                let from = point(along: along, keys, a, length - got)
+                var inside: [MotionKey] = []
+                for k in (a + 1)..<b where along[k - a] > length - got + 0.5 {
+                    var key = keys[k]
+                    key.t = t0 + ((along[k - a] - (length - got)) / max(got, 1e-6)) * time
+                    inside.append(key)
+                }
+                let was = keys[a].at
+                keys[a].t = t0
+                keys[a].at = from
+                keys.replaceSubrange((a + 1)..<b, with: inside)
+                // Where he stood before it moved with it: the run before ends here now.
+                if a > 0 {
+                    var k = a - 1
+                    while k >= 0, simd_length(keys[k].at - was) < 0.5, !keys[k].hard {
+                        keys[k].at = from
+                        k -= 1
+                    }
+                    if k >= 0 {
+                        // Solved again, from the run that now ends somewhere else.
+                        var back = a - 1
+                        while back > 0, !bound(keys[back]) { back -= 1 }
+                        a = max(back - 1, 0)
+                        while a > 0, !bound(keys[a]) { a -= 1 }
+                        continue
+                    }
+                }
+                a += inside.count + 1
+                continue
+            }
+            // Contact to contact: the ball's moments stand.
+            a = b
         }
         return keys
+    }
+
+    /// The point `distance` along the run from key `a`.
+    private static func point(along: [Double], _ keys: [MotionKey], _ a: Int, _ distance: Double) -> SIMD2<Double> {
+        var i = 0
+        while i + 2 < along.count, along[i + 1] < distance { i += 1 }
+        let span = max(along[i + 1] - along[i], 1e-9)
+        let u = min(max((distance - along[i]) / span, 0), 1)
+        return keys[a + i].at + (keys[a + i + 1].at - keys[a + i].at) * u
+    }
+
+    /// Which way the run goes `distance` along it.
+    private static func heading(along: [Double], _ keys: [MotionKey], _ a: Int, _ distance: Double) -> SIMD2<Double> {
+        var i = 0
+        while i + 2 < along.count, along[i + 1] < distance { i += 1 }
+        let d = keys[a + i + 1].at - keys[a + i].at
+        let m = simd_length(d)
+        return m > 1e-9 ? d / m : .zero
+    }
+
+    /// The run's keys re-timed to `t0...t1`, on the run's own shape: by distance, eased out of a stand and into a stop;
+    /// when one easing would ask more than he has, up to speed, holding it, and down.
+    private static func shape(_ keys: inout [MotionKey], _ a: Int, _ b: Int, t0: Double, t1: Double, along: [Double], restA: Bool, restB: Bool,
+                              band: MotionLimits.Band) {
+        let length = along[along.count - 1], time = t1 - t0
+        keys[a].t = t0
+        keys[b].t = t1
+        let oneEasing = 1.875 * length / time <= band.sprint && 5.77 * length / (time * time) <= min(band.accel, band.decel)
+        let c = 0.9375 * (1 / band.accel + 1 / band.decel)
+        // A run needs room for its two ramps: short of that, one easing is the quicker of the two.
+        if restA, restB, !oneEasing, time * time >= 4 * c * length {
+            // A ramp, a cruise and a ramp: the cruise as slow as the time allows.
+            let root = (time * time - 4 * c * length).squareRoot()
+            let v = (time - root) / (2 * c)
+            let r1 = 1.875 * v / band.accel, r3 = 1.875 * v / band.decel
+            let d1 = v * r1 / 2, d3 = v * r3 / 2
+            var run: [MotionKey] = []
+            let up = MotionKey(t: t0 + r1, at: point(along: along, keys, a, d1), kind: .through, velocity: heading(along: along, keys, a, d1) * v, acceleration: .zero, hard: false)
+            let down = MotionKey(t: t1 - r3, at: point(along: along, keys, a, length - d3), kind: .through, velocity: heading(along: along, keys, a, length - d3) * v, acceleration: .zero, hard: false)
+            if r1 > 0.04, d1 > 0.5, d1 < length - d3 - 0.5 { run.append(up) }
+            for k in (a + 1)..<b {
+                let s = along[k - a]
+                guard s > d1 + 0.5, s < length - d3 - 0.5 else { continue }
+                var key = keys[k]
+                key.t = t0 + r1 + (s - d1) / max(v, 1e-6)
+                run.append(key)
+            }
+            if r3 > 0.04, d3 > 0.5, d1 < length - d3 - 0.5 { run.append(down) }
+            keys.replaceSubrange((a + 1)..<b, with: run)
+            return
+        }
+        func share(_ s: Double) -> Double {
+            var lo = 0.0, hi = 1.0
+            for _ in 0..<30 {
+                let u = (lo + hi) / 2
+                let covered: Double
+                if restA && restB {
+                    covered = u * u * u * (10 - 15 * u + 6 * u * u)
+                } else if restA {
+                    covered = u * u * (2 - u)
+                } else if restB {
+                    let w = 1 - u
+                    covered = 1 - w * w * (2 - w)
+                } else {
+                    covered = u
+                }
+                if covered < s { lo = u } else { hi = u }
+            }
+            return (lo + hi) / 2
+        }
+        for k in (a + 1)..<b { keys[k].t = t0 + share(along[k - a] / max(length, 1e-9)) * time }
     }
 
     /// The moment an easing reaches `share` of its way (bisection: every easing here is monotone).
@@ -798,192 +939,10 @@ enum ClipPaths {
     }
 }
 
-// MARK: - A clip's own time, stretched (Phase 0)
-
-/// A clip's time stretched where today's script asks more of a man than his
-/// legs allow (§5.5.4: retime before anything is infeasible). Today's scripts
-/// are synthesized: only the decisive contact is the data's, so the moments
-/// before it are free to move apart, in order. Where any man would run past
-/// his sprint (or push past his limits), the script's time runs slower, so
-/// the contacts move later and nobody hurries; the ball's flights keep their
-/// own pace where they can (a short one normally slows at most by `steadyMost`), so
-/// the stretch falls on the runs between them. The stretch is eased in and out (no sudden change of pace), and the
-/// clip simply starts earlier by what it gained before its decisive moment:
-/// the planner places that moment at its anchor all the same.
-struct ClipWarp: Equatable, Sendable {
-    /// The clip's time at each step of the script's time.
-    private var times: [Double]
-    /// Explicit source knots only when a protected rest needs exact boundaries
-    /// between 60Hz samples. Other sports retain their existing uniform map.
-    private var knots: [Double]?
-    let step: Double
-    /// The script's own length.
-    let length: Double
-
-    static let identity = ClipWarp(times: [], step: 1, length: 0)
-    /// The usual limit for slowing a short flight. A sport can raise it only as far
-    /// as a visible player's sprint requires, while keeping the contact shared.
-    static let steadyMost = 2.0
-
-    var isIdentity: Bool { times.isEmpty }
-    /// The clip's length in its own (stretched) time.
-    var stretched: Double { times.last ?? length }
-
-    private init(times: [Double], step: Double, length: Double, knots: [Double]? = nil) {
-        self.times = times
-        self.knots = knots
-        self.step = step
-        self.length = length
-    }
-
-    /// The stretch for a script: `need(u)` how much slower its time must run at script time `u` (≥ 1), `steady(u)`
-    /// whether the ball's in flight there (its pace kept). Nil when nothing needs it.
-    static func make(length: Double, step: Double = 1.0 / 60, need: (Double) -> Double, steady: (Double) -> Bool,
-                     minimumFlightStretch: ((Double) -> Double)? = nil, rest: ClosedRange<Double>? = nil) -> ClipWarp? {
-        guard length.isFinite, length > step else { return nil }
-        if let rest, rest.lowerBound >= 0, rest.upperBound <= length, rest.upperBound > rest.lowerBound {
-            return keepingRest(length: length, step: step, need: need, steady: steady,
-                               minimumFlightStretch: minimumFlightStretch, rest: rest)
-        }
-        let n = Int((length / step).rounded(.up)) + 1
-        let flying = (0..<n).map { steady(min(Double($0) * step, length)) }
-        // A ball's usual pace is a preference. If keeping its twofold limit would
-        // force a visible player past his sprint, preserve the contact and grant
-        // only the extra stretch that his speed requires. Keep one limit across
-        // the clip so crossing that threshold cannot introduce a rate discontinuity.
-        var flightLimit = steadyMost
-        if let minimumFlightStretch {
-            for k in 0..<n where flying[k] {
-                let required = minimumFlightStretch(min(Double(k) * step, length))
-                if required.isFinite { flightLimit = max(flightLimit, required) }
-            }
-        }
-        var raw = (0..<n).map { k -> Double in
-            let required = max(need(min(Double(k) * step, length)), 1)
-            return flying[k] ? min(required, flightLimit) : required
-        }
-        guard raw.contains(where: { $0 > 1.001 }) else { return nil }
-        // Spread each slowdown a quarter second either way (the most, then the mean): eased in and out.
-        let half = max(Int((0.25 / step).rounded()), 1)
-        var widened = raw
-        for k in 0..<n { widened[k] = raw[max(k - half, 0)...min(k + half, n - 1)].max() ?? 1 }
-        for k in 0..<n {
-            let window = widened[max(k - half, 0)...min(k + half, n - 1)]
-            let mean = window.reduce(0, +) / Double(window.count)
-            raw[k] = flying[k] ? min(mean, flightLimit) : mean
-        }
-        var times = [0.0]
-        times.reserveCapacity(n)
-        for k in 1..<n { times.append(times[k - 1] + step * (raw[k - 1] + raw[k]) / 2) }
-        return ClipWarp(times: times, step: step, length: length)
-    }
-
-    /// Independent motion sections either side of a stationary hold. The
-    /// clock is shared by bodies, ball, poses and camera. Smoothing cannot
-    /// carry a reset's slowdown back into the hold. Both boundaries are rest
-    /// keys (zero ground velocity/acceleration), so changing the clock's rate
-    /// there does not introduce a movement discontinuity.
-    private static func keepingRest(length: Double, step: Double, need: (Double) -> Double, steady: (Double) -> Bool,
-                                    minimumFlightStretch: ((Double) -> Double)?, rest: ClosedRange<Double>) -> ClipWarp? {
-        let boundaries = [0, rest.lowerBound, rest.upperBound, length]
-        // Prefer authored boundaries to nearby frame-grid samples. Keeping a
-        // grid sample 1e-12 before the hold would classify it as motion, omit
-        // the exact boundary, and leak nearly a frame of stretch into it.
-        var knots = stride(from: 0.0, to: length, by: step).filter { sample in
-            !boundaries.contains { abs(sample - $0) < 1e-10 }
-        }
-        knots += boundaries
-        knots.sort()
-        var distinct: [Double] = []
-        // Only identical authored endpoints coalesce; two genuinely distinct
-        // boundaries remain exact even when they are very close together.
-        for knot in knots where distinct.last != knot { distinct.append(knot) }
-        knots = distinct
-        let n = knots.count
-        let flying = knots.map(steady)
-        var flightLimit = steadyMost
-        if let minimumFlightStretch {
-            for k in knots.indices where flying[k] {
-                let required = minimumFlightStretch(knots[k])
-                if required.isFinite { flightLimit = max(flightLimit, required) }
-            }
-        }
-        let raw = knots.indices.map { k -> Double in
-            guard !rest.contains(knots[k]) else { return 1 }
-            let required = max(need(knots[k]), 1)
-            return flying[k] ? min(required, flightLimit) : required
-        }
-        guard raw.contains(where: { $0 > 1.001 }) else { return nil }
-        // Run the same max-then-mean easing in each motion section. A rest
-        // boundary is an explicit 1x knot, not a fractional sample whose
-        // interpolation could leak a few milliseconds of stretch into it.
-        var widened = raw, rates = raw
-        let head = knots.lastIndex(where: { $0 <= rest.lowerBound }) ?? 0
-        let tail = knots.firstIndex(where: { $0 >= rest.upperBound }) ?? (n - 1)
-        for section in [0...head, tail...(n - 1)] {
-            var lower = section.lowerBound, upper = section.lowerBound
-            var windows: [ClosedRange<Int>] = []
-            windows.reserveCapacity(section.count)
-            for k in section {
-                while lower < k, knots[k] - knots[lower] > 0.25 + 1e-9 { lower += 1 }
-                while upper < section.upperBound, knots[upper + 1] - knots[k] <= 0.25 + 1e-9 { upper += 1 }
-                let window = lower...upper
-                windows.append(window)
-                widened[k] = raw[window].max() ?? 1
-            }
-            for k in section {
-                let window = windows[k - section.lowerBound]
-                let mean = widened[window].reduce(0, +) / Double(window.count)
-                rates[k] = flying[k] ? min(mean, flightLimit) : mean
-            }
-        }
-        for k in knots.indices where rest.contains(knots[k]) { rates[k] = 1 }
-        var times = [0.0]
-        times.reserveCapacity(n)
-        for k in 1..<n { times.append(times[k - 1] + (knots[k] - knots[k - 1]) * (rates[k - 1] + rates[k]) / 2) }
-        return ClipWarp(times: times, step: step, length: length, knots: knots)
-    }
-
-    /// The script's time at the clip's time `t` (past either end, it runs on at the script's own pace).
-    func script(_ t: Double) -> Double {
-        guard let last = times.last else { return t }
-        if t <= 0 { return t }
-        if t >= last { return length + (t - last) }
-        var lo = 0, hi = times.count - 1
-        while hi - lo > 1 {
-            let mid = (lo + hi) / 2
-            if times[mid] <= t { lo = mid } else { hi = mid }
-        }
-        let span = times[hi] - times[lo]
-        let f = span > 1e-12 ? (t - times[lo]) / span : 0
-        if let knots { return knots[lo] + (knots[hi] - knots[lo]) * f }
-        return min((Double(lo) + f) * step, length)
-    }
-
-    /// The clip's time at the script's time `u`.
-    func clip(_ u: Double) -> Double {
-        guard let last = times.last else { return u }
-        if u <= 0 { return u }
-        if u >= length { return last + (u - length) }
-        if let knots {
-            var lo = 0, hi = knots.count - 1
-            while hi - lo > 1 {
-                let mid = (lo + hi) / 2
-                if knots[mid] <= u { lo = mid } else { hi = mid }
-            }
-            let f = (u - knots[lo]) / (knots[hi] - knots[lo])
-            return times[lo] + (times[hi] - times[lo]) * f
-        }
-        let x = u / step
-        let k = min(Int(x), times.count - 2)
-        return times[k] + (times[k + 1] - times[k]) * (x - Double(k))
-    }
-}
-
-/// The last resort (§5.5.4, §6): a man today's script moves faster than his
-/// legs even with the clip's time stretched (a far defender it sends into a
-/// tackle) fades out before the stretch he can't make and back in after it,
-/// rather than gliding at a speed no one runs. Declared: the bench counts them.
+/// The last resort (§5.5.4, §6): a man `ClipPaths.solved` can't make feasible
+/// (two contacts too close for his legs) fades out before the stretch he can't
+/// make and back in after it, rather than gliding at a speed no one runs.
+/// Declared: the bench counts them.
 struct ClipFades: Equatable, Sendable {
     /// Per figure, the clip-time spans he's hidden through (each with its fade either side).
     let spans: [[ClosedRange<Double>]]
@@ -994,7 +953,7 @@ struct ClipFades: Equatable, Sendable {
 
     var count: Int { spans.reduce(0) { $0 + $1.count } }
 
-    /// `speed(i, t)`: figure i's speed at the clip's time t (its path through the warp).
+    /// `speed(i, t)`: figure i's speed at the clip's time t.
     static func make(figures: Int, length: Double, bands: [MotionLimits.Band], speed: (Int, Double) -> Double) -> ClipFades {
         guard length.isFinite, length > 0 else { return .none }
         var spans: [[ClosedRange<Double>]] = Array(repeating: [], count: figures)
