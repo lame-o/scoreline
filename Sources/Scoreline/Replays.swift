@@ -95,10 +95,10 @@ struct ReplayClock: Equatable {
 /// (the live lanes', on the main actor). (pure; tested)
 @MainActor
 enum Replays {
-    /// The plays a page's rows are about: its key moments (an NBA run's last
-    /// basket) and its plays list.
+    /// The plays a page's rows and marks are about: its key moments (an NBA
+    /// run's last basket), football's turnovers, and its plays list.
     nonisolated static func ids(_ detail: GameDetail, recent: [GameDetail.RecentPlay]) -> Set<String> {
-        Set(detail.moments.map { play(of: $0.id) } + recent.compactMap(\.id))
+        Set(detail.moments.map { play(of: $0.id) } + detail.timelineMarks.map { play(of: $0.id) } + recent.compactMap(\.id))
     }
 
     /// A moment's play: an NBA run is its last basket ("…-run" when that basket also changed the lead).

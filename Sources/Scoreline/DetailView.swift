@@ -306,6 +306,7 @@ struct DetailView: View {
             .environment(\.pageGeometry, geometry)
             .environment(\.scoreboardSurface, surface)
             .environment(linked)
+            .background { MatchFocusLink(history: detail?.history, linked: linked, pointer: matchInspection) }
             .environment(moments)
             .environment(nbaStage)
             // The rows' replays, kept in step with the summary and the live lanes (only this modifier reads the lanes for them).
@@ -1273,9 +1274,7 @@ struct DetailView: View {
         // Stays up between batters ("Waiting for the first pitch"), so the page doesn't jump.
         case .atBat: event.state == .live && (baseballFeed.loaded || !d.atBat.isEmpty)
         case .pitch: extrasShown && (event.state == .live ? !soccerTrail.isEmpty : !soccerShots.isEmpty)
-        case .timeline: isSoccer
-            ? d.moments.contains { $0.minute != nil } || d.history?.events.isEmpty == false || event.state == .live
-            : event.state != .scheduled && (d.history != nil || d.moments.contains { $0.minute != nil })
+        case .timeline: event.state == .live || !d.timelineMarks.isEmpty
         // Today's table says nothing about a game from another season (G2).
         case .table: extrasShown && d.seasonIsCurrent != false && (soccerLeague ?? collegeLeague ?? nbaLeague) != nil && !standings.isEmpty
             && (nbaLeague == nil || standings.contains { row in event.competitors.contains { $0.id == row.id } })
@@ -1339,8 +1338,8 @@ struct DetailView: View {
          bottom: d.bottomRoster.acronym ?? event.competitors.last?.abbreviation ?? "")
     }
 
-    /// Keep minute-only soccer goals visible when a provider supplies no
-    /// absolute chronology. Every timed sport otherwise uses the same axis.
+    /// The wall clock the timeline shares with Win Probability. Minute-only
+    /// soccer goals stay on match minutes when a provider has no timestamps.
     private func timelineHistory(_ d: GameDetail) -> MatchHistory? {
         guard let history = d.history else { return nil }
         if isSoccer, history.events.isEmpty, d.moments.contains(where: { $0.minute != nil }) { return nil }
@@ -1348,13 +1347,8 @@ struct DetailView: View {
     }
 
     private func timelineCaption(_ d: GameDetail, names: (top: String, bottom: String)) -> String {
-        if isSoccer, timelineHistory(d) == nil {
-            return "Goals and cards by minute. \(names.top) above, \(names.bottom) below. Event timestamps unavailable; odds use a separate scale."
-        }
-        let kind = isSoccer ? "Goals and cards" : "Scoring plays"
-        let axis = oddsShown(d) ? "Same time scale as win probability." : "Hover or select an event to inspect."
-        let missing = d.history.map { $0.hasUntimedEvents || $0.missingTimeCount > 0 } ?? false
-        return "\(kind) · \(axis)" + (missing ? " Some plays lack timestamps." : "")
+        let kind = isSoccer ? "Goals and cards by minute." : isNBA ? "Key plays." : isBaseball ? "Runs by inning." : "Scoring plays and turnovers."
+        return "\(kind) \(names.top) above, \(names.bottom) below." + (event.state == .live ? " The red dot marks now." : "")
     }
 
     /// The chart a section shows.
@@ -1369,12 +1363,13 @@ struct DetailView: View {
                       theater: live && liveViewOpen(d))
         case .timeline:
             if let history = timelineHistory(d) {
-                MatchTimelineSection(history: history, baseline: d.odds, feed: oddsFeed, event: event, names: names,
+                MatchTimelineSection(history: history, marks: d.timelineMarks, feed: oddsFeed, event: event, names: names,
                                      palette: .nba(top: event.competitors.first, bottom: event.competitors.last, scheme: colorScheme),
-                                     pointer: matchInspection, presentation: broadcast.active ? broadcast.clock : nil)
+                                     pointer: matchInspection, presentation: broadcast.active ? broadcast.clock : nil,
+                                     standsAlone: !oddsShown(d) || !store.modules.shown(available(d), on: pageKind).contains(.winProbability))
             } else {
-                SoccerTimeline(moments: d.moments, currentMinute: live ? soccerMinute : nil, palette: palette,
-                               topName: names.top, bottomName: names.bottom)
+                MatchTimeline(marks: d.timelineMarks, scale: .minutes(current: live ? soccerMinute : nil),
+                              topColor: palette.top, bottomColor: palette.bottom, topName: names.top, bottomName: names.bottom)
             }
         case .linescore:
             if let summary = d.linescore {
@@ -1464,11 +1459,7 @@ struct DetailView: View {
                 }
             case .timeline:
                 DetailSection(title: "Timeline", caption: timelineCaption(d, names: names),
-                              spokenCaption: isSoccer && timelineHistory(d) == nil
-                                  ? "Goals and cards by minute. \(full.top) above, \(full.bottom) below. Event timestamps are unavailable; this fallback cannot align with win probability."
-                                  : d.history?.sport == .football
-                                  ? "Scoring plays on one timeline. \(full.top) circles, \(full.bottom) diamonds. Nearby plays are grouped. Hover or choose an event to inspect it alongside win probability."
-                                  : "\(full.top) above, \(full.bottom) below. Hover or choose an event to inspect it alongside win probability.") {
+                              spokenCaption: timelineCaption(d, names: (full.top, full.bottom))) {
                     chart(.timeline, d)
                 }
             case .table:
@@ -1527,7 +1518,7 @@ struct DetailView: View {
                     OddsSection(feed: oddsFeed, baseline: baseline, event: event, names: names, spoken: full,
                                 palette: .nba(top: event.competitors.first, bottom: event.competitors.last, scheme: colorScheme),
                                 espnNow: d.topWinProbability, presentation: broadcast.active ? broadcast.clock : nil,
-                                history: d.history, inspection: matchInspection)
+                                history: d.history ?? MatchHistory(sport: baseline.sport), marks: d.timelineMarks, pointer: matchInspection)
                 } else if let p = d.topWinProbability {
                     DetailSection(title: "Win Probability",
                                   caption: event.state == .scheduled ? "ESPN's matchup predictor, before tip-off."
@@ -1908,9 +1899,9 @@ struct DetailView: View {
             let scores = heroScores
             let score = "\(scores.first.flatMap { $0 } ?? "0")–\(scores.last.flatMap { $0 } ?? "0")"
             if !isSoccer {
-                let detail = d.history?.keyEvents.last.map {
-                    [$0.clock, $0.text].filter { !$0.isEmpty }.joined(separator: " · ")
-                } ?? "No scoring events available"
+                let detail = d.timelineMarks.last.map {
+                    [$0.moment.clock, $0.moment.text].filter { !$0.isEmpty }.joined(separator: " · ")
+                } ?? "No key plays yet"
                 return .text(score, detail)
             }
             return .timeline(d.moments, score: score)
@@ -2328,6 +2319,7 @@ struct DetailView: View {
     private func resetStage() {
         nbaStage.reset()
         replays.reset()
+        matchInspection = OddsPointer()
     }
 
     /// Back, except that Esc first closes an open replay and drops a pin (a
@@ -2343,7 +2335,7 @@ struct DetailView: View {
             if replays.open != nil {
                 withAnimation(reduceMotion ? Motion.fade : Motion.standard) { closed = replays.close() }
             }
-            if linked.unpin() || closed { return }
+            if linked.unpin() || closed || matchInspection.back(linked: linked) { return }
             if nbaStage.pinned != nil {
                 nbaStage.unpin()
                 return
@@ -2369,12 +2361,11 @@ struct DetailView: View {
         typealias Mark = ChartLinkInputs.Mark
         var inputs = ChartLinkInputs()
         inputs.shown = Set(store.modules.shown(available(d), on: pageKind))
+        inputs.timeline = d.timelineMarks.map { Mark(id: $0.id, side: $0.moment.side) }
         switch event.ref {
         case .espn(_, _, .soccer)?:
             let actions = (event.state == .live ? soccerTrail : []) + soccerShots
             inputs.pitch = actions.map { Mark(id: $0.playID) } + soccerCards.map { Mark(id: $0.key) }
-            inputs.timeline = d.moments.filter { $0.minute != nil && $0.kind != .other && $0.kind != .score }
-                .map { Mark(id: $0.id, side: $0.side) }
         case .espn(_, _, .baseball)?:
             inputs.balls = battedBalls(d).map { Mark(id: $0.id, period: $0.period, side: $0.side) }
         case let .espn(path, _, .basketball)? where path == NBADetail.path:

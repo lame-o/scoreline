@@ -40,9 +40,9 @@ extension ScorelineTests {
               && nba.periods.last?.end == date("2026-10-29T02:43:59Z") && nba.periods[2].start == date("2026-10-29T01:28:59Z"),
               "periods on the wall clock, halftime's 15 minutes between Q2 and Q3", "\(nba.periods.map(\.label))")
         let somePlay = nba.plays[200]
-        check(nba.play(near: somePlay.t + 4).map { abs($0.t.timeIntervalSince(somePlay.t)) <= 4 } ?? false
+        check(nba.play(atOrBefore: somePlay.t + 4)?.t == somePlay.t || (nba.play(atOrBefore: somePlay.t + 4).map { $0.t > somePlay.t } ?? false)
               && somePlay.clock.hasPrefix("Q") && !somePlay.text.contains("assists)"),
-              "the nearest play to a moment, with its clock (\"\(somePlay.clock)\")")
+              "the last play at a moment, with its clock (\"\(somePlay.clock)\")")
 
         check(!nba.plays.contains { $0.text.contains("enters the game") || $0.text.lowercased().contains("timeout") }
               && nba.plays.contains { $0.text.contains("makes") },
@@ -213,10 +213,6 @@ extension ScorelineTests {
             }
             check(whole, "\(Int(width))pt: the end labels never clip, at 0%, 50% and 100%")
             let minute = date("2026-10-29T01:41:00Z")
-            check(layout.snap(x: layout.x(minute + 29), within: domain) == minute
-                  && layout.snap(x: layout.x(minute + 31), within: domain) == minute + 60
-                  && layout.snap(x: -50, within: domain) == domain.lowerBound,
-                  "\(Int(width))pt: the scrub snaps to the nearest minute, within the data")
             check(OddsPlot.periodLabels(nba.periods, layout: layout).map(\.label) == ["Q1", "Q2", "Q3", "Q4"],
                   "\(Int(width))pt: every quarter named under its own span")
             let fractional = (domain.lowerBound + 0.8)...(domain.upperBound + 0.2)
@@ -325,18 +321,14 @@ extension ScorelineTests {
 
         // MARK: Data and readings
 
-        let live = OddsChartData.domain(state: .live, window: .recent, start: domain.lowerBound, end: nil,
-                                        first: domain.lowerBound, last: domain.upperBound, now: domain.upperBound)
-        let final = OddsChartData.domain(state: .final, window: .game, start: domain.lowerBound, end: domain.upperBound,
-                                         first: domain.lowerBound - 1800, last: domain.upperBound + 900, now: .now)
-        check(live.upperBound == domain.upperBound && live.upperBound.timeIntervalSince(live.lowerBound) == 600 && final == domain,
-              "10 min slides with the newest point; a final runs from tip-off to the last play")
+        let lastDay = OddsChartData.pregameDomain(first: domain.lowerBound, last: domain.upperBound, now: domain.upperBound)
+        check(lastDay == domain, "before the game: the market's last day, from its first point")
         let points = history.map { OddsSplitPoint(t: $0.t, split: OddsSplit(top: $0.p, draw: nil, bottom: 1 - $0.p)) }
         let data = OddsChartData(revision: 1, threeWay: false, points: points, espn: nba.espn, periods: nba.periods, domain: domain,
                                  live: false, final: true)
         let reading = OddsReading.at(somePlay.t + 10, data: data, baseline: nba)
-        check(reading?.split != nil && reading?.espn != nil && reading?.play != nil && (reading?.when().contains(" · ") ?? false),
-              "a reading has Polymarket, ESPN, the clock and wall time, and the nearest play", "\(String(describing: reading?.when()))")
+        check(reading?.split != nil && reading?.espn != nil && reading?.play != nil && reading?.lead(top: "GSW", final: false).contains("ESPN") == true,
+              "a reading has Polymarket, ESPN, the clock, and the last play", "\(String(describing: reading?.lead(top: "GSW", final: false)))")
         check(data.split(at: .distantPast) == points.first?.split && data.split(at: .distantFuture) == points.last?.split
               && data.split(at: points[10].t + 1) == points[10].split,
               "the split at a minute: the point in effect then (the first, before it)")

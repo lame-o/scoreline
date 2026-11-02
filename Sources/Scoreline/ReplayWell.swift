@@ -67,6 +67,25 @@ private struct Unfold: ViewModifier, Animatable {
     }
 }
 
+/// A replay opened from a pinned play (`MatchPinControls`), under the chart it
+/// was pinned on: the jump in the odds, then the play, without leaving them.
+struct SectionReplay: View {
+    let section: DetailView.Section
+    @Environment(PageReplays.self) private var replays: PageReplays?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        if let replays, let row = replays.open, row.section == section, let replay = replays.plays[row.play] {
+            ReplayWell(replay: replay, context: replays.context, section: section)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+                .transition(reduceMotion ? .opacity
+                    : .asymmetric(insertion: .modifier(active: Unfold(progress: 0), identity: Unfold(progress: 1)),
+                                  removal: .modifier(active: Unfold(progress: 0), identity: Unfold(progress: 1))))
+        }
+    }
+}
+
 /// A line of the plays list: a play that can replay is a row like a key
 /// moment's (the hover wash, the glyph, the click); any other stays plain text.
 struct RecentPlayRow: View {
