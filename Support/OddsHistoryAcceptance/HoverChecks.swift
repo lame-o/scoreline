@@ -179,11 +179,18 @@ private final class HoverWatchdog: @unchecked Sendable {
         }
         func press(_ prefix: String) -> Bool {
             guard let target = element(prefix) else { return false }
+            // SwiftUI virtual elements adopt the complete protocol rather
+            // than necessarily declaring the role-specific Button protocol.
+            // Its Bool reports actual dispatch; legacy NSObject action
+            // fallback can silently do nothing and cannot prove activation.
+            if let accessible = target as? NSAccessibilityProtocol {
+                let triggered = accessible.accessibilityPerformPress()
+                print("Native AX press: \(prefix), class=\(type(of: target)), triggered=\(triggered)")
+                return triggered
+            }
             if let button = target as? NSAccessibilityButton { return button.accessibilityPerformPress() }
-            let selector = NSSelectorFromString("accessibilityPerformAction:")
-            guard target.responds(to: selector) else { return false }
-            _ = target.perform(selector, with: NSAccessibility.Action.press.rawValue)
-            return true
+            print("Native AX press: \(prefix), class=\(type(of: target)), modern action unavailable")
+            return false
         }
         pointer.clear()
         pump(0.15)
