@@ -375,7 +375,6 @@ private struct MatchTimelineScrub: View {
             pointer.clear()
             return .handled
         }
-        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Match timeline, \(events.count) key events")
         .modifier(MatchTimelineAccessibility(history: history, domain: layout.domain, names: names, pointer: pointer))
         .accessibilityHint("Use previous and next event actions to inspect history alongside win probability. Inspection does not change live playback.")
