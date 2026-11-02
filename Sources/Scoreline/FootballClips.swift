@@ -110,7 +110,14 @@ struct GridClip: TheaterClip, @unchecked Sendable {
                            (simd_length(path.acceleration(at: u)) / (min(b.accel, b.decel, b.lateral) * 0.97)).squareRoot())
             }
             return most
-        }, steady: { u in script.flight(at: u).map { $0.end - $0.start < 1.5 } ?? false }, rest: resultHold) ?? .identity
+        }, steady: { u in
+            guard let flight = script.flight(at: u), flight.end - flight.start < 1.5 else { return false }
+            // A real pass/kick keeps its existing pace preference. The
+            // cosmetic toss to the next line, after the protected result,
+            // must share the time the players need to reset safely. Capping
+            // it at 2x also abruptly capped every runner's clock mid-reset.
+            return resultHold.map { flight.start < $0.upperBound } ?? true
+        }, rest: resultHold) ?? .identity
         self.warp = warp
         endTime = warp.clip(script.duration)
         loopStart = script.loop.map { warp.clip($0.start) }
@@ -136,16 +143,26 @@ struct GridClip: TheaterClip, @unchecked Sendable {
     /// late contact, or a separate beat after the stamp keeps its full motion
     /// clock. The anonymous convergence after a tackle/TD may finish 0.03–0.05s
     /// after the stamp; those soft arrivals can land on the result boundary.
+    /// A quarterback's post-handoff fake may also finish there once he has
+    /// given up the ball, with no later contact or possession in the hold.
     /// No credited contact is moved to make room for a pause.
     static func resultHold(_ script: FootballScript) -> ClosedRange<Double>? {
         let from = script.stamp, to = script.settle
         guard from.isFinite, to.isFinite, from >= 0, to > from, to < script.duration,
               !script.flights.contains(where: { $0.start < to && $0.end > from }) else { return nil }
         let contacts: [FootballScript.Action.Kind] = [.catchHigh, .catchChest, .throwBall, .handoff, .kick, .tackle, .strip, .scoop]
-        for player in script.players {
+        for (i, player) in script.players.enumerated() {
             if player.actions.contains(where: { contacts.contains($0.kind) && $0.at >= from && $0.at <= to }) { return nil }
             for move in player.moves where move.start < to && move.end > from {
-                guard move.start < from, move.end <= from + 0.08 else { return nil }
+                let lastContact = player.actions.filter { contacts.contains($0.kind) && $0.at < from }.max { $0.at < $1.at }
+                let holding = script.carrier(at: from)?.player == i || script.legs.contains {
+                    if case let .carry(carrier) = $0.hand, carrier == i { return $0.from >= from && $0.from <= to }
+                    return false
+                }
+                let handedOff = lastContact.map { $0.kind == .handoff && $0.at < move.start } ?? false
+                let fake = player.role == .quarterback && player.team == .offense && move.ease == .out
+                    && handedOff && !holding && move.end < to
+                guard move.start < from, move.end <= from + 0.08 || fake else { return nil }
             }
         }
         return from...to

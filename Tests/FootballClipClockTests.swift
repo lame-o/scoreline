@@ -162,7 +162,52 @@ extension ScorelineTests {
             check(count > 0 && speedRatio <= 1.0001 && Double(badAcceleration) <= Double(count) * 0.01,
                   "\(name): hold boundaries and reset travel retain sprint and acceleration audit limits",
                   "sprint \(speedRatio), acceleration peak \(accelRatio), over-limit samples \(badAcceleration)/\(count)")
+            let resetTimes = stride(from: end, through: clip.length, by: dt)
+            check(clip.figures.indices.allSatisfy { i in resetTimes.allSatisfy { clip.fades.opacity(i, at: $0) > 0.999 } },
+                  "\(name): feasible reset travel does not hide players to pass the motion audit")
+            if name == "rush tackle", let qb = script.players.firstIndex(where: { $0.role == .quarterback }),
+               let fake = script.players[qb].moves.firstIndex(where: { $0.start < script.stamp && $0.end > script.stamp + 0.08 }) {
+                check(script.players[qb].moves[fake].end > script.stamp + 0.09,
+                      "rush fixture exercises the post-handoff fake beyond the anonymous-arrival allowance")
+                var late = script
+                late.players[qb].actions.append(.init(kind: .catchChest, at: script.stamp + 0.2, toward: .zero))
+                check(GridClip.resultHold(late) == nil, "a late contact by the handing-off quarterback still prevents hold protection")
+                late = script
+                late.legs.append(.init(from: script.stamp + 0.1, until: script.settle, hand: .carry(qb)))
+                late.legs.sort { $0.from < $1.from }
+                check(GridClip.resultHold(late) == nil, "a quarterback who regains possession during the hold is not a cosmetic fake")
+                late = script
+                late.players[qb].actions.removeAll { $0.kind == .handoff }
+                check(GridClip.resultHold(late) == nil, "a quarterback move without a preceding handoff keeps its original motion clock")
+                late = script
+                let move = late.players[qb].moves[fake]
+                late.players[qb].moves[fake] = .init(start: move.start, end: move.end, path: move.path, ease: .inOut)
+                check(GridClip.resultHold(late) == nil, "a separate quarterback movement is not treated as the easing-out handoff fake")
+            } else if name == "rush tackle" {
+                check(false, "rush fixture retains the quarterback fake needed for the eligibility regressions")
+            }
             if name == "completed pass" {
+                // Reconstruct the old flight-cap choice over the same paths.
+                // Only the cosmetic reset flight may differ; this catches a
+                // broad cap removal or reset smoothing leaking into a pass.
+                let capped = ClipWarp.make(length: script.duration, need: { u in
+                    var most = 1.0
+                    for i in clip.paths.indices {
+                        guard let path = clip.paths[i], script.players[i].opacity(at: u) > 0.05 else { continue }
+                        let b = MotionLimits.football.band(clip.figures[i].band)
+                        most = max(most, simd_length(path.velocity(at: u)) / (b.sprint * 0.97),
+                                   sqrt(simd_length(path.acceleration(at: u)) / (min(b.accel, b.decel, b.lateral) * 0.97)))
+                    }
+                    return most
+                }, steady: { script.flight(at: $0).map { $0.end - $0.start < 1.5 } ?? false }, rest: hold) ?? .identity
+                let playFlights = script.flights.filter { $0.end <= hold.lowerBound }
+                check(!playFlights.isEmpty && playFlights.allSatisfy { f in
+                    [f.start, (f.start + f.end) / 2, f.end].allSatisfy { abs(clip.warp.clip($0) - capped.clip($0)) < 1e-9 }
+                }, "real snap and pass flights retain the prior shared playback clock exactly")
+                let resetFlights = script.flights.filter { $0.start >= hold.upperBound }
+                check(!resetFlights.isEmpty && resetFlights.contains { f in
+                    clip.warp.clip(f.end) - clip.warp.clip(f.start) > 2 * (f.end - f.start) + 0.05
+                }, "the cosmetic reset toss grants the players the extra time their measured movement requires")
                 var late = script
                 late.players[0].actions.append(.init(kind: .catchChest, at: script.stamp + 0.2, toward: .zero))
                 check(GridClip.resultHold(late) == nil, "a real contact during the result window prevents hold protection")
