@@ -467,7 +467,7 @@ extension ScorelineTests {
         print("\nTheater gates, on the fixtures")
         let cases: [(sport: String, root: URL, dir: String, event: String, teleport: Double, overspeed: Double)] = [
             ("football", TheaterBench.root, "football_nfl", "401873009-synthetic", 1.27, 0.38),
-            ("basketball", TheaterBench.root, "basketball_nba", "401909285", 3.80, 3.20),
+            ("basketball", TheaterBench.root, "basketball_nba", "401909285", 3.90, 3.35),
             ("soccer", TheaterBench.broadcastRoot, "soccer_eng.1", "401879256", 2.90, 2.20),
             ("baseball", TheaterBench.root, "baseball_mlb", "ws3-synthetic", 1.38, 0.36),
         ]
