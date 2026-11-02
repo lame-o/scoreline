@@ -1598,7 +1598,7 @@ private struct BasketballDirectedStage: View {
         let labels = TheaterLabels.make(kits: kits, scheme: scheme, teams: names)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                TheaterFrames(director: director, running: seen && !reduceMotion) { wall in
+                TheaterFrames(director: director, running: seen && !reduceMotion, awake: fading) { wall in
                     frame(at: wall, size: geo.size, ink: ink, labels: labels)
                 }
                 .accessibilityHidden(true)

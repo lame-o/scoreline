@@ -1831,7 +1831,7 @@ private struct FootballDirectedStage: View {
         let uniforms = TheaterTeams.dressed(kits, palette: palette, scheme: scheme)
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                TheaterFrames(director: director, running: seen && !reduceMotion) { wall in
+                TheaterFrames(director: director, running: seen && !reduceMotion, awake: fading) { wall in
                     frame(at: wall, size: geo.size, ink: ink, labels: labels, uniforms: uniforms)
                 }
                 .accessibilityHidden(true)

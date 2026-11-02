@@ -3,67 +3,65 @@ import SwiftUI
 // The game as one broadcast, part 15: the theater's view (CHOREOGRAPHY §5.6.7,
 // §5.7, §10). One shell for every sport.
 //
-// It draws only what's seen, only as often as it moves: the plan's frame
-// tiers (60 while anything is quick, decisive or the camera moves; 30 while it
-// merely moves; nothing while nothing does) drive the TimelineView's schedule,
-// and a folded or scrolled-away theater draws no frames at all (the clock and
-// the plan carry on). Each frame reads the theater's time from the presentation
-// clock, samples the chain into a scratch the view holds and never observes
-// (no allocation, no invalidation), and hands it to the sport's painter.
+// It draws only what's seen, and only while something moves: at the display's
+// own rate (TimelineView's animation schedule, locked to the refresh) whenever
+// anything on screen is moving, and not at all when nothing is, or when the
+// theater is folded or scrolled away (the clock and the plan carry on). Between
+// the two is one wake, at the moment the plan's next tier begins on the
+// theater's time, across a hold of the clock as well as any other stretch of it.
+// Each frame reads the theater's time from the presentation clock, samples the
+// chain into a scratch the view holds and never observes (no allocation, no
+// invalidation), and hands it to the sport's painter.
 //
 // Reduce Motion: the same clock and the same plan, shown as key states (each
 // clip's decisive moment and its end), each crossfading into the next over a
 // quarter second on the house ease-out: no travel, no camera moves.
 
-/// When the theater's frames come: by the plan's tiers on its own time, mapped to wall time.
-struct TheaterSchedule: TimelineSchedule, Sendable {
-    let tiers: [FrameTier]
-    let time: TheaterTime
-    let clock: PresentationClock
-    /// Draw at all (seen, live): otherwise one frame, then nothing.
-    let running: Bool
+/// Whether a directed theater should be drawing, and when that next changes. (pure; tested)
+enum TheaterFrameGate {
+    /// How far ahead of a tier that moves the frames start, so that the first frame past its start
+    /// isn't left to a timer's lateness: two frames of a still field cost nothing to see.
+    static let lead = 2.0 / 60
+    /// How long frames carry on past a tier that moves, so that its end is drawn where it comes to rest.
+    static let tail = 1.0 / 60
 
-    func entries(from startDate: Date, mode: TimelineScheduleMode) -> Entries {
-        Entries(date: startDate, schedule: self, low: mode == .lowFrequency)
+    struct State: Equatable {
+        var moving: Bool
+        /// The wall time this next changes; nil: it doesn't, on this plan.
+        var wake: PTime?
     }
 
-    struct Entries: Sequence, IteratorProtocol, Sendable {
-        var date: Date
-        let schedule: TheaterSchedule
-        let low: Bool
-        var first = true
-
-        mutating func next() -> Date? {
-            if first {
-                first = false
-                return date
-            }
-            guard schedule.running else { return nil }
-            let wall = date.timeIntervalSince1970
-            let T = schedule.time.at(wall, clock: schedule.clock)
-            guard let tier = Self.tier(schedule.tiers, at: T) else { return nil }
-            let step: Double
-            if tier.fps == 0 || low {
-                // Still: wake at the next tier that moves (or a second from now, low frequency).
-                guard let moving = schedule.tiers.first(where: { $0.from > T && $0.fps > 0 }) else { return nil }
-                step = low ? Swift.max(moving.from - T, 1) : Swift.max(moving.from - T, 1.0 / 60)
-            } else {
-                step = 1 / Double(tier.fps)
-            }
-            date = date.addingTimeInterval(step)
-            return date
+    static func tier(_ tiers: [FrameTier], at T: PTime) -> FrameTier? {
+        guard !tiers.isEmpty else { return nil }
+        var lo = 0, hi = tiers.count - 1
+        if T < tiers[0].from { return tiers[0] }
+        while lo < hi {
+            let mid = (lo + hi + 1) / 2
+            if tiers[mid].from <= T { lo = mid } else { hi = mid - 1 }
         }
+        return tiers[lo]
+    }
 
-        static func tier(_ tiers: [FrameTier], at T: PTime) -> FrameTier? {
-            guard !tiers.isEmpty else { return nil }
-            var lo = 0, hi = tiers.count - 1
-            if T < tiers[0].from { return tiers[0] }
-            while lo < hi {
-                let mid = (lo + hi + 1) / 2
-                if tiers[mid].from <= T { lo = mid } else { hi = mid - 1 }
+    static func state(tiers: [FrameTier], time: TheaterTime, clock: PresentationClock, now: PTime) -> State {
+        let T = time.at(now, clock: clock)
+        guard let here = tier(tiers, at: T) else { return State(moving: false, wake: nil) }
+        // A tier that moves is drawn from a little before its start, and a little past its end.
+        let moving = here.moves || tier(tiers, at: T + lead)?.moves == true || tier(tiers, at: T - tail)?.moves == true
+        // The next moment that answer changes, on the theater's time.
+        let target: PTime?
+        if moving {
+            var until = here.from
+            for t in tiers where t.until > T {
+                if !t.moves, t.until - t.from > lead + tail + 1e-6 { until = t.from; break }
+                until = t.until
             }
-            return tiers[lo]
+            target = until > T || !here.moves ? until + tail : nil
+            if let target, target <= T { return State(moving: true, wake: now + 1.0 / 60) }
+        } else {
+            target = tiers.first { $0.moves && $0.from > T }.map { $0.from - lead }
         }
+        guard let target, target.isFinite else { return State(moving: moving, wake: nil) }
+        return State(moving: moving, wake: time.wall(reaching: target, clock: clock, after: now))
     }
 }
 
@@ -121,17 +119,28 @@ extension EnvironmentValues {
 
 // MARK: - A directed theater on the page
 
-/// A directed theater's frames: at the plan's tiers on the theater's time
-/// while `running` (seen, and not Reduce Motion's key states), one still
-/// frame otherwise; on the offscreen check's virtual clock, the frame at its
-/// time, drawn again at each of its steps.
+/// A directed theater's frames: at the display's rate while anything moves and
+/// the theater's seen, none while nothing does (one still frame otherwise); on
+/// the offscreen check's virtual clock, the frame at its time, drawn again at
+/// each of its steps.
 struct TheaterFrames<Sport: TheaterSport, Content: View>: View {
     let director: TheaterDirector<Sport>
     let running: Bool
+    /// Frames on top of the plan's: a name tag fading in over a still field.
+    var awake = false
     @ViewBuilder let frame: (PTime) -> Content
+    /// The plan has something moving now.
+    @State private var moving = true
     #if DEBUG
     @Environment(\.broadcastHarness) private var harness
     #endif
+
+    init(director: TheaterDirector<Sport>, running: Bool, awake: Bool = false, @ViewBuilder frame: @escaping (PTime) -> Content) {
+        self.director = director
+        self.running = running
+        self.awake = awake
+        self.frame = frame
+    }
 
     var body: some View {
         #if DEBUG
@@ -145,11 +154,31 @@ struct TheaterFrames<Sport: TheaterSport, Content: View>: View {
         #endif
     }
 
+    private struct Watch: Equatable {
+        var chain: UInt64
+        var clock: UInt64
+        var running: Bool
+    }
+
     @ViewBuilder private var live: some View {
-        if let timing = director.timing {
-            TimelineView(TheaterSchedule(tiers: director.chain.tiers, time: timing.time, clock: timing.clock, running: running)) { context in
+        if director.timing != nil {
+            TimelineView(.animation(minimumInterval: nil, paused: !running || !(moving || awake))) { context in
                 frame(context.date.timeIntervalSince1970)
             }
+            // The one wake: a new plan, a new clock or coming back into view looks again; otherwise it sleeps until the tier changes.
+            .task(id: Watch(chain: director.chain.revision, clock: director.clockRevision, running: running)) { await watch() }
+        }
+    }
+
+    private func watch() async {
+        guard running else { return }
+        while !Task.isCancelled {
+            guard let timing = director.timing else { return }
+            let now = director.now()
+            let state = TheaterFrameGate.state(tiers: director.chain.tiers, time: timing.time, clock: timing.clock, now: now)
+            if moving != state.moving { moving = state.moving }
+            guard let wake = state.wake else { return }
+            try? await Task.sleep(for: .seconds(max(wake - now, 1.0 / 240)))
         }
     }
 }

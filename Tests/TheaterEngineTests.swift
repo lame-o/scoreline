@@ -400,13 +400,60 @@ extension ScorelineTests {
         let plan = Plan(revision: 1, start: 1000, horizon: 1008, state: nil,
                         placements: [ClipPlacement(clip: walking, offset: 1000, start: 1000, cast: [id])], actors: [id: walking.figures[0]])
         let baked = TheaterBake.bake(plan)
-        check(baked.tiers.filter { $0.from < 1005 && $0.until > 1001 }.allSatisfy { $0.fps == 60 },
-              "visible walking uses smooth 60 Hz frames, not the former 30 Hz tier")
+        check(baked.tiers.filter { $0.from < 1005 && $0.until > 1001 }.allSatisfy(\.moves),
+              "visible walking draws at the display's rate")
         var still = LineClip(starts: [SIMD2(20, 20)], velocities: [.zero])
         still.reportsMotion = false
         still.decisive = nil
         let quiet = Plan(revision: 1, start: 1000, horizon: 1008, state: nil,
                          placements: [ClipPlacement(clip: still, offset: 1000, start: 1000, cast: [id])], actors: [id: still.figures[0]])
-        check(TheaterBake.bake(quiet).tiers.contains { $0.fps == 0 }, "settled scenes still stop drawing frames")
+        check(TheaterBake.bake(quiet).tiers.contains { !$0.moves }, "settled scenes still stop drawing frames")
+        theaterFrameGate()
+    }
+
+    /// The one wake from still: when a still field starts drawing again, on the plan's own time, however the clock runs.
+    static func theaterFrameGate() {
+        let tiers = [FrameTier(from: 100, until: 102, moves: true), FrameTier(from: 102, until: 110, moves: false),
+                     FrameTier(from: 110, until: 114, moves: true), FrameTier(from: 114, until: 200, moves: false)]
+        func running(_ wall: PTime = 1000, p: PTime = 104) -> (TheaterTime, PresentationClock) {
+            var clock = PresentationClock()
+            clock.update(now: wall, inputs: .init(target: wall - p, cap: wall + 1000))
+            var time = TheaterTime()
+            time.advance(to: wall, ran: clock, then: [], now: clock)
+            return (time, clock)
+        }
+        let (time, clock) = running()
+        let T = time.at(1000, clock: clock)
+        check(abs(T - 104) < 1e-6, "the gate's clock starts where it's asked", "T \(T)")
+        var state = TheaterFrameGate.state(tiers: tiers, time: time, clock: clock, now: 1000)
+        check(!state.moving && state.wake != nil, "a still tier draws nothing, and knows when it next moves")
+        // Woken on time: the first frame past the moving tier's start is drawn by then.
+        let wake = state.wake ?? 0
+        let atWake = time.at(wake, clock: clock)
+        check(abs(atWake - (110 - TheaterFrameGate.lead)) < 1e-3, "it wakes a moment ahead of the plan's own time", "wakes at T \(atWake)")
+        state = TheaterFrameGate.state(tiers: tiers, time: time, clock: clock, now: wake + 1e-3)
+        check(state.moving, "woken, it draws")
+        // Past the moving tier: it rests again a frame after its last.
+        let end = time.wall(reaching: 114 + 2 * TheaterFrameGate.tail, clock: clock, after: 1000) ?? 0
+        check(!TheaterFrameGate.state(tiers: tiers, time: time, clock: clock, now: end).moving, "past a moving tier it stops drawing")
+        check(TheaterFrameGate.state(tiers: tiers, time: time, clock: clock, now: (time.wall(reaching: 113, clock: clock, after: 1000) ?? 0)).moving,
+              "inside a moving tier it draws")
+        // Across a hold: p stands, the theater's time runs on the wall, and the wake lands at the same theater time.
+        var stalled = clock
+        stalled.update(now: 1000, inputs: .init(target: 1000 - 104, cap: 104))
+        check(stalled.p(at: 1020) < 104.5, "the hold holds p", "p \(stalled.p(at: 1020))")
+        var held = time
+        held.advance(to: 1000, ran: clock, then: stalled.events, now: stalled)
+        let heldState = TheaterFrameGate.state(tiers: tiers, time: held, clock: stalled, now: 1000)
+        let heldWake = heldState.wake ?? 0
+        check(!heldState.moving && abs(held.at(heldWake, clock: stalled) - (110 - TheaterFrameGate.lead)) < 1e-3 && heldWake > 1000,
+              "across a hold of the clock it still wakes on the plan's own time", "T \(held.at(heldWake, clock: stalled)) at \(heldWake)")
+        // Coming back into view mid-tier: the state is simply read again from where the plan is now.
+        let later = time.wall(reaching: 112, clock: clock, after: 1000) ?? 0
+        check(TheaterFrameGate.state(tiers: tiers, time: time, clock: clock, now: later).moving, "back in view mid-move, it draws at once")
+        let quiet = time.wall(reaching: 120, clock: clock, after: 1000) ?? 0
+        let last = TheaterFrameGate.state(tiers: tiers, time: time, clock: clock, now: quiet)
+        check(!last.moving && last.wake == nil, "nothing further to move: no wake at all")
+        check(!TheaterFrameGate.state(tiers: [], time: time, clock: clock, now: 1000).moving, "no plan, no frames")
     }
 }

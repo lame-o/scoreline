@@ -121,11 +121,11 @@ enum BallSpan: Equatable, Sendable {
     }
 }
 
-/// A run of frames at one rate (§5.6.7): 60 while anything's quick or decisive, 30 while it moves, 0 when nothing does.
+/// A run of frames (§5.6.7): at the display's rate while anything on screen moves, none while nothing does.
 struct FrameTier: Equatable, Sendable {
     var from: PTime
     var until: PTime
-    var fps: UInt8
+    var moves: Bool
 }
 
 struct BakedPlan<Clip: TheaterClip>: Sendable {
@@ -491,29 +491,26 @@ enum TheaterBake {
         var tiers: [FrameTier] = []
         for i in 0..<n {
             let t = plan.start + Double(i) * dt
-            var fps: UInt8 = 0
+            var moves = false
             let j = min(i + 1, n - 1), h = Double(max(j - i, 1)) * dt
             for track in tracks where i < track.xy.count {
                 let a = track.xy[i], b = track.xy[min(i + 1, track.xy.count - 1)]
-                let v = Double(simd_length(b - a)) / h
-                // Visible travel needs display-rate frames too, not just a
-                // sprint. Switching walking players to 30 made the new director
-                // visibly less fluid than the original 60 Hz theaters.
-                if track.opacity[i] > 0.01, v > 0.05 * track.figure.height { fps = 60 }
-                if i + 1 < track.opacity.count, abs(track.opacity[i + 1] - track.opacity[i]) > 1e-4 { fps = max(fps, 30) }
+                if track.opacity[i] > 0.01, Double(simd_length(b - a)) / h > 0.01 * track.figure.height { moves = true; break }
+                if i + 1 < track.opacity.count, abs(track.opacity[i + 1] - track.opacity[i]) > 1e-4 { moves = true; break }
             }
-            if fps < 60, case .flight? = ballSpan(ball, at: t) { fps = 60 }
-            if fps < 60, case let .clip(k, _)? = ballSpan(ball, at: t), plan.placements[k].clip.flying(at: plan.placements[k].time(t)) { fps = 60 }
-            if fps < 60, decisive.contains(where: { abs($0 - t) <= 1.5 }) { fps = 60 }
-            let ca = SIMD4<Double>(camera[i]), cb = SIMD4<Double>(camera[j])
-            let span = exp(ca.z)
-            let pan = simd_length(SIMD2(cb.x - ca.x, cb.y - ca.y)) / h / span
-            if pan > 0.002 || abs(remainder(cb.w - ca.w, 2 * .pi)) / h > 0.02 || abs(cb.z - ca.z) / h > 0.002 { fps = 60 }
-            if fps < 30, let k = plan.placement(at: t), plan.placements[k].clip.moving(at: plan.placements[k].time(t)) { fps = 30 }
-            if let last = tiers.last, last.fps == fps {
+            if !moves, case .flight? = ballSpan(ball, at: t) { moves = true }
+            if !moves, case let .clip(k, _)? = ballSpan(ball, at: t), plan.placements[k].clip.flying(at: plan.placements[k].time(t)) { moves = true }
+            if !moves, decisive.contains(where: { abs($0 - t) <= 1.5 }) { moves = true }
+            if !moves {
+                let ca = SIMD4<Double>(camera[i]), cb = SIMD4<Double>(camera[j])
+                let pan = simd_length(SIMD2(cb.x - ca.x, cb.y - ca.y)) / h / exp(ca.z)
+                moves = pan > 0.002 || abs(remainder(cb.w - ca.w, 2 * .pi)) / h > 0.02 || abs(cb.z - ca.z) / h > 0.002
+            }
+            if !moves, let k = plan.placement(at: t), plan.placements[k].clip.moving(at: plan.placements[k].time(t)) { moves = true }
+            if let last = tiers.last, last.moves == moves {
                 tiers[tiers.count - 1].until = t + dt
             } else {
-                tiers.append(FrameTier(from: t, until: t + dt, fps: fps))
+                tiers.append(FrameTier(from: t, until: t + dt, moves: moves))
             }
         }
         return tiers
