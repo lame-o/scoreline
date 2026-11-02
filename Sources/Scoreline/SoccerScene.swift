@@ -18,6 +18,50 @@ import Foundation
 // metres, home attacking right as the Live Pitch draws it, through Opta's
 // pitch markings, so a touch on the edge of the box is on its line.
 
+/// ESPN's soccer plays from before mid-2026 place things differently: x is
+/// the distance from the goal being attacked, in half-pitches (the penalty
+/// spot at 0.23, halfway at 1), y runs 0…1 from the attacker's left, and the
+/// goal-mouth point is left at zero. Everything here reads the current form
+/// (Opta's 0…100, attacking toward x = 100), so an older match is turned into
+/// it as it's read, and its goals start where they were struck. (pure; tested)
+enum OlderSoccerPlays {
+    /// Whether a match's plays are in the older form: every located value is
+    /// within 0…1 (the current form's passes go well past it). Nil when none
+    /// is located, which says nothing either way.
+    static func isOlder(_ plays: [JSON]) -> Bool? {
+        var located = false
+        for play in plays {
+            for key in ["fieldPositionX", "fieldPositionY", "fieldPosition2X", "fieldPosition2Y"] {
+                guard let value = play[key].double, value != 0 else { continue }
+                if abs(value) > 1 { return false }
+                located = true
+            }
+        }
+        return located ? true : nil
+    }
+
+    /// A play in the current form. An unlocated play (0, 0) stays unlocated.
+    static func current(_ play: JSON) -> JSON {
+        guard let raw = play.raw as? NSDictionary, let fields = raw.mutableCopy() as? NSMutableDictionary else { return play }
+        func convert(_ xKey: String, _ yKey: String) {
+            guard let x = play[xKey].double, let y = play[yKey].double, x != 0 || y != 0 else { return }
+            fields[xKey] = 100 - 50 * x
+            fields[yKey] = 100 - 100 * y
+        }
+        convert("fieldPositionX", "fieldPositionY")
+        convert("fieldPosition2X", "fieldPosition2Y")
+        // Its end point is on the goal line: that's where it crossed. Anywhere
+        // else (blocked, wide) the words say where it was going.
+        fields["goalPositionY"] = nil
+        fields["goalPositionZ"] = nil
+        if play["fieldPosition2X"].double == 0, let y = play["fieldPosition2Y"].double, y != 0 {
+            fields["goalPositionY"] = 100 - 100 * y
+            fields["goalPositionZ"] = SoccerScene.aim(words: play["text"].string ?? "")?.z ?? 15
+        }
+        return JSON(fields)
+    }
+}
+
 /// The pitch in metres: x from the left goal line (105 long), y from the near
 /// touchline, the camera's side (68 wide), z up. Home attacks right.
 enum Pitch {

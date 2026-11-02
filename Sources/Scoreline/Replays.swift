@@ -310,8 +310,8 @@ final class PageReplays {
         if opening != self.opening { self.opening = opening }
     }
 
-    #if DEBUG
-    /// The render harness: replays, who's who, and the row open, as given.
+    #if DEBUG || BENCH
+    /// The render harness and the click tests: replays, who's who, and the row open, as given.
     func preview(plays: [String: PlayReplay], context: ReplayContext, open: ReplayRow?) {
         self.plays = plays
         self.context = context
