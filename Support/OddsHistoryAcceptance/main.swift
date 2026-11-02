@@ -385,18 +385,24 @@ private struct RecognizedLine {
                     return words(image, size: size).map(\.text).joined(separator: " ")
                 }
                 let resting = try snapshot("resting"), initialHeight = probe.frames["rail"]?.height
+                // Vision revision 2 can read the rendered Latin T as its
+                // visually identical Cyrillic counterpart. Preserve raw OCR
+                // in the receipt and accept only this exact landmark variant.
+                func hasHalftime(_ text: String) -> Bool {
+                    text.split(separator: " ").contains { $0 == "HT" || $0 == "H\u{0422}" }
+                }
                 check(initialHeight == 60, "\(name): the original soccer rail remains exactly 60pt tall")
-                check(resting.contains("LIV") && resting.contains("CHE") && resting.contains("HT") && resting.contains("90"),
+                check(resting.contains("LIV") && resting.contains("CHE") && hasHalftime(resting) && resting.contains("90"),
                       "\(name): team abbreviations and original minute landmarks remain readable")
                 linked.hover(Focus(play: selected.id), true); pump(0.25)
                 let focused = try snapshot("focused")
-                check(linked.focus?.play == selected.id && focused.contains("Gakpo") && !focused.contains("HT"),
+                check(linked.focus?.play == selected.id && focused.contains("Gakpo") && !hasHalftime(focused),
                       "\(name): linked event focus replaces the minute-label row with the selected goal")
                 check(probe.frames["rail"]?.height == initialHeight && !focused.contains("Pinned"),
                       "\(name): event detail stays within the original rail without an extra inspector")
                 linked.clear(); pump(0.25)
                 let reset = try snapshot("reset")
-                check(linked.focus == nil && reset.contains("HT"),
+                check(linked.focus == nil && hasHalftime(reset),
                       "\(name): clearing linked hover restores the minute labels")
                 receipts.append(["case": name, "width": width, "railHeight": initialHeight ?? -1,
                                  "source": "Unmodified SoccerTimeline from release 1.0.30; real Carabao goal fixture 401921842",
