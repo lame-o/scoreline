@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
+const shared = (name: string) => JSON.parse(readFileSync(join(import.meta.dirname, "../../../Tests/Fixtures/competitions", `${name}.json`), "utf8"));
 const fixture = (name: string) => JSON.parse(readFileSync(join(import.meta.dirname, "../fixtures/competitions", `${name}.json`), "utf8"));
+const current = shared("carabao-2026"), previous = shared("carabao-2025");
 const out = process.env.SCORELINE_SCREENSHOTS ?? "test-results/screenshots";
 mkdirSync(out, { recursive: true });
 
@@ -17,19 +19,22 @@ for (const size of [{ width: 390, height: 844, colorScheme: "dark" as const }, {
         const url = route.request().url();
         if (url.includes("sports.core.api.espn.com") && url.includes("/seasons/")) {
           if (fail) return route.fulfill({ status: 503, body: "Unavailable" });
-          return route.fulfill({ json: fixture(url.includes("/2025") ? "previous-season" : "current-season") });
+          return route.fulfill({ json: (url.includes("/2025") ? previous : current).season });
         }
         if (url.includes("/api/") && url.includes("soccer/eng.league_cup/summary")) {
           return route.fulfill({ json: fixture("match-summary") });
         }
         if (url.includes("/api/")) {
-          return route.fulfill({ json: url.includes("soccer/eng.league_cup/scoreboard") ? fixture("boards") : { events: [], leagues: [] } });
+          if (!url.includes("soccer/eng.league_cup/scoreboard")) return route.fulfill({ json: { events: [], leagues: [] } });
+          if (!url.includes("dates=")) return route.fulfill({ json: current.info });
+          return route.fulfill({ json: { events: [...current.board.events, ...previous.board.events] } });
         }
         if (!url.startsWith("http://127.0.0.1") && !url.startsWith("http://localhost")) return route.abort();
         return route.continue();
       });
 
-      await page.goto("/competition/eng.league_cup/2026");
+      await page.goto("/competition/eng.league_cup/2026?ring=364,363");
+      await expect(page.locator('[data-ringed="true"]')).toHaveCount(1);
       const select = page.getByRole("combobox", { name: "Round or stage" });
       await expect(select).toBeVisible();
       await select.selectOption({ label: "Fourth Round" });
@@ -37,15 +42,15 @@ for (const size of [{ width: 390, height: 844, colorScheme: "dark" as const }, {
       await expect(match).toHaveCount(1);
       await expect(match).toContainText("Liverpool");
       await expect(page.getByRole("heading", { name: "Bracket", exact: true })).toBeVisible();
-      await expect(page.getByRole("group", {name:/Bracket, 2 rounds. Quarterfinals:/})).toHaveCount(4);
+      await expect(page.getByRole("group", { name: /^Bracket, 4 rounds\. Final: to be decided/ })).toHaveCount(1);
       await page.waitForTimeout(800);
       await page.screenshot({ path: join(out, `soccer-current-${size.width}.png`) });
       await match.click();
       await expect(page).toHaveURL(/401921842\?league=soccer%2Feng.league_cup/);
-      await expect(page.locator('main a[href="/competition/eng.league_cup/2026"]')).toBeVisible();
+      await expect(page.locator('main a[href^="/competition/eng.league_cup/2026"]').first()).toBeVisible();
       await page.goBack();
       await select.selectOption({ label: "Final" });
-      await expect(page.getByText("Fixtures have not been published for this round.")).toBeVisible();
+      await expect(page.getByText("Final fixtures appear once the draw is made.")).toBeVisible();
 
       await page.goto("/competition/eng.league_cup/2025");
       await expect(page.getByRole("heading", { name: "Bracket", exact: true })).toBeVisible();

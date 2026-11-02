@@ -1,4 +1,3 @@
-import { CompetitionContext } from "../settings/CompetitionContext";
 /**
  * A game's page (DetailView.swift): the hero, then the sport's sections in
  * one column, or from 680pt in two (data/sections.ts), with a docked
@@ -10,6 +9,7 @@ import { CompetitionContext } from "../settings/CompetitionContext";
  * sport is a hook in `SPORT_PAGES` (core/sport.tsx explains the seam) that
  * returns its sections and runs its own fast lane.
  */
+import { CompetitionContext } from "../settings/CompetitionContext";
 import { Suspense, use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useParams, useSearchParams } from "react-router";
 import { Button, EmptyState, ErrorState, IconButton, PageHeader } from "../../design/components";
@@ -250,7 +250,7 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
 
   return (
     <>
-      <CompetitionContext event={event} />
+      <CompetitionContext event={event} competition={game.detail?.competition ?? null} />
       <div className={styles.heroSlot}>
         <Hero
           event={heroEvent}

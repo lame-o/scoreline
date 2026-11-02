@@ -1,6 +1,6 @@
-import { requestNotificationPermission } from "../../state/notifications";
 /** Application settings. Following owns subscriptions; Sports owns discovery.
  * Existing form components, appearance tokens and ordering controls are shared. */
+import { requestNotificationPermission } from "../../state/notifications";
 import { Reorder, useDragControls } from "motion/react";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router";

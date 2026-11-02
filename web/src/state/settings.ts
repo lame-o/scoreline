@@ -283,7 +283,8 @@ export const settings = {
 
   toggleFollow(team: FollowedTeam) {
     update((s) => ({
-      mutedTeams: s.followed.some(t => t.id === team.id) ? without(s.mutedTeams, team.id) : [...s.mutedTeams, team.id],
+      // A new follow alerts until its bell says otherwise.
+      mutedTeams: without(s.mutedTeams, team.id),
       followed: s.followed.some((t) => t.id === team.id) ? s.followed.filter((t) => t.id !== team.id) : [...s.followed, team],
     }));
   },

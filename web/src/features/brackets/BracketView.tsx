@@ -38,7 +38,7 @@ import styles from "./Brackets.module.css";
 
 const px = (n: number) => `calc(${n} * var(--pt))`;
 
-export function BracketView({ bracket, ring, terminalLabel }: { bracket: Bracket; ring: ReadonlySet<string>; terminalLabel?: string }) {
+export function BracketView({ bracket, ring }: { bracket: Bracket; ring: ReadonlySet<string> }) {
   const frame = useRef<HTMLDivElement>(null);
   const width = useWidth(frame);
   const layout = useMemo(() => bracketLayout(bracket), [bracket]);
@@ -98,7 +98,7 @@ export function BracketView({ bracket, ring, terminalLabel }: { bracket: Bracket
   );
 
   return (
-    <div className={styles.bracket} style={{ maxWidth: px(maxTreeWidth(rounds)) }} role="group" aria-label={spokenBracket(bracket, terminalLabel)}>
+    <div className={styles.bracket} style={{ maxWidth: px(maxTreeWidth(rounds)) }} role="group" aria-label={spokenBracket(bracket)}>
       <div ref={frame} className={styles.frame}>
         {scrolls ? (
           <div ref={scroller} className={styles.scroller}>
@@ -184,6 +184,7 @@ const BracketCell = memo(function BracketCell({
       style={style}
       data-ringed={ringed}
       data-hovered={hovered}
+      data-pending={match.pending || undefined}
       tabIndex={0}
       role="group"
       aria-label={spokenMatch(match, round)}
@@ -192,9 +193,11 @@ const BracketCell = memo(function BracketCell({
       onFocus={() => onHover(match.id)}
       onBlur={() => onHover(null)}
     >
-      <Side team={match.top} score={match.topScore} side="top" winner={match.winner} names={names} />
-      <span className={styles.divider} />
-      <Side team={match.bottom} score={match.bottomScore} side="bottom" winner={match.winner} names={names} />
+      {match.pending ? <span className={styles.pending}>Draw pending</span> : <>
+        <Side team={match.top} score={match.topScore} side="top" winner={match.winner} names={names} />
+        <span className={styles.divider} />
+        <Side team={match.bottom} score={match.bottomScore} side="bottom" winner={match.winner} names={names} />
+      </>}
       {match.live ? (
         <span className={styles.live}>
           <LiveDot />

@@ -31,11 +31,13 @@ export function NextGameRow({ game }: { readonly game: GameRef }) {
   const id = game.id.startsWith("cs-") ? game.id : `espn-${game.id}`;
   // The opponent's page from the row's context menu (TeamSections.swift: GoToTeamItem).
   const goTo = useGoToTeam(game.opponent, gameHref(id));
+  // Where it's played, so the page loads off the scoreboards too.
+  const href = game.league ? `${gameHref(id)}?league=${encodeURIComponent(`soccer/${game.league}`)}` : gameHref(id);
   return (
     <>
       {/* The menu sits beside the row, not in it: its clicks mustn't reach the row's link. */}
       {goTo.menu}
-      <Link to={gameHref(id)} className={rowLinkClass} title="Open the match" {...goTo.props}>
+      <Link to={href} className={rowLinkClass} title="Open the match" {...goTo.props}>
         <span className={styles.gameRow}>
           {game.opponent ? <TeamCrest team={game.opponent} size={22} /> : null}
           <span className={styles.rowText}>

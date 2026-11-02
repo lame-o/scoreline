@@ -1,4 +1,3 @@
-import { EditionFollowButton } from "../settings/EditionFollowButton";
 /**
  * A tournament's full picture, one level below a match (Brackets.swift
  * `BracketPage`): the Swiss stage if there is one, then the playoff tree.
@@ -7,6 +6,7 @@ import { EditionFollowButton } from "../settings/EditionFollowButton";
  *   /bracket/mlb/2026                          the MLB postseason, from ESPN's daily boards
  *   /bracket/cs2/<slug>?name=…&ring=cs-793      a CS2 tournament (S-tier), from bo3.gg
  */
+import { EditionFollowButton } from "../settings/EditionFollowButton";
 import { useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { EmptyState, ErrorState, StaleNote } from "../../design/components";

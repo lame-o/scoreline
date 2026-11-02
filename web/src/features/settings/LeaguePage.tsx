@@ -3,9 +3,8 @@
 import { Link, useParams, useSearchParams } from "react-router";
 import { competitionPath } from "../../data/soccerCompetition";
 import { FormSection, GroupBox, PageHeader, SegmentedControl, ToggleRow, formStyles } from "../../design/components";
-import { leagueWithID } from "../../data/leagues";
+import { competitionKind, hasTable, leagueWithID } from "../../data/leagues";
 import type { League } from "../../data/models";
-import { competitionKind, hasTable } from "../../data/competitionCatalog";
 import { PageBack } from "../../app/PageBack";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { NotFound } from "../../app/NotFound";

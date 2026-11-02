@@ -658,4 +658,4 @@ What the Mac's menu bar item, Notifier and panel do, a browser does through the 
 
 ### Soccer competitions
 
-`data/soccerCompetition.ts` reads provider season stages and calendar-year scoreboards into ties, preserving two-leg aggregates and shootout advancement. `features/brackets/SoccerCompetitionPage.tsx` presents the stages and confirmed bracket at `/competition/:slug/:year?`.
+`data/soccerCompetition.ts` reads ESPN's season stages and calendar-year scoreboards into ties (two legs, a series, a shootout) and the one tree they make, in step with `SoccerCompetition.swift` and tested on the same recordings (`Tests/Fixtures/competitions`). `features/brackets/SoccerCompetitionPage.tsx` presents the stages and confirmed bracket at `/competition/:slug/:year?`.

@@ -1,4 +1,3 @@
-import { competitionEventPath } from "../competitionCatalog";
 /**
  * Where schedules come from (ScheduleProvider.swift, the ESPN and bo3.gg
  * match parts; the IFSC and tournament parts live in `data/seasons.ts`).
@@ -15,7 +14,7 @@ import { broadcaster } from "../broadcasters";
 import { addingDays, compactDay, compareDays, dayKeyFromISO, dayKeyIn, dayKeyOf, daysBetween, mediumDayLabel, offsetFrom, type DayKey } from "../days";
 import { enDash } from "../format";
 import { arr, at, bool, int, str, type JSONValue } from "../json";
-import { leagueWithID, CATALOG } from "../leagues";
+import { isESPNSoccerSlug, leagueWithID, CATALOG } from "../leagues";
 import type { Sport } from "../models";
 import { espnTeamID } from "../teams";
 import { parseDate } from "./espn";
@@ -337,7 +336,8 @@ export function scheduleEvent(e: JSONValue, path: string, league: string, sport:
     ifNecessary,
     week: week ?? int(at(e, "week", "number")) ?? null,
     link,
-    ref: { kind: "espn", path: competitionEventPath(path, leagueID, sport), id: rawID },
+    // soccer/all is how a team's season is fetched, not where a game was played.
+    ref: { kind: "espn", path: path === "soccer/all" && isESPNSoccerSlug(leagueID) ? `soccer/${leagueID}` : path, id: rawID },
     result,
   });
 }

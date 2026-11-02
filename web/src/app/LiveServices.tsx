@@ -1,4 +1,3 @@
-import { alertsFor } from "../data/following";
 /**
  * What runs beside every page, as the Mac's ScoreStore and menu bar item
  * run beside its panel (loaded after the first paint; renders nothing):
@@ -13,6 +12,7 @@ import { alertsFor } from "../data/following";
  *   the last; a start, a score and a final each post one alert per game.
  *   A click (here, or through the service worker) opens the game.
  */
+import { alertsFor } from "../data/following";
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { pollAlerts } from "../data/notifier";

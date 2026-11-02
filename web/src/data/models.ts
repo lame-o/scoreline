@@ -33,12 +33,16 @@ export type Source =
   | { readonly kind: "counterStrike" }
   | { readonly kind: "ifsc" };
 
+/** What sort of competition a league is: where Sports lists it and what it can show. A circuit is a game's whole calendar (CS2's S-tier) or a series of events (climbing's). */
+export type LeagueKind = "league" | "cup" | "tournament" | "circuit";
+
 export interface League {
   readonly id: string;
   readonly name: string;
   /** For tight spaces (small tiles): "EPL", "UCL", "CS2". */
   readonly shortName: string;
   readonly sport: Sport;
+  readonly kind: LeagueKind;
   readonly source: Source;
 }
 

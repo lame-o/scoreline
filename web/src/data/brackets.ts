@@ -36,10 +36,12 @@ export interface BracketMatch {
   readonly note: string | null;
   /** Matchups whose winners play in this one, top first. */
   readonly feeders: readonly string[];
+  /** A place in a round that hasn\'t been drawn: no teams, and no line to it. */
+  readonly pending: boolean;
 }
 
 export function bracketMatch(m: Partial<BracketMatch> & Pick<BracketMatch, "id">): BracketMatch {
-  return { top: null, bottom: null, topScore: null, bottomScore: null, winner: null, live: false, note: null, feeders: [], ...m };
+  return { top: null, bottom: null, topScore: null, bottomScore: null, winner: null, live: false, note: null, feeders: [], pending: false, ...m };
 }
 
 export function hasTeam(m: BracketMatch, id: string): boolean {
@@ -52,6 +54,8 @@ export interface Bracket {
   readonly rounds: readonly string[];
   readonly matches: Readonly<Record<string, BracketMatch>>;
   readonly finalID: string;
+  /** Every matchup by round, for a tree not all connected to its final yet: each drawn round's matchups stand on their own, with the undrawn ones after them. */
+  readonly columns?: readonly (readonly string[])[];
   /** Played outside the tree (a 3rd-place match). */
   readonly extra: readonly { readonly title: string; readonly match: BracketMatch }[];
 }
@@ -545,7 +549,28 @@ export function bracketLayout(bracket: Bracket): BracketLayout {
     slots[id] = { column, center };
     return center;
   };
-  place(bracket.finalID, bracket.rounds.length - 1);
+  if (bracket.columns) {
+    // The latest drawn round's matchups first, each with its feeders beside it.
+    for (let column = bracket.columns.length - 1; column >= 0; column--) {
+      for (const id of bracket.columns[column]!) if (!slots[id] && !bracket.matches[id]?.pending) place(id, column);
+    }
+    // An undrawn place sits between the two before it, where a tree would put it. No line says so: nobody has drawn it.
+    bracket.columns.forEach((ids, column) => {
+      const before = column > 0 ? bracket.columns![column - 1]!.flatMap((id) => (slots[id] ? [slots[id]!.center] : [])).sort((a, b) => a - b) : [];
+      ids.filter((id) => bracket.matches[id]?.pending).forEach((id, index) => {
+        const pair = before.slice(index * 2, index * 2 + 2);
+        let center: number;
+        if (pair.length) center = pair.reduce((a, b) => a + b, 0) / pair.length;
+        else {
+          center = nextLeaf * step + BRACKET.cellHeight / 2;
+          nextLeaf += 1;
+        }
+        slots[id] = { column, center };
+      });
+    });
+  } else {
+    place(bracket.finalID, bracket.rounds.length - 1);
+  }
   return { slots, height: Math.max(nextLeaf * step - BRACKET.spacing, BRACKET.cellHeight) };
 }
 
@@ -605,6 +630,7 @@ export function ringIDs(raw: readonly string[]): Set<string> {
  */
 export function spokenMatch(match: BracketMatch, round: string): string {
   const prefix = round ? `${round}: ` : "";
+  if (match.pending) return `${round ? `${round}: ` : ""}draw pending.`;
   const { top, bottom } = match;
   if (!top || !bottom) {
     const known = [top?.name, bottom?.name].filter((n): n is string => n != null);
@@ -621,13 +647,14 @@ export function spokenMatch(match: BracketMatch, round: string): string {
 
 /** The pointed-at matchup's readout: the score (or the names) and the rest. */
 export function readout(match: BracketMatch): { lead: string; detail: string } {
+  if (match.pending) return { lead: "Draw pending", detail: "" };
   const names = `${match.top?.name ?? "TBD"} v ${match.bottom?.name ?? "TBD"}`;
   const score = match.topScore != null && match.bottomScore != null ? `${match.topScore}–${match.bottomScore}` : null;
   return { lead: score ?? names, detail: [score == null ? null : names, match.note].filter(Boolean).join(" · ") };
 }
 
-export function spokenBracket(bracket: Bracket, terminalLabel = "Final"): string {
+export function spokenBracket(bracket: Bracket): string {
   const final = bracket.matches[bracket.finalID];
   const teams = [final?.top?.name, final?.bottom?.name].filter(Boolean);
-  return `Bracket, ${plural(bracket.rounds.length, "round")}. ${terminalLabel}: ${teams.length === 0 ? "to be decided" : teams.join(" versus ")}`;
+  return `Bracket, ${plural(bracket.rounds.length, "round")}. Final: ${teams.length === 0 ? "to be decided" : teams.join(" versus ")}`;
 }

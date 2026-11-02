@@ -143,7 +143,7 @@ describe("the summary's key events", () => {
 });
 
 describe("an archived match's unit-scale feed", () => {
-  // As ESPN serves a March 2026 Champions League match: 0…1, each team attacking toward x = 0.
+  // As ESPN serves a March 2026 Champions League match: x from the goal attacked in half-pitches, y from the attacker's left.
   const items = [
     { id: "1", type: { type: "shot-on-target" }, team: { $ref: "/teams/359" }, fieldPositionX: 0.19, fieldPositionY: 0.462, fieldPosition2X: 0.01, fieldPosition2Y: 0.496, clock: { value: 600, displayValue: "10'" } },
     { id: "2", type: { type: "goal" }, scoringPlay: true, team: { $ref: "/teams/131" }, fieldPositionX: 0.376, fieldPositionY: 0.507, fieldPosition2X: 0, fieldPosition2Y: 0.542, clock: { value: 900, displayValue: "15'" } },
@@ -156,11 +156,12 @@ describe("an archived match's unit-scale feed", () => {
     const feed = new SoccerFeed();
     feed.read([{ page: 1, items }], 200, true, "359");
     const [shot, goal] = feed.shots;
-    expect(shot).toMatchObject({ side: "top", x: 81, endX: 99 });
+    expect(shot).toMatchObject({ side: "top", endX: 99.5 });
+    expect(shot!.x).toBeCloseTo(90.5);
     expect(shot!.y).toBeCloseTo(53.8);
     // The away side's goal, flipped to attack left: it ends on the line at 0.
     expect(goal).toMatchObject({ side: "bottom", endX: 0 });
-    expect(goal!.x).toBeCloseTo(37.6);
+    expect(goal!.x).toBeCloseTo(18.8);
   });
 });
 

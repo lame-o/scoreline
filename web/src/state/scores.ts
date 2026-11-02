@@ -22,7 +22,7 @@ import { pollingIDs } from "../data/following";
  */
 import { QueryClient, useQueries } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import { leagueWithID } from "../data/leagues";
+import { leagueResolving, leagueWithID } from "../data/leagues";
 import { getJSON } from "../data/http";
 import type { League, LeagueResult, ScoreEvent } from "../data/models";
 import { fetchLeagueEvents } from "../data/providers";
@@ -146,7 +146,8 @@ export function useScoreboard({ poll = true, background = false }: ScoreboardOpt
   const nextGames = useNextGames(settings.followed);
   const countries = climbingCountries(settings);
   const nextIDs = [...nextGames.values()].flatMap(games => games.slice(0, 1).map(g => g.league));
-  const leagues = [...new Set([...pollingIDs(settings), ...nextIDs])].flatMap(id => leagueWithID(id) ?? []);
+  // A team's next game can be in any competition ESPN has a board for.
+  const leagues = [...new Set([...pollingIDs(settings), ...nextIDs])].flatMap(id => leagueResolving(id) ?? []);
   // The cadence is read when each poll lands, from the latest results.
   const interval = useRef(300);
 

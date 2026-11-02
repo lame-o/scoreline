@@ -1,4 +1,5 @@
 import { competitors, type ScoreEvent } from "./models";
+import { teamSource } from "./providers/schedule";
 import type { ListPreferences } from "./scoreboard";
 
 /** An individual edition, never a subscription to every event in its sport. */
@@ -26,7 +27,9 @@ export function pollingIDs(prefs: ListPreferences): string[] {
   const ids = [...prefs.enabledLeagues, ...(prefs.editions ?? []).map(e => e.source)];
   // Team follows are independent of competition follows. Poll their home boards as well.
   for (const team of prefs.followed) {
-    const id = team.id.startsWith("cs-") ? "cs2" : team.id.startsWith("espn-ncaaf-") ? "college-football" : team.id.startsWith("espn-football-") ? "nfl" : team.id.startsWith("espn-baseball-") ? "mlb" : team.id.startsWith("espn-wnba-") ? "wnba" : team.id.startsWith("espn-basketball-") ? "nba" : null;
+    // Soccer has no one board: its next game says which competition to watch.
+    const source = teamSource(team.id);
+    const id = team.id.startsWith("cs-") ? "cs2" : source && source.sport !== "soccer" ? source.league : null;
     if (id) ids.push(id);
   }
   return [...new Set(ids)];

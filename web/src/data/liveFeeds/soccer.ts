@@ -119,12 +119,17 @@ const playID = (item: JSONValue) => str(at(item, "id")) ?? (num(at(item, "id")) 
 const intOf = (v: JSONValue): number | null => (typeof v === "number" && Number.isFinite(v) ? Math.trunc(v) : null);
 
 /**
- * How a match's feed measures the pitch. Most say 0…100 with each team
- * attacking toward x = 100; some archived matches (an older provider) say
- * 0…1 with each team attacking toward x = 0, and those are turned round onto
- * the usual scale. A web-only fix: the Mac draws them in a corner.
+ * How a match's feed measures the pitch (OlderSoccerPlays.swift). Most say
+ * 0…100 with each team attacking toward x = 100. Matches from before mid-2026
+ * say x is the distance from the goal being attacked, in half-pitches (the
+ * penalty spot at 0.23, halfway at 1), and y runs 0…1 from the attacker's left,
+ * and those are turned into the usual scale as they're read.
  */
 export type PitchScale = "percent" | "unit";
+
+/** An older feed's x and y on the usual scale. Zero stays zero: nothing located. */
+export const unitX = (v: number) => (v === 0 ? 0 : 100 - 50 * v);
+export const unitY = (v: number) => (v === 0 ? 0 : 100 - 100 * v);
 
 /** A match's scale, from its positioned plays: any coordinate past 1.5 means percent. Null until a play has a position. */
 export function pitchScale(items: readonly JSONValue[]): PitchScale | null {
@@ -142,13 +147,10 @@ export function pitchScale(items: readonly JSONValue[]): PitchScale | null {
 
 /** A located action from a core play (SoccerFeed.action), or null. */
 export function pitchAction(item: JSONValue, index: number, homeTeamID: string | null, scale: PitchScale = "percent"): PitchAction | null {
-  // Unit-scale feeds attack toward 0: turned round (a half turn) onto the percent scale.
-  const read = (key: string) => {
-    const v = num(at(item, key));
-    return v == null ? undefined : scale === "unit" && v !== 0 ? 100 * (1 - v) : v;
-  };
-  const x = read("fieldPositionX");
-  const y = read("fieldPositionY");
+  const raw = (key: string) => num(at(item, key));
+  const rawX = raw("fieldPositionX"), rawY = raw("fieldPositionY");
+  const x = rawX == null || scale !== "unit" ? rawX : unitX(rawX);
+  const y = rawY == null || scale !== "unit" ? rawY : unitY(rawY);
   const team = teamIDFromRef(str(at(item, "team", "$ref"))) ?? str(at(item, "team", "id")) ?? null;
   if (x == null || y == null || (x === 0 && y === 0) || !team) return null;
   const home = team === homeTeamID;
@@ -166,9 +168,9 @@ export function pitchAction(item: JSONValue, index: number, homeTeamID: string |
           : "other";
   const rawEndX = num(at(item, "fieldPosition2X"));
   const rawEndY = num(at(item, "fieldPosition2Y"));
-  // A unit-scale shot ends on the goal line at 0, which turns round to 100.
-  const endX = scale === "unit" && rawEndX != null && (rawEndX !== 0 || (rawEndY ?? 0) !== 0) ? 100 * (1 - rawEndX) : rawEndX;
-  const endY = scale === "unit" && rawEndY != null && (rawEndX !== 0 || rawEndY !== 0) ? 100 * (1 - rawEndY) : rawEndY;
+  // An older shot ends on the goal line at 0: 100 on the usual scale.
+  const endX = scale === "unit" && rawEndX != null && (rawEndX !== 0 || (rawEndY ?? 0) !== 0) ? 100 - 50 * rawEndX : rawEndX;
+  const endY = scale === "unit" && rawEndY != null && (rawEndX !== 0 || rawEndY !== 0) ? unitY(rawEndY) : rawEndY;
   const hasEnd = (endX ?? 0) !== 0 || (endY ?? 0) !== 0;
   const shotLike = kind === "shot" || kind === "goal";
   return {
@@ -184,7 +186,8 @@ export function pitchAction(item: JSONValue, index: number, homeTeamID: string |
     playID: playID(item),
     shot: kind !== "shot" ? null : type === "shot-on-target" ? "saved" : type === "shot-blocked" ? "blocked" : type === "shot-hit-woodwork" ? "woodwork" : "wide",
     xg: shotLike ? (num(at(item, "expectedGoals")) ?? null) : null,
-    goalY: shotLike ? orient(scale === "unit" ? read("goalPositionY") : num(at(item, "goalPositionY"))) : null,
+    // An older feed has no goal-mouth point: its end point, when that's on the line.
+    goalY: shotLike ? orient(scale === "unit" ? (rawEndX === 0 && rawEndY ? unitY(rawEndY) : undefined) : num(at(item, "goalPositionY"))) : null,
     goalZ: shotLike ? (num(at(item, "goalPositionZ")) ?? null) : null,
     topScore: intOf(at(item, "homeScore")),
     bottomScore: intOf(at(item, "awayScore")),
