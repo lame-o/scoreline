@@ -706,12 +706,16 @@ struct BasketballFrame: View, Equatable {
         let refereed = world.map { $0.figures.contains { $0.team == .official } }
             ?? (script.players.contains { $0.team == .official } || bridge?.script.players.contains { $0.team == .official } == true)
         let official = refereed ? FigureInks(.zebra(dark: ink.dark), ink: ink, in: context) : offense
+        let crew = world.map { $0.figures.contains { $0.team == .staff } }
+            ?? script.players.contains { $0.team == .staff }
+        let staff = crew ? FigureInks(FootballFrame.staff, ink: ink, in: context) : offense
         for p in figures {
             // A ghost wears his own team's colors: the court's offense is the replay's (else it crossfades).
             let inks = switch team(p) {
             case .offense: offense
             case .defense: defense
             case .official: official
+            case .staff: staff
             }
             if !p.ghost { stems[p.index]?.forEach { $0.draw(in: context) } }
             TheaterDraw.figure(p.figure, inks: inks, height: h.figure, opacity: p.opacity, in: context)
@@ -735,7 +739,7 @@ struct BasketballFrame: View, Equatable {
         func smooth(_ u: Double) -> Double { Rig.smooth(u) }
         // How he stands: ready, or down in his stance on defense; at ease a beat after the ball's through.
         let ease = script.score.map { smooth((t - $0 - 0.7) / 0.5) } ?? 0
-        let stance = player.team == .defense ? HoopPose.guarding : player.team == .official ? .stand : HoopPose.ready
+        let stance = player.team == .defense ? HoopPose.guarding : player.team == .official || player.team == .staff ? .stand : HoopPose.ready
         let still = stance.mix(.stand, ease)
         let feet = track.feet(at: stride?.t ?? t, anchor: stride?.at ?? here, heading: m.heading, unit: unit, speed: m.speed,
                               stand: (still.left, still.right))
@@ -1707,6 +1711,7 @@ private struct BasketballDirectedStage: View {
         }
         let side = said?.side
         return TheaterStatus(tag: said?.text, tint: side.flatMap { $0 == .top ? kits?.top.color : kits?.bottom.color }, updated: heard)
+            .holding(source.presented)
     }
 
     /// The last play told before the court between plays on screen (the stoppage its tag keeps saying).
@@ -1753,7 +1758,7 @@ extension BasketballScript {
             switch player.team {
             case .offense: side = offense
             case .defense: side = offense.opponent
-            case .official: continue
+            case .official, .staff: continue
             }
             let credit = credits[i]
             let who: TheaterWho = credit.flatMap { c in

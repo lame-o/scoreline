@@ -503,7 +503,7 @@ final class Broadcast: BroadcastTheaterSource {
             return GameClock(seconds: seconds, sampledAt: Date(timeIntervalSince1970: presentedWall), period: clock.period,
                              direction: clock.countsDown ? .down : .up, display: status, running: clock.running)
         }
-        if game.isFinal || game.isInterval { shown.clock = nil }
+        if game.clockless { shown.clock = nil }
         shown.possession = nil
         shown.liveLine = nil
         shown.snapshot = nil
@@ -722,22 +722,9 @@ final class Broadcast: BroadcastTheaterSource {
         return engine?.timeline.lastTold?.entry.payload.json
     }
 
-    /// The presented pause, shared by the hero and section labels.
-    var breakLabel: String? {
-        guard active, let sport, let engine else { return nil }
-        if presented.isInterval { return presented.status(sport, regulationPeriods: engine.policy.regulationPeriods) }
-        guard sport == .football, let type = lastTold?["type"]["text"].string else { return nil }
-        switch type.lowercased() {
-        case "official timeout": return "Official timeout"
-        case "timeout": return "Timeout"
-        case "two-minute warning": return "Two-minute warning"
-        default: return nil
-        }
-    }
-
     /// Football: the team with the ball after the last told play.
     func footballPossession(_ teams: FootballFeed.Teams) -> GameDetail.Side? {
-        guard active, presented.phase == .live, let play = lastTold else { return nil }
+        guard active, presented.isUnderway, let play = lastTold else { return nil }
         return teams.side(FootballFeed.teamID(play["end"]["team"]["$ref"].string) ?? play["end"]["team"]["id"].string
                           ?? FootballFeed.teamID(play["team"]["$ref"].string) ?? play["team"]["id"].string)
     }

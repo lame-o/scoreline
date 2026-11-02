@@ -28,6 +28,14 @@ struct TheaterStatus: Equatable {
     }
 }
 
+extension TheaterStatus {
+    /// A game held up says so over anything else, in ESPN's words ("Rain Delay").
+    func holding(_ game: PresentedGame) -> TheaterStatus {
+        guard case let .status(words)? = game.stoppage else { return self }
+        return TheaterStatus(tag: words, tint: nil, updated: updated)
+    }
+}
+
 /// The status tag, at the theater's top leading corner: square at the edge it
 /// sits on, its far end cut on the type's lean, in the team's color (or near
 /// black for the game's own), SF Pro Condensed Black slanted 12°, as the

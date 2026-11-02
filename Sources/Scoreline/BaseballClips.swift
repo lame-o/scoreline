@@ -26,6 +26,8 @@ struct DiamondClip: TheaterClip, @unchecked Sendable {
     let paths: [MotionPath?]
     /// The script's own time stretched where it asked too much of anyone (ClipWarp).
     let warp: ClipWarp
+    /// The field between pitches: when anyone's moving in its quiet.
+    private let quietBeats: [ClosedRange<Double>]
 
     static let limits = MotionLimits.baseball(pace: 2.5)
 
@@ -57,6 +59,7 @@ struct DiamondClip: TheaterClip, @unchecked Sendable {
             return ClipPaths.resynthesized(a.moves, contacts: a.actions.map(\.at), band: bands[i], span: 0...max(script.duration, 0)) { a.position(at: $0) }
         }
         self.paths = paths
+        quietBeats = kind == .rest ? script.actors.flatMap { $0.moves.map { $0.start...($0.end + 0.2) } } : []
         warp = kind == .rest ? .identity : ClipWarp.make(length: script.duration, need: { u in
             var most = 1.0
             for i in paths.indices {
@@ -74,8 +77,11 @@ struct DiamondClip: TheaterClip, @unchecked Sendable {
         essential = kind == .rest ? 0 : min(length, (decisive ?? 0) + 1.0)
     }
 
-    /// The script's time at the clip's time `t`: a play holds its end; the field between pitches holds still.
-    func local(_ t: Double) -> Double { kind == .rest ? 0 : min(max(warp.script(t), 0), script.duration) }
+    /// The script's time at the clip's time `t`: a play holds its end; the field between pitches goes round its quiet.
+    func local(_ t: Double) -> Double {
+        guard kind == .rest else { return min(max(warp.script(t), 0), script.duration) }
+        return script.duration > 0 ? max(t, 0).truncatingRemainder(dividingBy: script.duration) : 0
+    }
 
     var ambient: Bool { kind == .rest }
 
@@ -100,7 +106,12 @@ struct DiamondClip: TheaterClip, @unchecked Sendable {
         return SIMD4(f.x, f.y, log(max(f.span, 1e-3)), 0)
     }
 
-    func moving(at t: Double) -> Bool { kind != .rest && t >= 0 && t <= length }
+    func moving(at t: Double) -> Bool {
+        guard t >= 0 else { return false }
+        guard kind == .rest else { return t <= length }
+        let u = local(t)
+        return quietBeats.contains { $0.contains(u) }
+    }
 }
 
 // MARK: - The plan (Phase 0)
@@ -109,6 +120,8 @@ struct DiamondFacts: Equatable, Sendable {
     var topID: String?
     var bottomID: String?
     var names: [String: String] = [:]
+    /// The game's held up, in ESPN's words ("Rain Delay"): the tarp's out.
+    var heldUp: String?
 
     func side(_ id: String?) -> GameDetail.Side? { id == topID ? .top : id == bottomID ? .bottom : nil }
 }
@@ -145,10 +158,23 @@ struct DiamondSequencer: ClipSequencer {
     static func entry(_ beat: PlayBeat) -> String { String(beat.id.split(separator: ".").first ?? Substring(beat.id)) }
 
     func units(handled: Set<String>) -> [TellUnit<PlayBeat>] {
-        beats.filter { !handled.contains($0.id) && !history.contains(Self.entry($0)) }.map { b in
+        var units = beats.filter { !handled.contains($0.id) && !history.contains(Self.entry($0)) }.map { b in
             TellUnit(id: b.id, scene: b, admin: b.stands, fromWorld: true, lead: b.isPlay ? 0.9 : 0.4, anchor: Self.entry(b))
         }
+        // ESPN's plays don't log a delay, only its status does: the tarp out at its word, and off once it's over.
+        let delay: PlayBeat.Delay? = if let words = facts.heldUp {
+            handled.contains(Self.heldID) ? nil : .weather(words.lowercased().contains("rain") ? "Rain" : words)
+        } else {
+            handled.contains(Self.heldID) && !handled.contains(Self.overID) ? .over : nil
+        }
+        if let delay {
+            let id = delay == .over ? Self.overID : Self.heldID
+            units.insert(TellUnit(id: id, scene: PlayBeat(id: id, kind: .delay(delay)), admin: true, fromWorld: true, lead: 0.4), at: 0)
+        }
+        return units
     }
+
+    private static let heldID = "status-delay", overID = "status-delay-over"
 
     /// The batting side for a beat (between halves, the one about to bat; after a third out, the other).
     func batting(_ b: PlayBeat?) -> GameDetail.Side {
@@ -175,8 +201,9 @@ struct DiamondSequencer: ClipSequencer {
     }
 
     func field(at t: PTime) -> DiamondClip {
-        let rest = lastPlay.map { PlayTheater.rest(after: $0, bases: nil, bats: last?.bats, batting: $0.batting) } ?? rest(for: last)
-        return DiamondClip(PlayScript(rest: rest), scene: nil, beat: nil, kind: .rest, batting: batting(last))
+        var rest = lastPlay.map { PlayTheater.rest(after: $0, bases: nil, bats: last?.bats, batting: $0.batting) } ?? rest(for: last)
+        if facts.heldUp != nil { rest.standing = .tarp }
+        return DiamondClip(PlayScript(quiet: rest, seed: Celebration.seed(last?.id ?? "field")), scene: nil, beat: nil, kind: .rest, batting: batting(last))
     }
 
     mutating func opening(at t: PTime) -> DiamondClip {
@@ -185,7 +212,7 @@ struct DiamondSequencer: ClipSequencer {
     }
 
     mutating func resume(_ kept: [ClipPlacement<DiamondClip>]) {
-        if let id = kept.last(where: { $0.play != nil })?.play { last = beats.first { $0.id == id } }
+        if let kept = kept.last(where: { $0.play != nil }) { last = beats.first { $0.id == kept.play } ?? kept.clip.beat }
     }
 
     mutating func clip(for unit: TellUnit<PlayBeat>, at t: PTime, draft: Plan<DiamondClip>) -> DiamondClip {

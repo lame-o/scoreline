@@ -115,8 +115,10 @@ struct Competitor: Hashable {
     /// Season record ("7-1") and, in college, the conference record ("4-1").
     var record: String? = nil
     var conferenceRecord: String? = nil
-    /// The team's second color, for when its first clashes with the opponent's (NBA pages).
+    /// The team's second color, for when its first clashes with the opponent's.
     var alternateColor: String? = nil
+    /// What it wears in this game, when the source says (`MatchColors`).
+    var kit: TeamKit? = nil
 
     /// Stable identity for views: survives score changes.
     var key: String { id ?? name }

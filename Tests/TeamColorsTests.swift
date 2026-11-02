@@ -3,8 +3,8 @@ import SwiftUI
 
 // Team colors read from logos: the color a logo reads as (navy outlines count
 // for less than the color they frame), a second color that's truly different,
-// black-and-white crests left to the source, the source's own color tipping a
-// near tie, and lightness-only fitting that keeps each team's hue.
+// black-and-white crests left to the source; the source's color first, and
+// remembered; and lightness-only fitting that keeps each team's hue.
 
 extension ScorelineTests {
     static func teamColors() {
@@ -57,17 +57,14 @@ extension ScorelineTests {
         let sliver = TeamColors.read(logo([(0x000000, 0.98), (0xc8102e, 0.02)]))
         check(sliver.colors.isEmpty, "a sliver of color in a black crest isn't the team's color")
 
-        // The source's own color tips a near tie, but only a vivid one.
-        let tie = TeamColors.Entry(colors: ["f63b1e", "2c7ec1"], weights: [1, 0.64])
-        check(TeamColors.order(tie, source: "007ac1").first == "2c7ec1", "the source's color tips a near tie (Thunder blue)")
-        let far = TeamColors.Entry(colors: ["f63b1e", "2c7ec1"], weights: [1, 0.3])
-        check(TeamColors.order(far, source: "007ac1").first == "f63b1e", "but not when the logo clearly reads as another color")
-        let navy = TeamColors.Entry(colors: ["e92139", "031c42"], weights: [1, 0.77])
-        check(TeamColors.order(navy, source: "002a5c").first == "e92139", "a navy source color never tips it")
-
-        // Competitors wear the logo's colors; unknown logos keep the source's.
-        let competitor = comp("a", "A", color: "1d428a")
-        check(TeamColors.shared.apply(competitor).color == "1d428a", "no logo read yet: the source's color stands")
+        // The source's color is the team's; a payload without one reads what an earlier payload said.
+        var seen = comp("espn-soccer-test-364", "Liverpool", color: "d11317")
+        seen.alternateColor = "FFFFFF"
+        check(TeamColors.shared.apply(seen).color == "d11317", "the source's color stands")
+        let schedule = TeamColors.shared.apply(comp("espn-soccer-test-364", "Liverpool"))
+        check(schedule.color == "d11317" && schedule.alternateColor == "FFFFFF",
+              "a schedule row without colors paints as the last payload that had them, so a history page's first paint is right")
+        check(TeamColors.shared.apply(comp("espn-soccer-test-unseen", "Unseen")).color == nil, "a team never seen, with no logo read: nothing to say")
 
         // Fitting: dark colors lift on a dark panel, keeping their hue.
         for hex in ["041e42", "8b0000", "006341", "4b0082"] {

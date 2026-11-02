@@ -344,11 +344,11 @@ struct GridSequencer: ClipSequencer {
         return (FootballScript.Rest(yard: min(max(yard, 1), 99), gain: gain), next)
     }
 
-    func idle(at t: PTime) -> GridClip {
+    func idle(at t: PTime, settled: Bool = false) -> GridClip {
         let (rest, offense) = spot(after: last)
         let kickoff = last?.scoring != nil && last?.conversion == nil
         let idle = FootballIdle.make(play: last, stoppage: stoppage, rest: rest, offense: offense, down: last?.after, kickoff: kickoff,
-                                     flipped: facts.flipped)
+                                     flipped: facts.flipped, settled: settled)
         return GridClip(FootballScript(idle: idle), scene: nil, idle: idle, offense: idle.offense, stoppage: stoppage)
     }
 
@@ -359,7 +359,7 @@ struct GridSequencer: ClipSequencer {
             case let .stoppage(s): stoppage = s
             }
         }
-        return idle(at: t)
+        return idle(at: t, settled: stoppage != nil)
     }
 
     mutating func resume(_ kept: [ClipPlacement<GridClip>]) {
@@ -381,7 +381,7 @@ struct GridSequencer: ClipSequencer {
         case let .stoppage(stop):
             var copy = self
             copy.stoppage = stop
-            return copy.idle(at: t)
+            return copy.idle(at: t, settled: stoppage != nil)
         }
     }
 

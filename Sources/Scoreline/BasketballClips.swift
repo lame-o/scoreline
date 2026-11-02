@@ -86,13 +86,14 @@ struct HoopsClip: TheaterClip, @unchecked Sendable {
             let group = switch p.team {
             case .offense: offense == .top ? 0 : 1
             case .defense: offense == .top ? 1 : 0
-            case .official: 2
+            case .official, .staff: 2
             }
-            return ClipFigure(group: group, kind: p.team == .official ? "official" : "player",
-                              athlete: script.credits[i].flatMap { $0.id ?? $0.name }, band: p.team == .official ? "official" : "wing",
+            let off = p.team == .official || p.team == .staff
+            return ClipFigure(group: group, kind: p.team == .staff ? "staff" : off ? "official" : "player",
+                              athlete: script.credits[i].flatMap { $0.id ?? $0.name }, band: off ? "official" : "wing",
                               height: Hoops.ground)
         }
-        let bands = script.players.map { MotionLimits.basketball.band($0.team == .official ? "official" : "wing") }
+        let bands = script.players.map { MotionLimits.basketball.band($0.team == .official || $0.team == .staff ? "official" : "wing") }
         let paths = script.players.indices.map { Self.resynthesized(script.players[$0], band: bands[$0], span: 0...script.duration) }
         self.paths = paths
         // Slower where anyone would outrun his legs, the ball's flights at their own pace.
@@ -453,7 +454,7 @@ enum HoopsPainter {
                 body = body.over(HoopPose.hold, 1, moving: 1)
             }
             let group = track.figure.group
-            let team: BasketballScript.Team = group == 2 ? .official : group == offenseGroup ? .offense : .defense
+            let team: BasketballScript.Team = group == 2 ? (track.figure.kind == "staff" ? .staff : .official) : group == offenseGroup ? .offense : .defense
             figures.append(.init(index: Int(actor.id.raw), team: team, at: here, body: body, heading: right ? heading : heading - .pi,
                                  opacity: actor.opacity, holds: mine ? hold : nil))
         }

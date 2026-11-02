@@ -318,8 +318,7 @@ private enum ESPN {
         /// the line (and the row's height) holds steady.
         private static let betweenSnaps: [String: String] = [
             "Field Goal Good": "Field goal", "Field Goal Missed": "Field goal missed", "Kickoff": "Kickoff",
-            "Extra Point Good": "Extra point", "Official Timeout": "Official timeout", "Timeout": "Timeout",
-            "Two-minute warning": "Two-minute warning", "Punt": "Punt", "Safety": "Safety",
+            "Extra Point Good": "Extra point", "Punt": "Punt", "Safety": "Safety",
         ]
         /// Breaks the status already says ("Halftime", "End of 3rd"): no line,
         /// rather than the same words twice.
@@ -327,7 +326,12 @@ private enum ESPN {
 
         /// NBA plays that say little on their own (rebounds, timeouts,
         /// substitutions, reviews, period ends): the row keeps the line before.
-        var routine: Bool { !NBADetail.isNotable(type: lastPlayTypeID.flatMap { Int($0) }, scoreValue: lastPlayScore) }
+        var routine: Bool {
+            stoppage == nil && !NBADetail.isNotable(type: lastPlayTypeID.flatMap { Int($0) }, scoreValue: lastPlayScore)
+        }
+
+        /// The stoppage the last play opened (`BroadcastLanes`' table): it reads ahead of a situation it has made stale.
+        private var stoppage: Stoppage? { BroadcastLanes.stoppage(type: lastPlayType) }
 
         /// The situation in a line, for the list row.
         func line(sport: Sport, path: String = "") -> String? {
@@ -335,17 +339,15 @@ private enum ESPN {
             case .basketball:
                 // NBA only: the last play, shortened ("L. Doncic makes 26-ft three point jumper").
                 guard path == NBADetail.path, let text = lastPlayText, !text.isEmpty else { return nil }
-                return NBADetail.listLine(text, names: lastPlayNames)
+                return stoppage?.words ?? NBADetail.listLine(text, names: lastPlayNames)
             case .football:
                 // A timeout still carries the previous snap's down and distance.
-                // Show the confirmed break ahead of that stale situation.
-                if let type = lastPlayType, ["Official Timeout", "Timeout", "Two-minute warning"].contains(type) {
-                    return Self.betweenSnaps[type]
-                }
+                if let stoppage { return stoppage.words }
                 if let text = downDistanceText, !text.isEmpty { return text }
                 guard let type = lastPlayType, !type.isEmpty, !Self.breaks.contains(type) else { return nil }
                 return Self.betweenSnaps[type] ?? (type.localizedCaseInsensitiveContains("touchdown") ? "Touchdown" : type)
             case .baseball:
+                if let stoppage { return stoppage.words }
                 guard let outs else { return nil }
                 var parts = [outs == 1 ? "1 out" : "\(outs) outs"]
                 if let balls, let strikes { parts.append("\(balls)–\(strikes)") }
@@ -445,6 +447,8 @@ private enum ESPN {
         // is "post" and not completed too, but its score is real: it resumes
         // from there.
         let status = e.status?.type
+        // One spelling, on every surface: ESPN's "HT" is the app's "Half-time".
+        let shortDetail = status?.shortDetail == "HT" ? "Half-time" : status?.shortDetail
         let played = state != .final || status?.completed != false || status?.name == "STATUS_SUSPENDED"
 
         // The winner follows the score on the pitch: ESPN's `winner` follows a
@@ -489,7 +493,7 @@ private enum ESPN {
         // rest count down. Baseball has innings, not a clock.
         var clock: GameClock?
         if state == .live, let seconds = e.status?.clock, let period = e.status?.period,
-           let display = e.status?.type?.shortDetail, [.soccer, .football, .basketball].contains(sport) {
+           let display = shortDetail, [.soccer, .football, .basketball].contains(sport) {
             clock = GameClock(seconds: seconds, sampledAt: .now, period: period,
                               direction: sport == .soccer ? .up : .down, display: display,
                               running: sport == .soccer && display.contains("'"))
@@ -517,7 +521,7 @@ private enum ESPN {
             // A delayed start stays "pre" for hours: say so, rather than a
             // start time that has passed.
             detail: state == .scheduled && status?.name == "STATUS_DELAYED" ? "Delayed"
-                : status?.shortDetail == "FT-Pens" ? "Pens" : status?.shortDetail,
+                : status?.shortDetail == "FT-Pens" ? "Pens" : shortDetail,
             caption: caption,
             link: link.flatMap(URL.init(string:)),
             ref: .espn(path: path, id: e.id, sport: sport),

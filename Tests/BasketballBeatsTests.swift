@@ -311,7 +311,7 @@ extension ScorelineTests {
         let half = scenes.first { $0.kind == .periodEnd && $0.period == 2 }!
         let empty = BasketballScript(rest: BasketballFlow.rest(after: half, previous: nil, from: missBeat.lineup(at: missBeat.duration), ends: flat,
                                                                possession: nil))
-        check(empty.formation == .offCourt && empty.players.allSatisfy { $0.opacity(at: empty.duration) == 0 },
+        check(empty.formation == .offCourt && empty.players.filter { $0.team != .staff }.allSatisfy { $0.opacity(at: empty.duration) == 0 },
               "at the half the floor empties")
         let names = (top: "Spurs", bottom: "Jazz")
         check(BasketballStatus.between(context: timeout, rest: nil, names: names)?.text == "TIMEOUT · JAZZ"

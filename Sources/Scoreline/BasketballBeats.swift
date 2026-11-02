@@ -1337,7 +1337,7 @@ extension BasketballScript.Builder {
             opening = liveRest(rest)
         }
         sortLegs()
-        script.duration = script.formation == .offCourt || rest.phase == .loose || rest.phase == .tip ? max(opening + 0.5, 1) : Self.restLength
+        script.duration = rest.phase == .loose || rest.phase == .tip ? max(opening + 0.5, 1) : Self.restLength
         script.settle = 0
         restCamera(opening: opening)
     }
@@ -1615,13 +1615,13 @@ extension BasketballScript.Builder {
         }
         script.look = nil
         script.active = t > 0 ? [0...(t + 0.3)] : []
-        var at = t + random.in(4...6)
-        while at < Self.restLength - 2 {
+        var at = t + random.in(0.5...2)
+        while at < Self.restLength - 1 {
             let k = Int(random.in(0...9.99))
             let p = position(k, at)
             walk(k, to: [CGPoint(x: p.x + random.in(-0.6...0.6), y: p.y + random.in(-0.4...0.4))], from: at, to: at + 0.8)
             script.active.append((at - 0.05)...(at + 1.05))
-            at += random.in(6...9)
+            at += TheaterQuiet.gap.lowerBound + random.in(0...(TheaterQuiet.gap.upperBound - TheaterQuiet.gap.lowerBound))
         }
         return t
     }
@@ -1633,6 +1633,7 @@ extension BasketballScript.Builder {
             tipSet()
             script.formation = .offCourt
             hideAll(true)
+            floorCrew(from: 0)
             return 0
         }
         var t = 0.0
@@ -1646,7 +1647,26 @@ extension BasketballScript.Builder {
         }
         script.legs = []
         script.active = [0...(t + 0.4)]
+        floorCrew(from: t)
         return t
+    }
+
+    /// The floor at the half, the teams gone: two of the crew out with their
+    /// mops, their quiet (TheaterQuiet) through the court's length of rest.
+    mutating func floorCrew(from start: Double) {
+        let crew = [CGPoint(x: 24, y: 12), CGPoint(x: 70, y: 38)].map { at -> Int in
+            var man = Player(team: .staff, at: at)
+            man.enters = start
+            script.players.append(man)
+            return script.players.count - 1
+        }
+        let quiet = TheaterQuiet.make(men: crew, from: start, length: Self.restLength - start, poses: false, random: &random)
+        for case let .step(man, at, toward, back) in quiet.beats {
+            let here = position(man, at)
+            walk(man, to: [CGPoint(x: here.x + toward.x * 7, y: here.y + toward.y * 5)], from: at, to: at + TheaterQuiet.stride)
+            walk(man, to: [here], from: back, to: back + TheaterQuiet.stride)
+            script.active += [(at - 0.05)...(at + TheaterQuiet.stride + 0.25), (back - 0.05)...(back + TheaterQuiet.stride + 0.25)]
+        }
     }
 
     // MARK: Its camera

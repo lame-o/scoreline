@@ -232,6 +232,8 @@ struct DockBar: Equatable {
         case football(down: String?, spot: String?, redZone: Bool)
         case baseball(BaseState)
         case cs(round: Int?)
+        /// Play has stopped, and why ("Official timeout"): the hero's own word.
+        case stoppage(String)
     }
 
     /// Climbing: who's on the wall (or up next, or the winner).
@@ -302,6 +304,8 @@ struct DockInputs {
     var stale = false
     /// Broadcasting: how far behind live (the live indicator's hover).
     var behind: BehindLive?
+    /// Why play has stopped, while it has (`PresentedGame.note`).
+    var stoppage: String?
 }
 
 @MainActor
@@ -345,6 +349,7 @@ extension DockBar {
         default:
             break
         }
+        if let stoppage = i.stoppage { bar.detail = .stoppage(stoppage) }
         let mapPoint: Bool = {
             guard case .counterStrike? = e.ref, let cs = i.detail?.csLive, !cs.mapEnded else { return false }
             return MatchRules.mapPoint(top: cs.topScore, bottom: cs.bottomScore) != nil
@@ -1125,6 +1130,10 @@ struct DockedScorebar: View {
         case let .cs(round):
             if text, let round {
                 Text("R\(round)").font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(.secondary)
+            }
+        case let .stoppage(words):
+            if text {
+                Text(words).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
             }
         case .none:
             EmptyView()

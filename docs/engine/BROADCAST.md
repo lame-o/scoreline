@@ -142,6 +142,7 @@ MLS (761924, one match): 7.8% / 3.9% / 3.9% decisive late at margins 1 / 13 / 20
 
 - the hero's score, clock and period;
 - the docked scorebar;
+- the game's phase (`PresentedGame.Phase`): under way, stopped and why (`Stoppage`: one table in `BroadcastLanes`, the hero's line under the clock, the docked bar's and the theater's tag), or a break. The told plays say it and so does the fast lane, its lag taken off, whichever comes first: ESPN has posted soccer's half-time entry as much as 17 minutes after its status said HT. A game held up (a rain delay, a suspension) keeps ESPN's own words, over the clock;
 - the play lists (Latest, Key Plays, Scoring, Key Events): rows appear when their play is presented, and inline replays keep working;
 - the shot chart, Game Flow and the other per-play charts;
 - Win Probability:

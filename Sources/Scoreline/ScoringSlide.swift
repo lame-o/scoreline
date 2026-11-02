@@ -839,11 +839,12 @@ struct SlidePaint: Equatable {
     /// A color with a hue (not white, black or gray).
     private static func real(_ lab: OKLab) -> Bool { lab.chroma >= 0.05 }
 
-    static func team(_ hex: String?, alternate: String?) -> SlidePaint {
+    /// `changed`: a side in a change kit for this game: the slab stays what it's wearing, black or white too.
+    static func team(_ hex: String?, alternate: String?, changed: Bool = false) -> SlidePaint {
         let own = hex.flatMap(OKLab.init(hex:)), second = alternate.flatMap(OKLab.init(hex:))
         var slab = own ?? OKLab(l: 0.56, chroma: 0.16, hue: 255)
         var stripe = second
-        if neutral(slab), let second, real(second) {
+        if !changed, neutral(slab), let second, real(second) {
             // Black or white with a real second color: wear the second, keep the first as the stripe.
             stripe = slab
             slab = second

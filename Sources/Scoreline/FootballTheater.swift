@@ -1921,7 +1921,7 @@ private struct FootballDirectedStage: View {
         var status = FootballStatus.idle(idle, stoppage: drawn.clip.stoppage, script: drawn.clip.script, t: drawn.t, names: names,
                                          situation: situation, timeoutsLeft: timeouts)
         status.updated = heard
-        return status
+        return status.holding(source.presented)
     }
 
     private func report(wall: PTime, T: PTime, _ drawn: (clip: GridClip, t: Double, world: FootballFrame.World)) {

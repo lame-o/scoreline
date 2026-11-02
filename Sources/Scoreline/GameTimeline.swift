@@ -80,6 +80,38 @@ enum EventTimeSource: Hashable, Sendable {
     case bounded
 }
 
+/// Why play has stopped: one table (`BroadcastLanes`), read by every surface.
+enum Stoppage: Hashable, Sendable {
+    case timeout
+    /// The NFL's TV break, the WNBA's: ESPN's "Official Timeout".
+    case officialTimeout
+    case twoMinuteWarning
+    /// A challenge, a replay review.
+    case review
+    /// Soccer: VAR is looking at something.
+    case varCheck
+    /// Soccer: a man down, or no reason given.
+    case delay
+    case pitchingChange
+    case moundVisit
+    /// Weather, a suspension: the game's own status, in ESPN's words ("Rain Delay").
+    case status(String)
+
+    var words: String {
+        switch self {
+        case .timeout: "Timeout"
+        case .officialTimeout: "Official timeout"
+        case .twoMinuteWarning: "Two-minute warning"
+        case .review: "Under review"
+        case .varCheck: "VAR check"
+        case .delay: "Delay in match"
+        case .pitchingChange: "Pitching change"
+        case .moundVisit: "Mound visit"
+        case let .status(words): words
+        }
+    }
+}
+
 /// What kind of play it is, as far as the clock and the watermark care.
 struct PlayKind: Hashable, Sendable {
     enum Phase: Hashable, Sendable {
@@ -109,11 +141,16 @@ struct PlayKind: Hashable, Sendable {
     /// corner or free kick given, a goal, a card) though the game clock runs on:
     /// nothing on screen moves there, so the clock may skip or hold in it.
     var stopsPlay = false
+    /// The stoppage it opens: it stands until something plays.
+    var stoppage: Stoppage?
+    /// Bookkeeping during a stoppage (a substitution, the next batter's name):
+    /// it doesn't end one.
+    var attaches = false
 
     enum Delay: Hashable, Sendable { case opens, closes }
 
     init(_ phase: Phase, _ label: String, stopsClock: Bool = false, endsPeriod: Int? = nil, endsGame: Bool = false,
-         announced: Bool = false, delay: Delay? = nil, stopsPlay: Bool = false) {
+         announced: Bool = false, delay: Delay? = nil, stopsPlay: Bool = false, stoppage: Stoppage? = nil, attaches: Bool = false) {
         self.phase = phase
         self.label = label
         self.stopsClock = stopsClock || endsPeriod != nil
@@ -122,6 +159,8 @@ struct PlayKind: Hashable, Sendable {
         self.announced = announced
         self.delay = delay
         self.stopsPlay = stopsPlay
+        self.stoppage = stoppage
+        self.attaches = attaches
     }
 }
 
@@ -307,7 +346,16 @@ struct FastReading: Equatable, Sendable {
         case live
         /// Between periods, halftime, between innings: nothing will be logged for a while.
         case interval
+        /// Held up (weather, a suspension), in the source's words: the same.
+        case stopped(String)
         case final
+
+        var quiet: Bool {
+            switch self {
+            case .interval, .stopped: true
+            case .live, .final: false
+            }
+        }
     }
 
     var arrived: PTime
@@ -1426,6 +1474,18 @@ struct FastLane: Equatable, Sendable {
         }
     }
 
+    /// The lane's word at `p` on the event-time axis: the status's newest by then
+    /// where the page polls it (the scoreboard's copy can run a poll behind it).
+    func reading(at p: PTime, lag: Double) -> FastReading? {
+        readings.last { $0.source == "status" && $0.arrived - lag <= p } ?? readings.last { $0.arrived - lag <= p }
+    }
+
+    /// The first moment after `p` the lane says something new (event-time axis).
+    func nextReading(after p: PTime, lag: Double) -> PTime? {
+        guard let word = reading(at: p, lag: lag)?.state else { return readings.first.map { $0.arrived - lag } }
+        return readings.first { $0.arrived - lag > p && $0.state != word }.map { $0.arrived - lag }
+    }
+
     /// The newest event time the lane confirms nothing happened through: the
     /// latest reading in an interval, or with the clock stopped at the newest
     /// play's clock (same period), and the score the plays have. Readings
@@ -1438,7 +1498,7 @@ struct FastLane: Equatable, Sendable {
             // Only evidence from after the newest play speaks about the time since it.
             guard r.arrived - lag >= newest.eventTime else { return nil }
             guard r.score == nil || score == nil || r.score == score else { continue }
-            if r.state == .interval { return r.arrived - lag }
+            if r.state.quiet { return r.arrived - lag }
             if r.state == .live, r.running == false, let e = r.elapsed, let g = newest.entry.clock.elapsed,
                r.period == newest.entry.period, abs(e - g) < 1.5 {
                 return r.arrived - lag
@@ -1450,7 +1510,7 @@ struct FastLane: Equatable, Sendable {
     /// Whether the lane had the clock stopped (or an interval) over a stretch of event time.
     func stopped(over span: ClosedRange<PTime>, lag: Double, period: Int) -> Bool {
         func quiet(_ r: FastReading) -> Bool {
-            r.state == .interval || (r.running == false && (r.period == nil || r.period == period))
+            r.state.quiet || (r.running == false && (r.period == nil || r.period == period))
         }
         guard let before = readings.last(where: { $0.arrived - lag <= span.lowerBound }), quiet(before) else { return false }
         return readings.allSatisfy { r in

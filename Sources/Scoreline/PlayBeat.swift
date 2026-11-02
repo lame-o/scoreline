@@ -563,7 +563,7 @@ extension PlayBeat {
             }
             let position = c.position.map { ["", "P", "C", "1B", "2B", "3B", "SS", "LF", "CF", "RF"][min(max($0, 1), 9)] }
             return [what, c.name?.uppercased(), position].compactMap { $0 }.joined(separator: " · ")
-        case let .inningBreak(middle, inning): return "\(middle ? "MIDDLE" : "END") \(Ordinal.string(inning).uppercased())"
+        case let .inningBreak(middle, inning): return "\(middle ? "MID" : "END") \(Ordinal.string(inning).uppercased())"
         case let .review(r):
             if r.inProgress { return "REVIEW · UNDER WAY" }
             return "REVIEW · \(r.overturned ? "OVERTURNED" : "CALL STANDS")"

@@ -209,15 +209,16 @@ enum BroadcastLanes {
         } else if type == 615 {
             kind = PlayKind(.live, "jump ball")
         } else if type == 16 || type == 17 {
-            kind = PlayKind(.dead, "timeout", stopsClock: true)
+            kind = PlayKind(.dead, "timeout", stopsClock: true, stoppage: stoppage(type: play["type"]["text"].string) ?? .timeout)
         } else if type == 584 {
-            kind = PlayKind(.dead, "substitution", stopsClock: true)
+            kind = PlayKind(.dead, "substitution", stopsClock: true, attaches: true)
         } else if let type, (213...290).contains(type) {
-            kind = PlayKind(.dead, "review", stopsClock: true)
+            kind = PlayKind(.dead, "review", stopsClock: true, stoppage: .review)
         } else if let type, (20...60).contains(type) {
             kind = PlayKind(.dead, "foul", stopsClock: true)
         } else {
-            kind = PlayKind(.dead, "other", stopsClock: true)
+            let stopped = stoppage(type: play["type"]["text"].string)
+            kind = PlayKind(.dead, stopped == nil ? "other" : "timeout", stopsClock: true, stoppage: stopped)
         }
         let digest = digest(play) { h in
             h.combine(play["coordinate"]["x"].double)
@@ -233,9 +234,19 @@ enum BroadcastLanes {
 
     // MARK: Football
 
-    /// Entries ESPN logs between snaps: stoppages and admin.
-    static let footballAdmin: Set<String> = ["Official Timeout", "Timeout", "End Period", "End of Half", "End of Game",
-                                             "Two-minute warning", "Coin Toss", "End of Regulation", "End of Quarter"]
+    /// A stoppage as ESPN names a play's type, whatever the sport. The one table
+    /// behind the hero, the docked bar, the list row and the theater's tag. (pure; tested)
+    static func stoppage(type: String?) -> Stoppage? {
+        switch type?.lowercased() {
+        case "official timeout"?: .officialTimeout
+        case "timeout"?, "full timeout"?, "short timeout"?, "reset timeout"?: .timeout
+        case "two-minute warning"?: .twoMinuteWarning
+        case "pitching change"?: .pitchingChange
+        case "mound visit"?: .moundVisit
+        case let type?: type.hasPrefix("coach's challenge") || type.hasPrefix("ref-initiated review") || type == "challenge" ? .review : nil
+        case nil: nil
+        }
+    }
 
     /// A football entry. Every snap (rush, pass, sack, kick, penalty) is live;
     /// stoppages and admin are dead. The clock stops after an incompletion, a
@@ -254,11 +265,12 @@ enum BroadcastLanes {
         let text = (play["text"].string ?? "").lowercased()
         let sequence = Double(play["sequenceNumber"].string ?? "") ?? play["sequenceNumber"].double ?? 0
         let kind: PlayKind
-        if footballAdmin.contains(typeText) || typeText.hasPrefix("End ") {
+        let stopped = stoppage(type: typeText)
+        if stopped != nil || typeText == "Coin Toss" || typeText.hasPrefix("End ") {
             let ends = typeText.hasPrefix("End")
             let final = typeText == "End of Game"
             kind = PlayKind(.dead, ends ? (final ? "game end" : "period end") : typeText.lowercased(),
-                            stopsClock: true, endsPeriod: ends ? period : nil, endsGame: final)
+                            stopsClock: true, endsPeriod: ends ? period : nil, endsGame: final, stoppage: stopped)
         } else {
             let incomplete = typeID == "3"
             let kick = ["52", "53", "59", "60", "18", "12", "17"].contains(typeID) || typeText.contains("Punt") || typeText.contains("Kickoff")
@@ -316,18 +328,21 @@ enum BroadcastLanes {
         case "end-regular-time", "end-extra-time", "full-time", "end-of-game":
             kind = PlayKind(.dead, "game end", endsPeriod: period, endsGame: type != "end-regular-time" || policy.regulationPeriods <= period)
         case "substitution", "yellow-card", "red-card", "yellow-red-card":
-            kind = PlayKind(.dead, type.replacingOccurrences(of: "-", with: " "), stopsPlay: true)
+            kind = PlayKind(.dead, type.replacingOccurrences(of: "-", with: " "), stopsPlay: true, attaches: true)
         case "start-2nd-half", "kickoff", "start-extra-time":
             kind = PlayKind(.dead, type.replacingOccurrences(of: "-", with: " "))
         case "start-delay":
-            kind = PlayKind(.dead, "delay", delay: .opens, stopsPlay: true)
+            // ESPN logs a delay twice; only one says why.
+            let why = play["text"].string ?? ""
+            kind = PlayKind(.dead, "delay", delay: .opens, stopsPlay: true, stoppage: why.isEmpty ? nil : why.contains("VAR") ? .varCheck : .delay,
+                            attaches: why.isEmpty)
         case "end-delay":
             kind = PlayKind(.dead, "delay", delay: .closes)
         default:
             if type.hasPrefix("var") || type == "deleted-after-review" {
                 // A VAR decision (a goal ruled out, a penalty given) and the goal it struck:
                 // told as events even when they come minutes late, never as quiet corrections.
-                kind = PlayKind(.dead, "review", announced: true, stopsPlay: true)
+                kind = PlayKind(.dead, "review", announced: true, stopsPlay: true, stoppage: .varCheck)
             } else if soccerShot(type) || play["scoringPlay"].bool == true {
                 // A goal leaves the ball dead until the kickoff; a shot doesn't (a save, a rebound, a corner follows).
                 kind = PlayKind(.live, "shot", stopsPlay: play["scoringPlay"].bool == true)
@@ -379,9 +394,16 @@ enum BroadcastLanes {
         } else if type == "end-game" || type == "game-end" {
             kind = PlayKind(.dead, "game end", endsPeriod: period, endsGame: true)
         } else if baseballAdmin.contains(type) || type.contains("substitution") || type.contains("visit") {
-            kind = PlayKind(.dead, type.replacingOccurrences(of: "-", with: " "))
+            let stopped: Stoppage? = switch type {
+            case "pitching-change": .pitchingChange
+            case "mound-visit": .moundVisit
+            case "umpire-review", "manager-challenge": .review
+            default: nil
+            }
+            kind = PlayKind(.dead, type.replacingOccurrences(of: "-", with: " "), stoppage: stopped, attaches: stopped == nil && type != "start-inning")
         } else if type == "play-result" {
-            kind = PlayKind(.live, "result")
+            // ESPN logs a pitching change as a result: "Rodriguez relieved Vásquez".
+            kind = PlayKind(.live, "result", stoppage: (play["text"].string ?? "").contains(" relieved ") ? .pitchingChange : nil)
         } else {
             kind = PlayKind(.live, play["pitchCoordinate"].exists || play["summaryType"].string == "P" ? "pitch" : "event")
         }
@@ -471,7 +493,7 @@ enum BroadcastLanes {
         switch event.state {
         case .scheduled: return nil
         case .final: state = .final
-        case .live: state = isInterval(event.detail) ? .interval : .live
+        case .live: state = liveState(event.detail)
         }
         var score: ScoreLine?
         if let t = top.score.flatMap({ Int($0) }), let b = bottom.score.flatMap({ Int($0) }) {
@@ -490,7 +512,7 @@ enum BroadcastLanes {
         let state: FastReading.State
         switch stateName {
         case "post"?: state = .final
-        case "in"?: state = isInterval(detail) ? .interval : .live
+        case "in"?: state = liveState(detail)
         default: return nil
         }
         let period = status["period"].int
@@ -504,7 +526,7 @@ enum BroadcastLanes {
         let state: FastReading.State
         switch row["state"].string {
         case "post"?: state = .final
-        case "in"?: state = isInterval(row["clock"].string) ? .interval : .live
+        case "in"?: state = liveState(row["clock"].string)
         default: return nil
         }
         var score: ScoreLine?
@@ -521,6 +543,19 @@ enum BroadcastLanes {
         }
         return FastReading(arrived: now, state: state, period: period, elapsed: elapsed,
                            running: running(elapsed: elapsed, period: period, previous: previous), score: score, source: "scoreboard")
+    }
+
+    /// A live game's status: under way, between periods, or held up in the source's own words.
+    static func liveState(_ detail: String?) -> FastReading.State {
+        if isInterval(detail) { return .interval }
+        if let detail, isHeldUp(detail) { return .stopped(detail) }
+        return .live
+    }
+
+    /// "Rain Delay", "Weather Delay", "Delayed", "Suspended": play has stopped, and ESPN says why.
+    static func isHeldUp(_ detail: String) -> Bool {
+        let d = detail.lowercased()
+        return d.contains("delay") || d.contains("suspend")
     }
 
     /// "Halftime", "End of 3rd", "Mid 7th", "End 7th", "HT": between periods.

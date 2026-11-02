@@ -1,0 +1,81 @@
+[
+ {
+  "sport": "baseball",
+  "clock": 0.0,
+  "displayClock": "0:00",
+  "period": 5,
+  "type": {
+   "id": "17",
+   "name": "STATUS_RAIN_DELAY",
+   "state": "in",
+   "completed": false,
+   "description": "Rain Delay",
+   "detail": "Rain Delay",
+   "shortDetail": "Rain Delay"
+  }
+ },
+ {
+  "sport": "baseball",
+  "clock": 0.0,
+  "displayClock": "0:00",
+  "period": 9,
+  "type": {
+   "id": "7",
+   "name": "STATUS_DELAYED",
+   "state": "in",
+   "completed": false,
+   "description": "Delayed",
+   "detail": "Delayed",
+   "shortDetail": "Delayed"
+  }
+ },
+ {
+  "sport": "baseball",
+  "clock": 0.0,
+  "displayClock": "0:00",
+  "period": 6,
+  "type": {
+   "id": "8",
+   "name": "STATUS_SUSPENDED",
+   "state": "in",
+   "completed": false,
+   "description": "Suspended",
+   "detail": "Suspended - Bot 6th",
+   "shortDetail": "Suspended"
+  }
+ },
+ {
+  "sport": "football",
+  "clock": 438.0,
+  "displayClock": "7:18",
+  "period": 2,
+  "type": {
+   "id": "7",
+   "name": "STATUS_DELAYED",
+   "state": "in",
+   "completed": false,
+   "description": "Weather Delay",
+   "detail": "Weather Delay",
+   "shortDetail": "Weather Delay"
+  },
+  "isTBDFlex": false,
+  "displayPeriod": "2nd"
+ },
+ {
+  "sport": "football",
+  "clock": 0.0,
+  "displayClock": "0:00",
+  "period": 3,
+  "type": {
+   "id": "7",
+   "name": "STATUS_DELAYED",
+   "state": "in",
+   "completed": false,
+   "description": "Lightning Delay",
+   "detail": "Lightning Delay",
+   "shortDetail": "Lightning Delay"
+  },
+  "isTBDFlex": false,
+  "displayPeriod": "3rd"
+ }
+]

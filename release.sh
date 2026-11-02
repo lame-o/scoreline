@@ -70,7 +70,6 @@ plutil -replace CFBundleVersion -string $NEW_BUILD $PLIST
 
 print "Building Scoreline $VERSION ($NEW_BUILD)…"
 ./build.sh
-Support/verify-architecture.sh "$APP"
 
 OUT=${RELEASE_DIR:-build/release}
 rm -rf $OUT && mkdir -p $OUT

@@ -534,9 +534,7 @@ extension ScorelineTests {
         let kits = TheaterKits(top: TeamKit(color: "13294b", alternate: "ffc72c"), bottom: TeamKit(color: "092c5c", alternate: "8fbce6"))
         let labels = TheaterLabels.make(kits: kits, scheme: .dark, teams: ("Brewers", "Rays"))
         var second: (label: TheaterLabels.Label, color: String)?
-        if case let .second(side) = TheaterTeams.dress(kits, scheme: .dark).rule {
-            second = (labels[side], side == .top ? "ffc72c" : "8fbce6")
-        }
+        if kits.top.wear == .second { second = (labels[.top], "ffc72c") }
         let spurs = TheaterKits(top: TeamKit(color: "000000", alternate: "c4ced4"), bottom: TeamKit(color: "4e008e", alternate: "79a3dc"))
         let onDark = TheaterLabels.make(kits: spurs, scheme: .dark, teams: ("Spurs", "Jazz")).top.paint
         let onLight = TheaterLabels.make(kits: spurs, scheme: .light, teams: ("Spurs", "Jazz")).top.paint
