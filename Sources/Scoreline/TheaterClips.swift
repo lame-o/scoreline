@@ -691,6 +691,9 @@ enum ClipPaths {
             let index = keys.firstIndex { $0.t > t } ?? keys.count
             keys.insert(MotionKey(t: t, at: SIMD2(at.x, at.y), kind: .through, hard: true), at: index)
         }
+        // A contact past either end of his moves is where he starts or finishes: that spot stands too.
+        if let first = keys.first, contacts.contains(where: { $0 <= first.t }) { keys[0].hard = true }
+        if let last = keys.last, contacts.contains(where: { $0 >= last.t }) { keys[keys.count - 1].hard = true }
         guard keys.count > 1 else { return nil }
         return TheaterMotion.path(solve ? solved(keys, band: band, span: span) : keys, band: band)
     }
