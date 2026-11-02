@@ -123,6 +123,7 @@ private struct HistorySurface: View {
 private struct RecognizedLine {
     let text: String
     let rect: CGRect
+    var fragments: [String: CGRect] = [:]
 }
 
 private struct RailFixture {
@@ -141,7 +142,30 @@ private struct RailFixture {
         while Date() < end { _ = RunLoop.main.run(mode: .default, before: min(end, Date(timeIntervalSinceNow: 0.005))) }
     }
 
-    private static func words(_ image: CGImage, size: CGSize) -> [RecognizedLine] {
+    private static func words(_ image: CGImage, size: CGSize, rail: CGRect? = nil) -> [RecognizedLine] {
+        var result = recognize(image, region: CGRect(origin: .zero, size: size))
+        if let rail, rail.height > 0 {
+            // Vision can drop small timeline text when classifying a whole
+            // panel dominated by sparse chart graphics. Re-read the real
+            // rendered rail and its two text regions, retaining pixel bounds.
+            // No text is supplied to the recognizer or inferred from fixtures.
+            let regions = [rail.insetBy(dx: 0, dy: -3),
+                           CGRect(x: rail.minX, y: rail.minY, width: 40, height: 45),
+                           CGRect(x: rail.minX + 28, y: rail.minY + 44, width: rail.width - 28, height: 19)]
+            let scale = CGFloat(image.width) / size.width
+            for region in regions {
+                let bounded = region.intersection(CGRect(origin: .zero, size: size))
+                let pixels = CGRect(x: bounded.minX * scale, y: bounded.minY * scale,
+                                    width: bounded.width * scale, height: bounded.height * scale).integral
+                guard let crop = image.cropping(to: pixels) else { continue }
+                result += recognize(crop, region: CGRect(x: pixels.minX / scale, y: pixels.minY / scale,
+                                                        width: pixels.width / scale, height: pixels.height / scale))
+            }
+        }
+        return result
+    }
+
+    private static func recognize(_ image: CGImage, region: CGRect) -> [RecognizedLine] {
         let request = VNRecognizeTextRequest()
         // Diagnostic override for hosts whose revision-3 model compilation
         // fails in TextRecognition/e5rt. Keep the same strict render assertions
@@ -159,11 +183,39 @@ private struct RailFixture {
         }
         return (request.results ?? []).compactMap { observation in
             guard let candidate = observation.topCandidates(1).first else { return nil }
-            let b = observation.boundingBox
-            return RecognizedLine(text: candidate.string,
-                                  rect: CGRect(x: b.minX * size.width, y: (1 - b.maxY) * size.height,
-                                               width: b.width * size.width, height: b.height * size.height))
+            func rect(_ b: CGRect) -> CGRect {
+                CGRect(x: region.minX + b.minX * region.width, y: region.minY + (1 - b.maxY) * region.height,
+                       width: b.width * region.width, height: b.height * region.height)
+            }
+            var fragments: [String: CGRect] = [:]
+            let text = candidate.string
+            var remaining = text.startIndex..<text.endIndex
+            while let range = text.range(of: "\\S+", options: .regularExpression, range: remaining) {
+                if let box = try? candidate.boundingBox(for: range) { fragments[String(text[range])] = rect(box.boundingBox) }
+                remaining = range.upperBound..<text.endIndex
+            }
+            return RecognizedLine(text: text, rect: rect(observation.boundingBox), fragments: fragments)
         }
+    }
+
+    private static func matching(_ text: String, in lines: [RecognizedLine]) -> [RecognizedLine] {
+        func normalize(_ value: String) -> String { value.split(whereSeparator: \.isWhitespace).joined(separator: " ") }
+        return lines.flatMap { line -> [RecognizedLine] in
+            if normalize(line.text) == normalize(text) { return [line] }
+            // Vision may merge separate inning/quarter labels into one line.
+            // Its own character boxes recover their individual x positions.
+            return line.fragments.compactMap { word, rect in
+                normalize(word) == normalize(text) ? RecognizedLine(text: word, rect: rect) : nil
+            }
+        }
+    }
+
+    private static func matchingAxis(_ label: String, in lines: [RecognizedLine], labels: Set<String>) -> [RecognizedLine] {
+        matching(label, in: lines.filter { line in
+            let words = line.text.split(whereSeparator: \.isWhitespace).map(String.init)
+            return words.joined(separator: " ") == label.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+                || (!words.isEmpty && words.allSatisfy { labels.contains($0) })
+        })
     }
 
     /// Team identity belongs to the left gutter, never to the odds-label
@@ -172,8 +224,8 @@ private struct RailFixture {
     private static func leftTeams(_ lines: [RecognizedLine], names: (top: String, bottom: String), rail: CGRect) -> Bool {
         let gutterEnd = rail.minX + 8 + OddsStyle.gutter + 2
         func match(_ name: String) -> RecognizedLine? {
-            lines.first { line in
-                line.text.contains(name) && rail.contains(CGPoint(x: line.rect.midX, y: line.rect.midY))
+            matching(name, in: lines).first { line in
+                rail.contains(CGPoint(x: line.rect.midX, y: line.rect.midY))
                     && line.rect.maxX <= gutterEnd
             }
         }
@@ -232,8 +284,12 @@ private struct RailFixture {
                             throw NSError(domain: "OddsHistoryAcceptance", code: 4, userInfo: [NSLocalizedDescriptionKey: "No rendered pixels"])
                         }
                         try png.write(to: URL(fileURLWithPath: "\(out)/\(name)-\(suffix).png"))
-                        return words(image, size: size)
+                        return words(image, size: size, rail: probe.frames["rail"])
                     }
+                    // The mounted native scrub may receive initial keyboard
+                    // focus and inspect Latest. Resting captures intentionally
+                    // clear that state; production focus policy stays intact.
+                    pointer.clear(); pump()
                     let resting = try snapshot("resting")
                     let oddsFrame = probe.frames["odds"] ?? .zero, timelineFrame = probe.frames["timeline"] ?? .zero
                     let railFrame = probe.frames["rail"] ?? .zero
@@ -272,7 +328,7 @@ private struct RailFixture {
                           "\(name): inspection remains inside the 60pt track without a separate footer")
                     var alignments: [[String: Any]] = []
                     for label in Set(fixture.history.periods.map(\.label)) {
-                        let matches = resting.filter { $0.text == label }
+                        let matches = matchingAxis(label, in: resting, labels: periodNames)
                         guard let top = matches.first(where: { oddsFrame.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) }),
                               let bottom = matches.first(where: { timelineFrame.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) }) else { continue }
                         alignments.append(["label": label, "oddsX": top.rect.midX, "timelineX": bottom.rect.midX,
@@ -291,7 +347,9 @@ private struct RailFixture {
                         pointer.clear(); pump()
                         let recent = try snapshot("final-recent-resting")
                         if let firstPeriod = fixture.history.periods.first?.label {
-                            check(recent.filter { $0.text == firstPeriod }.count >= 2,
+                            let matches = matchingAxis(firstPeriod, in: recent, labels: periodNames)
+                            check(matches.contains { oddsFrame.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) }
+                                  && matches.contains { railFrame.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) },
                                   "\(name): final with remembered 10 min selection still shows the first period in both modules")
                         }
                         pointer.pin(fixture.selected.t)
@@ -336,8 +394,8 @@ private struct RailFixture {
                     let resetLines = try snapshot("latest")
                     let reset = resetLines.map(\.text).joined(separator: " ").lowercased()
                     check(!pointer.active && !pointer.pinned && !reset.contains("pinned"), "\(name): Latest clears inspection in both modules")
-                    check(resetLines.contains { periodNames.contains($0.text)
-                        && railFrame.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) },
+                    check(periodNames.contains { label in matchingAxis(label, in: resetLines, labels: periodNames).contains {
+                        railFrame.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) } },
                           "\(name): clearing inspection restores the timeline's period labels")
                     if fixture.name == "nba", scheme == .dark, width == 520 {
                         NativeHoverChecks.run(panel: panel, pointer: pointer, frames: probe.frames,
@@ -357,7 +415,8 @@ private struct RailFixture {
                                      "selectedEvent": fixture.selected.id, "selectedTime": fixture.selected.t.timeIntervalSince1970,
                                      "ocr": text, "restingOCR": resting.map(\.text), "oddsFrame": NSStringFromRect(oddsFrame),
                                      "timelineFrame": NSStringFromRect(timelineFrame), "railFrame": NSStringFromRect(railFrame),
-                                     "scope": "Production odds and timeline modules on a shared wall-clock domain"])
+                                     "scope": "Production odds and timeline modules on a shared wall-clock domain. These trimmed summary fixtures omit play team IDs, so their marks are correctly neutral; team-lane appearance is covered by separate attributed NBA and soccer captures.",
+                                     "teamAttributedKeyEvents": fixture.history.keyEvents.filter { $0.side != nil }.count])
                     panel.orderOut(nil); panel.contentView = nil; feed.stop(); pump(0.05)
                 }
             }
@@ -369,6 +428,7 @@ private struct RailFixture {
         }
         let receipt: [String: Any] = ["passed": passed, "failed": failed, "checks": checks, "renders": receipts,
                                       "ocrRevision": ProcessInfo.processInfo.environment["SCORELINE_OCR_REVISION"] == "2" ? 2 : VNRecognizeTextRequest.defaultRevision,
+                                      "ocrRegions": "Full panel plus actual rail, left labels and detail-row pixel crops; merged axis labels use Vision character bounds",
                                       "network": "HTTP blocked; pageLive false prevents market tracking",
                                       "timezone": "System-local display; event timestamps are Unix seconds"]
         let resultName = hoverOnly ? "hover-result-\(ProcessInfo.processInfo.environment["SCORELINE_HOVER_DISPATCH"] ?? "queue").json" : "result.json"
@@ -437,7 +497,7 @@ private struct RailFixture {
                         throw NSError(domain: "OddsHistoryAcceptance", code: 10, userInfo: [NSLocalizedDescriptionKey: "Original soccer timeline has no pixels"])
                     }
                     try png.write(to: URL(fileURLWithPath: "\(out)/\(name)-\(state).png"))
-                    return words(image, size: size).map(\.text).joined(separator: " ")
+                    return words(image, size: size, rail: probe.frames["rail"]).map(\.text).joined(separator: " ")
                 }
                 let resting = try snapshot("resting"), initialHeight = probe.frames["rail"]?.height
                 // Vision revision 2 can read the rendered Latin T as its
@@ -476,8 +536,24 @@ private struct RailFixture {
     @MainActor private static func additionalRailRenders(out: String, check: (Bool, String) -> Void) throws -> [[String: Any]] {
         let baseball = JSON(data: try Data(contentsOf: URL(fileURLWithPath: "Tests/Fixtures/ws-g5-plays.json")))
         let mlb = MatchHistory.parse(JSON(["plays": baseball["items"].array.compactMap(\.raw)]), sport: .baseball, topID: "8", bottomID: "30")
+        let richNBA = JSON(data: try Data(contentsOf: URL(fileURLWithPath: "Tests/Fixtures/nba-every-play-401909890.json")))["games"][0]
+        let away = richNBA["away"], home = richNBA["home"]
+        let attributedNBA = MatchHistory.parse(JSON(["plays": richNBA["items"].array.compactMap(\.raw)]), sport: .basketball,
+                                               topID: away["id"].string, bottomID: home["id"].string)
+        let cup = JSON(data: try Data(contentsOf: URL(fileURLWithPath: "Tests/Fixtures/competitions/cup-goals.json")))["items"].array
+        let cupPlays = cup.compactMap { play -> [String: Any]? in
+            guard var raw = play.raw as? [String: Any], let id = SoccerScene.teamID(play) else { return nil }
+            // Normalize the captured core team's explicit $ref, just as the
+            // feed does. Timestamps and team attribution stay provider data.
+            raw["team"] = ["id": id]
+            return raw
+        }
+        let attributedSoccer = MatchHistory.parse(JSON(["keyEvents": cupPlays]), sport: .soccer, topID: "364", bottomID: "363")
         let nba = try HistoryFixture.load(soccer: false)
-        guard let last = nba.history.keyEvents.last, let end = nba.history.end, let baseballStart = mlb.start else {
+        guard let last = nba.history.keyEvents.last, let end = nba.history.end, let baseballStart = mlb.start,
+              let nbaStart = attributedNBA.start, let soccerStart = attributedSoccer.start,
+              let awayName = away["abbreviation"].string, let homeName = home["abbreviation"].string,
+              let awayColor = away["color"].string, let homeColor = home["color"].string else {
             throw NSError(domain: "OddsHistoryAcceptance", code: 11, userInfo: [NSLocalizedDescriptionKey: "Additional timeline captures are empty"])
         }
         var overtime = nba.history
@@ -486,16 +562,31 @@ private struct RailFixture {
         overtime.periods.append(OddsPeriod(number: 5, label: "OT", start: end + 120, end: end + 1320))
         let mlbFixture = RailFixture(name: "mlb", history: mlb, names: ("MIL", "TB"), colors: ("FFC52F", "092C5C"),
                                     start: baseballStart, source: "Captured World Series Game 5, 401908046", mutation: "None")
+        let attributedNBAFixture = RailFixture(name: "nba-attributed", history: attributedNBA, names: (awayName, homeName),
+                                              colors: (awayColor, homeColor), start: nbaStart,
+                                              source: "Captured SA–UTAH 401909890; provider team IDs and all 515 wall timestamps retained", mutation: "None")
+        let attributedSoccerFixture = RailFixture(name: "soccer-attributed", history: attributedSoccer, names: ("LIV", "CHE"),
+                                                 colors: ("C8102E", "034694"), start: soccerStart,
+                                                 source: "Captured Carabao Cup 401921842 scoring segment; both provider timestamps and explicit team references retained",
+                                                 mutation: "None")
         let empty = RailFixture(name: "nba-empty", history: MatchHistory(sport: .basketball), names: nba.names, colors: nba.colors,
                                 start: nba.start, source: "GSW–MIN capture 401909888", mutation: "All events removed to test honest empty inspection")
         let ot = RailFixture(name: "nba-overtime", history: overtime, names: nba.names, colors: nba.colors, start: nba.start,
                              source: "GSW–MIN capture 401909888", mutation: "One existing score text copied to a clearly synthetic overtime event and period")
         let cases: [(RailFixture, CGFloat, ColorScheme)] = [
             (mlbFixture, 350, .dark), (mlbFixture, 350, .light), (mlbFixture, 520, .dark), (mlbFixture, 520, .light),
+            (attributedNBAFixture, 350, .dark), (attributedNBAFixture, 350, .light), (attributedNBAFixture, 520, .dark), (attributedNBAFixture, 520, .light),
+            (attributedSoccerFixture, 350, .dark), (attributedSoccerFixture, 350, .light), (attributedSoccerFixture, 520, .dark), (attributedSoccerFixture, 520, .light),
             (empty, 350, .dark), (ot, 350, .dark)
         ]
         check(mlb.keyEvents.contains { $0.side == .top } && mlb.keyEvents.contains { $0.side == .bottom },
               "MLB: captured scoring plays preserve both teams without invented attribution")
+        check(attributedNBA.keyEvents.filter { $0.side == .top }.count == 61
+              && attributedNBA.keyEvents.filter { $0.side == .bottom }.count == 57,
+              "NBA: all 118 captured SA–UTAH scores retain their explicit provider teams")
+        check(attributedSoccer.keyEvents.count == 2 && attributedSoccer.keyEvents.contains { $0.side == .top }
+              && attributedSoccer.keyEvents.contains { $0.side == .bottom },
+              "Soccer: both captured Carabao goals retain their real timestamps and opposing teams")
         var receipts: [[String: Any]] = []
         for (fixture, width, scheme) in cases {
             let name = "\(fixture.name)-\(scheme)-\(Int(width))", history = fixture.history
@@ -509,7 +600,11 @@ private struct RailFixture {
             panel.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
             let palette = TeamPalette(top: fixture.colors.top, bottom: fixture.colors.bottom, scheme: scheme)
             let layout = PanelLayout.resolve(width: width, from: PanelLayout())
-            let surface = DetailSection(title: "Timeline", caption: fixture.mutation == "None" ? "Scoring plays by inning." : "Acceptance edge case · \(fixture.name)") {
+            let caption = fixture.mutation != "None" ? "Acceptance edge case · \(fixture.name)"
+                : history.sport == .baseball ? "Scoring plays by inning."
+                : history.sport == .soccer ? "Goals and cards · Captured scoring segment."
+                : "Scoring plays by period."
+            let surface = DetailSection(title: "Timeline", caption: caption) {
                 MatchTimeline(history: history, domain: domain, names: fixture.names, palette: palette,
                               pointer: pointer, labelWidth: labelWidth, final: true)
                     .background(GeometryReader { geometry in
@@ -534,13 +629,14 @@ private struct RailFixture {
                     throw NSError(domain: "OddsHistoryAcceptance", code: 13, userInfo: [NSLocalizedDescriptionKey: "Additional timeline has no pixels"])
                 }
                 try png.write(to: URL(fileURLWithPath: "\(out)/\(name)-\(state).png"))
-                return words(image, size: size)
+                return words(image, size: size, rail: probe.frames["rail"])
             }
+            pointer.clear(); pump()
             let resting = try snapshot("resting"), rail = probe.frames["rail"] ?? .zero
             check(rail.height == 60, "\(name): the timeline retains the original soccer height")
             check(leftTeams(resting, names: fixture.names, rail: rail), "\(name): both neutral team labels occupy the left gutter")
             if fixture.name == "nba-overtime" {
-                check(resting.contains { $0.text == "OT" && rail.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) },
+                check(matchingAxis("OT", in: resting, labels: Set(history.periods.map(\.label))).contains { rail.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) },
                       "\(name): the extra period stays visible in the compact bottom row")
             }
             let selection = history.keyEvents.last?.t ?? domain.lowerBound + 600
@@ -559,11 +655,13 @@ private struct RailFixture {
                                       plotHeight: MatchTimelineStyle.plotHeight, domain: domain, labelWidth: labelWidth)
             let axis = history.periods.isEmpty ? OddsPlot.hourLabels(geometry) : OddsPlot.periodLabels(history.periods, layout: geometry)
             let labels = Set(axis.map(\.label))
-            check(!pointer.active && probe.frames["rail"]?.height == 60 && reset.contains { labels.contains($0.text)
-                && rail.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) },
+            check(!pointer.active && probe.frames["rail"]?.height == 60 && labels.contains { label in matchingAxis(label, in: reset, labels: labels).contains {
+                rail.contains(CGPoint(x: $0.rect.midX, y: $0.rect.midY)) } },
                   "\(name): clearing restores clock or period labels in the same row")
             receipts.append(["case": name, "railFrame": NSStringFromRect(rail), "restingOCR": resting.map(\.text),
                              "pinnedOCR": pinned.map(\.text), "source": fixture.source, "mutation": fixture.mutation,
+                             "topKeyEvents": history.keyEvents.filter { $0.side == .top }.count,
+                             "bottomKeyEvents": history.keyEvents.filter { $0.side == .bottom }.count,
                              "scope": "Production timeline-only render; no market prices invented"])
             panel.orderOut(nil); panel.contentView = nil; pump(0.05)
         }
@@ -652,8 +750,9 @@ private struct RailFixture {
                             throw NSError(domain: "OddsHistoryAcceptance", code: 7, userInfo: [NSLocalizedDescriptionKey: "NFL surface has no pixels"])
                         }
                         try png.write(to: URL(fileURLWithPath: "\(out)/\(name)-\(state).png"))
-                        return words(image, size: size)
+                        return words(image, size: size, rail: probe.frames["rail"])
                     }
+                    pointer.clear(); pump()
                     let resting = try snapshot("resting")
                     check(leftTeams(resting, names: ("LV", "NYJ"), rail: railFrame),
                           "\(name): football identities are on the left in the same order as soccer")
