@@ -40,6 +40,32 @@ extension ScorelineTests {
               && MatchTimelineGeometry.time(at: CGPoint(x: 9_999, y: 0), events: [], layout: timeline) == end,
               "Timeline inspection cannot escape the shared displayed domain")
 
+        let fractionalDomain = (start + 0.8)...(end + 0.2)
+        let fractionalLayout = OddsLayout(size: CGSize(width: 540, height: 91), plotHeight: 76,
+                                         domain: fractionalDomain, labelWidth: labelWidth)
+        let nearStart = event("near-start", 1.2, .top)
+        let nearEnd = event("near-end", 7_199.6, .bottom)
+        let edgeEvents = [nearStart, nearEnd]
+        let startPoint = MatchTimelineGeometry.point(nearStart, layout: fractionalLayout)
+        let endPoint = MatchTimelineGeometry.point(nearEnd, layout: fractionalLayout)
+        check(MatchTimelineGeometry.time(at: CGPoint(x: fractionalLayout.plot.minX, y: startPoint.y), events: edgeEvents, layout: fractionalLayout) == fractionalDomain.lowerBound
+              && MatchTimelineGeometry.time(at: CGPoint(x: fractionalLayout.plot.maxX, y: endPoint.y), events: edgeEvents, layout: fractionalLayout) == fractionalDomain.upperBound,
+              "Exact timeline endpoints win over nearby event targets and preserve fractional timestamps")
+        check(MatchTimelineGeometry.time(at: startPoint, events: edgeEvents, layout: fractionalLayout) == nearStart.t
+              && MatchTimelineGeometry.time(at: endPoint, events: edgeEvents, layout: fractionalLayout) == nearEnd.t,
+              "Interior markers still snap to their reported fractional event times")
+        let edgeMarks = MatchTimelineRail.marks(events: edgeEvents, layout: fractionalLayout)
+        check(MatchTimelineRail.time(at: CGPoint(x: fractionalLayout.plot.minX, y: edgeMarks[0].point.y), marks: edgeMarks, layout: fractionalLayout) == fractionalDomain.lowerBound
+              && MatchTimelineRail.time(at: CGPoint(x: fractionalLayout.plot.maxX, y: edgeMarks[1].point.y), marks: edgeMarks, layout: fractionalLayout) == fractionalDomain.upperBound,
+              "Football's compact rail reaches the same fractional endpoints despite near-edge scores")
+        check(MatchTimelineRail.time(at: edgeMarks[0].point, marks: edgeMarks, layout: fractionalLayout) == nearStart.t
+              && MatchTimelineRail.time(at: edgeMarks[1].point, marks: edgeMarks, layout: fractionalLayout) == nearEnd.t,
+              "Interior football markers retain exact event snapping near the edges")
+        let interior = CGPoint(x: fractionalLayout.x(second + 0.3), y: fractionalLayout.plot.midY)
+        check(MatchTimelineGeometry.time(at: interior, events: edgeEvents, layout: fractionalLayout) == second
+              && MatchTimelineRail.time(at: interior, marks: edgeMarks, layout: fractionalLayout) == second,
+              "Empty positions in both timeline styles retain the odds whole-second mapping")
+
         let football = OddsLayout(size: CGSize(width: 306, height: 69), plotHeight: 54, domain: domain, labelWidth: labelWidth)
         let rail = MatchTimelineRail.marks(events: events, layout: football)
         check(rail.count == 2 && rail[0].events.count == 2 && rail.flatMap(\.events).count == events.count,

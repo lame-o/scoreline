@@ -219,6 +219,18 @@ extension ScorelineTests {
                   "\(Int(width))pt: the scrub snaps to the nearest minute, within the data")
             check(OddsPlot.periodLabels(nba.periods, layout: layout).map(\.label) == ["Q1", "Q2", "Q3", "Q4"],
                   "\(Int(width))pt: every quarter named under its own span")
+            let fractional = (domain.lowerBound + 0.8)...(domain.upperBound + 0.2)
+            let precise = OddsLayout(size: CGSize(width: width, height: 139), plotHeight: 124,
+                                     domain: fractional, labelWidth: labelWidth)
+            check(precise.inspectionTime(at: precise.plot.minX) == fractional.lowerBound
+                  && precise.inspectionTime(at: precise.plot.maxX) == fractional.upperBound,
+                  "\(Int(width))pt: inspection preserves fractional start and final endpoint before rounding")
+            check(precise.inspectionTime(at: precise.plot.minX - 20) == fractional.lowerBound
+                  && precise.inspectionTime(at: precise.plot.maxX + 20) == fractional.upperBound,
+                  "\(Int(width))pt: inspection outside the plot clamps to the exact fractional bounds")
+            check(precise.inspectionTime(at: precise.x(minute + 0.3)) == minute
+                  && precise.inspectionTime(at: precise.x(minute + 0.7)) == minute + 1,
+                  "\(Int(width))pt: interior inspection retains whole-second precision")
         }
         let pregameSpan = date("2026-10-28T20:00Z")...date("2026-10-29T00:10Z")
         let pregame = OddsLayout(size: CGSize(width: 296, height: 139), plotHeight: 124, domain: pregameSpan, labelWidth: labelWidth)

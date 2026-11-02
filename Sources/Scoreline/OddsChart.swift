@@ -261,6 +261,16 @@ struct OddsLayout: Equatable {
 
     func time(at x: CGFloat) -> Date { domain.lowerBound + TimeInterval((x - plot.minX) / plot.width) * span }
 
+    /// Inspection uses whole seconds inside the plot, but its edges retain
+    /// the exact domain bounds. Rounding a fractional final whistle down must
+    /// not make the final reading unreachable at the chart's right edge.
+    func inspectionTime(at x: CGFloat) -> Date {
+        if x <= plot.minX { return domain.lowerBound }
+        if x >= plot.maxX { return domain.upperBound }
+        let rounded = Date(timeIntervalSince1970: time(at: x).timeIntervalSince1970.rounded())
+        return min(max(rounded, domain.lowerBound), domain.upperBound)
+    }
+
     /// The scrub's moment: the nearest whole minute, kept within the data.
     func snap(x: CGFloat, within data: ClosedRange<Date>) -> Date {
         let t = time(at: x).timeIntervalSince1970
@@ -1421,9 +1431,7 @@ struct OddsScrub: View {
 
     private func time(at location: CGPoint) -> Date? {
         guard location.x >= layout.plot.minX, location.x <= layout.plot.maxX else { return nil }
-        let raw = layout.time(at: location.x)
-        let rounded = Date(timeIntervalSince1970: raw.timeIntervalSince1970.rounded())
-        return min(max(rounded, data.domain.lowerBound), data.domain.upperBound)
+        return layout.inspectionTime(at: location.x)
     }
 
     private func crosshair(_ t: Date, _ sample: OddsSplitPoint?) -> some View {

@@ -104,11 +104,11 @@ enum MatchTimelineGeometry {
     }
 
     static func time(at location: CGPoint, events: [MatchHistory.Event], layout: OddsLayout) -> Date {
-        if let event = target(at: location, events: events, layout: layout) { return event.t }
-        let t = layout.time(at: min(max(location.x, layout.plot.minX), layout.plot.maxX))
-        // Whole seconds keep the small readout stable without the old one-
-        // minute quantization losing a goal and its immediate price reaction.
-        return min(max(Date(timeIntervalSince1970: t.timeIntervalSince1970.rounded()), layout.domain.lowerBound), layout.domain.upperBound)
+        let time = layout.inspectionTime(at: location.x)
+        // Both modules must reach their exact endpoints even when a nearby
+        // scoring marker is inside the timeline's generous hit target.
+        guard location.x > layout.plot.minX, location.x < layout.plot.maxX else { return time }
+        return target(at: location, events: events, layout: layout)?.t ?? time
     }
 
     static func draw(_ event: MatchHistory.Event, at point: CGPoint, in context: GraphicsContext,
@@ -185,8 +185,9 @@ enum MatchTimelineRail {
     }
 
     static func time(at location: CGPoint, marks: [Mark], layout: OddsLayout) -> Date {
-        target(at: location, marks: marks, layout: layout)?.t
-            ?? MatchTimelineGeometry.time(at: location, events: [], layout: layout)
+        let time = layout.inspectionTime(at: location.x)
+        guard location.x > layout.plot.minX, location.x < layout.plot.maxX else { return time }
+        return target(at: location, marks: marks, layout: layout)?.t ?? time
     }
 
     static func symbol(side: GameDetail.Side?, at point: CGPoint, radius: CGFloat) -> Path {
