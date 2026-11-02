@@ -2,8 +2,10 @@ import AppKit
 import SwiftUI
 import Vision
 
-// Native acceptance surface: production OddsSection and MatchTimelineSection,
-// real captured ESPN/Polymarket histories, isolated preferences, HTTP blocked.
+// Native acceptance surfaces: production odds, non-soccer shared timelines,
+// and the original minute-based SoccerTimeline. The retained soccer wall-clock
+// cases are isolated engine coverage, not the installed soccer module.
+// Real captured histories, isolated preferences, HTTP blocked.
 // The scripted hover/pin/step/clear calls use the same shared pointer as the
 // graph controls. No mock chart or altered production geometry is rendered.
 //
@@ -100,7 +102,9 @@ private struct HistorySurface: View {
             OddsSection(feed: feed, baseline: fixture.baseline, event: fixture.event(), names: fixture.names,
                         spoken: fixture.full, palette: palette, history: fixture.history, inspection: pointer)
                 .background(frame("odds"))
-            DetailSection(title: "Timeline", caption: "Key events on the same time scale as win probability.") {
+            DetailSection(title: fixture.sport == .soccer ? "Timeline · engine fixture" : "Timeline",
+                          caption: fixture.sport == .soccer ? "Isolated wall-clock engine · not the soccer match page."
+                              : "Key events on the same time scale as win probability.") {
                 MatchTimelineSection(history: fixture.history, baseline: fixture.baseline, feed: feed, event: fixture.event(),
                                      names: fixture.names, palette: palette, pointer: pointer)
             }
@@ -163,7 +167,7 @@ private struct RecognizedLine {
             for scheme in [ColorScheme.dark, .light] {
                 for width: CGFloat in [350, 400, 520] {
                     if hoverOnly && !(fixture.name == "nba" && scheme == .dark && width == 520) { continue }
-                    let name = "\(fixture.name)-\(scheme)-\(Int(width))"
+                    let name = "\(fixture.sport == .soccer ? "soccer-engine" : fixture.name)-\(scheme)-\(Int(width))"
                     let suite = "scoreline.odds-history-check.\(UUID().uuidString)"
                     let defaults = UserDefaults(suiteName: suite)!
                     defer { defaults.removePersistentDomain(forName: suite) }
@@ -295,12 +299,17 @@ private struct RecognizedLine {
                           "\(name): delayed presentation excludes every future market tick, event and period endpoint")
                     receipts.append(["case": name, "width": width, "periodAlignment": alignments,
                                      "selectedEvent": fixture.selected.id, "selectedTime": fixture.selected.t.timeIntervalSince1970,
-                                     "ocr": text, "oddsFrame": NSStringFromRect(oddsFrame), "timelineFrame": NSStringFromRect(timelineFrame)])
+                                     "ocr": text, "oddsFrame": NSStringFromRect(oddsFrame), "timelineFrame": NSStringFromRect(timelineFrame),
+                                     "scope": fixture.sport == .soccer ? "Isolated wall-clock engine; installed soccer uses the original minute-based timeline"
+                                         : "Production odds and timeline modules"])
                     panel.orderOut(nil); panel.contentView = nil; feed.stop(); pump(0.05)
                 }
             }
         }
-        if !hoverOnly { receipts += try nflRenders(out: out, check: check) }
+        if !hoverOnly {
+            receipts += try nflRenders(out: out, check: check)
+            receipts += try originalSoccerRenders(out: out, check: check)
+        }
         let receipt: [String: Any] = ["passed": passed, "failed": failed, "checks": checks, "renders": receipts,
                                       "network": "HTTP blocked; pageLive false prevents market tracking",
                                       "timezone": "System-local display; event timestamps are Unix seconds"]
@@ -311,9 +320,86 @@ private struct RecognizedLine {
         exit(failed == 0 ? 0 : 1)
     }
 
+    /// The untouched 1.0.30 soccer component on its original minute axis. The
+    /// real Carabao Cup goal capture preserves provider IDs, clocks and replay
+    /// inputs; only the core team reference is normalized for the summary parser.
+    @MainActor private static func originalSoccerRenders(out: String, check: (Bool, String) -> Void) throws -> [[String: Any]] {
+        let captured = JSON(data: try Data(contentsOf: URL(fileURLWithPath: "Tests/Fixtures/competitions/cup-goals.json")))["items"].array
+        let moments = captured.compactMap { play -> GameDetail.Moment? in
+            guard var raw = play.raw as? [String: Any], let id = SoccerScene.teamID(play) else { return nil }
+            raw["team"] = ["id": id]
+            return ESPNDetail.soccerMoment(JSON(raw), side: { $0 == "364" ? .top : $0 == "363" ? .bottom : nil })
+        }
+        guard let selected = moments.last, moments.count == 2 else {
+            throw NSError(domain: "OddsHistoryAcceptance", code: 8, userInfo: [NSLocalizedDescriptionKey: "Carabao goal capture did not produce the original minute-based moments"])
+        }
+        check(captured.indices.allSatisfy { Replays.soccer(captured, at: $0, homeTeamID: "364", keepers: [:]) != nil },
+              "original soccer: both captured Carabao goals retain replay inputs")
+        var receipts: [[String: Any]] = []
+        for scheme in [ColorScheme.dark, .light] {
+            for width: CGFloat in [350, 520] {
+                let name = "soccer-original-\(scheme)-\(Int(width))"
+                let linked = LinkedFocus(), probe = HistoryProbe()
+                let layout = PanelLayout.resolve(width: width, from: PanelLayout())
+                let size = CGSize(width: width, height: 190)
+                let panel = HistoryPanel(contentRect: NSRect(origin: CGPoint(x: -4000, y: 100), size: size),
+                                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+                panel.alphaValue = 0; panel.isReleasedWhenClosed = false
+                panel.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
+                let palette = TeamPalette(top: "C8102E", bottom: "034694", scheme: scheme)
+                let surface = DetailSection(title: "Timeline", caption: "Goals and cards by minute. LIV above, CHE below.") {
+                    SoccerTimeline(moments: moments, currentMinute: nil, palette: palette, topName: "LIV", bottomName: "CHE")
+                        .background(GeometryReader { geometry in
+                            Color.clear.preference(key: SectionFrames.self, value: ["rail": geometry.frame(in: .named("soccer-original"))])
+                        })
+                }
+                .onPreferenceChange(SectionFrames.self) { probe.frames = $0 }
+                .padding(.vertical, 16).coordinateSpace(name: "soccer-original")
+                .environment(linked).environment(\.panelLayout, layout).environment(\.widthClass, layout.page)
+                .environment(\.colorScheme, scheme).environment(\.glassStandIn, true)
+                .environment(\.locale, Locale(identifier: "en_US"))
+                .frame(width: width, height: size.height, alignment: .topLeading)
+                .background(scheme == .dark ? Color(white: 0.12) : .white)
+                panel.contentView = NSHostingView(rootView: surface)
+                panel.orderFrontRegardless(); pump()
+                func snapshot(_ state: String) throws -> String {
+                    guard let view = panel.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+                        throw NSError(domain: "OddsHistoryAcceptance", code: 9, userInfo: [NSLocalizedDescriptionKey: "Original soccer timeline did not render"])
+                    }
+                    view.cacheDisplay(in: view.bounds, to: bitmap)
+                    guard let image = bitmap.cgImage, let png = bitmap.representation(using: .png, properties: [:]) else {
+                        throw NSError(domain: "OddsHistoryAcceptance", code: 10, userInfo: [NSLocalizedDescriptionKey: "Original soccer timeline has no pixels"])
+                    }
+                    try png.write(to: URL(fileURLWithPath: "\(out)/\(name)-\(state).png"))
+                    return words(image, size: size).map(\.text).joined(separator: " ")
+                }
+                let resting = try snapshot("resting"), initialHeight = probe.frames["rail"]?.height
+                check(initialHeight == 60, "\(name): the original soccer rail remains exactly 60pt tall")
+                check(resting.contains("LIV") && resting.contains("CHE") && resting.contains("HT") && resting.contains("90"),
+                      "\(name): team abbreviations and original minute landmarks remain readable")
+                linked.hover(Focus(play: selected.id), true); pump(0.25)
+                let focused = try snapshot("focused")
+                check(linked.focus?.play == selected.id && focused.contains("Gakpo") && !focused.contains("HT"),
+                      "\(name): linked event focus replaces the minute-label row with the selected goal")
+                check(probe.frames["rail"]?.height == initialHeight && !focused.contains("Pinned"),
+                      "\(name): event detail stays within the original rail without an extra inspector")
+                linked.clear(); pump(0.25)
+                let reset = try snapshot("reset")
+                check(linked.focus == nil && reset.contains("HT"),
+                      "\(name): clearing linked hover restores the minute labels")
+                receipts.append(["case": name, "width": width, "railHeight": initialHeight ?? -1,
+                                 "source": "Unmodified SoccerTimeline from release 1.0.30; real Carabao goal fixture 401921842",
+                                 "scope": "Production soccer visual and LinkedFocus model; minute axis is not horizontally aligned with wall-clock odds",
+                                 "restingOCR": resting, "focusedOCR": focused, "resetOCR": reset])
+                panel.orderOut(nil); panel.contentView = nil; pump(0.05)
+            }
+        }
+        return receipts
+    }
+
     /// The captured NFL summary has ESPN probabilities but no captured market
     /// for this event. Render its real timeline, not a made-up Polymarket line.
-    /// NBA/soccer above exercise the production two-module surface; these cases
+    /// NBA above exercises the production two-module surface; these cases
     /// exercise the football rail and compare its x geometry to the same odds
     /// layout. A clearly labeled mutation also forces opposing scores together.
     @MainActor private static func nflRenders(out: String, check: (Bool, String) -> Void) throws -> [[String: Any]] {

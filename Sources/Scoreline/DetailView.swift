@@ -1273,7 +1273,9 @@ struct DetailView: View {
         // Stays up between batters ("Waiting for the first pitch"), so the page doesn't jump.
         case .atBat: event.state == .live && (baseballFeed.loaded || !d.atBat.isEmpty)
         case .pitch: extrasShown && (event.state == .live ? !soccerTrail.isEmpty : !soccerShots.isEmpty)
-        case .timeline: event.state != .scheduled && (d.history != nil || d.moments.contains { $0.minute != nil })
+        case .timeline: isSoccer
+            ? d.moments.contains { $0.minute != nil } || event.state == .live
+            : event.state != .scheduled && (d.history != nil || d.moments.contains { $0.minute != nil })
         // Today's table says nothing about a game from another season (G2).
         case .table: extrasShown && d.seasonIsCurrent != false && (soccerLeague ?? collegeLeague ?? nbaLeague) != nil && !standings.isEmpty
             && (nbaLeague == nil || standings.contains { row in event.competitors.contains { $0.id == row.id } })
@@ -1348,7 +1350,7 @@ struct DetailView: View {
                       palette: palette, topName: names.top, bottomName: names.bottom, cards: soccerCards,
                       theater: live && liveViewOpen(d))
         case .timeline:
-            if let history = d.history, !history.events.isEmpty || !isSoccer {
+            if !isSoccer, let history = d.history {
                 MatchTimelineSection(history: history, baseline: d.odds, feed: oddsFeed, event: event, names: names,
                                      palette: .nba(top: event.competitors.first, bottom: event.competitors.last, scheme: colorScheme),
                                      pointer: matchInspection, presentation: broadcast.active ? broadcast.clock : nil)
@@ -1444,11 +1446,14 @@ struct DetailView: View {
                 }
             case .timeline:
                 DetailSection(title: "Timeline",
-                              caption: isSoccer && d.history?.events.isEmpty != false
-                                  ? "Match minutes · Event timestamps unavailable for odds alignment."
-                                  : "\(isSoccer ? "Goals and cards" : "Scoring plays") · "
+                              caption: isSoccer
+                                  ? "Goals and cards by minute. \(names.top) above, \(names.bottom) below."
+                                    + (live ? " The red dot marks now." : "")
+                                  : "Scoring plays · "
                                     + (oddsShown(d) ? "Same time scale as win probability." : "Hover or select an event to inspect."),
-                              spokenCaption: d.history?.sport == .football
+                              spokenCaption: isSoccer
+                                  ? "Goals and cards by minute. \(full.top) above, \(full.bottom) below."
+                                  : d.history?.sport == .football
                                   ? "Scoring plays on one timeline. \(full.top) circles, \(full.bottom) diamonds. Nearby plays are grouped. Hover or choose an event to inspect it."
                                   : "\(full.top) above, \(full.bottom) below. Hover or choose an event to inspect it.") {
                     chart(.timeline, d)
