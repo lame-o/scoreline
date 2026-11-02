@@ -1,6 +1,6 @@
 #!/bin/bash
 # Installs (or updates) Scoreline from the latest GitHub release:
-#   curl -fsSL https://raw.githubusercontent.com/lame-o/scoreline/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/SubwooferLullaby/scoreline/main/install.sh | bash
 # After that, Scoreline keeps itself up to date (Settings, Updates).
 #
 # For testing: SCORELINE_ZIP_URL replaces the download (file:// works), and
@@ -9,7 +9,7 @@
 set -euo pipefail
 
 BUNDLE_ID=io.github.lame-o.Scoreline
-URL=${SCORELINE_ZIP_URL:-https://github.com/lame-o/scoreline/releases/latest/download/Scoreline.zip}
+URL=${SCORELINE_ZIP_URL:-https://github.com/SubwooferLullaby/scoreline/releases/latest/download/Scoreline.zip}
 
 # Everything runs from main, so a partly downloaded script does nothing.
 main() {

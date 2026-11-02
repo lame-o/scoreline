@@ -16,7 +16,7 @@
  */
 import { resolveProxyPath, type CachePolicy } from "../shared/upstreams";
 
-const USER_AGENT = "Scoreline/1.0 (web; +https://github.com/lame-o/scoreline)";
+const USER_AGENT = "Scoreline/1.0 (web; +https://github.com/SubwooferLullaby/scoreline)";
 /** Milliseconds since the epoch at which the edge copy was fetched. Exposed: the client reads it as "updated at". */
 export const FETCHED_AT = "x-scoreline-fetched-at";
 /** HIT or MISS. */

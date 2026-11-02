@@ -10,7 +10,7 @@
 set -euo pipefail
 cd "${0:A:h}"
 
-REPO=lame-o/scoreline
+REPO=SubwooferLullaby/scoreline
 PLIST=Support/Info.plist
 APP=build/Scoreline.app
 

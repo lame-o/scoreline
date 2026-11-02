@@ -5,11 +5,11 @@ The GitHub settings that go with the README. Nothing here is applied automatical
 ## Description, homepage and topics
 
 ```sh
-gh repo edit lame-o/scoreline \
+gh repo edit SubwooferLullaby/scoreline \
   --description "Live scores in your Mac's menu bar: MLB, NFL, NBA, soccer, CS2 and climbing, with every play replayed in isometric 3D. Native SwiftUI, free, and on the web." \
   --homepage "https://scoreline-web.lame-o.workers.dev"
 
-gh repo edit lame-o/scoreline \
+gh repo edit SubwooferLullaby/scoreline \
   --add-topic macos \
   --add-topic menu-bar \
   --add-topic menubar-app \
@@ -35,14 +35,14 @@ gh repo edit lame-o/scoreline \
 That's GitHub's limit of 20 topics. To check the result:
 
 ```sh
-gh repo view lame-o/scoreline --json description,homepageUrl,repositoryTopics
+gh repo view SubwooferLullaby/scoreline --json description,homepageUrl,repositoryTopics
 ```
 
 ## Social preview
 
 `docs/social-preview.png` (1280×640, under 1 MB) is the card that shows when the repo is linked on X, iMessage, Slack and the rest. GitHub has no API or `gh` command for it, so it's uploaded by hand:
 
-1. Open https://github.com/lame-o/scoreline/settings.
+1. Open https://github.com/SubwooferLullaby/scoreline/settings.
 2. Under **General → Social preview**, click **Edit → Upload an image…**
 3. Choose `docs/social-preview.png`.
 

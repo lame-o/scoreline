@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/lame-o/scoreline/releases/latest"><img src="https://img.shields.io/github/v/release/lame-o/scoreline?label=release&color=1d1d1f" alt="Latest release"></a>
+  <a href="https://github.com/SubwooferLullaby/scoreline/releases/latest"><img src="https://img.shields.io/github/v/release/SubwooferLullaby/scoreline?label=release&color=1d1d1f" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/macOS-15%2B-1d1d1f" alt="macOS 15 or later">
   <img src="https://img.shields.io/badge/price-free-1d1d1f" alt="Free">
   <a href="https://scoreline-web.lame-o.workers.dev"><img src="https://img.shields.io/badge/web%20app-live-0a84ff" alt="Web app"></a>
@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/lame-o/scoreline/releases/latest"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/buttons/download-mac-dark.png"><img src="docs/buttons/download-mac-light.png" height="52" alt="Download for Mac"></picture></a>
+  <a href="https://github.com/SubwooferLullaby/scoreline/releases/latest"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/buttons/download-mac-dark.png"><img src="docs/buttons/download-mac-light.png" height="52" alt="Download for Mac"></picture></a>
   &nbsp;
   <a href="https://scoreline-web.lame-o.workers.dev"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/buttons/try-web-dark.png"><img src="docs/buttons/try-web-light.png" height="52" alt="Try it on the web"></picture></a>
 </p>
@@ -281,12 +281,12 @@ Every screen, in your current appearance (light or dark). Full-size 2400×1500 v
 Paste this into Terminal:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/lame-o/scoreline/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/SubwooferLullaby/scoreline/main/install.sh | bash
 ```
 
 It downloads the latest release into Applications and opens it ([read the script](install.sh) first if you like).
 
-Or download `Scoreline.dmg` from [Releases](https://github.com/lame-o/scoreline/releases/latest), open it and drag Scoreline to Applications. Scoreline isn't signed with a paid Apple Developer ID, so the first time you open a downloaded copy macOS says it can't verify the developer: go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only do this once.
+Or download `Scoreline.dmg` from [Releases](https://github.com/SubwooferLullaby/scoreline/releases/latest), open it and drag Scoreline to Applications. Scoreline isn't signed with a paid Apple Developer ID, so the first time you open a downloaded copy macOS says it can't verify the developer: go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only do this once.
 
 After that, Scoreline keeps itself up to date (**Settings → Updates**).
 
@@ -321,7 +321,7 @@ The <a href="https://scoreline-web.lame-o.workers.dev">web app</a> runs in any m
 <details>
 <summary><b>Which leagues are coming?</b></summary>
 <br>
-Requests are welcome: <a href="https://github.com/lame-o/scoreline/issues">open an issue</a> with the league you want and where its data comes from.
+Requests are welcome: <a href="https://github.com/SubwooferLullaby/scoreline/issues">open an issue</a> with the league you want and where its data comes from.
 </details>
 
 <details>
@@ -350,7 +350,7 @@ The web app lives in [`web/`](web) (React on Cloudflare Workers); [`web/ARCHITEC
 
 ## Data and disclaimer
 
-Scores and stats come from public feeds by ESPN, MLB (Statcast, via statsapi.mlb.com), bo3.gg and World Climbing (IFSC), among others; odds from Polymarket's public market data and DraftKings' line as ESPN lists it. Odds are shown as information, not betting advice. Scoreline is an independent project, not affiliated with or endorsed by any league, team, broadcaster or data provider. Team names and logos belong to their owners, and appear in the screenshots only as the app shows them. Those feeds aren't official APIs and can change without notice; if something breaks, please [open an issue](https://github.com/lame-o/scoreline/issues).
+Scores and stats come from public feeds by ESPN, MLB (Statcast, via statsapi.mlb.com), bo3.gg and World Climbing (IFSC), among others; odds from Polymarket's public market data and DraftKings' line as ESPN lists it. Odds are shown as information, not betting advice. Scoreline is an independent project, not affiliated with or endorsed by any league, team, broadcaster or data provider. Team names and logos belong to their owners, and appear in the screenshots only as the app shows them. Those feeds aren't official APIs and can change without notice; if something breaks, please [open an issue](https://github.com/SubwooferLullaby/scoreline/issues).
 
 ## License
 

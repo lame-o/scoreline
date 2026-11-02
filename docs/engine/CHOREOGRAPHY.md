@@ -1379,7 +1379,7 @@ The bench renders frames along its virtual time (the existing render harness's o
 - soccer: a goal with its restart;
 - baseball: a steal pitch and a ball in play.
 
-Upload to the `videos` draft release (`gh release upload videos … --repo lame-o/scoreline --clobber`; the tag is lowercase) and delete the local copies. Phase 0's video (`./test.sh --bench --theater video <out.mp4>`) draws today's stage and the engine side by side on the same stretch, each starting a few seconds before its own telling of the first play. Videos are never kept locally. An overlay variant (`--overlay`) draws provenance rings and anchor ticks for tuning.
+Upload to the `videos` draft release (`gh release upload videos … --repo SubwooferLullaby/scoreline --clobber`; the tag is lowercase) and delete the local copies. Phase 0's video (`./test.sh --bench --theater video <out.mp4>`) draws today's stage and the engine side by side on the same stretch, each starting a few seconds before its own telling of the first play. Videos are never kept locally. An overlay variant (`--overlay`) draws provenance rings and anchor ticks for tuning.
 
 ### 9.5 Re-run the measurements on the weekend's recordings
 

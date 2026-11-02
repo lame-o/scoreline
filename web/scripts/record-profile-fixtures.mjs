@@ -14,7 +14,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const out = join(dirname(fileURLToPath(import.meta.url)), "..", "test", "fixtures", "profiles");
-const UA = "Scoreline/1.0 (web fixtures; +https://github.com/lame-o/scoreline)";
+const UA = "Scoreline/1.0 (web fixtures; +https://github.com/SubwooferLullaby/scoreline)";
 
 async function get(url, headers = {}) {
   const res = await fetch(url, { headers: { Accept: "application/json", "User-Agent": UA, ...headers } });

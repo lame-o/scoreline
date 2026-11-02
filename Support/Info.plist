@@ -31,7 +31,7 @@
 	<key>SUEnableSystemProfiling</key>
 	<false/>
 	<key>SUFeedURL</key>
-	<string>https://github.com/lame-o/scoreline/releases/latest/download/appcast.xml</string>
+	<string>https://github.com/SubwooferLullaby/scoreline/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>53aHEYxnEXD4/m6K1oEEeF8AFvCF6rV3GsqTEyCQ8Qs=</string>
 	<key>SUScheduledCheckInterval</key>

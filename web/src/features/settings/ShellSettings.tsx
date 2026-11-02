@@ -125,7 +125,7 @@ export function Credits() {
   return (
     <p className={`${formStyles.caption} ${styles.credits}`}>
       Data from ESPN, bo3.gg and IFSC. Win probability by ESPN. Odds from Polymarket and DraftKings. Scoreline is{" "}
-      <a href="https://github.com/lame-o/scoreline" target="_blank" rel="noopener noreferrer">
+      <a href="https://github.com/SubwooferLullaby/scoreline" target="_blank" rel="noopener noreferrer">
         open source
       </a>{" "}
       and also lives in the Mac's menu bar.

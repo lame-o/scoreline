@@ -211,7 +211,7 @@ Phase A may keep each sport's existing per-play scripts. It must anchor them on 
     - stalls and jumps.
   - Deterministic, and faster than real time.
 - **Fixtures:** trim small slices of real recordings into `Tests/Fixtures/broadcast/` (a dense NBA stretch, an NFL drive, a soccer goal, MLB innings if any exist; otherwise statsapi captures).
-- **Video:** render the theater along the bench's virtual time into frames, then encode an `.mp4` of a dense NBA stretch (a miss, offensive rebound, putback, then a made three back the other way) and a football scoring drive. Upload to the GitHub draft release "Videos" (its tag is `videos`: `gh release upload videos <file> --repo lame-o/scoreline --clobber`; ffmpeg is at `/opt/homebrew/bin/ffmpeg`), then delete the local copies. **Never keep videos locally.**
+- **Video:** render the theater along the bench's virtual time into frames, then encode an `.mp4` of a dense NBA stretch (a miss, offensive rebound, putback, then a made three back the other way) and a football scoring drive. Upload to the GitHub draft release "Videos" (its tag is `videos`: `gh release upload videos <file> --repo SubwooferLullaby/scoreline --clobber`; ffmpeg is at `/opt/homebrew/bin/ffmpeg`), then delete the local copies. **Never keep videos locally.**
 
 ## Phases
 
