@@ -61,9 +61,6 @@ final class Broadcast: BroadcastTheaterSource {
     private(set) var presented = PresentedGame()
     /// The clock as planned; republished only when the plan changes what it presents.
     private(set) var clock = PresentationClock()
-    /// How far behind live the page is (the clock's delay, rounded to 5 s), for the live indicator's hover and
-    /// VoiceOver; nil while not broadcasting. Set as each step publishes, so reading it never follows the clock.
-    private(set) var behind: BehindLive?
     /// Bumps when the plays or what's told change.
     private(set) var revision: UInt64 = 0
     /// This page is broadcasting (a live ESPN game with a play-by-play).
@@ -205,7 +202,6 @@ final class Broadcast: BroadcastTheaterSource {
         engine = nil
         active = false
         ended = false
-        behind = nil
         presented = PresentedGame()
         tables = []
         pending = [:]
@@ -367,9 +363,6 @@ final class Broadcast: BroadcastTheaterSource {
         if next.isFinal != ended { ended = next.isFinal }
         if engine.timeline.revision != revision { revision = engine.timeline.revision }
         if !clock.presentsSame(as: engine.clock, from: now) { clock = engine.clock }
-        // The page's readout follows the clock in 5 s steps; the page itself doesn't follow the clock.
-        let readout = active && !ended && clock.started ? BehindLive(delay: clock.delay(at: now), regime: clock.regime) : nil
-        if readout != behind { behind = readout }
     }
 
     /// Whether the presented game changed in a way the page shows: a play
@@ -470,6 +463,14 @@ final class Broadcast: BroadcastTheaterSource {
     }
 
     // MARK: Presenting
+
+    /// How far behind live the page is now (the clock's delay, rounded to 5 s), for the live indicator's hover and
+    /// VoiceOver; nil while not broadcasting. Read from the engine's clock: the page's body reads this, and a re-plan
+    /// of the clock mustn't run the page again for a number on a hover.
+    var behind: BehindLive? {
+        guard active, !ended, let clock = engine?.clock, clock.started else { return nil }
+        return BehindLive(delay: clock.delay(at: time.now()), regime: clock.regime)
+    }
 
     /// Whether a play-keyed item shows: told plays do, untold ones wait.
     /// Items the timeline doesn't know (a synthesized ID) show as today.
