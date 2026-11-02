@@ -84,6 +84,14 @@ extension ScorelineTests {
                         pause.upperBound, pause.upperBound + 0.001, 2.8, 3.0, 3.1]
         check(instants.allSatisfy { abs(fixed.script(fixed.clip($0)) - $0) < 1e-8 },
               "protected clock mapping is monotone and invertible across both exact boundaries")
+        for shift in [-1e-12, 1e-12] {
+            let nearGrid = (1 + shift)...(1.7 + shift)
+            let warp = ClipWarp.make(length: 3, need: { nearGrid.contains($0) ? 1 : 3 }, steady: { _ in false }, rest: nearGrid)!
+            let elapsed = warp.clip(nearGrid.upperBound) - warp.clip(nearGrid.lowerBound)
+            check(abs(elapsed - 0.7) < 1e-10,
+                  "an exact result boundary \(shift > 0 ? "above" : "below") a frame-grid sample retains the 0.700-second hold",
+                  "\(elapsed) seconds")
+        }
 
         for (name, suffix) in [("rush tackle", "63"), ("completed pass", "85"), ("touchdown", "385")] {
             guard let raw = items.first(where: { $0["id"].string == "401873009" + suffix }),

@@ -885,11 +885,19 @@ struct ClipWarp: Equatable, Sendable {
     /// there does not introduce a movement discontinuity.
     private static func keepingRest(length: Double, step: Double, need: (Double) -> Double, steady: (Double) -> Bool,
                                     minimumFlightStretch: ((Double) -> Double)?, rest: ClosedRange<Double>) -> ClipWarp? {
-        var knots = stride(from: 0.0, to: length, by: step).map { $0 }
-        knots += [rest.lowerBound, rest.upperBound, length]
+        let boundaries = [0, rest.lowerBound, rest.upperBound, length]
+        // Prefer authored boundaries to nearby frame-grid samples. Keeping a
+        // grid sample 1e-12 before the hold would classify it as motion, omit
+        // the exact boundary, and leak nearly a frame of stretch into it.
+        var knots = stride(from: 0.0, to: length, by: step).filter { sample in
+            !boundaries.contains { abs(sample - $0) < 1e-10 }
+        }
+        knots += boundaries
         knots.sort()
         var distinct: [Double] = []
-        for knot in knots where distinct.last.map({ knot - $0 > 1e-10 }) ?? true { distinct.append(knot) }
+        // Only identical authored endpoints coalesce; two genuinely distinct
+        // boundaries remain exact even when they are very close together.
+        for knot in knots where distinct.last != knot { distinct.append(knot) }
         knots = distinct
         let n = knots.count
         let flying = knots.map(steady)
