@@ -16,7 +16,7 @@ struct MatchTimelineSection: View {
     var body: some View {
         Group {
             if let clock = presentation {
-                TimelineView(.explicit(OddsSection.schedule(feed.series.values.joined().map(\.t), clock: clock, now: Date()))) { context in
+                TimelineView(.explicit(OddsSection.schedule(feed.series.values.joined().map(\.t), clock: clock, now: Date(), history: history))) { context in
                     content(until: Date(timeIntervalSince1970: clock.p(at: context.date.timeIntervalSince1970)))
                 }
             } else {

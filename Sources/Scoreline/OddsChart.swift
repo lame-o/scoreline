@@ -596,7 +596,7 @@ struct OddsSection: View {
     var body: some View {
         Group {
             if let clock = presentation {
-                TimelineView(.explicit(Self.schedule(feed.series.values.joined().map(\.t), clock: clock, now: Date()))) { context in
+                TimelineView(.explicit(Self.schedule(feed.series.values.joined().map(\.t), clock: clock, now: Date(), history: history))) { context in
                     section(until: Date(timeIntervalSince1970: clock.p(at: context.date.timeIntervalSince1970)))
                 }
             } else {
@@ -635,11 +635,15 @@ struct OddsSection: View {
         }
     }
 
-    /// When p reaches each tick not yet shown (the next ~2 minutes of the market): the chart's redraws. (pure; tested)
-    static func schedule(_ ticks: [Date], clock: PresentationClock, now: Date) -> [Date] {
+    /// Redraw when the broadcast reaches a quote, event or period boundary.
+    /// A quiet market must not delay the timeline; unreachable future times
+    /// remain gated by the presentation clock's plan. (pure; tested)
+    static func schedule(_ ticks: [Date], clock: PresentationClock, now: Date, history: MatchHistory? = nil) -> [Date] {
         let t = now.timeIntervalSince1970
         let p = clock.p(at: t)
-        let pending = ticks.map(\.timeIntervalSince1970).filter { $0 > p }.sorted().prefix(240)
+        let events = history?.events.map(\.t) ?? []
+        let boundaries = history?.periods.flatMap { [$0.start, $0.end] } ?? []
+        let pending = Set(ticks + events + boundaries).map(\.timeIntervalSince1970).filter { $0 > p }.sorted().prefix(240)
         return [now] + pending.compactMap { clock.wall(reaching: $0, after: t).map { Date(timeIntervalSince1970: $0 + 0.01) } }
     }
 

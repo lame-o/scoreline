@@ -12,6 +12,20 @@ extension ScorelineTests {
         let goal = event("goal", 30), card = event("card", 60)
         var history = MatchHistory(sport: .soccer, events: [goal, card])
         let domain = start...(start + 100)
+        var clock = PresentationClock()
+        clock.update(now: start.timeIntervalSince1970, inputs: .init(target: 0, cap: start.timeIntervalSince1970 + 1_000))
+        var scheduled = history
+        scheduled.periods = [OddsPeriod(number: 1, label: "1st", start: start - 20, end: start + 50)]
+        let quiet = OddsSection.schedule([], clock: clock, now: start, history: scheduled)
+        let expected = [30.0, 50, 60].map { start + $0 + 0.01 }
+        check(quiet == [start] + expected,
+              "a quiet market still schedules soccer event reveals and the period boundary on the broadcast clock")
+        check(OddsSection.schedule([goal.t, goal.t, card.t, start + 50], clock: clock, now: start, history: scheduled) == quiet,
+              "coincident quotes, events and period boundaries schedule one redraw per timestamp")
+        let gated = MatchHistory(sport: .soccer, events: [event("past", -1), event("beyond-watermark", 1_200)])
+        check(OddsSection.schedule([], clock: clock, now: start, history: gated) == [start]
+              && OddsSection.schedule((1...300).map { start + Double($0) }, clock: clock, now: start).count == 241,
+              "history scheduling excludes already presented or unreachable events and retains the 240-redraw cap")
         let linked = LinkedFocus(), pointer = OddsPointer(), bridge = MatchFocusBridge()
         func sync() { bridge.synchronize(history: history, domain: domain, linked: linked, pointer: pointer) }
         func settle() async { try? await Task.sleep(for: .milliseconds(110)); sync() }
