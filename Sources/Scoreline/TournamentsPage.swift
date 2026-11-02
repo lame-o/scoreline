@@ -440,7 +440,6 @@ private struct TournamentDetail: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if case let .tournament(slug) = event.kind { EditionFollowButton(edition: EditionFollow(source: "cs2", key: slug, name: event.name)) }
             if showsHeader {
                 HStack(spacing: 10) {
                     TournamentLogo(url: event.logo, size: 28)
@@ -485,6 +484,10 @@ private struct TournamentDetail: View {
                         .font(.system(size: 11, weight: .medium)).foregroundStyle(Color.accentColor)
                 }
                 if let link = event.link { LinkButton(title: "bo3.gg", url: link) }
+                if case let .tournament(slug) = event.kind {
+                    Spacer(minLength: 0)
+                    EditionStar(edition: EditionFollow(source: "cs2", key: slug, name: event.name))
+                }
             }
         }
         .padding(.horizontal, Metrics.gutter)

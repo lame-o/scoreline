@@ -138,7 +138,6 @@ private struct ClimbingCategoryPage: View {
                         .padding(.horizontal, Metrics.gutter)
                         .padding(.top, 4)
                         .stackIn()
-                    EditionFollowButton(edition: EditionFollow(source: "ifsc", key: String(eventID), name: box.event?.shortName ?? eventName)).padding(.horizontal, 16)
                     rounds(results, event: box.event)
                     ranking(results)
                     if results.discipline == "speed" {

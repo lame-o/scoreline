@@ -31,6 +31,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func requestAuthorization() {
+        guard Bundle.main.bundleIdentifier != nil else { return }
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 

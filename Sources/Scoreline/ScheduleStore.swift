@@ -76,6 +76,9 @@ final class ScheduleStore {
     @ObservationIgnored private var built: [ScheduleScope: (key: AgendaKey, value: (earlier: [AgendaDay], upcoming: [AgendaDay]))] = [:]
     private(set) var climbing = SeasonsState()
     private(set) var tournaments = SeasonsState()
+    /// The competitions followed teams played in within the last 18 hours: a
+    /// result stays on the scores list that long, whichever competition it's in.
+    private(set) var recentLeagues: Set<String> = []
     /// Followed team ID → its next game (feeds My Teams beyond the scoreboard's window).
     private(set) var nextGames: [String: ScheduleItem] = [:]
 
@@ -633,14 +636,17 @@ final class ScheduleStore {
     func refreshNextGames(for teams: [FollowedTeam], force: Bool = false) async {
         let now = Date()
         var next: [String: ScheduleItem] = [:]
+        var recent: Set<String> = []
         for team in teams {
             let fetch = await fetchTeam(ScheduleTeamRef(id: team.id, name: team.name, logo: team.logo), force: force)
             if let item = fetch.items.filter({ ($0.status == .scheduled || $0.status == .live) && $0.sortDate > now - 3 * 3600 })
                 .min(by: { $0.sortDate < $1.sortDate }) {
                 next[team.id] = item
             }
+            for item in fetch.items where item.status == .final && item.sortDate > now - 18 * 3600 { recent.insert(item.league) }
         }
         nextGames = next
+        recentLeagues = recent
     }
 
     // MARK: Climbing

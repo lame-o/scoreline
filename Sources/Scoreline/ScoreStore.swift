@@ -292,8 +292,11 @@ final class ScoreStore {
     }
     var polledLeagues: [League] {
         var ids = enabledIDs
-        for id in editions.map(\.source) + followed.compactMap({ FollowingPolicy.teamLeague($0.id) }) + followed.compactMap({ ScheduleStore.shared.nextGames[$0.id]?.league }) where !ids.contains(id) { ids.append(id) }
-        return ids.compactMap(League.with(id:))
+        let schedule = ScheduleStore.shared
+        for id in editions.map(\.source) + followed.compactMap({ FollowingPolicy.teamLeague($0.id) })
+            + followed.compactMap({ schedule.nextGames[$0.id]?.league }) + schedule.recentLeagues.sorted() where !ids.contains(id) { ids.append(id) }
+        // A team's next game can be in any competition ESPN has a board for.
+        return ids.compactMap(League.resolving(id:))
     }
 
     // MARK: Leagues
@@ -324,7 +327,7 @@ final class ScoreStore {
             mutedTeams.remove(id)
         } else {
             followed.append(FollowedTeam(id: id, name: competitor.name, logo: competitor.logo))
-            mutedTeams.insert(id)
+            if notifyFollowed && followed.count == 1 { Notifier.shared.requestAuthorization() }
         }
         refreshNextGames()
         startPolling()
@@ -692,7 +695,7 @@ final class ScoreStore {
     /// Head-to-head events limited to the picked teams. Climbing rounds aren't
     /// filtered by country (countries highlight athletes instead), only by
     /// the disciplines shown.
-    private func filtered(_ events: [Event], league: League) -> [Event] {
+    func filtered(_ events: [Event], league: League) -> [Event] {
         if league.source == .ifsc {
             return events.filter { ClimbingDiscipline.of($0).map { !climbingDisciplines.isDisjoint(with: $0) } ?? true }
         }
