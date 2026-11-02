@@ -148,6 +148,9 @@ struct PitchFacts: Equatable, Sendable {
     var homeTeamID: String?
     var flipped = false
     var lineups: [GameDetail.Side: SoccerLineup] = [:]
+    /// The game's at a break. ESPN can post the half-time entry a quarter of an
+    /// hour after its status says so: the teams don't wait for it.
+    var atBreak = false
 }
 
 /// A soccer entry as the planner reads it: a moment (a shot, a goal, a
@@ -236,8 +239,25 @@ struct PitchSequencer: ClipSequencer {
     }
 
     func idle(at t: PTime) -> PitchClip {
-        let idle = SoccerIdle.make(event: event, touch: touch, scene: last, period: period, lineups: facts.lineups, flipped: facts.flipped)
+        let idle = SoccerIdle.make(event: facts.atBreak && !atBreakAlready ? Self.halfTime(period) : event, touch: touch, scene: last, period: period,
+                                   lineups: facts.lineups, flipped: facts.flipped)
         return PitchIdleClips.clip(for: idle)
+    }
+
+    /// The break the status says it is, where the plays haven't logged it yet.
+    private static let breakID = "status-break"
+    private static func halfTime(_ period: Int?) -> SoccerEvent {
+        var event = SoccerEvent(id: breakID, kind: .halftime, text: "", order: .max)
+        event.period = period
+        return event
+    }
+
+    /// The running order's own event says it's a break.
+    private var atBreakAlready: Bool { event?.kind == .halftime || event?.kind == .fullTime }
+
+    /// A half-time entry among the plays known.
+    private var loggedBreak: Bool {
+        plays.contains { if case let .event(e) = $0.play { e.kind == .halftime && e.period == period } else { false } }
     }
 
     /// The cell the ball's in (today's idle key: a 15 × 17 m cell, the side on it, the half).
@@ -252,6 +272,8 @@ struct PitchSequencer: ClipSequencer {
                 out.append(TellUnit(id: p.id, scene: p.play, fromWorld: false, lead: 1.2))
             case let .event(e):
                 guard SoccerIdle.beat(e.kind) > 0, e.kind != .resume else { continue }
+                // The teams already went off at the status's word: they don't again at the entry's.
+                if e.kind == .halftime, handled.contains(Self.breakID) { continue }
                 out.append(TellUnit(id: p.id, scene: p.play, admin: true, fromWorld: true, lead: 0.3))
             case let .touch(t):
                 let next = Self.cell(t)
@@ -259,6 +281,9 @@ struct PitchSequencer: ClipSequencer {
                 cell = next
                 out.append(TellUnit(id: p.id, scene: p.play, fromWorld: true, lead: 0))
             }
+        }
+        if facts.atBreak, !atBreakAlready, !loggedBreak, !handled.contains(Self.breakID) {
+            out.append(TellUnit(id: Self.breakID, scene: .event(Self.halfTime(period)), admin: true, fromWorld: true, lead: 0.3))
         }
         return out
     }

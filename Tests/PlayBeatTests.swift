@@ -143,9 +143,9 @@ extension ScorelineTests {
             check(false, "the challenged pitches are in the timeline")
         }
         let breaks = beats { if case .inningBreak = $0 { return true }; return false }
-        check(breaks.first?.tag(wide: true) == "MIDDLE 1ST" && breaks.dropFirst().first?.tag(wide: true) == "END 1ST"
-              && breaks.first?.standing == "MIDDLE 1ST",
-              "between halves the tag says so, and it stands until play resumes (\"MIDDLE 1ST\", \"END 1ST\")")
+        check(breaks.first?.tag(wide: true) == "MID 1ST" && breaks.dropFirst().first?.tag(wide: true) == "END 1ST"
+              && breaks.first?.standing == "MID 1ST",
+              "between halves the tag says so, and it stands until play resumes (\"MID 1ST\", \"END 1ST\")")
 
         // The rain delay: the tarp out, and back in.
         let rain = Statcast.atBats(JSON(data: delayData))
@@ -305,7 +305,7 @@ extension ScorelineTests {
         }
         let middle = breaks[0]
         let warm = PlayScript(beat: middle, rest: PlayScript.Rest(bases: [false, false, false], bats: nil, fieldingHome: false))
-        check(warm.release != nil && warm.flights.contains { $0.fresh } && warm.actors.count == 10 && middle.tag(wide: true) == "MIDDLE 1ST",
+        check(warm.release != nil && warm.flights.contains { $0.fresh } && warm.actors.count == 10 && middle.tag(wide: true) == "MID 1ST",
               "the break: the team out there warms up (the pitcher's toss, a grounder round the infield), nobody batting")
         let rained = PlayScript(beat: rainBeats[0], rest: field)
         check(rained.tarp?.out == true && rained.actors.allSatisfy { $0.vanish < rained.duration }

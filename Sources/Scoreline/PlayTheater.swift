@@ -1546,7 +1546,7 @@ private struct PlayDirectedStage: View {
         .modifier(HalfHeight(cap: PlayStage.maxHeight))
         .vizWell(padding: 0)
         .theaterFading(pointer, $fading)
-        .directed(director, source: source, facts: facts, seen: seen, cues: cues)
+        .directed(director, source: source, facts: heldUp(facts), seen: seen, cues: cues)
     }
 
     @ViewBuilder
@@ -1613,6 +1613,12 @@ private struct PlayDirectedStage: View {
         return side == .top ? TheaterTeams(batting: dressed.top, fielding: dressed.bottom) : TheaterTeams(batting: dressed.bottom, fielding: dressed.top)
     }
 
+    private func heldUp(_ facts: DiamondFacts) -> DiamondFacts {
+        var facts = facts
+        if case let .status(words)? = source.presented.stoppage { facts.heldUp = words }
+        return facts
+    }
+
     /// The tag, as today's stage words it: nothing while a play replays; a beat's captions as they come; between, where the game stands.
     private func status(_ drawn: (clip: DiamondClip, t: Double, world: PlayFrame.World), wide: Bool) -> TheaterStatus {
         var tag: String?, about: PlayBeat?
@@ -1638,6 +1644,7 @@ private struct PlayDirectedStage: View {
             }
         }
         return TheaterStatus(tag: tag, tint: side.flatMap { $0 == .top ? kits?.top.color : kits?.bottom.color }, updated: heard)
+            .holding(source.presented)
     }
 
     private func report(wall: PTime, T: PTime, _ drawn: (clip: DiamondClip, t: Double, world: PlayFrame.World)) {
@@ -1909,7 +1916,7 @@ private struct PlayStage: View {
         guard let inning else { return nil }
         let words = inning.uppercased().split(separator: " ").map(String.init)
         guard let first = words.first, words.count >= 2 else { return nil }
-        if first == "MID" || first == "MIDDLE" || first == "END" { return "\(first == "END" ? "END" : "MIDDLE") \(words[1])" }
+        if first == "MID" || first == "MIDDLE" || first == "END" { return "\(first == "END" ? "END" : "MID") \(words[1])" }
         let half = "\(first.hasPrefix("BOT") ? "BOT" : first) \(words[1])"
         guard let s = situation else { return half }
         return "\(half) · \(s.balls)-\(s.strikes) · \(s.outs) OUT\(s.outs == 1 ? "" : "S")"

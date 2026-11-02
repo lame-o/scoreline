@@ -92,6 +92,44 @@ enum BroadcastBench {
         case correction
     }
 
+    /// Every break in the recordings, as the page presents it (`--breaks`): from the
+    /// status's word (its lag taken off) to the next period's, what the hero says,
+    /// and how long after the status ESPN's own entry came.
+    static func breaks(_ games: [(String, String)], root: URL) -> Int32 {
+        var failed = 0, total = 0
+        for (sport, event) in games {
+            let recording = Recording.load(root: root, sport: sport, event: event)
+            let rows = recording.status.map(\.json)
+            guard var replay = RecordingReplay(recording), rows.contains(where: { BroadcastLanes.isInterval($0["detail"].string) }) else { continue }
+            var seen: [(p: PTime, status: String, interval: Bool)] = []
+            var firstEnd: [Int: PTime] = [:]
+            let regulation = replay.policy.regulationPeriods, broadcastSport = replay.sport
+            replay.run(.app(replay.policy)) { replay, t, _, _ in
+                let game = replay.engine.presented(at: t)
+                seen.append((replay.engine.p(at: t), game.status(broadcastSport, regulationPeriods: regulation), game.isInterval))
+                for record in replay.engine.timeline.records {
+                    if let ended = record.entry.kind.endsPeriod, firstEnd[ended] == nil { firstEnd[ended] = t }
+                }
+            }
+            let lag = replay.engine.timeline.fastLag
+            for (k, row) in rows.enumerated() where BroadcastLanes.isInterval(row["detail"].string) && (k == 0 || !BroadcastLanes.isInterval(rows[k - 1]["detail"].string)) {
+                guard let at = row["at"].double, let period = row["period"].int,
+                      let back = rows[k...].first(where: { !BroadcastLanes.isInterval($0["detail"].string) && $0["state"].string == "in" })?["at"].double else { continue }
+                let during = seen.filter { $0.p >= at - lag + 3 && $0.p < back - lag - 10 }
+                guard !during.isEmpty else { continue }
+                let right = during.filter(\.interval).count, words = Set(during.map(\.status)).sorted().prefix(4).joined(separator: ", ")
+                let entry = firstEnd[period].map { String(format: "%5.0f s", $0 - at) } ?? "  never"
+                let share = Double(right) / Double(during.count)
+                total += 1
+                if share < 0.98 { failed += 1 }
+                print(String(format: "%@ %-12@ %-22@ %5.0f s long, entry %@ after the status, in the break %5.1f%% of it: %@", share < 0.98 ? "✗" : "✓",
+                             event as NSString, (row["detail"].string ?? "") as NSString, back - at, entry as NSString, share * 100, words as NSString))
+            }
+        }
+        print("\n\(total - failed) of \(total) breaks read as breaks throughout")
+        return failed == 0 ? 0 : 1
+    }
+
     static func main(_ arguments: [String]) -> Int32 {
         // The theater bench (TheaterBench.swift): `./test.sh --bench --theater <mode> …`.
         if arguments.first == "--theater" { return MainActor.assumeIsolated { TheaterBench.main(Array(arguments.dropFirst())) } }
@@ -100,6 +138,7 @@ enum BroadcastBench {
         var targets: [String] = []
         var trace = false
         var grid = false
+        var breaks = false
         var overrides: [String] = []
         var i = 0
         while i < arguments.count {
@@ -110,6 +149,7 @@ enum BroadcastBench {
             case "--recorder": recorder = true
             case "--trace": trace = true
             case "--grid": grid = true
+            case "--breaks": breaks = true
             case "--set":
                 // --set key=value: a policy override for experiments (quantile, horizon, margin, quiet, unexplained, approach, jump).
                 i += 1
@@ -132,6 +172,7 @@ enum BroadcastBench {
         }
         Self.overrides = overrides
         if grid { return trade(games, root: root, recorder: recorder) }
+        if breaks { return Self.breaks(games, root: root) }
         var all: [String: [Report]] = [:]
         for (sport, event) in games {
             let recording = Recording.load(root: root, sport: sport, event: event)

@@ -429,7 +429,7 @@ extension ScorelineTests {
         word.clock?.elapsed = 720 - 33.8
         check(word.status(.basketball, regulationPeriods: 4) == "33.8 - 3rd", "under a minute: tenths")
         word.phase = .interval(period: 2)
-        check(word.status(.basketball, regulationPeriods: 4) == "Halftime" && word.status(.soccer, regulationPeriods: 2) == "End of 2nd Half",
+        check(word.status(.basketball, regulationPeriods: 4) == "Halftime" && word.status(.soccer, regulationPeriods: 2) == "End of regular time",
               "intervals: Halftime, End of …")
         word.phase = .live
         word.period = 13

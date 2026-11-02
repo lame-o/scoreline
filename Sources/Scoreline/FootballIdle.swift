@@ -11,9 +11,9 @@ import SwiftUI
 // to its bench; a TV timeout (ESPN's "Official Timeout") or the two-minute
 // warning empties the field to both sidelines; the end of a quarter turns the
 // field round as the teams change ends; at halftime they leave; a man hurt on
-// the play stays down while the trainers come out; a challenge's red flag
-// comes in from the bench while the teams wait. Then they come back, huddle
-// and line up again. No officials: nothing in the data has them doing
+// the play stays down while the trainers come out, and a challenge's red flag
+// comes in from the bench while the teams wait, and from those two they come
+// back, huddle and line up again. No officials: nothing in the data has them doing
 // anything on the field, and standing there they only got in the way.
 //
 // Each is a script like a snap's (FootballScript.swift), a pure function of
@@ -23,6 +23,7 @@ import SwiftUI
 // them, and past the opening the pre-snap beats loop. Where the data is
 // silent (who goes in motion, where a man stands on the sideline), the
 // choices are seeded from the entry's ID: never canned, the same every time.
+// A break plays once and holds its quiet (TheaterQuiet) until the next play.
 
 // MARK: - Stoppages
 
@@ -54,15 +55,19 @@ struct FootballStoppage: Equatable, Identifiable {
         guard let id = item["id"].string else { return nil }
         let text = item["text"].string ?? ""
         let period = item["period"]["number"].int
+        let type = item["type"]["text"].string ?? ""
         var kind: Kind
-        switch (item["type"]["text"].string ?? "").lowercased() {
-        case "timeout": kind = .timeout
-        case "official timeout": kind = .official
-        case "two-minute warning": kind = .twoMinuteWarning
-        case "end period", "end of regulation": kind = .endOfPeriod
-        case "end of half": kind = .halftime
-        case "end of game": kind = .endOfGame
-        default: return nil
+        switch BroadcastLanes.stoppage(type: type) {
+        case .timeout?: kind = .timeout
+        case .officialTimeout?: kind = .official
+        case .twoMinuteWarning?: kind = .twoMinuteWarning
+        default:
+            switch type.lowercased() {
+            case "end period", "end of regulation": kind = .endOfPeriod
+            case "end of half": kind = .halftime
+            case "end of game": kind = .endOfGame
+            default: return nil
+            }
         }
         // College ends its second quarter as an "End Period".
         if kind == .endOfPeriod, period == 2 { kind = .halftime }
@@ -156,6 +161,9 @@ struct FootballIdle: Equatable {
     /// team's across the field from the camera, the visitors' on its side.
     var bench = 1.0
     var seed: UInt64 = 0
+    /// Already at the break (a second stoppage on top of the first, a page opened
+    /// partway through it): everyone starts where it sends him. Nobody walks off twice.
+    var settled = false
 
     /// What the field does after the last snap and whatever ESPN posted
     /// since: the stoppage if there is one (a timeout, a TV timeout, the
@@ -165,7 +173,7 @@ struct FootballIdle: Equatable {
     /// down and distance (the gun on a long third down, heavy at the goal line).
     /// (pure; tested)
     static func make(play: FootballScene?, stoppage: FootballStoppage?, rest: FootballScript.Rest, offense: GameDetail.Side,
-                     down: FootballScene.Down?, kickoff: Bool, flipped: Bool) -> FootballIdle {
+                     down: FootballScene.Down?, kickoff: Bool, flipped: Bool, settled: Bool = false) -> FootballIdle {
         let period = stoppage?.period ?? play?.period
         let seedID = stoppage?.id ?? play.map { $0.id + "-after" } ?? "rest-\(Int(rest.yard))"
         var random = SplitMix64(seed: Celebration.seed(seedID))
@@ -177,6 +185,7 @@ struct FootballIdle: Equatable {
         }
         var idle = FootballIdle(phase: kickoff ? .kickoff : .between, offense: offense, yard: yard, gain: kickoff ? nil : rest.gain)
         idle.seed = Celebration.seed(seedID)
+        idle.settled = settled
         idle.yaw = FieldFacing.yaw(offense, period: period, flipped: flipped)
         // American football lists the visitors first: the bottom team is at home, its bench across the field.
         let far = -FieldFacing.near(yaw: idle.yaw)
@@ -321,31 +330,23 @@ extension FootballScript.Builder {
             back = false
             t = 4.6
         case let .timeout(side):
-            _ = sidelines(idle, teams: side.map { [$0 == idle.offense ? .offense : .defense] } ?? [], random: &random, hold: 8)
-            script.duration = 9
-            script.settle = 9
-            finishIdle()
+            let coach = sidelines(idle, teams: side.map { [$0 == idle.offense ? .offense : .defense] } ?? [], random: &random)
+            quiet(team(.offense) + team(.defense) + coach, random: &random)
             return
         case .commercial:
-            _ = sidelines(idle, teams: [.offense, .defense], random: &random, hold: 8)
-            script.duration = 9
-            script.settle = 9
-            finishIdle()
+            let coaches = sidelines(idle, teams: [.offense, .defense], random: &random)
+            quiet(team(.offense) + team(.defense) + coaches, random: &random)
             return
         case let .quarter(turnTo):
             // They gather while the field turns: the teams have changed ends.
             huddles(from: 0.4, random: &random)
             script.turn = FootballScript.Turn(from: idle.yaw, to: turnTo, start: 1.0, end: 4.2)
-            t = 7
-            back = false
-            lineUp(from: t, random: &random)
-            t += 3.2
+            quiet(team(.offense) + team(.defense), random: &random)
+            return
         case .off:
             leave(idle, random: &random)
-            script.ballGone = 4.6
-            script.duration = 6
-            script.settle = 6
-            finishIdle()
+            script.ballGone = idle.settled ? 0 : 4.6
+            quiet(groundsCrew(settled: idle.settled, random: &random), random: &random)
             return
         case let .injury(hurt):
             t = injury(hurt, idle: idle, random: &random, focus: &focus)
@@ -366,6 +367,41 @@ extension FootballScript.Builder {
         script.duration = start + period
         script.settle = script.duration
         finishIdle(focus: focus)
+    }
+
+    /// A break's hold, once everyone's where it's going: its quiet, round and round.
+    mutating func quiet(_ men: [Int], random: inout SplitMix64) {
+        let start = FootballScript.Builder.settled
+        let quiet = TheaterQuiet.make(men: men, from: start, random: &random)
+        for beat in quiet.beats {
+            switch beat {
+            case let .step(man, at, toward, back):
+                let here = position(man, at)
+                move(man, to: [CGPoint(x: here.x + toward.x * 7, y: here.y + toward.y * 6)], from: at, to: at + TheaterQuiet.stride, ease: .inOut)
+                move(man, to: [here], from: back, to: back + TheaterQuiet.stride, ease: .inOut)
+            case let .knee(man, at, until):
+                script.players[man].holds.append(Hold(kind: .kneel, from: at, until: until))
+            case let .gesture(man, at, until):
+                script.players[man].holds.append(Hold(kind: .fairCatch, from: at, until: until))
+            }
+        }
+        script.loop = FootballScript.Loop(start: start, period: quiet.period)
+        script.duration = start + quiet.period
+        script.settle = script.duration
+        finishIdle()
+    }
+
+    /// Everyone's where a break sends him by now.
+    static let settled = 8.0
+
+    /// The field at the half, the teams gone: a few of the grounds crew out on it.
+    mutating func groundsCrew(settled: Bool, random: inout SplitMix64) -> [Int] {
+        (0..<3).map { k in
+            let at = CGPoint(x: (Double(k) - 1) * 38 + random.in(-8...8), y: line + (Double(k) - 1) * random.in(20...45))
+            script.players.append(Player(team: .staff, at: at, role: .staff))
+            script.players[script.players.count - 1].appear = settled ? 0 : 5 + Double(k) * 0.5
+            return script.players.count - 1
+        }
     }
 
     /// The players of a team in the formation (not the staff).
@@ -475,9 +511,10 @@ extension FootballScript.Builder {
     }
 
     /// A team to its bench (or both): it jogs off to its sideline and stands
-    /// in a loose knot there; a team that stays gathers on the field. A man
-    /// or two moves every several seconds. Returns when they come back.
-    mutating func sidelines(_ idle: FootballIdle, teams: [FootballScript.Team], random: inout SplitMix64, hold: Double) -> Double {
+    /// in a loose knot there, its coach out in front of it; a team that stays
+    /// gathers on the field. Returns the coaches.
+    mutating func sidelines(_ idle: FootballIdle, teams: [FootballScript.Team], random: inout SplitMix64) -> [Int] {
+        var coaches: [Int] = []
         for side in [FootballScript.Team.offense, .defense] {
             let men = team(side)
             if teams.contains(side) {
@@ -485,18 +522,27 @@ extension FootballScript.Builder {
                 let c = CGPoint(x: bench, y: line + random.in(-20...20))
                 for i in men {
                     let p = CGPoint(x: c.x - (bench > 0 ? 1 : -1) * random.in(0...22), y: c.y + random.in(-24...24))
+                    if idle.settled {
+                        script.players[i].at = p
+                        script.players[i].set = nil
+                        script.players[i].looks.append(FootballScript.Look(from: 0, point: CGPoint(x: 0, y: c.y)))
+                        continue
+                    }
                     let here = position(i, 0.4), d = hypot(p.x - here.x, p.y - here.y)
                     let leave = 0.4 + random.in(0...0.6)
                     move(i, to: [p], from: leave, to: leave + min(max(d / 14, 1), 6), ease: .inOut)
                     script.players[i].looks.append(FootballScript.Look(from: leave + 6, point: CGPoint(x: 0, y: c.y)))
                 }
+                script.players.append(Player(team: .staff, at: CGPoint(x: c.x + (bench > 0 ? 3 : -3), y: c.y), role: .staff))
+                script.players[script.players.count - 1].appear = idle.settled ? 0 : 1
+                script.players[script.players.count - 1].looks.append(FootballScript.Look(from: 0, point: CGPoint(x: 0, y: c.y)))
+                coaches.append(script.players.count - 1)
             } else {
                 let c = CGPoint(x: ballX + random.in(-6...6), y: line + (side == .offense ? -1 : 1) * random.in(16...24))
                 ring(men, around: c, radius: 9, first: side == .offense ? at(.quarterback) : nil, from: 0.4, random: &random)
             }
         }
-        shuffles(team(.offense) + team(.defense), from: 9, until: hold, random: &random)
-        return hold
+        return coaches
     }
 
     /// Every several seconds a man or two takes a few steps.
@@ -516,6 +562,10 @@ extension FootballScript.Builder {
     /// out of sight; the field stands empty.
     mutating func leave(_ idle: FootballIdle, random: inout SplitMix64) {
         for i in script.players.indices {
+            if idle.settled {
+                script.players[i].vanish = -FootballScript.Player.fade
+                continue
+            }
             let side: Double = switch script.players[i].team {
             case .offense: idle.bench
             case .defense: -idle.bench
@@ -766,23 +816,19 @@ enum FootballStatus {
         let ballTag = TheaterStatus(tag: idle.phase == .kickoff ? ["Kickoff", names.name(idle.offense)].compactMap { $0 }.joined(separator: " · ")
                                         : ball(names.name(idle.offense), down: down == "Kickoff" ? nil : down),
                                     tint: names.color(idle.offense))
-        // Back on the field: the ball again.
+        // Back on the field after a man down or a review: the ball again.
         let back = script.loop.map { t >= $0.start - 4.5 } ?? false
         switch idle.phase {
         case .between, .kickoff:
             return ballTag
         case let .timeout(side):
-            if back { return ballTag }
             let left = side.flatMap { $0 == .top ? timeoutsLeft.top : timeoutsLeft.bottom }
             let tag = ["Timeout", names.name(side), left.map { "\($0) left" }].compactMap { $0 }.joined(separator: " · ")
             return TheaterStatus(tag: tag, tint: names.color(side))
         case .commercial:
-            if back { return ballTag }
-            return TheaterStatus(tag: stoppage?.kind == .twoMinuteWarning ? "Two-minute warning" : "Official timeout")
+            return TheaterStatus(tag: (stoppage?.kind == .twoMinuteWarning ? Stoppage.twoMinuteWarning : .officialTimeout).words)
         case .quarter:
-            if t >= 9 { return ballTag }
-            let period = stoppage?.period ?? 1
-            return TheaterStatus(tag: period >= 4 ? "End of regulation" : "End of \(Ordinal.string(period))")
+            return TheaterStatus(tag: PresentedGame.interval(stoppage?.period ?? 1, sport: .football, regulationPeriods: 4))
         case .off:
             return TheaterStatus(tag: stoppage?.kind == .endOfGame ? "Final" : "Halftime")
         case let .injury(hurt):
@@ -806,8 +852,7 @@ enum FootballStatus {
     static func changes(_ idle: FootballIdle, script: FootballScript) -> [Double] {
         let back = script.loop.map { $0.start - 4.5 }
         switch idle.phase {
-        case .between, .kickoff, .off: return []
-        case .quarter: return [9]
+        case .between, .kickoff, .off, .quarter, .timeout, .commercial: return []
         case .review(let r): return ([r.kind == .challenge ? 7 : nil, r.kind == .challenge ? 16 : 13, back] as [Double?]).compactMap { $0 }
         default: return back.map { [$0] } ?? []
         }

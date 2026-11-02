@@ -10,12 +10,19 @@ import Foundation
 // it. So the scoreboard, the play lists and the theater can't disagree about
 // the time either. Pure: the page re-derives it at each change it schedules
 // (`nextChange`), never per frame.
+//
+// The phase is the one word every surface reads: the hero, the docked bar, the
+// status, the tags. The told plays say it, and so does the fast lane: ESPN can
+// post soccer's half-time entry a quarter of an hour after its status says HT,
+// so a break starts at whichever comes first (on p, the lane's lag taken off).
 
 struct PresentedGame: Equatable, Sendable {
     enum Phase: Hashable, Sendable {
         /// Nothing told yet.
         case pregame
         case live
+        /// Under way, and held up: a timeout, a review, a pitching change, a rain delay.
+        case stopped(Stoppage)
         /// Between periods (`period` just ended), halftime, between innings.
         case interval(period: Int)
         case final
@@ -48,6 +55,27 @@ struct PresentedGame: Equatable, Sendable {
 
     var isFinal: Bool { phase == .final }
     var isInterval: Bool { if case .interval = phase { true } else { false } }
+    /// Under way (held up or not): between the first play and the end, outside the breaks.
+    var isUnderway: Bool {
+        switch phase {
+        case .live, .stopped: true
+        case .pregame, .interval, .final: false
+        }
+    }
+    /// Why play has stopped, while it has.
+    var stoppage: Stoppage? { if case let .stopped(s) = phase { s } else { nil } }
+    /// What the hero says under the clock while play has stopped. A status of
+    /// the game's own ("Rain Delay") is the status itself: it replaces the clock.
+    var note: String? {
+        guard let stoppage else { return nil }
+        if case .status = stoppage { return nil }
+        return stoppage.words
+    }
+    /// The clock has nothing to say: a break, the end, a game held up.
+    var clockless: Bool {
+        if case .status? = stoppage { return true }
+        return isFinal || isInterval
+    }
 
     /// What's presented at `p`.
     static func at<P>(_ p: PTime, timeline: GameTimeline<P>) -> PresentedGame {
@@ -66,10 +94,50 @@ struct PresentedGame: Equatable, Sendable {
         } else if let ended = kind.endsPeriod {
             game.phase = .interval(period: ended)
         } else {
-            game.phase = .live
+            game.phase = stoppage(timeline: timeline).map(Phase.stopped) ?? .live
         }
         game.clock = clock(at: p, last: last, timeline: timeline, policy: policy)
+        hear(timeline, at: p, last: last, into: &game)
         return game
+    }
+
+    /// The stoppage the told plays are in: the newest play's, through whatever
+    /// bookkeeping came after it; a play ends it. (pure; tested)
+    private static func stoppage<P>(timeline: GameTimeline<P>) -> Stoppage? {
+        for record in timeline.records.prefix(timeline.toldCount).reversed() {
+            let kind = record.entry.kind
+            if let stoppage = kind.stoppage { return stoppage }
+            guard kind.attaches else { return nil }
+        }
+        return nil
+    }
+
+    /// The fast lane's word at `p`, over the plays': a game held up, or a break
+    /// the plays haven't logged yet (what's known of the period is told first).
+    /// The clock doesn't run through either.
+    private static func hear<P>(_ timeline: GameTimeline<P>, at p: PTime, last: GameTimeline<P>.Record, into game: inout PresentedGame) {
+        guard !game.isFinal, let word = timeline.fast.reading(at: p, lag: timeline.fastLag) else { return }
+        let period = last.entry.period, heard = word.period ?? period
+        /// A known play of the period, from before the lane said so: it comes first.
+        var owed: Bool {
+            guard let next = timeline.nextUntold else { return false }
+            return next.entry.period <= heard && next.entry.kind.endsPeriod == nil && next.eventTime <= word.arrived
+        }
+        switch word.state {
+        case .final:
+            return
+        case let .stopped(words):
+            game.phase = .stopped(.status(words))
+        case .interval:
+            guard !game.isInterval, heard >= period, !owed else { return }
+            game.phase = .interval(period: heard)
+            game.period = heard
+        case .live:
+            // The lane's in a later period than anything told: it's still the break, as far as this page knows.
+            guard !game.isInterval, heard > period, !owed else { return }
+            game.phase = .interval(period: period)
+        }
+        game.clock?.running = false
     }
 
     /// The game clock at `p` from the last told play, the next known one, and the fast lane's word.
@@ -100,12 +168,21 @@ struct PresentedGame: Equatable, Sendable {
             // Soccer's clock runs through the half.
             runningFrom = last.presentAt
         }
-        var ceiling = countsDown ? (length > 0 ? length : .infinity) : .infinity
+        var ceiling = ceiling(from: g0, countsDown: countsDown, length: length, policy: policy)
         if let g1, g1 >= g0 { ceiling = min(ceiling, g1) }
         var elapsed = g0
         if let from = runningFrom { elapsed = min(g0 + max(p - from, 0), ceiling) }
         return Clock(period: period, elapsed: elapsed, running: runningFrom != nil && elapsed < ceiling,
                      countsDown: countsDown, length: length)
+    }
+
+    /// How far a clock can run on the last play alone. A countdown stops at the
+    /// period's end. Soccer's has no end to reach, so it stops well past the
+    /// longest a match goes without logging anything: it never climbs on its
+    /// own through a break nobody's told it about.
+    private static func ceiling(from g0: Double, countsDown: Bool, length: Double, policy: BroadcastPolicy) -> Double {
+        if countsDown { return length > 0 ? length : .infinity }
+        return g0 + 2.5 * policy.quietRunning
     }
 
     /// The fast lane's latest word on the clock at `p`, in this period.
@@ -124,10 +201,12 @@ struct PresentedGame: Equatable, Sendable {
         var candidates: [PTime] = []
         if let next = timeline.nextPresentAt { candidates.append(next) }
         for c in timeline.corrections where c.at > p { candidates.append(c.at) }
+        if let word = timeline.fast.nextReading(after: p, lag: timeline.fastLag) { candidates.append(word) }
         if let last = timeline.lastTold, let clock = clock(at: p, last: last, timeline: timeline, policy: timeline.policy) {
             let next = timeline.nextUntold.flatMap { $0.entry.period == last.entry.period ? $0 : nil }
             if clock.running {
-                let ceiling = min(next?.entry.clock.elapsed ?? .infinity, clock.countsDown && clock.length > 0 ? clock.length : .infinity)
+                let limit = last.entry.clock.elapsed.map { ceiling(from: $0, countsDown: clock.countsDown, length: clock.length, policy: timeline.policy) } ?? .infinity
+                let ceiling = min(next?.entry.clock.elapsed ?? .infinity, limit)
                 if ceiling.isFinite { candidates.append(p + (ceiling - clock.elapsed)) }
             } else if clock.countsDown, let next, let g1 = next.entry.clock.elapsed, let g0 = last.entry.clock.elapsed, g1 > g0 {
                 let restart = next.presentAt - (g1 - g0)
@@ -148,7 +227,7 @@ struct PresentedGame: Equatable, Sendable {
 
 extension PresentedGame {
     /// The game's status as ESPN words it ("4:12 - 3rd", "End of 3rd",
-    /// "Halftime", "67'", "HT", "Top 7th", "Final"), for the presented event.
+    /// "Halftime", "67'", "Half-time", "Top 7th", "Rain Delay", "Final"), for the presented event.
     func status(_ sport: BroadcastSport, regulationPeriods: Int) -> String {
         switch phase {
         case .pregame:
@@ -161,16 +240,10 @@ extension PresentedGame {
             default: return extra ? "Final/OT" : "Final"
             }
         case let .interval(ended):
-            switch sport {
-            case .soccer: return ended == 1 ? "HT" : "End of \(Ordinal.string(ended)) Half"
-            case .baseball:
-                let inning = (ended + 1) / 2
-                return ended % 2 == 1 ? "Mid \(Ordinal.string(inning))" : "End \(Ordinal.string(inning))"
-            default:
-                if ended == regulationPeriods / 2 { return "Halftime" }
-                return "End of \(Self.periodName(ended, regulation: regulationPeriods))"
-            }
-        case .live:
+            return Self.interval(ended, sport: sport, regulationPeriods: regulationPeriods)
+        case let .stopped(.status(words)):
+            return words
+        case .live, .stopped:
             guard let period else { return "Live" }
             switch sport {
             case .baseball:
@@ -182,6 +255,23 @@ extension PresentedGame {
                 guard let clock else { return Self.periodName(period, regulation: regulationPeriods) }
                 return "\(Self.countdown(clock.remaining)) - \(Self.periodName(period, regulation: regulationPeriods))"
             }
+        }
+    }
+
+    /// A break's name, as the status and the theater's tag both say it.
+    static func interval(_ ended: Int, sport: BroadcastSport, regulationPeriods: Int) -> String {
+        switch sport {
+        case .soccer:
+            switch ended {
+            case 1: "Half-time"
+            case 2: "End of regular time"
+            case 3: "Half-time, extra time"
+            default: "End of extra time"
+            }
+        case .baseball:
+            ended % 2 == 1 ? "Mid \(Ordinal.string((ended + 1) / 2))" : "End \(Ordinal.string((ended + 1) / 2))"
+        default:
+            ended == regulationPeriods / 2 ? "Halftime" : "End of \(periodName(ended, regulation: regulationPeriods))"
         }
     }
 

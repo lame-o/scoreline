@@ -1681,7 +1681,7 @@ private struct SoccerDirectedStage: View {
         .vizWell(padding: 0)
         .onHover { hovering = $0 }
         .theaterFading(pointer, $fading)
-        .directed(director, source: source, facts: turned, seen: seen, cues: cues)
+        .directed(director, source: source, facts: atBreak(turned), seen: seen, cues: cues)
     }
 
     @ViewBuilder
@@ -1746,6 +1746,12 @@ private struct SoccerDirectedStage: View {
         return side == .top ? SoccerTeams(attacking: uniforms.top, defending: uniforms.bottom) : SoccerTeams(attacking: uniforms.bottom, defending: uniforms.top)
     }
 
+    private func atBreak(_ facts: PitchFacts) -> PitchFacts {
+        var facts = facts
+        facts.atBreak = source.presented.isInterval
+        return facts
+    }
+
     private func status(_ drawn: (clip: PitchClip, t: Double, world: SoccerFrame.World)) -> TheaterStatus {
         var status: TheaterStatus
         if let scene = drawn.clip.scene {
@@ -1757,7 +1763,7 @@ private struct SoccerDirectedStage: View {
             status = TheaterStatus()
         }
         status.updated = heard
-        return status
+        return status.holding(source.presented)
     }
 
     private func report(wall: PTime, T: PTime, _ drawn: (clip: PitchClip, t: Double, world: SoccerFrame.World)) {

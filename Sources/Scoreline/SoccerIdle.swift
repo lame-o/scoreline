@@ -590,7 +590,7 @@ extension SoccerScript {
                     let here = position(i, 0)
                     move(i, to: CGPoint(x: here.x + random.in(-3...3), y: here.y + random.in(-3...3)), from: random.in(3...8), to: random.in(9...10))
                 }
-                return (16, 12)
+                return (16, quiet(from: 16))
             case .resume:
                 return circulate(from: ball)
             case .kickoff, .secondHalf:
@@ -607,7 +607,13 @@ extension SoccerScript {
                 }
                 script.ballGone = 2
                 let end = script.actors.map(\.vanish).filter(\.isFinite).max() ?? 8
-                return (end + 1, 0)
+                // The pitch at the break, the teams gone: a couple of the ground staff out on it.
+                let crew = (0..<2).map { k in
+                    let man = add(.staff, "groundsman", at: CGPoint(x: Pitch.length * (k == 0 ? 0.3 : 0.68), y: Pitch.width * (k == 0 ? 0.32 : 0.7)))
+                    script.actors[man].appear = end - 1
+                    return man
+                }
+                return (end + 1, quiet(from: end + 1, men: crew))
             }
         }
 
@@ -819,7 +825,27 @@ extension SoccerScript {
             }
             focus.append((0, .infinity, [hurt] + physios, [down], 14))
             let arrive = physios.compactMap { script.actors[$0].moves.last?.end }.max() ?? 9
-            return (arrive + 1, 10)
+            return (arrive + 1, quiet(from: arrive + 1, except: [hurt]))
+        }
+
+        /// A stoppage once it's set: its quiet (TheaterQuiet), from `start`. `men`: who, if not the teams. Returns its period.
+        mutating func quiet(from start: Double, men crew: [Int]? = nil, except: Set<Int> = []) -> Double {
+            let teams = ((men[.attacking] ?? []) + (men[.defending] ?? [])).map(\.actor)
+            let who = (crew ?? teams).filter { !except.contains($0) && script.actors[$0].holds.isEmpty }
+            let quiet = TheaterQuiet.make(men: who, from: start, random: &random)
+            for beat in quiet.beats {
+                switch beat {
+                case let .step(man, at, toward, back):
+                    let here = position(man, at)
+                    move(man, to: CGPoint(x: here.x + toward.x * 2.2, y: here.y + toward.y * 1.8), from: at, to: at + TheaterQuiet.stride)
+                    move(man, to: here, from: back, to: back + TheaterQuiet.stride)
+                case let .knee(man, at, until):
+                    script.actors[man].holds.append(Hold(kind: .kneel, from: at, until: until))
+                case let .gesture(man, at, until):
+                    script.actors[man].holds.append(Hold(kind: .cardUp, from: at, until: until))
+                }
+            }
+            return quiet.period
         }
 
         /// The kick-off: each team in its own half, the ball on the spot, two
@@ -970,13 +996,13 @@ enum SoccerStatus {
                 let tag = on != nil && off != nil ? "\(on!) on · \(off!) off" : ["Substitution", names.name(e.side)].compactMap { $0 }.joined(separator: " · ")
                 return TheaterStatus(tag: tag, tint: names.color(e.side))
             case .injury: return TheaterStatus(tag: ["Injury", who].compactMap { $0 }.joined(separator: " · "), tint: names.color(e.side))
-            case .delay: return TheaterStatus(tag: "Delay in match")
-            case .varCheck: return TheaterStatus(tag: "VAR check")
+            case .delay: return TheaterStatus(tag: Stoppage.delay.words)
+            case .varCheck: return TheaterStatus(tag: Stoppage.varCheck.words)
             case let .varDecision(words): return TheaterStatus(tag: "VAR · \(words)")
             case .resume: return ball(idle.possession, names: names)
             case .kickoff: return TheaterStatus(tag: "Kick-off")
             case .secondHalf: return TheaterStatus(tag: "Second half")
-            case .halftime: return TheaterStatus(tag: "Half time")
+            case .halftime: return TheaterStatus(tag: PresentedGame.interval(e.period == 3 ? 3 : 1, sport: .soccer, regulationPeriods: 2))
             case .fullTime: return TheaterStatus(tag: "Full time")
             }
         }

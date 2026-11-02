@@ -63,7 +63,7 @@ struct TileStripView: View {
     /// The match minute from the polled clock ("67'", "45'+2'", HT).
     static func soccerMinute(_ event: Event) -> Double? {
         guard let clock = event.clock else { return nil }
-        if clock.display.uppercased() == "HT" { return 45 }
+        if clock.display == "Half-time" { return 45 }
         return MatchMark.minute(from: clock.display) ?? clock.seconds / 60
     }
 

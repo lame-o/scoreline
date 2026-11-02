@@ -84,7 +84,7 @@ struct MatchColors: Hashable, Sendable {
         if home == .top { self.bottom = changed } else { self.top = changed }
     }
 
-    init(top: Competitor?, bottom: Competitor?, topIsHome: Bool = false) {
+    init(top: Competitor?, bottom: Competitor?, topIsHome: Bool) {
         self.init(top: TeamKit(color: top?.color, alternate: top?.alternateColor),
                   bottom: TeamKit(color: bottom?.color, alternate: bottom?.alternateColor),
                   topKit: top?.kit, bottomKit: bottom?.kit, home: topIsHome ? .top : .bottom)

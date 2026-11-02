@@ -172,7 +172,7 @@ extension ScorelineTests {
             check(status == TheaterStatus(tag: "Timeout · Eagles · 2 left", tint: "06424d"),
                   "the tag: TIMEOUT · EAGLES · 2 LEFT, in the Eagles' color", "\(String(describing: status.tag))")
             let held = FootballStatus.idle(idle, stoppage: stop, script: s, t: s.idleTime(300), names: names, situation: "3rd & 7 at DAL 9", timeoutsLeft: (3, 2))
-            check(s.loop == nil && held.tag == "Timeout · Eagles · 2 left", "a timeout holds at the bench until a new play arrives")
+            check(held.tag == "Timeout · Eagles · 2 left" && benched, "a timeout holds at the bench until a new play arrives")
         }
         // A TV timeout and the two-minute warning: both teams to their sidelines.
         if let stop = item("9229").flatMap({ FootballStoppage.parse($0, teams: teams) }), let two = item("1850").flatMap({ FootballStoppage.parse($0, teams: teams) }) {
@@ -204,9 +204,9 @@ extension ScorelineTests {
         if let stop = item("2292").flatMap({ FootballStoppage.parse($0, teams: teams) }) {
             let idle = FootballIdle.make(play: nil, stoppage: stop, rest: rest, offense: .top, down: nil, kickoff: false, flipped: false)
             let s = FootballScript(idle: idle)
-            check(idle.phase == .off && s.players.allSatisfy { $0.opacity(at: s.duration) < 0.01 } && s.ball(at: s.duration) == nil
+            check(idle.phase == .off && s.players.filter { $0.team != .staff }.allSatisfy { $0.opacity(at: s.duration) < 0.01 } && s.ball(at: s.duration) == nil
                   && FootballStatus.idle(idle, stoppage: stop, script: s, t: 3, names: names, situation: nil, timeoutsLeft: (nil, nil)).tag == "Halftime",
-                  "halftime: both teams off, the field empty, HALFTIME")
+                  "halftime: both teams off, the grounds crew out, HALFTIME")
         }
         // A man hurt: down, his teammates round him, two trainers out to him, then off.
         if let mitchell {

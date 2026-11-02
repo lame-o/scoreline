@@ -50,6 +50,7 @@ struct ScorelineTests {
         if CommandLine.arguments.contains("--presentation-only") {
             matchColors()
             gamePresentationRegressions()
+            footballIdle()
             print("\n\(passes) passed, \(failures) failed")
             exit(failures == 0 ? 0 : 1)
         }
@@ -832,11 +833,11 @@ struct ScorelineTests {
             return c
         }
         // The visitors listed first: on a clash they change, the same in both appearances.
-        let lakersJazz = MatchColors(top: franchise("13", "552583", "fdb927"), bottom: franchise("26", "4e008e", "79a3dc"))
-        let netsCavs = MatchColors(top: franchise("17", "000000", "ffffff"), bottom: franchise("5", "860038", "fdbb30"))
+        let lakersJazz = MatchColors(top: franchise("13", "552583", "fdb927"), bottom: franchise("26", "4e008e", "79a3dc"), topIsHome: false)
+        let netsCavs = MatchColors(top: franchise("17", "000000", "ffffff"), bottom: franchise("5", "860038", "fdbb30"), topIsHome: false)
         check(lakersJazz.top.color == "fdb927" && lakersJazz.bottom.color == "4e008e" && netsCavs.palette(.dark).top == Viz.neutral,
               "clashing purples: the visiting Lakers change into gold, the Jazz at home don't; the Nets' black stays an honest gray on a chart")
-        let pacersAtNets = MatchColors(top: franchise("11", "0c2340", "ffd520"), bottom: franchise("17", "000000", "ffffff"))
+        let pacersAtNets = MatchColors(top: franchise("11", "0c2340", "ffd520"), bottom: franchise("17", "000000", "ffffff"), topIsHome: false)
         check(pacersAtNets.top.color == "ffd520" && pacersAtNets.bottom.color == "000000",
               "navy beside black looks alike: the visiting Pacers wear gold, in both appearances")
         check(NBADetail.shotText("Mario Hezonja makes 25-foot three point jumper (Jaylon Tyson assists)", shooter: "M. Hezonja")

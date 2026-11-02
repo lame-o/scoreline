@@ -747,9 +747,8 @@ struct DetailView: View {
 
     /// What the clock line says without a running clock: the lanes' text, the inning, half-time.
     private var liveClockFallback: String {
-        if broadcast.active { return event.detail?.uppercased() == "HT" ? "Half-time" : event.detail ?? "Live" }
-        return footballFeed.clock ?? basketballFeed.clock ?? baseballFeed.inning
-            ?? (event.detail?.uppercased() == "HT" ? "Half-time" : event.detail ?? "Live")
+        if broadcast.active { return event.detail ?? "Live" }
+        return footballFeed.clock ?? basketballFeed.clock ?? baseballFeed.inning ?? event.detail ?? "Live"
     }
 
     @ViewBuilder
@@ -799,8 +798,10 @@ struct DetailView: View {
                     // How far behind live, on hover only (BROADCAST §2).
                     .behindLiveHover(broadcast.behind, alignment: alignment, id: "hero")
                     .animation(reduceMotion ? nil : Motion.quick, value: nbaClutch)
-                    if let pause = broadcast.breakLabel, !broadcast.presented.isInterval {
-                        Text(pause).font(.system(size: 10.5)).foregroundStyle(.secondary)
+                    // Play has stopped: why, under the clock that's stopped with it.
+                    if let note = broadcast.presented.note {
+                        Text(note).font(.system(size: 10.5)).foregroundStyle(.secondary)
+                            .transition(.opacity)
                     }
                     // Baseball: who's up, like CS2's round line.
                     if let side = battingSide, let team = side == .top ? event.competitors.first : event.competitors.last {
@@ -810,6 +811,7 @@ struct DetailView: View {
                     }
                 }
                 .animation(reduceMotion ? nil : Motion.quick, value: battingSide)
+                .animation(reduceMotion ? nil : Motion.quick, value: broadcast.presented.note)
             }
         case .scheduled:
             // Within a day: a ticking countdown, while the hero is the
@@ -941,6 +943,7 @@ struct DetailView: View {
                              + (cs.round.map { ", round \($0)" } ?? ""))
             } else {
                 parts.append(Spoken.status(liveClock.map { $0.running ? $0.text(at: .now) : liveClockFallback } ?? liveClockFallback))
+                if let note = broadcast.presented.note { parts.append(note) }
             }
         case .final:
             parts.append(Spoken.status(event.detail ?? "Final"))
@@ -1424,16 +1427,15 @@ struct DetailView: View {
         if has(kind, d) {
             switch kind {
             case .liveView:
-                DetailSection(title: "Live View", caption: liveViewCaption,
-                              accessory: broadcast.breakLabel.map(SectionAccessory.text) ?? .live) {
+                DetailSection(title: "Live View", caption: liveViewCaption, accessory: .live) {
                     theater(d)
                 }
             case .field:
                 if let football = shownFootball {
                     DetailSection(title: "Field",
-                                  caption: "\(broadcast.presented.isInterval ? "Last drive" : "This drive"), snap by snap. \(names.top) defends the left end zone.",
-                                  accessory: broadcast.breakLabel.map(SectionAccessory.text) ?? .live,
-                                  spokenCaption: "\(broadcast.presented.isInterval ? "Last drive" : "This drive"), snap by snap. \(full.top) defending the left end zone.") {
+                                  caption: "This drive, snap by snap. \(names.top) defends the left end zone.",
+                                  accessory: .live,
+                                  spokenCaption: "This drive, snap by snap. \(full.top) defending the left end zone.") {
                         FootballField(situation: football, topLabel: names.top, bottomLabel: names.bottom, palette: palette,
                                       drive: fieldDrive, possession: footballPossession ?? football.possession,
                                       twoMinuteDrill: twoMinuteDrill,
@@ -1712,8 +1714,6 @@ struct DetailView: View {
     }
 
     private var liveViewCaption: String {
-        if broadcast.active, broadcast.presented.isInterval { return "\(event.detail ?? "Break") · Play resumes when the next period begins." }
-        if let pause = broadcast.breakLabel { return "\(pause) · Waiting for the next play." }
         if isNBA { return "The latest play, replayed as it happened, the ends as on TV." }
         if isSoccer { return "The latest chance, replayed with its build-up." }
         if isBaseball { return "The latest pitch, replayed as it happened." }
@@ -1887,7 +1887,7 @@ struct DetailView: View {
             if !isSoccer {
                 let detail = d.history?.keyEvents.last.map {
                     [$0.clock, $0.text].filter { !$0.isEmpty }.joined(separator: " · ")
-                } ?? "No scoring events available"
+                } ?? "No scoring yet"
                 return .text(score, detail)
             }
             return .timeline(d.moments, score: score)
@@ -2212,10 +2212,10 @@ struct DetailView: View {
     private var isSoccer: Bool { if case .espn(_, _, .soccer)? = event.ref { return true }; return false }
     private var isBaseball: Bool { if case .espn(_, _, .baseball)? = event.ref { return true }; return false }
 
-    /// "67'" → 67, "90'+5'" → 95, "HT" → 45.
+    /// "67'" → 67, "90'+5'" → 95, "Half-time" → 45.
     private var soccerMinute: Double? {
         guard let d = event.detail else { return nil }
-        if d.uppercased() == "HT" { return 45 }
+        if d == "Half-time" { return 45 }
         let numbers = d.split { !$0.isNumber }.compactMap { Double($0) }
         return numbers.isEmpty ? nil : numbers.reduce(0, +)
     }
@@ -2284,11 +2284,12 @@ struct DetailView: View {
         inputs.football = shownFootball
         inputs.clock = liveClock
         inputs.clockFallback = liveClockFallback
-        inputs.baseball = detail.flatMap(liveBaseball)
+        inputs.baseball = broadcast.presented.isInterval ? nil : detail.flatMap(liveBaseball)
         inputs.twoMinuteDrill = twoMinuteDrill
         inputs.coStreaming = store.coStreamingIDs.contains(event.id)
         inputs.stale = staleSince != nil
         inputs.behind = broadcast.behind
+        inputs.stoppage = broadcast.presented.note
         if let side = footballPossession {
             inputs.possession = side
         } else if isNBA {

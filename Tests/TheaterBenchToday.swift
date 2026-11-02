@@ -293,7 +293,7 @@ extension Today {
             switch team {
             case .offense: side == .top ? 0 : 1
             case .defense: side == .top ? 1 : 0
-            case .official: 2
+            case .official, .staff: 2
             }
         }
         // Mid-bridge: the court between plays on under the hand-off.

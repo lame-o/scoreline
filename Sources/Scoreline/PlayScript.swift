@@ -630,6 +630,35 @@ extension PlayScript {
         measureBodies()
     }
 
+    /// The field between pitches with its quiet (TheaterQuiet): the batter and
+    /// the battery wait on each other, the men in the field shift about; through
+    /// a rain delay, the grounds crew by the tarp. (pure; tested)
+    init(quiet rest: Rest, seed: UInt64) {
+        self.init(rest: rest)
+        var random = SplitMix64(seed: seed)
+        if rest.standing == .tarp {
+            for at in [CGPoint(x: -75, y: 40), CGPoint(x: 75, y: 40), CGPoint(x: 0, y: 150)] {
+                actors.append(Actor(team: .official, at: at, role: .coach))
+            }
+        }
+        let men = actors.indices.filter { i in
+            switch actors[i].role {
+            case let .fielder(n): n >= 3
+            case .coach: rest.standing == .tarp
+            default: false
+            }
+        }
+        let quiet = TheaterQuiet.make(men: men, from: 0, poses: false, random: &random)
+        for case let .step(man, at, toward, back) in quiet.beats {
+            let here = actors[man].position(at: at)
+            actors[man].move(to: [CGPoint(x: here.x + toward.x * 7, y: here.y + toward.y * 6)], from: at, to: at + TheaterQuiet.stride)
+            actors[man].move(to: [here], from: back, to: back + TheaterQuiet.stride)
+        }
+        duration = quiet.period
+        settle = duration
+        measureBodies()
+    }
+
     /// Everyone as the hand-off from the field between pitches matches them
     /// (TheaterBridge): by team, by role (each fielder his own position, the
     /// batter, the runners, the umpire, a coach), the same man by his

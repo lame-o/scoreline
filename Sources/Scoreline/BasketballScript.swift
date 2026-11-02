@@ -131,7 +131,7 @@ extension RigLens {
 struct BasketballScript: Equatable {
     /// The two fives, and the referee who comes in to make a call (on the
     /// floor only while he's doing something).
-    enum Team { case offense, defense, official }
+    enum Team { case offense, defense, official, staff }
 
     /// A moment of the play in his hands (or reaching for it).
     struct Action: Equatable {
@@ -316,7 +316,7 @@ struct BasketballScript: Equatable {
             let group = switch p.team {
             case .offense: offense == .top ? 0 : 1
             case .defense: offense == .top ? 1 : 0
-            case .official: 2
+            case .official, .staff: 2
             }
             return TheaterBridge.Figure(group: group, at: p.position(at: t))
         }
