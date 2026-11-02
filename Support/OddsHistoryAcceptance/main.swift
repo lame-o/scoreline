@@ -135,10 +135,20 @@ private struct RecognizedLine {
 
     private static func words(_ image: CGImage, size: CGSize) -> [RecognizedLine] {
         let request = VNRecognizeTextRequest()
+        // Diagnostic override for hosts whose revision-3 model compilation
+        // fails in TextRecognition/e5rt. Keep the same strict render assertions
+        // and record the selected revision in the receipt.
+        if ProcessInfo.processInfo.environment["SCORELINE_OCR_REVISION"] == "2" {
+            request.revision = 2
+        }
         request.recognitionLevel = .accurate
         request.recognitionLanguages = ["en-US"]
         request.usesLanguageCorrection = false
-        try? VNImageRequestHandler(cgImage: image).perform([request])
+        do {
+            try VNImageRequestHandler(cgImage: image).perform([request])
+        } catch {
+            fputs("OCR ERROR (revision \(request.revision)): \(String(reflecting: error))\n", stderr)
+        }
         return (request.results ?? []).compactMap { observation in
             guard let candidate = observation.topCandidates(1).first else { return nil }
             let b = observation.boundingBox
@@ -311,6 +321,7 @@ private struct RecognizedLine {
             receipts += try originalSoccerRenders(out: out, check: check)
         }
         let receipt: [String: Any] = ["passed": passed, "failed": failed, "checks": checks, "renders": receipts,
+                                      "ocrRevision": ProcessInfo.processInfo.environment["SCORELINE_OCR_REVISION"] == "2" ? 2 : VNRecognizeTextRequest.defaultRevision,
                                       "network": "HTTP blocked; pageLive false prevents market tracking",
                                       "timezone": "System-local display; event timestamps are Unix seconds"]
         let resultName = hoverOnly ? "hover-result-\(ProcessInfo.processInfo.environment["SCORELINE_HOVER_DISPATCH"] ?? "queue").json" : "result.json"
