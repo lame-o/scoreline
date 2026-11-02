@@ -116,7 +116,7 @@ final class BasketballFeed {
     /// Enough history to see where a run started.
     private static let windowSize = 150
     /// A run (by margin: 10–2 is 8) is news when it reaches each of these.
-    static let runMilestones = [8, 12, 16, 20, 24, 28]
+    nonisolated static let runMilestones = [8, 12, 16, 20, 24, 28]
 
     /// A scoring run: who's on it, from its first play to its newest, and
     /// its points against the other team's ("12–0", "10–2").
@@ -660,7 +660,7 @@ final class BasketballFeed {
 
     // MARK: Parsing
 
-    static func playID(_ ref: String) -> String? {
+    nonisolated static func playID(_ ref: String) -> String? {
         ref.range(of: "/plays/").map { String(ref[$0.upperBound...].prefix { $0.isNumber }) }
     }
 
