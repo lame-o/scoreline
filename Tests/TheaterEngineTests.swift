@@ -458,3 +458,31 @@ extension ScorelineTests {
         check(!TheaterFrameGate.state(tiers: [], time: time, clock: clock, now: 1000).moving, "no plan, no frames")
     }
 }
+
+extension ScorelineTests {
+    /// The engine's gates (CHOREOGRAPHY §9.2), enforced on recorded fixtures, one per sport, so they can't silently
+    /// regress. Where a sport's legacy clips can't meet a gate before its own phase, the number here is the one measured,
+    /// a ratchet: it may only come down. `teleportMax` gate 1.15, overspeed gate +12%.
+    @MainActor static func theaterGates() {
+        print("\nTheater gates, on the fixtures")
+        let cases: [(sport: String, root: URL, dir: String, event: String, teleport: Double, overspeed: Double)] = [
+            ("football", TheaterBench.root, "football_nfl", "401873009-synthetic", 1.27, 0.38),
+            ("basketball", TheaterBench.root, "basketball_nba", "401909285", 3.80, 3.20),
+            ("soccer", TheaterBench.broadcastRoot, "soccer_eng.1", "401879256", 2.90, 2.20),
+            ("baseball", TheaterBench.root, "baseball_mlb", "ws3-synthetic", 1.38, 0.36),
+        ]
+        for c in cases {
+            let recording = Recording.load(root: c.root, sport: c.dir, event: c.event, settle: 0)
+            guard !recording.snapshots.isEmpty || !recording.core.isEmpty, let run = TheaterBench.engine(c.sport, recording, label: c.event) else {
+                check(false, "\(c.sport): its fixture loads"); continue
+            }
+            let r = run.report
+            check(r.hardCuts == 0, "\(c.sport): no hard cuts", "\(r.hardCuts)")
+            check(r.teleportMax <= c.teleport, "\(c.sport): teleportMax holds its ratchet (\(c.teleport); gate 1.15)", "\(r.teleportMax)")
+            check(r.speedShare <= 0.005, "\(c.sport): at most 0.5% of the time over the sprint", "\(r.speedShare)")
+            check(r.maxOverspeed <= c.overspeed, "\(c.sport): overspeed holds its ratchet (+\(Int(c.overspeed * 100))%; gate +12%)", "\(r.maxOverspeed)")
+            check(r.accelShare <= 0.01, "\(c.sport): at most 1% of the time over the push limits", "\(r.accelShare)")
+            check(r.rigSlipMax <= 0.5, "\(c.sport): the rig's planted foot doesn't slip", "\(r.rigSlipMax)")
+        }
+    }
+}

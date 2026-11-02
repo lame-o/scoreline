@@ -116,6 +116,7 @@ struct ScorelineTests {
         theaterNames()
         theaterRig()
         theaterEngine()
+        theaterGates()
         choreographyIntegration()
         statcast()
         playStatcast()

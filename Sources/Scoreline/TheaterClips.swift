@@ -880,10 +880,11 @@ enum ClipPaths {
         keys[a].t = t0
         keys[b].t = t1
         let oneEasing = 1.875 * length / time <= band.sprint && 5.77 * length / (time * time) <= min(band.accel, band.decel)
-        if restA, restB, !oneEasing {
+        let c = 0.9375 * (1 / band.accel + 1 / band.decel)
+        // A run needs room for its two ramps: short of that, one easing is the quicker of the two.
+        if restA, restB, !oneEasing, time * time >= 4 * c * length {
             // A ramp, a cruise and a ramp: the cruise as slow as the time allows.
-            let c = 0.9375 * (1 / band.accel + 1 / band.decel)
-            let root = max(time * time - 4 * c * length, 0).squareRoot()
+            let root = (time * time - 4 * c * length).squareRoot()
             let v = (time - root) / (2 * c)
             let r1 = 1.875 * v / band.accel, r3 = 1.875 * v / band.decel
             let d1 = v * r1 / 2, d3 = v * r3 / 2
