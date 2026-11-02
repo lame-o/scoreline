@@ -94,22 +94,7 @@ struct StandingsView: View {
                                 .padding(.top, 8)
                         }
                     } else {
-                        let live = Standings.live(rows, liveEvents: store.liveEvents(in: league))
-                        if live.contains(where: { $0.liveScore != nil }) {
-                            projectedNote("Projected if live scores hold. Arrows show moves from the official table.")
-                        }
-                        let groups = TableGroup.make(live) { $0.row.group }
-                        if layout.split && groups.count > 1 {
-                            GroupColumns(groups: groups) { group in
-                                StandingsTable(rows: group.rows, highlight: followedIDs)
-                            }
-                            .environment(\.widthClass, layout.column)
-                        } else {
-                            // A single table spans the panel and adds columns as it widens.
-                            StandingsTable(rows: live, highlight: followedIDs)
-                                .padding(.horizontal, 10)
-                                .padding(.top, 8)
-                        }
+                        SoccerTables(rows: rows, league: league, highlight: followedIDs)
                     }
                 }
                 .coordinateSpace(name: Self.contentSpace)
@@ -173,6 +158,14 @@ struct StandingsView: View {
 
     /// Spans the page above the tables, capped at a readable line.
     private func projectedNote(_ text: String) -> some View {
+        ProjectedNote(text: text)
+    }
+}
+
+private struct ProjectedNote: View {
+    let text: String
+
+    var body: some View {
         HStack(spacing: 5) {
             LiveDot()
             Text(text)
@@ -182,6 +175,36 @@ struct StandingsView: View {
         .readableWidth()
         .padding(.horizontal, 16)
         .padding(.top, 4)
+    }
+}
+
+/// A soccer competition's table, or its groups: re-ranked live while it's the
+/// current season, two-up across a split panel, teams opening their pages.
+struct SoccerTables: View {
+    @Environment(ScoreStore.self) private var store
+    @Environment(\.panelLayout) private var layout
+    let rows: [StandingsRow]
+    let league: League
+    var isLive = true
+    let highlight: Set<String>
+
+    var body: some View {
+        let live = Standings.live(rows, liveEvents: isLive ? store.liveEvents(in: league) : [])
+        if live.contains(where: { $0.liveScore != nil }) {
+            ProjectedNote(text: "Projected if live scores hold. Arrows show moves from the official table.")
+        }
+        let groups = TableGroup.make(live) { $0.row.group }
+        if layout.split && groups.count > 1 {
+            GroupColumns(groups: groups) { group in
+                StandingsTable(rows: group.rows, highlight: highlight)
+            }
+            .environment(\.widthClass, layout.column)
+        } else {
+            // A single table spans the panel and adds columns as it widens.
+            StandingsTable(rows: live, highlight: highlight)
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
+        }
     }
 }
 

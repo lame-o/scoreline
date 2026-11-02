@@ -238,7 +238,8 @@ extension ScheduleProvider {
                 top: top, bottom: bottom,
                 venue: venue.isEmpty ? nil : venue, networks: networks(c), notes: notes, ifNecessary: ifNecessary,
                 week: week ?? e["week"]["number"].int, link: link.flatMap(URL.init(string:)),
-                ref: .espn(path: CompetitionCatalog.eventPath(path, league: leagueID, sport: sport), id: rawID), result: result)
+                // soccer/all is how a team's season is fetched, not where a game was played.
+                ref: .espn(path: path == "soccer/all" && ESPNSoccerSlug.isValid(leagueID) ? "soccer/\(leagueID)" : path, id: rawID), result: result)
         }
 
         /// National networks first (up to three), from either response shape.

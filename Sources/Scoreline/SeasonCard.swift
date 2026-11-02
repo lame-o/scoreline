@@ -25,6 +25,9 @@ struct SeasonSummary: Equatable {
     var live = false
     /// The subline is happening now (a live match): it's red.
     var sublineLive = false
+    /// The competition's own mark beside the lines (a soccer competition's page).
+    var logo: URL? = nil
+    var darkLogo: URL? = nil
 }
 
 /// The season on one axis, as the card's timeline and the bar's strip draw it.
@@ -140,16 +143,21 @@ private struct SeasonHeadline: View {
     let summary: SeasonSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
-                if summary.live { LiveDot() }
-                Text(summary.headline).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+        HStack(spacing: 10) {
+            if summary.logo != nil {
+                LogoView(url: summary.logo, darkURL: summary.darkLogo, size: 32).accessibilityHidden(true)
             }
-            if let subline = summary.subline {
-                Text(subline)
-                    .font(.system(size: 11.5).monospacedDigit())
-                    .foregroundStyle(summary.sublineLive ? AnyShapeStyle(Color.red) : AnyShapeStyle(.secondary))
-                    .lineLimit(1)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    if summary.live { LiveDot() }
+                    Text(summary.headline).font(.system(size: summary.logo == nil ? 13 : 15, weight: .semibold)).lineLimit(1)
+                }
+                if let subline = summary.subline {
+                    Text(subline)
+                        .font(.system(size: 11.5).monospacedDigit())
+                        .foregroundStyle(summary.sublineLive ? AnyShapeStyle(Color.red) : AnyShapeStyle(.secondary))
+                        .lineLimit(1)
+                }
             }
         }
         .accessibilityElement(children: .combine)

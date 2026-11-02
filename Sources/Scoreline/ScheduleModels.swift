@@ -236,7 +236,7 @@ struct ScheduleItem: Identifiable, Hashable, Codable, Sendable {
         default: statusDetail
         }
         let eventRef: EventRef? = switch ref {
-        case let .espn(path, id): .espn(path: CompetitionCatalog.eventPath(path, league: league, sport: sport), id: id, sport: sport)
+        case let .espn(path, id): .espn(path: path, id: id, sport: sport)
         case let .counterStrike(slug, tournament): .counterStrike(slug: slug, tournament: tournament)
         case let .climbing(eventID): .climbing(eventID: eventID, category: "", resultURL: nil, round: nil,
                                                eventName: title ?? "", nextURL: nil)
@@ -271,7 +271,11 @@ struct ClimbingRound: Hashable, Codable, Sendable, Identifiable {
 }
 
 struct SeasonEvent: Identifiable, Hashable, Codable, Sendable {
-    enum Kind: Hashable, Codable, Sendable { case climbing(Int), tournament(slug: String) }
+    enum Kind: Hashable, Codable, Sendable {
+        case climbing(Int), tournament(slug: String)
+        /// A soccer competition's round, on its own page's axis.
+        case round
+    }
     enum Status: String, Codable, Sendable { case upcoming, live, finished, canceled }
     struct Category: Hashable, Codable, Sendable {
         let name: String            // "Lead Women"

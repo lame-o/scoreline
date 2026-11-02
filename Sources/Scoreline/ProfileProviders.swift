@@ -203,7 +203,7 @@ enum ESPNProfiles {
             id: id, date: date, opponent: opponent, home: us["homeAway"].string == "home", network: network, state: state,
             teamScore: state == .scheduled ? nil : score(us), opponentScore: state == .scheduled ? nil : score(them),
             result: state == .final ? (won == true ? "W" : them["winner"].bool == true ? "L" : "D") : nil,
-            competition: e["league"]["abbreviation"].string)
+            competition: e["league"]["abbreviation"].string, league: e["league"]["slug"].string)
     }
 
     struct RosterData: Sendable {
