@@ -307,7 +307,7 @@ struct TimelinePageModules: View {
 
     var body: some View {
         let e = game.event, d = game.detail
-        let palette = TeamPalette.nba(top: e.competitors.first, bottom: e.competitors.last, scheme: .light)
+        let palette = MatchColors(e).palette(.light)
         DetailSection(title: "Timeline") {
             MatchTimelineSection(history: game.history, marks: d.timelineMarks, feed: feed, event: e, names: game.names, palette: palette, pointer: pointer)
         }

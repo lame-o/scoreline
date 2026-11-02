@@ -43,7 +43,7 @@ struct DetailView: View {
     /// theaters reads.
     @State private var broadcast = Broadcast()
     /// The game in its teams' colors, worked out once per change (`event` is read dozens of times a body).
-    @State private var colors = EventColors()
+    @State private var eventColors = EventColors()
     /// The directed theater's scoring moments (CHOREOGRAPHY Phase 0): the slides land with its plan.
     @State private var theaterCues = TheaterCues()
     /// The presented event the menu bar and the alerts last had.
@@ -123,7 +123,7 @@ struct DetailView: View {
     /// detail refreshes on its own cadence while this page is open. While the
     /// game broadcasts, both are as presented at p: the score after the last
     /// told play, the clock as it read then, live until the last play is told.
-    private var event: Event { broadcast.present(colors.event(live, in: loadedDetail, revision: loadedRevision)) }
+    private var event: Event { broadcast.present(eventColors.event(live, in: loadedDetail, revision: loadedRevision)) }
 
     /// The game's colors, decided once (`MatchColors`).
     private var colors: MatchColors { MatchColors(event, topIsHome: loadedDetail?.topIsHome) }

@@ -397,7 +397,7 @@ final class PageReplays {
         let supported = [.baseball, .football, .soccer].contains(sport) || nba
         if supported != self.supported { self.supported = supported }
         guard supported else { return }
-        var context = ReplayContext(eventID: event.id, top: event.competitors.first, bottom: event.competitors.last, nba: nba,
+        var context = ReplayContext(eventID: event.id, top: event.competitors.first, bottom: event.competitors.last,
                                     topIsHome: detail.topIsHome ?? false, people: detail.people, fielders: detail.fielders,
                                     lineups: detail.lineups)
         let builder = builder

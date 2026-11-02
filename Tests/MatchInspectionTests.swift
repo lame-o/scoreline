@@ -161,7 +161,7 @@ extension ScorelineTests {
         let feed = OddsFeed()
         feed.preview(market: game.market, series: game.series)
         let pointer = OddsPointer(), linked = LinkedFocus()
-        let palette = TeamPalette.nba(top: game.event.competitors.first, bottom: game.event.competitors.last, scheme: .light)
+        let palette = MatchColors(game.event).palette(.light)
         let marks = game.detail.timelineMarks
         let lines = [OddsLine(outcome: .top, name: game.names.top, color: palette.top), OddsLine(outcome: .bottom, name: game.names.bottom, color: palette.bottom)]
         let domain = game.history.domain(state: .final, window: .game, eventStart: game.event.start)

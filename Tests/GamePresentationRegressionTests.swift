@@ -80,8 +80,7 @@ extension ScorelineTests {
             guard let loop = script.loop else { check(false, "\(kind): a break holds a quiet loop"); continue }
             check(loop.start >= FootballScript.Builder.settled && loop.period >= 30 && clip.local(loop.start + loop.period * 3.5) >= loop.start,
                   "\(kind): the way in plays once; only the quiet goes round")
-            // (The clip's own time: its warp may have stretched the way in.)
-            let start = clip.warp.clip(loop.start), end = clip.warp.clip(loop.start + loop.period)
+            let start = loop.start, end = loop.start + loop.period
             let settled = clip.figures.indices.map { clip.position($0, at: start + 0.01) }
             let ranged = stride(from: start, through: end + (end - start) * 3, by: 0.5).allSatisfy { t in
                 clip.figures.indices.allSatisfy { simd_length(clip.position($0, at: t) - settled[$0]) < 13 }
@@ -257,7 +256,7 @@ extension ScorelineTests {
             guard let loop = script.loop else { check(false, "soccer, \(name): holds a quiet loop"); continue }
             check(longestStill(script.beats, from: loop.start, period: loop.period) <= 8.2, "soccer, \(name): never still past about 8 s",
                   "\(longestStill(script.beats, from: loop.start, period: loop.period))")
-            let start = clip.warp.clip(loop.start), end = clip.warp.clip(loop.start + loop.period)
+            let start = loop.start, end = loop.start + loop.period
             check(clip.figures.indices.allSatisfy { simd_length(clip.position($0, at: end - 0.01) - clip.position($0, at: start + 0.01)) < 0.3 },
                   "soccer, \(name): the loop comes back to where it began")
         }
