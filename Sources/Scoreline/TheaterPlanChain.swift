@@ -186,11 +186,13 @@ extension Plan {
             }
             let local = p.time(t)
             let clamped = min(max(local, 0), p.clip.length)
-            let moving = local > 0 && local < p.clip.length
+            // At its very last moment a clip can still have a man on his way: the next one carries on from that.
+            let moving = local > 0 && local <= p.clip.length + 1e-6
+            let measured = min(clamped, p.clip.length - 1.0 / 120)
             // A man entering fades in where the clip has him.
             let enters = p.entering.contains(id) ? min(max((t - p.start) / 0.4, 0), 1) : 1
-            return (p.clip.position(i, at: clamped), moving ? p.clip.velocity(i, at: clamped) : .zero,
-                    moving ? p.clip.acceleration(i, at: clamped) : .zero, p.clip.opacity(i, at: clamped) * enters)
+            return (p.clip.position(i, at: clamped), moving ? p.clip.velocity(i, at: measured) : .zero,
+                    moving ? p.clip.acceleration(i, at: measured) : .zero, p.clip.opacity(i, at: clamped) * enters)
         }
         if p.leaving.contains(id) {
             // He stands where the splice found him and fades.

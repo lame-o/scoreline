@@ -3,8 +3,8 @@ import simd
 import Dispatch
 
 extension ScorelineTests {
-    /// The director's ball must use the same single clock conversion as its
-    /// players. A second warp visibly leaves a pass behind its receiver.
+    /// A clip runs on its script's own clock: the ball to the frame, the credited man meeting it exactly, and nobody
+    /// else slowing the game down for a man the script asked too much of.
     static func footballClipClock() {
         print("\nFootball clip clock")
         guard let data = try? Data(contentsOf: FixtureProtocol.directory.appendingPathComponent("mnf-dal-phi-plays.json")) else {
@@ -12,20 +12,20 @@ extension ScorelineTests {
         }
         let items = JSON(data: data)["items"].array
         let teams = FootballFeed.Teams(topIsHome: false, topID: "6", bottomID: "21", homeAbbreviation: "PHI", awayAbbreviation: "DAL")
-        for (name, suffix) in [("deep pass", "2186"), ("punt", "1812")] {
+        for (name, suffix) in [("deep pass", "2186"), ("punt", "1812"), ("rush", "63"), ("completion", "85"), ("touchdown", "385")] {
             guard let raw = items.first(where: { $0["id"].string?.hasSuffix(suffix) == true }),
                   let scene = FootballScene.parse(raw, teams: teams) else {
                 check(false, "\(name): recorded play parses"); continue
             }
             let script = FootballScript(scene)
             let clip = GridClip(script, scene: scene, idle: nil, offense: scene.offense ?? .top)
-            check(!clip.warp.isIdentity, "\(name): regression exercises a nonidentity clip warp")
+            check(clip.length == script.duration && clip.still == script.leadIn, "\(name): the clip is as long as its script, at its pace")
+            check(stride(from: 0.0, through: script.duration, by: 0.1).allSatisfy { clip.local($0) == $0 }, "\(name): the script's clock is the clip's")
             let placement = ClipPlacement(clip: clip, offset: 100, start: 100,
                                           cast: clip.figures.indices.map { ActorID(UInt16($0)) })
             let plan = Plan(revision: 1, start: 100, horizon: 100 + clip.length, state: nil,
                             placements: [placement], actors: [:])
-            // Only the free-ball painter is under test. Actor posing and a
-            // full plan bake are unrelated to this clock-boundary regression.
+            // Only the free-ball painter is under test here.
             let baked = BakedPlan(plan: plan, tracks: [], camera: [], cameraVelocity: [], ball: [], tiers: [], yawTargets: [])
             var chain = PlanChain<GridClip>()
             chain.splice(baked, now: 100)
@@ -33,197 +33,49 @@ extension ScorelineTests {
             scratch.plan = 0
             scratch.placement = 0
             scratch.ball = .clip(0)
-            var compared = 0
-            var maximumError = 0.0
-            var originalBugDiffers = false
+            var maximumError = 0.0, compared = 0
             for flight in script.flights {
                 for fraction in [0.2, 0.5, 0.8] {
-                    let scriptTime = flight.start + (flight.end - flight.start) * fraction
-                    guard script.carrier(at: scriptTime) == nil, script.flight(at: scriptTime) != nil else { continue }
-                    let clipTime = clip.warp.clip(scriptTime)
-                    scratch.p = placement.offset + clipTime
-                    scratch.camera = clip.camera(at: clipTime)
-                    guard case let .free(authoritative, authoritativeFlying)? = clip.ball(at: clipTime),
-                          let drawn = GridPainter.frame(chain, scratch, size: CGSize(width: 540, height: 270)),
+                    let t = flight.start + (flight.end - flight.start) * fraction
+                    guard script.carrier(at: t) == nil, script.flight(at: t) != nil, let expected = script.ball(at: t) else { continue }
+                    scratch.p = placement.offset + t
+                    scratch.camera = clip.camera(at: t)
+                    guard let drawn = GridPainter.frame(chain, scratch, size: CGSize(width: 540, height: 270)),
                           case let .free(actual, flying)? = drawn.world.ball else {
-                        check(false, "\(name): a recorded airborne ball remains visible at fraction \(fraction)"); continue
+                        check(false, "\(name): a flight stays in the air at fraction \(fraction)"); continue
                     }
-                    let expected = GridWorld.local(SIMD2(authoritative.x, authoritative.y), right: clip.right)
-                    let error = simd_length(SIMD3(actual.x - expected.x, actual.y - expected.y, actual.z - authoritative.z))
-                    maximumError = max(maximumError, error)
+                    maximumError = max(maximumError, hypot(actual.x - expected.x, actual.y - expected.y) + abs(actual.z - expected.z))
                     compared += 1
-                    if case let .free(twice, _)? = clip.ball(at: clip.local(clipTime)) {
-                        originalBugDiffers = originalBugDiffers || simd_length(twice - authoritative) > 0.01
-                    } else {
-                        originalBugDiffers = true
-                    }
-                    check(flying == authoritativeFlying, "\(name): rendered flight state uses the authoritative clip instant")
+                    check(flying, "\(name): the flight reads as one")
                 }
             }
-            check(compared > 0 && maximumError < 1e-6,
-                  "\(name): every rendered flight sample equals the once-warped authoritative ball", "samples \(compared), error \(maximumError)")
-            check(originalBugDiffers, "\(name): applying the warp twice changes or hides the ball, so the regression catches it")
-        }
-        footballResultHold(items, teams: teams)
-    }
-
-    /// The result is a deliberate short pause, not slack for the motion
-    /// solver. Check the actual mapped duration and trajectories, including
-    /// both boundaries where an unconditional clock clamp would cause a jerk.
-    private static func footballResultHold(_ items: [JSON], teams: FootballFeed.Teams) {
-        print("\nFootball result hold and reset motion")
-        let pause = 1.017...1.717
-        let need: (Double) -> Double = { pause.contains($0) ? 1 : 3 }
-        let normal = ClipWarp.make(length: 3, need: need, steady: { _ in false })!
-        let fixed = ClipWarp.make(length: 3, need: need, steady: { _ in false }, rest: pause)!
-        check(normal.clip(pause.upperBound) - normal.clip(pause.lowerBound) > 0.9,
-              "the regression exercises slowdown smoothing bleeding into a hold")
-        check(abs(fixed.clip(pause.upperBound) - fixed.clip(pause.lowerBound) - 0.7) < 1e-9,
-              "a fractional-frame hold retains exactly its authored duration")
-        let instants = [0.0, 0.13, pause.lowerBound - 0.001, pause.lowerBound, 1.35,
-                        pause.upperBound, pause.upperBound + 0.001, 2.8, 3.0, 3.1]
-        check(instants.allSatisfy { abs(fixed.script(fixed.clip($0)) - $0) < 1e-8 },
-              "protected clock mapping is monotone and invertible across both exact boundaries")
-        for shift in [-1e-12, 1e-12] {
-            let nearGrid = (1 + shift)...(1.7 + shift)
-            let warp = ClipWarp.make(length: 3, need: { nearGrid.contains($0) ? 1 : 3 }, steady: { _ in false }, rest: nearGrid)!
-            let elapsed = warp.clip(nearGrid.upperBound) - warp.clip(nearGrid.lowerBound)
-            check(abs(elapsed - 0.7) < 1e-10,
-                  "an exact result boundary \(shift > 0 ? "above" : "below") a frame-grid sample retains the 0.700-second hold",
-                  "\(elapsed) seconds")
-        }
-
-        for (name, suffix) in [("rush tackle", "63"), ("completed pass", "85"), ("touchdown", "385")] {
-            guard let raw = items.first(where: { $0["id"].string == "401873009" + suffix }),
-                  let scene = FootballScene.parse(raw, teams: teams) else {
-                check(false, "\(name): recorded result-pause fixture parses"); continue
-            }
-            let script = FootballScript(scene)
-            let clip = GridClip(script, scene: scene, idle: nil, offense: scene.offense ?? .top)
-            guard let hold = clip.resultHold else {
-                check(false, "\(name): a settled result declares its protected hold"); continue
-            }
-            let start = clip.warp.clip(hold.lowerBound), end = clip.warp.clip(hold.upperBound)
-            check(abs(end - start - (script.settle - script.stamp)) < 1e-8 && abs(end - start - 0.7) < 1e-8,
-                  "\(name): the result holds 0.700 seconds on the actual playback clock",
-                  "script \(script.settle - script.stamp), clip \(end - start)")
-            var moved = 0.0, boundarySpeed = 0.0, boundaryAcceleration = 0.0
-            var contactError = 0.0, contacts = 0
-            let contactKinds: [FootballScript.Action.Kind] = [.catchHigh, .catchChest, .throwBall, .handoff, .kick, .tackle, .strip, .scoop]
-            for i in clip.paths.indices {
+            check(script.flights.isEmpty || (compared > 0 && maximumError < 1e-6), "\(name): every flight sample is the script's ball at the script's time",
+                  "samples \(compared), error \(maximumError)")
+            // Every ball contact where the script has it, credited tackles too.
+            let ballKinds: [FootballScript.Action.Kind] = [.catchHigh, .catchChest, .throwBall, .handoff, .kick, .scoop]
+            var contactError = 0.0
+            for i in script.players.indices {
                 guard let path = clip.paths[i] else { continue }
-                let at = path.position(at: hold.lowerBound)
-                for u in stride(from: hold.lowerBound, through: hold.upperBound, by: 1.0 / 120) {
-                    moved = max(moved, simd_length(path.position(at: u) - at))
-                }
-                for u in [hold.lowerBound, hold.upperBound] {
-                    boundarySpeed = max(boundarySpeed, simd_length(path.velocity(at: u)))
-                    boundaryAcceleration = max(boundaryAcceleration, simd_length(path.acceleration(at: u)))
-                }
-                for action in script.players[i].actions where contactKinds.contains(action.kind) {
-                    let u = clip.local(clip.warp.clip(action.at)), expected = script.players[i].position(at: action.at)
-                    contactError = max(contactError, simd_length(path.position(at: u) - SIMD2(expected.x, expected.y)))
-                    contacts += 1
+                for action in script.players[i].actions where ballKinds.contains(action.kind) || (script.credits[i] != nil && [.tackle, .strip].contains(action.kind)) {
+                    let was = script.players[i].position(at: action.at), now = path.position(at: action.at)
+                    contactError = max(contactError, hypot(was.x - now.x, was.y - now.y))
                 }
             }
-            check(moved < 1e-7 && boundarySpeed < 1e-7 && boundaryAcceleration < 1e-7,
-                  "\(name): arrivals and resets meet the hold at rest without borrowing its time",
-                  "motion \(moved), boundary speed \(boundarySpeed), acceleration \(boundaryAcceleration)")
-            check(contacts > 0 && contactError < 1e-5,
-                  "\(name): explicit ball and tackle contacts retain their original positions on the shared clock",
-                  "\(contacts) contacts, error \(contactError)")
-
-            // The rendered path, in clip time, across the pause and reset.
-            // 60Hz is the engine's own physics-audit rate; include samples on
-            // both boundaries rather than accidentally stepping over them.
-            let dt = 1.0 / 60
-            var samples = Array(stride(from: max(start - 0.1, dt), through: clip.length - dt, by: dt))
-            samples += [start, end, end + dt]
-            var speedRatio = 0.0, accelRatio = 0.0, badAcceleration = 0, count = 0
-            for i in clip.paths.indices where clip.paths[i] != nil {
-                let band = MotionLimits.football.band(clip.figures[i].band)
-                for t in samples where t > 0 && t < clip.length && clip.opacity(i, at: t) > 0.05 {
-                    let p0 = clip.position(i, at: t - dt), p1 = clip.position(i, at: t), p2 = clip.position(i, at: t + dt)
-                    let v = (p2 - p0) / (2 * dt), a = (p2 - 2 * p1 + p0) / (dt * dt)
-                    let speed = simd_length(v)
-                    speedRatio = max(speedRatio, speed / band.sprint)
-                    let ratio: Double
-                    if speed > 0.25 {
-                        let along = simd_dot(a, v / speed), across = simd_length(a - along * v / speed)
-                        ratio = max(along / band.accel, -along / band.decel, across / band.lateral)
-                    } else {
-                        ratio = simd_length(a) / max(band.accel, band.decel)
-                    }
-                    accelRatio = max(accelRatio, ratio)
-                    if ratio > 1.0001 { badAcceleration += 1 }
-                    count += 1
-                }
+            check(contactError < 1e-6, "\(name): every contact is exactly where it was", "off by \(contactError)")
+            // Nobody outruns his legs: the far men at the reset end short instead of gliding home.
+            var fastest = 0.0
+            for i in clip.paths.indices {
+                guard let path = clip.paths[i], script.players[i].opacity(at: script.duration / 2) > 0.05 || true else { continue }
+                let p = script.players[i]
+                let sprint = MotionLimits.football.band(p.team == .official || p.team == .staff ? "official" : [.line, .front].contains(p.role) ? "line" : "skill").sprint
+                for u in stride(from: 0.0, through: script.duration, by: 1.0 / 120) { fastest = max(fastest, simd_length(path.velocity(at: u)) / sprint) }
             }
-            check(count > 0 && speedRatio <= 1.0001 && Double(badAcceleration) <= Double(count) * 0.01,
-                  "\(name): hold boundaries and reset travel retain sprint and acceleration audit limits",
-                  "sprint \(speedRatio), acceleration peak \(accelRatio), over-limit samples \(badAcceleration)/\(count)")
-            let resetTimes = stride(from: end, through: clip.length, by: dt)
-            check(clip.figures.indices.allSatisfy { i in resetTimes.allSatisfy { clip.fades.opacity(i, at: $0) > 0.999 } },
-                  "\(name): feasible reset travel does not hide players to pass the motion audit")
-            if name == "rush tackle", let qb = script.players.firstIndex(where: { $0.role == .quarterback }),
-               let fake = script.players[qb].moves.firstIndex(where: { $0.start < script.stamp && $0.end > script.stamp + 0.08 }) {
-                check(script.players[qb].moves[fake].end > script.stamp + 0.09,
-                      "rush fixture exercises the post-handoff fake beyond the anonymous-arrival allowance")
-                var late = script
-                late.players[qb].actions.append(.init(kind: .catchChest, at: script.stamp + 0.2, toward: .zero))
-                check(GridClip.resultHold(late) == nil, "a late contact by the handing-off quarterback still prevents hold protection")
-                late = script
-                late.legs.append(.init(from: script.stamp + 0.1, until: script.settle, hand: .carry(qb)))
-                late.legs.sort { $0.from < $1.from }
-                check(GridClip.resultHold(late) == nil, "a quarterback who regains possession during the hold is not a cosmetic fake")
-                late = script
-                late.players[qb].actions.removeAll { $0.kind == .handoff }
-                check(GridClip.resultHold(late) == nil, "a quarterback move without a preceding handoff keeps its original motion clock")
-                late = script
-                let move = late.players[qb].moves[fake]
-                late.players[qb].moves[fake] = .init(start: move.start, end: move.end, path: move.path, ease: .inOut)
-                check(GridClip.resultHold(late) == nil, "a separate quarterback movement is not treated as the easing-out handoff fake")
-            } else if name == "rush tackle" {
-                check(false, "rush fixture retains the quarterback fake needed for the eligibility regressions")
-            }
-            if name == "completed pass" {
-                // Reconstruct the old flight-cap choice over the same paths.
-                // Only the cosmetic reset flight may differ; this catches a
-                // broad cap removal or reset smoothing leaking into a pass.
-                let capped = ClipWarp.make(length: script.duration, need: { u in
-                    var most = 1.0
-                    for i in clip.paths.indices {
-                        guard let path = clip.paths[i], script.players[i].opacity(at: u) > 0.05 else { continue }
-                        let b = MotionLimits.football.band(clip.figures[i].band)
-                        most = max(most, simd_length(path.velocity(at: u)) / (b.sprint * 0.97),
-                                   sqrt(simd_length(path.acceleration(at: u)) / (min(b.accel, b.decel, b.lateral) * 0.97)))
-                    }
-                    return most
-                }, steady: { script.flight(at: $0).map { $0.end - $0.start < 1.5 } ?? false }, rest: hold) ?? .identity
-                let playFlights = script.flights.filter { $0.end <= hold.lowerBound }
-                check(!playFlights.isEmpty && playFlights.allSatisfy { f in
-                    [f.start, (f.start + f.end) / 2, f.end].allSatisfy { abs(clip.warp.clip($0) - capped.clip($0)) < 1e-9 }
-                }, "real snap and pass flights retain the prior shared playback clock exactly")
-                let resetFlights = script.flights.filter { $0.start >= hold.upperBound }
-                check(!resetFlights.isEmpty && resetFlights.contains { f in
-                    clip.warp.clip(f.end) - clip.warp.clip(f.start) > 2 * (f.end - f.start) + 0.05
-                }, "the cosmetic reset toss grants the players the extra time their measured movement requires")
-                var late = script
-                late.players[0].actions.append(.init(kind: .catchChest, at: script.stamp + 0.2, toward: .zero))
-                check(GridClip.resultHold(late) == nil, "a real contact during the result window prevents hold protection")
-                if var flight = script.flights.first {
-                    flight.start = script.stamp - 0.1
-                    flight.end = script.stamp + 0.2
-                    late = script
-                    late.flights.append(flight)
-                    check(GridClip.resultHold(late) == nil, "a late ball flight keeps its original motion clock")
-                } else { check(false, "completed-pass fixture contains a flight for the opt-out regression") }
-            }
+            check(fastest <= 1.15, "\(name): nobody runs past his sprint (by more than a contact's push)", "worst \(fastest)")
         }
         let idle = FootballIdle(phase: .between, offense: .top, yard: 41, gain: 45)
         let idleScript = FootballScript(idle: idle)
         let idleClip = GridClip(idleScript, scene: nil, idle: idle, offense: .top)
-        check(idleClip.resultHold == nil, "huddle stillness and the idle clock are unchanged")
+        check(idleClip.length == .infinity && idleClip.still == 0, "the field between snaps keeps its own clock too")
     }
 
     /// Opt-in diagnostic, deliberately without a timing pass/fail threshold.

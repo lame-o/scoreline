@@ -26,11 +26,6 @@ struct PitchClip: TheaterClip, @unchecked Sendable {
     let essential: Double
     /// Each figure's path re-made through the motion layer (ClipPaths).
     let paths: [MotionPath?]
-    /// A moment's own time stretched where it asked too much of anyone (ClipWarp).
-    let warp: ClipWarp
-    /// Loop bounds in clip time, resolved once rather than per actor per baked sample.
-    private let loopTiming: (start: Double, period: Double)?
-    private let localEnd: Double
     /// The men who still can't make it, faded through (ClipFades).
     let fades: ClipFades
 
@@ -50,53 +45,34 @@ struct PitchClip: TheaterClip, @unchecked Sendable {
                               band: a.team == .official || a.team == .staff ? "official" : a.role == .keeper ? "keeper" : "outfield", height: 2.5)
         }
         let bands = figures.map { MotionLimits.soccer.band($0.band) }
-        // The ball going round loops: its paths aren't re-timed (a run would straddle the loop's seam); the warp slows them.
-        let paths = script.actors.indices.map { i -> MotionPath? in
+        // The ball going round loops: a man's moments at the loop's seam stay where they are, so its ends meet.
+        let seams = script.loop.map { [$0.start, $0.start + $0.period] } ?? []
+        paths = script.actors.indices.map { i -> MotionPath? in
             let a = script.actors[i]
             // A keeper's dive is the script's own (his hands go exactly to the ball): his path stays the script's throughout.
             guard a.dive == nil else { return nil }
             let contacts = a.actions.filter { [.kick, .header, .control, .throwIn, .gather, .aerial, .punch, .claim].contains($0.kind) }
-            return ClipPaths.resynthesized(a.moves, contacts: contacts.map(\.at), band: bands[i], span: 0...max(script.duration, 0),
-                                           retime: idle == nil) { a.position(at: $0) }
-        }
-        self.paths = paths
-        let warp = ClipWarp.make(length: script.duration, need: { u in
-            var most = 1.0
-            for i in paths.indices {
-                guard let path = paths[i], script.actors[i].opacity(at: u) > 0.05, script.actors[i].dive.map({ u < $0.start }) ?? true else { continue }
-                let b = bands[i]
-                most = max(most, simd_length(path.velocity(at: u)) / (b.sprint * 0.97),
-                           (simd_length(path.acceleration(at: u)) / (min(b.accel, b.decel, b.lateral) * 0.97)).squareRoot())
+            return ClipPaths.resynthesized(a.moves, contacts: contacts.map(\.at), band: bands[i], span: 0...max(script.duration, 0), seams: seams) {
+                a.position(at: $0)
             }
-            return most
-        }, steady: { u in script.flights.contains { u > $0.start && u < $0.end && $0.end - $0.start < 1.5 } }) ?? .identity
-        self.warp = warp
-        localEnd = warp.clip(script.duration)
-        if let loop = script.loop, loop.period > 0 {
-            let start = warp.clip(loop.start)
-            loopTiming = (start, warp.clip(loop.start + loop.period) - start)
-        } else {
-            loopTiming = nil
         }
-        length = idle == nil ? (warp.isIdentity ? script.duration : warp.stretched) : .infinity
-        // Whoever still can't make a moment's run, even slowed, fades through it (declared, counted).
-        fades = idle != nil ? .none : ClipFades.make(figures: paths.count, length: warp.isIdentity ? script.duration : warp.stretched, bands: bands) { i, t in
-            guard let path = paths[i], script.actors[i].dive.map({ warp.script(t) < $0.start }) ?? true else { return 0 }
-            let rate = (warp.script(t + 0.004) - warp.script(t - 0.004)) / 0.008
-            return simd_length(path.velocity(at: warp.script(t))) * rate
+        length = idle == nil ? script.duration : .infinity
+        // Whoever still can't make a moment's run fades through it (declared, counted).
+        let paths = paths
+        fades = idle != nil ? .none : ClipFades.make(figures: paths.count, length: script.duration, bands: bands) { i, t in
+            guard let path = paths[i], script.actors[i].dive.map({ t < $0.start }) ?? true else { return 0 }
+            return simd_length(path.velocity(at: t))
         }
-        still = idle == nil ? warp.clip(script.leadIn) : 0
-        decisive = idle == nil ? warp.clip(script.impacts.first { $0.kind == .net }?.at ?? script.arrive) : nil
+        still = idle == nil ? script.leadIn : 0
+        decisive = idle == nil ? (script.impacts.first { $0.kind == .net }?.at ?? script.arrive) : nil
         essential = idle == nil ? min(length, (decisive ?? 0) + 1.5) : 0
     }
 
-    /// The script's time at the clip's time `t`: a moment holds its end; the ball going round loops (in its stretched time).
+    /// The script's time at the clip's time `t`: a moment holds its end; the ball going round loops.
     func local(_ t: Double) -> Double {
-        guard kind == .idle else { return min(max(warp.script(t), 0), script.duration) }
-        guard let (start, period) = loopTiming, period > 0, t > start + period else {
-            return warp.script(min(max(t, 0), localEnd))
-        }
-        return warp.script(start + (t - start).truncatingRemainder(dividingBy: period))
+        guard kind == .idle else { return min(max(t, 0), script.duration) }
+        guard let loop = script.loop, loop.period > 0, t > loop.start + loop.period else { return min(max(t, 0), script.duration) }
+        return loop.start + (t - loop.start).truncatingRemainder(dividingBy: loop.period)
     }
 
     var ambient: Bool { kind == .idle }

@@ -93,25 +93,28 @@ struct MotionLimits: Equatable, Sendable {
     /// The fastest anyone may go at all (the hard-cut threshold's scale).
     var fastest: Double { bands.values.map { $0.sprint * (1 + $0.overspeed) }.max() ?? 0 }
 
-    // The tables (all tune; drawn heights read ~20% faster on screen than court feet).
+    // The tables (all tune; drawn heights read ~20% faster on screen than court feet). Speed is the limit people can
+    // see. The pushes are what looks right for athletes in a scripted animation, read off what they do: an NFL receiver
+    // takes about 3 s to reach his top speed, but his first steps are explosive (about 1 g, and 40-yard splits put him
+    // past 25 ft/s by 10 yards); stopping and cutting are harder than starting.
 
     static let basketball = MotionLimits(bands: [
-        "guard": Band(walk: 4.5, jog: 10, run: 16, sprint: 25, overspeed: 0.12, overspeedFor: 0.6, accel: 20, decel: 26, lateral: 18),
-        "wing": Band(walk: 4.5, jog: 10, run: 16, sprint: 25, overspeed: 0.12, overspeedFor: 0.6, accel: 20, decel: 26, lateral: 18),
-        "big": Band(walk: 4.5, jog: 10, run: 16, sprint: 22, overspeed: 0.12, overspeedFor: 0.6, accel: 20, decel: 26, lateral: 18),
-        "official": Band(walk: 4.5, jog: 10, run: 16, sprint: 22, overspeed: 0.12, overspeedFor: 0.6, accel: 20, decel: 26, lateral: 18),
+        "guard": Band(walk: 4.5, jog: 10, run: 16, sprint: 25, overspeed: 0.12, overspeedFor: 0.6, accel: 30, decel: 36, lateral: 32),
+        "wing": Band(walk: 4.5, jog: 10, run: 16, sprint: 25, overspeed: 0.12, overspeedFor: 0.6, accel: 30, decel: 36, lateral: 32),
+        "big": Band(walk: 4.5, jog: 10, run: 16, sprint: 22, overspeed: 0.12, overspeedFor: 0.6, accel: 26, decel: 32, lateral: 28),
+        "official": Band(walk: 4.5, jog: 10, run: 16, sprint: 22, overspeed: 0.12, overspeedFor: 0.6, accel: 26, decel: 32, lateral: 28),
     ], bodyRadius: 1.0, cruiseOver: 12, standard: "wing")
 
     static let football = MotionLimits(bands: [
-        "skill": Band(walk: 4.5, jog: 10, run: 20, sprint: 32, overspeed: 0.10, overspeedFor: 0.8, accel: 22, decel: 28, lateral: 20),
-        "line": Band(walk: 4.5, jog: 10, run: 20, sprint: 24, overspeed: 0.10, overspeedFor: 0.8, accel: 22, decel: 28, lateral: 20),
-        "official": Band(walk: 4.5, jog: 10, run: 20, sprint: 24, overspeed: 0.10, overspeedFor: 0.8, accel: 22, decel: 28, lateral: 20),
+        "skill": Band(walk: 4.5, jog: 10, run: 20, sprint: 32, overspeed: 0.10, overspeedFor: 0.8, accel: 34, decel: 40, lateral: 44),
+        "line": Band(walk: 4.5, jog: 10, run: 20, sprint: 24, overspeed: 0.10, overspeedFor: 0.8, accel: 28, decel: 34, lateral: 36),
+        "official": Band(walk: 4.5, jog: 10, run: 20, sprint: 24, overspeed: 0.10, overspeedFor: 0.8, accel: 28, decel: 34, lateral: 36),
     ], bodyRadius: 1.0, cruiseOver: 20, standard: "skill")
 
     static let soccer = MotionLimits(bands: [
-        "outfield": Band(walk: 1.4, jog: 3.5, run: 6.0, sprint: 9.0, overspeed: 0.10, overspeedFor: 0.8, accel: 6.0, decel: 7.5, lateral: 5.5),
-        "keeper": Band(walk: 1.4, jog: 3.5, run: 6.0, sprint: 7.5, overspeed: 0.10, overspeedFor: 0.8, accel: 6.0, decel: 7.5, lateral: 5.5),
-        "official": Band(walk: 1.4, jog: 3.5, run: 6.0, sprint: 7.5, overspeed: 0.10, overspeedFor: 0.8, accel: 6.0, decel: 7.5, lateral: 5.5),
+        "outfield": Band(walk: 1.4, jog: 3.5, run: 6.0, sprint: 9.0, overspeed: 0.10, overspeedFor: 0.8, accel: 8.0, decel: 9.0, lateral: 8.0),
+        "keeper": Band(walk: 1.4, jog: 3.5, run: 6.0, sprint: 7.5, overspeed: 0.10, overspeedFor: 0.8, accel: 8.0, decel: 9.0, lateral: 8.0),
+        "official": Band(walk: 1.4, jog: 3.5, run: 6.0, sprint: 7.5, overspeed: 0.10, overspeedFor: 0.8, accel: 6.5, decel: 8.0, lateral: 7.0),
     ], bodyRadius: 0.35, cruiseOver: 6, standard: "outfield")
 
     /// Baseball keeps today's approved compressed play pace (§11.4): its limits scale by the pace factor.
@@ -121,9 +124,9 @@ struct MotionLimits: Equatable, Sendable {
                  overspeedFor: b.overspeedFor, accel: b.accel * pace * pace, decel: b.decel * pace * pace, lateral: b.lateral * pace * pace)
         }
         return MotionLimits(bands: [
-            "runner": scaled(Band(walk: 4.5, jog: 10, run: 20, sprint: 28, overspeed: 0, overspeedFor: 0, accel: 20, decel: 24, lateral: 16)),
-            "fielder": scaled(Band(walk: 4.5, jog: 10, run: 20, sprint: 27, overspeed: 0, overspeedFor: 0, accel: 20, decel: 24, lateral: 16)),
-            "official": scaled(Band(walk: 4.5, jog: 10, run: 20, sprint: 27, overspeed: 0, overspeedFor: 0, accel: 20, decel: 24, lateral: 16)),
+            "runner": scaled(Band(walk: 4.5, jog: 10, run: 20, sprint: 28, overspeed: 0, overspeedFor: 0, accel: 30, decel: 36, lateral: 32)),
+            "fielder": scaled(Band(walk: 4.5, jog: 10, run: 20, sprint: 27, overspeed: 0, overspeedFor: 0, accel: 30, decel: 36, lateral: 32)),
+            "official": scaled(Band(walk: 4.5, jog: 10, run: 20, sprint: 27, overspeed: 0, overspeedFor: 0, accel: 26, decel: 32, lateral: 28)),
         ], bodyRadius: 1.0, cruiseOver: 20, standard: "fielder")
     }
 }
