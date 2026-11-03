@@ -498,8 +498,26 @@ struct FootballFrame: View, Equatable {
         let index: Int
         let figure: RigFigure
         let opacity: Double
-        var ball: CGPoint? = nil
+        var ball: Held? = nil
         var ghost = false
+    }
+
+    /// The ball in a man's hands: where, pointed the way he faces on screen,
+    /// and how much of its length shows (all of it broadside, less end on).
+    struct Held {
+        var point: CGPoint
+        var angle = 0.0
+        var length: CGFloat = 1
+    }
+
+    /// The way a man faces on screen, for the ball he carries: forward is his
+    /// +x turned by his heading, drawn through his lens; foreshortened to as
+    /// little as 0.7 of its length when he runs at the camera or away.
+    static func facing(_ heading: Double, lens: RigLens) -> (angle: Double, length: CGFloat) {
+        let c = cos(heading), s = sin(heading)
+        let v = CGVector(dx: lens.x.dx * c + lens.y.dx * s, dy: lens.x.dy * c + lens.y.dy * s)
+        let broadside = min(max((hypot(v.dx, v.dy) / (lens.height / 1.1) - 0.5) / 0.5, 0), 1)
+        return (atan2(v.dy, v.dx), 0.7 + 0.3 * broadside)
     }
 
     /// Everyone on the field at t, far to near: a player in front covers the
@@ -542,7 +560,7 @@ struct FootballFrame: View, Equatable {
                 guard o > 0.01 else { return nil }
                 let figure = RigFigure(body, heading: heading, lens: lens)
                 // Carried: in both hands at the chest, or the tucking hand; from where it came, into them.
-                var ball: CGPoint?
+                var ball: Held?
                 if let carry = script.carrier(at: t), carry.player == index, let spot = script.ball(at: t) {
                     let held = Rig.smooth((t - carry.from) / 0.15) * (carry.until.isFinite ? Rig.smooth((carry.until - t) / 0.15) : 1)
                     let tucked = player.role == .quarterback ? Rig.smooth((script.rig[index].motion(at: t).speed - 1.5) / 1) : 1
@@ -554,7 +572,9 @@ struct FootballFrame: View, Equatable {
                     // Cocked to throw: in the throwing hand, back by his ear.
                     let cocked = Self.cocked(player, at: t, pace: script.pace)
                     hold = CGPoint(x: hold.x + (throwing.x - hold.x) * cocked, y: hold.y + (throwing.y - hold.y) * cocked)
-                    ball = CGPoint(x: loose.x + (hold.x - loose.x) * held, y: loose.y + (hold.y - loose.y) * held)
+                    let way = Self.facing(heading, lens: lens)
+                    ball = Held(point: CGPoint(x: loose.x + (hold.x - loose.x) * held, y: loose.y + (hold.y - loose.y) * held),
+                                angle: way.angle, length: way.length)
                 }
                 return Posed(index: index, figure: figure, opacity: o, ball: ball)
             }
@@ -565,12 +585,13 @@ struct FootballFrame: View, Equatable {
         world.figures.sorted { Gridiron.view($0.at, yaw: f.yaw).y > Gridiron.view($1.at, yaw: f.yaw).y }.map { w in
             let lens = RigLens(f, at: w.at)
             let figure = RigFigure(w.body, heading: w.heading, lens: lens)
-            var ball: CGPoint?
+            var ball: Held?
             if w.holds {
                 let grip = figure.grip, tuck = figure.hands.0, throwing = figure.hands.1
                 var hold = CGPoint(x: grip.x + (tuck.x - grip.x) * w.tucked, y: grip.y + (tuck.y - grip.y) * w.tucked)
                 hold = CGPoint(x: hold.x + (throwing.x - hold.x) * w.cocked, y: hold.y + (throwing.y - hold.y) * w.cocked)
-                ball = hold
+                let way = Self.facing(w.heading, lens: lens)
+                ball = Held(point: hold, angle: way.angle, length: way.length)
             }
             return Posed(index: w.index, figure: figure, opacity: w.opacity, ball: ball)
         }
@@ -715,62 +736,90 @@ struct FootballFrame: View, Equatable {
 
     // MARK: Ball
 
-    /// A football: a brown oval along its flight in a soft glow, a comet tail
-    /// while it's in the air, in his hands while he has it, its shadow on
-    /// the grass (with the shadows).
-    private func drawBall(_ context: inout GraphicsContext, _ f: GridProjection, held: CGPoint?) {
+    /// A football: pointed leather lit from above, its laces on top, ringed
+    /// dark then light so it reads on grass and on any jersey; lifted off the
+    /// man who carries it by a small shadow and pointed the way he runs; a
+    /// comet tail and a soft glow while it flies; its shadow on the grass
+    /// (with the shadows).
+    private func drawBall(_ context: inout GraphicsContext, _ f: GridProjection, held: Held?) {
         guard let ball = ballSpot(f, held: held) else { return }
         let p = ball.point, r = ball.radius
         if let trail = ball.trail {
             TheaterDraw.trail(trail, from: p, radius: r * 0.8, color: ink.ball, in: context)
-            TheaterDraw.glow(at: p, radius: r, color: ink.glow, in: context)
-        } else if t < script.settle {
-            TheaterDraw.glow(at: p, radius: r * 0.8, color: ink.glow.opacity(0.7), in: context)
+            TheaterDraw.glow(at: p, radius: r * 0.7, color: ink.glow, in: context)
+        }
+        // End for end it's the same ball: kept within a half turn, so the light stays on top.
+        let angle = remainder(ball.angle, .pi)
+        let leather = Self.leather(r, length: ball.length)
+        let a = r * 1.5 * ball.length, b = r * 0.9
+        if held != nil, ball.trail == nil {
+            var lift = context
+            lift.translateBy(x: p.x, y: p.y + max(r * 0.35, 0.8))
+            lift.rotate(by: .radians(angle))
+            lift.fill(leather, with: .color(.black.opacity(ink.dark ? 0.45 : 0.25)))
         }
         var layer = context
         layer.translateBy(x: p.x, y: p.y)
-        layer.rotate(by: .radians(ball.angle))
-        let oval = Self.oval(r)
-        layer.fill(Path(ellipseIn: oval.insetBy(dx: -0.6, dy: -0.6)), with: .color(ink.ballEdge))
-        layer.fill(Path(ellipseIn: oval), with: .color(Color(hue: 0.06, saturation: 0.62, brightness: ink.dark ? 0.72 : 0.55)))
-        if r > 2.6 {
-            var laces = Path()
-            laces.move(to: CGPoint(x: -r * 0.5, y: 0))
-            laces.addLine(to: CGPoint(x: r * 0.5, y: 0))
-            layer.stroke(laces, with: .color(.white.opacity(0.85)), lineWidth: max(r * 0.18, 0.6))
+        layer.rotate(by: .radians(angle))
+        layer.stroke(leather, with: .color(.white.opacity(ink.dark ? 0.4 : 0.9)), lineWidth: 2)
+        layer.stroke(leather, with: .color(.black.opacity(ink.dark ? 0.6 : 0.5)), lineWidth: 0.9)
+        let lit = Color(hue: 0.07, saturation: 0.55, brightness: ink.dark ? 0.86 : 0.68)
+        let shade = Color(hue: 0.045, saturation: 0.7, brightness: ink.dark ? 0.52 : 0.38)
+        layer.fill(leather, with: .linearGradient(Gradient(colors: [lit, shade]), startPoint: CGPoint(x: 0, y: -b), endPoint: CGPoint(x: 0, y: b)))
+        // The laces along the top, stitched: a bare line would read as a minus sign.
+        let y = -b * 0.3
+        var laces = Path(), stitches = Path()
+        laces.move(to: CGPoint(x: -a * 0.32, y: y))
+        laces.addLine(to: CGPoint(x: a * 0.32, y: y))
+        for k in -1...1 {
+            let x = a * 0.21 * Double(k)
+            stitches.move(to: CGPoint(x: x, y: y - b * 0.28))
+            stitches.addLine(to: CGPoint(x: x, y: y + b * 0.28))
         }
+        layer.stroke(laces, with: .color(.white.opacity(0.92)), style: StrokeStyle(lineWidth: max(r * 0.13, 0.5), lineCap: .round))
+        layer.stroke(stitches, with: .color(.white.opacity(0.92)), style: StrokeStyle(lineWidth: max(r * 0.1, 0.45), lineCap: .round))
     }
 
     /// Where the ball is drawn at t: in his hands or along its flight, how
     /// big (a touch larger than life, as the baseball is: it's what the eye
-    /// follows), the way it points (along its flight) and its tail while it flies.
-    private func ballSpot(_ f: GridProjection, held: CGPoint?) -> (point: CGPoint, radius: CGFloat, angle: Double, trail: [CGPoint]?)? {
+    /// follows), the way it points (the way he faces, or along its flight),
+    /// how much of its length shows, and its tail while it flies.
+    private func ballSpot(_ f: GridProjection, held: Held?) -> (point: CGPoint, radius: CGFloat, angle: Double, length: CGFloat, trail: [CGPoint]?)? {
+        let r = min(max(0.5 * f.scale, 2.2), max(f.figure * 0.115, 2.2))
+        func flying(_ p: CGPoint) -> (point: CGPoint, radius: CGFloat, angle: Double, length: CGFloat, trail: [CGPoint]?)? {
+            guard let flight = script.flight(at: t) else { return nil }
+            let trail = (1...6).map { f.point(flight.point(at: max(t - Double($0) * 0.014, flight.start))) }
+            let angle = trail.first.map { hypot($0.x - p.x, $0.y - p.y) > 0.3 ? atan2(p.y - $0.y, p.x - $0.x) : 0 } ?? 0
+            return (p, r, angle, 1, trail)
+        }
         if let world {
-            let r = min(max(0.55 * f.scale, 2.2), max(f.figure * 0.13, 2.2))
             switch world.ball {
-            case .held?: return held.map { ($0, r, 0, nil) }
-            case let .free(ball, flying)?:
+            case .held?: return held.map { ($0.point, r, $0.angle, $0.length, nil) }
+            case let .free(ball, isFlying)?:
                 let p = f.point(ball)
-                guard flying, let flight = script.flight(at: t) else { return (p, r, 0, nil) }
-                let trail = (1...6).map { f.point(flight.point(at: max(t - Double($0) * 0.014, flight.start))) }
-                let angle = trail.first.map { hypot($0.x - p.x, $0.y - p.y) > 0.3 ? atan2(p.y - $0.y, p.x - $0.x) : 0 } ?? 0
-                return (p, r, angle, trail)
+                return (isFlying ? flying(p) : nil) ?? (p, r, 0, 1, nil)
             case nil: return nil
             }
         }
         guard let ball = script.ball(at: t) else { return nil }
-        var p = held ?? f.point(ball)
+        var p = held?.point ?? f.point(ball)
         // Mid-bridge, from where the idle had it (on the spot, on the tee) to the replay's.
         if let b = bridge, let from = b.script.ball(at: b.t) { p = TheaterBridge.mix(f.point(from), p, b.w) }
-        let r = min(max(0.55 * f.scale, 2.2), max(f.figure * 0.13, 2.2))
-        guard let flight = script.flight(at: t) else { return (p, r, 0, nil) }
-        let trail = (1...6).map { f.point(flight.point(at: max(t - Double($0) * 0.014, flight.start))) }
-        let angle = trail.first.map { hypot($0.x - p.x, $0.y - p.y) > 0.3 ? atan2(p.y - $0.y, p.x - $0.x) : 0 } ?? 0
-        return (p, r, angle, trail)
+        return flying(p) ?? (p, r, held?.angle ?? 0, held?.length ?? 1, nil)
     }
 
-    /// The ball's oval round its middle, `r` its size, along its way.
-    static func oval(_ r: CGFloat) -> CGRect { CGRect(x: -r * 1.45, y: -r * 0.92, width: r * 2.9, height: r * 1.84) }
+    /// The ball's outline round its middle, pointed at both ends: `r` its
+    /// size, `length` how much of it shows (1 broadside, less end on).
+    static func leather(_ r: CGFloat, length: CGFloat = 1) -> Path {
+        let a = r * 1.5 * length, b = r * 0.9
+        // Cubics whose middle bulges to exactly b: the controls at 4/3 of it.
+        var path = Path()
+        path.move(to: CGPoint(x: -a, y: 0))
+        path.addCurve(to: CGPoint(x: a, y: 0), control1: CGPoint(x: -a * 0.35, y: -b * 4 / 3), control2: CGPoint(x: a * 0.35, y: -b * 4 / 3))
+        path.addCurve(to: CGPoint(x: -a, y: 0), control1: CGPoint(x: a * 0.35, y: b * 4 / 3), control2: CGPoint(x: -a * 0.35, y: b * 4 / 3))
+        path.closeSubpath()
+        return path
+    }
 
     // MARK: Beats
 
@@ -847,7 +896,7 @@ struct FootballFrame: View, Equatable {
 
     /// The names round the players, drawn under them and the ball, clear of the headline and the stamp while they're up;
     /// the raised ones' stems, to draw with their men.
-    private func drawTags(_ context: GraphicsContext, _ f: GridProjection, _ figures: [Posed], held: CGPoint?) -> [Int: [TheaterTags.Stem]] {
+    private func drawTags(_ context: GraphicsContext, _ f: GridProjection, _ figures: [Posed], held: Held?) -> [Int: [TheaterTags.Stem]] {
         var clear: [CGRect] = []
         if let banner = script.banner, t >= banner.at, t < banner.until + 0.3, let symbol = context.resolveSymbol(id: Symbol.banner) {
             clear.append(TheaterTagLayout.banner(symbol.size, in: f.size))
@@ -856,7 +905,7 @@ struct FootballFrame: View, Equatable {
             clear.append(TheaterTagLayout.stamp(symbol.size, in: f.size, inset: TheaterType.inset(f.size)))
         }
         let ball = ballSpot(f, held: held).map { b in
-            TheaterTags.Ball(shape: Path(ellipseIn: Self.oval(b.radius).insetBy(dx: -0.6, dy: -0.6))
+            TheaterTags.Ball(shape: Self.leather(b.radius + 1, length: b.length)
                                 .applying(CGAffineTransform(rotationAngle: b.angle).concatenating(CGAffineTransform(translationX: b.point.x, y: b.point.y))),
                              height: f.f.figure)
         }
