@@ -40,6 +40,7 @@ import { at, int, str, type JSONValue } from "../json";
 import type { LiveMoment } from "../moments";
 import { withChanges, type EventState, type GameClock, type ScoreEvent } from "../models";
 import type { OddsBasis } from "../odds/espn";
+import { clippedPeriods, shownUntil } from "../odds/history";
 import { behindFromClock, type BehindLive } from "./behindLive";
 import { BroadcastEngine, EMPTY_SNAPSHOT, type TimelineSnapshot } from "./engine";
 import { broadcastSport, plateTimes, policy as sportPolicy, readingFromEvent, readingFromStatus, timed, entries as laneEntries, type BroadcastSport } from "./lanes";
@@ -668,6 +669,12 @@ export class Broadcast implements BroadcastTheaterSource {
     }
     const [top, draw] = this.win(d);
     out = { ...out, topWinProbability: top, drawProbability: draw, odds: presentedOdds(d.odds, p) };
+    if (d.history) {
+      // The timeline's events up to p. A theater anchor can intentionally tell a play after its provider
+      // timestamp: matching the other page modules also honors that hold.
+      const history = shownUntil(d.history, p * 1000);
+      out = { ...out, history: { ...history, events: history.events.filter((e) => this.shows(e.id)) } };
+    }
     if (d.linescore) out = { ...out, linescore: this.linescore(d.linescore, held.detail?.linescore ?? null) };
     this.memo = { key, input: d, detail: out };
     return out;
@@ -848,17 +855,17 @@ export class Broadcast implements BroadcastTheaterSource {
   }
 }
 
-/** The odds chart's ESPN side up to p (seconds): its model's points and the plays, by event time; the periods clipped there. */
+/** The odds chart's ESPN side up to p (seconds): its model's points and the plays, by event time; the periods clipped there (`MatchHistory.clipped`). */
 export function presentedOdds(basis: OddsBasis, p: PTime): OddsBasis {
   const until = p * 1000;
-  const periods = basis.periods.filter((x) => x.t <= until).map((x) => ({ ...x, end: Math.min(x.end, until) }));
+  const plays = basis.plays.filter((x) => x.t <= until);
   return {
     ...basis,
     win: basis.win.filter((x) => x.t <= until),
-    plays: basis.plays.filter((x) => x.t <= until),
-    periods,
-    start: basis.start != null && basis.start <= until ? basis.start : null,
-    end: basis.end != null && basis.start != null && basis.start <= until ? Math.min(basis.end, until) : null,
+    plays,
+    periods: clippedPeriods(basis.periods, until),
+    start: plays[0]?.t ?? null,
+    end: plays.at(-1)?.t ?? null,
   };
 }
 

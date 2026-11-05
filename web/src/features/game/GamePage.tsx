@@ -34,6 +34,8 @@ import { DockedScorebar } from "./core/DockedScorebar";
 import { usePageGeometry, useRemeasure, useSurface } from "./core/geometry";
 import { Hero, HeroSkeleton, HeroWash } from "./core/Hero";
 import { LinkedFocusProvider, LinkedFocusStore } from "./core/linked";
+import { PointerProvider } from "./core/odds/inspection";
+import { OddsPointer } from "../../data/odds/pointer";
 import { PageReplays, ReplaysProvider } from "./core/replay/pageReplays";
 import { MomentProvider, useCurrentMoment, useMomentSlot } from "./core/moments";
 import { useHeaderLedger, useHeaderSync } from "./core/headerSync";
@@ -126,6 +128,8 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   const slides = useScoringSlides(moments);
   const linked = useMemo(() => new LinkedFocusStore(), []);
   useEffect(() => () => linked.dispose(), [linked]);
+  // The moment the timeline and Win Probability read (DetailView's `matchInspection`), one per page.
+  const pointer = useMemo(() => new OddsPointer(), []);
   const inner = useRef<HTMLDivElement>(null);
   const width = useWidth(inner, 400);
   const [columns, setColumns] = useState(false);
@@ -144,20 +148,21 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   const sounds = useSettings((s) => soundsEnabled(s));
   useEffect(() => (sounds ? listenForUnlock() : undefined), [sounds]);
 
-  // Esc first closes an open replay and drops a pin (both in one press) before it goes back (DetailView.back).
+  // Esc first closes an open replay and drops a pin (both in one press), then lets go of a held reading or a
+  // zoom, before it goes back (DetailView.back: `linked.unpin() || closed || matchInspection.back(linked)`).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       const closed = replays.close();
       const unpinned = linked.unpin();
-      if (closed || unpinned) {
+      if (unpinned || closed || pointer.back(linked)) {
         e.preventDefault();
         e.stopImmediatePropagation();
       }
     };
     window.addEventListener("keydown", onKey, { capture: true });
     return () => window.removeEventListener("keydown", onKey, { capture: true });
-  }, [linked, replays]);
+  }, [linked, replays, pointer]);
 
   const palette: TeamPalette = useMemo(
     () =>
@@ -180,6 +185,7 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
       onPointerLeave={() => linked.clear()}
     >
       <LinkedFocusProvider store={linked}>
+        <PointerProvider pointer={pointer}>
         <MomentProvider slot={moments}>
           <div className={styles.washSlot}>
             <HeroWash palette={event.content.kind === "match" ? palette : fieldWash} intensity={event.content.kind === "match" ? 1 : 0.85} crossfade={event.content.kind === "field"} pulses={beats.washPulses} side={beats.washSide} />
@@ -201,6 +207,7 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
             </SlidesProvider>
           </div>
         </MomentProvider>
+        </PointerProvider>
       </LinkedFocusProvider>
     </article>
   );

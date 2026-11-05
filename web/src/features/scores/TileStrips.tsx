@@ -249,6 +249,12 @@ export function soccerMinute(event: ScoreEvent): number | null {
 
 const markKey = (m: MatchMark) => `${m.kind}-${m.minute}-${m.side ?? "none"}`;
 
+/**
+ * The match on one line: time played filled to now, half-time marked, each
+ * team's goals in its own lane, red cards in the offender's lane: the game
+ * page's `MatchTimeline` in miniature (TileStrips.swift, fdae434), on match
+ * minutes always (a tile has no wall clock to share).
+ */
 function GoalTrack({ marks, minute, palette }: { marks: readonly MatchMark[]; minute: number | null; palette: TeamPalette }) {
   // The marks already drawn; a new one arrives like a badge, and a goal pings in its team's color.
   const seen = useRef<Set<string> | null>(null);

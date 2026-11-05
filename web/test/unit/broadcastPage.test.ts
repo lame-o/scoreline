@@ -13,7 +13,7 @@ import { Broadcast } from "../../src/data/broadcast/broadcast";
 import { behindFromClock, behindLive } from "../../src/data/broadcast/behindLive";
 import { entries, isHeldUp, liveState, policy as sportPolicy, stoppage } from "../../src/data/broadcast/lanes";
 import { footballPossession, footballSituation } from "../../src/data/broadcast/presentFootball";
-import { oddsSchedule, shownUntil } from "../../src/data/broadcast/presentOdds";
+import { BEAT_MS, nextRedraw, oddsSchedule, shownUntil } from "../../src/data/broadcast/presentOdds";
 import { PresentationClock } from "../../src/data/broadcast/presentationClock";
 import { isInterval, NOTHING_PRESENTED, noteOf, presentedStatus, stoppageOf, type PresentedGame } from "../../src/data/broadcast/presentedGame";
 import { parseEventTime, Stoppages, stoppageWords, type PTime } from "../../src/data/broadcast/timeline";
@@ -162,6 +162,10 @@ describe("Broadcast: the page", () => {
     expect(shownUntil(points, p).map((x) => x.p), "at p (950) only the tick from before it shows").toEqual([0.5]);
     const schedule = oddsSchedule(ticks, c, 1_000_000);
     expect(schedule.length === 3 && Math.abs(schedule[1]! - 1_005_010) < 1e-3 && Math.abs(schedule[2]! - 1_040_010) < 1e-3, `the chart redraws when p reaches each tick (scheduled, not polled): ${schedule}`).toBe(true);
+    // OddsSection.schedule(feed:clock:now:): the next tick reached, or the 15 s beat that keeps the now line moving in a quiet market.
+    expect(Math.abs(nextRedraw(ticks, c, 1_000_000) - 1_005_010), "the next tick reached comes first").toBeLessThan(1e-3);
+    expect(nextRedraw([], c, 1_000_000), "a quiet market: the beat").toBe(1_000_000 + BEAT_MS);
+    expect(nextRedraw([2_000_000], c, 1_000_000), "a tick far ahead: the beat first").toBe(1_000_000 + BEAT_MS);
   });
 });
 

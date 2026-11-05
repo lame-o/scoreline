@@ -6,18 +6,22 @@
  * sport's page calls this and adds its own; `overrides` replaces any of
  * them (the NBA's live line score, soccer's key events).
  */
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import type { DetailMoment, RecentPlay } from "../../../data/gameDetail";
 import { competitors } from "../../../data/models";
+import { timelineMarks } from "../../../data/odds/marks";
 import { competitionPath, hasKnockoutRounds } from "../../../data/soccerCompetition";
 import { bracketPath } from "../../../data/schedule";
 import { pageKind, type Section } from "../../../data/sections";
+import { useOddsFeedObject } from "../../../state/odds";
 import { useSettings } from "../../../state/settings";
 import { LatestPlays, MomentList, SeriesLink, StatBars, WhereToWatch } from "./CommonSections";
-import { hasWinProbability, WinProbabilitySection } from "./odds/WinProbabilitySection";
+import { useFocusLink, useOddsPointer, usePresentedTime } from "./odds/inspection";
+import { hasWinProbability, useOddsGame, WinProbabilitySection } from "./odds/WinProbabilitySection";
 import { SyncedLinescore } from "./headerSync";
 import { DetailSection } from "./DetailSection";
 import type { GameContext } from "./sport";
+import { TimelineSection } from "./timeline/TimelineSection";
 
 export interface CommonOptions {
   /** Every ball in play, for a sport whose line score lights them (unused here; charts read the focus). */
@@ -26,6 +30,8 @@ export interface CommonOptions {
   readonly plays?: readonly RecentPlay[];
   /** A scoring play's words with its players' names as links (football). */
   readonly momentText?: (m: DetailMoment, text: string) => ReactNode;
+  /** Soccer, live: the match minute, for a timeline that has only match minutes to go on. */
+  readonly minute?: number | null;
 }
 
 /** The line score's chart, as its section draws it (null without one). */
@@ -59,8 +65,21 @@ export function useCommonSections(game: GameContext, options: CommonOptions = {}
     );
   }
 
+  // One market for the page (the timeline and Win Probability share it), one moment both read, and while the
+  // page broadcasts one presented time. A key play's row moves both charts' line (MatchFocusLink).
+  const pointer = useOddsPointer();
+  const feed = useOddsFeedObject(useOddsGame(game, oddsOn));
+  const time = usePresentedTime(game.broadcast?.clock ?? null, feed);
+  useFocusLink(detail.history, pointer);
+  const marks = useMemo(() => timelineMarks(detail), [detail.moments, detail.history]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Polymarket's market against ESPN's model and DraftKings' line where there's a market; ESPN's bar where not (core/odds/).
-  if (hasWinProbability(game, oddsOn)) sections.winProbability = <WinProbabilitySection game={game} />;
+  if (hasWinProbability(game, oddsOn)) sections.winProbability = <WinProbabilitySection game={game} feed={feed} time={time} pointer={pointer} marks={marks} />;
+
+  // One timeline for every sport, soccer's, on the axis it shares with Win Probability (MatchTimeline.swift).
+  if (event.ref?.kind === "espn" && event.content.kind === "match" && (event.state === "live" || marks.length > 0)) {
+    sections.timeline = <TimelineSection game={game} marks={marks} feed={feed} time={time} pointer={pointer} palette={palette} minute={options.minute ?? null} />;
+  }
 
   const moments = options.moments ?? detail.moments;
   if (moments.length > 0) {

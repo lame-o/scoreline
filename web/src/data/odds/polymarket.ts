@@ -15,6 +15,7 @@
  * no odds.
  */
 import { arr, at, num, str, type JSONValue } from "../json";
+import { d, s } from "../profiles/read";
 
 export const GAMMA = "https://gamma-api.polymarket.com";
 export const CLOB = "https://clob.polymarket.com";
@@ -238,13 +239,17 @@ export interface Market {
   readonly kind: "two-way" | "three-way";
   /**
    * The tokens tracked: a two-way market tracks the top team's token alone
-   * (the bottom is its complement on a tug-of-war chart); soccer tracks each
-   * outcome's Yes token, top, draw, bottom.
+   * (the bottom is its complement); soccer tracks each outcome's Yes token,
+   * top, draw, bottom.
    */
   readonly tokens: readonly OutcomeToken[];
   /** Dollars traded on the moneyline (soccer: its three markets together). */
   readonly volume: number | null;
+  /** The listed event's start (OddsMarket.start), when known: where its history begins. */
+  readonly start?: number | null;
 }
+
+export const isThreeWayMarket = (market: Pick<Market, "kind"> | null | undefined): boolean => market?.kind === "three-way";
 
 const list = (v: JSONValue): string[] => {
   if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string");
@@ -310,7 +315,7 @@ export const marketEventSlug = (json: JSONValue): string | null => str(at(json, 
 
 // MARK: - Prices
 
-/** A price at a moment: `t` in epoch ms, `p` the chance (0…1). */
+/** A price at a moment: `t` in epoch ms, `p` the chance (0…1) (Odds.swift `OddsPoint`). */
 export interface PricePoint {
   readonly t: number;
   readonly p: number;
@@ -331,48 +336,85 @@ export function parseHistory(json: JSONValue): PricePoint[] {
 
 /** `midpoint` → the mid (0…1), or null. */
 export function parseMidpoint(json: JSONValue): number | null {
-  const mid = num(at(json, "mid")) ?? (str(at(json, "mid")) != null ? Number(str(at(json, "mid"))) : null);
-  return mid != null && Number.isFinite(mid) && mid >= 0 && mid <= 1 ? mid : null;
+  const mid = d(at(json, "mid"));
+  return mid != null && mid >= 0 && mid <= 1 ? mid : null;
+}
+
+// MARK: - The displayed price (Odds.swift `OddsQuote`)
+
+/** One outcome's book as the market channel last told it. */
+export interface Quote {
+  readonly bid: number | null;
+  readonly ask: number | null;
+  readonly last: number | null;
+  /** The last trade is news: none since the book was last tight enough to price itself. */
+  readonly tradeIsNews: boolean;
+}
+
+export const EMPTY_QUOTE: Quote = { bid: null, ask: null, last: null, tradeIsNews: true };
+
+/** A quote as the Mac's `OddsQuote(bid:ask:last:)` makes one: its last trade is news. */
+export const quote = (bid: number | null = null, ask: number | null = null, last: number | null = null): Quote => ({ bid, ask, last, tradeIsNews: true });
+
+/** An empty side is the contract boundary: no bid is 0, no ask is 1. Null when the spread is wider than 10¢ (in tenths of a cent) or crossed. */
+function midpoint(q: Pick<Quote, "bid" | "ask">): number | null {
+  const lower = q.bid ?? 0;
+  const upper = q.ask ?? 1;
+  if (!(upper >= lower) || Math.round((upper - lower) * 1000) > 100) return null;
+  return (lower + upper) / 2;
 }
 
 /**
- * The price Polymarket shows: the midpoint of the best bid and ask, or the
- * last trade when the spread is wider than 10¢ (a thin book's midpoint says
- * little). No book: the last trade.
+ * Polymarket's own rule: the midpoint of the best bid and ask, or the last
+ * trade when the spread is wider than 10¢. Compared in tenths of a cent
+ * (0.40 − 0.30 is 0.10000000000000003). (pure; tested)
  */
-export function displayedPrice(bid: number | null, ask: number | null, last: number | null): number | null {
-  if (bid != null && ask != null && ask >= bid) {
-    const mid = (bid + ask) / 2;
-    return ask - bid > 0.1 + 1e-9 ? (last ?? mid) : mid;
-  }
-  return last ?? null;
+export function displayed(q: Quote): number | null {
+  // An empty side is the contract boundary: no bid is 0, no ask is 1.
+  // CLOB's price_change frames and /midpoint use these same bounds.
+  // Thus a losing token with no bids and a 0.001 ask is 0.0005, not
+  // whatever stale last trade happened to accompany a book snapshot.
+  if (q.bid == null && q.ask == null) return q.last;
+  const mid = midpoint(q);
+  if (mid != null) return mid;
+  // A book widening says nothing about the price. Only a trade since it
+  // was tight does: an old one would draw a move that never happened,
+  // and a book breathing around 10¢ would saw between the two. Until
+  // one prints, the chart keeps the value it has.
+  return q.tradeIsNews ? q.last : null;
 }
 
-// MARK: - The live book
+// MARK: - The live book (Odds.swift `OddsFrame`)
 
-/** What one socket message says about a token's book. Absent fields didn't change. */
+/** What a market-channel frame says about one asset. */
+export type FrameUpdate =
+  /** A full book: its best bid and ask (max bid, min ask: the sides come in opposite orders). */
+  | { readonly kind: "book"; readonly bid: number | null; readonly ask: number | null; readonly last: number | null }
+  | { readonly kind: "best"; readonly bid: number | null; readonly ask: number | null }
+  | { readonly kind: "trade"; readonly price: number };
+
 export interface BookUpdate {
   readonly token: string;
-  readonly bid?: number | null;
-  readonly ask?: number | null;
-  readonly last?: number | null;
-  /** The server's time for it (epoch ms). */
-  readonly t: number;
+  readonly update: FrameUpdate;
 }
 
-const price = (v: unknown): number | null => {
-  const n = typeof v === "number" ? v : typeof v === "string" && v !== "" ? Number(v) : NaN;
-  return Number.isFinite(n) && n >= 0 && n <= 1 ? n : null;
+const extreme = (levels: readonly unknown[], pick: (a: number, b: number) => number): number | null => {
+  let out: number | null = null;
+  for (const level of levels) {
+    const p = d(at(level, "price"));
+    if (p != null) out = out == null ? p : pick(out, p);
+  }
+  return out;
 };
 
 /**
- * The CLOB market channel's messages (shapes verified 2026-10-28): the first
+ * The CLOB market channel's frames (shapes verified 2026-10-28): the first
  * is an array of `book` snapshots (bids ascending, asks descending), then
  * `price_change` (each change carries the new best bid and ask, the
- * complementary token's too), `last_trade_price`, and a bare `PONG`.
+ * complementary token's too), `last_trade_price`, and a bare `PONG`. (pure; tested)
  */
-export function parseSocketMessage(raw: string, now = Date.now()): BookUpdate[] {
-  if (raw === "PONG" || raw === "" || (raw[0] !== "{" && raw[0] !== "[")) return [];
+export function parseSocketMessage(raw: string): BookUpdate[] {
+  if (raw[0] !== "[" && raw[0] !== "{") return [];
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -380,73 +422,228 @@ export function parseSocketMessage(raw: string, now = Date.now()): BookUpdate[] 
     return [];
   }
   const out: BookUpdate[] = [];
-  for (const m of Array.isArray(parsed) ? parsed : [parsed]) {
-    const type = str(at(m, "event_type"));
-    const t = Number(str(at(m, "timestamp")) ?? num(at(m, "timestamp")) ?? now) || now;
-    if (type === "book") {
-      const token = str(at(m, "asset_id"));
-      if (!token) continue;
-      const bids = arr(at(m, "bids")).map((l) => price(at(l, "price"))).filter((p): p is number => p != null);
-      const asks = arr(at(m, "asks")).map((l) => price(at(l, "price"))).filter((p): p is number => p != null);
-      out.push({ token, bid: bids.length ? Math.max(...bids) : null, ask: asks.length ? Math.min(...asks) : null, last: price(at(m, "last_trade_price")), t });
-    } else if (type === "price_change") {
-      for (const c of arr(at(m, "price_changes"))) {
-        const token = str(at(c, "asset_id"));
-        if (token) out.push({ token, bid: price(at(c, "best_bid")), ask: price(at(c, "best_ask")), t });
+  for (const f of Array.isArray(parsed) ? parsed : [parsed]) {
+    switch (s(at(f, "event_type"))) {
+      case "book": {
+        const token = s(at(f, "asset_id"));
+        if (!token) continue;
+        out.push({ token, update: { kind: "book", bid: extreme(arr(at(f, "bids")), Math.max), ask: extreme(arr(at(f, "asks")), Math.min), last: d(at(f, "last_trade_price")) } });
+        break;
       }
-    } else if (type === "last_trade_price") {
-      const token = str(at(m, "asset_id"));
-      const last = price(at(m, "price"));
-      if (token && last != null) out.push({ token, last, t });
+      case "price_change":
+        for (const c of arr(at(f, "price_changes"))) {
+          const token = s(at(c, "asset_id"));
+          if (token) out.push({ token, update: { kind: "best", bid: d(at(c, "best_bid")), ask: d(at(c, "best_ask")) } });
+        }
+        break;
+      case "last_trade_price": {
+        const token = s(at(f, "asset_id"));
+        const price = d(at(f, "price"));
+        if (token && price != null) out.push({ token, update: { kind: "trade", price } });
+        break;
+      }
     }
   }
   return out;
 }
 
-export interface Quote {
-  readonly bid: number | null;
-  readonly ask: number | null;
-  readonly last: number | null;
+/** After the book changed: a tight book prices itself, so the last trade is no longer news. */
+function bookChanged(q: Quote): Quote {
+  return (q.bid != null || q.ask != null) && midpoint(q) != null ? { ...q, tradeIsNews: false } : q;
 }
 
-export const EMPTY_QUOTE: Quote = { bid: null, ask: null, last: null };
-
-/** A quote with an update applied (fields it doesn't mention stay). */
-export function applyUpdate(q: Quote, u: BookUpdate): Quote {
-  return {
-    bid: u.bid !== undefined ? u.bid : q.bid,
-    ask: u.ask !== undefined ? u.ask : q.ask,
-    last: u.last !== undefined ? u.last : q.last,
-  };
+/** A quote with a frame applied (OddsFrame.apply). (pure; tested) */
+export function applyUpdate(q: Quote, update: FrameUpdate): Quote {
+  switch (update.kind) {
+    case "book":
+      // The book's last_trade_price is not reliably asset-scoped:
+      // captured BAL and BUF books both carried BUF's 0.999 trade.
+      // Only last_trade_price events identify a trade by asset_id.
+      // Preserve any such trusted trade when replacing the book.
+      return bookChanged({ ...q, bid: update.bid, ask: update.ask });
+    case "best":
+      return bookChanged({ ...q, bid: update.bid ?? q.bid, ask: update.ask ?? q.ask });
+    case "trade":
+      return { ...q, last: update.price, tradeIsNews: true };
+  }
 }
 
-// MARK: - Keeping series small
+// MARK: - Series (Odds.swift `OddsSeries`)
 
-const MINUTE = 60_000;
+/** Points kept per series. */
+export const CAP = 600;
+/** The newest stretch kept tick by tick (ms; the 10 min window's span). */
+export const RAW = 600_000;
+/**
+ * Samples further apart than this (ms) weren't observed in between: the
+ * history's coarsest stride is 5 minutes, and a followed market says
+ * something at least every minute. The line breaks here, rather than drawing
+ * a price nobody saw.
+ */
+export const GAP = 360_000;
+
+/** The value in effect at `t`: the last point at or before it. */
+export function valueAt(points: readonly PricePoint[], t: number): number | null {
+  return lastAtOrBefore(points, t, (p) => p.t)?.p ?? null;
+}
 
 /**
- * At most `max` points: the last 10 minutes as they came (one per second,
- * the newest of each), anything older one per minute (the minute's last
- * price). Never drops the first or the newest point.
+ * At most `cap` points, times strictly increasing: the last `RAW` as they
+ * came, older ones one per minute (each minute's last value), then evenly
+ * thinned if that's still too many. The newest point always survives. (pure; tested)
  */
-export function compact(points: readonly PricePoint[], now: number, max = 600, fine = 10 * MINUTE): PricePoint[] {
-  if (points.length <= 2) return points.slice();
-  const cutoff = now - fine;
+export function compact(points: readonly PricePoint[], now: number, cap = CAP): PricePoint[] {
   const out: PricePoint[] = [];
-  let bucket = Number.NaN;
-  for (const p of points) {
-    // Old: a bucket a minute (even keys); recent: a bucket a second (odd keys). A bucket keeps its newest.
-    const key = p.t < cutoff ? Math.floor(p.t / MINUTE) * 2 : Math.floor(p.t / 1000) * 2 + 1;
-    if (key === bucket) out[out.length - 1] = p;
-    else out.push(p);
-    bucket = key;
+  const cut = now - RAW;
+  let bucket: { minute: number; point: PricePoint } | null = null;
+  for (const point of points) {
+    const last = out.at(-1);
+    if (last && point.t <= last.t) continue;
+    if (point.t < cut) {
+      const minute = Math.trunc(point.t / 60_000);
+      if (bucket && bucket.minute !== minute) out.push(bucket.point);
+      bucket = { minute, point };
+    } else {
+      if (bucket) {
+        out.push(bucket.point);
+        bucket = null;
+      }
+      const latest = out.at(-1);
+      if (latest && point.t <= latest.t) continue;
+      out.push(point);
+    }
   }
-  if (out[0] !== points[0]) out.unshift(points[0]!);
-  if (out.length <= max) return out;
-  // Still too many: everything a minute apart, then (a day of history) thinned evenly.
-  if (fine > 0) return compact(out, now, max, 0);
-  const step = Math.ceil(out.length / max);
-  const thinned = out.filter((_, i) => i % step === 0);
-  if (thinned.at(-1) !== out.at(-1)) thinned.push(out.at(-1)!);
-  return thinned;
+  if (bucket && (out.length === 0 || bucket.point.t > out.at(-1)!.t)) out.push(bucket.point);
+  if (!(out.length > cap && cap > 1)) return out;
+  // Still too many (a whole day of minutes): keep every k-th, and the newest.
+  const stride = (out.length - 1) / (cap - 1);
+  return Array.from({ length: cap }, (_, k) => out[Math.round(k * stride)]!);
+}
+
+/** Each outcome's chance at one moment: two-way (`draw` null) or soccer's three (Odds.swift `OddsSplit`). */
+export interface OddsSplit {
+  readonly top: number;
+  readonly draw: number | null;
+  readonly bottom: number;
+}
+
+export const share = (split: OddsSplit, outcome: Outcome): number => (outcome === "top" ? split.top : outcome === "draw" ? (split.draw ?? 0) : split.bottom);
+
+/** The likeliest outcome. */
+export function leader(split: OddsSplit): Outcome {
+  if (split.draw != null && split.draw > split.top && split.draw > split.bottom) return "draw";
+  return split.top >= split.bottom ? "top" : "bottom";
+}
+
+export const sameSplit = (a: OddsSplit | null, b: OddsSplit | null): boolean => a === b || (a != null && b != null && a.top === b.top && a.draw === b.draw && a.bottom === b.bottom);
+
+/** Soccer's three prices scaled to sum to 1 (they list at 0.99–1.01). */
+export function normalized(top: number, draw: number, bottom: number): OddsSplit {
+  const sum = top + draw + bottom;
+  if (!(sum > 0)) return { top: 1 / 3, draw: 1 / 3, bottom: 1 / 3 };
+  return { top: top / sum, draw: draw / sum, bottom: bottom / sum };
+}
+
+/** Every outcome's chance at one moment (OddsChart.swift `OddsSplitPoint`). */
+export interface OddsSplitPoint {
+  readonly t: number;
+  readonly split: OddsSplit;
+  /** One of the outcomes hasn't been observed for a while: no reading, and the line breaks here. */
+  readonly unobserved: boolean;
+}
+
+/**
+ * Three series on one timeline: at each moment any of them moved, all three
+ * as they stood, normalized. One walk over the three, as this runs with every
+ * tick. A moment when one of them hasn't been observed for a `GAP` isn't a
+ * reading of all three: it's marked, and the line breaks. (pure; tested)
+ */
+export function stacked(top: readonly PricePoint[], draw: readonly PricePoint[], bottom: readonly PricePoint[]): OddsSplitPoint[] {
+  if (top.length === 0 || draw.length === 0 || bottom.length === 0) return [];
+  const out: OddsSplitPoint[] = [];
+  let a = 0;
+  let dd = 0;
+  let b = 0;
+  while (a < top.length || dd < draw.length || b < bottom.length) {
+    const t = Math.min(a < top.length ? top[a]!.t : Infinity, dd < draw.length ? draw[dd]!.t : Infinity, b < bottom.length ? bottom[b]!.t : Infinity);
+    if (a < top.length && top[a]!.t === t) a++;
+    if (dd < draw.length && draw[dd]!.t === t) dd++;
+    if (b < bottom.length && bottom[b]!.t === t) b++;
+    if (a === 0 || dd === 0 || b === 0) continue;
+    const quiet = Math.max(t - top[a - 1]!.t, t - draw[dd - 1]!.t, t - bottom[b - 1]!.t);
+    out.push({ t, split: normalized(top[a - 1]!.p, draw[dd - 1]!.p, bottom[b - 1]!.p), unobserved: quiet > GAP });
+  }
+  return out;
+}
+
+/** Whole points, never 0 or 100 while it's undecided: "100%" is for the final whistle (OddsSeries.percent). (pure; tested) */
+export function percent(p: number, final = false): number {
+  const whole = Math.round(p * 100);
+  return final ? whole : Math.min(Math.max(whole, 1), 99);
+}
+
+/** "$4.1M", "$850K", "$12K", "$900" (OddsSeries.dollars). */
+export function dollars(value: number): string {
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(1).replace(/\.0$/, "")}M`;
+  if (value >= 1e4) return `$${Math.round(value / 1e3)}K`;
+  if (value >= 1e3) return `$${(value / 1e3).toFixed(1).replace(/\.0$/, "")}K`;
+  return `$${Math.round(value)}`;
+}
+
+/** "$3.1M traded", or nothing when the volume isn't known. */
+export function traded(volume: number | null | undefined): string | null {
+  return volume == null || !Number.isFinite(volume) || volume <= 0 ? null : `${dollars(volume)} traded`;
+}
+
+// MARK: - History in the feed (OddsFeed.swift `holes`, `mergingHistory`)
+
+/**
+ * The stretches of `from…to` a series has nothing for: its opening, its tail,
+ * and between samples a `GAP` apart. A hole the provider has already answered
+ * for stays a hole; the tail is always worth asking. (pure; tested)
+ */
+export function holes(points: readonly PricePoint[], from: number, to: number, answered: ReadonlySet<number>): Domain[] {
+  const first = points[0];
+  const last = points.at(-1);
+  if (!first || !last) return from < to ? [{ from, to }] : [];
+  const out: Domain[] = [];
+  if (first.t - from > GAP && !answered.has(from)) out.push({ from, to: first.t });
+  for (let k = 0; k + 1 < points.length; k++) {
+    const a = points[k]!;
+    const b = points[k + 1]!;
+    if (b.t - a.t > GAP && !answered.has(a.t)) out.push({ from: a.t, to: b.t });
+  }
+  if (to > last.t + 1000) out.push({ from: last.t, to });
+  return out;
+}
+
+/**
+ * Fills a hole with history, keeping every observation already there:
+ * history never overwrites a live quote at an overlapping time. (pure; tested)
+ */
+export function mergingHistory(history: readonly PricePoint[], current: readonly PricePoint[], hole: Domain, now: number): PricePoint[] {
+  let split = current.findIndex((p) => p.t > hole.from);
+  if (split < 0) split = current.length;
+  const before = current.slice(0, split);
+  const after = current.slice(split);
+  const fill = history.filter((point) => (before.length === 0 || point.t > before.at(-1)!.t) && (after.length > 0 ? point.t < after[0]!.t : point.t <= hole.to));
+  return compact([...before, ...fill, ...after], now);
+}
+
+/** A range of the wall clock (epoch ms), both ends included. */
+interface Domain {
+  readonly from: number;
+  readonly to: number;
+}
+
+/** The last element at or before `t` (binary search; times ascending) (OddsSeries.last). */
+export function lastAtOrBefore<T>(items: readonly T[], t: number, time: (item: T) => number): T | null {
+  let lo = 0;
+  let hi = items.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (time(items[mid]!) <= t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo > 0 ? items[lo - 1]! : null;
 }
