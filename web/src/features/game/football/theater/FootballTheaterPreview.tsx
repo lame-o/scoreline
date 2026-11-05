@@ -23,6 +23,7 @@
  * they take).
  * Fixtures load lazily from test/fixtures, so nothing here ships.
  */
+import { kitsOf } from "../../../../data/mlb/theaterTeams";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { ordinal } from "../../../../data/format";
@@ -205,7 +206,7 @@ function PreviewStage({ tile, frozen }: { tile: Tile; frozen: number | null }) {
   const slot = useMomentSlot();
   const { home, away } = tile;
   const palette = teamPalette(away.color, home.color, scheme);
-  const kits = { top: { color: away.color, alternate: away.alternateColor }, bottom: { color: home.color, alternate: home.alternateColor } };
+  const kits = kitsOf({ color: away.color, alternate: away.alternateColor }, { color: home.color, alternate: home.alternateColor });
   useEffect(() => {
     // A tick later: development's StrictMode runs this twice, and the slot would take the second offer as already seen.
     const moment = tile.moment;
@@ -387,7 +388,7 @@ function SheetFrame({ c, t }: { c: SheetCase; t: number | null }) {
     return null;
   });
   const palette = teamPalette(c.top[2], c.bottom[2], scheme);
-  const kits = { top: { color: c.top[2], alternate: c.top[3] }, bottom: { color: c.bottom[2], alternate: c.bottom[3] } };
+  const kits = kitsOf({ color: c.top[2], alternate: c.top[3] }, { color: c.bottom[2], alternate: c.bottom[3] });
   return (
     <div style={{ width: 440 }} data-flip={c.eventId === "sheet-fb-flip" ? "shown" : undefined}>
       <FootballTheater

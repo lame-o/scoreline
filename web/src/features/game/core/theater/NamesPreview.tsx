@@ -15,6 +15,7 @@
  *     /dev/theater/names?set=callouts    the callouts sheet's frames (wave 24's callouts harness, gen.py): crowds,
  *                                        callouts riding, the key tag's glide, stems, the wide well; each its own name
  */
+import { kitsOf } from "../../../../data/mlb/theaterTeams";
 import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 import type { Baseball } from "../../../../data/gameDetail";
@@ -291,7 +292,7 @@ function theater(cell: Cell, data: Data, pointer: NamesPose | null): ReactNode {
     case "baseball":
     case "baseball-nonumbers":
     case "baseball-rest": {
-      const kits: TheaterKits = { top: { color: "092c5c", alternate: "8fbce6" }, bottom: { color: "13294b", alternate: "ffc72c" } };
+      const kits: TheaterKits = kitsOf({ color: "092c5c", alternate: "8fbce6" }, { color: "13294b", alternate: "ffc72c" });
       const resting = cell.sport === "baseball-rest";
       const b = data.baseball;
       // After the play: Yelich up, Contreras on first, Bauers on third.
@@ -333,7 +334,7 @@ function theater(cell: Cell, data: Data, pointer: NamesPose | null): ReactNode {
       );
     }
     case "football": {
-      const kits: TheaterKits = { top: { color: "e31837", alternate: "ffb612" }, bottom: { color: "002a5c", alternate: "69be28" } };
+      const kits: TheaterKits = kitsOf({ color: "e31837", alternate: "ffb612" }, { color: "002a5c", alternate: "69be28" });
       return (
         <FootballTheater
           feed={null}
@@ -354,7 +355,7 @@ function theater(cell: Cell, data: Data, pointer: NamesPose | null): ReactNode {
       );
     }
     case "basketball": {
-      const kits: TheaterKits = { top: { color: "000000", alternate: "c4ced4" }, bottom: { color: "4e008e", alternate: "79a3dc" } };
+      const kits: TheaterKits = kitsOf({ color: "000000", alternate: "c4ced4" }, { color: "4e008e", alternate: "79a3dc" });
       const scene = data.basketball.scene;
       return (
         <BasketballTheater
@@ -377,7 +378,7 @@ function theater(cell: Cell, data: Data, pointer: NamesPose | null): ReactNode {
       );
     }
     case "soccer": {
-      const kits: TheaterKits = { top: { color: "660e36", alternate: "000000" }, bottom: { color: "99c5ea", alternate: "000000" } };
+      const kits: TheaterKits = kitsOf({ color: "660e36", alternate: "000000" }, { color: "99c5ea", alternate: "000000" });
       return (
         <SoccerTheater
           feed={null}

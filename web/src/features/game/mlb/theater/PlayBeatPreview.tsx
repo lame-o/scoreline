@@ -13,6 +13,7 @@
  * tags, the idle life. Fixtures load lazily from test/fixtures, so nothing
  * here ships.
  */
+import { kitsOf } from "../../../../data/mlb/theaterTeams";
 import { useEffect, useMemo, useState } from "react";
 import type { ScoreEvent, Side } from "../../../../data/models";
 import { batting, beatPitch, beatTag, captionText, mlbBeat, standing, timeline, type BeatPitch, type PlayBeat } from "../../../../data/mlb/playBeat";
@@ -53,7 +54,7 @@ interface Shot {
 }
 
 // The Mac harnesses' teams (Brewers away, Rays home), and a game that isn't MLB's, so nothing's fetched.
-const kits = { top: { color: "12284b", alternate: "ffc52f" }, bottom: { color: "092c5c", alternate: "8fbce6" } };
+const kits = kitsOf({ color: "12284b", alternate: "ffc52f" }, { color: "092c5c", alternate: "8fbce6" });
 const competitor = (id: string, name: string, abbreviation: string, color: string, alternate: string) => ({
   id,
   name,

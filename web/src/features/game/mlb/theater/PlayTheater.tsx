@@ -496,7 +496,7 @@ export function PlayTheater({
   const teams = useMemo(
     () => theaterTeams(kits, scheme, side),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, side],
+    [kits, scheme, side],
   );
   const ink = useMemo(() => theaterInk(scheme), [scheme]);
   // Statcast's batted-ball line on the stamp (a grounder's without its first hop's distance).
@@ -542,7 +542,7 @@ export function PlayTheater({
   const labels = useMemo(
     () => theaterLabels(kits, scheme, { top: topTeam, bottom: bottomTeam }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, topTeam, bottomTeam],
+    [kits, scheme, topTeam, bottomTeam],
   );
   const runnerIDs = situation?.runnerIDs ?? NO_RUNNERS;
   const now: BaseballNow = useMemo(

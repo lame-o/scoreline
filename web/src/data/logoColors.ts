@@ -1,18 +1,16 @@
 /**
- * Each team's own colors, read from its logo (TeamColors.swift `read`,
- * `dominant`, `order`): the colors the crest reads as, ignoring white,
- * black, grays and transparency, strongest first. Sources give at most one
- * team color, often a stock navy half a league shares, and none at all for
- * CS2, so the logo is the better witness. Pure: pixels in, colors out.
+ * A fallback for teams without source colors, CS2 among them (TeamColors.swift
+ * `read`, `dominant`, `apply`): the colors the crest reads as, ignoring
+ * white, black, grays and transparency, strongest first. A valid source
+ * primary is authoritative. Pure: pixels in, colors out.
  */
+import type { TeamKit } from "./matchColors";
 import type { Competitor } from "./models";
 import { chroma, hue, oklabFromHex, oklabFromRGB, toHex, type OKLab } from "./teamColors";
 
 export interface LogoColors {
-  /** Up to three clearly different colors ("#c8102e"), strongest first. Empty: a black-and-white crest. */
+  /** Up to three clearly different colors ("#c8102e"), strongest first. Empty: a black-and-white crest, so the source's color stands. */
   readonly colors: readonly string[];
-  /** How strongly the logo reads as each, relative to the first (1). */
-  readonly weights: readonly number[];
 }
 
 const distance = (x: OKLab, y: OKLab) => Math.hypot(x.l - y.l, x.a - y.a, x.b - y.b);
@@ -80,7 +78,7 @@ export function readLogoColors(pixels: Uint8ClampedArray | readonly number[]): L
     if (chroma(lab) >= 0.04) colors.push(lab);
   }
   // A sliver of color in a black-and-white crest isn't the team's color.
-  if (opaque === 0 || colors.length / opaque < 0.04) return { colors: [], weights: [] };
+  if (opaque === 0 || colors.length / opaque < 0.04) return { colors: [] };
 
   const found: Found[] = [];
   let rest = colors;
@@ -94,35 +92,25 @@ export function readLogoColors(pixels: Uint8ClampedArray | readonly number[]): L
   }
   // Found in bin order; a later color can turn out heavier once its neighbors are gathered in.
   found.sort((a, b) => b.weight - a.weight);
-  const top = found[0]?.weight ?? 1;
-  return { colors: found.map((f) => toHex(f.color)), weights: found.map((f) => Math.round((f.weight / top) * 100) / 100) };
+  return { colors: found.map((f) => toHex(f.color)) };
 }
 
 /**
- * The logo's colors in the order a team wears them. When the logo reads
- * almost as strongly as the source's own color as its first one, the
- * source's tips it (Thunder blue over the sunset band). A navy source color
- * never does: that's the shade half a league shares.
+ * Where a team's colors come from (TeamColors.apply). A valid source primary
+ * is the team's identity, black and white included; a payload without one
+ * reads what an earlier payload said of the team (`known`); a team with no
+ * source colors at all (CS2) wears its logo's, strongest first. Logo area is
+ * only a fallback, never evidence of a match kit. (pure; tested)
  */
-export function orderLogoColors(entry: LogoColors, source: string | null): string[] {
-  const colors = [...entry.colors];
-  const s = oklabFromHex(source);
-  if (!s || !(chroma(s) >= 0.12 || (s.l >= 0.4 && chroma(s) >= 0.06))) return colors;
-  const match = colors.findIndex((hex, i) => {
-    if (i === 0) return false;
-    const lab = oklabFromHex(hex);
-    return lab != null && hueGap(hue(lab), hue(s)) <= 25 && Math.abs(lab.l - s.l) <= 0.25;
-  });
-  if (match < 1 || (entry.weights[match] ?? 0) < 0.6) return colors;
-  colors.unshift(...colors.splice(match, 1));
-  return colors;
-}
-
-/** The competitor wearing its logo's colors, when they're known and not black and white. */
-export function wearLogoColors(c: Competitor, entry: LogoColors | undefined): Competitor {
-  if (!entry || entry.colors.length === 0) return c;
-  const colors = orderLogoColors(entry, c.color);
-  const color = colors[0]!.replace("#", "");
-  const alternate = colors[1]?.replace("#", "") ?? c.alternateColor;
+export function applyTeamColors(c: Competitor, known: TeamKit | undefined, entry: LogoColors | undefined): Competitor {
+  if (oklabFromHex(c.color)) return c;
+  if (known) {
+    const alternateColor = known.alternate ?? c.alternateColor;
+    return known.color === c.color && alternateColor === c.alternateColor ? c : { ...c, color: known.color, alternateColor };
+  }
+  const first = entry?.colors[0];
+  if (!entry || !first) return c;
+  const color = first.replace("#", "");
+  const alternate = entry.colors[1]?.replace("#", "") ?? c.alternateColor;
   return color === c.color && alternate === c.alternateColor ? c : { ...c, color, alternateColor: alternate };
 }

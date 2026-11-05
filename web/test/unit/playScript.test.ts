@@ -14,7 +14,8 @@ import { BaseballPoses } from "../../src/data/mlb/theaterPose";
 import { gait, RigPoses, skeleton, vec } from "../../src/data/theater/rig";
 import { pose } from "../../src/features/game/mlb/theater/drawTheater";
 import { jointsBreak } from "./rigJoints";
-import { APART, dress, labDistance, type Uniform } from "../../src/data/mlb/theaterTeams";
+import { APART, dress, kitsOf, labDistance, type Uniform } from "../../src/data/mlb/theaterTeams";
+import { CHARCOAL } from "../../src/data/matchColors";
 import { oklabFromHex } from "../../src/data/teamColors";
 import { fixture } from "./fixtures";
 
@@ -261,42 +262,45 @@ describe("figures", () => {
   });
 });
 
-describe("teams, always apart", () => {
+describe("teams, always apart (MatchColors)", () => {
   const apart = (a: Uniform, b: Uniform) => labDistance(oklabFromHex(a.jersey)!, oklabFromHex(b.jersey)!) >= APART;
-  const navies = { top: { color: "13294b", alternate: null }, bottom: { color: "092c5c", alternate: null } };
-  const espn = { top: { color: "13294b", alternate: "ffc52f" }, bottom: { color: "092c5c", alternate: "8fbce6" } };
+  const navies = kitsOf({ color: "13294b", alternate: null }, { color: "092c5c", alternate: null });
+  const espn = kitsOf({ color: "13294b", alternate: "ffc52f" }, { color: "092c5c", alternate: "8fbce6" });
   for (const scheme of ["dark", "light"] as const) {
-    it(`${scheme}: two navies with no second colors: the home team wears whites`, () => {
+    it(`${scheme}: two navies with no second colors: the away team wears a contrast kit`, () => {
       const plain = dress(navies, scheme);
-      expect(plain.rule).toEqual({ kind: "whites", side: "bottom" });
+      expect(navies.top.wear).toBe("contrast");
       expect(apart(plain.top, plain.bottom)).toBe(true);
     });
-    it(`${scheme}: Brewers and Rays navies: the Brewers change into gold (their second color), not gray`, () => {
+    it(`${scheme}: Brewers and Rays navies: the Brewers, away, change into gold (their second color), not gray`, () => {
       const dressed = dress(espn, scheme);
-      expect(dressed.rule).toEqual({ kind: "second", side: "top" });
+      expect(espn.top.wear).toBe("second");
       expect(apart(dressed.top, dressed.bottom)).toBe(true);
     });
     it(`${scheme}: navy and red read apart as they are`, () => {
-      const rivals = dress({ top: { color: "0c2340", alternate: null }, bottom: { color: "bd3039", alternate: null } }, scheme);
-      expect(rivals.rule).toEqual({ kind: "own" });
-      expect(apart(rivals.top, rivals.bottom)).toBe(true);
+      const rivals = kitsOf({ color: "0c2340", alternate: null }, { color: "bd3039", alternate: null });
+      const dressed = dress(rivals, scheme);
+      expect([rivals.top.wear, rivals.bottom.wear]).toEqual(["own", "own"]);
+      expect(apart(dressed.top, dressed.bottom)).toBe(true);
     });
-    it(`${scheme}: two blues whose second colors are white and silver: whites`, () => {
-      const blank = dress({ top: { color: "005a9c", alternate: "ffffff" }, bottom: { color: "004687", alternate: "c0c0c0" } }, scheme);
-      expect(blank.rule).toEqual({ kind: "whites", side: "bottom" });
-      expect(apart(blank.top, blank.bottom)).toBe(true);
+    it(`${scheme}: two blues, the visitors' second color white: they wear it`, () => {
+      const blank = kitsOf({ color: "005a9c", alternate: "ffffff" }, { color: "004687", alternate: "c0c0c0" });
+      const dressed = dress(blank, scheme);
+      expect(blank.top.color).toBe("ffffff");
+      expect(apart(dressed.top, dressed.bottom)).toBe(true);
     });
   }
   it("light: whites carry piping in the team's color (a white halo wouldn't show them)", () => {
-    expect(dress(navies, "light").bottom.piping).not.toBeNull();
+    expect(dress(navies, "light").top.piping).not.toBeNull();
   });
-  it("light: two golds: the home team in charcoal, dark against light", () => {
-    const pale = dress({ top: { color: "fdb827", alternate: null }, bottom: { color: "ffc52f", alternate: null } }, "light");
-    expect(pale.rule).toEqual({ kind: "whites", side: "bottom" });
+  it("light: two golds: the away team in charcoal, dark against light", () => {
+    const golds = kitsOf({ color: "fdb827", alternate: null }, { color: "ffc52f", alternate: null });
+    const pale = dress(golds, "light");
+    expect(golds.top.color).toBe(CHARCOAL);
     expect(apart(pale.top, pale.bottom)).toBe(true);
   });
-  it("dark: two black teams (gray on a dark panel) still read apart", () => {
-    const black = dress({ top: { color: "000000", alternate: null }, bottom: { color: "27251f", alternate: null } }, "dark");
+  it("dark: two black teams still read apart", () => {
+    const black = dress(kitsOf({ color: "000000", alternate: null }, { color: "27251f", alternate: null }), "dark");
     expect(apart(black.top, black.bottom)).toBe(true);
   });
 });

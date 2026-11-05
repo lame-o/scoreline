@@ -7,6 +7,7 @@
  *
  *     <PitchTheater feed={feed} homeTeamID={homeID} event={event} added={detail.soccerAdded} people={detail.people} />
  */
+import { NO_KITS, type MatchColors as TheaterKits } from "../../../../data/matchColors";
 import { lazy, Suspense } from "react";
 import type { SoccerFeed } from "../../../../data/liveFeeds/soccer";
 import type { ScoreEvent } from "../../../../data/models";
@@ -26,15 +27,15 @@ export interface PitchTheaterProps {
   readonly added?: SoccerAddedTime | null;
   /** The squads, by athlete ID (the summary's rosters): the names over the players. */
   readonly people?: Readonly<Record<string, TheaterPerson>>;
+  /** The game's colors, decided once (`GameContext.colors`). */
+  readonly kits: TheaterKits | null;
 }
 
-export function PitchTheater({ feed, homeTeamID, event, added = null, people }: PitchTheaterProps) {
+export function PitchTheater({ feed, homeTeamID, event, added = null, people, kits: colors }: PitchTheaterProps) {
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
-  const kits = {
-    top: { color: top?.color ?? null, alternate: top?.alternateColor ?? null },
-    bottom: { color: bottom?.color ?? null, alternate: bottom?.alternateColor ?? null },
-  };
+  // The game's colors, decided once (MatchColors): what each side wears.
+  const kits = colors ?? NO_KITS;
   return (
     <div className={styles.slot}>
       <Suspense fallback={<TheaterWell />}>

@@ -8,6 +8,7 @@
  *
  *     <CourtTheater feed={feed} teams={teams} event={event} palette={palette} names={names} topIsHome people={detail.people} />
  */
+import { NO_KITS, type MatchColors as TheaterKits } from "../../../../data/matchColors";
 import { lazy, Suspense } from "react";
 import type { BasketballFeed, Teams } from "../../../../data/liveFeeds/basketball";
 import type { ScoreEvent } from "../../../../data/models";
@@ -30,15 +31,15 @@ export interface CourtTheaterProps {
   readonly topIsHome: boolean;
   /** The box score's players, by athlete ID: the names over the credited men. */
   readonly people?: Readonly<Record<string, TheaterPerson>>;
+  /** The game's colors, decided once (`GameContext.colors`). */
+  readonly kits: TheaterKits | null;
 }
 
-export function CourtTheater({ feed, teams, event, palette, names, spoken, topIsHome, people }: CourtTheaterProps) {
+export function CourtTheater({ feed, teams, event, palette, names, spoken, topIsHome, people, kits: colors }: CourtTheaterProps) {
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
-  const kits = {
-    top: { color: top?.color ?? null, alternate: top?.alternateColor ?? null },
-    bottom: { color: bottom?.color ?? null, alternate: bottom?.alternateColor ?? null },
-  };
+  // The game's colors, decided once (MatchColors): what each side wears.
+  const kits = colors ?? NO_KITS;
   return (
     <div className={styles.slot}>
       <Suspense fallback={<TheaterWell />}>

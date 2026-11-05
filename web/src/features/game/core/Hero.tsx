@@ -31,7 +31,10 @@ import styles from "./Hero.module.css";
 
 export interface HeroProps {
   readonly event: ScoreEvent;
+  /** What each side wears, as marks (`MatchColors.palette`): a score's pop. */
   readonly palette: TeamPalette | null;
+  /** The clubs' own colors (`MatchColors.identity`): the crests' glow. The marks' when absent. */
+  readonly identity?: TeamPalette | null;
   /** The numbers the hero shows (a fast lane's, while it's ahead of the scoreboard). */
   readonly scores: { top: string | null; bottom: string | null };
   readonly beats: HeroBeats;
@@ -65,7 +68,7 @@ export interface HeroProps {
   readonly overlay?: ReactNode;
 }
 
-export function Hero({ event, palette, scores, beats, surface, clockFallback, clock, liveSecond, possession, possessionInAir = false, chip = null, note = null, staleSince, spoken, caption, trophy = null, badge = null, heroRef, tuckRef, overlay = null }: HeroProps) {
+export function Hero({ event, palette, identity = null, scores, beats, surface, clockFallback, clock, liveSecond, possession, possessionInAir = false, chip = null, note = null, staleSince, spoken, caption, trophy = null, badge = null, heroRef, tuckRef, overlay = null }: HeroProps) {
   const glint = useRef<HTMLSpanElement>(null);
   const level = useSettings((s) => s.celebrationLevel);
   const reduce = useReducedMotion();
@@ -91,7 +94,7 @@ export function Hero({ event, palette, scores, beats, surface, clockFallback, cl
         <h1 className="visually-hidden">{spoken}</h1>
         {caption ? <p className={styles.caption}>{caption}</p> : null}
         <div className={styles.scoreboard}>
-          <TeamColumn event={event} c={event.content.top} color={palette.top} hasBall={possession === "top"} inAir={possessionInAir} trophy={trophy === "top" ? beats.trophies : null} />
+          <TeamColumn event={event} c={event.content.top} color={(identity ?? palette).top} hasBall={possession === "top"} inAir={possessionInAir} trophy={trophy === "top" ? beats.trophies : null} />
           <div className={styles.center}>
             {scores.top != null || scores.bottom != null ? (
               <span className={styles.score}>
@@ -103,7 +106,7 @@ export function Hero({ event, palette, scores, beats, surface, clockFallback, cl
             <HeroStatus event={event} clock={clock ?? event.clock} stale={staleSince != null} fallback={clockFallback} second={liveSecond ?? null} ticking={surface === "hero"} chip={chip} />
             {note ? <span className={styles.note}>{note}</span> : null}
           </div>
-          <TeamColumn event={event} c={event.content.bottom} color={palette.bottom} hasBall={possession === "bottom"} inAir={possessionInAir} trophy={trophy === "bottom" ? beats.trophies : null} />
+          <TeamColumn event={event} c={event.content.bottom} color={(identity ?? palette).bottom} hasBall={possession === "bottom"} inAir={possessionInAir} trophy={trophy === "bottom" ? beats.trophies : null} />
         </div>
       </div>
     ) : event.content.kind === "field" ? (

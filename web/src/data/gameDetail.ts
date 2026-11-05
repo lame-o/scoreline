@@ -20,6 +20,8 @@ import { parseMatchCompetition, type MatchCompetition } from "./soccerCompetitio
 import { baseballFielders, NO_FIELDERS, type BaseballFielders } from "./mlb/fielders";
 import { TheaterPeople, type TheaterPerson } from "./theater/theaterPeople";
 import type { Competitor, CSLive, ScoreEvent, Side, Sport } from "./models";
+import { teamKitFromUniform, type TeamKit } from "./matchColors";
+import { oklabFromHex } from "./teamColors";
 import { makeEvent } from "./providers/espn";
 import { EMPTY_ROSTER, loadCSDetail, type CSRound, type Roster } from "./cs2";
 import { loadClimbingDetail, type BoulderCard, type UpNext, type WallRoute } from "./climbing";
@@ -255,6 +257,16 @@ export interface GameDetail {
   readonly plays: readonly JSONValue[];
   /** Whether the top (first listed) team is at home; ESPN sports only. */
   readonly topIsHome: boolean | null;
+  /**
+   * Each team's own colors from the summary, by competitor ID: schedule rows
+   * have none, so a game opened from history reads them here.
+   */
+  readonly teamColors: Readonly<Record<string, TeamKit>>;
+  /**
+   * What each side wears in this game, by competitor ID: ESPN's soccer
+   * summaries have it once lineups post (the other sports don't).
+   */
+  readonly matchKits: Readonly<Record<string, TeamKit>>;
   /** Player ID → short name ("Y. Diaz"), from the box score, so the live lane can name the batter and pitcher. */
   readonly athleteNames: Readonly<Record<string, string>>;
   /**
@@ -325,6 +337,8 @@ export const EMPTY_DETAIL: GameDetail = {
   soccerAdded: null,
   plays: [],
   topIsHome: null,
+  teamColors: {},
+  matchKits: {},
   athleteNames: {},
   playerNames: {},
   people: {},
@@ -368,6 +382,29 @@ export function sideMapper(event: ScoreEvent): SideOf {
   const [top, bottom] = espnTeamIDs(event);
   return (id) => (id == null ? null : id === top ? "top" : id === bottom ? "bottom" : null);
 }
+
+/**
+ * The event in the colors its summary says (GameDetail.colored): each team's
+ * own colors where the summary has them, and what it wears in this game.
+ * The same event when nothing changes. (pure; tested)
+ */
+export function coloredEvent(event: ScoreEvent, detail: Pick<GameDetail, "teamColors" | "matchKits">): ScoreEvent {
+  if (event.content.kind !== "match") return event;
+  const colored = (team: Competitor): Competitor => {
+    if (team.id == null) return team;
+    const colors = detail.teamColors[team.id];
+    const color = colors?.color && oklabFromHex(colors.color) ? colors.color : team.color;
+    const alternateColor = colors?.alternate && oklabFromHex(colors.alternate) ? colors.alternate : team.alternateColor;
+    const kit = detail.matchKits[team.id] ?? null;
+    if (color === team.color && alternateColor === team.alternateColor && sameKit(kit, team.kit ?? null)) return team;
+    return { ...team, color, alternateColor, kit };
+  };
+  const top = colored(event.content.top);
+  const bottom = colored(event.content.bottom);
+  return top === event.content.top && bottom === event.content.bottom ? event : { ...event, content: { kind: "match", top, bottom } };
+}
+
+const sameKit = (a: TeamKit | null, b: TeamKit | null) => a === b || (a != null && b != null && a.color === b.color && a.alternate === b.alternate);
 
 // MARK: - Fetching
 
@@ -494,6 +531,22 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
   const topComp = competitors.find((c) => str(at(c, "team", "id")) === topID);
   const bottomComp = competitors.find((c) => str(at(c, "team", "id")) === bottomID);
   const topIsHome = topComp ? str(at(topComp, "homeAway")) === "home" : null;
+  // Each team's own colors, and what it wears today: the rosters' uniform, else the box score's teams'.
+  const teamColors: Record<string, TeamKit> = {};
+  const matchKits: Record<string, TeamKit> = {};
+  if (event.content.kind === "match") {
+    for (const team of [event.content.top, event.content.bottom]) {
+      const rawID = team.id?.split("-").pop();
+      const raw = rawID ? competitors.find((c) => str(at(c, "team", "id")) === rawID) : undefined;
+      if (!team.id || !raw) continue;
+      teamColors[team.id] = { color: str(at(raw, "team", "color")) ?? null, alternate: str(at(raw, "team", "alternateColor")) ?? null };
+      const roster = arr(at(summary, "rosters")).find((r) => str(at(r, "team", "id")) === rawID);
+      const wearing =
+        roster !== undefined ? at(roster, "uniform") : at(arr(at(summary, "boxscore", "teams")).find((t) => str(at(t, "team", "id")) === rawID), "team", "uniform");
+      const kit = teamKitFromUniform(wearing);
+      if (kit) matchKits[team.id] = kit;
+    }
+  }
 
   const seen = new Set<string>();
   const broadcasters = arr(at(competition, "broadcasts"))
@@ -663,6 +716,8 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     broadcast: str(at(competition, "broadcasts", 0, "media", "shortName")) ?? null,
     broadcasters,
     topIsHome,
+    teamColors,
+    matchKits,
     stats: stats(summary, sport, topID, bottomID, path),
     linescore: sport !== "soccer" && topComp && bottomComp ? linescore(topComp, bottomComp, sport) : null,
     topWinProbability,

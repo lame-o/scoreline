@@ -7,6 +7,7 @@
  *
  *     <FieldTheater feed={feed} teams={teams} situation={situation} event={event} palette={palette} names={names} people={detail.people} />
  */
+import { NO_KITS, type MatchColors as TheaterKits } from "../../../../data/matchColors";
 import { lazy, Suspense } from "react";
 import type { Football } from "../../../../data/gameDetail";
 import type { FootballFeed, FootballTeams } from "../../../../data/liveFeeds/football";
@@ -28,15 +29,15 @@ export interface FieldTheaterProps {
   readonly names: { readonly top: string; readonly bottom: string };
   /** The box score's players, by athlete ID: the names over the credited men. */
   readonly people: Readonly<Record<string, TheaterPerson>>;
+  /** The game's colors, decided once (`GameContext.colors`). */
+  readonly kits: TheaterKits | null;
 }
 
-export function FieldTheater({ feed, teams, situation, event, palette, names, people }: FieldTheaterProps) {
+export function FieldTheater({ feed, teams, situation, event, palette, names, people, kits: colors }: FieldTheaterProps) {
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
-  const kits = {
-    top: { color: top?.color ?? null, alternate: top?.alternateColor ?? null },
-    bottom: { color: bottom?.color ?? null, alternate: bottom?.alternateColor ?? null },
-  };
+  // The game's colors, decided once (MatchColors): what each side wears.
+  const kits = colors ?? NO_KITS;
   return (
     <div className={styles.slot}>
       <Suspense fallback={<TheaterWell />}>

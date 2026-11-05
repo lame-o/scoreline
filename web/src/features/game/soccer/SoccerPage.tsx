@@ -99,7 +99,7 @@ export function useSoccerPage(game: GameContext): SportPage {
         accessory={live ? "live" : event.state === "final" ? "final" : undefined}
       >
         {/* The play theater at the top of the Live Pitch, as on the Mac; it owns the moments it replays (GoalCelebration.pitchBursts). */}
-        {live ? <PitchTheater feed={feed} homeTeamID={homeID} event={event} added={detail.soccerAdded} people={detail.people} /> : null}
+        {live ? <PitchTheater feed={feed} homeTeamID={homeID} event={event} added={detail.soccerAdded} people={detail.people} kits={game.colors} /> : null}
         {pitchChart}
       </DetailSection>
     );

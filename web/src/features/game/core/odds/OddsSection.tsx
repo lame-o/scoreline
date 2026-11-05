@@ -5,15 +5,13 @@
  * header row and its muted line, and the chart (OddsChart.tsx), with the
  * Mac's words from ODDS-DECISIONS.md.
  */
-import { useMemo, useRef, useState, type CSSProperties } from "react";
-import { nbaPalette } from "../../../../data/basketball";
+import { useRef, useState, type CSSProperties } from "react";
 import { headerFigures, percent, percentPair, spokenPercent, valueAt, type GameState, type HeaderFigure, type OddsWindow } from "../../../../data/odds/chart";
 import type { Sport } from "../../../../data/models";
 import { NEUTRAL } from "../../../../data/teamColors";
 import { SegmentedControl } from "../../../../design/components";
 import { useWidth } from "../../../../design/useWidth";
 import type { OddsFeed, OddsSnapshot } from "../../../../state/odds";
-import { useColorScheme } from "../../../../state/theme";
 import { DetailSection } from "../DetailSection";
 import type { GameContext } from "../sport";
 import { beforeStart, OddsChart } from "./OddsChart";
@@ -36,7 +34,6 @@ const startWord = (sport: Sport) => (sport === "basketball" ? "tip-off" : sport 
 
 export function OddsSection({ game, snapshot, feed, state }: { game: GameContext; snapshot: OddsSnapshot; feed: OddsFeed | null; state: GameState }) {
   const { event, detail, names, spoken } = game;
-  const scheme = useColorScheme();
   const basis = detail.odds;
   const sport = event.ref?.kind === "espn" ? event.ref.sport : "basketball";
   const threeWay = snapshot.market?.kind === "three-way";
@@ -45,11 +42,8 @@ export function OddsSection({ game, snapshot, feed, state }: { game: GameContext
   const width = useWidth(block);
   const live = state === "live";
   const final = state === "final";
-  // Two sides that must read apart in every sport: the NBA page's clash rule (a near-twin steps to its second color).
-  const palette = useMemo(
-    () => (event.content.kind === "match" ? nbaPalette(event.content.top, event.content.bottom, scheme) : game.palette),
-    [event.content, scheme, game.palette],
-  );
+  // Two sides that read apart in every sport: the game's colors, decided once (MatchColors).
+  const palette = game.palette;
 
   // The header: the newest price (live, before the game), or on a final the last one, its resolution
   // ("GS 100% · 0% MIN"). The muted line keeps where a final began: at the start of play.

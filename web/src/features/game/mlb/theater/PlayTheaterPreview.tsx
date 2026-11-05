@@ -14,6 +14,7 @@
  *     <PlayTheaterPreview />                 // replays on mount (or as `?t=` says)
  *     <PlayTheaterPreview frozen={1.6} />    // every tile at t = 1.6 s
  */
+import { kitsOf } from "../../../../data/mlb/theaterTeams";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { Competitor, ScoreEvent } from "../../../../data/models";
@@ -141,7 +142,7 @@ function PreviewStage({ tile, frozen }: { tile: Tile; frozen: number | null }) {
   const top = content.kind === "match" ? content.top : null;
   const bottom = content.kind === "match" ? content.bottom : null;
   const palette = teamPalette(top?.color ?? null, bottom?.color ?? null, scheme);
-  const kits = { top: { color: top?.color ?? null, alternate: top?.alternateColor ?? null }, bottom: { color: bottom?.color ?? null, alternate: bottom?.alternateColor ?? null } };
+  const kits = kitsOf({ color: top?.color ?? null, alternate: top?.alternateColor ?? null }, { color: bottom?.color ?? null, alternate: bottom?.alternateColor ?? null });
   useEffect(() => {
     if (tile.moment && frozen == null) slot.offer([tile.moment]);
   }, [slot, tile.moment, frozen]);

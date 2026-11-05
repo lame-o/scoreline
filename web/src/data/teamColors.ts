@@ -5,7 +5,8 @@
  * Only lightness moves (dark colors lift on a dark page, pale ones deepen on
  * a light one), so hue and saturation, the things that tell two teams apart,
  * are kept. A color with no usable hue comes back as null and is shown
- * honestly as neutral gray. Two near-identical teams: the second goes neutral.
+ * honestly as neutral gray. The two teams read apart because the game's
+ * colors were decided that way (data/matchColors.ts); this only tones them.
  *
  * Team colors are for marks and washes only, never for text.
  */
@@ -53,7 +54,7 @@ export function hue(c: OKLab): number {
   return h < 0 ? h + 360 : h;
 }
 
-function fromLCH(l: number, c: number, h: number): OKLab {
+export function fromLCH(l: number, c: number, h: number): OKLab {
   const r = (h * Math.PI) / 180;
   return { l, a: c * Math.cos(r), b: c * Math.sin(r) };
 }
@@ -99,10 +100,12 @@ export function toHex(c: OKLab): string {
     .join("")}`;
 }
 
-/** A team color fitted to the scheme, or null when it has no usable hue here (TeamTone.adjust). */
-export function teamTone(hex: string | null | undefined, scheme: Scheme): string | null {
-  let lab = oklabFromHex(hex);
-  if (!lab) return null;
+/** Euclidean distance in OKLab (`OKLab.distance`). */
+export const labDistance = (x: OKLab, y: OKLab) => Math.hypot(x.l - y.l, x.a - y.a, x.b - y.b);
+
+/** A color fitted to the scheme, or null when it has no usable hue here (TeamTone.adjust, on OKLab). */
+export function toneLab(color: OKLab, scheme: Scheme): OKLab | null {
+  let lab = color;
   const gray = chroma(lab) < 0.03;
   if (scheme === "dark") {
     // Black has nothing to lift into.
@@ -125,7 +128,23 @@ export function teamTone(hex: string | null | undefined, scheme: Scheme): string
     const cap = h >= 75 && h <= 115 && chroma(lab) > 0.08 ? 0.8 : 0.62;
     if (lab.l > cap) lab = fromLCH(cap, chroma(lab), h);
   }
-  return toHex(lab);
+  return lab;
+}
+
+/**
+ * As a man wears it (TeamTone.worn): figures have an outline, so black stays
+ * black and white stays white, where a chart's mark needs a neutral instead.
+ */
+export function wornLab(lab: OKLab, scheme: Scheme): OKLab {
+  if (chroma(lab) < 0.03) return { l: Math.min(Math.max(lab.l, 0.24), 0.96), a: lab.a, b: lab.b };
+  return toneLab(lab, scheme) ?? lab;
+}
+
+/** A team color fitted to the scheme, or null when it has no usable hue here (TeamTone.adjust). */
+export function teamTone(hex: string | null | undefined, scheme: Scheme): string | null {
+  const lab = oklabFromHex(hex);
+  const toned = lab ? toneLab(lab, scheme) : null;
+  return toned ? toHex(toned) : null;
 }
 
 /** Relative luminance of an sRGB hex, 0…1 (Viz.luminance: the plain weighted sum, as the Swift does). */
@@ -150,24 +169,16 @@ export interface TeamPalette {
 }
 
 /**
- * The two teams' colors on this page (Swift `TeamPalette`). No color given:
- * the system's blue and orange. Two near-identical colors can't be told
- * apart: the second goes neutral.
+ * The two teams' colors fitted to this page (Swift `TeamPalette`). No color
+ * given: the system's blue and orange. A color with no usable hue here (pure
+ * black on dark, pure white on light) is shown honestly as gray. They read
+ * apart because the game's colors were decided that way (`MatchColors`):
+ * this only tones them.
  */
 export function teamPalette(top: string | null, bottom: string | null, scheme: Scheme): TeamPalette {
-  const resolve = (hex: string | null, fallback: string): { css: string; hex: string | null } => {
-    if (!oklabFromHex(hex)) return { css: fallback, hex: null };
-    const toned = teamTone(hex, scheme);
-    return toned ? { css: toned, hex: toned } : { css: NEUTRAL, hex: null };
+  const toned = (hex: string | null, fallback: string): string => {
+    if (!oklabFromHex(hex)) return fallback;
+    return teamTone(hex, scheme) ?? NEUTRAL;
   };
-  const t = resolve(top, scheme === "dark" ? "#0a84ff" : "#007aff");
-  const b = resolve(bottom, scheme === "dark" ? "#ff9f0a" : "#ff9500");
-  if (t.hex && b.hex) {
-    const x = Number.parseInt(t.hex.slice(1), 16);
-    const y = Number.parseInt(b.hex.slice(1), 16);
-    const channel = (v: number, shift: number) => ((v >> shift) & 0xff) / 255;
-    const distance = [16, 8, 0].reduce((sum, s) => sum + Math.abs(channel(x, s) - channel(y, s)), 0);
-    if (distance < 0.35) return { top: t.css, bottom: NEUTRAL };
-  }
-  return { top: t.css, bottom: b.css };
+  return { top: toned(top, scheme === "dark" ? "#0a84ff" : "#007aff"), bottom: toned(bottom, scheme === "dark" ? "#ff9f0a" : "#ff9500") };
 }

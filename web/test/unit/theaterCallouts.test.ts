@@ -13,6 +13,7 @@ import { CameraFrame, type Rect } from "../../src/data/mlb/playCamera";
 import type { Point } from "../../src/data/mlb/theaterField";
 import { Hoops } from "../../src/data/theater/basketballScript";
 import { RigPoses } from "../../src/data/theater/rig";
+import { kitsOf } from "../../src/data/mlb/theaterTeams";
 import {
   known,
   ringWidth,
@@ -347,7 +348,7 @@ describe("under the play", () => {
       },
       fillText() {},
     };
-    const black = theaterLabels({ top: { color: "000000", alternate: "c4ced4" }, bottom: { color: "4e008e", alternate: "79a3dc" } }, "dark", { top: "Spurs", bottom: "Jazz" }).top;
+    const black = theaterLabels(kitsOf({ color: "000000", alternate: "c4ced4" }, { color: "4e008e", alternate: "79a3dc" }), "dark", { top: "Spurs", bottom: "Jazz" }).top;
     const block = nameTag(ctx as unknown as CanvasRenderingContext2D, known(theaterPerson("Victor Wembanyama", null, "1", "F")), black, true, 9);
     block.draw(ctx as unknown as CanvasRenderingContext2D);
     expect(slabs).toHaveLength(2);

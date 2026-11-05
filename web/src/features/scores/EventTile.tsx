@@ -14,7 +14,8 @@ import { countdown, countdownClock, clockTime, dayAndTime, dayName, enDash, isDe
 import { eventSport, stepsBack, type BaseState, type Competitor, type League, type ScoreEvent, type Side } from "../../data/models";
 import { lastGoalLine } from "../../data/soccer";
 import { sameEvent, type TileSize } from "../../data/scoreboard";
-import { teamPalette, washStrength, NEUTRAL, type TeamPalette } from "../../data/teamColors";
+import { washStrength, NEUTRAL, type TeamPalette } from "../../data/teamColors";
+import { eventColors, identityPalette, matchPalette } from "../../data/matchColors";
 import { FLAG_PALETTE } from "../../data/teams";
 import { useNow } from "../../state/clock";
 import { useIsPinned } from "../../state/pin";
@@ -49,7 +50,9 @@ function EventTileView(props: EventTileProps) {
   const now = Date.now();
   const sport = eventSport(event);
   const match = event.content.kind === "match" ? event.content : null;
-  const palette = match ? teamPalette(match.top.color, match.bottom.color, scheme) : null;
+  // The game's colors (MatchColors): what each side wears for the strip's marks, the clubs' own for the wash.
+  const colors = match ? eventColors(event) : null;
+  const palette = colors ? matchPalette(colors, scheme) : null;
   const reveal = revealDelay != null ? ({ className: styles.reveal, style: { animationDelay: `${revealDelay}s` } } as const) : null;
   const presentation = size === "large" ? (event.state === "live" ? "live" : "nextUp") : event.state === "live" ? "liveSmall" : "small";
 
@@ -67,7 +70,7 @@ function EventTileView(props: EventTileProps) {
     .filter(Boolean)
     .join(", ");
 
-  const wash = presentation === "live" ? tileWash(event, palette) : null;
+  const wash = presentation === "live" ? tileWash(event, colors ? identityPalette(colors, scheme) : null) : null;
   return (
     <GameMenuHost event={event} className={[styles.tileWrap, className].filter(Boolean).join(" ")} buttonClassName={styles.tileMore}>
     <Link

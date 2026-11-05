@@ -8,6 +8,7 @@
  * The lane speaks once the first full load has named the box score's
  * players; until then the full load's situation, at-bat and theater stand in.
  */
+import { NO_KITS } from "../../../data/matchColors";
 import { lazy, Suspense, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { battingSide, Accessory, shortInning, type AccessoryTier } from "../../../data/matchRules";
 import type { Baseball, BattedBall } from "../../../data/gameDetail";
@@ -109,13 +110,8 @@ export function useBaseballPage(game: GameContext): SportPage {
   const [topID, bottomID] = espnTeamIDs(event);
   void topID;
   void bottomID;
-  const kits =
-    event.content.kind === "match"
-      ? {
-          top: { color: event.content.top.color, alternate: event.content.top.alternateColor },
-          bottom: { color: event.content.bottom.color, alternate: event.content.bottom.alternateColor },
-        }
-      : { top: { color: null, alternate: null }, bottom: { color: null, alternate: null } };
+  // The game's colors, decided once (MatchColors): what each side wears.
+  const kits = game.colors ?? NO_KITS;
 
   if (live && situation) {
     sections.atPlate = (

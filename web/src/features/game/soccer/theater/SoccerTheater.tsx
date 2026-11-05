@@ -288,7 +288,7 @@ export default function SoccerTheater({
   const dressed = useMemo(
     () => dress(kits, scheme),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme],
+    [kits, scheme],
   );
   // The attacking team: the moment's, or the one on the ball (home is the top team).
   const side = scene?.side ?? idle?.possession ?? "top";
@@ -311,7 +311,7 @@ export default function SoccerTheater({
   const labels = useMemo(
     () => theaterLabels(kits, scheme, { top: topTeam, bottom: bottomTeam }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, topTeam, bottomTeam],
+    [kits, scheme, topTeam, bottomTeam],
   );
   useEffect(() => {
     if (pointer !== undefined) named.pose(pointer);
