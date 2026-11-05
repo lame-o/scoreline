@@ -30,7 +30,6 @@ import {
   parseEventTime,
   periodLengthOf,
   playKind,
-  Stoppages,
   type BroadcastPolicy,
   type FastReading,
   type FastState,
@@ -38,9 +37,9 @@ import {
   type PTime,
   type RawPlay,
   type ScoreLine,
-  type Stoppage,
   type TimelineEntry,
 } from "./timeline";
+import { stoppage, Stoppages, type Stoppage } from "./stoppage";
 
 /** The sports the broadcast clock runs for (head-to-head ESPN games with a play-by-play). */
 export type BroadcastSport = "basketball" | "football" | "soccer" | "baseball";
@@ -339,31 +338,8 @@ export function basketball(play: JSONValue, p: BroadcastPolicy): TimelineEntry<R
 
 // MARK: Football
 
-/**
- * A stoppage as ESPN names a play's type, whatever the sport. The one table
- * behind the hero, the docked bar, the list row and the theater's tag. (pure; tested)
- */
-export function stoppage(type: string | null | undefined): Stoppage | null {
-  if (type == null) return null;
-  const t = type.toLowerCase();
-  switch (t) {
-    case "official timeout":
-      return Stoppages.officialTimeout;
-    case "timeout":
-    case "full timeout":
-    case "short timeout":
-    case "reset timeout":
-      return Stoppages.timeout;
-    case "two-minute warning":
-      return Stoppages.twoMinuteWarning;
-    case "pitching change":
-      return Stoppages.pitchingChange;
-    case "mound visit":
-      return Stoppages.moundVisit;
-    default:
-      return t.startsWith("coach's challenge") || t.startsWith("ref-initiated review") || t === "challenge" ? Stoppages.review : null;
-  }
-}
+/** A stoppage as ESPN names a play's type, whatever the sport: the one table (stoppage.ts). */
+export { stoppage } from "./stoppage";
 
 const KICK_TYPES = new Set(["52", "53", "59", "60", "18", "12", "17"]);
 

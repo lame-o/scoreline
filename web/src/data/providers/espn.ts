@@ -5,6 +5,7 @@
  * are kept here beside the code they justify.
  */
 import { broadcaster } from "../broadcasters";
+import { stoppage, stoppageWords } from "../broadcast/stoppage";
 import { enDash, periodLabel } from "../format";
 import { arr, at, bool, int, num, str, text, type JSONValue } from "../json";
 import type { Fetcher } from "../http";
@@ -88,7 +89,8 @@ export function makeEvent(e: JSONValue, sport: Sport, path: string, now: number)
   const state = rawState === "in" ? "live" : rawState === "post" ? "final" : "scheduled";
   const completed = bool(at(statusType, "completed"));
   const statusName = str(at(statusType, "name"));
-  const shortDetail = str(at(statusType, "shortDetail"));
+  // One spelling, on every surface: ESPN's "HT" is the app's "Half-time" (the broadcast's word for the break too).
+  const shortDetail = str(at(statusType, "shortDetail")) === "HT" ? "Half-time" : str(at(statusType, "shortDetail"));
 
   // Postponed and cancelled games come back "post" but not completed, with
   // 0–0 placeholder scores: show them without a score. A suspended game is
@@ -246,25 +248,28 @@ const BETWEEN_SNAPS: Readonly<Record<string, string>> = {
   "Field Goal Missed": "Field goal missed",
   Kickoff: "Kickoff",
   "Extra Point Good": "Extra point",
-  "Official Timeout": "Timeout",
-  Timeout: "Timeout",
-  "Two-minute warning": "Two-minute warning",
   Punt: "Punt",
   Safety: "Safety",
 };
 /** Breaks the status already says ("Halftime", "End of 3rd"): no line, rather than the same words twice. */
 const BREAKS = new Set(["End Period", "End of Half"]);
 
+/** The stoppage the last play opened (the one table, data/broadcast/stoppage.ts): it reads ahead of a situation it has made stale. */
+const lastStoppage = (situation: JSONValue) => stoppage(text(at(situation, "lastPlay", "type", "text")));
+
 export function situationLine(situation: JSONValue, sport: Sport, path: string): string | null {
   if (situation == null) return null;
+  const stopped = lastStoppage(situation);
   switch (sport) {
     case "basketball": {
       // NBA only: the last play, shortened ("L. Doncic makes 26-ft three point jumper").
       const lastText = text(at(situation, "lastPlay", "text"));
       if (path !== NBA_PATH || !lastText) return null;
-      return nbaListLine(lastText, lastPlayNames(situation));
+      return stopped ? stoppageWords(stopped) : nbaListLine(lastText, lastPlayNames(situation));
     }
     case "football": {
+      // A timeout still carries the previous snap's down and distance.
+      if (stopped) return stoppageWords(stopped);
       const downDistance = text(at(situation, "downDistanceText"));
       if (downDistance) return downDistance;
       const type = text(at(situation, "lastPlay", "type", "text"));
@@ -272,6 +277,7 @@ export function situationLine(situation: JSONValue, sport: Sport, path: string):
       return BETWEEN_SNAPS[type] ?? (type.toLowerCase().includes("touchdown") ? "Touchdown" : type);
     }
     case "baseball": {
+      if (stopped) return stoppageWords(stopped);
       const outs = int(at(situation, "outs"));
       if (outs == null) return null;
       const parts = [outs === 1 ? "1 out" : `${outs} outs`];
@@ -310,6 +316,8 @@ function lastPlayNames(situation: JSONValue): { full: string; short: string }[] 
  * reviews, period ends): the row keeps the line before (Basketball.swift `isNotable`).
  */
 export function situationIsRoutine(situation: JSONValue): boolean {
+  // A stoppage reads ahead of the line before it.
+  if (lastStoppage(situation)) return false;
   const rawType = str(at(situation, "lastPlay", "type", "id"));
   const type = rawType != null && /^\d+$/.test(rawType) ? Number(rawType) : null;
   return !nbaIsNotable(type, int(at(situation, "lastPlay", "scoreValue")) ?? null);

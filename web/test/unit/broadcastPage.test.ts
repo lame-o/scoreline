@@ -25,6 +25,7 @@ import { liveMoment, Tier } from "../../src/data/moments";
 import type { Competitor, ScoreEvent, Sport } from "../../src/data/models";
 import { notificationBody } from "../../src/data/notifier";
 import { alertsFollowPage, menuBar } from "../../src/data/tabScore";
+import { situationIsRoutine, situationLine } from "../../src/data/providers/espn";
 import { iso, nbaPlay, S } from "./broadcastHelpers";
 import { appCadence, FIXTURES, Recording, RecordingReplay } from "./broadcastReplay";
 import { sharedFixture } from "./fixtures";
@@ -408,6 +409,16 @@ describe("Game presentation: breaks and stoppages, one phase for every surface",
       stoppage("Official Timeout")?.kind === "officialTimeout" && stoppage("Full Timeout")?.kind === "timeout" && stoppage("Two-minute warning")?.kind === "twoMinuteWarning" && stoppage("Rush") == null,
       "one table, every sport",
     ).toBe(true);
+  });
+
+  it("the scores list's row says the same word (Providers.swift's line, 11de4c0)", () => {
+    const sit = (type: string, extra: Record<string, unknown> = {}) => ({ lastPlay: { type: { text: type, id: "16" }, text: "Timeout" }, ...extra });
+    expect(situationLine(sit("Official Timeout", { downDistanceText: "3rd & 7 at CLE 40" }), "football", "football/nfl"), "a timeout reads ahead of the stale down it left").toBe("Official timeout");
+    expect(situationLine(sit("Two-minute warning"), "football", "football/nfl")).toBe("Two-minute warning");
+    expect(situationLine(sit("Full Timeout"), "basketball", NBA_PATH), "NBA: the stoppage, not the play's line").toBe("Timeout");
+    expect(situationIsRoutine(sit("Full Timeout")), "…and it isn't routine (the row says it)").toBe(false);
+    expect(situationLine(sit("Pitching Change", { outs: 1 }), "baseball", "baseball/mlb")).toBe("Pitching change");
+    expect(situationLine({ lastPlay: { type: { text: "Pass Reception" } }, downDistanceText: "1st & 10 at PIT 25" }, "football", "football/nfl"), "in play: the down").toBe("1st & 10 at PIT 25");
   });
 
   it("soccer's half-time on a real recording where ESPN posted the entry 17 minutes after its status said HT", () => {

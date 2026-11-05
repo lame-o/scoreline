@@ -239,11 +239,11 @@ function BasesStrip({ state, runs }: { state: BaseState; runs: number | null }) 
 
 // MARK: - Soccer
 
-/** The match minute from the polled clock ("67'", "45'+2'", HT). */
+/** The match minute from the polled clock ("67'", "45'+2'", "Half-time": ESPN's HT, one spelling everywhere). */
 export function soccerMinute(event: ScoreEvent): number | null {
   const clock = event.clock;
   if (!clock) return null;
-  if (clock.display.toUpperCase() === "HT") return 45;
+  if (clock.display === "Half-time" || clock.display.toUpperCase() === "HT") return 45;
   return markMinute(clock.display) ?? clock.seconds / 60;
 }
 
