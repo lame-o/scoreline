@@ -190,7 +190,7 @@ function renderSection(s: Section, width: WidthClass, team: TeamProfile, tint: s
       return <ResultsSection results={team.results ?? []} form={team.form} sport={sport} allResults={schedulePath({ kind: "team", team: { id: ref.id, name: team.header?.shortName ?? (ref.name || "Team"), logo: team.header?.logo ?? ref.logo } }, "results")} />;
     case "roster":
       return (
-        <DetailSection title={sport === "soccer" ? "Squad" : sport === "esports" ? "Players" : "Roster"} caption={rosterCaption(sport)}>
+        <DetailSection title={sport === "soccer" ? "Squad" : sport === "esports" ? "Players" : "Roster"} caption={rosterCaption(sport, ref.id.startsWith("espn-ncaaf-"))}>
           {team.groups.length === 0 ? <RosterSkeleton /> : <RosterSection team={team} width={width} tint={tint} lightInk={lightInk} memoryKey={`team:${ref.id}`} columns={rosterSpans ? 2 : 1} />}
         </DetailSection>
       );
@@ -245,12 +245,13 @@ function renderSection(s: Section, width: WidthClass, team: TeamProfile, tint: s
   }
 }
 
-function rosterCaption(sport: TeamProfile["sport"]): string | null {
+function rosterCaption(sport: TeamProfile["sport"], college: boolean): string | null {
   switch (sport) {
     case "basketball":
       return "Per-game averages this season.";
     case "football":
-      return "Season totals. Starters first at each position.";
+      // Web fix: college has no depth chart (ESPN answers 400), so its positions run by number, not starters first.
+      return college ? "Season totals." : "Season totals. Starters first at each position.";
     case "baseball":
       return "Regular-season stats.";
     case "soccer":
