@@ -25,6 +25,8 @@ import { MotionPath, Quintic, TheaterMotion } from "../../src/data/theater/theat
 import { Plan, PlanChain, TheaterBake, type FrameTier } from "../../src/data/theater/theaterPlanChain";
 import type { ClockEvent, ClockPiece, ClockRegime, TheaterClock } from "../../src/data/theater/theaterSource";
 import { TheaterFrameGate } from "../../src/data/theater/theaterView";
+import { TheaterQuiet } from "../../src/data/theater/theaterQuiet";
+import { seed64, SplitMix64 } from "../../src/data/theater/splitMix64";
 
 const RIGHT = -Hoops.turn;
 const basketballYaw = new YawRule(Hoops.length / 2, 6, 2, -Hoops.turn, Hoops.turn);
@@ -530,6 +532,33 @@ describe("the one wake from still", () => {
     const last = TheaterFrameGate.state(tiers, time, clock, quiet);
     expect(!last.moving && last.wake == null, "nothing further to move: no wake at all").toBe(true);
     expect(TheaterFrameGate.state([], time, clock, 1000).moving, "no plan, no frames").toBe(false);
+  });
+});
+
+describe("a stoppage's quiet (TheaterQuiet)", () => {
+  it("sparse beats, nobody still for long, a small crew one away at a time, everyone back by the loop's end", () => {
+    const quiet = TheaterQuiet.make([3, 4, 5, 6, 7, 8], 2, new SplitMix64(seed64("timeout-123")));
+    expect(quiet.period).toBe(TheaterQuiet.length);
+    const ats = quiet.beats.map((b) => b.at);
+    expect(ats.length).toBeGreaterThan(5);
+    // Between one beat and the next, never more than the gap's top (nothing's still past about 8 s, the seam included).
+    for (let i = 1; i < ats.length; i++) expect(ats[i]! - ats[i - 1]!).toBeLessThanOrEqual(TheaterQuiet.gap.upper + 1e-9);
+    expect(ats[0]! - 2).toBeLessThanOrEqual(1.5);
+    expect(2 + TheaterQuiet.length - ats[ats.length - 1]!).toBeLessThanOrEqual(8);
+    // Each man is back where he was (his last beat's end) before the loop comes round.
+    for (const b of quiet.beats) {
+      const end = b.kind === "step" ? b.back + TheaterQuiet.stride : b.until;
+      expect(end).toBeLessThanOrEqual(2 + TheaterQuiet.length + 1e-9);
+    }
+    // A crew of three never has two away at once; nobody to move, no quiet.
+    const small = TheaterQuiet.make([0, 1, 2], 0, new SplitMix64(seed64("crew")), TheaterQuiet.length, false);
+    expect(small.beats.every((b) => b.kind === "step")).toBe(true);
+    for (let i = 1; i < small.beats.length; i++) {
+      const a = small.beats[i - 1]!;
+      const b = small.beats[i]!;
+      if (a.kind === "step") expect(b.at).toBeGreaterThanOrEqual(a.back - 1e-9);
+    }
+    expect(TheaterQuiet.make([], 0, new SplitMix64(1n)).beats).toEqual([]);
   });
 });
 

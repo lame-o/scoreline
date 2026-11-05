@@ -14,7 +14,7 @@
 import type { FieldPoint, Point } from "../mlb/theaterField";
 import { RigTrack, type RigFacing } from "./rig";
 import { CAMERA_TUNING, CameraOperator, YawRule, type CameraTuning, type YawTarget } from "./theaterCamera";
-import { clipFlying, type BallFlight, type ClipFigure, type ClipPlacement, type TheaterClip } from "./theaterClips";
+import { clipFlying, finish, type BallFlight, type ClipFigure, type ClipPlacement, type TheaterClip } from "./theaterClips";
 import {
   remainder,
   TheaterCurve,
@@ -360,6 +360,11 @@ export const TheaterBake = {
    * plan made when it's seen again carries on from where everyone stands).
    */
   bake<Clip extends TheaterClip>(plan: Plan<Clip>, tuning: CameraTuning = CAMERA_TUNING, light = false, previous: BakedPlan<Clip> | null = null): BakedPlan<Clip> {
+    return finish(TheaterBake.bakeSteps(plan, tuning, light, previous));
+  },
+
+  /** The same bake a man at a time (a web addition: the director bakes in short slices between frames). */
+  *bakeSteps<Clip extends TheaterClip>(plan: Plan<Clip>, tuning: CameraTuning = CAMERA_TUNING, light = false, previous: BakedPlan<Clip> | null = null): Generator<void, BakedPlan<Clip>, void> {
     const dt = 1 / TheaterTiming.rate;
     const n = Math.max(Math.ceil((plan.horizon - plan.start) * TheaterTiming.rate), 1) + 1;
     const time = (i: number) => plan.start + i * dt;
@@ -435,6 +440,7 @@ export const TheaterBake = {
         rig = RigTrack.measure(plan.start, plan.horizon, figure.height, position, facing, history.length * dt, plan.state?.actor(id)?.rig ?? null);
       }
       tracks.push(new ActorTrack(id, figure, plan.start, xy, opacity, rig, poses));
+      yield;
     }
     const ball = TheaterBake.ballSpans(plan);
     // The yaw: the rule's targets from the ball's end (basketball), else each clip's own.

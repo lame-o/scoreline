@@ -93,6 +93,15 @@ export class Quintic {
     out.y = this.at(1, s);
   }
 
+  /** The velocity and acceleration at t into `out` (the limits check's read: the same numbers, no allocation). */
+  motionInto(t: PTime, out: Kinematics, acceleration: boolean): void {
+    const s = this.s(t);
+    out.vx = this.rate(0, s);
+    out.vy = this.rate(1, s);
+    out.ax = acceleration ? this.push(0, s) : 0;
+    out.ay = acceleration ? this.push(1, s) : 0;
+  }
+
   equals(o: Quintic): boolean {
     if (this.t0 !== o.t0 || this.duration !== o.duration) return false;
     for (let i = 0; i < 12; i++) if (this.c[i] !== o.c[i]) return false;
@@ -155,6 +164,27 @@ export class MotionPath {
     if (!s || !(t >= this.start) || !(t < this.end)) return ZERO2;
     return s.acceleration(t);
   }
+
+  /** `velocity(t)` and `acceleration(t)` into `out`, the same numbers without allocating. */
+  motionInto(t: PTime, out: Kinematics): void {
+    const s = this.segment(t);
+    if (!s || !(t >= this.start) || !(t <= this.end)) {
+      out.vx = 0;
+      out.vy = 0;
+      out.ax = 0;
+      out.ay = 0;
+      return;
+    }
+    s.motionInto(t, out, t < this.end);
+  }
+}
+
+/** A velocity and an acceleration, written in place. */
+export interface Kinematics {
+  vx: number;
+  vy: number;
+  ax: number;
+  ay: number;
 }
 
 /** Where a path breaks the band (`TheaterMotion.Violation`). */
@@ -172,6 +202,9 @@ export interface Overlap {
   readonly at: PTime;
   readonly distance: number;
 }
+
+/** The limits check's one kinematics buffer (it never re-enters itself). */
+const SCRATCH: Kinematics = { vx: 0, vy: 0, ax: 0, ay: 0 };
 
 /** A pair of paths allowed to touch (a screen, a box-out): `"i,j"` with i < j. */
 export const contactPair = (i: number, j: number) => `${i},${j}`;
@@ -258,7 +291,7 @@ export const TheaterMotion = {
     const direct = TheaterMotion.steer(x0, v0, a0, t0, x1, v1, a1, duration, band, cruiseOver);
     // Already on the move and the straight path asks more than his legs (running the wrong way, too fast to turn):
     // he pulls up first, as a man does, then goes.
-    if (!(length2(v0) > 0.5) || TheaterMotion.violations(direct, t0, t0 + duration, band).length === 0) return direct;
+    if (!(length2(v0) > 0.5) || TheaterMotion.fits(direct, t0, t0 + duration, band)) return direct;
     return TheaterMotion.brake(x0, v0, a0, t0, x1, v1, a1, duration, band, cruiseOver) ?? direct;
   },
 
@@ -335,7 +368,7 @@ export const TheaterMotion = {
     const lenient: Band = { ...band, sprint: Math.max(band.sprint, length2(v0) * 1.0001) };
     const fits = (T: number) => {
       const path = TheaterMotion.travel(x0, v0, a0, 0, x1, v1, a1, T, band, cruiseOver);
-      return TheaterMotion.violations(path, 0, T, lenient).length === 0;
+      return TheaterMotion.fits(path, 0, T, lenient);
     };
     const d = length2(sub2(x1, x0));
     if (d < 1e-6 && length2(v0) < 1e-6 && length2(a0) < 1e-6) return 0;
@@ -367,7 +400,7 @@ export const TheaterMotion = {
       const speed = length2(v);
       if (speed > band.sprint * 1.0001) out.push({ kind: "speed", at: t, over: speed / band.sprint - 1 });
       if (speed > 0.25) {
-        const dir = scale2(v, 1 / speed);
+        const dir = v2(v.x / speed, v.y / speed);
         const along = dot2(a, dir);
         const across = length2(sub2(a, scale2(dir, along)));
         if (along > band.accel * 1.0001) out.push({ kind: "accel", at: t, over: along / band.accel - 1 });
@@ -379,6 +412,40 @@ export const TheaterMotion = {
       t += dt;
     }
     return out;
+  },
+
+  /**
+   * Whether a path keeps inside the band throughout (`violations(…).isEmpty`,
+   * the same samples and tests, stopping at the first break): the travel's
+   * search asks it dozens of times a man (a web addition, for the main
+   * thread's sake; the answers are the Swift's).
+   */
+  fits(path: MotionPath, t0: PTime, t1: PTime, band: Band): boolean {
+    const k = SCRATCH;
+    let t = t0;
+    const dt = 1 / TheaterTiming.rate;
+    const sprint = band.sprint * 1.0001;
+    const accel = band.accel * 1.0001;
+    const decel = band.decel * 1.0001;
+    const lateral = band.lateral * 1.0001;
+    const most = Math.max(band.accel, band.decel) * 1.0001;
+    while (t <= t1 + 1e-9) {
+      path.motionInto(t, k);
+      const speed = Math.sqrt(k.vx * k.vx + k.vy * k.vy);
+      if (speed > sprint) return false;
+      if (speed > 0.25) {
+        const dx = k.vx / speed;
+        const dy = k.vy / speed;
+        const along = k.ax * dx + k.ay * dy;
+        const cx = k.ax - dx * along;
+        const cy = k.ay - dy * along;
+        if (along > accel || -along > decel || Math.sqrt(cx * cx + cy * cy) > lateral) return false;
+      } else if (Math.sqrt(k.ax * k.ax + k.ay * k.ay) > most) {
+        return false;
+      }
+      t += dt;
+    }
+    return true;
   },
 
   // MARK: Collisions (§5.5.5)

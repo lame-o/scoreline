@@ -32,6 +32,54 @@ const inked = (page: Page) =>
 
 const frames = (page: Page) => page.evaluate(() => (window as unknown as { __theaterFrames?: number[] }).__theaterFrames?.length ?? 0);
 
+/**
+ * The cost (THEATER_TRACE=1 only): Chromium tracing over a stretch of the
+ * recording (the main thread's tasks, the long ones), and each frame's draw
+ * time as the stage reports it; at 4× CPU throttling too. Prints the numbers
+ * ARCHITECTURE.md records.
+ */
+test.describe("the director's cost", () => {
+  test.skip(!process.env.THEATER_TRACE, "set THEATER_TRACE=1 to trace");
+  test.setTimeout(240_000);
+  const pct = (xs: number[], q: number) => {
+    const s = [...xs].sort((a, b) => a - b);
+    return s.length ? s[Math.min(Math.floor(q * (s.length - 1)), s.length - 1)]! : 0;
+  };
+  for (const throttle of [1, 4]) {
+    test(`frames and tasks at ${throttle}× CPU`, async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.addInitScript(() => {
+        (window as unknown as { __theaterFrames: number[] }).__theaterFrames = [];
+      });
+      const at = Number(process.env.THEATER_AT ?? 40);
+      await page.goto(`/dev/theater/directed?at=${at}&d=50`);
+      await page.locator("[data-directed] canvas").waitFor();
+      await page.waitForTimeout(1500);
+      const cdp = await page.context().newCDPSession(page);
+      if (throttle > 1) await cdp.send("Emulation.setCPUThrottlingRate", { rate: throttle });
+      const events: { name: string; ph: string; dur?: number; tid: number; pid: number; args?: { name?: string } }[] = [];
+      cdp.on("Tracing.dataCollected", (e) => events.push(...(e.value as typeof events)));
+      await page.evaluate(() => {
+        (window as unknown as { __theaterFrames: number[] }).__theaterFrames.length = 0;
+      });
+      await cdp.send("Tracing.start", { traceConfig: { includedCategories: ["devtools.timeline", "disabled-by-default-devtools.timeline"] } });
+      await page.waitForTimeout(Number(process.env.THEATER_SECONDS ?? 60) * 1000);
+      const done = new Promise<void>((resolve) => cdp.once("Tracing.tracingComplete", () => resolve()));
+      await cdp.send("Tracing.end");
+      await done;
+      const drawn = await page.evaluate(() => (window as unknown as { __theaterFrames: number[] }).__theaterFrames.slice());
+      // The renderer's main thread: the thread named CrRendererMain.
+      const main = events.find((e) => e.name === "thread_name" && e.args?.name === "CrRendererMain");
+      const tasks = events.filter((e) => e.name === "RunTask" && e.ph === "X" && (!main || (e.tid === main.tid && e.pid === main.pid))).map((e) => (e.dur ?? 0) / 1000);
+      const long = tasks.filter((d) => d > 50);
+      console.log(
+        `THEATER ${throttle}x: frames ${drawn.length}, draw p50 ${pct(drawn, 0.5).toFixed(2)} ms, p95 ${pct(drawn, 0.95).toFixed(2)} ms, max ${Math.max(0, ...drawn).toFixed(2)} ms; ` +
+          `tasks ${tasks.length}, p99 ${pct(tasks, 0.99).toFixed(1)} ms, max ${Math.max(0, ...tasks).toFixed(1)} ms, long (>50 ms) ${long.length}: ${long.map((d) => d.toFixed(0)).join(", ")}`,
+      );
+    });
+  }
+});
+
 test.describe("the court on the director", () => {
   for (const scheme of ["light", "dark"] as const) {
     test(`draws the recording live, in ${scheme}`, async ({ page }) => {
