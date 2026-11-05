@@ -47,6 +47,14 @@ export function runEngine<Clip extends TheaterClip, Play, Facts>(
   limits: MotionLimits,
   label: string,
   trace: ((line: string) => void) | null = null,
+  /**
+   * `ahead`: how far the timeline's watermark runs ahead of p (snapshotAt).
+   * `rereads`: as the page does (and the Mac's bench), the snapshot is read
+   * again as the watermark moves, not only when a play arrives: a sport that
+   * plans from the plays up to the watermark alone (football) learns of each
+   * as it crosses.
+   */
+  { ahead = 4, rereads = false }: { ahead?: number; rereads?: boolean } = {},
 ): RunResult<Clip> {
   const session = new TheaterSession(sport, facts);
   const clock = new DelayClock(delay, from);
@@ -59,7 +67,7 @@ export function runEngine<Clip extends TheaterClip, Play, Facts>(
   const slipped = new Set<string>();
   const errors = new Map<string, number>();
   const decisive = new Map<string, PTime>();
-  const snapshot = (now: PTime) => snapshotAt(arrivals, clock, now);
+  const snapshot = (now: PTime) => snapshotAt(arrivals, clock, now, ahead);
   const replan = (now: PTime) => {
     const request = session.request(now);
     if (!request) return;
@@ -87,6 +95,8 @@ export function runEngine<Clip extends TheaterClip, Play, Facts>(
     const now = arrivals.filter((a) => a.at <= w).length;
     if (now !== arrived) {
       arrived = now;
+      if (session.timelineDidChange(snapshot(w))) replan(w);
+    } else if (rereads) {
       if (session.timelineDidChange(snapshot(w))) replan(w);
     }
     const T = session.theaterTime(w);
