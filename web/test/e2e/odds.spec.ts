@@ -101,21 +101,21 @@ test.describe("live odds", () => {
     expect(errors).toEqual([]);
   });
 
-  test("the keyboard: → reads, ⌥← holds a key play (the same pin as its row), Esc lets go", async ({ page }) => {
+  test("the keyboard over the odds: → reads, Return holds (both modules), Latest lets go, a period's label zooms both", async ({ page }) => {
     await page.setViewportSize({ width: 1200, height: 900 });
     await open(page, "game=nba&state=final");
     const scrub = section(page).getByRole("slider", { name: "Inspect win probability" });
     await scrub.focus();
-    await page.keyboard.press("ArrowRight");
-    await expect(scrub, "→ reads a moment: the keyboard's own reading").not.toHaveAttribute("aria-valuetext", /^Latest/);
+    await page.keyboard.press("ArrowLeft");
+    await expect(scrub, "← reads a moment: the keyboard's own reading").not.toHaveAttribute("aria-valuetext", /^Latest/);
     await page.keyboard.press("Escape");
     await expect(scrub, "Esc ends it").toHaveAttribute("aria-valuetext", /^Latest/);
-    await page.keyboard.press("Alt+ArrowLeft");
-    await expect(scrub, "⌥← holds a key play").toHaveAttribute("aria-valuetext", /^Held/);
-    await expect(page.getByRole("button", { name: "Return to latest" })).toBeVisible();
-    await expect(timeline(page).getByRole("slider")).not.toHaveAttribute("aria-valuetext", "Latest");
-    await page.keyboard.press("Escape");
-    await expect(scrub, "Esc lets go").toHaveAttribute("aria-valuetext", /^Latest/);
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("Enter");
+    await expect(scrub, "Return holds the moment").toHaveAttribute("aria-valuetext", /^Held/);
+    await expect(timeline(page).locator('[class*="_rule_"]'), "the timeline reads the same moment").toHaveCount(1);
+    await page.getByRole("button", { name: "Return to latest" }).click();
+    await expect(scrub, "Latest lets go").toHaveAttribute("aria-valuetext", /^Latest/);
     await expect(page.getByRole("button", { name: "Return to latest" })).toHaveCount(0);
     // A period's label zooms both modules (the timeline to its one period); the way back is the whole game.
     await timeline(page).getByRole("button", { name: "Show Q3" }).click();
@@ -123,6 +123,31 @@ test.describe("live odds", () => {
     await section(page).getByRole("button", { name: "Show the whole game" }).first().click();
     await expect(timeline(page).getByRole("button", { name: "Show Q3" })).toBeAttached();
     await expect(timeline(page).getByRole("button", { name: /^Show Q/ })).toHaveCount(4);
+  });
+
+  test("a game page's timeline: ⌥← walks the key plays and holds one (the page's pin), Esc lets go and the page stays (MatchInspectionTests)", async ({ page }) => {
+    // A real final on the wall clock (ESPN's own wallclocks): MIN @ CLE, the NBA's Key Plays.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/game/espn-401909869?league=nba");
+    const slider = page.locator('[data-section="timeline"] [role="slider"]');
+    await expect(slider).toHaveAttribute("aria-label", /^Timeline: \d+ key plays?/, { timeout: 30_000 });
+    await slider.scrollIntoViewIfNeeded();
+    await slider.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(slider, "← reads a moment").not.toHaveAttribute("aria-valuetext", "Latest");
+    await page.keyboard.press("Escape");
+    await expect(slider, "Esc ends it, and the page stays").toHaveAttribute("aria-valuetext", "Latest");
+    await page.keyboard.press("Alt+ArrowLeft");
+    const last = /^(Q\d|\d?OT) [\d:.]+, /;
+    await expect(slider, "⌥← holds the last key play").toHaveAttribute("aria-valuetext", last);
+    const held = await slider.getAttribute("aria-valuetext");
+    await expect(page.getByRole("button", { name: "Return to latest" }), "held, the way back").toBeVisible();
+    await page.keyboard.press("Alt+ArrowLeft");
+    await expect(slider, "⌥← again walks to the one before").not.toHaveAttribute("aria-valuetext", held ?? "");
+    await page.keyboard.press("Escape");
+    await expect(slider, "Esc lets go").toHaveAttribute("aria-valuetext", "Latest");
+    await expect(page.getByRole("button", { name: "Return to latest" })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/game\/espn-401909869/);
   });
 
   test("a final keeps still ends; soccer's three outcomes, each its own line", async ({ page }) => {
