@@ -158,7 +158,7 @@ export default function BasketballDirected({ source, cues: givenCues = null, tea
       }
       return null;
     };
-    stage.current?.update((ctx, size: Size, pt, wall, T) => {
+    stage.current?.update((ctx, size: Size, pt, _wall, T, primary = true) => {
       const chain = director.chain;
       chain.sample(T, scratch);
       const drawn = hoopsFrame(chain, scratch, size);
@@ -181,8 +181,8 @@ export default function BasketballDirected({ source, cues: givenCues = null, tea
           const lens = h.lens(f.at);
           return [{ index: f.index, ground: lens.origin, height: lens.height }];
         });
-      shown.update(hits());
-      const tags = nameTags.frame(cast, tagLabels, { status: saying?.text ?? null, flip: true, heartbeat: heard != null ? "trailing" : null }, hits);
+
+      const tags = primary ? nameTags.frame(cast, tagLabels, { status: saying?.text ?? null, flip: true, heartbeat: heard != null ? "trailing" : null }, hits) : null;
       if (labels?.key !== clip || labels.size !== `${size.width}x${size.height}|${pt}`) {
         labels = { key: clip, size: `${size.width}x${size.height}|${pt}`, value: layoutLabels(ctx, scene, script, teamsNow, ink, size, pt) };
       }
@@ -194,12 +194,12 @@ export default function BasketballDirected({ source, cues: givenCues = null, tea
         if (bursts?.key !== key) bursts = { key, value: BasketballCelebration.theater(moment, scene, script, level, reduceMotion, size.height) };
         if (bursts.value.length > 0) {
           const end = Math.max(...bursts.value.map(stageBurstEnd));
-          if (end > t) stage.current?.keepAwake(performance.now() + (end - t) * 1000);
+          if (primary && end > t) stage.current?.keepAwake(performance.now() + (end - t) * 1000);
           const color = (side: Side | null) => (side == null || side === script.side ? accentOf(teamsNow.offense, ink) : accentOf(teamsNow.defense, ink));
           drawBursts(ctx, bursts.value, t, (p) => h.at(p), TheaterType.bannerOrigin(size, pt), (b) => teamPalette(color((b as BasketballBurst).side ?? null), ink), size);
         }
       }
-      report(saying);
+      if (primary) report(saying);
     }, reduceMotion);
   }, [director, scratch, shown, teamsBy, paint, ink, names, flipped, people, tagLabels, nameTags, heard, holding, moment, level, reduceMotion]);
 

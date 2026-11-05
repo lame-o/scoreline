@@ -40,7 +40,8 @@ export interface DirectedSource<Clip extends TheaterClip> {
 }
 
 /** One frame at a wall time and its theater's time T (the painter samples the chain at T). */
-export type DirectedPaint = (ctx: Ctx, size: Size, pt: number, wall: PTime, T: PTime) => void;
+/** One frame at a wall time and its theater's time T (the painter samples the chain at T). `primary`: false for the frame a key state fades out of (draw only: no tag, no hit test, no report). */
+export type DirectedPaint = (ctx: Ctx, size: Size, pt: number, wall: PTime, T: PTime, primary?: boolean) => void;
 
 /** Development and tests: frame times of the directed theaters, in ms (draw only), read from `window.__theaterFrames`. */
 declare global {
@@ -290,7 +291,7 @@ export class DirectedStage<Clip extends TheaterClip> {
     }
     const before = shown.before;
     drawLayers(ctx, [
-      [1 - shown.fade, (c) => paint(c, size, this.pt, at(before), before)],
+      [1 - shown.fade, (c) => paint(c, size, this.pt, at(before), before, false)],
       [shown.fade, (c) => paint(c, size, this.pt, at(shown.now), shown.now)],
     ]);
   }
