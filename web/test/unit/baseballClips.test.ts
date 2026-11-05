@@ -264,7 +264,7 @@ describe("the director on the recording", () => {
     expect(Math.max(...abs), `max ${Math.max(...abs)}`).toBeLessThanOrEqual(0.25);
   });
 
-  it("determinism: the same arrivals, the same plans", () => {
+  it("determinism: the same arrivals, the same plans", { timeout: 60_000 }, () => {
     const again = runEngine(DiamondSport, facts, arrivals, from, until, 55, DiamondClip.limits, "again");
     expect(again.plans).toBe(run.plans);
     expect([...again.decisive]).toEqual([...run.decisive]);

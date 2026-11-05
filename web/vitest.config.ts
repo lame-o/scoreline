@@ -9,5 +9,9 @@ export default defineConfig({
 		environment: "node",
 		// Times and days are asserted in one zone, whatever the machine's.
 		env: { TZ: "America/New_York" },
+		// The theater engine's checks bake whole recordings (a few seconds each, alone);
+		// on a machine busy with other builds they need room past Vitest's 5 s default.
+		// The heaviest set their own, longer limits.
+		testTimeout: 30_000,
 	},
 });

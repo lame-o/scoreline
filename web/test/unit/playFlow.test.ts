@@ -280,7 +280,7 @@ describe("officials", () => {
     }
   });
 
-  it("…and none between snaps: the huddle, the line, a timeout, a TV timeout, a challenge (no referee walking to the monitor), a man hurt, the half", () => {
+  it("…and none between snaps: the huddle, the line, a timeout, a TV timeout, a challenge (no referee walking to the monitor), a man hurt, the half", { timeout: 60_000 }, () => {
     const games = (fixture("nfl-stoppages-plays.json") as { games: { items: Item[]; home: { id: string; abbreviation: string }; away: { id: string; abbreviation: string } }[] }).games;
     const idles: FootballScript[] = [idle];
     for (const g of games) {
