@@ -5,33 +5,24 @@
  * same size standing in so nothing below it moves. The court under it
  * bursts nothing while it's shown (`BasketballCelebration.courtBursts`);
  * its shot stories play either way. While the page broadcasts the game
- * (`directed`: its source and the slides' cues), the theater is the one on
- * the choreography engine (BasketballTheater.swift's `source.active` branch:
+ * (`usePageDirected`: its source), the theater is the one on the
+ * choreography engine (BasketballTheater.swift's `source.active` branch:
  * BasketballDirected); otherwise today's, which tells the lane's plays as
- * they come.
+ * they come. `directed` overrides the page's (null: today's).
  *
- *     <CourtTheater feed={feed} teams={teams} event={event} palette={palette} names={names} topIsHome people={detail.people} directed={broadcast} />
+ *     <CourtTheater feed={feed} teams={teams} event={event} palette={palette} names={names} topIsHome people={detail.people} />
  */
 import { lazy, Suspense } from "react";
 import type { BasketballFeed, Teams } from "../../../../data/liveFeeds/basketball";
 import type { ScoreEvent } from "../../../../data/models";
 import type { TeamPalette } from "../../../../data/teamColors";
 import type { TheaterPerson } from "../../../../data/theater/theaterPeople";
-import type { BroadcastTheaterSource } from "../../../../data/theater/theaterSource";
-import type { TheaterCues } from "../../../../data/theater/theaterView";
+import { usePageDirected, type Directed } from "../../core/theater/pageDirected";
 import { TheaterWell } from "../../core/theater/TheaterWell";
 import styles from "./CourtTheater.module.css";
 
 const BasketballTheater = lazy(() => import("./BasketballTheater"));
 const BasketballDirected = lazy(() => import("./BasketballDirected"));
-
-/** The page's broadcast, while it runs, and the slides' cues: the theater on the engine. */
-export interface Directed {
-  readonly source: BroadcastTheaterSource;
-  readonly cues: TheaterCues | null;
-  /** A game held up says so over anything else, in ESPN's words ("Rain Delay"). */
-  readonly holding?: string | null;
-}
 
 export interface CourtTheaterProps {
   readonly feed: BasketballFeed;
@@ -45,11 +36,13 @@ export interface CourtTheaterProps {
   readonly topIsHome: boolean;
   /** The box score's players, by athlete ID: the names over the credited men. */
   readonly people?: Readonly<Record<string, TheaterPerson>>;
-  /** The page broadcasts the game: the theater on the choreography engine. */
+  /** The theater on the choreography engine, over the page's (null: today's; absent: the page's broadcast's). */
   readonly directed?: Directed | null;
 }
 
-export function CourtTheater({ feed, teams, event, palette, names, spoken, topIsHome, people, directed }: CourtTheaterProps) {
+export function CourtTheater({ feed, teams, event, palette, names, spoken, topIsHome, people, directed: given }: CourtTheaterProps) {
+  const page = usePageDirected();
+  const directed = given === undefined ? page : given;
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
   const kits = {

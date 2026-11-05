@@ -19,7 +19,7 @@ import { batting as battingOf, captionText, standing, type PlayBeat } from "../.
 import { playCast } from "../../../../data/mlb/playNames";
 import type { TheaterState } from "../../../../data/mlb/playScene";
 import { theaterTeams, type TheaterKits } from "../../../../data/mlb/theaterTeams";
-import type { Side } from "../../../../data/models";
+import type { ScoreEvent, Side } from "../../../../data/models";
 import { TheaterDirector } from "../../../../data/theater/theaterDirector";
 import { FrameScratch } from "../../../../data/theater/theaterFrameScratch";
 import { theaterLabels, type TheaterPerson } from "../../../../data/theater/theaterNames";
@@ -29,17 +29,18 @@ import { useColorScheme } from "../../../../state/theme";
 import { useSlideDirected } from "../../core/scoringSlides";
 import { DirectedStage } from "../../core/theater/directedStage";
 import { TheaterHeartbeat, TheaterStatusTag } from "../../core/theater/TheaterStatus";
-import { useDirected, useDirector } from "../../core/theater/useDirected";
+import { useCues, useDirected, useDirector, useHeard } from "../../core/theater/useDirected";
 import { useTheaterNames } from "../../core/theater/useTheaterNames";
 import { useReducedMotion } from "../../core/useMedia";
 import { diamondFrame } from "./directedField";
 import { drawField, drawFrame, FieldProjection, layoutLabels, worldFigures, type Labels } from "./drawTheater";
 import { theaterInk } from "./theaterInk";
+import { useMeasuredTheater } from "./useStatcast";
 import styles from "./PlayTheater.module.css";
 
 export interface BaseballDirectedProps {
   readonly source: BroadcastTheaterSource;
-  readonly cues: TheaterCues | null;
+  readonly cues?: TheaterCues | null;
   /** The teams' own and second colors, so the figures always contrast. */
   readonly kits: TheaterKits;
   /** The teams as ESPN names them (its plays' `team.id`): MLB's visitors bat in the top. */
@@ -56,7 +57,7 @@ export interface BaseballDirectedProps {
   readonly fielders?: BaseballFielders;
   readonly numbers?: Readonly<Record<string, string>>;
   /** When the lane last brought a play (epoch ms): the heartbeat counts from it. */
-  readonly heard: number | null;
+  readonly heard?: number | null;
   /** A game held up says so over anything else, in ESPN's words ("Rain Delay"), and the tarp's out: TheaterStatus.holding. */
   readonly holding?: string | null;
   /** The lane's play with MLB's account in it (useStatcast.ts `useMeasuredTheater`): the slide's distance and exit velocity. */
@@ -103,7 +104,7 @@ export function directedStatus(clip: DiamondClip, t: number, last: PlayBeat | nu
 
 export default function BaseballDirected({
   source,
-  cues,
+  cues: givenCues = null,
   kits,
   topID,
   bottomID,
@@ -114,10 +115,12 @@ export default function BaseballDirected({
   people = NO_PEOPLE,
   fielders = NO_FIELDERS,
   numbers = NO_NAMES,
-  heard,
+  heard: givenHeard = null,
   holding = null,
   state = null,
 }: BaseballDirectedProps) {
+  const cues = useCues(givenCues);
+  const heard = useHeard(source, givenHeard);
   const canvas = useRef<HTMLCanvasElement>(null);
   const well = useRef<HTMLDivElement>(null);
   const stage = useRef<DirectedStage<DiamondClip> | null>(null);
@@ -224,4 +227,14 @@ export default function BaseballDirected({
       <TheaterHeartbeat updated={heard} source="ESPN" />
     </div>
   );
+}
+
+/**
+ * On a game page (PlayTheater.swift's `source.active` branch): the lane's play
+ * with MLB's account in it, as today's theater reads it (`useMeasuredTheater`),
+ * for the slide's distance and exit velocity.
+ */
+export function BaseballDirectedLive({ event, lane, ...props }: Omit<BaseballDirectedProps, "state"> & { readonly event: ScoreEvent; readonly lane: TheaterState }) {
+  const state = useMeasuredTheater(event, lane);
+  return <BaseballDirected {...props} state={state} />;
 }

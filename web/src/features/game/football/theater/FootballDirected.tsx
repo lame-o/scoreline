@@ -33,7 +33,7 @@ import { RigLens } from "../../core/theater/rigFigure";
 import { TheaterFlipButton, TheaterHeartbeat, TheaterStatusTag, useTheaterFlip } from "../../core/theater/TheaterStatus";
 import type { Size } from "../../core/theater/theaterKit";
 import styles from "../../core/theater/TheaterWell.module.css";
-import { useDirected, useDirector } from "../../core/theater/useDirected";
+import { useCues, useDirected, useDirector, useHeard } from "../../core/theater/useDirected";
 import { useTheaterNames } from "../../core/theater/useTheaterNames";
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
@@ -42,7 +42,7 @@ import { drawFootballFrame, drawGridiron, GridProjection, layoutLabels, type End
 
 export interface FootballDirectedProps {
   readonly source: BroadcastTheaterSource;
-  readonly cues: TheaterCues | null;
+  readonly cues?: TheaterCues | null;
   /** Who's playing (the lane's teams). */
   readonly teams: LaneTeams;
   readonly kits: TheaterKits;
@@ -58,7 +58,7 @@ export interface FootballDirectedProps {
   readonly eventId: string;
   readonly people?: Readonly<Record<string, TheaterPerson>>;
   /** When the lane last brought a play (epoch ms): the heartbeat counts from it. */
-  readonly heard: number | null;
+  readonly heard?: number | null;
   /** A game held up says so over anything else, in ESPN's words ("Weather Delay"): TheaterStatus.holding. */
   readonly holding?: string | null;
 }
@@ -74,7 +74,9 @@ function solid(color: string, scheme: Scheme): string {
 /** A team's color for the tag, as hex without the hash (the kit's own, else none). */
 const tagColor = (color: string | null | undefined): string | null => (color ? color.replace(/^#/, "") : null);
 
-export default function FootballDirected({ source, cues, teams, kits, palette, topName, bottomName, names, situation, eventId, people = NO_PEOPLE, heard, holding = null }: FootballDirectedProps) {
+export default function FootballDirected({ source, cues: givenCues = null, teams, kits, palette, topName, bottomName, names, situation, eventId, people = NO_PEOPLE, heard: givenHeard = null, holding = null }: FootballDirectedProps) {
+  const cues = useCues(givenCues);
+  const heard = useHeard(source, givenHeard);
   const canvas = useRef<HTMLCanvasElement>(null);
   const well = useRef<HTMLDivElement>(null);
   const stage = useRef<DirectedStage<GridClip> | null>(null);

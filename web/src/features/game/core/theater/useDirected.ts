@@ -14,7 +14,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { TheaterClip } from "../../../../data/theater/theaterClips";
 import type { TheaterDirector } from "../../../../data/theater/theaterDirector";
 import { sameEvent, type BroadcastTheaterSource, type ClockEvent, type TheaterClock } from "../../../../data/theater/theaterSource";
-import type { TheaterCues } from "../../../../data/theater/theaterView";
+import { TheaterCues } from "../../../../data/theater/theaterView";
+
+/** The slides' cues: the page's, or the theater's own when it gives none (the slides read them through `useSlideDirected`). */
+export function useCues(given: TheaterCues | null): TheaterCues {
+  return useMemo(() => given ?? new TheaterCues(), [given]);
+}
 
 /** The default binding horizon for live-ball kinds a sport doesn't name (GameTimeline.swift `BindingHorizons().live`). */
 const LIVE_HORIZON = 2.5;

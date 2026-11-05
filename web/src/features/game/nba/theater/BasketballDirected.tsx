@@ -24,7 +24,7 @@ import { TheaterDirector } from "../../../../data/theater/theaterDirector";
 import { FrameScratch } from "../../../../data/theater/theaterFrameScratch";
 import { theaterLabels, type HitFigure, type TheaterPerson } from "../../../../data/theater/theaterNames";
 import type { BroadcastTheaterSource } from "../../../../data/theater/theaterSource";
-import { DirectedFrame, TheaterCues } from "../../../../data/theater/theaterView";
+import { DirectedFrame, type TheaterCues } from "../../../../data/theater/theaterView";
 import { useSettings } from "../../../../state/settings";
 import { useColorScheme } from "../../../../state/theme";
 import { useChartMoment } from "../../core/moments";
@@ -32,7 +32,7 @@ import { DirectedStage } from "../../core/theater/directedStage";
 import { TheaterFlipButton, TheaterHeartbeat, TheaterStatusTag, useTheaterFlip } from "../../core/theater/TheaterStatus";
 import { accentOf, drawBursts, stageBurstEnd, TheaterType, teamPalette, type Size, type StageBurst } from "../../core/theater/theaterKit";
 import styles from "../../core/theater/TheaterWell.module.css";
-import { useDirected, useDirector, useHeard } from "../../core/theater/useDirected";
+import { useCues, useDirected, useDirector, useHeard } from "../../core/theater/useDirected";
 import { useTheaterNames } from "../../core/theater/useTheaterNames";
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
@@ -83,7 +83,7 @@ export default function BasketballDirected({ source, cues: givenCues = null, tea
   const facts = hoopsFacts(teams, flipped);
   const director = useDirector(() => new TheaterDirector(HoopsSport, facts), eventId);
   // The slides read the plan's scoring cues (the page's, or the theater's own).
-  const cues = useMemo(() => givenCues ?? new TheaterCues(), [givenCues]);
+  const cues = useCues(givenCues);
   useDirected(director, source, facts, cues);
   if (import.meta.env.DEV) (window as unknown as { __director?: unknown }).__director = director;
   useSlideDirected("court", cues);
