@@ -160,6 +160,7 @@ export function ClimbingResultsPage({ scope, mode, onMode, switched, crossfade }
 
   return (
     <SeasonFrame
+      ready={data.status !== "loading"}
       rootRef={root}
       label="Climbing results"
       onKeyDown={onKeyDown}

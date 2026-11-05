@@ -172,6 +172,7 @@ function ClimbingUpcoming({ scope, mode, onMode, switched, crossfade }: Schedule
 
   return (
     <SeasonFrame
+      ready={data.status !== "loading"}
       rootRef={root}
       label="Climbing season"
       onKeyDown={onKeyDown}

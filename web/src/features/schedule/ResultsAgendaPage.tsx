@@ -23,6 +23,7 @@ import { loadTeamSeason, scheduleSession, seasonChoices, useScheduleSession } fr
 import { settings, useSettings } from "../../state/settings";
 import type { NavState } from "../../app/layout";
 import { AgendaFooter, AgendaSkeleton, DayHeader, GroupLabel, MoreButton, Note } from "./AgendaParts";
+import { useHeightEase } from "./heightEase";
 import { useLiveEvents } from "./live";
 import { useChromeHeight, useHighlight, useRowKeys, type Highlight } from "./pageHooks";
 import { PeriodPicker, WeekStrip } from "./ScheduleNavigators";
@@ -39,6 +40,9 @@ export function ResultsAgendaPage({ scope, mode, onMode, switched, crossfade }: 
   const location = useLocation();
   const nav = useScheduleNav();
   const data = useResults(scope);
+  // A click's mode switch: the height eases from Upcoming's (heightEase.ts).
+  const contentRef = useRef<HTMLDivElement>(null);
+  useHeightEase(contentRef, crossfade, !data.loading);
   const live = useLiveEvents();
   const prefs = useSettings((s) => s);
   const details = useSettings((s) => s.resultsDetails);
@@ -268,7 +272,7 @@ export function ResultsAgendaPage({ scope, mode, onMode, switched, crossfade }: 
           </p>
         ) : null}
       </ScheduleHeader>
-      <div className={[styles.content, crossfade ? styles.crossfade : null].filter(Boolean).join(" ")} aria-busy={data.fetching}>
+      <div ref={contentRef} data-mode-content="" className={[styles.content, crossfade ? styles.crossfade : null].filter(Boolean).join(" ")} aria-busy={data.fetching}>
         {content}
       </div>
       <AgendaFooter

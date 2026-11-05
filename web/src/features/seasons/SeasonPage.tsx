@@ -12,6 +12,7 @@ import { useLocation } from "react-router";
 import { useWidth } from "../../design/useWidth";
 import { isTyping } from "../../app/navigation";
 import type { HoverStore } from "./hover";
+import { useHeightEase } from "../schedule/heightEase";
 import styles from "./SeasonPage.module.css";
 
 /** The panel's split threshold: the list and the open competition side by side. */
@@ -118,15 +119,19 @@ export interface SeasonFrameProps {
   readonly crossfade?: boolean;
   /** A key for the content, so a new mode replaces it (and crossfades). */
   readonly contentKey?: string;
+  /** The content has its data (a mode switch's height eases to it then, heightEase.ts). */
+  readonly ready?: boolean;
   readonly label: string;
 }
 
 /** The page: header, content, footer; the root takes the page's keys. */
-export function SeasonFrame({ rootRef, header, footer, children, onKeyDown, crossfade = false, contentKey, label }: SeasonFrameProps) {
+export function SeasonFrame({ rootRef, header, footer, children, onKeyDown, crossfade = false, contentKey, label, ready = true }: SeasonFrameProps) {
+  const content = useRef<HTMLDivElement>(null);
+  useHeightEase(content, crossfade, ready);
   return (
     <div ref={rootRef} className={styles.page} tabIndex={-1} onKeyDown={onKeyDown} aria-label={label} role="region">
       {header}
-      <div key={contentKey} className={[styles.content, crossfade ? styles.crossfade : null].filter(Boolean).join(" ")}>
+      <div key={contentKey} ref={content} data-mode-content="" className={[styles.content, crossfade ? styles.crossfade : null].filter(Boolean).join(" ")}>
         {children}
       </div>
       {footer}
