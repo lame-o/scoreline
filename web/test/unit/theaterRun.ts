@@ -12,7 +12,7 @@ import type { TheaterClip } from "../../src/data/theater/theaterClips";
 import { TheaterSession, type TheaterSport } from "../../src/data/theater/theaterDirector";
 import { MotionLimits, type PTime } from "../../src/data/theater/theaterEngine";
 import { FrameScratch } from "../../src/data/theater/theaterFrameScratch";
-import type { PlanChain } from "../../src/data/theater/theaterPlanChain";
+import type { BakedPlan, PlanChain } from "../../src/data/theater/theaterPlanChain";
 import { DelayClock, snapshotAt, type Arrival } from "../../src/data/theater/replayTimeline";
 import { ContinuityMeter, type ContinuityReport, type MeterFigure } from "./theaterBenchMeter";
 
@@ -27,6 +27,8 @@ export interface RunResult<Clip extends TheaterClip> {
   readonly slipped: Set<string>;
   readonly decisive: Map<string, PTime>;
   readonly planMs: number[];
+  /** FNV-1a over every baked track, camera sample and cue (EngineRun.mix): two runs must agree. */
+  readonly hash: number;
 }
 
 /**
@@ -52,6 +54,7 @@ export function runEngine<Clip extends TheaterClip, Play, Facts>(
   const meter = new ContinuityMeter(label);
   const scratch = new FrameScratch();
   let plans = 0;
+  let hash = 0x811c9dc5;
   const planMs: number[] = [];
   const slipped = new Set<string>();
   const errors = new Map<string, number>();
@@ -65,6 +68,7 @@ export function runEngine<Clip extends TheaterClip, Play, Facts>(
     planMs.push(performance.now() - began);
     if (!session.accept(made, now)) return;
     plans += 1;
+    hash = mixBaked(hash, made.baked);
     for (const p of made.baked.plan.placements) {
       if (p.start < made.baked.start - 1e-9 || p.play == null || p.anchor == null || p.clip.decisive == null) continue;
       decisive.set(p.play, p.offset + p.clip.decisive);
@@ -151,7 +155,51 @@ export function runEngine<Clip extends TheaterClip, Play, Facts>(
   const report = meter.report;
   report.decisiveErrors = [...errors].filter(([id]) => !slipped.has(id)).map(([, e]) => e);
   report.catchUps = [...errors].filter(([id]) => slipped.has(id)).map(([, e]) => e);
-  return { report, plans, chain: session.chain, errors, slipped, decisive, planMs };
+  return { report, plans, chain: session.chain, errors, slipped, decisive, planMs, hash };
+}
+
+const bits = new Uint32Array(new Float64Array(1).buffer);
+const F64 = new Float64Array(bits.buffer);
+
+/** One 32-bit word into a running FNV-1a. */
+function mixWord(hash: number, word: number): number {
+  let h = hash;
+  for (let k = 0; k < 4; k++) {
+    h ^= (word >>> (8 * k)) & 0xff;
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h;
+}
+
+/** Every baked number into the determinism hash (EngineRun.mix). */
+export function mixBaked<Clip extends TheaterClip>(hash: number, baked: BakedPlan<Clip>): number {
+  let h = hash;
+  const f64 = (x: number) => {
+    F64[0] = x;
+    h = mixWord(h, bits[0]!);
+    h = mixWord(h, bits[1]!);
+  };
+  const f32s = (xs: Float32Array) => {
+    const words = new Uint32Array(xs.buffer, xs.byteOffset, xs.length);
+    for (const w of words) h = mixWord(h, w);
+  };
+  f64(baked.start);
+  f64(baked.horizon);
+  for (const track of baked.tracks) {
+    h = mixWord(h, track.id);
+    f32s(track.xy);
+    f32s(track.opacity);
+    f32s(track.rig.heading);
+    f32s(track.rig.phase);
+    for (const s of [...track.rig.left, ...track.rig.right]) {
+      f64(s.land);
+      f64(s.at.x);
+      f64(s.at.y);
+    }
+  }
+  f32s(baked.camera);
+  for (const cue of baked.plan.cues) f64(cue.at);
+  return h;
 }
 
 /** Whether T is at a hand-off (a splice's start, a man joining a clip): a jump there is a splice cut, elsewhere a step inside a clip. */

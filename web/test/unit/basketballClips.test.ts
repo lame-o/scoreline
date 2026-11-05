@@ -109,6 +109,12 @@ describe("the director on the recording", () => {
     expect(r.rigSlipMax, "the rig's planted foot doesn't slip").toBeLessThanOrEqual(0.5);
   });
 
+  it("is deterministic: two runs bake the same tracks, cameras and cues", () => {
+    const again = runEngine(HoopsSport, gsl, arrivals, from, from + 120, 50, MotionLimits.basketball, "again");
+    const once = runEngine(HoopsSport, gsl, arrivals, from, from + 120, 50, MotionLimits.basketball, "once");
+    expect(again.hash).toBe(once.hash);
+  });
+
   it("decisive moments land on their anchors (p95 ≤ 0.05 s, max ≤ 0.25 s), catch-ups apart", () => {
     const abs = r.decisiveErrors.map(Math.abs);
     expect(abs.length).toBeGreaterThan(5);
