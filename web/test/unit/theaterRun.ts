@@ -269,7 +269,9 @@ export function runReplay<Clip extends TheaterClip, Play, Facts, Context = numbe
       const engine = replay.engine;
       if (!engine.started) return;
       loop.frames(t);
-      const clockChanged = session.clockDidUpdate(engine.clock, step.events, t);
+      // A copy, as the Mac's struct is and the page publishes (broadcast.ts): the engine re-plans its own clock in
+      // place, and the session's T must run the frames up to t on the pieces that ran (a slew), not the next plan's.
+      const clockChanged = session.clockDidUpdate(engine.clock.clone(), step.events, t);
       // As the page does: at every change of the timeline's revision (an ingest, a tell, new anchors), the director
       // gets the snapshot; only a change to the plays as a plan reads them re-plans.
       let data = false;

@@ -62,11 +62,12 @@ function engine(sport: string, recording: Recording, label: string): RunResult<T
 }
 
 /**
- * Where the web doesn't yet meet the Mac's gate, the check is expected to fail (it flips the day it does):
- * basketball's two driving layups (the catch at the wing, the drive's start) leave a 4.4 ft step inside their
- * clip's path that the Mac's run doesn't have (teleportMax 4.20, overspeed +370%).
+ * Where the web doesn't yet meet the Mac's gate, the check is expected to fail (it flips the day it does). None
+ * now. Basketball's ratchet (3.90, +335%) is a real 4.4 ft step in two driving layups' paths (ClipPaths.solved
+ * ends at its pass cap on "meets the ball"), the same on the Mac: read between the bake's 60 Hz samples, as T
+ * following the clock's slews leaves the frames, it's 3.85 and +331% and no cut, the Mac's own numbers.
  */
-const KNOWN: Readonly<Record<string, readonly string[]>> = { basketball: ["cuts", "teleport", "overspeed"] };
+const KNOWN: Readonly<Record<string, readonly string[]>> = {};
 const check = (sport: string, gate: string) => (KNOWN[sport]?.includes(gate) ? it.fails : it);
 
 const CASES = [
