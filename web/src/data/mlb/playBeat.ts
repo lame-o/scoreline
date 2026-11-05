@@ -675,7 +675,7 @@ export function beatTag(b: PlayBeat, wide: boolean): string | null {
       return [what, k.change.name?.toUpperCase() ?? null, position].filter((p): p is string => p != null).join(" · ");
     }
     case "inningBreak":
-      return `${k.middle ? "MIDDLE" : "END"} ${ordinal(k.inning).toUpperCase()}`;
+      return `${k.middle ? "MID" : "END"} ${ordinal(k.inning).toUpperCase()}`;
     case "review":
       if (k.review.inProgress) return "REVIEW · UNDER WAY";
       return `REVIEW · ${k.review.overturned ? "OVERTURNED" : "CALL STANDS"}`;

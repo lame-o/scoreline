@@ -227,9 +227,9 @@ describe("What came between", () => {
 
   it("says the end of a half, and it stands until play resumes", () => {
     const breaks = beats("inningBreak");
-    expect(beatTag(breaks[0]!, true)).toBe("MIDDLE 1ST");
+    expect(beatTag(breaks[0]!, true)).toBe("MID 1ST");
     expect(beatTag(breaks[1]!, true)).toBe("END 1ST");
-    expect(standing(breaks[0]!)).toBe("MIDDLE 1ST");
+    expect(standing(breaks[0]!)).toBe("MID 1ST");
   });
 
   it("reads a rain delay as MLB posts it (and its live status, and ESPN's)", () => {
