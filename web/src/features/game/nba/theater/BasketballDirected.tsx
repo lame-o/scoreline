@@ -24,7 +24,7 @@ import { TheaterDirector } from "../../../../data/theater/theaterDirector";
 import { FrameScratch } from "../../../../data/theater/theaterFrameScratch";
 import { theaterLabels, type HitFigure, type TheaterPerson } from "../../../../data/theater/theaterNames";
 import type { BroadcastTheaterSource } from "../../../../data/theater/theaterSource";
-import { DirectedFrame, type TheaterCues } from "../../../../data/theater/theaterView";
+import { DirectedFrame, TheaterCues } from "../../../../data/theater/theaterView";
 import { useSettings } from "../../../../state/settings";
 import { useColorScheme } from "../../../../state/theme";
 import { useChartMoment } from "../../core/moments";
@@ -42,7 +42,7 @@ import { useSlideDirected } from "../../core/scoringSlides";
 
 export interface BasketballDirectedProps {
   readonly source: BroadcastTheaterSource;
-  readonly cues: TheaterCues | null;
+  readonly cues?: TheaterCues | null;
   /** Who's playing (the lane's teams). */
   readonly teams: Teams;
   readonly kits: TheaterKits;
@@ -75,13 +75,15 @@ export const hoopsFacts = (teams: Teams, flipped: boolean): HoopsFacts => ({
   bottomName: teams.bottomName,
 });
 
-export default function BasketballDirected({ source, cues, teams, kits, palette, names, homeName, eventId, people = NO_PEOPLE, heard: given = null, holding = null }: BasketballDirectedProps) {
+export default function BasketballDirected({ source, cues: givenCues = null, teams, kits, palette, names, homeName, eventId, people = NO_PEOPLE, heard: given = null, holding = null }: BasketballDirectedProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const well = useRef<HTMLDivElement>(null);
   const stage = useRef<DirectedStage<HoopsClip> | null>(null);
   const [flipped, flip] = useTheaterFlip(eventId);
   const facts = hoopsFacts(teams, flipped);
   const director = useDirector(() => new TheaterDirector(HoopsSport, facts), eventId);
+  // The slides read the plan's scoring cues (the page's, or the theater's own).
+  const cues = useMemo(() => givenCues ?? new TheaterCues(), [givenCues]);
   useDirected(director, source, facts, cues);
   if (import.meta.env.DEV) (window as unknown as { __director?: unknown }).__director = director;
   useSlideDirected("court", cues);
