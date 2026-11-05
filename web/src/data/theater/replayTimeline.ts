@@ -42,10 +42,20 @@ export class DelayClock implements TheaterClock {
   }
 }
 
-/** The timeline as it stands at `now`: what's arrived, up to the watermark (`p + 4`) and past it. */
-export function snapshotAt(arrivals: readonly Arrival[], clock: TheaterClock, now: PTime): TimelineSnapshot<RawPlay> {
-  const known = arrivals.filter((a) => a.at <= now).map((a) => a.play);
-  const watermark = clock.p(now) + 4;
+/**
+ * The timeline as it stands at `now`: what's arrived, in the game's order (a
+ * play's `order`: an entry can arrive before the one it follows, as MLB's end
+ * of a half before its last pitch), up to the watermark and past it. The
+ * watermark runs `ahead` of p as the page's does in steady state (the binding
+ * horizon and the margin: basketball's about 4 s, football's snap horizon 6 s
+ * and its margin 10 s).
+ */
+export function snapshotAt(arrivals: readonly Arrival[], clock: TheaterClock, now: PTime, ahead = 4): TimelineSnapshot<RawPlay> {
+  const known = arrivals
+    .filter((a) => a.at <= now)
+    .map((a) => a.play)
+    .sort((a, b) => a.order - b.order);
+  const watermark = clock.p(now) + ahead;
   return {
     plays: known.filter((p) => (p.eventTime ?? -Infinity) <= watermark),
     pending: known.filter((p) => (p.eventTime ?? -Infinity) > watermark),

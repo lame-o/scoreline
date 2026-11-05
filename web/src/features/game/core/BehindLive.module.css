@@ -1,0 +1,81 @@
+/* How far behind live, on hover over the live indicator (BehindLive.swift's card): the house's floating glass. */
+
+.indicator {
+  display: inline-flex;
+}
+
+.card {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: calc(1 * var(--pt));
+  padding: calc(6 * var(--pt)) calc(10 * var(--pt));
+  border-radius: calc(9 * var(--pt));
+  white-space: nowrap;
+  pointer-events: none;
+  background: var(--glass-fill-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow:
+    inset 0 calc(1 * var(--pt)) 0 var(--glass-highlight),
+    inset 0 0 0 calc(0.5 * var(--pt)) var(--glass-edge),
+    var(--shadow-control);
+  /* Grows out of the indicator: 0.97 → 1 with a 2pt drop, on the fade's timing. */
+  transform-origin: top center;
+  animation: behind-in var(--dur-fade) var(--ease-out) both;
+}
+
+.card[data-align="center"] {
+  translate: -50% 0;
+}
+
+.card[data-align="trailing"] {
+  transform-origin: top right;
+}
+
+/* It leaves faster than it came: a plain fade. */
+.card[data-leaving] {
+  animation: behind-out var(--dur-exit) var(--ease-out) both;
+}
+
+.card[data-reduce]:not([data-leaving]) {
+  animation-name: behind-fade;
+}
+
+.text {
+  font-size: calc(10.5 * var(--pt));
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--label);
+}
+
+.note {
+  font-size: calc(10 * var(--pt));
+  color: var(--label-secondary);
+}
+
+@keyframes behind-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-2 * var(--pt))) scale(0.97);
+  }
+}
+
+@keyframes behind-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes behind-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card:not([data-leaving]) {
+    animation-name: behind-fade;
+  }
+}

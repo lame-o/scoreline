@@ -37,13 +37,16 @@
  *     const script = PlayScript.play(scene, { bases: scene.basesAfter, bats: "R", swapped: scene.endsInning });
  *     script.ball(1.2); script.camera.frame(1.2);
  */
+import type { Side } from "../models";
 import { CameraFrame, CameraTrack, shoot, TROT_CUT, type Shot } from "./playCamera";
 import { coverer, isOut, type Effort, type Hand, type Handling, type PlayScene, type Runner } from "./playScene";
 import { seedOf, type Hurt } from "./playBeat";
 import { pitchPosition, plateTime, type StatcastPitch } from "./statcast";
 import { Ballpark, distanceBetween, easeValue, fieldPoint, ground, ORIGIN, samePoint, type Ease, type FieldPoint, type Point } from "./theaterField";
 import { ballMemo, RigTrack, type RigFacing } from "../theater/rig";
+import { SplitMix64 } from "../theater/splitMix64";
 import { bridgePlan, TheaterBridge, type BridgeFigure, type BridgePlan } from "../theater/theaterBridge";
+import { TheaterQuiet } from "../theater/theaterQuiet";
 
 /** The teams, and the umpires (who wear neither). */
 export type Team = "fielding" | "batting" | "official";
@@ -384,6 +387,17 @@ export function restSpot(rest: Pick<Rest, "bases">, n: number): Point {
   return Ballpark.position(n);
 }
 
+/**
+ * The field a play leaves (PlayTheater.swift `PlayTheater.rest(after:)`):
+ * its runners (`bases`, the live diamond's, else the play's own), the next
+ * batter (`bats`); after a third out, the sides changed. (pure)
+ */
+export function restAfter(play: PlayScene, bases: readonly boolean[] | null, bats: Hand | null, batting: Side | null): Rest {
+  const swapped = play.endsInning;
+  const side: Side = swapped ? (play.batting === "bottom" ? "top" : "bottom") : (play.batting ?? batting ?? "top");
+  return { bases: swapped ? [false, false, false] : (bases ?? play.basesAfter), bats, swapped, fieldingHome: side === "top" };
+}
+
 /** Where an injured man is down: by the plate, on the mound, or (MLB says only who) on the infield grass. */
 export function hurtSpot(hurt: Hurt): Point {
   return hurt === "batter" ? { x: -5, y: 4 } : hurt === "pitcher" ? { x: 0, y: 55 } : { x: 18, y: 70 };
@@ -480,6 +494,36 @@ export class PlayScript {
     }
     // The plate umpire, last: every other figure keeps its place.
     script.actors.push(new Actor("official", Ballpark.umpire(rest.bats), { kind: "umpire" }));
+    script.measureBodies();
+    return script;
+  }
+
+  /**
+   * The field between pitches with its quiet (TheaterQuiet): the batter and
+   * the battery wait on each other, the men in the field shift about; through
+   * a rain delay, the grounds crew by the tarp. (pure; tested)
+   */
+  static quiet(rest: Rest, seed: bigint): PlayScript {
+    const script = PlayScript.rest(rest);
+    const random = new SplitMix64(seed);
+    const tarp = rest.standing?.kind === "tarp";
+    if (tarp) {
+      for (const at of [{ x: -75, y: 40 }, { x: 75, y: 40 }, { x: 0, y: 150 }]) script.actors.push(new Actor("official", at, { kind: "coach" }));
+    }
+    const men: number[] = [];
+    script.actors.forEach((a, i) => {
+      if (a.role.kind === "fielder" ? a.role.n >= 3 : a.role.kind === "coach" && tarp) men.push(i);
+    });
+    const quiet = TheaterQuiet.make(men, 0, random, TheaterQuiet.length, false);
+    for (const beat of quiet.beats) {
+      if (beat.kind !== "step") continue;
+      const actor = script.actors[beat.man]!;
+      const here = actor.position(beat.at);
+      actor.move([{ x: here.x + beat.toward.x * 7, y: here.y + beat.toward.y * 6 }], beat.at, beat.at + TheaterQuiet.stride);
+      actor.move([here], beat.back, beat.back + TheaterQuiet.stride);
+    }
+    script.duration = quiet.period;
+    script.settle = script.duration;
     script.measureBodies();
     return script;
   }

@@ -19,11 +19,19 @@
  * DraftKings' line for the top team, the longest wording that fits on one
  * line. A final's header is its result (the last price: "GS 100% · 0% MIN");
  * its muted line, where it began ("GS at tip-off: Polymarket 43% · …").
+ *
+ * While the page broadcasts (BROADCAST.md §3), the market is shown as it
+ * stood at p: each tick at its own time once p reaches it (so the line moves
+ * with the basket, not 50 s before it), the chart redrawn when p reaches the
+ * next pending tick, scheduled, never polled (OddsSection.schedule); ESPN's
+ * half comes up to p with the presented detail.
  */
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { oddsSchedule, shownUntil } from "../../../../data/broadcast/presentOdds";
+import type { PresentationClock } from "../../../../data/broadcast/presentationClock";
 import type { GameState } from "../../../../data/odds/chart";
 import { seriesFor } from "../../../../data/odds/polymarket";
-import { useOddsFeed, type OddsGame } from "../../../../state/odds";
+import { useOddsFeed, type OddsGame, type OddsSnapshot } from "../../../../state/odds";
 import { useSettings } from "../../../../state/settings";
 import { WinProbability } from "../CommonSections";
 import { DetailSection } from "../DetailSection";
@@ -43,6 +51,46 @@ export function hasWinProbability(game: GameContext, enabled: boolean): boolean 
 /** The section with the chart: its own chunk, fetched as the page starts looking for the market. */
 const loadOddsSection = () => import("./OddsSection");
 const OddsSection = lazy(() => loadOddsSection().then((m) => ({ default: m.OddsSection })));
+
+/**
+ * The market as it stood at p (OddsChartData.shown): each outcome's ticks up
+ * to p, its price the newest of them; a re-render when p reaches the next
+ * pending tick (one timer, re-planned with the clock), never per frame.
+ * Without a clock (not broadcasting), the market as it is.
+ */
+function usePresentedOdds(snapshot: OddsSnapshot, clock: PresentationClock | null): OddsSnapshot {
+  const [tick, wake] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    if (!clock) return;
+    const ticks = Object.values(snapshot.series).flatMap((points) => (points ?? []).map((x) => x.t));
+    const next = oddsSchedule(ticks, clock, Date.now())[1];
+    if (next == null) return;
+    const timer = setTimeout(wake, Math.max(next - Date.now(), 0));
+    return () => clearTimeout(timer);
+  }, [clock, snapshot, tick]);
+  const until = clock ? clock.p(Date.now() / 1000) * 1000 : null;
+  // A new snapshot only when a tick is presented (the chart glides on its version).
+  const shown = until == null ? null : Object.values(snapshot.series).reduce((n, points) => n + (points ? shownUntil(points, until).length : 0), 0);
+  return useMemo(() => {
+    if (until == null) return snapshot;
+    const series: { -readonly [K in keyof OddsSnapshot["series"]]: OddsSnapshot["series"][K] } = {};
+    const current: Record<string, number> = {};
+    let version = 0;
+    for (const [outcome, points] of Object.entries(snapshot.series)) {
+      if (!points) continue;
+      const kept = shownUntil(points, until);
+      series[outcome as keyof OddsSnapshot["series"]] = kept;
+      const last = kept.at(-1);
+      if (last) {
+        current[outcome] = last.p;
+        version += kept.length + last.t / 1e12;
+      }
+    }
+    return { ...snapshot, series, current, version };
+    // `until` is read as it is when a tick is presented (`shown` changes).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshot, shown, until == null]);
+}
 
 export function WinProbabilitySection({ game }: { game: GameContext }) {
   const enabled = useSettings((s) => s.odds);
@@ -71,7 +119,9 @@ export function WinProbabilitySection({ game }: { game: GameContext }) {
   // On screen or not (the feed debounces it: 0.25 s on, 2 s off), once there's a section to see.
   const section = useRef<HTMLDivElement>(null);
   const [onScreen, setOnScreen] = useState(false);
-  const { feed, snapshot } = useOddsFeed(oddsGame, onScreen);
+  const { feed, snapshot: market } = useOddsFeed(oddsGame, onScreen);
+  // Broadcasting: the market as it stood at p.
+  const snapshot = usePresentedOdds(market, game.broadcast?.clock ?? null);
   const found = possible && snapshot.status === "ready" && snapshot.market != null;
   useEffect(() => {
     const el = section.current;

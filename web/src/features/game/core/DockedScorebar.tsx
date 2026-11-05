@@ -15,6 +15,10 @@
  * news line), so one moment is told in one place. A click goes back to the top.
  *
  * Screen readers skip it: the hero stays the page's one scoreboard.
+ *
+ * While the page broadcasts, hovering the bar's live indicator says how far
+ * behind live the page is (the card hangs just under the bar, trailing), and
+ * a stoppage's word takes the sport's detail (the page passes it as `detail`).
  */
 import { memo, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LiveStatus, TeamLogo } from "../../../design/components";
@@ -31,6 +35,8 @@ import { BeatScore } from "./Hero";
 import { useCurrentMoment } from "./moments";
 import { useScoringSlidesContext } from "./scoringSlides";
 import { PossessionFlight, PossessionSlot, usePossessionToss } from "./possession";
+import { BehindLiveHover } from "./broadcast";
+import type { BehindLive } from "../../../data/broadcast/behindLive";
 import styles from "./DockedScorebar.module.css";
 
 export interface DockedScorebarProps {
@@ -41,8 +47,10 @@ export interface DockedScorebarProps {
   readonly beats: HeroBeats;
   readonly surface: Surface;
   readonly clockFallback: string;
-  /** The live clock (a fast lane's reading, else the scoreboard's). */
+  /** The live clock (a fast lane's reading, else the scoreboard's; the presented one while broadcasting). */
   readonly clock?: GameClock | null;
+  /** How far behind live, read on hovering the live indicator (null: the page doesn't broadcast). */
+  readonly behind?: (() => BehindLive | null) | null;
   /** Football and the NBA, live: who has the ball (null: nobody yet). Absent for sports without possession. */
   readonly possession?: Side | null;
   readonly stale: boolean;
@@ -77,7 +85,7 @@ export function DockedScorebar(props: DockedScorebarProps) {
   );
 }
 
-const BarContent = memo(function BarContent({ geometry, event, palette, scores, beats, surface, clockFallback, clock, possession, possessionInAir = false, stale, detail, chip, slot, lead }: DockedScorebarProps) {
+const BarContent = memo(function BarContent({ geometry, event, palette, scores, beats, surface, clockFallback, clock, behind = null, possession, possessionInAir = false, stale, detail, chip, slot, lead }: DockedScorebarProps) {
   const box = useRef<HTMLButtonElement>(null);
   const width = useWidth(box, 360);
   const moment = useCurrentMoment();
@@ -135,7 +143,7 @@ const BarContent = memo(function BarContent({ geometry, event, palette, scores, 
       </span>
       {live ? <Accessories tier={tier} detail={detail} chip={chip ?? null} /> : <span className={styles.accessories} />}
       <span className={styles.status}>
-        {news ? <NewsLine moment={news} full={tier >= Accessory.full} /> : <Status event={event} clock={clock ?? event.clock} clockFallback={clockFallback} stale={stale} ticking={onBar} />}
+        {news ? <NewsLine moment={news} full={tier >= Accessory.full} /> : <Status event={event} clock={clock ?? event.clock} clockFallback={clockFallback} stale={stale} ticking={onBar} behind={behind} bar={box} />}
       </span>
       {slots ? <PossessionFlight toss={toss} glyph={glyph} /> : null}
     </button>
@@ -194,13 +202,32 @@ function NewsLine({ moment, full }: { moment: LiveMoment; full: boolean }) {
   );
 }
 
-function Status({ event, clock, clockFallback, stale, ticking }: { event: ScoreEvent; clock: GameClock | null; clockFallback: string; stale: boolean; ticking: boolean }) {
+function Status({
+  event,
+  clock,
+  clockFallback,
+  stale,
+  ticking,
+  behind = null,
+  bar,
+}: {
+  event: ScoreEvent;
+  clock: GameClock | null;
+  clockFallback: string;
+  stale: boolean;
+  ticking: boolean;
+  behind?: (() => BehindLive | null) | null;
+  bar?: React.RefObject<HTMLButtonElement | null>;
+}) {
   const now = useNow(ticking && event.state === "scheduled" ? 1000 : 60_000, event.state === "scheduled");
   switch (event.state) {
     case "live":
       return (
         <span className={styles.statusLive} key="live">
-          <LiveStatus clock={event.ref?.kind === "espn" && event.ref.sport === "baseball" ? null : clock} fallback={clockFallback} size={11} animated={!stale && ticking} />
+          {/* How far behind live, on hover: the card hangs just under the bar (6pt below its edge), trailing, not over it. */}
+          <BehindLiveHover read={behind} align="trailing" under={() => bar?.current ?? null}>
+            <LiveStatus clock={event.ref?.kind === "espn" && event.ref.sport === "baseball" ? null : clock} fallback={clockFallback} size={11} animated={!stale && ticking} />
+          </BehindLiveHover>
         </span>
       );
     case "final":

@@ -25,7 +25,7 @@
  * main thread in a task of its own (never inside a frame or a React render),
  * one at a time, exactly as the actor serializes them.
  */
-import type { TheaterClip } from "./theaterClips";
+import { finish, type TheaterClip } from "./theaterClips";
 import type { ActorIDs } from "./theaterClips";
 import { TheaterTiming, type PTime } from "./theaterEngine";
 import { PlanChain, TheaterBake, type BakedPlan, type Plan } from "./theaterPlanChain";
@@ -157,6 +157,18 @@ export interface TheaterSport<Clip extends TheaterClip, Play, Facts, Context = n
     revision: number,
     ids: ActorIDs,
   ): Plan<Clip>;
+  /** The same plan a step at a time (TheaterPlanner.planSteps): the page's director makes it in slices between frames. */
+  planSteps?(
+    plays: readonly TimelinePlay<Play>[],
+    history: ReadonlySet<string>,
+    facts: Facts,
+    chain: PlanChain<Clip>,
+    c: PTime,
+    shift: number,
+    deferFrom: PTime | null,
+    revision: number,
+    ids: ActorIDs,
+  ): Generator<void, Plan<Clip>, void>;
   /** The binding horizons by the timeline's kind label (BROADCAST's late binding). */
   readonly horizons: Readonly<Record<string, number>>;
 }
@@ -423,8 +435,17 @@ export class TheaterSession<Clip extends TheaterClip, Play, Facts, Context = num
     sport: TheaterSport<Clip, Play, Facts, Context>,
     request: PlanRequest<Clip, Play, Facts, Context>,
   ): MadePlan<Clip, Play, Facts, Context> {
+    return finish(TheaterSession.makeSteps(sport, request));
+  }
+
+  /** The same, a step at a time (a web addition: the director makes it in short slices between frames). */
+  static *makeSteps<Clip extends TheaterClip, Play, Facts, Context>(
+    sport: TheaterSport<Clip, Play, Facts, Context>,
+    request: PlanRequest<Clip, Play, Facts, Context>,
+  ): Generator<void, MadePlan<Clip, Play, Facts, Context>, void> {
     const scenes = request.scenes;
     const plays = scenes.read(request.snapshot, request.facts);
+    yield;
     // Plays known when the page opened: its first snapshot's (the court they left, never told).
     let history: ReadonlySet<string>;
     if (request.history) history = request.history;
@@ -433,10 +454,13 @@ export class TheaterSession<Clip extends TheaterClip, Play, Facts, Context = num
         request.opening === request.snapshot ? new Set(plays.map((p) => p.id)) : new Set(new SceneCache(sport).read(request.opening, request.facts).map((p) => p.id));
     } else history = new Set(plays.map((p) => p.id));
     const ids: ActorIDs = { next: request.nextID };
-    const plan = sport.plan(plays, history, request.facts, request.chain, request.at, request.shift, request.deferFrom, request.revision, ids);
+    const plan = sport.planSteps
+      ? yield* sport.planSteps(plays, history, request.facts, request.chain, request.at, request.shift, request.deferFrom, request.revision, ids)
+      : sport.plan(plays, history, request.facts, request.chain, request.at, request.shift, request.deferFrom, request.revision, ids);
     if (request.declared) plan.declared = true;
     plan.known = new Set(request.snapshot.plays.map((p) => p.id).filter((id) => !plan.deferred.has(id)));
-    const baked = TheaterBake.bake(plan, undefined, request.light, request.chain.plan(request.at));
+    yield;
+    const baked = yield* TheaterBake.bakeSteps(plan, undefined, request.light, request.chain.plan(request.at));
     return { baked, nextID: ids.next, scenes, history };
   }
 
@@ -512,25 +536,55 @@ export class TheaterSession<Clip extends TheaterClip, Play, Facts, Context = num
 /** Plans in flight across every director, and the most there ever were at once (a gate: one). */
 export const TheaterDebug = { planning: 0, most: 0 };
 
-/** The page's planning queue: one plan at a time across every director (the Mac's `TheaterBakery` actor). */
-const bakery: { busy: boolean; queue: (() => void)[] } = { busy: false, queue: [] };
+/**
+ * The page's planning queue: one plan at a time across every director (the
+ * Mac's `TheaterBakery` actor). A job is made in slices of a few
+ * milliseconds, each its own task, so the frames go on between them: the
+ * Mac makes a plan off the main actor, and the web's frames never wait on one.
+ * A job's `step` runs one slice and says whether it's done.
+ */
+const bakery: { busy: boolean; queue: (() => boolean)[] } = { busy: false, queue: [] };
 
-function bake(job: () => void): void {
-  const run = () => {
-    bakery.busy = true;
-    TheaterDebug.planning += 1;
-    TheaterDebug.most = Math.max(TheaterDebug.most, TheaterDebug.planning);
+/** How long one slice of planning may run (ms): well inside a frame. */
+export const PLAN_SLICE_MS = 6;
+
+/** The next task, without setTimeout's clamping (a message to ourselves), where there's a MessageChannel. */
+const nextTask: (run: () => void) => void = (() => {
+  if (typeof MessageChannel === "undefined") return (run: () => void) => void setTimeout(run, 0);
+  const channel = new MessageChannel();
+  const queue: (() => void)[] = [];
+  channel.port1.onmessage = () => queue.shift()?.();
+  return (run: () => void) => {
+    queue.push(run);
+    channel.port2.postMessage(0);
+  };
+})();
+
+function runJob(job: () => boolean): void {
+  bakery.busy = true;
+  TheaterDebug.planning += 1;
+  TheaterDebug.most = Math.max(TheaterDebug.most, TheaterDebug.planning);
+  const slice = () => {
+    let done = true;
     try {
-      job();
+      done = job();
     } finally {
-      TheaterDebug.planning -= 1;
-      bakery.busy = false;
-      const next = bakery.queue.shift();
-      if (next) setTimeout(next, 0);
+      if (done) {
+        TheaterDebug.planning -= 1;
+        bakery.busy = false;
+        const next = bakery.queue.shift();
+        if (next) runJob(next);
+      } else {
+        nextTask(slice);
+      }
     }
   };
-  if (bakery.busy) bakery.queue.push(run);
-  else setTimeout(run, 0);
+  nextTask(slice);
+}
+
+function bake(job: () => boolean): void {
+  if (bakery.busy) bakery.queue.push(job);
+  else runJob(job);
 }
 
 /**
@@ -674,13 +728,20 @@ export class TheaterDirector<Clip extends TheaterClip, Play, Facts, Context = nu
     if (!request) return;
     request.light = !this._visible;
     this.baking = true;
+    // Requested now, made in slices between frames.
+    let steps: Generator<void, MadePlan<Clip, Play, Facts, Context>, void> | null = null;
     bake(() => {
       if (this.disposed) {
         this.baking = false;
         this.pending = false;
-        return;
+        return true;
       }
-      const made = TheaterSession.make(this.sport, request);
+      steps ??= TheaterSession.makeSteps(this.sport, request);
+      const until = performance.now() + PLAN_SLICE_MS;
+      let r = steps.next();
+      while (!r.done && performance.now() < until) r = steps.next();
+      if (!r.done) return false;
+      const made = r.value;
       this.baking = false;
       if (this.session.accept(made, this.now())) {
         this.lead = Math.max(TheaterTiming.commitLead, this.lead * 0.75);
@@ -695,6 +756,7 @@ export class TheaterDirector<Clip extends TheaterClip, Play, Facts, Context = nu
         this.pending = false;
         this.replan();
       }
+      return true;
     });
   }
 

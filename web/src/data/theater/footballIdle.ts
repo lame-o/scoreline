@@ -11,10 +11,10 @@
  * Timeout") or the two-minute warning empties the field to both sidelines;
  * the end of a quarter turns the field round as the teams change ends; at
  * halftime they leave; a man hurt on the play stays down while the trainers
- * come out; a challenge's red flag comes in from the bench while the teams
- * wait. Then they come back, huddle and line up again. No officials: nothing
- * in the data has them doing anything on the field, and standing there they
- * only got in the way.
+ * come out, and a challenge's red flag comes in from the bench while the
+ * teams wait, and from those two they come back, huddle and line up again.
+ * No officials: nothing in the data has them doing anything on the field,
+ * and standing there they only got in the way.
  *
  * Each is a script like a snap's (footballScript.ts), a pure function of
  * what the feed said and t, so the harness can draw any moment of it. They
@@ -24,7 +24,8 @@
  * silent (who goes in motion, where a man stands on the sideline), the
  * choices are seeded from the entry's ID with the Mac's own generator
  * (SplitMix64, bit for bit): never canned, the same every time, and the same
- * as on the Mac.
+ * as on the Mac. A break plays once and holds its quiet (TheaterQuiet) until
+ * the next play.
  *
  *     const idle = footballIdleMake({ play, stoppage, rest, offense, down, kickoff: false, flipped: false });
  *     const script = idleScript(idle); script.idleTime(elapsed);
@@ -40,10 +41,42 @@ import { announced, Builder, FootballScript, Gridiron, Player, type Team } from 
 import { Rig } from "./rig";
 import { seed64, SplitMix64 } from "./splitMix64";
 import { CameraPath, CameraRig, fitting, unionAll } from "./theaterKit";
+import { TheaterQuiet } from "./theaterQuiet";
 
 // MARK: - Stoppages
 
 export type StoppageKind = "timeout" | "official" | "twoMinuteWarning" | "endOfPeriod" | "halftime" | "endOfGame";
+
+/**
+ * A stop in play as ESPN names a play's type (BroadcastLanes.stoppage's
+ * football rows: the one table behind the hero, the docked bar, the list
+ * row and the theater's tag), the kinds a football stoppage reads. (pure)
+ */
+function laneStoppage(type: string): "timeout" | "officialTimeout" | "twoMinuteWarning" | null {
+  switch (type.toLowerCase()) {
+    case "official timeout":
+      return "officialTimeout";
+    case "timeout":
+    case "full timeout":
+    case "short timeout":
+    case "reset timeout":
+      return "timeout";
+    case "two-minute warning":
+      return "twoMinuteWarning";
+    default:
+      return null;
+  }
+}
+
+/** A stoppage's words (GameTimeline.swift `Stoppage.words`). */
+const STOPPAGE_WORDS = { timeout: "Timeout", officialTimeout: "Official timeout", twoMinuteWarning: "Two-minute warning" } as const;
+
+/** "Halftime", "End of 3rd", "End of OT" (PresentedGame.interval for football, four periods in regulation). */
+function interval(ended: number, regulation = 4): string {
+  if (ended === regulation / 2) return "Halftime";
+  const n = ended - regulation;
+  return `End of ${ended <= regulation ? ordinal(ended) : n === 1 ? "OT" : `${n}OT`}`;
+}
 
 /**
  * A stop in play as ESPN's play-by-play posts it (entries that aren't
@@ -74,29 +107,33 @@ export function parseStoppage(item: JSONValue, teams: FootballTeams): FootballSt
   if (id == null) return null;
   const text = str(at(item, "text")) ?? "";
   const period = int(at(item, "period", "number")) ?? null;
+  const type = str(at(item, "type", "text")) ?? "";
   let kind: StoppageKind;
-  switch ((str(at(item, "type", "text")) ?? "").toLowerCase()) {
+  switch (laneStoppage(type)) {
     case "timeout":
       kind = "timeout";
       break;
-    case "official timeout":
+    case "officialTimeout":
       kind = "official";
       break;
-    case "two-minute warning":
+    case "twoMinuteWarning":
       kind = "twoMinuteWarning";
       break;
-    case "end period":
-    case "end of regulation":
-      kind = "endOfPeriod";
-      break;
-    case "end of half":
-      kind = "halftime";
-      break;
-    case "end of game":
-      kind = "endOfGame";
-      break;
     default:
-      return null;
+      switch (type.toLowerCase()) {
+        case "end period":
+        case "end of regulation":
+          kind = "endOfPeriod";
+          break;
+        case "end of half":
+          kind = "halftime";
+          break;
+        case "end of game":
+          kind = "endOfGame";
+          break;
+        default:
+          return null;
+      }
   }
   // College ends its second quarter as an "End Period".
   if (kind === "endOfPeriod" && period === 2) kind = "halftime";
@@ -189,6 +226,12 @@ export interface FootballIdle {
   /** The offense's bench, by its sideline's sign in its frame: the home team's across the field from the camera, the visitors' on its side. */
   readonly bench: number;
   readonly seed: bigint;
+  /**
+   * Already at the break (a second stoppage on top of the first, a page
+   * opened partway through it): everyone starts where it sends him. Nobody
+   * walks off twice.
+   */
+  readonly settled: boolean;
 }
 
 export interface IdleInputs {
@@ -199,6 +242,7 @@ export interface IdleInputs {
   readonly down: Down | null;
   readonly kickoff: boolean;
   readonly flipped: boolean;
+  readonly settled?: boolean;
 }
 
 /**
@@ -210,7 +254,7 @@ export interface IdleInputs {
  * down and distance (the gun on a long third down, heavy at the goal line).
  * (pure; tested)
  */
-export function footballIdle({ play, stoppage, rest, offense: given, down, kickoff, flipped }: IdleInputs): FootballIdle {
+export function footballIdle({ play, stoppage, rest, offense: given, down, kickoff, flipped, settled = false }: IdleInputs): FootballIdle {
   const period = stoppage?.period ?? play?.period ?? null;
   const seedID = stoppage?.id ?? (play ? `${play.id}-after` : `rest-${Math.trunc(rest.yard)}`);
   const random = new SplitMix64(seed64(seedID));
@@ -285,6 +329,7 @@ export function footballIdle({ play, stoppage, rest, offense: given, down, kicko
     yaw,
     bench: offense === "bottom" ? far : -far,
     seed: seed64(seedID),
+    settled,
   };
 }
 
@@ -368,27 +413,26 @@ class IdleBuilder {
         back = false;
         t = 4.6;
         break;
-      case "timeout":
-        t = this.sidelines(phase.side == null ? [] : [phase.side === idle.offense ? "offense" : "defense"], 34);
-        break;
-      case "commercial":
-        t = this.sidelines(["offense", "defense"], 44);
-        break;
+      case "timeout": {
+        const coach = this.sidelines(phase.side == null ? [] : [phase.side === idle.offense ? "offense" : "defense"]);
+        this.quiet([...this.team("offense"), ...this.team("defense"), ...coach]);
+        return;
+      }
+      case "commercial": {
+        const coaches = this.sidelines(["offense", "defense"]);
+        this.quiet([...this.team("offense"), ...this.team("defense"), ...coaches]);
+        return;
+      }
       case "quarter":
         // They gather while the field turns: the teams have changed ends.
         this.huddles(0.4);
         script.turn = { from: idle.yaw, to: phase.turnTo, start: 1.0, end: 4.2 };
-        t = 7;
-        back = false;
-        this.lineUp(t);
-        t += 3.2;
-        break;
+        this.quiet([...this.team("offense"), ...this.team("defense")]);
+        return;
       case "off":
         this.leave();
-        script.ballGone = 4.6;
-        script.duration = 6;
-        script.settle = 6;
-        this.finish([]);
+        script.ballGone = idle.settled ? 0 : 4.6;
+        this.quiet(this.groundsCrew(idle.settled));
         return;
       case "injury":
         t = this.injury(phase.hurt, focus);
@@ -411,6 +455,49 @@ class IdleBuilder {
     script.duration = start + period;
     script.settle = script.duration;
     this.finish(focus);
+  }
+
+  /** Everyone's where a break sends him by now (`Builder.settled`). */
+  static readonly settled = 8.0;
+
+  /** A break's hold, once everyone's where it's going: its quiet, round and round. */
+  private quiet(men: readonly number[]): void {
+    const { b, random, script } = this;
+    const start = IdleBuilder.settled;
+    const quiet = TheaterQuiet.make(men, start, random);
+    for (const beat of quiet.beats) {
+      switch (beat.kind) {
+        case "step": {
+          const here = b.position(beat.man, beat.at);
+          b.move(beat.man, [{ x: here.x + beat.toward.x * 7, y: here.y + beat.toward.y * 6 }], beat.at, beat.at + TheaterQuiet.stride, "inOut");
+          b.move(beat.man, [here], beat.back, beat.back + TheaterQuiet.stride, "inOut");
+          break;
+        }
+        case "knee":
+          script.players[beat.man]!.holds.push({ kind: "kneel", from: beat.at, until: beat.until });
+          break;
+        case "gesture":
+          script.players[beat.man]!.holds.push({ kind: "fairCatch", from: beat.at, until: beat.until });
+          break;
+      }
+    }
+    script.loop = { start, period: quiet.period };
+    script.duration = start + quiet.period;
+    script.settle = script.duration;
+    this.finish([]);
+  }
+
+  /** The field at the half, the teams gone: a few of the grounds crew out on it. */
+  private groundsCrew(settled: boolean): number[] {
+    const { b, random, script } = this;
+    return [0, 1, 2].map((k) => {
+      const x = (k - 1) * 38 + random.in(-8, 8);
+      const y = b.line + (k - 1) * random.in(20, 45);
+      const crew = new Player("staff", { x, y }, "staff");
+      crew.appear = settled ? 0 : 5 + k * 0.5;
+      script.players.push(crew);
+      return script.players.length - 1;
+    });
   }
 
   /** The players of a team in the formation (not the staff). */
@@ -540,9 +627,10 @@ class IdleBuilder {
     return period;
   }
 
-  /** A team to its bench (or both): it jogs off to its sideline and stands in a loose knot there; a team that stays gathers on the field. A man or two moves every several seconds. Returns when they come back. */
-  private sidelines(teams: readonly Team[], hold: number): number {
-    const { b, idle, random } = this;
+  /** A team to its bench (or both): it jogs off to its sideline and stands in a loose knot there, its coach out in front of it; a team that stays gathers on the field. Returns the coaches. */
+  private sidelines(teams: readonly Team[]): number[] {
+    const { b, idle, random, script } = this;
+    const coaches: number[] = [];
     for (const side of ["offense", "defense"] as const) {
       const men = this.team(side);
       if (teams.includes(side)) {
@@ -551,19 +639,30 @@ class IdleBuilder {
         for (const i of men) {
           const px = c.x - (bench > 0 ? 1 : -1) * random.in(0, 22);
           const p = { x: px, y: c.y + random.in(-24, 24) };
+          if (idle.settled) {
+            const player = script.players[i]!;
+            player.at = p;
+            player.set = null;
+            this.look(i, 0, { x: 0, y: c.y });
+            continue;
+          }
           const d = hypot(p, b.position(i, 0.4));
           const leave = 0.4 + random.in(0, 0.6);
           b.move(i, [p], leave, leave + clamp(d / 14, 1, 6), "inOut");
           this.look(i, leave + 6, { x: 0, y: c.y });
         }
+        const coach = new Player("staff", { x: c.x + (bench > 0 ? 3 : -3), y: c.y }, "staff");
+        coach.appear = idle.settled ? 0 : 1;
+        coach.looks.push({ from: 0, point: { x: 0, y: c.y } });
+        script.players.push(coach);
+        coaches.push(script.players.length - 1);
       } else {
         const cx = b.ballX + random.in(-6, 6);
         const c = { x: cx, y: b.line + (side === "offense" ? -1 : 1) * random.in(16, 24) };
         this.ring(men, c, 9, side === "offense" ? b.at("quarterback") : null, 0.4);
       }
     }
-    this.shuffles([...this.team("offense"), ...this.team("defense")], 9, hold);
-    return hold;
+    return coaches;
   }
 
   /** Every several seconds a man or two takes a few steps. */
@@ -587,6 +686,10 @@ class IdleBuilder {
   private leave(): void {
     const { b, idle, random, script } = this;
     script.players.forEach((player, i) => {
+      if (idle.settled) {
+        player.vanish = -Player.fade;
+        return;
+      }
       const side = player.team === "offense" ? idle.bench : player.team === "defense" ? -idle.bench : random.sign();
       const here = b.position(i, 0.4);
       const x = side * (Gridiron.half + random.in(10, 20));
@@ -819,7 +922,7 @@ export interface StatusTag {
  * The broadcast tag over the field (FootballStatus), from what the feed
  * says: whose ball and the down during a snap and between them, the flag
  * once it's down ("FLAG · HOLDING, OFFENSE · 10 YDS"), and each stoppage in
- * turn ("TIMEOUT · EAGLES · 2 LEFT", "COMMERCIAL BREAK", "END OF 1ST",
+ * turn ("TIMEOUT · EAGLES · 2 LEFT", "OFFICIAL TIMEOUT", "END OF 1ST",
  * "CHALLENGE · FALCONS", then "UNDER REVIEW", then "REVERSED"). The tag
  * draws in capitals. (pure; tested)
  */
@@ -866,7 +969,7 @@ export const FootballStatus = {
       tag: idle.phase.kind === "kickoff" ? joined(["Kickoff", nameOf(names, idle.offense)]) : FootballStatus.ball(nameOf(names, idle.offense), down === "Kickoff" ? null : down),
       tint: colorOf(names, idle.offense),
     };
-    // Back on the field: the ball again.
+    // Back on the field after a man down or a review: the ball again.
     const back = script.loop != null && t >= script.loop.start - 4.5;
     const phase = idle.phase;
     switch (phase.kind) {
@@ -874,18 +977,13 @@ export const FootballStatus = {
       case "kickoff":
         return ballTag;
       case "timeout": {
-        if (back) return ballTag;
         const left = phase.side == null ? null : phase.side === "top" ? timeoutsLeft.top : timeoutsLeft.bottom;
-        return { tag: joined(["Timeout", nameOf(names, phase.side), left != null ? `${left} left` : null]), tint: colorOf(names, phase.side) };
+        return { tag: joined([STOPPAGE_WORDS.timeout, nameOf(names, phase.side), left != null ? `${left} left` : null]), tint: colorOf(names, phase.side) };
       }
       case "commercial":
-        if (back) return ballTag;
-        return { tag: stoppage?.kind === "twoMinuteWarning" ? "Two-minute warning" : "Commercial break", tint: null };
-      case "quarter": {
-        if (t >= 9) return ballTag;
-        const period = stoppage?.period ?? 1;
-        return { tag: period >= 4 ? "End of regulation" : `End of ${ordinal(period)}`, tint: null };
-      }
+        return { tag: STOPPAGE_WORDS[stoppage?.kind === "twoMinuteWarning" ? "twoMinuteWarning" : "officialTimeout"], tint: null };
+      case "quarter":
+        return { tag: interval(stoppage?.period ?? 1), tint: null };
       case "off":
         return { tag: stoppage?.kind === "endOfGame" ? "Final" : "Halftime", tint: null };
       case "injury":
@@ -910,9 +1008,10 @@ export const FootballStatus = {
       case "between":
       case "kickoff":
       case "off":
-        return [];
       case "quarter":
-        return [9];
+      case "timeout":
+      case "commercial":
+        return [];
       case "review":
         return [phase.review.kind === "challenge" ? 7 : null, phase.review.kind === "challenge" ? 16 : 13, back].filter((x): x is number => x != null);
       default:

@@ -338,6 +338,20 @@ export const Splice = {
     known: ReadonlyMap<number, ActorID> | null = null,
     latest: number | null = null,
   ): Meeting {
+    return finish(Splice.meetSteps(clip, offset0, earliest, limits, ids, world, known, latest));
+  },
+
+  /** The same meeting, yielding through a late play's search for where to join (a web addition: the planner's slices). */
+  *meetSteps<Clip extends TheaterClip>(
+    clip: Clip,
+    offset0: PTime,
+    earliest: PTime,
+    limits: MotionLimits,
+    ids: ActorIDs,
+    world: (t: PTime) => SpliceMan[],
+    known: ReadonlyMap<number, ActorID> | null = null,
+    latest: number | null = null,
+  ): Generator<void, Meeting, void> {
     // Who plays whom, from the world at the earliest splice.
     const men = world(earliest);
     const cast: (ActorID | null)[] = new Array<ActorID | null>(clip.figures.length).fill(null);
@@ -424,6 +438,7 @@ export const Splice = {
           }
         }
         t += 0.1;
+        yield;
       }
     }
     let offset = offset0;
@@ -536,6 +551,25 @@ export const TheaterPlanner = {
     revision: number,
     ids: ActorIDs,
   ): Plan<Clip> {
+    return finish(TheaterPlanner.planSteps(sequencer, history, chain, c, shift, deferFrom, revision, ids));
+  },
+
+  /**
+   * The same plan, made a step at a time (a web addition): it yields after
+   * each placement, so the page's director can make it in short slices
+   * between frames, as the Mac makes it off the main actor. The plan is the
+   * one `plan` makes.
+   */
+  *planSteps<Clip extends TheaterClip, Scene>(
+    sequencer: ClipSequencer<Clip, Scene>,
+    history: ReadonlySet<string>,
+    chain: PlanChain<Clip>,
+    c: PTime,
+    shift: number,
+    deferFrom: PTime | null,
+    revision: number,
+    ids: ActorIDs,
+  ): Generator<void, Plan<Clip>, void> {
     const limits = sequencer.limits;
     const previous = chain.plan(c);
     // What's on screen carries on (and the clip before it, while men still blend out of it).
@@ -596,6 +630,7 @@ export const TheaterPlanner = {
     // Plays past the receding horizon wait for the plan that reaches them (no earlier than this one's horizon).
     const waiting = new Set<string>();
     const men = (t: PTime) => TheaterPlanner.men(draft, t);
+    yield;
     for (let k = 0; k < units.length; k++) {
       const unit = units[k]!;
       const data = anchors.get(unit.anchor ?? unit.id)?.at ?? earliest - shift;
@@ -618,11 +653,13 @@ export const TheaterPlanner = {
       const guess = Math.max(earliest, anchor - 3);
       let clip = sequencer.clip(unit, guess, draft);
       const lead = (cl: Clip) => (cl.decisive != null ? cl.decisive - unit.lead : null);
-      let meeting = Splice.meet(clip, anchor - (clip.decisive ?? 0), earliest, limits, ids, men, null, lead(clip));
+      let meeting = yield* Splice.meetSteps(clip, anchor - (clip.decisive ?? 0), earliest, limits, ids, men, null, lead(clip));
+      yield;
       if (unit.fromWorld && Math.abs(meeting.start - guess) > 0.3) {
         // It starts from the field as it stands when it begins: built from there.
         clip = sequencer.clip(unit, meeting.start, draft);
-        meeting = Splice.meet(clip, anchor - (clip.decisive ?? 0), earliest, limits, ids, men, null, lead(clip));
+        meeting = yield* Splice.meetSteps(clip, anchor - (clip.decisive ?? 0), earliest, limits, ids, men, null, lead(clip));
+        yield;
       }
       // The field between plays the splice cuts before it began never plays.
       const cut = meeting.start;
@@ -653,8 +690,10 @@ export const TheaterPlanner = {
       sequencer.told(unit);
       earliest = draft.placements[draft.placements.length - 1]!.essentialEnd(c);
       // The field between plays from where the play leaves everyone.
+      yield;
       const end = meeting.offset + clip.length;
       if (Number.isFinite(end)) TheaterPlanner.append(draft, sequencer.rest(unit, end, draft), end, limits, sequencer, ids);
+      yield;
     }
     // The field between plays round by round to the horizon (then only the men it still has).
     let lastTold = c;
@@ -671,6 +710,7 @@ export const TheaterPlanner = {
       if (!last || !(last.offset + last.clip.length < draft.horizon)) break;
       const end = last.offset + last.clip.length;
       TheaterPlanner.append(draft, sequencer.next(last.clip, end, draft), end, limits, sequencer, ids);
+      yield;
     }
     // One scheduler: every play still to tell gets its moment here, on the theater's time (the director maps it to
     // p through the clock, and the timeline tells each play then, the court, the score and the lists together).
@@ -768,6 +808,14 @@ export const TheaterPlanner = {
     return out;
   },
 };
+
+/** Runs a stepped computation to its end (the synchronous form of `planSteps`, `bakeSteps`, `makeSteps`). */
+export function finish<T>(steps: Generator<void, T, void>): T {
+  for (;;) {
+    const r = steps.next();
+    if (r.done) return r.value;
+  }
+}
 
 /** The target in force at `t` (YawRule.target, here to keep the planner's import of the camera type-only). */
 function yawTarget(changes: readonly { at: PTime; yaw: number }[], t: PTime): number {

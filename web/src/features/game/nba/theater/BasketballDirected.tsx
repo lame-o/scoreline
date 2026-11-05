@@ -24,7 +24,7 @@ import { TheaterDirector } from "../../../../data/theater/theaterDirector";
 import { FrameScratch } from "../../../../data/theater/theaterFrameScratch";
 import { theaterLabels, type HitFigure, type TheaterPerson } from "../../../../data/theater/theaterNames";
 import type { BroadcastTheaterSource } from "../../../../data/theater/theaterSource";
-import { DirectedFrame, type TheaterCues } from "../../../../data/theater/theaterView";
+import { DirectedFrame, TheaterCues } from "../../../../data/theater/theaterView";
 import { useSettings } from "../../../../state/settings";
 import { useColorScheme } from "../../../../state/theme";
 import { useChartMoment } from "../../core/moments";
@@ -32,7 +32,7 @@ import { DirectedStage } from "../../core/theater/directedStage";
 import { TheaterFlipButton, TheaterHeartbeat, TheaterStatusTag, useTheaterFlip } from "../../core/theater/TheaterStatus";
 import { accentOf, drawBursts, stageBurstEnd, TheaterType, teamPalette, type Size, type StageBurst } from "../../core/theater/theaterKit";
 import styles from "../../core/theater/TheaterWell.module.css";
-import { useDirected, useDirector } from "../../core/theater/useDirected";
+import { useDirected, useDirector, useHeard } from "../../core/theater/useDirected";
 import { useTheaterNames } from "../../core/theater/useTheaterNames";
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
@@ -42,7 +42,7 @@ import { useSlideDirected } from "../../core/scoringSlides";
 
 export interface BasketballDirectedProps {
   readonly source: BroadcastTheaterSource;
-  readonly cues: TheaterCues | null;
+  readonly cues?: TheaterCues | null;
   /** Who's playing (the lane's teams). */
   readonly teams: Teams;
   readonly kits: TheaterKits;
@@ -54,7 +54,7 @@ export interface BasketballDirectedProps {
   readonly eventId: string;
   readonly people?: Readonly<Record<string, TheaterPerson>>;
   /** When the lane last brought a play (epoch ms): the heartbeat counts from it. */
-  readonly heard: number | null;
+  readonly heard?: number | null;
   /** A game held up says so over anything else, in ESPN's words ("Rain Delay"): TheaterStatus.holding. */
   readonly holding?: string | null;
 }
@@ -75,13 +75,15 @@ export const hoopsFacts = (teams: Teams, flipped: boolean): HoopsFacts => ({
   bottomName: teams.bottomName,
 });
 
-export default function BasketballDirected({ source, cues, teams, kits, palette, names, homeName, eventId, people = NO_PEOPLE, heard, holding = null }: BasketballDirectedProps) {
+export default function BasketballDirected({ source, cues: givenCues = null, teams, kits, palette, names, homeName, eventId, people = NO_PEOPLE, heard: given = null, holding = null }: BasketballDirectedProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const well = useRef<HTMLDivElement>(null);
   const stage = useRef<DirectedStage<HoopsClip> | null>(null);
   const [flipped, flip] = useTheaterFlip(eventId);
   const facts = hoopsFacts(teams, flipped);
   const director = useDirector(() => new TheaterDirector(HoopsSport, facts), eventId);
+  // The slides read the plan's scoring cues (the page's, or the theater's own).
+  const cues = useMemo(() => givenCues ?? new TheaterCues(), [givenCues]);
   useDirected(director, source, facts, cues);
   if (import.meta.env.DEV) (window as unknown as { __director?: unknown }).__director = director;
   useSlideDirected("court", cues);
@@ -92,6 +94,7 @@ export default function BasketballDirected({ source, cues, teams, kits, palette,
   const nameTags = useTheaterNames(well, stage);
   const [height, setHeight] = useState(0);
   const [said, setSaid] = useState<Said | null>(null);
+  const heard = useHeard(source, given);
   const scratch = useMemo(() => new FrameScratch(), []);
   const shown = useMemo(() => new DirectedFrame(), []);
 
@@ -155,7 +158,7 @@ export default function BasketballDirected({ source, cues, teams, kits, palette,
       }
       return null;
     };
-    stage.current?.update((ctx, size: Size, pt, wall, T) => {
+    stage.current?.update((ctx, size: Size, pt, _wall, T, primary = true) => {
       const chain = director.chain;
       chain.sample(T, scratch);
       const drawn = hoopsFrame(chain, scratch, size);
@@ -178,8 +181,8 @@ export default function BasketballDirected({ source, cues, teams, kits, palette,
           const lens = h.lens(f.at);
           return [{ index: f.index, ground: lens.origin, height: lens.height }];
         });
-      shown.update(hits());
-      const tags = nameTags.frame(cast, tagLabels, { status: saying?.text ?? null, flip: true, heartbeat: heard != null ? "trailing" : null }, hits);
+
+      const tags = primary ? nameTags.frame(cast, tagLabels, { status: saying?.text ?? null, flip: true, heartbeat: heard != null ? "trailing" : null }, hits) : null;
       if (labels?.key !== clip || labels.size !== `${size.width}x${size.height}|${pt}`) {
         labels = { key: clip, size: `${size.width}x${size.height}|${pt}`, value: layoutLabels(ctx, scene, script, teamsNow, ink, size, pt) };
       }
@@ -191,12 +194,12 @@ export default function BasketballDirected({ source, cues, teams, kits, palette,
         if (bursts?.key !== key) bursts = { key, value: BasketballCelebration.theater(moment, scene, script, level, reduceMotion, size.height) };
         if (bursts.value.length > 0) {
           const end = Math.max(...bursts.value.map(stageBurstEnd));
-          if (end > t) stage.current?.keepAwake(performance.now() + (end - t) * 1000);
+          if (primary && end > t) stage.current?.keepAwake(performance.now() + (end - t) * 1000);
           const color = (side: Side | null) => (side == null || side === script.side ? accentOf(teamsNow.offense, ink) : accentOf(teamsNow.defense, ink));
           drawBursts(ctx, bursts.value, t, (p) => h.at(p), TheaterType.bannerOrigin(size, pt), (b) => teamPalette(color((b as BasketballBurst).side ?? null), ink), size);
         }
       }
-      report(saying);
+      if (primary) report(saying);
     }, reduceMotion);
   }, [director, scratch, shown, teamsBy, paint, ink, names, flipped, people, tagLabels, nameTags, heard, holding, moment, level, reduceMotion]);
 

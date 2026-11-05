@@ -31,7 +31,10 @@ const NO_NUMBERS: Readonly<Record<string, string>> = {};
 
 export function useReplaySync(game: GameContext, lanes: ReplayLanes = {}): void {
   const store = useReplays();
-  const { event, detail, palette } = game;
+  // What arrives, never what's told: while the page broadcasts, the replays are built from the last load as it is
+  // (the lists show only the told plays' rows; a row finds its replay waiting).
+  const { event, detail } = game.raw;
+  const { palette } = game;
   const live = event.state === "live";
   const loaded = detail !== EMPTY_DETAIL;
   const client = useQueryClient();

@@ -143,6 +143,8 @@ export interface BroadcastTheaterSource {
   readonly revision: number;
   /** The presentation clock: `p(t)` per frame; changes only on a re-plan. */
   readonly clock: TheaterClock;
+  /** Wall time on the event-time axis (seconds since 1970): the page's clock, or a test's virtual one (absent: the wall's). */
+  now?(): PTime;
   /** The plays up to the watermark, in order, with what's told; `pending`: known past it. */
   snapshot(): TimelineSnapshot<RawPlay>;
   /** Late binding: each kind's binding horizon (the delay re-sizes from them). */

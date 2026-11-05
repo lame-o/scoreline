@@ -10,7 +10,7 @@
  *     const director = useDirector(() => new TheaterDirector(HoopsSport, facts), eventId);
  *     useDirected(director, source, facts, cues);
  */
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { TheaterClip } from "../../../../data/theater/theaterClips";
 import type { TheaterDirector } from "../../../../data/theater/theaterDirector";
 import { sameEvent, type BroadcastTheaterSource, type ClockEvent, type TheaterClock } from "../../../../data/theater/theaterSource";
@@ -30,6 +30,25 @@ export function useDirector<D extends { dispose(): void; revive(): void }>(make:
   return director;
 }
 
+/**
+ * When the broadcast last brought a play (epoch ms), for the heartbeat
+ * ("Live · 4s"; the Mac's `feed.theater.heard`): `given` when the page knows
+ * it, else the moment the source's plays last changed while the theater was up.
+ */
+export function useHeard(source: BroadcastTheaterSource | null, given: number | null): number | null {
+  const [heard, setHeard] = useState<number | null>(null);
+  useEffect(() => {
+    if (!source) return;
+    let revision = source.revision;
+    return source.subscribe(() => {
+      if (source.revision === revision) return;
+      revision = source.revision;
+      setHeard(Date.now());
+    });
+  }, [source]);
+  return given ?? heard;
+}
+
 export function useDirected<Clip extends TheaterClip, Play, Facts, Context>(
   director: TheaterDirector<Clip, Play, Facts, Context>,
   source: BroadcastTheaterSource | null,
@@ -44,6 +63,8 @@ export function useDirected<Clip extends TheaterClip, Play, Facts, Context>(
   useEffect(() => {
     if (!source) return;
     source.setBindingHorizons({ live: LIVE_HORIZON, byKind: director.sport.horizons });
+    // The source's wall: the page's, or a virtual one.
+    if (source.now) director.now = () => source.now!();
     let lastEvent: ClockEvent | null = null;
     let clock: TheaterClock | null = null;
     let revision: number | null = null;

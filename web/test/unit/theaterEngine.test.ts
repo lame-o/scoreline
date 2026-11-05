@@ -24,7 +24,9 @@ import { cameraState, length2, MotionLimits, sub2, v2, vec4, ZERO2, type ActorID
 import { MotionPath, Quintic, TheaterMotion } from "../../src/data/theater/theaterMotion";
 import { Plan, PlanChain, TheaterBake, type FrameTier } from "../../src/data/theater/theaterPlanChain";
 import type { ClockEvent, ClockPiece, ClockRegime, TheaterClock } from "../../src/data/theater/theaterSource";
-import { TheaterFrameGate } from "../../src/data/theater/theaterView";
+import { TheaterCues, TheaterFrameGate, TheaterKeyStates } from "../../src/data/theater/theaterView";
+import { TheaterQuiet } from "../../src/data/theater/theaterQuiet";
+import { seed64, SplitMix64 } from "../../src/data/theater/splitMix64";
 
 const RIGHT = -Hoops.turn;
 const basketballYaw = new YawRule(Hoops.length / 2, 6, 2, -Hoops.turn, Hoops.turn);
@@ -530,6 +532,67 @@ describe("the one wake from still", () => {
     const last = TheaterFrameGate.state(tiers, time, clock, quiet);
     expect(!last.moving && last.wake == null, "nothing further to move: no wake at all").toBe(true);
     expect(TheaterFrameGate.state([], time, clock, 1000).moving, "no plan, no frames").toBe(false);
+  });
+});
+
+describe("the slides' cues and the key states (TheaterView)", () => {
+  it("the scoring play the plan has come to (or comes to next), and the seconds to its decisive frame", () => {
+    const walking = new LineClip([v2(20, 20)], [v2(4, 0)]);
+    const plan = new Plan<LineClip>(1, 1000, 1030, null, [new ClipPlacement(walking, 1000, 1000, [1])], new Map([[1, walking.figures[0]!]]));
+    plan.cues = [
+      { at: 1005, until: 1008, kind: { kind: "scored", play: "a" }, source: { kind: "known", play: "a" } },
+      { at: 1012, until: 1015, kind: { kind: "scored", play: "b" }, source: { kind: "known", play: "b" } },
+    ];
+    const chain = new PlanChain<LineClip>();
+    chain.splice(TheaterBake.bake(plan), 1000);
+    const cues = new TheaterCues();
+    // The theater's time is the wall's here.
+    cues.publish(chain, (w) => w);
+    expect(cues.playing(1001)).toBe("a");
+    expect(cues.climax(1001)).toBeCloseTo(4, 9);
+    // Half a second past its frame it's still the one playing; then the next one's.
+    expect(cues.playing(1005.4)).toBe("a");
+    expect(cues.playing(1006)).toBe("a");
+    expect(cues.playing(1011.6)).toBe("b");
+    expect(cues.climax(1013)).toBe(0);
+  });
+
+  it("Reduce Motion's key states: each clip's decisive moment and its end, crossfading in a quarter second", () => {
+    const keys = TheaterKeyStates.keys(new Plan<LineClip>(1, 1000, 1030, null, [new ClipPlacement(new LineClip([v2(0, 0)], [ZERO2]), 1000, 1000, [1])], new Map()));
+    expect(keys).toEqual([1000, 1005, 1020]);
+    const shown = TheaterKeyStates.shown(keys, 1005.1);
+    expect(shown.now).toBe(1005);
+    expect(shown.before).toBe(1000);
+    expect(shown.fade).toBeGreaterThan(0);
+    expect(shown.fade).toBeLessThan(1);
+    expect(TheaterKeyStates.shown(keys, 1006).fade).toBe(1);
+  });
+});
+
+describe("a stoppage's quiet (TheaterQuiet)", () => {
+  it("sparse beats, nobody still for long, a small crew one away at a time, everyone back by the loop's end", () => {
+    const quiet = TheaterQuiet.make([3, 4, 5, 6, 7, 8], 2, new SplitMix64(seed64("timeout-123")));
+    expect(quiet.period).toBe(TheaterQuiet.length);
+    const ats = quiet.beats.map((b) => b.at);
+    expect(ats.length).toBeGreaterThan(5);
+    // Between one beat and the next, never more than the gap's top (nothing's still past about 8 s, the seam included).
+    for (let i = 1; i < ats.length; i++) expect(ats[i]! - ats[i - 1]!).toBeLessThanOrEqual(TheaterQuiet.gap.upper + 1e-9);
+    expect(ats[0]! - 2).toBeLessThanOrEqual(1.5);
+    expect(2 + TheaterQuiet.length - ats[ats.length - 1]!).toBeLessThanOrEqual(8);
+    // Each man is back where he was (his last beat's end) before the loop comes round.
+    for (const b of quiet.beats) {
+      const end = b.kind === "step" ? b.back + TheaterQuiet.stride : b.until;
+      expect(end).toBeLessThanOrEqual(2 + TheaterQuiet.length + 1e-9);
+    }
+    // A crew of three never has two away at once; nobody to move, no quiet.
+    const small = TheaterQuiet.make([0, 1, 2], 0, new SplitMix64(seed64("crew")), TheaterQuiet.length, false);
+    expect(small.beats.every((b) => b.kind === "step")).toBe(true);
+    for (let i = 1; i < small.beats.length; i++) {
+      const a = small.beats[i - 1]!;
+      const b = small.beats[i]!;
+      if (a.kind === "step") expect(b.at).toBeGreaterThanOrEqual(a.back - 1e-9);
+    }
+    expect(TheaterQuiet.make([], 0, new SplitMix64(1n)).beats).toEqual([]);
   });
 });
 

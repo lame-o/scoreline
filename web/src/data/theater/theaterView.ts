@@ -193,6 +193,14 @@ export class DirectedFrame {
     this._figures = figures;
   }
 
+  /** The clip's own cast (a frame that keys its figures by the clip's men), built once per clip in charge. */
+  castOf(key: string, byFigure: () => TheaterCast): TheaterCast {
+    if (key === this.castKey) return this._cast;
+    this._cast = byFigure();
+    this.castKey = key;
+    return this._cast;
+  }
+
   /** The clip's cast (by its figures) as the engine's men play them, built once per clip in charge. */
   castFor(key: string, men: readonly ActorID[], byFigure: () => TheaterCast): TheaterCast {
     if (key === this.castKey) return this._cast;

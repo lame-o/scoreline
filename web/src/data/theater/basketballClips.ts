@@ -565,5 +565,9 @@ export const HoopsSport: TheaterSport<HoopsClip, BasketballScene, HoopsFacts> = 
     return TheaterPlanner.plan(new HoopsSequencer(plays, history, facts), history, chain, c, shift, deferFrom, revision, ids);
   },
 
+  planSteps(plays, history, facts, chain: PlanChain<HoopsClip>, c, shift, deferFrom, revision, ids: ActorIDs) {
+    return TheaterPlanner.planSteps(new HoopsSequencer(plays, history, facts), history, chain, c, shift, deferFrom, revision, ids);
+  },
+
   horizons: HoopsAnchors.horizons,
 };
