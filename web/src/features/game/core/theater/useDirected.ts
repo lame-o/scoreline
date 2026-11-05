@@ -63,6 +63,8 @@ export function useDirected<Clip extends TheaterClip, Play, Facts, Context>(
   useEffect(() => {
     if (!source) return;
     source.setBindingHorizons({ live: LIVE_HORIZON, byKind: director.sport.horizons });
+    // The source's wall: the page's, or a virtual one.
+    if (source.now) director.now = () => source.now!();
     let lastEvent: ClockEvent | null = null;
     let clock: TheaterClock | null = null;
     let revision: number | null = null;
