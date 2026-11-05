@@ -1,0 +1,75 @@
+/* The timeline's and Win Probability's shared controls (inspection.tsx). */
+
+/* What a pin offers: as tall as the text beside it, so nothing moves when it appears. */
+.pin {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(10 * var(--pt));
+  flex: none;
+}
+
+.pinButton {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(3 * var(--pt));
+  height: calc(14 * var(--pt));
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--label-secondary);
+  cursor: default;
+}
+
+.pinButton:disabled {
+  opacity: 0.35;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pinButton:not(:disabled):hover {
+    color: var(--label);
+  }
+}
+
+.pinButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: calc(3 * var(--pt));
+}
+
+/* The labels' row, as buttons: a wash says what a click takes in. */
+.periods {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.period {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: 0;
+  border: 0;
+  border-radius: calc(3 * var(--pt));
+  background: transparent;
+  cursor: pointer;
+  transition: background-color var(--dur-fade) var(--ease-out);
+}
+
+.periods[data-zoomed="true"] .period {
+  background: color-mix(in srgb, var(--label) 4%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .period:hover {
+    background: color-mix(in srgb, var(--label) 8%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .period {
+    transition: none;
+  }
+}

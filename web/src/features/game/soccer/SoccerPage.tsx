@@ -44,7 +44,6 @@ import { Pitch } from "./Pitch";
 import { PitchTheater } from "./theater/PitchTheater";
 import { useModuleOpen } from "../core/usePageModules";
 import { glanceText, shotMapGlance } from "../../../data/modules";
-import { Timeline } from "./Timeline";
 import { soccerMomentText } from "./MomentText";
 import styles from "./SoccerPage.module.css";
 import { feedBroadcast } from "../core/broadcast";
@@ -89,7 +88,8 @@ export function useSoccerPage(game: GameContext): SportPage {
   const momentText = useMemo(() => soccerMomentText(playerRef), [playerRef]);
   // The rows' replays: every shot and goal the lane has read, as the theater would replay it.
   useReplaySync(game, { soccer: feed });
-  const common = useCommonSections(game, { momentText });
+  // The timeline is every sport's (core/timeline/): soccer gives it the minute, for a match with only minutes to go on.
+  const common = useCommonSections(game, { momentText, minute: live ? soccerMinute(event.detail) : null });
   const sectionWidth = game.split ? 320 : 380;
 
   // The league's table, re-ranked live.
@@ -111,8 +111,6 @@ export function useSoccerPage(game: GameContext): SportPage {
   // The Live View owns the moments it replays while it's open (GoalCelebration.pitchBursts(theaterShown:)).
   const theaterOpen = useModuleOpen(event.ref, "liveView");
   const pitchChart = <Pitch trail={trail} shots={shots} cards={cards} live={live} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} width={sectionWidth} theaterShown={live && theaterOpen} />;
-  const minute = live ? soccerMinute(event.detail) : null;
-  const timelineChart = <Timeline moments={detail.moments} currentMinute={minute} palette={palette} topName={names.top} bottomName={names.bottom} width={sectionWidth} />;
   if (live && trail.length > 0) {
     // The play theater: its own module, above the Live Pitch as on the Mac (9cbbb02).
     // Broadcasting, the host shows the theater on the engine (usePageDirected); otherwise today's, with the scoreboard's event.
@@ -132,18 +130,6 @@ export function useSoccerPage(game: GameContext): SportPage {
         accessory={live ? "live" : event.state === "final" ? "final" : undefined}
       >
         {pitchChart}
-      </DetailSection>
-    );
-  }
-  if (detail.moments.some((m) => m.minute != null) || live) {
-    sections.timeline = (
-      <DetailSection
-        id="timeline"
-        title="Timeline"
-        caption={`Goals and cards by minute. ${names.top} above, ${names.bottom} below.${live ? " The red dot marks now." : ""}`}
-        spokenCaption={`Goals and cards by minute. ${spoken.top} above, ${spoken.bottom} below.`}
-      >
-        {timelineChart}
       </DetailSection>
     );
   }

@@ -34,3 +34,16 @@ export function oddsSchedule(ticks: readonly number[], clock: PresentationClock,
   }
   return out;
 }
+
+/** The steady beat while a page broadcasts: a quiet market's line and the timeline's now still reach p (ms). */
+export const BEAT_MS = 15_000;
+
+/**
+ * The modules' next redraw while they broadcast (OddsSection.schedule(feed:clock:now:)):
+ * when p reaches the next tick not yet shown, or the 15 s beat for the now line,
+ * whichever comes first. (pure; tested)
+ */
+export function nextRedraw(ticks: readonly number[], clock: PresentationClock, now: number): number {
+  const reached = oddsSchedule(ticks, clock, now)[1];
+  return Math.min(reached ?? Infinity, now + BEAT_MS);
+}

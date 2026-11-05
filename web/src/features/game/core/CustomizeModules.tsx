@@ -34,8 +34,8 @@ export default function CustomizeModules({ ref_: ref, onClose, returnFocus }: Cu
   const hiddenKeys = useSettings((s) => s.hiddenModules);
   const order = useSettings((s) => s.moduleOrder);
   const layout: ModuleLayout = { folded, hidden: hiddenKeys, order };
-  // The Mac's list, less what no page of this sport draws on the web yet (soccer's timeline is every sport's on the Mac: the later wave).
-  const rows = customizeRows(ref, layout).filter((r) => r.id !== "timeline" || kind === "soccer");
+  // The Mac's list: every module the sport's pages can show, the timeline on every ESPN sport's.
+  const rows = customizeRows(ref, layout);
   const [drawn, setDrawn] = useState<readonly string[]>(rows.map((r) => r.id));
   const [dragging, setDragging] = useState(false);
   const [announcement, setAnnouncement] = useState("");

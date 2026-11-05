@@ -27,6 +27,7 @@ import { EMPTY_ROSTER, loadCSDetail, type CSRound, type Roster } from "./cs2";
 import { loadClimbingDetail, type BoulderCard, type UpNext, type WallRoute } from "./climbing";
 import { latestAddedTime, soccerTie, type SoccerAddedTime, type SoccerTie } from "./soccer";
 import { EMPTY_BASIS, parseOddsBasis, type OddsBasis } from "./odds/espn";
+import { parseHistory, type MatchHistory } from "./odds/history";
 import { homeWinProbability, keyMoments as basketballMoments, NBA_STATS, parseBasketball, predictor, quarterLength, recentPlays as basketballPlays, WNBA_PATH, type Basketball } from "./basketball";
 import { broadcastSport, entries as broadcastEntries, policy as broadcastPolicy, summaryPlays } from "./broadcast/lanes";
 import type { RawPlay, TimelineEntry } from "./broadcast/timeline";
@@ -47,7 +48,7 @@ export interface Linescore {
   readonly bottom: readonly string[];
 }
 
-export type MomentKind = "goal" | "ownGoal" | "yellow" | "red" | "score" | "other";
+export type MomentKind = "goal" | "ownGoal" | "yellow" | "red" | "score" | "turnover" | "other";
 
 /** A key event or scoring play (GameDetail.Moment; not a live `LiveMoment`). */
 export interface DetailMoment {
@@ -250,6 +251,12 @@ export interface GameDetail {
    * without the vig, and each team's names for matching Polymarket's.
    */
   readonly odds: OddsBasis;
+  /**
+   * Reported events on the shared wall-time axis (data/odds/history.ts), even
+   * when this league has no Polymarket listing. Missing timestamps are never
+   * synthesized. Null where the provider has none (CS2, climbing).
+   */
+  readonly history: MatchHistory | null;
   readonly football: Football | null;
   readonly baseball: Baseball | null;
   readonly atBat: readonly Pitch[];
@@ -361,6 +368,7 @@ export const EMPTY_DETAIL: GameDetail = {
   topWinProbability: null,
   drawProbability: null,
   odds: EMPTY_BASIS,
+  history: null,
   football: null,
   baseball: null,
   atBat: [],
@@ -780,6 +788,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     topWinProbability,
     drawProbability,
     odds: parseOddsBasis(summary, sport, topIsHome === true),
+    history: parseHistory(summary, sport, topID, bottomID, path),
     moments,
     recentPlays,
     atBat,

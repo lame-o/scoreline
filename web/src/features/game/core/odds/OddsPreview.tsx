@@ -16,15 +16,20 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
-import { EMPTY_DETAIL } from "../../../../data/gameDetail";
+import { EMPTY_DETAIL, parseESPNDetail } from "../../../../data/gameDetail";
 import type { Competitor, EventState, ScoreEvent, Sport } from "../../../../data/models";
 import { parseOddsBasis } from "../../../../data/odds/espn";
+import { timelineMarks } from "../../../../data/odds/marks";
+import { eventColors, matchPalette } from "../../../../data/matchColors";
 import { teamPalette } from "../../../../data/teamColors";
 import { useNow } from "../../../../state/clock";
-import { setOddsEnvironment } from "../../../../state/odds";
+import { setOddsEnvironment, useOddsFeedObject } from "../../../../state/odds";
 import { useColorScheme } from "../../../../state/theme";
+import { LinkedFocusProvider, LinkedFocusStore } from "../linked";
 import type { GameContext } from "../sport";
-import { WinProbabilitySection } from "./WinProbabilitySection";
+import { TimelineSection } from "../timeline/TimelineSection";
+import { useFocusLink, useOddsPointer, usePresentedTime } from "./inspection";
+import { useOddsGame, WinProbabilitySection } from "./WinProbabilitySection";
 
 const files = import.meta.glob<{ default: unknown }>("../../../../../test/fixtures/odds/*.json");
 const load = async (name: string) => structuredClone((await files[`../../../../../test/fixtures/odds/${name}.json`]!()).default) as Record<string, unknown>;
@@ -204,23 +209,48 @@ export function OddsPreview() {
       snapshot: null,
     };
     const summary = state === "scheduled" ? { ...cut(recorded.summary, -Infinity), winprobability: [] } : cut(recorded.summary, t);
+    // The page's own parse, so the timeline's marks and history are the page's (the key moments by ID, the wall clock).
+    const parsed = parseESPNDetail(summary, { event, path: game.path, id: "dev", sport: game.sport });
+    // The game's colors, decided once (MatchColors), as the page has them: the timeline and the odds both wear them.
+    const colors = eventColors(event, game.topIsHome);
     return {
       event,
-      detail: { ...EMPTY_DETAIL, topIsHome: game.topIsHome, odds: parseOddsBasis(summary, game.sport, game.topIsHome) },
-      palette: teamPalette(game.top.color, game.bottom.color, scheme),
+      detail: { ...EMPTY_DETAIL, topIsHome: game.topIsHome, moments: parsed.moments, history: parsed.history, odds: parseOddsBasis(summary, game.sport, game.topIsHome) },
+      palette: colors ? matchPalette(colors, scheme) : teamPalette(game.top.color, game.bottom.color, scheme),
+      colors,
       names: { top: game.top.abbreviation, bottom: game.bottom.abbreviation },
       spoken: { top: game.top.name, bottom: game.bottom.name },
       live: state === "live",
       split: false,
+      broadcast: null,
     } as unknown as GameContext;
     // `now`: the ESPN half moves on with the clock.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recorded, clock, ready, which, state, game, scheme, Math.floor(now / 2000)]);
 
+  const linked = useMemo(() => new LinkedFocusStore(), []);
+  useEffect(() => () => linked.dispose(), [linked]);
   if (!context) return null;
   return (
     <div style={{ maxWidth: "calc(560 * var(--pt))", margin: "0 auto", paddingBottom: "calc(40 * var(--pt))" }}>
-      <WinProbabilitySection game={context} />
+      <LinkedFocusProvider store={linked}>
+        <Modules game={context} />
+      </LinkedFocusProvider>
     </div>
+  );
+}
+
+/** The page's two modules as the Mac's harness stacks them (TimelinePageModules): the timeline over Win Probability, one pointer, one market. */
+function Modules({ game }: { game: GameContext }) {
+  const pointer = useOddsPointer();
+  const feed = useOddsFeedObject(useOddsGame(game, true));
+  const time = usePresentedTime(null, feed);
+  useFocusLink(game.detail.history, pointer);
+  const marks = useMemo(() => timelineMarks(game.detail), [game.detail]);
+  return (
+    <>
+      <TimelineSection game={game} marks={marks} feed={feed} time={time} pointer={pointer} palette={game.palette} minute={null} />
+      <WinProbabilitySection game={game} feed={feed} time={time} pointer={pointer} marks={marks} />
+    </>
   );
 }

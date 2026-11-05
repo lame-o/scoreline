@@ -100,7 +100,8 @@ for (const size of WIDTHS) {
         await expect(page.getByRole("img", { name: /^Live pitch\. Latest:/ })).toBeAttached();
         // Haaland's header lands at the lane's second look.
         await expect(page.getByText("Goal", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
-        await expect(page.getByRole("img", { name: /^Timeline to \d+ minutes: 2 goals/ })).toBeAttached({ timeout: 15_000 });
+        // On the wall clock it shares with Win Probability: a slider whose name sums it up (MatchTimeline).
+        await expect(page.locator('[data-section="timeline"] [aria-label^="Timeline to"]')).toHaveAttribute("aria-label", /^Timeline to \d+ minutes: 2 goals/, { timeout: 15_000 });
         await page.waitForTimeout(600);
         await shot(page, "soccer-live");
         expect(errors, errors.join("\n")).toEqual([]);

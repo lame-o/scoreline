@@ -2,8 +2,8 @@
  * What each folded module says in one line, from the data every page has
  * (DetailView.glance): the newest play, the latest period, the newest score,
  * the stats, where to watch, each side's chance, the NBA's leaders, box,
- * injuries, flow and shooting, this at-bat, the balls in play, soccer's
- * timeline. A sport's page adds what only its lane knows (the Live View, the
+ * injuries, flow and shooting, this at-bat, the balls in play, the
+ * timeline (soccer's goals, every other sport's newest key play). A sport's page adds what only its lane knows (the Live View, the
  * field, the live pitch, at the plate: `SportPage.glance`). Asked only for
  * folded modules.
  */
@@ -25,9 +25,11 @@ import {
   shootingGlance,
   statsGlance,
   timelineGlance,
+  keyPlaysGlance,
   type ModuleGlance,
 } from "../../../data/modules";
 import type { ScoreEvent } from "../../../data/models";
+import { timelineMarks } from "../../../data/odds/marks";
 import type { Section } from "../../../data/sections";
 import { NEUTRAL, type TeamPalette } from "../../../data/teamColors";
 
@@ -57,8 +59,10 @@ export function commonGlance(section: Section, { event, detail: d, palette, name
       return statsGlance(d.stats);
     case "whereToWatch":
       return broadcastersGlance(d.broadcasters.map((b) => b.name));
-    case "timeline":
-      return soccer ? timelineGlance(d.moments, `${scores.top ?? "0"}–${scores.bottom ?? "0"}`) : null;
+    case "timeline": {
+      const score = `${scores.top ?? "0"}–${scores.bottom ?? "0"}`;
+      return soccer ? timelineGlance(d.moments, score) : keyPlaysGlance(timelineMarks(d).at(-1)?.moment ?? null, score);
+    }
     case "court": {
       if (!nba) return null;
       const top = shootingFromTotals(nba.topTotals["FG"], nba.topTotals["3PT"]) ?? shootingFromShots(nba.shots, "top");

@@ -29,6 +29,7 @@ import {
   hide,
   injuriesGlance,
   isFolded,
+  keyPlaysGlance,
   isHidden,
   leadersGlance,
   linescoreGlance,
@@ -242,6 +243,11 @@ describe("glances", () => {
     expect(line(newestGlance(moments, true))).toBe("38'|Goal! Antoine Semenyo, 0-1");
     expect(line(timelineGlance(moments, "0–1"))).toBe("0–1|38' Antoine Semenyo");
   });
+  it("Timeline, every other sport: the score, then the newest key play's clock and words", () => {
+    expect(line(keyPlaysGlance({ clock: "Q3 4:12", text: "Hurts 12 Yd Run" }, "17–14"))).toBe("17–14|Q3 4:12 · Hurts 12 Yd Run");
+    expect(line(keyPlaysGlance({ clock: "", text: "Fumble recovered by PHI" }, "0–0"))).toBe("0–0|Fumble recovered by PHI");
+    expect(line(keyPlaysGlance(null, "0–0"))).toBe("0–0|No key plays yet");
+  });
   it("Win Probability: each side's chance, color-keyed (no draw in a two-way market); read as the header's description", () => {
     const chances = chancesGlance({ top: 0.962, draw: null, bottom: 0.038 }, false, { color: "#ff0", name: "GSW" }, "#888", { color: "#00f", name: "MIN" });
     expect(line(chances)).toBe("GSW 96%|MIN 4%");
@@ -434,5 +440,18 @@ describe("Customize", () => {
     expect(after.find((r) => r.id === "plays")?.liveOnly).toBe(true);
     const live = new Set<string>(sectionOrder(nbaRef, "live"));
     expect(shown(layout, sectionOrder(nbaRef, "live"), "nba")).toEqual(after.map((r) => r.id).filter((id) => live.has(id)));
+  });
+
+  it("lists the Timeline on every ESPN sport's, right under Win Probability, never live only; it folds and hides on its own key", () => {
+    for (const [ref, kind] of [[soccerRef, "soccer"], [mlbRef, "baseball"], [nbaRef, "nba"], [nflRef, "espn"]] as const) {
+      const rows = customizeRows(ref, NO_MODULES);
+      const at = rows.findIndex((r) => r.id === "timeline");
+      expect(at).toBeGreaterThan(0);
+      expect(rows[at - 1]!.id).toBe("winProbability");
+      expect(rows[at]!.liveOnly).toBe(false);
+      expect(moduleKey(kind, "timeline")).toBe(`${kind}.timeline`);
+      expect(isFolded(fold(NO_MODULES, ["timeline"], kind, true), "timeline", kind)).toBe(true);
+      expect(shown(hide(NO_MODULES, "timeline", kind, true), sectionOrder(ref, "final"), kind)).not.toContain("timeline");
+    }
   });
 });

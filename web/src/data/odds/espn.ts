@@ -1,23 +1,35 @@
 /**
- * ESPN's half of the odds chart (ODDS-SPEC.md, "ESPN"), read from the summary
- * the game page already polls (no requests of its own):
+ * ESPN's half of the odds chart (Odds.swift `OddsBaseline`), read from the
+ * summary the game page already polls (no requests of its own):
  *
  * - ESPN's win probability as a line on the wall clock. `winprobability`
  *   lists entries by sequence number, not game order, so each is joined to
- *   its play by ID and placed at that play's `wallclock` (summary plays carry
- *   one; football's sit inside drives; a play without one takes the last
- *   one before it, so time never runs backwards).
- * - The plays, for the scrub's "nearest play" and its game clock, and where
- *   each period starts (the x axis's labels and dividers).
+ *   its play by ID and placed at that play's time, in exactly the timeline's
+ *   chronology (chronology.ts: commentary ordering, drive overlap, corrected
+ *   wall timestamps), so a corrected stamp moves the model and the
+ *   timeline's event by the same amount.
+ * - The plays worth naming, for the readings' "last play" and game clock, and
+ *   each period's span (the axis's labels and dividers).
  * - DraftKings' pregame moneyline with the vig removed: each side's implied
  *   chance (−ml/(−ml+100) for a favorite, 100/(ml+100) for an underdog),
  *   normalized to sum to 1. ESPN has no live DraftKings line, so it's the
- *   pregame reference ("where the books opened"), drawn as a diamond.
+ *   pregame reference ("where the books opened").
  * - Each team's names, for matching Polymarket's (polymarket.ts).
  */
 import { isNotable, plain } from "../basketball";
+import { ordinal, periodLabel } from "../format";
 import { arr, at, num, str, type JSONValue } from "../json";
 import type { Sport } from "../models";
+import { i, s } from "../profiles/read";
+import { chronology } from "./chronology";
+import { lastAtOrBefore } from "./polymarket";
+
+/** "67'" for a clock of "67'", "45+2'" for "45'+2'"; null for none (ScoringSlide.swift `SlideWords.minuteMark`; scoringSlide.ts has the same, with the slide's imports). */
+export function minuteMark(clock: string | null): string | null {
+  if (!clock) return null;
+  const mark = clock.replaceAll("'+", "+");
+  return mark.endsWith("'") || !/\d/.test(mark) ? mark : `${mark}'`;
+}
 
 /** ESPN's chance for the top team at a moment (and the draw's, soccer), placed on the wall clock (epoch ms). */
 export interface WinPoint {
@@ -26,20 +38,21 @@ export interface WinPoint {
   readonly draw: number;
 }
 
-/** A play on the wall clock: what the scrub names. */
+/** A play on the wall clock, for the readings: when, the game clock, what happened (Odds.swift `OddsPlay`). */
 export interface PlayMark {
   readonly t: number;
+  readonly period: number;
   /** "Q3 4:12", "Top 7th", "67'". */
   readonly clock: string;
   readonly text: string;
 }
 
-/** A period on the wall clock (its first play to its last), and its label under the plot ("Q1", "OT", "7", "2nd"). */
-export interface PeriodMark {
-  readonly t: number;
-  readonly end: number;
-  readonly period: number;
+/** A period on the wall clock (its first play to its last), named for the axis ("Q1", "OT", "7", "2nd") (Odds.swift `OddsPeriod`). */
+export interface OddsPeriod {
+  readonly number: number;
   readonly label: string;
+  readonly start: number;
+  readonly end: number;
 }
 
 /** A pregame line, vig removed, for the top team, the bottom team and the draw (soccer). */
@@ -51,11 +64,13 @@ export interface Pregame {
 }
 
 export interface OddsBasis {
+  readonly sport: Sport;
   /** ESPN's model through the game, in game order; empty where ESPN has none (soccer, NHL). */
   readonly win: readonly WinPoint[];
+  /** The plays worth naming, in game order. */
   readonly plays: readonly PlayMark[];
-  readonly periods: readonly PeriodMark[];
-  /** The first and last plays' wall clock: the game's span. */
+  readonly periods: readonly OddsPeriod[];
+  /** The first and last plays worth naming (tip-off, kickoff, the first at-bat; the last): the game's span. */
   readonly start: number | null;
   readonly end: number | null;
   readonly pregame: Pregame | null;
@@ -63,59 +78,40 @@ export interface OddsBasis {
   readonly names: { readonly top: readonly string[]; readonly bottom: readonly string[] };
 }
 
-export const EMPTY_BASIS: OddsBasis = { win: [], plays: [], periods: [], start: null, end: null, pregame: null, names: { top: [], bottom: [] } };
+export const EMPTY_BASIS: OddsBasis = { sport: "basketball", win: [], plays: [], periods: [], start: null, end: null, pregame: null, names: { top: [], bottom: [] } };
 
-interface RawPlay {
-  readonly id: string | null;
-  readonly t: number | null;
-  readonly period: number;
-  readonly clock: string;
-  readonly text: string;
-  /** Worth naming in the scrub (baseball: the result of an at-bat, not each pitch). */
-  readonly named: boolean;
+/** "before tip-off", per sport (OddsBaseline.pregame). */
+export function pregameWords(sport: Sport): string {
+  return sport === "basketball" ? "before tip-off" : sport === "baseball" ? "before the first pitch" : "before kickoff";
 }
 
-const wall = (v: JSONValue): number | null => {
-  const s = str(v);
-  const t = s ? Date.parse(s) : NaN;
-  return Number.isNaN(t) ? null : t;
-};
-
-const ordinalOf = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th")}`;
-
-/** "67'" for a clock of "67'", "45+2'" for "45'+2'" (ScoringSlide.swift `SlideWords.minuteMark`). */
-function minuteMark(clock: string): string {
-  if (!clock) return "";
-  const mark = clock.replaceAll("'+", "+");
-  return mark.endsWith("'") || !/\d/.test(mark) ? mark : `${mark}'`;
-}
-
-/** A play's game clock as the scrub says it. */
-function clockLabel(sport: Sport, play: JSONValue, period: number): string {
-  const clock = str(at(play, "clock", "displayValue")) ?? "";
+/** Under the axis: "Q1"…"OT" (basketball, football), "1"…"9", "10" (innings), "1st", "2nd", "ET", "Pens" (soccer halves) (OddsBaseline.periodLabel). */
+export function oddsPeriodLabel(n: number, sport: Sport): string {
   switch (sport) {
-    case "baseball": {
-      const half = str(at(play, "period", "type"))?.toLowerCase();
-      return half === "top" ? `Top ${ordinalOf(period)}` : half === "bottom" ? `Bot ${ordinalOf(period)}` : ordinalOf(period);
-    }
     case "soccer":
-      return minuteMark(clock);
-    default: {
-      const name = period <= 4 ? `Q${period}` : period === 5 ? "OT" : `${period - 4}OT`;
-      return clock ? `${name} ${clock}` : name;
-    }
+      return ({ 1: "1st", 2: "2nd", 3: "ET", 4: "ET", 5: "Pens" } as Readonly<Record<number, string>>)[n] ?? "";
+    case "baseball":
+      return String(n);
+    default:
+      return periodLabel(n, sport);
   }
 }
 
-/** A period's label under the plot. */
-export function periodName(sport: Sport, period: number): string {
+/** The game clock at a play: "Q3 4:12", "67'", "Top 7th" (OddsBaseline.clock). */
+function clockOf(p: JSONValue, sport: Sport): string {
+  const n = i(at(p, "period", "number"));
+  const display = s(at(p, "clock", "displayValue")) ?? "";
   switch (sport) {
-    case "baseball":
-      return String(period);
     case "soccer":
-      return period === 1 ? "1st" : period === 2 ? "2nd" : period <= 4 ? "ET" : "Pens";
+      return minuteMark(display) ?? "";
+    case "baseball": {
+      if (n == null) return "";
+      const half = s(at(p, "period", "type"))?.toLowerCase();
+      return half === "top" ? `Top ${ordinal(n)}` : half === "bottom" ? `Bot ${ordinal(n)}` : ordinal(n);
+    }
     default:
-      return period <= 4 ? `Q${period}` : period === 5 ? "OT" : `${period - 4}OT`;
+      if (n == null) return display;
+      return [periodLabel(n, sport), display].filter((x) => x !== "").join(" ");
   }
 }
 
@@ -136,58 +132,21 @@ export function soccerLine(raw: string): string {
   return text.length <= 80 ? text : `${parts[0]}.`;
 }
 
-/** What happened, in a line the tooltip can hold; empty for a play not worth naming. */
-function playText(sport: Sport, p: JSONValue, raw: string): string {
+/** What happened, in a line the readout can hold (OddsBaseline.text). */
+function playText(p: JSONValue, sport: Sport): string {
+  const raw = s(at(p, "text")) ?? "";
   switch (sport) {
-    // The NBA's shots, fouls, turnovers and scores, not substitutions, timeouts or rebounds.
     case "basketball":
-      return isNotable(num(at(p, "type", "id")) ?? null, num(at(p, "scoreValue")) ?? null) ? plain(raw).replaceAll("-foot ", "-ft ") : "";
-    // The at-bat's result, not each pitch ("Pitch 4 : Strike 3 Swinging").
+      return plain(raw).replaceAll("-foot ", "-ft ");
+    // Baseball: the at-bat's result, not each pitch ("Pitch 4 : Strike 3 Swinging").
     case "baseball":
-      return raw.startsWith("Pitch ") || str(at(p, "type", "type")) === "start-batterpitcher" ? "" : raw;
+      return raw.startsWith("Pitch ") ? "" : raw;
+    // Soccer: who and what, not the shot's whole path.
     case "soccer":
       return soccerLine(raw);
     default:
       return raw.split(/\s+/).filter(Boolean).join(" ");
   }
-}
-
-/** The summary's plays in game order, wherever the sport keeps them. */
-function rawPlays(summary: JSONValue, sport: Sport): RawPlay[] {
-  const read = (p: JSONValue, text?: string): RawPlay => {
-    const period = num(at(p, "period", "number")) ?? 0;
-    const said = playText(sport, p, text ?? str(at(p, "text")) ?? "");
-    return { id: str(at(p, "id")) ?? null, t: wall(at(p, "wallclock")), period, clock: clockLabel(sport, p, period), text: said, named: said !== "" };
-  };
-  switch (sport) {
-    case "football": {
-      const drives = [...arr(at(summary, "drives", "previous")), at(summary, "drives", "current")];
-      const seen = new Set<string>();
-      return drives.flatMap((d) => arr(at(d, "plays"))).flatMap((p) => {
-        const play = read(p);
-        // The current drive repeats the last of the previous ones while it's being written.
-        if (play.id && seen.has(play.id)) return [];
-        if (play.id) seen.add(play.id);
-        return [play];
-      });
-    }
-    case "soccer":
-      return arr(at(summary, "commentary")).flatMap((c) => {
-        const play = at(c, "play");
-        return play != null && typeof play === "object" ? [read(play, str(at(c, "text")))] : [];
-      });
-    default:
-      return arr(at(summary, "plays")).map((p) => read(p));
-  }
-}
-
-/** Times carried forward, so a play without a wall clock sits with the one before it and time never runs backwards. */
-function placed(plays: readonly RawPlay[]): (RawPlay & { readonly at: number | null })[] {
-  let last: number | null = null;
-  return plays.map((p) => {
-    if (p.t != null && (last == null || p.t >= last)) last = p.t;
-    return { ...p, at: last };
-  });
 }
 
 /**
@@ -234,75 +193,58 @@ function teamNames(summary: JSONValue, topIsHome: boolean): OddsBasis["names"] {
   return topIsHome ? { top: names("home"), bottom: names("away") } : { top: names("away"), bottom: names("home") };
 }
 
-/** The odds chart's ESPN half, from the summary. */
+/** The odds chart's ESPN half, from the summary (OddsBaseline.parse). (pure; tested) */
 export function parseOddsBasis(summary: JSONValue, sport: Sport, topIsHome: boolean): OddsBasis {
-  const plays = placed(rawPlays(summary, sport));
-  const index = new Map<string, number>();
-  plays.forEach((p, i) => {
-    if (p.id) index.set(p.id, i);
-  });
-
-  // ESPN's model, joined to its plays and put in game order.
-  const joined: { i: number; t: number; top: number; draw: number }[] = [];
-  for (const w of arr(at(summary, "winprobability"))) {
-    const id = str(at(w, "playId"));
-    const home = num(at(w, "homeWinPercentage"));
-    const i = id != null ? index.get(id) : undefined;
-    if (home == null || i == null) continue;
-    const t = plays[i]!.at;
-    if (t == null) continue;
-    const tie = num(at(w, "tiePercentage")) ?? 0;
-    joined.push({ i, t, top: topIsHome ? home : Math.max(1 - home - tie, 0), draw: tie });
+  // Exactly the same chronology as the event timeline, including
+  // commentary ordering, drive overlap and corrected wall timestamps.
+  const placed: { id: string | null; play: PlayMark }[] = [];
+  for (const entry of chronology(summary, sport)) {
+    const p = entry.json;
+    const period = i(at(p, "period", "number")) ?? 1;
+    // The readings name plays worth naming: the NBA's shots, fouls, turnovers and scores, not substitutions or timeouts.
+    const notable = sport !== "basketball" || isNotable(i(at(p, "type", "id")), i(at(p, "scoreValue")));
+    const text = notable ? playText(p, sport) : "";
+    placed.push({ id: s(at(p, "id")), play: { t: entry.t, period, clock: clockOf(p, sport), text } });
   }
-  joined.sort((a, b) => a.i - b.i);
+  const plays = placed.filter((x) => x.play.text !== "").map((x) => x.play);
+
+  // ESPN's model: per play, joined by ID, home's chance turned to the top team's (the draw's apart, soccer).
+  const home = new Map<string, { home: number; tie: number }>();
+  for (const w of arr(at(summary, "winprobability"))) {
+    const id = s(at(w, "playId"));
+    const h = num(at(w, "homeWinPercentage"));
+    if (id != null && h != null) home.set(id, { home: h, tie: num(at(w, "tiePercentage")) ?? 0 });
+  }
+  const win: WinPoint[] = [];
+  if (home.size > 0) {
+    for (const item of placed) {
+      const h = item.id != null ? home.get(item.id) : undefined;
+      if (!h) continue;
+      win.push({ t: item.play.t, top: topIsHome ? h.home : Math.max(1 - h.home - h.tie, 0), draw: h.tie });
+    }
+  }
 
   // Periods: each one's first play to its last, in order.
-  const periods: PeriodMark[] = [];
-  for (const p of plays) {
-    if (p.at == null || p.period <= 0) continue;
+  const periods: OddsPeriod[] = [];
+  for (const { play } of placed) {
     const last = periods.at(-1);
-    if (last && last.period === p.period) periods[periods.length - 1] = { ...last, end: p.at };
-    else if (!periods.some((x) => x.period === p.period)) periods.push({ t: p.at, end: p.at, period: p.period, label: periodName(sport, p.period) });
+    if (last && last.number === play.period) periods[periods.length - 1] = { ...last, end: play.t };
+    else if (!periods.some((x) => x.number === play.period)) periods.push({ number: play.period, label: oddsPeriodLabel(play.period, sport), start: play.t, end: play.t });
   }
 
-  const timed = plays.filter((p) => p.at != null);
   return {
-    win: joined.map(({ t, top, draw }) => ({ t, top, draw })),
-    plays: timed.filter((p) => p.named).map((p) => ({ t: p.at!, clock: p.clock, text: p.text })),
+    sport,
+    win,
+    plays,
     periods,
-    start: timed[0]?.at ?? null,
-    end: timed.at(-1)?.at ?? null,
+    start: plays[0]?.t ?? null,
+    end: plays.at(-1)?.t ?? null,
     pregame: draftKings(summary, topIsHome),
     names: teamNames(summary, topIsHome),
   };
 }
 
-/**
- * The play nearest a moment, within `reach` ms (2½ minutes), and never across
- * a break: a moment between one period's last play and the next one's first
- * (half-time) names nothing.
- */
-export function nearestPlay(plays: readonly PlayMark[], t: number, reach = 150_000, periods: readonly PeriodMark[] = []): PlayMark | null {
-  for (let i = 1; i < periods.length; i++) if (t > periods[i - 1]!.end && t < periods[i]!.t) return null;
-  let lo = 0;
-  let hi = plays.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (plays[mid]!.t < t) lo = mid + 1;
-    else hi = mid;
-  }
-  const after = plays[lo];
-  const before = plays[lo - 1];
-  const best = !before ? after : !after ? before : t - before.t <= after.t - t ? before : after;
-  return best && Math.abs(best.t - t) <= reach ? best : null;
-}
-
-/** The game clock at a moment: the last play at or before it. */
-export function clockAt(plays: readonly PlayMark[], t: number): string | null {
-  let found: PlayMark | null = null;
-  for (const p of plays) {
-    if (p.t > t) break;
-    found = p;
-  }
-  return found?.clock ?? null;
+/** The last play worth naming at or before a moment (OddsBaseline.play(atOrBefore:)). */
+export function playAtOrBefore(basis: Pick<OddsBasis, "plays">, t: number): PlayMark | null {
+  return lastAtOrBefore(basis.plays, t, (p) => p.t);
 }

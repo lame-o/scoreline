@@ -146,6 +146,11 @@ export class LinkedFocusStore {
     this.set(this.hovered, sameFocus(this.pinned, focus) ? null : focus);
   }
 
+  /** Pins a focus, whatever was pinned (LinkedFocus.pin: the timeline and the odds hold a key play as its row would). */
+  pinFocus(focus: Focus): void {
+    this.set(this.hovered, focus);
+  }
+
   /** Whether there was a pin to drop (Esc unpins before it goes back). */
   unpin(): boolean {
     if (!this.pinned) return false;

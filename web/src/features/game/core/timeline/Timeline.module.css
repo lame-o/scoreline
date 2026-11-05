@@ -1,7 +1,24 @@
-/* The match on one track (SoccerTimeline). */
+/* The match on one track (MatchTimeline). */
 .timeline {
   position: relative;
   width: 100%;
+}
+
+/* On the wall clock, Win Probability's well contributes the same inset: the same time at the same x. */
+.timeline[data-wall="true"] {
+  padding: 0 calc(8 * var(--pt));
+}
+
+.surface {
+  position: relative;
+  width: 100%;
+  outline: none;
+}
+
+.surface[role="slider"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: calc(4 * var(--pt));
 }
 
 .svg {
@@ -24,7 +41,7 @@
   fill: color-mix(in srgb, var(--label) 12%, transparent);
 }
 
-/* Stoppage beyond 90'. */
+/* Stoppage, breaks. */
 .extra {
   fill: var(--viz-track);
 }
@@ -35,7 +52,6 @@
 
 .played {
   fill: var(--viz-neutral);
-  transition: transform var(--dur-standard) var(--ease-out);
 }
 
 .half {
@@ -46,18 +62,17 @@
 /* The now dot's room: the track stops short of it on both sides. */
 .ring {
   fill: var(--page);
-  transition: transform var(--dur-standard) var(--ease-out);
 }
 
 .now {
   fill: var(--live);
-  transition: transform var(--dur-standard) var(--ease-out);
 }
 
-.svg[data-reduce="true"] .played,
-.svg[data-reduce="true"] .ring,
-.svg[data-reduce="true"] .now {
-  transition: none;
+/* Match minutes: the now dot and the played fill glide as the minute turns. */
+.svg[data-animate="true"] .played,
+.svg[data-animate="true"] .ring,
+.svg[data-animate="true"] .now {
+  transition: transform var(--dur-standard) var(--ease-out);
 }
 
 .marks {
@@ -79,7 +94,7 @@
   fill: light-dark(#ffcc00, #ffd60a);
 }
 
-.card[data-red="true"] {
+.card[data-kind="red"] {
   fill: light-dark(#ff3b30, #ff453a);
 }
 
@@ -109,11 +124,12 @@
   opacity: 0.6;
 }
 
-/* While a mark is pointed at, the minute row says what it was. */
+/* While a mark is pointed at, the labels' row says what it was. */
 .readout {
   position: absolute;
   right: 0;
   top: calc(47 * var(--pt));
+  margin: 0;
   font-size: var(--text-caption);
   font-variant-numeric: tabular-nums;
   color: var(--label-secondary);
@@ -127,6 +143,35 @@
 .readout strong {
   font-weight: 600;
   color: var(--label);
+}
+
+/* The reading's line down the track, the same moment Win Probability's crosshair is on. */
+.rule {
+  position: absolute;
+  left: 0;
+  top: calc(2 * var(--pt));
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--viz-reference);
+  pointer-events: none;
+}
+
+/* The pin's controls, when Win Probability isn't on the page to hold them: the labels' row, trailing. */
+.pinRow {
+  position: absolute;
+  right: calc(8 * var(--pt));
+  top: calc(47 * var(--pt));
+  display: flex;
+  align-items: center;
+  padding-left: calc(6 * var(--pt));
+  background: var(--page);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marks,
+  .labels {
+    transition-duration: var(--dur-fade);
+  }
 }
 
 @keyframes fade-in {

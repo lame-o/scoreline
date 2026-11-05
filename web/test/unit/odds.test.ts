@@ -9,15 +9,21 @@
  * `pnpm fixtures odds`.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { badgeRect, gameDomain, glideProgress, headerFigures, percent, percentPair, plotIn, scrubTime, shares, splitAtMid, traded, visible, windowDomain, yOf } from "../../src/data/odds/chart";
-import { clockAt, devig, draftKings, impliedChance, nearestPlay, parseOddsBasis } from "../../src/data/odds/espn";
+import { devig, draftKings, impliedChance, parseOddsBasis, playAtOrBefore } from "../../src/data/odds/espn";
 import {
   applyUpdate,
+  CAP,
   candidateDates,
   compact,
-  displayedPrice,
+  displayed,
+  dollars,
   EMPTY_QUOTE,
   isMainEvent,
+  percent,
+  quote,
+  traded,
+  RAW,
+  valueAt,
   marketFromEvent,
   matchEvent,
   nameScore,
@@ -108,7 +114,7 @@ describe("matching a game to its market", () => {
       [/markets\/slug\/nba-gsw-min-2026-10-28$/, nbaMarket],
     ]);
     setOddsEnvironment({ fetcher });
-    const game: OddsGame = { id: "401909888", path: "basketball/nba", state: "final", start: TIP, playStart: nbaBasis.start, playEnd: nbaBasis.end, names: gswMin };
+    const game: OddsGame = { id: "401909888", path: "basketball/nba", state: "final", start: TIP, names: gswMin };
     const market = await findMarket(game);
     expect(market).toMatchObject({ slug: "nba-gsw-min-2026-10-28", kind: "two-way", tokens: [{ outcome: "top", token: WARRIORS }] });
     expect(fetcher.calls).toHaveLength(2);
@@ -118,7 +124,7 @@ describe("matching a game to its market", () => {
       [/events\/slug\/epl-ast-mac-2026-10-24$/, eplEvent],
     ]);
     setOddsEnvironment({ fetcher: soccer });
-    expect((await findMarket({ id: "401879256", path: "soccer/eng.1", state: "final", start: astMac.start, playStart: eplBasis.start, playEnd: eplBasis.end, names: astMac }))?.kind).toBe("three-way");
+    expect((await findMarket({ id: "401879256", path: "soccer/eng.1", state: "final", start: astMac.start, names: astMac }))?.kind).toBe("three-way");
   });
 });
 
@@ -149,36 +155,45 @@ describe("prices", () => {
     expect(h.every((x, i) => i === 0 || x.t > h[i - 1]!.t)).toBe(true);
   });
 
-  it("shows Polymarket's price: the midpoint, or the last trade when the spread is wider than 10¢", () => {
-    expect(displayedPrice(0.49, 0.5, 0.5)).toBeCloseTo(0.495);
-    expect(displayedPrice(0.3, 0.45, 0.41)).toBe(0.41);
-    expect(displayedPrice(0.3, 0.4, 0.41)).toBeCloseTo(0.35);
-    expect(displayedPrice(null, null, 0.62)).toBe(0.62);
-    expect(displayedPrice(0.3, 0.45, null)).toBeCloseTo(0.375);
+  it("shows Polymarket's price: the midpoint, or the last trade when the spread is wider than 10¢ (Odds.swift `OddsQuote`)", () => {
+    expect(displayed(quote(0.49, 0.5, 0.5))).toBeCloseTo(0.495);
+    expect(displayed(quote(0.3, 0.45, 0.41))).toBe(0.41);
+    expect(displayed(quote(0.3, 0.4, 0.41)), "exactly 10¢ is still the midpoint (in tenths of a cent)").toBeCloseTo(0.35);
+    expect(displayed(quote(null, null, 0.62))).toBe(0.62);
+    // A wide book with no trade says nothing about the price (HEAD: never the midpoint of a wide book).
+    expect(displayed(quote(0.3, 0.45, null))).toBeNull();
+    expect(displayed(quote(0.28, 0.29, 0.3)), "a 1¢ spread: the midpoint").toBeCloseTo(0.285);
+    expect(displayed(quote(null, 0.5, 0.48)), "one side of the book missing: the last trade").toBe(0.48);
+    expect(displayed(quote(0.3, null, null)), "or nothing").toBeNull();
   });
 
   it("reads the socket's real messages: the book, price changes, a trade, PONG", () => {
     const [book, change, , trade, pong] = socket.messages;
     const b = parseSocketMessage(book!);
-    expect(b).toEqual([{ token: socket.tokens.top, bid: 0.49, ask: 0.5, last: 0.5, t: 1793256238356 }]);
+    expect(b).toEqual([{ token: socket.tokens.top, update: { kind: "book", bid: 0.49, ask: 0.5, last: 0.5 } }]);
     const c = parseSocketMessage(change!);
     expect(c.map((u) => u.token).sort()).toEqual([socket.tokens.bottom, socket.tokens.top].sort());
-    expect(c.find((u) => u.token === socket.tokens.top)).toMatchObject({ bid: 0.49, ask: 0.5 });
-    expect(parseSocketMessage(trade!)[0]).toMatchObject({ last: 0.45 });
+    expect(c.find((u) => u.token === socket.tokens.top)?.update).toMatchObject({ kind: "best", bid: 0.49, ask: 0.5 });
+    expect(parseSocketMessage(trade!)[0]?.update).toEqual({ kind: "trade", price: 0.45 });
     expect(parseSocketMessage(pong!)).toEqual([]);
-    const q = c.reduce((acc, u) => (u.token === socket.tokens.top ? applyUpdate(acc, u) : acc), applyUpdate(EMPTY_QUOTE, b[0]!));
-    expect(displayedPrice(q.bid, q.ask, q.last)).toBeCloseTo(0.495);
+    const q = c.reduce((acc, u) => (u.token === socket.tokens.top ? applyUpdate(acc, u.update) : acc), applyUpdate(EMPTY_QUOTE, b[0]!.update));
+    expect(displayed(q)).toBeCloseTo(0.495);
   });
 
-  it("keeps a series to about 600 points: the last 10 minutes by the second, older by the minute", () => {
-    const now = TIP + 3 * 3_600_000;
-    const dense = Array.from({ length: 21_600 }, (_, i) => ({ t: TIP + i * 500, p: 0.5 + 0.4 * Math.sin(i / 300) }));
-    const c = compact(dense, now);
-    expect(c.length).toBeLessThanOrEqual(600);
-    expect(c[0]).toBe(dense[0]);
-    expect(c.at(-1)).toBe(dense.at(-1));
-    const old = c.filter((p) => p.t < now - 600_000);
-    expect(new Set(old.map((p) => Math.floor(p.t / 60_000))).size).toBeGreaterThanOrEqual(old.length - 1);
+  it("keeps a series to at most 600 points: the last 10 minutes as they came, older ones a minute each (OddsSeries.compact)", () => {
+    const base = Date.parse("2026-10-29T00:00Z");
+    const ticks = Array.from({ length: 2000 }, (_, i) => ({ t: base + i * 7200, p: 0.5 + 0.4 * Math.sin(i / 50) }));
+    const now = ticks.at(-1)!.t;
+    const c = compact(ticks, now);
+    const recent = ticks.filter((p) => p.t >= now - RAW);
+    expect(c.length).toBeLessThanOrEqual(CAP);
+    expect(c.every((p, k) => k === 0 || c[k - 1]!.t < p.t)).toBe(true);
+    expect(c.at(-1)).toBe(ticks.at(-1));
+    expect(recent.every((r) => c.includes(r))).toBe(true);
+    const day = Array.from({ length: 3000 }, (_, i) => ({ t: base + i * 60_000, p: 0.5 }));
+    expect(compact(day, day.at(-1)!.t), "a long market thinned evenly to the cap").toHaveLength(CAP);
+    expect([percent(0.998), percent(0.998, true), percent(0.003)], "never 0% or 100% until it's over").toEqual([99, 100, 1]);
+    expect([dollars(4_125_763), dollars(850_000)], "money traded, compact").toEqual(["$4.1M", "$850K"]);
   });
 });
 
@@ -206,114 +221,22 @@ describe("ESPN and DraftKings", () => {
     expect(parseOddsBasis(shuffled, "basketball", false).win).toEqual(win);
   });
 
-  it("finds where each period starts, the game clock and the play nearest a moment", () => {
+  it("finds each period's span, the game clock and the last play at a moment", () => {
     expect(nbaBasis.periods.map((p) => p.label)).toEqual(["Q1", "Q2", "Q3", "Q4"]);
-    expect(nbaBasis.periods.every((p, i) => i === 0 || p.t > nbaBasis.periods[i - 1]!.t)).toBe(true);
-    const q3 = nbaBasis.periods[2]!.t + 10 * 60_000;
-    expect(clockAt(nbaBasis.plays, q3)).toMatch(/^Q3 \d+:\d\d$/);
-    const play = nearestPlay(nbaBasis.plays, q3)!;
-    expect(Math.abs(play.t - q3)).toBeLessThanOrEqual(3 * 60_000);
+    expect(nbaBasis.periods.every((p, i) => i === 0 || p.start > nbaBasis.periods[i - 1]!.start)).toBe(true);
+    const q3 = nbaBasis.periods[2]!.start + 10 * 60_000;
+    const play = playAtOrBefore(nbaBasis, q3)!;
+    expect(play.clock).toMatch(/^Q3 \d+:\d\d$/);
+    expect(play.t).toBeLessThanOrEqual(q3);
+    expect(q3 - play.t).toBeLessThanOrEqual(3 * 60_000);
     expect(play.text).not.toMatch(/assists\)/);
-    expect(nearestPlay(nbaBasis.plays, nbaBasis.end! + 3_600_000)).toBeNull();
+    expect(playAtOrBefore(nbaBasis, nbaBasis.start! - 1)).toBeNull();
     // Soccer: halves from the commentary, no ESPN model.
     expect(eplBasis.win).toEqual([]);
     expect(eplBasis.periods.map((p) => p.label)).toEqual(["1st", "2nd"]);
-    expect(eplBasis.periods[0]!.t).toBe(Date.parse("2026-10-24T11:31:45Z"));
-  });
-});
-
-describe("the chart's geometry", () => {
-  const plot = plotIn(320, 144, 64, true);
-
-  it("splits the line exactly at 50%, each run one side's", () => {
-    const y = yOf(plot);
-    const mid = y(0.5);
-    const runs = splitAtMid([0.4, 0.45, 0.6, 0.7, 0.3].map((p, i) => ({ x: i * 10, y: y(p) })), mid);
-    expect(runs.map((r) => r.side)).toEqual(["bottom", "top", "bottom"]);
-    for (let i = 1; i < runs.length; i++) {
-      expect(runs[i - 1]!.points.at(-1)!.y).toBe(mid);
-      expect(runs[i]!.points[0]).toEqual(runs[i - 1]!.points.at(-1));
-    }
-    for (const r of runs) expect(r.points.every((p) => (r.side === "top" ? p.y <= mid : p.y >= mid))).toBe(true);
-  });
-
-  it("never clips the badge, at 0%, 50% or 100%, for any width the plot reserved", () => {
-    for (const width of [40, 64]) {
-      const p = plotIn(320, 144, width, true);
-      for (const value of [0, 0.5, 1]) {
-        const dot = { x: p.right, y: yOf(p)(value) };
-        const r = badgeRect(p, dot, width);
-        expect(r.x).toBeGreaterThan(dot.x);
-        expect(r.x + r.width).toBeLessThanOrEqual(p.width);
-        expect(r.y).toBeGreaterThanOrEqual(0);
-        expect(r.y + r.height).toBeLessThanOrEqual(p.height);
-      }
-    }
-  });
-
-  it("snaps the scrub to the nearest whole minute inside the domain", () => {
-    const d = { from: TIP + 25_000, to: TIP + 90 * 60_000 + 10_000 };
-    const at = (f: number) => scrubTime(plot.left + f * (plot.right - plot.left), plot, d);
-    for (const f of [0, 0.13, 0.5, 0.999, 1, 1.4]) {
-      const t = at(f);
-      expect(t % 60_000).toBe(0);
-      expect(t).toBeGreaterThanOrEqual(d.from);
-      expect(t).toBeLessThanOrEqual(d.to);
-    }
-    expect(at(0.5)).toBe(Math.round((d.from + d.to) / 2 / 60_000) * 60_000);
-  });
-
-  it("spans the game: first to last play when final, to now while live, the market's last day before", () => {
-    const final = gameDomain({ state: "final", scheduled: TIP, start: nbaBasis.start, end: nbaBasis.end, now: TIP + 9e6, firstPrice: null, lastPrice: null });
-    expect(final).toEqual({ from: Date.parse("2026-10-29T00:10:41Z"), to: Date.parse("2026-10-29T02:43:59Z") });
-    const live = gameDomain({ state: "live", scheduled: TIP, start: nbaBasis.start, end: null, now: TIP + 3_600_000, firstPrice: null, lastPrice: null });
-    expect(live.to).toBe(TIP + 3_600_000);
-    expect(windowDomain(live, "10m")).toEqual({ from: TIP + 3_000_000, to: TIP + 3_600_000 });
-    const before = gameDomain({ state: "scheduled", scheduled: TIP, start: null, end: null, now: TIP - 3_600_000, firstPrice: null, lastPrice: null });
-    expect(before.to - before.from).toBe(24 * 3_600_000);
-    // The price at the domain's start is carried in from before it; the end holds the last price.
-    const h = parseHistory(nbaHistory.histories[WARRIORS]);
-    const v = visible(h, final, null);
-    // 0.405 an hour before tip-off; 0.425 by the jump ball.
-    expect(v[0]).toEqual({ t: final.from, p: 0.425 });
-    expect(v.at(-1)!.t).toBe(final.to);
-  });
-
-  it("glides on Liveline's curve: quick at first, landing at 0.5 s", () => {
-    expect(glideProgress(0)).toBe(0);
-    expect(glideProgress(500)).toBe(1);
-    expect(glideProgress(100)).toBeGreaterThan(0.4);
-    expect(glideProgress(250)).toBeGreaterThan(0.75);
-    for (let t = 0; t < 500; t += 25) expect(glideProgress(t + 25)).toBeGreaterThan(glideProgress(t));
-  });
-
-  it("heads a final with its last price, the resolution (GS 100% · 0% MIN; Villa 100%), and a live game with its newest", () => {
-    // As the feed keeps them: each history compacted.
-    const gsw = compact(parseHistory(nbaHistory.histories[WARRIORS]), TIP + 9e6);
-    const last = gsw.at(-1)!;
-    const final = headerFigures({ top: gsw }, { top: last.p }, false, true);
-    expect(final.top).toEqual({ value: last.p, text: percentPair(last.p, true)[0] });
-    expect([final.top!.text, final.bottom!.text]).toEqual(["100%", "0%"]);
-    // Not the tip-off price (43%) the header once showed.
-    expect(final.top!.text).not.toBe(percentPair(visible(gsw, { from: nbaBasis.start!, to: nbaBasis.end! }, null)[0]!.p)[0]);
-
-    const [ast, draw, mac] = marketFromEvent(eplEvent, astMac)!.tokens.map(({ token }) => compact(parseHistory(eplHistory.histories[token]), Date.parse("2026-10-24T14:00:00Z")));
-    const soccer = headerFigures({ top: ast, draw, bottom: mac }, {}, true, true);
-    const s = shares(ast!.at(-1)!.p, draw!.at(-1)!.p, mac!.at(-1)!.p);
-    expect(soccer.top).toEqual({ value: s.top, text: percent(s.top, true) });
-    expect(soccer.draw!.value).toBe(s.draw);
-    expect(soccer.bottom!.value).toBe(s.bottom);
-    expect([soccer.top!.text, soccer.draw!.text, soccer.bottom!.text]).toEqual(["100%", "0%", "0%"]);
-
-    // Live: the newest price, never written as decided.
-    const live = headerFigures({ top: gsw }, { top: 0.9995 }, false, false);
-    expect([live.top!.text, live.bottom!.text]).toEqual(["99%", "1%"]);
-    expect(headerFigures({ top: gsw }, { top: 0.618 }, false, false).top).toEqual({ value: 0.618, text: "62%" });
-  });
-
-  it("writes chances as Polymarket does, but never 0 or 100 until it's over", () => {
-    // Never 0 or 100 while undecided: 100% is for the final whistle.
-    expect([percent(0.9995), percent(0.004), percent(0.415), percent(0.9995, true)]).toEqual(["99%", "1%", "42%", "100%"]);
+    expect(eplBasis.periods[0]!.start).toBe(Date.parse("2026-10-24T11:31:45Z"));
+    // Polymarket had GSW at 42.5% at tip-off.
+    expect(valueAt(parseHistory(nbaHistory.histories[WARRIORS]), Date.parse("2026-10-29T00:10:41Z"))).toBe(0.425);
   });
 });
 
@@ -337,7 +260,7 @@ describe("the live feed", () => {
     }
   }
 
-  const game: OddsGame = { id: "401909888", path: "basketball/nba", state: "live", start: TIP, playStart: nbaBasis.start, playEnd: null, names: gswMin };
+  const game: OddsGame = { id: "401909888", path: "basketball/nba", state: "live", start: TIP, names: gswMin };
   const listeners = new Map<string, () => void>();
 
   beforeEach(() => {
@@ -432,7 +355,7 @@ describe("the live feed", () => {
     await vi.advanceTimersByTimeAsync(600);
     expect(updates).toBeGreaterThanOrEqual(2);
     expect(updates).toBeLessThanOrEqual(3);
-    expect(feed.getSnapshot().current.top).toBeCloseTo(0.6 + 39 / 500 + 0.005);
+    expect(feed.getSnapshot().series.top!.at(-1)!.p).toBeCloseTo(0.6 + 39 / 500 + 0.005);
   });
 
   it("polls the midpoint every 15 s after two failed connects, and stops when the page closes", async () => {
@@ -448,7 +371,7 @@ describe("the live feed", () => {
     const before = polls();
     await vi.advanceTimersByTimeAsync(15_000);
     expect(polls()).toBe(before + 1);
-    expect(feed.getSnapshot().current.top).toBe(0.61);
+    expect(feed.getSnapshot().series.top!.at(-1)!.p).toBe(0.61);
     feed.detach();
     await vi.advanceTimersByTimeAsync(60_000);
     expect(polls()).toBe(before + 1);

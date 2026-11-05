@@ -588,6 +588,12 @@ export function timelineGlance(moments: readonly DetailMoment[], score: string |
   return glanceText(score ?? "", detail);
 }
 
+/** Every other sport's timeline: the score, then its newest mark's clock and words (DetailView's `.timeline` glance). */
+export function keyPlaysGlance(last: Pick<DetailMoment, "clock" | "text"> | null, score: string): ModuleGlance {
+  const detail = last ? [last.clock, last.text].filter((s) => s.length > 0).join(" · ") : "No key plays yet";
+  return glanceText(score, detail);
+}
+
 /**
  * Whole percents that add to 100 (largest remainder); held off 0 and 100
  * until the game is decided, what that adds coming off the biggest
