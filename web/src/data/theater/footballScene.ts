@@ -648,8 +648,10 @@ export function parse(item: JSONValue, teams: FootballTeams): FootballScene | nu
   const college = isCollege(text);
   const kicking = type.includes("kickoff") || type.includes("punt");
   // The team that snapped or kicked: the start's (the play's own team is the receiving one on a kick or a return).
-  const startTeam = idFrom(str(at(item, "start", "team", "$ref")), "/teams/");
-  const offense = teamSide(teams, startTeam ?? (kicking ? null : idFrom(str(at(item, "team", "$ref")), "/teams/")));
+  // The core lane names teams by reference ("…/teams/21"), the summary's drives by id.
+  const teamID = (node: JSONValue): string | null => idFrom(str(at(node, "team", "$ref")), "/teams/") ?? str(at(node, "team", "id")) ?? null;
+  const startTeam = teamID(at(item, "start"));
+  const offense = teamSide(teams, startTeam ?? (kicking ? null : teamID(item)));
   if (!offense) return null;
   const home = (offense === "top") === teams.topIsHome;
   const yard = (line: number) => (home ? line : 100 - line);
@@ -678,7 +680,7 @@ export function parse(item: JSONValue, teams: FootballTeams): FootballScene | nu
   if (startDown != null && startDown >= 1 && startDown <= 4) scene.before = { down: startDown, distance: int(at(item, "start", "distance")) ?? 10 };
   const endDown = int(at(item, "end", "down"));
   if (endDown != null && endDown >= 1 && endDown <= 4) scene.after = { down: endDown, distance: int(at(item, "end", "distance")) ?? 10 };
-  const endTeam = idFrom(str(at(item, "end", "team", "$ref")), "/teams/");
+  const endTeam = teamID(at(item, "end"));
   scene.flips = startTeam != null && endTeam != null && startTeam !== endTeam;
   if (bool(at(item, "scoringPlay")) === true) {
     switch (str(at(item, "scoringType", "name"))) {
