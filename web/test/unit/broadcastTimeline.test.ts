@@ -18,12 +18,12 @@ import { BroadcastEngine, mapSnapshot, type TimelineSnapshot } from "../../src/d
 import { basketball, entries, football, isInterval, policy as sportPolicy, readingFromEvent, readingFromStatus, soccer } from "../../src/data/broadcast/lanes";
 import { PresentationClock, sameClockEvent, type ClockEvent } from "../../src/data/broadcast/presentationClock";
 import { NOTHING_PRESENTED, presentedAt, presentedClock, presentedStatus, nextChange, type PresentedGame } from "../../src/data/broadcast/presentedGame";
-import { GameTimeline, parseEventTime, playKind, quantile, type ScoreCorrection, type RawPlay, type TellReason, type TimelineRecord } from "../../src/data/broadcast/timeline";
+import { GameTimeline, parseEventTime, playKind, quantile, Stoppages, type ScoreCorrection, type RawPlay, type TellReason, type TimelineRecord } from "../../src/data/broadcast/timeline";
 import { NBA_PATH } from "../../src/data/basketball";
 import type { ScoreEvent } from "../../src/data/models";
 import { arr, at, bool, str } from "../../src/data/json";
 import { look, play, S, testPolicy } from "./broadcastHelpers";
-import { appCadence, FIXTURES, Recording, RecordingReplay } from "./broadcastReplay";
+import { appCadence, FIXTURES, Recording, RecordingReplay, WEB_FIXTURES } from "./broadcastReplay";
 import { sharedFixture } from "./fixtures";
 
 const hasEvent = (events: readonly ClockEvent[], e: ClockEvent) => events.some((x) => sameClockEvent(x, e));
@@ -875,6 +875,81 @@ describe("Broadcast: a VAR decision is told, never a quiet correction", () => {
     expect(inserted.lateInsertions, "inserted behind told plays: an announced play is told late (an event), anything else a quiet correction").toEqual(["v", "f"]);
     expect(behind.record("v")?.told).toBe("late");
     expect(behind.record("f")?.told).toBe("correction");
+  });
+});
+
+describe("Broadcast: a page opened after a period that ended at a stopped clock", () => {
+  // The web's production bug of 2026-11-05 (POR @ PHX and DAL @ SA, opened in the 4th and the 3rd): the 2nd
+  // ended on a team rebound or a review at 0.0, ESPN stamped the period's end with the same time, so it joined
+  // their stopped-clock cluster, whose restart was only ever looked for in its own period. With none there, the
+  // cluster fell back to its arrival (the moment the page opened): the period's end and every play after it waited
+  // for p, and the page said "0.0 left in the 2nd" (and "Under review") through a live 3rd and 4th.
+  const shapes: { name: string; buzzer: () => ReturnType<typeof play> }[] = [
+    { name: "a team rebound", buzzer: () => play("buzzer", 1020, { elapsed: 720, live: false, stops: true, label: "team rebound" }) },
+    {
+      name: "a review",
+      buzzer: () => ({ ...play("buzzer", 1020, { elapsed: 720, live: false }), kind: playKind("dead", "review", { stopsClock: true, stoppage: Stoppages.review }) }),
+    },
+  ];
+  for (const shape of shapes) {
+    it(`${shape.name} at the buzzer: opened in the next period, the page is in the next period`, () => {
+      const e = new BroadcastEngine<RawPlay>("basketball", testPolicy());
+      const plays = [
+        play("shot1", 1000, { elapsed: 700, score: S(2, 0) }),
+        play("shot2", 1020, { elapsed: 720 }),
+        shape.buzzer(),
+        play("end1", 1020, { elapsed: 720, live: false, endsPeriod: 1, label: "period end" }),
+        play("sub", 2000, { period: 2, elapsed: 0, live: false, label: "substitution" }),
+        play("shot3", 2030, { period: 2, elapsed: 20, score: S(4, 0) }),
+        { ...play("timeout", 2100, { period: 2, elapsed: 80, live: false }), kind: playKind("dead", "timeout", { stopsClock: true, stoppage: Stoppages.timeout }) },
+      ];
+      // Opened at 2200, in a timeout in the 2nd: D = 33, p = 2167, the game so far told as history.
+      e.ingest(look(plays, "summary", 2200));
+      e.advance(2200);
+      const t = e.timeline;
+      const end = t.record("end1")!;
+      expect(end.bounds && end.bounds.upper <= 2000, `the period's end is bounded by the next period's start, not the page's opening (${JSON.stringify(end.bounds)})`).toBeTruthy();
+      expect(t.toldCount, "everything before p is told").toBe(plays.length);
+      const g = e.presented(2200);
+      expect(g.period, "the page is in the 2nd, not at the end of the 1st").toBe(2);
+      expect(g.clock?.elapsed === 80 && g.clock.running === false, `the clock is the timeout's (${JSON.stringify(g.clock)})`).toBe(true);
+      expect(g.phase.kind === "stopped" && g.phase.stoppage.kind === "timeout", `the stoppage is the timeout, not the buzzer's (${JSON.stringify(g.phase)})`).toBe(true);
+      expect(g.score).toEqual(S(4, 0));
+    });
+
+    it(`${shape.name} at the buzzer, live: until the next period is known, the period's end is bounded by its arrival, as before`, () => {
+      const t = new GameTimeline<RawPlay>(testPolicy());
+      const first = [play("shot1", 1000, { elapsed: 700, score: S(2, 0) }), play("shot2", 1020, { elapsed: 720 }), shape.buzzer(), play("end1", 1020, { elapsed: 720, live: false, endsPeriod: 1, label: "period end" })];
+      t.ingest(look(first, "summary", 1060));
+      expect(t.record("end1")?.bounds?.upper, "the end's arrival less the feed's minimum lag").toBe(1050);
+      t.tell(1055);
+      t.ingest(look([...first, play("sub", 2000, { period: 2, elapsed: 0, live: false, label: "substitution" })], "summary", 2010));
+      expect(t.record("end1")?.presentAt, "a told play keeps its moment").toBe(1049);
+    });
+  }
+
+  it("the real slice: DAL @ SA (401909933) opened at 7:08 of the 3rd in a Spurs full timeout, the 2nd having ended on a team rebound at 0.0", () => {
+    // test/fixtures/broadcast: the recorder's first six minutes of the game, each summary cut to the 2nd's last
+    // eight plays and the 3rd. The page opens on the first look, the whole game so far history.
+    const recording = Recording.load(WEB_FIXTURES, "basketball_nba", "401909933", 0);
+    expect(recording.snapshots.length === 28 && recording.status.length > 0 && recording.rows.length > 0, "the fixture loads (28 summaries, the status, the scoreboard)").toBe(true);
+    const replay = RecordingReplay.make(recording)!;
+    const seen: string[] = [];
+    let first: PresentedGame | null = null;
+    let steps = 0;
+    replay.run(appCadence(replay.policy), (r, t) => {
+      const g = r.engine.presented(t);
+      if (g.lastID == null) return;
+      steps += 1;
+      first ??= g;
+      const words = presentedStatus(g, "basketball", 4);
+      if (g.period !== 3 || !words.includes("3rd")) seen.push(`${new Date(t * 1000).toISOString()} period ${g.period}, ${words}`);
+    });
+    expect(steps, "the replay presents the game").toBeGreaterThan(20);
+    expect(seen, "from the first step on, the page is in the 3rd (it said 0.0 left in the 2nd)").toEqual([]);
+    const opened = first as PresentedGame | null;
+    expect(opened?.lastID, "on opening, the last told play is the Spurs' full timeout").toBe("401909933522");
+    expect(opened?.phase.kind === "stopped" && opened.phase.stoppage.kind === "timeout" && opened.clock?.elapsed === 292, `…the clock stopped at 7:08 (${JSON.stringify(opened?.phase)}, ${JSON.stringify(opened?.clock)})`).toBe(true);
   });
 });
 

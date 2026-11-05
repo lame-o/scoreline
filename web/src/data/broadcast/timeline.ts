@@ -1380,6 +1380,22 @@ export class GameTimeline<Payload> {
       }
       break;
     }
+    // A stoppage at the period's end (a team rebound, a review at 0.0) has no
+    // restart in its period: the next period's start bounds it, since whatever
+    // was logged at the buzzer happened before the next period began. Without
+    // this the cluster (the period's end with it) fell back to its arrival: on a
+    // page opened later, the moment the page opened, which held the period's
+    // end, and every play after it, until p got there (web, 2026-11-05: POR @
+    // PHX opened in the 4th showed "0.0 left in the 2nd, Under review").
+    for (let j = k + 1; j < records.length; j++) {
+      const r = records[j]!;
+      if (!(r.entry.period > s.period)) continue;
+      const g = r.entry.clock.elapsed;
+      if (g == null || !(r.timeSource === "wallclock" || r.timeSource === "statsapi" || r.estimated)) continue;
+      const start = r.eventTime - g;
+      best = Math.min(best ?? start, start);
+      break;
+    }
     return best;
   }
 
