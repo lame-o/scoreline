@@ -248,6 +248,7 @@ export function CareerSection({ player, sport, position, width, memoryKey }: {
       </div>
     );
   }
+  if (player.career.none) return <p className={styles.inlineNote}>No career stats yet.</p>;
   if (player.career.failed) return <p className={styles.inlineNote}>Couldn't load the career.</p>;
   return (
     <div className={styles.loadingRow} role="status" aria-label="Loading career">
