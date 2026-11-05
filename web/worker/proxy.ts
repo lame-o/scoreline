@@ -13,6 +13,9 @@
  * - Upstream failures are never cached; the client's poll retries them.
  * - Bodies stream through (no buffering), and only `Content-Type` is copied
  *   from upstream: no cookies, no upstream caching headers.
+ * - Every answer is data, never a page: a sandboxing CSP means an HTML
+ *   upstream (World Climbing's YouTube pages) opened at its `/api` path
+ *   can't run on this origin. `fetch` ignores it.
  */
 import { resolveProxyPath, type CachePolicy } from "../shared/upstreams";
 
@@ -22,6 +25,8 @@ export const FETCHED_AT = "x-scoreline-fetched-at";
 /** HIT or MISS. */
 export const CACHE_STATUS = "x-scoreline-cache";
 const UPSTREAM_TIMEOUT_MS = 15_000;
+/** Whatever an upstream sends, it never runs here as a page (scripts, frames, forms, plugins: none). */
+const DATA_ONLY = "default-src 'none'; sandbox";
 
 export async function proxy(request: Request, url: URL, ctx: ExecutionContext): Promise<Response> {
   if (request.method !== "GET" && request.method !== "HEAD") {
@@ -87,6 +92,7 @@ function respond(source: Response, policy: CachePolicy, status: "HIT" | "MISS", 
     [FETCHED_AT]: String(fetchedAt),
     [CACHE_STATUS]: status,
     "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": DATA_ONLY,
   });
   return new Response(method === "HEAD" ? null : source.body, { status: 200, headers });
 }
@@ -94,7 +100,7 @@ function respond(source: Response, policy: CachePolicy, status: "HIT" | "MISS", 
 function problem(status: number, message: string, extra: Record<string, string> = {}): Response {
   return Response.json(
     { error: { status, message } },
-    { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", ...extra } },
+    { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": DATA_ONLY, ...extra } },
   );
 }
 

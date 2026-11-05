@@ -63,6 +63,19 @@ describe("the /api proxy", () => {
     expect((upstream.mock.calls[0]![1] as RequestInit).headers).toMatchObject({ Referer: "https://ifsc.results.info/" });
   });
 
+  it("asks YouTube for its English page, with the proxy's own user agent and no cookies", async () => {
+    upstream.mockResolvedValueOnce(new Response("<html><script>alert(1)</script></html>", { headers: { "Content-Type": "text/html; charset=utf-8" } }));
+    const response = await call("/api/www.youtube.com/@WorldClimbing/live");
+    const headers = (upstream.mock.calls[0]![1] as RequestInit).headers as Record<string, string>;
+    expect(headers).toMatchObject({ Accept: "text/html", "Accept-Language": "en-US" });
+    expect(headers["User-Agent"]).toMatch(/^Scoreline\//);
+    expect(headers.Cookie).toBeUndefined();
+    // Data, never a page on this origin: opened at its /api path, the HTML can't run.
+    expect(response.headers.get("Content-Security-Policy")).toBe("default-src 'none'; sandbox");
+    expect(response.headers.get("Cache-Control")).toBe("public, max-age=30");
+    expect((await call("/api/www.youtube.com/@WorldClimbing/videos")).status).toBe(404);
+  });
+
   it("never caches a failure", async () => {
     upstream.mockResolvedValueOnce(new Response("busy", { status: 503 }));
     const response = await call("/api/api.bo3.gg/api/v1/matches");

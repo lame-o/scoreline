@@ -35,6 +35,26 @@ export const getJSON: Fetcher = async (upstreamURL, init) => {
   return response.json() as Promise<unknown>;
 };
 
+export type TextFetcher = (upstreamURL: string, init?: { signal?: AbortSignal }) => Promise<string>;
+
+/**
+ * The app's fetcher for upstreams that answer in text, not JSON: World
+ * Climbing's YouTube pages, decapi.me's Twitch status. Through the proxy;
+ * throws on failure. Under the demo harness, whatever the stand-in answers
+ * as a string (anything else is no answer).
+ */
+export const getText: TextFetcher = async (upstreamURL, init) => {
+  if (override) {
+    const answer = await override(upstreamURL, init);
+    if (typeof answer !== "string") throw new HTTPError(404, upstreamURL);
+    return answer;
+  }
+  const { href, cache } = clientRequest(upstreamURL);
+  const response = await fetch(href, { signal: init?.signal, cache });
+  if (!response.ok) throw new HTTPError(response.status, upstreamURL);
+  return response.text();
+};
+
 /** Resolves a path that may be relative ("/api/v1/events/1") against a base. */
 export function resolveURL(path: string, base: string): string {
   return new URL(path, base).href;

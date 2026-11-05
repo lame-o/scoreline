@@ -702,3 +702,5 @@ if (want("profiles")) await (await import("./record-profile-fixtures.mjs")).reco
 if (want("matches")) await matches();
 // The odds chart's games (test/fixtures/odds): Polymarket and ESPN for an NBA final and a Premier League final.
 if (want("odds")) await (await import("./record-odds-fixtures.mjs")).recordOdds();
+// World Climbing's YouTube pages (test/fixtures/youtube): the stream on now or next, and the scheduled streams.
+if (want("youtube")) await (await import("./record-youtube-fixtures.mjs")).recordYouTube();
