@@ -23,6 +23,7 @@ import type { Side } from "../models";
 import { liveMoment, shortened, Tier, type Accent, type LiveMoment, type MomentKind } from "../moments";
 import { soccerFacts } from "../scoringFacts";
 import { credit, isGoal, teamID } from "../theater/soccerEntries";
+import { merged } from "../replays";
 import { FeedLooks, teamIDFromRef } from "./baseball";
 
 export type ActionKind = "pass" | "shot" | "goal" | "yellow" | "red" | "other";
@@ -360,6 +361,8 @@ export class SoccerFeed {
   private reviews: Review[] = [];
   /** Goals struck off since the last call, for the page to take back. */
   private retracted: string[] = [];
+  /** The plays the page's replays haven't read yet (`takeReplayRun`). */
+  private replayRun: JSONValue[] | null = null;
   private scale: PitchScale | null = null;
   private inflight: Promise<void> | null = null;
   private listeners = new Set<() => void>();
@@ -482,10 +485,12 @@ export class SoccerFeed {
     const struck = struckOff(this.reviews, [...revised, ...raw]);
     this.reviews = this.reviews.filter((r) => !struck.has(r.id) && !revised.some((e) => playID(e) === r.id && confirmed(e)));
     // An entry read again that reads differently (its type, its words): the window takes the new version.
+    let edited = false;
     let window = this.plays.map((old) => {
       const edit = revised.find((e) => playID(e) === playID(old));
       if (edit === undefined || (str(at(edit, "type", "type")) === str(at(old, "type", "type")) && str(at(edit, "text")) === str(at(old, "text")))) return old;
       changed = true;
+      edited = true;
       return edit;
     });
     if (struck.size > 0) {
@@ -502,6 +507,13 @@ export class SoccerFeed {
       fresh = fresh.filter((a) => !struck.has(a.playID));
       // The lane's score counted it (web-only): the newest entry's below, else the scoreboard's until one comes.
       this.score = null;
+      changed = true;
+    }
+    // The page's replays read each moment in this run (the window and what just came: on the first look, the whole
+    // match), each read again while what follows it can still change it (SoccerFeed.readReplays). The lane never
+    // parses a moment: the run waits for the page's reader (`takeReplayRun`), merged with any it hasn't taken yet.
+    if (raw.length > 0 || edited) {
+      this.replayRun = merged(this.replayRun ?? [], [...window, ...raw]);
       changed = true;
     }
     // Until this page has had a complete load it's history; after, goals, shots and cards are news.
@@ -548,6 +560,17 @@ export class SoccerFeed {
   takeRetractions(): string[] {
     const out = this.retracted;
     this.retracted = [];
+    return out;
+  }
+
+  /**
+   * The run of plays the page's replays read since the last call (the window
+   * and what came after it, in order; null when nothing came): every shot and
+   * goal in it, as the theater would replay it (data/replayReaders.ts).
+   */
+  takeReplayRun(): JSONValue[] | null {
+    const out = this.replayRun;
+    this.replayRun = null;
     return out;
   }
 }

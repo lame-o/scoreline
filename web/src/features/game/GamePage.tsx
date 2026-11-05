@@ -5,7 +5,8 @@
  *
  * The core runs what every sport shares: the event and its detail by ID
  * (`useGame`: any game loads, not only the scoreboard's), the moment slot,
- * linked focus across charts, the hero's beats, the page's geometry. Each
+ * linked focus across charts, the rows' replays in the isometric view (which
+ * row is open: core/replay/), the hero's beats, the page's geometry. Each
  * sport is a hook in `SPORT_PAGES` (core/sport.tsx explains the seam) that
  * returns its sections and runs its own fast lane.
  *
@@ -33,6 +34,7 @@ import { DockedScorebar } from "./core/DockedScorebar";
 import { usePageGeometry, useRemeasure, useSurface } from "./core/geometry";
 import { Hero, HeroSkeleton, HeroWash } from "./core/Hero";
 import { LinkedFocusProvider, LinkedFocusStore } from "./core/linked";
+import { PageReplays, ReplaysProvider } from "./core/replay/pageReplays";
 import { MomentProvider, useCurrentMoment, useMomentSlot } from "./core/moments";
 import { useHeaderLedger, useHeaderSync } from "./core/headerSync";
 import { ScoringSlideHost, SlidesProvider, useBindSlides, useScoringSlides, useScoringSlidesContext } from "./core/scoringSlides";
@@ -130,6 +132,9 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   const wide = width >= SPLIT_WIDTH - (columns ? 12 : 0);
   if (wide !== columns) setColumns(wide);
   const geometry = usePageGeometry(split);
+  // The plays the rows can replay in the isometric view, and the row open (the body is keyed by game: another game, another store).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const replays = useMemo(() => new PageReplays(event, geometry), [geometry]);
   // The hero's beats: one value for the hero, the docked bar and the wash.
   const [beats, setBeats] = useState(NO_BEATS);
   // A field event's wash (a climber's flag), from its sport page.
@@ -139,17 +144,20 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   const sounds = useSettings((s) => soundsEnabled(s));
   useEffect(() => (sounds ? listenForUnlock() : undefined), [sounds]);
 
-  // Esc drops a pin before it goes back (DetailView.back).
+  // Esc first closes an open replay and drops a pin (both in one press) before it goes back (DetailView.back).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && linked.unpin()) {
+      if (e.key !== "Escape") return;
+      const closed = replays.close();
+      const unpinned = linked.unpin();
+      if (closed || unpinned) {
         e.preventDefault();
         e.stopImmediatePropagation();
       }
     };
     window.addEventListener("keydown", onKey, { capture: true });
     return () => window.removeEventListener("keydown", onKey, { capture: true });
-  }, [linked]);
+  }, [linked, replays]);
 
   const palette: TeamPalette = useMemo(
     () =>
@@ -187,7 +195,9 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
           <div className={styles.inner} ref={inner} data-columns={columns}>
             {/* The hero shows at once; the sections assemble when the detail arrives. */}
             <SlidesProvider slides={slides}>
-              <Loaded game={game} event={event} palette={palette} columns={columns} geometry={geometry} moments={moments} beats={beats} setBeats={setBeats} setFieldWash={setFieldWash} />
+              <ReplaysProvider store={replays}>
+                <Loaded game={game} event={event} palette={palette} columns={columns} geometry={geometry} moments={moments} beats={beats} setBeats={setBeats} setFieldWash={setFieldWash} />
+              </ReplaysProvider>
             </SlidesProvider>
           </div>
         </MomentProvider>

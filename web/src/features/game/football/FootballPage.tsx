@@ -34,6 +34,7 @@ import { useRankings, useStandings } from "../../../state/standings";
 import { DetailSection } from "../core/DetailSection";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
 import { useCommonSections } from "../core/useCommonSections";
+import { useReplaySync } from "../core/replay/useReplaySync";
 import { CollegeTable } from "./ConferenceTable";
 import { FootballField } from "./FootballField";
 import { useNameLinker } from "./names";
@@ -119,6 +120,8 @@ export function useFootballPage(game: GameContext): SportPage {
   const linkText = useNameLinker(detail.playerNames, ref?.path ?? null);
   const momentText = useMemo(() => (_: DetailMoment, text: string) => linkText(text), [linkText]);
 
+  // The rows' replays: every snap the lane has read (a final's plays fetched once), spotted and placed as live.
+  useReplaySync(game, { football: feed });
   const sections: Partial<Record<string, ReactNode>> = { ...useCommonSections(game, { momentText }) };
 
   if (live && situation) {
