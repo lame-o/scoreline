@@ -205,8 +205,9 @@ function PreviewStage({ tile, frozen }: { tile: Tile; frozen: number | null }) {
   const scheme = useColorScheme();
   const slot = useMomentSlot();
   const { home, away } = tile;
-  const palette = teamPalette(away.color, home.color, scheme);
   const kits = kitsOf({ color: away.color, alternate: away.alternateColor }, { color: home.color, alternate: home.alternateColor });
+  // What each side wears, as the page draws its marks (MatchColors.palette).
+  const palette = teamPalette(kits.top.color, kits.bottom.color, scheme);
   useEffect(() => {
     // A tick later: development's StrictMode runs this twice, and the slot would take the second offer as already seen.
     const moment = tile.moment;
@@ -387,8 +388,9 @@ function SheetFrame({ c, t }: { c: SheetCase; t: number | null }) {
     }
     return null;
   });
-  const palette = teamPalette(c.top[2], c.bottom[2], scheme);
   const kits = kitsOf({ color: c.top[2], alternate: c.top[3] }, { color: c.bottom[2], alternate: c.bottom[3] });
+  // What each side wears, as the page draws its marks (MatchColors.palette).
+  const palette = teamPalette(kits.top.color, kits.bottom.color, scheme);
   return (
     <div style={{ width: 440 }} data-flip={c.eventId === "sheet-fb-flip" ? "shown" : undefined}>
       <FootballTheater

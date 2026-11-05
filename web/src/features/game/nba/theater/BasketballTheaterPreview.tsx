@@ -141,8 +141,9 @@ function PreviewStage({ tile, frozen, idle }: { tile: Tile; frozen: number | nul
   const scheme = useColorScheme();
   const slot = useMomentSlot();
   const { home, away } = tile.game;
-  const palette = teamPalette(`#${away.color}`, `#${home.color}`, scheme);
   const kits = kitsOf({ color: `#${away.color}`, alternate: `#${away.alternate}` }, { color: `#${home.color}`, alternate: `#${home.alternate}` });
+  // What each side wears, as the page draws its marks (MatchColors.palette).
+  const palette = teamPalette(kits.top.color, kits.bottom.color, scheme);
   useEffect(() => {
     // A tick later: development's StrictMode runs this twice, and the slot would take the second offer as already seen.
     const moment = tile.moment;

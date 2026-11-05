@@ -765,7 +765,7 @@ export function footballProjection(size: Size, script: FootballScript, t: number
 export function drawFootballFrame(ctx: Ctx, f: GridProjection, input: FrameInputs): void {
   drawLines(ctx, f, input);
   const figures = posed(f, input);
-  let held: Point | null = null;
+  let held: Held | null = null;
   for (const p of figures) if (p.ball) held ??= p.ball;
   drawShadows(ctx, f, input, figures);
   // The names on the field, under all that plays: the posts and a flag in the air too.
@@ -795,14 +795,15 @@ export function footballSpots(script: FootballScript, t: number, size: Size): Th
 }
 
 /** The names round the players, drawn under them and the ball, clear of the headline and the stamp while they're up; the raised ones' stems, to draw with their men. */
-function drawNames(ctx: Ctx, f: GridProjection, input: FrameInputs, figures: readonly Posed[], held: Point | null): Stems {
+function drawNames(ctx: Ctx, f: GridProjection, input: FrameInputs, figures: readonly Posed[], held: Held | null): Stems {
   const { script, t, ink, labels, tags } = input;
   const clear: Rect[] = [];
   const banner = script.banner;
   if (banner && labels.banner && t >= banner.at && t < banner.until + 0.3) clear.push(TheaterTagLayout.banner(labels.banner, f.size));
   if (labels.stamp && t >= script.stamp) clear.push(TheaterTagLayout.stamp(labels.stamp, f.size, TheaterType.inset(f.size)));
   const spot = ballSpot(f, input, held);
-  const ball: TagBall | null = spot ? { x: spot.point.x, y: spot.point.y, rx: spot.radius * 1.45 + 0.6, ry: spot.radius * 0.92 + 0.6, angle: spot.angle, height: f.figure } : null;
+  // The leather a point larger all round (`leather(r + 1, length)`), as the ellipse of its extent.
+  const ball: TagBall | null = spot ? { x: spot.point.x, y: spot.point.y, rx: (spot.radius + 1) * 1.5 * spot.length, ry: (spot.radius + 1) * 0.9, angle: spot.angle, height: f.figure } : null;
   const size = f.size;
   return drawTags(
     ctx,
@@ -931,8 +932,31 @@ interface Posed {
   readonly index: number;
   readonly figure: RigFigure;
   readonly opacity: number;
-  readonly ball: Point | null;
+  readonly ball: Held | null;
   readonly ghost?: boolean;
+}
+
+/**
+ * The ball in a man's hands: where, pointed the way he faces on screen, and
+ * how much of its length shows (all of it broadside, less end on).
+ */
+interface Held {
+  readonly point: Point;
+  readonly angle: number;
+  readonly length: number;
+}
+
+/**
+ * The way a man faces on screen, for the ball he carries: forward is his +x
+ * turned by his heading, drawn through his lens; foreshortened to as little
+ * as 0.7 of its length when he runs at the camera or away.
+ */
+export function facing(heading: number, lens: RigLens): { angle: number; length: number } {
+  const c = Math.cos(heading);
+  const s = Math.sin(heading);
+  const v = { x: lens.x.x * c + lens.y.x * s, y: lens.x.y * c + lens.y.y * s };
+  const broadside = Math.min(Math.max((Math.hypot(v.x, v.y) / (lens.height / 1.1) - 0.5) / 0.5, 0), 1);
+  return { angle: Math.atan2(v.y, v.x), length: 0.7 + 0.3 * broadside };
 }
 
 /**
@@ -987,7 +1011,7 @@ function posed(f: GridProjection, { script, t, bridge }: FrameInputs): Posed[] {
     if (!(o > 0.01)) continue;
     const figure = rigFigure(body, heading, lens);
     // Carried: in both hands at the chest, or the tucking hand; from where it came, into them.
-    let ball: Point | null = null;
+    let ball: Held | null = null;
     const spot = carry && carry.player === index ? script.ball(t) : null;
     if (carry && spot) {
       const held = smooth((t - carry.from) / 0.15) * (Number.isFinite(carry.until) ? smooth((carry.until - t) / 0.15) : 1);
@@ -1002,7 +1026,8 @@ function posed(f: GridProjection, { script, t, bridge }: FrameInputs): Posed[] {
       // Cocked to throw: in the throwing hand, back by his ear.
       const k = cocked(player, t, script.pace);
       hold = { x: hold.x + (throwing.x - hold.x) * k, y: hold.y + (throwing.y - hold.y) * k };
-      ball = { x: loose.x + (hold.x - loose.x) * held, y: loose.y + (hold.y - loose.y) * held };
+      const way = facing(heading, lens);
+      ball = { point: { x: loose.x + (hold.x - loose.x) * held, y: loose.y + (hold.y - loose.y) * held }, angle: way.angle, length: way.length };
     }
     out.push({ index, figure, opacity: o, ball });
   }
@@ -1028,55 +1053,102 @@ function drawPlayers(ctx: Ctx, f: GridProjection, { script, teams, ink, bridge }
 /**
  * Where the ball is drawn at t: in his hands or along its flight, how big (a
  * touch larger than life, as the baseball is: it's what the eye follows),
- * the way it points (along its flight) and its tail while it flies.
+ * the way it points (the way he faces, or along its flight), how much of its
+ * length shows, and its tail while it flies.
  */
-function ballSpot(f: GridProjection, { script, t, bridge }: FrameInputs, held: Point | null): { point: Point; radius: number; angle: number; trail: Point[] | null } | null {
+function ballSpot(f: GridProjection, { script, t, bridge }: FrameInputs, held: Held | null): { point: Point; radius: number; angle: number; length: number; trail: Point[] | null } | null {
   const ball = script.ball(t);
   if (!ball) return null;
-  let p = held ?? f.at(ball);
+  let p = held?.point ?? f.at(ball);
   // Mid-bridge, from where the idle had it (on the spot, on the tee) to the replay's.
   const from = bridge?.script.ball(bridge.t);
   if (bridge && from) p = bridgeMix(f.at(from), p, bridge.w);
-  const r = Math.min(Math.max(0.55 * f.scale, 2.2), Math.max(f.figure * 0.13, 2.2));
+  const r = Math.min(Math.max(0.5 * f.scale, 2.2), Math.max(f.figure * 0.115, 2.2));
   const flight = script.flight(t);
-  if (!flight) return { point: p, radius: r, angle: 0, trail: null };
+  if (!flight) return { point: p, radius: r, angle: held?.angle ?? 0, length: held?.length ?? 1, trail: null };
   const trail: Point[] = [];
   for (let i = 1; i <= 6; i++) trail.push(f.at(flight.point(Math.max(t - i * 0.014, flight.start))));
   const last = trail[0]!;
   const angle = Math.hypot(last.x - p.x, last.y - p.y) > 0.3 ? Math.atan2(p.y - last.y, p.x - last.x) : 0;
-  return { point: p, radius: r, angle, trail };
+  return { point: p, radius: r, angle, length: 1, trail };
 }
 
-/** A football: a brown oval along its flight in a soft glow, a comet tail while it's in the air, in his hands while he has it, its shadow on the grass (with the shadows). */
-function drawFootball(ctx: Ctx, f: GridProjection, input: FrameInputs, held: Point | null): void {
-  const { script, t, ink } = input;
+/**
+ * The ball's outline round its middle, pointed at both ends: `r` its size,
+ * `length` how much of it shows (1 broadside, less end on).
+ */
+function leather(ctx: Ctx, r: number, length = 1): void {
+  const a = r * 1.5 * length;
+  const b = r * 0.9;
+  // Cubics whose middle bulges to exactly b: the controls at 4/3 of it.
+  ctx.beginPath();
+  ctx.moveTo(-a, 0);
+  ctx.bezierCurveTo(-a * 0.35, (-b * 4) / 3, a * 0.35, (-b * 4) / 3, a, 0);
+  ctx.bezierCurveTo(a * 0.35, (b * 4) / 3, -a * 0.35, (b * 4) / 3, -a, 0);
+  ctx.closePath();
+}
+
+/**
+ * A football: pointed leather lit from above, its laces on top, ringed dark
+ * then light so it reads on grass and on any jersey; lifted off the man who
+ * carries it by a small shadow and pointed the way he runs; a comet tail and
+ * a soft glow while it flies; its shadow on the grass (with the shadows).
+ */
+function drawFootball(ctx: Ctx, f: GridProjection, input: FrameInputs, held: Held | null): void {
+  const { ink } = input;
   const spot = ballSpot(f, input, held);
   if (!spot) return;
-  const { point: p, radius: r, angle, trail } = spot;
+  const { point: p, radius: r, trail, length } = spot;
   if (trail) {
     drawTrail(ctx, trail, p, r * 0.8, ink.ball);
-    drawGlow(ctx, p, r, ink);
-  } else if (t < script.settle) {
-    drawGlow(ctx, p, r * 0.8, ink, 0.7);
+    drawGlow(ctx, p, r * 0.7, ink);
+  }
+  // End for end it's the same ball: kept within a half turn, so the light stays on top.
+  const angle = spot.angle - Math.PI * Math.round(spot.angle / Math.PI);
+  const a = r * 1.5 * length;
+  const b = r * 0.9;
+  if (held && !trail) {
+    ctx.save();
+    ctx.translate(p.x, p.y + Math.max(r * 0.35, 0.8));
+    ctx.rotate(angle);
+    leather(ctx, r, length);
+    ctx.fillStyle = `rgb(0 0 0 / ${ink.dark ? 0.45 : 0.25})`;
+    ctx.fill();
+    ctx.restore();
   }
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(angle);
-  ellipse(ctx, 0, 0, r * 1.45 + 0.6, r * 0.92 + 0.6);
-  ctx.fillStyle = ink.ballEdge;
+  leather(ctx, r, length);
+  ctx.lineJoin = "miter";
+  ctx.strokeStyle = `rgb(255 255 255 / ${ink.dark ? 0.4 : 0.9})`;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.strokeStyle = `rgb(0 0 0 / ${ink.dark ? 0.6 : 0.5})`;
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+  const fill = ctx.createLinearGradient(0, -b, 0, b);
+  fill.addColorStop(0, rgba(hsb(0.07, 0.55, ink.dark ? 0.86 : 0.68), 1));
+  fill.addColorStop(1, rgba(hsb(0.045, 0.7, ink.dark ? 0.52 : 0.38), 1));
+  ctx.fillStyle = fill;
   ctx.fill();
-  ellipse(ctx, 0, 0, r * 1.45, r * 0.92);
-  ctx.fillStyle = rgba(hsb(0.06, 0.62, ink.dark ? 0.72 : 0.55), 1);
-  ctx.fill();
-  if (r > 2.6) {
-    ctx.beginPath();
-    ctx.moveTo(-r * 0.5, 0);
-    ctx.lineTo(r * 0.5, 0);
-    ctx.strokeStyle = "rgb(255 255 255 / 0.85)";
-    ctx.lineWidth = Math.max(r * 0.18, 0.6);
-    ctx.lineCap = "butt";
-    ctx.stroke();
+  // The laces along the top, stitched: a bare line would read as a minus sign.
+  const y = -b * 0.3;
+  ctx.strokeStyle = "rgb(255 255 255 / 0.92)";
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-a * 0.32, y);
+  ctx.lineTo(a * 0.32, y);
+  ctx.lineWidth = Math.max(r * 0.13, 0.5);
+  ctx.stroke();
+  ctx.beginPath();
+  for (const k of [-1, 0, 1]) {
+    const x = a * 0.21 * k;
+    ctx.moveTo(x, y - b * 0.28);
+    ctx.lineTo(x, y + b * 0.28);
   }
+  ctx.lineWidth = Math.max(r * 0.1, 0.45);
+  ctx.stroke();
   ctx.restore();
 }
 

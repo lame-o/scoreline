@@ -141,8 +141,9 @@ function PreviewStage({ tile, frozen }: { tile: Tile; frozen: number | null }) {
   const content = tile.event.content;
   const top = content.kind === "match" ? content.top : null;
   const bottom = content.kind === "match" ? content.bottom : null;
-  const palette = teamPalette(top?.color ?? null, bottom?.color ?? null, scheme);
   const kits = kitsOf({ color: top?.color ?? null, alternate: top?.alternateColor ?? null }, { color: bottom?.color ?? null, alternate: bottom?.alternateColor ?? null });
+  // What each side wears, as the page draws its marks (MatchColors.palette).
+  const palette = teamPalette(kits.top.color, kits.bottom.color, scheme);
   useEffect(() => {
     if (tile.moment && frozen == null) slot.offer([tile.moment]);
   }, [slot, tile.moment, frozen]);
