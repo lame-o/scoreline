@@ -372,11 +372,15 @@ function focusRow(row: HTMLElement | null): void {
 // MARK: - Latest plays, where to watch, the series
 
 export const LatestPlays = memo(function LatestPlays({ plays }: { plays: readonly RecentPlay[] }) {
+  // Commentary can say two lines about one play (a goal, then its assist): the newest is its row; the other stays plain text.
+  const seen = new Set<string>();
   return (
     <ul className={styles.plays}>
-      {plays.map((p, i) => (
-        <RecentPlayRow key={p.id ?? `${i}-${p.text}`} play={p} />
-      ))}
+      {plays.map((p, i) => {
+        const first = p.id != null && !seen.has(p.id);
+        if (p.id != null) seen.add(p.id);
+        return <RecentPlayRow key={first ? p.id! : `${i}-${p.text}`} play={first || p.id == null ? p : { id: null, text: p.text }} />;
+      })}
     </ul>
   );
 });

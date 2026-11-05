@@ -22,7 +22,7 @@
  *     <ReplaySlot row={row} replay={replay} />
  */
 import { AnimatePresence, m, type Variants } from "motion/react";
-import { lazy, Suspense, useEffect, useId, useRef, type ComponentType, type FocusEvent, type HTMLAttributes, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
+import { lazy, Suspense, useEffect, useId, useLayoutEffect, useRef, type ComponentType, type FocusEvent, type HTMLAttributes, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import { EASE_OUT, spring } from "../../../../design/motion";
 import type { PlayReplay, ReplayContext, ReplayRow } from "../../../../data/replays";
 import { useReducedMotion } from "../useMedia";
@@ -173,14 +173,15 @@ export function ReplaySlot({ row, open, id, inset = false, returnFocus }: { row:
   const ref = useRef<HTMLDivElement>(null);
   const custom: Unfold = { via: store?.via ?? "pointer", reduce };
   const wasOpen = useRef(open);
-  useEffect(() => {
-    if (wasOpen.current && !open && ref.current?.contains(document.activeElement)) returnFocus();
+  // Before the well leaves (its exit may be instant): a focus it held goes back to the row.
+  useLayoutEffect(() => {
+    if (wasOpen.current && !open && (store?.takeRefocus(id) || ref.current?.contains(document.activeElement))) returnFocus();
     wasOpen.current = open;
-  }, [open, returnFocus]);
+  }, [open, returnFocus, store, id]);
   return (
     <AnimatePresence initial={false} custom={custom}>
       {open ? (
-        <m.div key="replay" ref={ref} id={id} className={inset ? `${styles.slot} ${styles.inset}` : styles.slot} variants={UNFOLD} custom={custom} initial="closed" animate="open" exit="closed">
+        <m.div key="replay" ref={ref} id={id} data-replay-slot="" className={inset ? `${styles.slot} ${styles.inset}` : styles.slot} variants={UNFOLD} custom={custom} initial="closed" animate="open" exit="closed">
           <OpenWell row={row} via={custom.via} />
         </m.div>
       ) : null}
