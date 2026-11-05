@@ -62,6 +62,15 @@ export interface DetailMoment {
   readonly players?: readonly { readonly id: string; readonly name: string }[];
 }
 
+/**
+ * A line of the plays list, and the ESPN play it's about (null: a line of
+ * commentary with no play, "Match ends"). (GameDetail.RecentPlay)
+ */
+export interface RecentPlay {
+  readonly id: string | null;
+  readonly text: string;
+}
+
 export interface Football {
   readonly downDistance: string | null;
   /** Ball position, 0 = left (top team's) goal line, 100 = right goal line. */
@@ -220,7 +229,7 @@ export interface GameDetail {
   readonly stats: readonly Stat[];
   readonly linescore: Linescore | null;
   readonly moments: readonly DetailMoment[];
-  readonly recentPlays: readonly string[];
+  readonly recentPlays: readonly RecentPlay[];
   /** Win probability for the top competitor. */
   readonly topWinProbability: number | null;
   /** Chance of a draw (soccer), so it isn't folded into either side. */
@@ -253,6 +262,13 @@ export interface GameDetail {
    * lane has spoken (`theater()` in data/mlb/playScene.ts reads them).
    */
   readonly plays: readonly JSONValue[];
+  /**
+   * Baseball, live or not: every one of the summary's plays, from which the
+   * page builds its rows' replays (GameDetail.swift `replays`, built here on
+   * the Mac; the web builds them on the page, `replayReaders.ts`, so this
+   * layer never loads the theater's parser).
+   */
+  readonly replayPlays: readonly JSONValue[];
   /** Whether the top (first listed) team is at home; ESPN sports only. */
   readonly topIsHome: boolean | null;
   /** Player ID → short name ("Y. Diaz"), from the box score, so the live lane can name the batter and pitcher. */
@@ -324,6 +340,7 @@ export const EMPTY_DETAIL: GameDetail = {
   soccerRosters: {},
   soccerAdded: null,
   plays: [],
+  replayPlays: [],
   topIsHome: null,
   athleteNames: {},
   playerNames: {},
@@ -518,10 +535,11 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
   }
 
   let moments: DetailMoment[] = [];
-  let recentPlays: string[] = [];
+  let recentPlays: RecentPlay[] = [];
   let atBat: Pitch[] = [];
   let battedBallsList: BattedBall[] = [];
   let plays: readonly JSONValue[] = [];
+  let replayPlays: readonly JSONValue[] = [];
   const athleteNames: Record<string, string> = {};
   let basketball: Basketball | null = null;
   const soccerRosters: { top?: JSONValue; bottom?: JSONValue } = {};
@@ -546,11 +564,13 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
           const t = str(at(c, "text"));
           if (!t) return [];
           const time = str(at(c, "time", "displayValue")) ?? "";
-          return [time ? `${time}  ${t}` : t];
+          return [{ id: str(at(c, "play", "id")) ?? null, text: time ? `${time}  ${t}` : t }];
         });
       break;
     case "baseball": {
       plays = arr(at(summary, "plays"));
+      // The rows' plays, as the play theater would replay them (built on the page; Statcast's account joins them there).
+      replayPlays = plays;
       moments = plays
         .filter((p) => bool(at(p, "scoringPlay")) === true)
         .map((p, i) => ({
@@ -567,7 +587,10 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
         .filter((p) => str(at(p, "type", "type")) === "play-result")
         .slice(-4)
         .reverse()
-        .flatMap((p) => str(at(p, "text")) ?? []);
+        .flatMap((p) => {
+          const t = str(at(p, "text"));
+          return t == null ? [] : [{ id: str(at(p, "id")) ?? null, text: t }];
+        });
       atBat = currentAtBat(plays);
       battedBallsList = battedBalls(plays, side);
       for (const team of arr(at(summary, "boxscore", "players"))) {
@@ -623,7 +646,10 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
       recentPlays = arr(at(summary, "plays"))
         .slice(-4)
         .reverse()
-        .flatMap((p) => str(at(p, "text")) ?? []);
+        .flatMap((p) => {
+          const t = str(at(p, "text"));
+          return t == null ? [] : [{ id: str(at(p, "id")) ?? null, text: t }];
+        });
   }
 
   const playerNames: Record<string, string> = {};
@@ -652,7 +678,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
       baseball = b ? { ...b, runners: runners(at(summary, "situation"), athleteNames), runnerIDs: runnerIDs(at(summary, "situation")) } : null;
     }
     const last = str(at(s, "lastPlay", "text"));
-    if (recentPlays.length === 0 && last) recentPlays = [last];
+    if (recentPlays.length === 0 && last) recentPlays = [{ id: str(at(s, "lastPlay", "id")) ?? null, text: last }];
   }
 
   return {
@@ -677,6 +703,7 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     soccerRosters,
     soccerAdded,
     plays,
+    replayPlays,
     athleteNames,
     playerNames,
     people,

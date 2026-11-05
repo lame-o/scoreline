@@ -19,6 +19,7 @@ import { DetailSection } from "../core/DetailSection";
 import { MiniBases, OutDots } from "../core/DockedScorebar";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
 import { useCommonSections } from "../core/useCommonSections";
+import { useReplaySync } from "../core/replay/useReplaySync";
 import { BaseballDiamond } from "./BaseballDiamond";
 import { SprayChart } from "./SprayChart";
 import { StrikeZone } from "./StrikeZone";
@@ -103,6 +104,8 @@ export function useBaseballPage(game: GameContext): SportPage {
       : { top: String(feed.score.away), bottom: String(feed.score.home) };
   }, [live, detail.topIsHome, feed.score, event.content]);
 
+  // The rows' replays, built from the summary's plays (MLB's account joined where it has the play).
+  useReplaySync(game);
   const common = useCommonSections(game);
   const sections: Partial<Record<string, ReactNode>> = { ...common };
   const sectionWidth = game.split ? 320 : 380;

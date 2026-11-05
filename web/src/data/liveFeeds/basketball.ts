@@ -47,6 +47,7 @@ import {
   type Shot,
 } from "../basketball";
 import { clockReading } from "../clock";
+import type { RecentPlay } from "../gameDetail";
 import type { Fetcher } from "../http";
 import { arr, at, bool, str, type JSONValue } from "../json";
 import type { GameClock, Side } from "../models";
@@ -112,7 +113,7 @@ export class BasketballFeed {
   /** The newest plays as the court uses them, edits and deletions included: splice over the summary's with `mergePlays`. */
   plays: readonly CourtPlay[] = [];
   /** The last few plays, newest first ("Q3 4:12  …"). */
-  recentPlays: readonly string[] = [];
+  recentPlays: readonly RecentPlay[] = [];
   score: LiveScore | null = null;
   /** The period of the newest play, the one `score` is read from. */
   period: number | null = null;

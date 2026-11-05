@@ -1,0 +1,114 @@
+/*
+ * A play replayed under its row (ReplayWell.swift): the hover glyph kept in
+ * place on every row of a sport with an isometric view, the place under the
+ * row the well unfolds into, the well's frame and its control (the turn
+ * control's look, in the heartbeat's corner).
+ */
+
+/* The play glyph at the row's trailing edge: its place always kept; shown while the pointer's on a row that replays and isn't open. */
+.glyph {
+  flex: none;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: calc(10 * var(--pt));
+  height: calc(10 * var(--pt));
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--label-secondary);
+  opacity: 0;
+}
+
+.triangle {
+  width: calc(8 * var(--pt));
+  height: calc(8 * var(--pt));
+}
+
+/* On a row holding links, the glyph is the keyboard's way in: shown when focused. */
+.glyphButton {
+  border-radius: calc(3 * var(--pt));
+  cursor: default;
+}
+
+.glyphButton:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* Hover is instant, as a row's wash is. */
+  [data-replay="ready"]:hover > .glyph {
+    opacity: 1;
+  }
+}
+
+/* The place under the row: the space opens as the well is revealed from its top. */
+.slot {
+  overflow: hidden;
+}
+
+/* A list whose rows run 6pt past the column each side (their washes): the well stays in the column. */
+.inset {
+  padding-inline: calc(6 * var(--pt));
+}
+
+.pad {
+  padding: calc(8 * var(--pt)) 0 calc(4 * var(--pt));
+}
+
+/* While the well's chunk arrives: the same size, so nothing below it moves. */
+.placeholder {
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  max-height: calc(320 * var(--pt));
+  border-radius: calc(12 * var(--pt));
+  background: light-dark(rgb(0 0 0 / 0.045), rgb(0 0 0 / 0.45));
+}
+
+.well {
+  display: block;
+}
+
+/* The replay's control: plays it again. Shown once it holds as it ended (and whenever it has the keyboard's focus). */
+.again {
+  position: absolute;
+  bottom: 6px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.4);
+  color: rgb(255 255 255 / 0.85);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fade) var(--ease-out);
+}
+
+.again[data-corner="trailing"] {
+  right: 6px;
+}
+
+.again[data-corner="leading"] {
+  left: 6px;
+}
+
+.again[data-shown="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.again:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .again {
+    background: rgb(40 40 40);
+  }
+}
