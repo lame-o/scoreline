@@ -34,7 +34,7 @@
  * transaction per step); a hidden tab is the Mac asleep (`suspend`, `resume`):
  * nothing is scheduled while it's hidden, and coming back is a wake.
  */
-import { currentAtBat, battedBalls, type Baseball, type GameDetail, type Linescore, type SideOf } from "../gameDetail";
+import { currentAtBat, battedBalls, type Baseball, type GameDetail, type Linescore, type RecentPlay, type SideOf } from "../gameDetail";
 import { recentPlays as nbaRecentPlays } from "../basketball";
 import { at, int, str, type JSONValue } from "../json";
 import type { LiveMoment } from "../moments";
@@ -687,13 +687,16 @@ export class Broadcast implements BroadcastTheaterSource {
     return { index: 0, detail: this.tables[0]!.detail };
   }
 
-  /** The last plays, newest first, as each sport's page lists them, from the told plays. */
-  private recentPlays(d: GameDetail): string[] {
+  /** The last plays, newest first, as each sport's page lists them, from the told plays (each line with its play: a row's replay). */
+  private recentPlays(d: GameDetail): RecentPlay[] {
     const told = this.toldPlays;
-    const text = (p: JSONValue) => str(at(p, "text"));
+    const text = (p: JSONValue): RecentPlay[] => {
+      const t = str(at(p, "text"));
+      return t == null ? [] : [{ id: str(at(p, "id")) ?? null, text: t }];
+    };
     switch (this.sport) {
       case "basketball":
-        // The summary's lines carry no IDs on the web: before anything's told, they show only while the timeline knows no plays (Swift's `shows`).
+        // Before anything's told, the summary's lines show only while the timeline knows no plays (Swift's `shows`).
         if (told.length > 0) return nbaRecentPlays(told);
         return this.engine?.timeline.isEmpty !== false ? [...d.recentPlays] : [];
       case "baseball":
@@ -701,20 +704,16 @@ export class Broadcast implements BroadcastTheaterSource {
           .filter((p) => str(at(p, "type", "type")) === "play-result")
           .slice(-4)
           .reverse()
-          .flatMap((p) => text(p) ?? []);
+          .flatMap(text);
       case "football":
-        return told
-          .slice(-4)
-          .reverse()
-          .flatMap((p) => text(p) ?? []);
+        return told.slice(-4).reverse().flatMap(text);
       case "soccer": {
         // Commentary: rows with a play show once it's told; a line without one ("Match ends") once the game has ended.
         const all = d.allRecentPlays;
         return all
           .filter((r) => (r.id != null ? this.shows(r.id) : isFinal(this.presented)))
           .slice(-4)
-          .reverse()
-          .map((r) => r.text);
+          .reverse();
       }
       case null:
         return [...d.recentPlays];

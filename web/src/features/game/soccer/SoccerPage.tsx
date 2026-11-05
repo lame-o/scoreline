@@ -38,6 +38,7 @@ import { headline } from "../core/CommonSections";
 import { DetailSection } from "../core/DetailSection";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
 import { useCommonSections } from "../core/useCommonSections";
+import { useReplaySync } from "../core/replay/useReplaySync";
 import { SoccerTableWindow, useLeagueLive, useTableRows } from "../tables/GameTables";
 import { Pitch } from "./Pitch";
 import { PitchTheater } from "./theater/PitchTheater";
@@ -83,6 +84,8 @@ export function useSoccerPage(game: GameContext): SportPage {
 
   const playerRef = useMemo(() => (id: string, name: string) => espnPlayerRef(ref?.path ?? "soccer/all", id, name), [ref?.path]);
   const momentText = useMemo(() => soccerMomentText(playerRef), [playerRef]);
+  // The rows' replays: every shot and goal the lane has read, as the theater would replay it.
+  useReplaySync(game, { soccer: feed });
   // The timeline is every sport's (core/timeline/): soccer gives it the minute, for a match with only minutes to go on.
   const common = useCommonSections(game, { momentText, minute: live ? soccerMinute(event.detail) : null });
   const sectionWidth = game.split ? 320 : 380;

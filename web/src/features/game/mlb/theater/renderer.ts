@@ -14,6 +14,7 @@
  * - Between plays, a beat (a pitch, a visit, a change; playBeatScript.ts) or an idle move is drawn on its own
  *   clock from when the stage began it, the loop running only until it's over (at half the frame rate for an
  *   idle move: it's small and slow); with Reduce Motion, off screen or in a hidden tab it's drawn as it ends.
+ * - Off screen or in a hidden tab (PlayStage's `seen`), a replay draws no frames either: its end is still said on time.
  * - A pitch or a replay that comes in while the field between pitches is on screen takes over from it
  *   (`handoff`, theaterBridge.ts): each figure from where he is to his place as it begins, or a quick crossfade.
  */
@@ -95,6 +96,8 @@ export class TheaterRenderer {
   /** A name tag fading in or out: frames until then (performance.now(), ms). */
   private tagsUntil = 0;
   private wait: ReturnType<typeof setTimeout> | undefined;
+  /** A replay's end, while it runs unseen. */
+  private ending: ReturnType<typeof setTimeout> | undefined;
   private readonly observer: ResizeObserver;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -115,6 +118,8 @@ export class TheaterRenderer {
     this.frame = 0;
     clearTimeout(this.wait);
     this.wait = undefined;
+    clearTimeout(this.ending);
+    this.ending = undefined;
   }
 
   /** New inputs from React: decides whether a replay begins, a crossfade runs, or a still is redrawn. */
@@ -244,11 +249,14 @@ export class TheaterRenderer {
   }
 
   private moving(now: number): boolean {
-    const t = this.time(now);
-    if (Number.isFinite(t) && this.inputs?.frozen == null) return true;
-    // A beat that hasn't begun yet (its start a moment ahead) still waits on the loop.
-    const beat = this.beatShown(now);
-    if (beat && !this.inputs?.reduceMotion && !this.inputs?.paused && this.inputs?.frozen == null && now < beat.start) return true;
+    // Scrolled away or in a hidden tab, no frames for what plays (PlayStage's `seen`): its end still comes on time (`armEnd`).
+    if (!this.inputs?.paused) {
+      const t = this.time(now);
+      if (Number.isFinite(t) && this.inputs?.frozen == null) return true;
+      // A beat that hasn't begun yet (its start a moment ahead) still waits on the loop.
+      const beat = this.beatShown(now);
+      if (beat && !this.inputs?.reduceMotion && this.inputs?.frozen == null && now < beat.start) return true;
+    }
     if (this.fade && now - this.fade.start < CROSSFADE_MS) return true;
     if (this.bloom?.cue && (now - this.bloom.start) / 1000 < cueDuration(this.bloom.cue)) return true;
     return now < this.tagsUntil;
@@ -280,8 +288,25 @@ export class TheaterRenderer {
         this.bloom = null;
         // The last frame of a replay is the static scene.
         if (this.replay && !Number.isFinite(this.time(now))) this.replay = null;
+        this.armEnd(now);
       }
     });
+  }
+
+  /** A replay running unseen: its end is said when it comes, though no frame draws it (as PlayStage's timer marks `replay.done`). */
+  private armEnd(now: number): void {
+    clearTimeout(this.ending);
+    this.ending = undefined;
+    const r = this.replay;
+    const i = this.inputs;
+    if (!r || r.ended || !i?.paused || i.scene?.id !== r.id) return;
+    this.ending = setTimeout(
+      () => {
+        this.ending = undefined;
+        this.noteEnd(performance.now());
+      },
+      Math.max(r.start + (i.script.duration + 0.05) * 1000 - now, 0) + 10,
+    );
   }
 
   private palette(): CelebrationPalette {

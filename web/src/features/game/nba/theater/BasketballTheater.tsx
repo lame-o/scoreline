@@ -55,7 +55,6 @@ import { BasketballScript, Hoops } from "../../../../data/theater/basketballScri
 import { basketballBridge, basketballCast, BasketballCelebration, BasketballTheaterWatch, NO_PLAYS, type BasketballBurst } from "../../../../data/theater/basketballTheater";
 import type { RigTrack } from "../../../../data/theater/rig";
 import { beatLeft, bridgeTracks, type BridgePlan } from "../../../../data/theater/theaterBridge";
-import { TheaterDelays } from "../../../../data/theater/theaterDelays";
 import { theaterLabels, type HitFigure, type TheaterPerson } from "../../../../data/theater/theaterNames";
 import { useSettings } from "../../../../state/settings";
 import { useColorScheme } from "../../../../state/theme";
@@ -352,7 +351,6 @@ export default function BasketballTheater({
           },
         );
         handoff.current = { id: unit.scene.id, came, plan, script: rest, elapsed, tracks };
-        TheaterDelays.note(unit.scene.id, plan.delay);
       }
       runRef.current = next;
       setRun(next);

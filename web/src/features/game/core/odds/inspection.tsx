@@ -29,9 +29,13 @@ import { timeOf, type Domain, type MatchHistory } from "../../../../data/odds/hi
 import type { TimelineMark } from "../../../../data/odds/marks";
 import { OddsPointer, selectKeyPlay } from "../../../../data/odds/pointer";
 import { destination, type TimelinePeriod } from "../../../../data/odds/timeline";
+import { replayPlayOf, type ReplayRow } from "../../../../data/replays";
+import type { Section } from "../../../../data/sections";
 import { Icon, type IconName } from "../../../../design/components";
 import type { OddsFeed } from "../../../../state/odds";
 import { useLinkedStore, type Focus, type LinkedFocusStore } from "../linked";
+import { useReplayRow, useReplays } from "../replay/pageReplays";
+import { ReplayGlyph, ReplaySlot, useSlotID } from "../replay/ReplayRows";
 import { pointSize } from "../useMedia";
 import styles from "./Inspection.module.css";
 
@@ -290,13 +294,20 @@ function PinButton({ icon, title, label, enabled = true, onClick }: { icon: Icon
 }
 
 /**
- * What a pin offers, only while there is one: the way through the key plays,
- * and back to the latest (MatchPinControls; the Mac's replay button waits for
- * the web's per-row replays).
+ * What a pin offers, only while there is one: the play's replay (opened under
+ * the chart it was pinned on), the way through the key plays, and back to the
+ * latest (MatchPinControls). Letting go of the play closes the replay it
+ * opened here.
  */
-export function PinControls({ marks, range, pointer }: { marks: readonly TimelineMark[]; range: Domain | null; pointer: OddsPointer }) {
+export function PinControls({ marks, range, pointer, section }: { marks: readonly TimelineMark[]; range: Domain | null; pointer: OddsPointer; section: Section }) {
   const linked = usePinTarget();
   const held = usePointer(pointer, (p) => p.held);
+  const heldPlay = usePointer(pointer, (p) => p.heldPlay);
+  const replays = useReplays();
+  const replay = useReplayRow(heldPlay != null ? { section, play: replayPlayOf(heldPlay) } : null);
+  useEffect(() => {
+    if (replays?.open?.section === section) replays.close("pointer");
+  }, [heldPlay]); // eslint-disable-line react-hooks/exhaustive-deps
   if (held == null) return null;
   const chevron = (forward: boolean) => (
     <PinButton
@@ -308,11 +319,26 @@ export function PinControls({ marks, range, pointer }: { marks: readonly Timelin
   );
   return (
     <div className={styles.pin}>
+      {replay.replayable ? <ReplayGlyph replay={replay} button /> : null}
       {chevron(false)}
       {chevron(true)}
       <PinButton icon="arrowUturnBackward" title="Latest" label="Return to latest" onClick={() => pointer.clear(linked)} />
     </div>
   );
+}
+
+const noStore = () => () => {};
+
+/** A replay opened from a pinned play (PinControls), under the chart it was pinned on: the jump in the odds, then the play, without leaving them (SectionReplay). */
+export function SectionReplay({ section }: { section: Section }) {
+  const store = useReplays();
+  const id = useSlotID();
+  const open = useSyncExternalStore(store ? store.subscribe : noStore, () => (store?.open?.section === section ? store.open : null), () => null);
+  // The row as it was, while the well folds away.
+  const last = useRef<ReplayRow | null>(open);
+  if (open) last.current = open;
+  if (!store || !last.current) return null;
+  return <ReplaySlot row={last.current} open={open != null} id={id} returnFocus={() => {}} />;
 }
 
 /** While zoomed, the way back: the window's place in Win Probability's header (WholeGameLink). */

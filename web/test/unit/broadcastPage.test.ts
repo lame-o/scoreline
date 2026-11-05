@@ -106,7 +106,7 @@ describe("Broadcast: the page", () => {
     let d = b.presentDetail(summary([shot1, board, three], "45"), 1, side);
     shown = b.presentEvent(event);
     expect(scores(shown), "a second before its moment: not on the hero, not in Latest, no moment").toEqual(["0", "2"]);
-    expect(d.recentPlays[0]).toContain("Away defensive rebound");
+    expect(d.recentPlays[0]?.text).toContain("Away defensive rebound");
     expect(b.takeReleased()).toEqual([]);
     expect(Math.abs((d.topWinProbability ?? 0) - 0.55), "Win Probability is the last told play's (ESPN's per play)").toBeLessThan(1e-9);
     expect(d.stats[0]?.top, "the box score and stats are the summary p has passed (the newer waits for its watermark)").toBe("40");
@@ -115,7 +115,7 @@ describe("Broadcast: the page", () => {
     d = b.presentDetail(summary([shot1, board, three], "45"), 1, side);
     shown = b.presentEvent(event);
     expect(scores(shown), "at its moment the score changes").toEqual(["3", "2"]);
-    expect(d.recentPlays[0], "…and Latest and the key plays have it, together").toContain("Away makes 26-foot three");
+    expect(d.recentPlays[0]?.text, "…and Latest and the key plays have it, together").toContain("Away makes 26-foot three");
     expect(d.moments.map((m) => m.id)).toEqual(["p1", "p2", "p3"]);
     expect(Math.abs((d.topWinProbability ?? 0) - 0.7) < 1e-9 && d.stats[0]?.top === "45", "…and Win Probability and the tables").toBe(true);
     expect(b.takeReleased().map((m) => m.id), "…and its moment is released").toEqual(["p3"]);

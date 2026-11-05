@@ -16,7 +16,7 @@ import { pageKind } from "../../../../data/sections";
 import type { TeamPalette } from "../../../../data/teamColors";
 import { latestTick, useOddsSelect, type OddsFeed } from "../../../../state/odds";
 import { DetailSection } from "../DetailSection";
-import { measureEndLabel, usePointer, useUntil, type PresentedTime } from "../odds/inspection";
+import { measureEndLabel, SectionReplay, usePointer, useUntil, type PresentedTime } from "../odds/inspection";
 import type { GameContext } from "../sport";
 import { MatchTimeline, type TimelineScale } from "./MatchTimeline";
 
@@ -82,6 +82,8 @@ export function TimelineSection({ game, marks, feed, time, pointer, palette, min
         pointer={pointer}
         showsPinControls={standsAlone}
       />
+      {/* A replay opened from the pin, under the timeline (only when the timeline holds the pin's controls). */}
+      {standsAlone ? <SectionReplay section="timeline" /> : null}
     </DetailSection>
   );
 }

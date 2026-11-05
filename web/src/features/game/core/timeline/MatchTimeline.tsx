@@ -200,7 +200,7 @@ export const MatchTimeline = memo(function MatchTimeline({ marks, scale, topColo
       ) : null}
       {wall && showsPinControls ? (
         <div className={styles.pinRow}>
-          <PinControls marks={marks} range={wall.domain} pointer={pointer} />
+          <PinControls marks={marks} range={wall.domain} pointer={pointer} section="timeline" />
         </div>
       ) : null}
       {layout ? (

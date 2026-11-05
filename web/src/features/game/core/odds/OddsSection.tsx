@@ -38,7 +38,7 @@ import { useLinkedStore } from "../linked";
 import type { GameContext } from "../sport";
 import { heartbeatLabel } from "../theater/TheaterStatus";
 import { useReducedMotion } from "../useMedia";
-import { PinControls, textWidth, usePointer, useUntil, WholeGameLink, type PresentedTime } from "./inspection";
+import { PinControls, SectionReplay, textWidth, usePointer, useUntil, WholeGameLink, type PresentedTime } from "./inspection";
 import { OddsPlot } from "./OddsPlot";
 import styles from "./Odds.module.css";
 
@@ -133,6 +133,7 @@ export function OddsSection({ game, feed, time, pointer, marks, palette, seen }:
         <OddsHeader data={data} latest={latest} lines={lines} basis={basis} names={names} spoken={spoken} state={state} espnNow={basis.win.at(-1)?.top ?? detail.topWinProbability} pointer={pointer} marks={marks} width={width} />
         <OddsPlot data={data} lines={lines} pointer={pointer} marks={marks} spoken={spoken} live={endsLive(final, streaming, seen, reduce)} width={width} scheme={scheme} />
         <OddsFooter feed={feed} snapshot={snapshot} data={data} basis={basis} pointer={pointer} marks={marks} top={names.top} live={live} ticking={seen && streaming} />
+        <SectionReplay section="winProbability" />
       </div>
     </DetailSection>
   );
@@ -263,7 +264,7 @@ function OddsFooter({ feed, snapshot, data, basis, pointer, marks, top, live, ti
           </div>
         </ChartFooter>
       </div>
-      <PinControls marks={marks} range={data?.domain ?? null} pointer={pointer} />
+      <PinControls marks={marks} range={data?.domain ?? null} pointer={pointer} section="winProbability" />
     </div>
   );
 }

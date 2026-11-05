@@ -259,18 +259,19 @@ describe("between snaps", () => {
     expect(offense.every((p) => p.position(8.5).x > 0 === idle.bench > 0)).toBe(true);
     const status = FootballStatus.idle(idle, stop, s, 12, names, "3rd & 7 at DAL 9", { top: 3, bottom: 2 });
     expect(status).toEqual({ tag: "Timeout · Eagles · 2 left", tint: "06424d" });
-    const back = FootballStatus.idle(idle, stop, s, s.loop!.start + 1, names, "3rd & 7 at DAL 9", { top: 3, bottom: 2 });
-    expect(back.tag).toBe("Eagles ball · 3rd & 7");
+    // A timeout holds at the bench until a new play arrives.
+    const held = FootballStatus.idle(idle, stop, s, s.idleTime(300), names, "3rd & 7 at DAL 9", { top: 3, bottom: 2 });
+    expect(held.tag).toBe("Timeout · Eagles · 2 left");
   });
 
-  it("a TV timeout: the field empties to both sidelines, tagged COMMERCIAL BREAK; at 2:00, TWO-MINUTE WARNING", () => {
+  it("a TV timeout: the field empties to both sidelines, tagged OFFICIAL TIMEOUT; at 2:00, TWO-MINUTE WARNING", () => {
     const stop = stoppage("9229")!;
     const two = stoppage("1850")!;
     const idle = footballIdle({ play: null, stoppage: stop, rest, offense: "top", down: null, kickoff: false, flipped: false });
     const s = idleScript(idle);
     expect(idle.phase.kind).toBe("commercial");
     expect(s.players.filter((p) => p.team === "offense" || p.team === "defense").every((p) => Math.abs(p.position(8.5).x) > Gridiron.half - 25)).toBe(true);
-    expect(FootballStatus.idle(idle, stop, s, 12, names, null, noTimeouts).tag).toBe("Commercial break");
+    expect(FootballStatus.idle(idle, stop, s, 12, names, null, noTimeouts).tag).toBe("Official timeout");
     expect(FootballStatus.idle(idle, two, s, 12, names, null, noTimeouts).tag).toBe("Two-minute warning");
   });
 
@@ -288,15 +289,78 @@ describe("between snaps", () => {
     expect(flipped.phase).toEqual({ kind: "quarter", turnTo: -FieldFacing.yaw("bottom", 2, false) });
   });
 
-  it("halftime: both teams off, the field empty, HALFTIME", () => {
+  it("halftime: both teams off, the grounds crew out, HALFTIME", () => {
     const stop = stoppage("2292")!;
     const idle = footballIdle({ play: null, stoppage: stop, rest, offense: "top", down: null, kickoff: false, flipped: false });
     const s = idleScript(idle);
     expect(idle.phase.kind).toBe("off");
-    expect(s.players.every((p) => p.opacity(s.duration) < 0.01)).toBe(true);
+    expect(s.players.filter((p) => p.team !== "staff").every((p) => p.opacity(s.duration) < 0.01)).toBe(true);
     expect(s.ball(s.duration)).toBeNull();
     expect(FootballStatus.idle(idle, stop, s, 3, names, null, noTimeouts).tag).toBe("Halftime");
   });
+
+  // Every break the feed logs: into it once, then its quiet, the tag standing until the next play
+  // (GamePresentationRegressionTests.swift's on CLE at PIT; here on the same game's breaks as the rest of this file).
+  const longestStill = (beats: readonly (readonly [number, number])[], start: number, period: number): number => {
+    const inside = beats
+      .filter(([, b]) => b > start)
+      .map(([a, b]) => [Math.max(a, start), Math.min(b, start + period)] as const)
+      .sort((x, y) => x[0] - y[0]);
+    const first = inside[0];
+    const last = inside[inside.length - 1];
+    if (!first || !last) return period;
+    let longest = first[0] - start + (start + period - last[1]);
+    let end = first[1];
+    for (const beat of inside.slice(1)) {
+      longest = Math.max(longest, beat[0] - end);
+      end = Math.max(end, beat[1]);
+    }
+    return longest;
+  };
+  const breaks: [StoppageKind, string][] = [
+    ["official", "Official timeout"],
+    ["twoMinuteWarning", "Two-minute warning"],
+    ["halftime", "Halftime"],
+    ["endOfPeriod", "End of 1st"],
+    ["timeout", "Timeout"],
+  ];
+  for (const settled of [false, true]) {
+    for (const [kind, words] of breaks) {
+      it(`${kind}${settled ? " (already at the break)" : ""}: the way in plays once, then only its quiet goes round; the tag stands until the next play`, () => {
+        const stop = items.flatMap((i) => parseStoppage(i, teams) ?? []).find((s) => s.kind === kind && (kind !== "endOfPeriod" || s.period === 1))!;
+        expect(stop, `recorded break exists: ${kind}`).toBeDefined();
+        const idle = footballIdle({ play: null, stoppage: stop, rest: { yard: 35, gain: 45 }, offense: "top", down: null, kickoff: false, flipped: false, settled });
+        const s = idleScript(idle);
+        const loop = s.loop!;
+        expect(loop, "a break holds a quiet loop").not.toBeNull();
+        expect(loop.start).toBeGreaterThanOrEqual(8);
+        expect(loop.period).toBeGreaterThanOrEqual(30);
+        expect(s.idleTime(loop.start + loop.period * 3.5)).toBeGreaterThanOrEqual(loop.start);
+        const start = loop.start;
+        const end = loop.start + loop.period;
+        const settledAt = s.players.map((p) => p.position(start + 0.01));
+        // Nobody walks off again: a few steps from where he settled, at most, however long it lasts.
+        for (let t = start; t <= end + (end - start) * 3; t += 0.5) {
+          const u = s.idleTime(t);
+          s.players.forEach((p, i) => expect(Math.hypot(p.position(u).x - settledAt[i]!.x, p.position(u).y - settledAt[i]!.y)).toBeLessThan(13));
+        }
+        // The loop comes back to where it began.
+        s.players.forEach((p, i) => expect(Math.hypot(p.position(end - 0.01).x - settledAt[i]!.x, p.position(end - 0.01).y - settledAt[i]!.y)).toBeLessThan(0.5));
+        expect(longestStill(s.beats, loop.start, loop.period), "never still past about 8 s").toBeLessThanOrEqual(8.2);
+        const breakNames: StatusNames = { top: "Browns", bottom: "Steelers", topColor: null, bottomColor: null };
+        const tags = [0.5, 9, 40, 300, 1000].map((t) => FootballStatus.idle(idle, stop, s, s.idleTime(t), breakNames, "3rd & 7 at CLE 40", noTimeouts).tag ?? "");
+        expect(new Set(tags).size, tags.join(" | ")).toBe(1);
+        expect(tags[0]!.startsWith(words) && !tags[0]!.includes("ball") && !tags[0]!.includes("3rd & 7"), tags[0]).toBe(true);
+        expect(FootballStatus.changes(idle, s), "the tag never changes on its own").toEqual([]);
+        if (settled && kind !== "endOfPeriod") {
+          // Already there: nobody walks in from the field (a man at the bench from the start, or the half's field empty).
+          const men = s.players.filter((p) => p.team === "offense" || p.team === "defense");
+          if (kind === "halftime") expect(men.every((p) => p.opacity(0) < 0.01)).toBe(true);
+          else expect(men.filter((p) => Math.abs(p.position(0).x) > Gridiron.half - 25).length).toBeGreaterThan(0);
+        }
+      });
+    }
+  }
 
   it("Q.Mitchell hurt: a PHI man (the defense) down, two trainers out to him from the bench, helped off with them, tagged in the Eagles' color", () => {
     const i = items.find((x) => String(x.text ?? "").includes("Q.Mitchell was injured"))!;

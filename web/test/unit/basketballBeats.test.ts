@@ -446,7 +446,9 @@ describe("between plays", () => {
     const half = scenes.find((s) => s.kind === "periodEnd" && s.period === 2)!;
     const empty = restScript(restAfter(half, null, missBeat.lineup(missBeat.duration), flat, null));
     expect(empty.formation).toBe("offCourt");
-    expect(empty.players.every((p) => p.opacity(empty.duration) === 0)).toBe(true);
+    // The floor crew stays out (11de4c0: the Mac's check filters them the same way).
+    expect(empty.players.filter((p) => p.team !== "staff").every((p) => p.opacity(empty.duration) === 0)).toBe(true);
+    expect(empty.players.filter((p) => p.team === "staff").length).toBe(2);
   });
 
   it("the tag between plays: TIMEOUT · JAZZ, HALFTIME, SPURS BALL in the Spurs' color, FREE THROWS · JAZZ", () => {

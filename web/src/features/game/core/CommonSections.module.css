@@ -244,6 +244,10 @@
   .momentRow[role="button"] {
     cursor: default;
   }
+  /* Where rows replay, one that can't has no click to promise: it lights for a chart's mark, never for the pointer on it. */
+  .momentRow[data-quiet="true"]:hover {
+    background: transparent;
+  }
 }
 
 .momentClock {
@@ -329,6 +333,40 @@
   font-size: var(--text-callout);
   color: var(--label-secondary);
   text-wrap: pretty;
+}
+
+/* A line whose play replays: a row like a key moment's, its wash running 6pt past the text each side. */
+.playRow {
+  display: flex;
+  align-items: baseline;
+  gap: calc(8 * var(--pt));
+  margin: calc(-2 * var(--pt)) calc(-6 * var(--pt));
+  padding: calc(2 * var(--pt)) calc(6 * var(--pt));
+  border-radius: var(--radius-row);
+  outline-offset: calc(-2 * var(--pt));
+  transition: background-color var(--dur-fade) var(--ease-out);
+}
+
+.playText {
+  flex: 1;
+  min-width: 0;
+}
+
+.playRow[data-lit="true"] {
+  background: var(--fill-hover);
+}
+
+.playRow[data-pinned="true"] {
+  background: var(--accent-fill);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playRow:hover {
+    background: var(--fill-hover);
+  }
+  .playRow[role="button"] {
+    cursor: default;
+  }
 }
 
 /* MARK: Where to watch, the series */

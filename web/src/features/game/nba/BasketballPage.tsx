@@ -33,6 +33,7 @@ import { espnPlayerRef } from "../../profiles/ProfileLinks";
 import { DetailSection } from "../core/DetailSection";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
 import { useCommonSections } from "../core/useCommonSections";
+import { useReplaySync } from "../core/replay/useReplaySync";
 import { NBATableWindow, useLeagueLive, useTableRows } from "../tables/GameTables";
 import { Court } from "./Court";
 import { GameFlow } from "./GameFlow";
@@ -125,6 +126,8 @@ export function useBasketballPage(game: GameContext): SportPage {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [detail.linescore, live, broadcast, detail.topIsHome, feed.score, feed.period, feed.playing],
   );
+  // The rows' replays (the NBA's): the game's plays fetched once, the lane's newest over them while live.
+  useReplaySync(game, { basketball: feed });
   const common = useCommonSections(linescore === detail.linescore ? game : { ...game, detail: { ...detail, linescore } }, {
     // The live lane is a step ahead of the full refresh (broadcasting: the told plays).
     plays: live && !broadcast && feed.recentPlays.length > 0 ? feed.recentPlays : detail.recentPlays,
