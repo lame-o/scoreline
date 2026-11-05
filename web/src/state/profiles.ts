@@ -341,7 +341,8 @@ export interface PlayerView {
   readonly profile: PlayerProfile;
   /** MLB: the log in the player's other role, only when they've played it this season (two-way players). */
   readonly otherLog: GameLog | null;
-  readonly career: { readonly table: PlayerProfile["season"]; readonly loading: boolean; readonly failed: boolean };
+  /** `none`: ESPN answered that he has no career line yet (a 404, or a line with no stats): nothing to retry. */
+  readonly career: { readonly table: PlayerProfile["season"]; readonly loading: boolean; readonly failed: boolean; readonly none: boolean };
   readonly loaded: boolean;
   readonly failed: ReadonlySet<PlayerPart>;
   /** A first request is out (the error state's "Retrying…"). */
@@ -402,7 +403,8 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
     return h ? teamRef({ id: `espn-ncaaf-${coreTeamID}`, name: h.shortName, logo: h.logo, league: "college-football", color: h.color, alternateColor: h.alternateColor, abbreviation: h.abbreviation }) : null;
   }, [coreTeamID, espnPath]);
   const overview = useParsed(overviewQ!, (json) => espn.parseOverview(json, sport), [sport]);
-  const gameLog = useParsed(gameLogQ!, (json) => (espnPath ? espn.parseGameLog(json, espnPath, ref.position) : null), [espnPath, ref.position]);
+  const logPosition = espn.logPosition(ref.position, athlete, coreData);
+  const gameLog = useParsed(gameLogQ!, (json) => (espnPath ? espn.parseGameLog(json, espnPath, logPosition) : null), [espnPath, logPosition]);
   const leagueLeaders = useParsed(leagueLeadersQ!, espn.parseLeaders);
   const csPlayer = useParsed(csPlayerQ!, (json) => bo3.parsePlayer(json));
   const csGeneral = useParsed(csGeneralQ!, bo3.parseGeneral);
@@ -520,7 +522,14 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
     bio: withFotMob.bio ?? fallbackBio,
     profile: withFotMob,
     otherLog,
-    career: { table: careerTable, loading: careerQ.isLoading && !hasFailed(careerQ), failed: hasFailed(careerQ) },
+    // Web fix: a player yet to play (common on a college roster of 120) has no career: ESPN's 404 said "Couldn't
+    // load", and an empty line spun for good. (The Mac offers Show Career again.)
+    career: {
+      table: careerTable,
+      loading: careerQ.isLoading && !hasFailed(careerQ),
+      failed: hasFailed(careerQ) && !isAnswer(careerQ.error),
+      none: isAnswer(careerQ.error) || (careerQ.isSuccess && careerTable == null),
+    },
     loaded: primary.every(settled),
     failed,
     fetching: primary.some((q) => q.isFetching),

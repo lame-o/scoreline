@@ -1,0 +1,104 @@
+{
+ "_source": "https://site.web.api.espn.com/apis/common/v3/sports/football/college-football/athletes/5121892/overview",
+ "_recorded": "2026-11-05T03:14:03.026Z",
+ "statistics": {
+  "labels": [
+   "PUNTS",
+   "AVG",
+   "LNG",
+   "YDS",
+   "TB",
+   "TB%",
+   "IN20",
+   "IN20%",
+   "ATT",
+   "YDS",
+   "AVG",
+   "NET"
+  ],
+  "names": [
+   "punts",
+   "grossAvgPuntYards",
+   "longPunt",
+   "puntYards",
+   "touchbacks",
+   "touchbackPct",
+   "puntsInside20",
+   "puntsInside20Pct",
+   "puntReturns",
+   "puntReturnYards",
+   "avgPuntReturnYards",
+   "netAvgPuntYards"
+  ],
+  "splits": [
+   {
+    "displayName": "2026",
+    "stats": [
+     "19",
+     "45.1",
+     "54",
+     "856",
+     "1",
+     "5.26",
+     "7",
+     "36.84",
+     "6",
+     "35",
+     "5.8",
+     "42.2"
+    ]
+   },
+   {
+    "displayName": "2025",
+    "stats": [
+     "54",
+     "44.4",
+     "73",
+     "2,398",
+     "6",
+     "11.11",
+     "23",
+     "42.59",
+     "0",
+     "0",
+     "0.0",
+     "41.4"
+    ]
+   },
+   {
+    "displayName": "2024",
+    "stats": [
+     "26",
+     "42.7",
+     "53",
+     "1,111",
+     "1",
+     "3.85",
+     "11",
+     "42.31",
+     "0",
+     "0",
+     "0.0",
+     "39.1"
+    ]
+   },
+   {
+    "displayName": "2023",
+    "stats": [
+     "43",
+     "43.8",
+     "60",
+     "1,882",
+     "0",
+     "0.00",
+     "0",
+     "0.00",
+     "0",
+     "0",
+     "0.0",
+     "41.9"
+    ]
+   }
+  ]
+ }
+}

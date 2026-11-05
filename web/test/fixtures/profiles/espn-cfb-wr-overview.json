@@ -1,0 +1,70 @@
+{
+ "_source": "https://site.web.api.espn.com/apis/common/v3/sports/football/college-football/athletes/5159175/overview",
+ "_recorded": "2026-11-05T03:14:02.764Z",
+ "statistics": {
+  "labels": [
+   "REC",
+   "YDS",
+   "AVG",
+   "TD",
+   "LNG",
+   "CAR",
+   "YDS",
+   "AVG",
+   "TD",
+   "LNG",
+   "FUM",
+   "LST"
+  ],
+  "names": [
+   "receptions",
+   "receivingYards",
+   "yardsPerReception",
+   "receivingTouchdowns",
+   "longReception",
+   "rushingAttempts",
+   "rushingYards",
+   "yardsPerRushAttempt",
+   "rushingTouchdowns",
+   "longRushing",
+   "fumbles",
+   "fumblesLost"
+  ],
+  "splits": [
+   {
+    "displayName": "2026",
+    "stats": [
+     "73",
+     "1,027",
+     "14.1",
+     "13",
+     "53",
+     "4",
+     "61",
+     "15.3",
+     "0",
+     "30",
+     "0",
+     "0"
+    ]
+   },
+   {
+    "displayName": "2025",
+    "stats": [
+     "109",
+     "1,211",
+     "11.1",
+     "10",
+     "61",
+     "23",
+     "113",
+     "4.9",
+     "1",
+     "13",
+     "0",
+     "0"
+    ]
+   }
+  ]
+ }
+}
