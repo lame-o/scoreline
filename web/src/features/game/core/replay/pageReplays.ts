@@ -62,13 +62,25 @@ export class PageReplays {
     this.emit();
   }
 
-  /** Esc: whether there was a row to close. */
+  /** Esc: whether there was a row to close. A focus inside its well goes back to its row (`takeRefocus`). */
   close(via: ReplayVia = "keyboard"): boolean {
     const { opening, closed } = this.opening.close();
     if (!closed) return false;
+    const active = typeof document === "undefined" ? null : document.activeElement;
+    this.refocus = active?.closest("[data-replay-slot]")?.id ?? null;
     this.via = via;
     this.opening = opening;
     this.emit();
+    return true;
+  }
+
+  /** The slot (by its ID) whose well had the focus when Esc closed it. */
+  private refocus: string | null = null;
+
+  /** Whether `slot`'s well had the focus as it closed (said once). */
+  takeRefocus(slot: string): boolean {
+    if (this.refocus !== slot) return false;
+    this.refocus = null;
     return true;
   }
 
