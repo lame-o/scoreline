@@ -20,6 +20,8 @@ import { PitchClip, PitchIdleClips, PitchPlanner, PitchSequencer, PitchSport, ty
 import { soccerIdle, soccerIdleScript, SoccerStatus, type SoccerEvent, type SoccerEventKind, type SoccerTouch } from "../../src/data/theater/soccerIdle";
 import { isMoment } from "../../src/data/theater/soccerScene";
 import { MotionLimits } from "../../src/data/theater/theaterEngine";
+import { FrameScratch } from "../../src/data/theater/theaterFrameScratch";
+import { pitchFrame } from "../../src/features/game/soccer/theater/directedPitch";
 import type { TimelinePlay } from "../../src/data/theater/theaterSource";
 import { quantile } from "./theaterBenchMeter";
 import { runEngine } from "./theaterRun";
@@ -207,6 +209,30 @@ describe("the director on the recording", () => {
     expect([...run.decisive.keys()].sort()).toEqual([...moments].sort());
     const abs = r.decisiveErrors.map(Math.abs);
     expect(Math.max(0, ...abs), `max ${Math.max(0, ...abs)}`).toBeLessThanOrEqual(0.25);
+  });
+
+  it("the painter: the clip in charge's men where the engine has them, posed on its stride; the others in their own side's kit; the ball the world's", () => {
+    const chain = run.chain;
+    const scratch = new FrameScratch();
+    let drawnFrames = 0;
+    const T0 = chain.plans[0]!.start;
+    for (let T = T0; T < T0 + 25; T += 0.25) {
+      chain.sample(T, scratch);
+      const drawn = pitchFrame(chain, scratch, { width: 540, height: 270 });
+      if (!drawn) continue;
+      drawnFrames += 1;
+      const placement = chain.plans[scratch.plan]!.plan.placements[drawn.placement]!;
+      for (const [figure, w] of drawn.world.figures) {
+        expect(placement.cast[figure]).toBe(w.index);
+        const a = [...scratch.actors.slice(0, scratch.count)].find((x) => x.id === w.index)!;
+        expect(w.at).toEqual({ x: a.x, y: a.y });
+        expect(Number.isFinite(w.heading) && Number.isFinite(w.body.hip.z)).toBe(true);
+      }
+      for (const e of drawn.world.extras) expect(["attacking", "defending", "official", "staff"]).toContain(e.team);
+      expect(drawn.world.figures.size + drawn.world.extras.length).toBe(scratch.count);
+      if (scratch.ballKind === "none") expect(drawn.world.ball).toBeNull();
+    }
+    expect(drawnFrames).toBeGreaterThan(50);
   });
 
   it("the gates: no hard cuts, nobody outruns his legs for long, the planted foot holds", () => {
