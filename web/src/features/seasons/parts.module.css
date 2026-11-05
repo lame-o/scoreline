@@ -196,3 +196,40 @@
   flex-direction: column;
   gap: calc(6 * var(--pt));
 }
+
+/* The season card's Watch capsule (WatchCapsule): a quiet fill, red while the stream is live. */
+.watchCapsule {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  height: calc(26 * var(--pt));
+  padding: 0 calc(10 * var(--pt));
+  border-radius: 999px;
+  font-size: var(--text-callout);
+  font-weight: 600;
+  color: var(--label);
+  background: var(--fill-hover);
+  white-space: nowrap;
+  transition:
+    background var(--dur-fade) var(--ease-out),
+    opacity var(--dur-press) var(--ease-out);
+}
+
+.watchCapsule[data-live="true"] {
+  color: var(--live-text);
+  background: var(--live-pill);
+}
+
+.watchCapsule:active {
+  opacity: 0.6;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .watchCapsule:hover {
+    background: var(--fill-press);
+  }
+
+  .watchCapsule[data-live="true"]:hover {
+    background: var(--live-wash);
+  }
+}

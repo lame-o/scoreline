@@ -8,7 +8,10 @@
  * - MLB opens on the player's role and offers Batting | Pitching only to a
  *   two-way player (a starter's batting log is all-zero appearances);
  * - the hero photo is the hero-size crop, never the list's thumbnail;
- * - the glass bar docks as the hero scrolls away, without moving the page.
+ * - the glass bar docks as the hero scrolls away, without moving the page;
+ * - college: every leader named (ESPN's roster's first page stops at 100),
+ *   no "starters first" without a depth chart, the next game under its
+ *   league, and a receiver opened from his URL charting receiving yards.
  */
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
@@ -19,10 +22,12 @@ mkdirSync(OUT, { recursive: true });
 
 const PAGES = [
   { name: "team-nfl", path: "/team/espn-football-12", heading: /Kansas City Chiefs/, section: "Roster" },
+  { name: "team-college", path: "/team/espn-ncaaf-2390", heading: /Miami Hurricanes/, section: "Roster" },
   { name: "player-nba", path: "/player/nba-1966", heading: /LeBron James/, section: "This Season" },
   { name: "player-mlb-pitcher", path: "/player/mlb-33190", heading: /Tyler Glasnow/, section: "Game Log" },
   { name: "player-mlb-two-way", path: "/player/mlb-39832", heading: /Shohei Ohtani/, section: "Game Log" },
   { name: "player-nfl", path: "/player/nfl-3139477", heading: /Patrick Mahomes/, section: "Game Log" },
+  { name: "player-college", path: "/player/college-football-5159175", heading: /Malachi Toney/, section: "Game Log" },
   { name: "player-soccer", path: "/player/eng.1-280555", heading: /Bukayo Saka/, section: "All Competitions" },
   { name: "player-cs2", path: "/player/cs2-zywoo", heading: /ZywOo/, section: "Map Pool" },
 ] as const;
@@ -96,6 +101,21 @@ test.describe("profile rules", () => {
     await page.screenshot({ path: join(OUT, "player-nba-390-docked.png") });
     await page.locator('[class*="dockBar"]').click();
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  });
+
+  test("college: every leader, a truthful caption, the next game's league, a receiver's strip", async ({ page }) => {
+    await page.goto("/team/espn-ncaaf-2390");
+    const leaders = page.getByRole("region", { name: "Leaders" });
+    // The receiving and tackles leaders sit past ESPN's first 100 (by surname): the whole roster names them.
+    await expect(leaders.getByText("REC YDS")).toBeVisible({ timeout: 30_000 });
+    await expect(leaders.getByText("TACKLES")).toBeVisible();
+    // No depth chart in college: the caption doesn't promise starters first.
+    await expect(page.getByRole("region", { name: "Roster" }).getByText("Season totals.", { exact: true })).toBeVisible();
+    const next = page.getByRole("region", { name: /^(Next|Now|Last Game)$/ });
+    if (await next.count()) await expect(next.locator("a").first()).toHaveAttribute("href", /\?league=college-football$/);
+    // Opened from its URL (no position in the link): the bio's position picks the strip.
+    await page.goto("/player/college-football-5159175");
+    await expect(page.getByText("Receiving yards by game this season.", { exact: false })).toBeVisible({ timeout: 30_000 });
   });
 
   test("a roster row opens its player, and Back returns to the team", async ({ page }) => {

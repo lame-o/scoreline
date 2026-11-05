@@ -1,0 +1,25 @@
+{
+ "_source": "https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/athletes/4430604",
+ "_recorded": "2026-11-05T03:14:02.850Z",
+ "displayHeight": "6' 2\"",
+ "displayWeight": "235 lbs",
+ "jersey": "1",
+ "birthPlace": {
+  "city": "Pleasantville",
+  "state": "NJ",
+  "country": "USA"
+ },
+ "position": {
+  "displayName": "Linebacker",
+  "abbreviation": "LB"
+ },
+ "experience": {
+  "years": 4,
+  "displayValue": "Senior",
+  "abbreviation": "SR"
+ },
+ "displayName": "Mohamed Toure",
+ "team": {
+  "$ref": "http://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/2026/teams/2390?lang=en&region=us"
+ }
+}
