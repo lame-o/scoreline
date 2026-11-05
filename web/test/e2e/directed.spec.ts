@@ -161,3 +161,44 @@ test.describe("the field on the director", () => {
     expect(errors).toEqual([]);
   });
 });
+
+test.describe("the pitch on the director", () => {
+  for (const scheme of ["light", "dark"] as const) {
+    test(`draws the recording live, in ${scheme}`, async ({ page }) => {
+      const errors = watchErrors(page);
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.setViewportSize({ width: 1024, height: 900 });
+      await page.addInitScript(() => {
+        (window as unknown as { __theaterFrames: number[] }).__theaterFrames = [];
+      });
+      // Five minutes into Villa v City: the corners and the goal's build-up come in as the page watches.
+      await page.goto("/dev/theater/directed?sport=soccer&at=300&d=60");
+      await page.locator("[data-directed][data-theater='soccer'] canvas").waitFor();
+      await page.waitForTimeout(4000);
+      expect(await inked(page)).toBeGreaterThan(0.3);
+      await page.locator("[data-directed]").screenshot({ path: join(OUT, `directed-soccer-${scheme}.png`) });
+      expect(await frames(page)).toBeGreaterThan(0);
+      expect(errors).toEqual([]);
+    });
+  }
+
+  test("draws nothing scrolled away", async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.addInitScript(() => {
+      (window as unknown as { __theaterFrames: number[] }).__theaterFrames = [];
+    });
+    await page.goto("/dev/theater/directed?sport=soccer&at=300&d=60");
+    await page.locator("[data-directed] canvas").waitFor();
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => {
+      const spacer = document.createElement("div");
+      spacer.style.height = "4000px";
+      document.querySelector("main")?.prepend(spacer);
+      window.scrollTo(0, 0);
+    });
+    await page.waitForTimeout(500);
+    const before = await frames(page);
+    await page.waitForTimeout(2000);
+    expect(await frames(page)).toBe(before);
+  });
+});

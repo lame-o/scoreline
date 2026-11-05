@@ -38,6 +38,7 @@ import { credit, lineupsOn, minute, name, place, Pitch, playID, SoccerLineup, su
 import { string } from "./soccerEntries";
 import { Actor, Flight, PitchCamera, room, SoccerScript, type Role, type Team } from "./soccerScript";
 import { CameraFollow } from "./theaterKit";
+import { TheaterQuiet } from "./theaterQuiet";
 import { seed64, SplitMix64 } from "./splitMix64";
 
 // MARK: - Events
@@ -425,11 +426,15 @@ export function sameSoccerIdle(a: SoccerIdle | null, b: SoccerIdle | null): bool
   return a.seed === b.seed && a.possession === b.possession && a.homeRight === b.homeRight && a.ball.x === b.ball.x && a.ball.y === b.ball.y && a.lineups === b.lineups && a.event?.id === b.event?.id;
 }
 
-/** The pitch between moments (`SoccerScript(idle:)`): both elevens, an official for his act, and the beat. */
-export function soccerIdleScript(idle: SoccerIdle): SoccerScript {
+/**
+ * The pitch between moments (`SoccerScript(idle:)`): both elevens, an official
+ * for his act, and the beat. `bodies`: measure each man's stride (today's
+ * stage poses from it; the director measures its own).
+ */
+export function soccerIdleScript(idle: SoccerIdle, bodies = true): SoccerScript {
   const b = new IdleBuilder(idle);
   b.build();
-  b.script.measureBodies();
+  if (bodies) b.script.measureBodies();
   return b.script;
 }
 
@@ -728,7 +733,7 @@ class IdleBuilder {
           const from = random.in(3, 8);
           this.move(actor, { x, y }, from, random.in(9, 10));
         }
-        return [16, 12];
+        return [16, this.quiet(16)];
       }
       case "resume":
         return this.circulate(ball);
@@ -749,7 +754,13 @@ class IdleBuilder {
         script.ballGone = 2;
         const vanished = script.actors.map((a) => a.vanish).filter((v) => Number.isFinite(v));
         const end = vanished.length > 0 ? Math.max(...vanished) : 8;
-        return [end + 1, 0];
+        // The pitch at the break, the teams gone: a couple of the ground staff out on it.
+        const crew = [0, 1].map((k) => {
+          const man = this.add("staff", "groundsman", { x: Pitch.length * (k === 0 ? 0.3 : 0.68), y: Pitch.width * (k === 0 ? 0.32 : 0.7) });
+          script.actors[man]!.appear = end - 1;
+          return man;
+        });
+        return [end + 1, this.quiet(end + 1, crew)];
       }
     }
   }
@@ -999,7 +1010,32 @@ class IdleBuilder {
     this.focus.push({ from: 0, until: Infinity, actors: [hurt, ...physios], points: [down], closest: 14 });
     const ends = physios.flatMap((p) => script.actors[p]!.moves.at(-1)?.end ?? []);
     const arrive = ends.length > 0 ? Math.max(...ends) : 9;
-    return [arrive + 1, 10];
+    return [arrive + 1, this.quiet(arrive + 1, null, new Set([hurt]))];
+  }
+
+  /** A stoppage once it's set: its quiet (TheaterQuiet), from `start`. `crew`: who, if not the teams. Returns its period. */
+  private quiet(start: number, crew: readonly number[] | null = null, except: ReadonlySet<number> = new Set()): number {
+    const { script } = this;
+    const teams = this.everyone.map((m) => m.actor);
+    const who = (crew ?? teams).filter((i) => !except.has(i) && script.actors[i]!.holds.length === 0);
+    const quiet = TheaterQuiet.make(who, start, this.random);
+    for (const beat of quiet.beats) {
+      switch (beat.kind) {
+        case "step": {
+          const here = this.position(beat.man, beat.at);
+          this.move(beat.man, { x: here.x + beat.toward.x * 2.2, y: here.y + beat.toward.y * 1.8 }, beat.at, beat.at + TheaterQuiet.stride);
+          this.move(beat.man, here, beat.back, beat.back + TheaterQuiet.stride);
+          break;
+        }
+        case "knee":
+          this.hold(beat.man, "kneel", beat.at, beat.until);
+          break;
+        case "gesture":
+          this.hold(beat.man, "cardUp", beat.at, beat.until);
+          break;
+      }
+    }
+    return quiet.period;
   }
 
   /** The kick-off: each team in its own half, the ball on the spot, two of the side kicking off at it; the second half's with the ends changed. */
@@ -1123,7 +1159,7 @@ const joined = (parts: readonly (string | null)[]): string => parts.filter((p): 
 /**
  * The broadcast tag over the pitch (SoccerStatus): the team on the ball,
  * each event as it comes ("CORNER · ARSENAL", "FOUL · RICE", "YELLOW CARD ·
- * GUÉHI", "VAR CHECK"), the break ("HALF TIME"), and the added time once
+ * GUÉHI", "VAR CHECK"), the break ("HALF-TIME"), and the added time once
  * it's announced ("+4 ADDED"). (pure; tested)
  */
 export const SoccerStatus = {
@@ -1178,7 +1214,8 @@ export const SoccerStatus = {
       case "secondHalf":
         return { tag: "Second half", tint: null };
       case "halftime":
-        return { tag: "Half time", tint: null };
+        // One spelling, the hero's (PresentedGame.interval): extra time's break says so.
+        return { tag: e.period === 3 ? "Half-time, extra time" : "Half-time", tint: null };
       case "fullTime":
         return { tag: "Full time", tint: null };
     }
