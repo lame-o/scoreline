@@ -59,7 +59,7 @@ test.describe("the director's cost", () => {
       const cdp = await page.context().newCDPSession(page);
       if (throttle > 1) await cdp.send("Emulation.setCPUThrottlingRate", { rate: throttle });
       const events: { name: string; ph: string; dur?: number; tid: number; pid: number; args?: { name?: string } }[] = [];
-      cdp.on("Tracing.dataCollected", (e) => events.push(...(e.value as typeof events)));
+      cdp.on("Tracing.dataCollected", (e) => events.push(...(e.value as unknown as typeof events)));
       await page.evaluate(() => {
         (window as unknown as { __theaterFrames: number[] }).__theaterFrames.length = 0;
       });
