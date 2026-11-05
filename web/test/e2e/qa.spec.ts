@@ -203,7 +203,7 @@ test.describe("worst-case chart labels", () => {
     test(`team labels stay in their room at ${width}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/game/espn-999991?league=eng.1");
-      const timeline = page.locator("section", { has: page.getByRole("img", { name: /^Timeline/ }) });
+      const timeline = page.locator('[data-section="timeline"]');
       await expect(timeline).toBeVisible({ timeout: 15_000 });
       // The lanes' names end before the track starts.
       const track = (await timeline.locator("svg rect[class*='_track_']").boundingBox())!;
