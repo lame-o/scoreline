@@ -149,4 +149,13 @@ describe("the director on the recording", () => {
     expect(quantile(abs, 0.95), `p95 ${quantile(abs, 0.95)}`).toBeLessThanOrEqual(0.05);
     expect(Math.max(...abs), `max ${Math.max(...abs)}`).toBeLessThanOrEqual(0.25);
   });
+
+  it("deterministic: the same arrivals, the same plans, the same frames (the Mac's two runs, identical)", () => {
+    const short = (): string => {
+      const again = runEngine(GridSport, facts, arrivals, from, from + 240, 74, MotionLimits.football, "again", null, { ahead: AHEAD, rereads: true });
+      const a = again.report;
+      return JSON.stringify({ plans: again.plans, decisive: [...again.decisive], m: [a.frames, a.teleportMax, a.overSpeedSeconds, a.maxOverspeed, a.overAccelSeconds, a.rigSlipMax] });
+    };
+    expect(short()).toBe(short());
+  });
 });
