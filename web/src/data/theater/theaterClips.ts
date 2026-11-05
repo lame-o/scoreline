@@ -338,6 +338,20 @@ export const Splice = {
     known: ReadonlyMap<number, ActorID> | null = null,
     latest: number | null = null,
   ): Meeting {
+    return finish(Splice.meetSteps(clip, offset0, earliest, limits, ids, world, known, latest));
+  },
+
+  /** The same meeting, yielding through a late play's search for where to join (a web addition: the planner's slices). */
+  *meetSteps<Clip extends TheaterClip>(
+    clip: Clip,
+    offset0: PTime,
+    earliest: PTime,
+    limits: MotionLimits,
+    ids: ActorIDs,
+    world: (t: PTime) => SpliceMan[],
+    known: ReadonlyMap<number, ActorID> | null = null,
+    latest: number | null = null,
+  ): Generator<void, Meeting, void> {
     // Who plays whom, from the world at the earliest splice.
     const men = world(earliest);
     const cast: (ActorID | null)[] = new Array<ActorID | null>(clip.figures.length).fill(null);
@@ -424,6 +438,7 @@ export const Splice = {
           }
         }
         t += 0.1;
+        yield;
       }
     }
     let offset = offset0;
@@ -638,12 +653,12 @@ export const TheaterPlanner = {
       const guess = Math.max(earliest, anchor - 3);
       let clip = sequencer.clip(unit, guess, draft);
       const lead = (cl: Clip) => (cl.decisive != null ? cl.decisive - unit.lead : null);
-      let meeting = Splice.meet(clip, anchor - (clip.decisive ?? 0), earliest, limits, ids, men, null, lead(clip));
+      let meeting = yield* Splice.meetSteps(clip, anchor - (clip.decisive ?? 0), earliest, limits, ids, men, null, lead(clip));
       yield;
       if (unit.fromWorld && Math.abs(meeting.start - guess) > 0.3) {
         // It starts from the field as it stands when it begins: built from there.
         clip = sequencer.clip(unit, meeting.start, draft);
-        meeting = Splice.meet(clip, anchor - (clip.decisive ?? 0), earliest, limits, ids, men, null, lead(clip));
+        meeting = yield* Splice.meetSteps(clip, anchor - (clip.decisive ?? 0), earliest, limits, ids, men, null, lead(clip));
         yield;
       }
       // The field between plays the splice cuts before it began never plays.
