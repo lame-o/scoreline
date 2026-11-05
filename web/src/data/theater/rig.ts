@@ -479,6 +479,29 @@ export interface RigFeet {
 const F32 = (n: number) => new Float32Array(n);
 
 /**
+ * The stride as it stands at one instant (RigTrack.Carry, CHOREOGRAPHY
+ * §5.5.6): what a track spliced in there carries on from, so a splice never
+ * slides a planted foot or jumps a swinging one. Each foot's step under way
+ * (down where it was planted, its lift still to come; or in the air since it
+ * lifted), and for a foot in the air the landing it was going to.
+ */
+export interface RigCarry {
+  readonly phase: number;
+  readonly heading: number;
+  readonly speed: number;
+  readonly left: RigStep;
+  readonly right: RigStep;
+  readonly leftNext: RigStep | null;
+  readonly rightNext: RigStep | null;
+}
+
+/** Standing at `p`, facing `heading`: a figure that hasn't moved yet (`Carry.standing`). */
+export function standingCarry(p: Point, heading: number): RigCarry {
+  const step: RigStep = { land: -Infinity, lift: Infinity, at: p, heading, still: true };
+  return { phase: 0, heading, speed: 0, left: step, right: { ...step }, leftNext: null, rightNext: null };
+}
+
+/**
  * A script's ball, looked up once per instant while its figures are
  * measured (a web addition): every track samples the same 1/60 s grid, so
  * each figure that watches the ball asks for it at the same times.
@@ -540,29 +563,46 @@ export class RigTrack {
    * Measured from `start` through `end` (where it holds), for a figure
    * `height` tall at `position`, facing what `facing` says when it isn't
    * moving (or always).
+   *
+   * Or carrying on from another track's stride at `start` (a splice,
+   * CHOREOGRAPHY §5.5.6): its phase, heading and steps (`prior`), a planted
+   * foot left where it is and a swinging one landing where it was going to.
+   * `position` also answers for `history` seconds before `start` (the path
+   * just behind the splice), so the speed's smoothing reads the same there
+   * as the track it carries on from did.
    */
-  static measure(start: number, end: number, height: number, position: (t: number) => Point, facing: (t: number) => RigFacing | null): RigTrack {
+  static measure(
+    start: number,
+    end: number,
+    height: number,
+    position: (t: number) => Point,
+    facing: (t: number) => RigFacing | null,
+    history = 0,
+    prior: RigCarry | null = null,
+  ): RigTrack {
     const track = new RigTrack();
     track.start = start;
     track.end = end;
     track.height = height;
     const dt = 1 / RigTrack.rate;
     const n = Math.max(Math.ceil((end - start) * RigTrack.rate), 0);
+    const back = Math.max(Math.floor(history * RigTrack.rate), 0);
     const time = (i: number) => (i >= n ? end : start + i * dt);
     // Speed and direction from the path, then smoothed both ways (it's all known): a new move's jump in pace eases.
-    const raw = new Float64Array(n + 1);
-    const ways = new Float64Array(n + 1);
+    const raw = new Float64Array(n + 1 + back);
+    const ways = new Float64Array(n + 1 + back);
     const spots: Point[] = [];
-    let way = 0;
-    for (let i = 0; i <= n; i++) {
+    let way = prior?.heading ?? 0;
+    for (let k = 0; k <= n + back; k++) {
+      const i = k - back;
       const t = time(i);
       const a = position(t - dt / 2);
       const b = position(t + dt / 2);
-      spots.push(position(t));
+      if (i >= 0) spots.push(position(t));
       const d = Math.hypot(b.x - a.x, b.y - a.y);
-      raw[i] = d / dt / height;
+      raw[k] = d / dt / height;
       if (d / dt > 0.04 * height) way = Math.atan2(b.y - a.y, b.x - a.x);
-      ways[i] = way;
+      ways[k] = way;
     }
     const smoothed = (x: Float64Array, r: number): Float64Array => {
       if (!(r > 0) || x.length <= 2) return x;
@@ -579,24 +619,31 @@ export class RigTrack {
       }
       return out;
     };
-    const speeds = smoothed(raw, 5);
-    const slopes = new Float64Array(n + 1);
-    for (let i = 0; i <= n; i++) {
-      const hi = Math.min(i + 1, n);
+    const all = smoothed(raw, 5);
+    const last = all.length - 1;
+    const slopes = new Float64Array(all.length);
+    for (let i = 0; i <= last; i++) {
+      const hi = Math.min(i + 1, last);
       const lo = Math.max(i - 1, 0);
-      slopes[i] = (speeds[hi]! - speeds[lo]!) / ((hi - lo) * dt);
+      slopes[i] = (all[hi]! - all[lo]!) / ((hi - lo) * dt);
     }
-    const pushes = smoothed(slopes, 6);
-    // Their first look at what they face.
-    const first = facing(start);
+    const allPushes = smoothed(slopes, 6);
+    const speeds = all.subarray(back);
+    const pushes = allPushes.subarray(back);
+    const headings = ways.subarray(back);
+    // Their first look at what they face (or the heading carried on).
     let heading: number;
-    if (speeds[0]! > 0.3 && !(first?.always ?? false)) heading = ways[0]!;
-    else if (first) {
-      const p = first.point;
-      const s0 = spots[0]!;
-      heading = Math.hypot(p.x - s0.x, p.y - s0.y) > 1e-6 ? Math.atan2(p.y - s0.y, p.x - s0.x) : ways[0]!;
-    } else heading = ways[0]!;
-    let phase = 0;
+    if (prior) heading = prior.heading;
+    else {
+      const first = facing(start);
+      if (speeds[0]! > 0.3 && !(first?.always ?? false)) heading = headings[0]!;
+      else if (first) {
+        const p = first.point;
+        const s0 = spots[0]!;
+        heading = Math.hypot(p.x - s0.x, p.y - s0.y) > 1e-6 ? Math.atan2(p.y - s0.y, p.x - s0.x) : headings[0]!;
+      } else heading = headings[0]!;
+    }
+    let phase = prior?.phase ?? 0;
     track.heading = F32(n + 1);
     track.phase = F32(n + 1);
     track.speed = F32(n + 1);
@@ -609,7 +656,7 @@ export class RigTrack {
         // Turning: toward where it's going, else what it watches; quickly standing, wider at a sprint.
         const face = facing(t);
         let goal: number | null = null;
-        if (v > 0.3 && face?.always !== true) goal = ways[i]!;
+        if (v > 0.3 && face?.always !== true) goal = headings[i]!;
         else if (face) {
           const p = face.point;
           const s = spots[i]!;
@@ -641,9 +688,16 @@ export class RigTrack {
       [0, 0],
       [1, 0.5],
     ] as const) {
-      const steps: RigStep[] = [{ land: -Infinity, lift: Infinity, at: spots[0]!, heading: track.heading[0]!, still: false }];
-      let count = Math.floor(offset);
+      const carried = prior ? (side === 0 ? prior.left : prior.right) : null;
+      const landing = prior ? (side === 0 ? prior.leftNext : prior.rightNext) : null;
+      const steps: RigStep[] = [carried ? { ...carried } : { land: -Infinity, lift: Infinity, at: spots[0]!, heading: track.heading[0]!, still: false }];
+      let count = Math.floor(track.phase[0]! + offset);
       let down = true;
+      // A foot carried on in the air lands where it was going to; one carried down lifts when its share is up.
+      const fixed = new Set<number>(carried ? [0] : []);
+      if (carried && Number.isFinite(carried.lift) && carried.lift <= start) down = false;
+      else if (carried) steps[0]!.lift = Infinity;
+      let pending: RigStep | null = down || !landing ? null : { ...landing };
       for (let i = 1; i <= n; i++) {
         const a = track.phase[i - 1]! + offset;
         const b = track.phase[i]! + offset;
@@ -656,12 +710,25 @@ export class RigTrack {
         }
         if (!down && Math.floor(b) > count) {
           count = Math.floor(b);
-          steps.push({ land: when(count), lift: Infinity, at: { x: 0, y: 0 }, heading: 0, still: false });
+          if (pending) {
+            pending.lift = Infinity;
+            fixed.add(steps.length);
+            steps.push(pending);
+            pending = null;
+          } else {
+            steps.push({ land: when(count), lift: Infinity, at: { x: 0, y: 0 }, heading: 0, still: false });
+          }
           down = true;
         }
       }
+      // The landing carried on comes even if the new stride is slower to reach it.
+      if (pending) {
+        fixed.add(steps.length);
+        steps.push(pending);
+      }
       // Each foot lands under where the hips will be halfway through its time down; or where he stands, if he stops on it.
       for (let k = 0; k < steps.length; k++) {
+        if (fixed.has(k)) continue;
         const s = steps[k]!;
         const from = Math.ceil((Math.max(s.land, start) - start) * RigTrack.rate);
         const to = Math.floor((Math.min(s.lift, end) - start) * RigTrack.rate);
@@ -691,6 +758,91 @@ export class RigTrack {
     return track;
   }
 
+  /**
+   * This track from `start` until `until`, then `tail` (measured from
+   * `until` on, carrying this track's stride there): a bake keeping what
+   * the plan before had measured.
+   */
+  keeping(start: number, until: number, tail: RigTrack): RigTrack {
+    const out = new RigTrack();
+    out.height = this.height;
+    const a = Math.max(Math.round((start - this.start) * RigTrack.rate), 0);
+    const b = Math.min(Math.max(Math.round((until - this.start) * RigTrack.rate), a), this.count);
+    out.start = start;
+    out.end = tail.end;
+    const join = (mine: Float32Array, theirs: Float32Array): Float32Array => {
+      // (Swift's `samples[a..<b]` would trap were `a` past the end; here that slice is simply empty.)
+      const head = a < b ? mine.subarray(a, b) : mine.subarray(0, 0);
+      const joined = F32(head.length + theirs.length);
+      joined.set(head, 0);
+      joined.set(theirs, head.length);
+      return joined;
+    };
+    out.heading = join(this.heading, tail.heading);
+    out.phase = join(this.phase, tail.phase);
+    out.speed = join(this.speed, tail.speed);
+    out.push = join(this.push, tail.push);
+    out.weight = join(this.weight, tail.weight);
+    const steps = (mine: readonly RigStep[], theirs: readonly RigStep[]): RigStep[] => {
+      // From the step under way at `start` up to the one `tail` carries on (its first), then `tail`'s.
+      let first = 0;
+      for (let k = mine.length - 1; k >= 0; k--) {
+        if (mine[k]!.land <= start) {
+          first = k;
+          break;
+        }
+      }
+      const carried = theirs[0]?.land ?? Infinity;
+      let upTo = mine.findIndex((s) => s.land >= carried - 1e-9);
+      if (upTo < 0) upTo = mine.length;
+      return [...(first < upTo ? mine.slice(first, upTo) : []), ...theirs];
+    };
+    out.left = steps(this.left, tail.left);
+    out.right = steps(this.right, tail.right);
+    return out;
+  }
+
+  /** The stride at `t`, to carry on from (CHOREOGRAPHY §5.5.6). */
+  carry(t: number): RigCarry {
+    const s = this.sample(t);
+    const foot = (steps: readonly RigStep[]): [RigStep, RigStep | null] => {
+      if (steps.length === 0) return [{ land: -Infinity, lift: Infinity, at: { x: 0, y: 0 }, heading: s.heading, still: false }, null];
+      let lo = 0;
+      let hi = steps.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (steps[mid]!.land <= t) lo = mid;
+        else hi = mid - 1;
+      }
+      const step = { ...steps[lo]! };
+      if (!(t >= step.lift)) {
+        step.lift = Infinity;
+        return [step, null];
+      }
+      const next = steps[lo + 1];
+      return [step, next ? { ...next } : null];
+    };
+    const [left, leftNext] = foot(this.left);
+    const [right, rightNext] = foot(this.right);
+    return { phase: s.phase, heading: s.heading, speed: s.speed, left, right, leftNext, rightNext };
+  }
+
+  /** Whether each foot is down at `t` (between its landing and its lift). */
+  planted(t: number): { left: boolean; right: boolean } {
+    const down = (steps: readonly RigStep[]): boolean => {
+      if (steps.length === 0) return true;
+      let lo = 0;
+      let hi = steps.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (steps[mid]!.land <= t) lo = mid;
+        else hi = mid - 1;
+      }
+      return t < steps[lo]!.lift || lo + 1 >= steps.length;
+    };
+    return { left: down(this.left), right: down(this.right) };
+  }
+
   private sample(t: number): RigMotion {
     const count = this.count;
     if (count === 0) return { heading: 0, phase: 0, speed: 0, push: 0, weight: 0 };
@@ -713,6 +865,45 @@ export class RigTrack {
   /** The motion at t (t = ∞: how it ends). */
   motion(t: number): RigMotion {
     return this.sample(t);
+  }
+
+  /** The motion at t into `out` (a directed frame's sampler: no allocation), the same numbers as `motion`. */
+  motionInto(t: number, out: { heading: number; phase: number; speed: number; push: number; weight: number }): void {
+    const count = this.count;
+    if (count === 0) {
+      out.heading = 0;
+      out.phase = 0;
+      out.speed = 0;
+      out.push = 0;
+      out.weight = 0;
+      return;
+    }
+    let i: number;
+    let u = 0;
+    if (!(t > this.start)) i = 0;
+    else if (!(t < this.end) || count <= 1) i = count - 1;
+    else {
+      i = Math.min(Math.floor((t - this.start) * RigTrack.rate), count - 2);
+      const t0 = this.start + i / RigTrack.rate;
+      const t1 = i + 2 === count ? this.end : t0 + 1 / RigTrack.rate;
+      u = Math.fround(clamp((t - t0) / Math.max(t1 - t0, 1e-9), 0, 1));
+    }
+    const f = Math.fround;
+    if (u === 0 || i + 1 >= count) {
+      out.heading = this.heading[i]!;
+      out.phase = this.phase[i]!;
+      out.speed = this.speed[i]!;
+      out.push = this.push[i]!;
+      out.weight = this.weight[i]!;
+      return;
+    }
+    const h = this.heading[i]!;
+    const turn = f(remainder(f(this.heading[i + 1]! - h), 2 * Math.PI));
+    out.heading = f(h + f(turn * u));
+    out.phase = f(this.phase[i]! + f(f(this.phase[i + 1]! - this.phase[i]!) * u));
+    out.speed = f(this.speed[i]! + f(f(this.speed[i + 1]! - this.speed[i]!) * u));
+    out.push = f(this.push[i]! + f(f(this.push[i + 1]! - this.push[i]!) * u));
+    out.weight = f(this.weight[i]! + f(f(this.weight[i + 1]! - this.weight[i]!) * u));
   }
 
   /**

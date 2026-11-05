@@ -35,6 +35,7 @@ import { attacksRight, characters, crossbar, goalOf, lineupsOn, Pitch, scored, S
 import { ballMemo, Rig, RigTrack, type RigFacing } from "./rig";
 import type { BridgeFigure } from "./theaterBridge";
 import { CameraFollow, Pace } from "./theaterKit";
+import { MotionLimits } from "./theaterEngine";
 import { BIG_CHANCE_XG } from "../liveFeeds/soccer";
 import type { Side } from "../models";
 
@@ -343,8 +344,10 @@ export class SoccerScript {
    * The moment's replay, with everyone in both starting elevens when the
    * lineups are known, its build-up played `pace` times slower than laid
    * out. (`new SoccerScript()` is the pitch with nobody on it: no moment yet.)
+   * `bodies`: measure each man's stride (today's stage poses from it; the
+   * director measures its own).
    */
-  static build(scene: SoccerScene, lineups: Lineups = {}, pace: number = buildUpPace): SoccerScript {
+  static build(scene: SoccerScene, lineups: Lineups = {}, pace: number = buildUpPace, bodies = true): SoccerScript {
     const b = new Builder(scene, lineups);
     b.buildUp();
     b.strike();
@@ -359,7 +362,7 @@ export class SoccerScript {
     b.headline();
     b.measureStamp();
     b.shoot();
-    b.script.measureBodies();
+    if (bodies) b.script.measureBodies();
     return b.script;
   }
 
@@ -1021,7 +1024,11 @@ export class Builder {
     const landing = { x: (set.x + target.x) / 2, y: target.y - (dy >= 0 ? 1 : -1) * Math.min(Math.abs(dy) * 0.35, 1.1) };
     this.script.actors[this.keeper]!.dive = { start, reach: Math.max(reach, start + 0.12), target, landing };
     this.mark(this.keeper, start, set);
-    this.mark(this.keeper, reach + 0.32, landing, "out");
+    // His body springs out on the house ease-out (at first about 4.35 times its mean pace), never faster than a
+    // keeper goes: a long dive at a quick shot lands him a little later.
+    const travel = Math.hypot(landing.x - set.x, landing.y - set.y);
+    const quickest = (travel * 4.35) / (MotionLimits.soccer.band("keeper").sprint * 1.05);
+    this.mark(this.keeper, Math.max(reach + 0.32, start + quickest), landing, "out");
   }
 
   // MARK: Payoff

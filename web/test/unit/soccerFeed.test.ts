@@ -138,7 +138,7 @@ describe("the summary's key events", () => {
     expect(detail.moments.filter((m) => m.kind === "yellow")).toHaveLength(8);
     expect(detail.linescore).toBeNull();
     expect(detail.stats.find((s) => s.label === "Possession")?.top).toMatch(/%$/);
-    expect(detail.recentPlays[0]).toContain("Match ends");
+    expect(detail.recentPlays[0]?.text).toContain("Match ends");
   });
 });
 

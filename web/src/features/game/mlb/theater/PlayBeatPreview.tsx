@@ -153,7 +153,7 @@ function shots(g5: Plays, mlb: unknown, rain: unknown, g3: Plays, g2: { plays: u
   const between: Rest = { bases: [false, false, false], bats: null, swapped: false, fieldingHome: false };
   out.push({ name: "u08-rest", t: Infinity, side: "bottom", tag: "BOT 7TH · 1-2 · 2 OUTS", script: PlayScript.rest(busy), beat: null });
   const brush = idleScript("brush", between, 11n);
-  [0.55, 1.3].forEach((t, k) => out.push({ name: `u09-brush-${k + 1}`, t, side: "bottom", tag: "MIDDLE 5TH", script: brush, beat: null }));
+  [0.55, 1.3].forEach((t, k) => out.push({ name: `u09-brush-${k + 1}`, t, side: "bottom", tag: "MID 5TH", script: brush, beat: null }));
 
   // The beat harness (wave20).
   frames("01-called-strike", ...at((p, b) => p.call === "calledStrike" && b.bases?.includes(true) === true, (m) => [0.2, m.release - 0.08, m.release + 0.2, m.pop + 0.15, m.pop + 0.75, -0.3]));
@@ -210,7 +210,7 @@ function shots(g5: Plays, mlb: unknown, rain: unknown, g3: Plays, g2: { plays: u
     const s = idleScript(kind, field, 11n);
     const f = s.flights[0];
     const mid = f ? (f.start + f.end) / 2 : s.duration * 0.4;
-    out.push({ name: `31-idle-${kind}`, t: mid, side: "bottom", tag: field.bats == null ? "MIDDLE 5TH" : "BOT 7TH · 1-2 · 2 OUTS", script: s, beat: null });
+    out.push({ name: `31-idle-${kind}`, t: mid, side: "bottom", tag: field.bats == null ? "MID 5TH" : "BOT 7TH · 1-2 · 2 OUTS", script: s, beat: null });
   }
   return out;
 }
