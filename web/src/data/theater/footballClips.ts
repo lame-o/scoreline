@@ -437,6 +437,10 @@ export const GridSport: TheaterSport<GridClip, GridPlay, GridFacts> = {
     return TheaterPlanner.plan(new GridSequencer(plays, history, facts), history, chain, c, shift, deferFrom, revision, ids);
   },
 
+  planSteps(plays, history, facts, chain: PlanChain<GridClip>, c, shift, deferFrom, revision, ids: ActorIDs) {
+    return TheaterPlanner.planSteps(new GridSequencer(plays, history, facts), history, chain, c, shift, deferFrom, revision, ids);
+  },
+
   /** The snap's dead ball ~6 s (a line-up and the play); a kick's longer; the stoppages none (they attach late). */
   horizons: { snap: 6, kick: 8, penalty: 6 },
 };
