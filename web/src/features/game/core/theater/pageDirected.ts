@@ -10,7 +10,7 @@
  */
 import { useMemo, useSyncExternalStore } from "react";
 import type { Broadcast } from "../../../../data/broadcast/broadcast";
-import { stoppageOf } from "../../../../data/broadcast/presentedGame";
+import { isInterval, stoppageOf } from "../../../../data/broadcast/presentedGame";
 import type { BroadcastTheaterSource } from "../../../../data/broadcast/theaterSource";
 import type { TheaterCues } from "../../../../data/theater/theaterView";
 import { usePageBroadcastModel, useTheaterSource } from "../broadcast";
@@ -22,6 +22,8 @@ export interface Directed {
   readonly cues: TheaterCues | null;
   /** A game held up says so over anything else, in ESPN's words ("Rain Delay"): TheaterStatus.holding. */
   readonly holding?: string | null;
+  /** At a break as presented (the half, between periods): soccer's teams go off without waiting for ESPN's entry. */
+  readonly interval?: boolean;
 }
 
 /** What a held game says (TheaterStatus.holding: only the game's own status, never a timeout's words). */
@@ -32,10 +34,12 @@ export function heldWords(broadcast: Broadcast | null): string | null {
 
 const noSubscribe = () => () => {};
 
-/** The page's broadcast while it broadcasts (null: today's theater), with what a held game says. */
+/** The page's broadcast while it broadcasts (null: today's theater), with what a held game says and whether it's at a break. */
 export function usePageDirected(): Directed | null {
   const source = useTheaterSource();
   const broadcast = usePageBroadcastModel();
-  const holding = useSyncExternalStore(broadcast?.subscribe ?? noSubscribe, () => heldWords(broadcast), () => null);
-  return useMemo(() => (source ? { source, cues: null, holding } : null), [source, holding]);
+  const subscribe = broadcast?.subscribe ?? noSubscribe;
+  const holding = useSyncExternalStore(subscribe, () => heldWords(broadcast), () => null);
+  const interval = useSyncExternalStore(subscribe, () => (broadcast ? isInterval(broadcast.presented) : false), () => false);
+  return useMemo(() => (source ? { source, cues: null, holding, interval } : null), [source, holding, interval]);
 }

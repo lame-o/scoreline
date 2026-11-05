@@ -11,12 +11,13 @@
  *
  *     <SoccerDirected source={broadcast} cues={cues} homeTeamID="362" lineups={state.lineups} kits={kits} names={names} eventId={id} heard={state.heard} />
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { dress, type TheaterKits } from "../../../../data/mlb/theaterTeams";
+import type { SoccerFeed } from "../../../../data/liveFeeds/soccer";
 import type { Side } from "../../../../data/models";
 import { PitchSport, type PitchClip, type PitchFacts } from "../../../../data/theater/soccerClips";
 import { SoccerStatus, type SoccerNames, type SoccerStatusTag } from "../../../../data/theater/soccerIdle";
-import { lineupsOn, type Lineups } from "../../../../data/theater/soccerScene";
+import { lineupsOn, readLineups, type Lineups } from "../../../../data/theater/soccerScene";
 import { idleKeyMan, soccerCast } from "../../../../data/theater/soccerTheater";
 import { TheaterDirector } from "../../../../data/theater/theaterDirector";
 import { FrameScratch } from "../../../../data/theater/theaterFrameScratch";
@@ -30,7 +31,7 @@ import { RigLens } from "../../core/theater/rigFigure";
 import { TheaterFlipButton, TheaterHeartbeat, TheaterStatusTag, useTheaterFlip } from "../../core/theater/TheaterStatus";
 import type { Size } from "../../core/theater/theaterKit";
 import styles from "../../core/theater/TheaterWell.module.css";
-import { useDirected, useDirector } from "../../core/theater/useDirected";
+import { useCues, useDirected, useDirector, useHeard } from "../../core/theater/useDirected";
 import { useTheaterNames } from "../../core/theater/useTheaterNames";
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
@@ -39,7 +40,7 @@ import { drawPitch, drawSoccerFrame, layoutLabels, soccerProjection, type Labels
 
 export interface SoccerDirectedProps {
   readonly source: BroadcastTheaterSource;
-  readonly cues: TheaterCues | null;
+  readonly cues?: TheaterCues | null;
   /** The home (top) team's ESPN ID: the plays' frames turn on it. */
   readonly homeTeamID: string | null;
   /** Both starting elevens (the summary's rosters), with their changes. */
@@ -50,7 +51,7 @@ export interface SoccerDirectedProps {
   readonly eventId: string;
   readonly people?: Readonly<Record<string, TheaterPerson>>;
   /** When the lane last brought a play (epoch ms): the heartbeat counts from it. */
-  readonly heard: number | null;
+  readonly heard?: number | null;
   /** The match is at a break (the presented status says so): the teams go off without waiting for ESPN's entry. */
   readonly atBreak?: boolean;
   /** A match held up says so over anything else, in ESPN's words ("Weather delay"): TheaterStatus.holding. */
@@ -60,7 +61,9 @@ export interface SoccerDirectedProps {
 const NO_PEOPLE: Readonly<Record<string, TheaterPerson>> = {};
 const NO_STATUS: SoccerStatusTag = { tag: null, tint: null };
 
-export default function SoccerDirected({ source, cues, homeTeamID, lineups, kits, names, eventId, people = NO_PEOPLE, heard, atBreak = false, holding = null }: SoccerDirectedProps) {
+export default function SoccerDirected({ source, cues: givenCues = null, homeTeamID, lineups, kits, names, eventId, people = NO_PEOPLE, heard: givenHeard = null, atBreak = false, holding = null }: SoccerDirectedProps) {
+  const cues = useCues(givenCues);
+  const heard = useHeard(source, givenHeard);
   const canvas = useRef<HTMLCanvasElement>(null);
   const well = useRef<HTMLDivElement>(null);
   const stage = useRef<DirectedStage<PitchClip> | null>(null);
@@ -177,4 +180,14 @@ export default function SoccerDirected({ source, cues, homeTeamID, lineups, kits
       <TheaterFlipButton surface="pitch" flipped={flipped} onFlip={flip} />
     </div>
   );
+}
+
+/**
+ * On a game page (SoccerTheater.swift's `source.active` branch): the lane's
+ * rosters as the two elevens (`readLineups`, as today's theater reads them).
+ */
+export function SoccerDirectedLive({ feed, ...props }: Omit<SoccerDirectedProps, "lineups"> & { readonly feed: SoccerFeed }) {
+  const rosters = useSyncExternalStore(feed.subscribe, () => feed.rosters, () => feed.rosters);
+  const lineups = useMemo(() => readLineups(rosters), [rosters]);
+  return <SoccerDirected {...props} lineups={lineups} />;
 }
