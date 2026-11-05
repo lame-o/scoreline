@@ -6,16 +6,17 @@
  *   state and rounds won, the winner's crest at the end. The live map reads
  *   bo3.gg's snapshot, which knows the map being played before the match
  *   record does; its digits roll.
- * - `StreamList`: the co-streamer first when bo3.gg lists their channel,
- *   then bo3.gg's streams, official first, five at most, each with its
+ * - `StreamList`: the co-streamer first while they're showing the match
+ *   (bo3.gg lists their channel, or their Twitch title names it), then
+ *   bo3.gg's streams, official first, five at most, each with its
  *   platform's glyph; Twitch, YouTube and Kick only (data/cs2.ts).
  * - `RosterColumns`: the two lineups side by side, a hairline between: flag,
  *   nickname and real name, each row opening the player's page; the coach
  *   below.
- * - `CoStreamBadge`: "ohnePixel is co-streaming", under the hero.
+ * - `CoStreamBadge`: "ohnePixel is co-streaming", under the hero, with their avatar (design/components `CoStreamIcon`).
  */
 import { memo } from "react";
-import { Icon, LiveDot, ScoreDigits, TeamLogo } from "../../../design/components";
+import { CoStreamIcon, Icon, LiveDot, ScoreDigits, TeamLogo } from "../../../design/components";
 import { PLATFORM_NAME, platform, viewers, type CSPlayer, type Roster } from "../../../data/cs2";
 import type { MapResult, Stream } from "../../../data/gameDetail";
 import type { Competitor, CSLive } from "../../../data/models";
@@ -90,14 +91,14 @@ function MapRow({ map, final, live, top, bottom }: { map: MapResult; final: bool
 
 const PLATFORM_ICON = { twitch: "broadcast", youtube: "play", kick: "playFill" } as const;
 
-export const StreamList = memo(function StreamList({ streams, coStream }: { streams: readonly Stream[]; coStream: { name: string; url: string } | null }) {
+export const StreamList = memo(function StreamList({ streams, coStream }: { streams: readonly Stream[]; coStream: { name: string; url: string; avatar: string | null } | null }) {
   return (
     <ul className={styles.streams}>
       {coStream ? (
         <li>
           <a className={styles.stream} data-highlight="true" href={coStream.url} target="_blank" rel="noopener noreferrer" aria-label={`Twitch, ${coStream.name}, co-streaming. Opens in a new tab.`} title="Watch on Twitch">
             <span className={styles.streamIcon}>
-              <CoStreamIcon />
+              <CoStreamIcon avatar={coStream.avatar} size={16} />
             </span>
             <span className={styles.streamName}>{coStream.name}</span>
             <span className={styles.streamDetail}>Co-streaming</span>
@@ -126,21 +127,12 @@ export const StreamList = memo(function StreamList({ streams, coStream }: { stre
   );
 });
 
-/** The co-streamer's mark: a live glyph in a purple ring. (The Mac shows their Twitch avatar, read through decapi.me.) */
-function CoStreamIcon() {
-  return (
-    <span className={styles.coIcon} aria-hidden="true">
-      <Icon name="broadcast" size={9} />
-    </span>
-  );
-}
-
-/** "ohnePixel is co-streaming ↗", a glass capsule under the hero that opens their channel. */
-export function CoStreamBadge({ name, url }: { name: string; url: string }) {
+/** "ohnePixel is co-streaming ↗", a glass capsule under the hero that opens their channel (their avatar in a purple ring). */
+export function CoStreamBadge({ name, url, avatar }: { name: string; url: string; avatar: string | null }) {
   return (
     <div className={styles.badgeRow}>
       <a className={styles.badge} href={url} target="_blank" rel="noopener noreferrer" title="Watch on Twitch">
-        <CoStreamIcon />
+        <CoStreamIcon avatar={avatar} size={14} />
         {name} is co-streaming
         <Icon name="external" size={8.5} className={styles.arrow} />
       </a>

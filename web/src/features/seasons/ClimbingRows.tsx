@@ -153,7 +153,7 @@ export function ClimbingEventDetail({ event: e, countries, showsHeader = false, 
       ) : programmeless ? (
         <>
           <p className={styles.callout}>{categoriesLine(e)}</p>
-          <p className={styles.note}>Programme not published yet. Rounds appear about a week before.</p>
+          <p className={styles.note}>Programme not published yet. Rounds and stream times appear about a week before.</p>
         </>
       ) : (
         <>
@@ -209,12 +209,18 @@ function RoundLine({ round: r, wide, zone, place }: { round: SeasonEvent["rounds
       {r.categories.length > 0 ? <span className={styles.roundCats}>{r.categories.join(", ")}</span> : null}
       {date != null ? (
         <span className={styles.roundWhen}>
-          {timeFormat.format(date)}
+          <span className={styles.roundTime}>{timeFormat.format(date)}</span>
           {wide && zone && zone !== local ? ` · ${new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: zone }).format(date)} in ${place}` : ""}
         </span>
       ) : (
         <span className={styles.roundWhen}>{r.status === "finished" ? "Finished" : r.status === "active" ? "Underway" : "Time TBA"}</span>
       )}
+      {r.stream ? (
+        // World Climbing's stream for the round (ScheduleProvider.Streams): the Watch button.
+        <a className={styles.roundWatch} href={r.stream} target="_blank" rel="noopener noreferrer" title="Open the stream on YouTube" aria-label={`Watch ${capitalizedFirst(`${r.discipline} ${r.name.toLowerCase()}`)} on YouTube. Opens in a new tab.`}>
+          <Icon name="playOutline" size={12} />
+        </a>
+      ) : null}
     </p>
   );
 }

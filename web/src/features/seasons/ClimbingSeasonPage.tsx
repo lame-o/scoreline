@@ -9,8 +9,9 @@
  * lanes, categories and rounds are cut, a competition of only those is gone,
  * and nothing about them is fetched (`useClimbingSeasons`).
  *
- * Round times come from World Climbing's YouTube schedule on the Mac; the
- * web can't read it (not on the allowlist), so rounds say "Time TBA".
+ * Round times come from World Climbing's YouTube schedule once a competition
+ * is within the week, each timed round with its Watch button; while one is
+ * live, the season card offers its stream (`WatchCapsule`).
  */
 import { AnimatePresence, LayoutGroup, m } from "motion/react";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -25,7 +26,8 @@ import type { SchedulePageProps } from "../schedule/SchedulePage";
 import { ClimbingResultsPage } from "./ClimbingResults";
 import { ClimbingEventDetail, ClimbingEventRow, useReducedMotion } from "./ClimbingRows";
 import { useHoverStore } from "./hover";
-import { MonthLabel, SeasonFooter, SeasonSkeleton } from "./parts";
+import { MonthLabel, SeasonFooter, SeasonSkeleton, WatchCapsule } from "./parts";
+import { useStreams } from "../../state/streams";
 import { SeasonCard, SeasonDockBar, scrollToTop, scrollUnderBar, useSeasonDock } from "./SeasonCard";
 import { SeasonFrame, SplitColumns, stackIn, useArrival, useFocusOnArrival, useSeasonKeys, useSeasonWidth } from "./SeasonPage";
 import styles from "./rows.module.css";
@@ -57,6 +59,8 @@ function ClimbingUpcoming({ scope, mode, onMode, switched, crossfade }: Schedule
   const season = chosen && data.seasons.includes(chosen) ? chosen : (data.defaultSeason ?? data.seasons[data.seasons.length - 1] ?? null);
   const events = useMemo(() => (season ? (data.bySeason[season] ?? []) : []), [data.bySeason, season]);
   const live = data.events.find((e) => e.status === "live") ?? null;
+  // While a competition is live: World Climbing's stream on now or next (ClimbingSeasonPage.swift `watch`).
+  const stream = useStreams((s) => s.climbing);
   const next = nextEvent(data.events.filter((e) => e.status === "upcoming"), Date.now());
   const selected = events.find((e) => e.id === (selectedID ?? live?.id ?? next?.id)) ?? events[0] ?? null;
 
@@ -189,7 +193,7 @@ function ClimbingUpcoming({ scope, mode, onMode, switched, crossfade }: Schedule
       ) : (
         <>
           <div {...stackIn(entrance, 0)}>
-            <SeasonCard cardRef={cardRef} summary={summary} axis={axis} hover={hover} onSelect={(id) => select(id)} />
+            <SeasonCard cardRef={cardRef} summary={summary} axis={axis} hover={hover} onSelect={(id) => select(id)} accessory={live && stream ? <WatchCapsule url={stream.url} live={stream.isLive} /> : null} />
           </div>
           {split ? (
             <SplitColumns

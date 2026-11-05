@@ -204,6 +204,35 @@
   color: var(--label-secondary);
 }
 
+/* A round's time in your zone reads first; the venue's after it, quieter. */
+.roundTime {
+  font-weight: 500;
+  color: var(--label);
+}
+
+/* A round's Watch button (its YouTube stream): quiet until pointed at. */
+.roundWatch {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: calc(18 * var(--pt));
+  height: calc(18 * var(--pt));
+  margin: calc(-2 * var(--pt)) 0;
+  border-radius: calc(4 * var(--pt));
+  color: var(--label-secondary);
+  transition: color var(--dur-fade) var(--ease-out);
+}
+
+.roundWatch:active {
+  opacity: 0.6;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .roundWatch:hover {
+    color: var(--youtube);
+  }
+}
+
 .podiums {
   display: flex;
   flex-direction: column;

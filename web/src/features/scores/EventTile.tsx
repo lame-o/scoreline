@@ -18,6 +18,7 @@ import { teamPalette, washStrength, NEUTRAL, type TeamPalette } from "../../data
 import { FLAG_PALETTE } from "../../data/teams";
 import { useNow } from "../../state/clock";
 import { useIsPinned } from "../../state/pin";
+import { StreamMarks, useStreamWords } from "./StreamMarks";
 import { useColorScheme } from "../../state/theme";
 import { GameMenuHost } from "./GameMenu";
 import { textWidth } from "./measure";
@@ -52,12 +53,14 @@ function EventTileView(props: EventTileProps) {
   const palette = match ? teamPalette(match.top.color, match.bottom.color, scheme) : null;
   const reveal = revealDelay != null ? ({ className: styles.reveal, style: { animationDelay: `${revealDelay}s` } } as const) : null;
   const presentation = size === "large" ? (event.state === "live" ? "live" : "nextUp") : event.state === "live" ? "liveSmall" : "small";
+  const streaming = useStreamWords(event);
 
   const label = [
     spokenSummary(event, sport, now),
     pinned ? "In the tab" : null,
     event.content.kind === "field" && event.content.summary ? event.content.summary : null,
     ...(match ? [match.top, match.bottom].filter((c) => c.id && followed.includes(c.id)).map((c) => `Following ${c.name}`) : []),
+    streaming,
     event.state === "live" && event.liveLine && event.snapshot?.kind !== "football" && event.snapshot?.kind !== "baseball" ? event.liveLine : null,
     league?.name,
     stripMeaning(event),
@@ -163,6 +166,10 @@ function TileHeader({ event, league, large, stale, pinned, reveal }: { event: Sc
       <Icon name={league ? SPORT_ICON[league.sport] : "sportscourt"} size={9.5} />
       <span className={styles.league}>{name}</span>
       <span className={styles.headerSpacer} />
+      {/* Co-stream or YouTube before the pin (Tiles.swift TileHeader). */}
+      <span className={styles.streamMark}>
+        <StreamMarks event={event} tile />
+      </span>
       {pinned ? (
         <span className={styles.pin} title="Shown in the tab">
           <Icon name="pin" size={8.5} />

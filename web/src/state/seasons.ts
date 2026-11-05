@@ -68,11 +68,16 @@ import {
   tracked,
   tracking,
   wantsDetail,
+  wantsStreams,
   withDetail,
   withTournamentDetail,
   type SeasonList,
 } from "../data/seasons";
 import { climbingCountries } from "../data/scoreboard";
+import { CHANNEL_URL } from "../data/climbingBroadcast";
+import { getText } from "../data/http";
+import { attachStreams, parseStreamsPage, streamOffset, type StreamSlot } from "../data/youtube";
+import { useStreams } from "./streams";
 import { useNow } from "./clock";
 import { hasFailed, loadState, retrying } from "./retry";
 import { queryClient } from "./scores";
@@ -91,6 +96,8 @@ export const seasonKeys = {
   ifscEvent: (id: number) => ["seasons", "ifsc", "event", id] as const,
   ifscRegistrations: (id: number, countries: string) => ["seasons", "ifsc", "registrations", id, countries] as const,
   ifscCategory: (event: number, dcat: number) => ["seasons", "ifsc", "category", event, dcat] as const,
+  /** World Climbing's scheduled streams (YouTube's streams tab): the rounds' times. */
+  climbingStreams: ["seasons", "ifsc", "streams"] as const,
   csList: (status: string) => ["seasons", "cs2", "tournaments", status] as const,
   csTournament: (slug: string) => ["seasons", "cs2", "tournament", slug] as const,
   csFinished: ["seasons", "cs2", "finished"] as const,
@@ -163,6 +170,20 @@ function registrationsQuery(id: number, countries: readonly string[]) {
   };
 }
 
+/** World Climbing's scheduled streams; a page that isn't the channel's (a consent or bot check) is no answer. */
+async function fetchStreams({ signal }: { signal: AbortSignal }): Promise<StreamSlot[]> {
+  const slots = parseStreamsPage(await getText(CHANNEL_URL, { signal }));
+  if (!slots) throw new Error("World Climbing's streams page didn't answer (a consent or bot page)");
+  return slots;
+}
+
+/**
+ * The streams page's zone, last measured against the live page (youtube.ts
+ * `streamOffset`): kept for the session, so a round's time still reads right
+ * while a stream is on (the live page then names that one, not the next).
+ */
+let measuredOffset: number | null = null;
+
 /** The newest `dataUpdatedAt` of some queries, or null. */
 function updatedOf(queries: readonly { dataUpdatedAt: number }[]): number | null {
   const t = queries.reduce((m, q) => Math.max(m, q.dataUpdatedAt), 0);
@@ -190,7 +211,8 @@ export interface ClimbingSeasons {
 /**
  * Climbing's current and next seasons, with the detail (rounds, podiums,
  * your countries' registrations) of what's live or within two weeks, and of
- * any competition in `opened`. Shared by the climbing page and the All
+ * any competition in `opened`; within the week, the rounds' times and
+ * streams from World Climbing's YouTube schedule. Shared by the climbing page and the All
  * schedule (one cache entry per URL).
  */
 export function useClimbingSeasons(opened: readonly string[] = []): ClimbingSeasons {
@@ -215,8 +237,24 @@ export function useClimbingSeasons(opened: readonly string[] = []): ClimbingSeas
   const detailQueries = useQueries({ queries: wanted.map((e) => eventQuery(e, now)) });
   const registered = wanted.filter((e) => e.status !== "finished" && countries.length > 0);
   const registrationQueries = useQueries({ queries: registered.map((e) => registrationsQuery(climbingID(e) ?? 0, countries)) });
+  // Stream times for what's within the week (ScheduleStore.loadClimbingDetail): the page is about 1.3 MB, kept 30 minutes.
+  // A failed read keeps the times it had; it asks again when the page next needs it, never on a retry ladder.
+  const streamsQuery = useQuery({
+    queryKey: seasonKeys.climbingStreams,
+    queryFn: fetchStreams,
+    enabled: wanted.some((e) => wantsStreams(e, today)),
+    staleTime: 30 * MINUTE,
+    gcTime: 60 * MINUTE,
+    retry: false,
+    refetchOnWindowFocus: true,
+  });
+  const live = useStreams((s) => s.climbing);
+  const slots = streamsQuery.data;
+  const offset = slots ? streamOffset(slots, live) : null;
+  if (offset != null) measuredOffset = offset;
+  const zone = offset ?? measuredOffset;
 
-  const version = [seasonVersion, detailQueries.map((q) => q.dataUpdatedAt).join(","), registrationQueries.map((q) => q.dataUpdatedAt).join(",")].join("|");
+  const version = [seasonVersion, detailQueries.map((q) => q.dataUpdatedAt).join(","), registrationQueries.map((q) => q.dataUpdatedAt).join(","), streamsQuery.dataUpdatedAt, zone].join("|");
   const derived = useMemo(() => {
     const details = new Map<string, SeasonEvent>();
     wanted.forEach((e, i) => {
@@ -233,6 +271,8 @@ export function useClimbingSeasons(opened: readonly string[] = []): ClimbingSeas
       const r = regs.get(e.id);
       let out = d ? withDetail(d, e) : e;
       if (r) out = { ...out, registered: r };
+      // Rounds and their stream times (Streams.attach): once the rounds are known, within the week.
+      if (d && slots && wantsStreams(out, today)) out = attachStreams(slots, zone, out);
       return out;
     };
     const bySeason: Record<string, SeasonEvent[]> = {};

@@ -924,7 +924,20 @@
   width: calc(16 * var(--pt));
   display: grid;
   place-items: center;
-  color: light-dark(#e00000, #ff3b30);
+  color: var(--label-secondary);
+}
+
+/* The round's own stream: YouTube's red; live, its name and "Live now" stand out (StreamRow's highlight). */
+.watchIcon[data-stream="true"] {
+  color: var(--youtube);
+}
+
+.watchRow[data-live="true"] .watchName {
+  font-weight: 600;
+}
+
+.watchRow[data-live="true"] .watchDetail {
+  color: var(--live-text);
 }
 
 .watchName {

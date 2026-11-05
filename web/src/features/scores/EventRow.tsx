@@ -8,7 +8,9 @@
  * It's a link to the game, labeled with the game in words; it re-renders
  * only when its own game, highlight or selection changes. Its menu (follow,
  * pin to the tab, the teams' pages…) opens by right-click, long press, the
- * "…" on hover or Shift-F10 (GameMenu.tsx). A pinned game wears a pin.
+ * "…" on hover or Shift-F10 (GameMenu.tsx). A pinned game wears a pin;
+ * a CS2 match the co-streamer is showing, their avatar; a climbing round
+ * World Climbing is streaming live, YouTube's play mark (StreamMarks.tsx).
  */
 import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
@@ -24,6 +26,7 @@ import type { NavState } from "../../app/layout";
 import { GameMenuHost } from "./GameMenu";
 import { recordFits } from "./measure";
 import { TravelingLogo, travelID } from "./sections";
+import { mayStream, StreamMarks, useStreamWords } from "./StreamMarks";
 import styles from "./EventRow.module.css";
 
 export interface EventRowProps {
@@ -53,11 +56,13 @@ function EventRowView({ event, keyboard, selected, records, stale, revealDelay, 
   const soccer = sport === "soccer";
   const context = contextLine(event);
   const reveal = revealDelay != null ? { className: styles.reveal, style: { animationDelay: `${revealDelay}s` } as CSSProperties } : null;
+  const streaming = useStreamWords(event);
 
   const label = [
     spokenSummary(event, sport, now),
     pinned ? "In the tab" : null,
     ...event.content.kind === "match" ? [event.content.top, event.content.bottom].filter(isFollowed).map((c) => `Following ${c.name}`) : [],
+    streaming,
     event.state === "live" && event.liveLine ? event.liveLine : null,
     event.caption,
   ]
@@ -102,9 +107,15 @@ function EventRowView({ event, keyboard, selected, records, stale, revealDelay, 
         ) : null}
       </span>
       <span className={[styles.status, reveal?.className].filter(Boolean).join(" ")} style={reveal?.style} aria-hidden="true">
-        {pinned ? (
-          <span className={styles.statusLine} title="Shown in the tab">
-            <Icon name="pin" size={8.5} className={styles.pin} />
+        {pinned || mayStream(event) ? (
+          <span className={styles.statusLine}>
+            {/* Co-stream or YouTube, then the pin, then the status (EventRow.swift StatusView). */}
+            <StreamMarks event={event} />
+            {pinned ? (
+              <span className={styles.mark} title="Shown in the tab">
+                <Icon name="pin" size={8.5} className={styles.pin} />
+              </span>
+            ) : null}
             <span className={styles.statusStack}>
               <RowStatus event={event} stale={stale} />
             </span>

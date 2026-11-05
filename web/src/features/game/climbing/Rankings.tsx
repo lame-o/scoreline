@@ -11,7 +11,8 @@
  *   ▼1 for four seconds, and a row that climbed washes once in the accent.
  * - `RankingList`: the top 12, plus athletes from your countries placed
  *   lower, your countries highlighted. Live, the same chips and washes.
- * - `ClimbingWatch`: World Climbing's official YouTube channel.
+ * - `ClimbingWatch`: the round's own World Climbing stream on YouTube, live
+ *   or counting down, then the channel.
  *
  * Every row is a linked row: pointing at it lights that climber on the wall
  * and the scorecard; a click beside the name pins them (again, or Esc,
@@ -22,10 +23,12 @@ import { m } from "motion/react";
 import { Icon, LiveDot } from "../../../design/components";
 import { spring } from "../../../design/motion";
 import { boulderTotals, REACH_LABEL, type BoulderCard, type Problem } from "../../../data/climbing";
-import { ordinal } from "../../../data/format";
+import { CHANNEL_URL, type ClimbingBroadcast } from "../../../data/climbingBroadcast";
+import { countdown, dayAndTime, ordinal } from "../../../data/format";
 import type { Athlete } from "../../../data/gameDetail";
 import type { LiveMoment } from "../../../data/moments";
 import { countryName, flagFromIOC } from "../../../data/teams";
+import { useNow } from "../../../state/clock";
 import { useSettings } from "../../../state/settings";
 import { climberRef, linkNameClass, PlayerLink } from "../../profiles/ProfileLinks";
 import { useGoToPlayer } from "../../profiles/GoToMenu";
@@ -283,16 +286,16 @@ function RankRow({ athlete: a, mine, delta }: { athlete: Athlete; mine: boolean;
 // MARK: - Watch
 
 /**
- * World Climbing's official channel on YouTube. The Mac also finds the
- * round's own stream (live, or counting down) from the channel's `/live`
- * page; YouTube isn't on the web's upstream allowlist, so this links the
- * channel only. TODO(owner): YouTube on the allowlist for live-stream
- * detection (ClimbingBroadcast.swift).
+ * The round's own World Climbing stream, live or counting down, then the
+ * channel (DetailView.swift `ClimbingWatch`). The stream is the channel's
+ * `/live` page when its title covers this round (data/climbingBroadcast.ts,
+ * read by the shell's watcher); a final keeps the channel's replays only.
  */
-export function ClimbingWatch({ final }: { final: boolean }) {
+export function ClimbingWatch({ final, broadcast }: { final: boolean; broadcast: ClimbingBroadcast | null }) {
   return (
     <div className={styles.watch}>
-      <a className={styles.watchRow} href="https://www.youtube.com/@WorldClimbing/streams" target="_blank" rel="noopener noreferrer" aria-label={`World Climbing on YouTube, ${final ? "replays" : "all streams"}. Opens in a new tab.`}>
+      {broadcast && !final ? <BroadcastRow broadcast={broadcast} /> : null}
+      <a className={styles.watchRow} href={CHANNEL_URL} target="_blank" rel="noopener noreferrer" aria-label={`World Climbing on YouTube, ${final ? "replays" : "all streams"}. Opens in a new tab.`} title="Open youtube.com">
         <span className={styles.watchIcon}>
           <Icon name="play" size={12} />
         </span>
@@ -301,5 +304,23 @@ export function ClimbingWatch({ final }: { final: boolean }) {
         <Icon name="external" size={9} className={styles.arrow} />
       </a>
     </div>
+  );
+}
+
+/** "Lead semi-finals | Santiago 2026 · Live now", or "Starts in 25 min", ticking while it's within a day. */
+function BroadcastRow({ broadcast: b }: { broadcast: ClimbingBroadcast }) {
+  const near = !b.isLive && b.start != null && b.start - Date.now() < 86_400_000;
+  const now = useNow(30_000, near);
+  const soon = b.start != null ? countdown(b.start, now) : null;
+  const status = b.isLive ? "Live now" : b.start == null ? "Time TBA" : soon ? `Starts ${soon}` : dayAndTime(b.start, now);
+  return (
+    <a className={styles.watchRow} data-live={b.isLive} href={b.url} target="_blank" rel="noopener noreferrer" aria-label={`YouTube, ${b.title}, ${status}. Opens in a new tab.`} title="Open youtube.com">
+      <span className={styles.watchIcon} data-stream="true">
+        <Icon name="play" size={12} />
+      </span>
+      <span className={styles.watchName}>{b.title}</span>
+      <span className={styles.watchDetail}>{status}</span>
+      <Icon name="external" size={9} className={styles.arrow} />
+    </a>
   );
 }

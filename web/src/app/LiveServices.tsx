@@ -11,6 +11,8 @@
  * - Alerts for followed teams (Notifier.swift): each poll is compared with
  *   the last; a start, a score and a final each post one alert per game.
  *   A click (here, or through the service worker) opens the game.
+ * - What's streaming (state/streamWatch.ts): World Climbing's stream on
+ *   YouTube, and which live CS2 matches the co-streamer is showing.
  */
 import { alertsFor } from "../data/following";
 import { useEffect, useRef } from "react";
@@ -26,6 +28,7 @@ import { postAlert, useNotificationPermission } from "../state/notifications";
 import { pin, usePinnedID } from "../state/pin";
 import { useScoreboard } from "../state/scores";
 import { useSettings } from "../state/settings";
+import { useStreamWatch } from "../state/streamWatch";
 import { setFaviconScore } from "./favicon";
 import { setTitleScore } from "./useDocumentTitle";
 
@@ -40,6 +43,7 @@ export default function LiveServices() {
   const background = pinnedID != null || alerting || (scoreInTitle && followed.length > 0);
   const scores = useScoreboard({ poll: "auto", background });
   const now = useNow(60_000);
+  useStreamWatch(scores.results, scores.settings);
 
   // Every event once, in the user's league order (the first live followed game wins the title).
   const events = useRef<ScoreEvent[]>([]);

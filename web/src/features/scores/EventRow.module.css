@@ -328,3 +328,13 @@
   flex: none;
   color: var(--label-tertiary);
 }
+
+/* A stream mark beside the status (StreamMarks): the co-streamer's avatar, YouTube's live play mark. */
+.mark {
+  display: inline-flex;
+  flex: none;
+}
+
+.youtube {
+  color: var(--youtube);
+}
