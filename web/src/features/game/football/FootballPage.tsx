@@ -12,6 +12,12 @@
  * the hero's and the docked bar's (its 5-second readings tick only while the
  * clock really runs), and the bar shows the down and distance (red in the red
  * zone), the ball beside the team that has it, and 2-MIN DRILL.
+ *
+ * While the page broadcasts (BROADCAST.md §3), the field is the down,
+ * distance and spot after the last told play, the ball with the team that
+ * had it then (none in a break), the drive cut to what's told, and the
+ * 2-MIN DRILL read from the presented clock (data/broadcast/presentFootball.ts);
+ * the lane's looks feed the broadcast. The play theater keeps today's inputs.
  */
 import { useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { apRanks } from "../../../data/college";
@@ -30,6 +36,8 @@ import { FootballField } from "./FootballField";
 import { useNameLinker } from "./names";
 import { FieldTheater } from "./theater/FieldTheater";
 import styles from "./FootballPage.module.css";
+import { feedBroadcast } from "../core/broadcast";
+import { footballPossession, footballSituation } from "../../../data/broadcast/presentFootball";
 
 export function useFootballPage(game: GameContext): SportPage {
   const { event, detail, palette, live } = game;
@@ -66,8 +74,9 @@ export function useFootballPage(game: GameContext): SportPage {
   useFastLane(live && ref != null && teams != null, LANE_INTERVAL.standard, async (signal) => {
     if (!ref || !teams) return;
     const before = feed.score;
-    const shown = pointsShown(event);
-    await feed.update(getJSON, { path: ref.path, eventID: ref.id, teams, signal });
+    const shown = pointsShown(game.raw.event);
+    // The broadcast's lanes: the look at the plays (a tail of the game) or a read with nothing new, and the status.
+    await feedBroadcast(game.model, feed, () => feed.update(getJSON, { path: ref.path, eventID: ref.id, teams, signal }));
     game.moments.retract(feed.takeRetractions());
     game.moments.offer(feed.takeMoments());
     // A score: refresh the rest (the scoring list, the stats) now, not in half a minute. On the
@@ -78,10 +87,16 @@ export function useFootballPage(game: GameContext): SportPage {
     if (changed) game.refresh();
   });
 
-  // The lane's situation when it has spoken, else the scoreboard's (via the full load).
-  const situation: Football | null = live ? (feed.situation ?? detail.football) : null;
-  // Who has the ball: the lane first, then the situation, then the scoreboard.
-  const possession: Side | null = live ? (feed.possession ?? situation?.possession ?? boardPossession(event)) : null;
+  // The lane's situation when it has spoken, else the scoreboard's (via the full load): today's, which the theater keeps.
+  const today: Football | null = live ? (feed.situation ?? game.raw.detail.football) : null;
+  // Broadcasting: the down, distance and spot after the last told play; the ball with the team that had it then.
+  const broadcast = game.broadcast;
+  const situation: Football | null = live && broadcast && teams ? footballSituation(broadcast, teams, today) : today;
+  // Who has the ball: the lane first, then the situation, then the scoreboard (broadcasting: the last told play's, none in a break).
+  const possession: Side | null = live ? (broadcast && teams ? footballPossession(broadcast, teams) : (feed.possession ?? situation?.possession ?? boardPossession(event))) : null;
+  // The drive on the field, cut to what's told.
+  const told = broadcast?.presented;
+  const plays = useMemo(() => (broadcast ? feed.plays.filter((x) => broadcast.shows(x.id)) : feed.plays), [broadcast, feed.plays, told]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The lane's score, while it's ahead of the scoreboard (never behind it).
   const laneScores = useMemo(() => {
@@ -91,10 +106,10 @@ export function useFootballPage(game: GameContext): SportPage {
     return topIsHome ? { top: String(feed.score.home), bottom: String(feed.score.away) } : { top: String(feed.score.away), bottom: String(feed.score.home) };
   }, [live, topIsHome, feed.score, top, bottom]);
 
-  // Late and one score down with the ball: the 2-MIN DRILL (from the lane's clock, else the scoreboard's).
-  const clock = live ? (feed.gameClock ?? event.clock) : null;
-  const scoreTop = Number(laneScores?.top ?? top?.score);
-  const scoreBottom = Number(laneScores?.bottom ?? bottom?.score);
+  // Late and one score down with the ball: the 2-MIN DRILL (from the lane's clock, else the scoreboard's; broadcasting, p's).
+  const clock = live ? (broadcast ? event.clock : (feed.gameClock ?? event.clock)) : null;
+  const scoreTop = Number(broadcast ? top?.score : (laneScores?.top ?? top?.score));
+  const scoreBottom = Number(broadcast ? bottom?.score : (laneScores?.bottom ?? bottom?.score));
   const drill = clock != null && Number.isFinite(scoreTop) && Number.isFinite(scoreBottom) && twoMinuteDrill(clock.period, clock.seconds, possession, scoreTop, scoreBottom);
 
   // Players' names in the plays and scoring plays open their pages.
@@ -113,8 +128,9 @@ export function useFootballPage(game: GameContext): SportPage {
         accessory="live"
       >
         {/* The play theater, above the drive chart as on the Mac; it owns the burst (FootballCelebration.driveChartBursts). */}
-        <FieldTheater feed={feed} teams={teams} situation={situation} event={event} palette={palette} names={names} people={detail.people} />
-        <FootballField situation={situation} plays={feed.plays} names={names} spoken={spoken} palette={palette} possession={possession} twoMinuteDrill={drill} linkText={linkText} celebrates={false} />
+        {/* The theater keeps today's inputs (the lane's situation, the scoreboard's event) until the director reads the broadcast. */}
+        <FieldTheater feed={feed} teams={teams} situation={today ?? situation} event={game.raw.event} palette={palette} names={names} people={detail.people} />
+        <FootballField situation={situation} plays={plays} names={names} spoken={spoken} palette={palette} possession={possession ?? situation.possession} twoMinuteDrill={drill} linkText={linkText} celebrates={false} />
       </DetailSection>
     );
   }

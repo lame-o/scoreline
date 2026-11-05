@@ -12,7 +12,8 @@
  * final, climber by climber). See each section below.
  */
 import { setFetcherOverride, type Fetcher } from "./http";
-import { courtSoccerDemo, patchBoard, rememberOffsets, warm } from "./demoCourtSoccer";
+import { broadcastDemo, courtSoccerDemo, patchBoard, rememberOffsets, warm } from "./demoCourtSoccer";
+import { setBroadcastAvailable } from "./broadcast/switch";
 
 const files = import.meta.glob<{ default: unknown }>("../../test/fixtures/*.json");
 
@@ -800,6 +801,10 @@ export function installDemo(): boolean {
   if (params.has("climb")) sessionStorage.setItem("scoreline.demo.climb", params.get("climb") ?? "0");
   rememberOffsets(params);
   if (!asked && sessionStorage.getItem("scoreline.demo") !== "1") return false;
+  // The recorded plays carry their game's own wallclocks, days old: no presentation clock can present
+  // them live, so game pages show as they did before the broadcast, unless `&broadcast` restamps the
+  // NBA replay's plays onto the harness's clock (demoCourtSoccer.ts) and the page broadcasts it.
+  setBroadcastAvailable(broadcastDemo());
   setFetcherOverride(demo);
   void mlbReplay();
   void nflReplay();

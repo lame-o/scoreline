@@ -11,6 +11,10 @@
  * - Alerts for followed teams (Notifier.swift): each poll is compared with
  *   the last; a start, a score and a final each post one alert per game.
  *   A click (here, or through the service worker) opens the game.
+ * - While a game's page broadcasts (BROADCAST.md §3; state/presented.ts),
+ *   the tab shows that game as the page presents it, and its alerts come
+ *   from the page's presented changes, not the scoreboard's: nothing in the
+ *   tab strip or an alert spoils a play the page hasn't told yet.
  * - What's streaming (state/streamWatch.ts): World Climbing's stream on
  *   YouTube, and which live CS2 matches the co-streamer is showing.
  */
@@ -21,11 +25,12 @@ import { pollAlerts } from "../data/notifier";
 import { involvesFollowed } from "../data/scoreboard";
 import { scoreLine } from "../data/format";
 import type { ScoreEvent } from "../data/models";
-import { faviconScore, pinExpired, RECENT_FINAL_MS, tabEvent, tabTitle } from "../data/tabScore";
+import { alertsFollowPage, faviconScore, menuBar, pinExpired, RECENT_FINAL_MS, tabEvent, tabTitle } from "../data/tabScore";
 import { gameHref } from "../data/gameHref";
 import { useNow } from "../state/clock";
 import { postAlert, useNotificationPermission } from "../state/notifications";
 import { pin, usePinnedID } from "../state/pin";
+import { getPresentedEvent, usePresentedEvent } from "../state/presented";
 import { useScoreboard } from "../state/scores";
 import { useSettings } from "../state/settings";
 import { useStreamWatch } from "../state/streamWatch";
@@ -44,6 +49,8 @@ export default function LiveServices() {
   const scores = useScoreboard({ poll: "auto", background });
   const now = useNow(60_000);
   useStreamWatch(scores.results, scores.settings);
+  // The open page's presented copy of its game, while it broadcasts.
+  const presented = usePresentedEvent();
 
   // Every event once, in the user's league order (the first live followed game wins the title).
   const events = useRef<ScoreEvent[]>([]);
@@ -66,6 +73,8 @@ export default function LiveServices() {
     }
     if (!alerting) return;
     for (const alert of pollAlerts(before, all, e => alertsFor(e, prefs), at)) {
+      // While its page is open, the game's alerts follow what the page presents (state/presented.ts).
+      if (alertsFollowPage(alert.tag, getPresentedEvent())) continue;
       void postAlert(alert, { path: gameHref(alert.tag, scores.leagueOf(alert.tag)), open: (path) => navigate(path) });
     }
     // Only a change of data brings news; `alerting` is read as it is then.
@@ -77,16 +86,19 @@ export default function LiveServices() {
     for (const [id, at] of recentFinals.current) if (now - at > RECENT_FINAL_MS) recentFinals.current.delete(id);
     const pinned = pinnedID ? events.current.find((e) => e.id === pinnedID) : undefined;
     if (pinned && pinExpired(pinned, Date.now())) pin.clear();
-    const event = tabEvent(events.current, {
-      pinnedID,
-      isFollowed: (e) => involvesFollowed(scores.settings, e),
-      recentFinals: recentFinals.current,
-      scoreInTitle,
-      now: Date.now(),
-    });
+    const event = menuBar(
+      tabEvent(events.current, {
+        pinnedID,
+        isFollowed: (e) => involvesFollowed(scores.settings, e),
+        recentFinals: recentFinals.current,
+        scoreInTitle,
+        now: Date.now(),
+      }),
+      presented,
+    );
     setTitleScore(event ? { text: tabTitle(event), line: scoreLine(event, true) } : null);
     setFaviconScore(event ? faviconScore(event) : null);
-  }, [scores.results, scores.settings, pinnedID, scoreInTitle, now]);
+  }, [scores.results, scores.settings, pinnedID, scoreInTitle, now, presented]);
 
   useEffect(() => () => {
     setTitleScore(null);
