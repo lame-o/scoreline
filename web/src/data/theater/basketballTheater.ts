@@ -171,7 +171,7 @@ export function basketballCast(script: BasketballScript, scene: BasketballScene 
   const offense: Side = script.side ?? scene?.offense ?? "top";
   const members = new Map<number, CastMember>();
   script.players.forEach((player, i) => {
-    if (player.team === "official") return;
+    if (player.team === "official" || player.team === "staff") return;
     const side = player.team === "offense" ? offense : opposite(offense);
     const credit = script.credits.get(i) ?? null;
     const named = credit ? ((credit.id != null ? people[credit.id] : undefined) ?? (credit.name.length > 0 ? theaterPerson(credit.name, credit.name) : null)) : null;

@@ -483,7 +483,8 @@ function truth(v: JSONValue): boolean | null {
   return null;
 }
 
-const typeOf = (play: JSONValue) => int(at(play, "type", "id"));
+/** A play's type ID (`JSON.int`: a number or a numeric string). */
+export const typeOf = (play: JSONValue) => int(at(play, "type", "id"));
 const periodOf = (play: JSONValue) => int(at(play, "period", "number"));
 const clockOf = (play: JSONValue) => string(at(play, "clock", "displayValue"));
 const teamOf = (play: JSONValue) => string(at(play, "team", "id"));
