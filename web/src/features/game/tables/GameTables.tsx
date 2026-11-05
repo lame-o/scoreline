@@ -8,19 +8,26 @@
  *   when the table has a wide column to itself), within their group.
  * - The NBA (`NBATableWindow`): each team's conference two seeds either side,
  *   with the play-in and lottery lines.
+ * - College (`CollegeTableWindow`, College.swift `ConferenceTable`): each
+ *   team's conference ranked by conference record with the season's
+ *   alongside, one place either side (two with a wide column to itself), AP
+ *   ranks before names, a live score beside any team playing now; Full
+ *   Standings and Top 25.
  *
- * Both read the scoreboard without polling it (the sidebar or the page
- * already polls), and the standings query the standings pages share.
+ * Each reads the scoreboard without polling it (the sidebar or the page
+ * already polls), and the standings query the standings pages share; each
+ * ends in the same "Full Table ›" / "Full Standings ›" link.
  */
-import { memo, useMemo } from "react";
+import { memo, useMemo, useRef } from "react";
 import { Link } from "react-router";
 import { Icon } from "../../../design/components";
 import { isKnockout, type League, type ScoreEvent } from "../../../data/models";
-import { liveTable, nbaWindow, projectNBA, widthClassOf, type LiveStandingsRow, type StandingsRow } from "../../../data/standings";
-import { standingsPath } from "../../../data/schedule";
+import { collegeWindow, liveScores, liveTable, nbaWindow, projectNBA, widthClassOf, type LiveStandingsRow, type StandingsRow } from "../../../data/standings";
+import { rankingsPath, standingsPath } from "../../../data/schedule";
+import { useWidth, WIDTH } from "../../../design/useWidth";
 import { useScoreboard } from "../../../state/scores";
 import { useStandings } from "../../../state/standings";
-import { HighlightWord, NBAStandingsTable, StandingsTable } from "../../standings/Tables";
+import { ConferenceTable, HighlightWord, NBAStandingsTable, StandingsTable } from "../../standings/Tables";
 
 /** The highlighted rows on a game page are the two teams playing, not necessarily yours. */
 const inThisMatch = () => "in this match";
@@ -120,3 +127,29 @@ export const NBATableWindow = memo(function NBATableWindow({ rows, live, ids }: 
     </DetailSection>
   );
 });
+
+/** College's conference table (DetailView.swift `.table` for college): the conference window, then Full Standings and Top 25. */
+export function CollegeTableWindow({ rows, ids, ranks, leagueID }: { rows: readonly StandingsRow[]; ids: readonly (string | null)[]; ranks: Readonly<Record<string, number>>; leagueID: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const width = useWidth(box, 360);
+  const highlight = useMemo(() => new Set(ids.filter((id): id is string => id != null)), [ids]);
+  // Two places either side when the table has a wide column to itself (more of the race around them), else one.
+  const reach = width >= WIDTH.xlarge ? 2 : 1;
+  const shown = useMemo(() => collegeWindow(rows, highlight, reach), [rows, highlight, reach]);
+  // Teams playing now, from the scores the sidebar (or this page) already polls.
+  const events = useScoreboard({ poll: false }).results[leagueID]?.events;
+  const live = useMemo(() => liveScores(events ?? []), [events]);
+  return (
+    <DetailSection id="table" title="Conference" caption="Ranked by conference record; season record alongside.">
+      <div ref={box}>
+        <HighlightWord.Provider value={inThisMatch}>
+          <ConferenceTable group={shown[0]?.group ?? ""} rows={shown} highlight={highlight} ranks={ranks} live={live} width={widthClassOf(width)} />
+        </HighlightWord.Provider>
+      </div>
+      <div className={styles.links}>
+        <FullTableLink to={standingsPath(leagueID, ids)} label="Full Standings" />
+        <FullTableLink to={rankingsPath(leagueID)} label="Top 25" />
+      </div>
+    </DetailSection>
+  );
+}

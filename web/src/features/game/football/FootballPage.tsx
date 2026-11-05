@@ -14,8 +14,6 @@
  * zone), the ball beside the team that has it, and 2-MIN DRILL.
  */
 import { useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
-import { Link } from "react-router";
-import { Icon } from "../../../design/components";
 import { apRanks } from "../../../data/college";
 import type { DetailMoment, Football } from "../../../data/gameDetail";
 import { getJSON } from "../../../data/http";
@@ -23,12 +21,11 @@ import { leagueWithID } from "../../../data/leagues";
 import { FootballFeed, twoMinuteDrill, type FootballTeams } from "../../../data/liveFeeds/football";
 import { Accessory, downAndSpot, type AccessoryTier } from "../../../data/matchRules";
 import type { ScoreEvent, Side } from "../../../data/models";
-import { rankingsPath, standingsPath } from "../../../data/schedule";
 import { useRankings, useStandings } from "../../../state/standings";
 import { DetailSection } from "../core/DetailSection";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
 import { useCommonSections } from "../core/useCommonSections";
-import { CollegeTable } from "./ConferenceTable";
+import { CollegeTableWindow } from "../tables/GameTables";
 import { FootballField } from "./FootballField";
 import { useNameLinker } from "./names";
 import { FieldTheater } from "./theater/FieldTheater";
@@ -131,19 +128,7 @@ export function useFootballPage(game: GameContext): SportPage {
   const ids = useMemo(() => [top?.id ?? null, bottom?.id ?? null], [top?.id, bottom?.id]);
   const rows = standings.data;
   if (college && rows && detail.seasonIsCurrent !== false && rows.some((r) => ids.includes(r.id))) {
-    sections.table = (
-      <DetailSection id="table" title="Conference" caption="Ranked by conference record; season record alongside.">
-        <CollegeTable rows={rows} ids={ids} ranks={ranks} leagueID={college.id} />
-        <div className={styles.links}>
-          <Link className={styles.link} to={standingsPath(college.id, ids)}>
-            Full Standings <Icon name="chevronRight" size={9} />
-          </Link>
-          <Link className={styles.link} to={rankingsPath(college.id)}>
-            Top 25 <Icon name="chevronRight" size={9} />
-          </Link>
-        </div>
-      </DetailSection>
-    );
+    sections.table = <CollegeTableWindow rows={rows} ids={ids} ranks={ranks} leagueID={college.id} />;
   }
 
   const ball = possession && top && bottom ? (possession === "top" ? top : bottom) : null;
