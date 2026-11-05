@@ -100,6 +100,24 @@ test.describe("the court on the director", () => {
     });
   }
 
+  test("with Reduce Motion: key states, crossfading, never a running loop", async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.addInitScript(() => {
+      (window as unknown as { __theaterFrames: number[] }).__theaterFrames = [];
+    });
+    await page.goto("/dev/theater/directed?at=40&d=50");
+    await page.locator("[data-directed] canvas").waitFor();
+    await page.waitForTimeout(1500);
+    expect(await inked(page)).toBeGreaterThan(0.3);
+    const before = await frames(page);
+    await page.waitForTimeout(4000);
+    // A quarter-second fade at each key state: a handful of frames, never a display-rate loop (4 s would be 240).
+    expect((await frames(page)) - before).toBeLessThan(80);
+    expect(errors).toEqual([]);
+  });
+
   test("draws nothing scrolled away or in a hidden tab", async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 900 });
     await page.addInitScript(() => {
