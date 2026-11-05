@@ -1,0 +1,154 @@
+{
+ "_source": "https://site.web.api.espn.com/apis/common/v3/sports/football/college-football/athletes/4430604/overview",
+ "_recorded": "2026-11-05T03:14:02.895Z",
+ "statistics": {
+  "labels": [
+   "TOT",
+   "SOLO",
+   "AST",
+   "SACK",
+   "FF",
+   "FR",
+   "YDS",
+   "INT",
+   "YDS",
+   "AVG",
+   "TD",
+   "LNG",
+   "PD",
+   "KB"
+  ],
+  "names": [
+   "totalTackles",
+   "soloTackles",
+   "assistTackles",
+   "sacks",
+   "fumblesForced",
+   "fumblesRecovered",
+   "fumblesRecoveredYards",
+   "interceptions",
+   "interceptionYards",
+   "avgInterceptionYards",
+   "interceptionTouchdowns",
+   "longInterception",
+   "passesDefended",
+   "kicksBlocked"
+  ],
+  "splits": [
+   {
+    "displayName": "2026",
+    "stats": [
+     "44",
+     "27",
+     "17",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0.0",
+     "0",
+     "0",
+     "0",
+     "0"
+    ]
+   },
+   {
+    "displayName": "2025",
+    "stats": [
+     "84",
+     "38",
+     "46",
+     "2",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0.0",
+     "0",
+     "0",
+     "6",
+     "0"
+    ]
+   },
+   {
+    "displayName": "2023",
+    "stats": [
+     "92",
+     "44",
+     "48",
+     "4.5",
+     "1",
+     "0",
+     "0",
+     "1",
+     "5",
+     "5.0",
+     "0",
+     "5",
+     "2",
+     "0"
+    ]
+   },
+   {
+    "displayName": "2021",
+    "stats": [
+     "51",
+     "24",
+     "27",
+     "4.5",
+     "0",
+     "1",
+     "0",
+     "0",
+     "0",
+     "0.0",
+     "0",
+     "0",
+     "0",
+     "0"
+    ]
+   },
+   {
+    "displayName": "2020",
+    "stats": [
+     "20",
+     "13",
+     "7",
+     "4.5",
+     "2",
+     "0",
+     "0",
+     "1",
+     "13",
+     "13.0",
+     "0",
+     "13",
+     "1",
+     "0"
+    ]
+   },
+   {
+    "displayName": "2019",
+    "stats": [
+     "3",
+     "1",
+     "2",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0",
+     "0.0",
+     "0",
+     "0",
+     "0",
+     "0"
+    ]
+   }
+  ]
+ }
+}

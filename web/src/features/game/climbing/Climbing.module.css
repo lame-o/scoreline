@@ -293,6 +293,24 @@
   background: light-dark(color-mix(in srgb, var(--medal) 30%, transparent), color-mix(in srgb, var(--medal) 22%, transparent));
 }
 
+/* The pill holds its glint inside its capsule. */
+.place {
+  position: relative;
+  overflow: hidden;
+}
+
+/* A new leader's glint (marks.ts `glint`): a 16pt band of white light, 40% on light, 22% on dark, unseen at rest. */
+.placeGlint {
+  position: absolute;
+  top: -60%;
+  left: 0;
+  width: calc(16 * var(--pt));
+  height: 220%;
+  background: linear-gradient(to right, rgb(255 255 255 / 0), light-dark(rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.22)), rgb(255 255 255 / 0));
+  opacity: 0;
+  pointer-events: none;
+}
+
 .toGo {
   font-size: calc(10 * var(--pt));
   color: var(--label-secondary);
@@ -924,7 +942,20 @@
   width: calc(16 * var(--pt));
   display: grid;
   place-items: center;
-  color: light-dark(#e00000, #ff3b30);
+  color: var(--label-secondary);
+}
+
+/* The round's own stream: YouTube's red; live, its name and "Live now" stand out (StreamRow's highlight). */
+.watchIcon[data-stream="true"] {
+  color: var(--youtube);
+}
+
+.watchRow[data-live="true"] .watchName {
+  font-weight: 600;
+}
+
+.watchRow[data-live="true"] .watchDetail {
+  color: var(--live-text);
 }
 
 .watchName {

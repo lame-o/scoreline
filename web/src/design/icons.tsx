@@ -218,6 +218,13 @@ const GLYPHS = {
       <path d="M6.6 5.7v4.6l4-2.3z" fill="var(--icon-cutout, #fff)" />
     </g>
   ),
+  /** A stream to open, quietly (SF `play.rectangle`): a round's Watch button. */
+  playOutline: (
+    <g>
+      <rect x="1.9" y="3.4" width="12.2" height="9.2" rx="2.2" fill="none" stroke="currentColor" strokeWidth={1.3} />
+      <path d="M6.7 5.9v4.2l3.7-2.1z" fill="currentColor" />
+    </g>
+  ),
   tv: (
     <g {...stroke} strokeWidth={1.4}>
       <rect x="1.8" y="3" width="12.4" height="8.6" rx="1.8" />

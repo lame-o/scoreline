@@ -26,6 +26,7 @@ import { useSettings } from "../../state/settings";
 import type { NavState } from "../../app/layout";
 import { AgendaFooter, AgendaSkeleton, FoldingDayHeader, DayHeader, GroupLabel, handOffs, JumpLink, MoreButton, Note, ResultsLink } from "./AgendaParts";
 import { ClimbingFeed } from "./climbing";
+import { useHeightEase } from "./heightEase";
 import { baseEvent, useLiveEvents } from "./live";
 import { scrollToDay, scrollToTop, useChromeHeight, useDayToggle, useHighlight, useRowKeys, useScrollSpy, type DayToggling, type Highlight } from "./pageHooks";
 import { MonthBar, PeriodPicker, WeekStrip } from "./ScheduleNavigators";
@@ -44,6 +45,9 @@ export function AgendaPage({ scope, mode, onMode, switched, crossfade }: Schedul
   const location = useLocation();
   const nav = useScheduleNav();
   const data = useAgenda(scope);
+  // A click's mode switch: the height eases from Results' (heightEase.ts).
+  const content = useRef<HTMLDivElement>(null);
+  useHeightEase(content, crossfade, !data.loading);
   const live = useLiveEvents();
   const followed = useSettings((s) => s.followed);
   const prefs = useSettings((s) => s);
@@ -267,7 +271,7 @@ export function AgendaPage({ scope, mode, onMode, switched, crossfade }: Schedul
       <ScheduleHeader scope={scope} mode={mode} onMode={onMode} more={more} chromeRef={chrome}>
         {navigatorView}
       </ScheduleHeader>
-      <div className={[styles.content, crossfade ? styles.crossfade : null].filter(Boolean).join(" ")}>
+      <div ref={content} data-mode-content="" className={[styles.content, crossfade ? styles.crossfade : null].filter(Boolean).join(" ")}>
         {data.loading ? (
           <AgendaSkeleton />
         ) : data.failed ? (

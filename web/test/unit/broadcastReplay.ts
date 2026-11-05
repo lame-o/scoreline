@@ -32,6 +32,8 @@ import { arr, at, num, str, type JSONValue } from "../../src/data/json";
 
 /** The repository's own recordings (Tests/Fixtures/broadcast): what committed tests read. */
 export const FIXTURES = join(import.meta.dirname, "..", "..", "..", "Tests", "Fixtures", "broadcast");
+/** The web's own slices, recorded since the Mac froze (web/test/fixtures/broadcast), in the same layout. */
+export const WEB_FIXTURES = join(import.meta.dirname, "..", "fixtures", "broadcast");
 
 export interface Snapshot {
   readonly arrived: PTime;

@@ -46,7 +46,9 @@ test.describe("links", () => {
     const all = page.getByRole("link", { name: "All Results" });
     await expect(all).toBeVisible({ timeout: 25_000 });
     expect(await all.getAttribute("href")).toMatch(/^\/schedule\/team\/espn-football-12\?.*mode=results/);
-    const result = page.locator('a[title="Open the match"]').filter({ hasText: /^(?!.*TBD)/ }).last();
+    // The results page's own rows (TeamResultRow), each a link to its game under its league.
+    const result = page.locator('[data-section="results"] a[data-nav-id]').filter({ hasText: /^(?!.*TBD)/ }).last();
+    expect(await result.getAttribute("href")).toMatch(/^\/game\/espn-\d+\?league=football%2Fnfl$/);
     const box = (await result.boundingBox())!;
     await page.mouse.click(box.x + 40, box.y + box.height / 2, { button: "right" });
     await expect(page.getByRole("menuitem", { name: "Open in New Tab" })).toBeVisible();

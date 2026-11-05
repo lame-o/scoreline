@@ -100,6 +100,20 @@ export function playerFromRoute(slug: string, query: URLSearchParams | null = nu
   return path ? playerRef({ source: { kind: "espn", path }, id, name }) : null;
 }
 
+/**
+ * The league a profile's game opens under, for its `?league=` (the Mac opens
+ * it with the page's ESPN path: PlayerSections.swift `ProfileEvents.event`,
+ * TeamSections.swift `NextGameRow.open`), so a game off the scoreboards is
+ * asked of its league alone, not of every ESPN league at once. Soccer's games
+ * span competitions: a club's next game says its own (`soccer/<slug>`), a
+ * player's log none.
+ */
+export function profileGameLeague(path: string | null, soccerCompetition: string | null = null): string | null {
+  if (!path) return null;
+  if (path.startsWith("soccer")) return soccerCompetition ? `soccer/${soccerCompetition}` : null;
+  return leagueForPath(path);
+}
+
 /** What a link leaves in the history state for the page it opens. */
 export interface ProfileNavState {
   readonly team?: TeamRef;

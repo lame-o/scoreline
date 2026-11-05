@@ -15,6 +15,7 @@
  * `climbingMoments`). Untracked disciplines are never fetched (useGame).
  */
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { broadcastFor } from "../../../data/climbingBroadcast";
 import { climbingMoments, decided, dockClimber, isFinalRound, liveFieldSummary, resultsCaption, roundLive, wallCaption, washCountry } from "../../../data/climbing";
 import { dayAndTime, ordinal } from "../../../data/format";
 import { EMPTY_DETAIL, type GameDetail } from "../../../data/gameDetail";
@@ -24,6 +25,7 @@ import { FLAG_PALETTE } from "../../../data/teams";
 import type { TeamPalette } from "../../../data/teamColors";
 import { queryClient } from "../../../state/scores";
 import { useSettings } from "../../../state/settings";
+import { useStreams } from "../../../state/streams";
 import { DetailSection } from "../core/DetailSection";
 import { useCurrentMoment } from "../core/moments";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
@@ -46,6 +48,8 @@ export function useClimbingPage(game: GameContext): SportPage {
   const yours = useClimbingCountries();
   const isLive = roundLive(detail, event.state);
   const moment = useCurrentMoment();
+  // World Climbing's stream when it covers this round (ScoreStore.broadcast(for:)), as the shell's watcher reads it.
+  const broadcast = useStreams((s) => broadcastFor(event, s.climbing));
 
   // IFSC updates a climber's score hold by hold: the whole round, every 4 s, while it's live. Each
   // tick waits for its load (joining one already under way), so a slow answer is never cancelled
@@ -105,7 +109,7 @@ export function useClimbingPage(game: GameContext): SportPage {
   if (event.state !== "final" || event.start > Date.now() - 86_400_000) {
     sections.climbingWatch = (
       <DetailSection id="climbingWatch" title="Watch" caption="Official World Climbing streams on YouTube.">
-        <ClimbingWatch final={event.state === "final"} />
+        <ClimbingWatch final={event.state === "final"} broadcast={broadcast} />
       </DetailSection>
     );
   }

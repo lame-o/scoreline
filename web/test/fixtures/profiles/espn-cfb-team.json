@@ -1,0 +1,103 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/2390",
+ "_recorded": "2026-11-05T03:14:01.561Z",
+ "team": {
+  "id": "2390",
+  "displayName": "Miami Hurricanes",
+  "shortDisplayName": "Miami",
+  "abbreviation": "MIA",
+  "color": "f47423",
+  "alternateColor": "035131",
+  "standingSummary": "1st in ACC",
+  "logos": [
+   {
+    "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/2390.png"
+   }
+  ],
+  "record": {
+   "items": [
+    {
+     "type": "total",
+     "summary": "8-0"
+    }
+   ]
+  },
+  "franchise": {
+   "venue": {}
+  },
+  "links": [
+   {
+    "rel": [
+     "clubhouse",
+     "desktop",
+     "team"
+    ],
+    "href": "https://www.espn.com/college-football/team/_/id/2390/miami-hurricanes"
+   },
+   {
+    "rel": [
+     "clubhouse",
+     "mobile",
+     "team"
+    ],
+    "href": "https://www.espn.com/college-football/team/_/id/2390/miami-hurricanes"
+   }
+  ],
+  "nextEvent": [
+   {
+    "id": "401858291",
+    "date": "2026-11-08T00:30Z",
+    "seasonType": {
+     "type": 2
+    },
+    "competitions": [
+     {
+      "status": {
+       "type": {
+        "state": "pre",
+        "name": "STATUS_SCHEDULED"
+       }
+      },
+      "broadcasts": [
+       {
+        "media": {
+         "shortName": "NBC"
+        }
+       }
+      ],
+      "competitors": [
+       {
+        "homeAway": "home",
+        "team": {
+         "id": "87",
+         "displayName": "Notre Dame Fighting Irish",
+         "shortDisplayName": "Notre Dame",
+         "abbreviation": "ND",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/87.png"
+          }
+         ]
+        }
+       },
+       {
+        "homeAway": "away",
+        "team": {
+         "id": "2390",
+         "displayName": "Miami Hurricanes",
+         "shortDisplayName": "Miami",
+         "abbreviation": "MIA",
+         "logos": [
+          {
+           "href": "https://a.espncdn.com/i/teamlogos/ncaa/500/2390.png"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

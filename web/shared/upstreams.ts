@@ -38,6 +38,11 @@ export interface Upstream {
   readonly host: string;
   /** Accepted path prefixes. A path must start with one of them. */
   readonly prefixes: readonly string[];
+  /**
+   * Whole paths, tighter than the prefixes: when given, a path must also
+   * match one of these from start to end (a host allowed only a page or two).
+   */
+  readonly paths?: readonly RegExp[];
   /** Extra request headers the upstream needs. */
   readonly headers?: Readonly<Record<string, string>>;
   /**
@@ -159,6 +164,35 @@ export const UPSTREAMS: readonly Upstream[] = [
     fallback: LIVE,
   },
   {
+    // YouTube: World Climbing's channel, the two pages the Mac reads (ClimbingBroadcast.swift,
+    // ScheduleProvider.swift `Streams`). `/live` is the stream on now, or between rounds the next one
+    // with its start: checked every 10 minutes while a competition is near, every minute around a start,
+    // every 2 while live (ScoreStore.updateBroadcast). `/streams` lists the scheduled streams, the
+    // rounds' times (ScheduleStore keeps it 30 minutes). Pages, not an API (about 1.3 MB each): plain
+    // requests with an honest user agent and no cookies; a consent or bot page reads as no answer.
+    // English, because the parsers read YouTube's English ("Scheduled for 11/7/26, 2:00 PM").
+    host: "www.youtube.com",
+    prefixes: ["/@WorldClimbing/streams", "/@WorldClimbing/live"],
+    paths: [/^\/@WorldClimbing\/(streams|live)$/],
+    headers: { Accept: "text/html", "Accept-Language": "en-US" },
+    rules: [
+      [/\/live$/, { edge: 60, browser: 30 }],
+      [/\/streams$/, { edge: 1800, browser: 300 }],
+    ],
+    fallback: SHORT,
+  },
+  {
+    // decapi.me: a channel's Twitch status as plain text, keyless (CoStream.swift; the owner approved
+    // it for CS2 co-streams). Uptime ("… is offline"), title and game, checked at most every 2 minutes
+    // while a CS2 match is live; the avatar, once a channel (a day at the edge).
+    host: "decapi.me",
+    prefixes: ["/twitch/uptime/", "/twitch/title/", "/twitch/game/", "/twitch/avatar/"],
+    // A Twitch login: letters, digits and underscores, up to 25.
+    paths: [/^\/twitch\/(uptime|title|game|avatar)\/[a-z0-9_]{1,25}$/],
+    rules: [[/^\/twitch\/avatar\//, { edge: 86_400, browser: 21_600 }]],
+    fallback: SHORT,
+  },
+  {
     // MLB Stats API: Statcast pitch and batted-ball data (Statcast.swift).
     host: "statsapi.mlb.com",
     prefixes: ["/api/"],
@@ -203,6 +237,7 @@ export function resolveProxyPath(pathname: string, search: string): ResolvedUpst
   // No traversal, no smuggled separators or schemes.
   if (/(^|\/)\.\.?(\/|$)/.test(path) || /%2f|%5c|%2e%2e|\\/i.test(path) || path.includes("//")) return null;
   if (!upstream.prefixes.some((p) => path.startsWith(p))) return null;
+  if (upstream.paths && !upstream.paths.some((p) => p.test(path))) return null;
   const url = new URL(`https://${host}${path}${search}`);
   // `new URL` normalizes; it must still be the same host and path.
   if (url.host !== host || url.pathname !== path) return null;
