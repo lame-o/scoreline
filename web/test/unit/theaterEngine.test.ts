@@ -24,7 +24,7 @@ import { cameraState, length2, MotionLimits, sub2, v2, vec4, ZERO2, type ActorID
 import { MotionPath, Quintic, TheaterMotion } from "../../src/data/theater/theaterMotion";
 import { Plan, PlanChain, TheaterBake, type FrameTier } from "../../src/data/theater/theaterPlanChain";
 import type { ClockEvent, ClockPiece, ClockRegime, TheaterClock } from "../../src/data/theater/theaterSource";
-import { TheaterFrameGate } from "../../src/data/theater/theaterView";
+import { TheaterCues, TheaterFrameGate, TheaterKeyStates } from "../../src/data/theater/theaterView";
 import { TheaterQuiet } from "../../src/data/theater/theaterQuiet";
 import { seed64, SplitMix64 } from "../../src/data/theater/splitMix64";
 
@@ -532,6 +532,40 @@ describe("the one wake from still", () => {
     const last = TheaterFrameGate.state(tiers, time, clock, quiet);
     expect(!last.moving && last.wake == null, "nothing further to move: no wake at all").toBe(true);
     expect(TheaterFrameGate.state([], time, clock, 1000).moving, "no plan, no frames").toBe(false);
+  });
+});
+
+describe("the slides' cues and the key states (TheaterView)", () => {
+  it("the scoring play the plan has come to (or comes to next), and the seconds to its decisive frame", () => {
+    const walking = new LineClip([v2(20, 20)], [v2(4, 0)]);
+    const plan = new Plan<LineClip>(1, 1000, 1030, null, [new ClipPlacement(walking, 1000, 1000, [1])], new Map([[1, walking.figures[0]!]]));
+    plan.cues = [
+      { at: 1005, until: 1008, kind: { kind: "scored", play: "a" }, source: { kind: "known", play: "a" } },
+      { at: 1012, until: 1015, kind: { kind: "scored", play: "b" }, source: { kind: "known", play: "b" } },
+    ];
+    const chain = new PlanChain<LineClip>();
+    chain.splice(TheaterBake.bake(plan), 1000);
+    const cues = new TheaterCues();
+    // The theater's time is the wall's here.
+    cues.publish(chain, (w) => w);
+    expect(cues.playing(1001)).toBe("a");
+    expect(cues.climax(1001)).toBeCloseTo(4, 9);
+    // Half a second past its frame it's still the one playing; then the next one's.
+    expect(cues.playing(1005.4)).toBe("a");
+    expect(cues.playing(1006)).toBe("a");
+    expect(cues.playing(1011.6)).toBe("b");
+    expect(cues.climax(1013)).toBe(0);
+  });
+
+  it("Reduce Motion's key states: each clip's decisive moment and its end, crossfading in a quarter second", () => {
+    const keys = TheaterKeyStates.keys(new Plan<LineClip>(1, 1000, 1030, null, [new ClipPlacement(new LineClip([v2(0, 0)], [ZERO2]), 1000, 1000, [1])], new Map()));
+    expect(keys).toEqual([1000, 1005, 1020]);
+    const shown = TheaterKeyStates.shown(keys, 1005.1);
+    expect(shown.now).toBe(1005);
+    expect(shown.before).toBe(1000);
+    expect(shown.fade).toBeGreaterThan(0);
+    expect(shown.fade).toBeLessThan(1);
+    expect(TheaterKeyStates.shown(keys, 1006).fade).toBe(1);
   });
 });
 
