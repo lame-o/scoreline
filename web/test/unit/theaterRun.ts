@@ -35,8 +35,8 @@ export interface RunResult<Clip extends TheaterClip> {
  * history; the rest come in as they arrived. `bands`: each figure's motion
  * band by his clip figure's band name.
  */
-export function runEngine<Clip extends TheaterClip, Play, Facts>(
-  sport: TheaterSport<Clip, Play, Facts>,
+export function runEngine<Clip extends TheaterClip, Play, Facts, Context = number>(
+  sport: TheaterSport<Clip, Play, Facts, Context>,
   facts: Facts,
   arrivals: readonly Arrival[],
   from: PTime,
