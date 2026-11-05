@@ -108,21 +108,22 @@ test.describe("theaters on the live pages", () => {
     });
   });
 
-  test("football: in the Field above the drive chart; replays a snap as it arrives", async ({ page }) => {
+  test("football: the Live View, its own module above the Field; replays a snap as it arrives", async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto(NFL);
+    const view = page.locator('[data-section="liveView"]');
     const field = page.locator('[data-section="field"]');
-    const canvas = field.locator("[data-theater] canvas");
+    const canvas = view.locator("[data-theater] canvas");
     await expect(canvas).toBeVisible({ timeout: 20_000 });
-    // Above the drive chart, and no section of its own.
+    // Above the drive chart, in a module of its own (9cbbb02).
     const theaterBox = await canvas.boundingBox();
     const chartBox = await field.locator('[role="group"]').first().boundingBox();
     expect(theaterBox && chartBox && theaterBox.y < chartBox.y).toBeTruthy();
-    await expect(page.locator('[data-section="theater"]')).toHaveCount(0);
-    expect(await inked(page, '[data-section="field"] [data-theater] canvas')).toBeGreaterThan(0.5);
+    await expect(field.locator("[data-theater]")).toHaveCount(0);
+    expect(await inked(page, '[data-section="liveView"] [data-theater] canvas')).toBeGreaterThan(0.5);
     // The demo serves a new snap every 5 s: it replays (the loop runs).
     await expect.poll(() => frames(page), { timeout: 15_000 }).toBeGreaterThan(30);
-    await field.screenshot({ path: join(OUT, "theater-football-live-page-1440-dark.png") });
+    await view.screenshot({ path: join(OUT, "theater-football-live-page-1440-dark.png") });
     expect(errors).toEqual([]);
   });
 
@@ -130,7 +131,7 @@ test.describe("theaters on the live pages", () => {
     // A phone's one column: the page scrolls well past the field.
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(NFL);
-    await expect(page.locator('[data-section="field"] [data-theater] canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('[data-section="liveView"] [data-theater] canvas')).toBeVisible({ timeout: 20_000 });
     await expect.poll(() => frames(page), { timeout: 15_000 }).toBeGreaterThan(30);
     await page.evaluate(() => {
       const main = document.getElementById("main");
@@ -144,13 +145,13 @@ test.describe("theaters on the live pages", () => {
     expect(await frames(page)).toBe(away);
   });
 
-  test("soccer: at the top of the Live Pitch with its caption; a moment replays as it arrives", async ({ page }) => {
+  test("soccer: the Live View above the Live Pitch, with its caption; a moment replays as it arrives", async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto(SOCCER);
-    const pitch = page.locator('[data-section="pitch"]');
+    const pitch = page.locator('[data-section="liveView"]');
     const canvas = pitch.locator("[data-theater] canvas");
     await expect(canvas).toBeVisible({ timeout: 20_000 });
-    expect(await inked(page, '[data-section="pitch"] [data-theater] canvas')).toBeGreaterThan(0.5);
+    expect(await inked(page, '[data-section="liveView"] [data-theater] canvas')).toBeGreaterThan(0.5);
     // The caption says the moment in ESPN's words, with its minute.
     await expect(pitch.getByText(/^\d+(\+\d+)?'/).first()).toBeVisible();
     // The header arrives at the lane's second look and replays.
@@ -159,17 +160,17 @@ test.describe("theaters on the live pages", () => {
     expect(errors).toEqual([]);
   });
 
-  test("basketball: in the Shot Chart above the court; the buzzer-beater replays as it arrives", async ({ page }) => {
+  test("basketball: the Live View above the Shot Chart; the buzzer-beater replays as it arrives", async ({ page }) => {
     const errors = watchErrors(page);
     await page.goto(NBA);
-    const court = page.locator('[data-section="court"]');
+    const court = page.locator('[data-section="liveView"]');
     const canvas = court.locator("[data-theater] canvas");
     await expect(canvas).toBeVisible({ timeout: 20_000 });
-    // Above the court, and no section of its own.
+    // Above the court, in a module of its own.
     const theaterBox = await canvas.boundingBox();
     const chartBox = await page.getByRole("img", { name: /^Shot chart\./ }).boundingBox();
     expect(theaterBox && chartBox && theaterBox.y < chartBox.y).toBeTruthy();
-    expect(await inked(page, '[data-section="court"] [data-theater] canvas')).toBeGreaterThan(0.5);
+    expect(await inked(page, '[data-section="liveView"] [data-theater] canvas')).toBeGreaterThan(0.5);
     // Edwards' 28-footer comes through the lane about 10 s in, and replays.
     await expect(page.getByText("Buzzer-beater", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
     await expect.poll(() => frames(page), { timeout: 15_000 }).toBeGreaterThan(60);
@@ -181,8 +182,8 @@ test.describe("theaters on the live pages", () => {
   test("Reduce Motion: no replay, each play crossfades to how it ended", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(NFL);
-    await expect(page.locator('[data-section="field"] [data-theater] canvas')).toBeVisible({ timeout: 20_000 });
-    expect(await inked(page, '[data-section="field"] [data-theater] canvas')).toBeGreaterThan(0.5);
+    await expect(page.locator('[data-section="liveView"] [data-theater] canvas')).toBeVisible({ timeout: 20_000 });
+    expect(await inked(page, '[data-section="liveView"] [data-theater] canvas')).toBeGreaterThan(0.5);
     // Two new snaps (one every 5 s): a 0.35 s crossfade each, never a replay's hundreds of frames.
     const before = await frames(page);
     await page.waitForTimeout(10_500);

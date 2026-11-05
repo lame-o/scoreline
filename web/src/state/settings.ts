@@ -20,6 +20,7 @@ import { useSyncExternalStore } from "react";
 import { editionID, sanitizeEditions, type EditionFollow } from "../data/following";
 import { CATALOG, DEFAULT_LEAGUE_IDS, leagueWithID } from "../data/leagues";
 import type { FollowedTeam } from "../data/models";
+import type { ModuleLayout } from "../data/modules";
 import { CLIMBING_DISCIPLINES } from "../data/scoreboard";
 
 export type LandingView = "list" | "tiles";
@@ -76,6 +77,14 @@ export interface Settings {
   readonly coStreamer: string;
   /** Results pages: scorers, performers and notes under each result (`resultsDetails`). */
   readonly resultsDetails: boolean;
+  /**
+   * Game-page modules folded and hidden, "<page>.<module>" ("nba.liveView"),
+   * and each page's modules in the user's order (data/modules.ts; the Mac's
+   * `foldedModules`, `hiddenModules`, `moduleOrder`).
+   */
+  readonly foldedModules: readonly string[];
+  readonly hiddenModules: readonly string[];
+  readonly moduleOrder: Readonly<Record<string, readonly string[]>>;
 }
 
 export const DEFAULTS: Settings = {
@@ -103,6 +112,9 @@ export const DEFAULTS: Settings = {
   showCoStream: true,
   coStreamer: "ohnepixel",
   resultsDetails: true,
+  foldedModules: [],
+  hiddenModules: [],
+  moduleOrder: {},
 };
 
 // Keep the storage key stable: the before-paint theme reader and older releases use it.
@@ -165,7 +177,18 @@ export function sanitize(raw: unknown): Settings {
     showCoStream: flag(s.showCoStream, DEFAULTS.showCoStream),
     coStreamer: typeof s.coStreamer === "string" ? s.coStreamer : DEFAULTS.coStreamer,
     resultsDetails: flag(s.resultsDetails, DEFAULTS.resultsDetails),
+    foldedModules: isStringArray(s.foldedModules) ? [...new Set(s.foldedModules)] : [],
+    hiddenModules: isStringArray(s.hiddenModules) ? [...new Set(s.hiddenModules)] : [],
+    moduleOrder: sanitizeModuleOrder(s.moduleOrder),
   };
+}
+
+/** Each page's ranking: lists of module IDs, each once. */
+function sanitizeModuleOrder(raw: unknown): Record<string, string[]> {
+  const order: Record<string, string[]> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return order;
+  for (const [page, ids] of Object.entries(raw as Record<string, unknown>)) if (isStringArray(ids) && ids.length > 0) order[page] = [...new Set(ids)];
+  return order;
 }
 
 function load(): Settings {
@@ -310,6 +333,17 @@ export const settings = {
 
   toggleDiscipline(discipline: string) {
     update((s) => ({ climbingDisciplines: toggled(s.climbingDisciplines, discipline) }));
+  },
+
+  // Game-page modules (data/modules.ts holds the rules)
+
+  /** The modules' folds, hides and order, changed together (a fold, a hide, a drag, Restore Defaults). */
+  setModules(change: (layout: ModuleLayout) => ModuleLayout) {
+    update((s) => {
+      const before: ModuleLayout = { folded: s.foldedModules, hidden: s.hiddenModules, order: s.moduleOrder };
+      const after = change(before);
+      return after === before ? {} : { foldedModules: after.folded, hiddenModules: after.hidden, moduleOrder: after.order };
+    });
   },
 
   /** Sections and tile tiers share one collapsed set. */

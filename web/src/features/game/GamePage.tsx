@@ -17,7 +17,10 @@ import { spokenStatus, scoreLine } from "../../data/format";
 import { beatFinal, beatScore, beatScoreRose, finalAnnouncement, NO_BEATS, winner, type HeroBeats } from "../../data/matchRules";
 import { decisive, scorer, Tier } from "../../data/moments";
 import { stepsBack, type ScoreEvent } from "../../data/models";
-import { arrangement, pageKind, sectionOrder, type PlacedSection } from "../../data/sections";
+import { pageKind, type PlacedSection, type Section } from "../../data/sections";
+import { m } from "motion/react";
+import { spring } from "../../design/motion";
+import { usePageModules } from "./core/usePageModules";
 import { NEUTRAL, type TeamPalette } from "../../data/teamColors";
 import { eventColors, identityPalette, listsHomeFirst, matchPalette, type MatchColors } from "../../data/matchColors";
 import { useColorScheme } from "../../state/theme";
@@ -253,9 +256,9 @@ function Loaded({ game, event, palette, identity, colors, columns, geometry, mom
     [event, fieldSummary],
   );
 
-  const shown = sectionOrder(event.ref, event.state).filter((s) => sport.sections[s] != null);
-  const placed = arrangement(shown, event.ref, event.state, columns);
-  useRemeasure(geometry, `${placed.map((p) => p.section).join()}|${columns}`);
+  // The page's modules: what this state's plan has to show, less what the sport hides, in the sport's order (or a drag's proposal).
+  const modules = usePageModules(event, sport, geometry, columns, { detail, palette, names: context.names, scores });
+  useRemeasure(geometry, `${modules.placed.map((p) => p.section).join()}|${columns}|${modules.foldKey}`);
 
   return (
     <>
@@ -311,8 +314,12 @@ function Loaded({ game, event, palette, identity, colors, columns, geometry, mom
       {loading ? (
         game.detailFailed ? <p className={styles.note}>{ErrorCopy.inline("match details")}</p> : null
       ) : (
-        <Sections placed={placed} sections={sport.sections} columns={columns} empty={emptyMessage(event)} />
+        <>
+          <Sections placed={modules.placed} sections={sport.sections} columns={columns} empty={emptyMessage(event)} slot={modules.slot} layoutOn={modules.layoutOn} />
+          {modules.hiddenLine}
+        </>
       )}
+      {modules.overlay}
       {detail.venue ? <p className={styles.venue}>{detail.venue}</p> : null}
     </>
   );
@@ -370,20 +377,20 @@ function useBeatTriggers(event: ScoreEvent, scores: { top: string | null; bottom
   }, [event.state]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-/** The sections in one column, or blocks of two columns with spans between them. */
-function Sections({ placed, sections, columns, empty }: { placed: readonly PlacedSection[]; sections: SportPage["sections"]; columns: boolean; empty: string }) {
+/**
+ * The sections in one column, or blocks of two columns with spans between
+ * them, each a module (`slot`: its header and fold). While modules glide (a
+ * click's fold, a move, a drag) each slot animates its position on
+ * `standard`; otherwise layout isn't tracked.
+ */
+function Sections({ placed, sections, columns, empty, slot, layoutOn }: { placed: readonly PlacedSection[]; sections: SportPage["sections"]; columns: boolean; empty: string; slot: (section: Section, content: ReactNode) => ReactNode; layoutOn: boolean }) {
   if (placed.length === 0) return <p className={styles.empty}>{empty}</p>;
-  if (!columns) {
-    return (
-      <div className={styles.sections}>
-        {placed.map((p) => (
-          <div key={p.section} className={styles.slot}>
-            {sections[p.section]}
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const one = (p: PlacedSection) => (
+    <m.div key={p.section} className={styles.slot} layout={layoutOn ? "position" : false} transition={spring.standard}>
+      {slot(p.section, sections[p.section])}
+    </m.div>
+  );
+  if (!columns) return <div className={styles.sections}>{placed.map(one)}</div>;
   // Runs of left/right sections form a block; a span closes it.
   const blocks: { left: PlacedSection[]; right: PlacedSection[]; span: PlacedSection | null }[] = [];
   let current = { left: [] as PlacedSection[], right: [] as PlacedSection[], span: null as PlacedSection | null };
@@ -399,22 +406,10 @@ function Sections({ placed, sections, columns, empty }: { placed: readonly Place
       {blocks.map((b, i) => (
         <div key={i}>
           <div className={styles.columns}>
-            <div className={styles.column}>
-              {b.left.map((p) => (
-                <div key={p.section} className={styles.slot}>
-                  {sections[p.section]}
-                </div>
-              ))}
-            </div>
-            <div className={styles.column}>
-              {b.right.map((p) => (
-                <div key={p.section} className={styles.slot}>
-                  {sections[p.section]}
-                </div>
-              ))}
-            </div>
+            <div className={styles.column}>{b.left.map(one)}</div>
+            <div className={styles.column}>{b.right.map(one)}</div>
           </div>
-          {b.span ? <div className={styles.slot}>{sections[b.span.section]}</div> : null}
+          {b.span ? one(b.span) : null}
         </div>
       ))}
     </div>

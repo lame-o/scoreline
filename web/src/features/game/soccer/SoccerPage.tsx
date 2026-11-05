@@ -35,6 +35,8 @@ import { useCommonSections } from "../core/useCommonSections";
 import { SoccerTableWindow, useLeagueLive, useTableRows } from "../tables/GameTables";
 import { Pitch } from "./Pitch";
 import { PitchTheater } from "./theater/PitchTheater";
+import { useModuleOpen } from "../core/usePageModules";
+import { glanceText, shotMapGlance } from "../../../data/modules";
 import { Timeline } from "./Timeline";
 import { soccerMomentText } from "./MomentText";
 import styles from "./SoccerPage.module.css";
@@ -86,9 +88,19 @@ export function useSoccerPage(game: GameContext): SportPage {
   const ids = useMemo(() => (event.content.kind === "match" ? [event.content.top.id, event.content.bottom.id].filter((x): x is string => x != null) : []), [event.content]);
 
   const sections: Partial<Record<Section, ReactNode>> = { ...common };
-  const pitchChart = <Pitch trail={feed.trail} shots={feed.shots} cards={feed.cards} live={live} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} width={sectionWidth} theaterShown={live} />;
+  // The Live View owns the moments it replays while it's open (GoalCelebration.pitchBursts(theaterShown:)).
+  const theaterOpen = useModuleOpen(event.ref, "liveView");
+  const pitchChart = <Pitch trail={feed.trail} shots={feed.shots} cards={feed.cards} live={live} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} width={sectionWidth} theaterShown={live && theaterOpen} />;
   const minute = live ? soccerMinute(event.detail) : null;
   const timelineChart = <Timeline moments={detail.moments} currentMinute={minute} palette={palette} topName={names.top} bottomName={names.bottom} width={sectionWidth} />;
+  if (live && feed.trail.length > 0) {
+    // The play theater: its own module, above the Live Pitch as on the Mac (9cbbb02).
+    sections.liveView = (
+      <DetailSection id="liveView" title="Live View" caption="The latest chance, replayed with its build-up." accessory="live">
+        <PitchTheater feed={feed} homeTeamID={homeID} event={event} added={detail.soccerAdded} people={detail.people} kits={game.colors} />
+      </DetailSection>
+    );
+  }
   if (live ? feed.trail.length > 0 : feed.shots.length > 0) {
     sections.pitch = (
       <DetailSection
@@ -98,8 +110,6 @@ export function useSoccerPage(game: GameContext): SportPage {
         spokenCaption={`${live ? "The last 10 actions, live. " : "Every shot, with each goal's path. "}${spoken.top} attacking left to right, ${spoken.bottom} right to left.`}
         accessory={live ? "live" : event.state === "final" ? "final" : undefined}
       >
-        {/* The play theater at the top of the Live Pitch, as on the Mac; it owns the moments it replays (GoalCelebration.pitchBursts). */}
-        {live ? <PitchTheater feed={feed} homeTeamID={homeID} event={event} added={detail.soccerAdded} people={detail.people} kits={game.colors} /> : null}
         {pitchChart}
       </DetailSection>
     );
@@ -150,6 +160,13 @@ export function useSoccerPage(game: GameContext): SportPage {
 
   return {
     sections,
+    // Folded: the newest action (the Live View, the Live Pitch), or the shots on a final's map.
+    glance: (section) => {
+      const last = feed.trail.at(-1);
+      if (section === "liveView") return last ? glanceText(last.minute, last.text) : null;
+      if (section === "pitch") return live ? (last ? glanceText(last.minute, last.text) : null) : shotMapGlance(feed.shots.map((s) => ({ side: s.side, onTarget: s.kind === "goal" || s.shot === "saved" })));
+      return undefined;
+    },
     laneScores,
     clockFallback: event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live"),
     heroNote: tieLine(detail.soccerTie),

@@ -120,17 +120,17 @@ describe("the scoreboard's live situation", () => {
 describe("the football section plan", () => {
   const ref = { kind: "espn", path: "football/nfl", id: "1", sport: "football" } as const;
 
-  it("puts the field first while live, with the play theater's slot under it", () => {
-    expect(sectionOrder(ref, "live").slice(0, 3)).toEqual(["field", "theater", "winProbability"]);
+  it("puts the Live View first while live, Win Probability under it, then the field", () => {
+    expect(sectionOrder(ref, "live").slice(0, 4)).toEqual(["liveView", "winProbability", "timeline", "field"]);
     // Final: how the odds moved; before the game: the market's last day.
-    expect(sectionOrder(ref, "final")).toEqual(["linescore", "winProbability", "moments", "stats", "table", "plays"]);
+    expect(sectionOrder(ref, "final")).toEqual(["winProbability", "timeline", "linescore", "moments", "stats", "table", "plays"]);
     expect(sectionOrder(ref, "scheduled")).toEqual(["winProbability", "table", "whereToWatch"]);
   });
 
   it("from 680pt, the drive on the left; the quarters beside the scoring plays they light", () => {
-    const placed = wideArrangement(["field", "theater", "winProbability", "linescore", "moments", "stats", "whereToWatch"], widePlan(ref, "live"));
+    const placed = wideArrangement(["liveView", "field", "winProbability", "linescore", "moments", "stats", "whereToWatch"], widePlan(ref, "live"));
     const where = Object.fromEntries(placed.map((p) => [p.section, p.column]));
-    expect(where).toMatchObject({ field: "left", theater: "left", stats: "left", winProbability: "right", linescore: "right", moments: "right" });
+    expect(where).toMatchObject({ liveView: "left", field: "left", stats: "left", winProbability: "right", linescore: "right", moments: "right" });
     // No theater yet: no hole.
     expect(wideArrangement(["field", "linescore"], widePlan(ref, "live")).map((p) => p.section)).toEqual(["field", "linescore"]);
   });

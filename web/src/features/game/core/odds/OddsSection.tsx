@@ -9,6 +9,7 @@ import { useRef, useState, type CSSProperties } from "react";
 import { headerFigures, percent, percentPair, spokenPercent, valueAt, type GameState, type HeaderFigure, type OddsWindow } from "../../../../data/odds/chart";
 import type { Sport } from "../../../../data/models";
 import { NEUTRAL } from "../../../../data/teamColors";
+import { chancesGlance } from "../../../../data/modules";
 import { SegmentedControl } from "../../../../design/components";
 import { useWidth } from "../../../../design/useWidth";
 import type { OddsFeed, OddsSnapshot } from "../../../../state/odds";
@@ -108,11 +109,18 @@ export function OddsSection({ game, snapshot, feed, state }: { game: GameContext
     .filter(Boolean)
     .join(", ");
 
+  // Folded: each side's price, keyed by its color (the Mac's chart's own glance).
+  const glance =
+    figures.top && figures.bottom
+      ? chancesGlance({ top: figures.top.value, draw: figures.draw?.value ?? null, bottom: figures.bottom.value }, final, { color: palette.top, name: names.top }, threeWay ? NEUTRAL : null, { color: palette.bottom, name: names.bottom })
+      : null;
+
   return (
     <DetailSection
       id="winProbability"
       title={final ? "How the Odds Moved" : "Win Probability"}
       accessory={live ? "live" : final ? "final" : undefined}
+      glance={glance}
       caption={caption}
       spokenCaption={spokenCaption}
       trailing={

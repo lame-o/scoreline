@@ -57,8 +57,8 @@ for (const size of WIDTHS) {
         await expect(page.locator('[data-section="field"]').getByText("Red Zone", { exact: true })).toBeVisible();
         await expect(page.locator('[data-section="field"]').getByText(/^2[- ]MIN/)).toBeVisible();
         await expect(page.locator('[data-section="field"] ul li').first()).toBeVisible();
-        // The play theater lives in the Field, above the drive chart (theaters.spec.ts): no section of its own.
-        await expect(page.locator('[data-section="theater"]')).toHaveCount(0);
+        // The play theater is the Live View, its own module above the Field (theaters.spec.ts).
+        await expect(page.locator('[data-section="liveView"]')).toHaveCount(1);
         await page.waitForTimeout(800);
         await page.screenshot({ path: join(OUT, `${size.name}-${scheme}-football-live.png`) });
 

@@ -25,17 +25,17 @@ const soccer: EventRef = { kind: "espn", path: "soccer/eng.1", id: "1", sport: "
 
 describe("the section plan", () => {
   it("orders baseball's sections like the Mac, live and final", () => {
-    expect(sectionOrder(mlb, "live")).toEqual(["atPlate", "atBat", "linescore", "winProbability", "bracket", "moments", "battedBalls", "plays", "whereToWatch"]);
-    // Final: how the odds moved (Polymarket's market through the game) under the score by inning.
-    expect(sectionOrder(mlb, "final")).toEqual(["linescore", "winProbability", "bracket", "moments", "battedBalls", "plays"]);
+    expect(sectionOrder(mlb, "live")).toEqual(["liveView", "winProbability", "timeline", "atPlate", "atBat", "linescore", "bracket", "moments", "battedBalls", "plays", "whereToWatch"]);
+    // Final: how the odds moved (Polymarket's market through the game) opens the page.
+    expect(sectionOrder(mlb, "final")).toEqual(["winProbability", "timeline", "linescore", "bracket", "moments", "battedBalls", "plays"]);
   });
 
   it("puts linked partners side by side from 680pt", () => {
     const placed = wideArrangement(sectionOrder(mlb, "live"), widePlan(mlb, "live"));
     const left = placed.filter((p) => p.column === "left").map((p) => p.section);
     const right = placed.filter((p) => p.column === "right").map((p) => p.section);
-    expect(left).toEqual(["atPlate", "atBat", "battedBalls"]);
-    expect(right).toEqual(["linescore", "winProbability", "moments", "bracket", "plays", "whereToWatch"]);
+    expect(left).toEqual(["liveView", "atPlate", "atBat", "battedBalls"]);
+    expect(right).toEqual(["winProbability", "timeline", "linescore", "moments", "bracket", "plays", "whereToWatch"]);
     // Reading order runs down the left column, then the right.
     expect(placed.map((p) => p.rank)).toEqual(placed.map((_, i) => i));
   });

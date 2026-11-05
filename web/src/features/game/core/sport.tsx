@@ -20,6 +20,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import type { GameDetail } from "../../../data/gameDetail";
 import type { HeaderLedger } from "../../../data/headerSync";
 import type { MatchColors } from "../../../data/matchColors";
+import type { ModuleGlance } from "../../../data/modules";
 import type { AccessoryTier } from "../../../data/matchRules";
 import type { GameClock, ScoreEvent, Side } from "../../../data/models";
 import type { Section } from "../../../data/sections";
@@ -59,6 +60,13 @@ export interface GameContext {
 export interface SportPage {
   /** Rendered sections; null (or absent) when a section has nothing to show. */
   readonly sections: Partial<Record<Section, ReactNode>>;
+  /**
+   * A folded module's one line, from what only the sport's lane knows (the
+   * Live View's newest play, the field, the live pitch, at the plate).
+   * Undefined: the core's, from the detail (core/moduleGlances.ts). Asked only
+   * for folded modules.
+   */
+  readonly glance?: (section: Section) => ModuleGlance | null | undefined;
   /** The lane's score, top first, while it's ahead of the scoreboard (never behind it). */
   readonly laneScores?: { readonly top: string; readonly bottom: string } | null;
   /** What the clock line says without a running clock (the inning, half-time). */
