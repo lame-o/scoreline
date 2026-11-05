@@ -86,7 +86,7 @@ export function useBasketballPage(game: GameContext): SportPage {
   useFastLane(live && ref != null && teams != null, LANE_INTERVAL.standard, async (signal) => {
     if (!ref || !teams) return;
     // The broadcast's lanes: the look at the plays (a tail of the game) or a read with nothing new, and the status.
-    await feedBroadcast(game.broadcast, feed, () => feed.update(getJSON, { path: ref.path, eventID: ref.id, teams, signal }));
+    await feedBroadcast(game.model, feed, () => feed.update(getJSON, { path: ref.path, eventID: ref.id, teams, signal }));
     game.moments.retract(feed.takeRetractions());
     game.moments.offer(feed.takeMoments());
   });

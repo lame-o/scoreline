@@ -79,7 +79,7 @@ export function useFootballPage(game: GameContext): SportPage {
     const before = feed.score;
     const shown = pointsShown(game.raw.event);
     // The broadcast's lanes: the look at the plays (a tail of the game) or a read with nothing new, and the status.
-    await feedBroadcast(game.broadcast, feed, () => feed.update(getJSON, { path: ref.path, eventID: ref.id, teams, signal }));
+    await feedBroadcast(game.model, feed, () => feed.update(getJSON, { path: ref.path, eventID: ref.id, teams, signal }));
     game.moments.retract(feed.takeRetractions());
     game.moments.offer(feed.takeMoments());
     // A score: refresh the rest (the scoring list, the stats) now, not in half a minute. On the

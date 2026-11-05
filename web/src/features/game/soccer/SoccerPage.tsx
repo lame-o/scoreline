@@ -61,7 +61,7 @@ export function useSoccerPage(game: GameContext): SportPage {
   const look = async (signal?: AbortSignal) => {
     if (!ref || !slug) return;
     // The broadcast's core lane: the look's entries (a tail of the match), or a read with nothing new.
-    await feedBroadcast(game.broadcast, feed, () => feed.update(getJSON, { league: slug, eventID: ref.id, homeTeamID: homeID, rosters: detail.soccerRosters, signal }), true);
+    await feedBroadcast(game.model, feed, () => feed.update(getJSON, { league: slug, eventID: ref.id, homeTeamID: homeID, rosters: detail.soccerRosters, signal }), true);
     // A goal VAR struck off goes before anything new shows.
     const struck = feed.takeRetractions();
     game.moments.retract(struck);

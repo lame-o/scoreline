@@ -225,6 +225,7 @@ function Loaded({ game, event: raw, palette, columns, geometry, moments: slot, b
     detail,
     raw: { event: raw, detail: game.detail ?? EMPTY_DETAIL },
     broadcast: broadcasting ? page.broadcast : null,
+    model: page.broadcast,
     palette,
     names: { top: top?.abbreviation ?? "", bottom: bottom?.abbreviation ?? "" },
     spoken: { top: top?.name ?? "", bottom: bottom?.name ?? "" },

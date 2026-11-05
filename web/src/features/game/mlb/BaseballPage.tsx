@@ -60,9 +60,9 @@ export function useBaseballPage(game: GameContext): SportPage {
     const before = feed.score;
     shownRuns.current = runsShown(game.raw.event);
     // The broadcast's lanes: the situation after the play it follows, the look at the plays (a tail of the game), the status.
-    await feedBroadcast(game.broadcast, feed, async () => {
+    await feedBroadcast(game.model, feed, async () => {
       await feed.update(getJSON, { path: ref.path, eventID: ref.id, names: detail.athleteNames, side, signal });
-      if (feed.situation) game.broadcast?.observeSituation(feed.situation, feed.situationPlay);
+      if (feed.situation) game.model.observeSituation(feed.situation, feed.situationPlay);
     });
     game.moments.retract(feed.takeRetractions());
     game.moments.offer(feed.takeMoments());

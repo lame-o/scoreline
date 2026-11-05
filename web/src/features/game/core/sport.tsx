@@ -40,8 +40,10 @@ export interface GameContext {
   readonly detail: GameDetail;
   /** The scoreboard's copy and the last load, as they are (not presented). */
   readonly raw: { readonly event: ScoreEvent; readonly detail: GameDetail };
-  /** The page's broadcast while it broadcasts, else null (data/broadcast/broadcast.ts). */
+  /** The page's broadcast while it broadcasts, else null (data/broadcast/broadcast.ts): what the sections present. */
   readonly broadcast: Broadcast | null;
+  /** The page's broadcast model, broadcasting or not: what a lane's tick feeds (`feedBroadcast`), so a tick never holds a stale null. */
+  readonly model: Broadcast;
   /** Team colors fitted to the scheme (TeamPalette); null for field events. */
   readonly palette: TeamPalette;
   /** Short names for charts ("MIL"), and the full ones for screen readers. */
