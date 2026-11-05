@@ -233,3 +233,24 @@ test.describe("the game page, while it broadcasts", () => {
     await expect(page.locator("[data-theater][data-directed]")).toHaveCount(0);
   });
 });
+
+test.describe("the diamond on the director", () => {
+  test("the field on the director: Brewers at Rays, live, a pitch told at its anchor", async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.addInitScript(() => {
+      (window as unknown as { __theaterFrames: number[] }).__theaterFrames = [];
+    });
+    // Into the Mac's baseball gate fixture, 55 s behind: the field between pitches, then the next pitch about 13 s on.
+    await page.goto("/dev/theater/directed?sport=baseball&at=130&d=55");
+    const well = page.locator("[data-directed][data-theater='baseball']");
+    await well.locator("canvas").waitFor();
+    await page.waitForTimeout(4000);
+    expect(await inked(page)).toBeGreaterThan(0.3);
+    // As on the Mac, the tag waits for the first beat told (the opening's field follows none); then it says the pitch, and where the game stands.
+    await expect(well.locator("[role='status']")).toHaveText(/\S/, { timeout: 25_000 });
+    await well.screenshot({ path: join(OUT, "directed-mlb.png") });
+    expect(await frames(page)).toBeGreaterThan(0);
+    expect(errors).toEqual([]);
+  });
+});
