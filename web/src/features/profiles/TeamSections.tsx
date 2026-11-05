@@ -12,6 +12,7 @@ import { countdown, dayAndTime } from "../../data/format";
 import { atLeast, footballStatLine, profileShort, rosterColumns, rosterSubtitle, rosterValue, spokenRosterRow, type StatColumn, type WidthClass } from "../../data/profiles/display";
 import { collapsedByDefault, lastName, ROSTER_GROUP_TITLE, type DepthChart, type GameRef, type RosterGroup, type RosterPlayer, type TeamLeader, type Title, type Transaction } from "../../data/profiles/models";
 import type { FormMark, StandingsRow } from "../../data/profiles/results";
+import { profileGameLeague } from "../../data/profiles/routes";
 import type { Sport } from "../../data/models";
 import { useNow } from "../../state/clock";
 import { usePageSession, type TeamProfile } from "../../state/profiles";
@@ -26,13 +27,17 @@ import styles from "./Profile.module.css";
 
 // MARK: - Next game
 
-/** The next (or live, or last) game: the opponent, when and where to watch, and the countdown or result. */
-export function NextGameRow({ game }: { readonly game: GameRef }) {
+/**
+ * The next (or live, or last) game: the opponent, when and where to watch, and the countdown or result.
+ * `path`: the team's ESPN path ("soccer/all" for a club), which the game opens under.
+ */
+export function NextGameRow({ game, path }: { readonly game: GameRef; readonly path: string | null }) {
   const id = game.id.startsWith("cs-") ? game.id : `espn-${game.id}`;
+  // Where it's played, so the page loads off the scoreboards too (NextGameRow.open: a club's game under its own
+  // competition, any other team's under the team's league; web: this was soccer's alone).
+  const href = gameHref(id, game.id.startsWith("cs-") ? null : profileGameLeague(path, game.league));
   // The opponent's page from the row's context menu (TeamSections.swift: GoToTeamItem).
-  const goTo = useGoToTeam(game.opponent, gameHref(id));
-  // Where it's played, so the page loads off the scoreboards too.
-  const href = game.league ? `${gameHref(id)}?league=${encodeURIComponent(`soccer/${game.league}`)}` : gameHref(id);
+  const goTo = useGoToTeam(game.opponent, href);
   return (
     <>
       {/* The menu sits beside the row, not in it: its clicks mustn't reach the row's link. */}

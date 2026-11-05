@@ -181,7 +181,7 @@ function renderSection(s: Section, width: WidthClass, team: TeamProfile, tint: s
       const game = team.next!;
       return (
         <DetailSection title={game.state === "final" ? "Last Game" : game.state === "live" ? "Now" : "Next"} accessory={game.state === "live" ? "live" : undefined}>
-          <NextGameRow game={game} />
+          <NextGameRow game={game} path={sport === "soccer" ? "soccer/all" : team.path} />
         </DetailSection>
       );
     }

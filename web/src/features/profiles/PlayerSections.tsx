@@ -11,6 +11,7 @@ import { dayAndTime } from "../../data/format";
 import { drawsStrip, entryContext, scoreText } from "../../data/profiles/charts";
 import { atLeast, careerColumns, gameLogColumns, gameLogValue, profileShort, statWord, tableColumnIndices, type WidthClass } from "../../data/profiles/display";
 import { podiumTotal, type ClimbResult, type GameLog, type GameLogEntry, type Note, type PlayerRef, type Podium, type StatTable } from "../../data/profiles/models";
+import { profileGameLeague } from "../../data/profiles/routes";
 import type { Sport } from "../../data/models";
 import { usePageSession, type PlayerView } from "../../state/profiles";
 import { gameHref, GameLogStrip, MatchStrip } from "./ProfileCharts";
@@ -39,6 +40,8 @@ export function GameLogSection({ player, playerRef, width, tint, memoryKey }: {
   const pitching = player.otherLog == null ? rolePitches : (session.pitching ?? rolePitches);
   const log = pitching === rolePitches ? main : player.otherLog;
   const sport = player.sport;
+  // Each game opens under the player's league (PlayerSections.swift: ProfileEvents.event's `.espn(path:)`).
+  const league = profileGameLeague(playerRef.source.kind === "espn" ? playerRef.source.path : null);
   if (!log) return null;
   const caption = (() => {
     if (log.matchStrip) return "League matches, oldest to newest. Click one to open it.";
@@ -62,16 +65,17 @@ export function GameLogSection({ player, playerRef, width, tint, memoryKey }: {
           />
         </div>
       ) : null}
-      {log.matchStrip ? <MatchStrip log={log} width={width} /> : drawsStrip(log) ? <GameLogStrip log={log} tint={tint} /> : null}
-      <GameLogTable log={log} sport={sport} position={player.bio.positionAbbreviation ?? playerRef.position} width={width} all={session.allGames} onAll={() => update({ allGames: true })} />
+      {log.matchStrip ? <MatchStrip log={log} width={width} /> : drawsStrip(log) ? <GameLogStrip log={log} tint={tint} league={league} /> : null}
+      <GameLogTable log={log} sport={sport} position={player.bio.positionAbbreviation ?? playerRef.position} league={league} width={width} all={session.allGames} onAll={() => update({ allGames: true })} />
     </DetailSection>
   );
 }
 
-function GameLogTable({ log, sport, position, width, all, onAll }: {
+function GameLogTable({ log, sport, position, league, width, all, onAll }: {
   readonly log: GameLog;
   readonly sport: Sport;
   readonly position: string | null;
+  readonly league: string | null;
   readonly width: WidthClass;
   readonly all: boolean;
   readonly onAll: () => void;
@@ -91,7 +95,7 @@ function GameLogTable({ log, sport, position, width, all, onAll }: {
         ))}
       </div>
       {rows.map((e) => (
-        <GameLogRow key={e.eventID} entry={e} columns={columns} />
+        <GameLogRow key={e.eventID} entry={e} columns={columns} league={league} />
       ))}
       {!all && log.entries.length > 5 ? <MoreButton onClick={onAll}>{`All Games (${log.entries.length})`}</MoreButton> : null}
     </div>
@@ -100,7 +104,7 @@ function GameLogTable({ log, sport, position, width, all, onAll }: {
 
 const WORD: Readonly<Record<string, string>> = { W: "won", L: "lost", D: "drew", T: "tied" };
 
-function GameLogRow({ entry: e, columns }: { readonly entry: GameLogEntry; readonly columns: ReturnType<typeof gameLogColumns> }) {
+function GameLogRow({ entry: e, columns, league }: { readonly entry: GameLogEntry; readonly columns: ReturnType<typeof gameLogColumns>; readonly league: string | null }) {
   const score = scoreText(e);
   // "Oct 25, at Seattle, lost 3 to 20, 287 yards, 2 touchdowns".
   const spoken = [
@@ -115,12 +119,13 @@ function GameLogRow({ entry: e, columns }: { readonly entry: GameLogEntry; reado
     .filter(Boolean)
     .join(", ");
   // The opponent's page from the row's context menu (PlayerSections.swift: GoToTeamItem).
-  const goTo = useGoToTeam(e.opponent, gameHref(e.eventID));
+  const href = gameHref(e.eventID, league);
+  const goTo = useGoToTeam(e.opponent, href);
   return (
     <>
       {/* The menu sits beside the row, not in it: its clicks mustn't reach the row's link. */}
       {goTo.menu}
-      <Link to={gameHref(e.eventID)} className={rowLinkClass} aria-label={spoken} title={`Open this game: ${entryContext(e)}`} {...goTo.props}>
+      <Link to={href} className={rowLinkClass} aria-label={spoken} title={`Open this game: ${entryContext(e)}`} {...goTo.props}>
         <span className={styles.logRow}>
           <span className={styles.date}>{profileShort(e.date)}</span>
           {e.opponent ? (
