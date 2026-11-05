@@ -37,8 +37,8 @@ for (const size of WIDTHS) {
         // The live count beside the title, read with it.
         await expect(page.getByRole("heading", { name: /This At-Bat\s?, \d and \d/ })).toBeVisible();
         await expect(page.getByRole("img", { name: /Brewers: \d+ runs/ })).toBeAttached();
-        // The play theater draws on a canvas under the diamond.
-        await expect(page.locator('[data-section="atPlate"] canvas').first()).toBeAttached();
+        // The play theater draws on a canvas in the Live View, its own module above At the Plate.
+        await expect(page.locator('[data-section="liveView"] canvas').first()).toBeAttached();
         await page.waitForTimeout(1500);
         await page.screenshot({ path: join(OUT, `${size.name}-${scheme}-mlb-live.png`) });
 

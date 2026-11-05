@@ -177,23 +177,18 @@ export interface TheaterLabels {
 }
 
 /**
- * Each side's tags, in the color its figures wear (`dress` on this panel):
- * the slab in the shirt's own color as it's drawn (black lifted to a gray
- * on a dark panel, as the figures are), the stripe in the team's other
- * color; a team in its second color striped in its own (so a tag never
- * reads as the other side's); a team in whites labeled in its own color.
- * (pure; tested)
+ * Each side's tags, in the color its figures wear (`dress` on this page):
+ * the slab in the shirt's own color as it's drawn (black stays black, with
+ * contrasting text), the stripe in the team's other color; a side that
+ * changed for this game, the slab in what it changed into and the stripe in
+ * its own, so its tag can't read as the other side's. (pure; tested)
  */
 export function theaterLabels(kits: TheaterKits | null, scheme: Scheme, teams: { readonly top: string; readonly bottom: string }): TheaterLabels {
   if (!kits) return { top: { team: teams.top, paint: teamPaint(null, null) }, bottom: { team: teams.bottom, paint: teamPaint(null, null) } };
   const dressed = dress(kits, scheme);
   const paint = (side: Side): SlidePaint => {
-    const worn = dressed[side];
-    const kit = kits[side];
-    const rule = dressed.rule;
-    if (rule.kind === "second" && rule.side === side) return teamPaint(worn.jersey ?? kit.alternate, kit.color);
-    if (rule.kind === "whites" && rule.side === side) return teamPaint(kit.color, kit.alternate);
-    return teamPaint(worn.jersey ?? kit.color, kit.alternate);
+    const team = kits[side];
+    return teamPaint(dressed[side].jersey, team.alternate, team.wear !== "own");
   };
   return { top: { team: teams.top, paint: paint("top") }, bottom: { team: teams.bottom, paint: paint("bottom") } };
 }

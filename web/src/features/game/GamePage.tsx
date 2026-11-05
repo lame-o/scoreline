@@ -22,8 +22,12 @@ import { spokenStatus, scoreLine } from "../../data/format";
 import { Accessory, beatFinal, beatScore, beatScoreRose, finalAnnouncement, NO_BEATS, winner, type AccessoryTier, type HeroBeats } from "../../data/matchRules";
 import { decisive, scorer, Tier } from "../../data/moments";
 import { stepsBack, type ScoreEvent } from "../../data/models";
-import { arrangement, pageKind, sectionOrder, type PlacedSection } from "../../data/sections";
-import { NEUTRAL, teamPalette, type TeamPalette } from "../../data/teamColors";
+import { pageKind, type PlacedSection, type Section } from "../../data/sections";
+import { m } from "motion/react";
+import { spring } from "../../design/motion";
+import { usePageModules } from "./core/usePageModules";
+import { NEUTRAL, type TeamPalette } from "../../data/teamColors";
+import { eventColors, identityPalette, listsHomeFirst, matchPalette, type MatchColors } from "../../data/matchColors";
 import { useColorScheme } from "../../state/theme";
 import { useSplit, type NavState } from "../../app/layout";
 import { useGoBack } from "../../app/navigation";
@@ -49,7 +53,6 @@ import type { GameContext, SportPage } from "./core/sport";
 import { useGame, type GameData } from "./core/useGame";
 import { EMPTY_DETAIL } from "../../data/gameDetail";
 import { useWidth } from "../../design/useWidth";
-import { nbaPalette } from "../../data/basketball";
 import { ErrorCopy } from "../../design/components";
 import { sportPage } from "./sportPages";
 import styles from "./GamePage.module.css";
@@ -114,6 +117,14 @@ export function GamePage() {
   );
 }
 
+/** What the game's colors are decided from: each team's colors and kit, and which side is at home. */
+function colorInputs(event: ScoreEvent, topIsHome: boolean | null): string {
+  if (event.content.kind !== "match") return "";
+  const { top, bottom } = event.content;
+  const team = (c: typeof top) => [c.color, c.alternateColor, c.kit?.color, c.kit?.alternate].join(",");
+  return `${team(top)}|${team(bottom)}|${topIsHome ?? listsHomeFirst(event)}`;
+}
+
 /** "ARS 2–1 CHE (67')", "ARS v CHE": the game for a tab title. */
 function statusLineShort(event: ScoreEvent): string {
   const line = scoreLine(event, true);
@@ -164,16 +175,14 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
     return () => window.removeEventListener("keydown", onKey, { capture: true });
   }, [linked, replays, pointer]);
 
-  const palette: TeamPalette = useMemo(
-    () =>
-      event.content.kind !== "match"
-        ? { top: NEUTRAL, bottom: NEUTRAL }
-        : // NBA and WNBA pages: a team wears its second color when the two clash (TeamPalette.nba).
-          pageKind(event.ref) === "nba"
-          ? nbaPalette(event.content.top, event.content.bottom, scheme)
-          : teamPalette(event.content.top.color, event.content.bottom.color, scheme),
-    [event.content, event.ref, scheme],
-  );
+  // The game's colors, decided once (MatchColors): worked out again only when a team's colors or kit change, not on every score.
+  const topIsHome = game.detail?.topIsHome ?? null;
+  const colorsKey = colorInputs(event, topIsHome);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const colors = useMemo(() => eventColors(event, topIsHome), [colorsKey]);
+  // What each side wears, as marks (the charts, the dock, the end zones); the clubs' own colors for the wash and the crests.
+  const palette: TeamPalette = useMemo(() => (colors ? matchPalette(colors, scheme) : { top: NEUTRAL, bottom: NEUTRAL }), [colors, scheme]);
+  const identity: TeamPalette | null = useMemo(() => (colors ? identityPalette(colors, scheme) : null), [colors, scheme]);
 
   return (
     <article
@@ -188,7 +197,7 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
         <PointerProvider pointer={pointer}>
         <MomentProvider slot={moments}>
           <div className={styles.washSlot}>
-            <HeroWash palette={event.content.kind === "match" ? palette : fieldWash} intensity={event.content.kind === "match" ? 1 : 0.85} crossfade={event.content.kind === "field"} pulses={beats.washPulses} side={beats.washSide} />
+            <HeroWash palette={event.content.kind === "match" ? identity : fieldWash} intensity={event.content.kind === "match" ? 1 : 0.85} crossfade={event.content.kind === "field"} pulses={beats.washPulses} side={beats.washSide} />
           </div>
           <div
             ref={(el) => {
@@ -202,7 +211,7 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
             {/* The hero shows at once; the sections assemble when the detail arrives. */}
             <SlidesProvider slides={slides}>
               <ReplaysProvider store={replays}>
-                <Loaded game={game} event={event} palette={palette} columns={columns} geometry={geometry} moments={moments} beats={beats} setBeats={setBeats} setFieldWash={setFieldWash} />
+                <Loaded game={game} event={event} palette={palette} identity={identity} colors={colors} columns={columns} geometry={geometry} moments={moments} beats={beats} setBeats={setBeats} setFieldWash={setFieldWash} />
               </ReplaysProvider>
             </SlidesProvider>
           </div>
@@ -213,11 +222,13 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   );
 }
 
-function Loaded({ game, event: raw, palette, columns, geometry, moments: slot, beats, setBeats, setFieldWash }: {
+function Loaded({ game, event: raw, palette, identity, colors, columns, geometry, moments: slot, beats, setBeats, setFieldWash }: {
   game: GameData;
   /** The scoreboard's copy of the game (or the summary's): the page presents it at p while it broadcasts. */
   event: ScoreEvent;
   palette: TeamPalette;
+  identity: TeamPalette | null;
+  colors: MatchColors | null;
   columns: boolean;
   geometry: ReturnType<typeof usePageGeometry>;
   /** The page's moment slot; the sports get it gated on p. */
@@ -244,6 +255,7 @@ function Loaded({ game, event: raw, palette, columns, geometry, moments: slot, b
     broadcast: broadcasting ? page.broadcast : null,
     model: page.broadcast,
     palette,
+    colors,
     names: { top: top?.abbreviation ?? "", bottom: bottom?.abbreviation ?? "" },
     spoken: { top: top?.name ?? "", bottom: bottom?.name ?? "" },
     live,
@@ -292,9 +304,9 @@ function Loaded({ game, event: raw, palette, columns, geometry, moments: slot, b
     [event, fieldSummary],
   );
 
-  const shown = sectionOrder(event.ref, event.state).filter((s) => sport.sections[s] != null);
-  const placed = arrangement(shown, event.ref, event.state, columns);
-  useRemeasure(geometry, `${placed.map((p) => p.section).join()}|${columns}`);
+  // The page's modules: what this state's plan has to show, less what the sport hides, in the sport's order (or a drag's proposal).
+  const modules = usePageModules(event, sport, geometry, columns, { detail, palette, names: context.names, scores });
+  useRemeasure(geometry, `${modules.placed.map((p) => p.section).join()}|${columns}|${modules.foldKey}`);
 
   return (
     <>
@@ -303,6 +315,7 @@ function Loaded({ game, event: raw, palette, columns, geometry, moments: slot, b
         <Hero
           event={heroEvent}
           palette={event.content.kind === "match" ? palette : null}
+          identity={identity}
           scores={scores}
           beats={beats}
           surface={surface}
@@ -353,9 +366,11 @@ function Loaded({ game, event: raw, palette, columns, geometry, moments: slot, b
         game.detailFailed ? <p className={styles.note}>{ErrorCopy.inline("match details")}</p> : null
       ) : (
         <BroadcastProvider broadcast={page.broadcast}>
-          <Sections placed={placed} sections={sport.sections} columns={columns} empty={emptyMessage(event)} />
+          <Sections placed={modules.placed} sections={sport.sections} columns={columns} empty={emptyMessage(event)} slot={modules.slot} layoutOn={modules.layoutOn} />
+          {modules.hiddenLine}
         </BroadcastProvider>
       )}
+      {modules.overlay}
       {detail.venue ? <p className={styles.venue}>{detail.venue}</p> : null}
     </>
   );
@@ -413,20 +428,20 @@ function useBeatTriggers(event: ScoreEvent, scores: { top: string | null; bottom
   }, [event.state]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-/** The sections in one column, or blocks of two columns with spans between them. */
-function Sections({ placed, sections, columns, empty }: { placed: readonly PlacedSection[]; sections: SportPage["sections"]; columns: boolean; empty: string }) {
+/**
+ * The sections in one column, or blocks of two columns with spans between
+ * them, each a module (`slot`: its header and fold). While modules glide (a
+ * click's fold, a move, a drag) each slot animates its position on
+ * `standard`; otherwise layout isn't tracked.
+ */
+function Sections({ placed, sections, columns, empty, slot, layoutOn }: { placed: readonly PlacedSection[]; sections: SportPage["sections"]; columns: boolean; empty: string; slot: (section: Section, content: ReactNode) => ReactNode; layoutOn: boolean }) {
   if (placed.length === 0) return <p className={styles.empty}>{empty}</p>;
-  if (!columns) {
-    return (
-      <div className={styles.sections}>
-        {placed.map((p) => (
-          <div key={p.section} className={styles.slot}>
-            {sections[p.section]}
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const one = (p: PlacedSection) => (
+    <m.div key={p.section} className={styles.slot} layout={layoutOn ? "position" : false} transition={spring.standard}>
+      {slot(p.section, sections[p.section])}
+    </m.div>
+  );
+  if (!columns) return <div className={styles.sections}>{placed.map(one)}</div>;
   // Runs of left/right sections form a block; a span closes it.
   const blocks: { left: PlacedSection[]; right: PlacedSection[]; span: PlacedSection | null }[] = [];
   let current = { left: [] as PlacedSection[], right: [] as PlacedSection[], span: null as PlacedSection | null };
@@ -442,22 +457,10 @@ function Sections({ placed, sections, columns, empty }: { placed: readonly Place
       {blocks.map((b, i) => (
         <div key={i}>
           <div className={styles.columns}>
-            <div className={styles.column}>
-              {b.left.map((p) => (
-                <div key={p.section} className={styles.slot}>
-                  {sections[p.section]}
-                </div>
-              ))}
-            </div>
-            <div className={styles.column}>
-              {b.right.map((p) => (
-                <div key={p.section} className={styles.slot}>
-                  {sections[p.section]}
-                </div>
-              ))}
-            </div>
+            <div className={styles.column}>{b.left.map(one)}</div>
+            <div className={styles.column}>{b.right.map(one)}</div>
           </div>
-          {b.span ? <div className={styles.slot}>{sections[b.span.section]}</div> : null}
+          {b.span ? one(b.span) : null}
         </div>
       ))}
     </div>

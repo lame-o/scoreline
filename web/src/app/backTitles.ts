@@ -6,6 +6,7 @@
  * the trail of history entries that reads them.
  */
 import { leagueWithID } from "../data/leagues";
+import { SPORT_NAME, type Sport } from "../data/models";
 
 /**
  * The back title of the page at this location, or null when the path alone
@@ -19,7 +20,10 @@ export function backTitleFor(pathname: string, search = ""): string | null {
     case undefined:
       return "Scores";
     case "following": return "Following";
-    case "sports": return second === "competition" && third ? (leagueWithID(safeDecode(third))?.shortName ?? "Competition") : "Sports";
+    case "sports":
+      if (second === "competition" && third) return leagueWithID(safeDecode(third))?.shortName ?? "Competition";
+      // A sport's page (`/sports/soccer`): its name.
+      return second && second in SPORT_NAME ? SPORT_NAME[second as Sport] : "Sports";
     case "settings":
       return second === "league" && third ? (leagueWithID(safeDecode(third))?.shortName ?? "Settings") : "Settings";
     case "game":

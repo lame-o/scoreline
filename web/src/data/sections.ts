@@ -15,11 +15,13 @@ import { NBA_PATH } from "./providers/espn";
 const WNBA_PATH = "basketball/wnba";
 
 export type Section =
+  /**
+   * The isometric theater, live (all four sports with one): its own module,
+   * above the chart it used to share a section with (Shot Chart, Live Pitch,
+   * Field, At the Plate).
+   */
+  | "liveView"
   | "field"
-  // Football and soccer: the play theater (football's per-play replay; soccer's
-  // broadcast replay of goals and big chances with their build-ups). TODO: both
-  // are still to port; the slots are planned so they land without moving the page.
-  | "theater"
   | "atPlate"
   | "atBat"
   | "pitch"
@@ -82,40 +84,42 @@ export function leaguePageKind(league: League): PageKind {
   }
 }
 
-/** What a fan wants first, per sport and state: the live picture while it's on; the story of the game once it's over. */
+/**
+ * What a fan wants first, per sport and state: the live picture while it's
+ * on; the story of the game once it's over. Win Probability opens every page
+ * that has it, right under the Live View when there is one (the Live View,
+ * live only, leads the page; Win Probability, then the chart it replays for,
+ * follow it). Every sport lists the Timeline after Win Probability; a page
+ * without one leaves no hole.
+ */
 export function sectionOrder(ref: EventRef | null, state: EventState): readonly Section[] {
   switch (pageKind(ref)) {
     case "soccer":
       return state === "live"
-        ? ["pitch", "theater", "timeline", "winProbability", "stats", "table", "bracket", "moments", "plays", "whereToWatch"]
+        ? ["liveView", "winProbability", "timeline", "pitch", "stats", "table", "bracket", "moments", "plays", "whereToWatch"]
         : state === "final"
-          ? ["timeline", "winProbability", "pitch", "theater", "moments", "stats", "table", "bracket", "plays"]
+          ? ["winProbability", "timeline", "pitch", "moments", "stats", "table", "bracket", "plays"]
           : ["winProbability", "table", "bracket", "whereToWatch"];
     case "baseball":
       return state === "live"
-        ? ["atPlate", "atBat", "linescore", "winProbability", "timeline", "bracket", "moments", "battedBalls", "plays", "whereToWatch"]
+        ? ["liveView", "winProbability", "timeline", "atPlate", "atBat", "linescore", "bracket", "moments", "battedBalls", "plays", "whereToWatch"]
         : state === "final"
-          ? ["linescore", "winProbability", "timeline", "bracket", "moments", "battedBalls", "plays"]
+          ? ["winProbability", "timeline", "linescore", "bracket", "moments", "battedBalls", "plays"]
           : ["winProbability", "bracket", "whereToWatch"];
     case "nba":
       return state === "live"
-        ? ["court", "flow", "linescore", "leaders", "moments", "box", "stats", "winProbability", "timeline", "plays", "table", "injuries", "whereToWatch"]
+        ? ["liveView", "winProbability", "timeline", "court", "flow", "linescore", "leaders", "moments", "box", "stats", "plays", "table", "injuries", "whereToWatch"]
         : state === "final"
-          ? ["flow", "court", "winProbability", "timeline", "linescore", "leaders", "box", "moments", "stats", "table"]
-          : // Before tip-off: who's out, ESPN's matchup predictor, season leaders.
-            ["injuries", "winProbability", "leaders", "table", "whereToWatch"];
+          ? ["winProbability", "timeline", "flow", "court", "linescore", "leaders", "box", "moments", "stats", "table"]
+          : // Before tip-off: the matchup predictor, who's out, season leaders.
+            ["winProbability", "injuries", "leaders", "table", "whereToWatch"];
     case "football":
-      // The Mac's ESPN order (DetailView `.espn`), with the play theater's slot under the field.
-      return state === "live"
-        ? ["field", "theater", "winProbability", "timeline", "linescore", "moments", "stats", "table", "plays", "whereToWatch"]
-        : state === "final"
-          ? ["linescore", "winProbability", "timeline", "moments", "stats", "table", "plays"]
-          : ["winProbability", "table", "whereToWatch"];
     case "espn":
+      // The Mac's ESPN order (DetailView `.espn`): football's Live View over its Field.
       return state === "live"
-        ? ["field", "winProbability", "timeline", "linescore", "moments", "stats", "table", "plays", "whereToWatch"]
+        ? ["liveView", "winProbability", "timeline", "field", "linescore", "moments", "stats", "table", "plays", "whereToWatch"]
         : state === "final"
-          ? ["linescore", "winProbability", "timeline", "moments", "stats", "table", "plays"]
+          ? ["winProbability", "timeline", "linescore", "moments", "stats", "table", "plays"]
           : ["winProbability", "table", "whereToWatch"];
     case "counterStrike":
       return state === "live"
@@ -147,40 +151,41 @@ const columns = (left: readonly Section[], right: readonly Section[]): WidePart 
  * partners sit side by side: the pitch beside the timeline and key events,
  * linescore cells beside the plays they light, climbers' rows beside the lanes
  * and cards they light. A section's column never changes at runtime, so a
- * live list growing in one column never moves the other.
+ * live list growing in one column never moves the other. Win Probability is
+ * at or near the top of its column: just under the court in the NBA (the
+ * court stays beside the box score) and under the timeline on a soccer final
+ * (it stays beside the shot map).
  */
 export function widePlan(ref: EventRef | null, state: EventState): readonly WidePart[] {
   switch (pageKind(ref)) {
     case "soccer":
       return state === "live"
-        ? [columns(["pitch", "theater", "stats", "plays"], ["timeline", "winProbability", "moments", "table", "bracket", "whereToWatch"])]
+        ? [columns(["liveView", "pitch", "stats", "plays"], ["winProbability", "timeline", "moments", "table", "bracket", "whereToWatch"])]
         : state === "final"
-          ? [columns(["pitch", "theater", "stats"], ["timeline", "winProbability", "moments", "table", "bracket", "plays"])]
+          ? [columns(["pitch", "stats"], ["timeline", "winProbability", "moments", "table", "bracket", "plays"])]
           : [columns(["table", "bracket"], ["winProbability", "whereToWatch"])];
     case "baseball":
       return state === "live"
-        ? [columns(["atPlate", "atBat", "battedBalls"], ["linescore", "winProbability", "timeline", "moments", "bracket", "plays", "whereToWatch"])]
+        ? [columns(["liveView", "atPlate", "atBat", "battedBalls"], ["winProbability", "timeline", "linescore", "moments", "bracket", "plays", "whereToWatch"])]
         : state === "final"
           ? [columns(["linescore", "battedBalls"], ["winProbability", "timeline", "moments", "bracket", "plays"])]
           : [columns(["bracket"], ["winProbability", "whereToWatch"])];
     case "nba":
       // The game's story on the left, its numbers on the right. The box score
-      // opens the right column, beside the court.
+      // opens the right column, beside the court: clicking a player shows only
+      // their shots without scrolling, and the leaders below it light the same
+      // player on both.
       return state === "live"
-        ? [columns(["court", "flow", "winProbability", "timeline", "linescore", "moments", "plays", "table"], ["box", "leaders", "stats", "injuries", "whereToWatch"])]
+        ? [columns(["liveView", "court", "winProbability", "timeline", "flow", "linescore", "moments", "plays", "table"], ["box", "leaders", "stats", "injuries", "whereToWatch"])]
         : state === "final"
           ? [columns(["flow", "court", "winProbability", "timeline", "linescore", "moments", "table"], ["box", "leaders", "stats", "injuries"])]
-          : [columns(["injuries", "winProbability", "leaders"], ["table", "whereToWatch"])];
+          : // Before tip-off: who's out and how it shapes up, beside the standings.
+            [columns(["winProbability", "injuries", "leaders"], ["table", "whereToWatch"])];
     case "football":
+    case "espn":
       // The drive and its numbers on the left; the score's story on the right, the quarters beside the scoring plays they light.
       return state === "live"
-        ? [columns(["field", "theater", "stats", "plays"], ["winProbability", "timeline", "linescore", "moments", "table", "whereToWatch"])]
-        : state === "final"
-          ? [columns(["linescore", "stats"], ["winProbability", "timeline", "moments", "table", "plays"])]
-          : [columns(["table"], ["winProbability", "whereToWatch"])];
-    case "espn":
-      return state === "live"
-        ? [columns(["field", "stats", "plays"], ["winProbability", "timeline", "linescore", "moments", "table", "whereToWatch"])]
+        ? [columns(["liveView", "field", "stats", "plays"], ["winProbability", "timeline", "linescore", "moments", "table", "whereToWatch"])]
         : state === "final"
           ? [columns(["linescore", "stats"], ["winProbability", "timeline", "moments", "table", "plays"])]
           : [columns(["table"], ["winProbability", "whereToWatch"])];
@@ -217,8 +222,13 @@ export interface PlacedSection {
  * column of the last block, in single-column order; one with nothing to show
  * leaves no hole. A block never leaves a whole column empty: the other column
  * lends it a section.
+ *
+ * `ranking` (the user's order, data/modules.ts) applies within each column:
+ * a column keeps its modules, so the designed pairs stay side by side, and
+ * stacks them in the ranking's relative order (`merge`, the plan's column
+ * order as the default).
  */
-export function wideArrangement(shown: readonly Section[], plan: readonly WidePart[]): PlacedSection[] {
+export function wideArrangement(shown: readonly Section[], plan: readonly WidePart[], ranking: readonly string[] = []): PlacedSection[] {
   const listed = new Set(plan.flatMap((p) => (p.kind === "columns" ? [...p.left, ...p.right] : [p.section])));
   const unlisted = shown.filter((s) => !listed.has(s));
   const parts = [...plan];
@@ -238,8 +248,14 @@ export function wideArrangement(shown: readonly Section[], plan: readonly WidePa
   };
   for (const part of parts) {
     if (part.kind === "columns") {
-      let left = part.left.filter((s) => visible.has(s));
-      let right = part.right.filter((s) => visible.has(s));
+      let left = arrange(
+        part.left.filter((s) => visible.has(s)),
+        ranking,
+      );
+      let right = arrange(
+        part.right.filter((s) => visible.has(s)),
+        ranking,
+      );
       if (left.length === 0 && right.length > 0) {
         left = [right[0]!];
         right = right.slice(1);
@@ -256,10 +272,56 @@ export function wideArrangement(shown: readonly Section[], plan: readonly WidePa
   return placed;
 }
 
-/** The shown sections and where each goes: the sport's order in one column; its plan when split. */
-export function arrangement(shown: readonly Section[], ref: EventRef | null, state: EventState, split: boolean): PlacedSection[] {
+/** The shown sections and where each goes: the one-column order; the sport's plan when split, each column in the sport's order. */
+export function arrangement(shown: readonly Section[], ref: EventRef | null, state: EventState, split: boolean, ranking: readonly string[] = []): PlacedSection[] {
   if (!split) return shown.map((section, rank) => ({ section, column: "single", rank }));
-  return wideArrangement(shown, widePlan(ref, state));
+  return wideArrangement(shown, widePlan(ref, state), ranking);
+}
+
+/**
+ * The page's runs as arranged: each column of the split page, else the whole
+ * page. A dragged module moves within its run.
+ */
+export function runs(placed: readonly PlacedSection[]): Section[][] {
+  const out: Section[][] = [];
+  let current: Section[] = [];
+  let column: Column | null = null;
+  for (const p of placed) {
+    if (p.column !== column) {
+      if (current.length > 0) out.push(current);
+      current = [];
+      column = p.column;
+    }
+    current.push(p.section);
+  }
+  if (current.length > 0) out.push(current);
+  return out;
+}
+
+/** The chart whose moments a section captions (DockRules.chart): folded, its glance carries them. */
+export function chartForSection(section: Section): string | null {
+  switch (section) {
+    case "field":
+      return "field";
+    case "pitch":
+      return "pitch";
+    case "atPlate":
+      return "plate";
+    case "battedBalls":
+      return "spray";
+    case "rounds":
+      return "rounds";
+    case "wall":
+      return "wall";
+    case "ascent":
+      return "ascent";
+    case "scorecard":
+      return "boulder";
+    case "court":
+      return "court";
+    default:
+      return null;
+  }
 }
 
 /** The section that shows (and captions) a chart's moments (DockRules.section). */
@@ -284,4 +346,49 @@ export function sectionForChart(chart: string): Section {
     default:
       return "court";
   }
+}
+
+// MARK: - The user's order (ModuleOrder.merge; data/modules.ts has the rest)
+
+/**
+ * A page's modules, `defaults` (what's on it, in this state's plan), sorted
+ * by `ranking`. A module the user never ranked keeps its default spot beside
+ * its default neighbors: it follows the nearest ranked module above it in the
+ * plan, or, when none is above it, leads the first one. Duplicates and IDs
+ * not on the page are ignored.
+ */
+export function merge<T>(defaults: readonly T[], ranking: readonly T[]): T[] {
+  const rankOf = new Map<T, number>();
+  ranking.forEach((id, i) => {
+    if (!rankOf.has(id)) rankOf.set(id, i);
+  });
+  const firstRanked = defaults.find((id) => rankOf.has(id));
+  if (firstRanked === undefined) return [...defaults];
+  const ranked = defaults.filter((id) => rankOf.has(id)).sort((a, b) => rankOf.get(a)! - rankOf.get(b)!);
+  const leading: T[] = [];
+  const following = new Map<T, T[]>();
+  let anchor: T | undefined;
+  let anchored = false;
+  for (const id of defaults) {
+    if (rankOf.has(id)) {
+      anchor = id;
+      anchored = true;
+    } else if (anchored) {
+      following.set(anchor as T, [...(following.get(anchor as T) ?? []), id]);
+    } else {
+      leading.push(id);
+    }
+  }
+  const result: T[] = [];
+  for (const id of ranked) {
+    if (id === firstRanked) result.push(...leading);
+    result.push(id, ...(following.get(id) ?? []));
+  }
+  return result;
+}
+
+/** Sections sorted by a ranking of their IDs (`merge`). */
+export function arrange(sections: readonly Section[], by: readonly string[]): Section[] {
+  if (by.length === 0) return [...sections];
+  return merge(sections as readonly string[], by) as Section[];
 }

@@ -141,14 +141,12 @@ export default function BaseballDirected({
 
   const teamsBy = useMemo(
     () => ({ top: theaterTeams(kits, scheme, "top"), bottom: theaterTeams(kits, scheme, "bottom") }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme],
+    [kits, scheme],
   );
   const ink = useMemo(() => theaterInk(scheme), [scheme]);
   const tagLabels = useMemo(
     () => theaterLabels(kits, scheme, { top: topTeam, bottom: bottomTeam }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, topTeam, bottomTeam],
+    [kits, scheme, topTeam, bottomTeam],
   );
 
   useEffect(() => {

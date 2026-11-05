@@ -309,3 +309,17 @@
   right: calc(30 * var(--pt));
   display: inline-flex;
 }
+
+/* A league a team filter emptied: none of yours, and its live games a click away (af33b2b). */
+.screened {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+}
+
+.screened .footnoteLink {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5 * var(--pt));
+  color: var(--label);
+}

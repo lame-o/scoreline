@@ -1,0 +1,182 @@
+/* Customize a sport's game pages: a sheet over the page, a dimmed scrim behind it. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: calc(44 * var(--pt));
+  background: light-dark(rgb(0 0 0 / 0.16), rgb(0 0 0 / 0.32));
+  animation: scrim-in 150ms var(--ease-out);
+}
+
+.sheet {
+  width: calc(262 * var(--pt));
+  max-height: calc(100dvh - 88 * var(--pt));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: calc(14 * var(--pt));
+  border-radius: calc(12 * var(--pt));
+  background: light-dark(#fff, rgb(43 43 43));
+  border: calc(0.5 * var(--pt)) solid var(--stroke-hairline);
+  box-shadow: 0 calc(8 * var(--pt)) calc(36 * var(--pt)) rgb(0 0 0 / 0.3);
+  animation: sheet-in 250ms var(--ease-out);
+}
+
+.title {
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: var(--label);
+}
+
+.subtitle {
+  margin: calc(2 * var(--pt)) 0 calc(8 * var(--pt));
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A row and its hairline: 25pt, as the Mac's. */
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: calc(25 * var(--pt));
+  background: light-dark(#fff, rgb(43 43 43));
+  border-radius: calc(6 * var(--pt));
+}
+
+.row + .row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(21 * var(--pt));
+  right: 0;
+  height: 1px;
+  background: var(--separator);
+}
+
+/* Held, the row lifts off the list: the sheet's surface, a soft shadow, a touch larger. */
+.row[data-held="true"] {
+  z-index: 1;
+  box-shadow: 0 calc(3 * var(--pt)) calc(16 * var(--pt)) light-dark(rgb(0 0 0 / 0.16), rgb(0 0 0 / 0.45));
+  scale: 1.02;
+}
+
+.row[data-held="true"]::before,
+.row[data-held="true"] + .row::before {
+  opacity: 0;
+}
+
+.check {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  height: 100%;
+}
+
+.check input {
+  margin: 0;
+  width: calc(13 * var(--pt));
+  height: calc(13 * var(--pt));
+  accent-color: var(--accent);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  font-size: calc(12.5 * var(--pt));
+  color: var(--label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.name[data-shown="false"] {
+  color: var(--label-secondary);
+}
+
+.live {
+  font-size: var(--text-small);
+  color: var(--label-secondary);
+}
+
+.handle {
+  appearance: none;
+  border: 0;
+  background: none;
+  width: calc(24 * var(--pt));
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--label-tertiary);
+  cursor: grab;
+  touch-action: none;
+}
+
+.row[data-held="true"] .handle {
+  color: var(--label-secondary);
+  cursor: grabbing;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: calc(10 * var(--pt));
+}
+
+.restore {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: var(--text-callout);
+  color: var(--label-secondary);
+}
+
+.done {
+  appearance: none;
+  border: 0;
+  padding: calc(4 * var(--pt)) calc(14 * var(--pt));
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: calc(12 * var(--pt));
+  font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .restore:hover {
+    color: var(--label);
+  }
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    animation: scrim-in 150ms var(--ease-out);
+  }
+}

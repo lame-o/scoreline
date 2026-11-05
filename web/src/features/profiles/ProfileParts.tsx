@@ -11,12 +11,11 @@ import { Link } from "react-router";
 import { BackButton, DetailSection as SharedDetailSection, Icon, LiveStatus, PageHeader, Skeleton, TeamLogo, type DetailSectionProps } from "../../design/components";
 import { scoreLine, spokenEventStatus, spokenScore } from "../../data/format";
 import type { ScoreEvent } from "../../data/models";
-import { orderLogoColors } from "../../data/logoColors";
 import { atLeast, widthClassOf, type WidthClass } from "../../data/profiles/display";
 import type { StatTile, TeamHeader, TeamRef } from "../../data/profiles/models";
 import { FLAG_PALETTE } from "../../data/teams";
 import { luminance, teamPalette, washStrength, NEUTRAL } from "../../data/teamColors";
-import { logoColorsFor, useLogoColorsVersion } from "../../state/logoColors";
+import { applyColors, useLogoColorsVersion } from "../../state/logoColors";
 import { useColorScheme } from "../../state/theme";
 import { useWidth } from "../../design/useWidth";
 import { useBack, useGoBack } from "../../app/navigation";
@@ -30,9 +29,10 @@ export interface WashColors {
 }
 
 /**
- * The team's two colors for a wash, fitted to the scheme: the crest's own
- * colors once read (they arrive as a change of light), else the source's.
- * Null when the team has no usable color.
+ * The team's two colors for a wash, fitted to the scheme: the source's, as
+ * every page has them (`applyColors`: a payload without colors reads what an
+ * earlier one said of the team), and the crest's for a team without any (they
+ * arrive as a change of light). Null when the team has no usable color.
  */
 export function useTeamColors(team: TeamRef | null, header: TeamHeader | null = null): WashColors | null {
   const scheme = useColorScheme();
@@ -40,22 +40,18 @@ export function useTeamColors(team: TeamRef | null, header: TeamHeader | null = 
   const logo = header?.logo ?? team?.logo ?? null;
   const color = header?.color ?? team?.color ?? null;
   const alternate = header?.alternateColor ?? team?.alternateColor ?? null;
+  const id = team?.id ?? null;
   return useMemo(() => {
     if (!team && !header) return null;
-    const entry = logoColorsFor(logo);
-    let top = color;
-    let bottom = alternate;
-    if (entry && entry.colors.length > 0) {
-      const ordered = orderLogoColors(entry, color);
-      top = ordered[0]!.replace("#", "");
-      bottom = ordered[1]?.replace("#", "") ?? alternate;
-    }
+    const c = applyColors({ id, name: "", abbreviation: "", score: null, logo, isWinner: false, color, rank: null, record: null, conferenceRecord: null, alternateColor: alternate });
+    const top = c.color;
+    const bottom = c.alternateColor;
     if (!top) return null;
     const palette = teamPalette(top, bottom ?? top, scheme);
     return { left: palette.top, right: bottom == null ? palette.top : palette.bottom };
     // `version` re-reads the crest's colors as they arrive.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [team?.id, header, logo, color, alternate, scheme, version]);
+  }, [id, header, logo, color, alternate, scheme, version]);
 }
 
 /** A climbing nation's two flag colors (never the white). */

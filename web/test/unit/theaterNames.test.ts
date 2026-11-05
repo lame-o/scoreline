@@ -7,7 +7,7 @@
  * names*.test.ts files beside this one.
  */
 import { describe, expect, it } from "vitest";
-import { dress, type TheaterKits } from "../../src/data/mlb/theaterTeams";
+import { kitsOf, type TheaterKits } from "../../src/data/mlb/theaterTeams";
 import { labDistance } from "../../src/data/scoringSlide";
 import { oklabFromHex } from "../../src/data/teamColors";
 import { afterInitials, hitFigure, shownTags, surname, tagFrame, TheaterCast, theaterLabels, TheaterPeople, TheaterPointer, TheaterTagLayout, TEAM_ONLY, type TagAsk } from "../../src/data/theater/theaterNames";
@@ -140,17 +140,13 @@ describe("the pointer's tag, coming and going", () => {
 });
 
 describe("each side's paint", () => {
-  it("is the color he's drawn in: the team in its second color labeled in it; the Spurs' black gray on a dark panel", () => {
-    const kits: TheaterKits = { top: { color: "13294b", alternate: "ffc72c" }, bottom: { color: "092c5c", alternate: "8fbce6" } };
+  it("is the color he's drawn in: two navies, the team in its second color labeled in it; the Spurs remain black in both schemes, as the figures are", () => {
+    const kits: TheaterKits = kitsOf({ color: "13294b", alternate: "ffc72c" }, { color: "092c5c", alternate: "8fbce6" });
     const labels = theaterLabels(kits, "dark", { top: "Brewers", bottom: "Rays" });
-    const rule = dress(kits, "dark").rule;
-    expect(rule.kind).toBe("second");
-    if (rule.kind === "second") {
-      const worn = oklabFromHex(rule.side === "top" ? "ffc72c" : "8fbce6")!;
-      expect(labDistance(worn, labels[rule.side].paint.slab)).toBeLessThan(0.2);
-    }
-    const spurs: TheaterKits = { top: { color: "000000", alternate: "c4ced4" }, bottom: { color: "4e008e", alternate: "79a3dc" } };
-    expect(theaterLabels(spurs, "dark", { top: "Spurs", bottom: "Jazz" }).top.paint.slab.l).toBeGreaterThan(0.5);
+    expect(kits.top.wear).toBe("second");
+    expect(labDistance(oklabFromHex("ffc72c")!, labels.top.paint.slab)).toBeLessThan(0.2);
+    const spurs: TheaterKits = kitsOf({ color: "000000", alternate: "c4ced4" }, { color: "4e008e", alternate: "79a3dc" });
+    expect(theaterLabels(spurs, "dark", { top: "Spurs", bottom: "Jazz" }).top.paint.slab.l).toBeLessThan(0.35);
     expect(theaterLabels(spurs, "light", { top: "Spurs", bottom: "Jazz" }).top.paint.slab.l).toBeLessThan(0.35);
   });
 });

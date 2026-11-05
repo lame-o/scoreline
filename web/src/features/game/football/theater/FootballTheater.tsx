@@ -369,7 +369,7 @@ export default function FootballTheater({
   const dressed = useMemo(
     () => dress(kits, scheme),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme],
+    [kits, scheme],
   );
   // Each side's look with the ball (the idle a replay takes over from may have the other's).
   const teamsBy = useMemo((): Record<Side, FootballTeams> => ({ top: { offense: dressed.top, defense: dressed.bottom }, bottom: { offense: dressed.bottom, defense: dressed.top } }), [dressed]);
@@ -387,7 +387,7 @@ export default function FootballTheater({
   const tagLabels = useMemo(
     () => theaterLabels(kits, scheme, { top: topTeam || topName, bottom: bottomTeam || bottomName }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, topTeam, topName, bottomTeam, bottomName],
+    [kits, scheme, topTeam, topName, bottomTeam, bottomName],
   );
   const names: StatusNames = useMemo(
     () => ({ top: topTeam || topName, bottom: bottomTeam || bottomName, topColor: tagColor(kits.top.color), bottomColor: tagColor(kits.bottom.color) }),

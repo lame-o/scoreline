@@ -25,6 +25,7 @@
  * a parser.
  */
 import { at, int, num, str, type JSONValue } from "./json";
+import { matchColors, type MatchColors } from "./matchColors";
 import type { Competitor, ScoreEvent, Side } from "./models";
 import type { LiveMoment } from "./moments";
 import type { PlayScene } from "./mlb/playScene";
@@ -197,6 +198,8 @@ export interface ReplayContext {
   readonly numbers: Readonly<Record<string, string>>;
   /** The page's palette: the end zones and the paint wear it. */
   readonly palette: TeamPalette;
+  /** The game's colors, decided once (`GameContext.colors`): what each side wears, as on the live theater. */
+  readonly kits?: MatchColors | null;
 }
 
 /** Short names ("PHI"), and the teams' full names ("Philadelphia Eagles"). */
@@ -209,10 +212,17 @@ export function replayTeams(context: ReplayContext): { readonly top: string; rea
   return { top: context.top?.name || codes.top, bottom: context.bottom?.name || codes.bottom };
 }
 
-/** Each team's own and second colors, as the live theaters dress them (the web's team colors: the scoreboard's). */
-export function replayKits(context: ReplayContext) {
-  return {
-    top: { color: context.top?.color ?? null, alternate: context.top?.alternateColor ?? null },
-    bottom: { color: context.bottom?.color ?? null, alternate: context.bottom?.alternateColor ?? null },
-  };
+/**
+ * What each side wears, as the live theaters dress them (ReplayContext.kits):
+ * the page's colors, decided once; else the game's, from its teams and kits
+ * (MatchColors(top:bottom:topIsHome:)).
+ */
+export function replayKits(context: ReplayContext): MatchColors {
+  if (context.kits) return context.kits;
+  const { top, bottom } = context;
+  return matchColors(
+    { color: top?.color ?? null, alternate: top?.alternateColor ?? null },
+    { color: bottom?.color ?? null, alternate: bottom?.alternateColor ?? null },
+    { topKit: top?.kit ?? null, bottomKit: bottom?.kit ?? null, home: context.topIsHome ? "top" : "bottom" },
+  );
 }

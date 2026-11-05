@@ -12,7 +12,7 @@
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Teams } from "../../../../data/liveFeeds/basketball";
-import { dress } from "../../../../data/mlb/theaterTeams";
+import { dress, kitsOf } from "../../../../data/mlb/theaterTeams";
 import type { Side } from "../../../../data/models";
 import { NEUTRAL, teamPalette, type Scheme } from "../../../../data/teamColors";
 import { beatScript, beatSide, endsRight, hoopsEnds, restOf, restScript, type Lineup, type RestSpec } from "../../../../data/theater/basketballBeats";
@@ -29,7 +29,7 @@ import { drawBasketballFrame, drawCourt, HoopProjection, layoutLabels, type Bask
 const files = import.meta.glob<{ default: unknown }>("../../../../../test/fixtures/nba-every-play-401909890.json");
 
 const names = { top: "Spurs", bottom: "Jazz" };
-const kits = { top: { color: "#000000", alternate: "#c4ced4" }, bottom: { color: "#4e008e", alternate: "#79a3dc" } };
+const kits = kitsOf({ color: "#000000", alternate: "#c4ced4" }, { color: "#4e008e", alternate: "#79a3dc" });
 const SIZE = { width: 360, height: 180 };
 
 interface Game {

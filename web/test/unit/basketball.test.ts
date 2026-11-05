@@ -274,17 +274,18 @@ describe("small formats", () => {
   });
 });
 
-describe("team colors", () => {
-  it("lets a team wear its second color when the two clash", async () => {
-    const { nbaPalette, colorDifference } = await import("../../src/data/basketball");
-    // Lakers purple beside Jazz purple: the Jazz (at home) wear their second color.
-    const lakers = { color: "552583", alternateColor: "fdb927" };
-    const jazz = { color: "4e008e", alternateColor: "79a3dc" };
-    const p = nbaPalette(lakers, jazz, "light");
-    expect(colorDifference(p.top, p.bottom)).toBeGreaterThanOrEqual(0.45);
-    // Colors already apart stay as they are.
-    const celtics = { color: "008348", alternateColor: "000000" };
-    const { teamPalette } = await import("../../src/data/teamColors");
-    expect(nbaPalette(lakers, celtics, "dark")).toEqual(teamPalette(lakers.color, celtics.color, "dark"));
+describe("team colors (MatchColors)", () => {
+  it("the visitors listed first: on a clash they change, the same in both schemes", async () => {
+    const { matchColors, matchPalette } = await import("../../src/data/matchColors");
+    const { NEUTRAL } = await import("../../src/data/teamColors");
+    const franchise = (color: string, alternate: string) => ({ color, alternate });
+    const lakersJazz = matchColors(franchise("552583", "fdb927"), franchise("4e008e", "79a3dc"));
+    const netsCavs = matchColors(franchise("000000", "ffffff"), franchise("860038", "fdbb30"));
+    // Clashing purples: the visiting Lakers change into gold, the Jazz at home don't; the Nets' black stays an honest gray on a chart.
+    expect([lakersJazz.top.color, lakersJazz.bottom.color]).toEqual(["fdb927", "4e008e"]);
+    expect(matchPalette(netsCavs, "dark").top).toBe(NEUTRAL);
+    // Navy beside black looks alike: the visiting Pacers wear gold, in both schemes.
+    const pacersAtNets = matchColors(franchise("0c2340", "ffd520"), franchise("000000", "ffffff"));
+    expect([pacersAtNets.top.color, pacersAtNets.bottom.color]).toEqual(["ffd520", "000000"]);
   });
 });

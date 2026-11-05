@@ -12,6 +12,7 @@
  *
  *     <CourtTheater feed={feed} teams={teams} event={event} palette={palette} names={names} topIsHome people={detail.people} />
  */
+import { NO_KITS, type MatchColors as TheaterKits } from "../../../../data/matchColors";
 import { lazy, Suspense } from "react";
 import type { BasketballFeed, Teams } from "../../../../data/liveFeeds/basketball";
 import type { ScoreEvent } from "../../../../data/models";
@@ -38,17 +39,17 @@ export interface CourtTheaterProps {
   readonly people?: Readonly<Record<string, TheaterPerson>>;
   /** The theater on the choreography engine, over the page's (null: today's; absent: the page's broadcast's). */
   readonly directed?: Directed | null;
+  /** The game's colors, decided once (`GameContext.colors`). */
+  readonly kits: TheaterKits | null;
 }
 
-export function CourtTheater({ feed, teams, event, palette, names, spoken, topIsHome, people, directed: given }: CourtTheaterProps) {
+export function CourtTheater({ feed, teams, event, palette, names, spoken, topIsHome, people, directed: given, kits: colors }: CourtTheaterProps) {
   const page = usePageDirected();
   const directed = given === undefined ? page : given;
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
-  const kits = {
-    top: { color: top?.color ?? null, alternate: top?.alternateColor ?? null },
-    bottom: { color: bottom?.color ?? null, alternate: bottom?.alternateColor ?? null },
-  };
+  // The game's colors, decided once (MatchColors): what each side wears, today's theater and the directed one alike.
+  const kits = colors ?? NO_KITS;
   const topTeam = top?.name ?? spoken?.top ?? "";
   const bottomTeam = bottom?.name ?? spoken?.bottom ?? "";
   return (

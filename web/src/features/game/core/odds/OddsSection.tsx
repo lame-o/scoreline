@@ -27,6 +27,7 @@ import type { TimelineMark } from "../../../../data/odds/marks";
 import { eventLink, normalized, percent, traded, type OddsSplit } from "../../../../data/odds/polymarket";
 import type { OddsPointer } from "../../../../data/odds/pointer";
 import type { TeamPalette } from "../../../../data/teamColors";
+import { chancesGlance } from "../../../../data/modules";
 import { NEUTRAL } from "../../../../data/teamColors";
 import { Icon, SegmentedControl } from "../../../../design/components";
 import { useWidth } from "../../../../design/useWidth";
@@ -101,6 +102,10 @@ export function OddsSection({ game, feed, time, pointer, marks, palette, seen }:
     return out;
   }, [names.top, names.bottom, palette.top, palette.bottom, threeWay, scheme]);
   const latest = until == null ? (data ? chartHead(data)?.split : null) ?? latestSplit(snapshot) : (data ? chartHead(data)?.split : null) ?? null;
+  // Folded: each side's price, keyed by its line's color, a draw between (ModuleGlance.chances).
+  const glance = latest
+    ? chancesGlance(latest, final, { color: lines[0]!.color, name: names.top }, threeWay ? drawColor(scheme) : null, { color: lines.at(-1)!.color, name: names.bottom })
+    : null;
   // The market's channel is open (before the game too): its lines are live.
   const streaming = snapshot.transport != null;
   const what = threeWay ? "a line per outcome" : "a line per team";
@@ -111,6 +116,7 @@ export function OddsSection({ game, feed, time, pointer, marks, palette, seen }:
       id="winProbability"
       title={final ? "How the Odds Moved" : "Win Probability"}
       accessory={live ? "live" : final ? "final" : undefined}
+      glance={glance}
       caption={caption}
       trailing={
         data?.zoomed ? (

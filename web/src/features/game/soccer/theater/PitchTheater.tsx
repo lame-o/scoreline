@@ -11,6 +11,7 @@
  *
  *     <PitchTheater feed={feed} homeTeamID={homeID} event={event} added={detail.soccerAdded} people={detail.people} />
  */
+import { NO_KITS, type MatchColors as TheaterKits } from "../../../../data/matchColors";
 import { lazy, Suspense } from "react";
 import type { SoccerFeed } from "../../../../data/liveFeeds/soccer";
 import type { ScoreEvent } from "../../../../data/models";
@@ -34,20 +35,20 @@ export interface PitchTheaterProps {
   readonly people?: Readonly<Record<string, TheaterPerson>>;
   /** The theater on the choreography engine, over the page's (null: today's; absent: the page's broadcast's). */
   readonly directed?: Directed | null;
+  /** The game's colors, decided once (`GameContext.colors`). */
+  readonly kits: TheaterKits | null;
 }
 
 /** A team's color for the tag, as hex without the hash (the kit's own, else none). */
 const tagColor = (color: string | null | undefined): string | null => (color ? color.replace(/^#/, "") : null);
 
-export function PitchTheater({ feed, homeTeamID, event, added = null, people, directed: given }: PitchTheaterProps) {
+export function PitchTheater({ feed, homeTeamID, event, added = null, people, directed: given, kits: colors }: PitchTheaterProps) {
   const page = usePageDirected();
   const directed = given === undefined ? page : given;
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
-  const kits = {
-    top: { color: top?.color ?? null, alternate: top?.alternateColor ?? null },
-    bottom: { color: bottom?.color ?? null, alternate: bottom?.alternateColor ?? null },
-  };
+  // The game's colors, decided once (MatchColors): what each side wears, today's theater and the directed one alike.
+  const kits = colors ?? NO_KITS;
   const names = { top: top?.name ?? "", bottom: bottom?.name ?? "", topColor: tagColor(kits.top.color), bottomColor: tagColor(kits.bottom.color) };
   return (
     <div className={styles.slot}>

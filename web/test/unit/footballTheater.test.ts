@@ -14,7 +14,7 @@
 import { describe, expect, it } from "vitest";
 import { footballPlay, type FootballTeams } from "../../src/data/liveFeeds/football";
 import { CameraFrame } from "../../src/data/mlb/playCamera";
-import { dress } from "../../src/data/mlb/theaterTeams";
+import { dress, kitsOf } from "../../src/data/mlb/theaterTeams";
 import { fieldPoint, type FieldPoint } from "../../src/data/mlb/theaterField";
 import { liveMoment, Tier, type LiveMoment } from "../../src/data/moments";
 import { FootballScene, kindIs, parse } from "../../src/data/theater/footballScene";
@@ -812,7 +812,7 @@ describe("the headline's colors", () => {
       const a = scheme === "dark" ? 0.45 : 0.045;
       const plate = luminance(page.map((c) => c * (1 - a)));
       for (const { home, away } of [mnf, ...soccer.matches]) {
-        const d = dress({ top: { color: away.color, alternate: away.alternateColor }, bottom: { color: home.color, alternate: home.alternateColor } }, scheme);
+        const d = dress(kitsOf({ color: away.color, alternate: away.alternateColor }, { color: home.color, alternate: home.alternateColor }), scheme);
         for (const [name, u] of [
           [away.abbreviation, d.top],
           [home.abbreviation, d.bottom],

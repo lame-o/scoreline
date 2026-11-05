@@ -15,12 +15,12 @@ import { fixture } from "./fixtures";
 const espn = (path: string, sport: "soccer" | "basketball"): EventRef => ({ kind: "espn", path, id: "1", sport });
 
 describe("the section plan", () => {
-  it("plans the soccer play theater's slot beside the pitch, leaving no hole until it lands", () => {
+  it("plans the soccer Live View over the pitch, live only, leaving no hole without it", () => {
     const soccer = espn("soccer/eng.1", "soccer");
-    expect(sectionOrder(soccer, "live").slice(0, 3)).toEqual(["pitch", "theater", "timeline"]);
-    expect(sectionOrder(soccer, "final")).toContain("theater");
+    expect(sectionOrder(soccer, "live").slice(0, 4)).toEqual(["liveView", "winProbability", "timeline", "pitch"]);
+    expect(sectionOrder(soccer, "final")).not.toContain("liveView");
     const left = widePlan(soccer, "live")[0];
-    expect(left?.kind === "columns" && left.left.slice(0, 2)).toEqual(["pitch", "theater"]);
+    expect(left?.kind === "columns" && left.left.slice(0, 2)).toEqual(["liveView", "pitch"]);
     // Without a theater, the pitch is followed by what's there.
     const placed = wideArrangement(["pitch", "stats", "timeline"], widePlan(soccer, "live"));
     expect(placed.map((p) => [p.section, p.column])).toEqual([

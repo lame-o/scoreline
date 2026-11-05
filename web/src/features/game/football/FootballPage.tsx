@@ -31,6 +31,8 @@ import { useRankings, useStandings } from "../../../state/standings";
 import { DetailSection } from "../core/DetailSection";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
 import { useCommonSections } from "../core/useCommonSections";
+import { useModuleOpen } from "../core/usePageModules";
+import { fieldGlance, glanceText } from "../../../data/modules";
 import { useReplaySync } from "../core/replay/useReplaySync";
 import { CollegeTableWindow } from "../tables/GameTables";
 import { FootballField } from "./FootballField";
@@ -121,7 +123,16 @@ export function useFootballPage(game: GameContext): SportPage {
   useReplaySync(game, { football: feed });
   const sections: Partial<Record<string, ReactNode>> = { ...useCommonSections(game, { momentText }) };
 
+  // The Live View owns the burst while it's open (FootballCelebration.driveChartBursts(theaterShown:)).
+  const theaterOpen = useModuleOpen(event.ref, "liveView");
   if (live && situation) {
+    // The play theater: its own module, above the drive chart as on the Mac (9cbbb02).
+    sections.liveView = (
+      <DetailSection id="liveView" title="Live View" caption="The latest snap, replayed as it happened." accessory="live">
+        {/* Broadcasting, the host shows the theater on the engine (usePageDirected); otherwise today's, with the lane's situation and the scoreboard's event. */}
+        <FieldTheater feed={feed} teams={teams} situation={today ?? situation} event={game.raw.event} palette={palette} names={names} people={detail.people} kits={game.colors} />
+      </DetailSection>
+    );
     sections.field = (
       <DetailSection
         id="field"
@@ -130,10 +141,7 @@ export function useFootballPage(game: GameContext): SportPage {
         spokenCaption={`This drive, snap by snap. ${spoken.top} defending the left end zone.`}
         accessory="live"
       >
-        {/* The play theater, above the drive chart as on the Mac; it owns the burst (FootballCelebration.driveChartBursts). */}
-        {/* The theater keeps today's inputs (the lane's situation, the scoreboard's event) until the director reads the broadcast. */}
-        <FieldTheater feed={feed} teams={teams} situation={today ?? situation} event={game.raw.event} palette={palette} names={names} people={detail.people} />
-        <FootballField situation={situation} plays={plays} names={names} spoken={spoken} palette={palette} possession={possession ?? situation.possession} twoMinuteDrill={drill} linkText={linkText} celebrates={false} />
+        <FootballField situation={situation} plays={plays} names={names} spoken={spoken} palette={palette} possession={possession ?? situation.possession} twoMinuteDrill={drill} linkText={linkText} celebrates={!theaterOpen} />
       </DetailSection>
     );
   }
@@ -154,6 +162,13 @@ export function useFootballPage(game: GameContext): SportPage {
   const split = downAndSpot(situation?.downDistance);
   return {
     sections,
+    // Folded: the newest snap with the down (the Live View), who has the ball and the drive (the Field).
+    glance: (section) => {
+      if (!situation) return undefined;
+      if (section === "liveView") return situation.lastPlay ? glanceText(situation.downDistance ?? "", situation.lastPlay) : null;
+      if (section === "field") return fieldGlance(ball?.abbreviation ?? null, situation.downDistance, feed.plays.length);
+      return undefined;
+    },
     laneScores,
     clock: live ? feed.gameClock : null,
     clockFallback: live ? (feed.clock ?? (event.detail?.toUpperCase() === "HT" ? "Halftime" : (event.detail ?? "Live"))) : null,

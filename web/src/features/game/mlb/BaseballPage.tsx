@@ -14,6 +14,9 @@
  * half-inning; MLB's own pitch times place each pitch (data/broadcast/lanes.ts
  * `timed`). The play theater keeps today's inputs.
  */
+import { NO_KITS } from "../../../data/matchColors";
+import { atBatGlance, atPlateGlance, glanceText } from "../../../data/modules";
+import { useModuleOpen } from "../core/usePageModules";
 import { Suspense, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { battingSide, Accessory, shortInning, type AccessoryTier } from "../../../data/matchRules";
 import type { Baseball, BattedBall } from "../../../data/gameDetail";
@@ -129,18 +132,15 @@ export function useBaseballPage(game: GameContext): SportPage {
   const [topID, bottomID] = espnTeamIDs(event);
   void topID;
   void bottomID;
-  const kits =
-    event.content.kind === "match"
-      ? {
-          top: { color: event.content.top.color, alternate: event.content.top.alternateColor },
-          bottom: { color: event.content.bottom.color, alternate: event.content.bottom.alternateColor },
-        }
-      : { top: { color: null, alternate: null }, bottom: { color: null, alternate: null } };
+  // The game's colors, decided once (MatchColors): what each side wears.
+  const kits = game.colors ?? NO_KITS;
 
+  // The Live View owns a home run's fireworks while it's open; else the spray chart has them.
+  const theaterOpen = useModuleOpen(event.ref, "liveView");
   if (live && situation) {
-    sections.atPlate = (
-      <DetailSection id="atPlate" title="At the Plate" caption="Live count, runners and matchup from ESPN." accessory="live">
-        <BaseballDiamond situation={situation} batting={batting} palette={palette} player={(id, name) => espnPlayerRef("baseball/mlb", id, name)}>
+    // The play theater: its own module, above At the Plate as on the Mac (9cbbb02).
+    sections.liveView = (
+      <DetailSection id="liveView" title="Live View" caption="The latest pitch, replayed as it happened." accessory="live">
           <Suspense fallback={<div className={diamond.theaterFallback} aria-hidden="true" />}>
             {/* Broadcasting, the theater on the engine reads the broadcast; otherwise today's keeps the lane's diamond and inning. */}
             <DiamondTheater
@@ -165,7 +165,11 @@ export function useBaseballPage(game: GameContext): SportPage {
               fielders={detail.fielders}
             />
           </Suspense>
-        </BaseballDiamond>
+      </DetailSection>
+    );
+    sections.atPlate = (
+      <DetailSection id="atPlate" title="At the Plate" caption="Live count, runners and matchup from ESPN." accessory="live">
+        <BaseballDiamond situation={situation} batting={batting} palette={palette} player={(id, name) => espnPlayerRef("baseball/mlb", id, name)} />
       </DetailSection>
     );
   }
@@ -185,7 +189,7 @@ export function useBaseballPage(game: GameContext): SportPage {
       bottomName={names.bottom}
       spokenTop={spoken.top}
       spokenBottom={spoken.bottom}
-      celebrates={!(live && situation)}
+      celebrates={!(live && situation && theaterOpen)}
       width={sectionWidth}
     />
   );
@@ -200,6 +204,13 @@ export function useBaseballPage(game: GameContext): SportPage {
   const battingTeam = batting && event.content.kind === "match" ? (batting === "top" ? event.content.top : event.content.bottom) : null;
   return {
     sections,
+    // Folded: the last play in its inning (the Live View), the outs, runners and matchup (At the Plate), the newest pitch.
+    glance: (section) => {
+      if (section === "liveView") return situation?.lastPlay ? glanceText(inning ?? "", situation.lastPlay) : null;
+      if (section === "atPlate") return situation ? atPlateGlance(situation.outs, [situation.onFirst, situation.onSecond, situation.onThird], situation.batter, situation.pitcher) : null;
+      if (section === "atBat") return atBatGlance(pitches);
+      return undefined;
+    },
     laneScores,
     clockFallback: broadcast ? (event.detail ?? "Live") : (feed.inning ?? (event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live"))),
     heroSecond: battingTeam ? `${battingTeam.abbreviation} batting` : null,

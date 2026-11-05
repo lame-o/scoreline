@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { momentAt, type Teams } from "../../../../data/liveFeeds/basketball";
 import type { Side } from "../../../../data/models";
+import { kitsOf } from "../../../../data/mlb/theaterTeams";
 import type { LiveMoment } from "../../../../data/moments";
 import { teamPalette } from "../../../../data/teamColors";
 import { parseScene, replays, type BasketballMove, type BasketballScene, type BasketballTheaterState } from "../../../../data/theater/basketballScene";
@@ -140,8 +141,9 @@ function PreviewStage({ tile, frozen, idle }: { tile: Tile; frozen: number | nul
   const scheme = useColorScheme();
   const slot = useMomentSlot();
   const { home, away } = tile.game;
-  const palette = teamPalette(`#${away.color}`, `#${home.color}`, scheme);
-  const kits = { top: { color: `#${away.color}`, alternate: `#${away.alternate}` }, bottom: { color: `#${home.color}`, alternate: `#${home.alternate}` } };
+  const kits = kitsOf({ color: `#${away.color}`, alternate: `#${away.alternate}` }, { color: `#${home.color}`, alternate: `#${home.alternate}` });
+  // What each side wears, as the page draws its marks (MatchColors.palette).
+  const palette = teamPalette(kits.top.color, kits.bottom.color, scheme);
   useEffect(() => {
     // A tick later: development's StrictMode runs this twice, and the slot would take the second offer as already seen.
     const moment = tile.moment;

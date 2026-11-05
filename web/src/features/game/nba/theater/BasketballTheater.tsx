@@ -454,7 +454,7 @@ export default function BasketballTheater({
   const dressed = useMemo(
     () => dress(kits, scheme),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme],
+    [kits, scheme],
   );
   const offense: Side = script.side ?? possession ?? "top";
   // Each side's look with the ball (the court a replay takes over from may have the other's).
@@ -472,7 +472,7 @@ export default function BasketballTheater({
   const tagLabels = useMemo(
     () => theaterLabels(kits, scheme, names),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, names],
+    [kits, scheme, names],
   );
   const heartbeat = (feed ? live.playing : true) && state.heard != null;
 

@@ -11,6 +11,7 @@
  *
  *     <FieldTheater feed={feed} teams={teams} situation={situation} event={event} palette={palette} names={names} people={detail.people} />
  */
+import { NO_KITS, type MatchColors as TheaterKits } from "../../../../data/matchColors";
 import { lazy, Suspense } from "react";
 import type { Football } from "../../../../data/gameDetail";
 import type { FootballFeed, FootballTeams } from "../../../../data/liveFeeds/football";
@@ -36,17 +37,17 @@ export interface FieldTheaterProps {
   readonly people: Readonly<Record<string, TheaterPerson>>;
   /** The theater on the choreography engine, over the page's (null: today's; absent: the page's broadcast's). */
   readonly directed?: Directed | null;
+  /** The game's colors, decided once (`GameContext.colors`). */
+  readonly kits: TheaterKits | null;
 }
 
-export function FieldTheater({ feed, teams, situation, event, palette, names, people, directed: given }: FieldTheaterProps) {
+export function FieldTheater({ feed, teams, situation, event, palette, names, people, directed: given, kits: colors }: FieldTheaterProps) {
   const page = usePageDirected();
   const directed = given === undefined ? page : given;
   const top = event.content.kind === "match" ? event.content.top : null;
   const bottom = event.content.kind === "match" ? event.content.bottom : null;
-  const kits = {
-    top: { color: top?.color ?? null, alternate: top?.alternateColor ?? null },
-    bottom: { color: bottom?.color ?? null, alternate: bottom?.alternateColor ?? null },
-  };
+  // The game's colors, decided once (MatchColors): what each side wears.
+  const kits = colors ?? NO_KITS;
   return (
     <div className={styles.slot}>
       <Suspense fallback={<TheaterWell />}>

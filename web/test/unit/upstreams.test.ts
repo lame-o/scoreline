@@ -78,9 +78,9 @@ describe("team colors", () => {
     expect(teamTone("ffffff", "light")).toBeNull();
   });
 
-  it("sends the second of two near-identical teams to neutral", () => {
-    expect(teamPalette("c8102e", "c60c30", "light").bottom).toBe(NEUTRAL);
-    expect(teamPalette("c8102e", "0b1c3a", "light").bottom).not.toBe(NEUTRAL);
+  it("only tones the two colors: the game's colors were decided apart (MatchColors), so a near twin stays itself", () => {
+    expect(teamPalette("c8102e", "c60c30", "light").bottom).not.toBe(NEUTRAL);
+    expect(teamPalette("000000", "0b1c3a", "dark").top).toBe(NEUTRAL);
   });
 });
 

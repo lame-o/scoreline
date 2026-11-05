@@ -22,6 +22,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { JSONValue } from "../../../../data/json";
 import { baseballArrivals } from "../../../../data/mlb/replayBaseball";
+import { kitsOf } from "../../../../data/mlb/theaterTeams";
 import { teamPalette } from "../../../../data/teamColors";
 import { FOOTBALL_AHEAD, footballArrivals } from "../../../../data/theater/replayFootball";
 import { basketballArrivals } from "../../../../data/theater/replayTimeline";
@@ -36,6 +37,14 @@ import BasketballDirected from "../../nba/theater/BasketballDirected";
 import SoccerDirected from "../../soccer/theater/SoccerDirected";
 import { MomentProvider, useMomentSlot } from "../moments";
 import { ReplaySource } from "./replaySource";
+
+/** Each page's colors, decided once (MatchColors): the home side keeps its kit (soccer's listed first). */
+const PREVIEW_KITS = {
+  court: kitsOf({ color: "#552583", alternate: "#fdb927" }, { color: "#1d428a", alternate: "#ffc72c" }),
+  field: kitsOf({ color: "#002244", alternate: "#869397" }, { color: "#004c54", alternate: "#a5acaf" }),
+  pitch: kitsOf({ color: "#670e36", alternate: "#95bfe5" }, { color: "#6cabdd", alternate: "#1c2c5b" }, "top"),
+  diamond: kitsOf({ color: "#13294b", alternate: "#ffc52f" }, { color: "#092c5c", alternate: "#8fbce6" }),
+};
 
 const files = import.meta.glob<{ default: unknown }>([
   "../../../../../test/fixtures/directed-nba-401909285.json",
@@ -116,7 +125,7 @@ function Directed({ recording, at, delay }: { recording: Recording; at: number; 
   // For the page's checks: the source the director reads.
   (window as unknown as { __directedSource?: ReplaySource }).__directedSource = source;
   const palette = teamPalette("#552583", "#1d428a", scheme);
-  const kits = { top: { color: "#552583", alternate: "#fdb927" }, bottom: { color: "#1d428a", alternate: "#ffc72c" } };
+  const kits = PREVIEW_KITS.court;
   const teams = { topIsHome: false, topID: away.id, bottomID: home.id, topName: away.abbreviation, bottomName: home.abbreviation };
   return (
     <main style={{ padding: "calc(16 * var(--pt))", maxWidth: 760, display: "flex", flexDirection: "column", gap: "calc(8 * var(--pt))" }}>
@@ -157,7 +166,7 @@ function DirectedField({ recording, at, delay }: { recording: Recording; at: num
   // For the page's checks: the source the director reads.
   (window as unknown as { __directedSource?: ReplaySource }).__directedSource = source;
   const palette = teamPalette("#002244", "#004c54", scheme);
-  const kits = { top: { color: "#002244", alternate: "#869397" }, bottom: { color: "#004c54", alternate: "#a5acaf" } };
+  const kits = PREVIEW_KITS.field;
   // American football lists the visitors first: the top team.
   const teams = { topIsHome: false, topID: away.id, bottomID: home.id, homeAbbreviation: home.abbreviation, awayAbbreviation: away.abbreviation };
   return (
@@ -202,7 +211,7 @@ function DirectedPitch({ recording, at, delay }: { recording: Recording; at: num
   (window as unknown as { __directedSource?: ReplaySource }).__directedSource = source;
   const lineups = useMemo(() => SoccerLineup.lineups(recording.rosters ?? null, (team) => (team === home.id ? "top" : "bottom")), [recording, home.id]);
   const people = useMemo(() => TheaterPeople.rosters({ rosters: recording.rosters ?? null }), [recording]);
-  const kits = { top: { color: "#670e36", alternate: "#95bfe5" }, bottom: { color: "#6cabdd", alternate: "#1c2c5b" } };
+  const kits = PREVIEW_KITS.pitch;
   const names = { top: "Aston Villa", bottom: "Man City", topColor: "670e36", bottomColor: "6cabdd" };
   return (
     <main style={{ padding: "calc(16 * var(--pt))", maxWidth: 760, display: "flex", flexDirection: "column", gap: "calc(8 * var(--pt))" }}>
@@ -232,7 +241,7 @@ function DirectedDiamond({ recording, at, delay }: { recording: Recording; at: n
   }, [recording, at, delay]);
   const cues = useMemo(() => new TheaterCues(), []);
   (window as unknown as { __directedSource?: ReplaySource }).__directedSource = source;
-  const kits = { top: { color: "#13294b", alternate: "#ffc52f" }, bottom: { color: "#092c5c", alternate: "#8fbce6" } };
+  const kits = PREVIEW_KITS.diamond;
   return (
     <main style={{ padding: "calc(16 * var(--pt))", maxWidth: 760, display: "flex", flexDirection: "column", gap: "calc(8 * var(--pt))" }}>
       <h1 style={{ fontSize: "var(--text-title3)", fontWeight: 600 }}>

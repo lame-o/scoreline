@@ -1,0 +1,312 @@
+/* A game page's module header (PageModules.swift `ModuleHeader`): the disclosure over the title row and its caption or glance. */
+.head {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--pt));
+  /* The wash reaches 6pt past the text at the sides and 4pt above and below; the text stays where it was. */
+  margin: calc(-4 * var(--pt)) calc(-6 * var(--pt));
+  padding: calc(4 * var(--pt)) calc(6 * var(--pt));
+  border-radius: calc(7 * var(--pt));
+}
+
+.head[data-folded="true"] {
+  gap: calc(3 * var(--pt));
+}
+
+/* The lift under the pointer: drawn under everything, it never takes the click (69745ec). Instant on, fading out. */
+.wash {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--fill-hover);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms var(--ease-out);
+}
+
+/* The disclosure: the title, and (its ::after) the whole header as one target. */
+.disclosure {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: start;
+  cursor: default;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.disclosure::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: calc(7 * var(--pt));
+}
+
+.disclosure:focus-visible {
+  outline: none;
+}
+
+.disclosure:focus-visible::after {
+  outline: calc(2 * var(--pt)) solid var(--accent-ring);
+  outline-offset: calc(-1 * var(--pt));
+}
+
+/* A control in the title row (the odds window) stays its own, over the disclosure. */
+.control {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Down while open (shown on hover); right while folded (always shown: it's the module's state). */
+.chevron {
+  width: calc(12 * var(--pt));
+  display: inline-flex;
+  justify-content: center;
+  align-self: center;
+  color: var(--label-secondary);
+  opacity: 0;
+  transform: rotate(90deg);
+  transition:
+    transform 200ms var(--ease-out),
+    opacity 150ms var(--ease-out);
+}
+
+.head[data-folded="true"] .chevron {
+  opacity: 1;
+  transform: none;
+}
+
+.head[data-motion="instant"] .chevron {
+  transition: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .head:hover .wash {
+    opacity: 1;
+    transition: none;
+  }
+
+  .head:hover .chevron {
+    opacity: 1;
+    color: var(--label);
+  }
+
+  /* While a module is in hand, nothing else lights up. */
+  :global(html[data-module-drag]) .head:hover .wash {
+    opacity: 0;
+  }
+}
+
+:global(html[data-module-drag]) {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.caption {
+  position: relative;
+  max-width: var(--readable-width);
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Folded: one line, the value first in primary ink, then what it is. */
+.glance,
+.fallback {
+  position: relative;
+  min-width: 0;
+  font-size: var(--text-callout);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--label);
+  pointer-events: none;
+}
+
+.glance strong {
+  font-weight: 600;
+}
+
+.detail,
+.fallback {
+  color: var(--label-secondary);
+}
+
+.fallback {
+  font-size: var(--text-caption);
+}
+
+/* The moment its chart is telling: a red dot, rising in. */
+.glance[data-moment] {
+  display: flex;
+  align-items: baseline;
+  gap: calc(5 * var(--pt));
+  animation: glance-moment 250ms var(--ease-out);
+}
+
+.dot {
+  flex: none;
+  width: calc(5 * var(--pt));
+  height: calc(5 * var(--pt));
+  border-radius: 50%;
+  background: var(--live);
+  align-self: center;
+}
+
+@keyframes glance-moment {
+  from {
+    opacity: 0;
+    transform: translateY(calc(3 * var(--pt)));
+  }
+}
+
+/* Win Probability folded: each side's chance, keyed by its color. */
+.part {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(4 * var(--pt));
+  margin-inline-end: calc(12 * var(--pt));
+}
+
+.swatch {
+  width: calc(6 * var(--pt));
+  height: calc(6 * var(--pt));
+  border-radius: 50%;
+  align-self: center;
+}
+
+.partName {
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+
+.partValue {
+  font-weight: 600;
+}
+
+/* The page's end: what the sport hides, and Show. */
+.hiddenLine {
+  display: flex;
+  align-items: baseline;
+  gap: calc(6 * var(--pt));
+  max-width: var(--readable-width);
+  padding: calc(18 * var(--pt)) var(--gutter) 0;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+}
+
+.hiddenLine > svg {
+  flex: none;
+  align-self: center;
+  color: var(--label-tertiary);
+}
+
+.hiddenText {
+  flex: 1;
+  min-width: 0;
+}
+
+.show {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-text);
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .show:hover {
+    text-decoration: underline;
+  }
+}
+
+/* The page's slot for a module: while one is in hand, it holds the gap (unseen, a faint well marks it). */
+.slot[data-gap="true"] > * {
+  opacity: 0;
+}
+
+.slot[data-gap="true"] {
+  position: relative;
+}
+
+.slot[data-gap="true"]::before {
+  content: "";
+  position: absolute;
+  inset: calc(6 * var(--pt)) calc(var(--gutter) - 8 * var(--pt)) calc(-4 * var(--pt));
+  border-radius: calc(10 * var(--pt));
+  background: var(--fill-hover);
+  animation: gap-in 150ms var(--ease-out);
+}
+
+@keyframes gap-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The module in hand, raised over the page at the pointer: the page's raised surface, a touch larger, a soft shadow. */
+.lift {
+  position: fixed;
+  top: 0;
+  z-index: 40;
+  pointer-events: none;
+  transform-origin: 50% 0;
+  padding: calc(12 * var(--pt)) var(--gutter) 0;
+  will-change: transform;
+}
+
+.liftCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--pt));
+}
+
+.liftCard::before {
+  content: "";
+  position: absolute;
+  inset: calc(-6 * var(--pt)) calc(-8 * var(--pt)) calc(-8 * var(--pt));
+  border-radius: calc(10 * var(--pt));
+  background: light-dark(#fff, rgb(61 61 61));
+  border: calc(0.5 * var(--pt)) solid var(--stroke-hairline);
+  box-shadow: 0 calc(6 * var(--pt)) calc(14 * var(--pt)) light-dark(rgb(0 0 0 / 0.18), rgb(0 0 0 / 0.45));
+  z-index: -1;
+}
+
+.liftTitle {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--label-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: opacity 150ms var(--ease-out);
+  }
+
+  .glance[data-moment] {
+    animation: gap-in 150ms var(--ease-out);
+  }
+}

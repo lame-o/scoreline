@@ -96,10 +96,10 @@ test.describe("Back", () => {
     await page.locator("aside a[data-nav-id]").first().click();
     await expect(page.locator("main h1")).toBeVisible();
     await expect(page.locator("main").getByRole("button", { name: /^Back to/ })).toHaveCount(0);
-    // A league's page opened from Settings: Back leads to Settings.
-    await page.goto("/settings");
-    await page.locator("main a[href^='/settings/league/']").first().click();
-    await expect(page.getByRole("button", { name: "Back to Settings" })).toBeVisible();
+    // A competition's page opened from Following (Settings lists none since the Sports and Following split): Back leads to Following.
+    await page.goto("/following");
+    await page.locator("main a[href^='/sports/competition/']").first().click();
+    await expect(page.getByRole("button", { name: "Back to Following" })).toBeVisible();
   });
 
   test("a keyboard can skip the sidebar's games", async ({ page }) => {

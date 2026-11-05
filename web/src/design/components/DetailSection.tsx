@@ -12,6 +12,13 @@
  *   glyphs or short names ("MIL attacks →").
  * - `layout`: "stack" (the game page: 8pt between blocks) or "flow" (the
  *   profile pages, whose content spaces itself).
+ * - `glance`: what the block says in one line when folded, over the page's
+ *   own (the odds chart's prices).
+ *
+ * On a game page each block is a module (PageModules.swift `ModuleChrome`,
+ * read from the environment there, from `SectionChromeContext` here): the
+ * page provides a chrome that draws the header as a disclosure and folds the
+ * content away. Elsewhere sections are plain.
  *
  * Each section is a size container (`@container section`), so its content
  * adds detail by the room it has (the Mac's width classes).
@@ -19,7 +26,7 @@
  *     <DetailSection id="atBat" title="This At-Bat" accessory={{ count: [2, 2] }}>…</DetailSection>
  *     <DetailSection title="Roster" caption="…" trailing={toggle} layout="flow">…</DetailSection>
  */
-import { useId, type ReactNode } from "react";
+import { createContext, useContext, useId, type ReactNode } from "react";
 import { SectionTitle, type SectionTitleProps } from "./SectionTitle";
 import styles from "./DetailSection.module.css";
 
@@ -32,12 +39,52 @@ export interface DetailSectionProps {
   readonly trailing?: ReactNode;
   readonly layout?: "stack" | "flow";
   readonly className?: string;
+  /** Folded on a game page: the block's own line (over the page's glance for it). */
+  readonly glance?: unknown;
   readonly children: ReactNode;
 }
 
-export function DetailSection({ id, title, caption, spokenCaption, accessory, trailing, layout = "stack", className, children }: DetailSectionProps) {
+/** What a module's header is drawn from. */
+export interface SectionHead {
+  readonly titleID: string;
+  readonly contentID: string;
+  readonly title: string;
+  readonly caption: string | null;
+  readonly spokenCaption: string | null;
+  readonly accessory: SectionTitleProps["accessory"] | undefined;
+  readonly trailing: ReactNode;
+  readonly glance: unknown;
+}
+
+/** A block as a game page's module: its header, and whether its content is folded away. */
+export interface SectionChrome {
+  readonly folded: boolean;
+  /** Folded, the content stays (laid out, unseen, out of the focus order): the Live View's theater keeps its running order. */
+  readonly keepsAlive: boolean;
+  /** Opening, the content rises in (a click); a key or Reduce Motion: none. */
+  readonly reveals: boolean;
+  readonly header: (head: SectionHead) => ReactNode;
+}
+
+export const SectionChromeContext = createContext<SectionChrome | null>(null);
+
+export function DetailSection({ id, title, caption, spokenCaption, accessory, trailing, layout = "stack", className, glance, children }: DetailSectionProps) {
   const generated = useId();
+  const chrome = useContext(SectionChromeContext);
   const titleID = id ? `section-${id}` : `section-${generated}`;
+  const contentID = `${titleID}-content`;
+  if (chrome) {
+    return (
+      <section className={[styles.section, className].filter(Boolean).join(" ")} data-layout={layout} data-folded={chrome.folded} aria-labelledby={titleID} data-section={id}>
+        {chrome.header({ titleID, contentID, title, caption: caption ?? null, spokenCaption: spokenCaption ?? null, accessory, trailing, glance })}
+        {chrome.folded && !chrome.keepsAlive ? null : (
+          <div id={contentID} className={styles.content} data-reveal={chrome.reveals} hidden={chrome.folded}>
+            {children}
+          </div>
+        )}
+      </section>
+    );
+  }
   return (
     <section className={[styles.section, className].filter(Boolean).join(" ")} data-layout={layout} aria-labelledby={titleID} data-section={id}>
       <div className={styles.head}>

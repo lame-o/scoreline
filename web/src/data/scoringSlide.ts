@@ -877,12 +877,13 @@ const neutral = (lab: OKLab) => chroma(lab) < 0.04 && (lab.l < 0.25 || lab.l > 0
 /** A color with a hue (not white, black or gray). */
 const real = (lab: OKLab) => chroma(lab) >= 0.05;
 
-export function teamPaint(hex: string | null, alternate: string | null): SlidePaint {
+/** `changed`: a side in a change kit for this game: the slab stays what it's wearing, black or white too. */
+export function teamPaint(hex: string | null, alternate: string | null, changed = false): SlidePaint {
   const own = oklabFromHex(hex);
   const second = oklabFromHex(alternate);
   let slab = own ?? lch(0.56, 0.16, 255);
   let stripe: OKLab | null = second;
-  if (neutral(slab) && second && real(second)) {
+  if (!changed && neutral(slab) && second && real(second)) {
     // Black or white with a real second color: wear the second, keep the first as the stripe.
     stripe = slab;
     slab = second;

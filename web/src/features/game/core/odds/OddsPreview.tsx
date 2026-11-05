@@ -20,6 +20,7 @@ import { EMPTY_DETAIL, parseESPNDetail } from "../../../../data/gameDetail";
 import type { Competitor, EventState, ScoreEvent, Sport } from "../../../../data/models";
 import { parseOddsBasis } from "../../../../data/odds/espn";
 import { timelineMarks } from "../../../../data/odds/marks";
+import { eventColors, matchPalette } from "../../../../data/matchColors";
 import { teamPalette } from "../../../../data/teamColors";
 import { useNow } from "../../../../state/clock";
 import { setOddsEnvironment, useOddsFeedObject } from "../../../../state/odds";
@@ -210,10 +211,13 @@ export function OddsPreview() {
     const summary = state === "scheduled" ? { ...cut(recorded.summary, -Infinity), winprobability: [] } : cut(recorded.summary, t);
     // The page's own parse, so the timeline's marks and history are the page's (the key moments by ID, the wall clock).
     const parsed = parseESPNDetail(summary, { event, path: game.path, id: "dev", sport: game.sport });
+    // The game's colors, decided once (MatchColors), as the page has them: the timeline and the odds both wear them.
+    const colors = eventColors(event, game.topIsHome);
     return {
       event,
       detail: { ...EMPTY_DETAIL, topIsHome: game.topIsHome, moments: parsed.moments, history: parsed.history, odds: parseOddsBasis(summary, game.sport, game.topIsHome) },
-      palette: teamPalette(game.top.color, game.bottom.color, scheme),
+      palette: colors ? matchPalette(colors, scheme) : teamPalette(game.top.color, game.bottom.color, scheme),
+      colors,
       names: { top: game.top.abbreviation, bottom: game.bottom.abbreviation },
       spoken: { top: game.top.name, bottom: game.bottom.name },
       live: state === "live",

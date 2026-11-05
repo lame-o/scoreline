@@ -34,7 +34,7 @@ export function useReplaySync(game: GameContext, lanes: ReplayLanes = {}): void 
   // What arrives, never what's told: while the page broadcasts, the replays are built from the last load as it is
   // (the lists show only the told plays' rows; a row finds its replay waiting).
   const { event, detail } = game.raw;
-  const { palette } = game;
+  const { palette, colors } = game;
   const live = event.state === "live";
   const loaded = detail !== EMPTY_DETAIL;
   const client = useQueryClient();
@@ -56,8 +56,9 @@ export function useReplaySync(game: GameContext, lanes: ReplayLanes = {}): void 
       rosters: detail.soccerRosters,
       numbers,
       palette,
+      kits: colors,
     });
-  }, [store, event.id, top, bottom, detail.topIsHome, detail.people, detail.fielders, detail.soccerRosters, numbers, palette]);
+  }, [store, event.id, top, bottom, detail.topIsHome, detail.people, detail.fielders, detail.soccerRosters, numbers, palette, colors]);
 
   // What each lane last brought (football's and basketball's only while live, as the Mac's key).
   const { soccer, football, basketball } = lanes;

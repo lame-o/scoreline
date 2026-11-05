@@ -40,6 +40,8 @@ import { GameFlow } from "./GameFlow";
 import { BoxScore, InjuryReport, Leaders } from "./Players";
 import { NBAStage, StageProvider } from "./stage";
 import { CourtTheater } from "./theater/CourtTheater";
+import { useModuleOpen } from "../core/usePageModules";
+import { playGlance } from "../../../data/modules";
 import { feedBroadcast } from "../core/broadcast";
 import { NO_NBA_LIVE, presentedNBA } from "../../../data/broadcast/presentNBA";
 
@@ -142,6 +144,8 @@ export function useBasketballPage(game: GameContext): SportPage {
   const followTop = useIsFollowing(event.content.kind === "match" ? event.content.top.id : null);
   const followBottom = useIsFollowing(event.content.kind === "match" ? event.content.bottom.id : null);
   const sectionWidth = game.split ? 320 : 380;
+  // The Live View owns the court's bursts while it's open.
+  const theaterOpen = useModuleOpen(event.ref, "liveView");
 
   const courtChart = (
     <Court
@@ -161,12 +165,21 @@ export function useBasketballPage(game: GameContext): SportPage {
       runs={runs}
       playerRef={playerRef}
       width={sectionWidth}
-      // The play theater above it owns live moments' bursts (BasketballCelebration.courtBursts(theaterShown: live)).
-      celebrates={!live}
+      // The Live View owns live moments' bursts while it's open (BasketballCelebration.courtBursts(theaterShown:)).
+      celebrates={!(live && theaterOpen)}
     />
   );
   const flowChart = <GameFlow flow={flow} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} now={now} final={event.state === "final"} quarter={quarter} runs={runs} width={sectionWidth} />;
   const sections: Partial<Record<Section, ReactNode>> = { ...common };
+  if (nba && live) {
+    // The play theater: its own module, above the court as on the Mac (9cbbb02); it reads the live lane's newest plays itself.
+    sections.liveView = (
+      <DetailSection id="liveView" title="Live View" caption="The latest play, replayed as it happened, the ends as on TV." accessory="live">
+        {/* Broadcasting, the host shows the theater on the engine (usePageDirected); otherwise today's, with the scoreboard's event. */}
+        <CourtTheater feed={feed} teams={teams} event={game.raw.event} palette={palette} names={names} spoken={spoken} topIsHome={detail.topIsHome ?? false} people={detail.people} kits={game.colors} />
+      </DetailSection>
+    );
+  }
   if (nba && (nba.shots.length > 0 || live)) {
     const lead = live ? "The last plays trail to the ball." : "Every shot. Play to replay the game.";
     sections.court = (
@@ -178,9 +191,6 @@ export function useBasketballPage(game: GameContext): SportPage {
         spokenCaption={`${lead} ${spoken.top} at the right basket, ${spoken.bottom} at the left${live ? "; the replay above takes the broadcast's ends." : "."}`}
         accessory={live ? "live" : event.state === "final" ? "final" : undefined}
       >
-        {/* The play theater, above the court as on the Mac: it reads the live lane's newest plays itself, so a basket redraws only the theater. */}
-        {/* The theater keeps today's inputs (the scoreboard's event) until the director reads the broadcast. */}
-        {live ? <CourtTheater feed={feed} teams={teams} event={game.raw.event} palette={palette} names={names} spoken={spoken} topIsHome={detail.topIsHome ?? false} people={detail.people} /> : null}
         {courtChart}
       </DetailSection>
     );
@@ -259,8 +269,11 @@ export function useBasketballPage(game: GameContext): SportPage {
   const possession = marks ? marks.possession : playing ? feed.possession : null;
   const inAir = marks ? marks.inAir : playing && feed.ballInAir;
   const team = (side: Side) => (event.content.kind === "match" ? (side === "top" ? event.content.top : event.content.bottom) : null);
+  const newest = live && !broadcast && feed.recentPlays.length > 0 ? feed.recentPlays[0] : detail.recentPlays[0];
   return {
     sections,
+    // Folded, the Live View: the newest play the theater has to tell.
+    glance: (section) => (section === "liveView" ? (newest ? playGlance(newest.text) : null) : undefined),
     laneScores,
     clockFallback: feed.clock ?? (event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live")),
     clock: playing ? feed.gameClock : null,

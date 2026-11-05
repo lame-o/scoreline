@@ -17,12 +17,10 @@
  *   market's newest moment, and one pointer, so both read the same moment.
  */
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { nbaPalette } from "../../../../data/basketball";
 import type { TimelineMark } from "../../../../data/odds/marks";
 import { seriesFor } from "../../../../data/odds/polymarket";
 import type { OddsPointer } from "../../../../data/odds/pointer";
 import { useOddsSelect, type OddsFeed, type OddsGame } from "../../../../state/odds";
-import { useColorScheme } from "../../../../state/theme";
 import { WinProbability } from "../CommonSections";
 import { DetailSection } from "../DetailSection";
 import type { GameContext } from "../sport";
@@ -69,13 +67,9 @@ export interface WinProbabilityProps {
 
 export function WinProbabilitySection({ game, feed, time, pointer, marks }: WinProbabilityProps) {
   const { event, detail, names, spoken } = game;
-  const scheme = useColorScheme();
   const found = useOddsSelect(feed, (s) => s.status === "ready" && s.market != null);
-  // Two sides that must read apart in every sport: the NBA page's clash rule (a near-twin steps to its second color).
-  const palette = useMemo(
-    () => (event.content.kind === "match" ? nbaPalette(event.content.top, event.content.bottom, scheme) : game.palette),
-    [event.content, scheme, game.palette],
-  );
+  // Two sides that read apart in every sport: the game's colors, decided once (MatchColors), as the timeline's.
+  const palette = game.palette;
 
   // On screen or not (the feed debounces it: 0.25 s on, 2 s off), once there's a section to see.
   const section = useRef<HTMLDivElement>(null);

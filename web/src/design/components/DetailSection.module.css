@@ -35,3 +35,44 @@
   line-clamp: 2;
   overflow: hidden;
 }
+
+/* A game page's module: the content under its header, spaced as the stack; folded, it's gone (or kept, unseen). */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--pt));
+  min-width: 0;
+}
+
+.content[hidden] {
+  display: none;
+}
+
+/* A module opened by a click: its content rises 4pt into place on `reveal`. */
+.content[data-reveal="true"] {
+  animation: module-reveal 250ms var(--ease-out);
+}
+
+/* Folded: the header sits a little closer to the one above (12pt, not 16). */
+.section[data-folded="true"] {
+  padding-top: calc(12 * var(--pt));
+}
+
+@keyframes module-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(calc(4 * var(--pt)));
+  }
+}
+
+@keyframes module-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content[data-reveal="true"] {
+    animation: module-fade 150ms var(--ease-out);
+  }
+}

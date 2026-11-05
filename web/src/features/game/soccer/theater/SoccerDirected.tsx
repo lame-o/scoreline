@@ -83,8 +83,7 @@ export default function SoccerDirected({ source, cues: givenCues = null, homeTea
 
   const dressed = useMemo(
     () => dress(kits, scheme),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme],
+    [kits, scheme],
   );
   // Each side's look on the ball.
   const teamsBy = useMemo((): Record<Side, SoccerTeams> => ({ top: { attacking: dressed.top, defending: dressed.bottom }, bottom: { attacking: dressed.bottom, defending: dressed.top } }), [dressed]);
@@ -92,7 +91,7 @@ export default function SoccerDirected({ source, cues: givenCues = null, homeTea
   const tagLabels = useMemo(
     () => theaterLabels(kits, scheme, names),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, names.top, names.bottom],
+    [kits, scheme, names.top, names.bottom],
   );
 
   useEffect(() => {

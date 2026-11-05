@@ -31,7 +31,8 @@ const PAGES = [
   { name: "results-epl-rounds", path: "/schedule/eng.1?mode=results" },
   { name: "results-mlb-days", path: "/schedule/mlb?mode=results" },
   { name: "results-team", path: `${ARSENAL}&mode=results` },
-  { name: "league-hub", path: "/settings/league/eng.1" },
+  // A competition's page leads with its schedule (a soccer competition's season has its own page, 34ba1dd).
+  { name: "league-hub", path: "/sports/competition/nfl" },
 ] as const;
 
 /** Waits for a schedule page to settle: rows, a note, an empty or an error state. */

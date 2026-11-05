@@ -416,3 +416,136 @@
 
 .competitionContext { display: flex; flex-wrap: wrap; gap: calc(4 * var(--pt)) calc(10 * var(--pt)); padding: calc(6 * var(--pt)) calc(16 * var(--pt)); font-size: var(--text-caption); color: var(--label-secondary); }
 .competitionContext a { color: var(--accent-text); }
+
+/* Sports (SportsView.swift): rows that go somewhere, and rows with a star that follows. */
+.navRow {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  min-height: calc(30 * var(--pt));
+  padding: calc(5 * var(--pt)) calc(12 * var(--pt));
+  border-radius: var(--radius-row);
+}
+
+.followRow {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  min-height: calc(30 * var(--pt));
+  padding: 0 calc(12 * var(--pt)) 0 0;
+  border-radius: var(--radius-row);
+}
+
+.followLink {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--pt));
+  flex: 1;
+  min-width: 0;
+  padding: calc(5 * var(--pt)) 0 calc(5 * var(--pt)) calc(12 * var(--pt));
+  border-radius: var(--radius-row);
+  color: inherit;
+}
+
+.rowChevron {
+  width: calc(9 * var(--pt));
+  flex: none;
+  color: var(--label-tertiary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .navRow:hover,
+  .followRow:has(.followLink:hover) {
+    background: var(--fill-hover);
+  }
+}
+
+/* The star: outlined, then filled in the star's yellow; its own 22pt target. */
+.star {
+  display: grid;
+  place-items: center;
+  width: calc(22 * var(--pt));
+  height: calc(22 * var(--pt));
+  flex: none;
+  border-radius: 50%;
+  color: var(--label-secondary);
+}
+
+.star[data-on="true"] {
+  color: var(--star);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .star:hover {
+    color: var(--label);
+  }
+
+  .star[data-on="true"]:hover {
+    color: var(--star);
+  }
+}
+
+.liveDot {
+  width: calc(6 * var(--pt));
+  height: calc(6 * var(--pt));
+  border-radius: 50%;
+  background: var(--live);
+  flex: none;
+}
+
+.searching,
+.directoryNote {
+  padding: calc(10 * var(--pt)) calc(16 * var(--pt));
+  font-size: var(--text-status);
+  color: var(--label-secondary);
+}
+
+.noResults {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(4 * var(--pt));
+  padding: calc(32 * var(--pt)) calc(16 * var(--pt));
+  color: var(--label-secondary);
+  font-size: var(--text-callout);
+  text-align: center;
+}
+
+.noResults strong {
+  color: var(--label);
+  font-size: var(--text-body);
+}
+
+.directory + .directory {
+  margin-top: calc(6 * var(--pt));
+}
+
+.inlineButton {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+/* Following: what's under a list. */
+.listCaption {
+  padding: calc(5 * var(--pt)) calc(16 * var(--pt)) 0;
+  font-size: var(--text-caption);
+  color: var(--label-secondary);
+  text-wrap: pretty;
+}
+
+.addRow {
+  color: var(--accent-text);
+}
+
+.bell[aria-pressed="true"] {
+  color: var(--accent-text);
+}
+
+.bell:disabled {
+  opacity: 0.4;
+}

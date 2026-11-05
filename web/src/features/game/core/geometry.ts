@@ -174,6 +174,22 @@ export class PageGeometry {
     this.scroller.scrollTo({ top: Math.max(top, 0), behavior: prefersReducedMotion() ? "auto" : "smooth" });
   }
 
+  /** How far the page has scrolled (CSS px). */
+  scrollOffset(): number {
+    return this.scroller instanceof Window ? window.scrollY : this.scroller.scrollTop;
+  }
+
+  /** The furthest the page can scroll (CSS px). */
+  maxScroll(): number {
+    if (this.scroller instanceof Window) return Math.max(document.documentElement.scrollHeight - window.innerHeight, 0);
+    return Math.max(this.scroller.scrollHeight - this.scroller.clientHeight, 0);
+  }
+
+  /** Scrolls to `y` at once, clamped to the page (a drag's anchoring, its autoscroll, its settle). */
+  scrollTo(y: number): void {
+    this.scroller.scrollTo({ top: Math.min(Math.max(y, 0), this.maxScroll()), behavior: "auto" });
+  }
+
   /**
    * Brings an element into view below the docked scorebar (`inset` pt under
    * it), if it isn't already: just far enough, its top first when it's

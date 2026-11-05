@@ -22,6 +22,7 @@
  * own clock instead. Fixtures load lazily from test/fixtures, so nothing here
  * ships.
  */
+import { kitsOf } from "../../../../data/mlb/theaterTeams";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { JSONValue } from "../../../../data/json";
@@ -142,7 +143,7 @@ function PreviewTile({ tile, frozen }: { tile: Tile; frozen: number | null }) {
 /** One replay: its own moment slot, offered the moment once the theater is up (each replay is news again). */
 function PreviewStage({ tile, frozen }: { tile: Tile; frozen: number | null }) {
   const slot = useMomentSlot();
-  const kits = { top: { color: tile.home.color, alternate: tile.home.alternateColor }, bottom: { color: tile.away.color, alternate: tile.away.alternateColor } };
+  const kits = kitsOf({ color: tile.home.color, alternate: tile.home.alternateColor }, { color: tile.away.color, alternate: tile.away.alternateColor }, "top");
   useEffect(() => {
     // A tick later: development's StrictMode runs this twice, and the slot would take the second offer as already seen.
     const moment = tile.moment;
@@ -322,7 +323,7 @@ function SheetFrame({ c, t }: { c: SheetCase; t: number | null }) {
     }
     return null;
   });
-  const kits = { top: { color: c.home.color, alternate: c.home.alternateColor }, bottom: { color: c.away.color, alternate: c.away.alternateColor } };
+  const kits = kitsOf({ color: c.home.color, alternate: c.home.alternateColor }, { color: c.away.color, alternate: c.away.alternateColor }, "top");
   return (
     <div style={{ width: 440 }} data-flip={c.eventId === "sheet-sc-flip" ? "shown" : undefined}>
       <SoccerTheater feed={null} homeTeamID={c.home.id} kits={kits} eventId={c.eventId} topTeam={c.home.name} bottomTeam={c.away.name} added={c.added} preloaded={c.state} frozen={t} />

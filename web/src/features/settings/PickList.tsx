@@ -1,6 +1,11 @@
 /** Team directory and competition selections share the existing keyboard outline.
  * `global` follows a team across competitions; `scoped` changes only this
  * competition's picks. A row always has one meaning and one action. */
+import { useNavigate } from "react-router";
+import { isSupportedTeam, teamRef } from "../../data/profiles/models";
+import { TeamLink, teamHref } from "../profiles/ProfileLinks";
+import { FollowStar } from "./FollowStar";
+import { toggleTeam } from "./followTeam";
 import { useQuery } from "@tanstack/react-query";
 import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import {
@@ -41,14 +46,21 @@ interface Highlight {
   readonly keyboard: boolean;
 }
 
-export function TeamPicks({ league, mode = "scoped" }: { league: League; mode?: "scoped" | "global" }) {
+/**
+ * One list of a competition's teams, with one meaning (LeagueSettingsView, 34ba1dd): the star
+ * follows a team everywhere it plays; while `picking` (Selected Teams, or climbing's countries)
+ * a click picks it, a checkmark, for this competition alone; otherwise the row opens the team.
+ */
+export function TeamPicks({ league, picking = true }: { league: League; picking?: boolean }) {
+  const mode: "scoped" | "global" = picking ? "scoped" : "global";
   const climbing = league.source.kind === "ifsc";
   const noun = climbing ? "Countries" : "Teams";
   const scopedPicks = useSettings((s) => s.teamFilters[league.id]) ?? EMPTY;
   const followedTeams = useSettings((s) => s.followed);
   const followed = useMemo(() => followedTeams.map((t) => t.id), [followedTeams]);
-  const picks = mode === "global" ? followed : scopedPicks;
+  const picks = scopedPicks;
   const goBack = useGoBack();
+  const navigate = useNavigate();
   const query = useQuery({
     queryKey: ["teams", league.id],
     queryFn: ({ signal }) => teamOptions(league, getJSON, signal),
@@ -117,8 +129,12 @@ export function TeamPicks({ league, mode = "scoped" }: { league: League; mode?: 
         event.preventDefault();
         if (current.kind === "row") {
           const team = options.find(o => o.id === current.item);
-          if (mode === "global" && team) settings.toggleFollow({ id: team.id, name: team.name, logo: team.logo });
-          else settings.togglePick(league.id, current.item);
+          if (mode === "scoped") settings.togglePick(league.id, current.item);
+          else if (team) {
+            // Not picking: Return opens the team, as a click does.
+            const ref = teamRef({ id: team.id, name: team.name, logo: team.logo, league: league.id });
+            if (isSupportedTeam(ref)) navigate(teamHref(ref), { state: { team: ref } });
+          }
         }
         else if (current.kind === "header") outline.toggle(current.section, true);
         else {
@@ -281,33 +297,38 @@ interface PickRowProps {
 }
 
 const PickRow = memo(
-  function PickRow({ option, league, mode, section, picked, lit, reveal = null, crestGroup = null }: PickRowProps) {
+  function PickRow({ option, league, mode, section, picked, following, lit, reveal = null, crestGroup = null }: PickRowProps) {
     const key = stopKey({ kind: "row", section, item: option.id });
     const text = outlineReveal(reveal ?? 0, reveal != null);
+    const crest = option.flag ? (
+      <span className={styles.flag}>{option.flag}</span>
+    ) : crestGroup ? (
+      <OutlineCrest group={crestGroup} id={option.id} logo={option.logo} size={16} linking />
+    ) : (
+      <TeamLogo url={option.logo} size={16} />
+    );
+    const name = (
+      <span className={[styles.teamName, text.className].filter(Boolean).join(" ")} style={text.style}>
+        {option.name}
+      </span>
+    );
+    // Climbing's countries are picked, never followed.
+    const followable = league.source.kind !== "ifsc";
     return (
       <div className={styles.teamRow} style={{ paddingLeft: 0 }}>
-        <button
-          type="button"
-          className={styles.pick}
-          role="checkbox"
-          aria-checked={picked}
-          data-nav-key={key}
-          data-keyboard={lit === key}
-          onClick={() => mode === "global" ? settings.toggleFollow({ id: option.id, name: option.name, logo: option.logo }) : settings.togglePick(league.id, option.id)}
-        >
-          <span className={styles.check}>{picked ? <Icon name="check" size={11} /> : null}</span>
-          {option.flag ? (
-            <span className={styles.flag}>{option.flag}</span>
-          ) : crestGroup ? (
-            <OutlineCrest group={crestGroup} id={option.id} logo={option.logo} size={16} linking />
-          ) : (
-            <TeamLogo url={option.logo} size={16} />
-          )}
-          <span className={[styles.teamName, text.className].filter(Boolean).join(" ")} style={text.style}>
-            {option.name}
-          </span>
-        </button>
-
+        {mode === "scoped" ? (
+          <button type="button" className={styles.pick} role="checkbox" aria-checked={picked} data-nav-key={key} data-keyboard={lit === key} onClick={() => settings.togglePick(league.id, option.id)}>
+            <span className={styles.check}>{picked ? <Icon name="check" size={11} /> : null}</span>
+            {crest}
+            {name}
+          </button>
+        ) : (
+          <TeamLink team={teamRef({ id: option.id, name: option.name, logo: option.logo, league: league.id })} className={styles.pick} data-nav-key={key} data-keyboard={lit === key}>
+            {crest}
+            {name}
+          </TeamLink>
+        )}
+        {followable ? <FollowStar following={following} name={option.name} help={`Follow ${option.name}: first on the scores list, in every competition, with alerts`} onToggle={() => toggleTeam(option)} /> : null}
       </div>
     );
   },

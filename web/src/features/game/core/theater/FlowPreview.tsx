@@ -22,7 +22,7 @@ import type { PlayBeat } from "../../../../data/mlb/playBeat";
 import { beatScript as pitchScript, idleScript as routineScript } from "../../../../data/mlb/playBeatScript";
 import type { Rest } from "../../../../data/mlb/playScript";
 import type { PlayScript } from "../../../../data/mlb/playScript";
-import { dress, theaterTeams, type TheaterKits } from "../../../../data/mlb/theaterTeams";
+import { dress, theaterTeams, type TheaterKits, kitsOf } from "../../../../data/mlb/theaterTeams";
 import type { Point } from "../../../../data/mlb/theaterField";
 import type { Side } from "../../../../data/models";
 import { NEUTRAL, teamPalette, type Scheme } from "../../../../data/teamColors";
@@ -108,7 +108,7 @@ const solid = (color: string, scheme: Scheme) => (color === NEUTRAL || !color.st
 
 // MARK: - Football: KC at SEA
 
-const KC_KITS: TheaterKits = { top: { color: "e31837", alternate: "ffb612" }, bottom: { color: "002a5c", alternate: "69be28" } };
+const KC_KITS: TheaterKits = kitsOf({ color: "e31837", alternate: "ffb612" }, { color: "002a5c", alternate: "69be28" });
 const KC_NAMES: StatusNames = { top: "Chiefs", bottom: "Seahawks", topColor: "e31837", bottomColor: "002a5c" };
 
 function kcTeams(offense: Side, scheme: Scheme) {
@@ -165,7 +165,7 @@ function kcHandoff(scene: FootballScene, idle: FootballIdle, t0: number): Handof
 
 // MARK: - Basketball: SA at UTAH
 
-const SA_KITS: TheaterKits = { top: { color: "000000", alternate: "c4ced4" }, bottom: { color: "4e008e", alternate: "79a3dc" } };
+const SA_KITS: TheaterKits = kitsOf({ color: "000000", alternate: "c4ced4" }, { color: "4e008e", alternate: "79a3dc" });
 const SA_ENDS: HoopsEnds = { topRight: true, topOpensRight: true };
 
 function saFrame(scene: BasketballScene | null, script: BasketballScript, t: number, scheme: Scheme, bridge: BasketballBridge | null = null, tag: string | null = null, tagged = true): Frame {
@@ -211,7 +211,7 @@ function saHandoff(scene: BasketballScene, rest: BasketballScript, t0: number): 
 
 // MARK: - Soccer: Aston Villa v Man City
 
-const AV_KITS: TheaterKits = { top: { color: "660e36", alternate: "000000" }, bottom: { color: "99c5ea", alternate: "000000" } };
+const AV_KITS: TheaterKits = kitsOf({ color: "660e36", alternate: "000000" }, { color: "99c5ea", alternate: "000000" });
 const AV_NAMES: SoccerNames = { top: "Aston Villa", bottom: "Man City", topColor: "660e36", bottomColor: "99c5ea" };
 
 function avTeams(side: Side, scheme: Scheme) {
@@ -265,7 +265,7 @@ function soccerEvent(id: string, kind: SoccerEventKind, side: Side, player: stri
 
 // MARK: - Baseball
 
-const MLB_KITS: TheaterKits = { top: { color: "092c5c", alternate: "8fbce6" }, bottom: { color: "13294b", alternate: "ffc72c" } };
+const MLB_KITS: TheaterKits = kitsOf({ color: "092c5c", alternate: "8fbce6" }, { color: "13294b", alternate: "ffc72c" });
 const MLB_REST: Rest = { bases: [true, false, false], bats: "R", swapped: false, fieldingHome: false };
 
 function mlbFrame(script: PlayScript, t: number, scheme: Scheme, batting: Side = "top", bridge: { script: PlayScript; t: number; w: number; s: number; pairs: ReadonlyMap<number, number>; tracks: ReturnType<typeof bridgeTracks> } | null = null): Frame {

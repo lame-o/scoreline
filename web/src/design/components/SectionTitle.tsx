@@ -27,9 +27,11 @@ export interface SectionTitleProps {
   readonly level?: 2 | 3;
   readonly className?: string;
   readonly id?: string;
+  /** The title (and its spoken state) inside something of the caller's: a game page module's disclosure button. */
+  readonly wrapTitle?: (title: ReactNode) => ReactNode;
 }
 
-export function SectionTitle({ children, icon, accessory, trailing, level = 2, className, id }: SectionTitleProps) {
+export function SectionTitle({ children, icon, accessory, trailing, level = 2, className, id, wrapTitle }: SectionTitleProps) {
   const Heading = level === 2 ? "h2" : "h3";
   const spoken =
     accessory === "live" ? "Live" : accessory === "final" ? "Final" : accessory && "count" in accessory ? `${accessory.count[0]} and ${accessory.count[1]}` : accessory?.text;
@@ -41,8 +43,19 @@ export function SectionTitle({ children, icon, accessory, trailing, level = 2, c
             <Icon name={icon} size={10.5} />
           </span>
         ) : null}
-        <span>{children}</span>
-        {spoken ? <span className="visually-hidden">, {spoken}</span> : null}
+        {wrapTitle ? (
+          wrapTitle(
+            <>
+              <span>{children}</span>
+              {spoken ? <span className="visually-hidden">, {spoken}</span> : null}
+            </>,
+          )
+        ) : (
+          <>
+            <span>{children}</span>
+            {spoken ? <span className="visually-hidden">, {spoken}</span> : null}
+          </>
+        )}
       </Heading>
       <span className={styles.spacer} />
       {accessory ? (

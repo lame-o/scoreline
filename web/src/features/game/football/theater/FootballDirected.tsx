@@ -96,8 +96,7 @@ export default function FootballDirected({ source, cues: givenCues = null, teams
 
   const dressed = useMemo(
     () => dress(kits, scheme),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme],
+    [kits, scheme],
   );
   // Each side's look with the ball.
   const teamsBy = useMemo((): Record<Side, FootballTeams> => ({ top: { offense: dressed.top, defense: dressed.bottom }, bottom: { offense: dressed.bottom, defense: dressed.top } }), [dressed]);
@@ -111,7 +110,7 @@ export default function FootballDirected({ source, cues: givenCues = null, teams
   const tagLabels = useMemo(
     () => theaterLabels(kits, scheme, names),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, names.top, names.bottom],
+    [kits, scheme, names.top, names.bottom],
   );
   const statusNames: StatusNames = useMemo(
     () => ({ top: names.top, bottom: names.bottom, topColor: tagColor(kits.top.color), bottomColor: tagColor(kits.bottom.color) }),

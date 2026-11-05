@@ -7,6 +7,7 @@
  * Naming: Swift's `Event` is `ScoreEvent` here (`Event` is a DOM global).
  * Everything else keeps its Swift name.
  */
+import type { TeamKit } from "./matchColors";
 
 // MARK: - Sports
 
@@ -74,6 +75,8 @@ export interface Competitor {
   readonly conferenceRecord: string | null;
   /** The team's second color, for when its first clashes with the opponent's. */
   readonly alternateColor: string | null;
+  /** What it wears in this game, when the source says (data/matchColors.ts). */
+  readonly kit?: TeamKit | null;
 }
 
 export type Content =

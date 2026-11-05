@@ -100,8 +100,7 @@ export default function BasketballDirected({ source, cues: givenCues = null, tea
 
   const dressed = useMemo(
     () => dress(kits, scheme),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme],
+    [kits, scheme],
   );
   const teamsBy = useMemo((): Record<Side, BasketballTeams> => ({ top: { offense: dressed.top, defense: dressed.bottom }, bottom: { offense: dressed.bottom, defense: dressed.top } }), [dressed]);
   // The paint in the home team's color, its name at center court.
@@ -113,7 +112,7 @@ export default function BasketballDirected({ source, cues: givenCues = null, tea
   const tagLabels = useMemo(
     () => theaterLabels(kits, scheme, names),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kits.top.color, kits.top.alternate, kits.bottom.color, kits.bottom.alternate, scheme, names.top, names.bottom],
+    [kits, scheme, names.top, names.bottom],
   );
 
   useEffect(() => {

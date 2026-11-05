@@ -2,7 +2,7 @@
  * Existing form components, appearance tokens and ordering controls are shared. */
 import { requestNotificationPermission } from "../../state/notifications";
 import { Reorder, useDragControls } from "motion/react";
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link } from "react-router";
 import {
   FormSection,
@@ -116,11 +116,15 @@ export function MyTeams() {
   const muted = useSettings(s => s.mutedTeams);
   const notify = useSettings(s => s.notifyFollowed);
   return (
-    <FormSection title="Teams · All competitions" icon="star">
+    <FormSection
+      title="Teams"
+      icon="star"
+      caption={followed.length === 0 ? undefined : notify ? "In every competition they play in. The bell turns a team's alerts off." : "In every competition they play in. Alerts for your teams are off in Settings."}
+    >
       {followed.length === 0 ? (
         <p className={styles.hint}>
           <Icon name="starOutline" size={11} />
-          <span>Follow teams from Sports or a team page. Their matches appear across competitions. Alerts are controlled separately.</span>
+          <span>Star a team in Sports or on its page: its games show first, in every competition, and it sends alerts.</span>
         </p>
       ) : (
         <LinkOrigin name="Following">
@@ -135,7 +139,21 @@ export function MyTeams() {
                     {isSupportedTeam({ id: team.id, league: null }) ? <Icon name="chevronRight" size={9} className={styles.teamChevron} /> : null}
                   </span>
                 </TeamLink>
-                <button type="button" className={styles.followButton} aria-label={`${muted.includes(team.id) ? "Enable" : "Mute"} alerts for ${team.name}`} aria-pressed={!muted.includes(team.id)} title={notify ? (muted.includes(team.id) ? "Alerts off" : "Alerts on") : "All team alerts are paused below"} onClick={() => { const on = muted.includes(team.id); settings.setTeamAlerts(team.id, on); if (on && notify) void requestNotificationPermission(); }}><Icon name="bell" size={13} /></button>
+                <button
+                  type="button"
+                  className={`${styles.followButton} ${styles.bell}`}
+                  aria-label={`Turn ${muted.includes(team.id) ? "on" : "off"} alerts for ${team.name}`}
+                  aria-pressed={!muted.includes(team.id)}
+                  disabled={!notify}
+                  title={notify ? `Turn ${muted.includes(team.id) ? "on" : "off"} alerts for ${team.name}` : "Alerts for your teams are off in Settings"}
+                  onClick={() => {
+                    const on = muted.includes(team.id);
+                    settings.setTeamAlerts(team.id, on);
+                    if (on && notify) void requestNotificationPermission();
+                  }}
+                >
+                  <Icon name="bell" size={13} />
+                </button>
                 <button type="button" className={styles.remove} aria-label={`Unfollow ${team.name}`} title={`Unfollow ${team.name}`} onClick={() => settings.unfollow(team.id)}>
                   <Icon name="minusCircle" size={13} />
                 </button>
@@ -148,8 +166,8 @@ export function MyTeams() {
   );
 }
 
-/** The enabled leagues in the user's order: drag the handle (a spring reorder), or ↑/↓ on a focused handle (instant). */
-export function YourSports() {
+/** The enabled leagues in the user's order: drag the handle (a spring reorder), or ↑/↓ on a focused handle (instant). `footer`: a last row in the group. */
+export function YourSports({ footer = null }: { footer?: ReactNode } = {}) {
   const enabled = useSettings((s) => s.enabledLeagues);
   const [order, setOrder] = useState(enabled);
   const [dragging, setDragging] = useState(false);
@@ -160,7 +178,9 @@ export function YourSports() {
   }, [enabled, dragging]);
 
   if (enabled.length === 0) {
-    return (
+    return footer ? (
+      <GroupBox label="Followed competitions, in order">{footer}</GroupBox>
+    ) : (
       <p className={styles.hint}>
         <Icon name="plusCircle" size={11} />
         <span>Browse Sports to follow a competition.</span>
@@ -196,6 +216,7 @@ export function YourSports() {
           ) : null;
         })}
       </Reorder.Group>
+      {footer}
       <span className="visually-hidden" role="status" aria-live="polite">
         {announcement}
       </span>
@@ -240,7 +261,7 @@ function LeagueOrderRow({ league, onDragStart, onDragEnd, onKeyMove }: { league:
       >
         <Icon name="grip" size={10} />
       </button>
-      <Link to={`/sports/competition/${league.id}?tab=following`} className={styles.leagueLink} aria-label={`${league.name}, ${summary}`}>
+      <Link to={`/sports/competition/${league.id}`} className={styles.leagueLink} aria-label={`${league.name}, ${summary}`}>
         <span className={styles.leagueIcon}>
           <Icon name={SPORT_ICON[league.sport]} size={11} />
         </span>

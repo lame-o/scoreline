@@ -22,7 +22,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef } from "react";
-import { EMPTY_DETAIL, eventFromSummary, fetchDetail, parseESPNDetail, scoreboardURL, summaryURL, type GameDetail } from "../../../data/gameDetail";
+import { coloredEvent, EMPTY_DETAIL, eventFromSummary, fetchDetail, parseESPNDetail, scoreboardURL, summaryURL, type GameDetail } from "../../../data/gameDetail";
 import { loadCSMatch, matchByIDURL, matchNumber } from "../../../data/cs2";
 import { getJSON, HTTPError } from "../../../data/http";
 import { arr, at } from "../../../data/json";
@@ -32,7 +32,7 @@ import { getSettings } from "../../../state/settings";
 import { CATALOG, espnPath, leagueResolving } from "../../../data/leagues";
 import type { League, ScoreEvent, Sport } from "../../../data/models";
 import { pageKind } from "../../../data/sections";
-import { useLogoColorsVersion, wearColors } from "../../../state/logoColors";
+import { noteDetail, useLogoColorsVersion, wearColors } from "../../../state/logoColors";
 import { hasFailed, retrying } from "../../../state/retry";
 import { queryClient, useScoreboard } from "../../../state/scores";
 
@@ -93,7 +93,7 @@ async function resolveESPN(gameID: string, hint: League | undefined, signal: Abo
     const event = eventFromSummary(summary, path, league.sport, Date.now());
     if (!event) throw new Error("No event in summary");
     // The summary just read is the detail's first load too.
-    queryClient.setQueryData<DetailResult>(["detail", event.id], { detail: parseESPNDetail(summary, { event, path, id: gameID, sport: league.sport }), event });
+    queryClient.setQueryData<DetailResult>(["detail", event.id], { detail: noteDetail(parseESPNDetail(summary, { event, path, id: gameID, sport: league.sport }), event), event });
     return { event, league: league.id };
   });
   try {
@@ -177,7 +177,8 @@ export function useGame(id: string, { poll, league }: { poll: boolean; league: s
       try {
         const result = await loadDetail(event, signal);
         failures.current = 0;
-        return result;
+        // Each team's colors remembered, and its kit held from kickoff (TeamColors.note).
+        return { ...result, detail: noteDetail(result.detail, event) };
       } catch (error) {
         failures.current += 1;
         throw error;
@@ -196,8 +197,10 @@ export function useGame(id: string, { poll, league }: { poll: boolean; league: s
   const colors = useLogoColorsVersion();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const worn = useMemo(() => (offBoard ? (wearColors([offBoard])[0] ?? offBoard) : null), [offBoard, colors]);
-  const event = boardEvent ?? worn;
   const loaded = detail.data?.detail ?? null;
+  // The game in the colors its summary says: each team's own, and what it wears today (GameDetail.colored).
+  const plain = boardEvent ?? worn;
+  const event = useMemo(() => (plain && loaded ? coloredEvent(plain, loaded) : plain), [plain, loaded]);
   const lastLoaded = detail.dataUpdatedAt || null;
   const staleSince = event?.state === "live" && loaded && failures.current >= 2 ? lastLoaded : event?.state === "live" && scores.status === "offline" ? scores.lastUpdated : null;
 
