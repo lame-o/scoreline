@@ -254,12 +254,35 @@ export function makeChartData(input: {
   } else {
     endVisible = domain.to >= whole.to;
   }
-  // The end of a finished game is its last play: nothing after the buzzer.
-  if (state === "final") {
-    const index = points.findIndex((p) => p.t > whole.to);
-    if (index >= 0) points = points.slice(0, index);
-  }
+  if (state === "final") points = finalPoints(points, whole.to);
   return { ...base, points, domain, now: liveNow, zoomed: windowPeriod(window) != null, endVisible, espn: shownPoints(basis.win, until), periods: visible.periods };
+}
+
+/**
+ * A finished game's line: the game, to its last play, ending on the market's
+ * own end. The market answers the deciding play after it (its reaction lag,
+ * and the history's minute samples), so its answer lands past ESPN's last
+ * play: MIA @ LAC's market swung to MIA 26 s after the End of Game it
+ * answered. Cutting there showed the winner as a 20% underdog. So the last
+ * point the market has said (≤ p while a page broadcasts) is the line's end,
+ * held at the buzzer: the end dot, the labels, the header and the reading at
+ * the exact final moment read the result as the market settled it, and the
+ * line climbs to it at the buzzer. Points in between aren't drawn: the axis
+ * stays the game's, so the timeline beside it doesn't move.
+ *
+ * The Mac (OddsChart.swift `OddsChartData.make`) cuts at the last play and
+ * keeps the pre-reaction price: a web fix. (pure; tested)
+ */
+export function finalPoints(points: readonly OddsSplitPoint[], lastPlay: number): OddsSplitPoint[] {
+  const index = points.findIndex((p) => p.t > lastPlay);
+  if (index < 0) return [...points];
+  const settled = points.at(-1)!;
+  // The market's last word for every outcome: a reading, however quiet it has gone since.
+  const end: OddsSplitPoint = { t: lastPlay, split: settled.split, unobserved: false };
+  const kept = points.slice(0, index);
+  if (kept.at(-1)?.t === lastPlay) kept[kept.length - 1] = end;
+  else kept.push(end);
+  return kept;
 }
 
 /** The window as it applies (OddsWindow.effective), re-exported for the section. */
