@@ -6,11 +6,15 @@
  * GameTimeline.swift `RawPlay`, `PlayKind`, `GameClockReading`,
  * `BindingHorizons`; PresentationClock.swift's pieces, regime and events).
  *
- * The timeline and the clock themselves are the broadcast's (ported in
- * their own modules); these interfaces are exactly what the theater reads of
- * them, field for field, so the director runs against the real ones or a
- * test's.
+ * The timeline and the clock themselves are the broadcast's
+ * (data/broadcast: `Broadcast`, `BroadcastEngine`, `PresentationClock`, its
+ * own `BroadcastTheaterSource` in theaterSource.ts); these interfaces are
+ * exactly what the theater reads of them, field for field, so the director
+ * runs against the page's broadcast (the hosts hand it `useTheaterSource()`),
+ * the bench's `RecordingReplay`, or a dev page's replay. The page's source
+ * is one: checked below, so the two can't drift apart.
  */
+import type { BroadcastTheaterSource as PageSource } from "../broadcast/theaterSource";
 import type { PTime, Span } from "./theaterEngine";
 
 // MARK: - The presentation clock, as the theater reads it
@@ -158,3 +162,7 @@ export interface BroadcastTheaterSource {
   /** Tells the director when the revision or the clock changes (the page's observation); returns the unsubscribe. */
   subscribe(listener: () => void): () => void;
 }
+
+/** The page's broadcast is a source the director reads (a compile-time check: it fails to build if they drift). */
+export type PageSourceFits = PageSource extends BroadcastTheaterSource ? true : never;
+export const PAGE_SOURCE_FITS: PageSourceFits = true;
