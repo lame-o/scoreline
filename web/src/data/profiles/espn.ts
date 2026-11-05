@@ -601,6 +601,16 @@ export function coreAthleteTeamID(json: JSONValue): string | null {
   return refID(sAt(json, "team", "$ref"), "teams");
 }
 
+/**
+ * The position the game log's strip is chosen by: the link's (the Mac's), else
+ * the bio's once it lands. Web fix: a page opened from its URL, or from a link
+ * that knows no position (a game page's names), chose by none, and a receiver's
+ * log, which carries his rushing too, drew rushing yards.
+ */
+export function logPosition(linkPosition: string | null, athlete: AthleteData | null, core: JSONValue | undefined): string | null {
+  return linkPosition ?? athlete?.bio.positionAbbreviation ?? (core === undefined ? null : sAt(core, "position", "abbreviation"));
+}
+
 /** "2003: Rd 1, Pk 1 (CLE)" → "2003 · Round 1, Pick 1 · CLE". */
 export function formatDraft(text: string | null): string | null {
   if (!text) return text;

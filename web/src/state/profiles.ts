@@ -402,7 +402,8 @@ export function usePlayerProfile(ref: PlayerRef, options: { careerRequested: boo
     return h ? teamRef({ id: `espn-ncaaf-${coreTeamID}`, name: h.shortName, logo: h.logo, league: "college-football", color: h.color, alternateColor: h.alternateColor, abbreviation: h.abbreviation }) : null;
   }, [coreTeamID, espnPath]);
   const overview = useParsed(overviewQ!, (json) => espn.parseOverview(json, sport), [sport]);
-  const gameLog = useParsed(gameLogQ!, (json) => (espnPath ? espn.parseGameLog(json, espnPath, ref.position) : null), [espnPath, ref.position]);
+  const logPosition = espn.logPosition(ref.position, athlete, coreData);
+  const gameLog = useParsed(gameLogQ!, (json) => (espnPath ? espn.parseGameLog(json, espnPath, logPosition) : null), [espnPath, logPosition]);
   const leagueLeaders = useParsed(leagueLeadersQ!, espn.parseLeaders);
   const csPlayer = useParsed(csPlayerQ!, (json) => bo3.parsePlayer(json));
   const csGeneral = useParsed(csGeneralQ!, bo3.parseGeneral);
