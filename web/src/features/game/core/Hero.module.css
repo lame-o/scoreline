@@ -246,6 +246,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Why play has stopped: it fades in under the clock (Motion.quick's opacity), and out with the next play. */
+.stoppage {
+  animation: stoppage-in var(--dur-quick) var(--ease-out) both;
+}
+
+@keyframes stoppage-in {
+  from {
+    opacity: 0;
+  }
+}
+
 .countdown {
   font-family: var(--font-rounded);
   font-size: calc(15 * var(--pt));

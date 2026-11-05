@@ -46,6 +46,7 @@ import { broadcastSport, plateTimes, policy as sportPolicy, readingFromEvent, re
 import { PresentationClock } from "./presentationClock";
 import { clockless, isFinal, NOTHING_PRESENTED, presentedStatus, remaining, samePhase, samePresented, type PresentedGame } from "./presentedGame";
 import type { BroadcastTheaterSource } from "./theaterSource";
+import { broadcastAvailable } from "./switch";
 import type { StatcastAtBat } from "../mlb/statcast";
 import { sameScore, type BindingHorizons, type FastReading, type Hint, type LaneID, type PTime, type RawPlay, type ScoreLine, type TimelineEntry, type TimelineRecord } from "./timeline";
 
@@ -190,7 +191,7 @@ export class Broadcast implements BroadcastTheaterSource {
    */
   begin(event: ScoreEvent, topIsHome: boolean, seen: readonly ScoreEvent[] = []): void {
     const sport = broadcastSport(event);
-    if (this.active || this.unsupported || event.state !== "live" || !sport || event.ref?.kind !== "espn") return;
+    if (this.active || this.unsupported || !broadcastAvailable() || event.state !== "live" || !sport || event.ref?.kind !== "espn") return;
     this.sport = sport;
     this.path = event.ref.path;
     this.espnID = event.ref.id;

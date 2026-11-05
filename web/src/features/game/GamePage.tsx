@@ -8,13 +8,17 @@
  * linked focus across charts, the hero's beats, the page's geometry. Each
  * sport is a hook in `SPORT_PAGES` (core/sport.tsx explains the seam) that
  * returns its sections and runs its own fast lane.
+ *
+ * A live ESPN game is told as one broadcast (BROADCAST.md, core/broadcast.tsx):
+ * the hero, the docked bar, the sections, the tab and the alerts read the
+ * game as presented at p; the theaters keep today's inputs.
  */
 import { CompetitionContext } from "../settings/CompetitionContext";
 import { Suspense, use, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useLocation, useParams, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { Button, EmptyState, ErrorState, IconButton, PageHeader } from "../../design/components";
 import { spokenStatus, scoreLine } from "../../data/format";
-import { beatFinal, beatScore, beatScoreRose, finalAnnouncement, NO_BEATS, winner, type HeroBeats } from "../../data/matchRules";
+import { Accessory, beatFinal, beatScore, beatScoreRose, finalAnnouncement, NO_BEATS, winner, type AccessoryTier, type HeroBeats } from "../../data/matchRules";
 import { decisive, scorer, Tier } from "../../data/moments";
 import { stepsBack, type ScoreEvent } from "../../data/models";
 import { arrangement, pageKind, sectionOrder, type PlacedSection } from "../../data/sections";
@@ -35,6 +39,8 @@ import { ScoringSlideHost, SlidesProvider, useBindSlides, useScoringSlides, useS
 import { listenForUnlock } from "./core/sound";
 import { soundsEnabled } from "../../data/celebrationSound";
 import { useSettings } from "../../state/settings";
+import { usePresentedEvent } from "../../state/presented";
+import { BroadcastProvider, behindLiveSpoken, usePageBroadcast } from "./core/broadcast";
 import type { GameContext, SportPage } from "./core/sport";
 import { useGame, type GameData } from "./core/useGame";
 import { EMPTY_DETAIL } from "../../data/gameDetail";
@@ -56,7 +62,10 @@ export function GamePage() {
   // Beside the sidebar, the sidebar's list polls; on a phone this page does.
   const game = useGame(id, { poll: !split, league: search.get("league") });
   const event = game.event;
-  useDocumentTitle(event ? statusLineShort(event) : null);
+  // While the page broadcasts, its title is the game as presented (nothing in the tab spoils a play not yet told).
+  const presented = usePresentedEvent();
+  const titled = presented && presented.id === event?.id ? presented : event;
+  useDocumentTitle(titled ? statusLineShort(titled) : null);
 
   const header = (
     <PageHeader
@@ -187,18 +196,25 @@ function GameBody({ game, event, header, split }: { game: GameData; event: Score
   );
 }
 
-function Loaded({ game, event, palette, columns, geometry, moments, beats, setBeats, setFieldWash }: {
+function Loaded({ game, event: raw, palette, columns, geometry, moments: slot, beats, setBeats, setFieldWash }: {
   game: GameData;
+  /** The scoreboard's copy of the game (or the summary's): the page presents it at p while it broadcasts. */
   event: ScoreEvent;
   palette: TeamPalette;
   columns: boolean;
   geometry: ReturnType<typeof usePageGeometry>;
+  /** The page's moment slot; the sports get it gated on p. */
   moments: ReturnType<typeof useMomentSlot>;
   beats: HeroBeats;
   setBeats: React.Dispatch<React.SetStateAction<HeroBeats>>;
   setFieldWash: (wash: TeamPalette | null) => void;
 }) {
-  const detail = game.detail ?? EMPTY_DETAIL;
+  const navigate = useNavigate();
+  // The game as one broadcast (BROADCAST.md): the event and the detail at p, the moments gated on it.
+  const page = usePageBroadcast(raw, game.detail, slot, game.leagueID, navigate);
+  const event = page.event;
+  const broadcasting = page.active;
+  const detail = page.detail ?? EMPTY_DETAIL;
   const loading = game.detail == null;
   const live = event.state === "live";
   const top = event.content.kind === "match" ? event.content.top : null;
@@ -207,12 +223,14 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
   const context: GameContext = {
     event,
     detail,
+    raw: { event: raw, detail: game.detail ?? EMPTY_DETAIL },
+    broadcast: broadcasting ? page.broadcast : null,
     palette,
     names: { top: top?.abbreviation ?? "", bottom: bottom?.abbreviation ?? "" },
     spoken: { top: top?.name ?? "", bottom: bottom?.name ?? "" },
     live,
     split: columns,
-    moments,
+    moments: page.moments,
     geometry,
     leagueID: game.leagueID,
     refresh: game.refresh,
@@ -222,10 +240,16 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
   const useSportPage = use(sportPage(pageKind(event.ref)));
   const sport: SportPage = useSportPage(context);
 
-  // The hero's numbers (the lane's while it's ahead).
-  const scores = { top: sport.laneScores?.top ?? top?.score ?? null, bottom: sport.laneScores?.bottom ?? bottom?.score ?? null };
+  // The hero's numbers: while broadcasting, the presented score (never below what the owner had
+  // already seen: the broadcast's floor); otherwise the lane's while it's ahead.
+  const scores = broadcasting
+    ? { top: top?.score ?? null, bottom: bottom?.score ?? null }
+    : { top: sport.laneScores?.top ?? top?.score ?? null, bottom: sport.laneScores?.bottom ?? bottom?.score ?? null };
+  // While broadcasting the clock and its words are p's (the presented clock, its status), never a lane's ahead of it.
+  const clock = broadcasting ? event.clock : (sport.clock ?? event.clock);
+  const fallback = broadcasting ? (event.detail ?? "Live") : (sport.clockFallback ?? (event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live")));
   // The summary-driven sections and the scores list kept no older than these numbers.
-  useHeaderSync(header, event, scores, sport);
+  useHeaderSync(header, event, scores, broadcasting ? { ...sport, clock, clockFallback: fallback } : sport);
   useBeatTriggers(event, scores, setBeats, sport.trophy != null);
   // The scoring slides: who's who, and how each score meets this page.
   useBindSlides(event, game.detail, geometry);
@@ -235,7 +259,13 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
     setFieldWash(washTop && washBottom ? { top: washTop, bottom: washBottom } : null);
   }, [washTop, washBottom, setFieldWash]);
   const surface = useSurface(geometry);
-  const fallback = sport.clockFallback ?? (event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live"));
+  // How far behind live, read when the live indicator is hovered (and for the hero's spoken value); null: not broadcasting.
+  const model = page.broadcast;
+  const readBehind = useMemo(() => () => model.behind, [model]);
+  const behind = broadcasting && live ? readBehind : null;
+  // Play has stopped, and why: under the hero's clock, and the docked bar's detail (the hero's own word, not a stale down).
+  const stoppage = live ? page.note : null;
+  const dockDetail = stoppage ? (tier: AccessoryTier) => (tier >= Accessory.text ? <span className={styles.stoppage}>{stoppage}</span> : null) : sport.dockDetail;
 
   // A field event's line from the page's own lane when it says something newer (the climbing leader).
   const fieldSummary = sport.fieldSummary;
@@ -259,14 +289,16 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
           beats={beats}
           surface={surface}
           clockFallback={fallback}
-          clock={sport.clock ?? event.clock}
+          clock={clock}
+          stoppage={stoppage}
+          behind={behind}
           liveSecond={sport.heroSecond}
           possession={sport.possession ?? null}
           possessionInAir={sport.possessionInAir ?? false}
           chip={sport.heroChip ?? null}
           note={sport.heroNote ?? null}
           staleSince={game.staleSince}
-          spoken={spokenHero(heroEvent, scores, fallback, sport.heroSpoken ?? null)}
+          spoken={spokenHero(heroEvent, scores, fallback, [stoppage, sport.heroSpoken ?? null, behind ? behindLiveSpoken(page.broadcast) : null].filter(Boolean).join(". ") || null)}
           caption={event.caption ?? detail.roundName}
           trophy={sport.trophy ?? null}
           badge={sport.heroBadge ?? null}
@@ -287,11 +319,12 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
         beats={beats}
         surface={surface}
         clockFallback={fallback}
-        clock={sport.clock ?? event.clock}
+        clock={clock}
+        behind={behind}
         possession={sport.possession}
         possessionInAir={sport.possessionInAir ?? false}
         stale={game.staleSince != null}
-        detail={sport.dockDetail}
+        detail={dockDetail}
         lead={sport.dockLead}
         chip={sport.chip ?? null}
         slot={sport.dockSlot}
@@ -301,7 +334,9 @@ function Loaded({ game, event, palette, columns, geometry, moments, beats, setBe
       {loading ? (
         game.detailFailed ? <p className={styles.note}>{ErrorCopy.inline("match details")}</p> : null
       ) : (
-        <Sections placed={placed} sections={sport.sections} columns={columns} empty={emptyMessage(event)} />
+        <BroadcastProvider broadcast={page.broadcast}>
+          <Sections placed={placed} sections={sport.sections} columns={columns} empty={emptyMessage(event)} />
+        </BroadcastProvider>
       )}
       {detail.venue ? <p className={styles.venue}>{detail.venue}</p> : null}
     </>

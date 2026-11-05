@@ -15,6 +15,12 @@
  *
  * Live, the play theater (theater/, SoccerTheater.swift) replays each big
  * moment at the top of the Live Pitch from the lane's window of core plays.
+ *
+ * While the page broadcasts (BROADCAST.md §3), the pitch's trail, shots and
+ * cards are cut to what's told, the timeline's "now" is the presented minute,
+ * and the projected table counts the presented score (it agrees with the
+ * hero); the lane's looks are the broadcast's core lane. The play theater
+ * keeps today's inputs.
  */
 import { useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { espnTeamIDs } from "../../../data/gameDetail";
@@ -38,6 +44,7 @@ import { PitchTheater } from "./theater/PitchTheater";
 import { Timeline } from "./Timeline";
 import { soccerMomentText } from "./MomentText";
 import styles from "./SoccerPage.module.css";
+import { feedBroadcast } from "../core/broadcast";
 
 export function useSoccerPage(game: GameContext): SportPage {
   const { event, detail, palette, names, spoken, live } = game;
@@ -53,7 +60,8 @@ export function useSoccerPage(game: GameContext): SportPage {
   const [homeID] = espnTeamIDs(event);
   const look = async (signal?: AbortSignal) => {
     if (!ref || !slug) return;
-    await feed.update(getJSON, { league: slug, eventID: ref.id, homeTeamID: homeID, rosters: detail.soccerRosters, signal });
+    // The broadcast's core lane: the look's entries (a tail of the match), or a read with nothing new.
+    await feedBroadcast(game.broadcast, feed, () => feed.update(getJSON, { league: slug, eventID: ref.id, homeTeamID: homeID, rosters: detail.soccerRosters, signal }), true);
     // A goal VAR struck off goes before anything new shows.
     const struck = feed.takeRetractions();
     game.moments.retract(struck);
@@ -86,10 +94,19 @@ export function useSoccerPage(game: GameContext): SportPage {
   const ids = useMemo(() => (event.content.kind === "match" ? [event.content.top.id, event.content.bottom.id].filter((x): x is string => x != null) : []), [event.content]);
 
   const sections: Partial<Record<Section, ReactNode>> = { ...common };
-  const pitchChart = <Pitch trail={feed.trail} shots={feed.shots} cards={feed.cards} live={live} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} width={sectionWidth} theaterShown={live} />;
+  // Broadcasting: the trail, the shots and the cards cut to what's told.
+  const broadcast = game.broadcast;
+  const told = broadcast?.presented;
+  const trail = useMemo(() => (broadcast ? feed.trail.filter((a) => broadcast.shows(a.playID)) : feed.trail), [broadcast, feed.trail, told]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shots = useMemo(() => (broadcast ? feed.shots.filter((a) => broadcast.shows(a.playID)) : feed.shots), [broadcast, feed.shots, told]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cards = useMemo(
+    () => (broadcast ? Object.fromEntries(Object.entries(feed.cards).filter(([id]) => broadcast.shows(id))) : feed.cards),
+    [broadcast, feed.cards, told], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const pitchChart = <Pitch trail={trail} shots={shots} cards={cards} live={live} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} width={sectionWidth} theaterShown={live} />;
   const minute = live ? soccerMinute(event.detail) : null;
   const timelineChart = <Timeline moments={detail.moments} currentMinute={minute} palette={palette} topName={names.top} bottomName={names.bottom} width={sectionWidth} />;
-  if (live ? feed.trail.length > 0 : feed.shots.length > 0) {
+  if (live ? trail.length > 0 : shots.length > 0) {
     sections.pitch = (
       <DetailSection
         id="pitch"
@@ -99,7 +116,8 @@ export function useSoccerPage(game: GameContext): SportPage {
         accessory={live ? "live" : event.state === "final" ? "final" : undefined}
       >
         {/* The play theater at the top of the Live Pitch, as on the Mac; it owns the moments it replays (GoalCelebration.pitchBursts). */}
-        {live ? <PitchTheater feed={feed} homeTeamID={homeID} event={event} added={detail.soccerAdded} people={detail.people} /> : null}
+        {/* The theater keeps today's inputs (the scoreboard's event) until the director reads the broadcast. */}
+        {live ? <PitchTheater feed={feed} homeTeamID={homeID} event={game.raw.event} added={detail.soccerAdded} people={detail.people} /> : null}
         {pitchChart}
       </DetailSection>
     );
@@ -122,8 +140,12 @@ export function useSoccerPage(game: GameContext): SportPage {
     const known = (Number(event.content.top.score) || 0) + (Number(event.content.bottom.score) || 0);
     return feed.score.top + feed.score.bottom > known ? { top: String(feed.score.top), bottom: String(feed.score.bottom) } : null;
   }, [live, feed.score, event.content]);
-  // The projected table counts it too, so the table and the hero agree once the goal lands.
-  const tableLive = useMemo(() => withLaneScore(leagueLive, event.id, laneScores), [leagueLive, event.id, laneScores]);
+  // The projected table counts it too, so the table and the hero agree once the goal lands (broadcasting: the presented score).
+  const tableScore = useMemo(
+    () => (broadcast && event.content.kind === "match" && event.content.top.score != null && event.content.bottom.score != null ? { top: event.content.top.score, bottom: event.content.bottom.score } : laneScores),
+    [broadcast, event.content, laneScores],
+  );
+  const tableLive = useMemo(() => withLaneScore(leagueLive, event.id, tableScore), [leagueLive, event.id, tableScore]);
   if (league && tableRows && detail.seasonIsCurrent !== false) {
     sections.table = <SoccerTableWindow league={league} rows={tableRows} live={tableLive} ids={ids} final={event.state === "final"} recent={event.start > Date.now() - 86_400_000} width={game.split ? 320 : 380} />;
   }

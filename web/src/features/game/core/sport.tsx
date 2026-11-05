@@ -17,6 +17,7 @@
  * 3. Register it in `SPORT_PAGES` (GamePage.tsx) under its `PageKind`.
  */
 import { useEffect, useRef, type ReactNode } from "react";
+import type { Broadcast } from "../../../data/broadcast/broadcast";
 import type { GameDetail } from "../../../data/gameDetail";
 import type { HeaderLedger } from "../../../data/headerSync";
 import type { AccessoryTier } from "../../../data/matchRules";
@@ -26,10 +27,21 @@ import type { TeamPalette } from "../../../data/teamColors";
 import type { PageGeometry } from "./geometry";
 import type { MomentSlot } from "./moments";
 
-/** Everything a sport's page reads, from the core. */
+/**
+ * Everything a sport's page reads, from the core. While the page broadcasts
+ * (a live ESPN game with a play-by-play: BROADCAST.md, core/broadcast.tsx),
+ * `event` and `detail` are the game as presented at p, the moment slot waits
+ * for each moment's play, and `broadcast` is the page's model; `raw` keeps
+ * today's copies for the theaters (they keep today's inputs until the
+ * director reads the broadcast) and for the lanes' own requests.
+ */
 export interface GameContext {
   readonly event: ScoreEvent;
   readonly detail: GameDetail;
+  /** The scoreboard's copy and the last load, as they are (not presented). */
+  readonly raw: { readonly event: ScoreEvent; readonly detail: GameDetail };
+  /** The page's broadcast while it broadcasts, else null (data/broadcast/broadcast.ts). */
+  readonly broadcast: Broadcast | null;
   /** Team colors fitted to the scheme (TeamPalette); null for field events. */
   readonly palette: TeamPalette;
   /** Short names for charts ("MIL"), and the full ones for screen readers. */

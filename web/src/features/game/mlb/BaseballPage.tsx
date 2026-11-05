@@ -7,6 +7,12 @@
  *
  * The lane speaks once the first full load has named the box score's
  * players; until then the full load's situation, at-bat and theater stand in.
+ *
+ * While the page broadcasts (BROADCAST.md §3), the diamond is the fast lane's
+ * situation recorded after the last told play, This At-Bat and Balls in Play
+ * are the told pitches and results, and who's batting is the presented
+ * half-inning; MLB's own pitch times place each pitch (data/broadcast/lanes.ts
+ * `timed`). The play theater keeps today's inputs.
  */
 import { lazy, Suspense, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { battingSide, Accessory, shortInning, type AccessoryTier } from "../../../data/matchRules";
@@ -25,6 +31,8 @@ import { StrikeZone } from "./StrikeZone";
 import { espnPlayerRef } from "../../profiles/ProfileLinks";
 import dock from "../core/DockedScorebar.module.css";
 import diamond from "./BaseballDiamond.module.css";
+import { feedBroadcast } from "../core/broadcast";
+import { isInterval } from "../../../data/broadcast/presentedGame";
 
 /** The theater's renderer loads with the first live MLB page (its well holds the space meanwhile). */
 const PlayTheater = lazy(() => import("./theater/PlayTheater").then((m) => ({ default: m.PlayTheater })));
@@ -50,8 +58,12 @@ export function useBaseballPage(game: GameContext): SportPage {
   useFastLane(live && ref != null && namesLoaded, LANE_INTERVAL.standard, async (signal) => {
     if (!ref) return;
     const before = feed.score;
-    shownRuns.current = runsShown(event);
-    await feed.update(getJSON, { path: ref.path, eventID: ref.id, names: detail.athleteNames, side, signal });
+    shownRuns.current = runsShown(game.raw.event);
+    // The broadcast's lanes: the situation after the play it follows, the look at the plays (a tail of the game), the status.
+    await feedBroadcast(game.broadcast, feed, async () => {
+      await feed.update(getJSON, { path: ref.path, eventID: ref.id, names: detail.athleteNames, side, signal });
+      if (feed.situation) game.broadcast?.observeSituation(feed.situation, feed.situationPlay);
+    });
     game.moments.retract(feed.takeRetractions());
     game.moments.offer(feed.takeMoments());
     // A score: refresh the rest (scoring list, line score) now, not in half a minute. On the first
@@ -62,10 +74,10 @@ export function useBaseballPage(game: GameContext): SportPage {
     if (changed) game.refresh();
   });
 
-  // The diamond from the lane when it has spoken, else the last full load.
-  const situation: Baseball | null = useMemo(() => {
+  // The diamond from the lane when it has spoken, else the last full load: today's, which the theater keeps.
+  const today: Baseball | null = useMemo(() => {
     const s = feed.situation;
-    const d = detail.baseball;
+    const d = game.raw.detail.baseball;
     if (!s) return d;
     return {
       ...s,
@@ -77,17 +89,23 @@ export function useBaseballPage(game: GameContext): SportPage {
       pitcherID: s.pitcher == null ? (d?.pitcherID ?? null) : s.pitcherID,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feed.situation, detail.baseball]);
+  }, [feed.situation, game.raw.detail.baseball]);
+  // Broadcasting: the diamond after the last told play (the presented detail's).
+  const broadcast = game.broadcast;
+  const situation: Baseball | null = broadcast ? detail.baseball : today;
 
-  const inning = feed.inning ?? event.detail;
+  // Today's inning (the theater's), and the presented one while broadcasting ("Top 7th").
+  const todayInning = feed.inning ?? game.raw.event.detail;
+  const inning = broadcast ? event.detail : todayInning;
   const batting = live ? battingSide(inning, detail.topIsHome) : null;
-  const pitches = feed.loaded ? feed.atBat : detail.atBat;
-  // Every ball in play: the full load's, plus any the lane has seen since.
+  const pitches = broadcast ? detail.atBat : feed.loaded ? feed.atBat : detail.atBat;
+  // Every ball in play: the full load's, plus any the lane has seen since (broadcasting: the told ones).
   const balls: readonly BattedBall[] = useMemo(() => {
+    if (broadcast) return detail.battedBalls;
     const known = new Set(detail.battedBalls.map((b) => b.id));
     return [...detail.battedBalls, ...feed.battedBalls.filter((b) => !known.has(b.id))];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detail.battedBalls, feed.battedBalls]);
+  }, [broadcast, detail.battedBalls, feed.battedBalls]);
 
   // The theater: the lane's last play once it has one, else the full load's.
   const preloaded = useMemo(() => (detail.plays.length > 0 ? parseTheater(detail.plays, side, detail.athleteNames) : null), [detail.plays, side, detail.athleteNames]);
@@ -122,21 +140,22 @@ export function useBaseballPage(game: GameContext): SportPage {
       <DetailSection id="atPlate" title="At the Plate" caption="Live count, runners and matchup from ESPN." accessory="live">
         <BaseballDiamond situation={situation} batting={batting} palette={palette} player={(id, name) => espnPlayerRef("baseball/mlb", id, name)}>
           <Suspense fallback={<div className={diamond.theaterFallback} aria-hidden="true" />}>
+            {/* The theater keeps today's inputs (the lane's diamond and inning, the scoreboard's event) until the director reads the broadcast. */}
             <PlayTheater
               state={theater}
-              bases={[situation.onFirst, situation.onSecond, situation.onThird]}
-              batting={batting}
+              bases={[(today ?? situation).onFirst, (today ?? situation).onSecond, (today ?? situation).onThird]}
+              batting={live ? battingSide(todayInning, game.raw.detail.topIsHome) : null}
               palette={palette}
               kits={kits}
-              event={event}
+              event={game.raw.event}
               plays={feed.plays}
               playsVersion={feed.playsVersion}
               names={detail.athleteNames}
               heard={feed.heard}
               following={feed.following}
               delay={feed.delay}
-              situation={situation}
-              inning={inning}
+              situation={today ?? situation}
+              inning={todayInning}
               live={feed.loaded}
               topTeam={event.content.kind === "match" ? event.content.top.name : ""}
               bottomTeam={event.content.kind === "match" ? event.content.bottom.name : ""}
@@ -180,10 +199,11 @@ export function useBaseballPage(game: GameContext): SportPage {
   return {
     sections,
     laneScores,
-    clockFallback: feed.inning ?? (event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live")),
+    clockFallback: broadcast ? (event.detail ?? "Live") : (feed.inning ?? (event.detail?.toUpperCase() === "HT" ? "Half-time" : (event.detail ?? "Live"))),
     heroSecond: battingTeam ? `${battingTeam.abbreviation} batting` : null,
     heroSpoken: battingTeam ? `${battingTeam.name} batting` : null,
-    dockDetail: situation
+    // Between innings the bar keeps no diamond (BROADCAST: one phase for every surface).
+    dockDetail: situation && !(broadcast && isInterval(broadcast.presented))
       ? (tier: AccessoryTier) =>
           tier >= Accessory.glyph ? (
             <span className={dock.baseball}>

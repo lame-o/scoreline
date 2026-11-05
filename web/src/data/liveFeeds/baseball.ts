@@ -108,6 +108,17 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
    * the Mac's `rebuildTimeline(news: primed && following)` does (PlayTheater).
    */
   following = true;
+  /**
+   * The broadcast timeline's lanes (data/broadcast/): the last complete look's
+   * entries (a tail of the game) and its count, the status as last read, when
+   * the situation was last read (epoch ms), and the play the situation follows.
+   * Never part of `version`: the page reads them after each update.
+   */
+  lastLook: readonly JSONValue[] = [];
+  lookRevision = 0;
+  lastStatus: JSONValue | null = null;
+  lastRead: number | null = null;
+  situationPlay: string | null = null;
 
   /** The most recent plays (the theater's timeline, every pitch and what came between, is built from them). */
   get plays(): readonly JSONValue[] {
@@ -172,6 +183,8 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
         fetcher(`${base}/status`, { signal }).catch(() => null),
       ]);
       if (signal?.aborted) return;
+      if (status != null) this.lastStatus = status;
+      if (s != null) this.lastRead = this.now();
       let changed = false;
       const held = status != null ? espnDelay(status) : null;
       if (JSON.stringify(held) !== JSON.stringify(this.delay)) {
@@ -200,6 +213,7 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
         return;
       }
       const last = findLast(this.window, (p) => str(at(p, "type", "type")) === "play-result");
+      this.situationPlay = lastRef ? playIDFromRef(lastRef) : null;
       const next = settledSituation(baseballSituation(s, names, str(at(last, "text")) ?? null), this.window, names);
       if (!sameSituation(next, this.situation)) {
         this.situation = next;
@@ -267,6 +281,8 @@ export class BaseballFeed<T extends TheaterLike = TheaterLike> {
     if (signal?.aborted || !(complete || from === end)) return scoreChanged;
     this.rereadAt = this.now();
     this.fetched = read;
+    this.lastLook = fresh;
+    this.lookRevision += 1;
     const look = reread(this.window, from - this.windowStart, fresh);
     this.window = look.window;
     if (this.window.length > WINDOW_SIZE) {
