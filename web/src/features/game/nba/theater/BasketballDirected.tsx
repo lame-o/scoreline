@@ -32,7 +32,7 @@ import { DirectedStage } from "../../core/theater/directedStage";
 import { TheaterFlipButton, TheaterHeartbeat, TheaterStatusTag, useTheaterFlip } from "../../core/theater/TheaterStatus";
 import { accentOf, drawBursts, stageBurstEnd, TheaterType, teamPalette, type Size, type StageBurst } from "../../core/theater/theaterKit";
 import styles from "../../core/theater/TheaterWell.module.css";
-import { useDirected, useDirector } from "../../core/theater/useDirected";
+import { useDirected, useDirector, useHeard } from "../../core/theater/useDirected";
 import { useTheaterNames } from "../../core/theater/useTheaterNames";
 import { useReducedMotion } from "../../core/useMedia";
 import { theaterInk } from "../../mlb/theater/theaterInk";
@@ -54,7 +54,7 @@ export interface BasketballDirectedProps {
   readonly eventId: string;
   readonly people?: Readonly<Record<string, TheaterPerson>>;
   /** When the lane last brought a play (epoch ms): the heartbeat counts from it. */
-  readonly heard: number | null;
+  readonly heard?: number | null;
   /** A game held up says so over anything else, in ESPN's words ("Rain Delay"): TheaterStatus.holding. */
   readonly holding?: string | null;
 }
@@ -75,7 +75,7 @@ export const hoopsFacts = (teams: Teams, flipped: boolean): HoopsFacts => ({
   bottomName: teams.bottomName,
 });
 
-export default function BasketballDirected({ source, cues, teams, kits, palette, names, homeName, eventId, people = NO_PEOPLE, heard, holding = null }: BasketballDirectedProps) {
+export default function BasketballDirected({ source, cues, teams, kits, palette, names, homeName, eventId, people = NO_PEOPLE, heard: given = null, holding = null }: BasketballDirectedProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const well = useRef<HTMLDivElement>(null);
   const stage = useRef<DirectedStage<HoopsClip> | null>(null);
@@ -92,6 +92,7 @@ export default function BasketballDirected({ source, cues, teams, kits, palette,
   const nameTags = useTheaterNames(well, stage);
   const [height, setHeight] = useState(0);
   const [said, setSaid] = useState<Said | null>(null);
+  const heard = useHeard(source, given);
   const scratch = useMemo(() => new FrameScratch(), []);
   const shown = useMemo(() => new DirectedFrame(), []);
 

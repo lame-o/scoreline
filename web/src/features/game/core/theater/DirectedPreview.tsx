@@ -72,7 +72,6 @@ function Directed({ recording, at, delay }: { recording: Recording; at: number; 
           names={{ top: "Lakers", bottom: "Warriors" }}
           homeName={home.abbreviation}
           eventId={`directed-${home.id}`}
-          heard={Date.now()}
         />
       </MomentProvider>
     </main>
