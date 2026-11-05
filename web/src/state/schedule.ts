@@ -12,6 +12,7 @@
  * by hand, Show All Games) lives in `scheduleSession`, so Back lands where
  * you were, as on the Mac.
  */
+import { useQuery } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 import { addingDays, compareDays, dayID, dayKeyIn, dayKeyOf, daysBetween, startOfDay, type DayKey } from "../data/days";
 import { getJSON } from "../data/http";
@@ -60,6 +61,7 @@ import {
 import { EMPTY_CALENDAR, scopeKey, sortDate, type CalendarWeek, type ResultRound, type ScheduleCalendar, type ScheduleItem, type ScheduleScope, type ScheduleTeamRef, type SeasonEvent, type TeamSeason } from "../data/schedule";
 import type { ListPreferences } from "../data/scoreboard";
 import { persisted } from "./persist";
+import { retrying } from "./retry";
 import { queryClient } from "./scores";
 
 const MINUTE = 60_000;
@@ -790,6 +792,22 @@ export async function loadTeamSeason(team: ScheduleTeamRef, year: number | null,
   const seasonYear = year ?? currentSeasonYear(source.sport, league, todayEastern());
   const season = summarizeSeason(items, team, seasonLabel(seasonYear, source.sport, league), year == null, year == null ? (fetched[0]?.summary ?? null) : null, friendlies);
   return { ...emptyResults(true), season, items: season.results.slice(0, limit), more: season.results.length > limit, fetchedAt: Math.min(...fetched.map((f) => f.fetchedAt)) };
+}
+
+/**
+ * A team's season as its page shows it (ResultsStore.season(team), TeamPage's
+ * Results): the schedules layer's own load and caches, with the session's
+ * Include Friendlies, so the team page and its All Results share every fetch.
+ */
+export function useTeamSeason(team: ScheduleTeamRef | null) {
+  const friendlies = useScheduleSession((s) => (team ? s.friendlies.includes(team.id) : false));
+  return useQuery({
+    queryKey: ["results", "team", team?.id ?? "", friendlies],
+    queryFn: () => loadTeamSeason(team!, null, 20, friendlies),
+    enabled: team != null,
+    staleTime: 5 * MINUTE,
+    ...retrying<ResultsPage>({ failed: (page) => !page.ok }),
+  });
 }
 
 /** Every followed team's results of the last 30 days, newest first. */

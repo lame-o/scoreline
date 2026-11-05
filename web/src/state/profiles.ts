@@ -47,7 +47,6 @@ import {
   type Transaction,
 } from "../data/profiles/models";
 import { espnPhoto, fotMobPhoto, heroPhotoURL } from "../data/profiles/photos";
-import { formMarks, parseStandings, parseTeamResults, standingsPath, standingsURL, standingsWindow, teamScheduleURL, type FormMark, type StandingsRow } from "../data/profiles/results";
 import type { Sport } from "../data/models";
 import { preloadPhoto } from "./profilePhotos";
 import { persisted } from "./persist";
@@ -144,10 +143,6 @@ export interface TeamProfile {
   readonly titles: readonly Title[];
   readonly career: readonly StatTile[];
   readonly next: GameRef | null;
-  /** This season's results, newest first (null until they land). */
-  readonly results: readonly GameRef[] | null;
-  readonly form: readonly FormMark[];
-  readonly standings: { readonly rows: readonly StandingsRow[]; readonly first: number } | null;
   /** The roster has had its first answer (whatever it was). */
   readonly rosterLoaded: boolean;
   /** Every first request has answered. */
@@ -179,24 +174,18 @@ export function useTeamProfile(ref: TeamRef): TeamProfile {
     leaders: e && path ? espn.leadersURL(path, e.team) : null,
     stats: e && path ? espn.teamStatsURL(path, e.team) : null,
     transactions: e && path ? espn.transactionsURL(path, e.team) : null,
-    schedule: e ? teamScheduleURL(e.sport, path ?? "soccer/all", e.team) : cs ? bo3.historyURL(cs.id) : null,
-    standings: e ? (() => {
-      const table = standingsPath(e.sport, ref.id, path);
-      return table ? standingsURL(table) : null;
-    })() : null,
     csTeam: slug ? bo3.teamURL(slug) : null,
     csCareer: slug ? bo3.teamStatsURL(slug) : null,
     csNext: cs ? bo3.upcomingURL(cs.id) : null,
   };
-  const [rosterQ, depthQ, leadersQ, statsQ, transactionsQ, scheduleQ, standingsQ, csTeamQ, csCareerQ, csNextQ] = useQueries({
+  // A team's results and its table are the schedules and standings layers' (TeamPage: useTeamSeason, useStandings).
+  const [rosterQ, depthQ, leadersQ, statsQ, transactionsQ, csTeamQ, csCareerQ, csNextQ] = useQueries({
     queries: distinctSlots([
       profileQuery(urls.roster, TTL.roster),
       profileQuery(urls.depth, TTL.roster),
       profileQuery(urls.leaders, TTL.leaders),
       profileQuery(urls.stats, TTL.leaders),
       profileQuery(urls.transactions, TTL.leaders),
-      profileQuery(urls.schedule, cs ? 30 * 60_000 : TTL.header),
-      profileQuery(urls.standings, 10 * 60_000),
       profileQuery(urls.csTeam, TTL.leaders),
       profileQuery(urls.csCareer, TTL.roster),
       profileQuery(urls.csNext, TTL.short),
@@ -261,17 +250,6 @@ export function useTeamProfile(ref: TeamRef): TeamProfile {
   const career = useParsed(csCareerQ!, bo3.parseTeamCareer) ?? NONE;
   const csNext = useParsed(csNextQ!, (json) => (cs ? bo3.parseNextMatch(json, cs.id) : null), [cs?.id]);
 
-  const results = useParsed(scheduleQ!, (json) => {
-    if (cs) return bo3.parseHistory(json, cs.id);
-    return e ? parseTeamResults(json, e.sport, path ?? "soccer/all", e.team) : [];
-  }, [path]);
-  const standings = useParsed(standingsQ!, (json) => {
-    const table = e ? standingsPath(e.sport, ref.id, path) : null;
-    if (!e || !table) return null;
-    const window = standingsWindow(parseStandings(json, table, e.sport), ref.id, { bySeed: e.sport === "basketball" });
-    return window.rows.length > 0 ? window : null;
-  }, [path, ref.id]);
-
   const headerWithCoach = useMemo<TeamHeader | null>(() => {
     if (!header) return null;
     const coach = header.coach ?? roster?.coach ?? squad?.coach ?? null;
@@ -290,7 +268,6 @@ export function useTeamProfile(ref: TeamRef): TeamProfile {
     return out;
   }, [headerQ, csTeamQ, lookupQ, slug, source, rosterQ, roster, e, path, leadersQ, statsQ]);
 
-  const form = useMemo(() => formMarks(results ?? NONE), [results]);
   const primary = [headerQ, lookupQ, rosterQ!, csTeamQ!, leadersQ!, statsQ!];
   const loaded = primary.every(settled) && !(e && e.path == null && !headerQ.isFetched && !hasFailed(headerQ));
   const reload = useCallback(() => {
@@ -311,9 +288,6 @@ export function useTeamProfile(ref: TeamRef): TeamProfile {
     titles: csTeam?.titles ?? NONE,
     career,
     next: csNext ?? header?.next ?? null,
-    results,
-    form,
-    standings,
     rosterLoaded: settled(rosterQ!) && settled(csTeamQ!) && (e == null || path != null || headerQ.isFetched),
     loaded,
     failed,

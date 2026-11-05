@@ -7,7 +7,10 @@
  *
  * The route is `/team/:id` (`?league=` for a club). A link hands over the
  * reference it had, so the hero paints the name and crest on the first frame;
- * each part fills in as it lands and fails on its own.
+ * each part fills in as it lands and fails on its own. Results are the
+ * schedules layer's season (`useTeamSeason`, ResultsStore.season) and the
+ * table the standings layer's (`useStandings`, ScoreStore.standings), so the
+ * team page, its All Results and the standings page share every fetch.
  */
 import { useMemo, useRef } from "react";
 import { useLocation, useParams, useSearchParams } from "react-router";
@@ -17,6 +20,13 @@ import { competitors, type ScoreEvent } from "../../data/models";
 import { rankField } from "../../data/profiles/espn";
 import { teamSport, type TeamRef } from "../../data/profiles/models";
 import { teamFromRoute, type ProfileNavState } from "../../data/profiles/routes";
+import { standingsPath } from "../../data/profiles/results";
+import { leagueWithID } from "../../data/leagues";
+import { teamWindow, type StandingsRow } from "../../data/standings";
+import type { TeamSeason } from "../../data/schedule";
+import { useTeamSeason } from "../../state/schedule";
+import { useStandings } from "../../state/standings";
+import { useSettings } from "../../state/settings";
 import { settings, useIsFollowing } from "../../state/settings";
 import { useTeamProfile, type TeamProfile } from "../../state/profiles";
 import { useScoreboard } from "../../state/scores";
@@ -26,7 +36,7 @@ import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { LinkOrigin } from "./ProfileLinks";
 import { DetailSection, Footnote, HeroGlow, LiveStrip, ProfileHeader, ProfileWash, RosterSkeleton, SectionColumns, StatTiles, TeamCrest, tintOf, useProfileLayout, useTeamColors, lightInkOn, type Slot } from "./ProfileParts";
 import { schedulePath } from "../../data/schedule";
-import { InjuryRows, LeadersGrid, NextGameRow, ResultsSection, RosterSection, StandingsWindow, TitleRows, TransactionRows } from "./TeamSections";
+import { InjuryRows, LeadersGrid, NextGameRow, RosterSection, TeamResultsSection, TeamTable, TitleRows, TransactionRows } from "./TeamSections";
 import { RankTrack } from "./ProfileCharts";
 import type { WidthClass } from "../../data/profiles/display";
 import { atLeast } from "../../data/profiles/display";
@@ -79,6 +89,16 @@ function TeamView({ teamRef: ref, viaKeyboard }: { readonly teamRef: TeamRef; re
   const following = useIsFollowing(ref.id);
   const sport = team.sport;
 
+  // The season, as the team's results page has it (ResultsStore.season): the same load, caches and Include Friendlies.
+  const logo = header?.logo ?? ref.logo;
+  const scheduleRef = useMemo(() => (sport ? { id: ref.id, name: shortName, logo, league: ref.league } : null), [sport, ref.id, ref.league, shortName, logo]);
+  const season = useTeamSeason(scheduleRef).data?.season ?? null;
+  const details = useSettings((s) => s.resultsDetails);
+  // The table the standings page shows (TeamPage.swift `standingsLeague`): soccer's domestic league, the NBA, college's conferences.
+  const tablePath = standingsPath(sport, ref.id, team.path);
+  const table = useStandings(tablePath ? leagueWithID(tablePath.split("/")[1] ?? "") : undefined).data ?? null;
+  const inTable = useMemo(() => (table ? teamWindow(table, ref.id).length > 0 : false), [table, ref.id]);
+
   const order: Section[] = sport === "esports" ? ["next", "results", "roster", "career", "titles"] : ["next", "results", "roster", "leaders", "stats", "standings", "injuries", "transactions"];
   const injured = useMemo(() => injuredOf(team), [team]);
   const has = (s: Section): boolean => {
@@ -86,7 +106,7 @@ function TeamView({ teamRef: ref, viaKeyboard }: { readonly teamRef: TeamRef; re
       case "next":
         return team.next != null;
       case "results":
-        return (team.results?.length ?? 0) > 0;
+        return (season?.results.length ?? 0) > 0;
       case "roster":
         return team.groups.length > 0 || !team.rosterLoaded;
       case "leaders":
@@ -94,7 +114,7 @@ function TeamView({ teamRef: ref, viaKeyboard }: { readonly teamRef: TeamRef; re
       case "stats":
         return team.stats.some((x) => x.rank != null);
       case "standings":
-        return team.standings != null;
+        return inTable;
       case "injuries":
         return injured.length > 0;
       case "transactions":
@@ -165,7 +185,7 @@ function TeamView({ teamRef: ref, viaKeyboard }: { readonly teamRef: TeamRef; re
           {failedEverything ? (
             <ErrorState subject="Team" retriesAutomatically retrying={team.fetching} onRetry={team.reload} />
           ) : (
-            <SectionColumns sections={sections} layout={layout} slot={slot} render={(s, width) => renderSection(s, width, team, tint, lightInkOn(tint), ref, rosterSpans, injured)} />
+            <SectionColumns sections={sections} layout={layout} slot={slot} render={(s, width) => renderSection(s, width, team, tint, lightInkOn(tint), ref, rosterSpans, injured, { season, details, table })} />
           )}
           <TeamFooter team={team} />
         </div>
@@ -174,7 +194,15 @@ function TeamView({ teamRef: ref, viaKeyboard }: { readonly teamRef: TeamRef; re
   );
 }
 
-function renderSection(s: Section, width: WidthClass, team: TeamProfile, tint: string | null, lightInk: boolean, ref: TeamRef, rosterSpans: boolean, injured: TeamProfile["groups"][number]["players"]) {
+/** What the page reads from the schedules and standings layers. */
+interface Layers {
+  readonly season: TeamSeason | null;
+  /** Results' Show Details: scorers, decisions, performers under rows. */
+  readonly details: boolean;
+  readonly table: readonly StandingsRow[] | null;
+}
+
+function renderSection(s: Section, width: WidthClass, team: TeamProfile, tint: string | null, lightInk: boolean, ref: TeamRef, rosterSpans: boolean, injured: TeamProfile["groups"][number]["players"], layers: Layers) {
   const sport = team.sport;
   switch (s) {
     case "next": {
@@ -187,7 +215,7 @@ function renderSection(s: Section, width: WidthClass, team: TeamProfile, tint: s
     }
     case "results":
       // "All Results": the team's schedule, facing back (TeamPage.swift: onOpenSchedule(.team, .results)).
-      return <ResultsSection results={team.results ?? []} form={team.form} sport={sport} allResults={schedulePath({ kind: "team", team: { id: ref.id, name: team.header?.shortName ?? (ref.name || "Team"), logo: team.header?.logo ?? ref.logo } }, "results")} />;
+      return <TeamResultsSection season={layers.season!} sport={sport} details={layers.details} allResults={schedulePath({ kind: "team", team: { id: ref.id, name: team.header?.shortName ?? (ref.name || "Team"), logo: team.header?.logo ?? ref.logo } }, "results")} />;
     case "roster":
       return (
         <DetailSection title={sport === "soccer" ? "Squad" : sport === "esports" ? "Players" : "Roster"} caption={rosterCaption(sport, ref.id.startsWith("espn-ncaaf-"))}>
@@ -215,7 +243,7 @@ function renderSection(s: Section, width: WidthClass, team: TeamProfile, tint: s
     case "standings":
       return (
         <DetailSection title={sport === "soccer" ? "Table" : ref.id.startsWith("espn-ncaaf-") ? "Conference" : "Standings"} caption="Official table from ESPN. New results can take a few minutes.">
-          <StandingsWindow window={team.standings!} teamID={ref.id} sport={sport} width={width} league={team.team.league} />
+          <TeamTable rows={layers.table!} teamID={ref.id} sport={sport} width={width} />
         </DetailSection>
       );
     case "injuries":

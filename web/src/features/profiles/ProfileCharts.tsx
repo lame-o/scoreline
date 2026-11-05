@@ -1,10 +1,10 @@
 /**
- * The profile pages' charts (ProfileCharts.swift, ResultRows.swift
- * `FormStrip`). Each answers one question and earns its place:
+ * The profile pages' charts (ProfileCharts.swift). Each answers one
+ * question and earns its place (a team's form strip is the results page's
+ * own, features/schedule/ResultRows.tsx):
  *
  * - the game-log strip: "how has he been playing, and was last night normal?"
  * - the soccer match strip: results with goals and assists (counts of 0–2 make bars meaningless)
- * - the form strip: the last five results, oldest to newest
  * - rank tracks: "where does this team sit in its league?"
  * - the CS2 map pool: ratings on a shared scale
  *
@@ -36,7 +36,6 @@ import {
 } from "../../data/profiles/charts";
 import type { WidthClass } from "../../data/profiles/display";
 import { entryValue, type GameLog, type MapStat, type TeamStat } from "../../data/profiles/models";
-import type { FormMark } from "../../data/profiles/results";
 import { useWidth } from "../../design/useWidth";
 import { gameHref as eventHref } from "../../data/gameHref";
 import styles from "./Charts.module.css";
@@ -226,41 +225,6 @@ export const MatchStrip = memo(function MatchStrip({ log, width }: { readonly lo
     </div>
   );
 });
-
-// MARK: - Form strip
-
-/** The last results as marks: a win filled, a draw shaded, a loss outlined (never color alone). The pointed-at mark reads out beside. */
-export function FormStrip({ marks }: { readonly marks: readonly FormMark[] }) {
-  const [hovered, setHovered] = useState<string | null>(null);
-  const pointed = marks.find((m) => m.id === hovered);
-  return (
-    <div className={styles.form}>
-      {/* A labeled group of links, as the schedule's form strip (ResultRows.FormStrip). */}
-      <div className={styles.marks} role="group" aria-label={`Form, last ${marks.length}, oldest to newest`}>
-        {marks.map((m) => (
-          <Link
-            key={m.id}
-            to={gameHref(m.id)}
-            className={styles.mark}
-            data-letter={m.letter}
-            data-lit={hovered === m.id}
-            aria-label={m.spoken}
-            title={m.readout}
-            onPointerEnter={() => setHovered(m.id)}
-            onPointerLeave={() => setHovered((h) => (h === m.id ? null : h))}
-            onFocus={() => setHovered(m.id)}
-            onBlur={() => setHovered((h) => (h === m.id ? null : h))}
-          >
-            {m.letter}
-          </Link>
-        ))}
-      </div>
-      <span className={styles.formReadout} aria-hidden="true">
-        {pointed?.readout ?? ""}
-      </span>
-    </div>
-  );
-}
 
 // MARK: - Rank track
 

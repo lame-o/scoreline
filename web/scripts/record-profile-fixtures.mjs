@@ -166,11 +166,6 @@ const trimLeaders = (l, categories, n = 3) => ({
   categories: l.categories.filter((c) => !categories || categories.includes(c.name)).map((c) => ({ name: c.name, leaders: c.leaders.slice(0, n).map((x) => ({ displayValue: x.displayValue, athlete: { $ref: x.athlete?.$ref } })) })),
 });
 
-const trimStandings = (s, keys) => {
-  const trimEntries = (std) => ({ entries: std.entries.map((e) => ({ team: { ...pick(e.team, ["id", "abbreviation", "shortDisplayName", "displayName"]), logos: e.team.logos?.slice(0, 1).map((l) => pick(l, ["href"])) }, stats: e.stats.filter((x) => keys.includes(x.type) || keys.includes(x.name)).map((x) => pick(x, ["name", "type", "displayValue", "summary"])) })) });
-  return s.children ? { children: s.children.map((c) => ({ ...pick(c, ["name", "abbreviation", "shortName"]), standings: trimEntries(c.standings) })) } : { standings: trimEntries(s.standings) };
-};
-
 // MARK: Run
 
 export async function recordProfiles() {
@@ -197,10 +192,6 @@ export async function recordProfiles() {
   await save("espn-nba-transactions.json", { transactions: (await get(txURL)).transactions?.slice(0, 4).map((t) => pick(t, ["date", "description"])) }, txURL);
   const leagueURL = `${core(nba)}/seasons/${ns.year}/types/${ns.type}/leaders?limit=25`;
   await save("espn-nba-league-leaders.json", trimLeaders(await get(leagueURL), ["pointsPerGame", "assistsPerGame", "reboundsPerGame"], 25), leagueURL);
-  const scheduleURL = `${SITE}/${nba}/teams/13/schedule`;
-  await save("espn-nba-schedule.json", { events: (await get(scheduleURL)).events.slice(0, 6).map(trimScheduleEvent) }, scheduleURL);
-  const nbaStandingsURL = "https://site.api.espn.com/apis/v2/sports/basketball/nba/standings";
-  await save("espn-nba-standings.json", trimStandings(await get(nbaStandingsURL), ["total", "playoffSeed", "winPercent", "gamesBehind", "streak"]), nbaStandingsURL);
 
   // MLB: a starter (pitching by default; a batting log of all-zero appearances) and Ohtani (two-way).
   const mlb = "baseball/mlb";
@@ -227,11 +218,6 @@ export async function recordProfiles() {
   await save("espn-soccer-overview.json", trimOverview(await get(`${WEB}/soccer/eng.1/athletes/280555/overview`)), `${WEB}/soccer/eng.1/athletes/280555/overview`);
   await save("espn-soccer-gamelog.json", trimGameLog(await get(`${WEB}/soccer/eng.1/athletes/280555/gamelog`), 8), `${WEB}/soccer/eng.1/athletes/280555/gamelog`);
   await save("espn-soccer-athlete.json", trimAthlete(await get(`${WEB}/soccer/eng.1/athletes/280555`)), `${WEB}/soccer/eng.1/athletes/280555`);
-  const engURL = "https://site.api.espn.com/apis/v2/sports/soccer/eng.1/standings";
-  await save("espn-eng1-standings.json", trimStandings(await get(engURL), ["gamesPlayed", "wins", "ties", "losses", "pointsFor", "pointsAgainst", "pointDifferential", "points"]), engURL);
-  const soccerScheduleURL = `${SITE}/soccer/all/teams/359/schedule`;
-  const soccerSchedule = await get(soccerScheduleURL);
-  await save("espn-soccer-schedule.json", { events: [...soccerSchedule.events.slice(0, 5), ...soccerSchedule.events.filter((e) => e.league?.slug?.includes("friendly")).slice(0, 1)].map(trimScheduleEvent) }, soccerScheduleURL);
 
   // FotMob: the club's search and squad (photos, injuries, the coach).
   const searchURL = "https://www.fotmob.com/api/data/search/suggest?term=Arsenal&lang=en";

@@ -3,21 +3,28 @@
  * `TeamResultsSection`, TeamPage.swift's table): the next game, results and
  * form, the roster grouped the way each sport thinks of it (with the NFL's
  * depth chart), leaders, the table around the team, injuries, transactions
- * and CS2 titles.
+ * and CS2 titles. Results are the schedules layer's season (the same rows and
+ * form strip as the team's results page); the table is the standings
+ * page's own, seven rows around the team.
  */
-import { memo } from "react";
+import { memo, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Icon, LiveStatus, SegmentedControl } from "../../design/components";
 import { countdown, dayAndTime } from "../../data/format";
 import { atLeast, footballStatLine, profileShort, rosterColumns, rosterSubtitle, rosterValue, spokenRosterRow, type StatColumn, type WidthClass } from "../../data/profiles/display";
 import { collapsedByDefault, lastName, ROSTER_GROUP_TITLE, type DepthChart, type GameRef, type RosterGroup, type RosterPlayer, type TeamLeader, type Title, type Transaction } from "../../data/profiles/models";
-import type { FormMark, StandingsRow } from "../../data/profiles/results";
+import { teamRef, type TeamRef } from "../../data/profiles/models";
+import { teamResult } from "../../data/results";
+import type { ScheduleItem, TeamSeason } from "../../data/schedule";
+import { liveTable, nbaWindow, projectNBA, teamWindow, type StandingsRow } from "../../data/standings";
 import { profileGameLeague } from "../../data/profiles/routes";
 import type { Sport } from "../../data/models";
 import { useNow } from "../../state/clock";
 import { usePageSession, type TeamProfile } from "../../state/profiles";
 import { useScoreboard } from "../../state/scores";
-import { FormStrip, gameHref } from "./ProfileCharts";
+import { gameHref } from "./ProfileCharts";
+import { FormReadout, FormStrip, hrefOf, itemHref, TeamResultRow } from "../schedule/ResultRows";
+import { ConferenceTable, HighlightWord, NBAStandingsTable, StandingsTable, TableSelf } from "../standings/Tables";
 import { linkNameClass, PlayerLink, rowLinkClass, TeamLink } from "./ProfileLinks";
 import { SectionLink } from "../seasons/parts";
 import { useGoToTeam } from "./GoToMenu";
@@ -82,57 +89,50 @@ function GameTrailing({ game, eventID }: { readonly game: GameRef; readonly even
 
 // MARK: - Results
 
-/** The season's results: the last five as a form strip, then the latest rows, newest first, and "All Results" (the team's schedule, facing back). */
-export function ResultsSection({ results, form, sport, allResults = null }: { readonly results: readonly GameRef[]; readonly form: readonly FormMark[]; readonly sport: Sport | null; readonly allResults?: string | null }) {
+/**
+ * The season's results (ResultsHub.swift `TeamResultsSection`): the last five
+ * as a form strip with the pointed-at game named beside it, then the five
+ * latest rows (the results page's own, with its details), newest first, and
+ * "All Results" (the team's schedule, facing back). A mark and its row light
+ * together.
+ */
+export function TeamResultsSection({ season, sport, details, allResults }: { readonly season: TeamSeason; readonly sport: Sport | null; readonly details: boolean; readonly allResults: string }) {
+  const [hovered, setHovered] = useState<string | null>(null);
   const caption = sport === "soccer" ? "All competitions, newest first." : sport === "esports" ? "From bo3.gg." : "This season, newest first.";
+  const marks = season.form.slice(-5);
   return (
-    <DetailSection title="Results" caption={caption}>
-      {form.length > 0 ? <FormStrip marks={form} /> : null}
-      <div className={styles.resultRows}>
-        {results.slice(0, 5).map((g) => (
-          <ResultRow key={g.id} game={g} />
+    <DetailSection id="results" title="Results" caption={caption}>
+      {marks.length > 0 ? (
+        <div className={styles.formLine}>
+          <FormStrip marks={marks} hovered={hovered} onHover={setHovered} href={(id) => hrefOf(season.results, id)} />
+          {/* The rows below already lead with the latest: the line names a pointed-at mark only. */}
+          <FormReadout marks={marks} hovered={hovered} fallsBackToLatest={false} />
+        </div>
+      ) : null}
+      <div className={styles.resultRows} onPointerLeave={() => setHovered(null)}>
+        {season.results.slice(0, 5).map((item) => (
+          <TeamPageResult key={item.id} item={item} team={season.team.id} details={details} lit={hovered === item.id} onHover={setHovered} />
         ))}
       </div>
-      {allResults ? (
-        <SectionLink to={allResults} title="Every result this season">
-          All Results
-        </SectionLink>
-      ) : null}
+      <SectionLink to={allResults} title="Every result this season">
+        All Results
+      </SectionLink>
     </DetailSection>
   );
 }
 
-const WORD: Readonly<Record<string, string>> = { W: "won", L: "lost", D: "drew", T: "tied" };
-
-function ResultRow({ game }: { readonly game: GameRef }) {
-  const score = game.teamScore != null && game.opponentScore != null ? `${game.teamScore}–${game.opponentScore}` : null;
-  const spoken = [
-    profileShort(game.date),
-    game.opponent ? `${game.home ? "versus" : "at"} ${game.opponent.name}` : null,
-    [WORD[game.result ?? ""] ?? game.result, score?.replace("–", " to ")].filter(Boolean).join(" "),
-    game.competition,
-  ]
-    .filter(Boolean)
-    .join(", ");
-  const goTo = useGoToTeam(game.opponent, gameHref(game.id));
+/** A result row that also offers its opponent's page from its menu (TeamSections.swift: GoToTeamItem). */
+function TeamPageResult({ item, team, details, lit, onHover }: { readonly item: ScheduleItem; readonly team: string; readonly details: boolean; readonly lit: boolean; readonly onHover: (id: string) => void }) {
+  const opponent = teamResult(item, team).opponent;
+  const ref = useMemo<TeamRef | null>(
+    () => (opponent?.id ? teamRef({ id: opponent.id, name: opponent.name, logo: opponent.logo, abbreviation: opponent.abbreviation, league: item.league }) : null),
+    [opponent?.id, opponent?.name, opponent?.logo, opponent?.abbreviation, item.league],
+  );
+  const goTo = useGoToTeam(ref, itemHref(item));
   return (
     <>
       {goTo.menu}
-      <Link to={gameHref(game.id)} className={rowLinkClass} aria-label={spoken} title="Open the match" {...goTo.props}>
-        <span className={styles.resultRow}>
-          <span className={styles.resultLine}>
-            <span className={styles.date}>{profileShort(game.date)}</span>
-            {game.opponent ? <TeamCrest team={game.opponent} size={14} /> : null}
-            <span className={`${styles.opponent} ${linkNameClass}`}>{game.opponent ? `${game.home ? "vs" : "at"} ${game.opponent.name}` : "TBD"}</span>
-            <span className={styles.spacer} />
-            <span className={styles.result} data-lost={game.result === "L"}>
-              <strong>{game.result}</strong>
-              {score ? ` ${score}` : ""}
-            </span>
-          </span>
-          {game.competition ? <span className={styles.resultCaption}>{game.competition}</span> : null}
-        </span>
-      </Link>
+      <TeamResultRow item={item} team={team} details={details} keyboard={false} lit={lit} onHover={onHover} linkProps={goTo.props ?? undefined} />
     </>
   );
 }
@@ -342,84 +342,43 @@ export function LeadersGrid({ leaders, tint, lightInk, width }: { readonly leade
 
 // MARK: - Table window
 
-/** Seven rows of the team's own table around it, the team's row marked; the others open their pages. */
-export function StandingsWindow({ window: table, teamID, sport, width, league }: {
-  readonly window: { readonly rows: readonly StandingsRow[]; readonly first: number };
-  readonly teamID: string;
-  readonly sport: Sport | null;
-  readonly width: WidthClass;
-  readonly league: string | null;
-}) {
-  const columns: { key: string; label: string; width: number; title: string }[] =
-    sport === "basketball"
-      ? [{ key: "total", label: "W-L", width: 40, title: "Wins and losses" }, { key: "winPercent", label: "PCT", width: 38, title: "Win percentage" }, { key: "gamesBehind", label: "GB", width: 30, title: "Games behind the conference leader" }]
-      : sport === "football"
-        ? [{ key: "vsconf", label: "CONF", width: 40, title: "Conference record" }, { key: "total", label: "OVR", width: 40, title: "Overall record" }, ...(atLeast(width, "medium") ? [{ key: "streak", label: "STRK", width: 36, title: "Streak" }] : [])]
-        : soccerColumns(width);
-  const rank = (row: StandingsRow, i: number) => (sport === "basketball" ? (row.stats.playoffSeed ?? String(table.first + i + 1)) : String(table.first + i + 1));
+/** On a team's own page, its row is the page itself. */
+const thisTeam = () => "this team";
+
+/**
+ * Seven rows of the team's own table around it, as the standings page draws
+ * them (TeamPage.swift `standingsTable`): the NBA by seed, college by
+ * conference record with the season's alongside, soccer's table. The others
+ * open their pages; the team's own row is this page.
+ */
+export function TeamTable({ rows, teamID, sport, width }: { readonly rows: readonly StandingsRow[]; readonly teamID: string; readonly sport: Sport | null; readonly width: WidthClass }) {
+  const ids = useMemo(() => new Set([teamID]), [teamID]);
+  const table = useMemo(() => {
+    switch (sport) {
+      case "basketball":
+        return { kind: "nba" as const, rows: nbaWindow(projectNBA(rows, []), ids, 3) };
+      case "football":
+        return { kind: "college" as const, rows: teamWindow(rows, teamID) };
+      default:
+        return { kind: "soccer" as const, rows: liveTable(teamWindow(rows, teamID), []) };
+    }
+  }, [rows, sport, ids, teamID]);
   return (
-    <div className={styles.table} role="table" aria-label="Standings">
-      <div className={styles.tableHead} role="row">
-        <span className={styles.tableRank} role="columnheader" title={sport === "basketball" ? "Seed" : "Position"}>
-          #
-        </span>
-        <span className={styles.tableTeam} role="columnheader">
-          Team
-        </span>
-        {columns.map((c) => (
-          <span key={c.key} role="columnheader" className={styles.tableCell} style={{ width: `calc(${c.width} * var(--pt))` }} title={c.title}>
-            {c.label}
-          </span>
-        ))}
-      </div>
-      {table.rows.map((row, i) => {
-        const own = row.id === teamID;
-        const cells = (
-          <span className={styles.tableRow} data-own={own} role="row">
-            <span className={styles.tableRank} role="cell">
-              {rank(row, i)}
-            </span>
-            <span className={styles.tableTeam} role="cell">
-              <TeamCrest team={{ logo: row.logo, abbreviation: row.abbreviation }} size={14} />
-              <span className={styles.tableName}>{row.name}</span>
-            </span>
-            {columns.map((c) => (
-              <span key={c.key} role="cell" className={styles.tableCell} style={{ width: `calc(${c.width} * var(--pt))` }}>
-                {(row.stats[c.key] ?? "–").replace(/^(\d+)-(\d+)(-(\d+))?$/, (m) => m.replaceAll("-", "–"))}
-              </span>
-            ))}
-          </span>
-        );
-        return own ? (
-          <div key={row.id} className={styles.tableOwn}>
-            {cells}
-          </div>
+    <TableSelf.Provider value={teamID}>
+      <HighlightWord.Provider value={thisTeam}>
+        {table.kind === "nba" ? (
+          <NBAStandingsTable rows={table.rows} highlight={ids} />
+        ) : table.kind === "college" ? (
+          <ConferenceTable group={table.rows[0]?.group ?? ""} rows={table.rows} highlight={ids} ranks={NO_RANKS} live={NO_RANKS} width={width} />
         ) : (
-          <TeamLink key={row.id} team={{ id: row.id, name: row.name, logo: row.logo, league, color: null, alternateColor: null, abbreviation: row.abbreviation }} variant="row" className={styles.tableLink}>
-            {cells}
-          </TeamLink>
-        );
-      })}
-    </div>
+          <StandingsTable rows={table.rows} highlight={ids} width={width} />
+        )}
+      </HighlightWord.Provider>
+    </TableSelf.Provider>
   );
 }
 
-/** Soccer: compact keeps P, GD, Pts; each step adds the next most useful pair (LiveViews.swift `StandingsTable.Column`). */
-function soccerColumns(width: WidthClass) {
-  const all = {
-    played: { key: "gamesPlayed", label: "P", width: 22, title: "Played" },
-    won: { key: "wins", label: "W", width: 20, title: "Won" },
-    drawn: { key: "ties", label: "D", width: 20, title: "Drawn" },
-    lost: { key: "losses", label: "L", width: 20, title: "Lost" },
-    gf: { key: "pointsFor", label: "GF", width: 24, title: "Goals for" },
-    ga: { key: "pointsAgainst", label: "GA", width: 24, title: "Goals against" },
-    gd: { key: "pointDifferential", label: "GD", width: 32, title: "Goal difference" },
-    pts: { key: "points", label: "Pts", width: 32, title: "Points" },
-  };
-  if (atLeast(width, "large")) return [all.played, all.won, all.drawn, all.lost, all.gf, all.ga, all.gd, all.pts];
-  if (atLeast(width, "medium")) return [all.played, all.won, all.drawn, all.lost, all.gd, all.pts];
-  return [all.played, all.gd, all.pts];
-}
+const NO_RANKS: Readonly<Record<string, never>> = {};
 
 // MARK: - Injuries, transactions, titles
 
