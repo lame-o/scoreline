@@ -169,12 +169,13 @@ describe("the director on the recording", () => {
   it("the gates: no hard cuts, nobody outruns his legs for long, the planted foot holds", () => {
     // No cut at a splice (the engine's own). Inside a clip, today's script for a driving layup (685, 724: the catch at
     // the wing, the drive's start) leaves ClipPaths.solved oscillating between "ends short" and "meets the ball" until
-    // its pass cap, a 4.4 ft step in 0.06 s; the Mac's solver is the same code, and its bench meets the play later on
-    // the real timeline (the drive's start under the travel). Counted, never more.
+    // its pass cap, a 4.4 ft step in 0.06 s. The Mac has the same step: its ratchets (teleportMax 3.90, overspeed
+    // +335%) are it, read between the bake's 60 Hz samples, where T following the real clock's slews leaves the
+    // frames (theaterGates.test.ts: 3.85, +331%, no cut). On this still clock every frame lands on a bake sample, and
+    // the step reads as a cut in both plays: 4.29 and +381%. Counted, never more.
     expect(r.hardCutReasons.get("at a splice") ?? 0, [...r.hardCutReasons].join(", ") + r.jumpLog.join("\n")).toBe(0);
     expect(r.hardCuts, [...r.hardCutReasons].join(", ") + r.jumpLog.join("\n")).toBeLessThanOrEqual(2);
-    // The Mac's ratchets (teleportMax 3.90, overspeed +335%) are that same step in the clip; sampled on this run's
-    // frames it measures 4.29 and +381% (2.0 ft in one frame rather than 1.8). Held here at what it measures.
+    // Held here at what this run measures.
     expect(r.teleportMax, "teleportMax holds its ratchet (3.90 on the Mac; gate 1.15)").toBeLessThanOrEqual(4.3);
     expect(r.speedShare, "at most 0.5% of the time over the sprint").toBeLessThanOrEqual(0.005);
     expect(r.maxOverspeed, "overspeed holds its ratchet (+335% on the Mac; gate +12%)").toBeLessThanOrEqual(3.82);
