@@ -136,7 +136,7 @@ test.describe("1440 light: keys, sections and Settings", () => {
     await expect(page).toHaveURL(/\/schedule$/);
   });
 
-  test("a section's menu moves and hides it", async ({ page }) => {
+  test("a section's menu moves it and unfollows it", async ({ page }) => {
     await withSettings(page, LEAGUES);
     await page.goto("/?demo");
     await waitForGames(page);
@@ -147,7 +147,7 @@ test.describe("1440 light: keys, sections and Settings", () => {
     await expect.poll(async () => (await sections()).slice(0, 2)).toEqual(["NFL", "Premier League"]);
     await page.locator("aside h2").filter({ hasText: "NFL" }).click({ button: "right" });
     await expect(page.getByRole("menuitem", { name: "Move Up" })).toHaveAttribute("aria-disabled", "true");
-    await page.getByRole("menuitem", { name: "Hide NFL" }).click();
+    await page.getByRole("menuitem", { name: "Unfollow NFL" }).click();
     await expect.poll(sections).not.toContain("NFL");
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("scoreline.settings.v1") ?? "{}").enabledLeagues);
     expect(stored).not.toContain("nfl");
@@ -182,9 +182,11 @@ test.describe("1440 light: keys, sections and Settings", () => {
   test("the detail pane remembers where each page was", async ({ page }) => {
     await withSettings(page, LEAGUES);
     await page.goto("/settings");
-    await page.getByRole("link", { name: /^NFL/ }).waitFor();
+    // Settings lists no competitions since the Sports and Following split: wait for its first switch.
+    await page.getByRole("switch", { name: "Live score" }).waitFor();
     const main = page.locator("main");
-    await main.evaluate((m) => (m.scrollTop = 500));
+    // Settings is shorter since its competitions moved to Following: well down it, not past its end.
+    await main.evaluate((m) => (m.scrollTop = 300));
     await page.waitForTimeout(150);
     // A fresh visit starts at the top (S opens the Schedule)…
     await page.locator("body").press("s");
@@ -194,11 +196,13 @@ test.describe("1440 light: keys, sections and Settings", () => {
     // …and Back lands where Settings was.
     await page.goBack();
     await expect(page).toHaveURL(/\/settings$/);
-    await expect.poll(() => main.evaluate((m) => Math.round(m.scrollTop))).toBeGreaterThan(450);
+    await expect.poll(() => main.evaluate((m) => Math.round(m.scrollTop))).toBeGreaterThan(250);
   });
 
   test("tiles: the round race, the pin and Up Next's schedule link", async ({ page }) => {
     await withSettings(page, { ...LEAGUES, landingView: "tiles" });
+    // The demo's boards were recorded on Oct 27: with the page's clock there, their next games are ahead (Up Next), whatever today is.
+    await page.clock.install({ time: new Date("2026-10-27T07:05:00Z") });
     await page.addInitScript(() => sessionStorage.setItem("scoreline.pinned", "cs-132240"));
     await page.goto("/?demo");
     await waitForGames(page);

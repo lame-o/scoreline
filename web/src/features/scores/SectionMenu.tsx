@@ -44,16 +44,17 @@ export function SectionMenu({ id, title, onToggle, onRearrange }: SectionMenuPro
     const at = order.indexOf(league.id);
     entries = [
       ...fold,
+      // A soccer competition's season (34ba1dd).
+      ...(league.sport === "soccer" ? [{ kind: "item" as const, label: "Competition", icon: "trophy" as const, onSelect: go(`/competition/${encodeURIComponent(league.id)}`) }] : []),
+      ...tableLinks(league).map((l): MenuEntry => ({ kind: "item", label: l.label, icon: l.icon, onSelect: go(l.path) })),
       { kind: "item", label: seasonal ? (scope.kind === "climbing" ? "Climbing Season" : "Tournaments") : "Schedule", icon: "calendar", onSelect: go(schedulePath(scope)) },
       { kind: "item", label: "Results", icon: "flag", onSelect: go(schedulePath(scope, "results")) },
-      ...tableLinks(league).map((l): MenuEntry => ({ kind: "item", label: l.label, icon: l.icon, onSelect: go(l.path) })),
-      { kind: "item", label: "Competition overview", icon: "sliders", onSelect: go(`/sports/competition/${encodeURIComponent(league.id)}`) },
+      { kind: "item", label: league.source.kind === "ifsc" ? "Choose Countries…" : "Choose Teams…", icon: "sliders", onSelect: go(`/sports/competition/${encodeURIComponent(league.id)}`) },
       { kind: "separator" },
       { kind: "item", label: "Move Up", icon: "arrowUp", disabled: at <= 0, onSelect: rearrange(() => settings.move(league.id, -1)) },
       { kind: "item", label: "Move Down", icon: "arrowDown", disabled: at < 0 || at >= order.length - 1, onSelect: rearrange(() => settings.move(league.id, 1)) },
       { kind: "separator" },
-      ...(at >= 0 ? [{ kind: "item" as const, label: `Unfollow ${league.name}`, icon: "eyeSlash" as const, onSelect: rearrange(() => settings.setEnabled(league.id, false)) }] : []),
-      { kind: "item", label: "Manage following…", icon: "star", onSelect: go("/following") },
+      ...(at >= 0 ? [{ kind: "item" as const, label: `Unfollow ${league.name}`, icon: "starSlash" as const, onSelect: rearrange(() => settings.setEnabled(league.id, false)) }] : []),
     ];
   } else {
     return null;

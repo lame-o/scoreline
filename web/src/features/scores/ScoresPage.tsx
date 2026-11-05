@@ -120,19 +120,20 @@ export function ScoresPage({ variant }: { readonly variant: "page" | "sidebar" }
             ]}
           />
           <IconButton icon="calendar" label="Schedule" shortcut="S" onClick={() => navigate("/schedule")} />
+          {/* Sports: every sport, one search, and Following a row away (34ba1dd). */}
+          <IconButton icon="sportscourt" label="Sports" onClick={() => navigate("/sports")} />
           <RefreshButton onRefresh={scores.refresh} />
           <IconButton icon="sliders" label="Settings" shortcut="," onClick={() => navigate("/settings")} />
         </div>
       </header>
 
-      <nav className={styles.discovery} aria-label="Scoreline"><button type="button" onClick={() => navigate("/sports")}><Icon name="sportscourt" size={12} />Sports</button><button type="button" onClick={() => navigate("/following")}><Icon name="starOutline" size={12} />Following</button></nav>
       <div className={[styles.content, arrival > 0 ? "stack-in" : null].filter(Boolean).join(" ")} key={view}>
         {scores.settings.enabledLeagues.length === 0 && scores.settings.followed.length === 0 && scores.settings.editions.length === 0 ? (
           <EmptyState
             icon="sportscourt"
             title="No Sports Yet"
-            message="Choose the leagues you follow and their scores will live here."
-            actions={<Button onClick={() => navigate("/sports")}>Browse Sports</Button>}
+            message="Choose the competitions and teams you follow and their scores will live here."
+            actions={<Button onClick={() => navigate("/sports")}>Choose Sports</Button>}
           />
         ) : empty ? (
           scores.status === "offline" ? (

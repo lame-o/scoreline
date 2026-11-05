@@ -123,6 +123,3 @@
   gap: calc(40 * var(--pt));
 }
 
-.discovery { display: flex; gap: calc(8 * var(--pt)); padding: calc(6 * var(--pt)) calc(12 * var(--pt)); border-bottom: 0.5px solid var(--separator); }
-.discovery button { display: inline-flex; align-items: center; gap: calc(5 * var(--pt)); padding: calc(5 * var(--pt)) calc(8 * var(--pt)); border-radius: var(--radius-row); color: var(--label-secondary); font-size: var(--text-callout); }
-@media (hover: hover) and (pointer: fine) { .discovery button:hover { background: var(--fill-hover); color: var(--label); } }
