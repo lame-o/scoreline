@@ -1383,7 +1383,7 @@ Upload to the `videos` draft release (`gh release upload videos … --repo Subwo
 
 ### 9.5 Re-run the measurements on the weekend's recordings
 
-Extend `~/Developer/scoreline-recordings/measure.py` (it already prints lag, burst, revision and score-skew statistics) with the analyses behind §3:
+Extend `tools/recorder/measure.py` (it already prints lag, burst, revision and score-skew statistics) with the analyses behind §3:
 - **lag by kind**, from each play's first-seen arrival minus its wallclock;
 - **lookahead coverage vs D**: for D in {30, 35, 40, 45, 50, 60}, the share of each kind arriving after `anchor − leadIn`, and the share of tightly linked next plays (≤ 10 s later) known at the current play's lead-in;
 - **wallclock ties and backward steps** per game;
