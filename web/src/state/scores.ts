@@ -17,11 +17,14 @@ import { pollingIDs } from "../data/following";
  *   polling, at `backgroundInterval`, while the tab title or alerts need the
  *   news; it also polls whenever no page does (Settings on a phone).
  * - My Teams reaches into each followed team's schedule (`useNextGames`).
+ * - Climbing rows take World Climbing's stream (`applyBroadcast`): a live
+ *   stream marks its round live, an upcoming one gives it its real start.
  *
  *     const { sections, board, liveCount, status } = useScoreboard();
  */
 import { QueryClient, useQueries } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { applyBroadcast } from "../data/climbingBroadcast";
 import { leagueResolving, leagueWithID } from "../data/leagues";
 import { getJSON } from "../data/http";
 import type { League, LeagueResult, ScoreEvent } from "../data/models";
@@ -48,6 +51,7 @@ import { useLogoColorsVersion, wearColors } from "./logoColors";
 import { useNextGames } from "./nextGames";
 import { pin, usePinnedID } from "./pin";
 import { getSettings, useSettings, type Settings } from "./settings";
+import { useStreams } from "./streams";
 
 /** Retry up to `times`, but not while the browser knows it's offline (a page then says so at once; reconnecting refetches). */
 export const retryOnline =
@@ -182,6 +186,8 @@ export function useScoreboard({ poll = true, background = false }: ScoreboardOpt
   const colors = useLogoColorsVersion();
   // A game page's lane score ahead of the scoreboard's, on its row and tile (not in `results`: alerts keep to the polls).
   const lanes = useSyncExternalStore(subscribeLaneScores, laneScoresVersion, laneScoresVersion);
+  // World Climbing's stream on YouTube, over the climbing rows (ScoreStore.applyBroadcast).
+  const climbingStream = useStreams((s) => s.climbing);
   const version = queries.reduce((v, q) => v + q.dataUpdatedAt + q.errorUpdatedAt + q.failureCount, 0);
   const fetching = queries.some((q) => q.isFetching);
 
@@ -196,8 +202,8 @@ export function useScoreboard({ poll = true, background = false }: ScoreboardOpt
       // on): with nothing to show, "Can't Load Scores" beats a placeholder for the 50 s of retries.
       const failedFirst = q != null && q.data === undefined && q.failureCount > 0;
       if (!q || (q.data === undefined && !q.isError && !failedFirst)) return;
-      // Teams wear their logos' colors once read (TeamColors); climbing has no crests.
-      const events = league.id === "ifsc" ? (q.data ?? []) : wearColors(q.data ?? []);
+      // Teams wear their logos' colors once read (TeamColors); climbing has no crests, and takes its stream.
+      const events = league.id === "ifsc" ? applyBroadcast(q.data ?? [], climbingStream, now) : wearColors(q.data ?? []);
       results[league.id] = { events, failed: q.isError || failedFirst };
       for (const e of events) {
         if (!owner.has(e.id)) owner.set(e.id, league.id);
@@ -227,7 +233,7 @@ export function useScoreboard({ poll = true, background = false }: ScoreboardOpt
     };
     // `version` stands for the queries' data; `leagues` and `countries` follow `settings`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version, settings, minute, colors, pinnedID, nextGames, hidden, lanes]);
+  }, [version, settings, minute, colors, pinnedID, nextGames, hidden, lanes, climbingStream]);
 
   useEffect(() => {
     interval.current = derived.cadence;

@@ -16,6 +16,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import { parseMode, parseScope, schedulePath, scopeTitle, type ScheduleMode, type ScheduleScope } from "../../data/schedule";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
 import { NotFound } from "../../app/NotFound";
+import { rememberContentHeight } from "./heightEase";
 
 const ClimbingSeasonPage = lazy(() => import("../seasons/ClimbingSeasonPage").then((m) => ({ default: m.ClimbingSeasonPage })));
 const TournamentsPage = lazy(() => import("../seasons/TournamentsPage").then((m) => ({ default: m.TournamentsPage })));
@@ -47,6 +48,8 @@ export function SchedulePage() {
   const onMode = useCallback(
     (next: ScheduleMode, viaKeyboard: boolean) => {
       if (!scope) return;
+      // A click eases the page's height to the new mode's (heightEase.ts); keys switch instantly.
+      if (!viaKeyboard) rememberContentHeight();
       navigate(schedulePath(scope, next), { replace: true, state: { inPlace: true, viaKeyboard, crossfade: !viaKeyboard } });
     },
     [navigate, scope],

@@ -1,0 +1,25 @@
+{
+ "_source": "https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/athletes/5121169",
+ "_recorded": "2026-11-05T03:14:02.557Z",
+ "displayHeight": "6' 3\"",
+ "displayWeight": "205 lbs",
+ "jersey": "10",
+ "birthPlace": {
+  "city": "San Luis Obispo",
+  "state": "CA",
+  "country": "USA"
+ },
+ "position": {
+  "displayName": "Quarterback",
+  "abbreviation": "QB"
+ },
+ "experience": {
+  "years": 3,
+  "displayValue": "Junior",
+  "abbreviation": "JR"
+ },
+ "displayName": "Darian Mensah",
+ "team": {
+  "$ref": "http://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/2026/teams/2390?lang=en&region=us"
+ }
+}

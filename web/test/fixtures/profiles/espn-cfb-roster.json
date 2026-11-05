@@ -1,0 +1,557 @@
+{
+ "_source": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams/2390/roster?limit=200",
+ "_recorded": "2026-11-05T03:14:02.514Z",
+ "_athletes": 117,
+ "athletes": [
+  {
+   "position": "offense",
+   "items": [
+    {
+     "id": "4804878",
+     "displayName": "Cooper Barkate",
+     "jersey": "18",
+     "displayHeight": "6' 1\"",
+     "displayWeight": "195 lbs",
+     "position": {
+      "abbreviation": "WR",
+      "displayName": "Wide Receiver"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/4804878.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 4,
+      "displayValue": "Senior",
+      "abbreviation": "SR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "4870736",
+     "displayName": "Mark Fletcher Jr.",
+     "jersey": "4",
+     "displayHeight": "6' 2\"",
+     "displayWeight": "225 lbs",
+     "position": {
+      "abbreviation": "RB",
+      "displayName": "Running Back"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/4870736.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 4,
+      "displayValue": "Senior",
+      "abbreviation": "SR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5160496",
+     "displayName": "Javian Mallory",
+     "jersey": "21",
+     "displayHeight": "5' 11\"",
+     "displayWeight": "210 lbs",
+     "position": {
+      "abbreviation": "RB",
+      "displayName": "Running Back"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5160496.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 1,
+      "displayValue": "Freshman",
+      "abbreviation": "FR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5121169",
+     "displayName": "Darian Mensah",
+     "jersey": "10",
+     "displayHeight": "6' 3\"",
+     "displayWeight": "205 lbs",
+     "position": {
+      "abbreviation": "QB",
+      "displayName": "Quarterback"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5121169.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 3,
+      "displayValue": "Junior",
+      "abbreviation": "JR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5141605",
+     "displayName": "Luke Nickel",
+     "jersey": "5",
+     "displayHeight": "6' 2\"",
+     "displayWeight": "220 lbs",
+     "position": {
+      "abbreviation": "QB",
+      "displayName": "Quarterback"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5141605.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 1,
+      "displayValue": "Freshman",
+      "abbreviation": "FR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5159175",
+     "displayName": "Malachi Toney",
+     "jersey": "1",
+     "displayHeight": "5' 11\"",
+     "displayWeight": "188 lbs",
+     "position": {
+      "abbreviation": "WR",
+      "displayName": "Wide Receiver"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5159175.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 2,
+      "displayValue": "Sophomore",
+      "abbreviation": "SO"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5141356",
+     "displayName": "Seuseu Alofaituli",
+     "jersey": "65",
+     "displayHeight": "6' 2\"",
+     "displayWeight": "290 lbs",
+     "position": {
+      "abbreviation": "OL",
+      "displayName": "Offensive Lineman"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5141356.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 2,
+      "displayValue": "Sophomore",
+      "abbreviation": "SO"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5110100",
+     "displayName": "Judd Anderson",
+     "jersey": "15",
+     "displayHeight": "6' 7\"",
+     "displayWeight": "230 lbs",
+     "position": {
+      "abbreviation": "QB",
+      "displayName": "Quarterback"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5110100.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 2,
+      "displayValue": "Sophomore",
+      "abbreviation": "SO"
+     },
+     "injuries": []
+    }
+   ]
+  },
+  {
+   "position": "defense",
+   "items": [
+    {
+     "id": "5259295",
+     "displayName": "JJ Dunnigan",
+     "jersey": "25",
+     "displayHeight": "6' 3\"",
+     "displayWeight": "205 lbs",
+     "position": {
+      "abbreviation": "DB",
+      "displayName": "Defensive Back"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5259295.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 1,
+      "displayValue": "Freshman",
+      "abbreviation": "FR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5126999",
+     "displayName": "Marquise Lightfoot",
+     "jersey": "8",
+     "displayHeight": "6' 5\"",
+     "displayWeight": "230 lbs",
+     "position": {
+      "abbreviation": "DL",
+      "displayName": "Defensive Lineman"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5126999.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 3,
+      "displayValue": "Junior",
+      "abbreviation": "JR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "4430604",
+     "displayName": "Mohamed Toure",
+     "jersey": "1",
+     "displayHeight": "6' 2\"",
+     "displayWeight": "235 lbs",
+     "position": {
+      "abbreviation": "LB",
+      "displayName": "Linebacker"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/4430604.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 4,
+      "displayValue": "Senior",
+      "abbreviation": "SR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "4871089",
+     "displayName": "Damon Wilson II",
+     "jersey": "10",
+     "displayHeight": "6' 4\"",
+     "displayWeight": "250 lbs",
+     "position": {
+      "abbreviation": "DL",
+      "displayName": "Defensive Lineman"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/4871089.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 4,
+      "displayValue": "Senior",
+      "abbreviation": "SR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5141368",
+     "displayName": "Ja'Boree Antoine",
+     "jersey": "16",
+     "displayHeight": "6' 1\"",
+     "displayWeight": "180 lbs",
+     "position": {
+      "abbreviation": "DB",
+      "displayName": "Defensive Back"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5141368.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 2,
+      "displayValue": "Sophomore",
+      "abbreviation": "SO"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5328806",
+     "displayName": "Takai Azziz",
+     "jersey": "36",
+     "displayHeight": "6' 3\"",
+     "displayWeight": "180 lbs",
+     "position": {
+      "abbreviation": "DB",
+      "displayName": "Defensive Back"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5328806.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 3,
+      "displayValue": "Junior",
+      "abbreviation": "JR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5244036",
+     "displayName": "Tyson Bacon",
+     "jersey": "44",
+     "displayHeight": "6' 4\"",
+     "displayWeight": "275 lbs",
+     "position": {
+      "abbreviation": "DL",
+      "displayName": "Defensive Lineman"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5244036.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 1,
+      "displayValue": "Freshman",
+      "abbreviation": "FR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5141370",
+     "displayName": "Armondo Blount",
+     "jersey": "18",
+     "displayHeight": "6' 4\"",
+     "displayWeight": "265 lbs",
+     "position": {
+      "abbreviation": "DL",
+      "displayName": "Defensive Lineman"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5141370.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 3,
+      "displayValue": "Junior",
+      "abbreviation": "JR"
+     },
+     "injuries": []
+    }
+   ]
+  },
+  {
+   "position": "specialTeam",
+   "items": [
+    {
+     "id": "5121892",
+     "displayName": "Dylan Joyce",
+     "jersey": "94",
+     "displayHeight": "6' 2\"",
+     "displayWeight": "215 lbs",
+     "position": {
+      "abbreviation": "P",
+      "displayName": "Punter"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5121892.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 4,
+      "displayValue": "Senior",
+      "abbreviation": "SR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5123219",
+     "displayName": "Jake Weinberg",
+     "jersey": "22",
+     "displayHeight": "5' 10\"",
+     "displayWeight": "189 lbs",
+     "position": {
+      "abbreviation": "PK",
+      "displayName": "Place Kicker"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5123219.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 2,
+      "displayValue": "Sophomore",
+      "abbreviation": "SO"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5081246",
+     "displayName": "Adam Booker",
+     "jersey": "46",
+     "displayHeight": "6' 4\"",
+     "displayWeight": "215 lbs",
+     "position": {
+      "abbreviation": "LS",
+      "displayName": "Long Snapper"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5081246.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 4,
+      "displayValue": "Senior",
+      "abbreviation": "SR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5446985",
+     "displayName": "Vance Diepenbrock",
+     "jersey": "59",
+     "displayHeight": "5' 10\"",
+     "displayWeight": "220 lbs",
+     "position": {
+      "abbreviation": "LS",
+      "displayName": "Long Snapper"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 1,
+      "displayValue": "Freshman",
+      "abbreviation": "FR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "4566164",
+     "displayName": "Jack Olsen",
+     "jersey": "82",
+     "displayHeight": "5' 10\"",
+     "displayWeight": "195 lbs",
+     "position": {
+      "abbreviation": "PK",
+      "displayName": "Place Kicker"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/4566164.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 4,
+      "displayValue": "Senior",
+      "abbreviation": "SR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5170143",
+     "displayName": "Will Rocha",
+     "jersey": "97",
+     "displayHeight": "5' 11\"",
+     "displayWeight": "185 lbs",
+     "position": {
+      "abbreviation": "PK",
+      "displayName": "Place Kicker"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5170143.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 3,
+      "displayValue": "Junior",
+      "abbreviation": "JR"
+     },
+     "injuries": []
+    },
+    {
+     "id": "5226982",
+     "displayName": "Tucker Tevepaugh",
+     "jersey": "96",
+     "displayHeight": "5' 11\"",
+     "displayWeight": "200 lbs",
+     "position": {
+      "abbreviation": "P",
+      "displayName": "Punter"
+     },
+     "headshot": {
+      "href": "https://a.espncdn.com/i/headshots/college-football/players/full/5226982.png"
+     },
+     "college": {
+      "name": "Miami"
+     },
+     "experience": {
+      "years": 2,
+      "displayValue": "Sophomore",
+      "abbreviation": "SO"
+     },
+     "injuries": []
+    }
+   ]
+  }
+ ],
+ "coach": [
+  {
+   "firstName": "Mario",
+   "lastName": "Cristobal"
+  }
+ ],
+ "season": {
+  "year": 2026
+ }
+}

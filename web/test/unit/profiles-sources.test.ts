@@ -1,13 +1,14 @@
 /**
- * The other profile sources (bo3.gg, IFSC, FotMob), team results and the
- * table window, against trimmed recordings.
+ * The other profile sources (bo3.gg, IFSC, FotMob) against trimmed
+ * recordings, and the team page's table window over the standings layer's.
  */
 import { describe, expect, it } from "vitest";
 import * as bo3 from "../../src/data/profiles/bo3";
 import * as fotmob from "../../src/data/profiles/fotmob";
 import * as ifsc from "../../src/data/profiles/ifsc";
 import { teamRef, type RosterPlayer } from "../../src/data/profiles/models";
-import { formMarks, parseStandings, parseTeamResults, standingsPath, standingsWindow } from "../../src/data/profiles/results";
+import { standingsPath } from "../../src/data/profiles/results";
+import { parseCollege, parseNBA, parseSoccer, teamWindow } from "../../src/data/standings";
 import { fixture } from "./fixtures";
 
 const f = (name: string) => fixture(`profiles/${name}`);
@@ -179,45 +180,30 @@ describe("FotMob (soccer photos, injuries, the coach)", () => {
   });
 });
 
-describe("results, form and the table window", () => {
-  it("reads a club's results across competitions, friendlies aside, newest first", () => {
-    const results = parseTeamResults(f("espn-soccer-schedule.json"), "soccer", "soccer/eng.1", "359");
-    expect(results.length).toBeGreaterThan(0);
-    expect(results.every((g) => g.state === "final" && !/friendly/i.test(g.competition ?? ""))).toBe(true);
-    const dates = results.map((g) => g.date);
-    expect([...dates].sort((a, b) => b - a)).toEqual(dates);
-    const marks = formMarks(results);
-    expect(marks.length).toBeLessThanOrEqual(5);
-    // Oldest first, read out in words.
-    expect(marks.at(-1)?.id).toBe(results[0]!.id);
-    expect(marks[0]!.spoken).toMatch(/^[A-Z][a-z]+ \d+, (won|lost|drew)/);
-  });
-
-  it("reads NBA results", () => {
-    const results = parseTeamResults(f("espn-nba-schedule.json"), "basketball", "basketball/nba", "13");
-    expect(results.every((g) => g.opponent?.id.startsWith("espn-basketball-"))).toBe(true);
-  });
-
+describe("the team page's table (TeamPage.swift standingsLeague, standingsWindow)", () => {
+  // The standings layer's own tables (data/standings.ts), as the standings page reads them.
   it("takes seven rows of the team's own table around it", () => {
-    const rows = parseStandings(f("espn-eng1-standings.json"), "soccer/eng.1", "soccer");
+    const rows = parseSoccer(fixture("standings-eng1.json"));
     expect(rows.length).toBe(20);
-    const top = standingsWindow(rows, rows[0]!.id);
-    expect(top.rows.length).toBe(7);
-    expect(top.first).toBe(0);
-    const mid = standingsWindow(rows, rows[10]!.id);
-    expect(mid.rows[3]!.id).toBe(rows[10]!.id);
-    const bottom = standingsWindow(rows, rows[19]!.id);
-    expect(bottom.rows.at(-1)!.id).toBe(rows[19]!.id);
-    expect(bottom.first).toBe(13);
-    expect(rows[0]!.stats.points).toMatch(/^\d+$/);
+    const top = teamWindow(rows, rows[0]!.id);
+    expect(top.map((r) => r.id)).toEqual(rows.slice(0, 7).map((r) => r.id));
+    const mid = teamWindow(rows, rows[10]!.id);
+    expect(mid[3]!.id).toBe(rows[10]!.id);
+    const bottom = teamWindow(rows, rows[19]!.id);
+    expect(bottom.at(-1)!.id).toBe(rows[19]!.id);
+    expect(bottom[0]!.id).toBe(rows[13]!.id);
+    expect(teamWindow(rows, "espn-soccer-0")).toEqual([]);
+  });
 
-    const nba = parseStandings(f("espn-nba-standings.json"), "basketball/nba", "basketball");
-    const conferences = new Set(nba.map((r) => r.group));
-    expect(conferences.size).toBe(2);
-    const lakers = standingsWindow(nba, "espn-basketball-13", { bySeed: true });
-    expect(lakers.rows.every((r) => r.group === nba.find((x) => x.id === "espn-basketball-13")!.group)).toBe(true);
-    const seeds = lakers.rows.map((r) => Number(r.stats.playoffSeed));
-    expect([...seeds].sort((a, b) => a - b)).toEqual(seeds);
+  it("keeps to the team's own conference or division", () => {
+    const nba = parseNBA(fixture("standings-nba.json"));
+    const team = nba[nba.length - 1]!;
+    const window = teamWindow(nba, team.id);
+    expect(window).toHaveLength(7);
+    expect(window.every((r) => r.group === team.group)).toBe(true);
+    const college = parseCollege(fixture("standings-college.json"), "football/college-football");
+    const sec = college.find((r) => r.group != null)!;
+    expect(teamWindow(college, sec.id).every((r) => r.group === sec.group)).toBe(true);
   });
 
   it("shows the table for soccer, the NBA and college football only", () => {

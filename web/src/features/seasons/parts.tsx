@@ -55,6 +55,21 @@ export function SectionLink({ children, onClick, to, title, icon = "chevronRight
   );
 }
 
+/**
+ * While a competition is live, its World Climbing stream from the season
+ * card (ClimbingSeasonPage.swift `watch`): "Watch" in red while the stream
+ * is on, "Stream" before it starts. A tinted capsule, not glass: it sits on
+ * the card's glass.
+ */
+export function WatchCapsule({ url, live }: { url: string; live: boolean }) {
+  return (
+    <a className={styles.watchCapsule} data-live={live} href={url} target="_blank" rel="noopener noreferrer" title="Open the World Climbing stream on YouTube" aria-label={`${live ? "Watch live" : "Stream"} on YouTube. Opens in a new tab.`}>
+      <Icon name="play" size={12} />
+      {live ? "Watch" : "Stream"}
+    </a>
+  );
+}
+
 /** "ifsc.results.info ↗": an official page, in a new tab. */
 export function LinkButton({ title, href }: { title: string; href: string }) {
   return (

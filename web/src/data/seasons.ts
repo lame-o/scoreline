@@ -11,8 +11,9 @@
  *
  * CS2 match lists are parsed by `providers/schedule.ts` (`parseCSMatches`).
  *
- * Round times: the Mac reads them from World Climbing's YouTube schedule,
- * which isn't on the web's allowlist, so climbing rounds stay `tba` here.
+ * Round times: from World Climbing's YouTube schedule, attached once a
+ * competition is within the week (`wantsStreams`; youtube.ts
+ * `attachStreams`); until then climbing rounds are `tba`.
  */
 import { addingDays, compareDays, dayKeyFromISO, dayRangeLabel, daysBetween, shortDayLabel, startOfDay, weekdayLabel, type DayKey } from "./days";
 import { plural } from "./format";
@@ -265,6 +266,11 @@ export function parseRegistrations(json: JSONValue, countries: ReadonlySet<strin
 /** Whether the calendar wants a competition's detail loaded on its own: what's live or within two weeks (ScheduleStore.loadClimbing). */
 export function wantsDetail(e: SeasonEvent, today: DayKey): boolean {
   return e.status === "live" || (e.status === "upcoming" && daysBetween(today, e.startDay) <= 14);
+}
+
+/** Within the week and not over: its rounds take their times from World Climbing's scheduled streams (ScheduleStore.loadClimbingDetail's `soon`). */
+export function wantsStreams(e: SeasonEvent, today: DayKey): boolean {
+  return e.kind.kind === "climbing" && e.status !== "finished" && e.status !== "canceled" && daysBetween(today, e.startDay) <= 7;
 }
 
 // MARK: - The disciplines you follow (ScoreStore.tracked, SeasonEvent.tracking)

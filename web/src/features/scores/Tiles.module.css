@@ -487,3 +487,13 @@
 .scheduleLink:active {
   opacity: 0.6;
 }
+
+/* The tile's stream mark (StreamMarks): before the pin, 4pt from what follows; nothing when there's none. */
+.streamMark {
+  display: inline-flex;
+  flex: none;
+}
+
+.streamMark:not(:empty) {
+  margin-right: calc(4 * var(--pt));
+}

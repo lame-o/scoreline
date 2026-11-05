@@ -713,40 +713,22 @@
   font-weight: 500;
 }
 
-/* Results */
-.resultRows {
-  margin-top: calc(6 * var(--pt));
-}
-
-.resultRow {
-  display: flex;
-  flex-direction: column;
-  gap: calc(3 * var(--pt));
-  padding: calc(2 * var(--pt)) 0;
-}
-
-.resultLine {
+/* Results: the form strip with the pointed-at game named beside it, then the results page's own rows on the gutter. */
+.formLine {
   display: flex;
   align-items: center;
-  gap: calc(6 * var(--pt));
+  gap: calc(10 * var(--pt));
   min-width: 0;
 }
 
-.opponent {
+.formLine > :last-child {
+  flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: calc(12 * var(--pt));
+  margin: 0;
 }
 
-.resultCaption {
-  padding-left: calc(48 * var(--pt));
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--text-caption);
-  color: var(--label-secondary);
+.resultRows {
+  margin: calc(6 * var(--pt)) calc(-14 * var(--pt)) 0;
 }
 
 /* The roster */
@@ -882,76 +864,6 @@
   white-space: nowrap;
   font-size: var(--text-status);
   color: var(--label-secondary);
-}
-
-/* The table window */
-.table {
-  font-size: var(--text-callout);
-}
-
-.tableHead,
-.tableRow {
-  display: flex;
-  align-items: center;
-  gap: calc(6 * var(--pt));
-  min-width: 0;
-}
-
-.tableHead {
-  padding-bottom: calc(3 * var(--pt));
-  font-size: calc(9.5 * var(--pt));
-  font-weight: 600;
-  color: var(--label-secondary);
-}
-
-.tableRow {
-  padding: calc(1 * var(--pt)) 0;
-}
-
-.tableLink {
-  padding-top: calc(3 * var(--pt)) !important;
-  padding-bottom: calc(3 * var(--pt)) !important;
-}
-
-.tableOwn {
-  margin: 0 calc(-6 * var(--pt));
-  padding: calc(3 * var(--pt)) calc(6 * var(--pt));
-  border-radius: var(--radius-row);
-  background: var(--fill-surface);
-  font-weight: 600;
-}
-
-.tableRank {
-  flex: none;
-  width: calc(20 * var(--pt));
-  font-variant-numeric: tabular-nums;
-  color: var(--label-secondary);
-}
-
-.tableOwn .tableRank {
-  color: var(--label);
-}
-
-.tableTeam {
-  display: flex;
-  align-items: center;
-  gap: calc(6 * var(--pt));
-  flex: 1;
-  min-width: 0;
-}
-
-.tableName {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tableCell {
-  flex: none;
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Injuries, transactions, titles */

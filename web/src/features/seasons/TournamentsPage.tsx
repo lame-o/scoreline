@@ -197,6 +197,7 @@ function TournamentsUpcoming({ scope, mode, onMode, switched, crossfade }: Sched
 
   return (
     <SeasonFrame
+      ready={data.status !== "loading"}
       rootRef={root}
       label="Tournaments"
       onKeyDown={onKeyDown}
