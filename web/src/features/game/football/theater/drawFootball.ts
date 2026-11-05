@@ -10,7 +10,7 @@
  */
 import { CameraFrame, type Rect } from "../../../../data/mlb/playCamera";
 import { easeValue, houseCurve, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
-import { zebra, type Uniform } from "../../../../data/mlb/theaterTeams";
+import { STAFF, zebra, type Uniform } from "../../../../data/mlb/theaterTeams";
 import type { Side } from "../../../../data/models";
 import type { FootballScene } from "../../../../data/theater/footballScene";
 import { FootballScript, footballStamp, Gridiron, type Flag, type Player } from "../../../../data/theater/footballScript";
@@ -479,8 +479,8 @@ export const GridPose = {
   }),
 };
 
-/** A team's trainers: slate, a pale cap (FootballFrame.staff). */
-export const STAFF: Uniform = { jersey: "#6b7887", cap: "#cccccc", piping: null, accent: "#808080" };
+/** A team's trainers: slate, a pale cap (FootballFrame.staff; the shared uniform in theaterTeams.ts). */
+export { STAFF };
 
 /** A coach's challenge flag (FootballFrame.challengeRed). */
 const CHALLENGE_RED = [230, 31, 26] as const;

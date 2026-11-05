@@ -13,35 +13,10 @@ import { TheaterSession, type TheaterSport } from "../../src/data/theater/theate
 import { MotionLimits, type PTime } from "../../src/data/theater/theaterEngine";
 import { FrameScratch } from "../../src/data/theater/theaterFrameScratch";
 import type { PlanChain } from "../../src/data/theater/theaterPlanChain";
-import type { ClockPiece, RawPlay, TheaterClock, TimelinePlay, TimelineSnapshot } from "../../src/data/theater/theaterSource";
+import { DelayClock, snapshotAt, type Arrival } from "../../src/data/theater/replayTimeline";
 import { ContinuityMeter, type ContinuityReport, type MeterFigure } from "./theaterBenchMeter";
 
-/** A presentation clock running at real time a fixed delay behind the wall (`p = now − D`). */
-export class DelayClock implements TheaterClock {
-  readonly pieces: ClockPiece[];
-  readonly regime = "tracking" as const;
-  readonly events;
-  constructor(
-    readonly delay: number,
-    start: PTime,
-  ) {
-    const p0 = start - delay;
-    this.pieces = [{ t0: start, p0, v0: 1, a: 0, t1: Infinity, p: (t: number) => p0 + (t - start) }];
-    this.events = [{ kind: "start" as const, at: start, p: p0 }];
-  }
-  get started(): boolean {
-    return true;
-  }
-  p(t: PTime): PTime {
-    return t - this.delay;
-  }
-}
-
-export interface Arrival {
-  /** When it arrived (wall seconds). */
-  readonly at: PTime;
-  readonly play: TimelinePlay<RawPlay>;
-}
+export { DelayClock, type Arrival };
 
 export interface RunResult<Clip extends TheaterClip> {
   readonly report: ContinuityReport;
@@ -81,17 +56,7 @@ export function runEngine<Clip extends TheaterClip, Play, Facts>(
   const slipped = new Set<string>();
   const errors = new Map<string, number>();
   const decisive = new Map<string, PTime>();
-  const snapshot = (now: PTime): TimelineSnapshot<RawPlay> => {
-    const known = arrivals.filter((a) => a.at <= now).map((a) => a.play);
-    const watermark = clock.p(now) + 4;
-    return {
-      plays: known.filter((p) => (p.eventTime ?? -Infinity) <= watermark),
-      pending: known.filter((p) => (p.eventTime ?? -Infinity) > watermark),
-      watermark,
-      revision: known.length,
-      told: new Set(),
-    };
-  };
+  const snapshot = (now: PTime) => snapshotAt(arrivals, clock, now);
   const replan = (now: PTime) => {
     const request = session.request(now);
     if (!request) return;
@@ -217,16 +182,6 @@ export function describe<Clip extends TheaterClip>(chain: PlanChain<Clip>, id: n
   } else if (p.leaving.includes(id)) s += " leaving";
   else s += " absent";
   return s;
-}
-
-/** FNV-1a 32 of a string (a RawPlay's digest, as the timeline's is a hash of its JSON). */
-export function digest(text: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return h;
 }
 
 export { MotionLimits };

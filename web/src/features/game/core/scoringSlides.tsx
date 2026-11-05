@@ -55,7 +55,7 @@ import {
   type SlideTeam,
 } from "../../../data/scoringSlide";
 import { sectionForChart } from "../../../data/sections";
-import { TheaterDelays } from "../../../data/theater/theaterDelays";
+import type { TheaterCues } from "../../../data/theater/theaterView";
 import { toHex } from "../../../data/teamColors";
 import { getSettings, useSettings } from "../../../state/settings";
 import { useWidth } from "../../../design/useWidth";
@@ -321,8 +321,7 @@ export class ScoringSlides implements SlideTaker {
       const entry = head ? this.entries.get(head.id) : undefined;
       if (!head || !entry) return;
       if (entry.ready != null) {
-        // A replay that bridged in from the field between plays started its clock that much later: still land with its climax.
-        const ready = entry.ready + (entry.follow ? TheaterDelays.delay(head.id) * 1000 : 0);
+        const ready = entry.ready;
         if (time < ready) return this.wait(ready);
         // A moment for its logo to decode, so it never arrives as a placeholder.
         if (!this.logoReady(head) && time < ready + LOGO_WAIT) return this.wait(time + 30);
@@ -491,6 +490,33 @@ export function useSlideTheater(chart: MomentChart, playing: string | null, clim
   useLayoutEffect(() => {
     if (slides && playing != null) slides.theaterMoved();
   }, [slides, playing]);
+}
+
+/**
+ * A theater on the choreography engine (ScoringSlide.swift
+ * `SlideTheater.directed`; CHOREOGRAPHY §12): the scoring play its plan has
+ * come to (or comes to next), and the seconds to its decisive frame, from
+ * the plan's `Cue.scored`. The slide lands with the decisive frame because
+ * both are the plan's.
+ */
+export function useSlideDirected(chart: MomentChart, cues: TheaterCues | null, batted?: (id: string) => StatcastBatted | null): void {
+  const slides = useContext(SlidesContext);
+  const latest = useRef(batted);
+  latest.current = batted;
+  useLayoutEffect(() => {
+    if (!slides || !cues) return;
+    const unregister = slides.register(chart, {
+      playing: () => cues.playing(Date.now() / 1000),
+      climax: () => cues.climax(Date.now() / 1000),
+      batted: (id) => latest.current?.(id) ?? null,
+    });
+    // A new plan: a slide waiting for its play is timed from it.
+    const unsubscribe = cues.subscribe(() => slides.theaterMoved());
+    return () => {
+      unsubscribe();
+      unregister();
+    };
+  }, [slides, chart, cues]);
 }
 
 // MARK: - Hosts

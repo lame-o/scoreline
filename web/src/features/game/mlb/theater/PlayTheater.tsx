@@ -84,7 +84,6 @@ import { NO_FIELDERS, type BaseballFielders, type BaseballNow } from "../../../.
 import { playCast } from "../../../../data/mlb/playNames";
 import { theaterLabels, type TheaterCast, type TheaterPerson } from "../../../../data/theater/theaterNames";
 import { bridgeTracks } from "../../../../data/theater/theaterBridge";
-import { TheaterDelays } from "../../../../data/theater/theaterDelays";
 import { TheaterRenderer, type PlayHandoff } from "./renderer";
 import { theaterInk } from "./theaterInk";
 import { useMeasuredTheater, useMLBTimeline } from "./useStatcast";
@@ -356,7 +355,7 @@ export function PlayTheater({
     if (!line.some((b) => b.id === playID)) return;
     if (play?.id === playID) {
       const came = performance.now();
-      TheaterDelays.note(playID, (handOff(playID, script, play.batting ?? batting ?? "top", came) - came) / 1000);
+      handOff(playID, script, play.batting ?? batting ?? "top", came);
     }
     setBeat(null);
     setMove(null);

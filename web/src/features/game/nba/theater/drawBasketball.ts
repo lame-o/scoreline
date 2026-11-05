@@ -12,7 +12,7 @@
  */
 import { CameraFrame, type Rect } from "../../../../data/mlb/playCamera";
 import { houseCurve, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
-import { zebra, type Uniform } from "../../../../data/mlb/theaterTeams";
+import { STAFF, zebra, type Uniform } from "../../../../data/mlb/theaterTeams";
 import type { Side } from "../../../../data/models";
 import { defense, type BasketballScene } from "../../../../data/theater/basketballScene";
 import { TheaterTagLayout, type TagFrame, type TheaterSpots } from "../../../../data/theater/theaterNames";
@@ -781,15 +781,22 @@ const toward = (a: RigVector, b: RigVector, u: number): RigVector => vec(a.x + (
  * (ready off the ball, low on defense, at ease once the ball's through); and
  * off the floor when he jumps. `unit`: body units to the foot. (tested)
  */
-export function playerPose(script: BasketballScript, player: Player, index: number, t: number, here: Point, unit: number): [RigPose, number] {
-  const track = script.rig[index] ?? RigTrack.standing(here);
-  const m = track.motion(t);
+export function playerPose(script: BasketballScript, player: Player, index: number, t: number, here: Point, unit: number, stride: Stride | null = null): [RigPose, number] {
+  // `stride`: the engine's track for him in the world (a directed frame), its time and where he is in it; the heading
+  // returned is then the world's.
+  const track = stride?.track ?? script.rig[index] ?? RigTrack.standing(here);
+  const m = track.motion(stride?.t ?? t);
   // How he stands: ready, or down in his stance on defense; at ease a beat after the ball's through.
   const ease = script.score != null ? smooth((t - script.score - 0.7) / 0.5) : 0;
-  const stance = player.team === "defense" ? HoopPose.guarding : player.team === "official" ? RigPoses.stand : HoopPose.ready;
+  const stance = player.team === "defense" ? HoopPose.guarding : player.team === "official" || player.team === "staff" ? RigPoses.stand : HoopPose.ready;
   const still = mix(stance, RigPoses.stand, ease);
-  const feet = track.feet(t, here, m.heading, unit, m.speed, { left: still.left, right: still.right });
-  let body = mix(still, gait(m, feet), m.weight);
+  const feet = track.feet(stride?.t ?? t, stride?.at ?? here, m.heading, unit, m.speed, { left: still.left, right: still.right });
+  const striding = gait(m, feet);
+  let body = mix(still, striding, m.weight);
+  // A planted foot stays planted once the stride carries his weight (blended with the stance by the weight alone, it
+  // would slide with him as he slows).
+  const planted = smooth(m.weight / 0.5);
+  body = { ...body, left: toward(still.left, striding.left, planted), right: toward(still.right, striding.right, planted) };
 
   // With the ball: in both hands at the chest, or on the dribble.
   const carry = script.carrier(t);
@@ -1052,6 +1059,45 @@ export interface FrameInputs {
   readonly tags?: TagFrame | null;
   /** The court between plays this replay is taking over from (null: none, or the hand-off is done). */
   readonly bridge?: BasketballBridge | null;
+  /**
+   * Drawn from the choreography engine's world (a directed frame): its camera,
+   * every man where the engine has him and posed by the clip that has him,
+   * the ball; `script` is the clip in charge (its flashes, nets, stamp and
+   * banner), and everything is in its frame.
+   */
+  readonly world?: BasketballWorld | null;
+}
+
+/** The engine's track for a man in the world (a directed frame): his stride, the theater's time, and where he is in it. */
+export interface Stride {
+  readonly track: RigTrack;
+  readonly t: number;
+  readonly at: Point;
+}
+
+/** The ball in a man's hands in the world: both hands (the right through a layup), or on the dribble at a bounce's height. */
+export type WorldHold = { readonly kind: "hands"; readonly oneHanded: boolean } | { readonly kind: "dribble"; readonly up: number };
+
+/** One man in the engine's world (BasketballFrame.World.Figure), in the clip in charge's frame. */
+export interface WorldFigure {
+  /** The engine's actor (the names over the court key on it). */
+  readonly index: number;
+  readonly team: BasketballScript["players"][number]["team"];
+  readonly at: Point;
+  readonly body: RigPose;
+  readonly heading: number;
+  readonly opacity: number;
+  readonly holds: WorldHold | null;
+}
+
+/** The engine's world as a basketball frame draws it (BasketballFrame.World). */
+export interface BasketballWorld {
+  readonly camera: CameraFrame;
+  readonly yaw: number;
+  readonly figures: readonly WorldFigure[];
+  readonly ball: { readonly kind: "held" } | { readonly kind: "free"; readonly at: FieldPoint; readonly flying: boolean } | null;
+  /** The clip in charge's spots at its time s, keyed by the engine's men (where the names sit is planned on them). */
+  readonly spots?: (s: number, size: Size) => TheaterSpots;
 }
 
 /** The court between plays as it stands mid-bridge (BasketballFrame.Bridge, theaterBridge.ts): its script and time now, how far the hand-off is, who becomes whom. */
@@ -1120,7 +1166,8 @@ export function basketballSpots(script: BasketballScript, t: number, size: Size)
  * has him to his place in the replay's set, posed between the two and
  * striding along the way; the court's others fade out, the replay's fade in.
  */
-function posed(h: HoopProjection, { script, t, bridge }: FrameInputs): Posed[] {
+function posed(h: HoopProjection, { script, t, bridge, world }: FrameInputs): Posed[] {
+  if (world) return posedWorld(h, world);
   const carrier = script.carrier(t);
   const order = script.players.flatMap((player, index) => {
     if (!bridge && !(player.opacity(t) > 0.01)) return [];
@@ -1190,7 +1237,34 @@ function posed(h: HoopProjection, { script, t, bridge }: FrameInputs): Posed[] {
   });
 }
 
-function drawShadows(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInputs, figures: readonly Posed[]): void {
+/** The engine's men, far to near: each posed as the world has him, the ball in the hands of the man who has it. */
+function posedWorld(h: HoopProjection, world: BasketballWorld): Posed[] {
+  return [...world.figures]
+    .sort((a, b) => h.depth(b.at) - h.depth(a.at))
+    .map((f) => {
+      const lens = h.lens(f.at);
+      const skel = skeleton(f.body);
+      const figure = rigFigure(skel, f.heading, lens);
+      let ball: Point | null = null;
+      const hold = f.holds;
+      if (hold?.kind === "dribble") {
+        const c = Math.cos(f.heading);
+        const s = Math.sin(f.heading);
+        const k = skel.hands[1];
+        const top = lens.point(vec(k.x * c - k.y * s, k.x * s + k.y * c, k.z));
+        const floor = lens.point(vec(k.x * c - k.y * s, k.x * s + k.y * c, 0.06));
+        ball = { x: floor.x + (top.x - floor.x) * hold.up, y: floor.y + (top.y - floor.y) * hold.up };
+      } else if (hold?.kind === "hands") {
+        const g = grip(figure);
+        const right = figure.hands[1];
+        const w = hold.oneHanded ? 1 : 0;
+        ball = { x: g.x + (right.x - g.x) * w, y: g.y + (right.y - g.y) * w };
+      }
+      return { index: f.index, figure, ball, opacity: f.opacity };
+    });
+}
+
+function drawShadows(ctx: Ctx, h: HoopProjection, { script, t, ink, world }: FrameInputs, figures: readonly Posed[]): void {
   // Under the hips; smaller and fainter as he leaves the floor.
   const w = h.figure * 0.26;
   for (const p of figures) {
@@ -1198,8 +1272,8 @@ function drawShadows(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInput
     drawShadow(ctx, p.figure.ground, w * (1 - 0.35 * air), shadow(ink, (1 - 0.5 * air) * p.opacity));
   }
   // The ball's: larger and softer the higher it flies.
-  const ball = script.ball(t);
-  if (ball && ball.z > 0.6 && script.flight(t) != null) {
+  const ball = world ? (world.ball?.kind === "free" && world.ball.flying ? world.ball.at : null) : script.ball(t);
+  if (ball && ball.z > 0.6 && (world != null || script.flight(t) != null)) {
     const g = h.point(ball);
     const spread = 1 + Math.min(ball.z / 30, 0.9);
     const r = Math.max(0.45 * h.scale, 1.4) * spread;
@@ -1214,7 +1288,7 @@ function drawShadows(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInput
  * headline and the stamp while they're up; the raised ones' stems, to draw
  * with their men.
  */
-function drawNames(ctx: Ctx, h: HoopProjection, { script, t, ink, labels, tags }: FrameInputs, figures: readonly Posed[], ball: Point | null): Stems {
+function drawNames(ctx: Ctx, h: HoopProjection, { script, t, ink, labels, tags, world }: FrameInputs, figures: readonly Posed[], ball: Point | null): Stems {
   const clear: Rect[] = [];
   const banner = script.banner;
   if (banner && labels.banner && t >= banner.at && t < banner.until + 0.3) clear.push(TheaterTagLayout.banner(labels.banner, h.size));
@@ -1226,28 +1300,49 @@ function drawNames(ctx: Ctx, h: HoopProjection, { script, t, ink, labels, tags }
     clear,
     ring: tagRing(ink.dark),
     ball: ball ? { x: ball.x, y: ball.y, rx: r, ry: r, height: h.figure } : null,
-    replay: { length: script.duration, at: (s) => basketballSpots(script, s, size) },
+    replay: { length: script.duration, at: (s) => (world?.spots ? world.spots(s, size) : basketballSpots(script, s, size)) },
   });
 }
 
 /** Far to near, each with the stem of his raised name just before him. */
-function drawPlayers(ctx: Ctx, h: HoopProjection, { script, teams, ink, bridge }: FrameInputs, figures: readonly Posed[], stems: Stems): void {
+function drawPlayers(ctx: Ctx, h: HoopProjection, { script, teams, ink, bridge, world }: FrameInputs, figures: readonly Posed[], stems: Stems): void {
   const offense = figureInks(teams.offense, ink);
   const defenseInks = figureInks(teams.defense, ink);
   // The referee, only while he's doing something (in to make a call, the toss, the ball for free throws): the zebra shirt.
-  const refereed = script.players.some((p) => p.team === "official") || bridge?.script.players.some((p) => p.team === "official") === true;
+  const refereed = world
+    ? world.figures.some((f) => f.team === "official")
+    : script.players.some((p) => p.team === "official") || bridge?.script.players.some((p) => p.team === "official") === true;
   const official = refereed ? figureInks(zebra(ink.dark ? "dark" : "light"), ink) : offense;
-  for (const p of figures) {
+  // The floor's crew at the half, in the staff's slate.
+  const crew = world ? world.figures.some((f) => f.team === "staff") : script.players.some((p) => p.team === "staff");
+  const staff = crew ? figureInks(STAFF, ink) : offense;
+  const teamOf = (p: Posed) => {
+    if (world) return world.figures.find((f) => f.index === p.index)?.team ?? "offense";
     // A ghost wears his own team's colors: the court's offense is the replay's (else it crossfades).
-    const team = p.ghost ? (bridge?.script.players[p.index]?.team ?? "offense") : script.players[p.index]!.team;
-    const inks = team === "offense" ? offense : team === "defense" ? defenseInks : official;
+    return p.ghost ? (bridge?.script.players[p.index]?.team ?? "offense") : script.players[p.index]!.team;
+  };
+  for (const p of figures) {
+    const team = teamOf(p);
+    const inks = team === "offense" ? offense : team === "defense" ? defenseInks : team === "staff" ? staff : official;
     if (!p.ghost) drawStems(ctx, stems, p.index);
     drawFigure(ctx, p.figure, inks, h.figure, p.opacity);
   }
 }
 
 /** Where the ball is drawn: in his hands, or along its flight; and whether it's inside the hoop (then the rim's front and the net go over it). */
-function ballPoint(h: HoopProjection, { script, t, bridge }: FrameInputs, figures: readonly Posed[]): { point: Point; inHoop: boolean } | null {
+function ballPoint(h: HoopProjection, { script, t, bridge, world }: FrameInputs, figures: readonly Posed[]): { point: Point; inHoop: boolean } | null {
+  if (world) {
+    const b = world.ball;
+    if (!b) return null;
+    if (b.kind === "held") {
+      for (const p of figures) if (p.ball) return { point: p.ball, inHoop: false };
+      return null;
+    }
+    const inHoop = [Hoops.rim, { x: Hoops.length - Hoops.rim.x, y: Hoops.rim.y }].some(
+      (rim) => Math.hypot(b.at.x - rim.x, b.at.y - rim.y) < 1.1 && b.at.z < Hoops.rimHeight + 0.25 && b.at.z > Hoops.rimHeight - 2.6,
+    );
+    return { point: h.at(b.at), inHoop };
+  }
   const ball = script.ball(t);
   if (!ball) return null;
   // Mid-bridge, from where the court between plays had it to the replay's.
@@ -1262,10 +1357,12 @@ function ballPoint(h: HoopProjection, { script, t, bridge }: FrameInputs, figure
 const ballRadius = (h: HoopProjection) => Math.min(Math.max(0.5 * h.scale, 2.1), Math.max(h.figure * 0.09, 2.1));
 
 /** The basketball: a glowing core with its comet tail while it flies. */
-function drawBall(ctx: Ctx, h: HoopProjection, { script, t, ink }: FrameInputs, p: Point): void {
+function drawBall(ctx: Ctx, h: HoopProjection, { script, t, ink, world }: FrameInputs, p: Point): void {
   const leather = hoopsInk(ink).leather;
   const r = ballRadius(h);
-  const flight = script.flight(t);
+  // In the world, the clip's flight only while the world has the ball flying (not a hand-off's pass).
+  const flying = world ? world.ball?.kind === "free" && world.ball.flying : true;
+  const flight = flying ? script.flight(t) : null;
   if (flight) {
     const trail: Point[] = [];
     for (let i = 1; i <= 6; i++) trail.push(h.at(flight.point(Math.max(t - i * 0.014, flight.start))));

@@ -650,11 +650,18 @@ export class TheaterDirector<Clip extends TheaterClip, Play, Facts, Context = nu
     if (seen) this.replan();
   }
 
+  /** The page is gone (its timers stop; a plan in flight is dropped). */
   dispose(): void {
     this.disposed = true;
     if (this.waking) clearTimeout(this.waking);
     this.waking = null;
-    this.listeners.clear();
+  }
+
+  /** Back on the page (React's development remount): plans again from where T is. */
+  revive(): void {
+    if (!this.disposed) return;
+    this.disposed = false;
+    this.replan();
   }
 
   private replan(): void {
@@ -668,7 +675,11 @@ export class TheaterDirector<Clip extends TheaterClip, Play, Facts, Context = nu
     request.light = !this._visible;
     this.baking = true;
     bake(() => {
-      if (this.disposed) return;
+      if (this.disposed) {
+        this.baking = false;
+        this.pending = false;
+        return;
+      }
       const made = TheaterSession.make(this.sport, request);
       this.baking = false;
       if (this.session.accept(made, this.now())) {

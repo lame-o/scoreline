@@ -53,7 +53,6 @@ import { GoalCelebration, idleKeyMan, PitchProjection, sentences, soccerBridge, 
 import type { Side } from "../../../../data/models";
 import type { RigTrack } from "../../../../data/theater/rig";
 import { beatLeft, bridgeTracks, type BridgePlan } from "../../../../data/theater/theaterBridge";
-import { TheaterDelays } from "../../../../data/theater/theaterDelays";
 import { HOLD_MS } from "../../../../data/theater/theaterKit";
 import { NO_CAST, theaterLabels, type HitFigure, type TheaterPerson } from "../../../../data/theater/theaterNames";
 import { useSettings } from "../../../../state/settings";
@@ -236,7 +235,6 @@ export default function SoccerTheater({
         },
       );
       handoff.current = { id: s.id, came, plan, idle: shownNow.idle, script: idle, elapsed, tracks };
-      TheaterDelays.note(s.id, plan.delay);
     }
     setReplay((r) => (r?.id === s.id ? r : { id: s.id, done: reduceMotion }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
