@@ -7,8 +7,16 @@
  * (TheaterEngineTests.swift `theaterGates`: no hard cuts, teleportMax at its
  * ratchet 2.90, at most 0.5% of the time over the sprint, overspeed at its
  * ratchet +220%, at most 1% over the push limits, the rig's planted foot not
- * slipping). Plus the pieces: the clip, its loop, the running order, and
- * every break's quiet (GamePresentationRegressionTests.swift `breakScenes`).
+ * slipping). Plus the pieces: the clip, its loop, the running order, the
+ * scene cache against fresh reads (ChoreographyIntegrationTests.swift), the
+ * painter, and every break's quiet (GamePresentationRegressionTests.swift
+ * `breakScenes`).
+ *
+ * The run's ratchets are one man's: in a corner's beat (the big men into the
+ * box) one centre-back's run up is more than his legs can make, and the
+ * re-made path (ClipPaths, the loop's seams held) runs him at 3.15× his
+ * sprint just past the loop's start, every time round (+215%, 2.87; the
+ * Mac's ratchets are +220% and 2.90).
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -22,7 +30,9 @@ import { isMoment } from "../../src/data/theater/soccerScene";
 import { MotionLimits } from "../../src/data/theater/theaterEngine";
 import { FrameScratch } from "../../src/data/theater/theaterFrameScratch";
 import { pitchFrame } from "../../src/features/game/soccer/theater/directedPitch";
-import type { TimelinePlay } from "../../src/data/theater/theaterSource";
+import type { RawPlay, TimelinePlay, TimelineSnapshot } from "../../src/data/theater/theaterSource";
+import { SceneCache } from "../../src/data/theater/theaterDirector";
+import { DelayClock, snapshotAt } from "../../src/data/theater/replayTimeline";
 import { quantile } from "./theaterBenchMeter";
 import { runEngine } from "./theaterRun";
 import { firstLooks } from "./theaterTimelines";
@@ -158,6 +168,34 @@ describe("the running order", () => {
     expect(touches.length).toBeLessThan(plays.filter((p) => p.play.kind === "touch").length);
   });
 
+  it("cached and fresh scenes agree through feed changes: arrivals, removal, insertion, pending promotion (ChoreographyIntegrationTests `recorded`)", () => {
+    const cache = new SceneCache(PitchSport);
+    const fresh = (s: TimelineSnapshot<RawPlay>) => new SceneCache(PitchSport).read(s, facts);
+    const same = (s: TimelineSnapshot<RawPlay>) => expect(JSON.stringify(cache.read(s, facts))).toBe(JSON.stringify(fresh(s)));
+    const clock = new DelayClock(60, arrivals[0]!.at);
+    let samples = 0;
+    let lastCount = -1;
+    let last: TimelineSnapshot<RawPlay> | null = null;
+    for (const a of arrivals) {
+      const current = snapshotAt(arrivals, clock, a.at);
+      last = current;
+      const count = current.plays.length + current.pending.length;
+      if (count < lastCount + 25) continue;
+      lastCount = count;
+      same(current);
+      samples += 1;
+    }
+    const all = [...last!.plays, ...last!.pending];
+    const cut = Math.trunc(all.length / 2);
+    const snap = (plays: TimelinePlay<RawPlay>[], pending: TimelinePlay<RawPlay>[] = []): TimelineSnapshot<RawPlay> => ({ plays, pending, watermark: 0, revision: 1, told: new Set() });
+    for (const current of [snap(all.slice(0, cut), all.slice(cut)), snap(all), snap(all.filter((_, i) => i !== cut)), snap(all), snap(all.slice(0, cut)), snap([]), snap(all)]) {
+      same(current);
+      samples += 1;
+    }
+    expect(samples).toBeGreaterThanOrEqual(7);
+    expect(all.length).toBeGreaterThan(100);
+  });
+
   it("the break the status says it is, before ESPN logs it: told once, and not again at the entry", () => {
     const s = new PitchSequencer(plays, new Set(), { ...facts, atBreak: true });
     s.opening();
@@ -198,7 +236,8 @@ describe("the director on the recording", () => {
       `${r.label}: frames ${r.frames}, plans ${run.plans}, hard cuts ${r.hardCuts} (${[...r.hardCutReasons].join(", ")}), teleportMax ${r.teleportMax.toFixed(2)}, ` +
         `over the sprint ${(r.speedShare * 100).toFixed(2)}% max +${(r.maxOverspeed * 100).toFixed(0)}%, accel ${(r.accelShare * 100).toFixed(2)}%, rig slip ${r.rigSlipMax.toFixed(2)} mm, ` +
         `decisive p95 ${quantile(r.decisiveErrors.map(Math.abs), 0.95).toFixed(3)} s max ${Math.max(...r.decisiveErrors.map(Math.abs)).toFixed(3)} s, catch-ups ${r.catchUps.length}, ` +
-        `idle clips ${PitchIdleClips.hits} kept ${PitchIdleClips.misses} built, plan ms p50 ${quantile(run.planMs, 0.5).toFixed(1)} p99 ${quantile(run.planMs, 0.99).toFixed(1)}\n${r.jumpLog.join("\n")}`,
+        `idle clips ${PitchIdleClips.hits} kept ${PitchIdleClips.misses} built, plan ms p50 ${quantile(run.planMs, 0.5).toFixed(1)} p99 ${quantile(run.planMs, 0.99).toFixed(1)}, ` +
+        `overspeed by cause ${[...r.maxOverspeedBySource].map(([k, v]) => `${k} +${(v * 100).toFixed(0)}%`).join(", ")}\n${r.jumpLog.join("\n")}`,
     );
   }
 
