@@ -123,7 +123,7 @@ describe("the football section plan", () => {
   it("puts the field first while live, with the play theater's slot under it", () => {
     expect(sectionOrder(ref, "live").slice(0, 3)).toEqual(["field", "theater", "winProbability"]);
     // Final: how the odds moved; before the game: the market's last day.
-    expect(sectionOrder(ref, "final")).toEqual(["linescore", "winProbability", "moments", "stats", "table", "plays"]);
+    expect(sectionOrder(ref, "final")).toEqual(["linescore", "winProbability", "timeline", "moments", "stats", "table", "plays"]);
     expect(sectionOrder(ref, "scheduled")).toEqual(["winProbability", "table", "whereToWatch"]);
   });
 

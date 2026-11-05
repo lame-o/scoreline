@@ -238,6 +238,20 @@ const GLYPHS = {
       <path d="M11.5 9.5v2.6a1.6 1.6 0 0 1-1.6 1.6H3.9a1.6 1.6 0 0 1-1.6-1.6V6.1a1.6 1.6 0 0 1 1.6-1.6h2.6" />
     </g>
   ),
+  /** SF Symbols' arrow.uturn.backward: back to the latest. */
+  arrowUturnBackward: (
+    <g {...stroke} strokeWidth={1.6}>
+      <path d="M5.6 3.4 2.6 6.4l3 3" />
+      <path d="M2.8 6.4h6.6a3.8 3.8 0 0 1 0 7.6H7.2" />
+    </g>
+  ),
+  /** SF Symbols' arrow.up.left.and.arrow.down.right: the whole game. */
+  arrowsExpand: (
+    <g {...stroke} strokeWidth={1.5}>
+      <path d="M2.6 6.6v-4h4M2.8 2.8l4.2 4.2" />
+      <path d="M13.4 9.4v4h-4M13.2 13.2 9 9" />
+    </g>
+  ),
   sun: (
     <g {...stroke} strokeWidth={1.4}>
       <circle cx="8" cy="8" r="3" />

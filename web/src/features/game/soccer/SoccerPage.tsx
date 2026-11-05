@@ -41,7 +41,6 @@ import { useCommonSections } from "../core/useCommonSections";
 import { SoccerTableWindow, useLeagueLive, useTableRows } from "../tables/GameTables";
 import { Pitch } from "./Pitch";
 import { PitchTheater } from "./theater/PitchTheater";
-import { Timeline } from "./Timeline";
 import { soccerMomentText } from "./MomentText";
 import styles from "./SoccerPage.module.css";
 import { feedBroadcast } from "../core/broadcast";
@@ -84,7 +83,8 @@ export function useSoccerPage(game: GameContext): SportPage {
 
   const playerRef = useMemo(() => (id: string, name: string) => espnPlayerRef(ref?.path ?? "soccer/all", id, name), [ref?.path]);
   const momentText = useMemo(() => soccerMomentText(playerRef), [playerRef]);
-  const common = useCommonSections(game, { momentText });
+  // The timeline is every sport's (core/timeline/): soccer gives it the minute, for a match with only minutes to go on.
+  const common = useCommonSections(game, { momentText, minute: live ? soccerMinute(event.detail) : null });
   const sectionWidth = game.split ? 320 : 380;
 
   // The league's table, re-ranked live.
@@ -104,8 +104,6 @@ export function useSoccerPage(game: GameContext): SportPage {
     [broadcast, feed.cards, told], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const pitchChart = <Pitch trail={trail} shots={shots} cards={cards} live={live} palette={palette} topName={names.top} bottomName={names.bottom} spokenTop={spoken.top} spokenBottom={spoken.bottom} width={sectionWidth} theaterShown={live} />;
-  const minute = live ? soccerMinute(event.detail) : null;
-  const timelineChart = <Timeline moments={detail.moments} currentMinute={minute} palette={palette} topName={names.top} bottomName={names.bottom} width={sectionWidth} />;
   if (live ? trail.length > 0 : shots.length > 0) {
     sections.pitch = (
       <DetailSection
@@ -119,18 +117,6 @@ export function useSoccerPage(game: GameContext): SportPage {
         {/* The theater keeps today's inputs (the scoreboard's event) until the director reads the broadcast. */}
         {live ? <PitchTheater feed={feed} homeTeamID={homeID} event={game.raw.event} added={detail.soccerAdded} people={detail.people} /> : null}
         {pitchChart}
-      </DetailSection>
-    );
-  }
-  if (detail.moments.some((m) => m.minute != null) || live) {
-    sections.timeline = (
-      <DetailSection
-        id="timeline"
-        title="Timeline"
-        caption={`Goals and cards by minute. ${names.top} above, ${names.bottom} below.${live ? " The red dot marks now." : ""}`}
-        spokenCaption={`Goals and cards by minute. ${spoken.top} above, ${spoken.bottom} below.`}
-      >
-        {timelineChart}
       </DetailSection>
     );
   }
