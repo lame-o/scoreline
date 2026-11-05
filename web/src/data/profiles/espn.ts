@@ -868,7 +868,11 @@ export function collegeTiles(season: StatTable | null, position: string | null):
     pos === "QB" ? [["passingYards", "YDS"], ["passingTouchdowns", "TD"], ["interceptions", "INT"], ["QBRating", "RTG"]]
       : pos === "RB" || pos === "FB" ? [["rushingYards", "YDS"], ["rushingTouchdowns", "TD"], ["rushingAttempts", "CAR"], ["yardsPerRushAttempt", "AVG"]]
         : pos === "WR" || pos === "TE" ? [["receptions", "REC"], ["receivingYards", "YDS"], ["receivingTouchdowns", "TD"], ["yardsPerReception", "AVG"]]
-          : [["totalTackles", "TOT"], ["sacks", "SACK"], ["interceptions", "INT"], ["passesDefended", "PD"]];
+          // Web addition: a kicker's and a punter's lines have no tackles, so the defense's keys left them no tiles
+          // (and no This Season); theirs are the season line's own (the Mac has only the four cases above).
+          : pos === "PK" || pos === "K" ? [["fieldGoalsMade-fieldGoalAttempts", "FG"], ["fieldGoalPct", "FG%"], ["longFieldGoalMade", "LNG"], ["totalKickingPoints", "PTS"]]
+            : pos === "P" ? [["punts", "PUNTS"], ["grossAvgPuntYards", "AVG"], ["netAvgPuntYards", "NET"], ["puntsInside20", "IN20"]]
+              : [["totalTackles", "TOT"], ["sacks", "SACK"], ["interceptions", "INT"], ["passesDefended", "PD"]];
   const tiles = keys.flatMap(([key, lbl]) => {
     const k = season.keys.indexOf(key);
     return k >= 0 && k < row.values.length ? [{ label: lbl, value: row.values[k]!, rank: null }] : [];

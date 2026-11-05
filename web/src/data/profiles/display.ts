@@ -174,6 +174,9 @@ export function gameLogColumns(sport: Sport, position: string | null, pitching: 
         case "PK":
         case "K":
           return [col("fieldGoalsMade-fieldGoalAttempts", "FG", 34), col("longFieldGoalMade", "LNG", 30), col("totalKickingPoints", "PTS", 30)];
+        // Web addition: a punter's log has only punting, so the defense's columns left its rows bare.
+        case "P":
+          return [col("punts", "PUNTS", 40), col("grossAvgPuntYards", "AVG", 32), col("longPunt", "LNG", 30), col("puntYards", "YDS", 36, "medium")];
         default:
           return [col("totalTackles", "TOT"), col("sacks", "SACK", 34), col("interceptions", "INT", 26), col("passesDefended", "PD", 26, "medium")];
       }
@@ -211,6 +214,15 @@ export function seasonColumns(sport: Sport, position: string | null): [string, W
         case "WR":
         case "TE":
           return [["receptions", "compact"], ["receivingYards", "compact"], ["receivingTouchdowns", "compact"], ["yardsPerReception", "medium"]];
+        // Web addition: kickers and punters by their own lines (the defense's found nothing, so the table showed
+        // its first columns: FG% then the distance splits). The season line pairs FG as "7-8"; career by season
+        // splits it into FGM and FGA, so both spellings are listed and each table keeps the ones it has.
+        case "PK":
+        case "K":
+          return [["fieldGoalsMade-fieldGoalAttempts", "compact"], ["fieldGoalsMade", "compact"], ["fieldGoalAttempts", "compact"], ["fieldGoalPct", "compact"],
+            ["longFieldGoalMade", "compact"], ["totalKickingPoints", "medium"]];
+        case "P":
+          return [["punts", "compact"], ["grossAvgPuntYards", "compact"], ["netAvgPuntYards", "compact"], ["puntsInside20", "medium"], ["longPunt", "medium"]];
         default:
           return [["totalTackles", "compact"], ["sacks", "compact"], ["interceptions", "compact"], ["passesDefended", "medium"]];
       }
@@ -270,7 +282,8 @@ const STAT_WORDS: Readonly<Record<string, string>> = {
   HR: "home runs", RBI: "runs batted in", AB: "at bats", SO: "strikeouts", SV: "saves", GA: "goals against", CS: "clean sheets", SH: "shots",
   SOT: "shots on target", YC: "yellow cards", "K–D": "kills to deaths", ADR: "damage per round", "HS%": "headshot percentage", MAPS: "maps",
   ERA: "earned run average", W: "wins", L: "losses", OPS: "on-base plus slugging", WHIP: "walks and hits per inning", "CMP%": "completion percentage",
-  STRT: "starts", SHOTS: "shots", APP: "appearances",
+  STRT: "starts", SHOTS: "shots", APP: "appearances", PUNTS: "punts", NET: "net average", IN20: "punts inside the 20",
+  FGM: "field goals made", FGA: "field goals attempted",
 };
 
 /** Stat column codes as a screen reader should say them ("PTS" → "points"). */
