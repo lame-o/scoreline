@@ -673,6 +673,7 @@ async function matches() {
 // MARK: Run
 //
 // `pnpm fixtures` records everything; `pnpm fixtures ifsc` (or espn, bo3, teams, mlb, football, nba, soccer, matches, profiles, odds) one source.
+// `pnpm fixtures college` records the profiles' college team and players alone (`profiles` includes them).
 const only = process.argv[2];
 const want = (source) => !only || only === source;
 
@@ -699,6 +700,7 @@ if (want("nba")) await nba();
 if (want("soccer")) await soccer();
 // Team and player pages (test/fixtures/profiles).
 if (want("profiles")) await (await import("./record-profile-fixtures.mjs")).recordProfiles();
+if (only === "college") await (await import("./record-profile-fixtures.mjs")).recordCollegeProfiles();
 if (want("matches")) await matches();
 // The odds chart's games (test/fixtures/odds): Polymarket and ESPN for an NBA final and a Premier League final.
 if (want("odds")) await (await import("./record-odds-fixtures.mjs")).recordOdds();

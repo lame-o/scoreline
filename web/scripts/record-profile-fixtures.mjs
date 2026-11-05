@@ -7,7 +7,8 @@
 // tiles, awards, career), an MLB starter (pitching by default, an all-zero
 // batting log), Shohei Ohtani (two-way: both logs have play), an NFL team
 // (grouped roster, depth chart), a Premier League club and player (squad
-// stats, competitions, FotMob), a CS2 team and player, and a climber.
+// stats, competitions, FotMob), a CS2 team and player, a climber, and a
+// college team and its players (`recordCollegeProfiles`).
 
 import { writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -273,4 +274,64 @@ export async function recordProfiles() {
     cup_rankings: climber.cup_rankings?.slice(-2),
     all_results: climber.all_results?.slice(0, 14).map((r) => pick(r, ["season", "rank", "discipline", "event_name", "date", "category_name"])),
   }, ifscURL);
+
+  await recordCollegeProfiles();
+}
+
+/**
+ * College football (`pnpm fixtures college`, and with `profiles`): a ranked
+ * team, its whole roster (ESPN's first page stops at 100, by surname) trimmed
+ * to its leaders and specialists, and players chosen from the live data so a
+ * re-record finds them: the team's passing, receiving and tackles leaders, and
+ * the kicker and punter with the most points and punts. The core athlete is
+ * college's bio (the v3 athlete embeds every conference's standings).
+ */
+export async function recordCollegeProfiles(team = "2390") {
+  const cfb = "football/college-football";
+  const s = seasonFor(cfb);
+  const teamURL = `${SITE}/${cfb}/teams/${team}`;
+  await save("espn-cfb-team.json", trimHeader((await get(teamURL)).team), teamURL);
+
+  const leadersURL = `${core(cfb)}/seasons/${s.year}/types/${s.type}/teams/${team}/leaders`;
+  const leaders = trimLeaders(await get(leadersURL), ["passingYards", "passingTouchdowns", "rushingYards", "receivingYards", "receptions", "totalTackles", "sacks"], 2);
+  await save("espn-cfb-team-leaders.json", leaders, leadersURL);
+  const idOf = (ref) => ref?.match(/\/athletes\/(\d+)/)?.[1];
+  const top = (name) => idOf(leaders.categories.find((c) => c.name === name)?.leaders[0]?.athlete.$ref);
+  const leaderIDs = new Set(leaders.categories.flatMap((c) => c.leaders.map((l) => idOf(l.athlete.$ref))));
+
+  const rosterURL = `${SITE}/${cfb}/teams/${team}/roster?limit=200`;
+  const roster = await get(rosterURL);
+  const athletes = (roster.athletes ?? []).flatMap((g) => g.items ?? []);
+  // The season line's figure in one column, for choosing the specialists.
+  const seasonValue = async (id, key) => {
+    const o = await get(`${WEB}/${cfb}/athletes/${id}/overview`);
+    const k = o.statistics?.names?.indexOf(key) ?? -1;
+    return k >= 0 ? Number(String(o.statistics.splits?.[0]?.stats?.[k] ?? "0").replaceAll(",", "")) || 0 : 0;
+  };
+  const busiest = async (position, key) => {
+    let best = null;
+    for (const a of athletes.filter((x) => x.position?.abbreviation === position)) {
+      const value = await seasonValue(a.id, key);
+      if (!best || value > best.value) best = { id: a.id, value };
+    }
+    return best?.id;
+  };
+  const kicker = await busiest("PK", "totalKickingPoints");
+  const punter = await busiest("P", "punts");
+  const kept = new Set([...leaderIDs, kicker, punter]);
+  // The roster's own size (before trimming), which says ESPN gave all of it.
+  await save("espn-cfb-roster.json", { _athletes: athletes.length, ...trimRoster(roster, 8, (a) => (kept.has(a.id) ? 1 : 0)) }, rosterURL);
+
+  const player = async (role, id, parts) => {
+    const trimCollegeCore = (a) => ({ ...trimCore(a), displayName: a.displayName, team: pick(a.team, ["$ref"]) });
+    if (parts.includes("core")) await save(`espn-cfb-${role}-core.json`, trimCollegeCore(await get(`${core(cfb)}/athletes/${id}`)), `${core(cfb)}/athletes/${id}`);
+    if (parts.includes("overview")) await save(`espn-cfb-${role}-overview.json`, trimOverview(await get(`${WEB}/${cfb}/athletes/${id}/overview`)), `${WEB}/${cfb}/athletes/${id}/overview`);
+    if (parts.includes("gamelog")) await save(`espn-cfb-${role}-gamelog.json`, trimGameLog(await get(`${WEB}/${cfb}/athletes/${id}/gamelog`)), `${WEB}/${cfb}/athletes/${id}/gamelog`);
+    if (parts.includes("career")) await save(`espn-cfb-${role}-career.json`, trimCareer(await get(`${WEB}/${cfb}/athletes/${id}/stats`)), `${WEB}/${cfb}/athletes/${id}/stats`);
+  };
+  await player("qb", top("passingYards"), ["core", "overview", "gamelog", "career"]);
+  await player("wr", top("receivingYards"), ["core", "overview", "gamelog"]);
+  await player("defender", top("totalTackles"), ["core", "overview"]);
+  if (kicker) await player("pk", kicker, ["overview", "gamelog"]);
+  if (punter) await player("p", punter, ["overview", "gamelog"]);
 }

@@ -1,0 +1,25 @@
+{
+ "_source": "https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/athletes/5159175",
+ "_recorded": "2026-11-05T03:14:02.721Z",
+ "displayHeight": "5' 11\"",
+ "displayWeight": "188 lbs",
+ "jersey": "1",
+ "birthPlace": {
+  "city": "Liberty City",
+  "state": "FL",
+  "country": "USA"
+ },
+ "position": {
+  "displayName": "Wide Receiver",
+  "abbreviation": "WR"
+ },
+ "experience": {
+  "years": 2,
+  "displayValue": "Sophomore",
+  "abbreviation": "SO"
+ },
+ "displayName": "Malachi Toney",
+ "team": {
+  "$ref": "http://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/2026/teams/2390?lang=en&region=us"
+ }
+}
