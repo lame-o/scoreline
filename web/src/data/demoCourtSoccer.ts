@@ -16,6 +16,12 @@
  *   later (`soccer=6` lands the header at the lane's second look, about 8 s in).
  *
  * The box score, leaders and team stats stay as recorded (the final's).
+ *
+ * `&broadcast` (with `?demo`): the NBA replay's plays are restamped onto the
+ * harness's own clock (each play's wallclock 20 s before it's served, as a
+ * real feed's would be) and the page broadcasts it (BROADCAST.md): the game
+ * as presented at p, a play told when the clock reaches it. Without it the
+ * harness's pages show as they did before the broadcast (data/broadcast/switch.ts).
  */
 const files = import.meta.glob<{ default: unknown }>("../../test/fixtures/espn-{nba,soccer}-*.json");
 
@@ -32,15 +38,27 @@ const num = (v: unknown) => (typeof v === "number" ? v : Number(v) || 0);
 export const NBA_GAME = "401909869";
 export const SOCCER_GAME = "401879256";
 
-/** Starting offsets from the URL (`&nba=`, `&soccer=`), kept for the tab like `?demo`. */
+/** Starting offsets from the URL (`&nba=`, `&soccer=`), kept for the tab like `?demo`; `&broadcast` with `?demo`. */
 export function rememberOffsets(params: URLSearchParams): void {
   for (const key of ["nba", "soccer"]) if (params.has(key)) sessionStorage.setItem(`scoreline.demo.${key}`, params.get(key) ?? "0");
+  if (params.has("demo")) sessionStorage.setItem("scoreline.demo.broadcast", params.has("broadcast") ? "1" : "0");
 }
+
+/** Whether the harness's NBA replay is broadcast (`?demo&broadcast`): its plays restamped onto the harness's clock. */
+export function broadcastDemo(): boolean {
+  return sessionStorage.getItem("scoreline.demo.broadcast") === "1";
+}
+
+/** How long before it's served a restamped play happened (a real feed's is ~30–50 s; less here, so the demo moves). */
+const RESTAMP_LAG_MS = 20_000;
 const offset = (key: string) => Number(sessionStorage.getItem(`scoreline.demo.${key}`) ?? "0") || 0;
 
 interface Replay {
   summary: Entry;
   items: Entry[];
+  /** `&broadcast`: when the harness's clock started (the first summary or look served), and each play's place for its restamped wallclock. */
+  anchor?: number;
+  places?: Map<string, number>;
   /** The fixture's first item's index in the game's full play list. */
   first: number;
   start: number;
@@ -76,8 +94,32 @@ async function nbaReplay(): Promise<Replay> {
 
 const ordinalPeriod = (p: number) => (p > 4 ? (p === 5 ? "OT" : `${p - 4}OT`) : `${p}${["th", "st", "nd", "rd"][p] ?? "th"}`);
 
+/**
+ * `&broadcast`: a play's wallclock on the harness's clock: the play at the
+ * replay's start 20 s before the clock started, the rest a step apart in game
+ * order (the summary's), so the summary and the core plays agree on it.
+ */
+function restamp(r: Replay, play: Entry): Entry {
+  if (!broadcastDemo()) return play;
+  r.anchor ??= Date.now();
+  if (!r.places) {
+    const order = new Map(((r.summary.plays as Entry[]) ?? []).map((p, i) => [String(get(p, "id")), i]));
+    const startID = String(get(r.items[r.start], "id"));
+    const base = order.get(startID) ?? 0;
+    r.places = new Map([...order].map(([id, i]) => [id, i - base]));
+    r.items.forEach((p, k) => {
+      const id = String(get(p, "id"));
+      if (!r.places!.has(id)) r.places!.set(id, k - r.start);
+    });
+  }
+  // The game before the replay's start happened well before the page opened: it opens as history.
+  const place = r.places.get(String(get(play, "id"))) ?? 0;
+  const at = r.anchor + place * r.step - RESTAMP_LAG_MS - (place < 0 ? 600_000 : 0);
+  return { ...play, wallclock: new Date(at).toISOString().replace(/\.\d{3}Z$/, "Z") };
+}
+
 function nbaState(r: Replay) {
-  const served = r.items.slice(0, cursor(r));
+  const served = r.items.slice(0, cursor(r)).map((p) => restamp(r, p));
   const last = served.at(-1)!;
   const period = num(get(last, "period", "number"));
   const clock = String(get(last, "clock", "displayValue") ?? "0:00");
@@ -93,7 +135,7 @@ function nbaSummary(r: Replay): Entry {
   const plays = summary.plays as Entry[];
   const lastID = String(get(st.last, "id"));
   const cut = plays.findIndex((p) => String(get(p, "id")) === lastID);
-  const served = cut >= 0 ? plays.slice(0, cut + 1) : plays;
+  const served = (cut >= 0 ? plays.slice(0, cut + 1) : plays).map((p) => restamp(r, p));
   summary.plays = served;
   const ids = new Set(served.map((p) => String(get(p, "id"))));
   summary.winprobability = ((summary.winprobability as Entry[]) ?? []).filter((w) => ids.has(String(w.playId)));

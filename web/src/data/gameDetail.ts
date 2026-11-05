@@ -26,6 +26,8 @@ import { loadClimbingDetail, type BoulderCard, type UpNext, type WallRoute } fro
 import { latestAddedTime, soccerTie, type SoccerAddedTime, type SoccerTie } from "./soccer";
 import { EMPTY_BASIS, parseOddsBasis, type OddsBasis } from "./odds/espn";
 import { homeWinProbability, keyMoments as basketballMoments, NBA_STATS, parseBasketball, predictor, quarterLength, recentPlays as basketballPlays, WNBA_PATH, type Basketball } from "./basketball";
+import { broadcastSport, entries as broadcastEntries, policy as broadcastPolicy, summaryPlays } from "./broadcast/lanes";
+import type { RawPlay, TimelineEntry } from "./broadcast/timeline";
 
 // MARK: - Model
 
@@ -216,6 +218,18 @@ export interface Tournament {
  * `basketball`, CS2's rosters and rounds, climbing's wall and scorecards)
  * as they port them; every part is optional so the page renders what's there.
  */
+/** A line in the latest plays, with its play when it has one (GameDetail.swift `RecentPlay`). */
+export interface RecentPlay {
+  readonly id: string | null;
+  readonly text: string;
+}
+
+/** The home side's chance and the draw's, after a play (GameDetail.swift `WinChance`). */
+export interface WinChance {
+  readonly home: number;
+  readonly tie: number;
+}
+
 export interface GameDetail {
   readonly stats: readonly Stat[];
   readonly linescore: Linescore | null;
@@ -305,6 +319,16 @@ export interface GameDetail {
   /** The order for a round with no results yet: this round before anyone finishes, or the next round. */
   readonly startlist: readonly Athlete[];
   readonly startlistRound: string | null;
+  // The broadcast (BROADCAST.md: data/broadcast/)
+  /**
+   * The summary's plays as the broadcast timeline reads them (parsed as the
+   * summary loads; null: no play list, or not a live broadcast sport).
+   */
+  readonly broadcastPlays: readonly TimelineEntry<RawPlay>[] | null;
+  /** ESPN's win probability after each play, by play ID: the presented one is the last told play's. */
+  readonly winByPlay: Readonly<Record<string, WinChance>>;
+  /** Soccer: every commentary line, oldest first, with its play (the presented list is the last told ones). */
+  readonly allRecentPlays: readonly RecentPlay[];
 }
 
 export const EMPTY_DETAIL: GameDetail = {
@@ -352,6 +376,9 @@ export const EMPTY_DETAIL: GameDetail = {
   boulderProblems: [],
   startlist: [],
   startlistRound: null,
+  broadcastPlays: null,
+  winByPlay: {},
+  allRecentPlays: [],
 };
 
 /** Maps a source's team IDs onto the event's top/bottom order. */
@@ -517,8 +544,20 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     drawProbability = tie > 0 ? tie : null;
   }
 
+  // The broadcast's view of the summary: its plays as timeline entries, ESPN's chance after each.
+  const sportOfBroadcast = event.state === "live" ? broadcastSport(event) : null;
+  const playList = sportOfBroadcast ? summaryPlays(summary, sportOfBroadcast) : null;
+  const broadcastPlays = sportOfBroadcast && playList ? broadcastEntries(playList, sportOfBroadcast, broadcastPolicy(sportOfBroadcast, path)) : null;
+  const winByPlay: Record<string, WinChance> = {};
+  for (const entry of arr(at(summary, "winprobability"))) {
+    const playID = str(at(entry, "playId"));
+    const chance = num(at(entry, "homeWinPercentage"));
+    if (playID && chance != null) winByPlay[playID] = { home: chance, tie: num(at(entry, "tiePercentage")) ?? 0 };
+  }
+
   let moments: DetailMoment[] = [];
   let recentPlays: string[] = [];
+  let allRecentPlays: RecentPlay[] = [];
   let atBat: Pitch[] = [];
   let battedBallsList: BattedBall[] = [];
   let plays: readonly JSONValue[] = [];
@@ -539,15 +578,16 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
       }
       soccerAdded = latestAddedTime(arr(at(summary, "commentary")));
       people = TheaterPeople.rosters(summary);
-      recentPlays = arr(at(summary, "commentary"))
+      allRecentPlays = arr(at(summary, "commentary")).flatMap((c) => {
+        const t = str(at(c, "text"));
+        if (!t) return [];
+        const time = str(at(c, "time", "displayValue")) ?? "";
+        return [{ id: str(at(c, "play", "id")) ?? null, text: time ? `${time}  ${t}` : t }];
+      });
+      recentPlays = allRecentPlays
         .slice(-4)
         .reverse()
-        .flatMap((c) => {
-          const t = str(at(c, "text"));
-          if (!t) return [];
-          const time = str(at(c, "time", "displayValue")) ?? "";
-          return [time ? `${time}  ${t}` : t];
-        });
+        .map((r) => r.text);
       break;
     case "baseball": {
       plays = arr(at(summary, "plays"));
@@ -683,6 +723,9 @@ export function parseESPNDetail(summary: JSONValue, { event, path, id, sport, bo
     fielders,
     football,
     baseball,
+    broadcastPlays,
+    winByPlay,
+    allRecentPlays,
   };
 }
 

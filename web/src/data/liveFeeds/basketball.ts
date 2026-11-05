@@ -152,6 +152,16 @@ export class BasketballFeed {
    * paused, for a while). The theater reads it beside the lane.
    */
   history = 1;
+  /**
+   * The broadcast timeline's lanes (data/broadcast/): the newest plays as of
+   * the last complete look (the window) and a count of looks, the core status
+   * as last read, and when the situation was last read (epoch ms). Never part
+   * of `version`: the page reads them after each update.
+   */
+  lastLook: readonly JSONValue[] = [];
+  lookRevision = 0;
+  lastStatus: JSONValue | null = null;
+  lastRead: number | null = null;
 
   private window: JSONValue[] = [];
   /** Index in ESPN's full play list of `window[0]`. */
@@ -224,8 +234,12 @@ export class BasketballFeed {
     const base = `https://sports.core.api.espn.com/v2/sports/basketball/leagues/${league}/events/${eventID}/competitions/${eventID}`;
     const [situation, status] = await Promise.all([fetcher(`${base}/situation`, { signal }).catch(() => null), fetcher(`${base}/status`, { signal }).catch(() => null)]);
     if (signal?.aborted) return;
-    if (status != null) this.readStatus(status);
+    if (status != null) {
+      this.readStatus(status);
+      this.lastStatus = status;
+    }
     if (situation == null) return;
+    this.lastRead = this.now();
     // New plays only when the last one changed.
     const lastRef = str(at(situation, "lastPlay", "$ref")) ?? null;
     if (lastRef !== this.lastPlayRef || !this.loaded) {
@@ -347,6 +361,8 @@ export class BasketballFeed {
     this.looks += 1;
     const previous = new Set(this.window.flatMap((p) => str(at(p, "id")) ?? []));
     this.window = [...next];
+    this.lastLook = this.window;
+    this.lookRevision += 1;
     this.windowStart = start;
     const last = this.window.at(-1);
     this.newestID = last != null ? (str(at(last, "id")) ?? null) : null;

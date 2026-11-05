@@ -83,6 +83,14 @@
   min-width: 0;
 }
 
+/* The docked bar's detail while play has stopped ("Official timeout"): the hero's own word (DockedScorebar.swift `.stoppage`). */
+.stoppage {
+  font-size: var(--text-status);
+  font-weight: 500;
+  color: var(--label-secondary);
+  white-space: nowrap;
+}
+
 .venue {
   padding: calc(16 * var(--pt)) var(--gutter) 0;
   font-size: var(--text-caption);

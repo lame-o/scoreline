@@ -47,6 +47,21 @@ export function tabEvent(events: readonly ScoreEvent[], context: TabContext): Sc
 }
 
 /**
+ * The tab's game, as presented while its page is open (ScoreStore.menuBar;
+ * BROADCAST §3): nothing spoils the play the page hasn't told yet. Any other
+ * game, or once the page closes, the scoreboard's, as ever. (pure; tested)
+ */
+export function menuBar(chosen: ScoreEvent | null, presented: ScoreEvent | null): ScoreEvent | null {
+  if (!chosen || !presented || presented.id !== chosen.id) return chosen;
+  return presented;
+}
+
+/** Whether the scoreboard's alerts for this game wait for the page, which sends them from what it presents (ScoreStore.alertsFollowPage). (pure; tested) */
+export function alertsFollowPage(eventID: string, presented: ScoreEvent | null): boolean {
+  return presented?.id === eventID;
+}
+
+/**
  * "ARS 2–1 CHE · 67'": the score line, abbreviated, then the status; ESPN's
  * "3:10 - 2nd" reads "3:10 2nd" (MenuBarLabel.text). A scheduled game shows
  * its time. No width budget: a tab has no notch.

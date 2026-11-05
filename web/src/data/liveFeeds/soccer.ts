@@ -337,6 +337,13 @@ export class SoccerFeed {
    */
   following = true;
 
+  /**
+   * The broadcast timeline's core lane (data/broadcast/): the last complete
+   * look's entries in feed order (a tail of the match) and a count of looks.
+   * Never part of `version`: the page reads them after each update.
+   */
+  lastLook: readonly JSONValue[] = [];
+  lookRevision = 0;
   private moments: LiveMoment[] = [];
   /** Whether this page has had a complete load: before it, everything is history. */
   private primed = false;
@@ -499,7 +506,11 @@ export class SoccerFeed {
     }
     // Until this page has had a complete load it's history; after, goals, shots and cards are news.
     if (this.primed) this.moments.push(...fresh.flatMap((a) => actionMoment(a) ?? []), ...Object.values(newCards).flatMap((a) => actionMoment(a) ?? []), ...unplaced);
-    if (complete) this.primed = true;
+    if (complete) {
+      this.primed = true;
+      this.lastLook = pages.flatMap((p) => p.items);
+      this.lookRevision += 1;
+    }
     changed ||= !this.loaded;
     this.loaded = true;
     if (raw.length > 0 || window.length !== this.plays.length || window.some((p, i) => p !== this.plays[i])) {
@@ -570,7 +581,8 @@ export function focusRoom(a: PitchAction): number | null {
 /** "67'" → 67, "90'+5'" → 95, "HT" → 45 (DetailView.soccerMinute). */
 export function soccerMinute(detail: string | null): number | null {
   if (!detail) return null;
-  if (detail.toUpperCase() === "HT") return 45;
+  // ESPN's "HT" is the app's "Half-time" (the broadcast's word for the break, and the scoreboard's).
+  if (detail.toUpperCase() === "HT" || detail === "Half-time") return 45;
   const numbers = detail.split(/\D+/).filter(Boolean).map(Number);
   return numbers.length === 0 ? null : numbers.reduce((a, b) => a + b, 0);
 }
