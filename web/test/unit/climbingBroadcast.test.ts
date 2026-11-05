@@ -149,6 +149,8 @@ describe("the scores list's rows (ScoreStore.applyBroadcast)", () => {
     expect(broadcastFor(row({ round: "Final" }), upcoming)).toBeNull();
     expect(liveOnYouTube(row({}), onNow)).toBe(true);
     expect(liveOnYouTube(row({}), upcoming)).toBe(false);
+    // A round that's over isn't streaming, though its stream runs on.
+    expect(liveOnYouTube(row({ state: "final" }), onNow)).toBe(false);
   });
 
   it("gives an upcoming round the stream's start, and marks it live when the stream is", () => {

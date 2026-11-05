@@ -61,9 +61,13 @@ export function broadcastFor(event: ScoreEvent, b: ClimbingBroadcast | null): Cl
   return covers(b.title, ref.category, ref.round, ref.eventName) ? b : null;
 }
 
-/** A row the stream marks "Live on YouTube". */
+/**
+ * A row the stream marks "Live on YouTube". Web: not a round that's over,
+ * though the stream it shared runs on (the men's final, done, while the
+ * women's is climbed in the same stream); the Mac marks it as well.
+ */
 export function liveOnYouTube(event: ScoreEvent, b: ClimbingBroadcast | null): boolean {
-  return broadcastFor(event, b)?.isLive === true;
+  return event.state !== "final" && broadcastFor(event, b)?.isLive === true;
 }
 
 /**

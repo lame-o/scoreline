@@ -677,10 +677,24 @@ function youtubeDemo(path: string): string | undefined {
   return undefined;
 }
 
+/**
+ * The co-streamer on Twitch (decapi.me): live in Counter-Strike with a watch
+ * party of the demo's live match in the title, so its row and tile wear the
+ * mark and its page names them. No avatar: the ring's live glyph stands in.
+ */
+function decapiDemo(path: string): string | undefined {
+  if (path.startsWith("/twitch/uptime/")) return "1 hour, 12 minutes";
+  if (path.startsWith("/twitch/title/")) return "LIQUID vs AURORA watchparty !major";
+  if (path.startsWith("/twitch/game/")) return "Counter-Strike";
+  if (path.startsWith("/twitch/avatar/")) return "User not found";
+  return undefined;
+}
+
 const demo: Fetcher = async (url) => {
   const u = new URL(url);
   const path = u.pathname;
   if (u.host === "www.youtube.com") return youtubeDemo(path);
+  if (u.host === "decapi.me") return decapiDemo(path);
   // The live NBA and soccer games (demoCourtSoccer.ts).
   const replayed = await courtSoccerDemo(u);
   if (replayed !== undefined) return replayed;
