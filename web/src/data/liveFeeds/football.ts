@@ -406,6 +406,16 @@ export class FootballFeed {
    * (`FootballTheaterWatch`), as the Mac's lane passes `primed && following`.
    */
   following = true;
+  /**
+   * The broadcast timeline's lanes (data/broadcast/): the last complete
+   * look's entries (a tail of the game) and a count of looks, the status as
+   * last read, and when the situation was last read (epoch ms). Never part of
+   * `version`: the page reads them after each update.
+   */
+  lastLook: readonly JSONValue[] = [];
+  lookRevision = 0;
+  lastStatus: JSONValue | null = null;
+  lastRead: number | null = null;
 
   /** Depth charts by season and team, kept for the day across pages: they change once a week. */
   static chartCache = new Map<string, { readonly chart: JSONValue; readonly fetched: number }>();
@@ -484,8 +494,10 @@ export class FootballFeed {
     const base = `https://sports.core.api.espn.com/v2/sports/football/leagues/${league}/events/${eventID}/competitions/${eventID}`;
     const [s, status] = await Promise.all([fetcher(`${base}/situation`, { signal }).catch(() => null), fetcher(`${base}/status`, { signal }).catch(() => null)]);
     if (signal?.aborted) return;
+    if (s != null) this.lastRead = this.now();
     let changed = false;
     if (status != null) {
+      this.lastStatus = status;
       const clock = footballClock(status);
       if (clock !== this.clock) {
         this.clock = clock;
@@ -602,6 +614,10 @@ export class FootballFeed {
     }
     // An abandoned look keeps nothing, so the next one reads the same plays again.
     if (signal?.aborted) return false;
+    if (complete) {
+      this.lastLook = entries;
+      this.lookRevision += 1;
+    }
     this.fetched = fetched;
     this.newestID = newestID;
     this.latestSequence = latestSequence;

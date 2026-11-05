@@ -13,6 +13,10 @@
  * - a decisive score or the final whistle sweeps one glint across the card.
  * Full plays all of them; Subtle keeps the pill; Off keeps nothing that
  * moves. Reduce Motion: no pop, a slower wash, a quick pill, no glint.
+ *
+ * While the page broadcasts (core/broadcast.tsx), hovering the live
+ * indicator says how far behind live the page is, and while play has
+ * stopped its reason sits under the clock that stopped with it.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { TeamLink, teamRefFrom } from "../../profiles/ProfileLinks";
@@ -27,6 +31,8 @@ import { useNow } from "../../../state/clock";
 import { settings, useIsFollowing, useSettings } from "../../../state/settings";
 import { useColorScheme } from "../../../state/theme";
 import { useMediaQuery, useReducedMotion } from "./useMedia";
+import { BehindLiveHover } from "./broadcast";
+import type { BehindLive } from "../../../data/broadcast/behindLive";
 import styles from "./Hero.module.css";
 
 export interface HeroProps {
@@ -43,6 +49,10 @@ export interface HeroProps {
   readonly clockFallback: string;
   /** Under the clock: "MIL batting". */
   readonly liveSecond?: string | null;
+  /** Play has stopped, and why ("Official timeout"), under the clock that stopped with it (the broadcast's phase). */
+  readonly stoppage?: string | null;
+  /** How far behind live, read on hovering the live indicator (null: the page doesn't broadcast). */
+  readonly behind?: (() => BehindLive | null) | null;
   /** Live football or NBA: who has the ball. */
   readonly possession?: Side | null;
   /** NBA: a shot in the air (the ball dims, still the shooting team's). */
@@ -68,7 +78,7 @@ export interface HeroProps {
   readonly overlay?: ReactNode;
 }
 
-export function Hero({ event, palette, identity = null, scores, beats, surface, clockFallback, clock, liveSecond, possession, possessionInAir = false, chip = null, note = null, staleSince, spoken, caption, trophy = null, badge = null, heroRef, tuckRef, overlay = null }: HeroProps) {
+export function Hero({ event, palette, identity = null, scores, beats, surface, clockFallback, clock, liveSecond, stoppage = null, behind = null, possession, possessionInAir = false, chip = null, note = null, staleSince, spoken, caption, trophy = null, badge = null, heroRef, tuckRef, overlay = null }: HeroProps) {
   const glint = useRef<HTMLSpanElement>(null);
   const level = useSettings((s) => s.celebrationLevel);
   const reduce = useReducedMotion();
@@ -103,7 +113,7 @@ export function Hero({ event, palette, identity = null, scores, beats, surface, 
                 <BeatScore value={scores.bottom} live={live} dimmed={stepsBack(event, event.content.bottom)} pops={beats.pops.bottom} color={palette.bottom} active={surface === "hero"} />
               </span>
             ) : null}
-            <HeroStatus event={event} clock={clock ?? event.clock} stale={staleSince != null} fallback={clockFallback} second={liveSecond ?? null} ticking={surface === "hero"} chip={chip} />
+            <HeroStatus event={event} clock={clock ?? event.clock} stale={staleSince != null} fallback={clockFallback} second={liveSecond ?? null} ticking={surface === "hero"} chip={chip} stoppage={stoppage} behind={behind} />
             {note ? <span className={styles.note}>{note}</span> : null}
           </div>
           <TeamColumn event={event} c={event.content.bottom} color={(identity ?? palette).bottom} hasBall={possession === "bottom"} inAir={possessionInAir} trophy={trophy === "bottom" ? beats.trophies : null} />
@@ -282,7 +292,27 @@ const dayStart = (ms: number) => {
 };
 
 /** Live: the dot and clock (or the inning). Scheduled: a countdown inside a day, then the day and time. Final: the word and the date. */
-function HeroStatus({ event, clock, stale, fallback, second, ticking, chip = null }: { event: ScoreEvent; clock: GameClock | null; stale: boolean; fallback: string; second: string | null; ticking: boolean; chip?: string | null }) {
+function HeroStatus({
+  event,
+  clock,
+  stale,
+  fallback,
+  second,
+  ticking,
+  chip = null,
+  stoppage = null,
+  behind = null,
+}: {
+  event: ScoreEvent;
+  clock: GameClock | null;
+  stale: boolean;
+  fallback: string;
+  second: string | null;
+  ticking: boolean;
+  chip?: string | null;
+  stoppage?: string | null;
+  behind?: (() => BehindLive | null) | null;
+}) {
   const soon = event.state === "scheduled" && event.start - Date.now() < 86_400_000;
   // The countdown ticks while the hero is the scoreboard on screen (the bar ticks instead).
   const now = useNow(soon && ticking ? 1000 : 30_000, event.state === "scheduled");
@@ -292,13 +322,22 @@ function HeroStatus({ event, clock, stale, fallback, second, ticking, chip = nul
         <div className={styles.status}>
           {/* Breathes only while the hero is the scoreboard on screen (the bar's dot takes over). */}
           <span className={styles.liveLine}>
-            <LiveStatus clock={clock} fallback={fallback} size={11.5} animated={!stale && ticking} />
+            {/* How far behind live, on hover only (BROADCAST §2). */}
+            <BehindLiveHover read={behind}>
+              <LiveStatus clock={clock} fallback={fallback} size={11.5} animated={!stale && ticking} />
+            </BehindLiveHover>
             {chip ? (
               <span className={styles.chip} title={chip === "CLUTCH" ? "Last 5 minutes, within 5 points" : undefined}>
                 {chip}
               </span>
             ) : null}
           </span>
+          {/* Play has stopped: why, under the clock that's stopped with it. */}
+          {stoppage ? (
+            <span key={stoppage} className={`${styles.statusSecond} ${styles.stoppage}`}>
+              {stoppage}
+            </span>
+          ) : null}
           {second ? <span className={styles.statusSecond}>{second}</span> : null}
         </div>
       );

@@ -13,6 +13,12 @@
  *
  * One `NBAStage` per page carries the replay and the picked player to the
  * court, the flow, the leaders and the box score.
+ *
+ * While the page broadcasts (BROADCAST.md §3), the court's shots and plays,
+ * the flow, the latest plays and the live marks (the ball, a shot in the air,
+ * CLUTCH, the run, players on fire) are the game at p, from the told plays
+ * (data/broadcast/presentNBA.ts); the lane's looks feed the broadcast. The
+ * play theater keeps today's inputs.
  */
 import { useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { elapsed as gameElapsed, leaderNames, boxPlayers, mergeFlow, mergePlays, mergeShots, NBA_PATH, quarterLength, type Basketball } from "../../../data/basketball";
@@ -35,6 +41,8 @@ import { NBAStage, StageProvider } from "./stage";
 import { CourtTheater } from "./theater/CourtTheater";
 import { useModuleOpen } from "../core/usePageModules";
 import { playGlance } from "../../../data/modules";
+import { feedBroadcast } from "../core/broadcast";
+import { NO_NBA_LIVE, presentedNBA } from "../../../data/broadcast/presentNBA";
 
 /** Game seconds played, from the scoreboard's clock (until the live lane reads its own). */
 function clockElapsed(clock: GameClock | null, quarter: number): number | null {
@@ -79,31 +87,49 @@ export function useBasketballPage(game: GameContext): SportPage {
   // Wait for the first full load: it says which team is home.
   useFastLane(live && ref != null && teams != null, LANE_INTERVAL.standard, async (signal) => {
     if (!ref || !teams) return;
-    await feed.update(getJSON, { path: ref.path, eventID: ref.id, teams, signal });
+    // The broadcast's lanes: the look at the plays (a tail of the game) or a read with nothing new, and the status.
+    await feedBroadcast(game.model, feed, () => feed.update(getJSON, { path: ref.path, eventID: ref.id, teams, signal }));
     game.moments.retract(feed.takeRetractions());
     game.moments.offer(feed.takeMoments());
   });
 
   const lane = live && feed.loaded;
-  const shots = useMemo(() => (nba ? (lane ? mergeShots(nba.shots, nba.newestElapsed, feed.shots) : nba.shots) : []), [nba, lane, feed.shots]);
-  const plays = useMemo(() => (nba ? (lane ? mergePlays(nba.plays, feed.plays) : nba.plays) : []), [nba, lane, feed.plays]);
-  const flow = useMemo(() => (nba ? mergeFlow(nba.flow, lane ? feed.flow : []) : []), [nba, lane, feed.flow]);
+  // Broadcasting: the lane's newer plays too, cut to what's told (the summary's already are: the presented detail).
+  const broadcast = game.broadcast;
+  const told = broadcast?.presented;
+  const shots = useMemo(() => {
+    const all = nba ? (lane ? mergeShots(nba.shots, nba.newestElapsed, feed.shots) : nba.shots) : [];
+    return broadcast ? all.filter((s) => broadcast.shows(s.id)) : all;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nba, lane, feed.shots, broadcast, told]);
+  const plays = useMemo(() => {
+    const all = nba ? (lane ? mergePlays(nba.plays, feed.plays) : nba.plays) : [];
+    return broadcast ? all.filter((x) => broadcast.shows(x.id)) : all;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nba, lane, feed.plays, broadcast, told]);
+  const flow = useMemo(() => {
+    const all = nba ? mergeFlow(nba.flow, lane ? feed.flow : []) : [];
+    return broadcast ? all.filter((f) => broadcast.shows(f.id)) : all;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nba, lane, feed.flow, broadcast, told]);
+  // The NBA's live marks at p (the ball, a shot in the air, clutch, the run, players on fire), from the told plays.
+  const atP = broadcast && teams ? presentedNBA(broadcast, plays, teams, quarter) : null;
   const players = useMemo(() => (nba ? boxPlayers(nba) : new Map()), [nba]);
   const extraNames = useMemo(() => (nba ? leaderNames(nba) : {}), [nba]);
-  const now = live ? (feed.elapsed ?? clockElapsed(event.clock, quarter)) : null;
-  const streaks = live && feed.playing ? feed.streaks : NO_STREAKS;
-  const runs = live && feed.playing ? feed.runs : NO_RUNS;
+  const now = live ? (atP ? atP.elapsed : (feed.elapsed ?? clockElapsed(event.clock, quarter))) : null;
+  const streaks = atP ? (live ? atP.streaks : NO_STREAKS) : live && feed.playing ? feed.streaks : NO_STREAKS;
+  const runs = useMemo(() => (atP ? (live && atP.run ? [atP.run] : NO_RUNS) : live && feed.playing ? feed.runs : NO_RUNS), [atP, live, feed.playing, feed.runs]);
   const playerRef = useMemo(() => (id: string, name: string) => espnPlayerRef(path, id, name), [path]);
 
-  // The score by quarter with the lane's points in it, so T matches the hero.
+  // The score by quarter with the lane's points in it, so T matches the hero (broadcasting: the told plays' already does).
   const linescore = useMemo(
-    () => (detail.linescore && live && detail.topIsHome != null ? feed.linescore(detail.linescore, detail.topIsHome) : detail.linescore),
+    () => (detail.linescore && live && !broadcast && detail.topIsHome != null ? feed.linescore(detail.linescore, detail.topIsHome) : detail.linescore),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [detail.linescore, live, detail.topIsHome, feed.score, feed.period, feed.playing],
+    [detail.linescore, live, broadcast, detail.topIsHome, feed.score, feed.period, feed.playing],
   );
   const common = useCommonSections(linescore === detail.linescore ? game : { ...game, detail: { ...detail, linescore } }, {
-    // The live lane is a step ahead of the full refresh.
-    plays: live && feed.recentPlays.length > 0 ? feed.recentPlays : detail.recentPlays,
+    // The live lane is a step ahead of the full refresh (broadcasting: the told plays).
+    plays: live && !broadcast && feed.recentPlays.length > 0 ? feed.recentPlays : detail.recentPlays,
   });
 
   // Standings (the NBA's; the WNBA has none in Scoreline).
@@ -146,7 +172,8 @@ export function useBasketballPage(game: GameContext): SportPage {
     // The play theater: its own module, above the court as on the Mac (9cbbb02); it reads the live lane's newest plays itself.
     sections.liveView = (
       <DetailSection id="liveView" title="Live View" caption="The latest play, replayed as it happened, the ends as on TV." accessory="live">
-        <CourtTheater feed={feed} teams={teams} event={event} palette={palette} names={names} spoken={spoken} topIsHome={detail.topIsHome ?? false} people={detail.people} kits={game.colors} />
+        {/* The theater keeps today's inputs (the scoreboard's event) until the director reads the broadcast. */}
+        <CourtTheater feed={feed} teams={teams} event={game.raw.event} palette={palette} names={names} spoken={spoken} topIsHome={detail.topIsHome ?? false} people={detail.people} kits={game.colors} />
       </DetailSection>
     );
   }
@@ -233,10 +260,11 @@ export function useBasketballPage(game: GameContext): SportPage {
   }, [live, detail.topIsHome, feed.score, event.content]);
 
   const playing = live && feed.playing;
-  const clutch = playing && feed.clutch;
-  const run = playing ? (feed.runs[0] ?? null) : null;
-  const possession = playing ? feed.possession : null;
-  const inAir = playing && feed.ballInAir;
+  const marks = atP ? (live ? atP : NO_NBA_LIVE) : null;
+  const clutch = marks ? marks.clutch : playing && feed.clutch;
+  const run = marks ? marks.run : playing ? (feed.runs[0] ?? null) : null;
+  const possession = marks ? marks.possession : playing ? feed.possession : null;
+  const inAir = marks ? marks.inAir : playing && feed.ballInAir;
   const team = (side: Side) => (event.content.kind === "match" ? (side === "top" ? event.content.top : event.content.bottom) : null);
   const newest = live && feed.recentPlays.length > 0 ? feed.recentPlays[0] : detail.recentPlays[0];
   return {
