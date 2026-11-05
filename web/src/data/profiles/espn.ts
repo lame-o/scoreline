@@ -67,7 +67,17 @@ export function espnSeason(path: string, now: number = Date.now()): { year: numb
 // MARK: - URLs
 
 export const teamURL = (path: string | null, team: string) => `${SITE}/${path ?? "soccer/all"}/teams/${team}`;
-export const rosterURL = (path: string, team: string) => `${SITE}/${path}/teams/${team}/roster`;
+
+/**
+ * Web fix: ESPN pages college rosters at 100 players, by surname, and FBS
+ * rosters run past it (every one tried came back at exactly 100; Miami's is
+ * 117), so the first page dropped everyone from about T to Z: there, the
+ * leading receiver and tackler and the starting kicker, who then also
+ * vanished from Leaders. `limit` asks for the whole roster at once. (The
+ * Mac's ESPNProfiles.rosterURL asks for the first page.) The NFL's (under 80
+ * a team) is left as the Mac asks for it.
+ */
+export const rosterURL = (path: string, team: string) => `${SITE}/${path}/teams/${team}/roster${path.endsWith("college-football") ? "?limit=200" : ""}`;
 
 /** NFL's site chart has names inline; NBA and MLB have core charts; college has none (400). */
 export function depthURL(path: string, team: string, now = Date.now()): string | null {
