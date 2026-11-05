@@ -52,9 +52,14 @@ export function runEngine<Clip extends TheaterClip, Play, Facts>(
    * `rereads`: as the page does (and the Mac's bench), the snapshot is read
    * again as the watermark moves, not only when a play arrives: a sport that
    * plans from the plays up to the watermark alone (football) learns of each
-   * as it crosses.
+   * as it crosses. `frame`: called with each sampled frame (EngineRun's
+   * `frame`: the painter's checks).
    */
-  { ahead = 4, rereads = false }: { ahead?: number; rereads?: boolean } = {},
+  {
+    ahead = 4,
+    rereads = false,
+    frame = null,
+  }: { ahead?: number; rereads?: boolean; frame?: ((T: PTime, chain: PlanChain<Clip>, scratch: FrameScratch) => void) | null } = {},
 ): RunResult<Clip> {
   const session = new TheaterSession(sport, facts);
   const clock = new DelayClock(delay, from);
@@ -105,6 +110,7 @@ export function runEngine<Clip extends TheaterClip, Play, Facts>(
     if (last && T > last.horizon - 15) replan(w);
     const chain = session.chain;
     chain.sample(T, scratch);
+    frame?.(T, chain, scratch);
     // Each decisive moment as it's drawn, against its anchor on p.
     const plan = chain.plan(T)?.plan;
     if (plan) {
