@@ -143,6 +143,7 @@ test.describe("the court on the director", () => {
 
 test.describe("the field on the director", () => {
   test("draws the recording live, plans its snaps, nothing thrown", async ({ page }) => {
+    test.setTimeout(120_000);
     const errors = watchErrors(page);
     await page.setViewportSize({ width: 1024, height: 900 });
     await page.addInitScript(() => {
@@ -155,9 +156,11 @@ test.describe("the field on the director", () => {
     expect(await inked(page)).toBeGreaterThan(0.3);
     await page.locator("[data-directed]").screenshot({ path: join(OUT, "directed-nfl.png") });
     expect(await frames(page)).toBeGreaterThan(0);
-    // The director has handed the timeline its anchors: the snaps it will tell, and when.
-    const anchors = await page.evaluate(() => (window as unknown as { __directedSource?: { anchors: Map<string, number> } }).__directedSource?.anchors.size ?? 0);
-    expect(anchors).toBeGreaterThan(0);
+    // The director hands the timeline its anchors: the snaps it will tell, and when. The plan sees a snap once the
+    // watermark passes it (p + 16 s here), and NFL snaps come about 40 s apart: the next one within a minute.
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __directedSource?: { anchors: Map<string, number> } }).__directedSource?.anchors.size ?? 0), { timeout: 60_000 })
+      .toBeGreaterThan(0);
     expect(errors).toEqual([]);
   });
 });
