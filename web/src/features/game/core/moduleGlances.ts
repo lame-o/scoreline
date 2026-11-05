@@ -48,7 +48,7 @@ export function commonGlance(section: Section, { event, detail: d, palette, name
   switch (section) {
     case "plays":
     case "liveView":
-      return d.recentPlays[0] ? playGlance(d.recentPlays[0]) : null;
+      return d.recentPlays[0] ? playGlance(d.recentPlays[0].text) : null;
     case "linescore":
       return d.linescore ? linescoreGlance(d.linescore, names, baseball, live) : null;
     case "moments":

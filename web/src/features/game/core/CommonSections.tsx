@@ -11,18 +11,25 @@
  *   Each period's cell is a hover target that lights its plays (and balls).
  * - `WinProbability`: one bar, a 50% tick, and the draw (soccer) as its own segment.
  * - `MomentList`: scoring plays or key events, newest first: time, what
- *   happened, the team's crest, the score after it. Rows pin on click.
+ *   happened, the team's crest, the score after it. Rows pin on click; a
+ *   play that replays in the isometric view opens under its row as well
+ *   (replay/ReplayRows.tsx), and where rows replay, one that can't is quiet.
+ * - `LatestPlays`: the plays list; a line whose play replays is a row like a
+ *   key moment's (ReplayWell.swift `RecentPlayRow`).
  */
-import { memo, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router";
 import { Icon, TeamLogo } from "../../../design/components";
 import type { Broadcaster } from "../../../data/broadcasters";
 import { ordinal, plural } from "../../../data/format";
-import type { DetailMoment, Linescore, Stat } from "../../../data/gameDetail";
+import type { DetailMoment, Linescore, RecentPlay, Stat } from "../../../data/gameDetail";
 import { shortened } from "../../../data/moments";
 import type { Competitor, Side } from "../../../data/models";
+import { replayPlayOf, type ReplayRow } from "../../../data/replays";
 import { NEUTRAL, type TeamPalette } from "../../../data/teamColors";
 import { matches, useFocus, useLinkedRow, useLinkedStore, type Focus } from "./linked";
+import { useReplayRow, useReplays } from "./replay/pageReplays";
+import { ReplayGlyph, ReplaySlot, replayRowProps, useSlotID, warmReplayWell } from "./replay/ReplayRows";
 import styles from "./CommonSections.module.css";
 
 const mark = (color: string): CSSProperties => ({ background: color === NEUTRAL ? "var(--viz-neutral)" : color });
@@ -314,7 +321,16 @@ function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams, render
   renderText?: (m: DetailMoment, text: string) => ReactNode;
 }) {
   const focus: Focus = { play: m.id, period: m.period ?? undefined, side: m.side };
-  const row = useLinkedRow(focus, { pinnable: true, links: renderText != null });
+  const links = renderText != null;
+  // A click opens its replay under it (and pins it on the charts): a run's row replays its last basket.
+  const replayRow = useMemo((): ReplayRow => ({ section: "moments", play: replayPlayOf(m.id) }), [m.id]);
+  const replay = useReplayRow(replayRow);
+  // Where rows replay, one that can't (ESPN placed nothing) has no click to promise.
+  const quiet = replay.supported && !replay.replayable;
+  const slot = useSlotID();
+  const store = useReplays();
+  const rowRef = useRef<HTMLDivElement>(null);
+  const row = replayRowProps(useLinkedRow(focus, { pinnable: !quiet, links }), replay, slot, () => warmReplayWell(store?.replay(replayRow.play)?.scene.kind));
   const lit = useFocus((f) => matches(f, { play: m.id, period: m.period, side: m.side }));
   const team = m.side === "top" ? teams[0] : m.side === "bottom" ? teams[1] : null;
   const name = m.side === "top" ? names[0] : m.side === "bottom" ? names[1] : "";
@@ -326,7 +342,7 @@ function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams, render
   // unless it holds links), so the list keeps its semantics either way.
   return (
     <li className={styles.momentItem} aria-label={row.role ? undefined : spoken}>
-      <div className={styles.momentRow} data-lit={lit} {...row} aria-label={row.role ? spoken : undefined}>
+      <div ref={rowRef} className={styles.momentRow} data-lit={lit} data-quiet={quiet} {...row} aria-label={row.role ? spoken : undefined}>
       <span className={styles.momentClock} title={m.clock}>
         {shortClock(m.clock)}
       </span>
@@ -338,22 +354,62 @@ function MomentRow({ m, score, keepsScoreColumn, showsIcon, names, teams, render
         </span>
       ) : null}
       {score ? <span className={styles.momentScore}>{score}</span> : keepsScoreColumn ? <span className={styles.momentScore} /> : null}
+      {/* A play that can replay in the isometric view: its glyph on hover (its place kept on every row). */}
+      <ReplayGlyph replay={replay} button={links} slot={slot} />
       </div>
+      {replay.supported ? <ReplaySlot row={replayRow} open={replay.open} id={slot} inset returnFocus={() => focusRow(rowRef.current)} /> : null}
     </li>
   );
 }
 
+/** Back to the row a replay was opened from: the row, or on a row holding links, its glyph. */
+function focusRow(row: HTMLElement | null): void {
+  if (!row) return;
+  if (row.tabIndex >= 0) row.focus();
+  else row.querySelector<HTMLElement>("button")?.focus();
+}
+
 // MARK: - Latest plays, where to watch, the series
 
-export const LatestPlays = memo(function LatestPlays({ plays }: { plays: readonly string[] }) {
+export const LatestPlays = memo(function LatestPlays({ plays }: { plays: readonly RecentPlay[] }) {
+  // Commentary can say two lines about one play (a goal, then its assist): the newest is its row; the other stays plain text.
+  const seen = new Set<string>();
   return (
     <ul className={styles.plays}>
-      {plays.map((p, i) => (
-        <li key={`${i}-${p}`}>{p}</li>
-      ))}
+      {plays.map((p, i) => {
+        const first = p.id != null && !seen.has(p.id);
+        if (p.id != null) seen.add(p.id);
+        return <RecentPlayRow key={first ? p.id! : `${i}-${p.text}`} play={first || p.id == null ? p : { id: null, text: p.text }} />;
+      })}
     </ul>
   );
 });
+
+/**
+ * A line of the plays list (ReplayWell.swift `RecentPlayRow`): a play that
+ * can replay is a row like a key moment's (the hover wash, the glyph, the
+ * click that opens it under the line and pins it); any other stays plain text.
+ */
+function RecentPlayRow({ play }: { play: RecentPlay }) {
+  const replayRow = useMemo((): ReplayRow | null => (play.id ? { section: "plays", play: play.id } : null), [play.id]);
+  const replay = useReplayRow(replayRow);
+  const focus: Focus = { play: play.id ?? "" };
+  const slot = useSlotID();
+  const store = useReplays();
+  const rowRef = useRef<HTMLDivElement>(null);
+  const row = replayRowProps(useLinkedRow(focus, { pinnable: true }), replay, slot, () => warmReplayWell(play.id ? store?.replay(play.id)?.scene.kind : null));
+  const lit = useFocus((f) => play.id != null && matches(f, { play: play.id }));
+  if (!replayRow || (!replay.replayable && !replay.open)) return <li>{play.text}</li>;
+  return (
+    <li>
+      <div ref={rowRef} className={styles.playRow} data-lit={lit} {...row} aria-label={play.text}>
+        <span className={styles.playText}>{play.text}</span>
+        <ReplayGlyph replay={replay} slot={slot} />
+      </div>
+      <ReplaySlot row={replayRow} open={replay.open} id={slot} returnFocus={() => focusRow(rowRef.current)} />
+    </li>
+  );
+}
 
 const KIND_WORD: Readonly<Record<Broadcaster["kind"], string>> = { tv: "TV", streaming: "Streaming", subscription: "Subscription", radio: "Radio" };
 

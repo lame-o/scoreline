@@ -38,6 +38,7 @@ import { headline } from "../core/CommonSections";
 import { DetailSection } from "../core/DetailSection";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
 import { useCommonSections } from "../core/useCommonSections";
+import { useReplaySync } from "../core/replay/useReplaySync";
 import { SoccerTableWindow, useLeagueLive, useTableRows } from "../tables/GameTables";
 import { Pitch } from "./Pitch";
 import { PitchTheater } from "./theater/PitchTheater";
@@ -86,6 +87,8 @@ export function useSoccerPage(game: GameContext): SportPage {
 
   const playerRef = useMemo(() => (id: string, name: string) => espnPlayerRef(ref?.path ?? "soccer/all", id, name), [ref?.path]);
   const momentText = useMemo(() => soccerMomentText(playerRef), [playerRef]);
+  // The rows' replays: every shot and goal the lane has read, as the theater would replay it.
+  useReplaySync(game, { soccer: feed });
   const common = useCommonSections(game, { momentText });
   const sectionWidth = game.split ? 320 : 380;
 
@@ -112,7 +115,7 @@ export function useSoccerPage(game: GameContext): SportPage {
   const timelineChart = <Timeline moments={detail.moments} currentMinute={minute} palette={palette} topName={names.top} bottomName={names.bottom} width={sectionWidth} />;
   if (live && trail.length > 0) {
     // The play theater: its own module, above the Live Pitch as on the Mac (9cbbb02).
-    // It keeps today's inputs (the scoreboard's event) until the director reads the broadcast.
+    // Broadcasting, the host shows the theater on the engine (usePageDirected); otherwise today's, with the scoreboard's event.
     sections.liveView = (
       <DetailSection id="liveView" title="Live View" caption="The latest chance, replayed with its build-up." accessory="live">
         <PitchTheater feed={feed} homeTeamID={homeID} event={game.raw.event} added={detail.soccerAdded} people={detail.people} kits={game.colors} />

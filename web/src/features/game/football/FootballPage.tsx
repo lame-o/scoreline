@@ -33,6 +33,7 @@ import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "..
 import { useCommonSections } from "../core/useCommonSections";
 import { useModuleOpen } from "../core/usePageModules";
 import { fieldGlance, glanceText } from "../../../data/modules";
+import { useReplaySync } from "../core/replay/useReplaySync";
 import { CollegeTableWindow } from "../tables/GameTables";
 import { FootballField } from "./FootballField";
 import { useNameLinker } from "./names";
@@ -118,6 +119,8 @@ export function useFootballPage(game: GameContext): SportPage {
   const linkText = useNameLinker(detail.playerNames, ref?.path ?? null);
   const momentText = useMemo(() => (_: DetailMoment, text: string) => linkText(text), [linkText]);
 
+  // The rows' replays: every snap the lane has read (a final's plays fetched once), spotted and placed as live.
+  useReplaySync(game, { football: feed });
   const sections: Partial<Record<string, ReactNode>> = { ...useCommonSections(game, { momentText }) };
 
   // The Live View owns the burst while it's open (FootballCelebration.driveChartBursts(theaterShown:)).
@@ -126,7 +129,7 @@ export function useFootballPage(game: GameContext): SportPage {
     // The play theater: its own module, above the drive chart as on the Mac (9cbbb02).
     sections.liveView = (
       <DetailSection id="liveView" title="Live View" caption="The latest snap, replayed as it happened." accessory="live">
-        {/* The theater keeps today's inputs (the lane's situation, the scoreboard's event) until the director reads the broadcast. */}
+        {/* Broadcasting, the host shows the theater on the engine (usePageDirected); otherwise today's, with the lane's situation and the scoreboard's event. */}
         <FieldTheater feed={feed} teams={teams} situation={today ?? situation} event={game.raw.event} palette={palette} names={names} people={detail.people} kits={game.colors} />
       </DetailSection>
     );

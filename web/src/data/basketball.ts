@@ -19,7 +19,7 @@ import { periodLabel, overtime } from "./format";
 import { arr, at, bool, num, str, type JSONValue } from "./json";
 import type { Side } from "./models";
 import type { Accent, LiveMoment } from "./moments";
-import type { DetailMoment, SideOf } from "./gameDetail";
+import type { DetailMoment, RecentPlay, SideOf } from "./gameDetail";
 
 // MARK: - Model
 
@@ -521,12 +521,12 @@ export function shotText(text: string, shooter: string | null): string {
 }
 
 /** The last few plays, newest first, with their clock ("Q3 4:12  …"). */
-export function recentPlays(plays: readonly JSONValue[], count = 4): string[] {
+export function recentPlays(plays: readonly JSONValue[], count = 4): RecentPlay[] {
   return plays
     .filter((p) => (str(at(p, "text")) ?? "") !== "")
     .slice(-count)
     .reverse()
-    .map((p) => `${clockLabel(periodOf(p), clockOf(p))}  ${plain(str(at(p, "text")) ?? "")}`);
+    .map((p) => ({ id: str(at(p, "id")) ?? null, text: `${clockLabel(periodOf(p), clockOf(p))}  ${plain(str(at(p, "text")) ?? "")}` }));
 }
 
 /**

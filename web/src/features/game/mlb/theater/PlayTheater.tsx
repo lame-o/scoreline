@@ -22,7 +22,7 @@
  * delivery, the ball to its real plate location, the swing or the take, the
  * umpire's call), a throw over, a visit, a change, the teams changing sides,
  * a delay; the status tag says what's happening ("STRIKE 2 · 97 MPH
- * FOUR-SEAM FASTBALL", "TOP 7TH · 1-2 · 2 OUTS", "MIDDLE 5TH", "PITCHING
+ * FOUR-SEAM FASTBALL", "TOP 7TH · 1-2 · 2 OUTS", "MID 5TH", "PITCHING
  * CHANGE · ROMERO") and the heartbeat that the feed is live. A news play cuts
  * in on a beat (the scoring slide keeps time with its replay); a backlog
  * plays its last few pitches. While nothing comes, the field has its idle
@@ -66,7 +66,7 @@ import type { ScoreEvent, Side } from "../../../../data/models";
 import { batting as battingOf, captionText, catchUp, delayTag, isPlayBeat, mlbDelay, seedOf, standing, timeline, type Delay, type PlayBeat } from "../../../../data/mlb/playBeat";
 import { battery, beatScript, idleNext, idleScript, type IdleBeat } from "../../../../data/mlb/playBeatScript";
 import { CameraFrame, restCamera } from "../../../../data/mlb/playCamera";
-import { PlayScript, type Rest, type Standing } from "../../../../data/mlb/playScript";
+import { PlayScript, restAfter, type Rest, type Standing } from "../../../../data/mlb/playScript";
 import { playOnStage, type PlayScene, type TheaterState } from "../../../../data/mlb/playScene";
 import type { StatcastAtBat } from "../../../../data/mlb/statcast";
 import { HOLD_MS } from "../../../../data/theater/theaterKit";
@@ -84,7 +84,6 @@ import { NO_FIELDERS, type BaseballFielders, type BaseballNow } from "../../../.
 import { playCast } from "../../../../data/mlb/playNames";
 import { theaterLabels, type TheaterCast, type TheaterPerson } from "../../../../data/theater/theaterNames";
 import { bridgeTracks } from "../../../../data/theater/theaterBridge";
-import { TheaterDelays } from "../../../../data/theater/theaterDelays";
 import { TheaterRenderer, type PlayHandoff } from "./renderer";
 import { theaterInk } from "./theaterInk";
 import { useMeasuredTheater, useMLBTimeline } from "./useStatcast";
@@ -224,7 +223,7 @@ function fallbackTag(inning: string | null, situation: Baseball | null): string 
   const words = inning.toUpperCase().split(" ");
   const first = words[0];
   if (!first || words.length < 2) return null;
-  if (first === "MID" || first === "MIDDLE" || first === "END") return `${first === "END" ? "END" : "MIDDLE"} ${words[1]}`;
+  if (first === "MID" || first === "MIDDLE" || first === "END") return `${first === "END" ? "END" : "MID"} ${words[1]}`;
   const half = `${first.startsWith("BOT") ? "BOT" : first} ${words[1]}`;
   if (!situation) return half;
   return `${half} · ${situation.balls}-${situation.strikes} · ${situation.outs} OUT${situation.outs === 1 ? "" : "S"}`;
@@ -356,7 +355,7 @@ export function PlayTheater({
     if (!line.some((b) => b.id === playID)) return;
     if (play?.id === playID) {
       const came = performance.now();
-      TheaterDelays.note(playID, (handOff(playID, script, play.batting ?? batting ?? "top", came) - came) / 1000);
+      handOff(playID, script, play.batting ?? batting ?? "top", came);
     }
     setBeat(null);
     setMove(null);
@@ -408,10 +407,8 @@ export function PlayTheater({
       standing: standingNow,
     };
   };
-  const swapped = play?.endsInning ?? false;
-  const playSide: Side = swapped ? (play?.batting === "bottom" ? "top" : "bottom") : (play?.batting ?? batting ?? "top");
-  const restBases: readonly boolean[] = play ? (swapped ? [false, false, false] : (bases ?? play.basesAfter)) : (bases ?? [false, false, false]);
-  const field: Rest = play ? { bases: restBases, bats: state.bats, swapped, fieldingHome: playSide === "top" } : restFor(last);
+  // The field a play leaves (PlayTheater.rest(after:), as the engine's field between pitches has it too).
+  const field: Rest = play ? restAfter(play, bases, state.bats, batting) : restFor(last);
   const fieldKey = JSON.stringify(field);
   const script = useMemo(
     () => (play ? PlayScript.play(play, field) : PlayScript.rest(field)),

@@ -7,7 +7,7 @@
  * them (the NBA's live line score, soccer's key events).
  */
 import type { ReactNode } from "react";
-import type { DetailMoment } from "../../../data/gameDetail";
+import type { DetailMoment, RecentPlay } from "../../../data/gameDetail";
 import { competitors } from "../../../data/models";
 import { competitionPath, hasKnockoutRounds } from "../../../data/soccerCompetition";
 import { bracketPath } from "../../../data/schedule";
@@ -23,7 +23,7 @@ export interface CommonOptions {
   /** Every ball in play, for a sport whose line score lights them (unused here; charts read the focus). */
   readonly moments?: readonly DetailMoment[];
   /** The plays the "Latest" section lists (a live lane's, when it's ahead). */
-  readonly plays?: readonly string[];
+  readonly plays?: readonly RecentPlay[];
   /** A scoring play's words with its players' names as links (football). */
   readonly momentText?: (m: DetailMoment, text: string) => ReactNode;
 }

@@ -190,6 +190,22 @@ export class PageGeometry {
     this.scroller.scrollTo({ top: Math.min(Math.max(y, 0), this.maxScroll()), behavior: "auto" });
   }
 
+  /**
+   * Brings an element into view below the docked scorebar (`inset` pt under
+   * it), if it isn't already: just far enough, its top first when it's
+   * taller than the room (PageGeometry.reveal; a replay's well once it has
+   * opened). Smooth when `animated`.
+   */
+  reveal(el: HTMLElement, inset: number, animated: boolean): void {
+    const pt = parseFloat(getComputedStyle(document.documentElement).fontSize) / 13 || 1;
+    const top = this.viewportTop() + (DOCK_INSET + inset) * pt;
+    const bottom = this.viewportBottom();
+    const r = el.getBoundingClientRect();
+    const delta = r.top < top ? r.top - top : r.bottom > bottom ? Math.min(r.bottom - bottom, r.top - top) : 0;
+    if (Math.abs(delta) < 1) return;
+    this.scroller.scrollBy({ top: delta, behavior: animated && !prefersReducedMotion() ? "smooth" : "auto" });
+  }
+
   /** Back to the top: the hero again (smooth; instant with Reduce Motion). */
   scrollToTop(): void {
     this.scroller.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });

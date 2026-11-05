@@ -10,6 +10,7 @@ import { dress } from "../../src/data/mlb/theaterTeams";
 import type { Competitor, ScoreEvent, Side } from "../../src/data/models";
 import { chroma, hue, labDistance, NEUTRAL, oklabFromHex, type Scheme } from "../../src/data/teamColors";
 import { theaterLabels } from "../../src/data/theater/theaterNames";
+import { replayKits, type ReplayContext } from "../../src/data/replays";
 import { noteDetail } from "../../src/state/logoColors";
 
 const kit = (color: string, alternate: string | null = null): TeamKit => ({ color, alternate });
@@ -183,5 +184,36 @@ describe("ESPN's match-day kits", () => {
     // No kit by kickoff: the game keeps its team colors for good.
     expect(noteDetail(EMPTY_DETAIL, at("espn-kit-test-late", "live")).matchKits).toEqual({});
     expect(noteDetail(posted, at("espn-kit-test-late", "live")).matchKits).toEqual({});
+  });
+});
+
+describe("a replay under its row wears the game's colors", () => {
+  // ReplayContext.kits (Replays.swift): MatchColors(top:bottom:topIsHome:), the competitors' kits included.
+  const team = (color: string, alternate: string, own: TeamKit | null = null) => ({ color, alternateColor: alternate, kit: own }) as unknown as Competitor;
+  const context = (top: Competitor, bottom: Competitor, topIsHome: boolean, kits: MatchColors | null = null): ReplayContext => ({
+    eventID: "espn-replay-kits",
+    top,
+    bottom,
+    topIsHome,
+    people: {},
+    fielders: null,
+    rosters: {},
+    numbers: {},
+    palette: { top: NEUTRAL, bottom: NEUTRAL },
+    kits,
+  });
+
+  it("the page's, as decided", () => {
+    const page = matchColors(kit("d11317", "FFFFFF"), kit("e20520", "003399"), { home: "top" });
+    expect(replayKits(context(team("d11317", "FFFFFF"), team("e20520", "003399"), true, page))).toBe(page);
+  });
+
+  it("else the game's, from its teams and their kits, home from the summary", () => {
+    // ARS @ LIV, home first as soccer lists it: the kits posted, then before the lineups.
+    const posted = replayKits(context(team("d11317", "FFFFFF", kit("ff0000")), team("e20520", "003399", kit("fceec1", "1b4879")), true));
+    expect([posted.top.color, posted.bottom.color]).toEqual(["ff0000", "fceec1"]);
+    const before = replayKits(context(team("d11317", "FFFFFF"), team("e20520", "003399"), true));
+    expect([before.top.color, before.bottom.color]).toEqual(["d11317", "003399"]);
+    expect(before.home).toBe("top");
   });
 });

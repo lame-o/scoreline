@@ -86,6 +86,9 @@ export function zebra(scheme: Scheme): Uniform {
   return { jersey: white(0.96), cap: OFFICIAL_CAP, piping: scheme === "dark" ? null : white(0.3), accent: "#ffffff", stripes: white(0.08), legs: BLACK_KIT };
 }
 
+/** A team's trainers and the floor's crew: slate, a pale cap (FootballFrame.staff; basketball's crew at the half wears it too). */
+export const STAFF: Uniform = { jersey: "#6b7887", cap: "#cccccc", piping: null, accent: "#808080" };
+
 /** Baseball's umpire: a navy shirt, gray slacks. */
 export function umpire(scheme: Scheme): Uniform {
   return { jersey: "#213152", cap: OFFICIAL_CAP, piping: null, accent: "#ffffff", legs: white(scheme === "dark" ? 0.62 : 0.55) };

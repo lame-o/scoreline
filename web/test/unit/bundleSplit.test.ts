@@ -48,6 +48,22 @@ describe("leaguePageKind", () => {
   });
 });
 
+describe("the replays' chunks", () => {
+  const values = (code: string) => staticImports(code.replace(/^import type\s[^;]*;/gms, ""));
+
+  it("keep the builders and the well out of the pages: the rows load them when there's something to read or show", () => {
+    for (const file of ["features/game/core/CommonSections.tsx", "features/game/core/replay/ReplayRows.tsx", "features/game/core/replay/pageReplays.ts", "features/game/core/replay/useReplaySync.ts", "features/game/GamePage.tsx"]) {
+      expect(values(src(file)).filter((p) => /replayReaders|ReplayWell|replay(Plate|Field|Court|Pitch)|\/theater\//.test(p)), file).toEqual([]);
+    }
+  });
+
+  it("keep the theaters' scripts and engine out of the builders", () => {
+    for (const file of ["data/replays.ts", "data/replayReaders.ts"]) {
+      expect(values(src(file)).filter((p) => /Script$|Clips$|theaterEngine|footballTheater|soccerTheater|basketballTheater|features\//.test(p)), file).toEqual([]);
+    }
+  });
+});
+
 describe("the theaters' chunks", () => {
   it("share the projection, not the baseball theater's drawing", () => {
     for (const file of ["features/game/football/theater/drawFootball.ts", "features/game/soccer/theater/drawSoccer.ts", "features/game/core/theater/theaterKit.ts"]) {

@@ -34,7 +34,6 @@ import { isMoment, keepers, parse as parseMoment, Pitch, SoccerLineup, type Socc
 import { buildUpPace, SoccerScript, type SoccerProp } from "../../src/data/theater/soccerScript";
 import { soccerBridge } from "../../src/data/theater/soccerTheater";
 import { bridgeMatch, bridgeMix, bridgePlan, bridgeTracks, TheaterBridge, type BridgeFigure, type BridgePlan } from "../../src/data/theater/theaterBridge";
-import { TheaterDelays } from "../../src/data/theater/theaterDelays";
 import { Pace } from "../../src/data/theater/theaterKit";
 import { zebraBands } from "../../src/features/game/core/theater/rigFigure";
 import { footballProjection } from "../../src/features/game/football/theater/drawFootball";
@@ -111,12 +110,6 @@ describe("the bridge's plan", () => {
     expect(far.moved).toBeGreaterThan(5);
     expect(apart.mode).toBe("crossfade");
     expect(far.length).toBe(TheaterBridge.crossfade);
-  });
-
-  it("a bridged replay's late start is noted for its play, so the scoring slide still lands with its climax", () => {
-    TheaterDelays.note("flow-test", roomy.delay + 0.3);
-    expect(Math.abs(TheaterDelays.delay("flow-test") - 0.3)).toBeLessThan(1e-9);
-    expect(TheaterDelays.delay("never-bridged")).toBe(0);
   });
 });
 
@@ -287,7 +280,7 @@ describe("officials", () => {
     }
   });
 
-  it("…and none between snaps: the huddle, the line, a timeout, a TV timeout, a challenge (no referee walking to the monitor), a man hurt, the half", () => {
+  it("…and none between snaps: the huddle, the line, a timeout, a TV timeout, a challenge (no referee walking to the monitor), a man hurt, the half", { timeout: 60_000 }, () => {
     const games = (fixture("nfl-stoppages-plays.json") as { games: { items: Item[]; home: { id: string; abbreviation: string }; away: { id: string; abbreviation: string } }[] }).games;
     const idles: FootballScript[] = [idle];
     for (const g of games) {

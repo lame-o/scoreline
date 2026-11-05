@@ -166,7 +166,7 @@ export class HoopFlight {
 // MARK: - Script
 
 /** The two fives, and the referee who comes in to make a call (on the floor only while he's doing something). */
-export type Team = "offense" | "defense" | "official";
+export type Team = "offense" | "defense" | "official" | "staff";
 
 /**
  * What he does with the ball (or reaching for it); and the lighter beats': a

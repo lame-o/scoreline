@@ -14,18 +14,18 @@
  */
 import { drawParticles, particles, type CelebrationPalette } from "../../../../data/celebrations";
 import { PITCH_NAMES, type Hand, type PlayScene } from "../../../../data/mlb/playScene";
-import { STAMP_MARKS, tarpCover, ZONE_FRONT, ZONE_HALF, type Actor, type PlayScript, type Signal } from "../../../../data/mlb/playScript";
+import { STAMP_MARKS, tarpCover, ZONE_FRONT, ZONE_HALF, type Actor, type PlayScript, type Signal, type Team } from "../../../../data/mlb/playScript";
 import { burstEnd, type TheaterBurst } from "../../../../data/mlb/theaterCelebration";
-import { Ballpark, easeValue, houseCurve, criticalSpring, ORIGIN, type Point } from "../../../../data/mlb/theaterField";
+import { Ballpark, easeValue, houseCurve, criticalSpring, ORIGIN, type FieldPoint, type Point } from "../../../../data/mlb/theaterField";
 import { BaseballPoses, deliverAt } from "../../../../data/mlb/theaterPose";
 import { umpire, type TheaterTeams, type Uniform } from "../../../../data/mlb/theaterTeams";
-import { keyed, mirrored, mix, over, Rig, RigPoses, RigTrack, gait, type RigPose } from "../../../../data/theater/rig";
+import { keyed, minus, mirrored, mix, over, plus, Rig, RigPoses, RigTrack, gait, times, type RigPose } from "../../../../data/theater/rig";
 import { bridgeGhosts, bridgeMix, bridgePose, type FrameBridge } from "../../../../data/theater/theaterBridge";
 import { luminance } from "../../../../data/teamColors";
 import { drawFigure, figureInks, grip, RigLens, rigFigure, type RigFigure } from "../../core/theater/rigFigure";
 import { drawStems, drawTags, tagRing, type Stems } from "../../core/theater/theaterTags";
 import { TheaterTagLayout, type HitFigure, type TagFrame, type TheaterSpots } from "../../../../data/theater/theaterNames";
-import type { Rect } from "../../../../data/mlb/playCamera";
+import type { CameraFrame, Rect } from "../../../../data/mlb/playCamera";
 import { rgba, type TheaterInk } from "./theaterInk";
 
 // The projection lives on its own so the football theater can share it without this drawing module.
@@ -535,6 +535,49 @@ export interface FrameInputs {
   readonly tags?: TagFrame | null;
   /** The field between pitches this pitch (or replay) is taking over from (null: none, or the hand-off is done). */
   readonly bridge?: PlayBridge | null;
+  /**
+   * Drawn from the choreography engine's world (a directed frame): its
+   * camera; each figure of the clip in charge (`script`) where the engine has
+   * his man and posed by the clip; the men on their way to another clip (or
+   * leaving) in their own kit; the ball. The zone, the trace, the flashes,
+   * the label, the stamp and the banner stay the clip's.
+   */
+  readonly world?: PlayWorld | null;
+}
+
+/** One of the clip in charge's figures in the engine's world (PlayFrame.World.Figure). */
+export interface PlayWorldFigure {
+  readonly at: Point;
+  readonly body: RigPose;
+  readonly heading: number;
+  readonly opacity: number;
+}
+
+/** A man on his way to another clip (or leaving), in his own kit (PlayFrame.World.Extra). */
+export interface PlayWorldExtra {
+  /** The engine's man. */
+  readonly index: number;
+  readonly team: Team;
+  readonly at: Point;
+  readonly body: RigPose;
+  readonly heading: number;
+  readonly opacity: number;
+}
+
+/** The engine's world as a baseball frame draws it (PlayFrame.World). */
+export interface PlayWorld {
+  readonly camera: CameraFrame;
+  /** By the clip's actor. */
+  readonly figures: ReadonlyMap<number, PlayWorldFigure>;
+  readonly extras: readonly PlayWorldExtra[];
+  readonly ball: FieldPoint | null;
+}
+
+/** The engine's track for a man in the world (a directed frame): his stride, the theater's time, and where he is in it. */
+export interface Stride {
+  readonly track: RigTrack;
+  readonly t: number;
+  readonly at: Point;
 }
 
 /**
@@ -572,6 +615,17 @@ export function playFigures(f: FieldProjection, script: PlayScript, t: number): 
     const lens = RigLens.field(f, actor.position(t));
     return [{ index, ground: lens.origin, height: lens.height }];
   });
+}
+
+/** The clip in charge's figures where the engine has them, through the world's camera (PlayDirectedStage.spots): what the pointer hits. */
+export function worldFigures(f: FieldProjection, world: PlayWorld): HitFigure[] {
+  const out: HitFigure[] = [];
+  for (const [index, w] of world.figures) {
+    if (!(w.opacity > 0.01)) continue;
+    const lens = RigLens.field(f, w.at);
+    out.push({ index, ground: lens.origin, height: lens.height });
+  }
+  return out;
 }
 
 /** Each figure's spot on screen at t and the ball's, through the camera, no posing (PlayFrame.spots): what a tag keeps clear of. */
@@ -795,7 +849,8 @@ function drawPuffs(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs
   }
 }
 
-function drawShadows(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInputs, figures: readonly Posed[]): void {
+function drawShadows(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: readonly Posed[]): void {
+  const { script, t, ink } = input;
   // Under the hips; smaller and fainter as he leaves the ground.
   const w = f.figure * 0.3;
   for (const p of figures) {
@@ -808,9 +863,9 @@ function drawShadows(ctx: Ctx, f: FieldProjection, { script, t, ink }: FrameInpu
   }
   // The ball's: under it on the ground, larger and softer the higher it
   // flies, with a hairline up to the ball once it's well off the grass.
-  const ball = script.ball(t);
+  const ball = ballPoint(input);
   if (ball && ball.z > 0.3) {
-    const o = script.ballOpacity(t);
+    const o = input.world == null ? script.ballOpacity(t) : 1;
     const g = f.point({ x: ball.x, y: ball.y });
     const spread = 1 + Math.min(ball.z / 50, 1.4);
     const r = Math.max(0.55 * f.scale, 1.6) * spread;
@@ -839,6 +894,27 @@ interface Posed {
   readonly figure: RigFigure;
   readonly opacity: number;
   readonly ghost?: boolean;
+  /** A ghost's own kit (the engine's men on their way elsewhere); else the bridge's field has it. */
+  readonly team?: Team;
+}
+
+/** The ball where it is at t: the engine's in its world, else the script's. */
+function ballPoint({ script, t, world }: FrameInputs): FieldPoint | null {
+  return world ? world.ball : script.ball(t);
+}
+
+/** The engine's men, far to near: the clip's figures posed as the world has them, the others as ghosts in their kit. */
+function posedWorld(f: FieldProjection, script: PlayScript, world: PlayWorld): Posed[] {
+  const list: { at: Point; posed: Posed }[] = [];
+  for (const [i, w] of world.figures) {
+    if (!(i < script.actors.length) || !(w.opacity > 0.01)) continue;
+    list.push({ at: w.at, posed: { index: i, figure: rigFigure(w.body, w.heading, RigLens.field(f, w.at)), opacity: w.opacity } });
+  }
+  for (const e of world.extras) {
+    if (!(e.opacity > 0.01)) continue;
+    list.push({ at: e.at, posed: { index: e.index, figure: rigFigure(e.body, e.heading, RigLens.field(f, e.at)), opacity: e.opacity, ghost: true, team: e.team } });
+  }
+  return list.sort((a, b) => b.at.y - a.at.y).map((p) => p.posed);
 }
 
 /**
@@ -849,7 +925,8 @@ interface Posed {
  * out, the newcomer's fade in.
  */
 function posed(f: FieldProjection, input: FrameInputs): Posed[] {
-  const { script, t, bridge } = input;
+  const { script, t, bridge, world } = input;
+  if (world) return posedWorld(f, script, world);
   const order = script.actors.map((actor, index) => {
     let at = actor.position(t);
     const j = bridge?.pairs.get(index);
@@ -897,10 +974,10 @@ function drawFigures(ctx: Ctx, f: FieldProjection, input: FrameInputs, figures: 
   // The umpires in their own kit (`umpire` in theaterTeams.ts), never a team's.
   const officials = figureInks(UMPIRES[ink.dark ? "dark" : "light"], ink);
   for (const p of figures) {
-    const ghost = p.ghost ? input.bridge?.script.actors[p.index] : undefined;
+    const ghost = p.ghost ? (p.team ?? input.bridge?.script.actors[p.index]?.team) : undefined;
     if (ghost) {
-      // The field's figure the newcomer doesn't have, fading out in his own kit.
-      drawFigure(ctx, p.figure, ghost.team === "batting" ? batting : ghost.team === "official" ? officials : fielding, f.figure, p.opacity);
+      // The field's figure the newcomer doesn't have (or the engine's man on his way elsewhere), fading out in his own kit.
+      drawFigure(ctx, p.figure, ghost === "batting" ? batting : ghost === "official" ? officials : fielding, f.figure, p.opacity);
       continue;
     }
     const actor = script.actors[p.index]!;
@@ -988,10 +1065,11 @@ const THROW_KEYS: readonly (readonly [number, RigPose])[] = [
  * position, how he's moving (striding to his planted feet), and over that
  * what he's doing (the delivery, a swing, a slide, a catch, a throw). `unit`:
  * body units to the foot where he stands. (tested)
+ * `stride`: the engine's track for him in the world (a directed frame), its time and where he is in it.
  */
-export function pose(script: PlayScript, t: number, actor: Actor, index: number, here: Point, unit: number): [RigPose, number] {
-  const track = script.rig[index] ?? RigTrack.standing(here);
-  const m = track.motion(t);
+export function pose(script: PlayScript, t: number, actor: Actor, index: number, here: Point, unit: number, stride: Stride | null = null): [RigPose, number] {
+  const track = stride?.track ?? script.rig[index] ?? RigTrack.standing(here);
+  const m = track.motion(stride?.t ?? t);
 
   // How he stands, and how he moves. The catcher squats behind the plate (up out of it when he rises).
   const role = actor.role;
@@ -1009,8 +1087,12 @@ export function pose(script: PlayScript, t: number, actor: Actor, index: number,
   } else if (role.kind === "batter" || role.kind === "coach" || role.kind === "umpire") still = RigPoses.stand;
   // Leading off a base, low, watching the pitcher.
   else still = Ballpark.distance(here) > 5 ? BaseballPoses.lead : RigPoses.stand;
-  const feet = track.feet(t, here, m.heading, unit, m.speed, { left: still.left, right: still.right });
-  let body = mix(still, gait(m, feet), m.weight);
+  const feet = track.feet(stride?.t ?? t, stride?.at ?? here, m.heading, unit, m.speed, { left: still.left, right: still.right });
+  const striding = gait(m, feet);
+  let body = mix(still, striding, m.weight);
+  // A planted foot stays planted once the stride carries his weight.
+  const planted = Rig.smooth(m.weight / 0.5);
+  body = { ...body, left: plus(still.left, times(minus(striding.left, still.left), planted)), right: plus(still.right, times(minus(striding.right, still.right), planted)) };
   const moving = actor.motion(t);
   if (actor.slide != null && t >= actor.slide) {
     body = mix(body, BaseballPoses.slide, moving == null ? 1 : Rig.smooth((t - actor.slide) / 0.12));
@@ -1159,13 +1241,14 @@ function drawDroppedBat(ctx: Ctx, p: Point, bats: Hand, fade: number, f: FieldPr
 }
 
 /** Where the ball is drawn at t, how big (a touch larger than life) and how faint. */
-function ballSpot(f: FieldProjection, { script, t, bridge }: FrameInputs): { point: Point; radius: number; opacity: number } | null {
-  let ball = script.ball(t);
+function ballSpot(f: FieldProjection, input: FrameInputs): { point: Point; radius: number; opacity: number } | null {
+  const { script, t, bridge, world } = input;
+  let ball = ballPoint(input);
   if (!ball) return null;
-  const o = script.ballOpacity(t);
+  const o = world == null ? script.ballOpacity(t) : 1;
   if (!(o > 0.01)) return null;
   // Mid-bridge, from where the field between pitches had it (back to the mound, in the catcher's mitt) to the newcomer's.
-  const from = bridge?.script.ball(bridge.t);
+  const from = world == null ? bridge?.script.ball(bridge.t) : null;
   if (bridge && from && bridge.script.ballOpacity(bridge.t) > 0.01) {
     ball = { x: from.x + (ball.x - from.x) * bridge.w, y: from.y + (ball.y - from.y) * bridge.w, z: from.z + (ball.z - from.z) * bridge.w };
   }

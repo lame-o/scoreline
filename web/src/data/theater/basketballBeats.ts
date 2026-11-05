@@ -59,6 +59,7 @@ import {
 } from "./basketballScript";
 import { seed64, SplitMix64 } from "./splitMix64";
 import { CameraPath, CameraRig, clearing, fitting, unionAll } from "./theaterKit";
+import { TheaterQuiet } from "./theaterQuiet";
 
 // MARK: - Lineup
 
@@ -1484,7 +1485,7 @@ export class BeatBuilder extends Builder {
         break;
     }
     this.sortLegs();
-    this.script.duration = this.script.formation === "offCourt" || rest.phase === "loose" || rest.phase === "tip" ? Math.max(opening + 0.5, 1) : REST_LENGTH;
+    this.script.duration = rest.phase === "loose" || rest.phase === "tip" ? Math.max(opening + 0.5, 1) : REST_LENGTH;
     this.script.settle = 0;
     this.restCamera(opening);
   }
@@ -1802,15 +1803,15 @@ export class BeatBuilder extends Builder {
     }
     script.look = null;
     script.active = t > 0 ? [[0, t + 0.3]] : [];
-    let at = t + this.random.in(4, 6);
-    while (at < REST_LENGTH - 2) {
+    let at = t + this.random.in(0.5, 2);
+    while (at < REST_LENGTH - 1) {
       const k = Math.trunc(this.random.in(0, 9.99));
       const p = this.position(k, at);
       const x = p.x + this.random.in(-0.6, 0.6);
       const y = p.y + this.random.in(-0.4, 0.4);
       this.walk(k, [{ x, y }], at, at + 0.8);
       script.active.push([at - 0.05, at + 1.05]);
-      at += this.random.in(6, 9);
+      at += TheaterQuiet.gap.lower + this.random.in(0, TheaterQuiet.gap.upper - TheaterQuiet.gap.lower);
     }
     return t;
   }
@@ -1823,6 +1824,7 @@ export class BeatBuilder extends Builder {
       this.tipSet();
       script.formation = "offCourt";
       this.hideAll(true);
+      this.floorCrew(0);
       return 0;
     }
     let t = 0;
@@ -1836,7 +1838,35 @@ export class BeatBuilder extends Builder {
     }
     script.legs = [];
     script.active = [[0, t + 0.4]];
+    this.floorCrew(t);
     return t;
+  }
+
+  /**
+   * The floor at the half, the teams gone: two of the crew out with their
+   * mops, their quiet (TheaterQuiet) through the court's length of rest
+   * (11de4c0).
+   */
+  floorCrew(start: number): void {
+    const script = this.script;
+    const crew = [
+      { x: 24, y: 12 },
+      { x: 70, y: 38 },
+    ].map((at) => {
+      const man = new Player("staff", at);
+      man.enters = start;
+      script.players.push(man);
+      return script.players.length - 1;
+    });
+    const quiet = TheaterQuiet.make(crew, start, this.random, REST_LENGTH - start, false);
+    const stride = TheaterQuiet.stride;
+    for (const beat of quiet.beats) {
+      if (beat.kind !== "step") continue;
+      const here = this.position(beat.man, beat.at);
+      this.walk(beat.man, [{ x: here.x + beat.toward.x * 7, y: here.y + beat.toward.y * 5 }], beat.at, beat.at + stride);
+      this.walk(beat.man, [here], beat.back, beat.back + stride);
+      script.active.push([beat.at - 0.05, beat.at + stride + 0.25], [beat.back - 0.05, beat.back + stride + 0.25]);
+    }
   }
 
   // MARK: Its camera

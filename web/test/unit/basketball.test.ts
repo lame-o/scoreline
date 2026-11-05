@@ -131,7 +131,7 @@ describe("the summary", () => {
   it("reads the latest plays newest first, tidied", () => {
     const latest = recentPlays(summary.plays);
     expect(latest).toHaveLength(4);
-    expect(latest[0]).toBe("OT 0.0  End of Game");
+    expect(latest[0]?.text).toBe("OT 0.0  End of Game");
     expect(plain("LeBron James makes 26-foot jumper (Austin Reaves assists)")).toBe("LeBron James makes 26-foot jumper");
     expect(plain("Luka Doncic 's  25-foot")).toBe("Luka Doncic's 25-foot");
     expect(shotText("Mario Hezonja makes 25-foot three point jumper", "M. Hezonja")).toBe("M. Hezonja 25-ft three point jumper");

@@ -62,7 +62,6 @@ import { FootballScript } from "../../../../data/theater/footballScript";
 import { DEFAULT_REST, FootballCelebration, footballBridge, footballCast, footballDown, footballShown, FootballTheaterWatch, footballRest, footballWaiting, nextQueued, type FootballBurst } from "../../../../data/theater/footballTheater";
 import type { RigTrack } from "../../../../data/theater/rig";
 import { beatLeft, bridgeTracks, type BridgePlan } from "../../../../data/theater/theaterBridge";
-import { TheaterDelays } from "../../../../data/theater/theaterDelays";
 import { theaterLabels } from "../../../../data/theater/theaterNames";
 import type { TheaterPerson } from "../../../../data/theater/theaterPeople";
 import { HOLD_MS } from "../../../../data/theater/theaterKit";
@@ -285,7 +284,6 @@ export default function FootballTheater({
         },
       );
       handoff.current = { id: scene.id, came, plan, idle: shown.idle, script: idle, elapsed, tracks };
-      TheaterDelays.note(scene.id, plan.delay);
     }
     setReplay({ id: scene.id, done: false });
   };

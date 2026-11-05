@@ -17,7 +17,7 @@
 import { NO_KITS } from "../../../data/matchColors";
 import { atBatGlance, atPlateGlance, glanceText } from "../../../data/modules";
 import { useModuleOpen } from "../core/usePageModules";
-import { lazy, Suspense, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { Suspense, useMemo, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { battingSide, Accessory, shortInning, type AccessoryTier } from "../../../data/matchRules";
 import type { Baseball, BattedBall } from "../../../data/gameDetail";
 import { espnTeamIDs, sideMapper } from "../../../data/gameDetail";
@@ -28,6 +28,7 @@ import { DetailSection } from "../core/DetailSection";
 import { MiniBases, OutDots } from "../core/DockedScorebar";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
 import { useCommonSections } from "../core/useCommonSections";
+import { useReplaySync } from "../core/replay/useReplaySync";
 import { BaseballDiamond } from "./BaseballDiamond";
 import { SprayChart } from "./SprayChart";
 import { StrikeZone } from "./StrikeZone";
@@ -36,9 +37,8 @@ import dock from "../core/DockedScorebar.module.css";
 import diamond from "./BaseballDiamond.module.css";
 import { feedBroadcast } from "../core/broadcast";
 import { isInterval } from "../../../data/broadcast/presentedGame";
+import { DiamondTheater } from "./theater/DiamondTheater";
 
-/** The theater's renderer loads with the first live MLB page (its well holds the space meanwhile). */
-const PlayTheater = lazy(() => import("./theater/PlayTheater").then((m) => ({ default: m.PlayTheater })));
 
 export function useBaseballPage(game: GameContext): SportPage {
   const { event, detail, palette, names, spoken, live } = game;
@@ -124,6 +124,8 @@ export function useBaseballPage(game: GameContext): SportPage {
       : { top: String(feed.score.away), bottom: String(feed.score.home) };
   }, [live, detail.topIsHome, feed.score, event.content]);
 
+  // The rows' replays, built from the summary's plays (MLB's account joined where it has the play).
+  useReplaySync(game);
   const common = useCommonSections(game);
   const sections: Partial<Record<string, ReactNode>> = { ...common };
   const sectionWidth = game.split ? 320 : 380;
@@ -140,8 +142,8 @@ export function useBaseballPage(game: GameContext): SportPage {
     sections.liveView = (
       <DetailSection id="liveView" title="Live View" caption="The latest pitch, replayed as it happened." accessory="live">
           <Suspense fallback={<div className={diamond.theaterFallback} aria-hidden="true" />}>
-            {/* The theater keeps today's inputs (the lane's diamond and inning, the scoreboard's event) until the director reads the broadcast. */}
-            <PlayTheater
+            {/* Broadcasting, the theater on the engine reads the broadcast; otherwise today's keeps the lane's diamond and inning. */}
+            <DiamondTheater
               state={theater}
               bases={[(today ?? situation).onFirst, (today ?? situation).onSecond, (today ?? situation).onThird]}
               batting={live ? battingSide(todayInning, game.raw.detail.topIsHome) : null}
