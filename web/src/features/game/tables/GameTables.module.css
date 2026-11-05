@@ -23,3 +23,9 @@
 .more:active {
   opacity: 0.6;
 }
+
+/* College's two links side by side (DetailView: Full Standings, Top 25). */
+.links {
+  display: flex;
+  gap: calc(16 * var(--pt));
+}

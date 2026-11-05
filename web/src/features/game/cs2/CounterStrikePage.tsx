@@ -22,9 +22,11 @@ import { getJSON } from "../../../data/http";
 import { Accessory, type AccessoryTier } from "../../../data/matchRules";
 import { competitors, type CSLive, type Side } from "../../../data/models";
 import { csLiveLine } from "../../../data/providers/csLive";
+import { coStreamHandle } from "../../../data/coStream";
 import { bracketPath } from "../../../data/schedule";
 import type { Section } from "../../../data/sections";
 import { useSettings } from "../../../state/settings";
+import { streams, useStreams } from "../../../state/streams";
 import { SeriesLink } from "../core/CommonSections";
 import { DetailSection } from "../core/DetailSection";
 import { LANE_INTERVAL, useFastLane, type GameContext, type SportPage } from "../core/sport";
@@ -90,13 +92,20 @@ export function useCounterStrikePage(game: GameContext): SportPage {
     [detail.topRoster.acronym, detail.bottomRoster.acronym, top?.abbreviation, bottom?.abbreviation],
   );
 
-  // The co-streamer, when bo3.gg lists their own channel among the match's streams (ScoreStore.noteStreams).
-  // TODO(owner): the Mac also reads the channel's Twitch status (live, title, game) and avatar through
-  // decapi.me (CoStream.swift), which isn't an official API, so it isn't on the upstream allowlist.
+  // The co-streamer (ScoreStore.coStreamingIDs): bo3.gg listing their own channel among the match's streams is
+  // definitive (ScoreStore.noteStreams, kept until the match ends); otherwise their Twitch title naming this
+  // match, read by the shell's watcher through decapi.me (CoStream.swift).
   const showCoStream = useSettings((s) => s.showCoStream);
   const handle = useSettings((s) => s.coStreamer);
   const coURL = coStreamerURL(handle);
-  const coStream = showCoStream && live && coURL && coStreamListed(detail.streams, handle) ? { name: coStreamerName(handle), url: coURL } : null;
+  const listed = showCoStream && live && coURL != null && coStreamListed(detail.streams, handle);
+  const login = coStreamHandle(handle);
+  useEffect(() => {
+    if (listed && login) streams.confirm(login, event.id);
+  }, [listed, login, event.id]);
+  const titled = useStreams((st) => st.coStreaming.has(event.id));
+  const avatar = useStreams((st) => st.avatar);
+  const coStream = showCoStream && live && coURL && (listed || titled) ? { name: coStreamerName(handle), url: coURL, avatar } : null;
 
   // The maps count, the lane's the moment a map ends (never behind the scoreboard's).
   const laneScores = useMemo(() => {
@@ -167,7 +176,7 @@ export function useCounterStrikePage(game: GameContext): SportPage {
     heroSpoken: [onMap?.round != null ? `Round ${onMap.round}` : null, coStream ? `${coStream.name} is co-streaming` : null].filter(Boolean).join(". ") || null,
     dockDetail: onMap?.round != null ? (tier: AccessoryTier) => (tier >= Accessory.text ? <span className={styles.dockRound}>R{onMap.round}</span> : null) : undefined,
     chip,
-    heroBadge: coStream ? <CoStreamBadge name={coStream.name} url={coStream.url} /> : null,
+    heroBadge: coStream ? <CoStreamBadge name={coStream.name} url={coStream.url} avatar={coStream.avatar} /> : null,
     trophy,
   };
 }

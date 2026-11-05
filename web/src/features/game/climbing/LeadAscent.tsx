@@ -48,7 +48,7 @@ import { ChartFooter, Legend, LegendItem, VizWell } from "../core/DetailSection"
 import { useFocus, useLinkedStore, type Focus } from "../core/linked";
 import { useChartMoment } from "../core/moments";
 import { pointSize, useReducedMotion } from "../core/useMedia";
-import { DeltaChip, flagColors, knock, pop, TRAVEL_EASING } from "./marks";
+import { DeltaChip, flagColors, glint, knock, pop, TRAVEL_EASING } from "./marks";
 import styles from "./Climbing.module.css";
 
 const at = (x: number, y: number, extra = ""): CSSProperties => ({ transform: `translate(calc(${x} * var(--pt)), calc(${y} * var(--pt)))${extra}` });
@@ -107,7 +107,13 @@ export const LeadAscent = memo(function LeadAscent({ route, upNext, yours, round
         if (el) knock(el, { amplitude: 3, dip: 2, outward: -1, delay: k.at, level });
       }
     }
-    if (pill.current && level === "full" && !reduce) pop(pill.current, 1.1, next.flip);
+    if (pill.current && level === "full" && !reduce) {
+      pop(pill.current, 1.1, next.flip);
+      // A new leader: first place after the pass, not before. The pill's glint sweeps once (LeadAscentView `leadBeats`).
+      const leads = done.length > 0 && place(next.from, false, done) > 1 && place(climbing.height, climbing.top, done) === 1;
+      const band = pill.current.querySelector<HTMLElement>("[data-glint]");
+      if (band && (leads || m.accents.has("newLeader"))) glint(band, 16);
+    }
     if (m.kind === "top") setSummit({ moment: m.id, flag: climbing.flag });
     const timer = setTimeout(() => setFlipped(next.moment), next.flip * 1000);
     return () => clearTimeout(timer);
@@ -320,6 +326,7 @@ function Tip({ climber, standing, done, final, x, y, width, pill, receded, hover
         <span className={styles.tipHeight}>{label}</span>
         <span ref={pill} className={styles.place} data-medal={medal ?? undefined} title={medal ? `${medal[0]!.toUpperCase()}${medal.slice(1)} medal place for now` : undefined}>
           {leads ? "Leads" : ordinal(at)}
+          <span className={styles.placeGlint} data-glint="" aria-hidden="true" />
         </span>
       </span>
       {toGo ? <span className={styles.toGo}>{toGo}</span> : null}

@@ -20,7 +20,8 @@ import { useNow } from "../../state/clock";
 import { pin } from "../../state/pin";
 import { useScoreboard } from "../../state/scores";
 import { settings, type LandingView } from "../../state/settings";
-import { useWidth, WIDTH } from "../../design/useWidth";
+import { useWidth } from "../../design/useWidth";
+import { COMPACT_LAYOUT, resolvePanel, scoresGridNext, type PanelLayout } from "../../data/listLayout";
 import { ScoresList } from "./ScoresList";
 import { TileBoard } from "./TileBoard";
 import styles from "./ScoresPage.module.css";
@@ -82,6 +83,7 @@ export function ScoresPage({ variant }: { readonly variant: "page" | "sidebar" }
 
   const scrolled = useScrolled(root);
   const width = useWidth(root);
+  const layout = usePanelLayout(width);
   const stale = scores.status === "offline";
   const followedIDs = scores.settings.followed.map((t) => t.id);
   // Every league failed and none has a game to show: one "Can't Load Scores" (ScoresView's
@@ -167,7 +169,7 @@ export function ScoresPage({ variant }: { readonly variant: "page" | "sidebar" }
             hasFollowed={followedIDs.length > 0}
             highlight={highlight}
             selectedID={selectedID}
-            records={width - 28 >= WIDTH.medium}
+            layout={layout}
             stale={stale}
             onHover={onHover}
           />
@@ -242,7 +244,21 @@ function useScrolled(root: React.RefObject<HTMLDivElement | null>): boolean {
  * through rows; tiles move to the nearest tile in the next row (↑/↓) or in
  * reading order (←/→). Read only on a key press.
  */
+/** The list's arrangement from its width, with the Mac's hysteresis (PanelLayout.resolve from the last one). */
+function usePanelLayout(width: number): PanelLayout {
+  const last = useRef(COMPACT_LAYOUT);
+  last.current = resolvePanel(width, last.current);
+  return last.current;
+}
+
 function nextCell(container: HTMLElement, current: string | null, direction: Direction, view: LandingView): { id: string; element: HTMLElement } | null {
+  // The list two up: around the grid by section, as the Mac's ScoresGrid (no geometry needed).
+  if (view === "list" && container.querySelector('[data-columns="2"]')) {
+    const sections = [...container.querySelectorAll<HTMLElement>("[data-columns]")].map((rows) => [...rows.querySelectorAll<HTMLElement>("[data-nav-id]")].map((e) => e.dataset.navId!));
+    const id = scoresGridNext(current, direction, sections, 2);
+    const element = id ? container.querySelector<HTMLElement>(`[data-nav-id="${CSS.escape(id)}"]`) : null;
+    return id && element ? { id, element } : null;
+  }
   const cells = [...container.querySelectorAll<HTMLElement>("[data-nav-id]")].map((element) => ({
     id: element.dataset.navId!,
     element,

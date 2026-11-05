@@ -124,6 +124,7 @@ export function TournamentResultsPage({ scope, mode, onMode, switched, crossfade
 
   return (
     <SeasonFrame
+      ready={data.status !== "loading"}
       rootRef={root}
       label="Tournament results"
       onKeyDown={onKeyDown}

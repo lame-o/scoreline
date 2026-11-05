@@ -19,6 +19,10 @@ describe("the upstream allowlist", () => {
       "/api/api.bo3.gg/api/v1/matches",
       "/api/ifsc.results.info/api/v1/events/1489",
       "/api/statsapi.mlb.com/api/v1/schedule",
+      "/api/www.youtube.com/@WorldClimbing/live",
+      "/api/www.youtube.com/@WorldClimbing/streams",
+      "/api/decapi.me/twitch/uptime/ohnepixel",
+      "/api/decapi.me/twitch/avatar/ohnepixel",
     ];
     for (const path of ok) expect(resolveProxyPath(path, ""), path).not.toBeNull();
     const refused = [
@@ -28,7 +32,15 @@ describe("the upstream allowlist", () => {
       "/api/site.api.espn.com/apis/site/v2/sports/%2e%2e/x",
       "/api/site.api.espn.com/apis/site/v2/sports//x",
       "/api/a.espncdn.com/i/teamlogos/nfl/500/chi.png",
-      "/api/www.youtube.com/@WorldClimbing/live",
+      // YouTube: World Climbing's two pages, exactly; decapi.me: a Twitch login's status and avatar.
+      "/api/www.youtube.com/@WorldClimbing/liveX",
+      "/api/www.youtube.com/@WorldClimbing/streams/extra",
+      "/api/www.youtube.com/@OtherChannel/live",
+      "/api/www.youtube.com/watch",
+      "/api/decapi.me/twitch/followcount/ohnepixel",
+      "/api/decapi.me/twitch/uptime/ohne%20pixel",
+      "/api/decapi.me/twitch/uptime/OhnePixel/extra",
+      "/api/decapi.me/youtube/latest_video",
       "/api/",
       "/not-api/site.api.espn.com/apis/site/v2/sports/nfl/scoreboard",
     ];
@@ -46,6 +58,12 @@ describe("the upstream allowlist", () => {
     // An NFL team's depth chart (the football theater's, once a game): a season's, cached like a schedule.
     expect(resolveProxyPath("/api/sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/2026/teams/12/depthcharts", "")?.policy).toBe(SCHEDULE);
     expect(resolveProxyPath("/api/ifsc.results.info/api/v1/", "")?.upstream.headers?.Referer).toBe("https://ifsc.results.info/");
+    // World Climbing's live page as often as the Mac looks around a start; its schedule half an hour.
+    expect(resolveProxyPath("/api/www.youtube.com/@WorldClimbing/live", "")?.policy.edge).toBe(60);
+    expect(resolveProxyPath("/api/www.youtube.com/@WorldClimbing/streams", "")?.policy.edge).toBe(1800);
+    // A Twitch status at the Mac's 2-minute check; an avatar a day.
+    expect(resolveProxyPath("/api/decapi.me/twitch/title/ohnepixel", "")?.policy.edge).toBeLessThanOrEqual(120);
+    expect(resolveProxyPath("/api/decapi.me/twitch/avatar/ohnepixel", "")?.policy.edge).toBe(86_400);
   });
 });
 

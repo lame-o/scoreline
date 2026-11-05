@@ -62,6 +62,9 @@
   /* A climb in a table or poll (green), deep enough to read; a fall uses --live-text. */
   --up-text: light-dark(#146c2e, #30d158);
   --star: light-dark(#f5b800, #ffd60a);
+  /* Glyphs only: a co-streamer's ring (Twitch purple) and YouTube's live mark. */
+  --twitch: light-dark(#7c3aed, #a970ff);
+  --youtube: light-dark(#e00000, #ff3b30);
   --on-live: #fff;
   /* What shows through a filled glyph's cut-outs (a football's laces). */
   --icon-cutout: light-dark(#fff, #1e1e21);

@@ -16,6 +16,47 @@
   padding: 0 calc(6 * var(--pt));
 }
 
+/*
+ * From medium the team block keeps its 230pt (Metrics.teamBlockWidth), so the
+ * score never drifts right as the list widens: the extra room opens between
+ * score and status, and from large the detail lane fills it (ListLayout.swift).
+ */
+.rows[data-detail="records"],
+.rows[data-detail="lane"] {
+  grid-template-columns: minmax(0, calc(230 * var(--pt))) minmax(0, 1fr) minmax(calc(70 * var(--pt)), max-content);
+}
+
+/* From 680pt, two up (RowGrid): each game takes one side's tracks; a visual row is as tall as its taller cell. */
+.rows[data-columns="2"] {
+  --row-span: 2;
+  grid-template-columns: repeat(2, minmax(0, 1fr) minmax(calc(70 * var(--pt)), max-content));
+}
+
+/* Crossing the split: the rows jump to their new places unseen and fade back in (ScoresView.reflow). */
+.rows[data-reflow="true"] {
+  animation: reflow var(--dur-reveal) var(--ease-out) both;
+}
+
+.rows[data-columns="2"][data-detail="records"],
+.rows[data-columns="2"][data-detail="lane"] {
+  --row-span: 3;
+  grid-template-columns: repeat(2, minmax(0, calc(230 * var(--pt))) minmax(0, 1fr) minmax(calc(70 * var(--pt)), max-content));
+}
+
+.rows[data-columns="2"] > :nth-child(odd of div) {
+  grid-column: 1 / span var(--row-span);
+}
+
+.rows[data-columns="2"] > :nth-child(even of div) {
+  grid-column: calc(var(--row-span) + 1) / -1;
+}
+
+@keyframes reflow {
+  from {
+    opacity: 0;
+  }
+}
+
 .error {
   padding: calc(6 * var(--pt)) var(--gutter);
   font-size: var(--text-status);
