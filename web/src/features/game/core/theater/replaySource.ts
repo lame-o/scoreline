@@ -20,26 +20,45 @@ export class ReplaySource implements BroadcastTheaterSource {
   horizons: BindingHorizons | null = null;
   anchors: ReadonlyMap<string, PTime> = new Map();
 
+  /** How far the watermark runs ahead of p (snapshotAt's `ahead`); and whether its passing a play is a change (`rereads`). */
+  private readonly ahead: number;
+  private readonly rereads: boolean;
+
   constructor(
     private readonly arrivals: readonly Arrival[],
     /** Seconds into the recording the page opens at. */
     offset: number,
     /** How far behind the recording's own time the clock presents (D). */
-    delay: number,
+    private readonly delay: number,
     wall: PTime = Date.now() / 1000,
+    /**
+     * As runEngine's (test/unit/theaterRun.ts): the watermark `ahead` of p,
+     * and, with `rereads`, a play crossing it is a change of the timeline (as
+     * the page's is), so a sport that plans from the plays up to the
+     * watermark alone (football) learns of each as it crosses.
+     */
+    { ahead = 4, rereads = false }: { ahead?: number; rereads?: boolean } = {},
   ) {
     const first = arrivals[0]?.at ?? wall;
     this.shift = first + offset - wall;
+    this.ahead = ahead;
+    this.rereads = rereads;
     // Everything on the wall's axis (the plays' times shifted onto it): p = wall − D.
     this.clock = new DelayClock(delay, wall);
     this.arrived = this.count(wall);
   }
 
-  /** Arrivals on the wall's axis. */
+  /** When (the recording's time) a play becomes a change: it arrives, or (`rereads`) the watermark passes it after it has. */
+  private changes(a: Arrival): number[] {
+    if (!this.rereads || a.play.eventTime == null) return [a.at];
+    return [a.at, Math.max(a.at, a.play.eventTime + this.delay - this.ahead)];
+  }
+
+  /** Changes so far on the wall's axis. */
   private count(wall: PTime): number {
     const rec = wall + this.shift;
     let n = 0;
-    for (const a of this.arrivals) if (a.at <= rec) n += 1;
+    for (const a of this.arrivals) for (const at of this.changes(a)) if (at <= rec) n += 1;
     return n;
   }
 
@@ -54,7 +73,7 @@ export class ReplaySource implements BroadcastTheaterSource {
       at: a.at - this.shift,
       play: { ...a.play, eventTime: a.play.eventTime == null ? null : a.play.eventTime - this.shift, presentAt: a.play.presentAt - this.shift },
     }));
-    return snapshotAt(shifted, this.clock, wall);
+    return snapshotAt(shifted, this.clock, wall, this.ahead);
   }
 
   setBindingHorizons(horizons: BindingHorizons): void {
@@ -77,12 +96,13 @@ export class ReplaySource implements BroadcastTheaterSource {
     };
   }
 
-  /** One timer to the next arrival. */
+  /** One timer to the next arrival (or the watermark's next play). */
   private arm(): void {
     if (this.timer || this.listeners.size === 0) return;
     const wall = Date.now() / 1000;
-    const next = this.arrivals.find((a) => a.at - this.shift > wall);
-    if (!next) return;
+    let next: number | null = null;
+    for (const a of this.arrivals) for (const at of this.changes(a)) if (at - this.shift > wall && (next == null || at < next)) next = at;
+    if (next == null) return;
     this.timer = setTimeout(
       () => {
         this.timer = null;
@@ -93,7 +113,7 @@ export class ReplaySource implements BroadcastTheaterSource {
         }
         this.arm();
       },
-      Math.max((next.at - this.shift - wall) * 1000, 0) + 5,
+      Math.max((next - this.shift - wall) * 1000, 0) + 5,
     );
   }
 }

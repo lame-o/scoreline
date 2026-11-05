@@ -4,7 +4,8 @@
  * the page's broadcast would hand it to the director. It draws; its frames
  * come at the display's rate while the plan moves and stop when nothing
  * does; scrolled away or in a hidden tab it draws nothing; with Reduce Motion
- * it shows key states, never a loop. Screenshots go to SCORELINE_SCREENSHOTS.
+ * it shows key states, never a loop. `?sport=football` plays the field the
+ * same way. Screenshots go to SCORELINE_SCREENSHOTS.
  */
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
@@ -71,5 +72,26 @@ test.describe("the court on the director", () => {
     const before = await frames(page);
     await page.waitForTimeout(2000);
     expect(await frames(page)).toBe(before);
+  });
+});
+
+test.describe("the field on the director", () => {
+  test("draws the recording live, plans its snaps, nothing thrown", async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.addInitScript(() => {
+      (window as unknown as { __theaterFrames: number[] }).__theaterFrames = [];
+    });
+    // DAL at PHI (the Mac's football gate fixture), a few minutes in: the drive after the opening kickoff.
+    await page.goto("/dev/theater/directed?sport=football&at=200&d=74");
+    await page.locator("[data-directed][data-theater='football'] canvas").waitFor();
+    await page.waitForTimeout(4000);
+    expect(await inked(page)).toBeGreaterThan(0.3);
+    await page.locator("[data-directed]").screenshot({ path: join(OUT, "directed-nfl.png") });
+    expect(await frames(page)).toBeGreaterThan(0);
+    // The director has handed the timeline its anchors: the snaps it will tell, and when.
+    const anchors = await page.evaluate(() => (window as unknown as { __directedSource?: { anchors: Map<string, number> } }).__directedSource?.anchors.size ?? 0);
+    expect(anchors).toBeGreaterThan(0);
+    expect(errors).toEqual([]);
   });
 });
