@@ -1,9 +1,20 @@
-/** Competition hub: browse its season, follow teams globally, or set this
- * competition's scope. Each tab keeps a distinct selection meaning. */
-import { Link, useParams, useSearchParams } from "react-router";
+/**
+ * A competition's page (LeagueSettingsView.swift, 34ba1dd): what's coming up
+ * first (its games, competitions or tournaments, and the way into its full
+ * schedule), what else it has (Explore), then its settings: following it,
+ * and whether every match shows or only the teams picked here. For climbing
+ * the picks are countries, whose athletes get called out. A soccer
+ * competition's season has its own page (Explore's Competition): this one is
+ * its settings.
+ *
+ * One list of teams, with one meaning: the star follows a team everywhere it
+ * plays, and in Selected Teams a click picks it (a checkmark) for this
+ * competition alone; otherwise a row opens its team.
+ */
+import { Link, useParams } from "react-router";
 import { competitionPath } from "../../data/soccerCompetition";
-import { FormSection, GroupBox, PageHeader, SegmentedControl, ToggleRow, formStyles } from "../../design/components";
-import { competitionKind, hasTable, leagueWithID } from "../../data/leagues";
+import { FormSection, GroupBox, Icon, PageHeader, SegmentedControl, ToggleRow, formStyles } from "../../design/components";
+import { hasTable, leagueWithID } from "../../data/leagues";
 import type { League } from "../../data/models";
 import { PageBack } from "../../app/PageBack";
 import { useDocumentTitle } from "../../app/useDocumentTitle";
@@ -18,39 +29,51 @@ const all = (s: Settings) => s;
 export function LeaguePage() {
   const { id } = useParams();
   const league = id ? leagueWithID(id) : undefined;
-  const [search, setSearch] = useSearchParams();
-  const tab = ["teams", "following"].includes(search.get("tab") ?? "") ? search.get("tab")! : "overview";
   useDocumentTitle(league ? league.name : null);
+  const filterOn = useSettings((s) => (league ? s.filteredLeagues.includes(league.id) : false));
   if (!league) return <NotFound />;
+  const climbing = league.source.kind === "ifsc";
   return (
     <div className={styles.page}>
       <PageHeader title={league.name} icon={undefined} leading={<PageBack />} />
       <div className={`${styles.column} ${styles.entrance}`}>
-        <FormSection title={competitionKind(league)} icon="trophy">
-          <GroupBox><FollowCompetition league={league} /></GroupBox>
+        {/* A soccer competition's season lives on its own page. */}
+        {league.sport !== "soccer" ? <LeagueHub league={league} /> : null}
+        <Explore league={league} />
+        <FormSection title="In Your Scores" icon="list">
+          <GroupBox>
+            <FollowCompetition league={league} />
+          </GroupBox>
         </FormSection>
-        <div className={styles.browseControls}><SegmentedControl label="Competition page" value={tab} onChange={v => setSearch(v === "overview" ? {} : {tab:v}, {replace:true})} options={[
-          {value:"overview",label:"Overview"}, {value:"teams",label:league.source.kind === "ifsc" ? "Countries" : "Teams"}, {value:"following",label:"Following"}
-        ]} /></div>
-        {tab === "overview" ? <>
-          <FormSection title="Explore" icon="list"><GroupBox>
-            {league.sport === "soccer" ? <Link className={styles.catalogRow} to={competitionPath(league.id)}>Season · Rounds and Results</Link> : null}
-            {hasTable(league) ? <Link className={styles.catalogRow} to={`/standings/${league.id}`}>Standings</Link> : null}
-            {league.id === "college-football" ? <Link className={styles.catalogRow} to="/rankings/college-football">Top 25</Link> : null}
-            {league.id === "mlb" ? <Link className={styles.catalogRow} to={`/bracket/mlb/${new Date().getFullYear()}`}>Postseason bracket</Link> : null}
-            <Link className={styles.catalogRow} to={`/schedule/${league.id === "cs2" ? "tournaments" : league.id === "ifsc" ? "climbing" : league.id}`}>{league.id === "cs2" ? "Tournaments" : league.id === "ifsc" ? "Season competitions" : "Full Schedule"}</Link>
-          </GroupBox></FormSection>
-          <LeagueHub league={league} />
-        </> : tab === "teams" ? <>
-          <p className={formStyles.caption}>{league.source.kind === "ifsc" ? "Countries highlight athletes in the series. They do not hide other competitors." : "Follow teams across all competitions. This does not change which competitions you follow."}</p>
-          <TeamPicks key={`${league.id}-global`} league={league} mode={league.source.kind === "ifsc" ? "scoped" : "global"} />
-        </> : <>
-          <LeagueOptions league={league} />
-          <ScopedTeams league={league} />
-        </>}
-
+        <LeagueOptions league={league} />
+        <TeamPicks key={`${league.id}-${filterOn || climbing}`} league={league} picking={filterOn || climbing} />
       </div>
     </div>
+  );
+}
+
+/** What else the league has, beside its schedule. */
+function Explore({ league }: { league: League }) {
+  const table = league.sport !== "soccer" && hasTable(league);
+  if (!table && league.sport !== "soccer" && league.id !== "college-football" && league.id !== "mlb") return null;
+  return (
+    <FormSection title="Explore" icon="list">
+      <GroupBox>
+        {league.sport === "soccer" ? <ExploreRow to={competitionPath(league.id)} title="Competition" /> : null}
+        {table ? <ExploreRow to={`/standings/${league.id}`} title="Standings" /> : null}
+        {league.id === "college-football" ? <ExploreRow to="/rankings/college-football" title="Top 25" /> : null}
+        {league.id === "mlb" ? <ExploreRow to={`/bracket/mlb/${new Date().getFullYear()}`} title="Postseason Bracket" /> : null}
+      </GroupBox>
+    </FormSection>
+  );
+}
+
+function ExploreRow({ to, title }: { to: string; title: string }) {
+  return (
+    <Link className={styles.navRow} to={to}>
+      <span className={styles.leagueName}>{title}</span>
+      <Icon name="chevronRight" size={9} className={styles.chevron} />
+    </Link>
   );
 }
 
@@ -60,10 +83,10 @@ function LeagueOptions({ league }: { league: League }) {
   const filterOn = s.filteredLeagues.includes(league.id);
   return (
     <>
-      <FormSection title="Competition scope" icon="list">
+      <FormSection title="Show" icon="list">
         {climbing ? (
           <p className={formStyles.caption} style={{ paddingTop: 0 }}>
-            Pick countries to see their best-placed athlete on each round.
+            Pick countries to see their best-placed athlete on each round and highlighted in the standings.
           </p>
         ) : (
           <>
@@ -73,13 +96,13 @@ function LeagueOptions({ league }: { league: League }) {
                 value={filterOn ? "mine" : "all"}
                 onChange={(v) => settings.setFilterOn(league.id, v === "mine")}
                 options={[
-                  { value: "all", label: "All Games" },
+                  { value: "all", label: "All Matches" },
                   { value: "mine", label: "Selected Teams" },
                 ]}
               />
             </div>
             <p className={formStyles.caption}>
-              {filterOn ? `Only the selected teams’ ${league.name} matches appear. Team follows elsewhere remain independent.` : `Every ${league.name} game appears. Switch to pick specific teams.`}
+              {filterOn ? `Only the teams checked below show under ${league.name}.` : `Every ${league.name} match shows. Star a team to follow it everywhere it plays.`}
             </p>
           </>
         )}
@@ -128,11 +151,8 @@ function LeagueOptions({ league }: { league: League }) {
   );
 }
 
-function FollowCompetition({league}: {league: League}) {
-  const on = useSettings(s => s.enabledLeagues.includes(league.id));
-  return <ToggleRow title={`Follow ${league.name}`} subtitle={on ? "Included in Scores. Teams you follow can also appear independently." : "Explore without following. Team follows remain independent."} checked={on} onChange={v => settings.setEnabled(league.id, v)} />;
-}
-function ScopedTeams({league}: {league: League}) {
-  const on = useSettings(s => s.filteredLeagues.includes(league.id));
-  return on && league.source.kind !== "ifsc" ? <TeamPicks key={league.id} league={league} /> : null;
+function FollowCompetition({ league }: { league: League }) {
+  const on = useSettings((s) => s.enabledLeagues.includes(league.id));
+  const subtitle = league.kind === "circuit" ? "Every event on the scores list. A team or a single event can be followed on its own." : "Its matches on the scores list. Teams you follow show everywhere they play.";
+  return <ToggleRow title={`Follow ${league.name}`} subtitle={subtitle} checked={on} onChange={(v) => settings.setEnabled(league.id, v)} />;
 }

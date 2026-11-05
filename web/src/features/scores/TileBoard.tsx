@@ -9,7 +9,7 @@ import { useMemo, useRef } from "react";
 import { Link } from "react-router";
 import { Icon, type IconName } from "../../design/components";
 import { revealDelay, spring } from "../../design/motion";
-import type { League } from "../../data/models";
+import type { League, ScoreEvent } from "../../data/models";
 import { planTiles, TIER_TITLE, tierID, type Board, type TierKind, type TierPlan } from "../../data/scoreboard";
 import { EventTile } from "./EventTile";
 import { useWidth } from "../../design/useWidth";
@@ -25,6 +25,7 @@ export interface TileBoardProps {
   readonly collapsed: readonly string[];
   readonly followed: readonly string[];
   readonly quietLeagues: readonly League[];
+  readonly screened?: Readonly<Record<string, readonly ScoreEvent[]>>;
   readonly hasFollowed: boolean;
   readonly highlight: { readonly id: string | null; readonly keyboard: boolean };
   readonly selectedID: string | null;
@@ -39,7 +40,7 @@ function columns(width: number): { large: number; small: number } {
   return { large: 1, small: content >= 460 ? 3 : 2 };
 }
 
-export function TileBoard({ board, collapsed, followed, quietLeagues, hasFollowed, highlight, selectedID, stale, onHover }: TileBoardProps) {
+export function TileBoard({ board, collapsed, followed, quietLeagues, screened, hasFollowed, highlight, selectedID, stale, onHover }: TileBoardProps) {
   const { toggling, toggle } = useSectionToggle();
   const ref = useRef<HTMLDivElement>(null);
   // The board's width in Mac points: one observer for the whole board, read only when it changes.
@@ -91,7 +92,7 @@ export function TileBoard({ board, collapsed, followed, quietLeagues, hasFollowe
           );
         })}
         <m.div layout={toggling.animating ? "position" : false} transition={spring.standard}>
-          <Footnotes quiet={quietLeagues} hasFollowed={hasFollowed} />
+          <Footnotes quiet={quietLeagues} screened={screened} hasFollowed={hasFollowed} />
         </m.div>
       </LayoutGroup>
     </div>

@@ -39,13 +39,14 @@ import {
   pollInterval,
   quietLeagues as findQuiet,
   retryDelay,
+  screened as screenedLeagues,
   type Board,
   type Section,
 } from "../data/scoreboard";
 import { useNow } from "./clock";
 import { laneScoresVersion, subscribeLaneScores, withLaneScores } from "./laneScores";
 import { useLogoColorsVersion, wearColors } from "./logoColors";
-import { useNextGames } from "./nextGames";
+import { useNextGames, useRecentLeagues } from "./nextGames";
 import { pin, usePinnedID } from "./pin";
 import { getSettings, useSettings, type Settings } from "./settings";
 
@@ -85,6 +86,8 @@ export interface Scoreboard {
   readonly sections: readonly Section[];
   readonly board: Board;
   readonly quietLeagues: readonly League[];
+  /** Quiet leagues whose team filter hid today's games: those games, live first (the footnote offers them). */
+  readonly screened: Readonly<Record<string, readonly ScoreEvent[]>>;
   readonly liveCount: number;
   /** "loading": nothing has answered yet; "offline": every league failed. */
   readonly status: "loading" | "ready" | "offline";
@@ -146,8 +149,10 @@ export function useScoreboard({ poll = true, background = false }: ScoreboardOpt
   const nextGames = useNextGames(settings.followed);
   const countries = climbingCountries(settings);
   const nextIDs = [...nextGames.values()].flatMap(games => games.slice(0, 1).map(g => g.league));
+  // And where they played in the last 18 hours: a result stays that long, whichever competition it's in.
+  const recentIDs = useRecentLeagues(settings.followed);
   // A team's next game can be in any competition ESPN has a board for.
-  const leagues = [...new Set([...pollingIDs(settings), ...nextIDs])].flatMap(id => leagueResolving(id) ?? []);
+  const leagues = [...new Set([...pollingIDs(settings), ...nextIDs, ...recentIDs])].flatMap(id => leagueResolving(id) ?? []);
   // The cadence is read when each poll lands, from the latest results.
   const interval = useRef(300);
 
@@ -213,11 +218,13 @@ export function useScoreboard({ poll = true, background = false }: ScoreboardOpt
     const matters = (e: ScoreEvent) => e.id === pinnedID || involvesFollowed(settings, e);
     const cadence = hidden ? backgroundInterval(results, matters, now) : pollInterval(results, settings, now);
     const answered = Object.keys(results).length > 0 || leagues.length === 0;
+    const quiet = findQuiet(results, settings, now);
     return {
       results,
       sections,
       board: buildBoard(sections, settings, leagueOf, event, pinnedID),
-      quietLeagues: findQuiet(results, settings, now),
+      quietLeagues: quiet,
+      screened: screenedLeagues(quiet, results, settings, now),
       liveCount: countLive(results, settings),
       status: !answered ? ("loading" as const) : allFailed(results, settings) ? ("offline" as const) : ("ready" as const),
       lastUpdated: queries.reduce<number | null>((t, q) => (q.dataUpdatedAt > 0 ? Math.max(t ?? 0, q.dataUpdatedAt) : t), null),

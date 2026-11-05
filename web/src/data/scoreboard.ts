@@ -267,6 +267,33 @@ export function quietLeagues(results: Readonly<Record<string, LeagueResult>>, pr
   });
 }
 
+/**
+ * The games the list's window holds, without its fallback to the next
+ * fixture: what a team filter hid today, not a game days away
+ * (ScoreStore.inWindow, af33b2b).
+ */
+export function inWindow(events: readonly ScoreEvent[], now: number): ScoreEvent[] {
+  const hour = 3_600_000;
+  return events
+    .filter((e) => (e.state === "live" ? true : e.state === "final" ? e.start > now - 18 * hour : e.start > now - 6 * hour && e.start < now + 36 * hour))
+    .sort(eventOrder);
+}
+
+/**
+ * Quiet leagues that aren't idle: their team filter hid today's games
+ * (ScoreStore.screened). Those games, live first, so the footnote can say so
+ * and offer them. Off, or with no team picked, a quiet league is just quiet.
+ */
+export function screened(quiet: readonly League[], results: Readonly<Record<string, LeagueResult>>, prefs: Pick<ListPreferences, "filteredLeagues" | "teamFilters">, now: number): Readonly<Record<string, readonly ScoreEvent[]>> {
+  const out: Record<string, readonly ScoreEvent[]> = {};
+  for (const league of quiet) {
+    if (league.source.kind === "ifsc" || !prefs.filteredLeagues.includes(league.id) || (prefs.teamFilters[league.id] ?? []).length === 0) continue;
+    const hidden = inWindow(results[league.id]?.events ?? [], now);
+    if (hidden.length > 0) out[league.id] = hidden;
+  }
+  return out;
+}
+
 /** Live games the user would see: their filtered leagues plus followed teams. */
 export function liveCount(results: Readonly<Record<string, LeagueResult>>, prefs: ListPreferences): number {
   const ids = new Set<string>();

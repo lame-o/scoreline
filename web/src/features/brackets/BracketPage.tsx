@@ -6,7 +6,7 @@
  *   /bracket/mlb/2026                          the MLB postseason, from ESPN's daily boards
  *   /bracket/cs2/<slug>?name=…&ring=cs-793      a CS2 tournament (S-tier), from bo3.gg
  */
-import { EditionFollowButton } from "../settings/EditionFollowButton";
+import { EditionStar } from "../settings/FollowStar";
 import { useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { EmptyState, ErrorState, StaleNote } from "../../design/components";
@@ -43,7 +43,7 @@ export function BracketPage() {
   if (!source) return <NotFound />;
   const data = query.data;
   return (
-    <TablePage title={title} trailing={source.kind === "csTournament" ? <EditionFollowButton edition={{source:"cs2", key:source.slug, name:title}} /> : null} footer={load.stale ? <StaleNote updated={load.updated} subject="bracket" /> : null}>
+    <TablePage title={title} trailing={source.kind === "csTournament" ? <EditionStar edition={{source:"cs2", key:source.slug, name:title}} /> : null} footer={load.stale ? <StaleNote updated={load.updated} subject="bracket" /> : null}>
       {(layout) =>
         data ? (
           data.swiss == null && data.bracket == null ? (

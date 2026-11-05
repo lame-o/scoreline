@@ -7,10 +7,11 @@ import { useQueries } from "@tanstack/react-query";
 import { LayoutGroup, m } from "motion/react";
 import { useMemo } from "react";
 import { Link } from "react-router";
-import { Icon, SPORT_ICON } from "../../design/components";
+import { Icon, LiveDot, SPORT_ICON } from "../../design/components";
 import { revealDelay, spring } from "../../design/motion";
 import { espnPath } from "../../data/leagues";
-import type { League } from "../../data/models";
+import type { League, ScoreEvent } from "../../data/models";
+import { gameHref } from "../../data/gameHref";
 import { schedulePath, scopeFor } from "../../data/schedule";
 import type { Section } from "../../data/scoreboard";
 import { ErrorCopy } from "../../design/components";
@@ -23,6 +24,8 @@ export interface ScoresListProps {
   readonly sections: readonly Section[];
   readonly collapsed: readonly string[];
   readonly quietLeagues: readonly League[];
+  /** Quiet leagues whose team filter hid today's games: those games (the footnote offers the live ones). */
+  readonly screened?: Readonly<Record<string, readonly ScoreEvent[]>>;
   readonly hasFollowed: boolean;
   readonly highlight: { readonly id: string | null; readonly keyboard: boolean };
   readonly selectedID: string | null;
@@ -33,7 +36,7 @@ export interface ScoresListProps {
 
 const PREVIEW_LOGOS = 7;
 
-export function ScoresList({ sections, collapsed, quietLeagues, hasFollowed, highlight, selectedID, records, stale, onHover }: ScoresListProps) {
+export function ScoresList({ sections, collapsed, quietLeagues, screened, hasFollowed, highlight, selectedID, records, stale, onHover }: ScoresListProps) {
   const { toggling, toggle, rearrange } = useSectionToggle();
   return (
     <div className={styles.list}>
@@ -76,7 +79,7 @@ export function ScoresList({ sections, collapsed, quietLeagues, hasFollowed, hig
           );
         })}
         <m.div layout={toggling.animating ? "position" : false} transition={spring.standard}>
-          <Footnotes quiet={quietLeagues} hasFollowed={hasFollowed} />
+          <Footnotes quiet={quietLeagues} screened={screened} hasFollowed={hasFollowed} />
         </m.div>
       </LayoutGroup>
     </div>
@@ -132,15 +135,21 @@ function SectionRows({
  * calendar knows its next game day links to its schedule ("Premier League:
  * next Sat, Nov 1"); and until a team is followed, how to follow one.
  */
-export function Footnotes({ quiet, hasFollowed }: { quiet: readonly League[]; hasFollowed: boolean }) {
+export function Footnotes({ quiet: all, screened = NONE, hasFollowed }: { quiet: readonly League[]; screened?: Readonly<Record<string, readonly ScoreEvent[]>>; hasFollowed: boolean }) {
+  // A league your team filter emptied isn't idle: it says so, and offers what's live, instead of "no games" (af33b2b).
+  const filteredOut = all.filter((l) => screened[l.id] != null);
+  const quiet = useMemo(() => all.filter((l) => screened[l.id] == null), [all, screened]);
   const next = useNextGameDays(quiet);
   const known = quiet.filter((l) => next.has(l.id));
   const rest = quiet.filter((l) => !next.has(l.id));
   const weekly = rest.filter((l) => l.source.kind === "espn" && l.source.weekly);
   const daily = rest.filter((l) => !weekly.includes(l) && (espnPath(l) != null || l.source.kind !== "espn"));
-  if (known.length === 0 && weekly.length === 0 && daily.length === 0 && hasFollowed) return null;
+  if (known.length === 0 && weekly.length === 0 && daily.length === 0 && filteredOut.length === 0 && hasFollowed) return null;
   return (
     <div className={styles.footnotes}>
+      {filteredOut.map((l) => (
+        <ScreenedLeague key={l.id} league={l} events={screened[l.id] ?? []} />
+      ))}
       {known.map((l) => (
         <p key={l.id}>
           <Link className={styles.footnoteLink} to={schedulePath(scopeFor(l))} state={{ from: "Scores" }} title={`${l.name} schedule`}>
@@ -162,6 +171,42 @@ export function Footnotes({ quiet, hasFollowed }: { quiet: readonly League[]; ha
       )}
     </div>
   );
+}
+
+const NONE: Readonly<Record<string, readonly ScoreEvent[]>> = {};
+
+/**
+ * A league whose team filter hid today's games (ScoresView.swift
+ * `ScreenedLeague`): not "no games" but none of yours, with any live game a
+ * click away (three at most). The filter stays as it is.
+ */
+function ScreenedLeague({ league, events }: { league: League; events: readonly ScoreEvent[] }) {
+  const live = events.filter((e) => e.state === "live");
+  const weekly = league.source.kind === "espn" && league.source.weekly;
+  return (
+    <div className={styles.screened}>
+      <p>
+        {league.name}: none of your teams {weekly ? "this week" : "today or tomorrow"}
+      </p>
+      {live.slice(0, 3).map((e) => (
+        <p key={e.id}>
+          <Link className={styles.footnoteLink} to={gameHref(e.id, league.id)} state={{ from: "Scores" }} title={`Open this game (it stays hidden from your ${league.name} teams)`} aria-label={`Live: ${screenedLine(e)}`}>
+            <LiveDot />
+            <span>{screenedLine(e)}</span>
+          </Link>
+        </p>
+      ))}
+      {live.length > 3 ? <p>and {live.length - 3} more live</p> : null}
+    </div>
+  );
+}
+
+/** "Spurs 1–0 C Palace · 42'", in the list's order for the sport. */
+export function screenedLine(e: ScoreEvent): string {
+  if (e.content.kind !== "match") return e.content.title;
+  const { top, bottom } = e.content;
+  const middle = top.score != null && bottom.score != null ? ` ${top.score}–${bottom.score} ` : " v ";
+  return `${top.name}${middle}${bottom.name}${e.detail ? ` · ${e.detail}` : ""}`;
 }
 
 const CALENDAR_HOURS = 12 * 3_600_000;

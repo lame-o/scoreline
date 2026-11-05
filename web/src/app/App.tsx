@@ -34,6 +34,7 @@ const router = createBrowserRouter([
       { index: true, element: <IndexRoute /> },
       { path: "game/:id", lazy: () => import("../features/game/GamePage").then((m) => ({ Component: m.GamePage })) },
       { path: "sports", lazy: () => import("../features/settings/SportsPage").then(m => ({ Component: m.SportsPage })) },
+      { path: "sports/:sport", lazy: () => import("../features/settings/SportsPage").then(m => ({ Component: m.SportPage })) },
       { path: "following", lazy: () => import("../features/settings/FollowingPage").then(m => ({ Component: m.FollowingPage })) },
       { path: "sports/competition/:id", lazy: () => import("../features/settings/LeaguePage").then(m => ({ Component: m.LeaguePage })) },
       { path: "settings", lazy: () => import("../features/settings/SettingsPage").then((m) => ({ Component: m.SettingsPage })) },

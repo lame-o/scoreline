@@ -150,6 +150,7 @@ export function ScoresPage({ variant }: { readonly variant: "page" | "sidebar" }
             collapsed={scores.settings.collapsed}
             followed={followedIDs}
             quietLeagues={scores.quietLeagues}
+            screened={scores.screened}
             hasFollowed={followedIDs.length > 0}
             highlight={highlight}
             selectedID={selectedID}
@@ -161,6 +162,7 @@ export function ScoresPage({ variant }: { readonly variant: "page" | "sidebar" }
             sections={scores.sections}
             collapsed={scores.settings.collapsed}
             quietLeagues={scores.quietLeagues}
+            screened={scores.screened}
             hasFollowed={followedIDs.length > 0}
             highlight={highlight}
             selectedID={selectedID}
