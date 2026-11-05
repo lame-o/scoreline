@@ -2,7 +2,10 @@
  * EventRow: one game in the list (EventRow.swift). Two competitor lines
  * (crest, AP rank, name, the ball, the follow star, the record when it fits,
  * the score), the line under them (the caption, or live, the situation),
- * and the status column. A finished game's loser steps back. A live score
+ * and the status column. As the list widens (data/listLayout.ts): records
+ * from medium, with the team block fixed at 230pt so scores keep one column;
+ * from large, a detail lane between score and status takes the situation
+ * and the context, a line each (EventRow.swift `DetailLane`). A finished game's loser steps back. A live score
  * change flashes the row red, with a dot before the side that scored.
  *
  * It's a link to the game, labeled with the game in words; it re-renders
@@ -16,7 +19,8 @@ import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router";
 import { Icon, LiveStatus } from "../../design/components";
 import { FLASH } from "../../design/motion";
-import { contextLine, countdown, clockTime, dayName, enDash, isDelayed, spokenSummary, unplayed } from "../../data/format";
+import { contextLine, countdown, clockTime, dayName, enDash, isDelayed, laneLines, spokenRecord, spokenSummary, unplayed } from "../../data/format";
+import type { RowDetail } from "../../data/listLayout";
 import { competitorKey, eventSport, stepsBack, type Competitor, type ScoreEvent } from "../../data/models";
 import { liveScoreChanged, sameEvent, scorers as findScorers } from "../../data/scoreboard";
 import { useNow } from "../../state/clock";
@@ -35,8 +39,8 @@ export interface EventRowProps {
   readonly keyboard: boolean;
   /** Open in the detail pane. */
   readonly selected: boolean;
-  /** Records show beside names (medium width and up). */
-  readonly records: boolean;
+  /** What the row has room for: records beside names from medium, a detail lane from large (ListLayout.swift `RowDetail`). */
+  readonly detail: RowDetail;
   /** The data is stale: the live dot holds still. */
   readonly stale: boolean;
   /** Set when the row appears because its section was just expanded: text reveals after this delay. */
@@ -46,7 +50,9 @@ export interface EventRowProps {
   readonly onHover: (id: string) => void;
 }
 
-function EventRowView({ event, keyboard, selected, records, stale, revealDelay, travel, onHover }: EventRowProps) {
+function EventRowView({ event, keyboard, selected, detail, stale, revealDelay, travel, onHover }: EventRowProps) {
+  const records = detail !== "base";
+  const lane = detail === "lane";
   const followed = useSettings((s) => s.followed);
   const pinned = useIsPinned(event.id);
   const isFollowed = (c: Competitor) => c.id != null && followed.some((t) => t.id === c.id);
@@ -65,6 +71,8 @@ function EventRowView({ event, keyboard, selected, records, stale, revealDelay, 
     streaming,
     event.state === "live" && event.liveLine ? event.liveLine : null,
     event.caption,
+    // The records a wider row shows, in words.
+    ...(records && event.content.kind === "match" ? [event.content.top, event.content.bottom].flatMap((c) => (c.record ? [`${c.name} ${spokenRecord(c.record, soccer)}`] : [])) : []),
   ]
     .filter(Boolean)
     .join(", ");
@@ -93,19 +101,21 @@ function EventRowView({ event, keyboard, selected, records, stale, revealDelay, 
             <span className={styles.fieldTitle} style={{ display: "block" }}>
               {event.content.title}
             </span>
-            {event.content.summary ? (
+            {/* With a lane, the summary moves into it. */}
+            {event.content.summary && !lane ? (
               <span className={styles.fieldSummary} style={{ display: "block", marginTop: "calc(4 * var(--pt))" }}>
                 {event.content.summary}
               </span>
             ) : null}
           </span>
         )}
-        {context ? (
+        {context && !lane ? (
           <span key={context.text} className={[styles.context, reveal?.className].filter(Boolean).join(" ")} style={reveal?.style}>
             {context.text}
           </span>
         ) : null}
       </span>
+      {lane ? <DetailLane event={event} reveal={reveal} /> : null}
       <span className={[styles.status, reveal?.className].filter(Boolean).join(" ")} style={reveal?.style} aria-hidden="true">
         {pinned || mayStream(event) ? (
           <span className={styles.statusLine}>
@@ -134,7 +144,7 @@ export const EventRow = memo(EventRowView, (a, b) => {
   return (
     a.keyboard === b.keyboard &&
     a.selected === b.selected &&
-    a.records === b.records &&
+    a.detail === b.detail &&
     a.stale === b.stale &&
     a.revealDelay === b.revealDelay &&
     a.travel === b.travel &&
@@ -199,6 +209,27 @@ function CompetitorLine({
           <span className={`${styles.score} ${styles.missing}`}>–</span>
         ) : null}
       </span>
+    </span>
+  );
+}
+
+/**
+ * The detail lane of a wide row (EventRow.swift `DetailLane`): the live
+ * situation (or a field event's summary, or where to watch) over the game's
+ * context (or the venue), one line each, between the teams and the status.
+ * With one line it centres against the teams.
+ */
+function DetailLane({ event, reveal }: { event: ScoreEvent; reveal: { className: string | undefined; style: CSSProperties } | null }) {
+  const lines = laneLines(event);
+  if (!lines.primary && !lines.secondary) return <span className={styles.lane} aria-hidden="true" />;
+  return (
+    <span className={[styles.lane, reveal?.className].filter(Boolean).join(" ")} style={reveal?.style} title={[lines.primary, lines.secondary].filter(Boolean).join("\n")} aria-hidden="true">
+      {lines.primary ? (
+        <span key={lines.primary} className={event.content.kind === "field" ? styles.laneSummary : styles.laneLine}>
+          {lines.primary}
+        </span>
+      ) : null}
+      {lines.secondary ? <span className={styles.laneLine}>{lines.secondary}</span> : null}
     </span>
   );
 }

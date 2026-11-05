@@ -57,10 +57,36 @@
 }
 
 .teams {
+  grid-column: 1;
   display: flex;
   flex-direction: column;
   gap: calc(4 * var(--pt));
   min-width: 0;
+}
+
+/* A wide row's detail lane (DetailLane): its own column after the score, a line each, secondary ink. */
+.lane {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(3 * var(--pt));
+  min-width: 0;
+  padding-left: calc(6 * var(--pt));
+}
+
+.laneLine,
+.laneSummary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  color: var(--label-secondary);
+}
+
+.laneSummary {
+  font-size: var(--text-callout);
 }
 
 .line {
@@ -177,6 +203,7 @@
 /* MARK: Status column */
 
 .status {
+  grid-column: -2;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
