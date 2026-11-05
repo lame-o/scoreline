@@ -13,7 +13,14 @@ import { enDash } from "../../data/format";
 import type { Sport } from "../../data/models";
 import { RED_CARD, spokenTeamResult, teamResult } from "../../data/results";
 import { itemTeams, type FormMark, type ResultRound, type ScheduleItem, type ScheduleTeam, type TeamSeason } from "../../data/schedule";
+import { gameHref } from "../../data/gameHref";
 import { tooltip } from "./ScheduleRow";
+
+/** A form mark's game, under its league when the season has it. */
+export function hrefOf(results: readonly ScheduleItem[], id: string): string {
+  const item = results.find((i) => i.id === id);
+  return item ? itemHref(item) : gameHref(id);
+}
 import styles from "./ResultRows.module.css";
 
 // MARK: - Form strip
@@ -46,9 +53,13 @@ export function FormStrip({ marks, hovered, onHover, href }: { marks: readonly F
   );
 }
 
-/** The readout under a form strip: the pointed-at game, else the latest. */
-function FormReadout({ marks, hovered }: { marks: readonly FormMark[]; hovered: string | null }) {
-  const mark = marks.find((m) => m.itemID === hovered) ?? marks[marks.length - 1];
+/**
+ * The readout under a form strip: the pointed-at game, else the latest
+ * (`fallsBackToLatest: false` where rows below already lead with it: a team
+ * page's Results).
+ */
+export function FormReadout({ marks, hovered, fallsBackToLatest = true }: { marks: readonly FormMark[]; hovered: string | null; fallsBackToLatest?: boolean }) {
+  const mark = marks.find((m) => m.itemID === hovered) ?? (fallsBackToLatest ? marks[marks.length - 1] : undefined);
   return (
     <p className={styles.readout} aria-hidden="true">
       {mark?.readout ?? ""}
@@ -56,7 +67,8 @@ function FormReadout({ marks, hovered }: { marks: readonly FormMark[]; hovered: 
   );
 }
 
-const gameHref = (id: string) => `/game/${encodeURIComponent(id)}`;
+/** A result's game, under its league, so it loads off the scoreboards without asking every league. */
+export const itemHref = (item: ScheduleItem): string => gameHref(item.id, item.ref.kind === "espn" ? item.ref.path : item.league);
 
 // MARK: - Team season card
 
@@ -94,7 +106,7 @@ export const TeamSeasonCard = memo(function TeamSeasonCard({ season, sport }: { 
             <span className={styles.formLabel} aria-hidden="true">
               Form
             </span>
-            <FormStrip marks={marks} hovered={hovered} onHover={setHovered} href={gameHref} />
+            <FormStrip marks={marks} hovered={hovered} onHover={setHovered} href={(id) => hrefOf(season.results, id)} />
           </div>
           <FormReadout marks={marks} hovered={hovered} />
         </>
@@ -112,7 +124,17 @@ const spokenDate = new Intl.DateTimeFormat(undefined, { month: "long", day: "num
  * "vs Everton" / "at Bayern", and "W 2–0"; a second line names the
  * competition and the game's details.
  */
-export const TeamResultRow = memo(function TeamResultRow({ item, team, details, keyboard, onHover }: { item: ScheduleItem; team: string; details: boolean; keyboard: boolean; onHover: (id: string) => void }) {
+export const TeamResultRow = memo(function TeamResultRow({ item, team, details, keyboard, lit = false, onHover, linkProps }: {
+  item: ScheduleItem;
+  team: string;
+  details: boolean;
+  keyboard: boolean;
+  /** Lit from elsewhere (its form mark pointed at). */
+  lit?: boolean;
+  onHover: (id: string) => void;
+  /** More for the link (a team page's "Go to {opponent}" menu, GoToMenu.tsx). */
+  linkProps?: React.HTMLAttributes<HTMLAnchorElement>;
+}) {
   const r = teamResult(item, team);
   const story = item.result?.context ?? (details ? item.result?.details : null);
   const second = [item.competition, story].filter(Boolean).join(" · ") || null;
@@ -129,7 +151,7 @@ export const TeamResultRow = memo(function TeamResultRow({ item, team, details, 
     .filter(Boolean)
     .join(", ");
   return (
-    <Link to={gameHref(item.id)} className={styles.teamRow} data-nav-id={item.id} data-keyboard={keyboard} aria-label={spoken} title={tooltip(item)} onPointerEnter={() => onHover(item.id)}>
+    <Link to={itemHref(item)} className={styles.teamRow} data-nav-id={item.id} data-keyboard={keyboard} data-lit={lit || undefined} aria-label={spoken} title={tooltip(item)} onPointerEnter={() => onHover(item.id)} {...linkProps}>
       <span className={styles.teamLine} aria-hidden="true">
         <span className={styles.date}>{shortDayLabel(item.day)}</span>
         <TeamLogo url={r.opponent?.logo ?? null} size={14} />

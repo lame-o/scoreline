@@ -2,12 +2,13 @@
  * The climbing charts' small motions (Celebrations.swift's mark family,
  * LiveCelebrations.swift): the travel spring as a CSS easing, so a dot's
  * rise lands where `passFor` times its knocks; the knock (out, back past
- * center, damped, with a dip); the pop; the moved-up row's wash; the ▼1
- * chip; a flag's colors for the celebration stage. All transform and
+ * center, damped, with a dip); the pop; the glint across a new leader's
+ * place pill; the moved-up row's wash; the ▼1 chip; a flag's colors for the
+ * celebration stage. All transform and
  * opacity, through the Web Animations API, played once and gone.
  */
 import { Icon } from "../../../design/components";
-import { pillOpacity, popScale, sample } from "../../../data/celebrations";
+import { glintProgress, pillOpacity, popScale, sample } from "../../../data/celebrations";
 import { travel } from "../../../data/climbing";
 import { FLAG_PALETTE } from "../../../data/teams";
 import type { StageColors } from "../core/CelebrationStage";
@@ -46,6 +47,23 @@ export function pop(el: Element, peak: number, delay = 0): void {
   el.animate(
     sample((t) => popScale(t, peak), 0.5).map(({ offset, value }) => ({ offset, transform: `scale(${value})` })),
     { duration: 500, delay: delay * 1000, easing: "linear" },
+  );
+}
+
+/**
+ * The glint (Celebrations.swift `.glint`, the Wallet pass's): one band of
+ * light across a surface, waiting 0.3 s for the pop, then sweeping in 0.7 s,
+ * its center from one band-width before the surface to one past it, leaning
+ * 18°. A gradient, never a blend or blur. Full only, never with Reduce
+ * Motion (the caller decides). `band` is the surface's `[data-glint]` child.
+ */
+export function glint(band: HTMLElement, width: number): void {
+  const surface = band.parentElement?.getBoundingClientRect().width ?? 0;
+  const pt = parseFloat(getComputedStyle(document.documentElement).fontSize) / 13 || 1;
+  const w = width * pt;
+  band.animate(
+    sample(glintProgress, 1).map(({ offset, value }) => ({ offset, transform: `translateX(${(-w + (surface + 2 * w) * value - w / 2).toFixed(1)}px) rotate(18deg)`, opacity: value > 0 && value < 1 ? 1 : 0 })),
+    { duration: 1000, easing: "linear" },
   );
 }
 

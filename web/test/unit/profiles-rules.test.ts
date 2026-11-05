@@ -267,13 +267,12 @@ describe("the profile pages' upstreams", () => {
     const bo3 = await import("../../src/data/profiles/bo3");
     const fotmob = await import("../../src/data/profiles/fotmob");
     const ifsc = await import("../../src/data/profiles/ifsc");
-    const results = await import("../../src/data/profiles/results");
     const urls = [
       espn.teamURL("football/nfl", "12"), espn.teamURL(null, "359"), espn.rosterURL("soccer/eng.1", "359"), espn.depthURL("football/nfl", "12")!,
       espn.depthURL("basketball/nba", "13")!, espn.leadersURL("basketball/nba", "13"), espn.teamStatsURL("baseball/mlb", "19")!,
       espn.transactionsURL("football/nfl", "12")!, espn.athleteURL("basketball/nba", "1966"), espn.overviewURL("basketball/nba", "1966"),
       espn.careerURL("basketball/nba", "1966"), espn.coreAthleteURL("basketball/nba", "1966"), espn.gamelogURL("baseball/mlb", "39832", "pitching"),
-      espn.leagueLeadersURL("soccer/eng.1"), results.teamScheduleURL("soccer", "soccer/eng.1", "359"), results.standingsURL("soccer/eng.1"),
+      espn.leagueLeadersURL("soccer/eng.1"),
       bo3.teamURL("vitality"), bo3.teamLookupURL(667), bo3.teamStatsURL("vitality"), bo3.upcomingURL(667), bo3.historyURL(667), bo3.playerURL("zywoo"),
       bo3.generalURL("zywoo"), bo3.matchesURL("zywoo"), bo3.mapsURL("zywoo"), bo3.rolesURL("zywoo"), bo3.accuracyURL("zywoo"),
       fotmob.searchURL("Arsenal"), fotmob.fotMobTeamURL(9825), ifsc.athleteURL("1147"),

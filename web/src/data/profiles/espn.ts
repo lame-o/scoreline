@@ -67,7 +67,17 @@ export function espnSeason(path: string, now: number = Date.now()): { year: numb
 // MARK: - URLs
 
 export const teamURL = (path: string | null, team: string) => `${SITE}/${path ?? "soccer/all"}/teams/${team}`;
-export const rosterURL = (path: string, team: string) => `${SITE}/${path}/teams/${team}/roster`;
+
+/**
+ * Web fix: ESPN pages college rosters at 100 players, by surname, and FBS
+ * rosters run past it (every one tried came back at exactly 100; Miami's is
+ * 117), so the first page dropped everyone from about T to Z: there, the
+ * leading receiver and tackler and the starting kicker, who then also
+ * vanished from Leaders. `limit` asks for the whole roster at once. (The
+ * Mac's ESPNProfiles.rosterURL asks for the first page.) The NFL's (under 80
+ * a team) is left as the Mac asks for it.
+ */
+export const rosterURL = (path: string, team: string) => `${SITE}/${path}/teams/${team}/roster${path.endsWith("college-football") ? "?limit=200" : ""}`;
 
 /** NFL's site chart has names inline; NBA and MLB have core charts; college has none (400). */
 export function depthURL(path: string, team: string, now = Date.now()): string | null {
@@ -591,6 +601,16 @@ export function coreAthleteTeamID(json: JSONValue): string | null {
   return refID(sAt(json, "team", "$ref"), "teams");
 }
 
+/**
+ * The position the game log's strip is chosen by: the link's (the Mac's), else
+ * the bio's once it lands. Web fix: a page opened from its URL, or from a link
+ * that knows no position (a game page's names), chose by none, and a receiver's
+ * log, which carries his rushing too, drew rushing yards.
+ */
+export function logPosition(linkPosition: string | null, athlete: AthleteData | null, core: JSONValue | undefined): string | null {
+  return linkPosition ?? athlete?.bio.positionAbbreviation ?? (core === undefined ? null : sAt(core, "position", "abbreviation"));
+}
+
 /** "2003: Rd 1, Pk 1 (CLE)" → "2003 · Round 1, Pick 1 · CLE". */
 export function formatDraft(text: string | null): string | null {
   if (!text) return text;
@@ -858,7 +878,11 @@ export function collegeTiles(season: StatTable | null, position: string | null):
     pos === "QB" ? [["passingYards", "YDS"], ["passingTouchdowns", "TD"], ["interceptions", "INT"], ["QBRating", "RTG"]]
       : pos === "RB" || pos === "FB" ? [["rushingYards", "YDS"], ["rushingTouchdowns", "TD"], ["rushingAttempts", "CAR"], ["yardsPerRushAttempt", "AVG"]]
         : pos === "WR" || pos === "TE" ? [["receptions", "REC"], ["receivingYards", "YDS"], ["receivingTouchdowns", "TD"], ["yardsPerReception", "AVG"]]
-          : [["totalTackles", "TOT"], ["sacks", "SACK"], ["interceptions", "INT"], ["passesDefended", "PD"]];
+          // Web addition: a kicker's and a punter's lines have no tackles, so the defense's keys left them no tiles
+          // (and no This Season); theirs are the season line's own (the Mac has only the four cases above).
+          : pos === "PK" || pos === "K" ? [["fieldGoalsMade-fieldGoalAttempts", "FG"], ["fieldGoalPct", "FG%"], ["longFieldGoalMade", "LNG"], ["totalKickingPoints", "PTS"]]
+            : pos === "P" ? [["punts", "PUNTS"], ["grossAvgPuntYards", "AVG"], ["netAvgPuntYards", "NET"], ["puntsInside20", "IN20"]]
+              : [["totalTackles", "TOT"], ["sacks", "SACK"], ["interceptions", "INT"], ["passesDefended", "PD"]];
   const tiles = keys.flatMap(([key, lbl]) => {
     const k = season.keys.indexOf(key);
     return k >= 0 && k < row.values.length ? [{ label: lbl, value: row.values[k]!, rank: null }] : [];

@@ -1,14 +1,18 @@
 /**
  * The List view: sections in the user's league order, My Teams first, each
- * collapsible (ScoresView.swift `list`, `sectionView`). Rows show records
- * from the Mac's medium width.
+ * collapsible (ScoresView.swift `list`, `sectionView`). As the list widens
+ * (data/listLayout.ts, ListLayout.swift): rows show records from medium and
+ * a detail lane from large; from 680pt the rows sit two up, compact, each
+ * cell taking its visual row's height. Crossing the split the rows fade
+ * through rather than glide (they'd pass over each other).
  */
 import { useQueries } from "@tanstack/react-query";
 import { LayoutGroup, m } from "motion/react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router";
 import { Icon, SPORT_ICON } from "../../design/components";
-import { revealDelay, spring } from "../../design/motion";
+import { spring } from "../../design/motion";
+import { gridRevealDelay, rowDetailOf, rowWidth, type PanelLayout, type RowDetail } from "../../data/listLayout";
 import { espnPath } from "../../data/leagues";
 import type { League } from "../../data/models";
 import { schedulePath, scopeFor } from "../../data/schedule";
@@ -26,15 +30,23 @@ export interface ScoresListProps {
   readonly hasFollowed: boolean;
   readonly highlight: { readonly id: string | null; readonly keyboard: boolean };
   readonly selectedID: string | null;
-  readonly records: boolean;
+  /** One column or two, and each block's width class (PanelLayout). */
+  readonly layout: PanelLayout;
   readonly stale: boolean;
   readonly onHover: (id: string) => void;
 }
 
 const PREVIEW_LOGOS = 7;
 
-export function ScoresList({ sections, collapsed, quietLeagues, hasFollowed, highlight, selectedID, records, stale, onHover }: ScoresListProps) {
+export function ScoresList({ sections, collapsed, quietLeagues, hasFollowed, highlight, selectedID, layout, stale, onHover }: ScoresListProps) {
   const { toggling, toggle, rearrange } = useSectionToggle();
+  const detail = rowDetailOf(rowWidth(layout));
+  // Crossing the split (one column ⇄ two): the rows fade in at their new places, this render only.
+  const shownColumns = useRef(layout.columns);
+  const reflow = shownColumns.current !== layout.columns;
+  useEffect(() => {
+    shownColumns.current = layout.columns;
+  });
   return (
     <div className={styles.list}>
       <LayoutGroup>
@@ -67,7 +79,9 @@ export function ScoresList({ sections, collapsed, quietLeagues, hasFollowed, hig
                   linking={linking}
                   highlight={highlight}
                   selectedID={selectedID}
-                  records={records}
+                  detail={detail}
+                  columns={layout.columns}
+                  reflow={reflow}
                   stale={stale}
                   onHover={onHover}
                 />
@@ -88,7 +102,9 @@ function SectionRows({
   linking,
   highlight,
   selectedID,
-  records,
+  detail,
+  columns,
+  reflow,
   stale,
   onHover,
 }: {
@@ -96,7 +112,9 @@ function SectionRows({
   linking: boolean;
   highlight: ScoresListProps["highlight"];
   selectedID: string | null;
-  records: boolean;
+  detail: RowDetail;
+  columns: 1 | 2;
+  reflow: boolean;
   stale: boolean;
   onHover: (id: string) => void;
 }) {
@@ -107,7 +125,8 @@ function SectionRows({
     return new Map([...map].map(([id, ids]) => [id, { section: section.id, ids }]));
   }, [linking, section]);
   return (
-    <div className={styles.rows} id={`rows-${section.id}`}>
+    // Keyed by the column count: crossing the split, the rows fade in at their new places (ScoresView.reflow).
+    <div key={columns} className={styles.rows} id={`rows-${section.id}`} data-detail={detail} data-columns={columns} data-reflow={reflow || undefined}>
       {section.failed ? <p className={styles.error} style={{ gridColumn: "1 / -1" }}>{ErrorCopy.inline(section.title)}</p> : null}
       {section.events.map((event, index) => (
           <EventRow
@@ -115,9 +134,9 @@ function SectionRows({
             event={event}
             keyboard={highlight.keyboard && highlight.id === event.id}
             selected={selectedID === event.id}
-            records={records}
+            detail={detail}
             stale={stale}
-            revealDelay={linking ? revealDelay(index) : null}
+            revealDelay={linking ? gridRevealDelay(index, columns) : null}
             travel={travel?.get(event.id) ?? null}
             onHover={onHover}
           />

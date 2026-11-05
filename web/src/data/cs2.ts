@@ -248,12 +248,8 @@ export function coStreamListed(streams: readonly Stream[], handle: string): bool
   });
 }
 
-/** "ohnePixel" for the default, else the handle as typed (ScoreStore.coStreamerName). */
-export const coStreamerName = (handle: string): string => (handle.trim().toLowerCase() === "ohnepixel" ? "ohnePixel" : handle.trim());
-export const coStreamerURL = (handle: string): string | null => {
-  const h = handle.trim().toLowerCase();
-  return /^[a-z0-9_]{2,25}$/.test(h) ? `https://www.twitch.tv/${h}` : null;
-};
+// The co-streamer's name and channel live with the co-stream rules (the scores list's marks read them too).
+export { coStreamerName, coStreamerURL } from "./coStream";
 
 // MARK: - Rosters
 

@@ -495,20 +495,9 @@
   color: var(--label-secondary);
 }
 
-/* The co-streamer's mark: a live glyph in a Twitch-purple ring (CoStreamIcon; the avatar needs decapi.me). */
-.coIcon {
-  display: grid;
-  place-items: center;
-  width: calc(16 * var(--pt));
-  height: calc(16 * var(--pt));
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 calc(1.25 * var(--pt)) var(--twitch);
-  color: var(--twitch);
-}
-
+/* The co-streamer's mark is design/components' CoStreamIcon (their avatar in a Twitch-purple ring, --twitch). */
 .stream,
 .badge {
-  --twitch: light-dark(#7c3aed, #a970ff);
   --twitch-text: light-dark(#6d28d9, #bf94ff);
 }
 

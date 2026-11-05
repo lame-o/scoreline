@@ -682,6 +682,20 @@ export function collegeOrder(rows: readonly StandingsRow[], focus: ReadonlySet<s
   return [...among(match), ...among(followed), ...rows.filter((r) => !match.has(r.group ?? "") && !followed.has(r.group ?? ""))];
 }
 
+/**
+ * A team page's table (TeamPage.swift `standingsWindow`): seven rows of the
+ * team's own group (conference, division) around it, or none when the
+ * table doesn't have it.
+ */
+export function teamWindow<R extends { readonly id: string; readonly group: string | null }>(rows: readonly R[], teamID: string): R[] {
+  const own = rows.find((r) => r.id === teamID);
+  if (!own) return [];
+  const peers = rows.filter((r) => r.group === own.group);
+  const j = peers.findIndex((r) => r.id === teamID);
+  const lo = Math.max(0, Math.min(j - 3, peers.length - 7));
+  return peers.slice(lo, lo + 7);
+}
+
 // MARK: - NBA (Basketball.swift `NBAStandings`)
 
 /** Both conferences, each by playoff seed (ESPN's entries aren't in seed order). */

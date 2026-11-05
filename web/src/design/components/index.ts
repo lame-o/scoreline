@@ -8,6 +8,7 @@ export { SectionTitle, type SectionTitleProps } from "./SectionTitle";
 export { Chip } from "./Chip";
 export { SegmentedControl, type SegmentOption } from "./SegmentedControl";
 export { BackButton, Button, IconButton, PageHeader } from "./Controls";
+export { CoStreamIcon } from "./CoStreamIcon";
 export { LiveDot } from "./LiveDot";
 export { LiveStatus } from "./LiveStatus";
 export { TeamLogo } from "./TeamLogo";

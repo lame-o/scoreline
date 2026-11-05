@@ -1,0 +1,27 @@
+/* The co-streamer's mark: avatar (or a live glyph) in a 1.25pt Twitch-purple ring. */
+.icon {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  color: var(--twitch);
+}
+
+/* The ring sits over the avatar, so the photo's edge never shows past it. */
+.icon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 calc(1.25 * var(--pt)) var(--twitch);
+  pointer-events: none;
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}

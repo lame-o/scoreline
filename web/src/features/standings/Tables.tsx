@@ -105,6 +105,9 @@ function ZoneLine({ label, help }: { label: string | null; help?: string }) {
  */
 export const HighlightWord = createContext<(id: string) => string>(() => "your team");
 
+/** The team whose own page the table is on (TeamPage's table): its row isn't a link to where you are. */
+export const TableSelf = createContext<string | null>(null);
+
 /** A table's groups sit under the page's h1, or under a column's h2 title (GroupColumns): headings never skip a level. */
 const UnderColumnTitle = createContext(false);
 
@@ -122,12 +125,20 @@ function GroupLabel({ title, first }: { title: string; first: boolean }) {
  * layout is measured when `order` changes, never on a resize); a link to the team.
  */
 function TableRow({ id, label, mine, order, children, reveal }: { id: string; label: string; mine: boolean; order: string; children: ReactNode; reveal?: { className?: string; style?: CSSProperties } }) {
+  const self = useContext(TableSelf) === id;
   return (
     <m.div layout="position" layoutDependency={order} transition={spring.travel} className={[styles.rowWrap, reveal?.className].filter(Boolean).join(" ")} style={reveal?.style}>
-      {/* The row opens the team's page (TeamRowLink); a dwell prefetches it. */}
-      <TeamLink team={teamRef({ id, name: "" })} variant="plain" className={styles.row} dataset={{ mine }} label={label} draggable={false}>
-        {children}
-      </TeamLink>
+      {self ? (
+        // On the team's own page its row is where you are: words, not a link (TeamPage.swift: "this team's own row does nothing").
+        <div className={styles.row} data-mine={mine} role="group" aria-label={label}>
+          {children}
+        </div>
+      ) : (
+        // The row opens the team's page (TeamRowLink); a dwell prefetches it.
+        <TeamLink team={teamRef({ id, name: "" })} variant="plain" className={styles.row} dataset={{ mine }} label={label} draggable={false}>
+          {children}
+        </TeamLink>
+      )}
     </m.div>
   );
 }

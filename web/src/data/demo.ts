@@ -652,9 +652,50 @@ async function climbRound(path: string): Promise<unknown> {
   return fixture("ifsc-round-results.json");
 }
 
+/** "Scheduled for 11/5/26, 6:00 AM" as YouTube writes it for a visitor without its zone preference (Pacific). */
+function youtubeScheduled(ms: number): string {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", year: "2-digit", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" }).formatToParts(ms);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `Scheduled for ${get("month")}/${get("day")}/${get("year")}, ${get("hour")}:${get("minute")}\u202f${get("dayPeriod")}`;
+}
+
+/**
+ * World Climbing on YouTube: the lead finals live now (the demo's round, so its
+ * row wears YouTube's mark and its page offers the stream), and the lead
+ * semi-finals on the streams tab (the season page times the round and gives
+ * it a Watch button; the harness doesn't mind that they're over).
+ */
+function youtubeDemo(path: string): string | undefined {
+  const now = Date.now();
+  if (path === "/@WorldClimbing/live") {
+    return `<link rel="canonical" href="https://www.youtube.com/watch?v=DmfiYuZ7PMg"><meta name="title" content="Lead finals | Santiago 2026">"isLiveNow":true,"startTimestamp":"${new Date(now - 40 * 60_000).toISOString()}"`;
+  }
+  if (path === "/@WorldClimbing/streams") {
+    const lockup = (id: string, title: string, when: number) =>
+      `{"richItemRenderer":{"content":{"lockupViewModel":{"contentId":"${id}","metadata":{"lockupMetadataViewModel":{"title":{"content":"${title}"},"metadata":{"contentMetadataViewModel":{"metadataRows":[{"metadataParts":[{"text":{"content":"12 waiting"}},{"text":{"content":"${youtubeScheduled(when)}"}}]}]}}}}}}}}`;
+    return `<script>var ytInitialData = {"contents":[${lockup("demoLeadSemis", "Lead semi-finals | Santiago 2026", Math.floor((now - 6 * 3_600_000) / 900_000) * 900_000)}]};</script>`;
+  }
+  return undefined;
+}
+
+/**
+ * The co-streamer on Twitch (decapi.me): live in Counter-Strike with a watch
+ * party of the demo's live match in the title, so its row and tile wear the
+ * mark and its page names them. No avatar: the ring's live glyph stands in.
+ */
+function decapiDemo(path: string): string | undefined {
+  if (path.startsWith("/twitch/uptime/")) return "1 hour, 12 minutes";
+  if (path.startsWith("/twitch/title/")) return "LIQUID vs AURORA watchparty !major";
+  if (path.startsWith("/twitch/game/")) return "Counter-Strike";
+  if (path.startsWith("/twitch/avatar/")) return "User not found";
+  return undefined;
+}
+
 const demo: Fetcher = async (url) => {
   const u = new URL(url);
   const path = u.pathname;
+  if (u.host === "www.youtube.com") return youtubeDemo(path);
+  if (u.host === "decapi.me") return decapiDemo(path);
   // The live NBA and soccer games (demoCourtSoccer.ts).
   const replayed = await courtSoccerDemo(u);
   if (replayed !== undefined) return replayed;
