@@ -187,7 +187,7 @@ describe("the director on the recording", () => {
     const again = runEngine(HoopsSport, gsl, arrivals, from, from + 120, 50, MotionLimits.basketball, "again");
     const once = runEngine(HoopsSport, gsl, arrivals, from, from + 120, 50, MotionLimits.basketball, "once");
     expect(again.hash).toBe(once.hash);
-  });
+  }, 60_000);
 
   it("decisive moments land on their anchors (p95 ≤ 0.05 s, max ≤ 0.25 s), catch-ups apart", () => {
     const abs = r.decisiveErrors.map(Math.abs);

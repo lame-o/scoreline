@@ -346,8 +346,10 @@ export class TheaterSession<Clip extends TheaterClip, Play, Facts, Context = num
    * The clock was updated at `now` (its events since): T follows it. True
    * when that calls for a new plan (a hold began or ended, a skip, a jump).
    */
-  clockDidUpdate(updated: TheaterClock, events: readonly ClockEvent[], now: PTime): boolean {
-    if (!updated.started) return false;
+  clockDidUpdate(given: TheaterClock, events: readonly ClockEvent[], now: PTime): boolean {
+    if (!given.started) return false;
+    // A copy, as Swift's struct is: a caller that re-plans its clock in place mustn't move the pieces T ran on.
+    const updated = given.clone?.() ?? given;
     const shiftBefore = this.time.shift;
     this.time.advance(now, this.clock ?? updated, events, updated);
     this.clock = updated;

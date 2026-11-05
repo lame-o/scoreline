@@ -47,6 +47,8 @@ export interface TheaterClock {
   readonly started: boolean;
   readonly events: readonly ClockEvent[];
   p(t: PTime): PTime;
+  /** A copy (PresentationClock.clone): the session keeps one, as Swift's struct is kept. Absent: the clock never changes in place. */
+  clone?(): TheaterClock;
 }
 
 /** Two events are the same event (Swift's `Equatable` on the enum). */
