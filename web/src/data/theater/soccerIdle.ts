@@ -29,6 +29,7 @@
  *     const idle = soccerIdle({ event, touch, scene, period, lineups, flipped: false });
  *     const script = soccerIdleScript(idle); script.idleTime(elapsed);
  */
+import { intervalName } from "../broadcast/presentedGame";
 import { at, num, type JSONValue } from "../json";
 import { CameraFrame } from "../mlb/playCamera";
 import { fieldPoint, type Point } from "../mlb/theaterField";
@@ -1215,7 +1216,7 @@ export const SoccerStatus = {
         return { tag: "Second half", tint: null };
       case "halftime":
         // One spelling, the hero's (PresentedGame.interval): extra time's break says so.
-        return { tag: e.period === 3 ? "Half-time, extra time" : "Half-time", tint: null };
+        return { tag: intervalName(e.period === 3 ? 3 : 1, "soccer", 2), tint: null };
       case "fullTime":
         return { tag: "Full time", tint: null };
     }

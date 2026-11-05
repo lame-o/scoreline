@@ -202,3 +202,31 @@ test.describe("the pitch on the director", () => {
     expect(await frames(page)).toBe(before);
   });
 });
+
+test.describe("the game page, while it broadcasts", () => {
+  test("the court is the theater on the engine, reading the page's broadcast; without it, today's", async ({ page }) => {
+    test.setTimeout(120_000);
+    const errors = watchErrors(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.addInitScript(() => {
+      (window as unknown as { __theaterFrames: number[] }).__theaterFrames = [];
+    });
+    // The harness's NBA replay restamped onto its clock (`&broadcast`): the page broadcasts, so the court is directed.
+    await page.goto("/game/espn-401909869?demo&league=nba&broadcast&nba=10");
+    const directed = page.locator("[data-theater='basketball'][data-directed]");
+    await directed.waitFor({ timeout: 30_000 });
+    await directed.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(4000);
+    expect(await inked(page)).toBeGreaterThan(0.3);
+    expect(await frames(page)).toBeGreaterThan(0);
+    // The director handed the broadcast its anchors: the plays it tells, and when.
+    const planned = await page.evaluate(() => (window as unknown as { __director?: { chain: { plans: unknown[] } } }).__director?.chain.plans.length ?? 0);
+    expect(planned).toBeGreaterThan(0);
+    await directed.screenshot({ path: join(OUT, "directed-page-nba.png") });
+    expect(errors).toEqual([]);
+    // The harness without `&broadcast`: today's theater.
+    await page.goto("/game/espn-401909869?demo&league=nba&nba=10");
+    await page.locator("[data-theater='basketball']").waitFor({ timeout: 30_000 });
+    await expect(page.locator("[data-theater][data-directed]")).toHaveCount(0);
+  });
+});

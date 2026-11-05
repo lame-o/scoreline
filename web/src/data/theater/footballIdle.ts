@@ -30,6 +30,8 @@
  *     const idle = footballIdleMake({ play, stoppage, rest, offense, down, kickoff: false, flipped: false });
  *     const script = idleScript(idle); script.idleTime(elapsed);
  */
+import { intervalName } from "../broadcast/presentedGame";
+import { stoppage, stoppageWords, Stoppages } from "../broadcast/stoppage";
 import { ordinal } from "../format";
 import { at, int, num, str, type JSONValue } from "../json";
 import type { FootballTeams } from "../liveFeeds/football";
@@ -47,36 +49,15 @@ import { TheaterQuiet } from "./theaterQuiet";
 
 export type StoppageKind = "timeout" | "official" | "twoMinuteWarning" | "endOfPeriod" | "halftime" | "endOfGame";
 
-/**
- * A stop in play as ESPN names a play's type (BroadcastLanes.stoppage's
- * football rows: the one table behind the hero, the docked bar, the list
- * row and the theater's tag), the kinds a football stoppage reads. (pure)
- */
-function laneStoppage(type: string): "timeout" | "officialTimeout" | "twoMinuteWarning" | null {
-  switch (type.toLowerCase()) {
-    case "official timeout":
-      return "officialTimeout";
-    case "timeout":
-    case "full timeout":
-    case "short timeout":
-    case "reset timeout":
-      return "timeout";
-    case "two-minute warning":
-      return "twoMinuteWarning";
-    default:
-      return null;
-  }
-}
-
-/** A stoppage's words (GameTimeline.swift `Stoppage.words`). */
-const STOPPAGE_WORDS = { timeout: "Timeout", officialTimeout: "Official timeout", twoMinuteWarning: "Two-minute warning" } as const;
+/** A stoppage's words (GameTimeline.swift `Stoppage.words`: the broadcast's one table). */
+const STOPPAGE_WORDS = {
+  timeout: stoppageWords(Stoppages.timeout),
+  officialTimeout: stoppageWords(Stoppages.officialTimeout),
+  twoMinuteWarning: stoppageWords(Stoppages.twoMinuteWarning),
+} as const;
 
 /** "Halftime", "End of 3rd", "End of OT" (PresentedGame.interval for football, four periods in regulation). */
-function interval(ended: number, regulation = 4): string {
-  if (ended === regulation / 2) return "Halftime";
-  const n = ended - regulation;
-  return `End of ${ended <= regulation ? ordinal(ended) : n === 1 ? "OT" : `${n}OT`}`;
-}
+const interval = (ended: number, regulation = 4): string => intervalName(ended, "football", regulation);
 
 /**
  * A stop in play as ESPN's play-by-play posts it (entries that aren't
@@ -109,7 +90,8 @@ export function parseStoppage(item: JSONValue, teams: FootballTeams): FootballSt
   const period = int(at(item, "period", "number")) ?? null;
   const type = str(at(item, "type", "text")) ?? "";
   let kind: StoppageKind;
-  switch (laneStoppage(type)) {
+  // A stop in play as ESPN names a play's type (BroadcastLanes.stoppage: the one table behind the hero, the docked bar, the list row and the tag).
+  switch (stoppage(type)?.kind) {
     case "timeout":
       kind = "timeout";
       break;
