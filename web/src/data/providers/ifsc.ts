@@ -20,6 +20,17 @@ export const IFSC_BASE = "https://ifsc.results.info";
 const ROOT = `${IFSC_BASE}/api/v1/`;
 /** World Cups & World Championships. */
 const WORLD_CUP_LEAGUE = 1;
+/** "Masters and Promotional Events": World Climbing's own showcases (the Nations Grand Finale, the Challenger) sit here. */
+const PROMOTIONAL_LEAGUE = 13;
+
+/**
+ * A showcase World Climbing runs itself, filed under its promotional league
+ * ("World Climbing Nations Grand Finale Fukuoka 2026"), not someone else's
+ * masters or exhibition event.
+ */
+export function isShowcase(leagueName: string | undefined, eventName: string): boolean {
+  return leagueName === "Masters and Promotional Events" && eventName.startsWith("World Climbing ");
+}
 const HOUR = 3_600_000;
 
 const abs = (path: string) => resolveURL(path, IFSC_BASE);
@@ -29,13 +40,19 @@ const abs = (path: string) => resolveURL(path, IFSC_BASE);
 export async function fetchClimbing(countries: readonly string[], fetcher: Fetcher, signal?: AbortSignal, now = Date.now()): Promise<ScoreEvent[]> {
   const root = await fetcher(ROOT, { signal });
   const seasonPath = str(at(root, "current", "url"));
-  const leagueSeason = int(at(arr(at(root, "current", "leagues")).find((l) => int(at(l, "league_id")) === WORLD_CUP_LEAGUE), "id"));
-  if (!seasonPath || leagueSeason == null) return [];
+  const leagues = arr(at(root, "current", "leagues"));
+  const leagueSeason = (id: number) => int(at(leagues.find((l) => int(at(l, "league_id")) === id), "id"));
+  const worldCup = leagueSeason(WORLD_CUP_LEAGUE);
+  const promotional = leagueSeason(PROMOTIONAL_LEAGUE);
+  if (!seasonPath || worldCup == null) return [];
 
   const season = await fetcher(abs(seasonPath), { signal });
-  const comps = arr(at(season, "events")).filter(
-    (e) => int(at(e, "league_season_id")) === leagueSeason && !(str(at(e, "event")) ?? "").toLowerCase().includes("cancelled"),
-  );
+  const comps = arr(at(season, "events")).filter((e) => {
+    const name = str(at(e, "event")) ?? "";
+    if (name.toLowerCase().includes("cancelled")) return false;
+    const league = int(at(e, "league_season_id"));
+    return league === worldCup || (league != null && league === promotional && isShowcase("Masters and Promotional Events", name));
+  });
 
   const output: ScoreEvent[] = [];
   // Events underway, or finished within the last day, are shown round by round.
@@ -192,10 +209,10 @@ export async function categoryEvent(
 /** Swift's `String.capitalized` (data/wallState.ts, which tiles read without this module's season code). */
 export { capitalized };
 
-/** "World Climbing Series Santiago 2026" → "Santiago 2026" (Providers.swift `IFSC.shortName`). */
+/** "World Climbing Series Santiago 2026" → "Santiago 2026" (Providers.swift `IFSC.shortName`); "World Climbing Nations Grand Finale Fukuoka 2026" → "Nations Grand Finale Fukuoka 2026". */
 export function roundEventName(name: string | undefined): string {
   if (!name) return "";
-  for (const prefix of ["IFSC World Cup ", "World Climbing Series ", "IFSC "]) {
+  for (const prefix of ["IFSC World Cup ", "World Climbing Series ", "IFSC ", "World Climbing "]) {
     if (name.startsWith(prefix)) return name.slice(prefix.length);
   }
   return name;
@@ -252,15 +269,17 @@ export function competitionShortName(name: string): string {
   return s || name;
 }
 
-/** World Cups and the World Championships (plus the Olympics), without cancelled, youth, continental or para events. */
+/** World Cups and the World Championships (plus the Olympics and World Climbing's showcases), without cancelled, youth, continental or para events. */
 export function parseSeason(season: JSONValue): ClimbingCompetition[] {
   // A season's leagues carry only a name and a URL; the ID is the URL's last part.
   const worldCup = new Set<number>();
   const games = new Set<number>();
+  const leagueNames = new Map<number, string>();
   for (const league of arr(at(season, "leagues"))) {
     const name = str(at(league, "name"));
     const id = Number(str(at(league, "url"))?.split("/").pop());
     if (!name || !Number.isInteger(id)) continue;
+    leagueNames.set(id, name);
     if (name.startsWith("World Cups")) worldCup.add(id);
     if (name === "Games") games.add(id);
   }
@@ -273,7 +292,8 @@ export function parseSeason(season: JSONValue): ClimbingCompetition[] {
       const olympic = games.has(leagueSeason) && name.includes("Olympic Games");
       const first = dayKeyFromISO(str(at(e, "local_start_date")));
       const last = dayKeyFromISO(str(at(e, "local_end_date")));
-      if (!(worldCup.has(leagueSeason) || olympic) || name.toLowerCase().includes("cancelled") || bool(at(e, "is_paraclimbing_event")) === true || !first || !last) {
+      const showcase = isShowcase(leagueNames.get(leagueSeason), name);
+      if (!(worldCup.has(leagueSeason) || olympic || showcase) || name.toLowerCase().includes("cancelled") || bool(at(e, "is_paraclimbing_event")) === true || !first || !last) {
         return [];
       }
       const lanes: string[] = [];

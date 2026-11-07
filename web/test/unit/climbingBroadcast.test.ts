@@ -10,7 +10,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { applyBroadcast, broadcastFor, broadcastInterval, competitionNear, covers, liveOnYouTube, type ClimbingBroadcast } from "../../src/data/climbingBroadcast";
+import { applyBroadcast, broadcastFor, broadcastInterval, competitionNear, covers, liveOnYouTube, streamedRound, type ClimbingBroadcast } from "../../src/data/climbingBroadcast";
 import type { ScoreEvent } from "../../src/data/models";
 import { parseEvent, parseSeasonEvents } from "../../src/data/seasons";
 import { attachStreams, parseLivePage, parseStreamsPage, scheduledWall, slotStart, streamOffset, wallToInstant, zoneOffset } from "../../src/data/youtube";
@@ -122,7 +122,7 @@ describe("rounds timed by their streams (Streams.attach)", () => {
 
 describe("the scores list's rows (ScoreStore.applyBroadcast)", () => {
   const now = Date.parse("2026-10-25T12:30:00Z");
-  const row = (over: Partial<ScoreEvent> & { round?: string | null; category?: string; summary?: string }): ScoreEvent => ({
+  const row = (over: Partial<ScoreEvent> & { round?: string | null; category?: string; summary?: string; eventName?: string; resultURL?: string }): ScoreEvent => ({
     id: over.id ?? "ifsc-11360",
     content: { kind: "field", title: over.category ?? "Lead Women", summary: over.summary ?? "Semi-final next" },
     state: over.state ?? "scheduled",
@@ -130,7 +130,7 @@ describe("the scores list's rows (ScoreStore.applyBroadcast)", () => {
     detail: null,
     caption: "Santiago",
     link: null,
-    ref: { kind: "climbing", eventID: 1489, category: over.category ?? "Lead Women", resultURL: null, round: over.round === undefined ? "Semi-final" : over.round, eventName: "Santiago 2026", nextURL: null },
+    ref: { kind: "climbing", eventID: 1489, category: over.category ?? "Lead Women", resultURL: over.resultURL ?? null, round: over.round === undefined ? "Semi-final" : over.round, eventName: over.eventName ?? "Santiago 2026", nextURL: null },
     stage: null,
     clock: null,
     possession: null,
@@ -166,6 +166,26 @@ describe("the scores list's rows (ScoreStore.applyBroadcast)", () => {
     expect(applyBroadcast([early], later, now)[0]).toMatchObject({ state: "scheduled", start: later.start, content: { summary: "Semi-final next" } });
     const leading = row({ state: "live", summary: "Semi-final · Leader 🇸🇮 J. Garnbret" });
     expect(applyBroadcast([leading], later, now)[0]).toBe(leading);
+  });
+
+  it("moves a row IFSC left waiting on to the round its stream is showing (Fukuoka, Nov 7)", () => {
+    const fukuoka = { category: "Boulder Mixed", round: "Qualification", summary: "Qualification next", eventName: "Nations Grand Finale Fukuoka 2026" };
+    const stream: ClimbingBroadcast = { ...onNow, title: "Boulder Mixed Team finals | Fukuoka 2026" };
+    expect(covers(stream.title, "Boulder Mixed", "Final", fukuoka.eventName)).toBe(true);
+    expect(streamedRound(row(fukuoka), stream)).toBe("Final");
+    const [live] = applyBroadcast([row(fukuoka)], stream, now);
+    expect(live).toMatchObject({ state: "live", detail: "Live", content: { summary: "Final" }, ref: { round: "Final" } });
+    expect(liveOnYouTube(live!, stream)).toBe(true);
+    // The same object from one recompute to the next.
+    const one = [row(fukuoka)];
+    expect(applyBroadcast(one, stream, now)[0]).toBe(applyBroadcast(one, stream, now + 60_000)[0]);
+    // Not a row whose own rounds IFSC is keeping, not before the stream is on, not backwards, not the other gender's.
+    expect(streamedRound(row({ ...fukuoka, resultURL: "/api/v1/category_rounds/1/results" }), stream)).toBeNull();
+    expect(streamedRound(row(fukuoka), { ...stream, isLive: false })).toBeNull();
+    expect(streamedRound(row({ ...fukuoka, round: "Final" }), { ...stream, title: "Boulder qualification | Fukuoka 2026" })).toBeNull();
+    expect(streamedRound(row({ ...fukuoka, category: "Boulder Women" }), { ...stream, title: "Boulder Men semi-finals | Fukuoka 2026" })).toBeNull();
+    expect(streamedRound(row({ ...fukuoka, category: "Boulder Men" }), { ...stream, title: "Boulder Women semi-finals | Fukuoka 2026" })).toBeNull();
+    expect(streamedRound(row({ ...fukuoka, category: "Lead Mixed" }), stream)).toBeNull();
   });
 
   it("leaves finals, rows it doesn't cover and unchanged lists exactly as they were", () => {

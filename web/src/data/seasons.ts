@@ -21,7 +21,7 @@ import { arr, at, bool, int, str, text, type JSONValue } from "./json";
 import { abbreviate, TIER } from "./providers/counterStrike";
 import { parseDate } from "./providers/espn";
 import { BO3_API } from "./providers/schedule";
-import { capitalized, competitionShortName } from "./providers/ifsc";
+import { capitalized, competitionShortName, isShowcase } from "./providers/ifsc";
 import { scheduleTeam, type ClimbingRound, type RoundLink, type ScheduleTeam, type SeasonCategory, type SeasonEvent, type SeasonEventStatus, type PodiumAthlete } from "./schedule";
 import { disciplinesOf } from "./scoreboard";
 import { flagFromIOC, flagFromISO, isoFromIOC } from "./teams";
@@ -126,15 +126,17 @@ export function ifscStatus(startsAt: number | null, endsAt: number | null, now: 
   return now <= endsAt ? "live" : "finished";
 }
 
-/** World Cups and the World Championships (plus the Olympics), without cancelled, youth, continental or para events. */
+/** World Cups and the World Championships (plus the Olympics and World Climbing's showcases), without cancelled, youth, continental or para events. */
 export function parseSeasonEvents(json: JSONValue, now: number): SeasonEvent[] {
   // A season's leagues carry only a name and a URL; the ID is the URL's last part.
   const worldCup = new Set<number>();
   const games = new Set<number>();
+  const leagueNames = new Map<number, string>();
   for (const league of arr(at(json, "leagues"))) {
     const name = str(at(league, "name"));
     const id = Number(str(at(league, "url"))?.split("/").pop());
     if (!name || !Number.isInteger(id)) continue;
+    leagueNames.set(id, name);
     if (name.startsWith("World Cups")) worldCup.add(id);
     if (name === "Games") games.add(id);
   }
@@ -147,7 +149,8 @@ export function parseSeasonEvents(json: JSONValue, now: number): SeasonEvent[] {
       const olympic = games.has(leagueSeason) && name.includes("Olympic Games");
       const first = dayKeyFromISO(str(at(e, "local_start_date")));
       const last = dayKeyFromISO(str(at(e, "local_end_date")));
-      if (!(worldCup.has(leagueSeason) || olympic) || name.toLowerCase().includes("cancelled") || bool(at(e, "is_paraclimbing_event")) === true || !first || !last) return [];
+      const showcase = isShowcase(leagueNames.get(leagueSeason), name);
+      if (!(worldCup.has(leagueSeason) || olympic || showcase) || name.toLowerCase().includes("cancelled") || bool(at(e, "is_paraclimbing_event")) === true || !first || !last) return [];
       const startsAt = parseDate(str(at(e, "starts_at")));
       const endsAt = parseDate(str(at(e, "ends_at")));
       return [

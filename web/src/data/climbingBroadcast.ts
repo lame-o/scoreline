@@ -39,7 +39,7 @@ const DAY = 86_400_000;
  */
 export function covers(title: string, category: string, round: string | null, eventName: string): boolean {
   const t = title.toLowerCase();
-  const city = eventName.toLowerCase().split(" ").filter(Boolean)[0];
+  const city = cityOf(eventName);
   if (!city || !t.includes(city)) return false;
   const discipline = category.toLowerCase().split(" ").filter(Boolean)[0];
   if (discipline && !t.includes(discipline)) {
@@ -52,6 +52,45 @@ export function covers(title: string, category: string, round: string | null, ev
   if (r.includes("final")) return t.includes("final") && !t.includes("semi");
   if (r.includes("qualif")) return t.includes("qualif");
   return true;
+}
+
+/** The city in an event's name: the word before its year ("Nations Grand Finale Fukuoka 2026" → "fukuoka"), else its first word. */
+function cityOf(eventName: string): string | undefined {
+  const words = eventName.toLowerCase().split(" ").filter(Boolean);
+  return words.length >= 2 && /^\d{4}$/.test(words.at(-1)!) ? words.at(-2) : words[0];
+}
+
+/** A round's place in a competition: qualification, then semi-final, then final. */
+function stage(name: string): number | null {
+  const n = name.toLowerCase();
+  if (n.includes("semi")) return 1;
+  if (n.includes("qualif")) return 0;
+  if (n.includes("final")) return 2;
+  return null;
+}
+
+const ROUND_NAMES = ["Qualification", "Semi-final", "Final"] as const;
+
+/**
+ * The later round a live stream shows for a row IFSC still has waiting on
+ * an earlier one, as IFSC names it: "Boulder Mixed Team finals | Fukuoka
+ * 2026" over a Boulder Mixed row with nothing started (IFSC left every
+ * Fukuoka round "pending" through its finals). Only for a row with no round
+ * underway or done, and not across genders: the stream is the better word.
+ */
+export function streamedRound(event: ScoreEvent, b: ClimbingBroadcast): string | null {
+  const ref = event.ref;
+  if (!b.isLive || ref?.kind !== "climbing" || event.state !== "scheduled" || ref.resultURL != null || ref.round == null) return null;
+  const streamed = stage(b.title);
+  const waiting = stage(ref.round);
+  if (streamed == null || waiting == null || streamed <= waiting) return null;
+  if (!covers(b.title, ref.category, null, ref.eventName)) return null;
+  const t = b.title.toLowerCase();
+  const c = ref.category.toLowerCase();
+  for (const gender of ["women", "men"]) {
+    if (new RegExp(`\\b${gender}\\b`).test(t) && !new RegExp(`\\b${gender}\\b`).test(c)) return null;
+  }
+  return ROUND_NAMES[streamed]!;
 }
 
 /** The stream for a climbing row, if World Climbing's current or next stream covers it (ScoreStore.broadcast(for:)). */
@@ -106,13 +145,20 @@ export function applyBroadcast(events: readonly ScoreEvent[], b: ClimbingBroadca
 const overlays = new WeakMap<ScoreEvent, ScoreEvent>();
 
 function overlay(event: ScoreEvent, b: ClimbingBroadcast, now: number): ScoreEvent {
-  if (event.state === "final" || !broadcastFor(event, b) || event.ref?.kind !== "climbing" || event.content.kind !== "field") return event;
-  const out = overlaid(event, event.ref.round, event.content, b, now);
+  // IFSC stuck before a round the stream is showing: the row moves on to it.
+  const advanced = streamedRound(event, b);
+  const row = advanced != null && event.ref?.kind === "climbing" ? { ...event, ref: { ...event.ref, round: advanced, nextURL: null } } : event;
+  if (row.state === "final" || !broadcastFor(row, b) || row.ref?.kind !== "climbing" || row.content.kind !== "field") return event;
+  const out = overlaid(row, row.ref.round, row.content, b, now);
   if (out === event) return event;
   const kept = overlays.get(event);
-  if (kept && kept.state === out.state && kept.start === out.start && kept.detail === out.detail && sameContent(kept, out)) return kept;
+  if (kept && kept.state === out.state && kept.start === out.start && kept.detail === out.detail && roundOf(kept) === roundOf(out) && sameContent(kept, out)) return kept;
   overlays.set(event, out);
   return out;
+}
+
+function roundOf(e: ScoreEvent): string | null {
+  return e.ref?.kind === "climbing" ? e.ref.round : null;
 }
 
 function sameContent(a: ScoreEvent, b: ScoreEvent): boolean {

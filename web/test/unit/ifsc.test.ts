@@ -4,6 +4,7 @@ import {
   categoryEvent,
   competitionShortName,
   fetchClimbing,
+  isShowcase,
   opener,
   openerEvent,
   parseSeason,
@@ -61,10 +62,36 @@ describe("climbing (IFSC)", () => {
     expect(e!.ref).toMatchObject({ kind: "climbing", eventID: 1489, category: "Speed Men", eventName: "Santiago 2026" });
   });
 
+  it("shows World Climbing's own showcases, filed as promotional events (Fukuoka, Nov 7)", async () => {
+    // As IFSC served them during the Boulder Mixed Team finals: every round still "pending", no results.
+    const round = (id: number, name: string) => ({ name, status: "pending", status_as_of: "2026-11-05 01:28:54 UTC", result_url: `/api/v1/category_rounds/${id}/results` });
+    const fetcher = replay([
+      [/\/api\/v1\/$/, { current: { url: "/api/v1/seasons/38", leagues: [{ league_id: 1, id: 457 }, { league_id: 13, id: 465 }] } }],
+      [
+        /\/seasons\/38$/,
+        {
+          events: [
+            { event_id: 1541, event: "World Climbing Nations Grand Finale Fukuoka 2026", league_season_id: 465, starts_at: "2026-11-06 15:00:00 UTC", ends_at: "2026-11-08 14:59:00 UTC" },
+            { event_id: 1540, event: "World Climbing Para Series Fukuoka 2026", league_season_id: 469, starts_at: "2026-11-04 15:00:00 UTC", ends_at: "2026-11-06 14:59:00 UTC" },
+          ],
+        },
+      ],
+      [/\/events\/1541$/, { d_cats: [{ dcat_name: "BOULDER Mixed", category_rounds: [round(11543, "Qualification"), round(11544, "Final")] }] }],
+    ]);
+    const list = await fetchClimbing([], fetcher, undefined, Date.parse("2026-11-07T06:20:00Z"));
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ id: "ifsc-1541-0", state: "scheduled", caption: "Nations Grand Finale Fukuoka 2026", content: { title: "Boulder Mixed" } });
+    expect(list[0]!.ref).toMatchObject({ kind: "climbing", eventID: 1541, round: "Qualification", resultURL: null, eventName: "Nations Grand Finale Fukuoka 2026" });
+    // Someone else's masters or exhibition event in the same league isn't World Climbing's.
+    expect(isShowcase("Masters and Promotional Events", "Melloblocco Masters 2026")).toBe(false);
+    expect(isShowcase("IFSC Paraclimbing", "World Climbing Para Series Fukuoka 2026")).toBe(false);
+  });
+
   it("names things as the Mac app does", () => {
     expect(capitalized("SPEED Men")).toBe("Speed Men");
     expect(capitalized("BOULDER&LEAD Women")).toBe("Boulder&Lead Women");
     expect(roundEventName("World Climbing Series Santiago 2026")).toBe("Santiago 2026");
+    expect(roundEventName("World Climbing Nations Grand Finale Fukuoka 2026")).toBe("Nations Grand Finale Fukuoka 2026");
     expect(competitionShortName("World Climbing Championship Brno 2027")).toBe("Brno");
     expect(competitionShortName("Olympic Games LA28")).toBe("LA28");
   });
